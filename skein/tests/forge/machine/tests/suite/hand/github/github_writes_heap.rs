@@ -1,8 +1,8 @@
 //! Write prerequisites and pending requests stay under scenario ceilings.
-use super::{fixtures as f, github_files::CallHeap};
-use alloc::boxed::Box;
 use skein_forge::api::{Answer, Error, Op, Read, Write};
+use skein_forge_machine_world::hand::{self as f, CallHeap};
 use skein_lib::{Decimal, Duration, List, Writer};
+use std::boxed::Box;
 
 fn warm() -> f::Harness {
     let mut h = f::github_calls();
@@ -30,7 +30,7 @@ fn hear(h: &mut f::Harness, body: &[u8], heap: &mut CallHeap) {
     heap.count(span.end());
 }
 
-#[expect(clippy::print_stdout, clippy::disallowed_macros, reason = "report measured call peaks for the heap ledger")]
+#[expect(clippy::print_stdout, reason = "report measured call peaks for the heap ledger")]
 fn fits(heap: &CallHeap, label: &str, ceiling: u64) {
     assert!(u64::try_from(heap.peak).expect("positive peak") <= ceiling, "{label}: {} > {ceiling}", heap.peak);
     println!("{label}: peak {} bytes <= ceiling {ceiling}", heap.peak);
