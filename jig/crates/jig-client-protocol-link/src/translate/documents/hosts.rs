@@ -72,21 +72,7 @@ pub(crate) fn host_run_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resul
     let mut rows = List::with_capacity(bound);
     let mut sum = 0_u64;
     for _ in 0..=bound {
-        let item = match skein_codec::piece::split(&mut reader) {
-            Ok(value) => value,
-            Err(reason) => return Err(piece_problem(reason)),
-        };
-        let Some(item) = item else {
-            return Ok(rows);
-        };
-        sum = sum
-            .checked_add(u64::try_from(item.len()).expect("piece fits u64"))
-            .ok_or(too_large())?
-            .checked_add(4)
-            .ok_or(too_large())?;
-        if sum > limits.client().document_bytes {
-            return Err(too_large());
-        }
+        let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::HostRun::decode(limits.wire(), &mut Reader::new(&item))?;
         let row = host_run_fields(&row, limits)?;
         if rows.push(row).is_err() {
