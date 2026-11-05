@@ -566,7 +566,6 @@ temper-fake-checkout = { path = "temper/tests/fake-checkout" }
 temper-worker-checkout-world = { path = "temper/tests/worker/checkout" }
 
 # hearth
-hearth-render-world = { path = "hearth/tests/render" }
 hearth-service-builder = { path = "hearth/crates/hearth-service-builder" }
 hearth = { path = "hearth/crates/hearth" }
 hearth-protocol-builder = { path = "hearth/crates/hearth-protocol-builder" }

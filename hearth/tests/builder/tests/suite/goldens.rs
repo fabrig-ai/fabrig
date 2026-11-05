@@ -1,5 +1,5 @@
 use hearth_builder_world::fixtures;
-use hearth_render_world::golden;
+use hearth_test_render::golden;
 #[test]
 fn merge_renders_what_its_expected_files_and_witnesses_say() {
     fixtures::check_golden("merge", "", &[]);

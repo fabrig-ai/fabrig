@@ -852,7 +852,7 @@ pair = "fuzzy"
 package = "hearth-git-world"
 filter = "binary(=suite)"
 
-# Render suite and fuzzy helpers; builder suite/properties.rs also reads generated repositories.
+# Render suite and fuzzy helpers.
 [[fixture]]
 paths = [
     "hearth/tests/render/src/fixtures/*.rs",
@@ -864,8 +864,4 @@ filter = "binary(=suite)"
 [[fixture.reader]]
 pair = "fuzzy"
 package = "hearth-render-world"
-filter = "binary(=suite)"
-[[fixture.reader]]
-pair = "default"
-package = "hearth-builder-world"
 filter = "binary(=suite)"
