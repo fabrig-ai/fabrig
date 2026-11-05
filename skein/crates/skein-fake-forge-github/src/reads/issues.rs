@@ -5,7 +5,7 @@ use crate::{
 };
 use skein_fake_forge_domain::api as a;
 use skein_forge::{api, github::document as d, text::Body as Text};
-use skein_lib::{List, Wall};
+use skein_lib::{List, Wall, len_u64};
 
 fn issue(row: a::Summary) -> d::Issue {
     d::Issue {
@@ -50,9 +50,7 @@ pub(super) fn comments(answer: a::Answer, target: &[u8], page: u32, size: u32, l
     let a::Answer::Comments(comments) = answer else {
         return answers::failed();
     };
-    let Ok(total) = u64::try_from(comments.len()) else {
-        return answers::failed();
-    };
+    let total = len_u64(comments.len());
     let Some(page) = Page::new(page, size, total) else {
         return answers::failed();
     };

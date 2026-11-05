@@ -6,6 +6,7 @@ use skein_io as io;
 use skein_lib::{
     Token, bytes,
     stream::{Down, Read, Up},
+    usize_of,
 };
 
 pub(super) struct Outbound {
@@ -34,7 +35,7 @@ impl Peer {
 
     fn deliver_to(&mut self, delivery: skein_fake_forge_forgejo::delivery::Delivery) {
         let skein_fake_forge_forgejo::delivery::Delivery { address, post } = delivery;
-        if self.deliveries.len() == usize::try_from(self.face.limits.connections).expect("u32 fits") {
+        if self.deliveries.len() == usize_of(self.face.limits.connections) {
             self.delivery_observation(Some(post), Delivery::NoRoom);
             return;
         }
@@ -129,7 +130,7 @@ impl Peer {
         } else {
             post.body.get(outbound.sent.checked_sub(post.head.len()).expect("body offset")..).expect("body offset")
         };
-        let count = remaining.len().min(usize::try_from(self.face.limits.io.output).expect("u32 fits"));
+        let count = remaining.len().min(usize_of(self.face.limits.io.output));
         let chunk = bytes::copy_of(remaining.get(..count).expect("bounded chunk"));
         outbound.sent = outbound.sent.checked_add(count).expect("bounded write offset");
         self.face.requests.push(io::Request::Stream { stream: socket, down: Down::Send(chunk) });
