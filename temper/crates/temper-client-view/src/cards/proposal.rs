@@ -1,6 +1,7 @@
 //! The proposal's task specifications, executors and authority are delivered facts.
 use super::{P, phrase, specification, status, text};
 use crate::words::{Word, Words};
+use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_ui::{Builder, Role, phrases::Hole};
 fn batch(page: &c::ReadValue) -> Option<&skein_lib::List<c::ProposedTask>> {
@@ -426,4 +427,342 @@ fn specification_facts(b: &mut Builder, document: &c::SpecificationDocument, wor
     if document.has_loss() {
         fact(b, words, P::Cut, &[], true);
     }
+}
+
+/// One settings card in a conversation or Needs you (client/README.md, 5.13).
+/// Ended cards retain their original proposal's words and read their recorded decision.
+pub(crate) fn settings(
+    b: &mut Builder,
+    root: &temper_client_domain::Domain,
+    card: &temper_client_domain::pages::inbox::Card,
+    words: &Words,
+    bindings: &mut crate::frame::Bindings,
+    replaced: bool,
+) -> bool {
+    let Some(proposal) = settings_proposal(root, card) else { return false };
+    let c::ProposalAction::Settings(settings) = &proposal.action else { return false };
+    let state = settings_state(card);
+    let accepted = state == SettingsState::Accepted || settings.made.is_some();
+    let superseded = replaced && state == SettingsState::Withdrawn;
+    b.open(Role::Region);
+    b.style(crate::look::SETTINGS_PROPOSAL);
+    if superseded {
+        b.style(crate::look::SETTINGS_PROPOSAL_SUPERSEDED);
+    }
+    b.name(&words.say(Word::Proposal, &[]));
+    b.open(Role::Paragraph);
+    b.style(crate::look::SETTINGS_PROPOSAL_TITLE);
+    let project = project_label(root, proposal.project);
+    let title = words.say(Word::SettingsProposalTitle, &[super::name(&project)]);
+    b.name(&title);
+    b.text(skein_ui::Run::Plain, &title);
+    b.close();
+    settings_lines(b, root, proposal, words);
+    if accepted || superseded {
+        b.open(Role::Paragraph);
+        b.style(crate::look::SETTINGS_PROPOSAL_STATE);
+        if accepted {
+            b.style(crate::look::SETTINGS_PROPOSAL_OK);
+        }
+        let said =
+            words.say(if accepted { Word::SettingsProposalAccepted } else { Word::SettingsProposalReplaced }, &[]);
+        b.name(&said);
+        b.text(skein_ui::Run::Plain, &said);
+        b.close();
+    } else if state == SettingsState::Pending {
+        let offered = jig_client::facts::offer(proposal.acts.as_slice(), c::ActKind::Accept);
+        if let Some(c::Admission::Allowed | c::Admission::Bounded { .. }) = offered {
+            b.open(Role::Slot);
+            b.style(crate::look::SETTINGS_PROPOSAL_ACTS);
+            settings_button(
+                b,
+                words,
+                bindings,
+                Word::Accept,
+                temper_client_domain::pages::Act::Decide {
+                    object: card.object,
+                    revision: None,
+                    act: c::ActKind::Accept,
+                },
+                true,
+                card.key.is_some(),
+            );
+            if root.pages().chat().is_some() {
+                settings_button(
+                    b,
+                    words,
+                    bindings,
+                    Word::SettingsProposalChange,
+                    temper_client_domain::pages::Act::FocusComposer,
+                    false,
+                    false,
+                );
+            }
+            b.close();
+            if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+                refusal, ..
+            }))) = &card.outcome
+            {
+                words.refusal(b, refusal, 0);
+            }
+        } else {
+            text(b, Role::Paragraph, &words.say(Word::SettingsProposalWaiting, &[]));
+            waiting(b, root, proposal.waiting.holder, words);
+        }
+    }
+    b.close();
+    true
+}
+
+pub(crate) fn settings_proposal<'a>(
+    root: &'a temper_client_domain::Domain,
+    card: &'a temper_client_domain::pages::inbox::Card,
+) -> Option<&'a c::Proposal> {
+    if let Some(c::ReadValue::Proposal(proposal)) = &card.page
+        && let c::ProposalAction::Settings(_) = &proposal.action
+    {
+        return Some(proposal);
+    }
+    if let Some(chat) = root.pages().chat() {
+        for proposal in &chat.settings_proposals {
+            if card.object == c::ObjectKey::Proposal(proposal.key) {
+                return Some(proposal);
+            }
+        }
+    }
+    None
+}
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SettingsState {
+    Pending,
+    Accepted,
+    Withdrawn,
+    Other,
+}
+fn settings_state(card: &temper_client_domain::pages::inbox::Card) -> SettingsState {
+    if let Some(c::ReadValue::Ended(ended)) = &card.page
+        && let c::EndedValue::Proposal(proposal) = &ended.value
+    {
+        return match proposal.state {
+            c::ProposalHistoryState::Accepted { .. } => SettingsState::Accepted,
+            c::ProposalHistoryState::Rejected { .. } | c::ProposalHistoryState::Withdrawn => SettingsState::Withdrawn,
+            c::ProposalHistoryState::Pending { .. } => SettingsState::Pending,
+        };
+    }
+    if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
+        c::Outcome::SettingsChanged(_),
+    )))) = &card.outcome
+    {
+        return SettingsState::Accepted;
+    }
+    if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+        c::DocumentOutcome::ProposalDecided { choice, .. },
+    ))))) = &card.outcome
+    {
+        return match choice {
+            c::ProposalChoice::Accepted => SettingsState::Accepted,
+            c::ProposalChoice::Rejected | c::ProposalChoice::Withdrawn => SettingsState::Withdrawn,
+            c::ProposalChoice::Stale => SettingsState::Other,
+            c::ProposalChoice::Passed => SettingsState::Pending,
+        };
+    }
+    SettingsState::Pending
+}
+fn settings_button(
+    b: &mut Builder,
+    words: &Words,
+    bindings: &mut crate::frame::Bindings,
+    word: Word,
+    act: temper_client_domain::pages::Act,
+    primary: bool,
+    disabled: bool,
+) {
+    b.open(Role::Button);
+    b.style(crate::look::SETTINGS_BTN);
+    b.style(if primary { crate::look::SETTINGS_PRIMARY } else { crate::look::SETTINGS_SMALL });
+    if disabled {
+        b.state(skein_ui::State::Disabled);
+    }
+    b.name(&words.say(word, &[]));
+    b.bind(bindings.insert(act));
+    b.close();
+}
+fn waiting(b: &mut Builder, root: &temper_client_domain::Domain, holder: c::HistoryHolder, words: &Words) {
+    match holder {
+        c::HistoryHolder::Person(person) => {
+            if let Some(me) = root.pages().me(root.client())
+                && me.party.number == person
+            {
+                text(b, Role::Paragraph, me.party.name.bytes());
+                return;
+            }
+            text(b, Role::Paragraph, &words.say(Word::WaitingForPerson, &[Hole::Number(person)]));
+        }
+        c::HistoryHolder::Task(task) => text(b, Role::Paragraph, &words.say(Word::TaskWho, &[Hole::Number(task)])),
+        c::HistoryHolder::Policy { project, .. } => {
+            let project = project_label(root, project);
+            text(b, Role::Paragraph, &words.say(Word::SettingsProposalOwners, &[super::name(&project)]));
+        }
+    }
+}
+
+fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, proposal: &c::Proposal, words: &Words) {
+    use temper_client_domain::forge::ways::Proposed;
+    let c::ProposalAction::Settings(settings) = &proposal.action else { return };
+    b.open(Role::List);
+    b.style(crate::look::SETTINGS_PROPOSAL_ITEMS);
+    let reason = proposal.reason.bytes();
+    let mut start = 0;
+    for (end, byte) in reason.iter().enumerate() {
+        if *byte == b'\n' {
+            reason_line(b, reason.get(start..end).expect("reason line"));
+            start = end.checked_add(1).expect("bounded reason");
+        }
+    }
+    reason_line(b, reason.get(start..).expect("last reason line"));
+    for item in &settings.items {
+        let mut rendered = false;
+        if let Some(values) = root.forge().proposed(proposal.key.number) {
+            for value in values {
+                match value {
+                    Proposed::Ways { project, ways }
+                        if item.setting == (c::Setting::Application { kind: 7, scope: *project, number: 1 }) =>
+                    {
+                        proposed_ways(b, root, *project, *ways, words);
+                        rendered = true;
+                    }
+                    Proposed::Questions { project, route }
+                        if item.setting == (c::Setting::Application { kind: 6, scope: *project, number: 1 }) =>
+                    {
+                        use temper_client_domain::forge::ways::Route;
+                        setting_line(
+                            b,
+                            &words.say(
+                                match route {
+                                    Route::None => Word::SettingsProposalNone,
+                                    Route::Foreman => Word::SettingsProposalForeman,
+                                    Route::Up => Word::SettingsProposalUp,
+                                },
+                                &[],
+                            ),
+                        );
+                        rendered = true;
+                    }
+                    Proposed::Ways { .. } | Proposed::Questions { .. } => {}
+                }
+            }
+        }
+        if !rendered {
+            setting_line(b, &setting_name(item));
+        }
+    }
+    b.close();
+}
+fn setting_line(b: &mut Builder, value: &[u8]) {
+    b.open(Role::Item);
+    b.open(Role::Text);
+    b.style(crate::look::SETTINGS_DETAIL);
+    b.run(skein_ui::Run::Plain, value);
+    b.close();
+    b.close();
+}
+fn proposed_ways(
+    b: &mut Builder,
+    root: &temper_client_domain::Domain,
+    project: u32,
+    ways: temper_client_domain::forge::ways::Ways,
+    words: &Words,
+) {
+    for (word, value) in [
+        (Word::SettingsProposalDrafts, if ways.drafts { Word::SettingsProposalOn } else { Word::SettingsProposalOff }),
+        (
+            Word::SettingsProposalGoals,
+            if ways.goals { Word::SettingsProposalShown } else { Word::SettingsProposalHidden },
+        ),
+        (
+            Word::SettingsProposalChanges,
+            if ways.changes { Word::SettingsProposalShown } else { Word::SettingsProposalHidden },
+        ),
+        (
+            Word::SettingsProposalAway,
+            if ways.away { Word::SettingsProposalShown } else { Word::SettingsProposalHidden },
+        ),
+    ] {
+        setting_line(b, &words.say(word, &[Hole::Name(words.say(value, &[]))]));
+    }
+    if let Some(me) = root.pages().me(root.client()) {
+        let selected = temper_client_domain::forge::ways::default_way(me, project, &ways);
+        for way in &crate::pages::goals::ways(me, project, words) {
+            if Some(way.number) == selected {
+                setting_line(b, &words.say(Word::SettingsProposalWay, &[super::name(&way.name)]));
+                return;
+            }
+        }
+    }
+    setting_line(
+        b,
+        &words.say(Word::SettingsProposalWay, &[super::name(skein_lib::Decimal::of(u64::from(ways.way)).as_bytes())]),
+    );
+}
+fn setting_name(item: &c::RevisionItemHead) -> Box<[u8]> {
+    let base = setting_base(item.setting);
+    let suffix = match item.edit {
+        c::RevisionItemEdit::Set => b"".as_slice(),
+        c::RevisionItemEdit::Removed => b" removed",
+        c::RevisionItemEdit::Reset => b" reset",
+    };
+    joined(&[&base, suffix])
+}
+fn setting_base(setting: c::Setting) -> Box<[u8]> {
+    let (label, number) = match setting {
+        c::Setting::Charter(n) => (b"charter".as_slice(), Some(n.number)),
+        c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
+        c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
+        c::Setting::Rules => (b"rules".as_slice(), None),
+        c::Setting::ProjectPolicy { project } => (b"project policy".as_slice(), Some(project)),
+        c::Setting::Application { kind: 1 | 2, number, .. } => (b"landing rule".as_slice(), Some(number)),
+        c::Setting::Application { kind: 3, number, .. } => (b"forge charter".as_slice(), Some(number)),
+        c::Setting::Application { kind: 6, scope, .. } => (b"project-questions".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 7, scope, .. } => (b"project-ways".as_slice(), Some(scope)),
+        c::Setting::Application { kind, scope, number } => {
+            return joined(&[
+                b"application kind ",
+                skein_lib::Decimal::of(u64::from(kind)).as_bytes(),
+                b", ",
+                skein_lib::Decimal::of(u64::from(scope)).as_bytes(),
+                b", ",
+                skein_lib::Decimal::of(u64::from(number)).as_bytes(),
+            ]);
+        }
+    };
+    match number {
+        Some(number) => joined(&[label, b" ", skein_lib::Decimal::of(u64::from(number)).as_bytes()]),
+        None => skein_lib::bytes::copy_of(label),
+    }
+}
+fn joined(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded setting text");
+    }
+    let mut out = skein_lib::Writer::new(length);
+    for part in parts {
+        out.put(part).expect("counted setting text");
+    }
+    out.finish()
+}
+fn project_label(root: &temper_client_domain::Domain, project: u32) -> Box<[u8]> {
+    match crate::pages::project_name(root.pages().me(root.client()), project) {
+        Some(name) => name,
+        None => skein_lib::bytes::copy_of(skein_lib::Decimal::of(u64::from(project)).as_bytes()),
+    }
+}
+
+fn reason_line(b: &mut Builder, line: &[u8]) {
+    b.open(Role::Item);
+    b.open(Role::Text);
+    b.style(crate::look::SETTINGS_PROPOSAL_REASON);
+    b.run(skein_ui::Run::Plain, line);
+    b.close();
+    b.close();
 }
