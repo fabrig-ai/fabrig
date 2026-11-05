@@ -90,3 +90,26 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, *Your report*.
+
+## Rebase (2026-11-05, step merge, foreman ui-chats/chats-page/foreman-1)
+
+resolve the shared style and vocabulary conflicts while retaining Configure, New chat and Chats changes.
+The merge failed in `temper/crates/temper-client-view/src/{look,words}.rs`.
+Main’s Configure change `70e66541af`, integrated by `2bd877a46a`, overlaps allocations in `f447d8dcf7`.
+Rebase onto the landing trunk and combine both implementations; taking either file wholesale loses required changes.
+
+In `look.rs`, retain `STARTER_*` tokens 248–252 and `META_LINE` 253.
+Allocate the sixteen Chats tokens consecutively at 254–269, preserving their current order.
+Keep `NAMES.styles` aligned with those IDs, including the reserved entries replacing `SIDEBAR` and `CONFIGURING_TAG`.
+Retain `SESSION_RIGHT` and the incoming Configure styles.
+
+In `words.rs`, retain the incoming Configure vocabulary and New chat phrase IDs 3208–3210.
+Move the six Chats phrase IDs to 3211–3216; `ChatsKicker` currently collides with `NewChatWords`.
+Keep the Chats additions and removal of `NoLiveChats` and `NoClosedChats`.
+Against integration `21b549329f`, combined counts are `PHRASES = 1367`, `SEGMENTS = 2362`, and `ALL` length 771.
+Combine both text-byte additions: retain Configure’s `+476` and Chats’ `+141`.
+Regenerate `ALL` through its codegen check and verify the resulting counts.
+
+Check the automatically merged Chats page, stylesheet and gallery assertions preserve both features.
+Through heavy, run the focused vocabulary and style-name checks, then Chats and Configure view tests.
+Regenerate and review any goldens or journey prints made stale by the combined code.
