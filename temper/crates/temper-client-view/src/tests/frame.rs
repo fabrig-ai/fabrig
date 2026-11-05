@@ -1485,3 +1485,69 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
     }
     assert_eq!(at, rail.checked_add(usize::try_from(nodes[rail].size).unwrap()).unwrap());
 }
+
+#[test]
+fn goals_opens_in_its_projects_frame() {
+    use temper_client_domain::{Address, Event, GoalsFilter, Place, Request};
+    for filter in [GoalsFilter::All, GoalsFilter::Needs, GoalsFilter::Live, GoalsFilter::Ended] {
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let address = Address::Goals { project: fixtures::SECOND_PROJECT, filter };
+            let (mut root, _, page) = fixtures::root_at(address.clone(), &fixtures::domain_limits());
+            assert!(page.is_none(), "goals starts no page watch");
+            assert_eq!(root.pages().project(), Some(fixtures::SECOND_PROJECT));
+            assert_eq!(root.pages().address(), &address);
+            let project_name = match words.shell {
+                crate::words::Shell::Browser => b"Shopno repository".as_slice(),
+                crate::words::Shell::Terminal => b"Shop".as_slice(),
+            };
+            let mut view = fixtures::view_of(words);
+            fixtures::build(&mut view, &root);
+            assert_rail(&view, b"Second");
+            assert_eq!(
+                fixtures::main_text(view.tree()).as_ref(),
+                "Second · goalsA goal turns a draft into landed work.".as_bytes()
+            );
+            assert!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).is_empty());
+            assert!(fixtures::find(view.tree(), Role::Link, b"Goals").is_some(), "goals page keeps its rail entry");
+            assert_eq!(skein_ui::outline::check(view.tree()), None);
+            for node in view.tree().nodes() {
+                if node.role == Role::Main {
+                    assert_eq!(node.styles.as_slice(), [crate::look::MAIN, crate::look::GOALS]);
+                }
+            }
+            let project = fixtures::person_find(view.tree(), Role::Button, project_name).expect("other project");
+            let action = crate::act(&mut view, project, Act::Press).expect("choose project");
+            assert_eq!(action, Action::Pages(pages::Act::Project { project: fixtures::PROJECT }));
+            let mut out = skein_lib::Queue::uncapped();
+            let env =
+                skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits: fixtures::domain_limits() };
+            temper_client_domain::step(&mut root, &env, Event::Act { action }, &mut out);
+            let address = Address::Goals { project: fixtures::PROJECT, filter: GoalsFilter::All };
+            let mut shown = 0_u32;
+            for request in &out {
+                if let Request::Show { address: next, replace } = request {
+                    assert_eq!(next, &address);
+                    assert!(!replace, "project choice is a move");
+                    shown += 1;
+                }
+            }
+            assert_eq!(shown, 1, "switch keeps Goals with filter All");
+            out.clear();
+            temper_client_domain::step(
+                &mut root,
+                &env,
+                Event::Went { place: Place::Address(address.clone()) },
+                &mut out,
+            );
+            assert!(out.is_empty(), "opening Goals asks for no reads or watches");
+            assert_eq!(root.pages().address(), &address);
+            assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
+            fixtures::build(&mut view, &root);
+            assert_rail(&view, b"Shop");
+            assert_eq!(
+                fixtures::main_text(view.tree()).as_ref(),
+                "Shop · goalsA goal turns a draft into landed work.".as_bytes()
+            );
+        }
+    }
+}

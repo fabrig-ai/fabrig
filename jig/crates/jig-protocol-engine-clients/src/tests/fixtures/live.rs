@@ -73,6 +73,8 @@ pub fn tasks_document() -> d::Lines {
             budget: budget(),
             waits_on: d::WaitsOn::Nothing,
             phases: phase_counts(),
+            delegates_done: 9,
+            delegates_total: 11,
             held_below: 0,
             conversation: None,
         }])),

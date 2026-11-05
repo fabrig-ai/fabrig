@@ -633,6 +633,7 @@ impl Chat {
             Act::Send => self.send(env, client, Sending::Message, serial, out),
             Act::Stop => self.send(env, client, Sending::Stop, serial, out),
             Act::Switcher(_)
+            | Act::Needs(_)
             | Act::Choice(_)
             | Act::Accounts(_)
             | Act::ConnectModel(_)
@@ -649,6 +650,8 @@ impl Chat {
             | Act::RetryPlayground
             | Act::Playground
             | Act::Suggest { .. }
+            | Act::MoreGoals
+            | Act::GoalsFilter { .. }
             | Act::ChatFilter { .. }
             | Act::PlanFilter { .. }
             | Act::ClosedChats

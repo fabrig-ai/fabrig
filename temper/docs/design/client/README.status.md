@@ -16,6 +16,13 @@
   (`forge/page.rs`), and "Start over" from `ConnectForge` leaves for the welcome.
   3.5, *Builders*: no `Builders { project }` in `temper-client-domain`'s
   `address.rs`, and no such tab.
+  5.3: the banner's "Changes", on a page that is no project's:
+  the request of 2026-11-05 asked for the rail, and its mock has no banner.
+  3.5, *Goals*: a project whose `me` lists no goal template opens no watch
+  (`temper-client-domain`'s `pages/goals.rs`, `query`), so its page draws the
+  kicker and the lede alone, with no heading and no filters, where the section
+  says "No goals yet."; a project with no tracked template has a lede that
+  stops at "landed work.", which the section has no words for.
   3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
   or in `temper-service`'s routing. 3.5: Ready's model line names no
@@ -67,3 +74,22 @@
   the welcome's Ready. The code records no reason; it lets a person make
   the project Ready would offer before Ready, the case of the draft's open question
   (`../draft/first-run-projects.status.md`).
+  3.5, 4.6, Changes: the queue's first says "checking" at whichever step of
+  its turn, and "checks started" gives when that step began
+  (`temper-engine-domain-forge`'s `views/changes.rs`, `Change.since`), where
+  the request of 2026-11-05 has when its checks began: nothing keeps that time.
+  4.6: `changes_view` reads every `ChangeRow`'s repository with `?`, and no
+  step erases a closed change's row (`../domain/after-landing.status.md`), so
+  once a forge's removal erases a repository with a closed change, no project
+  has the document; seen by reading, no test holds it and no reason is recorded.
+  3.5, *Goals*: `goals::row` is `pub(crate)` (`temper-client-view`'s
+  `pages/goals.rs`), where this section has it public, because its `Bindings`
+  is the view's own and Home, its next reader, is in the same crate.
+- **Design departs:** 3.5, *Goals*, from the request of 2026-11-05: "6 / 9" is
+  on the task line (jig's `client/domain/contract.md`, 5.1), where the request
+  offered the goal's document or the tree's read, and a row reads its report
+  alone, not also its tasks by `parent`: each place needed the same stored
+  counter, and the line needs no read per row. The lede's ways run in template
+  number order, as the request's words have it, so the reference's read "task
+  by task, plan, tasks, land whole", where its mock, the target, draws them the
+  other way round: number order is what a project's settings decide.

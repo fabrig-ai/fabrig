@@ -15,18 +15,20 @@ fn track(core: &mut Core, limits: &Limits) {
         core,
         limits,
         tasks::Event::Amend {
+            operation: tasks::Amend {
+                task: PRIORITY_TASK,
+                message: TRACK_MESSAGE,
+                stop_run: false,
+                amendment: Box::new(tasks::Amendment {
+                    tracked: Some(tasks::Tracking::Tracked { priority: 1 }),
+                    spec: Some(spec),
+                    ..fixtures::unchanged(b"track")
+                }),
+            },
             places: Box::new([]),
             funder: None,
             reply_to: ReplyTo::new(Token::new(TRACK_REQUEST)),
             by: tasks::Party::Person(PRIORITY_PARTY),
-            task: PRIORITY_TASK,
-            message: TRACK_MESSAGE,
-            stop_run: false,
-            amendment: tasks::Amendment {
-                tracked: Some(tasks::Tracking::Tracked { priority: 1 }),
-                spec: Some(spec),
-                ..fixtures::unchanged(b"track")
-            },
         },
     );
 }

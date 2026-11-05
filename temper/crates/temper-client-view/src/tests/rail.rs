@@ -7,8 +7,10 @@
 )]
 use super::fixtures as f;
 use crate::look;
+use jig_client::contract as c;
+use skein_lib::{Env, List, Queue, Time, Token};
 use skein_ui::{Act, Node, Role, State, Style, Tree};
-use temper_client_domain::{self as d, Address, ChatsFilter, Event, pages};
+use temper_client_domain::{self as d, Address, ChatsFilter, Event, GoalsFilter, pages};
 
 fn styled(tree: &Tree, style: Style) -> &[Node] {
     let at = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&style)).expect("styled node");
@@ -25,7 +27,7 @@ fn children(nodes: &[Node]) -> Vec<&Node> {
     out
 }
 
-fn project_rows(count: u32, repository: &[u8]) -> skein_lib::List<temper_client_protocol_wire::v1::ForgeRow> {
+fn project_rows(count: u32, repository: &[u8]) -> List<temper_client_protocol_wire::v1::ForgeRow> {
     use temper_client_protocol_wire::v1 as w;
     let mut row = super::connect_forge::row(
         3,
@@ -35,7 +37,7 @@ fn project_rows(count: u32, repository: &[u8]) -> skein_lib::List<temper_client_
         w::Offer::Offered,
     )
     .into_parts();
-    row.repositories = skein_lib::List::with_capacity(count);
+    row.repositories = List::with_capacity(count);
     for _ in 0..count {
         row.repositories
             .push(
@@ -47,7 +49,7 @@ fn project_rows(count: u32, repository: &[u8]) -> skein_lib::List<temper_client_
             )
             .unwrap();
     }
-    let mut rows = skein_lib::List::with_capacity(1);
+    let mut rows = List::with_capacity(1);
     rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
     rows
 }
@@ -219,10 +221,234 @@ fn the_frame_requires_me_and_a_project_and_yields_to_welcome_and_sign_in() {
     assert!(f::browser_page_view(&root).tree().nodes().iter().any(|n| n.role == Role::Banner));
 }
 
+// The rail's fixtures use one goal template and one row in its fact watch.
+const GOAL_LABEL: u32 = 2;
+const GOAL_TASK: u64 = 9;
+const GOAL_PRIORITY: u32 = 1;
+const TEXT_BYTES: u32 = 64;
+// Four sections on a phone (client/README.md, 5.3).
+const TABS: usize = 4;
+
+fn with_goal_fact(root: &mut d::Domain, me_watch: Token, delivered: Option<bool>) {
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    let mut flags = super::chats::line().flags;
+    flags.conversation = false;
+    flags.listed = true;
+    let goal = c::Template {
+        resources: List::uncapped(),
+        number: jig_client::shapes::GOAL,
+        name: f::task::document_words(b"goal"),
+        executor: c::TemplateExecutor::Charter(1),
+        contract: c::TaskContractDocument::Report { words: TEXT_BYTES },
+        shallower: 1,
+        budget: c::TemplateBudget::AsAllowed { cap: None },
+        deadline: c::TemplateDeadline::None,
+        tracked: Some(GOAL_LABEL),
+        flags,
+        label: GOAL_LABEL,
+        grace: None,
+        llm: None,
+    };
+    let mut configuring = goal.clone();
+    configuring.number = 3;
+    configuring.executor = c::TemplateExecutor::Charter(3);
+    me.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([goal, configuring]));
+    let mut out = Queue::uncapped();
+    d::step(
+        root,
+        &Env { now: Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me_watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            },
+        },
+        &mut out,
+    );
+    if let Some(has_goal) = delivered {
+        let watch = out
+            .iter()
+            .find_map(|request| match request {
+                d::Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down:
+                                jig_client::Down::Open {
+                                    watch,
+                                    subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, window: 1 }),
+                                },
+                        },
+                } if query.tracked == Some(true) => Some(*watch),
+                d::Request::Client { .. }
+                | d::Request::Unlinked { .. }
+                | d::Request::Show { .. }
+                | d::Request::Leave { .. }
+                | d::Request::SignOut
+                | d::Request::Dropped { .. }
+                | d::Request::Fact { .. } => None,
+            })
+            .expect("goal fact watch");
+        let mut rows = List::uncapped();
+        if has_goal {
+            let mut row = super::chats::line();
+            row.tracked = Some(GOAL_PRIORITY);
+            row.flags.conversation = false;
+            rows.push(row).unwrap();
+        }
+        deliver_document(root, watch, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
+    }
+}
+fn deliver_document(root: &mut d::Domain, watch: Token, document: c::Delivery) {
+    f::root_event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(document) },
+            },
+        },
+    );
+}
+fn current_names(tree: &Tree, style: Style) -> Vec<&[u8]> {
+    children(styled(tree, style))
+        .into_iter()
+        .filter(|node| node.states.as_slice().contains(&State::Current))
+        .map(|node| node.name.as_deref().unwrap())
+        .collect()
+}
+
 #[test]
+fn goals_shows_only_with_a_goal_or_on_its_page() {
+    for (address, delivered, shown) in [
+        (Address::Home { project: f::PROJECT }, None, false),
+        (Address::Home { project: f::PROJECT }, Some(false), false),
+        (Address::Home { project: f::PROJECT }, Some(true), true),
+        (Address::Goals { project: f::PROJECT, filter: GoalsFilter::Ended }, None, true),
+        (Address::Goals { project: f::PROJECT, filter: GoalsFilter::All }, Some(false), true),
+    ] {
+        let (mut root, me, _) = f::root_at(address, &f::domain_limits());
+        with_goal_fact(&mut root, me, delivered);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let goals = children(styled(view.tree(), look::RAIL_NAV))
+                .into_iter()
+                .find(|node| node.name.as_deref() == Some(b"Goals"))
+                .map(|node| node.id);
+            assert_eq!(goals.is_some(), shown);
+            if let Some(id) = goals {
+                assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/projects/1/goals".as_slice()));
+            }
+            let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+            skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);
+            assert_eq!(
+                String::from_utf8_lossy(print.text.as_slice()).lines().any(|line| line.contains("] Goals")),
+                shown
+            );
+        }
+    }
+}
+
+#[test]
+fn goals_is_current_on_its_page_a_goal_and_a_goals_task() {
+    for (address, priority, goal, delivered, expected) in [
+        (
+            Address::Goals { project: f::PROJECT, filter: GoalsFilter::Needs },
+            None,
+            None,
+            false,
+            vec![b"Goals".as_slice()],
+        ),
+        (
+            Address::Task { task: GOAL_TASK, filter: d::PlanFilter::All },
+            Some(GOAL_PRIORITY),
+            None,
+            true,
+            vec![b"Goals".as_slice()],
+        ),
+        (
+            Address::Task { task: GOAL_TASK, filter: d::PlanFilter::All },
+            None,
+            Some(GOAL_TASK),
+            true,
+            vec![b"Goals".as_slice()],
+        ),
+        (Address::Task { task: GOAL_TASK, filter: d::PlanFilter::All }, None, None, true, vec![]),
+        (
+            Address::Task { task: GOAL_TASK, filter: d::PlanFilter::All },
+            Some(GOAL_PRIORITY),
+            Some(GOAL_TASK),
+            false,
+            vec![],
+        ),
+    ] {
+        let (mut root, me, task) = f::root_at(address, &f::domain_limits());
+        with_goal_fact(&mut root, me, Some(true));
+        if delivered {
+            let mut document = f::task::delegate();
+            document.project = f::PROJECT;
+            document.priority = priority;
+            document.goal = goal;
+            deliver_document(&mut root, task.unwrap(), c::Delivery::Task(Box::new(document)));
+        }
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert_eq!(current_names(view.tree(), look::RAIL_NAV), expected);
+            if view.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&look::TABBAR)) {
+                assert_eq!(current_names(view.tree(), look::TABBAR), expected);
+            }
+        }
+    }
+}
+
+#[test]
+fn a_chat_is_never_goals() {
+    for (configuring, expected) in [(false, b"Chats".as_slice()), (true, b"Settings".as_slice())] {
+        let (mut root, me, chat) = f::root_at(Address::Chat { task: GOAL_TASK }, &f::domain_limits());
+        with_goal_fact(&mut root, me, Some(true));
+        let mut document = f::task::delegate();
+        document.project = f::PROJECT;
+        document.goal = Some(GOAL_TASK);
+        document.priority = Some(GOAL_PRIORITY);
+        document.chip.executor = c::ChipExecutor::Agent { charter: if configuring { 3 } else { 1 } };
+        deliver_document(&mut root, chat.unwrap(), c::Delivery::Task(Box::new(document)));
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let nav = current_names(view.tree(), look::RAIL_NAV);
+            let foot = current_names(view.tree(), look::RAIL_FOOT);
+            assert_eq!(nav.into_iter().chain(foot).collect::<Vec<_>>(), [expected]);
+        }
+    }
+}
+
+#[test]
+fn the_tab_bar_is_four_either_way() {
+    for (has_goal, expected) in [
+        (false, [b"Home".as_slice(), b"Needs you", b"Chats", b"Settings"]),
+        (true, [b"Home".as_slice(), b"Needs you", b"Goals", b"Chats"]),
+    ] {
+        let (mut root, me, _) = f::root_at(Address::Home { project: f::PROJECT }, &f::domain_limits());
+        with_goal_fact(&mut root, me, Some(has_goal));
+        let mut view = f::browser_page_view(&root);
+        let links = children(styled(view.tree(), look::TABBAR));
+        assert_eq!(links.len(), TABS);
+        assert_eq!(links.iter().map(|node| node.name.as_deref().unwrap()).collect::<Vec<_>>(), expected);
+        let ids: Vec<_> = links.iter().map(|node| node.id).collect();
+        let hrefs = if has_goal {
+            [b"/projects/1".as_slice(), b"/?project=1", b"/projects/1/goals", b"/chats"]
+        } else {
+            [b"/projects/1".as_slice(), b"/?project=1", b"/chats", b"/projects/1/settings"]
+        };
+        for (id, href) in ids.into_iter().zip(hrefs) {
+            assert_eq!(crate::href(&mut view, id).as_deref(), Some(href));
+        }
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one table checks both navigation surfaces across addresses and counts")]
 fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
     let addresses = [
         Address::Home { project: f::PROJECT },
+        Address::Changes { project: f::PROJECT },
+        Address::Goals { project: f::PROJECT, filter: GoalsFilter::All },
         Address::Inbox { filter: d::address::Filter::ALL },
         Address::Chats { filter: ChatsFilter::All, start: false },
         Address::Chat { task: 9 },
@@ -235,12 +461,13 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         Address::Settings { project: f::PROJECT },
     ];
     for address in addresses {
-        let (mut root, watch, _) = f::root_at(address.clone(), &f::domain_limits());
-        for count in [0, 3] {
+        let (mut root, watch, _, inbox) = f::root_at_with_needs(address.clone(), &f::domain_limits());
+        for (count, cut) in [(0, false), (3, false), (3, true)] {
             let mut me = root.pages().me(root.client()).unwrap().clone();
             me.needs_total = count;
             f::deliver_me(&mut root, watch, me);
-            for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            deliver_count(&mut root, inbox, count, cut);
+            for (browser, mut view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
                 assert_eq!(skein_ui::outline::check(view.tree()), None, "{address:?}");
                 assert!(!view.tree().nodes().iter().any(|n| n.role == Role::Banner));
                 let rail = styled(view.tree(), look::RAIL);
@@ -260,12 +487,19 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 let new_chat = parts[3].id;
                 assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/projects/1".as_slice()));
                 assert_eq!(crate::href(&mut view, new_chat).as_deref(), Some(b"/chats?at=start".as_slice()));
-                let needs = if count == 0 { b"Needs you".as_slice() } else { b"Needs you 3" };
+                let needs: &[u8] = if count == 0 {
+                    b"Needs you".as_slice()
+                } else if cut {
+                    b"Needs you 3+"
+                } else {
+                    b"Needs you 3"
+                };
                 let current = match address {
                     Address::Home { .. } => Some(b"Home".as_slice()),
                     Address::Inbox { .. } => Some(needs),
                     Address::Chats { .. } | Address::Chat { .. } => Some(b"Chats".as_slice()),
                     Address::Changes { .. } => Some(b"Changes".as_slice()),
+                    Address::Goals { .. } => Some(b"Goals".as_slice()),
                     Address::Settings { .. }
                     | Address::Repositories { .. }
                     | Address::Configure { .. }
@@ -289,28 +523,65 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 }
                 for style in styles {
                     let links = children(styled(view.tree(), style));
-                    let expected = if style == look::TABBAR {
+                    let goals = root.pages().goals().is_some();
+                    let expected = if goals {
+                        if style == look::TABBAR {
+                            vec![b"Home".as_slice(), needs, b"Goals", b"Chats"]
+                        } else {
+                            vec![b"Home".as_slice(), needs, b"Goals", b"Chats", b"Changes"]
+                        }
+                    } else if style == look::TABBAR {
                         vec![b"Home".as_slice(), needs, b"Chats", b"Settings"]
                     } else {
                         vec![b"Home".as_slice(), needs, b"Chats", b"Changes"]
                     };
                     assert_eq!(links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(), expected);
+                    let count_nodes = styled(view.tree(), style)
+                        .iter()
+                        .filter(|n| n.styles.as_slice().contains(&look::NAV_COUNT))
+                        .collect::<Vec<_>>();
+                    assert_eq!(count_nodes.len(), usize::from(count > 0));
+                    if count > 0 {
+                        assert_eq!(
+                            count_nodes[0].text.get(0).unwrap().text.as_ref(),
+                            if cut { b"3+".as_slice() } else { b"3" }
+                        );
+                    }
                     let ids = links
                         .iter()
                         .map(|n| (n.id, n.name.clone(), n.states.as_slice().contains(&State::Current)))
                         .collect::<Vec<_>>();
-                    for ((id, name, marked), href) in ids.into_iter().zip([
-                        b"/projects/1".as_slice(),
-                        b"/",
-                        b"/chats",
-                        if style == look::TABBAR { b"/projects/1/settings" } else { b"/projects/1/changes" },
-                    ]) {
+                    let hrefs = if goals {
+                        if style == look::TABBAR {
+                            vec![b"/projects/1".as_slice(), b"/?project=1", b"/projects/1/goals", b"/chats"]
+                        } else {
+                            vec![
+                                b"/projects/1".as_slice(),
+                                b"/?project=1",
+                                b"/projects/1/goals",
+                                b"/chats",
+                                b"/projects/1/changes",
+                            ]
+                        }
+                    } else {
+                        vec![
+                            b"/projects/1".as_slice(),
+                            b"/?project=1",
+                            b"/chats",
+                            if style == look::TABBAR { b"/projects/1/settings" } else { b"/projects/1/changes" },
+                        ]
+                    };
+                    for ((id, name, marked), href) in ids.into_iter().zip(hrefs) {
                         assert_eq!(marked, name.as_deref() == current && current.is_some());
                         assert_eq!(crate::href(&mut view, id).as_deref(), Some(href));
                     }
                 }
                 if let Address::Inbox { .. } = address {
-                    assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Inbox").is_some());
+                    if browser {
+                        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Inbox").is_none());
+                    } else {
+                        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Inbox").is_some());
+                    }
                 }
                 assert_eq!(f::find(view.tree(), Role::Button, b"Sign out").is_some(), address == Address::Accounts);
             }
@@ -539,4 +810,36 @@ fn settings_is_current_on_every_page_of_settings() {
             }
         }
     }
+}
+
+fn deliver_count(root: &mut d::Domain, watch: Token, count: u32, cut: bool) {
+    use jig_client::contract as c;
+    let mut rows = List::with_capacity(count);
+    for number in 0..count {
+        rows.push(super::documents::entry(
+            c::ObjectKey::PersonTask(u64::from(number)),
+            f::PROJECT,
+            1,
+            skein_lib::Wall::EPOCH,
+            None,
+        ))
+        .unwrap();
+    }
+    f::root_event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(super::documents::inbox(
+                        rows,
+                        count,
+                        c::Count { value: 0, limited: false },
+                        0,
+                        cut,
+                    )))),
+                },
+            },
+        },
+    );
 }

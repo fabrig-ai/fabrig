@@ -23,11 +23,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   writes no web wire and no web protocol of its own: the client's
   records cross as jig's wire carries them, binary records from a schema
   per owner, never JSON (jig's `protocol/client.md`, section 3).
-- **The pages temper has,** in both shells: the inbox, the chats, a
-  chat, a task's page and the adoption form (`README.md`, 3.5). A page a
-  later plan adds to the view (the board, the changes, the accounts) is
-  in the browser once it is in the view, with its look and, where it
-  has one, its browser-only story (4.2).
+- **The pages temper has,** in both shells: the client's (`README.md`,
+  3.5). A page added to the view is in the browser once it is in the
+  view, with its look and, where it has one, its browser-only story
+  (4.2).
 - **No framework.** The client and its view are step code under the
   subset in a browser too (skein's `ui.md`, section 1).
 - **The view tree is the fake DOM.** Below the browser, every world
@@ -235,6 +234,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | `Repositories { project }` | `/projects/<project>/settings/repositories` |
   | `Builders { project }` | `/projects/<project>/settings/builders` |
   | `Configure { project }` | `/projects/<project>/settings/configure` |
+  | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
   | `Chats { filter, start }` | `/chats`, and its filter's and start's query |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |
@@ -264,7 +264,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   or edited link opens the inbox less filtered, never refused, and its
   address is replaced with the printed one. It reads numbers, not the
   person's projects: a project the person isn't in shows an empty
-  inbox, which "All projects" undoes. The inbox's filter, the chats
+  inbox, which its unfiltered address undoes. The inbox's filter, the chats
   list's and a goal's plan's (below), the welcome's step,
   `ConnectForge`'s choice, `ConnectModel`'s way (below) and
   `Authorize`'s query, kept as it came and never printed again, alone
@@ -278,12 +278,16 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   doesn't read as one of the page's, `/tasks/9?state=closed` among
   them, or a field of another name, is dropped, and the address
   replaced with the printed one. A filter chosen is a move (below).
+- **The goals' filter is its query,** as the chats list's: `/projects/<project>/goals`
+  is the list whole; `?state=needs` for "Needs you", `?state=live` for
+  "Under way" and `?state=ended` for "Ended"; any other value reads as the
+  list whole and prints without it. Choosing one is a move.
 - **The chats' start is `?at=start`,** as the welcome's step is
   `?at=`: `/chats?at=start` is the Chats page
   with the focus in its start's text area ("Start a chat", or the
   playground's start's while the playground's start is drawn in its place), the
-  address the inbox's "+ New chat" links to (`README.md`, 3.5's
-  inbox); with a filter, `state` comes first,
+  address the terminal's inbox's "+ New chat" links to (`README.md`,
+  3.5's inbox); with a filter, `state` comes first,
   `/chats?state=live&at=start`. Every other `/chats` leaves the focus
   on its heading, as any move does.
 - **The welcome's step is its query:** none for its first step,
@@ -320,7 +324,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **A filter chosen is a move** (below), with its history entry: a
   link's, at the page's top with the focus on its heading, and back
   returns to the filter before. Like any move it folds the open
-  disclosures (2.5), so the Kind menu closes on its choice. A move
+  disclosures (2.5). Needs you has no filter menus; its filters remain
+  address fields (`README.md`, 3.5). A move
   that stays on the chats list, or on one goal's page, changing its
   filter or its start alone, keeps the page: its composers' words, the
   closed chats and ended delegates it read, which it reads not again;
@@ -585,6 +590,14 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   gives way to that line. At phone width the pane follows the prompt,
   as a section of its own. The sheet selects the pane's page by the
   pane (`:has`), so a page without it is drawn as before.
+- **Goals' look** is the greenfield mock's `goals.html`, its `mock.css`
+  rules taken exactly, values and all (`.col`, `.kicker`, `.headline`,
+  `.lede`, `.intro`, `.section`, `.section-head`, `.empty`, `.goal-rows`,
+  `.goal-row`, its `.state-*` and `.filters`, and their rules at 760 px and
+  under), in `temper.css`, scoped under the project's frame with its
+  `--gf-*` variables, as Home's are, on tokens of its own, `temper-goals*`.
+  A row's top line is `--gf-mono`, 12 px, faint: IBM Plex Mono 400 and 500,
+  bundled as the sans is, then JetBrains Mono, `ui-monospace`, `monospace`.
 - **Light only:** the mockups' palette is light, and `temper.css` sets
   `color-scheme: light`, where `skein-ui.css` follows the system's dark
   preference. A dark palette is open (section 5).
@@ -1140,12 +1153,17 @@ from the engine's own answers, is where the look is tuned.
 
 | Name | The state |
 |---|---|
+| `changes` | a hand-made `ChangesPanel` delivery: three queued and four landed |
+| `changes-empty` | a hand-made `ChangesPanel` delivery: nothing queued and nothing landed |
+| `changes-one` | a hand-made `ChangesPanel` delivery: one queued and four landed |
+| `changes-landed-only` | a hand-made `ChangesPanel` delivery, the mock's `hello`: nothing queued, something landed |
 | `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |
 | `home-two-left` | hand-made Home deliveries: repository adopted; configuring and first chat left |
 | `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |
 | `home-accounts-both` | hand-made Home deliveries: ChatGPT plan and Claude subscription; link offers another account |
 | `home-accounts-key` | hand-made Home deliveries: an API key; link offers another account |
 | `home-one-left` | hand-made Home deliveries: repository adopted and a way of working accepted; first chat left |
+| `home-with-goals` | `home-at-work`'s deliveries with a goal in the project, so that the rail shows Goals |
 | `home-at-work` | hand-made Home deliveries: one question and three chats, the everyday request's words where the client holds its facts |
 | `home-needs-several` | hand-made Home deliveries: three needs, the first as a card and the others as rows |
 | `home-nothing-needs` | hand-made Home deliveries: all steps done, no needs and one chat |
@@ -1158,7 +1176,18 @@ from the engine's own answers, is where the look is tuned.
 | `home-needs-under-begin` | hand-made Home deliveries: To begin showing above one question and one chat |
 | `home-begin-settings-left` | hand-made Home deliveries: the first and second steps left; their acts stay in Settings |
 | `home-begin-one-chats` | hand-made Home deliveries: the third step alone left; its act stays in Chats |
+| `goals-solo` | hand-made Goals deliveries: a small project's rows, one in each state, the mock's words where the client holds its facts |
+| `goals-reference` | hand-made Goals deliveries: the reference's rows, a goal of a hundred tasks among them, and its ways in the lede |
+| `goals-none` | hand-made Goals deliveries: "No goals yet."; the rail keeps Goals since the page is Goals |
+| `goals-needs` | hand-made Goals deliveries: the filter Needs you, "needs funds" and "needs you" |
+| `goals-under-way` | hand-made Goals deliveries: the filter Under way, running, planning and paused |
+| `goals-ended` | hand-made Goals deliveries: the filter Ended, landed, stopped and failed |
+| `goals-filter-empty` | hand-made Goals deliveries: a filter no goal matches, "None." |
+| `goals-more` | hand-made Goals deliveries: "More than N goals, M under way." and "More goals" |
 | `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
+| `home-morning-card` | hand-made Home deliveries: three needs in the line form, the first as its card with its choices, the others as lines |
+| `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
+| `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `configure` | the configuring page before its first words, template 3 listed |
 | `configure-typing` | words entered; Send enabled |
 | `configure-sending` | the configuring start out; starters and Send disabled, words kept |
@@ -1179,7 +1208,18 @@ from the engine's own answers, is where the look is tuned.
 | `configure-chats-tag` | the solo world’s chats with T10 tagged Configuring beside ordinary chats |
 | `chats-solo` | the solo world's chats |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
-| `inbox-solo` | the solo world's inbox: a proposal, a question |
+| `inbox-solo` | the solo world's *Needs you* (`README.md`, 3.5): the first of a proposal and a question |
+| `needs-one` | *Needs you*: a question in the line form, the first of three |
+| `needs-saw-open` | `needs-one` with "What the agent saw" open |
+| `needs-reply-open` | `needs-one` with "Reply…" pressed: the reply form |
+| `needs-second-answered` | the first answered, its line and toast showing: the second of three |
+| `needs-later` | the first marked later: the next shown, the toast's words |
+| `needs-last` | the last card: "The last one" |
+| `needs-done` | every card answered: "Nothing needs you." and the answered lines |
+| `needs-proposal` | a proposal's card |
+| `needs-held` | a held task's card |
+| `needs-funds` | a held task out of budget: "S of L used." |
+| `needs-plain-words` | a question in no line form: "Reply…" alone |
 | `task-solo-T3` | the solo world's goal T3, its plan and budget |
 | `accounts-solo` | the solo world's accounts |
 | `chats-first-run-1` | the first run's first screen: the playground's start |
@@ -1222,7 +1262,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-first-run-4-T4` | the first run's chat T4 at step 4, waiting at rest for the person’s words |
 | `playground-resetting` | the first run's Chats while the playground resets: "Leaving the playground…", and no playground's start |
 | `chats-first-run-5` | Chats after the first plan connects, its ChatGPT composer |
-| `inbox-reference` | the reference world's inbox |
+| `inbox-reference` | the reference world's *Needs you* |
 | `accounts-reference` | the reference world's accounts |
 | `accounts-first-run-1` | the first run's accounts at step 1: the playground's account |
 | `signed-out` | signed out |

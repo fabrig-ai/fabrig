@@ -165,20 +165,8 @@ fn check_parts(
 ) -> Result<(), crate::Problem> {
     let project = record(domain, number).expect("step task checked").project;
     for part in &decision.amendments {
-        let plan = match crate::control::check_amend(
-            domain,
-            staged,
-            env,
-            Party::Task(number),
-            crate::control::Amend {
-                places: Box::new([]),
-                number: part.task,
-                message: part.message,
-                stop_run: part.stop_run,
-                funder: None,
-                amendment: part.amendment.clone(),
-            },
-        ) {
+        let plan = match crate::control::check_amend(domain, staged, env, Party::Task(number), part.clone(), &[], None)
+        {
             Ok(plan) => crate::compound::Plan::Amend(Box::new(plan)),
             Err(problem) => return Err(*problem),
         };
@@ -188,12 +176,7 @@ fn check_parts(
         if part.word.from != Party::Task(number) {
             return Err(problem(part.task, Refusal::Reference));
         }
-        let plan = match crate::inbox::check_message(
-            domain,
-            staged,
-            env,
-            crate::inbox::Message { project, number: part.task, word: part.word.clone(), authorized: false },
-        ) {
+        let plan = match crate::inbox::check_message(domain, staged, env, project, part.clone(), false) {
             Ok(plan) => crate::compound::Plan::Message(Box::new(plan)),
             Err(problem) => return Err(*problem),
         };
@@ -218,18 +201,7 @@ fn check_parts(
         if staged.closing.as_slice().contains(&part.task) {
             return Err(problem(part.task, Refusal::State));
         }
-        let plan = match crate::control::check_cancel(
-            domain,
-            staged,
-            env,
-            Party::Task(number),
-            crate::control::Cancel {
-                number: part.task,
-                reason: part.reason.clone(),
-                grace: part.grace,
-                message: part.message,
-            },
-        ) {
+        let plan = match crate::control::check_cancel(domain, staged, env, Party::Task(number), part.clone()) {
             Ok(plan) => crate::compound::Plan::Cancel(Box::new(plan)),
             Err(problem) => return Err(*problem),
         };

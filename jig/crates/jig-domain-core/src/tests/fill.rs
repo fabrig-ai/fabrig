@@ -216,11 +216,10 @@ fn a_taking_tells_each_write_holds_connector_with_a_fresh_entry() {
     drop(step(
         &mut core,
         &env,
-        Event::Tasks(tasks::Event::Control {
+        Event::Tasks(tasks::Event::Cancel {
             reply_to: ReplyTo::new(Token::new(7204)),
             by: tasks::Party::Person(1),
-            task: 1,
-            control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+            operation: tasks::Cancel { task: 1, reason: Box::new([]), grace: None, message: None },
         }),
     ));
     let mut releases = 0_u32;

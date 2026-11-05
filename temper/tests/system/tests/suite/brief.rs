@@ -123,3 +123,73 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
     assert!(!agent.prompts().is_empty(), "the repaired brief reaches the model");
     assert_eq!(agent.code(), b"pub fn answer() -> u32 { 43 }\n");
 }
+
+#[test]
+fn a_large_pull_review_reaches_smith_and_lands() {
+    for (seed, bytes) in [(931, 47_148), (932, 41_473), (933, 128)] {
+        large_pull_review(seed, bytes);
+    }
+}
+
+fn large_pull_review(seed: u64, bytes: usize) {
+    use temper_system_world::composed::{World, call};
+    let review = Script {
+        cue: b"Review the change".as_slice().into(),
+        turns: Box::new([
+            call(b"read_pull", br#"{"repository":"org/repo","number":1}"#),
+            call(b"read_file", br#"{"repository":"org/repo","head":"$HEAD","path":"export.csv","max_bytes":512}"#),
+            call(b"finish", br#"{"verdict":"1","body":"The change is correct at the reviewed head."}"#),
+        ]),
+    };
+    let mut world = World::large_review_change(seed, bytes, review);
+    world.until_review_or_terminal(3);
+    let task = world.assignment().task;
+    assert_eq!(world.assignment().charter, 4, "{:?}; {:?}", world.reviewed_change(), world.agent().answer());
+    assert_eq!(world.pull_diff_bytes(), bytes);
+    let uncut = temper_engine_smith::charter(world.assignment());
+    eprintln!("pull_diff_bytes={bytes} gathered_charter_owned={:?}", uncut.owned_bytes());
+    let head = world.reviewed_change().change.last_head.expect("review head");
+    world.until_review_or_terminal(task);
+    let agent = world.review_agent(task);
+    assert!(!agent.prompts().is_empty(), "large review must reach a model turn: {:?}", agent.answer());
+    assert!(matches!(agent.answer(), run::Answer::Accepted { .. }), "{:?}", agent.answer());
+    assert_forge_reads(agent);
+    let fitted = world.review_charter(task);
+    assert_eq!(fitted.instructions, uncut.instructions);
+    assert_eq!(fitted.grants, uncut.grants);
+    assert_eq!(fitted.outcome, uncut.outcome);
+    let pull =
+        fitted.brief.sections.iter().find(|section| section.title.as_ref() == b"Pull request").expect("pull retained");
+    if bytes > 128 {
+        assert!(pull.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
+    } else {
+        assert_eq!(fitted, uncut, "an already fitting brief is unchanged");
+    }
+    assert!(
+        matches!(world.reviewed_change().change.state, temper_engine_domain_forge_change::State::Landed { .. }),
+        "{:?}",
+        world.reviewed_change()
+    );
+    assert_eq!(world.reviewed_change().change.last_head, Some(head));
+    assert_eq!(world.reviewed_change().change.repairs, 0);
+    assert_eq!(world.reviewed_change().verdicts.len(), 1, "one approval without invalid-result retries");
+    let verdict = &world.reviewed_change().verdicts[0];
+    assert_eq!(verdict.head, head);
+    assert_eq!(verdict.status, temper_engine_domain_forge_change::Status::Passed);
+    assert!(world.reviewed_change().change.gate_failures.is_empty());
+    assert_eq!(world.observed.spawns, 3, "chat, producer and one admitted reviewer");
+}
+
+fn assert_forge_reads(agent: &smith_agent_world::World) {
+    use smith_domain_session::llm::{Block, Returned};
+    let results = agent
+        .turns()
+        .iter()
+        .flat_map(|turn| &turn.messages)
+        .flat_map(|message| &message.content)
+        .filter_map(|block| {
+            if let Block::ToolResult { result: Returned::Text { error, .. }, .. } = block { Some(*error) } else { None }
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(results, [false, false, false], "omitted content is read through the forge before approval");
+}

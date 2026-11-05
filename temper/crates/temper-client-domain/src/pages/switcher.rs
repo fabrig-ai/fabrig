@@ -90,6 +90,7 @@ impl Switcher {
             | Address::Changes { .. }
             | Address::Settings { .. }
             | Address::Repositories { .. }
+            | Address::Goals { .. }
             | Address::Configure { .. }
             | Address::Chats { .. }
             | Address::Chat { .. }

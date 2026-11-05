@@ -574,20 +574,36 @@ fn task_read(record: &tasks::RunContext, parts: u32, bytes: u32) -> BriefRead {
     let first = text_part(&record.spec.words, b"\n", &contract, b"", bytes);
     let remaining =
         bytes.checked_sub(u32::try_from(first.bytes.len()).expect("bounded task part")).expect("part within read");
-    let part = match record.requester {
-        tasks::Party::Person(person) => {
-            let person = Decimal::of(person);
-            text_part(b"[Requested by person ", person.as_bytes(), b"]\n", b"", remaining)
-        }
-        tasks::Party::Task(task) => {
-            let task = Decimal::of(task);
-            text_part(b"[Requested by task ", task.as_bytes(), b"]\n", b"", remaining)
-        }
+    let (requester_label, requester) = match record.requester {
+        tasks::Party::Person(person) => (b"[Requested by person ".as_slice(), person),
+        tasks::Party::Task(task) => (b"[Requested by task ".as_slice(), task),
         tasks::Party::Deployment { project } => {
-            let project = Decimal::of(u64::from(project));
-            text_part(b"[Requested by deployment for project ", project.as_bytes(), b"]\n", b"", remaining)
+            (b"[Requested by deployment for project ".as_slice(), u64::from(project))
         }
     };
+    let task = Decimal::of(record.task);
+    let project = Decimal::of(u64::from(record.project));
+    let requester = Decimal::of(requester);
+    let fragments = [
+        b"[This task: ".as_slice(),
+        task.as_bytes(),
+        b", in project ",
+        project.as_bytes(),
+        b"]\n",
+        requester_label,
+        requester.as_bytes(),
+        b"]\n",
+    ];
+    let mut length = 0;
+    for fragment in fragments {
+        add_text_len(&mut length, fragment);
+    }
+    let mut writer = Writer::new(length);
+    for fragment in fragments {
+        writer.put(fragment).expect("measured task and requester lines");
+    }
+    let text = writer.finish();
+    let part = text_part(&text, b"", b"", b"", remaining);
     let mut gathered = List::with_capacity(parts);
     gathered.push(first).expect("positive part room");
     if parts > 1 {

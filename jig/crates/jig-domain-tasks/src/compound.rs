@@ -1,28 +1,28 @@
 //! Ordered admission and whole application of a party's task operations (people.md, 5.1).
 mod staged;
-use crate::{Amendment, Domain, Funder, Limits, Numbers, Party, Problem, Refusal, Request, Word};
+use crate::{Domain, Funder, Limits, Numbers, Party, Problem, Refusal, Request};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Env, List, Queue, ReplyTo};
+use skein_lib::{Env, List, Queue, ReplyTo};
 pub use staged::CompoundTask;
 
 /// One authenticated party operation in a single project's whole request.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Operation {
-    Cancel { task: u64, reason: Box<[u8]>, grace: Option<Duration>, message: Option<u64> },
-    Move { task: u64, reason: Box<[u8]> },
-    Amend { task: u64, message: u64, stop_run: bool, amendment: Box<Amendment> },
-    Release { task: u64, again: Option<bool>, message: Option<u64> },
-    Message { task: u64, word: Word },
+    Cancel(crate::Cancel),
+    Move(crate::Move),
+    Amend(crate::Amend),
+    Release(crate::Release),
+    Message(crate::Message),
     Stop { task: u64, hold: u64 },
 }
 impl Operation {
-    fn task(&self) -> u64 {
+    pub(crate) fn task(&self) -> u64 {
         match self {
-            Self::Cancel { task, .. }
-            | Self::Move { task, .. }
-            | Self::Amend { task, .. }
-            | Self::Release { task, .. }
-            | Self::Message { task, .. }
+            Self::Cancel(crate::Cancel { task, .. })
+            | Self::Release(crate::Release { task, .. })
+            | Self::Move(crate::Move { task, .. })
+            | Self::Amend(crate::Amend { task, .. })
+            | Self::Message(crate::Message { task, .. })
             | Self::Stop { task, .. } => *task,
         }
     }
@@ -312,14 +312,14 @@ fn maker_allowed(by: Party, project: u32, operation: &Operation, domain: &Domain
                 return false;
             }
             match operation {
-                Operation::Cancel { task, .. } => match domain.task(*task) {
+                Operation::Cancel(crate::Cancel { task, .. }) => match domain.task(*task) {
                     Some(row) => row.project == project,
                     None => false,
                 },
-                Operation::Move { .. }
-                | Operation::Amend { .. }
-                | Operation::Release { .. }
-                | Operation::Message { .. }
+                Operation::Move(_)
+                | Operation::Amend(_)
+                | Operation::Release(_)
+                | Operation::Message(_)
                 | Operation::Stop { .. } => false,
             }
         }
@@ -341,45 +341,32 @@ fn check(
 ) -> Result<Plan, Box<Problem>> {
     let by = request.by;
     match operation {
-        Operation::Cancel { task, reason, grace, message } => Ok(Plan::Cancel(Box::new(crate::control::check_cancel(
-            domain,
-            staged,
-            env,
-            by,
-            crate::control::Cancel { number: task, reason, grace, message },
-        )?))),
-        Operation::Amend { task, message, stop_run, amendment } => match crate::control::check_amend(
-            domain,
-            staged,
-            env,
-            by,
-            crate::control::Amend {
-                number: task,
-                message,
-                stop_run,
-                funder: None,
-                amendment: *amendment,
-                places: Box::new([]),
-            },
-        ) {
+        Operation::Cancel(cancel) => {
+            Ok(Plan::Cancel(Box::new(crate::control::check_cancel(domain, staged, env, by, cancel)?)))
+        }
+        Operation::Amend(operation) => match crate::control::check_amend(domain, staged, env, by, operation, &[], None)
+        {
             Ok(plan) => Ok(Plan::Amend(Box::new(plan))),
             Err(problem) => Err(problem),
         },
-        Operation::Release { task, again, message } => {
-            match crate::control::check_release(domain, staged, env, task, by, again, message) {
+        Operation::Release(operation) => {
+            let task = operation.task;
+            match crate::control::check_release(domain, staged, env, by, operation) {
                 Ok(plan) => Ok(Plan::Release(Box::new(plan))),
                 Err(why) => Err(Box::new(crate::control::release_problem(domain, staged, &env.limits, task, by, why))),
             }
         }
-        Operation::Message { task, word } => {
-            if word.from != by {
-                return Err(Box::new(Problem::new(Some(task), Refusal::Reference)));
+        Operation::Message(operation) => {
+            if operation.word.from != by {
+                return Err(Box::new(Problem::new(Some(operation.task), Refusal::Reference)));
             }
             Ok(Plan::Message(Box::new(crate::inbox::check_message(
                 domain,
                 staged,
                 env,
-                crate::inbox::Message { project: request.project, number: task, word, authorized: true },
+                request.project,
+                operation,
+                true,
             )?)))
         }
         Operation::Stop { task, hold } => {
@@ -397,11 +384,11 @@ fn check(
             };
             Ok(Plan::Stop(Box::new(crate::placed::check_place(domain, staged, &env.limits, placed)?)))
         }
-        Operation::Move { task, reason } => match crate::moving::check(
+        Operation::Move(crate::Move { task, reason }) => match crate::moving::check(
             domain,
             staged,
             env,
-            crate::moving::Move {
+            crate::moving::Moving {
                 number: task,
                 person: person(request.by)?,
                 period: request.period,

@@ -265,8 +265,9 @@ pub(crate) struct RunStart {
     pub(crate) grants: Box<[host::Grant]>,
 }
 
-/// Separate what an accepted answer said from its typed failure notice.
-pub(crate) fn said(answer: &host::Answer) -> crate::Said {
+/// What an accepted or parked answer said.
+#[must_use]
+pub fn said(answer: &host::Answer) -> crate::Said {
     match &answer.result {
         host::RunResult::Accepted { outcome } => match outcome.value() {
             run::outcome::Declared::Report(report) => crate::Said::Text(report.text.clone()),

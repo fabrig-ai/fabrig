@@ -1,4 +1,4 @@
-use jig_domain_tasks::{Edge, Event, Key, Party, Refusal, Stored};
+use jig_domain_tasks::{self as tasks, Edge, Event, Key, Party, Refusal, Stored};
 use jig_tasks_world::{LIMITS, Reply, World, task};
 
 fn delegates() -> World {
@@ -38,13 +38,12 @@ fn an_adopted_task_leaves_its_old_requesters_delegate_rows() {
     let reply_to = world.to();
     let reply = reply_to.into_token().raw();
     world.send(Event::Move {
+        operation: tasks::Move { task: 2, reason: Box::new([]) },
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(reply)),
-        task: 2,
         person: 9,
         period: 0,
         pool_budget: 100,
         period_budget: 1000,
-        reason: Box::new([]),
     });
     assert_eq!(world.replies[&reply], Reply::Done);
     assert_eq!(world.record(2).requester, Party::Person(9));
@@ -63,13 +62,12 @@ fn a_moved_delegate_outlives_its_old_root_and_tears_down_cleanly() {
     let reply_to = world.to();
     let call = reply_to.into_token();
     world.send(Event::Move {
+        operation: tasks::Move { task: MOVED_DELEGATE, reason: Box::new([]) },
         reply_to: skein_lib::ReplyTo::new(call),
-        task: MOVED_DELEGATE,
         person: MOVED_REQUESTER,
         period: 0,
         pool_budget: 100,
         period_budget: 1000,
-        reason: Box::new([]),
     });
     assert_eq!(world.replies.get(&call.raw()), Some(&Reply::Done));
     assert_eq!(world.record(MOVED_DELEGATE).requester, Party::Person(MOVED_REQUESTER));
@@ -92,13 +90,12 @@ fn a_refused_move_keeps_the_old_requesters_delegate_in_the_referee() {
     let reply_to = world.to();
     let call = reply_to.into_token();
     world.send(Event::Move {
+        operation: tasks::Move { task: MOVED_DELEGATE, reason: Box::new([]) },
         reply_to: skein_lib::ReplyTo::new(call),
-        task: MOVED_DELEGATE,
         person: 0,
         period: 0,
         pool_budget: 100,
         period_budget: 1000,
-        reason: Box::new([]),
     });
     assert!(matches!(world.replies.get(&call.raw()), Some(Reply::Refused(problem)) if problem.why == Refusal::State));
     assert_eq!(world.record(MOVED_DELEGATE).requester, Party::Task(OLD_ROOT));
@@ -115,13 +112,12 @@ fn a_delegate_moved_to_a_party_is_indexed_by_that_party_when_it_ends() {
     let mut world = delegates();
     let reply_to = world.to();
     world.send(Event::Move {
+        operation: tasks::Move { task: MOVED_DELEGATE, reason: Box::new([]) },
         reply_to,
-        task: MOVED_DELEGATE,
         person: MOVED_REQUESTER,
         period: 0,
         pool_budget: 100,
         period_budget: 1000,
-        reason: Box::new([]),
     });
     finish_delegate(&mut world);
     let Stored::Ended(ended) = &world.records[&Key::Ended(MOVED_DELEGATE)] else { panic!("ended delegate") };

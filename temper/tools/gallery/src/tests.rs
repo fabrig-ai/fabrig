@@ -42,8 +42,22 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
             {
                 let reset = view.tree().nodes().iter().find(|shown| shown.id == node).expect("bound reset link");
                 assert!(matches!(reset.name.as_deref(), Some(b"set up temper" | b"Set up temper")));
+            } else if let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Needs(
+                temper_client_domain::pages::needs::Act::Open { object },
+            ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
+            {
+                assert!(sample.name.starts_with("home-"));
+                assert!(
+                    samples::domain(&sample)
+                        .pages()
+                        .inbox()
+                        .expect("Home inbox")
+                        .cards
+                        .iter()
+                        .any(|card| card.object == object)
+                );
             } else {
-                panic!("{}: link {node:?} has neither a destination nor its install act", sample.name);
+                panic!("{}: link {node:?} has neither a destination nor its action", sample.name);
             }
         }
     }
@@ -69,6 +83,7 @@ enum Part {
     NoRole { role: Role },
     Value { role: Role, name: &'static str, value: &'static str },
     Chats { live: u32, closed: u32 },
+    Goals { rows: &'static [&'static str] },
     Plan { live: u32, title: &'static str },
     PlanWithEnded { live: u32, ended: u32, before: &'static str, after: &'static str },
 }
@@ -138,6 +153,96 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Paragraph, name: "Remove this forge?" },
             Part::Named { role: Role::Button, name: "Remove" },
+        ],
+    },
+    Holds {
+        name: "needs-one",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[Part::Named { role: Role::Button, name: "Later" }],
+    },
+    Holds {
+        name: "needs-saw-open",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[Part::Named { role: Role::Button, name: "Later" }],
+    },
+    Holds {
+        name: "needs-reply-open",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Named { role: Role::TextArea, name: "Your reply" },
+        ],
+    },
+    Holds {
+        name: "needs-second-answered",
+        heading: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Named { role: Role::Button, name: "Undo" },
+            Part::Text { text: "Answered: In jig’s store" },
+        ],
+    },
+    Holds {
+        name: "needs-later",
+        heading: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Text { text: "Later: it stays in Needs you, after the others." },
+        ],
+    },
+    Holds {
+        name: "needs-last",
+        heading: "The repository has no license. Name one in the README?",
+        parts: &[Part::Named { role: Role::Button, name: "Later" }, Part::Text { text: "The last one" }],
+    },
+    Holds {
+        name: "needs-done",
+        heading: "Nothing needs you.",
+        parts: &[Part::Named { role: Role::Link, name: "Home" }],
+    },
+    Holds {
+        name: "needs-proposal",
+        heading: "Accept how temper will run your work.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Accept" },
+            Part::Named { role: Role::Disclosure, name: "Reject" },
+            Part::Named { role: Role::TextArea, name: "Reason" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Text { text: "Funding after: 34" },
+        ],
+    },
+    Holds {
+        name: "needs-held",
+        heading: "first-run-projects",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Release" },
+            Part::Named { role: Role::Disclosure, name: "Leave held" },
+            Part::Named { role: Role::TextArea, name: "Reason" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Text { text: "Both halves of the store task run. The Ready page waits for this decision." },
+        ],
+    },
+    Holds {
+        name: "needs-funds",
+        heading: "31 of 40 used.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Release" },
+            Part::Named { role: Role::Disclosure, name: "Leave held" },
+            Part::Named { role: Role::TextArea, name: "Reason" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Absent { role: Role::Button, name: "Add $10" },
+            Part::Text { text: "first-run-projects" },
+        ],
+    },
+    Holds {
+        name: "needs-plain-words",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Absent { role: Role::Button, name: "In jig’s store" },
         ],
     },
     Holds {
@@ -229,6 +334,16 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-with-goals",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Goals" },
+            Part::Named { role: Role::Link, name: "Needs you 1" },
+            Part::Named { role: Role::Button, name: "Reply" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
         name: "home-at-work",
         heading: "One thing needs you.",
         parts: &[
@@ -245,13 +360,19 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "home-needs-several",
-        heading: "3 things need you.",
+        heading: "Three things need you.",
         parts: &[
             Part::Named { role: Role::Link, name: "Needs you 3" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
             Part::Named { role: Role::Link, name: "Answer in a row" },
-            Part::Named { role: Role::Link, name: "Hello in Rust · a question · 4 min" },
-            Part::Named { role: Role::Link, name: "What is in this repository? · a question · 4 min" },
+            Part::Named {
+                role: Role::Link,
+                name: "The repository has no license. Name one in the README? · a question · 4 min",
+            },
+            Part::Named {
+                role: Role::Link,
+                name: "The repository has no license. Name one in the README? · a question · 4 min",
+            },
             Part::Named { role: Role::Link, name: "All 3 chats" },
         ],
     },
@@ -350,11 +471,149 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "goals-solo",
+        heading: "8 goals, 5 under way.",
+        parts: &[Part::Goals {
+            rows: &[
+                "CSV import · 1 / 3 · needs funds",
+                "JSON output for tally report · 0 / 2 · needs you",
+                "Make tally sum stream its input · 1 / 2 · running",
+                "CSV export · planning",
+                "Profile tally sum on a 2 GB file · 0 / 1 · paused by you",
+                "CSV import: the quoted-field parser · 2 / 2 · landed ",
+                "The process documents, read aloud · 0 / 1 · stopped",
+                "CSV import: errors with line and column · 0 / 1 · failed",
+            ],
+        }],
+    },
+    Holds {
+        name: "goals-reference",
+        heading: "6 goals, 4 under way.",
+        parts: &[
+            Part::Goals {
+                rows: &[
+                    "first-run-projects · 6 / 9 · needs funds",
+                    "welcome-stall · 1 / 3 · needs you",
+                    "forge-cards · 0 / 4 · needs you",
+                    "A hundred tasks · 96 / 112 · running",
+                    "pane-chat-line · 2 / 2 · landed ",
+                    "welcome-model-cards · 3 / 3 · landed Mon 18:40",
+                ],
+            },
+            Part::Text { text: "Six of nine tasks landed; the store task is split in two after two size failures." },
+            Part::Text { text: "96 of 112 tasks landed." },
+        ],
+    },
+    Holds {
+        name: "goals-none",
+        heading: "No goals yet.",
+        parts: &[Part::Goals { rows: &[] }, Part::Text { text: "None." }],
+    },
+    Holds {
+        name: "goals-needs",
+        heading: "8 goals, 5 under way.",
+        parts: &[Part::Goals {
+            rows: &["CSV import · 1 / 3 · needs funds", "JSON output for tally report · 0 / 2 · needs you"],
+        }],
+    },
+    Holds {
+        name: "goals-under-way",
+        heading: "8 goals, 5 under way.",
+        parts: &[
+            Part::Goals {
+                rows: &[
+                    "Make tally sum stream its input · 1 / 2 · running",
+                    "CSV export · planning",
+                    "Profile tally sum on a 2 GB file · 0 / 1 · paused by you",
+                ],
+            },
+            Part::Text { text: "Planning from the draft." },
+            Part::Text { text: "0 of 1 tasks landed." },
+        ],
+    },
+    Holds {
+        name: "goals-ended",
+        heading: "8 goals, 5 under way.",
+        parts: &[
+            Part::Goals {
+                rows: &[
+                    "CSV import: the quoted-field parser · 2 / 2 · landed ",
+                    "The process documents, read aloud · 0 / 1 · stopped",
+                    "CSV import: errors with line and column · 0 / 1 · failed",
+                ],
+            },
+            Part::Text { text: "Stopped by you." },
+            Part::Text { text: "Failed." },
+        ],
+    },
+    Holds {
+        name: "goals-filter-empty",
+        heading: "3 goals, 0 under way.",
+        parts: &[Part::Goals { rows: &[] }, Part::Text { text: "None." }],
+    },
+    Holds {
+        name: "goals-more",
+        heading: "More than 6 goals, 5 under way.",
+        parts: &[
+            Part::Goals {
+                rows: &[
+                    "CSV import · 1 / 3 · needs funds",
+                    "JSON output for tally report · 0 / 2 · needs you",
+                    "Make tally sum stream its input · 1 / 2 · running",
+                    "CSV export · planning",
+                    "Profile tally sum on a 2 GB file · 0 / 1 · paused by you",
+                    "CSV import: the quoted-field parser · 2 / 2 · landed ",
+                ],
+            },
+            Part::Named { role: Role::Button, name: "More goals" },
+        ],
+    },
+    Holds {
         name: "home-github",
         heading: "Hello is ready.",
         parts: &[
             Part::Text { text: "temper’s App reaches its repositories on sam." },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "home-morning-card",
+        heading: "Three things need you.",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+            },
+            Part::Named { role: Role::Button, name: "In jig’s store" },
+            Part::Named { role: Role::Disclosure, name: "What the agent saw" },
+            Part::Named { role: Role::Button, name: "Reply" },
+            Part::Named { role: Role::Button, name: "Later" },
+        ],
+    },
+    Holds {
+        name: "home-answered",
+        heading: "Two things need you.",
+        parts: &[
+            Part::Named { role: Role::Text, name: "In jig’s store" },
+            Part::Named { role: Role::Button, name: "Undo" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
+            },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 2" },
+        ],
+    },
+    Holds {
+        name: "home-one-need",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "MIT" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Named {
+                role: Role::Link,
+                name: "Add a README: The repository has no license. Name one in the README? Answer",
+            },
+            Part::Absent { role: Role::Link, name: "Answer in a row" },
         ],
     },
     Holds {
@@ -769,13 +1028,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "inbox-solo",
-        heading: "Inbox",
-        parts: &[
-            Part::Named { role: Role::Button, name: "Answer" },
-            Part::Named { role: Role::Heading { level: 3 }, name: "JSON output for tally report" },
-            Part::Named { role: Role::Button, name: "Accept" },
-            Part::Named { role: Role::Paragraph, name: "The old parser accepts" },
-        ],
+        heading: "It changes report’s output and its tests, and lands into main: more than a chat does alone.",
+        parts: &[Part::Named { role: Role::Button, name: "Open" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
         name: "repositories",
@@ -918,8 +1172,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "inbox-reference",
-        heading: "Inbox",
-        parts: &[Part::Named { role: Role::Link, name: "T1 Director replied" }],
+        heading: "Nothing needs you.",
+        parts: &[Part::Named { role: Role::Link, name: "Home" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
         name: "accounts-states",
@@ -1024,11 +1278,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "inbox-empty",
-        heading: "Inbox",
-        parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you" },
-            Part::Absent { role: Role::List, name: "" },
-        ],
+        heading: "Nothing needs you.",
+        parts: &[Part::Named { role: Role::Link, name: "Home" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
         name: "chat-closing",
@@ -1305,6 +1556,18 @@ fn each_state_holds_what_its_name_says() {
                         .unwrap_or_else(|| panic!("{}: missing {role:?} {name:?}", sample.name));
                     assert_eq!(node.description.as_deref(), Some(description.as_bytes()), "{}", sample.name);
                 }
+                Part::Goals { rows } => {
+                    let actual: Vec<_> = tree
+                        .nodes()
+                        .iter()
+                        .filter(|node| node.styles.as_slice().contains(&temper_client_view::look::GOALS_ROW))
+                        .map(|node| String::from_utf8_lossy(node.name.as_deref().expect("goal link name")))
+                        .collect();
+                    assert_eq!(actual.len(), rows.len(), "{}: goal rows", sample.name);
+                    for (actual, expected) in actual.iter().zip(*rows) {
+                        assert!(actual.starts_with(expected), "{}: expected {expected:?}, got {actual:?}", sample.name);
+                    }
+                }
                 Part::Chats { live, closed } => {
                     let available = (*live).min(driver::limits().client.domain.rows)
                         + (*closed).min(driver::limits().client.domain.rows);
@@ -1448,8 +1711,8 @@ fn times_read_against_each_mockup_worlds_fixed_now() {
     for (name, expected) in [
         ("chats-solo", "1 h 28 min ago"),
         ("chats-reference", "50 min ago"),
-        ("inbox-solo", "Waiting 12 min"),
-        ("inbox-solo", "Waiting 18 min"),
+        ("inbox-solo", "a proposal"),
+        ("inbox-solo", "12 min"),
         ("chat-solo-T10", "waiting 12 min"),
         ("chat-reference-T1", "Today · Thursday 22 October"),
         ("chat-solo-T10", "Today · Tuesday 27 October"),
@@ -1607,4 +1870,67 @@ fn configuring_gallery_states_list_the_template_and_send_readiness() {
             .expect("send");
         assert_eq!(send.states.as_slice().contains(&skein_ui::State::Disabled), disabled, "{name}");
     }
+}
+
+#[test]
+fn goal_and_chat_queries_keep_live_and_ended_rows_separate() {
+    use samples::{Then, World};
+    use temper_client_domain::{Address, ChatsFilter, GoalsFilter};
+    for world in [World::Solo, World::Reference] {
+        let (chats, _) = worlds::world(world, Address::Chats { filter: ChatsFilter::All, start: false }, Then::Shown);
+        let page = chats.pages().chats().expect("chats page");
+        let live = &page.live(chats.client()).expect("live chats").rows;
+        let jig_client::contract::EndedGroup::Rows { rows: ended, .. } =
+            &page.page.as_ref().expect("closed chats").ended
+        else {
+            panic!("ended chat rows")
+        };
+        assert!(!live.is_empty() && !ended.is_empty(), "both chat sources have rows");
+        for row in live.iter().chain(ended) {
+            assert!(row.flags.conversation && row.tracked.is_none(), "{world:?}: chats contain only conversations");
+        }
+        let (goals, _) = worlds::world(world, Address::Goals { project: 1, filter: GoalsFilter::All }, Then::Shown);
+        let page = goals.pages().goals().expect("goals page");
+        let live = &page.live(goals.client()).expect("live goals").rows;
+        assert!(!live.is_empty() && !page.ended().is_empty(), "both goal sources have rows");
+        for row in live.iter().chain(page.ended()) {
+            assert!(!row.flags.conversation && row.tracked.is_some(), "{world:?}: goals contain only tracked tasks");
+        }
+    }
+}
+
+#[test]
+fn reference_lede_names_the_worlds_templates_in_number_order() {
+    let sample =
+        samples::samples().into_iter().find(|sample| sample.name == "goals-reference").expect("reference goals");
+    let root = samples::domain(&sample);
+    let me = root.pages().me(root.client()).expect("reference me");
+    let templates = &me.projects.get(0).expect("reference project").templates;
+    let goals: Vec<_> = templates
+        .iter()
+        .filter(|template| template.tracked.is_some())
+        .map(|template| (template.number, template.name.bytes()))
+        .collect();
+    assert_eq!(
+        goals,
+        vec![
+            (2, b"goal".as_slice()),
+            (4, b"goal for a draft".as_slice()),
+            (5, b"Plan, then wait for me".as_slice()),
+            (6, b"One agent, one branch".as_slice()),
+        ]
+    );
+    let view = view(&sample);
+    let nodes = view.tree().nodes();
+    let start = nodes
+        .iter()
+        .position(|node| node.styles.as_slice().contains(&temper_client_view::look::GOALS_LEDE))
+        .expect("goals lede");
+    let end = start + usize::try_from(nodes[start].size).expect("lede size");
+    let text: Vec<_> =
+        nodes[start..end].iter().flat_map(|node| node.text.iter()).flat_map(|run| run.text.iter().copied()).collect();
+    assert_eq!(
+        String::from_utf8(text).expect("lede UTF-8"),
+        "A goal turns a draft into landed work, its own way: task by task, plan, tasks, land whole, plan, then wait for me, one agent, one branch."
+    );
 }

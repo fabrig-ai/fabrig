@@ -193,7 +193,11 @@ fn replaced_word() -> (Harness, Vec<crate::Word>) {
     const OFFER_BOUND: u32 = 2;
     let mut h = running_holder();
     h.env.limits.run_inbox = OFFER_BOUND;
-    h.send(Event::Message { reply_to: to(), project: 1, task: HOLDER, word: word(ENTRY, crate::MessageKind::Words) });
+    h.send(Event::Message {
+        reply_to: to(),
+        project: 1,
+        operation: crate::Message { task: HOLDER, word: word(ENTRY, crate::MessageKind::Words) },
+    });
     amend_words(&mut h, b"first amendment");
     let offers = h.domain.task(HOLDER).unwrap().inbox.clone();
     amend_words(&mut h, b"replacing amendment");
@@ -272,7 +276,11 @@ fn an_old_passed_proposal_decided_without_an_offer_does_not_supply_a_read_fence(
         by: Party::Task(HOLDER),
         decision: ProposalDecision::Pass { holder: ProposalHolder::Person(REQUESTER) },
     });
-    h.send(Event::Message { reply_to: to(), project: 1, task: HOLDER, word: word(ENTRY, crate::MessageKind::Words) });
+    h.send(Event::Message {
+        reply_to: to(),
+        project: 1,
+        operation: crate::Message { task: HOLDER, word: word(ENTRY, crate::MessageKind::Words) },
+    });
     let offers = h.domain.task(HOLDER).expect("holder live").inbox.clone();
     assert_eq!(turn(&mut h, READING_TURN, Some(old), TURN_SPEND, &offers, &[]), Err(Refusal::Read));
 }
@@ -370,8 +378,7 @@ fn a_refusal_of_an_entry_never_offered_is_refused() {
     h.send(Event::Message {
         reply_to: to(),
         project: 1,
-        task: HOLDER,
-        word: word(NEXT_ENTRY, crate::MessageKind::Words),
+        operation: crate::Message { task: HOLDER, word: word(NEXT_ENTRY, crate::MessageKind::Words) },
     });
     let before = h.domain.task(HOLDER).unwrap().clone();
     for refused in [ENTRY - 1, NEXT_ENTRY] {

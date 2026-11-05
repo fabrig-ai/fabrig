@@ -1,177 +1,235 @@
-//! Changes and proposals in text order (codec.md, 10.1–10.2).
+//! Spell the plan's changes, place renames and propose pairings (codec.md, 10.1–10.3).
 
+use super::spell::{label, name, parts, spell, word};
+use super::{Change, Diff, DiffError, Fill, Kind, Op, Rename};
+use skein_codec::patch::{self, Comparison, Matching, Target};
 use skein_codec::schema::{DeclIx, Schema, Shape, Type};
 
-use super::compare::{Comparison, Types, spell};
-use super::matching::{self, Pairs, Part, Value, name, part, parts};
-use super::{Change, Diff, Fill, Kind, Op, Rename};
-
-impl Diff {
-    fn push(&mut self, kind: Kind, op: Op) {
-        self.changes.push(Change { kind, op });
-    }
-}
-
-fn same_part(types: &Types<'_>, kept: &Part, current: &Part) -> bool {
-    match (kept.value, current.value) {
-        (Value::Field(k), Value::Field(c)) => types.compare(k, c) == Comparison::Equal,
-        (Value::Variant(k), Value::Variant(c)) => types.payload(k, c),
-        (Value::Field(_), Value::Variant(_)) | (Value::Variant(_), Value::Field(_)) => false,
-    }
-}
-
-fn same_layout(types: &Types<'_>, kept: u32, current: u32) -> bool {
-    let k = types.kept.declaration(DeclIx::new(kept)).shape;
-    let c = types.current.declaration(DeclIx::new(current)).shape;
-    let same = match (k, c) {
-        (Shape::Record { versioned: kv, count: kn, .. }, Shape::Record { versioned: cv, count: cn, .. }) => {
-            kv == cv && kn == cn
+pub(super) fn matching(old: &Schema, new: &Schema, renames: &[Rename]) -> Result<Matching, DiffError> {
+    let mut matching = Matching::new(new);
+    let mut errors = Vec::new();
+    for part in [false, true] {
+        for (index, rename) in renames.iter().enumerate() {
+            let checked = match rename {
+                Rename::Declaration { old: from, new: to } if !part => {
+                    matching.declaration_rename(old, new, from.as_bytes(), to.as_bytes())
+                }
+                Rename::Part { decl, old: from, new: to } if part => {
+                    matching.part_rename(old, new, decl.as_bytes(), from.as_bytes(), to.as_bytes())
+                }
+                Rename::Declaration { .. } | Rename::Part { .. } => continue,
+            };
+            match checked {
+                Ok((new, old)) => matching.pair(new, old),
+                Err(_) => errors.push(index),
+            }
         }
-        (Shape::Enum { count: kn, .. }, Shape::Enum { count: cn, .. }) => kn == cn,
-        (Shape::Record { .. }, Shape::Enum { .. }) | (Shape::Enum { .. }, Shape::Record { .. }) => false,
-    };
-    same && parts(types.kept, k).iter().zip(parts(types.current, c)).all(|(k, c)| same_part(types, k, &c))
-}
-
-pub(super) fn diff(kept: &Schema, current: &Schema, renames: &[Rename], pairs: &Pairs) -> Diff {
-    let types = Types { kept, current, pairs };
-    let mut result = Diff {
-        family: matching::word(current, current.family()),
-        kept: kept.version(),
-        current: current.version(),
-        changes: Vec::new(),
-        proposed: Vec::new(),
-    };
-    let unmatched_kept: Vec<_> = (0..kept.declarations()).filter(|at| !pairs.values().any(|old| old == at)).collect();
-    let unmatched_current = (0..current.declarations()).filter(|at| !pairs.contains_key(at));
-    for (k, c) in unmatched_kept.iter().copied().zip(unmatched_current) {
-        if same_layout(&types, k, c) {
-            result.proposed.push(Rename::Declaration { old: name(kept, k), new: name(current, c) });
+        if part {
+            matching.pair_parts(old, new);
+        } else {
+            matching.pair_declarations(old, new);
         }
     }
-    for c in 0..current.declarations() {
-        let decl = name(current, c);
-        let Some(k) = pairs.get(&c).copied() else {
-            result.push(Kind::NoneNeeded, Op::AddDeclaration { decl });
+    if let Some(index) = errors.into_iter().min() { Err(DiffError::Rename(index)) } else { Ok(matching) }
+}
+
+fn same_part(matching: &Matching, old: &Schema, new: &Schema, a: Target, b: Target) -> bool {
+    match (a, b) {
+        (Target::Field(a), Target::Field(b)) => {
+            matching.compare(old, new, old.field(a).ty, new.field(b).ty) == Comparison::Equal
+        }
+        (Target::Variant(a), Target::Variant(b)) => matching.payload(old.variant(a).record, new.variant(b).record),
+        _ => false,
+    }
+}
+fn same_layout(matching: &Matching, old: &Schema, new: &Schema, a: DeclIx, b: DeclIx) -> bool {
+    let same = match (old.declaration(a).shape, new.declaration(b).shape) {
+        (Shape::Record { versioned: av, count: an, .. }, Shape::Record { versioned: bv, count: bn, .. }) => {
+            av == bv && an == bn
+        }
+        (Shape::Enum { count: an, .. }, Shape::Enum { count: bn, .. }) => an == bn,
+        _ => false,
+    };
+    same && parts(old, a).into_iter().zip(parts(new, b)).all(|(a, b)| same_part(matching, old, new, a, b))
+}
+fn proposals(matching: &Matching, old: &Schema, new: &Schema) -> Vec<Rename> {
+    let mut result = Vec::new();
+    let kept = (0..old.declarations()).map(DeclIx::new).filter(|at| !matching.used(Target::Declaration(*at)));
+    let current = (0..new.declarations()).map(DeclIx::new).filter(|at| matching.old(*at).is_none());
+    for (a, b) in kept.zip(current) {
+        if same_layout(matching, old, new, a, b) {
+            result.push(Rename::Declaration { old: name(old, a.index()), new: name(new, b.index()) });
+        }
+    }
+    for at in (0..new.declarations()).map(DeclIx::new) {
+        let Some(kept) = matching.old(at) else {
             continue;
         };
-        let old = name(kept, k);
-        if old != decl {
-            result.push(Kind::NoneNeeded, Op::RenameDeclaration { old, new: decl.clone() });
+        let a = parts(old, kept).into_iter().filter(|part| !matching.used(*part));
+        let b = parts(new, at).into_iter().filter(|part| matching.part(*part).is_none());
+        for (a, b) in a.zip(b) {
+            if same_part(matching, old, new, a, b) {
+                result.push(Rename::Part { decl: name(new, at.index()), old: label(old, a), new: label(new, b) });
+            }
         }
-        let ks = kept.declaration(DeclIx::new(k)).shape;
-        let cs = current.declaration(DeclIx::new(c)).shape;
-        if !matching::same_shape(ks, cs) {
-            result.push(Kind::Written, Op::Reshape { decl });
-            continue;
-        }
-        if let (Shape::Record { versioned: kv, .. }, Shape::Record { versioned: cv, .. }) = (ks, cs)
-            && kv != cv
-        {
-            result.push(Kind::Derived, Op::Versioned { decl: decl.clone(), versioned: cv });
-        }
-        walk_parts(&mut result, &types, &decl, &parts(kept, ks), &parts(current, cs), renames);
-    }
-    for k in unmatched_kept {
-        result.push(Kind::NoneNeeded, Op::DropDeclaration { decl: name(kept, k) });
     }
     result
 }
 
-fn walk_parts(result: &mut Diff, types: &Types<'_>, decl: &str, kept: &[Part], current: &[Part], renames: &[Rename]) {
-    let pairs = matching::pair_parts(kept, current, decl, renames);
-    let unmatched_kept: Vec<_> = kept
-        .iter()
-        .enumerate()
-        .filter(|(at, _)| !pairs.values().any(|old| *old == u32::try_from(*at).expect("bounded part index")))
-        .map(|(_, part)| part)
-        .collect();
-    let unmatched_current = current
-        .iter()
-        .enumerate()
-        .filter(|(at, _)| !pairs.contains_key(&u32::try_from(*at).expect("bounded part index")));
-    for (k, (_, c)) in unmatched_kept.iter().zip(unmatched_current) {
-        if same_part(types, k, c) {
-            result.proposed.push(Rename::Part { decl: decl.into(), old: k.name.clone(), new: c.name.clone() });
+fn position(schema: &Schema, target: Target) -> (u32, u32) {
+    match target {
+        Target::Declaration(at) => (at.index(), 0),
+        Target::Field(at) => (owner(schema, target).index(), at.index().checked_add(1).expect("bounded field table")),
+        Target::Variant(at) => {
+            (owner(schema, target).index(), at.index().checked_add(1).expect("bounded variant table"))
         }
     }
-    for (c, current_part) in current.iter().enumerate() {
-        let c = u32::try_from(c).expect("bounded part index");
-        if let Some(k) = pairs.get(&c) {
-            let kept_part = part(kept, *k);
-            if kept_part.name != current_part.name {
-                result.push(
-                    Kind::NoneNeeded,
-                    Op::RenamePart { decl: decl.into(), old: kept_part.name.clone(), new: current_part.name.clone() },
-                );
+}
+fn owner(schema: &Schema, target: Target) -> DeclIx {
+    if let Target::Declaration(at) = target {
+        return at;
+    }
+    (0..schema.declarations())
+        .map(DeclIx::new)
+        .find(|at| match (schema.declaration(*at).shape, target) {
+            (Shape::Record { first, count, .. }, Target::Field(at)) => {
+                (first.index()..first.index().checked_add(count).expect("bounded parts table")).contains(&at.index())
             }
-            changed_part(result, types, decl, kept_part, current_part);
-        } else {
-            match current_part.value {
-                Value::Field(ty) => {
-                    let value =
-                        if matches!(types.current.ty(ty), Type::Option(_)) { Fill::Absent } else { Fill::Asked };
-                    result.push(
-                        Kind::Derived,
-                        Op::AddField {
-                            decl: decl.into(),
-                            field: current_part.name.clone(),
-                            ty: spell(types.current, ty),
-                            value,
-                        },
-                    );
-                }
-                Value::Variant(_) => {
-                    let kind = if pairs.range(c..).next().is_some() { Kind::Derived } else { Kind::NoneNeeded };
-                    result.push(kind, Op::AddVariant { decl: decl.into(), variant: current_part.name.clone() });
-                }
+            (Shape::Enum { first, count }, Target::Variant(at)) => {
+                (first.index()..first.index().checked_add(count).expect("bounded parts table")).contains(&at.index())
             }
+            _ => false,
+        })
+        .expect("part belongs to a declaration")
+}
+fn current_owner(old: &Schema, new: &Schema, matching: &Matching, change: &patch::Change) -> DeclIx {
+    if change.op != patch::Op::Drop {
+        return owner(new, change.target);
+    }
+    let kept = owner(old, change.target);
+    (0..new.declarations()).map(DeclIx::new).find(|at| matching.old(*at) == Some(kept)).expect("matched owner")
+}
+
+fn change_position(old: &Schema, new: &Schema, matching: &Matching, change: &patch::Change) -> (u32, u32) {
+    match (change.op, change.target) {
+        (patch::Op::Drop, Target::Declaration(at)) => (new.declarations(), at.index()),
+        (patch::Op::Drop, Target::Field(_) | Target::Variant(_)) => {
+            (current_owner(old, new, matching, change).index(), u32::MAX)
         }
-    }
-    for part in unmatched_kept {
-        let (kind, op) = match part.value {
-            Value::Field(_) => (Kind::Derived, Op::DropField { decl: decl.into(), field: part.name.clone() }),
-            Value::Variant(_) => (Kind::Written, Op::DropVariant { decl: decl.into(), variant: part.name.clone() }),
-        };
-        result.push(kind, op);
-    }
-    if pairs.values().zip(pairs.values().skip(1)).any(|(a, b)| a > b) {
-        let names = pairs.keys().map(|at| part(current, *at).name.clone()).collect();
-        result.push(Kind::Derived, Op::Order { decl: decl.into(), parts: names });
+        (patch::Op::Order, Target::Declaration(at)) => (at.index(), u32::MAX),
+        _ => position(new, change.target),
     }
 }
 
-fn changed_part(result: &mut Diff, types: &Types<'_>, decl: &str, kept: &Part, current: &Part) {
-    match (kept.value, current.value) {
-        (Value::Field(k), Value::Field(c)) => {
-            let comparison = types.compare(k, c);
-            let field = current.name.clone();
-            let kept = spell(types.kept, k);
-            let current = spell(types.current, c);
-            let decl = decl.into();
-            let (kind, op) = match comparison {
-                Comparison::Equal => return,
-                Comparison::Widen(kind) => (kind, Op::Widen { decl, field, kept, current }),
-                Comparison::Wrap => (Kind::Derived, Op::Wrap { decl, field, kept, current }),
-                Comparison::Retype => (Kind::Written, Op::Retype { decl, field, kept, current }),
-            };
-            result.push(kind, op);
+pub(super) fn diff(old: &Schema, new: &Schema, matching: &Matching) -> Diff {
+    let mut renames = Vec::new();
+    for at in (0..new.declarations()).map(DeclIx::new) {
+        if matching.old(at).is_none() {
+            continue;
         }
-        (Value::Variant(k), Value::Variant(c)) => {
-            if !types.payload(k, c) {
-                result.push(
-                    Kind::Written,
-                    Op::Payload {
-                        decl: decl.into(),
-                        variant: current.name.clone(),
-                        kept: k.map(|at| name(types.kept, at.index())),
-                        current: c.map(|at| name(types.current, at.index())),
-                    },
-                );
+        for target in core::iter::once(Target::Declaration(at)).chain(parts(new, at)) {
+            let Some(source) = matching.part(target) else {
+                continue;
+            };
+            let from = label(old, source);
+            let to = label(new, target);
+            if from != to {
+                let op = match target {
+                    Target::Declaration(_) => Op::RenameDeclaration { old: from, new: to },
+                    Target::Field(_) | Target::Variant(_) => {
+                        Op::RenamePart { decl: name(new, at.index()), old: from, new: to }
+                    }
+                };
+                renames.push((position(new, target), Change { kind: Kind::NoneNeeded, op }));
             }
         }
-        (Value::Field(_), Value::Variant(_)) | (Value::Variant(_), Value::Field(_)) => {
-            unreachable!("matched declarations have the same shape")
+    }
+    let mut result = Diff {
+        family: word(new, new.family()),
+        kept: old.version(),
+        current: new.version(),
+        changes: Vec::new(),
+        proposed: proposals(matching, old, new),
+    };
+    let mut renames = renames.into_iter().peekable();
+    for change in &patch::changes(old, new, matching) {
+        let at = change_position(old, new, matching, change);
+        while renames.peek().is_some_and(|(position, _)| *position <= at) {
+            result.changes.push(renames.next().expect("peeked rename").1);
         }
+        let op = operation(old, new, matching, change);
+        let declaration = matches!(change.target, Target::Declaration(_));
+        let kind = if change.written.is_some() {
+            Kind::Written
+        } else if change.implicit || (declaration && matches!(change.op, patch::Op::Add | patch::Op::Drop)) {
+            Kind::NoneNeeded
+        } else {
+            Kind::Derived
+        };
+        result.changes.push(Change { kind, op });
+    }
+    result.changes.extend(renames.map(|(_, change)| change));
+    result
+}
+
+fn operation(old: &Schema, new: &Schema, matching: &Matching, change: &patch::Change) -> Op {
+    use patch::Op as P;
+    let schema = if change.op == P::Drop { old } else { new };
+    let part = label(schema, change.target);
+    let decl = if let (P::Drop, Target::Declaration(_)) = (change.op, change.target) {
+        part.clone()
+    } else {
+        name(new, current_owner(old, new, matching, change).index())
+    };
+    match (change.op, change.target) {
+        (P::Add, Target::Declaration(_)) => Op::AddDeclaration { decl },
+        (P::Drop, Target::Declaration(_)) => Op::DropDeclaration { decl },
+        (P::Reshape, Target::Declaration(_)) => Op::Reshape { decl },
+        (P::Versioned | P::Unversioned, Target::Declaration(_)) => {
+            Op::Versioned { decl, versioned: change.op == P::Versioned }
+        }
+        (P::Add, Target::Field(at)) => {
+            let ty = new.field(at).ty;
+            let value = if matches!(new.ty(ty), Type::Option(_)) { Fill::Absent } else { Fill::Asked };
+            Op::AddField { decl, field: part, ty: spell(new, ty), value }
+        }
+        (P::Drop, Target::Field(_)) => Op::DropField { decl, field: part },
+        (P::Add, Target::Variant(_)) => Op::AddVariant { decl, variant: part },
+        (P::Drop, Target::Variant(_)) => Op::DropVariant { decl, variant: part },
+        (P::Widen | P::Wrap | P::Retype, Target::Field(at)) => {
+            let Some(Target::Field(source)) = matching.part(change.target) else {
+                unreachable!("matched field");
+            };
+            let kept = spell(old, old.field(source).ty);
+            let current = spell(new, new.field(at).ty);
+            match change.op {
+                P::Widen => Op::Widen { decl, field: part, kept, current },
+                P::Wrap => Op::Wrap { decl, field: part, kept, current },
+                P::Retype => Op::Retype { decl, field: part, kept, current },
+                P::Add | P::Drop | P::Reshape | P::Versioned | P::Unversioned | P::Order | P::Payload | P::Written => {
+                    unreachable!("type change")
+                }
+            }
+        }
+        (P::Payload, Target::Variant(at)) => {
+            let Some(Target::Variant(source)) = matching.part(change.target) else {
+                unreachable!("matched variant");
+            };
+            Op::Payload {
+                decl,
+                variant: part,
+                kept: old.variant(source).record.map(|at| name(old, at.index())),
+                current: new.variant(at).record.map(|at| name(new, at.index())),
+            }
+        }
+        (P::Order, Target::Declaration(at)) => {
+            let parts = parts(new, at)
+                .into_iter()
+                .filter(|part| matching.part(*part).is_some())
+                .map(|part| label(new, part))
+                .collect();
+            Op::Order { decl, parts }
+        }
+        _ => unreachable!("operation has its planned target"),
     }
 }

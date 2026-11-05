@@ -646,11 +646,6 @@ impl Worker {
         self.io.push(request);
     }
     fn process_send(&mut self, owner: Token, message: smith::Down) {
-        let message = if let smith::Down::Start { start, window } = message {
-            smith::Down::Start { start: fit_start(start, &self.agent), window }
-        } else {
-            message
-        };
         let values = match &message {
             smith::Down::Start { start, .. } => start_values(&self.values, start, &self.path, self.env.now),
             smith::Down::Grant { grant } => grant_value(&self.values, *grant, self.env.now),
@@ -663,6 +658,7 @@ impl Worker {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
             return;
         };
+        let message = sending(message, &values, &self.agent);
         let process = self.processes.get_mut(&owner).expect("root owns process");
         let token = owner;
         let sent = match message {
@@ -929,31 +925,24 @@ fn account(table: &Table, grant: smith::Grant, now: Time) -> Option<smith_protoc
         Scheme::Key => smith_protocol_channel::GrantValue::Key(token),
     })
 }
-pub(crate) fn fit_start(mut start: smith::Start, agent: &Agent) -> smith::Start {
-    let workspace = if start.directories.is_empty() {
-        None
-    } else {
-        let mut directories =
-            List::with_capacity(u32::try_from(start.directories.len()).expect("admitted directories"));
-        for directory in &start.directories {
-            directories
-                .push(smith_domain_run::Directory {
-                    name: directory.name.clone(),
-                    host: directory.host.clone(),
-                    root: directory.root,
-                    writable: directory.writable,
-                    git: directory.git,
-                    conflicts: directory.conflicts.clone(),
-                })
-                .expect("one entry per prepared directory");
+fn sending(message: smith::Down, values: &host::Values, agent: &Agent) -> smith::Down {
+    match message {
+        smith::Down::Start { mut start, window } => {
+            for (directory, path) in start.directories.iter_mut().zip(&values.paths) {
+                directory.host.clone_from(path);
+            }
+            smith::Down::Start { start: fit_start(start, agent), window }
         }
-        Some(smith_domain_run::Workspace { directories: directories.into_boxed() })
-    };
-    let mut charter = start.charter.into_value();
-    temper_engine_smith::fit_brief(&mut charter, workspace.as_ref(), &agent.run_limits);
-    start.charter = smith::Charter::new(charter, agent.host_limits.charter_bytes)
-        .expect("fitted charter within the admitted ownership bound");
-    start
+        other @ (smith::Down::Grant { .. }
+        | smith::Down::Message { .. }
+        | smith::Down::Answer { .. }
+        | smith::Down::Acknowledge { .. }
+        | smith::Down::Cancel) => other,
+    }
+}
+
+pub(crate) fn fit_start(start: smith::Start, agent: &Agent) -> smith::Start {
+    worker_route::fit_start(start, &agent.run_limits, agent.host_limits.charter_bytes)
 }
 
 pub(crate) fn start_values(table: &Table, start: &smith::Start, root: &[u8], now: Time) -> Option<host::Values> {

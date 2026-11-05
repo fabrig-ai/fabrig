@@ -8,66 +8,49 @@
 //! way a document can fail, a stream ending early, idle or failing, and a
 //! close in each state.
 
-use std::collections::BTreeMap;
-
 use skein_json::tokenizer::Error;
 use skein_json_world::generate::{self, Shape};
 use skein_json_world::world::{self, Run, Settings};
 use skein_json_world::{Outcome, transcript};
 use skein_lib::Rng;
+use skein_protocol_kit::seen::Seen;
 
 const ROUNDS: u64 = 20_000;
 
-/// How often each thing a sweep injects or reaches fell.
-#[derive(Default)]
-struct Seen(BTreeMap<String, u32>);
-
-impl Seen {
-    fn note(&mut self, what: String) {
-        *self.0.entry(what).or_default() += 1;
+fn record(tally: &mut Seen, run: &Run, settings: &Settings) {
+    match run.outcome {
+        Some(Outcome::Failed(Error::Stream(_))) => tally.note("failed Stream".into()),
+        Some(outcome) => tally.note(format!("{outcome:?}")),
+        None => tally.note("closed before the outcome".into()),
     }
-
-    fn record(&mut self, run: &Run, settings: &Settings) {
-        match run.outcome {
-            Some(Outcome::Failed(Error::Stream(_))) => self.note("failed Stream".into()),
-            Some(outcome) => self.note(format!("{outcome:?}")),
-            None => self.note("closed before the outcome".into()),
-        }
-        self.note(format!("closed while waiting for {:?}", run.closed_while));
-        let fell = run.fell;
-        if fell.idle_end {
-            self.note("an end with nothing demanded".into());
-        }
-        if fell.crossed_end {
-            self.note("a demand crossed the end".into());
-        }
-        if fell.byte_then_end {
-            self.note("an end after a number's last byte".into());
-        }
-        if fell.late_delivery {
-            self.note("a delivery after the close".into());
-        }
-        if fell.failed_after_end {
-            self.note("a failure after the end".into());
-        }
-        if let Some(waiting) = fell.failed_while {
-            self.note(format!("failed while waiting for {waiting:?}"));
-        }
-        if let Some(fault) = run.failed {
-            self.note(format!("failed with {fault:?}"));
-        }
-        if settings.cut.is_some() {
-            self.note("a stream ended early".into());
-        }
-        if run.held_back == settings.cap {
-            self.note("the stream below filled while the side above stopped".into());
-        }
+    tally.note(format!("closed while waiting for {:?}", run.closed_while));
+    let fell = run.fell;
+    if fell.idle_end {
+        tally.note("an end with nothing demanded".into());
     }
-
-    fn assert_fell(&self, expected: &[&str]) {
-        for what in expected {
-            assert!(self.0.contains_key(*what), "{what} fell: {:#?}", self.0);
-        }
+    if fell.crossed_end {
+        tally.note("a demand crossed the end".into());
+    }
+    if fell.byte_then_end {
+        tally.note("an end after a number's last byte".into());
+    }
+    if fell.late_delivery {
+        tally.note("a delivery after the close".into());
+    }
+    if fell.failed_after_end {
+        tally.note("a failure after the end".into());
+    }
+    if let Some(waiting) = fell.failed_while {
+        tally.note(format!("failed while waiting for {waiting:?}"));
+    }
+    if let Some(fault) = run.failed {
+        tally.note(format!("failed with {fault:?}"));
+    }
+    if settings.cut.is_some() {
+        tally.note("a stream ended early".into());
+    }
+    if run.held_back == settings.cap {
+        tally.note("the stream below filled while the side above stopped".into());
     }
 }
 
@@ -131,7 +114,7 @@ fn generated_and_mutated_documents_read_as_the_reference_reads_them_whatever_the
         let limits = world::limits(&mut rng);
         let settings = Settings::chaotic(&mut rng, limits, document.len());
         let run = world::check(&document, &settings, seed);
-        tally.record(&run, &settings);
+        record(&mut tally, &run, &settings);
     }
     tally.assert_fell(&EVERY_ERROR);
     tally.assert_fell(&EVERY_FAULT);
@@ -158,7 +141,7 @@ fn transcripts_cut_mutated_and_failed_read_as_the_reference_reads_them() {
         limits.chunk = u32::try_from(rng.between(1, 128)).unwrap();
         let settings = Settings::chaotic(&mut rng, limits, document.len());
         let run = world::check(&document, &settings, seed);
-        tally.record(&run, &settings);
+        record(&mut tally, &run, &settings);
     }
     tally.assert_fell(&EVERY_ERROR);
     tally.assert_fell(&EVERY_FAULT);

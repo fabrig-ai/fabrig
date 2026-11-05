@@ -304,6 +304,7 @@ fn welcome(root: &Domain) -> bool {
         | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Repositories { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
     }
