@@ -72,3 +72,16 @@ As `notes/common.md`, Your report.
 ## Answers
 
 2026-11-05 (fabrig/ui). Ruling (rulings.md, 3): the sheet is ui-goal-page's start-sheet; here only "Start goal…" in the chat's bar opening it, and "Goal TITLE →" and its line.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/goal-sheet/foreman-1)
+
+resolve words.rs by retaining the chat words and combining vocabulary counts
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`.
+Rebase onto the landing’s current integration base.
+Main’s vocabulary corrections in `f0bbb909d1`, brought into integration by `29a48b5fe9`, overlap this branch’s count changes.
+Preserve `ChatStartGoal` and `ChatGoalLink`, their English text, phrase IDs 3558/3559, and both `ALL` entries.
+Preserve the incoming agent-check charter comment and vocabulary corrections.
+For the inspected integration tip `d7d8dba129`, the combined declarations are `PHRASES = 1706`, `SEGMENTS = 2974`, and `ALL: [Word; 1107]`.
+These combine integration’s 1704 phrases/2970 segments with this task’s two phrases/four segments.
+Verify the merged counts with the existing `english_declarations()` assertion in `src/tests/accounts.rs`, then run the focused chat-sheet tests through heavy.
+Keep the shared start-sheet implementation as required by the task’s ruling.
