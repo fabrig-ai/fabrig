@@ -1,0 +1,5 @@
+draft = "ui-final-walk"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-final-walk/inputs/request.md", "temper/docs/design/client/journeys.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
