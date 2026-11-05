@@ -3,3 +3,22 @@ repo = "fabrig"
 sources = ["temper/docs/plan/claude-always/inputs/request.md", "temper/docs/design/draft/claude-provider.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "offered"
+title = "init writes Claude's provider everywhere, so the Model step always offers it"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 8.2"
+
+[[slice]]
+id = 1
+story = "a fresh temper box with no claude on PATH offers ChatGPT and Claude"
+parts = ["offered"]
+walk = false
