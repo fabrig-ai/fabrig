@@ -343,8 +343,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-client-test-kit",
                 "sha2"
             ]
-            .contains(&d.as_str())
-                || super::kits::pending_world_dependency("jig-client-kit", d)),
+            .contains(&d.as_str())),
             "{}",
             manifest.path.display()
         );

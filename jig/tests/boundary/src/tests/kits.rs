@@ -9,13 +9,6 @@ use std::{
 // Kits by design, whatever their names say (jig/docs/design/domain/testing.md, 7).
 const WORLD_KITS: [&str; 2] = ["skein-world", "smith-agent-process-world"];
 
-// Each remaining world edge has a reason; removing an edge also removes its entry.
-const PENDING: &[(&str, &str, &str)] = &[];
-
-pub(super) fn pending_world_dependency(package: &str, dependency: &str) -> bool {
-    PENDING.iter().any(|(from, to, _)| *from == package && *to == dependency)
-}
-
 #[derive(Debug)]
 struct Package {
     name: String,
@@ -64,34 +57,19 @@ fn packages() -> Vec<Package> {
         .collect()
 }
 
-fn world_breaches(packages: &[Package], pending: &[(&str, &str, &str)]) -> Vec<String> {
-    let edges: BTreeSet<_> = packages
+fn world_breaches(packages: &[Package]) -> Vec<String> {
+    packages
         .iter()
         .flat_map(|package| {
             package
                 .dependencies
                 .iter()
                 .filter(|name| name.ends_with("-world") && !WORLD_KITS.contains(&name.as_str()))
-                .map(|name| (package.name.as_str(), name.as_str()))
+                .map(|name| format!("{} -> {name}", package.name))
         })
-        .collect();
-    let mut failures = Vec::new();
-    let mut listed = BTreeSet::new();
-    for &(package, dependency, reason) in pending {
-        if reason.trim().is_empty() {
-            failures.push(format!("{package} -> {dependency}: pending reason is empty"));
-        }
-        if !listed.insert((package, dependency)) {
-            failures.push(format!("{package} -> {dependency}: duplicate pending edge"));
-        }
-        if !edges.contains(&(package, dependency)) {
-            failures.push(format!("{package} -> {dependency}: pending edge no longer exists"));
-        }
-    }
-    for (package, dependency) in edges.difference(&listed) {
-        failures.push(format!("{package} -> {dependency}"));
-    }
-    failures
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 fn return_path(packages: &[Package], start: &str, target: &str) -> Option<Vec<String>> {
@@ -150,10 +128,10 @@ fn drop_in_breaches(packages: &[Package]) -> Vec<String> {
 }
 
 #[test]
-fn kit_packages_depend_on_no_world_except_exact_pending_edges() {
+fn kit_packages_depend_on_no_world_except_world_kits() {
     let packages = packages();
     assert!(!packages.is_empty(), "metadata includes jig packages");
-    let failures = world_breaches(&packages, PENDING);
+    let failures = world_breaches(&packages);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
@@ -182,23 +160,11 @@ fn fixture(name: &str, normal: &[&str], dev: &[&str]) -> Package {
 }
 
 #[test]
-fn world_edges_name_normal_and_dev_dependencies_and_require_exact_reasons() {
+fn world_edges_name_normal_and_dev_dependencies_except_world_kits() {
     let packages = [fixture("jig-sample", &["normal-world"], &["dev-world"])];
-    assert_eq!(world_breaches(&packages, &[]), ["jig-sample -> dev-world", "jig-sample -> normal-world"]);
-    let pending =
-        [("jig-sample", "normal-world", "Uses its driver."), ("jig-sample", "dev-world", "Uses its fixture.")];
-    assert!(world_breaches(&packages, &pending).is_empty());
-    assert_eq!(
-        world_breaches(&[], &pending),
-        [
-            "jig-sample -> normal-world: pending edge no longer exists",
-            "jig-sample -> dev-world: pending edge no longer exists",
-        ]
-    );
-    let failures = world_breaches(&packages, &[("jig-sample", "normal-world", "")]);
-    assert_eq!(failures, ["jig-sample -> normal-world: pending reason is empty", "jig-sample -> dev-world"]);
+    assert_eq!(world_breaches(&packages), ["jig-sample -> dev-world", "jig-sample -> normal-world"]);
     let packages = [fixture("jig-sample", &["skein-world", "another-world"], &["smith-agent-process-world"])];
-    assert_eq!(world_breaches(&packages, &[]), ["jig-sample -> another-world"]);
+    assert_eq!(world_breaches(&packages), ["jig-sample -> another-world"]);
 }
 
 #[test]
