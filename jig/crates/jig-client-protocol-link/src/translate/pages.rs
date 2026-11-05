@@ -24,33 +24,24 @@ fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
     }
 }
 
-#[path = "pages_part0.rs"]
-mod part0;
-pub(crate) use part0::*;
-#[path = "pages_part1.rs"]
-mod part1;
-pub(crate) use part1::*;
-#[path = "pages_part2.rs"]
-mod part2;
-pub(crate) use part2::*;
-#[path = "pages_part3.rs"]
-mod part3;
-pub(crate) use part3::*;
-#[path = "pages_part4.rs"]
-mod part4;
-pub(crate) use part4::*;
-#[path = "pages_part5.rs"]
-mod part5;
-pub(crate) use part5::*;
-#[path = "pages_part6.rs"]
-mod part6;
-pub(crate) use part6::*;
-#[path = "pages_part7.rs"]
-mod part7;
-pub(crate) use part7::*;
-#[path = "pages_part8.rs"]
-mod part8;
-pub(crate) use part8::*;
+mod activity;
+pub(crate) use activity::*;
+mod history_changes;
+pub(crate) use history_changes::*;
+mod history;
+pub(crate) use history::*;
+mod notes;
+pub(crate) use notes::*;
+mod inbox;
+pub(crate) use inbox::*;
+mod spend;
+pub(crate) use spend::*;
+mod proposals;
+pub(crate) use proposals::*;
+mod decisions;
+pub(crate) use decisions::*;
+mod ended;
+pub(crate) use ended::*;
 
 pub fn history_page(record: w::HistoryPage, limits: &Limits) -> Result<c::HistoryPage, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {

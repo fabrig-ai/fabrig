@@ -6,23 +6,20 @@ use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::Map;
 use skein_lib::Reader;
-#[path = "facts_part0.rs"]
-mod part0;
-use part0::chip_fields;
-pub(crate) use part0::{
+mod runs;
+use runs::chip_fields;
+pub(crate) use runs::{
     active_run, call_identity, chip_phase, closing_stage, document_text, failure_class, hold_category, person_address,
     proposal_key, recipient, retry_notice, run_stage,
 };
-#[path = "facts_part1.rs"]
-mod part1;
-pub(crate) use part1::party;
-pub(crate) use part1::{chip_hold, executor, numbers, part, person_wait, wake_policy};
-use part1::{chip_phase_fields, closing_fields, ending_fields, held_runtime_fields, hold_reason_fields};
-#[path = "facts_part2.rs"]
-mod part2;
-pub(crate) use part2::dependencies;
-pub(crate) use part2::{budget, funder, requester, resource_line};
-use part2::{chip_details_fields, chip_ending_fields, result_value_fields};
+mod holds;
+pub(crate) use holds::party;
+pub(crate) use holds::{chip_hold, executor, numbers, part, person_wait, wake_policy};
+use holds::{chip_phase_fields, closing_fields, ending_fields, held_runtime_fields, hold_reason_fields};
+mod chips;
+pub(crate) use chips::dependencies;
+pub(crate) use chips::{budget, funder, requester, resource_line};
+use chips::{chip_details_fields, chip_ending_fields, result_value_fields};
 
 #[derive(Debug)]
 struct Child {
@@ -284,5 +281,5 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
     root.ok_or(piece_problem(skein_codec::Reason::Malformed))
 }
 
-pub(crate) use part1::{failure_tries, prior_phase};
-pub(crate) use part2::result_field;
+pub(crate) use holds::{failure_tries, prior_phase};
+pub(crate) use chips::result_field;

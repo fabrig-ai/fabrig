@@ -9,34 +9,25 @@ use skein_lib::{List, Reader, Wall, bytes};
 mod accounts;
 #[path = "catalogue.rs"]
 mod catalogue;
-#[path = "documents_part0.rs"]
-mod part0;
+mod frame;
 pub(crate) use accounts::*;
-pub(crate) use part0::*;
-#[path = "documents_part1.rs"]
-mod part1;
-pub(crate) use part1::*;
-#[path = "documents_part2.rs"]
-mod part2;
-pub(crate) use part2::*;
-#[path = "documents_part3.rs"]
-mod part3;
-pub(crate) use part3::*;
-#[path = "documents_part4.rs"]
-mod part4;
-pub(crate) use part4::*;
-#[path = "documents_part5.rs"]
-mod part5;
-pub(crate) use part5::*;
-#[path = "documents_part6.rs"]
-mod part6;
-pub(crate) use part6::*;
-#[path = "documents_part7.rs"]
-mod part7;
-pub(crate) use part7::*;
-#[path = "documents_part8.rs"]
-mod part8;
-pub(crate) use part8::*;
+pub(crate) use frame::*;
+mod authority;
+pub(crate) use authority::*;
+mod offered;
+pub(crate) use offered::*;
+mod task;
+pub(crate) use task::*;
+mod lines;
+pub(crate) use lines::*;
+mod hosts;
+pub(crate) use hosts::*;
+mod capacity;
+pub(crate) use capacity::*;
+mod project;
+pub(crate) use project::*;
+mod runs;
+pub(crate) use runs::*;
 
 fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
     match c::Text::new(bytes::copy_of(value), limits.client().text) {
