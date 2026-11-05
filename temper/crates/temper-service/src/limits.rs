@@ -423,7 +423,7 @@ const CLIENTS: Clients = Clients {
     bundle_bytes: 16 << 20,
 };
 /// The standalone process's socket admission holds standard's owned example with both listeners and a sign-in.
-pub const SOCKETS: u32 = 128;
+pub const SOCKETS: u32 = 256;
 
 /// Constant profile values in each owner's limits.
 #[must_use]

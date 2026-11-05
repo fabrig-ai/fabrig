@@ -73,7 +73,7 @@ pub fn root_limits(worker: &settings::Worker, agent: &settings::Agent, own: &lim
         tooling: limits::tooling(worker.jig.slots),
         host,
         checkout: own.checkout,
-        agent: agent.host_limits,
+        agent: smith_host_domain::Limits { agents: worker.jig.slots, ..agent.host_limits },
         reply_bytes: agent.limits.bodies.host_reply_text,
         bounds: agent.bounds.clone(),
         stop_bound: worker.jig.stop_bound,

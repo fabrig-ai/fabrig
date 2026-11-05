@@ -287,3 +287,11 @@ Shape: `machine-tls`. Paths: `application.machine.github.transport.tls`. TLS ide
 - **Exit 0:** `{"settled":[PATH]}`, no file left unmerged: temper commits the tree as the merge, with both parents, and pushes it. A file left unmerged or still marked fails the job.
 - **Exit 3:** `{"settled":[PATH],"left":[PATH]}`, the conflicts it could not settle: nothing is committed or pushed, and an agent resolves them in a merge made afresh, this result in its words.
 - **Any other exit,** or a result missing or past its bound, is the command's failure. A job that fails for good holds the change, as a resolution that fails does.
+
+## More slots
+
+`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it, and nothing in `agent.json` raises them. Each of these must be at least the slots, and a start names the one that's short:
+
+- `hub.slots`, in `workers[0].limits.overrides`.
+- `fleet.slots`, in `engine.limits.overrides`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.
+- `checkout.workspaces`, in `application.limits.overrides`, and `git_component.operations` there, at least the workspaces.

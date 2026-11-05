@@ -8,7 +8,8 @@ use skein_lib::{Decimal, List, Overflow, Writer};
 pub fn configuration_reference(init: &[u8], out: &mut Writer) -> Result<(), Overflow> {
     out.put(b"# Configuration\n\nKind: reference\n\nThe configuration document's top level and application members, their bounds and what temper init --box writes.\n")?;
     render(init, &members::SHAPES, &members::MEMBERS, false, out)?;
-    merge_command(out)
+    merge_command(out)?;
+    more_slots(out)
 }
 
 /// The engine and worker members, with values from init's filled document.
@@ -36,6 +37,11 @@ fn merge_command(out: &mut Writer) -> Result<(), Overflow> {
     out.put(Decimal::of(u64::from(crate::limits::MERGE_RESULT_BYTES)).as_bytes())?;
     out.put(b" bytes. Where the paths do not fit, it lists those that do, in index order, and adds `\"more\":N`, the count left out. The same head and base must give the same tree.\n- **Exit 0:** `{\"settled\":[PATH]}`, no file left unmerged: temper commits the tree as the merge, with both parents, and pushes it. A file left unmerged or still marked fails the job.\n- **Exit 3:** `{\"settled\":[PATH],\"left\":[PATH]}`, the conflicts it could not settle: nothing is committed or pushed, and an agent resolves them in a merge made afresh, this result in its words.\n- **Any other exit,** or a result missing or past its bound, is the command's failure. A job that fails for good holds the change, as a resolution that fails does.\n")?;
     Ok(())
+}
+
+/// Slot capacity at composition and each deployment limit (temper/docs/design/domain/worker.md, 6).
+fn more_slots(out: &mut Writer) -> Result<(), Overflow> {
+    out.put(b"\n## More slots\n\n`workers[0].slots` bounds the runs a worker hosts at once, an agent process each. The host's agents follow it, and nothing in `agent.json` raises them. Each of these must be at least the slots, and a start names the one that's short:\n\n- `hub.slots`, in `workers[0].limits.overrides`.\n- `fleet.slots`, in `engine.limits.overrides`. An engine alone can't see a worker's slots: it uses them up to this, and turns away a hello listing more runs.\n- `checkout.workspaces`, in `application.limits.overrides`, and `git_component.operations` there, at least the workspaces.\n")
 }
 
 fn accepted(path: &str, engine: bool) -> bool {

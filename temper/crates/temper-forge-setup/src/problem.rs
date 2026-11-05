@@ -51,6 +51,9 @@ impl Problems {
                 config::What::Duplicate => b"duplicate",
                 config::What::Kind => b"wrong value kind",
                 config::What::Bound => b"past its bound",
+                config::What::SlotsPastHub => {
+                    b"past this worker's limits.overrides.hub.slots, which must be at least its slots"
+                }
                 config::What::Unique => b"must be unique",
                 config::What::Refers => b"unknown reference",
                 config::What::ProviderKey { .. } => b"invalid provider key",
