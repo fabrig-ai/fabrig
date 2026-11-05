@@ -119,7 +119,7 @@ fn check(
                 return Err(crate::routing::refusals::ended(ending));
             }
             let message = if grace.is_some() { Some(0) } else { None };
-            Ok(tasks::Operation::Cancel { task, reason, grace, message })
+            Ok(tasks::Operation::Cancel(tasks::Cancel { task, reason, grace, message }))
         }
         people::Operation::Stop { .. } => {
             core.control_admit(
@@ -148,7 +148,7 @@ fn check(
                 return Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Again { required } });
             }
             let message = if again == Some(false) { Some(0) } else { None };
-            Ok(tasks::Operation::Release { task, again, message })
+            Ok(tasks::Operation::Release(tasks::Release { task, again, message }))
         }
         people::Operation::Move { reason, .. } => {
             core.move_admit(route.task(task), env.limits.tasks.tree_tasks, env.limits.tasks.depth, admission)?;
@@ -208,13 +208,13 @@ fn issue(counters: &mut Counters, operation: &mut tasks::Operation) -> Result<u6
     let number =
         fresh(counters, Family::Message).ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?;
     match operation {
-        tasks::Operation::Cancel { message: Some(message), .. }
-        | tasks::Operation::Release { message: Some(message), .. }
+        tasks::Operation::Cancel(tasks::Cancel { message: Some(message), .. })
+        | tasks::Operation::Release(tasks::Release { message: Some(message), .. })
         | tasks::Operation::Amend { message, .. } => *message = number,
         tasks::Operation::Message { word, .. } => word.number = number,
         tasks::Operation::Stop { hold, .. } => *hold = number,
-        tasks::Operation::Cancel { message: None, .. }
-        | tasks::Operation::Release { message: None, .. }
+        tasks::Operation::Cancel(tasks::Cancel { message: None, .. })
+        | tasks::Operation::Release(tasks::Release { message: None, .. })
         | tasks::Operation::Move { .. } => {}
     }
     Ok(number)

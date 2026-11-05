@@ -170,11 +170,10 @@ fn a_persons_wait_starts_after_dependencies_and_notifies_its_requester_once_acro
     assert_eq!(world.record(2).person_wait, Some(wait), "held tasks do not send a stall notice");
     world.restart();
     assert_eq!(
-        response(&mut world, |reply_to| Event::Control {
+        response(&mut world, |reply_to| Event::Release {
             reply_to,
             by: Party::Person(9),
-            task: 2,
-            control: tasks::Control::Release { again: None, message: None },
+            operation: tasks::Release { task: 2, again: None, message: None }
         }),
         Reply::Done
     );

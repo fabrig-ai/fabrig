@@ -218,18 +218,7 @@ fn check_parts(
         if staged.closing.as_slice().contains(&part.task) {
             return Err(problem(part.task, Refusal::State));
         }
-        let plan = match crate::control::check_cancel(
-            domain,
-            staged,
-            env,
-            Party::Task(number),
-            crate::control::Cancel {
-                number: part.task,
-                reason: part.reason.clone(),
-                grace: part.grace,
-                message: part.message,
-            },
-        ) {
+        let plan = match crate::control::check_cancel(domain, staged, env, Party::Task(number), part.clone()) {
             Ok(plan) => crate::compound::Plan::Cancel(Box::new(plan)),
             Err(problem) => return Err(*problem),
         };

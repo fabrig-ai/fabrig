@@ -134,7 +134,7 @@ pub use boundary::{
     DelegationContext, End, Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding,
     InvalidResult, JobSpec, KeptStart, Key, Kind, MessageKind, Name, New, NewsClass, NoticeState, Parameter, Party,
     PersonAddress, PersonAnswer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem, ProcedureAmendment,
-    ProcedureCancel, ProcedureDecision, ProcedureEnd, ProcedureInput, ProcedureMessage, QuestionCredit, QuestionNotice,
+    ProcedureDecision, ProcedureEnd, ProcedureInput, ProcedureMessage, QuestionCredit, QuestionNotice,
     RecurringOverlap, RecurringState, RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess, ResultField,
     ResultFollowups, ResultKind, ResultsWake, Revisions, RunContext, SavedResource, SettingsRevision, Spec, Stage,
     Status, Stored, Stub, Subscription, SubscriptionKind, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule,
@@ -143,7 +143,7 @@ pub use boundary::{
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{
-    AddressChange, Amendment, AmendmentHistory, Change, Control, DependencyPlace, History, Milestone, Settings,
+    AddressChange, Amendment, AmendmentHistory, Cancel, Change, DependencyPlace, History, Milestone, Release, Settings,
     Tracking, address_admit, instruction_admit,
 };
 pub use domain::{Domain, ViewTask, fire, step, view_phase};

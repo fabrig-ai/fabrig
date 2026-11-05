@@ -185,11 +185,10 @@ pub(super) fn end(core: &mut Core, limits: &Limits, task: u64) {
     send(
         core,
         limits,
-        tasks::Event::Control {
+        tasks::Event::Cancel {
             reply_to: reply(),
             by: tasks::Party::Person(1),
-            task,
-            control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+            operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
         },
     );
     send(core, limits, tasks::Event::EffectsSettled { task });

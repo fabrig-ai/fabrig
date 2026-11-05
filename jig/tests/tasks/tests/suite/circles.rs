@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    Active, Amendment, Circle, Control, Event, Hold, HoldKind, HoldSource, Holding, Kind, Limits, Name, Operation,
-    Party, Phase, Refusal, Stored, Taken, Was,
+    Active, Amendment, Cancel, Circle, Event, Hold, HoldKind, HoldSource, Holding, Kind, Limits, Name, Operation,
+    Party, Phase, Refusal, Release, Stored, Taken, Was,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{Duration, List};
@@ -81,11 +81,10 @@ fn named_circle(world: &World, number: u64) -> &Circle {
 
 fn release(world: &mut World, number: u64) {
     let reply_to = world.to();
-    world.send(Event::Control {
+    world.send(Event::Release {
         reply_to,
         by: Party::Person(PERSON),
-        task: number,
-        control: Control::Release { again: None, message: None },
+        operation: Release { task: number, again: None, message: None },
     });
 }
 
@@ -123,11 +122,10 @@ fn a_queue_circle_lifts_at_its_place_and_counts_its_bound_afresh() {
     later.holdings = Box::new([holding(false)]);
     world.make(Party::Person(PERSON), vec![later]);
     let reply_to = world.to();
-    world.send(Event::Control {
+    world.send(Event::Cancel {
         reply_to,
         by: Party::Task(HOLDER),
-        task: DEPENDENT,
-        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: Cancel { task: DEPENDENT, reason: Box::new([]), grace: None, message: None },
     });
     world.settle(DEPENDENT);
     assert_eq!(world.record(WAITER).phase, Phase::Waiting);
@@ -249,11 +247,10 @@ fn a_release_of_a_holder_rechecks_its_delegate_waits_and_lifts_after_they_end() 
     let HoldSource::Circle(circle) = source.as_ref() else { panic!("circle source") };
     assert_eq!(circle.tasks.as_ref(), [HOLDER, DEPENDENT, REQUESTER, WAITER]);
     let reply_to = world.to();
-    world.send(Event::Control {
+    world.send(Event::Cancel {
         reply_to,
         by: Party::Task(HOLDER),
-        task: DEPENDENT,
-        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: Cancel { task: DEPENDENT, reason: Box::new([]), grace: None, message: None },
     });
     world.settle(DEPENDENT);
     assert_eq!(world.record(HOLDER).phase, Phase::Active(jig_domain_tasks::Active::Due));
@@ -360,8 +357,10 @@ fn a_compound_release_exposes_its_waiters_queue_to_later_dependencies() {
     let mut world = queued_delegate();
     world.send(Event::Hold { task: WAITER, why: Hold::Budget });
     let before = world.records.clone();
-    let operations =
-        vec![Operation::Release { task: WAITER, again: None, message: None }, amendment(&world, HOLDER, &[REQUESTER])];
+    let operations = vec![
+        Operation::Release(Release { task: WAITER, again: None, message: None }),
+        amendment(&world, HOLDER, &[REQUESTER]),
+    ];
     assert!(matches!(compound(&mut world, operations), Reply::Refused(problem)
         if problem.why == Refusal::Circle { cut: false }
         && problem.blocked_by.as_deref() == Some(&[HOLDER, REQUESTER, WAITER])));
@@ -391,7 +390,7 @@ fn a_compound_move_removes_the_old_requesters_delegate_wait() {
 fn a_compound_cancel_removes_the_subtrees_dependency_and_queue_waits() {
     let mut world = queued_delegate();
     let operations = vec![
-        Operation::Cancel { task: REQUESTER, reason: Box::new([]), grace: None, message: None },
+        Operation::Cancel(Cancel { task: REQUESTER, reason: Box::new([]), grace: None, message: None }),
         amendment(&world, HOLDER, &[REQUESTER]),
     ];
     assert_eq!(compound(&mut world, operations), Reply::Done);
@@ -402,8 +401,10 @@ fn a_compound_cancel_removes_the_subtrees_dependency_and_queue_waits() {
 fn a_compound_reheld_release_does_not_restore_a_circling_queue_edge() {
     let mut world = delayed(false, &LIMITS);
     finish_prerequisite(&mut world);
-    let operations =
-        vec![Operation::Release { task: WAITER, again: None, message: None }, amendment(&world, HOLDER, &[REQUESTER])];
+    let operations = vec![
+        Operation::Release(Release { task: WAITER, again: None, message: None }),
+        amendment(&world, HOLDER, &[REQUESTER]),
+    ];
     assert_eq!(compound(&mut world, operations), Reply::Done);
     assert_eq!(world.record(HOLDER).waiting_on.as_ref(), [REQUESTER]);
     assert_eq!(named_circle(&world, WAITER).tasks.as_ref(), [WAITER, HOLDER, REQUESTER]);
@@ -464,11 +465,10 @@ fn amend_dependencies(world: &mut World, number: u64, dependencies: &[u64]) -> R
 
 fn cancel(world: &mut World, number: u64) {
     let reply_to = world.to();
-    world.send(Event::Control {
+    world.send(Event::Cancel {
         reply_to,
         by: Party::Person(PERSON),
-        task: number,
-        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: Cancel { task: number, reason: Box::new([]), grace: None, message: None },
     });
 }
 
@@ -711,11 +711,10 @@ fn a_circle_held_agent_given_a_dependency_lifts_idle_and_is_not_due() {
     });
     assert_eq!(world.record(HOLDER).waiting_on.as_ref(), [LATE]);
     let reply_to = world.to();
-    world.send(Event::Control {
+    world.send(Event::Cancel {
         reply_to,
         by: Party::Task(HOLDER),
-        task: DEPENDENT,
-        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: Cancel { task: DEPENDENT, reason: Box::new([]), grace: None, message: None },
     });
     world.settle(DEPENDENT);
     assert_eq!(world.record(HOLDER).phase, Phase::Active(Active::Idle));

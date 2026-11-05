@@ -1,7 +1,7 @@
 use jig_domain_tasks::{
-    self as tasks, Active, Amendment, Cause, Control, End, Ending, Event, Executor, Funder, Hold, HoldKind, Holding,
-    Key, Kind, Line, Name, Party, PersonAddress, Phase, ProcedureDecision, ProcedureEnd, Refusal, SavedResource,
-    Status, Stored, Taken, TaskResult,
+    self as tasks, Active, Amendment, Cancel, Cause, End, Ending, Event, Executor, Funder, Hold, HoldKind, Holding,
+    Key, Kind, Line, Name, Party, PersonAddress, Phase, ProcedureDecision, ProcedureEnd, Refusal, Release,
+    SavedResource, Status, Stored, Taken, TaskResult,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{Duration, ReplyTo};
@@ -113,15 +113,15 @@ fn answer(world: &mut World, number: u64, result: TaskResult) -> Reply {
 fn cancel(world: &mut World, number: u64) {
     let message = world.record(number).last_message + 1;
     assert_eq!(
-        response(world, |reply_to| Event::Control {
+        response(world, |reply_to| Event::Cancel {
             reply_to,
             by: Party::Person(9),
-            task: number,
-            control: Control::Cancel {
+            operation: Cancel {
+                task: number,
                 reason: Box::new([8]),
                 grace: Some(Duration::from_secs(5)),
                 message: Some(message)
-            },
+            }
         }),
         Reply::Done
     );
@@ -494,11 +494,10 @@ fn an_already_failed_or_cancelled_dependency_is_refused_naming_it() {
             );
         } else {
             let reply_to = world.to();
-            world.send(Event::Control {
+            world.send(Event::Cancel {
                 reply_to,
                 by: Party::Person(9),
-                task: 2,
-                control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+                operation: Cancel { task: 2, reason: Box::new([]), grace: None, message: None },
             });
         }
         world.settle(2);
@@ -738,11 +737,10 @@ fn cancelling_a_kept_task_still_accepts_its_live_runs_partial_result() {
     world.claim(1, 1);
     keep(&mut world);
     assert_eq!(
-        response(&mut world, |reply_to| Event::Control {
+        response(&mut world, |reply_to| Event::Cancel {
             reply_to,
             by: Party::Person(9),
-            task: 1,
-            control: Control::Cancel { reason: Box::new([8]), grace: None, message: None },
+            operation: Cancel { task: 1, reason: Box::new([8]), grace: None, message: None }
         }),
         Reply::Done
     );
@@ -765,11 +763,10 @@ fn end_dependency(world: &mut World, number: u64, how: Status) {
         }
         Status::Cancelled => {
             assert_eq!(
-                response(world, |reply_to| Event::Control {
+                response(world, |reply_to| Event::Cancel {
                     reply_to,
                     by: Party::Person(9),
-                    task: number,
-                    control: Control::Cancel { reason: Box::new([1]), grace: None, message: None },
+                    operation: Cancel { task: number, reason: Box::new([1]), grace: None, message: None }
                 }),
                 Reply::Done
             );
@@ -780,11 +777,10 @@ fn end_dependency(world: &mut World, number: u64, how: Status) {
 }
 
 fn release(world: &mut World, number: u64) -> Reply {
-    response(world, |reply_to| Event::Control {
+    response(world, |reply_to| Event::Release {
         reply_to,
         by: Party::Person(9),
-        task: number,
-        control: Control::Release { again: None, message: None },
+        operation: Release { task: number, again: None, message: None },
     })
 }
 
@@ -901,7 +897,7 @@ fn dependency_compound(world: &mut World, operations: Vec<tasks::Operation>) -> 
 }
 
 fn release_operation() -> tasks::Operation {
-    tasks::Operation::Release { task: 1, again: None, message: None }
+    tasks::Operation::Release(tasks::Release { task: 1, again: None, message: None })
 }
 
 fn removing_operation(world: &World, release: Option<u64>) -> tasks::Operation {

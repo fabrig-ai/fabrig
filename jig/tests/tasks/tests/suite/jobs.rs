@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    self as tasks, Accepted, Active, Class, Contract, Control, End, Ending, Event, Executor, Funder, Hold, JobSpec,
-    Key, MessageKind, Numbers, Party, Phase, ProcedureDecision, ProcedureEnd, Refusal, ResultKind, Stage, Stored,
+    self as tasks, Accepted, Active, Cancel, Class, Contract, End, Ending, Event, Executor, Funder, Hold, JobSpec, Key,
+    MessageKind, Numbers, Party, Phase, ProcedureDecision, ProcedureEnd, Refusal, Release, ResultKind, Stage, Stored,
     TaskResult, Word,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
@@ -184,11 +184,10 @@ fn a_failing_job_is_retried_within_its_tries_then_held_and_its_procedure_hears_i
     assert_eq!(world.records, before);
     let reply_to = world.to();
     let key = reply_to.into_token().raw();
-    world.send(Event::Control {
+    world.send(Event::Release {
         reply_to: ReplyTo::new(skein_lib::Token::new(key)),
         by: Party::Task(PROCEDURE),
-        task: JOB,
-        control: Control::Release { again: None, message: None },
+        operation: Release { task: JOB, again: None, message: None },
     });
     assert_eq!(world.replies[&key], Reply::Done);
     assert_eq!(world.record(JOB).phase, Phase::Active(Active::Due));
@@ -289,7 +288,7 @@ fn a_cancel_ends_a_running_job_at_once_even_with_a_grace() {
             &mut world,
             2,
             ProcedureDecision {
-                cancels: Box::new([tasks::ProcedureCancel {
+                cancels: Box::new([tasks::Cancel {
                     task: JOB,
                     reason: b"stop".as_slice().into(),
                     grace: Some(Duration::from_secs(5)),
@@ -324,11 +323,10 @@ fn a_cancel_ends_a_running_job_at_once_even_with_a_grace() {
         Reply::Made(vec![DEPENDENCY, JOB])
     );
     let reply_to = world.to();
-    world.send(Event::Control {
+    world.send(Event::Cancel {
         reply_to,
         by: Party::Person(9),
-        task: ROOT,
-        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: Cancel { task: ROOT, reason: Box::new([]), grace: None, message: None },
     });
     assert!(matches!(world.record(JOB).phase, Phase::Closing(_)));
     assert!(world.record(JOB).grace.is_none());

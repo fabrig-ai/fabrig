@@ -1,6 +1,7 @@
 //! Root-authorized changes to live tasks (domain/tasks.md, sections 5.5 and 7).
 //! The child keeps only current state; root owns durable call decisions and
 //! commits every emitted save before any worker sees a control outcome.
+use crate::compound::{Operation, Staged};
 use crate::domain::{Domain, entrance, publish, record, refused, task_mut};
 use crate::{
     Active, Authority, Limits, MessageKind, Party, Phase, Refusal, Request, Spec, Stored, Tries, WakePolicy, Was, Word,
@@ -8,13 +9,21 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, ReplyTo};
 
-/// One tool change to a live delegate, authenticated by root's current claim.
+/// Close a whole subtree with a common bounded reason (domain/tasks.md, section 7).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Control {
-    /// Close a whole subtree with a common bounded reason.
-    Cancel { reason: Box<[u8]>, grace: Option<Duration>, message: Option<u64> },
-    /// Lift a hold and reset the failure counts it exhausted.
-    Release { again: Option<bool>, message: Option<u64> },
+pub struct Cancel {
+    pub task: u64,
+    pub reason: Box<[u8]>,
+    pub grace: Option<Duration>,
+    pub message: Option<u64>,
+}
+
+/// Lift a task's hold and reset its failure counts (domain/tasks.md, 5.5).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Release {
+    pub task: u64,
+    pub again: Option<bool>,
+    pub message: Option<u64>,
 }
 
 /// Whether an amendment tracks a task at a priority, or untracks it.
@@ -258,7 +267,7 @@ pub(crate) fn amend(
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
     };
-    match check_amend(domain, &crate::compound::Staged::new(0), env, by, change) {
+    match check_amend(domain, &Staged::new(0), env, by, change) {
         Ok(plan) => {
             apply_amend(domain, env, by, plan, out);
             out.push(Request::Done { reply_to: to });
@@ -270,7 +279,7 @@ pub(crate) fn amend(
 /// Check the whole dependency list at every mutable phase (domain/tasks.md, 5.7 and section 7).
 pub(crate) fn check_amend(
     domain: &Domain,
-    staged: &crate::compound::Staged,
+    staged: &Staged,
     env: &Env<Limits>,
     by: Party,
     amendment: Amend,
@@ -366,7 +375,7 @@ fn place(places: &[DependencyPlace], number: u64) -> Option<&DependencyPlace> {
 #[expect(clippy::too_many_arguments, reason = "dependency reach includes loaded places")]
 fn dependency_reached(
     domain: &Domain,
-    staged: &crate::compound::Staged,
+    staged: &Staged,
     env: &Env<Limits>,
     by: Party,
     project: u32,
@@ -429,7 +438,7 @@ fn dependency_reached(
 #[expect(clippy::too_many_lines, reason = "whole amendment preflight remains together")]
 fn check_amend_fields(
     domain: &Domain,
-    staged: &crate::compound::Staged,
+    staged: &Staged,
     env: &Env<Limits>,
     by: Party,
     amendment: Amend,
@@ -482,7 +491,7 @@ fn check_amend_fields(
     if amendment.reason.len() > skein_lib::length::usize_of(env.limits.message_bytes) {
         return Err(Refusal::Read);
     }
-    crate::compound::Staged::address(&old, amendment.addressed.as_ref())?;
+    Staged::address(&old, amendment.addressed.as_ref())?;
     instruction_admit(&env.limits, old.executor, &amendment.instructions)?;
     if let Some(spec) = &amendment.spec
         && (!crate::batch::valid_spec(&env.limits, spec) || !spec.inputs.is_empty() || spec.asks != old.spec.asks)
@@ -580,7 +589,11 @@ fn check_amend_fields(
         eligible: true,
     };
     let before = old.settings();
-    let release = if releasing { Some(check_release(domain, staged, env, number, by, None, None)?) } else { None };
+    let release = if releasing {
+        Some(check_release(domain, staged, env, by, Release { task: number, again: None, message: None })?)
+    } else {
+        None
+    };
     let prepared =
         crate::inbox::prepare_staged(domain, staged, &env.limits, number, word, crate::inbox::Admission::Merged)
             .expect("authenticated amendment has a merged inbox slot");
@@ -775,89 +788,59 @@ pub(crate) fn apply(
     env: &Env<Limits>,
     to: ReplyTo,
     by: Party,
-    number: u64,
-    control: Control,
+    operation: Operation,
     out: &mut Queue<Request>,
 ) {
+    let number = operation.task();
     let to = match entrance(domain, to, number) {
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
     };
     let permitted = match by {
-        Party::Deployment { project } => match &control {
-            Control::Cancel { .. } => match record(domain, number) {
+        Party::Deployment { project } => match &operation {
+            Operation::Cancel(_) => match record(domain, number) {
                 Some(task) => task.project == project,
                 None => false,
             },
-            Control::Release { .. } => false,
+            Operation::Release(_) => false,
+            Operation::Move { .. } | Operation::Amend { .. } | Operation::Message { .. } | Operation::Stop { .. } => {
+                unreachable!("single control operation")
+            }
         },
         Party::Task(_) | Party::Person(_) => allowed(domain, number, by, env.limits.tasks),
     };
     if !permitted {
         return refused(to, Some(number), Refusal::Reference, out);
     }
-    match control {
-        Control::Cancel { reason, grace, message } => {
-            match check_cancel(
-                domain,
-                &crate::compound::Staged::new(0),
-                env,
-                by,
-                Cancel { number, reason, grace, message },
-            ) {
-                Ok(plan) => apply_cancel(domain, env, by, plan, out),
-                Err(problem) => return out.push(Request::Refused { reply_to: to, problem: *problem }),
-            }
-            out.push(Request::Done { reply_to: to });
-        }
-        Control::Release { again, message } => {
-            if let Err(why) = release(domain, env, number, by, again, message, out) {
-                return out.push(Request::Refused {
-                    reply_to: to,
-                    problem: release_problem(domain, &crate::compound::Staged::new(0), &env.limits, number, by, why),
-                });
-            }
-            out.push(Request::Done { reply_to: to });
-        }
-    }
-}
-
-/// Lift a fully preflighted hold in the current decision.
-pub(crate) fn release(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    number: u64,
-    by: Party,
-    again: Option<bool>,
-    message: Option<u64>,
-    out: &mut Queue<Request>,
-) -> Result<(), Refusal> {
-    match check_release(domain, &crate::compound::Staged::new(0), env, number, by, again, message) {
-        Ok(plan) => {
-            apply_release(domain, env, by, plan, out);
-            Ok(())
-        }
-        Err(why) => {
-            if why == Refusal::Busy {
-                let problem = release_problem(domain, &crate::compound::Staged::new(0), &env.limits, number, by, why);
-                if let Some(capacity) = problem.capacity {
+    match operation {
+        Operation::Cancel(cancel) => match check_cancel(domain, &Staged::new(0), env, by, cancel) {
+            Ok(plan) => apply_cancel(domain, env, by, plan, out),
+            Err(problem) => return out.push(Request::Refused { reply_to: to, problem: *problem }),
+        },
+        Operation::Release(operation) => match check_release(domain, &Staged::new(0), env, by, operation) {
+            Ok(plan) => apply_release(domain, env, by, plan, out),
+            Err(why) => {
+                let problem = release_problem(domain, &Staged::new(0), &env.limits, number, by, why);
+                if why == Refusal::Busy {
+                    let capacity = match problem.capacity {
+                        Some(capacity) => capacity,
+                        None => crate::Capacity {
+                            project: Some(record(domain, number).expect("release task live").project),
+                            by,
+                            action: crate::CapacityAction::Release,
+                            cause: crate::capacity::inbox(number, &env.limits),
+                        },
+                    };
                     domain.remember_capacity(env.wall, capacity);
-                    return Err(why);
                 }
-                let project = record(domain, number).expect("release task live").project;
-                domain.remember_capacity(
-                    env.wall,
-                    crate::Capacity {
-                        project: Some(project),
-                        by,
-                        action: crate::CapacityAction::Release,
-                        cause: crate::capacity::inbox(number, &env.limits),
-                    },
-                );
+                return out.push(Request::Refused { reply_to: to, problem });
             }
-            Err(why)
+        },
+        Operation::Move { .. } | Operation::Amend { .. } | Operation::Message { .. } | Operation::Stop { .. } => {
+            unreachable!("single control operation")
         }
     }
+    out.push(Request::Done { reply_to: to });
 }
 
 pub(crate) struct ReleasePlan {
@@ -871,13 +854,12 @@ pub(crate) struct ReleasePlan {
 
 pub(crate) fn check_release(
     domain: &Domain,
-    staged: &crate::compound::Staged,
+    staged: &Staged,
     env: &Env<Limits>,
-    number: u64,
     by: Party,
-    again: Option<bool>,
-    message: Option<u64>,
+    operation: Release,
 ) -> Result<ReleasePlan, Refusal> {
+    let Release { task: number, again, message } = operation;
     let task = staged.record(domain, number).ok_or(Refusal::Unknown)?;
     if task.revision == u64::MAX {
         return Err(Refusal::State);
@@ -983,7 +965,7 @@ pub(crate) fn apply_release(
 /// Admission projects the same return judgement without changing the committed index.
 pub(crate) fn returned_phase(
     domain: &Domain,
-    staged: &crate::compound::Staged,
+    staged: &Staged,
     limits: &Limits,
     number: u64,
     phase: Phase,
@@ -1033,7 +1015,7 @@ pub(crate) fn return_to_waits(domain: &mut Domain, env: &Env<Limits>, number: u6
         crate::run::hold(domain, env, number, crate::Hold::Dependency(task), out);
         return;
     }
-    if let Err(problem) = crate::waits::check_return(domain, &crate::compound::Staged::new(0), &env.limits, number) {
+    if let Err(problem) = crate::waits::check_return(domain, &Staged::new(0), &env.limits, number) {
         crate::waits::hold_circle(domain, env, number, problem, out);
     } else if crate::holds::queued(domain, record(domain, number).expect("released task")) {
         crate::holds::back(domain, env, number, out);
@@ -1051,14 +1033,6 @@ pub(crate) fn return_to_waits(domain: &mut Domain, env: &Env<Limits>, number: u6
         },
         Phase::Waiting | Phase::Active(_) | Phase::Held { .. } | Phase::Ended(_) => {}
     }
-}
-
-/// A cancel's input and root-issued finish word.
-pub(crate) struct Cancel {
-    pub number: u64,
-    pub reason: Box<[u8]>,
-    pub grace: Option<Duration>,
-    pub message: Option<u64>,
 }
 
 pub(crate) struct CancelPlan {
@@ -1086,12 +1060,12 @@ impl CancelPlan {
 
 pub(crate) fn check_cancel(
     domain: &Domain,
-    staged: &crate::compound::Staged,
+    staged: &Staged,
     env: &Env<Limits>,
     by: Party,
     cancel: Cancel,
 ) -> Result<CancelPlan, Box<crate::Problem>> {
-    let Cancel { number, reason, grace, message } = cancel;
+    let Cancel { task: number, reason, grace, message } = cancel;
     let mut problem =
         Box::new(crate::Problem { task: Some(number), why: Refusal::Read, blocked_by: None, capacity: None });
     if grace.is_some() != message.is_some() {
@@ -1154,7 +1128,7 @@ pub(crate) fn apply_cancel(
 
 pub(crate) fn release_problem(
     domain: &Domain,
-    staged: &crate::compound::Staged,
+    staged: &Staged,
     limits: &Limits,
     number: u64,
     by: Party,

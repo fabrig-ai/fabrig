@@ -1,5 +1,5 @@
 //! Requester question keeps and task-batched exits (domain/tasks.md, 5.7 and 7).
-use jig_domain_tasks::{self as tasks, *};
+use jig_domain_tasks::{self as tasks, Cancel, *};
 use jig_tasks_world::{LIMITS, Reply, World, task};
 use skein_lib::{Queue, ReplyTo, Token, Wall};
 
@@ -117,11 +117,10 @@ fn a_question_keep_permits_failure() {
 #[test]
 fn a_question_keep_permits_cancellation() {
     let mut world = parked();
-    response(&mut world, |reply_to| Event::Control {
+    response(&mut world, |reply_to| Event::Cancel {
         reply_to,
         by: Party::Person(PERSON),
-        task: ASKER,
-        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: Cancel { task: ASKER, reason: Box::new([]), grace: None, message: None },
     });
     world.settle(ASKER);
     assert!(matches!(world.results[&ASKER], Ending::Cancelled { .. }));
@@ -320,11 +319,10 @@ fn ending_full_credit_lists_emits_one_batch_per_asker_and_one_publication() {
     step(
         &mut domain,
         &env,
-        Event::Control {
+        Event::Cancel {
             reply_to: ReplyTo::new(Token::new(1)),
             by: Party::Task(REQUESTER),
-            task: FIRST_PEER,
-            control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+            operation: Cancel { task: FIRST_PEER, reason: Box::new([]), grace: None, message: None },
         },
     );
     step(&mut domain, &env, Event::EffectsSettled { task: FIRST_PEER });

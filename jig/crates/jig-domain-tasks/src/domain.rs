@@ -645,8 +645,11 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::WithdrawProposal { reply_to, proposer, proposal } => {
             crate::proposals::withdraw(domain, env, reply_to, proposer, proposal, out);
         }
-        Event::Control { reply_to, by, task, control } => {
-            crate::control::apply(domain, env, reply_to, by, task, control, out);
+        Event::Cancel { reply_to, by, operation } => {
+            crate::control::apply(domain, env, reply_to, by, crate::Operation::Cancel(operation), out);
+        }
+        Event::Release { reply_to, by, operation } => {
+            crate::control::apply(domain, env, reply_to, by, crate::Operation::Release(operation), out);
         }
         Event::Amend { reply_to, by, task, message, stop_run, amendment, funder, places } => {
             crate::control::amend(

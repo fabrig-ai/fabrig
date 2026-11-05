@@ -210,11 +210,10 @@ fn generated_event(core: &Core, draw: u64, iteration: u64) -> Event {
                 reason: Box::new([]),
             },
         }),
-        2 => Event::Tasks(tasks::Event::Control {
+        2 => Event::Tasks(tasks::Event::Cancel {
             reply_to,
             by: tasks::Party::Person(REQUESTER),
-            task,
-            control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+            operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
         }),
         3 => Event::Tasks(tasks::Event::EffectsSettled { task }),
         _ => unreachable!("four generated operations"),

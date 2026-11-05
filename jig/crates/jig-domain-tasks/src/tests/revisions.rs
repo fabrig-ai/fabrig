@@ -8,9 +8,10 @@
     reason = "unit tests build fixtures and inspect selected child events"
 )]
 use crate::{
-    Amendment, Authority, Budget, Contract, Control, Delegation, Domain, EscalationDecision, EscalationHolder,
+    Amendment, Authority, Budget, Cancel, Contract, Delegation, Domain, EscalationDecision, EscalationHolder,
     EscalationOutcome, Event, Executor, Funder, Hold, Key, Limits, MessageKind, Models, New, Numbers, Parameter, Party,
-    PersonAddress, Request, Retries, Retry, Revisions, Scopes, Spec, Stored, TaskResult, Tools, WakePolicy, step,
+    PersonAddress, Release, Request, Retries, Retry, Revisions, Scopes, Spec, Stored, TaskResult, Tools, WakePolicy,
+    step,
 };
 use alloc::{boxed::Box, collections::BTreeMap};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
@@ -278,11 +279,10 @@ fn a_hold_changes_revision_for_a_new_hold_or_reason_but_not_a_pass() {
     }));
     assert_eq!(test.revisions(1), Revisions { hold: 2, ..first });
     test.route(1, EscalationHolder::Person(9), 3);
-    test.send(Event::Control {
+    test.send(Event::Release {
         reply_to: to(),
         by: Party::Person(9),
-        task: 1,
-        control: Control::Release { again: None, message: None },
+        operation: Release { task: 1, again: None, message: None },
     });
     assert_eq!(test.revisions(1), Revisions { hold: 2, ..first });
     test.send(Event::Hold { task: 1, why: Hold::Budget });
@@ -485,11 +485,10 @@ fn activity_positions_continue_after_restart_and_the_ended_task_keeps_its_lines(
     test.restart();
     test.env.wall = Wall::from_nanos(5);
     write(&mut test, 1, 2);
-    test.send(Event::Control {
+    test.send(Event::Cancel {
         reply_to: to(),
         by: Party::Person(9),
-        task: 1,
-        control: Control::Cancel { reason: Box::from(&b"Ended"[..]), grace: None, message: None },
+        operation: Cancel { task: 1, reason: Box::from(&b"Ended"[..]), grace: None, message: None },
     });
     test.send(Event::EffectsSettled { task: 1 });
     test.send(Event::Settled { task: 1 });
@@ -557,22 +556,20 @@ fn an_uncertain_release_needs_exactly_one_repeat_choice() {
     test.make(vec![task(1, &[])]);
     test.send(Event::Hold { task: 1, why: Hold::Uncertain { entry: 6 } });
     let before = test.domain.task(1).unwrap().clone();
-    let refused = test.send(Event::Control {
+    let refused = test.send(Event::Release {
         reply_to: to(),
-        task: 1,
         by: Party::Person(9),
-        control: Control::Release { again: None, message: None },
+        operation: Release { task: 1, again: None, message: None },
     });
     assert!(refused.iter().any(|request| match request {
         Request::Refused { .. } => true,
         _ => false,
     }));
     assert_eq!(test.domain.task(1).unwrap(), &before);
-    let out = test.send(Event::Control {
+    let out = test.send(Event::Release {
         reply_to: to(),
-        task: 1,
         by: Party::Person(9),
-        control: Control::Release { again: Some(false), message: Some(2) },
+        operation: Release { task: 1, again: Some(false), message: Some(2) },
     });
     assert!(out.iter().any(|request| match request {
         Request::ResolveUncertain { task: 1, entry: 6, again: false } => true,
@@ -609,7 +606,7 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
         &mut test,
         vec![
             crate::Operation::Message { task: STOPPED_TASK, word },
-            crate::Operation::Release { task: STOPPED_TASK, again: None, message: None },
+            crate::Operation::Release(Release { task: STOPPED_TASK, again: None, message: None }),
         ],
         10_000,
     );
@@ -896,11 +893,10 @@ fn lifecycle_wall_times_keep_the_first_start_through_duplicate_reports_holds_and
     assert_eq!(h.domain.task(1).unwrap().phase_since, Wall::from_nanos(17));
     assert_eq!(h.domain.task(1).unwrap().run_since, started);
     h.env.wall = Wall::from_nanos(19);
-    h.send(Event::Control {
+    h.send(Event::Release {
         reply_to: to(),
         by: Party::Person(9),
-        task: 1,
-        control: Control::Release { again: None, message: None },
+        operation: Release { task: 1, again: None, message: None },
     });
     assert_eq!(h.domain.task(1).unwrap().run_since, started);
     assert_eq!(h.domain.task(1).unwrap().phase_since, Wall::from_nanos(19));
@@ -990,11 +986,10 @@ fn settings_claim(test: &mut Harness, number: u64) -> Vec<Request> {
 }
 
 fn settings_end(test: &mut Harness, number: u64) {
-    test.send(Event::Control {
+    test.send(Event::Cancel {
         reply_to: to(),
         by: Party::Person(9),
-        task: number,
-        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: Cancel { task: number, reason: Box::new([]), grace: None, message: None },
     });
     test.send(Event::EffectsSettled { task: number });
     test.send(Event::Settled { task: number });
@@ -1317,11 +1312,10 @@ fn released_names_only_revisions_with_no_holders_after_the_whole_step() {
     h.make(vec![task(2, &[])]);
     assert_eq!(h.domain.holding(1, 1), (Box::<[u64]>::from([1]), 1));
     settings_end(&mut h, 1);
-    h.send(Event::Control {
+    h.send(Event::Cancel {
         reply_to: to(),
         by: Party::Person(9),
-        task: 2,
-        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: Cancel { task: 2, reason: Box::new([]), grace: None, message: None },
     });
     h.send(Event::EffectsSettled { task: 2 });
     let ended = h.send(Event::Settled { task: 2 });
