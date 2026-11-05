@@ -706,6 +706,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
         top::Stored::Playground(_) => top::Key::Playground,
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        top::Stored::LandingLog(row) => top::Key::LandingLog { repository: row.repository },
         top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
 }

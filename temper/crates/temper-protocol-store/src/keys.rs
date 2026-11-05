@@ -21,6 +21,8 @@ pub const PLAYGROUND: u8 = 27;
 pub const TIER: u8 = 28;
 /// One landing's verification (temper/docs/design/protocol/store.md, 2).
 pub const VERIFICATION: u8 = 29;
+/// Retained landings per repository (protocol/store.md, 2).
+pub const LANDING_LOG: u8 = 30;
 /// Repositories being made (temper/docs/design/protocol/store.md, 2).
 pub const MAKING: u8 = 35;
 /// A person's dismissals (temper/docs/design/protocol/store.md, 2).
@@ -119,6 +121,10 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
             writer.tag(TIER);
             write_repository(&mut writer, *repository);
             writer.bytes(tier);
+        }
+        forge::Key::LandingLog { repository } => {
+            writer.tag(LANDING_LOG);
+            write_repository(&mut writer, *repository);
         }
         forge::Key::Verification { repository, commit } => {
             writer.tag(VERIFICATION);
@@ -240,6 +246,7 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
 
 /// Decode a whole key, refusing unknown tags, widths, bounds and trailing bytes.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive decoding map for durable family keys")]
 pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
     let mut reader = KeyReader::new(bytes);
     let key = match reader.tag()? {
@@ -281,6 +288,7 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             }
             forge::Key::Tier { repository, tier }
         }
+        LANDING_LOG => forge::Key::LandingLog { repository: read_repository(&mut reader)? },
         VERIFICATION => {
             forge::Key::Verification { repository: read_repository(&mut reader)?, commit: read_commit(&mut reader)? }
         }
