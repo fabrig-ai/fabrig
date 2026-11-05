@@ -5,14 +5,14 @@ use alloc::boxed::Box;
 use skein_lib::{Queue, Token};
 
 #[derive(Debug)]
-pub(crate) struct ForgeEntry {
+pub struct ForgeEntry {
     pub base: Base,
     pub dialect: Dialect,
 }
 
 /// What every forge has, whichever its dialect.
 #[derive(Debug)]
-pub(crate) struct Base {
+pub struct Base {
     pub forge: Forge,
     pub start: Start,
     pub own: Option<Token>,
@@ -21,13 +21,13 @@ pub(crate) struct Base {
 /// A forge's dialect, and what only that dialect has.
 #[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "the Forgejo variant holds its own plan and exchange together")]
-pub(crate) enum Dialect {
+pub enum Dialect {
     Forgejo { plan: Option<skein_forge::forgejo::plans::start::Plan>, exchange: crate::connection::forgejo::Exchange },
     GitHub(Box<GitHubForge>),
 }
 
 #[derive(Debug)]
-pub(crate) struct GitHubForge {
+pub struct GitHubForge {
     pub exchange: crate::connection::github::Exchange,
     pub state: crate::installations::GitHub,
     pub plan: Option<OwnPlan>,
@@ -43,6 +43,10 @@ impl Dialect {
     }
 }
 
+#[cfg_attr(
+    feature = "seam",
+    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
+)]
 impl ForgeEntry {
     /// A forge as it's added: its start from its access, its dialect from its kind.
     pub fn new(forge: Forge, limits: &Limits) -> Self {

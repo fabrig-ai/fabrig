@@ -8,7 +8,7 @@ use skein_forge::{
 use skein_lib::{Duration, Map, Secret, Set, Time, Wall, earliest, usize_of};
 
 #[derive(Debug)]
-pub(crate) struct Row {
+pub struct Row {
     pub state: Tokens,
     pub revision: u64,
     pub token_revision: u64,
@@ -23,6 +23,10 @@ pub(crate) struct Row {
     pub api_expires: Wall,
     pub git_expires: Wall,
 }
+#[cfg_attr(
+    feature = "seam",
+    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
+)]
 impl Row {
     pub fn unminted(&mut self) {
         self.state = Tokens::Unminted;
@@ -76,12 +80,16 @@ pub(crate) fn token_times(expires: Wall, now: Time, wall: Wall, renew_before: Du
     (expiry, Time::from_nanos(expiry.as_nanos().saturating_sub(renew_before.as_nanos())))
 }
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Clock {
+pub struct Clock {
     pub expiry: Time,
     pub due: Option<Time>,
     pub pending: bool,
     pub next: Duration,
 }
+#[cfg_attr(
+    feature = "seam",
+    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
+)]
 impl Clock {
     pub fn empty() -> Self {
         Self { expiry: Time::ZERO, due: None, pending: false, next: Duration::ZERO }
@@ -117,7 +125,7 @@ pub(crate) fn retry_times(next: Duration, after: Duration, env: &skein_lib::Env<
 }
 /// Eligibility, active scopes and private waits are independent of API usability.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Tokens {
+pub enum Tokens {
     Unminted,
     Minting { scope: Scope },
     Current,
@@ -125,42 +133,42 @@ pub(crate) enum Tokens {
     Gone,
 }
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Selected {
+pub struct Selected {
     pub id: u64,
     pub connect: u64,
     pub revision: u64,
 }
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum Resume {
+pub enum Resume {
     Minting { scope: Scope },
     Identity,
 }
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum Work {
+pub enum Work {
     Idle,
     Minting { next: Duration },
     Identity { next: Duration },
     Waiting { until: Time, next: Duration, resume: Resume },
 }
 #[derive(Debug)]
-pub(crate) struct HeldToken {
+pub struct HeldToken {
     pub selected: Selected,
     pub token: Secret,
     pub expires: Wall,
 }
 #[derive(Debug)]
-pub(crate) struct Metadata {
+pub struct Metadata {
     pub account: Account,
     pub suspended: bool,
     pub seen: bool,
 }
 #[derive(Debug)]
-pub(crate) struct Accepted {
+pub struct Accepted {
     pub known: Option<Account>,
     pub checked: bool,
 }
 #[derive(Debug)]
-pub(crate) struct Reading {
+pub struct Reading {
     pub page: u32,
     pub complete: bool,
     pub next: Duration,
@@ -172,6 +180,10 @@ pub(crate) struct Reading {
     pub fact: Option<u64>,
     pub overflowed: bool,
 }
+#[cfg_attr(
+    feature = "seam",
+    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
+)]
 impl Reading {
     pub fn new(cap: u32, generation: u64, next: Duration) -> Self {
         Self {
@@ -245,7 +257,7 @@ impl Reading {
     }
 }
 #[derive(Debug)]
-pub(crate) struct Diff {
+pub struct Diff {
     pub old: Map<u64, Metadata>,
     pub accepted: Set<u64>,
     pub missing: Map<u64, Option<Account>>,
@@ -341,7 +353,7 @@ fn least_after(next: Option<u64>, after: Option<u64>, id: u64) -> Option<u64> {
     next
 }
 #[derive(Debug)]
-pub(crate) enum Read {
+pub enum Read {
     Idle,
     Reading(Reading),
     Changes(Diff),
@@ -352,7 +364,7 @@ pub(crate) enum Read {
     clippy::struct_excessive_bools,
     reason = "baseline consumption, read scheduling, mint staleness, identity and connect notification are independent"
 )]
-pub(crate) struct GitHub {
+pub struct GitHub {
     pub said_origins: skein_lib::Queue<skein_forge::github::redirect::Origin>,
     pub jwt: Jwt,
     pub puller: crate::puller::Puller,
@@ -377,6 +389,10 @@ pub(crate) struct GitHub {
     pub retry: Option<Duration>,
     pub connected: bool,
 }
+#[cfg_attr(
+    feature = "seam",
+    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
+)]
 impl GitHub {
     pub fn new(cap: u32) -> Self {
         Self {

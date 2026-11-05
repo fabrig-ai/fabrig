@@ -74,7 +74,7 @@ fn ready(limits: Limits) -> f::Harness {
     let mut settings = f::github_settings();
     settings.forges.get_mut(0).expect("forge").access = None;
     let mut h = f::Harness::with(limits, f::shared(), settings);
-    h.component.test_calls_ready();
+    h.component.test_calls_ready(f::app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
     h.run(Duration::ZERO); // Arm only after Ready.
     h
 }

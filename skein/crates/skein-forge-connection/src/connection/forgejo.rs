@@ -16,7 +16,7 @@ use skein_json::tokenizer;
 use skein_lib::{Env, List, Queue, Secret, Writer};
 
 #[derive(Debug)]
-pub(crate) struct Exchange {
+pub struct Exchange {
     request: Option<request::Request>,
     decoder: Option<Box<documents::Decoder>>,
     done: Option<Body>,
