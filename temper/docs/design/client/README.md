@@ -4602,7 +4602,7 @@ can open it. `draft` is the draft's path in the repository
   - `fieldset`, legend "How it runs": a `ChoiceGroup` of `label.option` per way
     (the project's tracked templates in number order, 3.5, *Ways*):
     `<b>WAY</b><small>TEXT</small>`. The default adds " PROJECT’s default." to
-    its text and is chosen: the highest-numbered. After them, `.link` 13px muted
+    its text and is chosen: the way kind 7 names (5.13). After them, `.link` 13px muted
     "The project’s ways of working", to `Settings { project }`;
   - `.foot`: `.btn.quiet` "Cancel", `.btn.primary` "Start goal", disabled while
     Name or Draft is empty or a request is out.
@@ -5598,13 +5598,8 @@ own tests:
   nothing queued"; the same request): the line is *Changes*' (3.5), from
   the subject `changes` (4.6), and one function serves both. Default: Home
   draws no such line until it moves to that function.
-- **"Changes" on the rail by a project's settings** (the greenfield mock's
-  "What the project shows"): a project hides the page, and its entry with it.
-  Default: the entry shows for every project (5.3).
-- **Goals on Home** (the same request): Goals in place of Chats where
-  goals are on. Whether they are is the default configuration, still the
-  user's, and no fact says so (`Domain::has_goals` says whether a project
-  has any).
+- **Goals on Home** (the same request): Goals in place of Chats where a
+  project's kind 7 shows them (5.13), which Home does not read.
   Default: Chats.
 - **A goal's own page, and its report whole** (3.5, *Goals*; the request of
   2026-11-05 leaves them to the plan `ui-goal-page`): Goals' "Start one from a
@@ -5612,16 +5607,23 @@ own tests:
   the greenfield mock's `goal.html`, reading `goals::state` and the rest of what
   `report::parse` gives. Default: no such link, 5.8's page, and the report's
   headline the only part of it a page draws.
-- **"Goals" on the rail by a project's settings** (the greenfield mock's "What
-  the project shows"): a project turns goals off, and the entry's test is that
-  setting, `Domain::has_goals` staying for what else reads it. No kind says so
-  (`../protocol/configuration.md`, 13.2). Default: the entry shows where the
-  project has a goal or the page is `Goals` (5.3).
-- **A project's only goal ending while it is open** (5.3): `Domain::has_goals`
-  reads the ended group once, so once the live watch holds no row it says false
-  of a project with a goal, and the rail and the tab bar drop "Goals", until the
-  project is opened again. Reading the ended group again as the watch changes
-  would keep it. Default: one read, as the request of 2026-11-05 has it.
+- **`Domain::has_goals`, with no page to read it** (5.3): kind 7 decides the rail
+  and the tab bar, so a walk alone reads the fact, while its live watch and its
+  ended read stand per open project. It reads the ended group once, so once the
+  live watch holds no row it says false of a project with a goal. Default: it
+  stays, as 5.3 has it.
+- **How work runs' fuller page** (5.13, *Later: the fuller page*): roles, ways to
+  start work, rules, running work and history on the tab; `Proposal { proposal
+  }`; and the card's "Review", with the grouping of what temper enforces and what
+  agents follow that the mock's `.proposal-split` draws. Default: the tab's rows
+  and the card alone.
+- **How work runs' disabled rows** (5.13): Status, Funds and Telling you are
+  drawn disabled, showing what temper does today, since no setting stands behind
+  a report, the brief, funds or a notification. Default: whoever builds one turns
+  its row on.
+- **How many goals take a way** (5.13): " Used by N." and " Used by none yet."
+  need a goal's template, and jig's `TaskLine`, what a client is given of a goal,
+  records none. Default: the sentence is left out.
 - **What a chat did, on its line** (the same request): its chat's line
   says "landed · 1 h" where the chat's delegates landed. The chats' list
   gives a chat's state, not what its delegates landed, so saying it takes
@@ -5867,9 +5869,9 @@ own tests:
   - "Stop" is `Ask::Cancel`, and no new word replaces it.
 - **Start goal's places** (5.14): the chat's "Start goal…" and Chats' Drafts filter
   wait for the Chats area's drafts; "When it needs you" and "follows the away switch"
-  wait for the away switch; the project's default way for How work runs' (5.13).
+  wait for the away switch.
   Each is drawn when what stands behind it is; until then the sheet opens with no
-  draft from Goals, takes the highest-numbered way, and a goal always asks you.
+  draft from Goals, and a goal always asks you.
 - **An agent's task's page against its mockup** (5.9), each a default
   the user may change:
   - its dependencies, which the mockup draws on no agent's page: the

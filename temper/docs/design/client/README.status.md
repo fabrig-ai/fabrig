@@ -20,20 +20,30 @@
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.
-  5.3, 5.13: the Away switch in the rail and phone's top bar, and
-  "While you're away, agents may decide", await Away's `SetAway`.
+  5.3, 5.13: the Away switch in the rail and phone's top bar, "While you're
+  away, agents may decide" and its "Limits" await Away's `SetAway`, which is
+  not on main: the tab's "Away switch" row stores kind 7's `away`, and no other
+  page reads it.
   5.13: a person with a project's role alone can read kinds 6 and 7,
   but cannot change them on the tab: jig's settings inventory requires
   a deployment role (`jig-domain-core`'s `documents/settings.rs`, `make`),
   so `temper-client-domain`'s `forge/ways.rs`, `act`, has no newest
   revision and sends nothing. The controls appear enabled and give no
-  refusal. A project-scoped settings inventory needs a contract in jig
-  before the tab can use it.
-  5.13: `pages/chats.rs`'s `drafts_offered` reads kind 7, but the chat's
-  draft offer has no view calling it yet. A goal's start preselecting the
-  stored way awaits a goal-start page; `pages/goals.rs` draws the list alone.
-  3.5, 5.13, 10: `Proposal { proposal }` and the fuller page's sections, with a review's
-  "Change something"; ctl supplies the review groups and running-work effect (`tools.md`, 5.2).
+  refusal, where the request of 2026-11-05 has a person who is no owner refused
+  in jig's words, as one with a deployment role is. With no document to say a
+  setting changed, that person reads them again only as the project opens or
+  the link comes back. A project-scoped settings inventory needs a contract in
+  jig before the tab can use it.
+  5.13: `pages/chats.rs`'s `drafts_offered` reads kind 7, but only its tests call
+  it, no view drawing a chat's draft offer (section 11, *The draft beside a
+  chat*), so "Chats can write drafts" changes nothing a person sees.
+  5.13, 5.14: a goal's start chooses the first tracked template in number order
+  (`temper-client-domain`'s `pages/start_goal.rs`, `default_way`), not kind 7's
+  `way`, which the tab and a proposal's card alone read (`forge/ways.rs`,
+  `default_way`), so the default chosen on the tab does not reach the sheet or
+  its " PROJECT’s default.".
+  5.13: Home draws neither "Turn on drafts and goals" nor "See the settings", so
+  nothing opens the tab by them.
   5.3: the banner's "Changes", on a page that is no project's:
   the request of 2026-11-05 asked for the rail, and its mock has no banner.
   3.5, *Goals*: a project whose `me` lists no goal template opens no watch
@@ -167,3 +177,13 @@
   number order, as the request's words have it, so the reference's read "task
   by task, plan, tasks, land whole", where its mock, the target, draws them the
   other way round: number order is what a project's settings decide.
+- **Design departs:** 3.5, *Settings*, 5.3 and 5.13, from the request `ui-settings`
+  of 2026-11-05, decided by its plan's cut. "Sign out did not reach the engine."
+  stands on the rail's foot as well as the `Accounts` tab, where the request moves
+  it there: a person with a lost sign-out may be on any page (6.6). Kind 7's
+  controls are disabled together while one is out, where the request disables the
+  one pressed: they write one record, so two at once would lose one. And a
+  proposal's card names kinds 6 and 7 as `temper ctl` names them for a person with
+  no role in the deployment, where the request has their values for everyone: a
+  proposal's items span scopes, so their read keeps that role
+  (`../protocol/configuration.md`, 13.2).
