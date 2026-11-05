@@ -493,6 +493,10 @@ mod tests {
             choice_text(&effort, b"main", 1024).as_ref(),
             b"Effort mystery is not declared; accepted: low, high"
         );
+        assert_eq!(
+            notice_text(&local::Notice::Failure(local::Failure::EffortRefused(effort)), b"main", &[], 1024).as_ref(),
+            b"Effort mystery is not declared; accepted: low, high"
+        );
         let model = ChoiceNotice::ModelElsewhere { model: b"elsewhere/model".as_slice().into() };
         assert_eq!(
             choice_text(&model, b"main", 1024).as_ref(),
