@@ -398,6 +398,16 @@ const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
     ..ROOT.brief
 };
 const STANDARD_ROOT: Root = Root {
+    loads: engine::loads::Limits {
+        // A whole note: body 65,536 + description 256 + pattern bytes 256,
+        // 256 pattern segment slots * 16 and 8 references * 8 = 70,208.
+        transcript_bytes: 70_208,
+        // The row's owned bytes plus its 248-byte record slot.
+        bytes: 70_456,
+        reply_bytes: 70_456,
+        read_bytes: 131_072,
+        ..ROOT.loads
+    },
     brief: STANDARD_BRIEF,
     journal: engine::JournalLimits {
         // Deep task row at jig standard's bounds, including its inbox (engine::row_bound).
@@ -405,7 +415,6 @@ const STANDARD_ROOT: Root = Root {
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },
-    ..ROOT
 };
 const CLIENTS: Clients = Clients {
     // Files of a bundle, the page among them: far above the shell's dev bundle (decision 6 of browser-1).

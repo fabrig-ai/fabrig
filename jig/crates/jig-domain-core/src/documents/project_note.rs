@@ -12,6 +12,7 @@ use crate::{
         task_tree::{authority as authority_line, path, pattern},
     },
 };
+use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
@@ -514,8 +515,8 @@ pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::
         acts: super::offers::note(core, party, project, &edit_scope),
         number: value.name,
         scope,
-        description: super::small::text(&value.description, limits.documents.text_bytes),
-        body: super::small::text(&value.body, limits.documents.text_bytes),
+        description: super::small::text(&value.description, limits.notes.description_bytes),
+        body: super::small::text(&value.body, limits.notes.body_bytes),
         writer: value.author,
         tasks,
         changed: Some(value.changed),
@@ -535,4 +536,16 @@ pub(super) fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
         .checked_add(List::<Ledger>::price(limits.lines)?)?
         .checked_add(u64::try_from(size_of::<Project>()).ok()?)?
         .checked_add(u64::from(limits.text_bytes))
+}
+
+/// A loaded note owns its whole description and body (domain/engine.md, 10).
+pub(super) fn note_bound(limits: &Limits) -> Option<u64> {
+    u64::try_from(size_of::<super::Document>())
+        .ok()?
+        .checked_add(super::offers::heap_bound(&limits.documents)?)?
+        .checked_add(List::<u64>::price(limits.documents.lines)?)?
+        .checked_add(List::<Box<[u8]>>::price(limits.documents.segments)?)?
+        .checked_add(u64::from(limits.notes.pattern_bytes))?
+        .checked_add(u64::from(limits.notes.description_bytes))?
+        .checked_add(u64::from(limits.notes.body_bytes))
 }

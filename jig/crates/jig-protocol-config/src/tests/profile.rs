@@ -11,6 +11,14 @@ fn supplied_profiles_have_valid_domain_limits() {
         assert_eq!(crate::domain::capacity(&limits.core), None, "{selected:?} capacity");
         assert_eq!(crate::domain::check_message(&limits.core), Ok(()), "{selected:?} messages");
         assert_eq!(crate::check_effective_limits(&limits.core), Ok(()), "{selected:?} codecs");
+        jig_protocol_store::sizes::check_commits(
+            &limits.core,
+            &jig_protocol_store::sizes::Application { version: 1, key: 0, value: 0 },
+            &limits.store.commits,
+            &limits.store.store,
+            limits.store.orphan_erases,
+        )
+        .expect("profile store bounds");
         let writes = jig_domain_core::settings::writes_bound(&limits.core).expect("profile settings writes");
         assert!(writes <= limits.journal.writes, "{selected:?} journal");
         let mut problems = crate::Problems::empty();
@@ -170,5 +178,19 @@ fn profiles_retain_a_day_of_deciding_answers_with_fivefold_room() {
         // Twenty conversations each: create, three messages, decide. Fivefold headroom.
         assert_eq!(people.requests, people.people * 20 * 5 * 5);
         assert_eq!(people.request_retention, skein_lib::Duration::from_secs(86_400));
+    }
+}
+
+// jig/docs/design/domain/engine.md, 10: bodies and the calls and loads carrying them.
+#[test]
+fn profiles_hold_a_documents_body_and_carriers() {
+    for (kind, body, escaped, load) in
+        [(Profile::Small, 32_768, 69_632, 65_536), (Profile::Standard, 65_536, 135_168, 131_072)]
+    {
+        let limits = profile(kind);
+        assert_eq!(limits.core.notes.body_bytes, body, "{kind:?} body");
+        assert_eq!(limits.core.call_answer_bytes, escaped, "{kind:?} call");
+        assert_eq!(limits.hub.event_bytes, u64::from(escaped), "{kind:?} event");
+        assert_eq!(limits.core.load_bytes, load, "{kind:?} load");
     }
 }

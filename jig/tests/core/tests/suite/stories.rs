@@ -13,6 +13,8 @@ use skein_lib::{List, Queue, ReplyTo, Token};
 
 #[path = "../stories/address.rs"]
 mod address;
+#[path = "../stories/note_room.rs"]
+mod note_room;
 
 fn ask(world: &mut World, request: u8, ask: people::Ask) {
     ask_as(world, world.sign_in.expect("signed-in person"), request, ask);
@@ -341,9 +343,8 @@ fn a_goal_cancelled_with_live_runs_and_an_effect_in_flight_closes_deepest_first(
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
 }
 
-#[test]
-fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() {
-    let (mut configuration, limits) = fixture(121, false);
+fn note_setup(seed: u64) -> Setup {
+    let (mut configuration, limits) = fixture(seed, false);
     let mut rules = configuration.core.defaults.rules.clone();
     rules.ceiling.notes = authority::Scopes::PROJECT;
     let mut policy = configuration.core.seed_projects[0].policy.policy.clone();
@@ -359,7 +360,12 @@ fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() 
     .rules()
     .clone();
 
-    let mut world = World::new(Setup { seed: 121, configuration: Some(configuration), limits, ..Setup::default() });
+    Setup { seed, configuration: Some(configuration), limits, ..Setup::default() }
+}
+
+#[test]
+fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() {
+    let mut world = World::new(note_setup(121));
     let key = world.call_key(1);
     action(
         &mut world,
