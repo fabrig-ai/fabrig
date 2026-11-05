@@ -691,6 +691,59 @@ fn serve_prepares_once_on_the_owned_example() {
     assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
     scratch.remove();
 }
+/// The owned example, raised by what a worker of 8 slots and 10 workspaces needs.
+fn eight_slots(case: &str, leave: Option<&str>) -> support::Scratch {
+    let scratch = owned_example(case);
+    let path = scratch.path().join("temper.json");
+    let mut document: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+    document["workers"][0]["slots"] = 8.into();
+    for (part, name, value) in [
+        ("worker", "hub.slots", 8),
+        ("engine", "fleet.slots", 8),
+        ("application", "checkout.workspaces", 10),
+        ("application", "git_component.operations", 10),
+    ] {
+        if leave != Some(name) {
+            let limits = if part == "worker" { &mut document["workers"][0] } else { &mut document[part] };
+            limits["limits"]["overrides"][name] = value.into();
+        }
+    }
+    fs::write(path, serde_json::to_vec(&document).expect("JSON")).expect("deployment");
+    scratch
+}
+
+#[test]
+fn serve_prepares_eight_slots_and_ten_workspaces_on_the_owned_example() {
+    let scratch = eight_slots("eight-slots", None);
+    let prepared = temper::prepare_in(&support::configuration::directories(scratch.path()));
+    assert!(prepared.is_ok(), "{}", prepared.err().unwrap_or_default());
+    scratch.remove();
+}
+
+#[test]
+fn serve_names_what_to_raise_for_eight_slots() {
+    for (name, line) in [
+        (
+            "hub.slots",
+            "workers[0].slots: past this worker's limits.overrides.hub.slots, which must be at least its slots",
+        ),
+        ("fleet.slots", "workers[0].slots: must agree with engine.limits.overrides.fleet.slots, at least the slots"),
+        (
+            "checkout.workspaces",
+            "workers[0].slots: must agree with application.limits.overrides.checkout.workspaces, at least the slots",
+        ),
+        (
+            "git_component.operations",
+            "application.limits.overrides.git_component.operations: must agree with checkout.workspaces",
+        ),
+    ] {
+        let scratch = eight_slots(&format!("eight-slots-{name}"), Some(name));
+        let prepared = temper::prepare_in(&support::configuration::directories(scratch.path()));
+        assert_eq!(prepared.err().expect("short limit refuses"), format!("temper serve: {line}\n"), "{name}");
+        scratch.remove();
+    }
+}
+
 #[test]
 fn serve_prepares_once_on_a_bare_init() {
     let scratch = support::Scratch::startup("bare-init-prepared");

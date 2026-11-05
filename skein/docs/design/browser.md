@@ -344,6 +344,8 @@ to the next command, never a closure waiting on a reply:
 - **A press is done when the browser has taken it,** not when its
   effects show. What follows a press (a request, a page redrawn) the test
   awaits.
+  A node detached before mouse input is `Gone`. Errors from dispatching
+  mouse input are `Protocol`, since a partial press cannot safely be repeated.
 - **Covered is not a failure.** A dialog that has not closed yet, or a
   toast over a button, covers it for a moment. The test decides whether
   to wait and press again.

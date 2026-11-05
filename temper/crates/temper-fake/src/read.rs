@@ -73,6 +73,7 @@ pub(crate) fn kind(p: &Path, what: What) -> Refusal {
         What::Duplicate => b"duplicate",
         What::Kind => b"wrong value kind",
         What::Bound => b"past its bound",
+        What::SlotsPastHub => b"past this worker's limits.overrides.hub.slots, which must be at least its slots",
         What::Unique => b"must be unique",
         What::Relative => b"relative path must be non-empty with no .. component",
         What::Form
