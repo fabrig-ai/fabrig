@@ -4771,6 +4771,7 @@ dependencies = [
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-world",
+ "temper-engine-smith",
  "temper-service",
  "temper-worker-domain-world",
 ]

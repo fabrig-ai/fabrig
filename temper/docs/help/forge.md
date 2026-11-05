@@ -99,29 +99,32 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
 - **Yourself:** read diffs, reviews, CI runs and logs on the forge,
   at the numbers and links ctl prints (temper help ctl).
 
-A resolver's pull request section keeps its pinned pull request and gathered
-content when the base comparison exceeds the forge client's answer limit.
-It marks the comparison omitted within the section's byte budget and lets the
-resolver run. This also applies to review and repair pull request sections;
-other comparison read failures still fail preparation.
+A resolver's pull section keeps its pinned pull and content when the base
+comparison exceeds the forge client's answer limit, marking the omission
+within its byte budget. Review and repair sections do the same; other
+comparison failures still fail preparation.
 
-A CI repair's brief carries the failed check and the end of its failed
-step's log, with a marker when bytes were cut. On GitHub the end is the
-runner's failed-process line, before post-job cleanup; logs without that
-marker use the job's tail. On GitHub, `read_checks` also
-reports the resolved Actions job attempt for a failed check. Use those
-head, run, job and attempt values with `read_job` to read its log; a
-check-run number can differ from the job number. If no job attempt was
-resolved, the check says so. `read_job` keeps the diagnostic end within
-the configured answer limit, including the step's name and escaped bytes.
+CI repair briefs keep the failed check and the failed step's tail, with a
+cut marker. On GitHub this ends at the runner's failed-process line before
+cleanup, or at the job's tail if that marker is absent. `read_checks` names
+the resolved Actions job attempt of a failed GitHub check, or says none was
+resolved. Pass its head, run, job and attempt to `read_job`; check-run and
+job numbers can differ. The log keeps the diagnostic end, step name and
+escaped bytes within the answer limit.
 
-A large pull request can still start its review. The brief keeps a prefix
-of its pull section within the receiving agent's combined charter and
-workspace limit and rendered host room. A cut ends with
-`[cut N bytes; whole: read_pull/read_pull_files]`; the reviewer uses those
-forge tools to read the omitted content at the reviewed head. Instructions,
-tools and result contracts stay whole. Lowering `hub.charter_bytes` is not
-needed to leave room for the workspace.
+Large pulls can start review: the brief keeps a pull-section prefix within
+the agent's combined charter, workspace and rendered host limits.
+`[cut N bytes; whole: read_pull/read_pull_files]` points to omitted content
+at the reviewed head. Instructions, tools and result contracts stay whole;
+`hub.charter_bytes` need not be lowered.
+
+A forge read's size error names the exceeded limit and measured bytes;
+the serve log names task, attempt, tool and `host-render`. For a large
+`read_compare`, use `read_pull` for the head, then `read_pull_files` with
+that head and `page=1`; advance while more follows. If a page is too large
+or no pull exists, use `read_file` for directories at both endpoints, then
+selected files with `max_bytes`. Forge-client admission busy still retries
+through the host.
 
 GitHub job logs follow redirects only to permitted origins. The default
 permits its twenty results hosts, `productionresultssa0.blob.core.windows.net`

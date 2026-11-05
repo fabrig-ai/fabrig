@@ -681,7 +681,10 @@ fn every_hello_refusal_keeps_its_cause_and_numbers() {
         (F::Agent { why: S::Spend }, "Agent spend too small."),
         (F::Agent { why: S::Time }, "Agent time too short."),
         (F::Agent { why: S::Waiting }, "Agent waiting too short."),
-        (F::Agent { why: S::Checks }, "Agent checks exceed the change reserve."),
+        (
+            F::Agent { why: S::Checks { charter: 2 } },
+            "Agent check timeout exceeds reserve_time for charter 2. See settings help for held revisions.",
+        ),
         (F::Agent { why: S::Message }, "Agent message bound too small."),
         (F::Agent { why: S::Inbox }, "Agent inbox too small."),
         (F::Agent { why: S::Unacknowledged }, "Agent unacknowledged turns too few."),

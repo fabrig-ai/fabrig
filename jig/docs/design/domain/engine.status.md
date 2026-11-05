@@ -53,7 +53,7 @@ Unlisted sections have no known gap.
 - **Departs:** 6: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it. 8: the
   client wire drops the failing charter's number of a
-  shortfall's turns, time, waiting and checks
+  shortfall's turns, time and waiting
   (`jig-protocol-engine-clients/src/translate/deployment.rs`), because its
   shortfall arms carry no charter; a client wire version adds it.
   4.2: the core's answers to parties cross the engine's client translation
