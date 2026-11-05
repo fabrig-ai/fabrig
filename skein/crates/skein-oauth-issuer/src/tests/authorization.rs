@@ -1,4 +1,46 @@
 use super::*;
+
+#[test]
+fn debug_of_an_authorization_shows_the_state_and_nonce_lengths_never_their_bytes() {
+    const STATE: &str = "canary-state-7c2a";
+    const NONCE: &str = "canary-nonce-9d4b6e";
+    let issuer = issuer();
+    let query =
+        replace(QUERY, "scope=openid", &alloc::fmt::format(format_args!("scope=openid&state={STATE}&nonce={NONCE}")));
+    let auth = issuer.authorize(&query).expect("authorization with canary state and nonce");
+    let debug = alloc::fmt::format(format_args!("{auth:?}"));
+    let pretty = alloc::fmt::format(format_args!("{auth:#?}"));
+    for canary in [STATE, NONCE] {
+        let canary_bytes = alloc::fmt::format(format_args!("{:?}", canary.as_bytes()));
+        assert!(!debug.contains(canary));
+        assert!(!debug.contains(&canary_bytes));
+        assert!(!pretty.contains(canary));
+        assert!(!pretty.replace([' ', '\n'], "").contains(&canary_bytes.replace(' ', "")));
+    }
+    assert_eq!(
+        debug,
+        alloc::fmt::format(format_args!(
+            "Authorization {{ client: {:?}, redirect_uri: {REDIRECT:?}, state_len: Some({}), nonce_len: Some({}), challenge: {CHALLENGE:?} }}",
+            b"client".as_slice(),
+            STATE.len(),
+            NONCE.len(),
+        )),
+    );
+}
+
+#[test]
+fn debug_of_an_authorization_without_a_state_or_nonce_shows_none() {
+    let issuer = issuer();
+    let auth = issuer.authorize(QUERY).expect("authorization without state or nonce");
+    assert_eq!(
+        alloc::fmt::format(format_args!("{auth:?}")),
+        alloc::fmt::format(format_args!(
+            "Authorization {{ client: {:?}, redirect_uri: {REDIRECT:?}, state_len: None, nonce_len: None, challenge: {CHALLENGE:?} }}",
+            b"client".as_slice(),
+        )),
+    );
+}
+
 #[test]
 fn authorization_refusals_follow_the_contract_order() {
     let issuer = issuer();

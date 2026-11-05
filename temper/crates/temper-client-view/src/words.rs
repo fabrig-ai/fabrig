@@ -1055,7 +1055,8 @@ const PHRASES: u32 = 1516;
 // Ready’s counted copy lead adds two literals and a Number hole (3.5).
 // Home’s copies add twenty-five literal and hole segments (3.5).
 // Home’s repository sheet adds 19 literal and hole segments (3.5).
-const SEGMENTS: u32 = 2639;
+// Agent check refusal adds two segments for its charter number (5.13).
+const SEGMENTS: u32 = 2641;
 const ALL: [Word; 920] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
@@ -3167,7 +3168,9 @@ impl Words {
             // Ready’s counted copy lead adds 96 literal bytes (3.5).
             // Home’s copy phrases add 254 literal bytes (client/README.md, 3.5).
             // Home’s repository sheet adds 289 literal bytes (client/README.md, 3.5).
-            text_bytes: 289
+            // Agent check refusal adds 53 literal bytes (5.13).
+            text_bytes: 53
+                + 289
                 + 254
                 + 96
                 + 381
@@ -3877,7 +3880,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AgentSpend => (&[b"Agent spend too small."], &[]),
         Word::AgentTime => (&[b"Agent time too short."], &[]),
         Word::AgentWaiting => (&[b"Agent waiting too short."], &[]),
-        Word::AgentChecks => (&[b"Agent checks exceed the change reserve."], &[]),
+        Word::AgentChecks => (&[b"Agent check timeout exceeds reserve_time for charter ", b". See settings help for held revisions."], &[Number]),
         Word::AgentMessage => (&[b"Agent message bound too small."], &[]),
         Word::AgentInbox => (&[b"Agent inbox too small."], &[]),
         Word::AgentUnacknowledged => (&[b"Agent unacknowledged turns too few."], &[]),
