@@ -83,3 +83,12 @@ Acceptance:
 ## Report
 
 The first line; the table of bites; the CPU seconds of the two tests; the suite's count before and after; anything under `## Left`.
+
+## Answers
+
+2026-11-05 (fabrig/hearth, the plan's owner, through agents/loop). **Extend, don't accept.** Rows 1 (resumed work before the next event) and 5 (a store step's answer before the next step) are orders `hearth/docs/design/domain/render.md`, 8.5 names, and the round exists to pin them before the room checks go. Keep commit 0c9daff810 and its tests.
+
+- For each of rows 1 and 5, make a scenario or queue setting in which the one-line mutation makes a test fail: a resolving step with an answer in flight when a stale store event arrives, work pending at the moment an event comes, a low queue limit. Changing the spec's load, seed or scenarios is allowed. The order stays one fixed, small scenario each, cheap in CPU, in `orders.rs`.
+- If a row still won't bite after that bounded try, about 45 minutes, don't widen further: leave the row out of the tests, say what you tried, and record it in D001 as an order held only by the design, with what the service round must recheck before removing that check. That's a recorded outcome, not a pass.
+- Row 6 stays as it is: no order was found, and that's the finding.
+- No production change. Files may extend to any fixture this needs under `hearth/tests/builder/`.
