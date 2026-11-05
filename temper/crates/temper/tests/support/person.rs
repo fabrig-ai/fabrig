@@ -547,7 +547,12 @@ impl Person {
                     Settings {
                         engine: skein_io::Addr::Ip(address),
                         directory: self.directory.clone(),
-                        limits: temper_client_shell_terminal::limits::native(),
+                        limits: {
+                            let mut limits = temper_client_shell_terminal::limits::native();
+                            // One standing inbox open beside the eight native logical exchanges.
+                            limits.client.client.exchanges = 9;
+                            limits
+                        },
                     },
                     self.root.take().expect("client root"),
                     skein_shell::effective_user(),

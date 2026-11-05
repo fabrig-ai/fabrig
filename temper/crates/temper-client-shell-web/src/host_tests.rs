@@ -245,16 +245,27 @@ fn the_accounts_href_navigates_inside_the_app() {
 #[test]
 fn a_filter_chosen_pushes_the_inbox_at_its_query() {
     let mut host = fixture_at(b"/");
+    host.went(b"/?kind=question");
     build(&mut host);
-    let question = node(&host, Role::Button, b"Question");
-    host.act(question, Act::Press);
-    host.requests();
-    assert_eq!(host.show.take(), Some((Box::from(b"/?kind=question".as_slice()), false)));
-    build(&mut host);
-    let all = node(&host, Role::Button, b"All kinds");
-    host.act(all, Act::Press);
-    host.requests();
-    assert_eq!(host.show, Some((Box::from(b"/".as_slice()), false)));
+    assert_eq!(
+        host.address,
+        Address::Inbox { filter: Filter { kind: Some(root::address::Kind::Question), ..Filter::ALL } }
+    );
+    assert!(
+        host.view
+            .tree()
+            .nodes()
+            .iter()
+            .any(|node| node.role == Role::Main && node.styles.as_slice().contains(&temper_client_view::look::NEEDS))
+    );
+    assert!(
+        !host
+            .view
+            .tree()
+            .nodes()
+            .iter()
+            .any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"All kinds"))
+    );
 }
 #[test]
 fn a_load_at_a_filtered_address_opens_the_inbox_filtered() {
@@ -265,11 +276,25 @@ fn a_load_at_a_filtered_address_opens_the_inbox_filtered() {
         Address::Inbox { filter: Filter { kind: Some(root::address::Kind::Question), ..Filter::ALL } }
     );
     assert_eq!(host.show, None);
-    node(&host, Role::Disclosure, "Kind · Question".as_bytes());
+    assert!(
+        host.view
+            .tree()
+            .nodes()
+            .iter()
+            .any(|node| node.role == Role::Main && node.styles.as_slice().contains(&temper_client_view::look::NEEDS))
+    );
 }
 #[test]
 fn a_stale_filter_link_opens_less_filtered_at_its_printed_address() {
-    let host = fixture_at(b"/?kind=reply&project=3");
+    let mut host = fixture_at(b"/?kind=reply&project=3");
+    build(&mut host);
+    assert!(
+        host.view
+            .tree()
+            .nodes()
+            .iter()
+            .any(|node| node.role == Role::Main && node.styles.as_slice().contains(&temper_client_view::look::NEEDS))
+    );
     assert_eq!(host.address, Address::Inbox { filter: Filter { project: Some(3), ..Filter::ALL } });
     assert_eq!(host.show, Some((Box::from(b"/?project=3".as_slice()), true)));
 }

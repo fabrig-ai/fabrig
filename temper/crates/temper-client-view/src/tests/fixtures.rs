@@ -29,8 +29,9 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                handles: 9,
-                watches: 9,
+                // The page handles plus the standing project-needs watch.
+                handles: 10,
+                watches: 10,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -296,6 +297,14 @@ pub(super) fn root_at_with_forges(
     root_at_with_dismissals(address, limits, project_name, playground, activity, forge_rows, Some(&[]))
 }
 
+pub(super) fn root_at_with_needs(
+    address: temper_client_domain::Address,
+    limits: &Limits,
+) -> (temper_client_domain::Domain, Token, Option<Token>, Token) {
+    let (root, me, page, _, _, _, needs) =
+        root_at_with_dismissals_and_needs(address, limits, b"Shop", None, None, None, Some(&[]));
+    (root, me, page, needs.expect("standing needs watch"))
+}
 pub(super) fn root_at_with_dismissals(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -305,7 +314,7 @@ pub(super) fn root_at_with_dismissals(
     forge_rows: Option<List<w::ForgeRow>>,
     dismissed: Option<&[u32]>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
-    let (root, me, page, tree, accounts, forges, _) = root_at_with_values(
+    let (root, me, page, tree, accounts, forges, _, _) = root_at_with_values(
         address,
         limits,
         project_name,
@@ -318,6 +327,31 @@ pub(super) fn root_at_with_dismissals(
         true,
     );
     (root, me, page, tree, accounts, forges)
+}
+
+#[expect(clippy::type_complexity, reason = "the fixture returns session and page watch tokens")]
+pub(super) fn root_at_with_dismissals_and_needs(
+    address: temper_client_domain::Address,
+    limits: &Limits,
+    project_name: &[u8],
+    playground: Option<(u32, bool, w::PlaygroundState)>,
+    activity: Option<c::ActivityPage>,
+    forge_rows: Option<List<w::ForgeRow>>,
+    dismissed: Option<&[u32]>,
+) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
+    let (root, me, page, tree, accounts, forges, _, needs) = root_at_with_values(
+        address,
+        limits,
+        project_name,
+        playground,
+        activity,
+        forge_rows,
+        dismissed,
+        Some(forge::ways::Ways::STOCK),
+        false,
+        true,
+    );
+    (root, me, page, tree, accounts, forges, needs)
 }
 
 pub fn root_with_ways(
@@ -334,8 +368,8 @@ pub fn root_with_refused_ways(address: temper_client_domain::Address) -> temper_
 pub fn home_root(
     rows: List<w::ForgeRow>,
     dismissed: Option<&[u32]>,
-) -> (temper_client_domain::Domain, Token, Token, Token) {
-    let (root, me, _, _, accounts, _, settings) = root_at_with_values(
+) -> (temper_client_domain::Domain, Token, Token, Token, Token) {
+    let (root, me, _, _, accounts, _, settings, needs) = root_at_with_values(
         temper_client_domain::Address::Settings { project: PROJECT },
         &domain_limits(),
         b"Shop",
@@ -347,7 +381,13 @@ pub fn home_root(
         false,
         false,
     );
-    (root, me, accounts.expect("accounts watch"), settings.expect("session settings watch"))
+    (
+        root,
+        me,
+        accounts.expect("accounts watch"),
+        settings.expect("session settings watch"),
+        needs.expect("standing needs watch"),
+    )
 }
 
 #[expect(clippy::type_complexity, reason = "the fixture returns the session and page watch tokens to their callers")]
@@ -364,7 +404,16 @@ pub(super) fn root_at_with_values(
     ways: Option<forge::ways::Ways>,
     refuse_ways: bool,
     settings_delivered: bool,
-) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
+) -> (
+    temper_client_domain::Domain,
+    Token,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+) {
     use jig_client::contract::{Delivery, Subject, WatchEvent};
     use temper_client_domain::{Event, Request};
     let forge_rows_answered = forge_rows.is_some();
@@ -463,8 +512,18 @@ pub(super) fn root_at_with_values(
     );
     answer_activity(&mut root, &env, activity_read, activity, &mut out);
     let mut forges = None;
+    let mut needs_watch = inbox_watch;
     for _ in 0..out.len() {
         let request = out.pop().expect("counted request");
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Inbox { .. }) },
+                },
+        } = &request
+        {
+            needs_watch = Some(*watch);
+        }
         if let Request::Unlinked {
             request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
         } = &request
@@ -631,7 +690,7 @@ pub(super) fn root_at_with_values(
             empty_session(&mut root, read.expect("playground read"), account_watch.expect("accounts watch"));
         }
     }
-    (root, watch.expect("me opened"), inbox_watch, tree_watch, account_watch, forges, settings_watch)
+    (root, watch.expect("me opened"), inbox_watch, tree_watch, account_watch, forges, settings_watch, needs_watch)
 }
 fn empty_session(root: &mut temper_client_domain::Domain, read: Token, watch: Token) {
     deliver_no_playground(root, read);

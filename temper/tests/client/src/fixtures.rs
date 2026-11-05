@@ -65,10 +65,10 @@ pub fn domain_limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // The nine-handle profile adds session settings and Goals’ watch/read.
-                handles: 9 + 1 + 2,
-                // Each addition watches one document; Goals also reads ended rows.
-                watches: 9 + 1 + 1,
+                // Page handles, session settings, project-needs and the goals watch/read.
+                handles: 13,
+                // Closing page watches overlap the session watches.
+                watches: 12,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,

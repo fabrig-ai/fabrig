@@ -42,8 +42,22 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
             {
                 let reset = view.tree().nodes().iter().find(|shown| shown.id == node).expect("bound reset link");
                 assert!(matches!(reset.name.as_deref(), Some(b"set up temper" | b"Set up temper")));
+            } else if let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Needs(
+                temper_client_domain::pages::needs::Act::Open { object },
+            ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
+            {
+                assert!(sample.name.starts_with("home-"));
+                assert!(
+                    samples::domain(&sample)
+                        .pages()
+                        .inbox()
+                        .expect("Home inbox")
+                        .cards
+                        .iter()
+                        .any(|card| card.object == object)
+                );
             } else {
-                panic!("{}: link {node:?} has neither a destination nor its install act", sample.name);
+                panic!("{}: link {node:?} has neither a destination nor its action", sample.name);
             }
         }
     }
@@ -74,6 +88,96 @@ enum Part {
     PlanWithEnded { live: u32, ended: u32, before: &'static str, after: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "needs-one",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[Part::Named { role: Role::Button, name: "Later" }],
+    },
+    Holds {
+        name: "needs-saw-open",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[Part::Named { role: Role::Button, name: "Later" }],
+    },
+    Holds {
+        name: "needs-reply-open",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Named { role: Role::TextArea, name: "Your reply" },
+        ],
+    },
+    Holds {
+        name: "needs-second-answered",
+        heading: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Named { role: Role::Button, name: "Undo" },
+            Part::Text { text: "Answered: In jig’s store" },
+        ],
+    },
+    Holds {
+        name: "needs-later",
+        heading: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Text { text: "Later: it stays in Needs you, after the others." },
+        ],
+    },
+    Holds {
+        name: "needs-last",
+        heading: "The repository has no license. Name one in the README?",
+        parts: &[Part::Named { role: Role::Button, name: "Later" }, Part::Text { text: "The last one" }],
+    },
+    Holds {
+        name: "needs-done",
+        heading: "Nothing needs you.",
+        parts: &[Part::Named { role: Role::Link, name: "Home" }],
+    },
+    Holds {
+        name: "needs-proposal",
+        heading: "Accept how temper will run your work.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Accept" },
+            Part::Named { role: Role::Disclosure, name: "Reject" },
+            Part::Named { role: Role::TextArea, name: "Reason" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Text { text: "Funding after: 34" },
+        ],
+    },
+    Holds {
+        name: "needs-held",
+        heading: "first-run-projects",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Release" },
+            Part::Named { role: Role::Disclosure, name: "Leave held" },
+            Part::Named { role: Role::TextArea, name: "Reason" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Text { text: "Both halves of the store task run. The Ready page waits for this decision." },
+        ],
+    },
+    Holds {
+        name: "needs-funds",
+        heading: "31 of 40 used.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Release" },
+            Part::Named { role: Role::Disclosure, name: "Leave held" },
+            Part::Named { role: Role::TextArea, name: "Reason" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Absent { role: Role::Button, name: "Add $10" },
+            Part::Text { text: "first-run-projects" },
+        ],
+    },
+    Holds {
+        name: "needs-plain-words",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Absent { role: Role::Button, name: "In jig’s store" },
+        ],
+    },
     Holds {
         name: "changes",
         heading: "Three changes are on the way to main.",
@@ -189,13 +293,19 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "home-needs-several",
-        heading: "3 things need you.",
+        heading: "Three things need you.",
         parts: &[
             Part::Named { role: Role::Link, name: "Needs you 3" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
             Part::Named { role: Role::Link, name: "Answer in a row" },
-            Part::Named { role: Role::Link, name: "Hello in Rust · a question · 4 min" },
-            Part::Named { role: Role::Link, name: "What is in this repository? · a question · 4 min" },
+            Part::Named {
+                role: Role::Link,
+                name: "The repository has no license. Name one in the README? · a question · 4 min",
+            },
+            Part::Named {
+                role: Role::Link,
+                name: "The repository has no license. Name one in the README? · a question · 4 min",
+            },
             Part::Named { role: Role::Link, name: "All 3 chats" },
         ],
     },
@@ -397,6 +507,46 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "temper’s App reaches its repositories on sam." },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "home-morning-card",
+        heading: "Three things need you.",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+            },
+            Part::Named { role: Role::Button, name: "In jig’s store" },
+            Part::Named { role: Role::Disclosure, name: "What the agent saw" },
+            Part::Named { role: Role::Button, name: "Reply" },
+            Part::Named { role: Role::Button, name: "Later" },
+        ],
+    },
+    Holds {
+        name: "home-answered",
+        heading: "Two things need you.",
+        parts: &[
+            Part::Named { role: Role::Text, name: "In jig’s store" },
+            Part::Named { role: Role::Button, name: "Undo" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
+            },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 2" },
+        ],
+    },
+    Holds {
+        name: "home-one-need",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "MIT" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Named {
+                role: Role::Link,
+                name: "Add a README: The repository has no license. Name one in the README? Answer",
+            },
+            Part::Absent { role: Role::Link, name: "Answer in a row" },
         ],
     },
     Holds {
@@ -811,13 +961,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "inbox-solo",
-        heading: "Inbox",
-        parts: &[
-            Part::Named { role: Role::Button, name: "Answer" },
-            Part::Named { role: Role::Heading { level: 3 }, name: "JSON output for tally report" },
-            Part::Named { role: Role::Button, name: "Accept" },
-            Part::Named { role: Role::Paragraph, name: "The old parser accepts" },
-        ],
+        heading: "It changes report’s output and its tests, and lands into main: more than a chat does alone.",
+        parts: &[Part::Named { role: Role::Button, name: "Open" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
         name: "repositories",
@@ -998,8 +1143,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "inbox-reference",
-        heading: "Inbox",
-        parts: &[Part::Named { role: Role::Link, name: "T1 Director replied" }],
+        heading: "Nothing needs you.",
+        parts: &[Part::Named { role: Role::Link, name: "Home" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
         name: "accounts-reference",
@@ -1039,11 +1184,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "inbox-empty",
-        heading: "Inbox",
-        parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you" },
-            Part::Absent { role: Role::List, name: "" },
-        ],
+        heading: "Nothing needs you.",
+        parts: &[Part::Named { role: Role::Link, name: "Home" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
         name: "chat-closing",
@@ -1475,8 +1617,8 @@ fn times_read_against_each_mockup_worlds_fixed_now() {
     for (name, expected) in [
         ("chats-solo", "1 h 28 min ago"),
         ("chats-reference", "50 min ago"),
-        ("inbox-solo", "Waiting 12 min"),
-        ("inbox-solo", "Waiting 18 min"),
+        ("inbox-solo", "a proposal"),
+        ("inbox-solo", "12 min"),
         ("chat-solo-T10", "waiting 12 min"),
         ("chat-reference-T1", "Today · Thursday 22 October"),
         ("chat-solo-T10", "Today · Tuesday 27 October"),
