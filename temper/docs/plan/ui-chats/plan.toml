@@ -1,0 +1,5 @@
+draft = "ui-chats"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-chats/inputs/request.md", "temper/docs/design/client/greenfield/app.js", "temper/docs/design/client/greenfield/mock.css", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
