@@ -14,7 +14,7 @@ use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
-use skein_lib::{Decimal, Reader, Token};
+use skein_lib::{Reader, Token};
 use smith_domain_run as run;
 use temper_engine_domain as engine;
 use temper_protocol_worker_wire::v1;
@@ -144,19 +144,12 @@ fn messages(words: &[tasks::Word]) -> Box<[host::StartMessage]> {
     for word in words {
         messages.push(host::StartMessage {
             name: Token::new(word.number),
-            sender: sender(word.from),
+            sender: word.from.sender(),
             words: word.words.clone(),
             finish_requested: word.finish_requested(),
         });
     }
     messages.into_boxed_slice()
-}
-
-fn sender(from: tasks::Party) -> Box<[u8]> {
-    match from {
-        tasks::Party::Task(number) | tasks::Party::Person(number) => Box::from(Decimal::of(number).as_bytes()),
-        tasks::Party::Deployment { .. } => Box::from(&b"deployment"[..]),
-    }
 }
 
 fn grants(grants: &[accounts::Grant]) -> Box<[host::Grant]> {
