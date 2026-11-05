@@ -1,0 +1,35 @@
+draft = "debt-20"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-20/inputs/request.md", "skein/docs/development/debt/D002-index-and-length-widening.md", "skein/docs/development/debt/D018-io-pipe-and-file-states.md", "jig/docs/development/debt/D015-exhaustive-lists.md", "jig/docs/development/debt/D025-store-codec-domain-rules.md", "smith/docs/development/debt/D003-host-io-route-table.md", "smith/docs/development/debt/D007-tools-namespace.md", "hearth/docs/development/debt/D007-two-process-fakes.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "hearth-fakes"
+title = "mmdebstrap's fake resolves once, with each process keeping its own reads and writes (hearth D007)"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/domain/testing.md, 4.1"
+
+[[slice]]
+id = 1
+story = "the builder world runs the same fake through both of its ways, and a new output of mmdebstrap reaches both by one change"
+parts = ["hearth-fakes"]
+walk = false
+
+[[part]]
+id = "skein-widening"
+title = "skein's step crates widen through lib's helpers, at the item's floor (skein D002)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 6"
+
+[[slice]]
+id = 2
+story = "a u32 widens with usize_of and a native length with len_u64 across skein, and every test stays as it was"
+parts = ["skein-widening"]
+walk = false
