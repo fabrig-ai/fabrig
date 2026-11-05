@@ -1,11 +1,13 @@
 //! A change relays its agents' questions (temper/docs/design/domain/forge.md, 8.11).
 use super::*;
-use temper_engine_domain_forge_change::{Route, Stands};
+use temper_engine_domain_forge_change::{Route, Stands, State};
 
 const TICKS: u32 = 200;
 const CHANNEL: Token = Token::new(7);
 const QUESTION: &[u8] = b"Which behavior should hold?\nChoose the documented behavior or widen the change.\nI recommend keeping the documented behavior.";
 const ANSWER: &[u8] = b"Keep the documented behavior.\nLeave the wider work for later.";
+const REPORT_IN_FINISH: &[u8] =
+    b"Your report goes in finish; this change takes no words. To ask: message target=this change, form=question.";
 const CALL: u64 = 93;
 // A requester run reserves 60; the change and its producer share the remainder.
 const BUDGET: u64 = 200;
@@ -186,6 +188,86 @@ fn answer(world: &mut World, requester: &engine::Assignment, change: u64, number
     );
 }
 
+fn finish_producing(world: &mut World, change: u64, producer: &engine::Assignment) {
+    temper_engine_domain_world::kinds::produce(world, change, producer);
+    for _ in 0..TICKS {
+        world.tick();
+        if !matches!(row(world, change).change.state, State::Producing { .. }) {
+            break;
+        }
+    }
+    assert!(!matches!(row(world, change).change.state, State::Producing { .. }));
+}
+
+#[test]
+fn a_producers_words_are_refused_by_the_call_and_its_finish_goes_through() {
+    let (mut world, _, change, producer) = up_world(None);
+    call(
+        &mut world,
+        &producer,
+        CALL + 1,
+        engine::Tool::Message {
+            target: change,
+            form: engine::MessageForm::Words,
+            words: b"My report".as_slice().into(),
+        },
+    );
+    assert_eq!(
+        world.call_errors.last().map(|error| error.text.as_ref()),
+        Some(REPORT_IN_FINISH),
+        "the call refuses the report: {:?}",
+        world.answers
+    );
+    assert!(replies(&world, producer.task, change).is_empty());
+    assert!(replies(&world, change, producer.task).is_empty());
+    finish_producing(&mut world, change, &producer);
+}
+
+#[test]
+fn a_producers_words_found_at_a_step_hear_the_same_words_and_its_finish_goes_through_once_read() {
+    let (mut world, _, change, producer) = up_world(None);
+    world.restore_delegate_words(producer.task, b"My report");
+    for _ in 0..TICKS {
+        world.tick();
+        if !replies(&world, producer.task, change).is_empty() && world.store.pending.is_empty() {
+            break;
+        }
+    }
+    let words = replies(&world, producer.task, change);
+    assert_eq!(words.len(), 1);
+    assert_eq!(words[0].kind, tasks::MessageKind::Words);
+    assert_eq!(words[0].words.as_ref(), REPORT_IN_FINISH);
+    let read = words[0].number;
+    for _ in 0..TICKS {
+        world.tick();
+        if world
+            .delivered_messages
+            .get(&(producer.task, producer.attempt))
+            .is_some_and(|messages| messages.contains(&read))
+            && world.store.pending.is_empty()
+        {
+            break;
+        }
+    }
+    assert!(
+        world
+            .delivered_messages
+            .get(&(producer.task, producer.attempt))
+            .is_some_and(|messages| messages.contains(&read)),
+        "feedback delivered before its reading turn"
+    );
+    let turn = live_task(&world, producer.task).turn + 1;
+    world.send(protocol::turn(CHANNEL, producer.task, producer.attempt, turn, 0, Some(read), b"Read the feedback"));
+    for _ in 0..TICKS {
+        world.tick();
+        if live_task(&world, producer.task).inbox.is_empty() && world.store.pending.is_empty() {
+            break;
+        }
+    }
+    assert!(live_task(&world, producer.task).inbox.is_empty());
+    finish_producing(&mut world, change, &producer);
+}
+
 #[test]
 fn a_change_with_questions_up_keeps_its_agents_message_family() {
     let (world, _, change, producer) = up_world(None);
@@ -195,7 +277,7 @@ fn a_change_with_questions_up_keeps_its_agents_message_family() {
 
 #[test]
 fn a_question_open_past_the_stall_holds_nothing() {
-    use temper_engine_domain_forge_change::{Hold, State};
+    use temper_engine_domain_forge_change::Hold;
     let (mut world, requester, change, producer) = up_world(None);
     // An indefinite wait's polling must not supply the missing answer wake.
     let stall = world.env.limits.forge.change_policy.stall;

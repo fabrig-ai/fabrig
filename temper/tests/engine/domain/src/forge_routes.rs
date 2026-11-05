@@ -1642,6 +1642,15 @@ impl World {
 
     /// Restore a delegate question with its reserved answer room at a committed cut.
     pub fn restore_delegate_question(&mut self, delegate: u64, words: &[u8]) -> u64 {
+        self.restore_delegate_message(delegate, words, tasks::MessageKind::Question)
+    }
+
+    /// Restore a delegate's plain words in its change's inbox at a committed cut.
+    pub fn restore_delegate_words(&mut self, delegate: u64, words: &[u8]) -> u64 {
+        self.restore_delegate_message(delegate, words, tasks::MessageKind::Words)
+    }
+
+    fn restore_delegate_message(&mut self, delegate: u64, words: &[u8], kind: tasks::MessageKind) -> u64 {
         assert!(self.store.pending.is_empty());
         let mut header = self.store.header();
         header.messages += 1;
@@ -1662,19 +1671,21 @@ impl World {
         };
         assert!(target.delegates.contains(&delegate));
         sender.activity += 1;
-        let mut credits = sender.questions.into_vec();
-        credits.push(tasks::QuestionCredit {
-            number: question,
-            answerer: tasks::Party::Task(change),
-            asked: tasks::Party::Task(change),
-            line: sender.activity,
-        });
-        sender.questions = credits.into_boxed_slice();
+        if kind == tasks::MessageKind::Question {
+            let mut credits = sender.questions.into_vec();
+            credits.push(tasks::QuestionCredit {
+                number: question,
+                answerer: tasks::Party::Task(change),
+                asked: tasks::Party::Task(change),
+                line: sender.activity,
+            });
+            sender.questions = credits.into_boxed_slice();
+        }
         let mut inbox = target.inbox.into_vec();
         inbox.push(tasks::Word {
             number: question,
             from: tasks::Party::Task(delegate),
-            kind: tasks::MessageKind::Question,
+            kind: kind.clone(),
             words: words.into(),
             at: self.env.wall,
             hits: 1,
@@ -1692,7 +1703,7 @@ impl World {
                     line: tasks::Line::Words {
                         message: question,
                         by: tasks::Party::Task(delegate),
-                        kind: tasks::MessageKind::Question,
+                        kind,
                         words: words.into(),
                     },
                 },
