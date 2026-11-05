@@ -661,8 +661,14 @@ Once it has asked, its own question keeps it, as below.
 **Its own question keeps it too.** A task that asked its requester a
 question, in the question form, still unanswered, is kept as by a
 pending dependency, the reason naming the question: it ends no way but
-failed or cancelled, so its run that finishes done parks without
-spending a try, its activity naming the question it waits for. Only an
+failed or cancelled, and its run that finishes parks without spending a
+try, whatever the form of its finish, `failure` among them, its activity
+naming the question it waits for. A run that has asked has no reason to
+finish until it is answered, so its finish is not taken: its result goes
+with its attempt, and its next run hears the answer. This is a rule of
+any task with its own question open, and of the run's own finish alone:
+a run that fails without one (its tries, its budget or its account
+spent), a cancel and a procedure's step that fails end it as ever. Only an
 answer in that question's number releases this keep and wakes it (8.1),
 letting its next run go on from what the last one left. An instruction
 amendment, a note, or the person's answer to someone else is not that

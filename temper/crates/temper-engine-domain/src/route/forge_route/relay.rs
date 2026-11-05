@@ -127,6 +127,18 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
                     })
                     .expect("relay respects message room");
             }
+            change::RelayAct::Left { asker, number, line, answered } => {
+                let tasks::Party::Task(target) = row.requester else {
+                    unreachable!("only a task's change relays questions")
+                };
+                messages
+                    .push(StepMessage {
+                        target,
+                        kind: tasks::MessageKind::Words,
+                        words: left_words(*asker, *number, line, *answered, env.limits.tasks.message_bytes),
+                    })
+                    .expect("relay respects message room");
+            }
             change::RelayAct::Cancel { task } => {
                 cancels
                     .push(StepCancel { task: *task, reason: b"its asker ended".as_slice().into(), grace: None })
@@ -186,6 +198,25 @@ fn question_words(words: &[u8], reasons: &[u8], bound: u32) -> Box<[u8]> {
         append(&mut text, reasons);
     }
     super::forge::text::fit(text.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
+}
+
+fn left_words(asker: u64, number: u64, line: &[u8], answered: bool, bound: u32) -> Box<[u8]> {
+    let mut words = List::uncapped();
+    append(&mut words, b"Task ");
+    append(&mut words, skein_lib::Decimal::of(asker).as_bytes());
+    if answered {
+        append(&mut words, b" ended; your answer to its question ");
+    } else {
+        append(&mut words, b" ended with its question ");
+    }
+    append(&mut words, skein_lib::Decimal::of(number).as_bytes());
+    if answered {
+        append(&mut words, b" goes no further: ");
+    } else {
+        append(&mut words, b" open; it reached no one: ");
+    }
+    append(&mut words, line);
+    super::forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
 }
 
 fn hold_words(questions: &change::Questions, bound: u32) -> Box<[u8]> {
@@ -375,6 +406,7 @@ fn has_foreman(acts: &[change::RelayAct]) -> bool {
             change::RelayAct::Foreman { .. } => return true,
             change::RelayAct::Answer { .. }
             | change::RelayAct::Ask { .. }
+            | change::RelayAct::Left { .. }
             | change::RelayAct::Cancel { .. }
             | change::RelayAct::Hold => {}
         }
@@ -392,6 +424,7 @@ fn defer_foreman(relayed: &mut change::Relayed) {
             change::RelayAct::Foreman { .. } => {}
             change::RelayAct::Answer { .. }
             | change::RelayAct::Ask { .. }
+            | change::RelayAct::Left { .. }
             | change::RelayAct::Cancel { .. }
             | change::RelayAct::Hold => {
                 acts.push(act.clone()).expect("bounded relay acts");
@@ -487,6 +520,7 @@ fn has_ask(acts: &[change::RelayAct]) -> bool {
             change::RelayAct::Ask { .. } => return true,
             change::RelayAct::Answer { .. }
             | change::RelayAct::Foreman { .. }
+            | change::RelayAct::Left { .. }
             | change::RelayAct::Cancel { .. }
             | change::RelayAct::Hold => {}
         }

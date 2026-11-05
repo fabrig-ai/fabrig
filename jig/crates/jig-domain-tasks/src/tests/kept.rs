@@ -34,6 +34,29 @@ fn shared_kept_rule_separates_claims_from_finish_authority() {
 }
 
 #[test]
+fn an_own_question_parks_only_a_runs_finished_failure() {
+    use crate::{End, EndedBy, ResultFollowups, TaskResult};
+    let failure = TaskResult::Failure { reason: Box::new([]) };
+    let finished = End::Finished { result: failure.clone(), cancel_delegates: false };
+    let question = crate::run::ends::pending(&[], EndedBy::Result).with_question(Some(1));
+    for (name, kept, end, parks) in [
+        ("own question", question, finished.clone(), true),
+        (
+            "own question with followups",
+            question,
+            End::FinishedWithFollowups { result: failure, followups: ResultFollowups::Delegates(Box::new([])) },
+            true,
+        ),
+        ("dependency only", crate::run::ends::pending(&[2], EndedBy::Result), finished.clone(), false),
+        ("owing only", crate::run::ends::pending(&[], EndedBy::Result).with_owing(true), finished, false),
+        ("run failed", question, End::Failed(crate::Class::Run), false),
+    ] {
+        assert_eq!(kept.run_parks(&end), parks, "{name}");
+        assert!(!kept.parks(&end), "{name}: procedure failure must not park");
+    }
+}
+
+#[test]
 fn requester_ending_restores_without_rejudging_earlier_authority() {
     let mut h = Harness::new();
     let mut open = task(1, &[]);

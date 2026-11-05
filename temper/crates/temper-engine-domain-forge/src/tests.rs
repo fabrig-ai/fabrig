@@ -2652,3 +2652,36 @@ fn a_kept_forge_supplies_its_workspace_credential_after_restore() {
         .expect("kept forge's workspace");
     assert_eq!(item.credential, Some(1));
 }
+
+#[test]
+fn an_open_write_with_an_empty_title_uses_the_default() {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.title = Box::new([]);
+    row.pending = None;
+    row.effect = temper_engine_domain_forge_change::EffectResult::None;
+    row.change.state = temper_engine_domain_forge_change::State::Opening { requested: false };
+    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    fixtures::missing_pull(&mut d);
+    let built = fixtures::finish_missing(&mut d);
+    let mut entry = None;
+    for request in &built {
+        if let Request::ChangeDecision { entry: Some(number), .. } = request {
+            entry = Some(*number);
+            break;
+        }
+    }
+    let entry = entry.expect("open effect built");
+    outputs(&mut d, Event::Committed { entry });
+    fixtures::answer_next(
+        &mut d,
+        Ok(skein_forge::api::Answer::Items { items: Box::new([]), more: false, now: env().now }),
+    );
+    let (_, op) = fixtures::next_call(&mut d);
+    let skein_forge::api::Op::Write(skein_forge::api::Write::OpenPull { title, .. }) = op else { panic!("open pull") };
+    assert_eq!(title.as_ref(), b"Update repository");
+}

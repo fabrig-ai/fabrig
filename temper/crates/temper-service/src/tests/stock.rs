@@ -1029,6 +1029,15 @@ fn the_coders_words_put_its_report_in_finish() {
 }
 
 #[test]
+fn the_coders_words_wait_after_asking() {
+    let engine = engine(&single_model());
+    let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let coder = stock.charters.iter().find(|charter| charter.number == 2).expect("coding charter 2");
+    let words = core::str::from_utf8(&coder.policy.instructions).expect("coding instructions");
+    assert!(words.contains("After asking, call wait, not finish: the answer reaches this run."));
+}
+
+#[test]
 fn the_coders_words_refuse_an_absent_fix_instead_of_adding_a_feature() {
     let words = include_str!("../stock/coding.txt");
     assert!(words.contains("Change only what was asked. If a requested fix is absent from the code, write nothing and finish with no_change, explaining what the code has; never add a feature in its place."));
