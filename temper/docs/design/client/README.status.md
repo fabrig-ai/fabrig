@@ -16,8 +16,6 @@
   the engine keeps no email: it waits on
   `jig/docs/design/draft/account-facts.md`, 6, its second step.
   3.5, Settings: "Configure temper" and its reading of the person's chats.
-  3.5, The configuring chat's page: its opening as a page, its cards, its
-  words and the shared column.
   3.5, Settings: the forge and account lines await Settings' design;
   "Open Forgejo ↗" is reached through Forges, one step beyond Settings,
   and the model line has no other place yet.
