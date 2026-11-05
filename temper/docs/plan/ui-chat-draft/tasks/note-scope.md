@@ -88,3 +88,13 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/note-scope/foreman-1)
+
+rebase and combine the two status-file deletions with note-answer’s landed changes
+The merge conflicts with `e082e02833` (“Report note changes in durable call answers”), merged into integration by `51986788f0`.
+Resolve only the overlapping status entries:
+- `jig/docs/design/client/domain/client.status.md`: retain `14: long_text` alone, preserving note-answer’s removal of “and an outcome before its input.” Keep this task’s section 19 reduction to `set_agreed_goal_from` alone.
+- `jig/docs/design/domain/engine.status.md`: remove both “10: a chat’s own scope” (this task) and the written-note answer’s `lines`, `added`, `removed`, `first` gap (note-answer). Retain the body-bound gap and unrelated entries.
+Preserve the automatically merged additions in `jig/tests/core/tests/suite/stories.rs`; that path was not reported as conflicting.
+These conflicts require combining the independent deletions, with no design or implementation change.
