@@ -1,7 +1,7 @@
 //! Lines, names and text shown to one terminal (domain/host.md, section 8).
 
 use crate::chat::State;
-use crate::{Domain, ExitStatus, Fact, Reading, Request};
+use crate::{Domain, ExitStatus, Fact, Reading, Request, ToolVerdict, TurnLine};
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Token};
 use smith_domain::{self as agent, session, tools};
@@ -202,35 +202,36 @@ impl Lines {
     }
 }
 
-/// Render assistant text blocks up to a UTF-8 boundary under the display cap.
-pub(crate) fn turn_text(turn: &agent::Turn, cap: u32) -> Box<[u8]> {
-    let mut shown = List::with_capacity(cap);
+/// Retain assistant blocks in order, clipping each owned segment to the display cap.
+pub(crate) fn turn_lines(turn: &agent::Turn, cap: u32) -> Box<[TurnLine]> {
+    let mut lines = List::uncapped();
+    let cap = usize::try_from(cap).expect("u32 fits usize");
     for message in &turn.messages {
         match message.role {
-            session::llm::Role::User => {}
-            session::llm::Role::Assistant => {
-                for block in &message.content {
-                    match block {
-                        session::llm::Block::Text { text, replay: _ }
-                        | session::llm::Block::Refusal { text, replay: _ } => append_text(&mut shown, text),
-                        session::llm::Block::ToolCall(session::llm::ToolCall { name, .. }) => {
-                            append_text(&mut shown, b"\nTool: ");
-                            append_text(&mut shown, name);
-                            append_text(&mut shown, b"\n");
-                        }
-                        session::llm::Block::ToolResult { result, .. } => {
-                            append_text(&mut shown, tool_end(result));
-                        }
-                        session::llm::Block::Opaque { .. } => {}
+            session::llm::Role::User => continue,
+            session::llm::Role::Assistant => {}
+        }
+        for block in &message.content {
+            let line = match block {
+                session::llm::Block::Text { text, replay: _ } | session::llm::Block::Refusal { text, replay: _ } => {
+                    if text.is_empty() {
+                        continue;
                     }
+                    TurnLine::Text(text.get(..cap).unwrap_or(text).into())
                 }
-            }
+                session::llm::Block::ToolCall(session::llm::ToolCall { name, .. }) => {
+                    TurnLine::Tool { name: name.get(..cap).unwrap_or(name).into() }
+                }
+                session::llm::Block::ToolResult { result, .. } => TurnLine::Ended(tool_verdict(result)),
+                session::llm::Block::Opaque { .. } => continue,
+            };
+            lines.push(line).expect("internal turn lines are uncapped");
         }
     }
-    shown.into_boxed()
+    lines.into_boxed()
 }
 
-pub(crate) fn tool_end(result: &session::llm::Returned) -> &'static [u8] {
+pub(crate) fn tool_verdict(result: &session::llm::Returned) -> ToolVerdict {
     match result {
         session::llm::Returned::Owned { outcome } => match outcome {
             tools::Outcome::Running { .. }
@@ -244,7 +245,7 @@ pub(crate) fn tool_end(result: &session::llm::Returned) -> &'static [u8] {
             | tools::Outcome::Removed
             | tools::Outcome::Written { .. }
             | tools::Outcome::Edited { .. }
-            | tools::Outcome::Exited { exit: tools::Exit::Code { code: 0 }, .. } => b"Tool finished\n",
+            | tools::Outcome::Exited { exit: tools::Exit::Code { code: 0 }, .. } => ToolVerdict::Finished,
             tools::Outcome::Job { .. }
             | tools::Outcome::Found { timed_out: true, .. }
             | tools::Outcome::Exited { .. }
@@ -266,88 +267,51 @@ pub(crate) fn tool_end(result: &session::llm::Returned) -> &'static [u8] {
             | tools::Outcome::TimedOut
             | tools::Outcome::Cancelled
             | tools::Outcome::Busy
-            | tools::Outcome::NulByte => b"Tool failed\n",
+            | tools::Outcome::NulByte => ToolVerdict::Failed,
         },
-        session::llm::Returned::Text { error: false, .. } => b"Tool finished\n",
+        session::llm::Returned::Text { error: false, .. } => ToolVerdict::Finished,
         session::llm::Returned::Text { error: true, .. }
         | session::llm::Returned::Invalid { .. }
         | session::llm::Returned::NotRun { .. }
-        | session::llm::Returned::Withdrawn => b"Tool failed\n",
-    }
-}
-
-/// Copy attested UTF-8 text within the person's display cap.
-pub(crate) fn bounded_text(text: &[u8], cap: u32) -> Box<[u8]> {
-    let mut shown = List::with_capacity(cap);
-    append_text(&mut shown, text);
-    shown.into_boxed()
-}
-
-fn append_text(shown: &mut List<u8>, text: &[u8]) {
-    let mut skip = 0_u8;
-    for (index, byte) in text.iter().enumerate() {
-        if skip > 0 {
-            skip = skip.checked_sub(1).expect("continuation count is positive");
-            continue;
-        }
-        let width = if *byte < 0x80 {
-            1_usize
-        } else if *byte < 0xe0 {
-            2_usize
-        } else if *byte < 0xf0 {
-            3_usize
-        } else {
-            4_usize
-        };
-        let Some(bytes) = text.get(index..index.saturating_add(width)) else { return };
-        if shown.room() < u32::try_from(width).expect("UTF-8 character width fits u32") {
-            return;
-        }
-        for value in bytes {
-            shown.push(*value).expect("character room checked before writing");
-        }
-        skip = u8::try_from(width.saturating_sub(1)).expect("UTF-8 character width fits u8");
+        | session::llm::Returned::Withdrawn => ToolVerdict::Failed,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use session::llm::{Block, Decoded, Message, Returned, Role, ToolCall};
 
     #[test]
     fn a_turn_shows_the_tool_name_and_its_terminal() {
         let turn = agent::Turn {
-            kind: session::record::Kind::First(Box::new(session::record::Opener {
-                affinity: session::llm::Affinity { key: [0; 16], thread: 0 },
-                account: None,
-                backend: session::record::Backend::Direct,
-            })),
-            version: 1,
-            endpoint: Some(session::llm::Endpoint(1)),
-            messages: Box::new([session::llm::Message {
-                role: session::llm::Role::Assistant,
+            messages: Box::new([Message {
+                role: Role::Assistant,
                 content: Box::new([
-                    session::llm::Block::Text { text: Box::from(&b"Working"[..]), replay: None },
-                    session::llm::Block::ToolCall(session::llm::ToolCall {
-                        id: Box::from(&b"call-1"[..]),
-                        name: Box::from(&b"inspect"[..]),
-                        input: Box::from(&b"{}"[..]),
-                        call: session::llm::Decoded::Historical,
+                    Block::Text { text: b"Working".as_slice().into(), replay: None },
+                    Block::ToolCall(ToolCall {
+                        id: b"call-1".as_slice().into(),
+                        name: b"inspect".as_slice().into(),
+                        input: b"{}".as_slice().into(),
+                        call: Decoded::Historical,
                         replay: None,
                     }),
-                    session::llm::Block::ToolResult {
-                        id: Box::from(&b"call-1"[..]),
-                        result: session::llm::Returned::Text {
-                            text: Box::from(&b"done"[..]),
-                            error: false,
-                            replay: None,
-                        },
+                    Block::ToolResult {
+                        id: b"call-1".as_slice().into(),
+                        result: Returned::Text { text: b"done".as_slice().into(), error: false, replay: None },
                     },
                 ]),
             }]),
             ..crate::fixture::turn()
         };
-        assert_eq!(turn_text(&turn, 128).as_ref(), b"Working\nTool: inspect\nTool finished\n");
+        assert_eq!(
+            turn_lines(&turn, 128).as_ref(),
+            &[
+                TurnLine::Text(b"Working".as_slice().into()),
+                TurnLine::Tool { name: b"inspect".as_slice().into() },
+                TurnLine::Ended(ToolVerdict::Finished),
+            ]
+        );
     }
 }
 
@@ -394,11 +358,16 @@ fn finish_answered(domain: &mut Domain, answer: host::Answer, detail: Box<[u8]>,
             });
         }
         host::RunResult::Refused { refusal } => {
-            out.push(Request::Notice { notice: crate::Notice::Failure(crate::Failure::Refused(*refusal)) });
+            let failure = match refusal {
+                host::Refusal::Invalid(host::RunInvalid::Effort) => {
+                    crate::Failure::EffortRefused(domain.refused_effort())
+                }
+                host::Refusal::Invalid(_) | host::Refusal::Busy => crate::Failure::Refused(*refusal),
+            };
+            out.push(Request::Notice { notice: crate::Notice::Failure(failure) });
         }
         host::RunResult::Accepted { .. } | host::RunResult::Parked => {
-            let text = crate::agent::answer_text(&answer);
-            out.push(Request::Show { text: bounded_text(&text, domain.show_bytes) });
+            out.push(Request::Notice { notice: crate::Notice::Answer(crate::agent::said(&answer)) });
         }
     }
     out.push(Request::Answered { answer });
