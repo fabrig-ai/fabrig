@@ -496,16 +496,6 @@ fn a_refused_next_run_names_its_cause_in_text_and_json() {
             r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"position":{"worker":3}}}}}"#,
         ),
         (
-            "worker stop bound",
-            c::TaskWaitRefused::Hello {
-                kind: c::HostKind::Worker,
-                at: AT,
-                why: c::HelloRefusal::StopBound { grace: skein_lib::Duration::from_nanos(2000) },
-            },
-            "next run: refused, worker refused at 00:01: would not stop before the engine's grace ends, allowed grace 2000 ns",
-            r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"stop_bound":{"grace":2000}}}}}"#,
-        ),
-        (
             "worker agent window",
             c::TaskWaitRefused::Hello {
                 kind: c::HostKind::Worker,
@@ -517,20 +507,56 @@ fn a_refused_next_run_names_its_cause_in_text_and_json() {
         ),
     ];
     for (name, cause, expected_text, expected_json) in rows {
-        let mut task = fixtures::goal(fixtures::TASK, c::WaitsOn::Nothing);
-        task.run_wait = Some(c::TaskRunWait::Refused(cause));
-        let printed = fixtures::read_answer(fixtures::TASK_CALL, fixtures::task_result(task.clone()));
-        let start = skein_lib::bytes::find(&printed.stdout, b"next run: ").expect("next-run line");
-        let tail = printed.stdout.get(start..).expect("line within document");
-        let end = skein_lib::bytes::find(tail, b"\n").expect("line ends");
-        assert_eq!(tail.get(..end).expect("whole next-run line"), expected_text.as_bytes(), "{name}");
-        let printed = fixtures::read_answer(fixtures::TASK_JSON_CALL, fixtures::task_result(task));
-        let field = b"\"run_wait\":";
-        let start = skein_lib::bytes::find(&printed.stdout, field).expect("run_wait field");
-        let tail = printed.stdout.get(start.checked_add(field.len()).expect("field offset")..).expect("field value");
-        let end = skein_lib::bytes::find(tail, b",\"spec_revision\":").expect("following task field");
-        assert_eq!(tail.get(..end).expect("whole run_wait value"), expected_json.as_bytes(), "{name}");
+        assert_next_run_refusal(name, cause, expected_text, expected_json);
     }
+    assert_worker_reserve_refusals(AT);
+}
+
+fn assert_worker_reserve_refusals(at: skein_lib::Wall) {
+    use jig_client::contract as c;
+    let (name, cause, text, json) = (
+        "worker stop bound",
+        c::TaskWaitRefused::Hello {
+            kind: c::HostKind::Worker,
+            at,
+            why: c::HelloRefusal::StopBound { grace: skein_lib::Duration::from_nanos(2000) },
+        },
+        "next run: refused, worker refused at 00:01: would not stop before the engine's grace ends, allowed grace 2000 ns",
+        r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"stop_bound":{"grace":2000}}}}}"#,
+    );
+    assert_next_run_refusal(name, cause, text, json);
+    assert_next_run_refusal(
+        "worker check reserve",
+        c::TaskWaitRefused::Hello {
+            kind: c::HostKind::Worker,
+            at,
+            why: c::HelloRefusal::Agent { why: c::AgentShortfall::Checks { charter: 2 } },
+        },
+        "next run: refused, worker refused at 00:01: agent check timeout exceeds charter 2 reserve_time; see settings help for held revisions",
+        r#"{"refused":{"hello":{"kind":"worker","at":60000000000,"why":{"agent":{"why":{"checks":{"charter":2,"member":"reserve_time"}}}}}}}"#,
+    );
+}
+
+fn assert_next_run_refusal(
+    name: &str,
+    cause: jig_client::contract::TaskWaitRefused,
+    expected_text: &str,
+    expected_json: &str,
+) {
+    use jig_client::contract as c;
+    let mut task = fixtures::goal(fixtures::TASK, c::WaitsOn::Nothing);
+    task.run_wait = Some(c::TaskRunWait::Refused(cause));
+    let printed = fixtures::read_answer(fixtures::TASK_CALL, fixtures::task_result(task.clone()));
+    let start = skein_lib::bytes::find(&printed.stdout, b"next run: ").expect("next-run line");
+    let tail = printed.stdout.get(start..).expect("line within document");
+    let end = skein_lib::bytes::find(tail, b"\n").expect("line ends");
+    assert_eq!(tail.get(..end).expect("whole next-run line"), expected_text.as_bytes(), "{name}");
+    let printed = fixtures::read_answer(fixtures::TASK_JSON_CALL, fixtures::task_result(task));
+    let field = b"\"run_wait\":";
+    let start = skein_lib::bytes::find(&printed.stdout, field).expect("run_wait field");
+    let tail = printed.stdout.get(start.checked_add(field.len()).expect("field offset")..).expect("field value");
+    let end = skein_lib::bytes::find(tail, b",\"spec_revision\":").expect("following task field");
+    assert_eq!(tail.get(..end).expect("whole run_wait value"), expected_json.as_bytes(), "{name}");
 }
 
 #[test]

@@ -999,7 +999,7 @@ const PHRASES: u32 = 1478;
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
 // Home's byline adds three literal and hole segments (3.5).
-const SEGMENTS: u32 = 2573;
+const SEGMENTS: u32 = 2575;
 const ALL: [Word; 882] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
@@ -3014,7 +3014,7 @@ impl Words {
             // Goal rows and ways add 419 literal bytes; the page adds 250 (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
             // Home's status, last-look words and byline add 310 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 419 + 250 + 476 + 310 + 87 + 225 + 15 + 54,
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 419 + 250 + 476 + 310 + 87 + 225 + 15 + 54 + 53,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3669,7 +3669,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AgentSpend => (&[b"Agent spend too small."], &[]),
         Word::AgentTime => (&[b"Agent time too short."], &[]),
         Word::AgentWaiting => (&[b"Agent waiting too short."], &[]),
-        Word::AgentChecks => (&[b"Agent checks exceed the change reserve."], &[]),
+        Word::AgentChecks => (&[b"Agent check timeout exceeds reserve_time for charter ", b". See settings help for held revisions."], &[Number]),
         Word::AgentMessage => (&[b"Agent message bound too small."], &[]),
         Word::AgentInbox => (&[b"Agent inbox too small."], &[]),
         Word::AgentUnacknowledged => (&[b"Agent unacknowledged turns too few."], &[]),

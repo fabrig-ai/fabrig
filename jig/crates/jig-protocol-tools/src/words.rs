@@ -3,18 +3,14 @@ use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Decimal, Writer};
 
-/// Render one message with its label and any revision needed for a decision.
+/// Render one message with its label, verdict code and any decision revision.
 #[must_use]
 pub fn words(word: &tasks::Word) -> Box<[u8]> {
     let (label, number) = match word.kind {
-        tasks::MessageKind::Result(_) => (
-            b"Result from task ".as_slice(),
-            match word.from {
-                tasks::Party::Task(task) => task,
-                tasks::Party::Person(person) => person,
-                tasks::Party::Deployment { .. } => 0,
-            },
-        ),
+        tasks::MessageKind::Result(tasks::ResultKind::Verdict { code, .. }) => {
+            return verdict_words(word, code);
+        }
+        tasks::MessageKind::Result(_) => (b"Result from task ".as_slice(), source_number(word.from)),
         tasks::MessageKind::SettingsDecision { proposal, outcome } => return settings(proposal, outcome, &word.words),
         tasks::MessageKind::ProposalDecision { proposal, accepted } => {
             (if accepted { b"Proposal accepted ".as_slice() } else { b"Proposal rejected ".as_slice() }, proposal)
@@ -44,15 +40,46 @@ pub fn words(word: &tasks::Word) -> Box<[u8]> {
         | tasks::MessageKind::Amendment { .. }
         | tasks::MessageKind::Proposal { .. } => return word.words.clone(),
     };
+    numbered_words(label, number, &word.words)
+}
+
+fn numbered_words(label: &[u8], number: u64, words: &[u8]) -> Box<[u8]> {
     let number = Decimal::of(number);
     let bytes = label.len().checked_add(number.as_bytes().len()).expect("bounded message label");
     let bytes = bytes.checked_add(2).expect("bounded message separator");
-    let bytes = bytes.checked_add(word.words.len()).expect("bounded message envelope");
+    let bytes = bytes.checked_add(words.len()).expect("bounded message envelope");
     let mut writer = Writer::new(bytes);
     writer.put(label).expect("measured label");
     writer.put(number.as_bytes()).expect("measured source");
     writer.put(b":\n").expect("measured separator");
-    writer.put(&word.words).expect("measured words");
+    writer.put(words).expect("measured words");
+    writer.finish()
+}
+
+fn source_number(from: tasks::Party) -> u64 {
+    match from {
+        tasks::Party::Task(task) => task,
+        tasks::Party::Person(person) => person,
+        tasks::Party::Deployment { .. } => 0,
+    }
+}
+
+fn verdict_words(word: &tasks::Word, code: u32) -> Box<[u8]> {
+    let source = Decimal::of(source_number(word.from));
+    let code = Decimal::of(u64::from(code));
+    let separator = if word.words.is_empty() { b"".as_slice() } else { b":\n".as_slice() };
+    joined(&[b"Result from task ", source.as_bytes(), b":\nverdict ", code.as_bytes(), separator, &word.words])
+}
+
+fn joined(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded message parts");
+    }
+    let mut writer = Writer::new(length);
+    for part in parts {
+        writer.put(part).expect("measured message parts");
+    }
     writer.finish()
 }
 
@@ -60,15 +87,7 @@ fn held(label: &[u8], task: u64, revision: u64, words: &[u8]) -> Box<[u8]> {
     let task = Decimal::of(task);
     let revision = Decimal::of(revision);
     let parts = [label, task.as_bytes(), b" is held at hold revision ", revision.as_bytes(), b":\n", words];
-    let mut total = 0_usize;
-    for part in parts {
-        total = total.checked_add(part.len()).expect("bounded held message");
-    }
-    let mut writer = Writer::new(total);
-    for part in parts {
-        writer.put(part).expect("measured held message");
-    }
-    writer.finish()
+    joined(&parts)
 }
 
 fn settings(proposal: u64, outcome: tasks::SettingsOutcome, words: &[u8]) -> Box<[u8]> {
@@ -84,13 +103,5 @@ fn settings(proposal: u64, outcome: tasks::SettingsOutcome, words: &[u8]) -> Box
     };
     let revision = if outcome == tasks::SettingsOutcome::Rejected { b"".as_slice() } else { revision.as_bytes() };
     let parts = [b"Settings proposal ".as_slice(), proposal.as_bytes(), label, revision, b":\n", words];
-    let mut length = 0_usize;
-    for part in parts {
-        length = length.checked_add(part.len()).expect("bounded settings message");
-    }
-    let mut writer = Writer::new(length);
-    for part in parts {
-        writer.put(part).expect("measured settings message");
-    }
-    writer.finish()
+    joined(&parts)
 }

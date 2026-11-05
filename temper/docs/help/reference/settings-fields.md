@@ -39,7 +39,7 @@ How an agent's run works: its instructions, models, tools, hosts and budget. A t
 - `turns`: integer, 0 to 4,294,967,295. The most model turns a run takes; more than `reserve_turns`, else refused as `budget`.
 - `time`: nanoseconds. The longest a run lasts before it is cancelled; more than `reserve_time`, else refused as `budget`.
 - `reserve_turns`: integer, 0 to 4,294,967,295. Of `turns`, those kept for the run to finish its work and report.
-- `reserve_time`: nanoseconds. Of `time`, the part kept for the run to finish its work and report.
+- `reserve_time`: nanoseconds. Of `time`, the part kept for finishing and reporting. With `modify` true, at least the worker's check timeout (`check_timeout` in milliseconds). A worker refuses admission if any applicable current or held charter version has less reserve. See settings help for recovery through held revisions.
 - `model`: `model`. The default model: a task that names none takes the first of `model` and `alternatives` whose provider has an account that can pay.
 - `alternatives`: list of at most 16, each `model`. The other models the charter offers, in order after `model`, each named once; a run's sub-agents may use them too.
 - `inspect`: true or false. Whether the run's agent may read, list and search its workspace.

@@ -2679,6 +2679,7 @@ fn task_reads_declare_read_effect_and_decode_continuations() {
 fn held_task_read() -> jig_domain_core::reads::run_task::TaskRead {
     jig_domain_core::reads::run_task::TaskRead {
         task: 23,
+        verdict_code: None,
         questions: Box::new([]),
         state: jig_domain_core::reads::run_task::TaskState::Held,
         spec_revision: 8,
@@ -2854,4 +2855,25 @@ fn task_reads_name_durable_answer_targets_and_answerers() {
     assert!(refused.error());
     assert!(skein_lib::bytes::find(refused.text(), b"Use read_task on the target task").is_some());
     assert!(skein_lib::bytes::find(refused.text(), b"form=answer").is_some());
+}
+
+#[test]
+fn verdict_reads_keep_the_code_when_reason_words_continue() {
+    const START: &[u8] = b"Result from 17:\n";
+    let mut read = held_task_read();
+    read.verdict_code = Some(2);
+    read.words.field = jig_domain_core::reads::TaskTextField::Result;
+    read.words.from = 17;
+    read.words.total = 497; // Fixture's 480 bytes after offset 17.
+    let answer = engine::CallAnswer::TaskRead(Box::new(Ok(read)));
+    let rendered = crate::answer_bounded(&answer, 256);
+    assert!(!rendered.error());
+    let text = rendered.text();
+    assert!(skein_lib::bytes::find(text, b"Verdict: 2").is_some());
+    let from = skein_lib::bytes::find(text, START).expect("reason header") + START.len();
+    let body = text.get(from..).expect("reason body");
+    let cut = skein_lib::bytes::find(body, b"\nnext: ").expect("reason continues");
+    let offset = body.get(cut + b"\nnext: ".len()..).expect("next offset");
+    let expected = skein_lib::Decimal::of(17 + u64::try_from(cut).expect("bounded reason"));
+    assert_eq!(offset, expected.as_bytes(), "metadata never advances the reason offset");
 }

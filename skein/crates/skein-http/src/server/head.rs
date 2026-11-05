@@ -22,11 +22,21 @@ pub(super) struct Head {
     headers: List<Header>,
 }
 
-#[derive(Debug)]
 struct RequestLine {
     method: Method,
     target: Box<[u8]>,
     version: Version,
+}
+
+// skein/docs/design/http.md, 2: a request line prints its target's length.
+impl core::fmt::Debug for RequestLine {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("RequestLine")
+            .field("method", &self.method)
+            .field("target_len", &self.target.len())
+            .field("version", &self.version)
+            .finish()
+    }
 }
 
 /// What a line of a head comes to.
