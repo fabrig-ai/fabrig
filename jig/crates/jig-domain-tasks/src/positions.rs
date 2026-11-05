@@ -1,6 +1,7 @@
 //! Positions for single reads, retained with the task (protocol/store.md, 15.7).
 use crate::{
-    Change, Domain, History, Limits, MessageFamily, Spoken, Party, Proposal, ProposalState, Request, Stored, TaskRecord, Word,
+    Change, Domain, History, Limits, MessageFamily, Party, Proposal, ProposalState, Request, Spoken, Stored,
+    TaskRecord, Word,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Map, Queue};

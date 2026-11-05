@@ -129,7 +129,6 @@ mod wake;
 mod writers;
 pub use activity::{ActivityLine, EndKind, Line, Why, line_bytes_limit, lines_per_decision};
 pub use batch::{bounded_batch, valid_authority, valid_contract, valid_spec};
-pub use boundary::{Hint, MessageFamily, Slot, Spoken};
 pub use boundary::{
     Accepted, Active, Added, Bound, Cause, ChangeTitle, Circle, Closing, Contract, Deadline, DelegateState,
     DelegationContext, End, Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding,
@@ -140,6 +139,7 @@ pub use boundary::{
     RunContext, SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind,
     Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
 };
+pub use boundary::{Hint, MessageFamily, Slot, Spoken};
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{

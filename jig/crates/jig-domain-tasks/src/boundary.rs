@@ -237,7 +237,18 @@ impl Word {
     pub fn finish_requested(&self) -> bool {
         match self.kind.family() {
             MessageFamily::Slot(Slot::FinishRequested) => true,
-            MessageFamily::Slot(Slot::Amendment | Slot::Met | Slot::NothingAwaited | Slot::EffectNotMade | Slot::SettingsDecision | Slot::ProposalDecision | Slot::QuestionAnswered | Slot::QuestionOwed | Slot::QuestionEnded | Slot::PersonStalled)
+            MessageFamily::Slot(
+                Slot::Amendment
+                | Slot::Met
+                | Slot::NothingAwaited
+                | Slot::EffectNotMade
+                | Slot::SettingsDecision
+                | Slot::ProposalDecision
+                | Slot::QuestionAnswered
+                | Slot::QuestionOwed
+                | Slot::QuestionEnded
+                | Slot::PersonStalled,
+            )
             | MessageFamily::Spoken(_)
             | MessageFamily::Hint(_)
             | MessageFamily::Result
@@ -269,7 +280,6 @@ impl Word {
             | None => Some(self.words.len()),
         }
     }
-
 }
 
 /// A connector resource on which a run left state for its next activation.
@@ -2255,11 +2265,13 @@ impl MessageKind {
             Self::Words => MessageFamily::Spoken(Spoken::Words),
             Self::Question => MessageFamily::Spoken(Spoken::Question),
             Self::Answer { question } => MessageFamily::Spoken(Spoken::Answer { question: *question }),
-            Self::Notice { subscription, target, state } => MessageFamily::Hint(Hint::Notice {
-                subscription: *subscription, target: *target, state: *state,
-            }),
+            Self::Notice { subscription, target, state } => {
+                MessageFamily::Hint(Hint::Notice { subscription: *subscription, target: *target, state: *state })
+            }
             Self::Timer { subscription } => MessageFamily::Hint(Hint::Timer { subscription: *subscription }),
-            Self::News { subscription, class } => MessageFamily::Hint(Hint::News { subscription: *subscription, class: *class }),
+            Self::News { subscription, class } => {
+                MessageFamily::Hint(Hint::News { subscription: *subscription, class: *class })
+            }
             Self::PersonStalled { .. } => MessageFamily::Slot(Slot::PersonStalled),
             Self::Amendment { .. } => MessageFamily::Slot(Slot::Amendment),
             Self::FinishRequested { .. } => MessageFamily::Slot(Slot::FinishRequested),

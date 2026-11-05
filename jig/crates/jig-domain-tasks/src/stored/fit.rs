@@ -1,8 +1,8 @@
 //! Configuration and retained-value bounds at load (jig/docs/design/domain/engine.md, 6).
-use crate::{MessageFamily, Slot, 
-    Amendment, Authority, Contract, Domain, Ending, Executor, HoldSource, Last, Limits, MessageKind, New, Numbers,
-    Parameter, PersonAction, PersonProposal, Phase, ProposalAction, RestoreBound, RestoreCause, RestoreLlmWhy,
-    ResultField, ResultKind, Spec, TaskRecord, TaskResult, Was,
+use crate::{
+    Amendment, Authority, Contract, Domain, Ending, Executor, HoldSource, Last, Limits, MessageFamily, MessageKind,
+    New, Numbers, Parameter, PersonAction, PersonProposal, Phase, ProposalAction, RestoreBound, RestoreCause,
+    RestoreLlmWhy, ResultField, ResultKind, Slot, Spec, TaskRecord, TaskResult, Was,
 };
 
 pub(crate) fn bound(which: RestoreBound, held: u64, limit: u64) -> Result<(), RestoreCause> {
@@ -389,8 +389,19 @@ fn payload(word: &crate::Word, limits: &Limits) -> Result<usize, RestoreCause> {
 fn ordinary(kind: &MessageKind) -> bool {
     match kind.family() {
         MessageFamily::Slot(Slot::Amendment | Slot::FinishRequested | Slot::Met | Slot::NothingAwaited) => false,
-        MessageFamily::Slot(Slot::EffectNotMade | Slot::SettingsDecision | Slot::ProposalDecision | Slot::QuestionAnswered | Slot::QuestionOwed | Slot::QuestionEnded | Slot::PersonStalled)
-        | MessageFamily::Spoken(_) | MessageFamily::Hint(_) | MessageFamily::Result | MessageFamily::Virtual => true,
+        MessageFamily::Slot(
+            Slot::EffectNotMade
+            | Slot::SettingsDecision
+            | Slot::ProposalDecision
+            | Slot::QuestionAnswered
+            | Slot::QuestionOwed
+            | Slot::QuestionEnded
+            | Slot::PersonStalled,
+        )
+        | MessageFamily::Spoken(_)
+        | MessageFamily::Hint(_)
+        | MessageFamily::Result
+        | MessageFamily::Virtual => true,
     }
 }
 
@@ -471,8 +482,19 @@ fn inbox(value: &TaskRecord, limits: &Limits) -> Result<(), RestoreCause> {
                 MessageFamily::Slot(Slot::Amendment | Slot::FinishRequested) => {
                     amendments = amendments.checked_add(1).ok_or(RestoreCause::Accounting)?;
                 }
-                MessageFamily::Slot(Slot::EffectNotMade | Slot::SettingsDecision | Slot::ProposalDecision | Slot::QuestionAnswered | Slot::QuestionOwed | Slot::QuestionEnded | Slot::PersonStalled)
-                | MessageFamily::Spoken(_) | MessageFamily::Hint(_) | MessageFamily::Result | MessageFamily::Virtual => {}
+                MessageFamily::Slot(
+                    Slot::EffectNotMade
+                    | Slot::SettingsDecision
+                    | Slot::ProposalDecision
+                    | Slot::QuestionAnswered
+                    | Slot::QuestionOwed
+                    | Slot::QuestionEnded
+                    | Slot::PersonStalled,
+                )
+                | MessageFamily::Spoken(_)
+                | MessageFamily::Hint(_)
+                | MessageFamily::Result
+                | MessageFamily::Virtual => {}
             }
         }
     }

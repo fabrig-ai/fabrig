@@ -1,6 +1,9 @@
 //! Borrow unchanged fields and project only what admitted operations change.
 use super::{Plan, Staged};
-use crate::{MessageFamily, Spoken, Active, Executor, Funder, Grace, Numbers, Party, Phase, Revisions, Settings, TaskRecord, Tracking};
+use crate::{
+    Active, Executor, Funder, Grace, MessageFamily, Numbers, Party, Phase, Revisions, Settings, Spoken, TaskRecord,
+    Tracking,
+};
 use alloc::boxed::Box;
 use core::ops::Deref;
 

@@ -249,9 +249,7 @@ fn kind_bytes(kind: &crate::MessageKind) -> Option<u64> {
 fn word_bytes(word: &crate::Word) -> Option<u64> {
     let payload = bytes(word.payload_bytes()?)?;
     match word.kind.result() {
-        Some(crate::ResultKind::Verdict { fields, .. }) => {
-            payload.checked_add(bytes(size_of_val(&**fields))?)
-        }
+        Some(crate::ResultKind::Verdict { fields, .. }) => payload.checked_add(bytes(size_of_val(&**fields))?),
         Some(
             crate::ResultKind::Approved { .. }
             | crate::ResultKind::Report

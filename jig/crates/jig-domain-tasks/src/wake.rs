@@ -3,7 +3,10 @@
 //! are derived from injected wall and monotonic time after restore. Procedures
 //! batch news by their policy and step immediately on other messages.
 use crate::domain::{Domain, activate, publish, record, task_mut};
-use crate::{Hint, MessageFamily, Slot, Spoken, Active, Limits, MessageKind, NewsClass, Party, Phase, Request, ResultsWake, WakePolicy, WakeRule, Word};
+use crate::{
+    Active, Hint, Limits, MessageFamily, MessageKind, NewsClass, Party, Phase, Request, ResultsWake, Slot, Spoken,
+    WakePolicy, WakeRule, Word,
+};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Wall};
 
@@ -37,7 +40,19 @@ fn category(kind: &MessageKind) -> u8 {
         MessageFamily::Hint(Hint::Notice { .. }) => 4,
         MessageFamily::Hint(Hint::Timer { .. }) => 5,
         MessageFamily::Hint(Hint::News { .. }) | MessageFamily::Slot(Slot::PersonStalled) => 6,
-        MessageFamily::Slot(Slot::Amendment | Slot::FinishRequested | Slot::Met | Slot::NothingAwaited | Slot::EffectNotMade | Slot::SettingsDecision | Slot::ProposalDecision | Slot::QuestionAnswered | Slot::QuestionOwed | Slot::QuestionEnded) | MessageFamily::Virtual => 7,
+        MessageFamily::Slot(
+            Slot::Amendment
+            | Slot::FinishRequested
+            | Slot::Met
+            | Slot::NothingAwaited
+            | Slot::EffectNotMade
+            | Slot::SettingsDecision
+            | Slot::ProposalDecision
+            | Slot::QuestionAnswered
+            | Slot::QuestionOwed
+            | Slot::QuestionEnded,
+        )
+        | MessageFamily::Virtual => 7,
     }
 }
 

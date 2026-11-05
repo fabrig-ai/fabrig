@@ -4,18 +4,18 @@
 //! the same decision; connector topics are routed through the application.
 use crate::domain::{Domain, entrance, publish, record, refused, task_mut};
 use crate::{
-    Hint, MessageFamily, Limits, MessageKind, NewsClass, NoticeState, Phase, Refusal, Request, Subscription, SubscriptionKind, Word,
+    Hint, Limits, MessageFamily, MessageKind, NewsClass, NoticeState, Phase, Refusal, Request, Subscription,
+    SubscriptionKind, Word,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Wall};
 
 fn hint_of(kind: &MessageKind) -> Option<u64> {
     match kind.family() {
-        MessageFamily::Hint(Hint::Notice { subscription, .. } | Hint::Timer { subscription } | Hint::News { subscription, .. }) => Some(subscription),
-        MessageFamily::Spoken(_)
-        | MessageFamily::Slot(_)
-        | MessageFamily::Result
-        | MessageFamily::Virtual => None,
+        MessageFamily::Hint(
+            Hint::Notice { subscription, .. } | Hint::Timer { subscription } | Hint::News { subscription, .. },
+        ) => Some(subscription),
+        MessageFamily::Spoken(_) | MessageFamily::Slot(_) | MessageFamily::Result | MessageFamily::Virtual => None,
     }
 }
 
@@ -206,10 +206,7 @@ fn matches_kind(kind: &MessageKind, subscription: &SubscriptionKind) -> bool {
             SubscriptionKind::Topic { .. } => class != NewsClass::Dropped,
             SubscriptionKind::Task { .. } | SubscriptionKind::Timer { .. } => false,
         },
-        MessageFamily::Spoken(_)
-        | MessageFamily::Slot(_)
-        | MessageFamily::Result
-        | MessageFamily::Virtual => false,
+        MessageFamily::Spoken(_) | MessageFamily::Slot(_) | MessageFamily::Result | MessageFamily::Virtual => false,
     }
 }
 

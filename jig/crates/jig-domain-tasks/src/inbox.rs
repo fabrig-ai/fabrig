@@ -1,6 +1,9 @@
 //! Bounded task messages and atomic turn reads (domain/tasks.md, section 8.2).
 use crate::domain::{Domain, publish, record, task_mut};
-use crate::{MessageFamily, Hint, Slot, Spoken, Limits, MessageKind, NewsClass, Party, Phase, QuestionCredit, Refusal, Request, Word};
+use crate::{
+    Hint, Limits, MessageFamily, MessageKind, NewsClass, Party, Phase, QuestionCredit, Refusal, Request, Slot, Spoken,
+    Word,
+};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, ReplyTo};
 
@@ -118,8 +121,11 @@ pub(crate) fn prepare_staged(
                 MessageFamily::Hint(Hint::News { subscription, class: NewsClass::Wakes }) => {
                     word.kind = MessageKind::News { subscription, class: NewsClass::Wakes };
                 }
-                MessageFamily::Hint(Hint::News { class: NewsClass::Kept | NewsClass::Dropped, .. }
-                    | Hint::Notice { .. } | Hint::Timer { .. })
+                MessageFamily::Hint(
+                    Hint::News { class: NewsClass::Kept | NewsClass::Dropped, .. }
+                    | Hint::Notice { .. }
+                    | Hint::Timer { .. },
+                )
                 | MessageFamily::Spoken(_)
                 | MessageFamily::Slot(_)
                 | MessageFamily::Result
@@ -188,8 +194,19 @@ pub(crate) fn room_staged(
                 extra_count = extra_count.checked_add(1).expect("bounded merged slots");
                 extra_bytes = extra_bytes.checked_add(word.words.len()).expect("bounded amendment bytes");
             }
-            MessageFamily::Slot(Slot::EffectNotMade | Slot::SettingsDecision | Slot::ProposalDecision | Slot::QuestionAnswered | Slot::QuestionOwed | Slot::QuestionEnded | Slot::PersonStalled)
-            | MessageFamily::Spoken(_) | MessageFamily::Hint(_) | MessageFamily::Result | MessageFamily::Virtual => {}
+            MessageFamily::Slot(
+                Slot::EffectNotMade
+                | Slot::SettingsDecision
+                | Slot::ProposalDecision
+                | Slot::QuestionAnswered
+                | Slot::QuestionOwed
+                | Slot::QuestionEnded
+                | Slot::PersonStalled,
+            )
+            | MessageFamily::Spoken(_)
+            | MessageFamily::Hint(_)
+            | MessageFamily::Result
+            | MessageFamily::Virtual => {}
         }
     }
     let total_count = total_count.saturating_sub(extra_count);
