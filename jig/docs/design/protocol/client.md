@@ -1046,6 +1046,10 @@ Each within jig's suites' budgets.
   people between hosts. On one person's machine, the browser's
   connections to one origin and the engine's streams in all bound them
   (section 4).
+- **The reference server at a full room** (17.4): whether it holds an
+  ordinary call's head until room is free, as that section allows, in
+  place of refusing it. Default: it refuses, and the client takes the
+  `503` as that section says.
 - **Bundling parts** in a jig read's answer (`../client/domain/contract.md`,
   section 11).
 - **A binary stream** in the default mapping: a streamed response body
