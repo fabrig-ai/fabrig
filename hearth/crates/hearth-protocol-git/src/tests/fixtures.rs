@@ -10,8 +10,8 @@ pub fn listed(stdout: &[u8], limits: &Limits) -> Event {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut machine = Listing::new(limits);
     let mut held = Held::new(bytes::copy_of(stdout));
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     listing::down(&mut machine, &env, Request::List, &mut above, &mut below);
     for _ in 0..stdout.len().saturating_add(4) {
         if let Some(answer) = above.pop() {
@@ -33,8 +33,8 @@ pub fn batched(stdout: &[u8], requests: &[crate::batch::Request], limits: &Limit
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut machine = Batch::START;
     let mut held = Held::new(bytes::copy_of(stdout));
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     let mut events = skein_lib::List::with_capacity(
         u32::try_from(stdout.len().saturating_add(requests.len())).expect("test input small"),
     );
@@ -72,8 +72,8 @@ pub fn hunked(stdout: &[u8], limits: &Limits) -> crate::hunks::Event {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut machine = Diff::new(limits);
     let mut held = Held::new(bytes::copy_of(stdout));
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     hunks::down(&mut machine, &env, Request::Read, &mut above, &mut below);
     for _ in 0..stdout.len().saturating_mul(3).saturating_add(20) {
         if let Some(event) = above.pop() {

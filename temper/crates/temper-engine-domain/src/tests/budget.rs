@@ -74,9 +74,12 @@ fn dropped_and_refused_turn_payloads_release_their_bodies() {
         let token = payload(&mut domain);
         assert_eq!(domain.held_bytes(), 9);
         let output = if refused {
-            core::Now::RefusedPayload { request: token, problem: tasks::Problem::new(Some(1), tasks::Refusal::Read) }
+            core::Now::Link(core::LinkNow::RefusedPayload {
+                request: token,
+                problem: tasks::Problem::new(Some(1), tasks::Refusal::Read),
+            })
         } else {
-            core::Now::DropPayload { payload: token }
+            core::Now::Link(core::LinkNow::DropPayload { payload: token })
         };
         now(&mut domain, &env, &mut decision, output);
         assert_eq!(domain.held_bytes(), 0);
@@ -258,7 +261,7 @@ fn accepted_new_turns_move_the_charge_to_a_write_and_already_turns_release_it() 
             &mut domain,
             &env,
             &mut decision,
-            core::Now::AcceptedTurn { payload: token, task: 1, attempt: 1, turn: 1, accepted },
+            core::Now::Link(core::LinkNow::AcceptedTurn { payload: token, task: 1, attempt: 1, turn: 1, accepted }),
         );
         assert_eq!(domain.held_bytes(), 9, "moving from slab into work keeps the charge");
         crate::route::route_into(&mut domain, &env, &mut decision);

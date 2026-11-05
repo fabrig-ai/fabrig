@@ -277,7 +277,7 @@ fn read_package(fields: &Fields<'_>, start: u32) -> Result<Package, IndexError> 
     let optional = |name| fields.get(name).map(|(v, line)| (*v, *line));
     let decimal = |name| {
         let (v, line) = get(name)?;
-        decimal(v).ok_or(IndexError { line, wrong: Wrong::Form(name) })
+        skein_lib::bytes::decimal(v).ok_or(IndexError { line, wrong: Wrong::Form(name) })
     };
     let groups = |name| {
         optional(name).map_or_else(
@@ -300,7 +300,7 @@ fn read_package(fields: &Fields<'_>, start: u32) -> Result<Package, IndexError> 
         Some((_, line)) => return Err(IndexError { line, wrong: Wrong::Form("Essential") }),
     };
     let installed_size = optional("Installed-Size")
-        .map(|(v, line)| self::decimal(v).ok_or(IndexError { line, wrong: Wrong::Form("Installed-Size") }))
+        .map(|(v, line)| skein_lib::bytes::decimal(v).ok_or(IndexError { line, wrong: Wrong::Form("Installed-Size") }))
         .transpose()?;
     let mut provides = Vec::new();
     for group in groups("Provides")? {
@@ -321,7 +321,7 @@ fn read_package(fields: &Fields<'_>, start: u32) -> Result<Package, IndexError> 
         conflicts.extend(group);
     }
     let (sha, line) = get("SHA256")?;
-    let sha256 = hex(sha).ok_or(IndexError { line, wrong: Wrong::Form("SHA256") })?;
+    let sha256 = sha256(sha).ok_or(IndexError { line, wrong: Wrong::Form("SHA256") })?;
     Ok(Package {
         name: checked("Package", name)?,
         version: checked("Version", valid_version)?,
@@ -337,14 +337,6 @@ fn read_package(fields: &Fields<'_>, start: u32) -> Result<Package, IndexError> 
         filename: checked("Filename", path)?,
         size: decimal("Size")?,
         sha256,
-    })
-}
-fn decimal(v: &[u8]) -> Option<u64> {
-    if v.is_empty() {
-        return None;
-    }
-    v.iter().try_fold(0_u64, |n, b| {
-        if b.is_ascii_digit() { n.checked_mul(10)?.checked_add(u64::from(b.checked_sub(b'0')?)) } else { None }
     })
 }
 fn word(v: &[u8]) -> bool {
@@ -368,7 +360,7 @@ fn valid_version(v: &[u8]) -> bool {
         && upstream.iter().all(|b| b.is_ascii_alphanumeric() || b".+-~".contains(b))
         && revision.is_none_or(|r| !r.is_empty() && r.iter().all(|b| b.is_ascii_alphanumeric() || b"+.~".contains(b)))
 }
-fn hex(v: &[u8]) -> Option<[u8; 32]> {
+fn sha256(v: &[u8]) -> Option<[u8; 32]> {
     if v.len() != 64 {
         return None;
     }
@@ -376,8 +368,7 @@ fn hex(v: &[u8]) -> Option<[u8; 32]> {
     for (slot, pair) in out.iter_mut().zip(v.chunks_exact(2)) {
         let mut n = 0_u8;
         for b in pair {
-            let d = char::from(*b).to_digit(16)?;
-            n = n.checked_mul(16)?.checked_add(u8::try_from(d).ok()?)?;
+            n = n.checked_mul(16)?.checked_add(skein_lib::bytes::hex_value(*b)?)?;
         }
         *slot = n;
     }

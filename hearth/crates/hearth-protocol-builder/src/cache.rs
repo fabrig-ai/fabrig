@@ -2,7 +2,7 @@
 use crate::render::vocabulary::Digest;
 use alloc::boxed::Box;
 use skein_io::{file, kernel::Fd};
-use skein_lib::{Rng, Token, Writer, sha256::Sha256};
+use skein_lib::{Rng, Token, Writer, bytes, sha256::Sha256};
 const OWNER: Token = Token::new(10);
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Stage {
@@ -31,7 +31,7 @@ impl Cache {
         let mut name = Writer::new(68);
         for _ in 0_u8..4 {
             for byte in rng.next_u64().to_be_bytes() {
-                hex(&mut name, byte);
+                hex_pair(&mut name, byte);
             }
         }
         name.put(b".tmp").expect("temporary suffix");
@@ -183,10 +183,7 @@ impl Cache {
         self.name.clone()
     }
 }
-pub(super) fn hex(writer: &mut Writer, byte: u8) {
-    for digit in [byte >> 4_u8, byte & 15] {
-        writer
-            .put(&[if digit < 10 { b'0'.saturating_add(digit) } else { b'a'.saturating_add(digit.saturating_sub(10)) }])
-            .expect("hex room");
-    }
+/// A byte's two lower-case digits.
+pub(super) fn hex_pair(writer: &mut Writer, byte: u8) {
+    writer.put(&[bytes::hex_digit(byte >> 4_u8), bytes::hex_digit(byte)]).expect("hex room");
 }

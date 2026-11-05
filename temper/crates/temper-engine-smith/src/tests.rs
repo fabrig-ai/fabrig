@@ -2338,6 +2338,53 @@ fn a_denied_release_names_the_control_family_once() {
 }
 
 #[test]
+fn read_compare_too_large_names_bounds_and_paged_fallback() {
+    use skein_forge::api::Error;
+    // Recorded compares; the first has no recorded file or commit counts.
+    for reproduction in [
+        "e41fb4e126 -> b0afbc516a: 55282 JSON bytes, row counts unknown",
+        "0fd14bcd83 -> 6da0fe0e57: 6799 JSON bytes, 2 commits, 14 files",
+    ] {
+        let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge)));
+        let rendered = crate::answer_for_tool(&refused, b"read_compare", 2048);
+        assert!(rendered.error(), "{reproduction}");
+        let text = rendered.text();
+        for guidance in [
+            "whole",
+            "no pages",
+            "forge.client.rows",
+            "files",
+            "commits",
+            "forge.client.answer_bytes",
+            "decoded",
+            "read_pull",
+            "read_pull_files",
+            "head",
+            "page",
+            "read_file",
+            "both endpoints",
+            "directories",
+            "max_bytes",
+            "sides must fit whole",
+        ] {
+            assert!(
+                skein_lib::bytes::find(text, guidance.as_bytes()).is_some(),
+                "{reproduction}: missing {guidance}: {text:?}"
+            );
+        }
+        for cap in [0, 32, 512, 2048] {
+            let bounded = crate::answer_for_tool(&refused, b"read_compare", cap);
+            assert!(bounded.error());
+            assert!(bounded.text().len() <= usize::try_from(cap).unwrap());
+        }
+        let unrelated = crate::answer_for_tool(&refused, b"read_pull", 2048);
+        assert_eq!(unrelated.text(), b"Forge read failed: too large");
+        let missing = engine::CallAnswer::ForgeRead(Box::new(Err(Error::Missing)));
+        assert_eq!(crate::answer_for_tool(&missing, b"read_compare", 2048).text(), b"Forge read failed: missing");
+    }
+}
+
+#[test]
 fn change_decodes_branch_mine_with_questions() {
     for input in [
         br#"{"words":"a","branch":"mine","questions":"none"}"#.as_slice(),

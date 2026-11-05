@@ -9,18 +9,16 @@ use skein_lib::{List, Token};
 
 /// A root's own part of a run's hand-over (domain/hosts.md, 8).
 #[derive(Debug)]
-pub struct Given<'a> {
+pub struct RootParts<'a> {
     pub tools: Box<[crate::Tool]>,
     pub endpoints: &'a [crate::EndpointName],
     pub deployment: &'a [u8; 16],
     pub limits: &'a smith_charter::v4::Limits,
-    pub answered: u32,
-    pub messages: u32,
 }
 
 /// Assemble the hub's hand-over, refusing unsupported sections or exceeded bounds.
 #[must_use]
-pub fn hosted(assignment: &jig_domain_hub_link::Assignment, given: Given<'_>) -> Option<host::Assignment> {
+pub fn hosted(assignment: &core::Assignment, parts: RootParts<'_>) -> Option<host::Assignment> {
     let mut sections = List::with_capacity(u32::try_from(assignment.brief.len()).ok()?);
     for placed in &assignment.brief {
         let section = match placed {
@@ -36,9 +34,9 @@ pub fn hosted(assignment: &jig_domain_hub_link::Assignment, given: Given<'_>) ->
         sections.push(section).ok()?;
     }
     let resumes = !assignment.transcript.is_empty();
-    let value = crate::assignment((*assignment.run).clone(), sections.into_boxed(), given.tools, resumes)?;
-    let encoded = crate::encode(crate::charter(value)?, given.endpoints, given.limits)?;
-    let mut answered = List::with_capacity(given.answered);
+    let value = crate::assignment((*assignment.run).clone(), sections.into_boxed(), parts.tools, resumes)?;
+    let encoded = crate::encode(crate::charter(value)?, parts.endpoints, parts.limits)?;
+    let mut answered = List::with_capacity(u32::try_from(assignment.answered.len()).ok()?);
     for core::Settled { key, call } in &assignment.answered {
         let answer = match &call.answer {
             core::SettledAnswer::Host { error, body } => {
@@ -55,7 +53,7 @@ pub fn hosted(assignment: &jig_domain_hub_link::Assignment, given: Given<'_>) ->
         });
         answered.push(host::AnsweredCall { name, tool: call.tool.clone(), answer }).ok()?;
     }
-    let mut messages = List::with_capacity(given.messages);
+    let mut messages = List::with_capacity(u32::try_from(assignment.messages.len()).ok()?);
     for word in &assignment.messages {
         messages.push(start_message(word)).ok()?;
     }
@@ -63,7 +61,7 @@ pub fn hosted(assignment: &jig_domain_hub_link::Assignment, given: Given<'_>) ->
     Some(host::Assignment {
         messages: messages.into_boxed(),
         assignment: host::RunAssignment {
-            identity: crate::run_identity(given.deployment, assignment.task, assignment.conversation),
+            identity: crate::run_identity(parts.deployment, assignment.task, assignment.conversation),
             run: Token::new(assignment.task),
             attempt: Token::new(assignment.attempt),
             workspace: None,

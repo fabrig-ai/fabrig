@@ -4,6 +4,28 @@ use hearth_protocol_git::{
     oid::Oid,
 };
 use skein_lib::Rng;
+
+#[derive(Debug)]
+pub struct Stderr {
+    pub bytes: Vec<u8>,
+    pub lines: Box<[Box<[u8]>]>,
+}
+/// Encode distinct lines and select their bounded suffix independently of the tail.
+#[must_use]
+pub fn stderr(rng: &mut Rng, limits: &Limits) -> Stderr {
+    let count = rng.between(1, u64::from(limits.tail_lines).saturating_mul(2).max(1));
+    let mut bytes = Vec::new();
+    let mut lines = Vec::new();
+    for index in 0..count {
+        let length = usize::try_from(rng.between(1, u64::from(limits.tail_line).max(1) * 2)).expect("line fits");
+        let line = format!("{index}:{}", "x".repeat(length)).into_bytes();
+        bytes.extend_from_slice(&line);
+        bytes.push(b'\n');
+        lines.push(line[..line.len().min(usize::try_from(limits.tail_line).expect("line limit fits"))].into());
+    }
+    let skip = lines.len().saturating_sub(usize::try_from(limits.tail_lines).expect("tail limit fits"));
+    Stderr { bytes, lines: lines.into_iter().skip(skip).collect() }
+}
 #[derive(Debug)]
 pub struct Listing {
     pub stdout: Vec<u8>,

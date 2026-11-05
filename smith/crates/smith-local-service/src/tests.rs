@@ -1004,3 +1004,22 @@ fn invalid_limits_are_refused() {
     assert!(crate::valid(&inline.limits), "inline mode has no framed process channel");
     Service::new(inline, 1).expect("inline mode needs no process framing");
 }
+
+#[test]
+fn a_refused_run_effort_writes_the_choice_without_a_newline() {
+    let mut configuration = config();
+    configuration.local.models[0].effort = Some(b"high".as_slice().into());
+    configuration.local.efforts[0] = Box::new([b"high".as_slice().into()]);
+    let mut service = Service::new(configuration, 7).expect("valid service");
+    let choice = local::ChoiceNotice::Effort {
+        effort: b"high".as_slice().into(),
+        choices: Box::new([b"high".as_slice().into()]),
+        dropped: false,
+    };
+    service.render_notice(local::Notice::Failure(local::Failure::EffortRefused(choice.clone())));
+    iterate(&mut service, Time::ZERO, Wall::EPOCH);
+    let expected = b"Effort high is not declared; accepted: high";
+    assert_eq!(smith_local_protocol::choice_text(&choice, b"main", 4096).as_ref(), expected);
+    assert_eq!(service.output().pop().as_deref(), Some(expected.as_slice()));
+    assert!(service.output().is_empty());
+}

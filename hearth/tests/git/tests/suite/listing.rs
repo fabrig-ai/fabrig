@@ -36,3 +36,25 @@ fn a_stream_that_fails_mid_listing_fails_the_listing() {
         );
     }
 }
+
+/// An outcome answers its request (hearth/docs/design/domain/render.md, 8.5).
+#[test]
+fn an_end_or_a_fault_before_the_list_answers_the_list() {
+    use hearth_protocol_git::listing::{self, Event, Listing, Request};
+    use skein_lib::{Env, Queue, Time, Wall, stream::Up};
+
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fixtures::SMALL };
+    for (outcome, expected) in
+        [(Up::End, Event::Listed(Box::new([]))), (Up::Failed(Fault::Reset), Event::Failed(Error::Stream(Fault::Reset)))]
+    {
+        let mut machine = Listing::new(&env.limits);
+        let mut above = Queue::uncapped();
+        let mut below = Queue::uncapped();
+        listing::up(&mut machine, &env, outcome, &mut above, &mut below);
+        assert!(above.is_empty(), "outcome waits for List");
+        assert!(below.is_empty(), "no read before List");
+        listing::down(&mut machine, &env, Request::List, &mut above, &mut below);
+        assert_eq!(above.pop(), Some(expected), "List gets the held outcome");
+        assert!(above.is_empty() && below.is_empty(), "one answer and no demand");
+    }
+}

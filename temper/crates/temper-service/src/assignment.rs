@@ -88,7 +88,7 @@ pub fn down(
     }
     let charter =
         smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
-    let identity = identity(&encoding.deployment, assignment.task, assignment.conversation);
+    let identity = jig_protocol_charter::run_identity(&encoding.deployment, assignment.task, assignment.conversation);
     let mut parts = List::with_capacity(1);
     let workspace = match items {
         Some(items) => {
@@ -124,18 +124,6 @@ pub fn down(
         parts: parts.into_boxed(),
         values: filled,
     })
-}
-fn identity(deployment: &[u8; 16], task: u64, conversation: u64) -> [u8; 16] {
-    let mut source = Writer::new(32);
-    source.put(deployment).expect("deployment identity");
-    source.put(&task.to_be_bytes()).expect("task identity");
-    source.put(&conversation.to_be_bytes()).expect("conversation identity");
-    let digest = skein_io::digest::digest(&source.finish());
-    let mut identity = Writer::new(16);
-    for word in digest.0.get(..2).expect("first sixteen digest bytes") {
-        identity.put(&word.to_be_bytes()).expect("two identity words");
-    }
-    identity.finish().as_ref().try_into().expect("sixteen identity bytes")
 }
 fn messages(task: u64, words: &[tasks::Word]) -> Box<[host::StartMessage]> {
     let mut messages = List::with_capacity(u32::try_from(words.len()).expect("bounded messages"));
@@ -190,6 +178,33 @@ fn answered(calls: &[core::Settled]) -> Box<[host::AnsweredCall]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_run_identity_keeps_its_bytes() {
+        use crate::tests::fixtures;
+
+        let mut encoding = fixtures::encoding(&fixtures::engine());
+        encoding.deployment = [3; 16];
+        let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
+        assignment.task = 17;
+        assignment.conversation = 29;
+        let event = down(
+            assignment,
+            &fixtures::forge_table(&fixtures::forges()),
+            &encoding,
+            &crate::values::Values::new(0, 0),
+            Token::new(8),
+            Time::ZERO,
+        )
+        .expect("assignment encodes");
+        let kit::Event::Down { down: host::LinkDown::Assign { assignment }, .. } = event else {
+            panic!("assignment event")
+        };
+        assert_eq!(
+            assignment.assignment.identity,
+            [252, 129, 193, 120, 217, 168, 14, 238, 123, 174, 89, 65, 38, 144, 139, 54]
+        );
+    }
 
     #[test]
     fn a_host_start_carries_the_question_and_answer_references() {

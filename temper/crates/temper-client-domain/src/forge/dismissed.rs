@@ -146,3 +146,62 @@ fn end(side: &mut Side, out: &mut Queue<Request>) {
         out.push(Request::Client { asked: jig_client::Event::Unwatch { handle: handle() } });
     }
 }
+
+pub(crate) enum Answer {
+    Dismissed,
+    Unknown,
+    Refused,
+}
+
+pub(crate) fn answer(outcome: &jig_client::Outcome, limits: Limits) -> Answer {
+    match outcome {
+        jig_client::Outcome::Unknown => Answer::Unknown,
+        jig_client::Outcome::Answered(jig_client::Answered::Family(record)) => match answered(record, limits) {
+            Some(answer) => answer,
+            None => Answer::Refused,
+        },
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(_))
+        | jig_client::Outcome::NotKept
+        | jig_client::Outcome::Limit
+        | jig_client::Outcome::Unconfirmed
+        | jig_client::Outcome::Held
+        | jig_client::Outcome::Unsent
+        | jig_client::Outcome::Full { .. }
+        | jig_client::Outcome::Lost => Answer::Refused,
+    }
+}
+
+fn answered(record: &Family, limits: Limits) -> Option<Answer> {
+    if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {
+        return None;
+    }
+    let mut reader = skein_lib::Reader::new(&record.bytes);
+    let answer = w::Answer::decode(&wire_limits(&limits)?, &mut reader).ok()?;
+    if !reader.is_empty() {
+        return None;
+    }
+    Some(match answer.into_parts().outcome {
+        w::Outcome::Dismissed => Answer::Dismissed,
+        w::Outcome::Unknown => Answer::Unknown,
+        w::Outcome::Page(_)
+        | w::Outcome::Accepted(_)
+        | w::Outcome::Returning
+        | w::Outcome::Connecting
+        | w::Outcome::Link(_)
+        | w::Outcome::ConnectRefused(_)
+        | w::Outcome::Adopted(_)
+        | w::Outcome::CoreRefused(_)
+        | w::Outcome::ForgeRefused(_)
+        | w::Outcome::Running
+        | w::Outcome::StartRefused(_)
+        | w::Outcome::StartFailed(_)
+        | w::Outcome::SettingUp
+        | w::Outcome::SetUpRefused(_)
+        | w::Outcome::Removed
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::Reset
+        | w::Outcome::EndRefused(_)
+        | w::Outcome::MakeKept
+        | w::Outcome::MakeRefused(_) => Answer::Refused,
+    })
+}

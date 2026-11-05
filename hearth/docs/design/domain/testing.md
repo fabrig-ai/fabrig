@@ -188,6 +188,7 @@ testing/hearth-client-fake-<tool>   a fake of a tool only the client runs: incus
 testing/recordings/<tool>/<version> recordings of real runs (4.5)
 testing/repos                       the test IaC repositories, cue tasks included (8.2)
 testing/mirror                      the local mirror's pin, its extras, its fetch script (6.2)
+testing/hearth-test-fixtures        what more than one test crate reads: the goldens as corpora, a hex literal
 tests/<name>                        hearth-<name>-world: one subject's domain and machine worlds (2.4)
 tests/system                        hearth-system-world: the system worlds (2.3)
 tests/client, tests/dev             the client's worlds, hearth-client-world and hearth-client-dev-world [M3, M3b]
@@ -1663,6 +1664,10 @@ VM tier its one real machine relies on.
   which may only fall (`skein/docs/foundation/programming-model.md`, 6.3).
   Moving to the model is hearth's debt
   (`hearth/docs/development/debt/`, D001).
+- **The memory suites' fixtures** (2.9, 8.4): two suites reach three
+  fixtures under their worlds' `src/` by `#[path]`. Each moves into its
+  suite as a plain module, in a later round of hearth's debt
+  (`hearth/docs/development/debt/`, D008).
 - **Live changes on a real machine:** every item hearth/docs/design/domain/slots.md, section 15
   lists as to verify, run as 7.3's scenarios. Until then the fake
   machine follows the kernel's and systemd's sources (257 to 262) as

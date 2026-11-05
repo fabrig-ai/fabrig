@@ -80,7 +80,7 @@ pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
 }
 
 /// Render a decided answer with its host tool's name, naming a refused family.
-/// Job logs fit the configured bound, including metadata and byte escaping.
+/// Job logs and compare size refusals fit the configured host body bound.
 #[must_use]
 pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
     bounded(answer, tool, max_bytes, None)
@@ -124,7 +124,16 @@ fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) 
             }
         };
     }
-    answer_text(answer, tool, task)
+    let rendered = answer_text(answer, tool, task);
+    if tool == b"read_compare"
+        && let CallAnswer::ForgeRead(read) = answer
+        && read.as_ref() == &Err(api::Error::TooLarge)
+    {
+        let cap = usize::try_from(max_bytes).expect("u32 fits").min(rendered.text().len());
+        return HostAnswer::new(bytes::copy_of(rendered.text().get(..cap).expect("bounded refusal")), true)
+            .expect("compare refusal fits");
+    }
+    rendered
 }
 
 fn job_text(
@@ -288,17 +297,7 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
             authority_findings(&mut text, *answer, findings, tool, true)?;
             true
         }
-        CallAnswer::ForgeRead(read) => match read.as_ref() {
-            Ok(read) => {
-                forge_answer(&mut text, read)?;
-                false
-            }
-            Err(refusal) => {
-                text.add(b"Forge read failed: ")?;
-                forge_error(&mut text, *refusal)?;
-                true
-            }
-        },
+        CallAnswer::ForgeRead(read) => forge_read(&mut text, read, tool)?,
         CallAnswer::HoldOwner { task, hold, revision, owner } => {
             hold_owner(&mut text, *task, *hold, *revision, *owner)?;
             true
@@ -904,6 +903,23 @@ fn task_capacity(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result
         | CapacityCause::Subscriptions { .. }
         | CapacityCause::Funders { .. }
         | CapacityCause::Writers { .. } => Ok(()),
+    }
+}
+
+fn forge_read(text: &mut Text, read: &Result<api::Answer, api::Error>, tool: &[u8]) -> Result<bool, Problem> {
+    match read {
+        Ok(read) => {
+            forge_answer(text, read)?;
+            Ok(false)
+        }
+        Err(refusal) => {
+            text.add(b"Forge read failed: ")?;
+            forge_error(text, *refusal)?;
+            if tool == b"read_compare" && *refusal == api::Error::TooLarge {
+                text.add(b". read_compare returns a whole comparison, with no pages. Files and commits each must fit forge.client.rows; decoded answer bytes must fit forge.client.answer_bytes. This refusal does not identify which bound was exceeded.\nFor an existing pull, use read_pull to get its head, then read_pull_files with that head and page=1; advance page while more follows. Pull-file sides must fit whole too. Otherwise, or if a pull-file page is too large, use read_file to list directories at both endpoints, then read selected files at each endpoint within max_bytes.")?;
+            }
+            Ok(true)
+        }
     }
 }
 

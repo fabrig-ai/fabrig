@@ -21,7 +21,7 @@ fn activity_decision(core: &mut Core, env: &Env<Limits>, event: Event) -> Vec<Re
         match request {
             Request::Write(Write::Save(record)) => records.push(record),
             Request::Now(now) => {
-                if let Now::AcceptedTurn { task, attempt, turn, accepted, .. } = *now {
+                if let Now::Link(LinkNow::AcceptedTurn { task, attempt, turn, accepted, .. }) = *now {
                     let (read, cumulative) = turn_input.expect("callback belongs to the offered turn");
                     records.extend(activity_decision(
                         core,

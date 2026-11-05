@@ -9,7 +9,7 @@ use jig_domain_core as core;
 use jig_domain_core::effects::connector;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
-use jig_domain_hub_link::{Event as LinkEvent, Procedure, no_workspace};
+use jig_domain_hub_link::{Event as LinkEvent, Procedure};
 use jig_domain_tasks as tasks;
 use jig_ops_domain_connectors::Connector;
 use jig_ops_domain_infrastructure as infrastructure;
@@ -1179,21 +1179,21 @@ pub(crate) fn connector_out(
                     subscriber.task,
                     subscriber.subscription,
                     class,
-                    translate::alert_words(&alert),
+                    jig_ops_protocol_observability::alert_words(&alert),
                     env.wall,
                 ) {
                     work.push(Work::Core(core::Event::Tasks(event)));
                 }
             }
         }
-        ConnectorRequest::Observability(observability::Request::Health { service, healthy, subscribers }) => {
+        ConnectorRequest::Observability(observability::Request::Health { service: _, healthy, subscribers }) => {
             for subscriber in subscribers {
                 let class = translate::news_class(subscriber.class);
                 if let Some(event) = domain.core.connector_news(
                     subscriber.task,
                     subscriber.subscription,
                     class,
-                    translate::health_words(&service, healthy),
+                    jig_ops_protocol_observability::health_words(healthy),
                     env.wall,
                 ) {
                     work.push(Work::Core(core::Event::Tasks(event)));
@@ -1217,13 +1217,13 @@ pub(crate) fn connector_out(
             assert_eq!(offered, step, "owner answers its offered step");
             let action = match chosen {
                 observability::WatchDecision::Triage { delegate, alerts } => {
-                    match translate::triage(&delegate, &alerts, &env.limits.policy.delegate) {
+                    match jig_ops_protocol_observability::triage(&delegate, &alerts, &env.limits.policy.delegate) {
                         Some(batch) => core::ProcedureStep { batch, ..core::ProcedureStep::new(core::StepEnd::Wait) },
                         None => core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
                     }
                 }
                 observability::WatchDecision::Lead { delegate } => {
-                    match translate::lead(&delegate, &env.limits.policy.delegate) {
+                    match jig_ops_protocol_observability::lead(&delegate, &env.limits.policy.delegate) {
                         Some(batch) => core::ProcedureStep { batch, ..core::ProcedureStep::new(core::StepEnd::Wait) },
                         None => core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
                     }
@@ -1243,7 +1243,7 @@ pub(crate) fn connector_out(
         }
         ConnectorRequest::Observability(observability::Request::Triage { watch, delegate, alerts, .. }) => {
             let Some(Procedure { step, connector, code }) = domain.hub_link.take_procedure(watch) else { return };
-            let action = match translate::triage(&delegate, &alerts, &env.limits.policy.delegate) {
+            let action = match jig_ops_protocol_observability::triage(&delegate, &alerts, &env.limits.policy.delegate) {
                 Some(batch) => core::ProcedureStep { batch, ..core::ProcedureStep::new(core::StepEnd::Wait) },
                 None => core::ProcedureStep::new(core::StepEnd::Hold(tasks::Hold::Procedure)),
             };
@@ -1264,7 +1264,7 @@ pub(crate) fn connector_out(
         }
     }
 }
-#[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates this child boundary")]
+#[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the core's immediate outputs")]
 fn core_now(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -1272,14 +1272,10 @@ fn core_now(
     value: core::Now,
     work: &mut Queue<Work>,
 ) {
-    let value = match jig_domain_hub_link::now(value) {
-        Ok(event) => {
-            crate::link::route(domain, env, decision, event, false, work);
-            return;
-        }
-        Err(value) => value,
-    };
     match value {
+        core::Now::Link(value) => {
+            crate::link::route(domain, env, decision, jig_domain_hub_link::now(value), false, work);
+        }
         core::Now::Undelivered { message, .. } => drop(domain.hub_link.take_payload(message.words)),
         core::Now::Activate { context } => {
             work.push(Work::Core(core::Event::Activate { context, ready: domain.ready(), busy: false }));
@@ -1291,9 +1287,19 @@ fn core_now(
             work.push(Work::Core(jig_domain_hub_link::brief_plan(task, sections, budget, deadline)));
         }
         core::Now::CompleteBrief { brief, order } => {
-            work.push(Work::Core(domain.hub_link.complete_brief(brief, order)));
+            domain.hub_link.keep_brief(brief.raw(), order);
+            work.push(Work::Core(core::Event::BriefAssembled { task: brief.raw(), ready: true }));
         }
-        core::Now::WorkspaceRequest { task, attempt, .. } => work.push(Work::Core(no_workspace(task, attempt))),
+        core::Now::WorkspaceRequest { task, attempt, .. } => {
+            work.push(Work::Core(core::Event::WorkspacePrepared {
+                task,
+                attempt,
+                holds: Box::new([]),
+                workspace: None,
+                credentials: Box::new([]),
+                writes: Some(Box::new([])),
+            }));
+        }
         core::Now::RunPrepared {
             live,
             task,
@@ -1356,13 +1362,7 @@ fn core_now(
         core::Now::DropCall { call } => {
             crate::link::route(domain, env, decision, LinkEvent::DropCall { call }, false, work);
         }
-        other @ (core::Now::Relayed { .. }
-        | core::Now::DropPayload { .. }
-        | core::Now::TurnPayload { .. }
-        | core::Now::AnswerPayload { .. }
-        | core::Now::AcceptedTurn { .. }
-        | core::Now::RefusedPayload { .. }
-        | core::Now::Call { .. }
+        other @ (core::Now::Call { .. }
         | core::Now::EffectAnswer { .. }
         | core::Now::TaskRead { .. }
         | core::Now::SettingsAnswer { .. }

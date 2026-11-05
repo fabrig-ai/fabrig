@@ -1072,7 +1072,10 @@ fn a_project_with_no_chat_offers_the_first_chat() {
     let button = fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").expect("first chat");
     let composer = fixtures::find(view.tree(), Role::TextArea, b"Start a chat").expect("composer");
     assert!(index_of(view.tree().nodes(), button) < index_of(view.tree().nodes(), composer));
-    assert_eq!(crate::act(&mut view, button, skein_ui::Act::Press), Some(Action::Pages(Act::FirstChat)));
+    assert_eq!(
+        crate::act(&mut view, button, skein_ui::Act::Press),
+        Some(Action::Pages(Act::Go { address: Address::Configure { project: fixtures::PROJECT } }))
+    );
 }
 
 #[test]
@@ -1118,27 +1121,30 @@ fn the_first_chat_offer_is_only_shown_under_all() {
 }
 
 #[test]
-fn a_pending_chat_start_disables_the_first_chat_offer_and_the_composer() {
+fn a_pending_chat_start_keeps_the_offer_and_disables_the_composer() {
     use temper_client_domain::{Action, Event, pages::Act};
-    for act in [Act::FirstChat, Act::StartChat] {
-        let mut root = fixtures::playground_root(
-            temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
-            fixtures::SECOND_PROJECT,
-            true,
-        );
-        fixtures::root_event(
-            &mut root,
-            Event::Act { action: Action::Pages(Act::ChatWords { words: Box::from(*b"draft") }) },
-        );
-        fixtures::root_event(&mut root, Event::Act { action: Action::Pages(act) });
-        assert!(root.pages().chats().expect("chats").start.is_some());
-        let view = fixtures::page_view(&root);
-        for name in [b"Tell temper how you work".as_slice(), b"Start chat"] {
-            let button = fixtures::find(view.tree(), Role::Button, name).expect("start button");
-            let node = &view.tree().nodes()[index_of(view.tree().nodes(), button)];
-            assert!(node.states.as_slice().contains(&skein_ui::State::Disabled));
-        }
-    }
+    let mut root = fixtures::playground_root(
+        temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
+        fixtures::SECOND_PROJECT,
+        true,
+    );
+    fixtures::root_event(
+        &mut root,
+        Event::Act { action: Action::Pages(Act::ChatWords { words: Box::from(*b"draft") }) },
+    );
+    fixtures::root_event(&mut root, Event::Act { action: Action::Pages(Act::StartChat) });
+    assert!(root.pages().chats().expect("chats").start.is_some());
+    let mut view = fixtures::page_view(&root);
+    let offer = fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").expect("offer");
+    assert_eq!(
+        crate::act(&mut view, offer, skein_ui::Act::Press),
+        Some(Action::Pages(Act::Go {
+            address: temper_client_domain::Address::Configure { project: fixtures::PROJECT }
+        }))
+    );
+    let button = fixtures::find(view.tree(), Role::Button, b"Start chat").expect("start button");
+    let node = &view.tree().nodes()[index_of(view.tree().nodes(), button)];
+    assert!(node.states.as_slice().contains(&skein_ui::State::Disabled));
 }
 
 fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
@@ -1272,5 +1278,64 @@ fn a_known_empty_project_list_is_required_for_no_project() {
         let view = fixtures::page_view(&root);
         assert!(fixtures::find(view.tree(), Role::Complementary, b"Project").is_some());
         assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"No project yet").is_none());
+    }
+}
+
+#[test]
+fn configuring_rows_tag_the_chip_executor_in_meta_with_fixed_words_in_both_shells() {
+    use crate::look;
+    let source = fixtures::chat::messaging_root();
+    for listed in [false, true] {
+        let (mut root, me_watch, _) = fixtures::root_at(
+            temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
+            &fixtures::domain_limits(),
+        );
+        let mut me = source.pages().me(source.client()).expect("me").clone();
+        if listed {
+            me = fixtures::configuring_me(me);
+        }
+        fixtures::deliver_me(&mut root, me_watch, me);
+        for (executor, tagged) in [
+            (ChipExecutor::Agent { charter: 37 }, listed),
+            (ChipExecutor::Agent { charter: 1 }, false),
+            (ChipExecutor::Party { party: 37 }, false),
+        ] {
+            for words in [fixtures::words(), fixtures::browser_words()] {
+                let mut line = line();
+                line.chip.executor = executor;
+                let mut b = Builder::new(&fixtures::tree_limits());
+                crate::pages::chats::row(
+                    &mut b,
+                    &root,
+                    &line,
+                    &words,
+                    &mut crate::frame::Bindings::new(16),
+                    &mut crate::words::Times::new(fixtures::NOW),
+                );
+                let tree = b.finish();
+                let mut meta = None;
+                let mut tag = None;
+                for (index, node) in tree.nodes().iter().enumerate() {
+                    if node.styles.as_slice().contains(&look::META) {
+                        meta = Some(index);
+                    }
+                    if node.styles.as_slice().contains(&look::CONFIGURING_TAG) {
+                        tag = Some(index);
+                    }
+                }
+                let meta = meta.expect("row meta");
+                let through = meta + usize::try_from(tree.nodes()[meta].size).unwrap();
+                assert_eq!(tag.is_some(), tagged);
+                if let Some(tag) = tag {
+                    assert!(meta < tag && tag < through);
+                    assert_eq!(tree.nodes()[tag].name.as_deref(), Some(b"Configuring".as_slice()));
+                    assert_eq!(tree.nodes()[tag].role, Role::Paragraph);
+                }
+                let mut print = skein_ui_text::Print::new(&fixtures::tree_limits()).unwrap();
+                skein_ui_text::render(&tree, b"temper", None, &mut print);
+                assert_eq!(skein_lib::bytes::find(print.text.as_slice(), b"Configuring").is_some(), tagged);
+                assert!(skein_lib::bytes::find(print.text.as_slice(), b"A renamed role").is_none());
+            }
+        }
     }
 }

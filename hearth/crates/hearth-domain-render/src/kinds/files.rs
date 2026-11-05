@@ -252,16 +252,9 @@ fn mode(entry: &Concrete, default: u16) -> Result<u16, Fault> {
     if !forms::check(Format::Mode, text) {
         return Err(schema(Schema::Malformed { format: Format::Mode }, field_at(entry, Name::Mode)));
     }
-    let mut mode = 0_u16;
-    for byte in text {
-        mode = mode
-            .checked_mul(8)
-            .expect("mode bound")
-            .checked_add(u16::from(byte.saturating_sub(b'0')))
-            .expect("checked mode");
-    }
-    Ok(mode)
+    Ok(forms::octal(text))
 }
+
 fn schema(kind: Schema, at: Position) -> Fault {
     Fault { kind: Kind::Schema(kind), at, also: None }
 }

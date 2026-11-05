@@ -63,6 +63,18 @@ pub fn check(format: Format, value: &[u8]) -> bool {
     }
     true
 }
+/// The value of a mode's octal digits, `check` having passed them.
+pub(crate) fn octal(digits: &[u8]) -> u16 {
+    let mut mode = 0_u16;
+    for byte in digits {
+        mode = mode
+            .checked_mul(8)
+            .expect("mode bound")
+            .checked_add(u16::from(byte.saturating_sub(b'0')))
+            .expect("checked mode");
+    }
+    mode
+}
 fn segments(value: &[u8]) -> bool {
     let mut start = 0;
     for index in 0..=value.len() {

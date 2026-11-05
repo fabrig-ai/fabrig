@@ -75,76 +75,188 @@ enum Part {
 const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "home-three-left",
-        heading: "You’re set up. Nothing has run yet.",
+        heading: "Hello is ready.",
         parts: &[
-            Part::Named { role: Role::Button, name: "Adopt work/hello" },
+            Part::Named { role: Role::Button, name: "Adopt" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
         name: "home-two-left",
-        heading: "Two things left to begin with.",
+        heading: "Hello is ready.",
         parts: &[
             Part::Text { text: "work/hello is in Hello" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-accounts-claude",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Your agents run on your Claude subscription, and Forgejo on this machine.",
+            },
+            Part::Named { role: Role::Link, name: "Add ChatGPT or another plan" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "home-accounts-both",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Your agents run on your ChatGPT plan, and Forgejo on this machine.",
+            },
+            Part::Named { role: Role::Link, name: "Add another account" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "home-accounts-key",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Your agents run on an API key, and Forgejo on this machine." },
+            Part::Named { role: Role::Link, name: "Add another account" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
         ],
     },
     Holds {
         name: "home-one-left",
-        heading: "One thing left to begin with.",
+        heading: "Hello is ready.",
         parts: &[
             Part::Text { text: "work/hello is in Hello" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-at-work",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Needs you 1" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 1" },
+            Part::Named { role: Role::Paragraph, name: "The repository has no license. Name one in the README?" },
+            Part::Named { role: Role::Button, name: "Reply" },
+            Part::Named { role: Role::Link, name: "All 3 chats" },
+            Part::Named { role: Role::Link, name: "Add a README, waiting on you, 4 min" },
+            Part::Named { role: Role::Link, name: "Hello in Rust, closed, 1 h" },
+            Part::Named { role: Role::Link, name: "What is in this repository?, closed, 1 h" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "home-needs-several",
+        heading: "3 things need you.",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Needs you 3" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
+            Part::Named { role: Role::Link, name: "Answer in a row" },
+            Part::Named { role: Role::Link, name: "Hello in Rust · a question · 4 min" },
+            Part::Named { role: Role::Link, name: "What is in this repository? · a question · 4 min" },
+            Part::Named { role: Role::Link, name: "All 3 chats" },
+        ],
+    },
+    Holds {
+        name: "home-nothing-needs",
+        heading: "Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Nothing needs you. Work carries on, and this page tells you what changed when you come back.",
+            },
+            Part::Named { role: Role::Link, name: "All 1 chats" },
+            Part::Named { role: Role::Link, name: "What is in this repository?, closed, 1 h" },
         ],
     },
     Holds {
         name: "home-ready",
-        heading: "Hello is ready for work.",
-        parts: &[
-            Part::Text { text: "work/hello is in Hello" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
-        ],
+        heading: "Nothing needs you.",
+        parts: &[Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" }],
     },
     Holds {
         name: "home-adopting",
-        heading: "You’re set up. Nothing has run yet.",
+        heading: "Hello is ready.",
         parts: &[
-            Part::Text { text: "Adopting work/hello into Hello" },
+            Part::Text { text: "Adopting work/hello into Hello…" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
         name: "home-refused",
-        heading: "You’re set up. Nothing has run yet.",
+        heading: "Hello is ready.",
         parts: &[
-            Part::Named { role: Role::Button, name: "Adopt work/hello" },
+            Part::Named { role: Role::Button, name: "Adopt" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
         name: "home-no-repository",
-        heading: "You’re set up. Nothing has run yet.",
+        heading: "Hello is ready.",
         parts: &[
-            Part::Text { text: "Your agents run on your ChatGPT plan. Hello has no repository yet." },
+            Part::Text { text: "Your agents run on your ChatGPT plan." },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
+        ],
+    },
+    Holds {
+        name: "home-after-skip",
+        heading: "Nothing needs you.",
+        parts: &[
+            Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Chats" },
+            Part::Named { role: Role::Paragraph, name: "No chats yet." },
+        ],
+    },
+    Holds {
+        name: "home-skip-refused",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Alert, name: "temper couldn't keep that. Try Skip again." },
+            Part::Named { role: Role::Button, name: "Skip" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "home-needs-under-begin",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 1" },
+            Part::Named { role: Role::Paragraph, name: "The repository has no license. Name one in the README?" },
+            Part::Named { role: Role::Link, name: "All 1 chats" },
+        ],
+    },
+    Holds {
+        name: "home-begin-settings-left",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Two steps left. Skip them if you like; they stay in Settings.",
+            },
+            Part::Named { role: Role::Button, name: "Start" },
+            Part::Named { role: Role::Button, name: "Adopt" },
+            Part::Absent { role: Role::Link, name: "New chat" },
+        ],
+    },
+    Holds {
+        name: "home-begin-one-chats",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Chats." },
+            Part::Named { role: Role::Link, name: "New chat" },
+            Part::Absent { role: Role::Button, name: "Start" },
+            Part::Absent { role: Role::Button, name: "Adopt" },
         ],
     },
     Holds {
         name: "home-github",
-        heading: "You’re set up. Nothing has run yet.",
+        heading: "Hello is ready.",
         parts: &[
-            Part::Text {
-                text: "temper’s App reaches its repositories on sam. Until one is in, chats talk and plan but change no code.",
-            },
+            Part::Text { text: "temper’s App reaches its repositories on sam." },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Connected" },
         ],
     },
     Holds {
@@ -475,6 +587,57 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Try the playground" },
             Part::Named { role: Role::Region, name: "Set up temper" },
             Part::Named { role: Role::Link, name: "Set up temper" },
+        ],
+    },
+    Holds {
+        name: "configure",
+        heading: "Tell temper how you work",
+        parts: &[
+            Part::Named { role: Role::List, name: "Ways to begin" },
+            Part::Value { role: Role::TextArea, name: "How do you work?", value: "" },
+        ],
+    },
+    Holds {
+        name: "configure-typing",
+        heading: "Tell temper how you work",
+        parts: &[
+            Part::Named { role: Role::List, name: "Ways to begin" },
+            Part::Value { role: Role::TextArea, name: "How do you work?", value: "I work alone on small changes." },
+        ],
+    },
+    Holds {
+        name: "configure-sending",
+        heading: "Tell temper how you work",
+        parts: &[
+            Part::Named { role: Role::List, name: "Ways to begin" },
+            Part::Value { role: Role::TextArea, name: "How do you work?", value: "I work alone on small changes." },
+        ],
+    },
+    Holds {
+        name: "configure-refused",
+        heading: "Tell temper how you work",
+        parts: &[
+            Part::Named { role: Role::List, name: "Ways to begin" },
+            Part::Value { role: Role::TextArea, name: "How do you work?", value: "I work alone on small changes." },
+        ],
+    },
+    Holds {
+        name: "configure-chat",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Navigation, name: "Where" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+            Part::Named { role: Role::Button, name: "Close" },
+            Part::Absent { role: Role::Disclosure, name: "Change model" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "configure-chats-tag",
+        heading: "Chats",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Configuring" },
+            Part::Chats { live: SOLO_LIVE, closed: SOLO_CLOSED },
         ],
     },
     Holds {
@@ -1193,4 +1356,40 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
     assert!(items[1].states.as_slice().contains(&skein_ui::State::Current));
     assert!(items[2].styles.is_empty());
     assert!(items[2].states.is_empty());
+}
+
+#[test]
+fn configuring_gallery_states_list_the_template_and_send_readiness() {
+    for (name, sending, disabled, refusal) in [
+        ("configure", false, true, false),
+        ("configure-typing", false, false, false),
+        ("configure-sending", true, true, false),
+        ("configure-refused", false, false, true),
+    ] {
+        let sample = samples::samples().into_iter().find(|s| s.name == name).expect("sample");
+        let root = samples::domain(&sample);
+        assert!(
+            root.pages()
+                .me(root.client())
+                .expect("me")
+                .projects
+                .get(0)
+                .expect("project")
+                .templates
+                .as_slice()
+                .iter()
+                .any(|t| t.number == 3)
+        );
+        let chats = root.pages().chats().expect("configure");
+        assert_eq!(chats.start.is_some(), sending, "{name}");
+        assert_eq!(chats.outcome.is_some(), refusal, "{name}");
+        let view = view(&sample);
+        let send = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Send"))
+            .expect("send");
+        assert_eq!(send.states.as_slice().contains(&skein_ui::State::Disabled), disabled, "{name}");
+    }
 }

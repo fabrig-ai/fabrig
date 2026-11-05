@@ -415,12 +415,12 @@ mod tests {
         (core, limits, row)
     }
 
-    fn retained_load(core: &mut Core, env: &Env<Limits>, from: u64) -> Id<Pending> {
+    fn retained_load(core: &mut Core, env: &Env<Limits>, task: u64, from: u64) -> Id<Pending> {
         let key = CallKey { task: 1, attempt: 9, completion: 1, position: 0 };
-        let mut out = run(core, env, ReplyTo::new(skein_lib::Token::new(90)), key, 21, TaskTextField::Result, from);
+        let mut out = run(core, env, ReplyTo::new(skein_lib::Token::new(90)), key, task, TaskTextField::Result, from);
         let Some(Request::Held(held)) = out.pop() else { panic!("retained load") };
         let Held::ReadLoad { load, range } = *held else { panic!("store read") };
-        assert_eq!(range.scope, Scope::Task { task: 21 }, "load includes requester evidence");
+        assert_eq!(range.scope, Scope::Task { task }, "load includes requester evidence");
         assert!(out.pop().is_none(), "loading decides nothing");
         Id::from_token(load)
     }
@@ -432,11 +432,13 @@ mod tests {
         from: u64,
     ) -> Result<TaskRead, tasks::Refusal> {
         let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: *limits };
-        let load = retained_load(core, &env, from);
+        let crate::Record::Tasks(tasks::Stored::Ended(owner)) = &row.value else { panic!("retained task") };
+        let load = retained_load(core, &env, owner.number, from);
         let mut out = loaded(core, &env, load, Loaded::Page { rows: Box::new([row]), next: None });
         let Some(Request::Now(now)) = out.pop() else { panic!("unrecorded task read answer") };
         let Now::TaskRead { answer, .. } = *now else { panic!("task read") };
         assert!(out.pop().is_none(), "read changes no durable state");
+        core.reclaim();
         *answer
     }
 
@@ -475,10 +477,195 @@ mod tests {
         }
     }
 
+    const GOAL: u64 = 1;
+    const DELEGATE_TEMPLATE: u64 = 2;
+    const FIRST_ATTEMPT: u64 = 1;
+    const CHANGE: u64 = 20;
+    const PRODUCER: u64 = 21;
+    const CHANGE_REPORT: &[u8] = b"Change complete\n## Left\n- retain the caf\xc3\xa9 review\n";
+    const PRODUCER_REPORT: &[u8] = b"Producer complete\n## Left\n- check the caf\xc3\xa9 follow-up\n";
+    const REVIEW_REPORT: &[u8] = b"Review accepted\n## Left\n- explain the caf\xc3\xa9 check\n";
+    const CHUNK_BYTES: u32 = 6; // The producer/review character at byte 41 crosses a window boundary.
+
+    fn change_contract(limits: &Limits) -> tasks::Contract {
+        tasks::Contract::Change { connector: 1, kind: 1, words: limits.tasks.result_bytes }
+    }
+
+    fn verdict_contract(limits: &Limits) -> tasks::Contract {
+        tasks::Contract::Verdict {
+            choices: Box::new([tasks::Verdict {
+                code: 7,
+                words: limits.tasks.result_bytes,
+                followups: 0,
+                fields: Box::new([]),
+            }]),
+        }
+    }
+
+    fn review_result() -> tasks::TaskResult {
+        tasks::TaskResult::Verdict { code: 7, fields: Box::new([]), words: REVIEW_REPORT.into() }
+    }
+
+    fn change_result(words: &[u8]) -> tasks::TaskResult {
+        tasks::TaskResult::Change {
+            connector: 1,
+            kind: 1,
+            resource: 1,
+            title: tasks::ChangeTitle::new(b"Finished work".as_slice().into()),
+            words: words.into(),
+        }
+    }
+
+    fn task_event(core: &mut Core, limits: &Limits, event: tasks::Event) -> Queue<tasks::Request> {
+        let mut out = Queue::uncapped();
+        tasks::step(
+            &mut core.tasks,
+            &Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: limits.tasks },
+            event,
+            &mut out,
+        );
+        out
+    }
+
+    fn report_delegate(core: &mut Core, limits: &Limits, number: u64, requester: u64, contract: tasks::Contract) {
+        let source = core.tasks.task(DELEGATE_TEMPLATE).expect("delegate template");
+        let new = tasks::New {
+            number,
+            project: source.project,
+            executor: source.executor,
+            llm: source.llm.clone(),
+            spec: source.spec.clone(),
+            contract,
+            authority: source.authority.clone(),
+            numbers: source.numbers,
+            funder: tasks::Funder::Task(requester),
+            deadline: tasks::Deadline::Named,
+            label: source.label,
+            flags: tasks::Flags::PLAIN,
+            dependencies: Box::new([]),
+            holdings: Box::new([]),
+            wake: source.wake,
+            recurring: None,
+            tracked: None,
+        };
+        let mut out = task_event(
+            core,
+            limits,
+            tasks::Event::Make {
+                reply_to: ReplyTo::new(skein_lib::Token::new(number)),
+                creator: tasks::Party::Task(requester),
+                batch: Box::new([new]),
+            },
+        );
+        while let Some(request) = out.pop() {
+            if let tasks::Request::Refused { problem, .. } = request {
+                panic!("delegate creation refused: {problem:?}");
+            }
+        }
+    }
+
+    fn finish_report(core: &mut Core, limits: &Limits, task: u64, result: tasks::TaskResult) -> Box<tasks::TaskRecord> {
+        let to = || ReplyTo::new(skein_lib::Token::new(task));
+        for event in [
+            tasks::Event::Prepare { reply_to: to(), task },
+            tasks::Event::Claim {
+                reply_to: to(),
+                task,
+                attempt: FIRST_ATTEMPT,
+                resumed: false,
+                budget: 1,
+                account: None,
+                writes: Box::new([]),
+            },
+            tasks::Event::Started { task, attempt: FIRST_ATTEMPT },
+            tasks::Event::Activation {
+                reply_to: to(),
+                task,
+                attempt: FIRST_ATTEMPT,
+                end: tasks::End::Finished { result, cancel_delegates: false },
+                saved: None,
+                cause: tasks::Cause::Unpriced,
+            },
+            tasks::Event::EffectsSettled { task },
+            tasks::Event::Settled { task },
+        ] {
+            let mut out = task_event(core, limits, event);
+            while let Some(request) = out.pop() {
+                if let tasks::Request::Refused { problem, .. } = &request {
+                    panic!("delegate completion refused: {problem:?}");
+                }
+                if let tasks::Request::Save { record: tasks::Stored::Ended(row) } = request {
+                    return row;
+                }
+            }
+        }
+        panic!("delegate must end with its admitted result");
+    }
+
+    fn retained_contract_reports(
+        contract: tasks::Contract,
+        result: tasks::TaskResult,
+        requester: u64,
+    ) -> (Core, Limits, super::super::Row, super::super::Row) {
+        let (mut core, mut limits, _) = retained_fixture();
+        report_delegate(&mut core, &limits, CHANGE, GOAL, change_contract(&limits));
+        report_delegate(&mut core, &limits, PRODUCER, requester, contract);
+        let producer = finish_report(&mut core, &limits, PRODUCER, result);
+        let change = finish_report(&mut core, &limits, CHANGE, change_result(CHANGE_REPORT));
+        let mut descendant = crate::tests::stored_row(crate::Record::Tasks(tasks::Stored::Ended(producer)), None);
+        descendant.linked = Box::new([change.clone()]);
+        let direct = crate::tests::stored_row(crate::Record::Tasks(tasks::Stored::Ended(change)), None);
+        limits.documents.text_bytes = CHUNK_BYTES;
+        (core, limits, direct, descendant)
+    }
+
+    fn assert_report_chunks(core: &mut Core, limits: &Limits, row: super::super::Row, expected: &[u8]) {
+        let mut report = skein_lib::Writer::new(expected.len());
+        let mut from = 0;
+        for _ in 0..expected.len() {
+            let mut retained = crate::tests::stored_row(row.value.clone(), None);
+            retained.linked = row.linked.clone();
+            let read = retained_reply(core, limits, retained, from).expect("goal may reread kept result words");
+            assert_eq!(read.state, TaskState::Ended(tasks::Status::Done));
+            assert_eq!(read.words.field, TaskTextField::Result);
+            assert_eq!(read.words.total, u64::try_from(expected.len()).expect("report size"));
+            assert_eq!(read.words.from, from);
+            assert!(read.words.bytes.len() <= skein_lib::length::usize_of(CHUNK_BYTES));
+            assert!(skein_lib::bytes::is_utf8(&read.words.bytes));
+            report.put(&read.words.bytes).expect("report chunks fit the source length");
+            match read.words.next {
+                Some(next) => {
+                    assert!(next > from);
+                    from = next;
+                }
+                None => break,
+            }
+        }
+        assert_eq!(report.finish().as_ref(), expected, "complete report and Left list bytes");
+    }
+
+    #[test]
+    fn goal_rereads_retained_change_and_verdict_reports() {
+        let (_, limits) = crate::tests::make_tree();
+        for (contract, result, words) in [
+            (change_contract(&limits), change_result(PRODUCER_REPORT), PRODUCER_REPORT),
+            (verdict_contract(&limits), review_result(), REVIEW_REPORT),
+        ] {
+            for requester in [GOAL, CHANGE] {
+                let (mut core, limits, direct, descendant) =
+                    retained_contract_reports(contract.clone(), result.clone(), requester);
+                assert_report_chunks(&mut core, &limits, direct, CHANGE_REPORT);
+                assert_report_chunks(&mut core, &limits, descendant, words);
+            }
+        }
+    }
+
     #[test]
     fn retained_reports_require_proven_requesters_in_the_callers_project() {
         for fault in 0_u8..6 {
-            let (mut core, limits, mut row) = retained_fixture();
+            let (_, limits) = crate::tests::make_tree();
+            let (mut core, limits, _, mut row) =
+                retained_contract_reports(verdict_contract(&limits), review_result(), CHANGE);
             let crate::Record::Tasks(tasks::Stored::Ended(producer)) = &mut row.value else { panic!("producer") };
             assert_eq!(
                 value(&core, &limits, 3, producer, TaskTextField::Result, 0, &row.linked),
@@ -500,9 +687,10 @@ mod tests {
 
     #[test]
     fn retained_report_replies_do_not_cross_attempts() {
-        let (mut core, limits, row) = retained_fixture();
+        let (_, limits) = crate::tests::make_tree();
+        let (mut core, limits, _, row) = retained_contract_reports(verdict_contract(&limits), review_result(), CHANGE);
         let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
-        let load = retained_load(&mut core, &env, 0);
+        let load = retained_load(&mut core, &env, 21, 0);
         core.proofs.get_mut(&1).expect("goal").attempt = 10;
         let mut out = loaded(&mut core, &env, load, Loaded::Page { rows: Box::new([row]), next: None });
         assert!(out.pop().is_none(), "a stale attempt cannot receive report bytes");

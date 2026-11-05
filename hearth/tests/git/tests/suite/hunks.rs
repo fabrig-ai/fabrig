@@ -30,3 +30,26 @@ fn only_diff_exit_one_permits_its_hunks() {
         assert_eq!(invocation::succeeded(command, *exit), *expected);
     }
 }
+
+/// An outcome answers its request (hearth/docs/design/domain/render.md, 8.5).
+#[test]
+fn an_end_or_a_fault_before_the_read_answers_the_read() {
+    use hearth_protocol_git::hunks::{self, Diff, Error, Event, Request};
+    use skein_lib::{
+        Env, Queue, Time, Wall,
+        stream::{Fault, Up},
+    };
+
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fixtures::SMALL };
+    for (outcome, error) in [(Up::End, Error::Malformed), (Up::Failed(Fault::Reset), Error::Stream(Fault::Reset))] {
+        let mut machine = Diff::new(&env.limits);
+        let mut above = Queue::uncapped();
+        let mut below = Queue::uncapped();
+        hunks::up(&mut machine, &env, outcome, &mut above, &mut below);
+        assert!(above.is_empty(), "outcome waits for Read");
+        assert!(below.is_empty(), "no read before Read");
+        hunks::down(&mut machine, &env, Request::Read, &mut above, &mut below);
+        assert_eq!(above.pop(), Some(Event::Failed(error)), "Read gets the held outcome");
+        assert!(above.is_empty() && below.is_empty(), "one answer and no demand");
+    }
+}
