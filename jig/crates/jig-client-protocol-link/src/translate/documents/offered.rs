@@ -1,8 +1,5 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
-use super::{
-    Box, Limits, List, Reader, Wall, authority_document_fields, c, effect_fields, grant_piece, 
-    too_large, w,
-};
+use super::{Box, Limits, List, Reader, Wall, authority_document_fields, c, effect_fields, grant_piece, too_large, w};
 
 pub(crate) fn act_kind_fields(value: &w::ActKind) -> c::ActKind {
     match value {

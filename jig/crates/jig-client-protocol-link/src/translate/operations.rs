@@ -369,7 +369,6 @@ fn restore_task(v: &w::NewTask, limits: &crate::Limits) -> Result<c::NewTask, w:
     })
 }
 
-
 pub(super) fn propose(
     project: u32,
     action: &c::ProposeAction,

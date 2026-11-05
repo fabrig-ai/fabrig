@@ -34,10 +34,7 @@ fn an_overlong_chip_list_keeps_split_sum_and_decode_order() {
     let size = u64::try_from(bytes.len()).unwrap();
     for (most, problem) in [
         (size, w::Problem { path: w::Path::ChipRows, reason: skein_codec::Reason::Short }),
-        (
-            size.checked_sub(1).unwrap(),
-            w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound },
-        ),
+        (size.checked_sub(1).unwrap(), w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }),
     ] {
         let limits = fixtures::limits_for_document(most);
         assert_eq!(documents::chip_piece(&bytes, &limits, ROW_BOUND), Err(problem));
