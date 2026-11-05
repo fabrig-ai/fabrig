@@ -304,25 +304,28 @@ pub fn render(b: &mut Builder, value: &ChipDetails, client: &Borrowed<'_>, words
     if let Some(attempt) = value.attempt {
         number(b, words, P::Attempt, attempt);
     }
-    match value.retry {
-        Some(RetryNotice::Failed { class, count, allowance }) => {
-            crate::tree::cards::chip::failure(b, class, words);
+    match &value.retry {
+        Some(RetryNotice::Failed { class, count, allowance, reason }) => {
+            crate::tree::cards::chip::failure(b, *class, words);
             words.text(
                 b,
                 crate::words::phrases::jig::JigPhrase::RunRetryFailed,
-                &[Hole::Number(u64::from(count)), Hole::Number(u64::from(allowance))],
+                &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
             );
+            retry_reason(b, reason.as_ref(), words);
         }
-        Some(RetryNotice::OwnerFailed { class, count, allowance }) => {
-            hold_failure(b, class, words);
+        Some(RetryNotice::OwnerFailed { class, count, allowance, reason }) => {
+            hold_failure(b, *class, words);
             words.text(
                 b,
                 crate::words::phrases::jig::JigPhrase::RunRetryFailed,
-                &[Hole::Number(u64::from(count)), Hole::Number(u64::from(allowance))],
+                &[Hole::Number(u64::from(*count)), Hole::Number(u64::from(*allowance))],
             );
+            retry_reason(b, reason.as_ref(), words);
         }
-        Some(RetryNotice::Refused { count }) => {
-            words.text(b, crate::words::phrases::jig::JigPhrase::RunRetryRefused, &[Hole::Number(u64::from(count))]);
+        Some(RetryNotice::Refused { count, reason }) => {
+            words.text(b, crate::words::phrases::jig::JigPhrase::RunRetryRefused, &[Hole::Number(u64::from(*count))]);
+            retry_reason(b, reason.as_ref(), words);
         }
         None => {}
     }
@@ -369,4 +372,14 @@ pub fn render(b: &mut Builder, value: &ChipDetails, client: &Borrowed<'_>, words
         None => text(b, words, P::Unobserved, &[]),
     }
     b.close();
+}
+
+/// A supplied retry reason follows the retry count in the selected language.
+pub(crate) fn retry_reason(b: &mut Builder, reason: Option<&DocumentText>, words: &Words) {
+    if let Some(reason) = reason {
+        words.text(b, crate::words::phrases::jig::JigPhrase::RunRetryReason, &[crate::words::name(reason.bytes())]);
+        if reason.cut {
+            words.text(b, crate::words::phrases::jig::JigPhrase::DocumentTextCut, &[]);
+        }
+    }
 }

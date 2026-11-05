@@ -123,7 +123,7 @@ impl Referee<Process> for Judge {
             let bytes = std::fs::read(&self.tokens).expect("saved before grant use");
             let record = skein_oauth::decode_record(&bytes, &smith_local_shell::credentials::token_limits()).expect("private token record");
             let directory = self.tokens.ancestors().nth(3).expect("scratch credential path");
-            assert!(record.access_token == fixture_access(directory), "token persists before provider query");
+            assert!(record.access_token.expose() == fixture_access(directory).as_ref(), "token persists before provider query");
             self.saved = true;
         }
         let shown = procs

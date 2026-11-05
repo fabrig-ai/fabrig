@@ -185,11 +185,11 @@ fn the_json_bounds_cover_flat_values_and_refuse_unrepresentable_limits() {
     let record = u64::try_from(size_of::<Value>().max(size_of::<Entry>())).expect("record fits");
     let event = u64::try_from(size_of::<skein_json::tokenizer::Event>()).expect("event fits");
     let cases = [
-        (EMPTY, Some(record * 3 + event + DELIVERY), Some(record + event + DELIVERY)),
+        (EMPTY, Some(record * 3 + 4 * event + DELIVERY), Some(record + 4 * event + DELIVERY)),
         (
             FLAT,
-            Some(33 * record * 3 + TEXT * 4 + TEXT + DELIVERY + event),
-            Some(33 * record + TEXT + TEXT + DELIVERY + event),
+            Some(33 * record * 3 + TEXT * 4 + TEXT + DELIVERY + 4 * event),
+            Some(33 * record + TEXT + TEXT + DELIVERY + 4 * event),
         ),
         (TOO_LONG, None, None),
     ];

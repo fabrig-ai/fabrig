@@ -7,7 +7,7 @@ const MAX_BITS: u32 = 4096; // limits().modulus_bits.
 const KEY_CAP: u32 = 4; // limits().keys.
 const METADATA: &[u8] = br#"{"issuer":"https://issuer.example","jwks_uri":"https://issuer.example/keys"}"#;
 
-fn registration_for_keys(direct: bool) -> Registration {
+pub(super) fn registration_for_keys(direct: bool) -> Registration {
     let mut registration = registration(true, WireFormat::Form);
     registration.scope = boxed(b"openid read");
     let mut additions = terms::terms(true, false);
@@ -24,7 +24,7 @@ pub(super) fn sign_in(registration: Registration) -> Event {
         generation: 0,
         state: state(),
         verifier: Some(verifier()),
-        nonce: Some(boxed(b"0123456789abcdef")),
+        nonce: Some(secret(b"0123456789abcdef")),
         port: None,
         issued_client_id: None,
         id_token: None,
@@ -355,7 +355,7 @@ fn redeeming_with(keys: &[u8]) -> (Client, HttpRequest) {
         client_id: None,
         uri: boxed(b"http://127.0.0.1:2345/callback"),
         state: state(),
-        code: Some(boxed(b"code")),
+        code: Some(secret(b"code")),
         error: None,
         now: time(3),
     };
@@ -376,11 +376,11 @@ fn an_id_token_past_its_cap_ends_as_limit_before_any_check() {
     bounds.id_token_bytes = u32::try_from(ID_CAP.checked_add(1).expect("fixture")).expect("fixture");
     bounds.string_bytes = bounds.id_token_bytes;
     let response = TokenResponse {
-        access_token: boxed(b"access"),
-        refresh_token: Some(boxed(b"refresh")),
+        access_token: secret(b"access"),
+        refresh_token: Some(secret(b"refresh")),
         expires_in: 30,
         scope: None,
-        id_token: Some(boxed(&[b'a'; ID_CAP + 1])),
+        id_token: Some(secret(&[b'a'; ID_CAP + 1])),
         earliest_refresh_at: None,
     };
     let body = encode_response(&response, &bounds).expect("answer just past cap");
@@ -393,15 +393,15 @@ fn a_refresh_keeps_the_sign_ins_id_token_unchecked() {
     let mut event = refresh(registration_for_keys(true), None);
     if let Event::Refresh { prior, .. } = &mut event {
         prior.subject = Some(boxed(b"user-42"));
-        prior.id_token = Some(boxed(b"prior-id"));
+        prior.id_token = Some(secret(b"prior-id"));
     }
     let post = request(step(&mut client, event));
     let response = TokenResponse {
-        access_token: boxed(b"access"),
-        refresh_token: Some(boxed(b"refresh")),
+        access_token: secret(b"access"),
+        refresh_token: Some(secret(b"refresh")),
         expires_in: 30,
         scope: None,
-        id_token: Some(boxed(b"unchecked")),
+        id_token: Some(secret(b"unchecked")),
         earliest_refresh_at: None,
     };
     let body = encode_response(&response, &limits().document).expect("answer");
@@ -409,7 +409,7 @@ fn a_refresh_keeps_the_sign_ins_id_token_unchecked() {
         panic!("tokens")
     };
     assert!(record.subject.as_deref() == Some(b"user-42"));
-    assert!(record.id_token.as_deref() == Some(b"prior-id"));
+    assert!(record::secret_ref(record.id_token.as_ref()) == Some(b"prior-id"));
 }
 
 #[test]
@@ -423,7 +423,7 @@ fn an_openid_sign_in_without_refresh_keeps_its_identity() {
     };
     assert_eq!((record.key, record.generation, record.expires_at), (7, 1, wall(34)));
     assert!(record.refresh_state().is_none());
-    assert!(record.access_token.as_ref() == b"access");
+    assert!(record.access_token.expose() == b"access");
     assert!(record.subject.as_deref() == Some(b"user-42"));
     assert!(record.id_token.is_some() && record.id_token == response.id_token);
     let encoded = encode_record(&record, &limits().document).expect("encode");

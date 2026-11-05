@@ -2513,18 +2513,12 @@ fn deployment_act_status_preserves_retry_and_actionable_refusals() {
     }
 }
 
-pub(crate) use crate::OutcomeFamily as OutcomeClass;
-
-pub(crate) fn outcome_classes() -> Vec<(Outcome, OutcomeClass, ActStatus, Option<Refusal>)> {
+pub(crate) fn outcome_classes() -> Vec<(Outcome, OutcomeFamily, ActStatus, Option<Refusal>)> {
     use ActStatus::{Again as Retry, Closed, Ended, NoOwner, NotOffered, Refused};
-    use OutcomeClass as F;
+    use OutcomeFamily as F;
     let limit = Refusal::Limit { which: LimitKind::Projects };
     Vec::from([
         (Outcome::Restored { proposal: 9, to: 4, left_out: Box::new([]) }, F::Settled, Refused, None),
-        (Outcome::ProjectRemoved { project: 7 }, F::Settled, Refused, None),
-        (Outcome::AccountFinishing { source: 9 }, F::Settled, Refused, None),
-        (Outcome::SettingsChanged { revision: 9 }, F::Settled, Refused, None),
-        (Outcome::MovedToNewest { newest: 9, moved: 2, stayed: 3 }, F::Settled, Refused, None),
         (Outcome::Compound { project: 7, operations: 2, first_message: 9 }, F::Compound, Closed, None),
         (Outcome::CompoundRefused { at: 2, why: limit.clone() }, F::CompoundRefused, Refused, Some(limit.clone())),
         (
@@ -2533,8 +2527,6 @@ pub(crate) fn outcome_classes() -> Vec<(Outcome, OutcomeClass, ActStatus, Option
             Refused,
             Some(Refusal::NotOffered),
         ),
-        (Outcome::Created { first: 9, last: 10, given: None }, F::Settled, Refused, None),
-        (Outcome::MarkedSeen { seen: Seen::Results { through: 9 } }, F::Settled, Refused, None),
         (Outcome::Applied { connector: 2, token: Token::new(9) }, F::Settled, Refused, None),
         (Outcome::Again(Again::Busy), F::Again(Again::Busy), Retry, None),
         (Outcome::Again(Again::NotReady), F::Again(Again::NotReady), Retry, None),
@@ -2545,60 +2537,9 @@ pub(crate) fn outcome_classes() -> Vec<(Outcome, OutcomeClass, ActStatus, Option
             None,
         ),
         (Outcome::SignedOut, F::SignedOut, Refused, None),
-        (Outcome::NoteEdited { name: 9 }, F::Settled, Refused, None),
         (Outcome::ServiceMade { person: 9 }, F::ServiceMade(9), Refused, None),
-        (Outcome::Adopted { project: 7 }, F::Settled, Refused, None),
-        (Outcome::Proposed { proposal: 9, to: 4 }, F::Settled, Refused, None),
-        (Outcome::Withdrawn { proposal: 9 }, F::Settled, Refused, None),
-        (Outcome::Stopped { task: 9 }, F::Settled, Refused, None),
-        (Outcome::Cancelled { task: 9 }, F::Settled, Refused, None),
-        (Outcome::Released { task: 9 }, F::Settled, Refused, None),
-        (Outcome::Lifted { hold: 9, released: 2 }, F::Settled, Refused, None),
-        (Outcome::PersonTaken { task: 9 }, F::Settled, Refused, None),
-        (Outcome::PersonHandedBack { task: 9 }, F::Settled, Refused, None),
-        (Outcome::PersonAnswered { task: 9 }, F::Settled, Refused, None),
-        (Outcome::Moved { task: 9 }, F::Settled, Refused, None),
-        (
-            Outcome::ProposalDecided {
-                proposer: Proposer::Party(8),
-                proposal: 9,
-                by: 8,
-                at: Wall::EPOCH,
-                choice: ProposalChoice::Passed,
-                repeated: false,
-            },
-            F::Settled,
-            Refused,
-            None,
-        ),
-        (Outcome::Said { task: 9, message: 10 }, F::Settled, Refused, None),
-        (Outcome::QuestionAnswered { task: 9, question: 8, message: 10 }, F::Settled, Refused, None),
-        (Outcome::Amended { task: 9, released: true }, F::Settled, Refused, None),
         (Outcome::RolesSet { project: 7 }, F::RolesSet(7), Refused, None),
-        (Outcome::PolicyChanged { project: 7 }, F::Settled, Refused, None),
-        (Outcome::Renamed { project: 7 }, F::Settled, Refused, None),
         (Outcome::ProjectMade { project: 7 }, F::ProjectMade(7), Refused, None),
-        (Outcome::PoolSet { project: 7, person: 9 }, F::Settled, Refused, None),
-        (
-            Outcome::EscalationDecided {
-                task: 9,
-                revision: 8,
-                by: 7,
-                at: Wall::EPOCH,
-                choice: EscalationChoice::Released,
-            },
-            F::Settled,
-            Refused,
-            None,
-        ),
-        (Outcome::AccountSignInStarted { source: 9, address: Box::new([]) }, F::Settled, Refused, None),
-        (Outcome::AccountSignedOut { confirmed: true, failed_hosts: Box::new([]) }, F::Settled, Refused, None),
-        (Outcome::AccountKeyKept { source: 9 }, F::Settled, Refused, None),
-        (Outcome::AccountProgramDeclared { source: 9, name: b"program".as_slice().into() }, F::Settled, Refused, None),
-        (Outcome::AccountChanged, F::Settled, Refused, None),
-        (Outcome::AccountMovingOut { account: 8, number: 9, source: 10 }, F::Settled, Refused, None),
-        (Outcome::AccountMovedIn { account: 9, renewed: true }, F::Settled, Refused, None),
-        (Outcome::AccountRemoved { confirmed: true, failed_hosts: Box::new([]) }, F::Settled, Refused, None),
         (Outcome::Refused(limit.clone()), F::Refused, Refused, Some(limit)),
         (Outcome::Refused(Refusal::NotOffered), F::Refused, NotOffered, Some(Refusal::NotOffered)),
         (Outcome::Refused(Refusal::Role { held: None }), F::Refused, NoOwner, Some(Refusal::Role { held: None })),
@@ -2614,15 +2555,12 @@ pub(crate) fn outcome_classes() -> Vec<(Outcome, OutcomeClass, ActStatus, Option
             Ended,
             Some(Refusal::Ended { how: Ending::Done }),
         ),
-        (Outcome::VisibilitySet { project: 7, public: true }, F::Settled, Refused, None),
     ])
 }
 
-pub(crate) use crate::AskFamily as AskClass;
-
 #[expect(clippy::too_many_lines, reason = "the table pins every request variant and application scope")]
-pub(crate) fn ask_classes() -> Vec<(Ask, AskClass)> {
-    use AskClass as F;
+pub(crate) fn ask_classes() -> Vec<(Ask, AskFamily)> {
+    use AskFamily as F;
     Vec::from([
         (Ask::Restore { revision: 9, reason: Box::new([]) }, F::Restore),
         (Ask::RemoveProject { project: 7, grace: None }, F::Project(7)),

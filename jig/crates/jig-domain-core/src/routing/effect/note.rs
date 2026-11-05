@@ -64,6 +64,7 @@ pub(crate) fn person_note_change(change: people::NoteChange) -> notes::Change {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "brief index refusals retain distinct capacity and permanent failures")]
 pub(crate) fn tag_notes(
     core: &mut Core,
     env: &Env<Limits>,
@@ -152,13 +153,27 @@ pub(crate) fn tag_notes(
                             defer_brief(core, work, task);
                         }
                     }
+                    notes::Refusal::Full => work.push(Work::PreparationFailed {
+                        task,
+                        failure: jig_domain_brief::GatherFailure {
+                            fate: jig_domain_brief::GatherFate::Capacity,
+                            section: b"notes",
+                            words: b"no room for the index",
+                        },
+                    }),
                     notes::Refusal::Oversized
-                    | notes::Refusal::Full
                     | notes::Refusal::Exists
                     | notes::Refusal::Missing
                     | notes::Refusal::Moved { .. }
                     | notes::Refusal::RevisionExhausted => {
-                        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
+                        work.push(Work::PreparationFailed {
+                            task,
+                            failure: jig_domain_brief::GatherFailure {
+                                fate: jig_domain_brief::GatherFate::Permanent,
+                                section: b"notes",
+                                words: b"the index could not be read",
+                            },
+                        });
                     }
                 },
                 Some(NoteRoute::Deletion { project }) => crate::admission::deletion::notes_refused(core, project),

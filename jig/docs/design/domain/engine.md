@@ -1267,8 +1267,8 @@ within a budget, the brief within its own: sections follow why the run
 runs, those it runs for are required, the rest optional; what does not
 fit is cut in its kind's order and says how much; sections are gathered
 within one deadline, while the task is preparing, and a required one
-missing sends the task back to due after a backoff, no attempt spent
-(tasks.md, 5.2).
+missing fails the brief, which pauses the task or counts a failure by
+why (9.1), no attempt spent (tasks.md, 5.2).
 
 Its sections come from two places:
 
@@ -1314,6 +1314,57 @@ keeps. The host's protocol layer renders the whole as text, in order.
 A brief has no inbox section. The messages waiting in the task's inbox
 go with the assignment as its start's messages, and the run reads them
 as messages, whole (7.1; tasks.md, 8.2).
+
+### 9.1 A brief that fails
+
+A brief fails whole: a required section is missing, the brief child
+refuses its plan, or the core or the root cannot make or put together
+its parts. Every such failure carries a **failure**: how it counts, and
+why, as a section's name and fixed words. Both name and words are
+`'static` in the code, so a reason cannot carry a run's words or a
+secret. A connector chooses its own, and names no more than the kind of
+its section and of the error its system gave.
+
+How it counts decides what becomes of the task:
+
+- **Capacity:** nothing is wrong but room, which frees by itself. The
+  task pauses and is due again after a backoff, no try spent, with no
+  bound on how many times (tasks.md, 5.5).
+- **Transient** or **permanent:** a failure of that class (tasks.md,
+  5.5). The task backs off within that class's allowance and, past it,
+  is held for `Failures` of that class, its hold naming the reason.
+
+Which is which, by what 7.1 prepares:
+
+| The failure | Counts as | Section and words |
+|---|---|---|
+| no brief slot: the brief child's table is full, or this brief is still gathering | capacity | `brief: no brief slot is free` |
+| a connector says it has no room, or that its system admits nothing yet | capacity | the connector's |
+| the core's result reads, its notes or its proofs have no room | capacity | `results: no read flight is free`, `notes: no room for the index`, `run: no room for its proof` |
+| a claim refused (a host's or a writer's room; tasks.md, 5.5) | capacity | `claim: refused` |
+| a required section past the brief's deadline | transient | `SECTION: not gathered by its deadline` |
+| a connector says its system failed for now | transient | the connector's |
+| a dependency's result the store no longer answers with | transient | `results: a dependency's result could not be read` |
+| a transcript's window that does not load | transient | `transcript: its window could not be loaded`, or `transcript: its window could not be read` for an open window unread with no transient try spent (7.2) |
+| a required section that cannot fit, whole or cut | permanent | `SECTION: does not fit the brief's budget`, or `brief: its required sections do not fit its budget` |
+| a section a connector answered past its bound | permanent | `SECTION: answered past its bound` |
+| a plan the brief child refuses: more sections than a brief holds, a budget past the limit, a core text past it, a section planned twice, a deadline passed | permanent | `brief: ...`, naming which; for a core text, `SECTION: its text is past the brief's limit` |
+| a connector says its system answered wrongly, or will not answer | permanent | the connector's |
+| the root cannot put the brief together: a section's owner lost it, or no room for a required section | permanent | the application's |
+| a core section the core cannot read within its bounds | permanent | `task: ...`, `results: ...`, `transcript: ...` |
+| a brief's notes index refused for any reason but room | permanent | `notes: the index could not be read` |
+| no attempt number left | permanent | `run: no attempt number is left` |
+
+A stale preparation and a wait for an account (7.1) are neither: the task
+returns to due without a timer, as it does.
+
+**Where the reason goes.** The tasks child keeps it, cut to 128 bytes at a
+character's edge (`REASON_BYTES`): on the retry notice, so a task's document
+and its chip say it beside the count, and on the hold, whose words say it
+(11). It is durable with the record. The core also tells the root each
+failure as it happens, with the task, for the application's log: only there
+does a failure that then resolves itself leave a trace once the notice moves
+on.
 
 ## 10. Notes
 
@@ -1921,6 +1972,12 @@ section 5).
   the start instead, beside section 6's refusals, a cause of people's
   and a failure of the core's. Default: it panics; the user's to
   decide.
+- **A transcript's load with no slot** (9.1, 7.2): a root whose load table
+  is full answers `TranscriptLoad::Failed`, as it does for a page it cannot
+  take, so room that frees by itself counts as transient, and the try it
+  spends makes the next run start fresh from the tail rather than resume.
+  Capacity would need `TranscriptLoad` to say which. Default: as built,
+  until the user says.
 
 - **A fresh attempt's tail, lost before its first turn.** An attempt
   that starts fresh from a closed window, or past the resume limit,

@@ -31,7 +31,11 @@ fn make(story: Story, large: bool, access_token: Option<&[u8]>) -> Process {
             client_id: registration.client_id,
             client_secret: registration.client_secret,
             redirect_uri: registration.redirect_uri,
-            refresh_token: if large { vec![b's'; 256].into_boxed_slice() } else { bytes::copy_of(b"seed") },
+            refresh_token: skein_lib::Secret::new(if large {
+                vec![b's'; 256].into_boxed_slice()
+            } else {
+                bytes::copy_of(b"seed")
+            }),
             terms: port_terms(story),
         },
         fake::Limits {
@@ -55,20 +59,22 @@ fn make(story: Story, large: bool, access_token: Option<&[u8]>) -> Process {
             .queue(fake::Plan {
                 status: 200,
                 body: fake::Body::Token(oauth::TokenResponse {
-                    access_token: access_token.map_or_else(
+                    access_token: skein_lib::Secret::new(access_token.map_or_else(
                         || {
                             vec![if story == Story::TwoPorts { b'a' } else { access }; if large { 256 } else { 16 }]
                                 .into_boxed_slice()
                         },
                         bytes::copy_of,
-                    ),
-                    refresh_token: (story != Story::OpenIdAgain).then(|| {
-                        if large {
-                            vec![if access == b'a' { b'r' } else { b't' }; 256].into_boxed_slice()
-                        } else {
-                            bytes::copy_of(refresh)
-                        }
-                    }),
+                    )),
+                    refresh_token: (story != Story::OpenIdAgain)
+                        .then(|| {
+                            if large {
+                                vec![if access == b'a' { b'r' } else { b't' }; 256].into_boxed_slice()
+                            } else {
+                                bytes::copy_of(refresh)
+                            }
+                        })
+                        .map(skein_lib::Secret::new),
                     expires_in: 30,
                     scope: (story == Story::RequiredScopes).then(|| bytes::copy_of(b"read")),
                     id_token: None,
@@ -127,7 +133,7 @@ pub fn key_set() -> Box<[u8]> {
             client_id: registration.client_id,
             client_secret: registration.client_secret,
             redirect_uri: registration.redirect_uri,
-            refresh_token: bytes::copy_of(b"seed"),
+            refresh_token: skein_lib::Secret::new(bytes::copy_of(b"seed")),
             terms: port_terms(Story::OpenIdAgain),
         },
         fake::Limits {

@@ -415,6 +415,17 @@ fn borrowed_stored_bytes_matches_allocator_for_every_retained_row() {
         phase: record.phase.clone(),
         at: skein_lib::Wall::EPOCH,
     }));
+    let mut preparation = record.clone();
+    preparation.retry_notice =
+        Some(tasks::RetryNotice::Refused { count: 1, reason: Some(b"brief: no slot is free".as_slice().into()) });
+    preparation.phase = tasks::Phase::Held {
+        was: tasks::Was::Active(tasks::Active::Due),
+        why: Hold::Failures(tasks::Class::Permanent),
+        source: Some(Box::new(tasks::HoldSource::Preparation {
+            words: b"brief: section cannot fit".as_slice().into(),
+        })),
+    };
+    rows.push(Stored::Live(Box::new(preparation)));
     record.phase = tasks::Phase::Ended(ending);
     rows.push(Stored::Ended(Box::new(record)));
     for row in rows {

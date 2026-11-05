@@ -99,10 +99,16 @@ pub(crate) fn prepared(
         }
     }
     if !core.proofs.contains_key(&task) && core.proofs.len() == core.proofs.capacity() {
-        work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
-        let mut out = Queue::uncapped();
-        out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        return out;
+        return super::preparation::route_preparation_failed(
+            core,
+            work,
+            task,
+            jig_domain_brief::GatherFailure {
+                fate: jig_domain_brief::GatherFate::Capacity,
+                section: b"run",
+                words: b"no room for its proof",
+            },
+        );
     }
     if let Some(items) = workspace {
         assert!(core.job_workspaces.insert(task, items).is_ok(), "one job workspace per live task");

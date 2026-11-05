@@ -953,6 +953,7 @@ pub enum JigPhrase {
     WorkEnding,
     RunRetryFailed,
     RunRetryRefused,
+    RunRetryReason,
     ClosingRun,
     ClosingDelegates,
     ClosingStageEffects,
@@ -1207,6 +1208,7 @@ impl JigPhrase {
             Self::WorkEnding => 549,
             Self::RunRetryFailed => 550,
             Self::RunRetryRefused => 551,
+            Self::RunRetryReason => 7991,
             Self::ClosingRun => 552,
             Self::ClosingDelegates => 553,
             Self::ClosingStageEffects => 554,
@@ -2157,7 +2159,8 @@ impl JigPhrase {
             | Self::AddressParty
             | Self::AddressTask
             | Self::AddressRole => Box::new([]),
-            Self::FrameLogin
+            Self::RunRetryReason
+            | Self::FrameLogin
             | Self::PartResource
             | Self::ResourceScope
             | Self::OpaqueDialect
@@ -2415,7 +2418,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 647] = [
+pub const ALL: [JigPhrase; 648] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -2549,6 +2552,7 @@ pub const ALL: [JigPhrase; 647] = [
     JigPhrase::WorkEnding,
     JigPhrase::RunRetryFailed,
     JigPhrase::RunRetryRefused,
+    JigPhrase::RunRetryReason,
     JigPhrase::ClosingRun,
     JigPhrase::ClosingDelegates,
     JigPhrase::ClosingStageEffects,

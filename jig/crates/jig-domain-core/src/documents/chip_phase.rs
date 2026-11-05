@@ -103,7 +103,7 @@ pub(super) fn from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<ChipD
         phase_since: row.phase_since,
         run_since: row.run_since,
         attempt: if row.attempt == 0 { None } else { Some(row.attempt) },
-        retry: row.retry_notice,
+        retry: row.retry_notice.clone(),
         wake: row.wake,
         person_wait: row.person_wait,
         hold: super::task_tree::hold(limits, row)?,
