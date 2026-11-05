@@ -912,8 +912,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::ApplicationPrepare { owner, value } => domain.application.prepare(owner, value, &env.limits),
         Event::ApplicationDrop { owner } => domain.application.drop(owner),
-        Event::Application { request, token, owner, person, project, role, retention } => {
-            crate::application::decide(domain, env, request, token, owner, person, project, role, retention, out);
+        Event::Application { request, token, owner, person: _, project: _, role, retention } => {
+            crate::application::decide(domain, env, request, (token, owner), role, retention, out);
         }
         Event::Close { task } => {
             domain.closing.insert(task, true).expect("live owner capacity");

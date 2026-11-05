@@ -84,9 +84,9 @@ struct Conversation {
 #[derive(Debug)]
 pub(crate) struct NamedEvent {
     pub(crate) name: Token,
-    event: Box<[u8]>,
-    sender: Option<Box<[u8]>>,
-    finish_requested: bool,
+    pub(crate) event: Box<[u8]>,
+    pub(crate) sender: Option<Box<[u8]>>,
+    pub(crate) finish_requested: bool,
 }
 
 #[derive(Debug)]
@@ -247,29 +247,7 @@ fn assign_runtime(
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "one message's fields enter through the host boundary")]
-pub(crate) fn inbound(
-    domain: &mut Hub,
-    env: &Env<Limits>,
-    run: Token,
-    attempt: Token,
-    name: Token,
-    sender: Box<[u8]>,
-    words: Box<[u8]>,
-    finish_requested: bool,
-    out: &mut Queue<Request>,
-) {
-    inbound_named(
-        domain,
-        env,
-        run,
-        attempt,
-        NamedEvent { name, event: words, sender: Some(sender), finish_requested },
-        out,
-    );
-}
-
-fn inbound_named(
+pub(crate) fn inbound_named(
     domain: &mut Hub,
     env: &Env<Limits>,
     run: Token,
@@ -588,12 +566,12 @@ fn called_named(domain: &mut Hub, env: &Env<Limits>, owner: Token, call: CallNam
     entry.state = match state {
         // A run that calls is at work, whatever it said before.
         State::Active { workspace, agent } => {
-            serve(entry, calls, id, workspace, agent, call, ask, &env.limits, out);
+            serve(entry, calls, id, workspace, Served { agent, call, ask }, &env.limits, out);
             State::Active { workspace, agent }
         }
         State::Waiting { workspace, agent } => {
             facts.push(Fact::Resumed { run: entry.run, attempt: entry.attempt });
-            serve(entry, calls, id, workspace, agent, call, ask, &env.limits, out);
+            serve(entry, calls, id, workspace, Served { agent, call, ask }, &env.limits, out);
             State::Active { workspace, agent }
         }
         // Once a run is cancelled or ending, its calls are not served.
@@ -1062,20 +1040,24 @@ fn deliver_message(agent: Token, message: NamedEvent, out: &mut Queue<Request>) 
     }
 }
 
+struct Served {
+    agent: Token,
+    call: CallName,
+    ask: Ask,
+}
+
 /// Serves the host call `call` of the live run `id`, through its workspace
 /// or the engine, or answers it as busy.
-#[expect(clippy::too_many_arguments, reason = "a cell handler takes the fields it touches")]
 fn serve(
     entry: &mut Hosted,
     calls: &mut Slab<Call>,
     id: Id<Hosted>,
     workspace: Option<Token>,
-    agent: Token,
-    call: CallName,
-    ask: Ask,
+    served: Served,
     limits: &Limits,
     out: &mut Queue<Request>,
 ) {
+    let Served { agent, call, ask } = served;
     let name_fits = len(&call) <= limits.event_bytes;
     let input_fits = match &ask {
         Ask::Relay { tool, input, .. } => match len(tool).checked_add(len(input)) {
@@ -1357,17 +1339,15 @@ pub(crate) fn acknowledge_turn(
     domain.turns.admit(run, attempt, false, &env.limits, out);
 }
 
-#[expect(clippy::too_many_arguments, reason = "one last word carries its fence and accounting")]
-pub(crate) fn finished(
-    domain: &mut Hub,
-    env: &Env<Limits>,
-    owner: Token,
-    turns: u32,
-    spent: u64,
-    finish: Finish,
-    read: Option<Token>,
-    out: &mut Queue<Request>,
-) {
+pub(crate) struct Last {
+    pub(crate) turns: u32,
+    pub(crate) spent: u64,
+    pub(crate) finish: Finish,
+    pub(crate) read: Option<Token>,
+}
+
+pub(crate) fn finished(domain: &mut Hub, env: &Env<Limits>, owner: Token, last: Last, out: &mut Queue<Request>) {
+    let Last { turns, spent, finish, read } = last;
     let Some(entry) = domain.hosted.get_mut(Id::<Hosted>::from_token(owner)) else {
         return;
     };

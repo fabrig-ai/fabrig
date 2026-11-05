@@ -44,22 +44,26 @@ pub(crate) fn brief_assembled(
     out
 }
 
+pub(crate) struct Prepared {
+    pub writes: Option<Box<[authority::Write]>>,
+    pub holds: Box<[tasks::Name]>,
+    pub credentials: Box<[u32]>,
+    pub workspace: Option<Box<[u8]>>,
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one fenced preparation builds the exact allowance, grants and claim together"
 )]
-#[expect(clippy::too_many_arguments, reason = "workspace preparation retains its fenced event fields")]
 pub(crate) fn workspace_prepared(
     core: &mut Core,
     env: &Env<Limits>,
     work: &mut Queue<Work>,
     task: u64,
     attempt: u64,
-    writes: Option<Box<[authority::Write]>>,
-    holds: Box<[tasks::Name]>,
-    credentials: Box<[u32]>,
-    workspace: Option<Box<[u8]>>,
+    prepared: Prepared,
 ) -> Queue<Request> {
+    let Prepared { writes, holds, credentials, workspace } = prepared;
     let mut out = Queue::uncapped();
     let Some((token, issued)) = core.workspace_flight(task) else { return out };
     if issued != attempt {
@@ -96,7 +100,15 @@ pub(crate) fn workspace_prepared(
                 out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
                 return out;
             }
-            return super::jobs::prepared(core, env, work, context, attempt, writes, holds, workspace);
+            return super::jobs::prepared(
+                core,
+                env,
+                work,
+                context,
+                attempt,
+                writes,
+                super::jobs::JobItems { holds, workspace },
+            );
         }
         tasks::Executor::Agent { .. } => {}
         tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => unreachable!("workspace executor"),

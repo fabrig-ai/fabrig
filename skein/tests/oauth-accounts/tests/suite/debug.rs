@@ -136,18 +136,15 @@ fn debug_hides_every_oauth_credential_and_carrier() {
                 now: Time::ZERO,
             },
         ),
-        ("oauth::Request::Visit", &oauth::Request::Visit { url: bytes::copy_of(CANARY.as_bytes()) }),
+        ("oauth::Request::Visit", &oauth::Request::Visit { url: secret() }),
         ("accounts::Request::HandIn", &accounts::Request::HandIn { account: 0, record: record() }),
-        (
-            "accounts::Request::Redirected",
-            &accounts::Request::Redirected { account: 0, uri: bytes::copy_of(CANARY.as_bytes()) },
-        ),
+        ("accounts::Request::Redirected", &accounts::Request::Redirected { account: 0, uri: secret() }),
         (
             "accounts::Event::Granted",
             &accounts::Event::Granted { account: 0, token: secret(), generation: 1, valid: Duration::ZERO },
         ),
         ("accounts::Event::Keep", &accounts::Event::Keep { account: 0, record: record() }),
-        ("accounts::Event::Visit", &accounts::Event::Visit { account: 0, url: bytes::copy_of(CANARY.as_bytes()) }),
+        ("accounts::Event::Visit", &accounts::Event::Visit { account: 0, url: secret() }),
         ("accounts::Locked::Held", &accounts::Locked::Held { record: Some(record()) }),
         (
             "fake::Config",
@@ -162,7 +159,7 @@ fn debug_hides_every_oauth_credential_and_carrier() {
             },
         ),
         ("fake::Body::Token", &fake::Body::Token(token())),
-        ("fake::Body::Raw", &fake::Body::Raw(bytes::copy_of(CANARY.as_bytes()))),
+        ("fake::Body::Raw", &fake::Body::Raw(secret())),
         (
             "fake::Plan",
             &fake::Plan {
@@ -172,7 +169,7 @@ fn debug_hides_every_oauth_credential_and_carrier() {
                 retry_after: Duration::ZERO,
             },
         ),
-        ("fake::Event::Authorize", &fake::Event::Authorize { url: bytes::copy_of(CANARY.as_bytes()), now: Time::ZERO }),
+        ("fake::Event::Authorize", &fake::Event::Authorize { url: secret(), now: Time::ZERO }),
         ("fake::Event::Post", &fake::Event::Post { request: post(), now: Time::ZERO, wall: Wall::from_nanos(0) }),
         (
             "fake::Request::Redirect",

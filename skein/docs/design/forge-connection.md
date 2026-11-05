@@ -1070,3 +1070,7 @@ The owner's domain owes:
 - **An installation's lifecycle** (3.4, 8.6): `GitHub`'s mint, read and
   identity flags take lifecycle states (programming-model.md, section
   5.4). Default: as they stand, until a debt item names them.
+- **A call's side beside its dialect** (7.1): a step matches the call's variant
+  with its entry's dialect, since a GitHub call takes its installations from
+  the entry. Whether the variant can reach them with no second match, so that
+  the dialect is read once. Default: as it stands, until a debt item names it.

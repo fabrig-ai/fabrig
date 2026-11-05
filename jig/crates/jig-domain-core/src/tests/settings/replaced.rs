@@ -59,10 +59,12 @@ fn commit(core: &mut Core, limits: &Limits, items: Box<[s::Item]>, kept: Box<[ap
             &env,
             &mut routed,
             1,
-            s::Change { against, items, running: s::Running::Stays },
-            s::writes_bound(limits).unwrap(),
-            kept,
-            None,
+            dispatch::Judged {
+                change: s::Change { against, items, running: s::Running::Stays },
+                room: s::writes_bound(limits).unwrap(),
+                kept,
+                proposal: None,
+            },
         ),
         Ok(against.checked_add(1).unwrap())
     );

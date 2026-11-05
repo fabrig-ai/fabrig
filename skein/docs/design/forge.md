@@ -1628,3 +1628,8 @@ the suites (testing.md, section 6).
 - **GitHub's further gaps.** Settled: its dialect is a module of
   `skein-forge`, and section 10 lists what it adds. Open:
   forge-github.md, section 15.
+- **What the call plans' states leave** (4.2): a plan's cells are arms of one
+  `match`, where programming-model.md, section 5.4 has one handler each.
+  Default: as they stand, until a debt item names them. The `if let`s
+  `forgejo/client` and `forgejo/server` keep on their own enums go with `D015`
+  of `skein/docs/development/debt/`.

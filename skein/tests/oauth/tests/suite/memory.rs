@@ -115,7 +115,10 @@ fn check_issuer(document: oauth::Limits) {
         url.extend_from_slice(format!("={index}").as_bytes());
     }
     let mut authorization = Queue::uncapped();
-    issuer.step(fake::Event::Authorize { url: url.into_boxed_slice(), now: Time::ZERO }, &mut authorization);
+    issuer.step(
+        fake::Event::Authorize { url: skein_lib::Secret::new(url.into_boxed_slice()), now: Time::ZERO },
+        &mut authorization,
+    );
     assert!(matches!(authorization.pop(), Some(fake::Request::Redirect { .. })));
     assert_eq!(issuer.carried().len(), usize::try_from(fake_limits.carried).expect("u32 fits"));
     let request = oauth::HttpRequest {
@@ -215,7 +218,7 @@ fn accounts_at_every_code_slot_stay_under_their_heap_ceiling() {
             })
             .expect("account");
         issuer.step(fake::Event::Authorize {
-            url: boxed(b"https://issuer.example/authorize?response_type=code&client_id=client&redirect_uri=http://127.0.0.1:1234/callback&state=0123456789abcdef&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"),
+            url: skein_lib::Secret::new(boxed(b"https://issuer.example/authorize?response_type=code&client_id=client&redirect_uri=http://127.0.0.1:1234/callback&state=0123456789abcdef&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256")),
             now: Time::ZERO,
         }, &mut out);
         let Some(fake::Request::Redirect { .. }) = out.pop() else { panic!("code retained") };

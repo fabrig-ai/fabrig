@@ -68,7 +68,11 @@ pub(crate) fn admission(
     Err(crate::runs::state::denied(&mut findings, crate::RunWait::Credential))
 }
 
-#[expect(clippy::too_many_arguments, reason = "job preparation keeps authority writes apart from translated holds")]
+pub(crate) struct JobItems {
+    pub holds: Box<[tasks::Name]>,
+    pub workspace: Option<Box<[u8]>>,
+}
+
 pub(crate) fn prepared(
     core: &mut Core,
     env: &Env<Limits>,
@@ -76,12 +80,11 @@ pub(crate) fn prepared(
     context: Box<tasks::RunContext>,
     attempt: u64,
     writes: Box<[authority::Write]>,
-    holds: Box<[tasks::Name]>,
-    workspace: Option<Box<[u8]>>,
+    items: JobItems,
 ) -> Queue<Request> {
     let task = context.task;
     let mut names = List::with_capacity(env.limits.tasks.holdings);
-    for name in holds {
+    for name in items.holds {
         if !names.as_slice().contains(&name) && names.push(name).is_err() {
             return hold(work, task, tasks::Hold::Effects);
         }
@@ -110,7 +113,7 @@ pub(crate) fn prepared(
             },
         );
     }
-    if let Some(items) = workspace {
+    if let Some(items) = items.workspace {
         assert!(core.job_workspaces.insert(task, items).is_ok(), "one job workspace per live task");
     }
     let mut proof = super::preparation::start_proof(core, task, attempt, attempt, &[]);

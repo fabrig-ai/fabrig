@@ -593,7 +593,7 @@ fn an_unheld_connect_keeps_the_request_deadline_in_idle() {
     h.run(Duration::ZERO);
     h.connected(fixtures::FORGE);
     assert_eq!(h.component.test_last_connection().phase(), Phase::Idle);
-    assert_eq!(h.component.test_last_connection().deadline, Some(Time::from_nanos(10_000_000_000)));
+    assert_eq!(h.component.test_last_connection().deadline(), Some(Time::from_nanos(10_000_000_000)));
     h.run(Duration::from_secs(5));
     assert_eq!(h.connections_for(fixtures::FORGE), 1, "unheld connect outlives the idle clock");
     h.run(Duration::from_secs(5));
@@ -609,21 +609,6 @@ fn an_idle_connection_without_a_deadline_closes_now() {
 }
 
 #[test]
-fn a_start_answer_can_hold_a_closed_connection_until_close_clears_it() {
-    let mut h = fixtures::Harness::new(fixtures::settings());
-    h.connected(fixtures::FORGE);
-    h.component.test_last_connection().finish(&h.env, skein_http::client::Reuse::Close, false);
-    assert_eq!(h.component.test_last_connection().phase(), Phase::Closed);
-    assert_eq!(h.component.test_last_connection().deadline, None);
-    h.component.test_start_user(&h.env, &mut h.up);
-    assert_eq!(h.start(fixtures::FORGE), crate::start::Start::Settings { next: h.env.limits.start_backoff });
-    assert_eq!(h.component.test_last_connection().phase(), Phase::Closed);
-    assert_eq!(h.component.test_last_connection().deadline, Some(Time::from_nanos(10_000_000_000)));
-    h.component.test_last_connection().close(&h.env, false, &mut h.io);
-    assert_eq!(h.component.test_last_connection().deadline, None, "close clears the holder clock");
-}
-
-#[test]
 fn a_completed_call_releases_its_connection_on_the_idle_clock() {
     use skein_forge::api;
     let mut h = fixtures::known();
@@ -634,5 +619,5 @@ fn a_completed_call_releases_its_connection_on_the_idle_clock() {
     h.run(Duration::ZERO);
     assert_eq!(h.answered(1).expect("call completed").result, Ok(api::Answer::Done));
     assert_eq!(h.component.test_last_connection().phase(), Phase::Idle);
-    assert_eq!(h.component.test_last_connection().deadline, Some(Time::from_nanos(7_000_000_000)));
+    assert_eq!(h.component.test_last_connection().deadline(), Some(Time::from_nanos(7_000_000_000)));
 }

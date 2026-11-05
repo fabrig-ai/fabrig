@@ -470,13 +470,13 @@ fn matches_notice(kind: EntryKind) -> bool {
     }
 }
 
-struct State {
-    party: u64,
-    project: u32,
-    task: u64,
-    last_reply: u64,
-    live: bool,
-    seen: Option<u64>,
+pub(super) struct State {
+    pub(super) party: u64,
+    pub(super) project: u32,
+    pub(super) task: u64,
+    pub(super) last_reply: u64,
+    pub(super) live: bool,
+    pub(super) seen: Option<u64>,
 }
 fn chat_state(domain: &mut Domain, state: State) {
     if !domain.ready() {
@@ -797,41 +797,26 @@ fn held_role(domain: &Domain, project: u32, role: u32) -> bool {
     false
 }
 
-#[expect(clippy::too_many_arguments, reason = "one bounded sibling census fact")]
 pub(super) fn chat_state_event(
     domain: &mut Domain,
     env: &Env<Limits>,
-    party: u64,
-    project: u32,
-    task: u64,
-    last_reply: u64,
-    live: bool,
-    seen: Option<u64>,
+    state: State,
     replies: Box<[ReplyRef]>,
     out: &mut Queue<Request>,
 ) {
+    let State { party, task, live, seen, .. } = state;
     let through = seen.unwrap_or(*domain.conversations_seen.get(&(party, task)).unwrap_or(&0));
-    chat_state(domain, State { party, project, task, last_reply, live, seen });
+    chat_state(domain, state);
     project_replies(domain, &env.limits, party, replies);
     if !live {
         super::ended::ended_state(domain, party, task, through, seen.is_none(), out);
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "one bounded sibling census fact")]
-pub(super) fn project_chat(
-    domain: &mut Domain,
-    limits: &Limits,
-    party: u64,
-    project: u32,
-    task: u64,
-    last_reply: u64,
-    live: bool,
-    seen: Option<u64>,
-    replies: Box<[ReplyRef]>,
-) {
+pub(super) fn project_chat(domain: &mut Domain, limits: &Limits, state: State, replies: Box<[ReplyRef]>) {
+    let State { party, task, live, seen, .. } = state;
     let through = seen.unwrap_or(*domain.conversations_seen.get(&(party, task)).unwrap_or(&0));
-    project_chat_state(domain, State { party, project, task, last_reply, live, seen });
+    project_chat_state(domain, state);
     project_replies(domain, limits, party, replies);
     if !live {
         // Keep read hints suppressed after Link retires the loaded position's witness.

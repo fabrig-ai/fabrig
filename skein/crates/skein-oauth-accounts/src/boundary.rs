@@ -6,7 +6,7 @@ use skein_lib::{Duration, Secret};
 use skein_oauth::SavedToken;
 
 /// What the owner asks of its configured accounts.
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     /// Refreshes this account at its lead even while nobody holds its grant.
     Want { account: u32, wanted: bool },
@@ -18,7 +18,7 @@ pub enum Request {
     SignIn { account: u32, subject: Option<Box<[u8]>> },
     /// A redirect handed in: the confidential owner's, or the address a person pasted for a public
     /// sign-in whose listener is up; Taken, or Refused with the sign-in still waiting (oauth.md, 6.5).
-    Redirected { account: u32, uri: Box<[u8]> },
+    Redirected { account: u32, uri: Secret },
     /// The address the listener sends the browser on to once it takes this sign-in's redirect (oauth.md, 6.5).
     Return { account: u32, location: Box<[u8]> },
     /// Cancels this account's exchange; its requested or held work hears the terminal.
@@ -42,14 +42,14 @@ pub enum Request {
 }
 
 /// What the component tells its owner.
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
     /// The account has settled and its number is free for another add.
     Removed { account: u32 },
     /// Ends `SignOut`: the record is forgotten; revocation may be unconfirmed.
     SignedOut { account: u32, revoked: bool },
     /// The authorization URL for the owner to show, once per admitted sign-in.
-    Visit { account: u32, url: Box<[u8]> },
+    Visit { account: u32, url: Secret },
     /// Ends `Redirected`: the sign-in took the redirect handed in; its own terminal follows (oauth.md, 6.5).
     Taken { account: u32 },
     /// Ends `SignIn` once kept, naming the record's subject and required scopes not granted in `missing`.
@@ -70,96 +70,6 @@ pub enum Event {
     Unlock { account: u32 },
     /// Ends Close or Abort once, after all admitted work has settled.
     Closed,
-}
-
-// skein/docs/design/lib.md, 6: credential carriers print their lengths.
-impl core::fmt::Debug for Request {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Self::Want { account, wanted } => {
-                f.debug_struct("Want").field("account", account).field("wanted", wanted).finish()
-            }
-            Self::SignOut { account } => f.debug_struct("SignOut").field("account", account).finish(),
-            Self::Remove { account } => f.debug_struct("Remove").field("account", account).finish(),
-            Self::SignIn { account, subject } => {
-                f.debug_struct("SignIn").field("account", account).field("subject", subject).finish()
-            }
-            Self::Redirected { account, uri } => {
-                f.debug_struct("Redirected").field("account", account).field("uri_len", &uri.len()).finish()
-            }
-            Self::Return { account, location } => {
-                f.debug_struct("Return").field("account", account).field("location", location).finish()
-            }
-            Self::Cancel { account } => f.debug_struct("Cancel").field("account", account).finish(),
-            Self::HandIn { account, record } => {
-                f.debug_struct("HandIn").field("account", account).field("record", record).finish()
-            }
-            Self::Grant { account } => f.debug_struct("Grant").field("account", account).finish(),
-            Self::Rejected { account, generation } => {
-                f.debug_struct("Rejected").field("account", account).field("generation", generation).finish()
-            }
-            Self::Release { account } => f.debug_struct("Release").field("account", account).finish(),
-            Self::Kept { account, generation, keeping } => f
-                .debug_struct("Kept")
-                .field("account", account)
-                .field("generation", generation)
-                .field("keeping", keeping)
-                .finish(),
-            Self::Locked { account, answer } => {
-                f.debug_struct("Locked").field("account", account).field("answer", answer).finish()
-            }
-            Self::Close => f.write_str("Close"),
-            Self::Abort => f.write_str("Abort"),
-        }
-    }
-}
-
-// skein/docs/design/lib.md, 6: credential carriers print their lengths.
-impl core::fmt::Debug for Event {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Self::Removed { account } => f.debug_struct("Removed").field("account", account).finish(),
-            Self::SignedOut { account, revoked } => {
-                f.debug_struct("SignedOut").field("account", account).field("revoked", revoked).finish()
-            }
-            Self::Visit { account, url } => {
-                f.debug_struct("Visit").field("account", account).field("url_len", &url.len()).finish()
-            }
-            Self::Taken { account } => f.debug_struct("Taken").field("account", account).finish(),
-            Self::SignedIn { account, generation, missing, subject } => f
-                .debug_struct("SignedIn")
-                .field("account", account)
-                .field("generation", generation)
-                .field("missing", missing)
-                .field("subject", subject)
-                .finish(),
-            Self::Granted { account, token, generation, valid } => f
-                .debug_struct("Granted")
-                .field("account", account)
-                .field("token", token)
-                .field("generation", generation)
-                .field("valid", valid)
-                .finish(),
-            Self::Expiring { account, generation } => {
-                f.debug_struct("Expiring").field("account", account).field("generation", generation).finish()
-            }
-            Self::Keep { account, record } => {
-                f.debug_struct("Keep").field("account", account).field("record", record).finish()
-            }
-            Self::Failed { account, ends, failure } => f
-                .debug_struct("Failed")
-                .field("account", account)
-                .field("ends", ends)
-                .field("failure", failure)
-                .finish(),
-            Self::Refused { account, asked, why } => {
-                f.debug_struct("Refused").field("account", account).field("asked", asked).field("why", why).finish()
-            }
-            Self::Lock { account } => f.debug_struct("Lock").field("account", account).finish(),
-            Self::Unlock { account } => f.debug_struct("Unlock").field("account", account).finish(),
-            Self::Closed => f.write_str("Closed"),
-        }
-    }
 }
 
 /// The request a failure ends.

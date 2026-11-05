@@ -52,7 +52,9 @@ pub(super) fn issuer(port: u16, subject: &[u8], plan: bool, again: bool, revocat
     )
     .expect("provider issuer");
     let (status, body) = match revocation {
-        Some(confirmed) => (if confirmed { 200 } else { 500 }, fake_oauth::Body::Raw(Box::new([]))),
+        Some(confirmed) => {
+            (if confirmed { 200 } else { 500 }, fake_oauth::Body::Raw(skein_lib::Secret::new(Box::new([]))))
+        }
         None => (
             200,
             fake_oauth::Body::Token(skein_oauth::TokenResponse {
@@ -76,7 +78,7 @@ pub(super) fn issuer(port: u16, subject: &[u8], plan: bool, again: bool, revocat
         issuer
             .queue(fake_oauth::Plan {
                 status: 200,
-                body: fake_oauth::Body::Raw(Box::new([])),
+                body: fake_oauth::Body::Raw(skein_lib::Secret::new(Box::new([]))),
                 delay: Duration::ZERO,
                 retry_after: Duration::ZERO,
             })

@@ -993,9 +993,10 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
   answers it (browser.md, section 6).
   A semantic press whose node is `Gone` before mouse input finds its target
   again, from its outermost scope and with its match number kept, and starts
-  a new press through the kit's checks. At most three such replacements are
-  tried; a missing replacement or an exhausted retry fails the act. Other
-  refusals fail at once. A press whose mouse input has begun is never retried.
+  a new press through the kit's checks. It looks again each poll interval, for
+  a missing replacement too, until the first press's answer deadline, which
+  fails the act (browser.md, section 6). Other refusals fail at once. A press
+  whose mouse input has begun is never retried.
 - **It reads the current address,** the kit's `Address`, from the page's
   navigation history (browser.md, section 6), as the address bar shows
   it: what the application's codec printed, or what its page replaced,

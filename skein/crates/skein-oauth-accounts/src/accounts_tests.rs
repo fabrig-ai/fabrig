@@ -203,7 +203,10 @@ fn a_removing_account_refuses_its_requests() {
     for (request, asked) in [
         (Request::SignIn { account: 0, subject: None }, Asked::SignIn),
         (
-            Request::Redirected { account: 0, uri: bytes::copy_of(b"http://localhost:31234/callback") },
+            Request::Redirected {
+                account: 0,
+                uri: skein_lib::Secret::new(bytes::copy_of(b"http://localhost:31234/callback")),
+            },
             Asked::Redirected,
         ),
         (Request::HandIn { account: 0, record: tests_record(0) }, Asked::HandIn),

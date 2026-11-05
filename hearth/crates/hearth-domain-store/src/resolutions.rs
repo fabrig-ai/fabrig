@@ -1,5 +1,8 @@
 //! Canonical resolution and closure hashes (hearth/docs/design/domain/store.md, 6.4).
-use crate::vocabulary::{Closed, Inputs};
+use crate::{
+    Flight, Standing,
+    vocabulary::{Closed, Inputs},
+};
 use hearth_lib::{encode::Digest, hash::H};
 #[must_use]
 pub fn key(inputs: &Inputs) -> Digest {
@@ -34,17 +37,15 @@ pub(super) fn find(
 ) {
     use crate::vocabulary::{Answer, Event, Output, Request};
     let answer = match event {
-        Event::Find { key } => {
-            if !store.usable {
-                Answer::Declined { why: store.decline }
-            } else if store.scan.resolutions.contains_key(&key) {
-                store.finding = true;
+        Event::Find { key } => match store.standing {
+            Standing::Declining(why) => Answer::Declined { why },
+            Standing::Usable if store.scan.resolutions.contains_key(&key) => {
+                store.flight = Flight::Finding;
                 out.push(Output::Request(Request::Load { key }));
                 return;
-            } else {
-                Answer::Absent
             }
-        }
+            Standing::Usable => Answer::Absent,
+        },
         Event::Resolution { record } => Answer::Found { resolution: record },
         Event::Unreadable | Event::Failed => Answer::Absent,
         Event::Want { key } => return crate::layers::want(store, key, out),
@@ -65,7 +66,10 @@ pub(super) fn find(
         | Event::Seal { .. }
         | Event::Discard { .. } => unreachable!("find terminal"),
     };
-    store.finding = false;
+    match store.flight {
+        Flight::Finding => store.flight = Flight::Idle,
+        Flight::Idle | Flight::Writing(_) | Flight::Entering(_) | Flight::Chain(_) => {}
+    }
     out.push(Output::Answer(answer));
 }
 
@@ -81,22 +85,24 @@ pub(super) fn record(
     use crate::vocabulary::{Answer, Decline, Event, Limit, Output, Request, Step};
     let answer = match event {
         Event::Room | Event::Record { .. } => {
-            let decline = if !store.usable {
-                Some(store.decline)
-            } else if store.scan.resolutions.len() >= env.limits.resolutions {
-                Some(Decline::Full { limit: Limit::Resolutions, most: env.limits.resolutions })
-            } else if event == Event::Room
-                && store.scan.index.len().saturating_add(RESOLUTION_INDICES) > env.limits.cache_files
-            {
-                // hearth/docs/design/domain/store.md, 6.1: eight source lines, sixteen indices each.
-                Some(Decline::Full { limit: Limit::CacheFiles, most: env.limits.cache_files })
-            } else {
-                None
+            let decline = match store.standing {
+                Standing::Declining(why) => Some(why),
+                Standing::Usable if store.scan.resolutions.len() >= env.limits.resolutions => {
+                    Some(Decline::Full { limit: Limit::Resolutions, most: env.limits.resolutions })
+                }
+                Standing::Usable
+                    if event == Event::Room
+                        && store.scan.index.len().saturating_add(RESOLUTION_INDICES) > env.limits.cache_files =>
+                {
+                    // hearth/docs/design/domain/store.md, 6.1: eight source lines, sixteen indices each.
+                    Some(Decline::Full { limit: Limit::CacheFiles, most: env.limits.cache_files })
+                }
+                Standing::Usable => None,
             };
             if let Some(why) = decline {
                 Answer::Declined { why }
             } else if let Event::Record { resolution } = event {
-                store.writing = Some(resolution.key);
+                store.flight = Flight::Writing(resolution.key);
                 out.push(Output::Request(Request::Write { resolution }));
                 return;
             } else {
@@ -104,19 +110,22 @@ pub(super) fn record(
             }
         }
         Event::Done => {
-            let key = store.writing.take().expect("record write");
+            let key = match core::mem::replace(&mut store.flight, Flight::Idle) {
+                Flight::Writing(key) => key,
+                Flight::Idle | Flight::Finding | Flight::Entering(_) | Flight::Chain(_) => unreachable!("record write"),
+            };
             store.scan.resolutions.insert(key, ()).expect("admitted resolution");
             Answer::Recorded
         }
         Event::Unwritable { max } => {
-            store.writing = None;
+            store.flight = Flight::Idle;
             Answer::Declined { why: Decline::Bound { max } }
         }
         Event::Failed => {
-            store.writing = None;
-            store.usable = false;
-            store.decline = Decline::Unusable { step: Step::Write };
-            Answer::Declined { why: store.decline }
+            store.flight = Flight::Idle;
+            let why = Decline::Unusable { step: Step::Write };
+            store.standing = Standing::Declining(why);
+            Answer::Declined { why }
         }
         Event::Want { key } => return crate::layers::want(store, key, out),
         Event::Layer { .. } => return crate::scan::step(store, env, event, out),

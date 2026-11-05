@@ -115,7 +115,7 @@ pub fn up(event: driver::Event, now: Time, required: &[u8]) -> Up {
             if url.len() > skein_lib::length::usize_of(accounts::ADDRESS) {
                 Up::SignInFailed { source: account, failure: accounts::Failure::Misconfigured }
             } else {
-                Up::Visited { source: account, address: url }
+                Up::Visited { source: account, address: url.into_exposed() }
             }
         }
         driver::Event::SignedIn { account, generation: _, missing, subject } => {

@@ -10,7 +10,7 @@ use skein_json::Token;
 use skein_lib::{Duration, List, Queue, Secret, Time, Wall, Writer, bytes, usize_of};
 use skein_oauth::{
     HttpEvidence, HttpRequest, HttpResponse, Json, Limits as DocumentLimits, OAuthError, TokenResponse, challenge,
-    encode_error, encode_response,
+    encode_error, encode_response, secret_ref,
 };
 
 mod key;
@@ -69,10 +69,11 @@ pub struct Config {
     pub terms: Option<Terms>,
 }
 
+#[derive(Debug)]
 pub enum Body {
     Token(TokenResponse),
     Error(OAuthError),
-    Raw(Box<[u8]>),
+    Raw(Secret),
 }
 
 #[derive(Debug)]
@@ -83,8 +84,9 @@ pub struct Plan {
     pub retry_after: Duration,
 }
 
+#[derive(Debug)]
 pub enum Event {
-    Authorize { url: Box<[u8]>, now: Time },
+    Authorize { url: Secret, now: Time },
     Post { request: HttpRequest, now: Time, wall: Wall },
     Get { id: u64, endpoint: Box<[u8]>, now: Time, wall: Wall },
     Tick { now: Time, wall: Wall },
@@ -155,38 +157,6 @@ pub struct Issuer {
     carried: List<Box<[u8]>>,
     authorizations: usize,
     revoked: bool,
-}
-
-impl core::fmt::Debug for Body {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Body::Token(value) => f.debug_tuple("Token").field(value).finish(),
-            Body::Error(value) => f.debug_tuple("Error").field(value).finish(),
-            Body::Raw(value) => f.debug_struct("Raw").field("len", &value.len()).finish(),
-        }
-    }
-}
-
-impl core::fmt::Debug for Event {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Event::Authorize { url, now } => {
-                f.debug_struct("Authorize").field("url_len", &url.len()).field("now", now).finish()
-            }
-            Event::Post { request, now, wall } => {
-                f.debug_struct("Post").field("request", request).field("now", now).field("wall", wall).finish()
-            }
-            Event::Get { id, endpoint, now, wall } => f
-                .debug_struct("Get")
-                .field("id", id)
-                .field("endpoint", endpoint)
-                .field("now", now)
-                .field("wall", wall)
-                .finish(),
-            Event::Tick { now, wall } => f.debug_struct("Tick").field("now", now).field("wall", wall).finish(),
-            Event::LoseResponse => f.write_str("LoseResponse"),
-        }
-    }
 }
 
 impl core::fmt::Debug for Issuer {
@@ -325,7 +295,7 @@ impl Issuer {
 
     pub fn step(&mut self, event: Event, out: &mut Queue<Request>) {
         match event {
-            Event::Authorize { url, now } => self.authorize(&url, now, out),
+            Event::Authorize { url, now } => self.authorize(url.expose(), now, out),
             Event::Post { request, now, wall } => self.post(request, now, wall, out),
             Event::Get { id, endpoint, now, wall } => {
                 openid::get(&self.config, &self.limits, id, &endpoint, now, wall, out);
@@ -423,8 +393,6 @@ impl Issuer {
         });
     }
 
-    #[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
-    #[expect(clippy::too_many_lines, reason = "the bounded token POST keeps its credential conversions in place")]
     fn post(&mut self, request: HttpRequest, now: Time, wall: Wall, out: &mut Queue<Request>) {
         self.carried.clear();
         if self.pending.is_some() {
@@ -459,7 +427,7 @@ impl Issuer {
             return;
         }
         if field(&fields, b"client_id") != Some(terms::latest(&self.config, self.authorizations))
-            || field(&fields, b"client_secret") != expose_optional(self.config.client_secret.as_ref())
+            || field(&fields, b"client_secret") != secret_ref(self.config.client_secret.as_ref())
         {
             self.refuse(request.id, now, wall, out);
             return;
@@ -479,14 +447,8 @@ impl Issuer {
                     out.push(Request::Refused);
                     return;
                 }
-                let next = if !revocation && (200..300).contains(&plan.status) {
-                    match &value.refresh_token {
-                        Some(token) => Some(token.clone()),
-                        None => None,
-                    }
-                } else {
-                    None
-                };
+                let next =
+                    if !revocation && (200..300).contains(&plan.status) { value.refresh_token.clone() } else { None };
                 let Ok(body) = encode_response(&value, &self.limits.document) else {
                     out.push(Request::Refused);
                     return;
@@ -500,7 +462,7 @@ impl Issuer {
                 };
                 (body, None)
             }
-            Body::Raw(value) => (value, None),
+            Body::Raw(value) => (value.into_exposed(), None),
         };
         if let Some(next) = next_refresh
             && next != self.config.refresh_token
@@ -555,7 +517,7 @@ impl Issuer {
                 &self.limits,
                 field(fields, b"client_id").expect("accepted client"),
                 code.account.as_ref().ok_or(Error::Plan)?,
-                expose_optional(code.nonce.as_ref()),
+                secret_ref(code.nonce.as_ref()),
                 wall,
             )? {
                 Some(token) => Some(Secret::new(token)),
@@ -746,11 +708,4 @@ fn percent_decode(value: &[u8], cap: u32) -> Result<Box<[u8]>, Error> {
 fn copy_optional(value: Option<&[u8]>) -> Option<Secret> {
     let value = value?;
     Some(Secret::new(bytes::copy_of(value)))
-}
-
-fn expose_optional(value: Option<&Secret>) -> Option<&[u8]> {
-    match value {
-        Some(value) => Some(value.expose()),
-        None => None,
-    }
 }

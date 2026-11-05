@@ -147,7 +147,7 @@ pub(crate) fn projects(items: &[super::Item]) -> Box<[u32]> {
 /// The core checks names, scopes, bytes and retained slots before asking a connector.
 pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
     for item in items {
-        let Some((kind, scope, number)) = named(item.setting) else { continue };
+        let Some(Name { kind, scope, number }) = named(item.setting) else { continue };
         let declared = kind_of(&core.kinds, kind).ok_or(Failure { setting: item.setting, fault: Fault::Shape })?;
         let valid_scope = match declared.scope {
             KindScope::Deployment => scope == 0,
@@ -205,9 +205,15 @@ pub(crate) fn kind_of(kinds: &[Kind], number: u32) -> Option<&Kind> {
     }
     None
 }
-fn named(setting: Setting) -> Option<(u32, u32, u32)> {
+#[derive(Clone, Copy, Debug)]
+struct Name {
+    kind: u32,
+    scope: u32,
+    number: u32,
+}
+fn named(setting: Setting) -> Option<Name> {
     match setting {
-        Setting::Application { kind, scope, number } => Some((kind, scope, number)),
+        Setting::Application { kind, scope, number } => Some(Name { kind, scope, number }),
         Setting::Charter(_)
         | Setting::Template(_)
         | Setting::Policy(_)
@@ -216,14 +222,14 @@ fn named(setting: Setting) -> Option<(u32, u32, u32)> {
     }
 }
 fn translate(item: &super::Item) -> Option<Item> {
-    let (kind, scope, number) = named(item.setting)?;
+    let Name { kind, scope, number } = named(item.setting)?;
     let edit = match &item.edit {
         super::Edit::Set(super::Value::Application(bytes)) => Edit::Set(bytes.clone()),
         super::Edit::Removed => Edit::Remove,
         super::Edit::Reset => Edit::Reset,
         super::Edit::Set(
             super::Value::Charter(_) | super::Value::Template(_) | super::Value::Policy(_) | super::Value::Rules(_),
-        ) => return None,
+        ) => unreachable!("checked application value"),
     };
     Some(Item { kind, scope, number, edit })
 }
@@ -267,7 +273,7 @@ pub(crate) fn start(
     let number = core.current.newest().checked_add(1).expect("revision preflighted");
     let mut connectors = List::with_capacity(u32::try_from(core.kinds.len()).expect("declared kinds"));
     for item in &change.items {
-        let Some((kind, _, _)) = named(item.setting) else { continue };
+        let Some(Name { kind, .. }) = named(item.setting) else { continue };
         let connector = kind_of(&core.kinds, kind).expect("checked kind").connector;
         if !connectors.as_slice().contains(&connector) {
             connectors.push(connector).expect("one connector per kind");
@@ -360,10 +366,12 @@ pub(crate) fn judged(
             env,
             &mut routed,
             decision.person,
-            decision.change,
-            decision.room,
-            kept,
-            decision.proposal,
+            crate::routing::settings::dispatch::Judged {
+                change: decision.change,
+                room: decision.room,
+                kept,
+                proposal: decision.proposal,
+            },
         ),
         Err(why) => Err(why),
     };
@@ -737,27 +745,27 @@ impl Starting {
     }
 }
 
-fn application_failure(name: (u32, u32, u32), why: crate::start::ApplicationWhy) -> crate::start::Failure {
-    let (kind, scope, number) = name;
+fn application_failure(name: Name, why: crate::start::ApplicationWhy) -> crate::start::Failure {
+    let Name { kind, scope, number } = name;
     crate::start::Failure::Application { kind, scope, number, why }
 }
 
 pub(crate) fn restore(core: &mut Core, setting: Setting, state: State) -> bool {
     use crate::start::ApplicationWhy;
     let Some(name) = named(setting) else { return false };
-    let (number, scope, _) = name;
-    let Some(kind) = kind_of(&core.kinds, number) else {
+    let Name { kind, scope, .. } = name;
+    let Some(declared) = kind_of(&core.kinds, kind) else {
         core.refuse_restore(application_failure(name, ApplicationWhy::Undeclared));
         return false;
     };
     assert!(!core.current.applications.contains_key(&setting), "duplicate application state {setting:?}");
     let mut count = 0_u32;
     for (&held, _) in &core.current.applications {
-        if same_scope(held, number, scope) {
+        if same_scope(held, kind, scope) {
             count = count.checked_add(1).expect("application settings count");
         }
     }
-    if count >= kind.per_scope || core.current.applications.len() == core.current.applications.capacity() {
+    if count >= declared.per_scope || core.current.applications.len() == core.current.applications.capacity() {
         core.refuse_restore(application_failure(name, ApplicationWhy::Count));
         return false;
     }
@@ -772,7 +780,7 @@ pub(crate) fn defaults(core: &mut Core, connector: u16, defaults: Box<[connector
         owns |= kind.connector == connector;
     }
     for default in &defaults {
-        let name = (default.kind, default.scope, default.number);
+        let name = Name { kind: default.kind, scope: default.scope, number: default.number };
         let Some(kind) = kind_of(&core.kinds, default.kind) else {
             core.refuse_restore(application_failure(name, ApplicationWhy::Undeclared));
             return;
@@ -907,7 +915,7 @@ fn apply_start_defaults(
             if differs {
                 edits
                     .push(recorded(
-                        (default.kind, default.scope, default.number),
+                        Name { kind: default.kind, scope: default.scope, number: default.number },
                         SizedEdit::Set { size: default.size },
                     ))
                     .expect("default union");
@@ -945,8 +953,8 @@ fn start_references(core: &mut Core, replies: &Map<u16, Box<[connector::DefaultS
 fn default_setting(default: &connector::DefaultState) -> Setting {
     Setting::Application { kind: default.kind, scope: default.scope, number: default.number }
 }
-fn recorded(name: (u32, u32, u32), edit: SizedEdit) -> Recorded {
-    let (kind, scope, number) = name;
+fn recorded(name: Name, edit: SizedEdit) -> Recorded {
+    let Name { kind, scope, number } = name;
     Recorded { kind, scope, number, edit }
 }
 pub(crate) fn defaults_changed(core: &Core) -> bool {
@@ -1005,7 +1013,7 @@ pub(crate) fn changed(current: &Current, setting: Setting) -> bool {
 pub(crate) fn drop_project(core: &mut Core, project: u32, out: &mut Queue<Request>) {
     let mut erased = List::with_capacity(core.current.applications.len());
     for (&setting, _) in &core.current.applications {
-        let Some((_, scope, _)) = named(setting) else { continue };
+        let Some(Name { scope, .. }) = named(setting) else { continue };
         if scope == project {
             erased.push(setting).expect("project settings bounded by all states");
         }

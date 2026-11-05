@@ -253,15 +253,13 @@ pub(crate) struct AmendPlan {
     pub(crate) met: Option<u64>,
 }
 
-#[expect(clippy::too_many_arguments, reason = "the single amendment entrance carries dependency places and funding")]
 pub(crate) fn amend(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
-    by: Party,
+    (by, funder): (Party, Option<crate::Funder>),
     change: Amend,
     places: &[DependencyPlace],
-    funder: Option<crate::Funder>,
     out: &mut Queue<Request>,
 ) {
     let number = change.task;
@@ -326,7 +324,7 @@ pub(crate) fn check_amend(
         if record(domain, *dependency).is_none() && place(places, *dependency).is_none() {
             return Err(Box::new(crate::Problem::new(Some(*dependency), Refusal::Unknown)));
         }
-        if !dependency_reached(domain, staged, env, by, old.project, number, *dependency, places) {
+        if !dependency_reached(domain, staged, env, by, (old.project, number, *dependency), places) {
             return Err(Box::new(crate::Problem::naming(Some(number), Refusal::Dependencies, &[*dependency])));
         }
         if record(domain, *dependency).is_some() {
@@ -374,15 +372,12 @@ fn place(places: &[DependencyPlace], number: u64) -> Option<&DependencyPlace> {
 
 /// Live reach stays as for a batch; ended reach follows stored requesters
 /// (`domain/tasks.md`, section 7).
-#[expect(clippy::too_many_arguments, reason = "dependency reach includes loaded places")]
 fn dependency_reached(
     domain: &Domain,
     staged: &Staged,
     env: &Env<Limits>,
     by: Party,
-    project: u32,
-    task: u64,
-    dependency: u64,
+    (project, task, dependency): (u32, u64, u64),
     places: &[DependencyPlace],
 ) -> bool {
     if task == dependency {
@@ -797,16 +792,44 @@ fn control_entrance(
 ) -> Result<ReplyTo, (ReplyTo, Refusal)> {
     let to = entrance(domain, to, number)?;
     let permitted = match by {
-        Party::Deployment { project } => {
-            cancelling
-                && match record(domain, number) {
-                    Some(task) => task.project == project,
-                    None => false,
-                }
-        }
+        Party::Deployment { project } => match record(domain, number) {
+            Some(task) => task.project == project && (cancelling || own_hold(task)),
+            None => false,
+        },
         Party::Task(_) | Party::Person(_) => allowed(domain, number, by, env.limits.tasks),
     };
     if permitted { Ok(to) } else { Err((to, Refusal::Reference)) }
+}
+
+// A procedure's own hold, which its connector may find gone (jig/docs/design/domain/tasks.md, 7).
+fn own_hold(task: &crate::TaskRecord) -> bool {
+    match task.executor {
+        crate::Executor::Procedure { .. } => {}
+        crate::Executor::Agent { .. } | crate::Executor::Job { .. } | crate::Executor::Person(_) => return false,
+    }
+    if task.placed.is_some() {
+        return false;
+    }
+    match task.phase {
+        Phase::Held { why, .. } => match why {
+            crate::Hold::Procedure | crate::Hold::EffectFailed | crate::Hold::Stalled | crate::Hold::Budget => true,
+            crate::Hold::Exceeded(_)
+            | crate::Hold::Failures(_)
+            | crate::Hold::Dependency(_)
+            | crate::Hold::Stopped
+            | crate::Hold::Placed { .. }
+            | crate::Hold::Drift
+            | crate::Hold::Effects
+            | crate::Hold::Uncertain { .. }
+            | crate::Hold::Deadline
+            | crate::Hold::HoldsWaited
+            | crate::Hold::ResourceUnavailable
+            | crate::Hold::ResourceAccess
+            | crate::Hold::PoolLost { .. }
+            | crate::Hold::Circle => false,
+        },
+        Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => false,
+    }
 }
 
 pub(crate) fn cancel(

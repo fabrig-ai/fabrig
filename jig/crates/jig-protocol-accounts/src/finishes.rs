@@ -1,7 +1,7 @@
 //! Read a held pasted address only where it is handed to the driver
 //! (protocol/llm.md, 5.2 and 5.4). The clients component alone erases it.
 use jig_domain_accounts as accounts;
-use skein_lib::{Map, Secret, Token, bytes};
+use skein_lib::{Map, Secret, Token};
 use skein_oauth_accounts as driver;
 
 #[derive(Debug)]
@@ -40,9 +40,7 @@ impl Finishes {
     pub fn read(&mut self, exchange: Token, value: Option<Secret>) -> Option<Next> {
         let Reading { source, carried: _carried } = self.reading.remove(&exchange)?;
         Some(match value {
-            Some(value) => {
-                Next::Driver(driver::Request::Redirected { account: source, uri: bytes::copy_of(value.expose()) })
-            }
+            Some(value) => Next::Driver(driver::Request::Redirected { account: source, uri: value }),
             None => refused(source),
         })
     }

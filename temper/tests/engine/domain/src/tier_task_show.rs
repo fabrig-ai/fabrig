@@ -122,9 +122,32 @@ fn answer(world: &mut World, read: reads::Read) -> c::ReadValue {
             text: c::Text::new(page.bytes, world.env.limits.documents.text_bytes).expect("bounded chunk"),
         }));
     }
-    let wire =
-        jig_protocol_engine_clients::translate::objects::document(&answer, &[], &jig_client_protocol_wire::CEILINGS)
-            .unwrap_or_else(|problem| panic!("engine projection: {problem:?}, {answer:?}"));
+    let models: Box<[_]> = world
+        .root
+        .models()
+        .iter()
+        .map(|model| jig_protocol_engine_clients::Model {
+            name: model.name.clone(),
+            provider: None,
+            window: model.window,
+            output: model.output,
+            efforts: model.efforts.clone(),
+            description: None,
+            prices: jig_protocol_engine_clients::Prices {
+                input: model.input_price,
+                cached: model.cached_price,
+                cache_write: model.cache_write_price,
+                output: model.output_price,
+                unit: model.price_unit,
+            },
+        })
+        .collect();
+    let wire = jig_protocol_engine_clients::translate::objects::document(
+        &answer,
+        &models,
+        &jig_client_protocol_wire::CEILINGS,
+    )
+    .unwrap_or_else(|problem| panic!("engine projection: {problem:?}, {answer:?}"));
     let mut bytes = Writer::new(usize::try_from(wire.measure()).expect("document fits"));
     wire.encode(&mut bytes).expect("measured document");
     let mut preset = temper_client_tools::limits::client().client;

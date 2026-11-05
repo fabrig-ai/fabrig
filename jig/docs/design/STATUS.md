@@ -34,7 +34,7 @@ A transcript's load refused for want of a slot counts as a failure, where
 room should pause its task (`domain/engine.md`).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `client/domain/contract.md`, `client/domain/testing.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`,
-`protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`). `domain/core.md`,
+`protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`, `protocol/store.md`). `domain/core.md`,
 `domain/providers.md` and `client/domain/README.md` have no gap of their
 own. Its drafts: `draft/account-facts.md` says what a provider
 reports about an account, and `draft/notes-memory.md` keeps the idea of

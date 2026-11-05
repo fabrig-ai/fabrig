@@ -114,7 +114,8 @@ pub(crate) fn change(
         }
         Change::CheckProgram { source } => crate::programs::check(domain, holder, source, out),
         Change::AddKey { provider, join, carried } => {
-            crate::keys::add(domain, env, request, holder, provider, join, carried, out);
+            let keeping = crate::keys::Keeping { request, holder, provider, join, replacing: false };
+            crate::keys::add(domain, env, keeping, carried, out);
             return;
         }
         Change::ReplaceKey { source, carried } => {
