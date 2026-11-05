@@ -1094,7 +1094,7 @@ fn model_back(root: &d::Domain) {
     let view = f::page_view(root);
     let tree = view.tree();
     assert_eq!(tree.nodes().iter().filter(|n| n.name.as_deref() == Some("‹ Back".as_bytes())).count(), 1);
-    for back in ["‹ Back", "‹ All ways"] {
+    for back in ["‹ Back", "All ways"] {
         assert_eq!(
             press(root, Role::Link, back),
             d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Model { way: None } } })
@@ -1131,8 +1131,8 @@ fn model_details_and_signing_use_one_back_to_their_choose() {
         let view = f::page_view(&root);
         let tree = view.tree();
         if kind == d::WayKind::Key {
-            node(tree, Role::Heading { level: 2 }, "An OpenAI API key");
-            let field = node(tree, Role::TextField, "Key (pasted once)");
+            node(tree, Role::Heading { level: 1 }, "An OpenAI API key");
+            let field = node(tree, Role::TextField, "Key, pasted once");
             let field = tree.nodes().iter().find(|n| n.id == field).unwrap();
             assert_eq!(field.placeholder, None);
             assert_eq!(field.entry, Some(skein_ui::EntryKind::Secret));
@@ -1146,7 +1146,7 @@ fn model_details_and_signing_use_one_back_to_their_choose() {
                 assert!(!words.contains(absent), "drew {absent}");
             }
         } else if kind == d::WayKind::SignIn {
-            node(tree, Role::Heading { level: 2 }, "Signing in to ChatGPT");
+            node(tree, Role::Heading { level: 1 }, "Signing in to ChatGPT");
         }
     }
 }
@@ -1167,11 +1167,14 @@ fn model_endings_have_their_heading_and_one_back() {
         let standalone = f::page_view(&root);
         node(standalone.tree(), Role::Heading { level: 2 }, heading);
         in_welcome(&mut root, d::WayKind::SignIn);
-        model_back(&root);
         let view = f::page_view(&root);
-        node(view.tree(), Role::Heading { level: 2 }, heading);
-        if heading.starts_with("Signed in") {
-            node(view.tree(), Role::Slot, "ChatGPT · alice@example.com is on the Accounts page, with its details.");
+        if pages::welcome::model_usable(&root) == Some(true) {
+            node(view.tree(), Role::Heading { level: 1 }, "Connect a model");
+            node(view.tree(), Role::Status, "ChatGPT plan · alice@example.com");
+            node(view.tree(), Role::Link, "Continue");
+        } else {
+            model_back(&root);
+            node(view.tree(), Role::Heading { level: 1 }, "Signing in to ChatGPT");
         }
     }
 }
@@ -1893,5 +1896,346 @@ fn forge_status_keeps_the_complete_login_and_repository() {
     }
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         node(view.tree(), Role::Paragraph, &expected);
+    }
+}
+
+fn model_with_forge(kind: d::WayKind) -> (d::Domain, skein_lib::Token) {
+    let (offered, _) = super::connect_model::flow_fixture(kind);
+    let me = pages::accounts::current_me(offered.client()).unwrap().clone();
+    let (mut root, me_watch, _, _, accounts, _) = f::root_at_with_forges(
+        model_address(kind),
+        &f::limits(),
+        b"Shop",
+        None,
+        None,
+        Some(forge::first_rows(forge::connected(), forge::made())),
+    );
+    f::root_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me_watch,
+                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(Box::new(
+                        me,
+                    ))),
+                },
+            },
+        },
+    );
+    (root, accounts.unwrap())
+}
+fn start_model(root: &mut d::Domain, elsewhere: bool) {
+    use pages::{accounts::Way, connect_model::Act as A};
+    let way = Way::SignIn { provider: 17, plan: true };
+    let act = if elsewhere { A::SignInElsewhere { name: [1; 16], way } } else { A::SignIn { name: [1; 16], way } };
+    let attempt = super::connect_model::sent(root, act);
+    super::connect_model::answer(
+        root,
+        attempt,
+        jig_client::contract::DocumentOutcome::AccountSignInStarted {
+            source: 43,
+            address: b"https://issuer.example/visit".as_slice().into(),
+        },
+    );
+}
+fn has_style(tree: &skein_ui::Tree, style: skein_ui::Style) -> bool {
+    tree.nodes().iter().any(|n| n.styles.as_slice().contains(&style))
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one state table checks the shared browser and terminal Model shapes")]
+fn model_shapes_keep_the_forge_beside_the_column_in_both_shells() {
+    use crate::look;
+    use jig_client::contract as c;
+    for (case, heading, panel, message) in [
+        (0_u8, "Connect a model", false, "temper’s agents run on a plan you sign in to."),
+        (
+            1,
+            "An OpenAI API key",
+            true,
+            "Nothing checks a key when it is added: a wrong one shows once OpenAI refuses a run.",
+        ),
+        (2, "Signing in to ChatGPT", true, "Your ChatGPT plan."),
+        (3, "Connect a model", false, "ChatGPT’s sign-in, in this tab"),
+        (4, "Signing in to ChatGPT from another computer", true, "Paste it here."),
+        (5, "Connect a model", false, "Finishing your sign-in…"),
+        (6, "Your Claude subscription", true, "temper program-login claude-pat"),
+        (7, "Signing in to ChatGPT", true, "You signed in without plan usage."),
+        (8, "Signing in to ChatGPT", true, "Another person here holds that ChatGPT account."),
+        (9, "Signing in to ChatGPT", true, "Needs sign-in"),
+    ] {
+        let kind = match case {
+            1 => d::WayKind::Key,
+            6 => d::WayKind::Program,
+            _ => d::WayKind::SignIn,
+        };
+        let (mut root, watch) = model_with_forge(kind);
+        if case == 0 {
+            f::root_event(
+                &mut root,
+                d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
+            );
+        }
+        if (3..=5).contains(&case) || case >= 7 {
+            start_model(&mut root, case == 4 || case == 5);
+        }
+        if case == 5 {
+            f::root_event(
+                &mut root,
+                d::Event::SignInAddress { value: skein_lib::Secret::new(b"fixture".as_slice().into()) },
+            );
+            let attempt = super::connect_model::sent(&mut root, pages::connect_model::Act::Finish { name: [2; 16] });
+            super::connect_model::answer(&mut root, attempt, c::DocumentOutcome::AccountFinishing { source: 43 });
+        }
+        if case >= 7 {
+            let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn);
+            doc.usable = false;
+            doc.accounts.clear();
+            doc.signing.clear();
+            doc.last_end = Some(c::AccountLastEnd {
+                source: 43,
+                end: match case {
+                    7 => c::AccountEnd::Made { account: 1, declined: true },
+                    8 => c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { provider: 17 } },
+                    _ => c::AccountEnd::Failed { failure: c::AccountFailure::SignInAgain },
+                },
+            });
+            super::accounts::deliver(&mut root, watch, doc);
+        }
+        for (browser, view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
+            let tree = view.tree();
+            node(tree, Role::Heading { level: 1 }, heading);
+            assert_eq!(
+                tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::WELCOME_PANEL)).count(),
+                usize::from(panel)
+            );
+            assert!(!has_style(tree, look::WELCOME_LEAD) || case == 0);
+            let pane = node(tree, Role::Complementary, "Forge");
+            let main = tree.nodes().iter().find(|n| n.role == Role::Main).unwrap().id;
+            assert_eq!(forge::parent(tree, pane), Some(main));
+            assert!(has_style(tree, look::WELCOME_FOOT));
+            let text = String::from_utf8_lossy(&f::text(tree)).into_owned();
+            assert!(text.contains(message), "case {case}: {text}");
+            assert!(f::find(tree, Role::Link, "‹ All ways".as_bytes()).is_none());
+            if case == 3 || case == 5 {
+                assert!(has_style(tree, look::WELCOME_AWAY));
+                assert_eq!(has_style(tree, look::WELCOME_SPIN), browser);
+                assert!(!text.contains("LLM account sign-in started"));
+                assert!(!text.contains("Pending"));
+                assert!(!text.contains("Mockup:"));
+                assert!(f::find(tree, Role::Link, b"Open sign-in page").is_none());
+                let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+                skein_ui_text::render(tree, b"temper", None, &mut print);
+                assert!(String::from_utf8_lossy(print.text.as_slice()).contains(message));
+            }
+            if case == 3 {
+                node(tree, Role::Disclosure, "Signed in, but the page couldn't be reached?");
+            }
+            if case == 4 {
+                let list = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&look::WELCOME_NUMBERED)).unwrap();
+                assert_eq!(
+                    tree.nodes()[tree.nodes().iter().position(|n| n.id == list.id).unwrap()..]
+                        .iter()
+                        .take(usize::try_from(list.size).unwrap())
+                        .filter(|n| n.role == Role::Item)
+                        .count(),
+                    3
+                );
+                let link = node(tree, Role::Link, "Open ChatGPT’s sign-in ›");
+                assert!(link > list.id);
+                assert!(text.contains(" and approve temper."));
+            }
+        }
+    }
+}
+
+#[test]
+fn model_usable_replaces_every_way_and_continues_to_ready_in_both_shells() {
+    use crate::look;
+    use jig_client::contract as c;
+    for kind in [None, Some(d::WayKind::SignIn), Some(d::WayKind::Key), Some(d::WayKind::Program)] {
+        let (mut root, watch) = model_with_forge(kind.unwrap_or(d::WayKind::SignIn));
+        if kind.is_none() {
+            f::root_event(
+                &mut root,
+                d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
+            );
+        }
+        let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn);
+        doc.usable = true;
+        super::accounts::deliver(&mut root, watch, doc);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let tree = view.tree();
+            node(tree, Role::Heading { level: 1 }, "Connect a model");
+            node(tree, Role::Status, "ChatGPT plan");
+            assert!(has_style(tree, look::FLOW_DONE));
+            assert!(!has_style(tree, look::WELCOME_PANEL));
+            assert!(!has_style(tree, look::WELCOME_LEAD));
+            assert!(!has_style(tree, look::MODEL_CHOICES));
+            assert!(!has_style(tree, look::MODEL_FACTS));
+            assert!(String::from_utf8_lossy(&f::text(tree)).contains("✓"));
+            node(tree, Role::Complementary, "Forge");
+            for absent in ["Continue with ChatGPT", "Manage usage", "All ways"] {
+                assert!(f::find(tree, Role::Button, absent.as_bytes()).is_none());
+                assert!(f::find(tree, Role::Link, absent.as_bytes()).is_none());
+            }
+            let id = node(tree, Role::Link, "Continue");
+            assert_eq!(
+                crate::act(&mut view, id, Act::Press),
+                Some(d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Ready } }))
+            );
+        }
+    }
+}
+
+#[test]
+fn model_panels_enable_the_primary_only_after_a_secret_is_written() {
+    for paste in [false, true] {
+        let (mut root, _) = model_with_forge(if paste { d::WayKind::SignIn } else { d::WayKind::Key });
+        if paste {
+            start_model(&mut root, true);
+        }
+        let field = if paste { "Address of the page that couldn’t be reached" } else { "Key, pasted once" };
+        let primary = if paste { "Finish connecting" } else { "Add key" };
+        for written in [false, true] {
+            if written {
+                f::root_event(
+                    &mut root,
+                    if paste {
+                        d::Event::SignInAddress { value: skein_lib::Secret::new(b"fixture".as_slice().into()) }
+                    } else {
+                        d::Event::AccountKey { value: skein_lib::Secret::new(b"fixture".as_slice().into()) }
+                    },
+                );
+            }
+            for (browser, mut view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
+                let tree = view.tree();
+                let field = node(tree, Role::TextField, field);
+                let entry = tree.nodes().iter().find(|n| n.id == field).unwrap();
+                assert_eq!(entry.entry, Some(skein_ui::EntryKind::Secret));
+                assert_eq!(entry.value.as_ref().unwrap().text.as_ref(), b"");
+                let button = node(tree, Role::Button, primary);
+                assert_eq!(tree.disabled(button), !written);
+                assert!(
+                    tree.nodes()
+                        .iter()
+                        .find(|n| n.id == button)
+                        .unwrap()
+                        .styles
+                        .as_slice()
+                        .contains(&crate::look::FLOW_PRIMARY)
+                );
+                assert!(
+                    !tree.nodes().iter().find(|n| n.id == button).unwrap().states.as_slice().contains(&State::Pressed)
+                );
+                let all = node(tree, Role::Link, "All ways");
+                assert_eq!(forge::parent(tree, button), forge::parent(tree, all));
+                assert!(all > button);
+                if !browser {
+                    f::terminal_command(tree, &view.limits().tree, all, b"All ways", primary.as_bytes());
+                }
+                assert_eq!(
+                    crate::act(&mut view, all, Act::Press),
+                    Some(d::Action::Pages(pages::Act::Go {
+                        address: Address::Welcome { step: Step::Model { way: None } }
+                    }))
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn model_paste_refusals_and_endings_keep_their_words_inside_the_panel() {
+    use c::SignInRedirectWhy as R;
+    use jig_client::contract as c;
+    for (case, message, field) in [
+        (0_u8, "That's longer than a sign-in's address. Copy the address bar alone.", true),
+        (
+            1,
+            "That isn't this sign-in's address. Copy the whole address of the page that couldn't be reached, from the address bar.",
+            true,
+        ),
+        (2, "That address is from an earlier sign-in. Paste the one from this sign-in's tab, or start again.", true),
+        (3, "That's too many addresses from other sign-ins. Continue with ChatGPT to start again.", false),
+        (4, "This sign-in has ended.", false),
+        (5, "That address wasn't sent. Paste it again.", true),
+        (6, "That address wasn't sent. Paste it again.", true),
+        (7, "This sign-in has ended.", false),
+    ] {
+        let (mut root, watch) = model_with_forge(d::WayKind::SignIn);
+        start_model(&mut root, true);
+        f::root_event(
+            &mut root,
+            d::Event::SignInAddress {
+                value: skein_lib::Secret::new(if case == 0 {
+                    Box::from([b'x'; 4097])
+                } else {
+                    b"fixture".as_slice().into()
+                }),
+            },
+        );
+        if case != 0 && case != 7 {
+            let attempt = super::connect_model::sent(&mut root, pages::connect_model::Act::Finish { name: [2; 16] });
+            let answer = match case {
+                1..=4 => Some(jig_client::Answered::Jig(c::Answer::Refused {
+                    refusal: c::Refusal::SignInRedirect {
+                        why: match case {
+                            1 => R::Address,
+                            2 => R::State,
+                            3 => R::TooMany,
+                            _ => R::NotWaiting,
+                        },
+                    },
+                    at: None,
+                })),
+                _ => None,
+            };
+            f::root_event(
+                &mut root,
+                d::Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Answer {
+                            attempt,
+                            answer,
+                            why: None,
+                            envelope: if case == 5 {
+                                skein_lib::RequestEnvelope::Lost
+                            } else {
+                                skein_lib::RequestEnvelope::Final
+                            },
+                        },
+                    },
+                },
+            );
+        }
+        if case == 7 {
+            let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn);
+            doc.usable = false;
+            doc.accounts.clear();
+            doc.signing.clear();
+            doc.signing
+                .push(c::AccountSignIn { source: 43, provider: 17, holder: c::AccountHolder::Party(73) })
+                .unwrap();
+            super::accounts::deliver(&mut root, watch, doc.clone());
+            doc.signing.clear();
+            doc.cut = false;
+            super::accounts::deliver(&mut root, watch, doc);
+        }
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let tree = view.tree();
+            node(tree, Role::Heading { level: 1 }, "Signing in to ChatGPT from another computer");
+            let panel =
+                tree.nodes().iter().position(|n| n.styles.as_slice().contains(&crate::look::WELCOME_PANEL)).unwrap();
+            let end = panel + usize::try_from(tree.nodes()[panel].size).unwrap();
+            let inside = &tree.nodes()[panel..end];
+            assert!(inside.iter().any(|n| n.name.as_deref() == Some(message.as_bytes())), "case {case}: {message}");
+            assert_eq!(inside.iter().any(|n| n.role == Role::TextField), field);
+            if !field {
+                node(tree, Role::Button, "Continue with ChatGPT");
+            }
+            node(tree, Role::Complementary, "Forge");
+        }
     }
 }

@@ -12,6 +12,7 @@ pub mod home;
 pub(crate) mod inbox;
 pub(crate) mod task;
 pub(crate) mod welcome;
+mod welcome_model;
 
 pub(crate) fn project_name(me: Option<&jig_client::contract::Me>, project: u32) -> Option<Box<[u8]>> {
     for row in &me?.projects {
