@@ -1,7 +1,7 @@
 //! Issued registrations, carried names and loopback redirects (oauth.md, 5).
 use crate::{Config, Field, Limits};
 use alloc::boxed::Box;
-use skein_lib::{List, bytes};
+use skein_lib::{List, bytes, usize_of};
 
 /// Maximum issued client ids retained in a fake registration.
 pub const ISSUED: usize = 4;
@@ -26,7 +26,7 @@ pub(super) fn valid(terms: Option<&Terms>, limits: &Limits) -> bool {
         return false;
     }
     for id in &terms.issued {
-        if id.len() > usize::try_from(limits.document.string_bytes).expect("u32 fits") {
+        if id.len() > usize_of(limits.document.string_bytes) {
             return false;
         }
     }
@@ -34,7 +34,7 @@ pub(super) fn valid(terms: Option<&Terms>, limits: &Limits) -> bool {
         return false;
     }
     match &terms.revocation_endpoint {
-        Some(url) => url.len() <= usize::try_from(limits.uri_bytes).expect("u32 fits"),
+        Some(url) => url.len() <= usize_of(limits.uri_bytes),
         None => true,
     }
 }
@@ -76,8 +76,7 @@ pub(super) fn revocation(config: &Config, endpoint: &[u8]) -> bool {
 pub(super) fn observe(fields: &List<Field>, carried: &mut List<Box<[u8]>>, limits: &Limits) -> bool {
     for entry in fields.as_slice() {
         if !oauth_name(&entry.key)
-            && (entry.key.len() > usize::try_from(limits.document.string_bytes).expect("u32 fits")
-                || carried.push(entry.key.clone()).is_err())
+            && (entry.key.len() > usize_of(limits.document.string_bytes) || carried.push(entry.key.clone()).is_err())
         {
             return false;
         }
@@ -143,7 +142,7 @@ fn loopback(uri: &[u8]) -> Option<(&[u8], &[u8])> {
 
 pub(super) fn too_long(value: Option<&[u8]>, cap: u32) -> bool {
     match value {
-        Some(value) => value.len() > usize::try_from(cap).expect("u32 fits"),
+        Some(value) => value.len() > usize_of(cap),
         None => false,
     }
 }
