@@ -332,6 +332,16 @@ impl Domain {
                 },
                 offer: self.offer(*forge),
                 first: self.first.get(forge).cloned(),
+                starts_with: match match self.record(*forge) {
+                    Some(record) => record.first.as_ref(),
+                    None => None,
+                } {
+                    Some(crate::FirstIntent::Copies { addresses }) => {
+                        crate::StartsWith::Copies { addresses: addresses.clone() }
+                    }
+                    Some(crate::FirstIntent::Nothing) => crate::StartsWith::Nothing,
+                    Some(crate::FirstIntent::Empty(_)) | None => crate::StartsWith::Repository,
+                },
                 installations: self.forge_installations(*forge, config.kind),
                 ended,
                 app: match self.connection(*forge) {

@@ -72,7 +72,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 152;
+pub const N: usize = 175;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -146,6 +146,49 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "home-ready", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
         Sample {
             name: "home-adopting",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-copying",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-copy-failed",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample { name: "home-copied", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
+        Sample {
+            name: "home-copy-one",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-copy-offer",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-add-repository",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-add-repository-sheet",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-add-repository-copies",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -353,6 +396,12 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "task-solo-T3", world: Solo, address: task(3), then: Shown },
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
         welcome_sample("welcome-first-run-0", temper_client_domain::Step::Welcome),
+        Sample {
+            name: "welcome-go-on",
+            world: FirstRun { step: 6 },
+            address: Address::Welcome { step: temper_client_domain::Step::WelcomeAsked },
+            then: Shown,
+        },
         Sample { name: "chat-new-first-run-1", world: FirstRun { step: 1 }, address: Address::NewChat, then: Shown },
         Sample { name: "chats-first-run-1", world: FirstRun { step: 1 }, address: CHATS, then: Shown },
         owned_sample("connect-forge-first-run-6", 6, false),
@@ -368,13 +417,33 @@ pub fn samples() -> [Sample; N] {
             "welcome-forge-details",
             temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Owned) },
         ),
+        welcome_sample(
+            "welcome-sheet-copies",
+            temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Owned) },
+        ),
+        welcome_sample(
+            "welcome-sheet-copies-refused",
+            temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Owned) },
+        ),
+        welcome_sample(
+            "welcome-sheet-nothing",
+            temper_client_domain::Step::Forge { forge: Some(temper_client_domain::Choice::Owned) },
+        ),
+        forge_status_sample("welcome-forge-under-way", 6, Some(temper_client_domain::Choice::Forge(3))),
+        forge_status_sample("welcome-forge-connected", 7, None),
+        forge_status_sample("welcome-forge-github", 21, None),
         welcome_sample("welcome-model-choose", temper_client_domain::Step::Model { way: None }),
         model_forge_sample("welcome-model-forge-under-way", 6),
         model_forge_sample("welcome-model-forge-fetching", 24),
         model_forge_sample("welcome-model-forge-fetching-bytes", 25),
         model_forge_sample("welcome-model-forge-done", 7),
         model_forge_sample("welcome-model-forge-failed", 9),
+        welcome_model_sample("welcome-model-claude", temper_client_domain::WayKind::Program, Shown),
+        welcome_model_sample("welcome-model-claude-checking", temper_client_domain::WayKind::Program, Shown),
+        welcome_model_sample("welcome-model-claude-not-yet", temper_client_domain::WayKind::Program, Shown),
         welcome_model_sample("welcome-model-key-details", temper_client_domain::WayKind::Key, Shown),
+        model_forge_sample("welcome-model-connected", 7),
+        welcome_model_sample("welcome-model-away", temper_client_domain::WayKind::SignIn, SigningIn),
         welcome_model_sample("welcome-model-signing-in", temper_client_domain::WayKind::SignIn, SigningIn),
         welcome_model_sample("welcome-model-signin-ready", temper_client_domain::WayKind::SignIn, SignInReady),
         welcome_model_sample("welcome-model-declined", temper_client_domain::WayKind::SignIn, Declined),
@@ -400,6 +469,9 @@ pub fn samples() -> [Sample; N] {
         owned_sample("forge-setting-up-middle", 6, false),
         owned_sample("forge-setup-failed", 9, false),
         owned_sample("welcome-setup-failed", 9, true),
+        owned_sample("welcome-ready-copies", 7, true),
+        welcome_sample("welcome-ready-none", temper_client_domain::Step::Ready),
+        welcome_sample("welcome-ready-signing", temper_client_domain::Step::Ready),
         owned_sample("welcome-ready-under-way", 6, true),
         owned_sample("welcome-ready-adopted", 8, true),
         Sample { name: "adoption", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
@@ -491,6 +563,14 @@ fn github_sample(name: &'static str, step: u8) -> Sample {
 fn welcome_sample(name: &'static str, step: temper_client_domain::Step) -> Sample {
     Sample { name, world: World::FirstRun { step: 0 }, address: Address::Welcome { step }, then: Then::Shown }
 }
+fn forge_status_sample(name: &'static str, step: u8, forge: Option<temper_client_domain::Choice>) -> Sample {
+    Sample {
+        name,
+        world: World::FirstRun { step },
+        address: Address::Welcome { step: temper_client_domain::Step::Forge { forge } },
+        then: Then::Shown,
+    }
+}
 fn model_forge_sample(name: &'static str, step: u8) -> Sample {
     Sample {
         name,
@@ -549,11 +629,17 @@ fn special_mockup(name: &str) -> Option<String> {
         "forge-setup-failed" | "welcome-setup-failed" => {
             return Some("connect-forge.html?world=first-run&step=6&forge=3&bare#other-states".to_owned());
         }
+        "welcome-model-claude" | "welcome-model-claude-checking" | "welcome-model-claude-not-yet" => {
+            return Some("welcome.html?at=model&way=claude".to_owned());
+        }
         "welcome-model-key-details" => {
             return Some("welcome.html?world=first-run&step=0&at=model&way=key&bare".to_owned());
         }
-        "welcome-model-signing-in" | "welcome-model-signin-ready" => {
-            return Some("connect-model.html?world=first-run&step=5&way=chatgpt&bare".to_owned());
+        "welcome-model-away"
+        | "welcome-model-signing-in"
+        | "welcome-model-signin-ready"
+        | "welcome-model-connected" => {
+            return Some("welcome.html?at=model".to_owned());
         }
         "github-app-details" => {
             return Some("connect-forge.html?world=first-run-github&step=1&forge=2&bare".to_owned());
@@ -561,9 +647,17 @@ fn special_mockup(name: &str) -> Option<String> {
         "github-install" => return Some("connect-forge.html?world=first-run-github&step=3&forge=2&bare".to_owned()),
         "github-picker" => return Some("connect-forge.html?world=first-run-github&step=4&forge=2&bare".to_owned()),
         "github-adopted" => return Some("connect-forge.html?world=first-run-github&step=5&forge=2&bare".to_owned()),
+        "welcome-forge-under-way" | "welcome-forge-connected" | "welcome-forge-github" => {
+            return Some("welcome.html?at=forge".to_owned());
+        }
         "welcome-forge-choose" => return Some("welcome.html?world=first-run&step=0&at=forge&bare".to_owned()),
-        "welcome-forge-details" => return Some("welcome.html?world=first-run&step=0&at=forge&forge=3&bare".to_owned()),
+        "welcome-sheet-copies" | "welcome-sheet-copies-refused" | "welcome-sheet-nothing" | "welcome-forge-details" => {
+            return Some("welcome.html?world=first-run&step=0&at=forge&forge=3&bare".to_owned());
+        }
         "welcome-model-choose" => return Some("welcome.html?world=first-run&step=0&at=model&bare".to_owned()),
+        "welcome-ready-copies" | "welcome-ready-none" | "welcome-ready-signing" => {
+            return Some("welcome.html?at=ready".to_owned());
+        }
         "welcome-ready-under-way" => return Some("welcome.html?world=first-run-real&step=3&at=ready&bare".to_owned()),
         "welcome-ready-adopted" => return Some("welcome.html?world=first-run-real&step=4&at=ready&bare".to_owned()),
         _ => {}
@@ -699,7 +793,11 @@ pub fn mockup(sample: &Sample) -> Option<String> {
     Some(format!("{page}.html?world={world}{task}{forge}{way}&bare"))
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one dispatch builds each gallery state's domain")]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name == "welcome-ready-copies" {
+        return crate::worlds::copies_world(sample.address.clone(), sample.then);
+    }
     if sample.name == "chats-no-repository" {
         let mut root = home_domain("home-no-repository");
         step(
@@ -735,6 +833,70 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();
+    if sample.name.starts_with("welcome-sheet-") {
+        use temper_client_domain::forge::{
+            Act as F,
+            forges::{Act as A, Start},
+        };
+        let start = if sample.name == "welcome-sheet-nothing" { Start::Nothing } else { Start::Copies };
+        step(&mut root, Event::Act { action: Action::Forge(F::Forges(A::Start(start))) }, &mut out);
+        if sample.name != "welcome-sheet-nothing" {
+            let text = if sample.name == "welcome-sheet-copies-refused" {
+                b"not an address".as_slice()
+            } else {
+                b"github.com/acme/widget\nsource.invalid/team/tool".as_slice()
+            };
+            step(&mut root, Event::Act { action: Action::Forge(F::CopiesWrite { text: text.into() }) }, &mut out);
+        }
+        if sample.name == "welcome-sheet-copies-refused" {
+            step(&mut root, Event::Act { action: Action::Forge(F::Forges(A::RunOwned)) }, &mut out);
+        }
+    }
+    if sample.name == "welcome-ready-none" || sample.name == "welcome-ready-signing" {
+        let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("Ready accounts").clone();
+        doc.usable = false;
+        doc.accounts.clear();
+        doc.signing.clear();
+        if sample.name == "welcome-ready-signing" {
+            doc.signing = skein_lib::List::with_capacity(1);
+            doc.signing
+                .push(c::AccountSignIn { source: 43, provider: 18, holder: c::AccountHolder::Party(73) })
+                .expect("one sign-in");
+        }
+        crate::driver::deliver(
+            &mut root,
+            accounts_watch.expect("Ready accounts watch"),
+            c::Delivery::Accounts(Box::new(doc)),
+            &mut out,
+        );
+    }
+    if sample.name.starts_with("welcome-model-") || sample.name.starts_with("welcome-paste-") {
+        let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("Model accounts").clone();
+        doc.usable =
+            matches!(sample.name, "welcome-model-connected" | "welcome-model-signin-ready" | "welcome-model-renewed");
+        if doc.usable {
+            let mut rows = skein_lib::List::with_capacity(1);
+            for row in &doc.accounts {
+                if row.provider == Some(18) {
+                    rows.push(row.clone()).expect("ChatGPT account");
+                    break;
+                }
+            }
+            doc.accounts = rows;
+        } else {
+            doc.accounts.clear();
+        }
+        crate::driver::deliver(
+            &mut root,
+            accounts_watch.expect("Model accounts watch"),
+            c::Delivery::Accounts(Box::new(doc)),
+            &mut out,
+        );
+    }
+    if sample.name.starts_with("welcome-model-claude") {
+        claude(&mut root, sample.name, accounts_watch.expect("Claude accounts watch"), &mut out);
+        return root;
+    }
     match sample.then {
         Then::Shown | Then::Working | Then::Held | Then::DelegatedGoal | Then::HeldChange | Then::HeldTask => {}
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
@@ -801,6 +963,69 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     root
 }
+fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>) {
+    use temper_client_domain::pages::{accounts::Way, connect_model::Act as A};
+    if name == "welcome-model-claude" {
+        return;
+    }
+    let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("Claude accounts").clone();
+    doc.settled = false;
+    crate::driver::deliver(root, watch, c::Delivery::Accounts(Box::new(doc.clone())), out);
+    step(
+        root,
+        Event::Act {
+            action: Action::Pages(Act::ConnectModel(A::SignedIn {
+                name: root.pages().account_name(),
+                way: Way::Program { provider: 17 },
+            })),
+        },
+        out,
+    );
+    step(root, Event::Client { event: jig_client::Event::Stored }, out);
+    let attempt = sent_attempt(out);
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    why: None,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                        c::DocumentOutcome::AccountProgramDeclared {
+                            source: 43,
+                            name: b"claude-pat".as_slice().into(),
+                        },
+                    )))),
+                },
+            },
+        },
+        out,
+    );
+    if name == "welcome-model-claude-not-yet" {
+        step(root, Event::Client { event: jig_client::Event::Stored }, out);
+        let attempt = sent_attempt(out);
+        step(
+            root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Answer {
+                        attempt,
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        why: None,
+                        answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                            c::DocumentOutcome::AccountChanged,
+                        )))),
+                    },
+                },
+            },
+            out,
+        );
+        doc.settled = true;
+        crate::driver::deliver(root, watch, c::Delivery::Accounts(Box::new(doc)), out);
+    }
+}
+
 fn configure_domain(sample: &Sample) -> Domain {
     if matches!(sample.name, "configure-chat" | "configure-chats-tag") {
         return crate::worlds::configuring_world(sample.world, sample.address.clone(), sample.then).0;
@@ -1084,6 +1309,9 @@ fn home_domain(name: &str) -> Domain {
     let mut projects = List::with_capacity(1);
     projects.push(me.projects.get(0).expect("Hello project").clone()).expect("one project");
     me.projects = projects;
+    if name.starts_with("home-cop") {
+        me.projects.get_mut(0).expect("Home copy project").name = home_text("Widget");
+    }
     me.needs_total = match name {
         "home-at-work" | "home-needs-under-begin" | "home-one-need" => 1,
         "home-needs-several" | "home-morning-card" | "home-answered" => 3,
@@ -1420,6 +1648,9 @@ fn home_domain(name: &str) -> Domain {
             &mut out,
         );
     }
+    if matches!(name, "home-add-repository-sheet" | "home-add-repository-copies") {
+        crate::worlds::home_add_sheet(&mut root, name == "home-add-repository-copies");
+    }
     root
 }
 fn home_text(words: &str) -> c::DocumentText {
@@ -1512,7 +1743,7 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
             )
             .expect("one installation");
     }
-    let first = if github {
+    let first = if github || name.starts_with("home-add-repository") {
         None
     } else {
         Some(
@@ -1533,6 +1764,11 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                starts_with: if name.starts_with("home-add-repository") {
+                    w::StartsWith::Nothing
+                } else {
+                    w::StartsWith::Repository
+                },
                 host: b"forge.example:3000".as_slice().into(),
                 number: if github { 2 } else { 3 },
                 kind: if github { w::Kind::Github } else { w::Kind::Forgejo },
@@ -1558,6 +1794,11 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
         .expect("Home row"),
     )
     .expect("one forge");
+    if name.starts_with("home-cop") {
+        let row = rows.get(0).expect("Home forge").clone().into_parts();
+        *rows.get_mut(0).expect("Home forge") =
+            w::ForgeRow::new(&w::CEILINGS, crate::worlds::home_copies(row, name)).expect("Home copies");
+    }
     rows
 }
 

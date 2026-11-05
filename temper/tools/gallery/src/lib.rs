@@ -170,6 +170,9 @@ fn heading(tree: &skein_ui::Tree) -> Vec<u8> {
     let nodes = tree.nodes();
     for (index, node) in nodes.iter().enumerate() {
         if node.role == Role::Main {
+            if node.styles.as_slice().contains(&temper_client_view::look::WELCOME) {
+                return "Welcome · first run".as_bytes().to_vec();
+            }
             let end = index + usize::try_from(node.size).expect("main subtree");
             for (offset, heading) in nodes[index..end].iter().enumerate() {
                 if heading.role == (Role::Heading { level: 1 }) {

@@ -240,7 +240,9 @@ fn the_forge_is_a_region_after_the_choices_and_before_the_foot() {
         let body = nodes
             .iter()
             .rposition(|n| {
-                n.styles.as_slice().contains(&look::FLOW_CARD) || n.styles.as_slice().contains(&look::FLOW_CHOICE)
+                n.styles.as_slice().contains(&look::FLOW_CARD)
+                    || n.styles.as_slice().contains(&look::FLOW_CHOICE)
+                    || n.styles.as_slice().contains(&look::WELCOME_PANEL)
             })
             .unwrap();
         let pane = nodes.iter().position(|n| n.role == Role::Complementary).unwrap();

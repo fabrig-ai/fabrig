@@ -106,6 +106,7 @@ fn settings(fixture: &mut Fixture, follows: c::SettingFollows) {
 }
 fn row(number: u16) -> w::ForgeRowParts {
     w::ForgeRowParts {
+        starts_with: w::StartsWith::Repository,
         host: b"git.example:3000".as_slice().into(),
         number,
         kind: w::Kind::Forgejo,
@@ -218,6 +219,7 @@ fn the_three_steps_count_only_what_is_left() {
         (true, Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() }, false, ONE_STEP),
         (true, Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() }, true, NO_STEPS),
         (true, Repository::Unknown, true, ONE_STEP),
+        (true, Repository::Add { forge: FORGE }, true, ONE_STEP),
         (true, Repository::Adopting(first()), true, ONE_STEP),
         (true, Repository::Offer { first: first(), refused: None }, true, ONE_STEP),
         (true, Repository::GitHub { account: None }, true, ONE_STEP),
@@ -341,7 +343,7 @@ fn a_first_repository_is_offered_until_it_is_adopted_anywhere() {
     rows(&mut f.root, f.forges, Box::new([with_first(row(FORGE))]));
     assert_eq!(home::facts(&f.root, f::PROJECT).repository, Repository::Offer { first: first(), refused: None });
     rows(&mut f.root, f.forges, Box::new([adopted(with_first(row(FORGE)), OTHER_PROJECT, b"hello")]));
-    assert_eq!(home::facts(&f.root, f::PROJECT).repository, Repository::None);
+    assert_eq!(home::facts(&f.root, f::PROJECT).repository, Repository::Add { forge: FORGE });
 }
 #[test]
 fn adoption_out_precedes_an_offer_and_refusal_is_kept() {
@@ -354,7 +356,11 @@ fn adoption_out_precedes_an_offer_and_refusal_is_kept() {
     );
     assert_eq!(home::facts(&root, OTHER_PROJECT).repository, Repository::Offer { first: first(), refused: None });
     rows(&mut root, forges, Box::new([adopted(with_first(row(FORGE)), OTHER_PROJECT, b"hello")]));
-    assert_eq!(home::facts(&root, f::PROJECT).repository, Repository::None, "no stale offer after adoption elsewhere");
+    assert_eq!(
+        home::facts(&root, f::PROJECT).repository,
+        Repository::Add { forge: FORGE },
+        "no stale offer after adoption elsewhere"
+    );
 }
 #[test]
 fn adopted_rows_win_in_either_order_of_rows_and_answers() {
@@ -1041,4 +1047,399 @@ fn needs_count_falls_when_answered_and_keeps_later_cards() {
         Event::Act { action: Action::Pages(Act::Needs(pages::needs::Act::Undo { object: f::acts::QUESTION })) },
     );
     assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: ONE, cut: false });
+}
+
+const COPY_ADDRESSES: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
+fn copy_row() -> w::ForgeRowParts {
+    let mut row = row(FORGE);
+    row.starts_with = w::StartsWith::Copies(
+        w::CopyAddresses::new(
+            &w::CEILINGS,
+            w::CopyAddressesParts { addresses: List::from_boxed(COPY_ADDRESSES.map(Into::into).into()) },
+        )
+        .unwrap(),
+    );
+    row
+}
+fn copy_making(address: &[u8], state: w::MakingState, project: Option<u32>) -> w::RepositoryMaking {
+    let (org, name) = forge::making::target(address).unwrap();
+    w::RepositoryMaking::new(
+        &w::CEILINGS,
+        w::RepositoryMakingParts {
+            org,
+            name,
+            from: w::MakeFrom::Copy(
+                w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: address.into() }).unwrap(),
+            ),
+            into: match project {
+                Some(project) => Some(
+                    w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: address == COPY_ADDRESSES[0] })
+                        .unwrap(),
+                ),
+                None => None,
+            },
+            state,
+        },
+    )
+    .unwrap()
+}
+fn copy_adopted(address: &[u8], project: u32) -> w::Adoption {
+    let (owner, name) = forge::making::target(address).unwrap();
+    w::Adoption::new(&w::CEILINGS, w::AdoptionParts { owner, name, project }).unwrap()
+}
+fn copy_failed() -> w::MakingState {
+    w::MakingState::Failed(
+        w::MakingFailed::new(
+            &w::CEILINGS,
+            w::MakingFailedParts {
+                step: w::MakeStep::Repository,
+                reason: w::MakeFailure::Taken,
+                words: b"name taken".as_slice().into(),
+            },
+        )
+        .unwrap(),
+    )
+}
+fn copy_line(name: &[u8], state: home::CopyState) -> home::CopyLine {
+    home::CopyLine { org: b"acme".as_slice().into(), name: name.into(), state }
+}
+#[test]
+fn copy_states_follow_the_intent_before_repository_and_forge_key_order() {
+    use home::CopyState::{Failed, In, Running, Waiting};
+    type Case = (&'static str, Box<[(usize, w::MakingState)]>, Box<[usize]>, Repository);
+    let cases: [Case; 5] = [
+        (
+            "one running, one waiting",
+            Box::new([(0, w::MakingState::Making), (1, w::MakingState::Waiting)]),
+            Box::new([]),
+            Repository::Copying {
+                lines: Box::new([
+                    copy_line(b"widget", Running { host: b"github.com".as_slice().into() }),
+                    copy_line(b"other", Waiting),
+                ]),
+            },
+        ),
+        (
+            "one in, one failed",
+            Box::new([(1, copy_failed())]),
+            Box::new([0]),
+            Repository::Copying {
+                lines: Box::new([
+                    copy_line(b"widget", In),
+                    copy_line(
+                        b"other",
+                        Failed { words: b"acme/other failed at repository: name taken".as_slice().into() },
+                    ),
+                ]),
+            },
+        ),
+        (
+            "all in",
+            Box::new([]),
+            Box::new([1, 0]),
+            Repository::CopiesIn {
+                names: Box::new([b"acme/widget".as_slice().into(), b"acme/other".as_slice().into()]),
+            },
+        ),
+        (
+            "one left unasked",
+            Box::new([]),
+            Box::new([0]),
+            Repository::CopyOffer { forge: FORGE, addresses: Box::new([COPY_ADDRESSES[1].into()]) },
+        ),
+        (
+            "none asked",
+            Box::new([]),
+            Box::new([]),
+            Repository::CopyOffer { forge: FORGE, addresses: COPY_ADDRESSES.map(Into::into).into() },
+        ),
+    ];
+    for (label, makings, repositories, expected) in cases {
+        let mut f = fixture();
+        let mut row = copy_row();
+        // The watch's keys sort other before widget; intent order is the reverse.
+        row.makings = List::with_capacity(2);
+        for (i, state) in makings.iter().rev() {
+            row.makings.push(copy_making(COPY_ADDRESSES[*i], state.clone(), Some(f::PROJECT))).unwrap();
+        }
+        row.repositories = List::with_capacity(2);
+        for i in repositories {
+            row.repositories.push(copy_adopted(COPY_ADDRESSES[i], f::PROJECT)).unwrap();
+        }
+        rows(&mut f.root, f.forges, Box::new([row]));
+        let facts = home::facts(&f.root, f::PROJECT);
+        assert_eq!(facts.repository, expected, "{label}");
+        assert_eq!(facts.left(), if label == "all in" { TWO_STEPS } else { THREE_STEPS }, "{label}");
+    }
+}
+#[test]
+fn copies_elsewhere_are_asked_but_have_no_line_and_renamed_destinations_are_not_ready_copies() {
+    let mut f = fixture();
+    let mut row = copy_row();
+    row.makings = List::from_boxed(Box::new([
+        copy_making(COPY_ADDRESSES[0], w::MakingState::Making, Some(OTHER_PROJECT)),
+        copy_making(COPY_ADDRESSES[1], w::MakingState::Waiting, None),
+    ]));
+    rows(&mut f.root, f.forges, Box::new([row.clone()]));
+    assert_eq!(home::facts(&f.root, f::PROJECT).repository, Repository::Add { forge: FORGE });
+    row.makings = List::with_capacity(0);
+    row.repositories = List::from_boxed(Box::new([
+        copy_adopted(COPY_ADDRESSES[0], OTHER_PROJECT),
+        copy_adopted(COPY_ADDRESSES[1], f::PROJECT),
+    ]));
+    rows(&mut f.root, f.forges, Box::new([row.clone()]));
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT).repository,
+        Repository::CopiesIn { names: Box::new([b"acme/other".as_slice().into()]) }
+    );
+    let renamed = row.repositories.get(0).unwrap().clone().into_parts();
+    *row.repositories.get_mut(0).unwrap() =
+        w::Adoption::new(&w::CEILINGS, w::AdoptionParts { name: b"renamed".as_slice().into(), ..renamed }).unwrap();
+    rows(&mut f.root, f.forges, Box::new([row]));
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT).repository,
+        Repository::CopyOffer { forge: FORGE, addresses: Box::new([COPY_ADDRESSES[0].into()]) }
+    );
+}
+#[test]
+fn made_and_adopting_copies_share_the_adopting_line_and_other_rows_follow_intent() {
+    let made =
+        w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 1, branch: b"main".as_slice().into() }).unwrap();
+    let mut f = fixture();
+    let mut row = copy_row();
+    row.makings = List::from_boxed(Box::new([
+        copy_making(COPY_ADDRESSES[1], w::MakingState::Adopting(made.clone()), Some(f::PROJECT)),
+        copy_making(COPY_ADDRESSES[0], w::MakingState::Made(made), Some(f::PROJECT)),
+    ]));
+    let mut other = self::row(OTHER_FORGE);
+    other.makings = List::from_boxed(Box::new([copy_making(
+        b"https://code.example/else/last",
+        w::MakingState::Making,
+        Some(f::PROJECT),
+    )]));
+    rows(&mut f.root, f.forges, Box::new([row, other]));
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT).repository,
+        Repository::Copying {
+            lines: Box::new([
+                copy_line(b"widget", home::CopyState::Adopting),
+                copy_line(b"other", home::CopyState::Adopting),
+                home::CopyLine {
+                    org: b"else".as_slice().into(),
+                    name: b"last".as_slice().into(),
+                    state: home::CopyState::Running { host: b"code.example".as_slice().into() }
+                },
+            ])
+        }
+    );
+}
+fn copy_act(root: &mut Domain, act: Act) -> Queue<pages::Request> {
+    let mut out = Queue::uncapped();
+    pages::step(&mut root.pages, &f::env(&f::limits()), &root.client, pages::Event::Act { act }, &mut out);
+    out
+}
+type CopySend = (jig_client::Key, skein_lib::RequestKey, w::MakeRepository);
+fn copy_sends(out: Queue<pages::Request>) -> Box<[CopySend]> {
+    let mut sends = List::uncapped();
+    for request in &out {
+        if let pages::Request::Client(jig_client::Event::Send {
+            key,
+            name,
+            request: jig_client::Ask::Family { record, .. },
+        }) = request
+        {
+            let request = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request;
+            let w::Request::MakeRepository(ask) = request else { panic!("copy request") };
+            sends.push((*key, name.unwrap(), ask)).unwrap();
+        }
+    }
+    sends.into_boxed()
+}
+#[test]
+fn restarting_offers_only_unasked_copies_under_the_ready_keys_once_while_out() {
+    let mut f = fixture();
+    let mut row = copy_row();
+    row.repositories = List::from_boxed(Box::new([copy_adopted(COPY_ADDRESSES[0], f::PROJECT)]));
+    rows(&mut f.root, f.forges, Box::new([row]));
+    let sends = copy_sends(copy_act(&mut f.root, Act::CopyOffered));
+    assert_eq!(sends.len(), 1);
+    assert_eq!(sends[0].1, forge::copy_key(2));
+    assert_eq!(sends[0].2.org(), b"acme");
+    assert_eq!(sends[0].2.name(), b"other");
+    assert_eq!(w::MakeRepository::into(&sends[0].2).as_ref().unwrap().project(), f::PROJECT);
+    assert!(!w::MakeRepository::into(&sends[0].2).as_ref().unwrap().home());
+    assert!(copy_sends(copy_act(&mut f.root, Act::CopyOffered)).is_empty());
+    crate::route::told(
+        &mut f.root,
+        &f::env(&f::limits()),
+        Told::Answered { key: sends[0].0, outcome: jig_client::Outcome::Unknown },
+        &mut Queue::uncapped(),
+    );
+    assert_eq!(copy_sends(copy_act(&mut f.root, Act::CopyOffered))[0].1, forge::copy_key(2));
+}
+#[test]
+fn retry_copies_the_failed_rows_source_and_into_under_its_own_key_once_while_out() {
+    let mut f = fixture();
+    let mut row = copy_row();
+    let making = copy_making(COPY_ADDRESSES[0], copy_failed(), Some(f::PROJECT));
+    row.makings = List::from_boxed(Box::new([making.clone()]));
+    rows(&mut f.root, f.forges, Box::new([row]));
+    let act = Act::CopyAgain { org: b"acme".as_slice().into(), name: b"widget".as_slice().into() };
+    let sends = copy_sends(copy_act(&mut f.root, act.clone()));
+    assert_eq!(sends.len(), 1);
+    assert_eq!(sends[0].2.from(), making.from());
+    assert_eq!(w::MakeRepository::into(&sends[0].2), w::RepositoryMaking::into(&making));
+    let number = skein_lib::Decimal::of(sends[0].0.number);
+    let label = skein_lib::bytes::concat(&[b"home-copy-again-", number.as_bytes()]);
+    assert_eq!(sends[0].1, crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&label).unwrap()));
+    assert!(copy_sends(copy_act(&mut f.root, act.clone())).is_empty());
+    crate::route::told(
+        &mut f.root,
+        &f::env(&f::limits()),
+        Told::Answered { key: sends[0].0, outcome: jig_client::Outcome::Unknown },
+        &mut Queue::uncapped(),
+    );
+    let again = copy_sends(copy_act(&mut f.root, act.clone()));
+    assert_eq!(again.len(), 1);
+    assert_ne!(again[0].1, sends[0].1);
+    go(&mut f.root, OTHER_PROJECT);
+    assert!(copy_sends(copy_act(&mut f.root, act)).is_empty());
+}
+
+fn add_act(root: &mut Domain, act: Act) -> Queue<Request> {
+    event(root, Event::Act { action: Action::Pages(act) })
+}
+fn add_fixture(start: forge::forges::Start) -> Fixture {
+    let mut f = fixture();
+    let mut forge = row(FORGE);
+    forge.starts_with = w::StartsWith::Nothing;
+    rows(&mut f.root, f.forges, Box::new([forge]));
+    add_act(&mut f.root, Act::AddOpen { start });
+    f
+}
+#[test]
+fn add_is_for_the_lowest_connected_owned_or_managed_real_forgejo() {
+    for (kind, mode, connected, expected) in [
+        (w::Kind::Forgejo, w::Mode::Owned, true, Repository::Add { forge: FORGE }),
+        (w::Kind::Forgejo, w::Mode::Managed, true, Repository::Add { forge: FORGE }),
+        (w::Kind::Forgejo, w::Mode::Connected, true, Repository::None),
+        (w::Kind::Forgejo, w::Mode::Fake, true, Repository::None),
+        (w::Kind::Forgejo, w::Mode::Owned, false, Repository::None),
+        (w::Kind::Github, w::Mode::Owned, true, Repository::GitHub { account: None }),
+    ] {
+        let mut f = fixture();
+        let mut forge = row(FORGE);
+        forge.kind = kind;
+        forge.mode = mode;
+        if !connected {
+            forge.connection = w::Connection::NotConnected;
+        }
+        rows(&mut f.root, f.forges, Box::new([forge]));
+        assert_eq!(home::facts(&f.root, f::PROJECT).repository, expected);
+    }
+    let mut f = fixture();
+    rows(&mut f.root, f.forges, Box::new([row(FORGE), row(OTHER_FORGE)]));
+    assert_eq!(home::facts(&f.root, f::PROJECT).repository, Repository::Add { forge: FORGE });
+    rows(&mut f.root, f.forges, Box::new([row(FORGE), with_first(row(OTHER_FORGE))]));
+    assert_eq!(
+        home::facts(&f.root, f::PROJECT).repository,
+        Repository::Offer { first: First { forge: OTHER_FORGE, ..first() }, refused: None }
+    );
+}
+fn add_sends(f: &mut Fixture) -> Box<[(jig_client::Key, skein_lib::RequestKey, jig_client::Ask)]> {
+    let mut sends = List::uncapped();
+    let mut out = Queue::uncapped();
+    pages::step(
+        &mut f.root.pages,
+        &f::env(&f::limits()),
+        &f.root.client,
+        pages::Event::Act { act: Act::AddSubmit },
+        &mut out,
+    );
+    while let Some(request) = out.pop() {
+        if let pages::Request::Client(jig_client::Event::Send { key, name: Some(name), request }) = request {
+            sends.push((key, name, request)).unwrap();
+        }
+    }
+    sends.into_boxed()
+}
+#[test]
+fn add_copies_send_together_in_order_with_only_the_first_home() {
+    let mut f = add_fixture(forge::forges::Start::Copies);
+    add_act(
+        &mut f.root,
+        Act::AddWrite {
+            field: home::AddField::Addresses,
+            words: b"acme/widget\nhttps://github.com/acme/other.git".as_slice().into(),
+        },
+    );
+    let serial = f.root.pages().serial;
+    let sends = add_sends(&mut f);
+    assert_eq!(sends.len(), COPY_ADDRESSES.len());
+    for (index, ((key, name, request), address)) in sends.iter().zip(COPY_ADDRESSES).enumerate() {
+        let number = serial + u64::try_from(index).unwrap() + 1;
+        assert_eq!(key.number, number);
+        let number_words = skein_lib::Decimal::of(number);
+        let label = skein_lib::bytes::concat(&[b"home-add-", number_words.as_bytes()]);
+        assert_eq!(*name, crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&label).unwrap()));
+        let (org, target) = forge::making::target(address).unwrap();
+        let into = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: f::PROJECT, home: index == 0 }).unwrap();
+        assert_eq!(
+            *request,
+            forge::make_repository(
+                &forge::making::ask(FORGE, &org, &target, Some(address), Some(into)).unwrap(),
+                &f::limits().forge
+            )
+            .unwrap()
+        );
+    }
+    assert!(add_sends(&mut f).is_empty(), "a pending sheet sends once");
+    add_act(&mut f.root, Act::AddClose);
+    assert!(f.root.pages().home().unwrap().add.is_some(), "a pending sheet stays");
+    skip_answer(&mut f, sends[1].0, family_answer(w::Outcome::MakeKept));
+    assert!(f.root.pages().home().unwrap().add.as_ref().unwrap().out.is_some());
+    skip_answer(&mut f, sends[0].0, family_answer(w::Outcome::MakeKept));
+    assert!(f.root.pages().home().unwrap().add.is_none(), "all accepted closes the sheet");
+}
+#[test]
+fn add_empty_checks_fields_and_sends_into_this_project() {
+    let mut f = add_fixture(forge::forges::Start::Empty);
+    add_act(&mut f.root, Act::AddWrite { field: home::AddField::Org, words: Box::default() });
+    assert!(add_sends(&mut f).is_empty());
+    assert_eq!(f.root.pages().home().unwrap().add.as_ref().unwrap().refused, Some(home::AddRefused::Blank));
+    add_act(&mut f.root, Act::AddWrite { field: home::AddField::Org, words: b" team ".as_slice().into() });
+    add_act(&mut f.root, Act::AddWrite { field: home::AddField::Name, words: b" fresh ".as_slice().into() });
+    let sends = add_sends(&mut f);
+    assert_eq!(sends.len(), 1);
+    let into = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: f::PROJECT, home: true }).unwrap();
+    assert_eq!(
+        sends[0].2,
+        forge::make_repository(
+            &forge::making::ask(FORGE, b"team", b"fresh", None, Some(into)).unwrap(),
+            &f::limits().forge
+        )
+        .unwrap()
+    );
+}
+#[test]
+fn add_refusals_stay_in_the_sheet_and_leaving_drops_it() {
+    for why in [
+        w::MakeRefusal::NoSuchForge,
+        w::MakeRefusal::NotOffered,
+        w::MakeRefusal::NotOwner,
+        w::MakeRefusal::Invalid,
+        w::MakeRefusal::HomeHeld,
+        w::MakeRefusal::Full,
+    ] {
+        let mut f = add_fixture(forge::forges::Start::Empty);
+        let sends = add_sends(&mut f);
+        let refused = w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { why: why.clone() }).unwrap();
+        skip_answer(&mut f, sends[0].0, family_answer(w::Outcome::MakeRefused(refused)));
+        let sheet = f.root.pages().home().unwrap().add.as_ref().unwrap();
+        assert_eq!(sheet.refused, Some(home::AddRefused::Make(why)));
+        assert!(sheet.out.is_none());
+        event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+        go(&mut f.root, f::PROJECT);
+        assert!(f.root.pages().home().unwrap().add.is_none());
+    }
 }

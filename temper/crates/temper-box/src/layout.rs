@@ -119,3 +119,19 @@ pub fn bound(template: &Step, forge: u16) -> Step {
     step.set_started_notice(bytes::copy_of(template.started_notice()));
     step
 }
+
+/// A group's opaque label substitutes only its forge placeholder (temper/docs/design/protocol/setup.md, 7.3).
+#[must_use]
+pub fn bound_label(template: &[u8], forge: u16) -> Box<[u8]> {
+    let digits = Decimal::of(u64::from(forge));
+    let mut parts = List::uncapped();
+    let mut rest = template;
+    for _ in 0..template.len() {
+        let Some(at) = bytes::find(rest, FORGE_ARGUMENT) else { break };
+        parts.push(rest.get(..at).expect("placeholder prefix")).expect("label parts");
+        parts.push(digits.as_bytes()).expect("label parts");
+        rest = rest.get(at.checked_add(FORGE_ARGUMENT.len()).expect("placeholder end")..).expect("label suffix");
+    }
+    parts.push(rest).expect("label parts");
+    crate::lines::joined(parts.as_slice())
+}

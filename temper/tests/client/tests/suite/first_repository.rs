@@ -296,3 +296,94 @@ fn the_made_repository_waits_until_the_person_adopts_it_from_the_form() {
     script(&mut world, person, fixtures::adopt_and_see_outcome(b"acme", b"shop"));
     assert!(world.front().engine_adopted(FORGE, REPOSITORY));
 }
+
+fn copy_act(
+    front: &mut Joint,
+    root: &mut temper_client_world::app::Root,
+    action: temper_client_domain::Action,
+) -> Vec<jig_client::contract::Ask> {
+    temper_client_world::front::account_acts::event_traced(
+        front,
+        root,
+        temper_client_world::app::Event::Root(temper_client_domain::Event::Act { action }),
+    )
+}
+#[test]
+fn ready_copies_reach_the_engines_making_rows_in_order() {
+    use jig_client_world::harness::App;
+    use temper_client_domain::{Action, Step, forge as client_forge, pages};
+    use temper_client_world::front::account_acts as h;
+    let (mut front, mut root) = h::fresh_fixture(fixtures::SEED);
+    h::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Forge { forge: None } }));
+    copy_act(
+        &mut front,
+        &mut root,
+        Action::Forge(client_forge::Act::Forges(client_forge::forges::Act::Start(client_forge::forges::Start::Copies))),
+    );
+    copy_act(
+        &mut front,
+        &mut root,
+        Action::Forge(client_forge::Act::CopiesWrite {
+            text: b"github.com/acme/widget\nsource.invalid/team/tool".as_slice().into(),
+        }),
+    );
+    copy_act(&mut front, &mut root, Action::Forge(client_forge::Act::Forges(client_forge::forges::Act::RunOwned)));
+    let (forge, request) = *front.set_ups().last().expect("copy setup admitted");
+    front.engine.send(engine::Event::Forge(Box::new(forge::Event::SetUpAnswered {
+        forge,
+        request,
+        answer: forge::SetUpAnswer::SettingUp,
+    })));
+    front.engine.send(engine::Event::Forge(Box::new(forge::Event::Connection {
+        forge,
+        state: forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },
+    })));
+    front.engine.settle();
+    h::settle(&mut front, &mut root);
+    h::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Ready }));
+    front.engine.transactions.clear();
+    let sent = copy_act(&mut front, &mut root, Action::Pages(pages::Act::MakeDefault));
+    assert_eq!(
+        sent,
+        vec![jig_client::contract::Ask::MakeProject {
+            name: jig_client::contract::Text::new(b"Widget".as_slice().into(), 64).unwrap(),
+            policy: 1
+        }]
+    );
+    let Address::Home { project } = *root.person().pages().address() else { panic!("project opens while copies wait") };
+    let expected = [
+        (b"acme".as_slice(), b"widget".as_slice(), b"https://github.com/acme/widget".as_slice(), true),
+        (b"team".as_slice(), b"tool".as_slice(), b"https://source.invalid/team/tool".as_slice(), false),
+    ];
+    let mut order = Vec::new();
+    for transaction in &front.engine.transactions {
+        for write in transaction {
+            if let engine::Write::Save(engine::Record::Forge { row }) = write
+                && let forge::Stored::Making(row) = row.as_ref()
+                && !order.contains(&row.key)
+            {
+                order.push(row.key.clone());
+            }
+        }
+    }
+    assert_eq!(
+        order,
+        expected
+            .iter()
+            .map(|(org, name, _, _)| forge::MakingKey { forge: FORGE, org: (*org).into(), name: (*name).into() })
+            .collect::<Vec<_>>()
+    );
+    for (org, name, address, home) in expected {
+        let key = forge::MakingKey { forge: FORGE, org: org.into(), name: name.into() };
+        let engine::Record::Forge { row } = &front.engine.store.rows[&engine::Key::Forge(forge::Key::Making(key))]
+        else {
+            panic!("durable Making")
+        };
+        let forge::Stored::Making(row) = row.as_ref() else { panic!("Making row") };
+        assert_eq!(row.from, forge::MakeFrom::Copy { address: address.into() });
+        let into = row.into.as_ref().unwrap();
+        assert_eq!((into.project, into.home), (project, home));
+        assert_eq!(row.state, forge::MakingState::Waiting);
+    }
+    assert!(root.person().pages().adopting().is_none());
+}

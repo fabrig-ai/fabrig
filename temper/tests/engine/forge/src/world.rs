@@ -1449,12 +1449,12 @@ mod records {
                 read_only: false,
                 bot: top::Bot { login: b"temper-bot".as_slice().into(), name: Box::new([]), email: Box::new([]) },
                 asked: false,
-                first: Some(top::FirstIntent {
+                first: Some(top::FirstIntent::Empty(top::EmptyIntent {
                     playground: false,
                     org: b"org".as_slice().into(),
                     repository: b"repo".as_slice().into(),
                     label: b"Work".as_slice().into(),
-                }),
+                })),
             };
             world
                 .stored

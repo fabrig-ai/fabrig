@@ -33,8 +33,8 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 accounts.return_to(source, location);
             }
         }
-        root::Request::SetUp { forge, request, org, repository, playground } => {
-            crate::setup::lifecycle::first(engine, forge, org, repository, playground);
+        root::Request::SetUp { forge, request, first } => {
+            crate::setup::lifecycle::first(engine, forge, first);
             let mut out = skein_lib::Queue::with_capacity(3);
             engine.box_link.group(forge, temper_engine_domain_forge::BoxKind::Owned, request, &mut out);
             box_link::drain(engine, &mut out);
