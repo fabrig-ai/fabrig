@@ -1,20 +1,52 @@
 //! Configuring chats through ctl and scripted runs in the joined world
 //! (temper/docs/design/domain/agent.md, 8.1; temper/docs/design/domain/testing.md, 6.3 and 6.4).
-use jig_client_world::harness::{ClientId, World};
+use jig_client_world::harness::{App, ClientId, Front, World};
 use jig_domain_core::{SettingsAnswer, SettingsRead, settings as s};
 use jig_domain_tasks as tasks;
 use skein_lib::Duration;
+use temper_client_domain::{Action, Address, Event, pages::Act};
 use temper_client_tools::jig::Printed;
 use temper_client_world::{
     app::Temper,
     fixtures,
-    front::{HostAnswer, Joint},
+    front::{HostAnswer, Joint, account_acts},
 };
 use temper_engine_domain as engine;
 
 type ClientWorld = World<Temper, Joint>;
 const REASON: &str = "Give chats more time to wait\ntemper enforces\nCharter 1 waits two seconds.\nyour agents follow\nThe chat's instructions stay as written.\nRunning work stays on its held revision.";
 const ACCEPTED: &[u8] = b"Accepted: revision 2 made.";
+const PROJECT: u32 = 1;
+const WORKFLOW: &[u8] = b"One chat per change, landed once CI passes.";
+
+#[test]
+fn the_page_starts_the_configuring_chat() {
+    for acts in
+        [vec![Act::ChatWords { words: WORKFLOW.into() }, Act::StartChat], vec![Act::Starter { words: WORKFLOW.into() }]]
+    {
+        let mut front = Joint::with_configuring(fixtures::SEED, fixtures::domain_limits(), false);
+        let mut root = Temper::new(fixtures::SEED).0;
+        front.bind(ClientId(0), fixtures::PARTY);
+        // The domain-only pump joins the real client and engine without drawing Configure.
+        account_acts::event(
+            &mut front,
+            &mut root,
+            Temper::start(Address::Configure { project: PROJECT }, Vec::new(), 0),
+        );
+        for act in acts {
+            account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(act) }.into());
+        }
+        let assignment = front.assignments.last().expect("configuring run assigned");
+        assert_eq!(assignment.charter, 3);
+        assert!(assignment.workspace.repositories.is_empty(), "the configuring chat names no repository");
+        let task = front.engine.task(assignment.task).expect("configuring chat");
+        assert_eq!(task.spec.words.as_ref(), WORKFLOW);
+        let root = root.person();
+        assert_eq!(root.pages().address(), &Address::Chat { task: assignment.task });
+        let chat = root.pages().chat().expect("chat page");
+        assert_eq!(chat.task, assignment.task);
+    }
+}
 
 fn call(world: &mut ClientWorld, agent: ClientId, words: &[&[u8]]) -> Printed {
     let number = fixtures::give(world, agent, words);

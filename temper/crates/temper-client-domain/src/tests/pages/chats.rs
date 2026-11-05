@@ -11,6 +11,227 @@ const OUTPUTS: u32 = 16;
 const CURSOR_BYTES: u32 = 8;
 const SERIAL: u64 = 13;
 const PRESSES: u32 = 2;
+const CONFIGURING: u32 = 3;
+// The stock chat and configuring chat supply two templates and two charters.
+const TEMPLATES: u32 = 2;
+// The model tests offer one selectable alternative to the template's models.
+const MODELS: u32 = 1;
+// Each chat start creates one task.
+const CREATED_TASKS: u32 = 1;
+
+struct Page {
+    root: crate::Domain,
+    pages: crate::pages::Pages,
+    out: Queue<Request>,
+}
+
+impl Page {
+    fn new(me: Me, address: crate::Address) -> Self {
+        let limits = fixtures::limits();
+        let mut root = crate::unlinked(&limits, fixtures::SEED);
+        let watch = fixtures::start(&mut root, List::with_capacity(0));
+        crate::step(
+            &mut root,
+            &fixtures::env(&limits),
+            crate::Event::Client {
+                event: Event::Up {
+                    up: jig_client::Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(me))) },
+                },
+            },
+            &mut Queue::uncapped(),
+        );
+        let mut page = Self { root, pages: crate::pages::Pages::new(), out: Queue::uncapped() };
+        crate::pages::project_changed(&mut page.pages, page.root.client());
+        page.event(crate::pages::Event::Went { address });
+        while page.out.pop().is_some() {}
+        page
+    }
+
+    fn event(&mut self, event: crate::pages::Event) {
+        crate::pages::step(
+            &mut self.pages,
+            &fixtures::env(&fixtures::limits()),
+            self.root.client(),
+            event,
+            &mut self.out,
+        );
+    }
+
+    fn act(&mut self, act: crate::pages::Act) {
+        self.event(crate::pages::Event::Act { act });
+    }
+
+    fn task(&mut self) -> NewTask {
+        let sent = fixtures::acts::sent(&mut self.out);
+        let [Ask::Create { project, tasks }] = sent.as_ref() else { panic!("one create: {sent:?}") };
+        assert_eq!(*project, fixtures::PROJECT);
+        let [task] = tasks.as_slice() else { panic!("one task: {tasks:?}") };
+        task.clone()
+    }
+
+    fn words(&mut self, words: &[u8]) {
+        self.act(crate::pages::Act::ChatWords { words: words.into() });
+    }
+}
+
+fn configuring_me() -> Me {
+    let mut me = fixtures::chats::me();
+    let project = me.projects.get_mut(0).expect("project");
+    let stock = project.templates.get(0).expect("stock chat").clone();
+    let mut configuring = stock.clone();
+    configuring.number = CONFIGURING;
+    configuring.executor = TemplateExecutor::Charter(CONFIGURING);
+    project.templates = List::with_capacity(TEMPLATES);
+    project.templates.push(stock).unwrap();
+    project.templates.push(configuring).unwrap();
+    let charters = &mut project.creating.as_mut().expect("creating").within.charters;
+    *charters = List::with_capacity(TEMPLATES);
+    charters.push(1).unwrap();
+    charters.push(CONFIGURING).unwrap();
+    me
+}
+
+#[test]
+fn the_configure_page_starts_template_three_or_one() {
+    use crate::{Address, pages::Act};
+    for (me, charter) in [(configuring_me(), CONFIGURING), (fixtures::chats::me(), 1)] {
+        let mut page = Page::new(me, Address::Configure { project: fixtures::PROJECT });
+        page.words(b"My workflow");
+        for _ in 0..PRESSES {
+            page.act(Act::StartChat);
+        }
+        let task = page.task();
+        assert_eq!(task.executor, Executor::Agent { charter });
+        assert_eq!(task.spec.words.bytes(), b"My workflow");
+        assert!(task.symbols.is_empty(), "configuring names no repository");
+        let chats = page.pages.chats().expect("configure chats");
+        assert_eq!(chats.words.as_ref(), b"My workflow");
+        let key = chats.start.expect("pending start");
+        assert_eq!(key.asker, crate::owner::Owner::Pages.asker());
+        let mut tasks = List::with_capacity(CREATED_TASKS);
+        tasks.push(fixtures::acts::TASK).unwrap();
+        page.event(crate::pages::Event::Told {
+            told: Told::Answered {
+                key,
+                outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
+                    what: Made::Tasks { tasks },
+                }))),
+            },
+        });
+        assert_eq!(page.out.pop(), Some(Request::Show { address: Address::Chat { task: fixtures::acts::TASK } }));
+        assert!(page.out.is_empty());
+        assert!(page.pages.chats().expect("chats").start.is_none());
+    }
+}
+
+#[test]
+fn a_starter_starts_once_with_its_words() {
+    use crate::{Address, pages::Act};
+    for (me, charter) in [(configuring_me(), CONFIGURING), (fixtures::chats::me(), 1)] {
+        let mut page = Page::new(me, Address::Configure { project: fixtures::PROJECT });
+        page.words(b"Unsent draft");
+        page.act(Act::Starter { words: b"My starter".as_slice().into() });
+        page.act(Act::Starter { words: b"Another starter".as_slice().into() });
+        page.act(Act::StartChat);
+        let task = page.task();
+        assert_eq!(task.executor, Executor::Agent { charter });
+        assert_eq!(task.spec.words.bytes(), b"My starter");
+        assert_eq!(page.pages.chats().expect("chats").words.as_ref(), b"My starter");
+        assert!(page.pages.chats().expect("chats").start.is_some());
+    }
+}
+
+#[test]
+fn starters_outside_configure_do_nothing() {
+    use crate::{Address, pages::Act};
+    for address in [
+        Address::Home { project: fixtures::PROJECT },
+        Address::Chats { filter: ChatsFilter::All, start: false },
+        Address::Settings { project: fixtures::PROJECT },
+    ] {
+        let mut page = Page::new(configuring_me(), address);
+        page.words(b"Unsent draft");
+        page.act(Act::Starter { words: b"My starter".as_slice().into() });
+        assert!(page.out.is_empty());
+        if let Some(chats) = page.pages.chats() {
+            assert_eq!(chats.words.as_ref(), b"Unsent draft");
+            assert!(chats.start.is_none());
+        }
+    }
+}
+
+#[test]
+fn a_refused_start_keeps_the_words() {
+    use crate::{Address, pages::Act};
+    for act in [Act::StartChat, Act::Starter { words: b"My workflow".as_slice().into() }] {
+        let mut me = configuring_me();
+        me.projects.get_mut(0).expect("project").creating = None;
+        let mut page = Page::new(me, Address::Configure { project: fixtures::PROJECT });
+        page.words(b"My workflow");
+        page.act(act.clone());
+        let chats = page.pages.chats().expect("chats");
+        assert_eq!(chats.refusal, Some(jig_client::shapes::NotOffered::Creating));
+        assert_eq!(chats.words.as_ref(), b"My workflow");
+        assert!(chats.start.is_none());
+        assert!(page.out.is_empty());
+
+        let mut page = Page::new(configuring_me(), Address::Configure { project: fixtures::PROJECT });
+        page.words(b"My workflow");
+        page.act(act);
+        let key = page.pages.chats().expect("chats").start.expect("start");
+        while page.out.pop().is_some() {}
+        let outcome = jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Refused {
+            refusal: Refusal::NotOffered,
+            at: None,
+        }));
+        page.event(crate::pages::Event::Told { told: Told::Answered { key, outcome: outcome.clone() } });
+        let chats = page.pages.chats().expect("chats");
+        assert_eq!(chats.outcome, Some(outcome));
+        assert_eq!(chats.words.as_ref(), b"My workflow");
+        assert!(chats.start.is_none());
+        assert!(page.out.is_empty());
+    }
+}
+
+fn llm(model: &[u8]) -> LlmChoice {
+    LlmChoice {
+        account: Some(7),
+        main: ModelEffort { model: fixtures::acts::text(model), effort: None },
+        subagents: List::with_capacity(0),
+    }
+}
+
+#[test]
+fn a_start_from_configure_keeps_its_templates_models() {
+    use crate::{Address, pages::Act};
+    for (mut me, expected) in [(fixtures::chats::me(), llm(b"stock")), (configuring_me(), llm(b"configuring"))] {
+        for row in me.projects.get_mut(0).expect("project").templates.iter_mut() {
+            row.llm = Some(llm(if row.number == CONFIGURING { b"configuring" } else { b"stock" }));
+        }
+        let mut models = List::with_capacity(MODELS);
+        models
+            .push(MeModel {
+                prices: ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
+                description: None,
+                name: fixtures::acts::text(b"other"),
+                provider: Some(17),
+                window: 1024,
+                output: 128,
+                efforts: List::with_capacity(0),
+            })
+            .unwrap();
+        me.projects.get_mut(0).expect("project").models = models;
+        for requested in [None, Some(llm(b"other")), Some(llm(b"unoffered"))] {
+            for act in [Act::StartChat, Act::Starter { words: b"My workflow".as_slice().into() }] {
+                let mut page = Page::new(me.clone(), Address::Configure { project: fixtures::PROJECT });
+                page.words(b"My workflow");
+                page.pages.choice.requested = requested.clone();
+                page.act(act);
+                assert_eq!(page.task().llm, Some(expected.clone()));
+            }
+        }
+    }
+}
 #[test]
 fn the_first_chat_starts_the_stock_chat_while_no_configuring_template_is_offered() {
     first_chat_uses_template(fixtures::chats::me(), jig_client::shapes::CHAT);
@@ -18,87 +239,37 @@ fn the_first_chat_starts_the_stock_chat_while_no_configuring_template_is_offered
 
 #[test]
 fn the_first_chat_starts_the_configuring_template_once_offered() {
-    let mut me = fixtures::chats::me();
-    let project = me.projects.get_mut(0).expect("project");
-    let stock = project.templates.get(0).expect("stock chat").clone();
-    let mut configuring = stock.clone();
-    configuring.number = 3;
-    project.templates = List::with_capacity(2);
-    project.templates.push(stock).unwrap();
-    project.templates.push(configuring).unwrap();
-    first_chat_uses_template(me, 3);
+    first_chat_uses_template(configuring_me(), CONFIGURING);
 }
 
 fn first_chat_uses_template(me: Me, template: u32) {
-    use crate::pages::{self, Act, Pages};
-    let limits = fixtures::limits();
-    let mut root = crate::unlinked(&limits, fixtures::SEED);
-    let watch = fixtures::start(&mut root, List::with_capacity(0));
-    let mut root_out = Queue::uncapped();
-    crate::step(
-        &mut root,
-        &fixtures::env(&limits),
-        crate::Event::Client {
-            event: Event::Up {
-                up: jig_client::Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(me.clone()))) },
-            },
-        },
-        &mut root_out,
-    );
-    let mut pages = Pages::new();
-    pages::project_changed(&mut pages, root.client());
-    let mut out = Queue::uncapped();
-    pages::step(
-        &mut pages,
-        &fixtures::env(&limits),
-        root.client(),
-        pages::Event::Went { address: crate::Address::Chats { filter: ChatsFilter::All, start: false } },
-        &mut out,
-    );
-    while out.pop().is_some() {}
-    pages::step(
-        &mut pages,
-        &fixtures::env(&limits),
-        root.client(),
-        pages::Event::Act { act: Act::ChatWords { words: Box::from(*b"unfinished draft") } },
-        &mut out,
-    );
+    use crate::{Address, pages::Act};
+    let mut page = Page::new(me.clone(), Address::Chats { filter: ChatsFilter::All, start: false });
+    page.words(b"unfinished draft");
     for _ in 0..PRESSES {
-        pages::step(
-            &mut pages,
-            &fixtures::env(&limits),
-            root.client(),
-            pages::Event::Act { act: Act::FirstChat },
-            &mut out,
-        );
+        page.act(Act::FirstChat);
     }
     let expected =
         jig_client::shapes::chat_from(&me, fixtures::PROJECT, template, fixtures::acts::text(FIRST_CHAT_WORDS))
             .expect("offered template");
-    let chats = pages.chats().expect("chats");
+    let chats = page.pages.chats().expect("chats");
     assert_eq!(&*chats.words, b"unfinished draft");
     let key = chats.start.expect("pending start");
     assert_eq!(key.asker, crate::owner::Owner::Pages.asker());
-    assert_eq!(fixtures::acts::sent(&mut out).as_ref(), [expected]);
-    let mut tasks = List::with_capacity(1);
-    tasks.push(9).unwrap();
-    pages::step(
-        &mut pages,
-        &fixtures::env(&limits),
-        root.client(),
-        pages::Event::Told {
-            told: Told::Answered {
-                key,
-                outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
-                    what: Made::Tasks { tasks },
-                }))),
-            },
+    assert_eq!(fixtures::acts::sent(&mut page.out).as_ref(), [expected]);
+    let mut tasks = List::with_capacity(CREATED_TASKS);
+    tasks.push(fixtures::acts::TASK).unwrap();
+    page.event(crate::pages::Event::Told {
+        told: Told::Answered {
+            key,
+            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
+                what: Made::Tasks { tasks },
+            }))),
         },
-        &mut out,
-    );
-    assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Chat { task: 9 } }));
-    assert!(out.is_empty());
-    assert!(pages.chats().expect("chats").start.is_none());
+    });
+    assert_eq!(page.out.pop(), Some(Request::Show { address: Address::Chat { task: fixtures::acts::TASK } }));
+    assert!(page.out.is_empty());
+    assert!(page.pages.chats().expect("chats").start.is_none());
 }
 
 #[test]

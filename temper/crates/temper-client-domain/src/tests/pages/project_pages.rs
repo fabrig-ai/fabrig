@@ -59,7 +59,9 @@ fn two_projects() -> c::Me {
 
 #[test]
 fn project_addresses_wait_until_me_lists_their_project() {
-    for address in [Address::Home { project: OTHER }, Address::Settings { project: OTHER }] {
+    for address in
+        [Address::Home { project: OTHER }, Address::Settings { project: OTHER }, Address::Configure { project: OTHER }]
+    {
         let mut f = fixture();
         event(&mut f, Event::Went { address });
         assert_eq!(f.pages.project(), None);
@@ -72,7 +74,9 @@ fn project_addresses_wait_until_me_lists_their_project() {
 
 #[test]
 fn going_to_project_pages_opens_the_named_project() {
-    for address in [Address::Home { project: OTHER }, Address::Settings { project: OTHER }] {
+    for address in
+        [Address::Home { project: OTHER }, Address::Settings { project: OTHER }, Address::Configure { project: OTHER }]
+    {
         let mut f = fixture();
         deliver(&mut f, two_projects());
         event(&mut f, Event::Went { address });
@@ -82,7 +86,11 @@ fn going_to_project_pages_opens_the_named_project() {
 
 #[test]
 fn unlisted_project_addresses_keep_the_open_project() {
-    for address in [Address::Home { project: UNKNOWN }, Address::Settings { project: UNKNOWN }] {
+    for address in [
+        Address::Home { project: UNKNOWN },
+        Address::Settings { project: UNKNOWN },
+        Address::Configure { project: UNKNOWN },
+    ] {
         let mut f = fixture();
         deliver(&mut f, two_projects());
         event(&mut f, Event::Act { act: Act::Project { project: OTHER } });
@@ -93,10 +101,11 @@ fn unlisted_project_addresses_keep_the_open_project() {
 }
 
 #[test]
-fn switching_projects_keeps_home_settings_or_chats() {
+fn switching_projects_keeps_home_settings_configure_or_chats() {
     for (address, shown) in [
         (Address::Home { project: fixtures::PROJECT }, Some(Address::Home { project: OTHER })),
         (Address::Settings { project: fixtures::PROJECT }, Some(Address::Settings { project: OTHER })),
+        (Address::Configure { project: fixtures::PROJECT }, Some(Address::Configure { project: OTHER })),
         (Address::Chats { filter: ChatsFilter::All, start: false }, None),
     ] {
         let mut f = fixture();
@@ -119,7 +128,11 @@ fn switching_projects_keeps_home_settings_or_chats() {
 
 #[test]
 fn project_pages_keep_the_switchers_rename_form() {
-    for address in [Address::Home { project: fixtures::PROJECT }, Address::Settings { project: fixtures::PROJECT }] {
+    for address in [
+        Address::Home { project: fixtures::PROJECT },
+        Address::Settings { project: fixtures::PROJECT },
+        Address::Configure { project: fixtures::PROJECT },
+    ] {
         let mut f = fixture();
         deliver(&mut f, two_projects());
         event(&mut f, Event::Act { act: Act::Switcher(switcher::Act::Rename) });
