@@ -5,7 +5,8 @@ The remaining gaps concern settings reads, verdict follow-up tasks,
 change-refusal model wording, shell authority for runs that cannot deliver
 and the fake's goal script.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
-Section 4.3 has no gap in bounded file and pull-file feedback and recovery.
+Section 4.3 has no gap in file, pull-file and compare fitting to the checked
+local receiving-agent allowance, size feedback, recovery and settled-call replay.
 Section 7 has no known gap in fresh preparation from unusable history.
 Section 8.1 has no gap in settings pagination using the host answer allowance.
 Section 8.1 has no gap in discovery of project repository identities for

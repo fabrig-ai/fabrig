@@ -366,18 +366,20 @@ pub fn root_with_refused_ways(address: temper_client_domain::Address) -> temper_
 }
 
 pub fn home_root(
+    limits: &Limits,
     rows: List<w::ForgeRow>,
     dismissed: Option<&[u32]>,
+    goals: bool,
 ) -> (temper_client_domain::Domain, Token, Token, Token, Token) {
     let (root, me, _, _, accounts, _, settings, needs) = root_at_with_values(
         temper_client_domain::Address::Settings { project: PROJECT },
-        &domain_limits(),
+        limits,
         b"Shop",
         None,
         None,
         Some(rows),
         dismissed,
-        Some(forge::ways::Ways::STOCK),
+        Some(forge::ways::Ways { goals, ..forge::ways::Ways::STOCK }),
         false,
         false,
     );

@@ -29,7 +29,7 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
   - it rests on `<id>` staying the same for a workspace, held by a test of 2.1;
   - **never share or copy a target across workspaces:** cargo's dep-info holds absolute paths, so a copied one misses changes, and a test goes green on old code;
   - a nested cargo must not re-enter the wrapper, or it deadlocks on its own place: the wrapper takes itself off `PATH`;
-  - it reads the checkout's `FETCH_HEAD` to see a new hold, since the worker tells it nothing.
+  - it reads the checkout's `.git/HEAD` time to see a new hold, since the worker tells it nothing, so a change of git's habits would stop its sweep silently.
   - **its disk is a pool of its own:** it reclaims its own idle targets only, and the pipeline's reclaim frees only the pipeline's, so a machine's disk budget counts both by hand: about 35 GB a workspace, and `checkout.workspaces` bounds how many.
 - **The pipeline:** every build goes through the same admission by hand, with the claim held for the whole run.
 - **A real design:** temper knows a repository's build. A worker with a build's disk budget, its places and its sweep as settings; or a question: does temper own this, or does a deployment always bring its own?
@@ -89,6 +89,14 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
   - what these settings do is shown at Forgejo 17.0.1 alone, by the process tier's Forgejo sign-in story; a new pin runs it again.
 - **The pipeline:** has no such sign-in: its forge is a public one, whose accounts are its own.
 - **A real design:** a setting on the owned forge, beside `application.sign_in.forges`, with this as its value: whether a first sign-in makes an account or only links one.
+
+### 2.9 CI that runs our gate on a build machine
+
+- **What:** a script outside this repository, on the build machine, that a forge's workflow calls with its head and base. It runs the pipeline's selection of checks through the build admission of 2.2, in one fixed clone, swept as a target of 2.2 is: incremental output, and test executables a day old. A commit in the walk's copy of the repository takes its workflow file out of the index, so that the check of what this repository may name still passes, since a workflow naming a machine fails it.
+- **Why:** temper has no gate of its own, by design, and CI on a forge needs a job that does what the pipeline's does, for a fair comparison.
+- **Cost and risk:** about 35 GB, one job at a time, outside the pipeline's disk pool, so the machine's budget counts it by hand. The workflow file is out of step with the repository's index, which the next base stops needing.
+- **The pipeline:** its merge queue runs this gate on a machine of its own, with its checks in order.
+- **A real design:** a question: what a deployment's CI on a build machine looks like, and how it keeps a warm build of its own.
 
 ## 3. Left out, with its gap
 

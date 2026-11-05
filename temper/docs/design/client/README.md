@@ -1156,6 +1156,11 @@ keeps (`../protocol/configuration.md`, section 2).
       step's. Answered with the source not usable, the page stays with the
       alert "Claude Code isn’t signed in here yet. Run the command above,
       then press I’ve signed in.", and a second press checks again.
+    - *A plan's sign-in,* its way at its address with none asked, or one
+      ended with no model usable, "Signing in to PLAN": `ConnectModel`'s card
+      for the way, or its ending's words and acts, in the panel; "All ways".
+      The card's "This browser isn't on temper's computer ›" is how the
+      welcome reaches the paste, its Choose offering none.
 
     *The sign-in under way,* its tab not gone yet, is a note in the card's
     place: a spinner, "ChatGPT’s sign-in, in this tab", the muted "You sign
@@ -1208,8 +1213,8 @@ keeps (`../protocol/configuration.md`, section 2).
     person's forge, its connection and its first repository, or the
     set up's request until the row names it), and every line but the
     ticked one keeps "Each step". *The seam:* the Model step's
-    body is `ConnectModel`'s, the step's frame, heading, lead, set up
-    line and foot the welcome's.
+    state, acts and Choose are `ConnectModel`'s; the step's frame, heading,
+    lead, ways' pages, notes, set up line and foot the welcome's.
     *Ready* is headed "Almost ready", with "Your first project can be
     created once your forge and model are ready.", until a real forge
     is connected and a model usable, then "Ready", with "Everything is
@@ -1362,7 +1367,7 @@ keeps (`../protocol/configuration.md`, section 2).
   the address's number, and the chats' link. One column of prose, in
   this order:
   - *Its intro:* a kicker, the current day and time, updated each minute
-    (the user, 2026-11-04; section 11), the level-1 heading and
+    (the user, 2026-11-04), the level-1 heading and
     a lede, as *To begin* or *Home on any project* (below) says.
   - *To begin* (`../draft/to-begin.md`, 2 to 4), while it shows (below).
   - *Needs you* and *Chats,* as on any Home, and left out, empty, while
@@ -1424,16 +1429,22 @@ keeps (`../protocol/configuration.md`, section 2).
        Widget", its line "Chats can change its code now, on your Forgejo;
        nothing goes back where it was copied from.", or "…their code…
        where they were copied from."; while a row's `makings` holds a copy
-       into the project, not done, a line per copy in the order asked:
-       "Copying acme/widget from github.com…" for the one running, "Waiting
-       to copy" for one after it, "acme/widget is in Widget", ticked, for
-       one in, and for one failed the forge's words and "Copy again", which
-       asks it once more; an empty one the sheet below asked says "Making
-       ORG/NAME…" in the same way; with the rows' copies not all asked, after a
-       restart between Ready's project and its copies, not done, "Copy
-       ADDRESSES" with "Copy", filled, one act for them all, an address
-       being asked once a making row or the forge's repositories holds its
-       org and name; while Ready's adoption is
+       into the project, not done, "Copy" and a line per copy in the order
+       asked: "Copying acme/widget from github.com…" for the one running,
+       "Waiting to copy" for one after it, "Adopting acme/widget into
+       Widget…" for one made, "acme/widget is in Widget", ticked, for one of
+       the rows' in, and for one failed the forge's words and "Copy again",
+       which asks it once more; an empty one the sheet below asked says "Add
+       a repository" and "Making ORG/NAME…" in the same way, and a repository
+       the sheet asked leaves the lines once in and reads as any in the
+       project, since the rows' intent alone names copies; with the rows'
+       copies not all asked, after a restart between Ready's project and its
+       copies, not done, on the Home that is open, since the rows don't say
+       which project Ready made, "Copy ADDRESSES" with "Copy", filled, one act
+       for them all, under Ready's keys so that the engine answers a copy
+       already asked with its first answer, an address being asked once a
+       making row or the forge's repositories holds its org and name; while
+       Ready's adoption is
        out, not done, with no act, "Adopting ORG/NAME into PROJECT…",
        "Chats can change its code once it is in."; with a first
        repository to adopt, not done, "Adopt a repository", "ORG/NAME,
@@ -1489,13 +1500,34 @@ keeps (`../protocol/configuration.md`, section 2).
 
   **Home on any project,** To begin gone, skipped or with every step
   done (the mock's everyday `home.html`; section 11 holds what it draws
-  that no client is given):
-  - *The intro:* the kicker, and the headline by what needs the person
-    in this project, its open cards (*What the client keeps,* below):
-    "Nothing needs you.", "One thing needs you.", "Two things need you."
-    and so on in number words to "Nine", digits after, "N+ things need
-    you." where the read is cut, and the project's name until its needs
-    are delivered. It has no lede and no byline.
+  that no client is given). The page watches the subject `status` (4.6)
+  while open and sends `Looked` once on entering it, not while To begin
+  shows; once To begin goes, by a skip or a last step, that entry's look
+  is sent. Until the look is answered and `status` is delivered, or with
+  its watch refused or ended, the intro has its kicker's day and time and
+  its headline by the needs alone, and the foot is not drawn:
+  - *The intro,* one function's composition, so a later part of it
+    joins there:
+    - *the kicker:* the day and time, then, with a `previous` over a
+      minute old, " · you last looked SPAN ago". SPAN is its own word,
+      not 5.12's short span: "a minute", "2 minutes", "an hour", "9
+      hours", "a day", "3 days", each rounded down;
+    - *the headline:* the landed sentence, then a space and the needs
+      sentence, by the project's open cards (*What the client keeps,*
+      below): "Nothing needs you.", "One thing needs you.", "Two things
+      need you." and so on in number words to "Nine", digits after,
+      "N+ things need you." where the read is cut, the
+      project's name until its needs are delivered. With N as `landed`
+      less `seen`, the landed sentence is the brief's `sentence` if the
+      brief's `landed` is above `seen`; else "One change landed since you
+      last looked." or "N changes landed since you last looked."; nothing
+      for 0. "overnight" is the status agent's word, never the computed
+      sentence's;
+    - *the lede and the byline:* the brief's `lede`, if the brief's
+      `landed` is above `seen` as above, then "Written by the status
+      agent at 07:42", its `at` by 5.12's *clock*, in `temper-home-byline`,
+      12 px in the faint colour. Otherwise neither: the computed Home has
+      no prose of its own.
   - *Needs you,* a region named "Needs you": what needs the person in
     this project, the groups of `Inbox` but its updates, read as `Inbox`
     reads them filtered by the project. Its head is the level-2 heading
@@ -1532,19 +1564,37 @@ keeps (`../protocol/configuration.md`, section 2).
     at most five, live by last activity and then ended, each a link to
     its `Chat`: its title, then at the right its state and age,
     "waiting on you · 4 min", "closed · 1 h", any other state as `Chats`
-    words it, the age as 5.12's span. Empty: "No chats yet."
+    words it, the age as 5.12's span. Empty: "No chats yet." With no goal
+    in the project (`Domain::has_goals`), once the chats are delivered,
+    after its rows, in the foot's face: "A chat suits one change. For
+    bigger work, a chat can write a draft beside it and start a goal from
+    it: a plan, its tasks, landing."; and "Turn on drafts and goals", to
+    `Settings`, once `Settings` has that switch, not before.
+  - *Goals,* in Chats' place with a goal in the project, a region named
+    "Goals": its head the level-2 heading "Goals" and, at its right, "All
+    N", to `Goals { project, filter: All }`; then `Goals`' row (*Goals,*
+    below), live first and then ended, as many as the larger of 5 and the
+    live goals. Its reads are that page's.
+  - *The foot,* `temper-home-facts`, after the last section, 13.5 px and
+    muted: "Landing: ", then the landing's line (*Changes,* below), the
+    same function's, from `queued`, `last_landed`, `branch` and `red`:
+    "3 queued · last landed 6 min ago"; "main last moved 1 h ago ·
+    nothing queued"; "nothing has landed yet"; then " · main red" in the
+    signal's colour while `red`; then " · " and "Changes", a link to
+    `Changes`. BRANCH is `branch`, "landing" where it is empty. No green
+    time is kept, so none is said.
 
   In the rail and the tab bar, "Needs you"'s count takes the signal
   colour.
 
   What Home does not draw: the composer and the full chats' list, which
-  stay `Chats`'s, the composer's line with "Change model", and the
-  landing's line (section 11). With the
+  stay `Chats`'s, and the composer's line with "Change model". With the
   `forges` watch refused or ended, step 2 is "Adopt a repository" with
   no ORG/NAME. In the terminal the headline, To begin with its three
   steps, and the sections of Home on any project keep their headings,
-  each line one readable run of words, and a question's choices print
-  as buttons.
+  each line one readable run of words; the kicker, the headline and the
+  lede read as one run of words, the foot is a paragraph, and a question's
+  choices print as buttons.
 - **Needs you** (the user's greenfield mock's `needs.html`; `needsPage`):
   `Inbox { filter }` in the browser, its address and its filters as they
   were (`browser.md`, 2.3). It draws one card at a time: no level-1
@@ -2373,7 +2423,7 @@ for its kind, its user's login and its installations. Its nodes:
   `SetUp`, `connect`, `Connect`, `install`, `Install`, `reachable`,
   `Reachable`, `accept`, `Accept`, `remove_forge`, `RemoveForge`,
   `make_repository`, `MakeRepository`,
-  `dismiss`, `Dismiss`,
+  `dismiss`, `Dismiss`, `looked`, `Looked`,
   `start_playground` and `end_playground`, the last two with no fields
   (below), or `return`, `Return`, answered `returning` (section 8). Each is answered by the family's one record,
   `Answer`, whose outcome is one of either request's (below); the client
@@ -2487,6 +2537,12 @@ for its kind, its user's login and its installations. Its nodes:
   reason of 4.7); or *unknown*, its outcome no longer held (section 8),
   as `SetUp`'s, which a client answers from the subject `dismissed`
   below. A refusal at admission is jig's answer, as for `Adopt`.
+- **`Looked`:** of the project it names, from any party with a role
+  there, as `Dismiss` (`../domain/forge.md`, 5.6): `project`, u32, the
+  person entering that project's Home, not while To begin shows. Its
+  outcome: *looked*, `looked`, no fields, once the row has committed;
+  *forge refused*, `too large`, the family's bound reached; or *unknown*,
+  no longer held, which the subject `status` answers.
 - **`Connect`:** of the deployment's scope (section 8): the forge,
   `Making`, a kept forge or a new GitHub, managed or connected Forgejo,
   and how it connects, `How`: `github_app`, `GitHubApp`,
@@ -2737,6 +2793,24 @@ for its kind, its user's login and its installations. Its nodes:
   It is marked as a change enters, leaves or moves in a queue, as the step
   of the change that owns one changes, as a branch's red changes and at each
   merge.
+- **What changed since the person last looked, the subject `status`:** of
+  the project's scope, for a party with a role there, its window unused;
+  on the wire `Watching`'s `status`, `StatusSubject`: `project`. `Home`
+  watches it while open. Its document, `ProjectStatus`, is each watcher's
+  own, the core naming the watcher's party (`../domain/forge.md`, 5.6):
+  - `project`;
+  - `landed`, u64, the changes landed into every landing branch of the
+    project; `last_landed`, the time of the latest, option;
+  - `brief`, option, `StatusBrief`: `sentence` (at most 200 bytes), `lede`
+    (at most 600), `at`, and `landed`, the count it covers;
+  - `previous`, option, the party's last look of the sitting before; and
+    `seen`, u64, the `landed` count then;
+  - `queued`, u32, what the subject `changes` counts; `red`, whether the
+    home repository's landing branch is red; and `branch`, its name, at
+    most 1024 bytes, empty with no home.
+
+  Times are nanoseconds since the epoch. It is marked with the subject
+  `changes`, and at a look and a brief.
 - **The forge's documents' records:** its other reads, subjects and
   documents, and its other requests, beside `Adopt` and `SetUp`
   (`forge.md`, section 9).
@@ -5036,8 +5110,8 @@ does for the client:
   record's bytes, and the adoption, or another of the FORGE requests
   (below) with the number and digest of the value it carried.
 - **The FORGE requests** beside `Adopt` (`forge.md`, 5.1 and 5.4), each
-  keyed, each naming the deployment as its scope, `Dismiss` alone
-  naming a project (jig's
+  keyed, each naming the deployment as its scope, `Dismiss` and `Looked`
+  alone naming a project (jig's
   `protocol/client.md`, section 11). `forge` in a `Connect` or a
   `SetUp` is `Making` (4.6): a kept forge's number, or a forge to make,
   which the request's decision makes as a record of the forge
@@ -5058,6 +5132,7 @@ does for the client:
   | `RemoveForge { forge }` | none | the forge ended in the request's decision, then removed whole by the kept acts that follow it: its live work cancelled, its box group stopped and its directory removed, its records erased (`../domain/forge.md`, 4.1); refused for the playground's forge, whose reset removes it | removed; remove refused, `ForgeRefusal` |
   | `MakeRepository { forge, org, name, from, into }` | none; its scope the project `into` names, or the deployment | the row kept in the request's decision; the setup then runs `Create` or `Copy` and the connector adopts into `into` (`../domain/forge.md`, 4.5; `../protocol/setup.md`, 6.9) | kept; make refused, `MakeRefusal`; then the watched row |
   | `Dismiss { what }` | none | the party's `Dismissed` row saved in the request's decision, and the subject `dismissed` marked, a row held already writing nothing (`../domain/forge.md`, 5.5) | dismissed; forge refused, too large |
+  | `Looked { project }` | none; its scope the project | the party's `Looked` row moved in the request's decision, the subject `status` marked, and, at a new sitting, the status agent's run asked (`../domain/forge.md`, 5.6 and 5.7) | looked; forge refused, too large |
   | `StartPlayground` | the scripted model's key, which the routing reads from its file at each start and carries as a pasted value | the playground's start (`../protocol/setup.md`, 8.4): the `Playground` row written starting when none, its fake forge's record made and the box asked for its group, then the scripted model's account added and its repository adopted into its project, each unless done; refused "not offered" while a real forge is kept | running, once all are done; start failed, naming why |
   | `EndPlayground` | none | the playground's reset (`../protocol/setup.md`, 8.4): the `Playground` row resetting in one decision, then its kept acts in order, the project deleted, the fake forge removed, the scripted account removed, the row erased | reset, once the row is erased; end refused, not offered, with no playground |
   | `Reachable { forge, installation?, page }` | none | on every kind, the setup's host's `Reachable { forge, installation?, page }` plan (skein's `forge-setup.md`, 4.8; `../domain/forge.md`, what the picker offers): on GitHub one accepted installation's repositories, `GET /installation/repositories` paged by number on a token minted for the page; on a connected Forgejo what the API token can push to; on a managed or owned Forgejo every repository the site admin can see by id ascending, read on the admin's token, which stays the setup's host's (`../protocol/forge.md`, the setup's host) | a page, `{ rows, more }`: at most `picker.page` rows on every forge, clipped to the forge's own page cap, each the repository's id, its owner's id and login, its name and whether it is private; `more` set when the page is full |
@@ -5573,10 +5648,27 @@ own tests:
   `ui-chat-draft`. Default: no chat has a draft, and the lede stops at "changes
   the code."
 - **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
-  sections 7, 9 and 10): the forges' rows carry `makings` and `temper ctl
-  forge list` says them. Home's line for a copy, the sheet "Add
-  repositories" and a failed row's dismissal wait for their look.
-  Default: no page shows a row.
+  sections 7, 9 and 10): the forges' rows carry `makings`, `temper ctl
+  forge list` says them, and Home's second step says a project's while To
+  begin shows (3.5, *Home*). The sheet "Add repositories" and a failed row's
+  dismissal wait for their look. Default: with To begin skipped, or on any
+  other page, no line says a row, and a failed row stays until asked again.
+- **A copy Home's sheet asked, once in** (3.5, *Home*): the request `ui-welcome`
+  of 2026-11-05 has it ticked, then "Chats can change its code now…". Its
+  making row is erased with its adoption, and the rows' intent names the set
+  up's copies alone, so saying it takes a fact that a repository was copied.
+  Default: it reads as any repository in the project.
+- **Ready's note on a forge not Forgejo's** (3.5, *Ready*): "Forgejo is still
+  setting up; this page moves on by itself." shows while any forge is under
+  way and not ready, so a GitHub forge connecting or waiting for its
+  installation reads as Forgejo. That request has those words alone.
+  Default: as it stands.
+- **The first run walked whole, kept** (3.5, *The welcome*; `journeys.md`, 9):
+  that request has Forgejo then Claude or ChatGPT then Create, and "Nothing for
+  now" then "Make an empty one", walked in a browser by a throwaway driver.
+  `welcome-set-up` stops at Model, within `again`'s 40 seconds, and
+  `project-landing` starts on Home; the process tier and the client's world
+  hold what lies between, apart. Default: so.
 - **A project's age and a first CI run on Home** (*Home,* 3.5; the
   user's, each a new fact of a protocol): the user's greenfield mock's
   kicker says "PROJECT · made just now" and its repository's step "its
@@ -5587,31 +5679,17 @@ own tests:
   "temper can change its code now; checked changes land on main through
   temper's merge queue.". Supplying a creation age or a first CI result
   needs its own protocol decision.
-- **What changed since the person last looked** (*Home,* 3.5; the
-  request `project-home-everyday`): the mock's kicker adds "you last
-  looked an hour ago", its headline opens with what landed, and a lede
-  and a byline say what the status agent or the latest chat wrote. No
-  client is given when the person last looked, and nothing writes that
-  intro; each is a new fact of a protocol or a stored one, the user's.
-  Default: the day and time, the headline's count, no lede and no byline.
-- **The landing's line on Home** ("Landing: main last moved 1 h ago ·
-  nothing queued"; the same request): the line is *Changes*' (3.5), from
-  the subject `changes` (4.6), and one function serves both. Default: Home
-  draws no such line until it moves to that function.
-- **Goals on Home** (the same request): Goals in place of Chats where a
-  project's kind 7 shows them (5.13), which Home does not read.
-  Default: Chats.
 - **A goal's own page, and its report whole** (3.5, *Goals*; the request of
   2026-11-05 leaves them to the plan `ui-goal-page`): Goals' "Start one from a
   draft" with its sheet, which reads `goals::ways`, and a goal's page drawn from
   the greenfield mock's `goal.html`, reading `goals::state` and the rest of what
   `report::parse` gives. Default: no such link, 5.8's page, and the report's
   headline the only part of it a page draws.
-- **`Domain::has_goals`, with no page to read it** (5.3): kind 7 decides the rail
-  and the tab bar, so a walk alone reads the fact, while its live watch and its
-  ended read stand per open project. It reads the ended group once, so once the
-  live watch holds no row it says false of a project with a goal. Default: it
-  stays, as 5.3 has it.
+- **A project's only goal ending while Home is open** (3.5, 5.3): kind 7
+  decides the rail and the tab bar; Home reads `Domain::has_goals` to choose
+  Goals or Chats. The fact reads the ended group once, so once the live watch
+  holds no row it says false of a project with a goal, and Home shows Chats
+  until the project is opened again. Default: one read, as 5.3 has it.
 - **How work runs' fuller page** (5.13, *Later: the fuller page*): roles, ways to
   start work, rules, running work and history on the tab; `Proposal { proposal
   }`; and the card's "Review", with the grouping of what temper enforces and what
