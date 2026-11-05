@@ -34,3 +34,9 @@
   nothing of `openai`, but `skein-llm/src/anthropic/request_tests.rs` spells
   `openai::Limits` and `openai::json`, reaching `wire` through `openai`'s
   re-exports, because the request of 2026-11-05 keeps the tests as they are.
+  3: an owner may also ask one prepared call to keep its rendered body
+  (`MeasuredRequest::keep_body`, `Client::take_kept_body`), a copy held until
+  taken and made before any compression, because a development deployment must
+  read what left; it comes out when that need ends. Unasked, nothing is kept.
+  The body's encoder takes the prompt and limits alone, so a kept body holds no
+  header, credential or URL.
