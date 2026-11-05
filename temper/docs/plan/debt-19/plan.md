@@ -69,7 +69,7 @@ Re-measured: 57 attributes, as the item says.
 
 ## Decisions: D011
 
-Re-measured: the item's `Measure` reads 205 now, and it under-counts: `Result<[^>]*, String>` misses `Result<Vec<u8>, String>`. The wider search reads 246. The task checks the wider one.
+Re-measured: the item's `Measure` reads 205 now, and it under-counts: `Result<[^>]*, String>` misses `Result<Vec<u8>, String>`. The wider search reads 246, or 249 with the three `Ok::<_, String>`, and the task checks that one. Two figures in the pushed `bench-fault` spec are off: its search reads 249 at base, not 246, and its `})()` search reads 16, not 20. Both are asides, and its acceptance is that the searches come out empty or at the edges, so neither changes what it must do.
 
 - **The kinds are chosen in `notes/contracts.md`, 1,** so the task has none to choose.
 - **The kind reaches no stored file.** `End::HarnessError { what }` and `End::Refused { setup }` keep their strings, and `Display` is the detail alone. The item says the format changes only if a kind reaches the summary; a stored format would be a stop-and-ask, so this round doesn't. A kind in the summary is left for whoever wants it.
