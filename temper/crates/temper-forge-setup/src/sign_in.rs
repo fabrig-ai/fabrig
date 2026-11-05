@@ -9,6 +9,27 @@ use skein_lib::{
     base64::{self, Alphabet},
 };
 
+/// What a person's first sign-in through temper does on their forge
+/// (temper/docs/design/protocol/sign-in.md, 9.4; temper/docs/design/draft/dogfood-hacks.md, 2.8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FirstSignIn {
+    /// Makes their account.
+    MakesAccount,
+    /// Makes none: an account already there links once, by its password.
+    LinksOnly,
+}
+impl FirstSignIn {
+    /// The settings `instructions` prints.
+    #[must_use]
+    pub const fn settings(self) -> &'static [u8] {
+        match self {
+            Self::MakesAccount => SETTINGS,
+            Self::LinksOnly => LINKS_ONLY_SETTINGS,
+        }
+    }
+}
+/// Settings for linking an existing account without registration.
+pub const LINKS_ONLY_SETTINGS: &[u8] = b"[oauth2_client]\nENABLE_AUTO_REGISTRATION = false\nUSERNAME = preferred_username\nACCOUNT_LINKING = login\n[service]\nDISABLE_REGISTRATION = true\n";
 /// Settings already written by an owned forge's preparation.
 pub const SETTINGS: &[u8] = b"[oauth2_client]\nENABLE_AUTO_REGISTRATION = true\nUSERNAME = preferred_username\nACCOUNT_LINKING = login\n[service]\nDISABLE_REGISTRATION = true\nALLOW_ONLY_EXTERNAL_REGISTRATION = true\n";
 /// The key generator's arguments; its stdout goes only to a private partial file.
@@ -48,6 +69,7 @@ pub fn instructions(
     client: &[u8],
     secret_path: &[u8],
     discovery: &[u8],
+    first: FirstSignIn,
 ) -> Box<[u8]> {
     let owned = match place {
         Some(place) => {
@@ -65,7 +87,7 @@ pub fn instructions(
         b")\" --auto-discover-url ",
         &quote(discovery),
         b"\n\n# Forgejo app.ini settings:\n",
-        SETTINGS,
+        first.settings(),
         b"\n# Once the source works, [service] ENABLE_INTERNAL_SIGNIN = false makes it the web's only sign-in.\n",
     ])
 }
