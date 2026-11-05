@@ -129,27 +129,42 @@ fn group_and_failure_facts_use_supplied_labels_and_exact_words() {
 }
 
 #[test]
-fn owned_start_notices_follow_started_for_asked_and_always_forges() {
-    use temper_forge_setup::{Kind, Steps};
-    let block = b"Forge 37 (Forgejo): started\nForge 37 (Forgejo): api http://127.0.0.1:3000/api/v1\nForge 37 (Forgejo): person ada, read header /data/forge/person_read.header, write header /data/forge/person_write.header\n";
-    let timed = b"01:02:03Z Forge 37 (Forgejo): started\n01:02:03Z Forge 37 (Forgejo): api http://127.0.0.1:3000/api/v1\n01:02:03Z Forge 37 (Forgejo): person ada, read header /data/forge/person_read.header, write header /data/forge/person_write.header\n";
-    for asked in [false, true] {
-        let mut steps = if asked {
-            labelled(b"Forge 37 (Forgejo)", b"forge")
-        } else {
-            crate::layout::flatten(Steps {
-                always: Box::new([super::fixtures::step(b"forge", Kind::Long)]),
-                asked: Box::new([]),
-            })
-        };
-        steps[0].step.set_started_notice(bytes::copy_of(block));
-        let fact = if asked { Fact::GroupStarted { forge: 37 } } else { Fact::Started { step: 0 } };
+fn group_started_keeps_its_label_when_the_step_carries_hands() {
+    let mut steps = labelled(b"Forge 37 (Forgejo)", b"forge");
+    steps[0]
+        .step
+        .set_started_notice(b"Forgejo: api http://127.0.0.1:3000/api/v1\nForgejo: person ada\n".as_slice().into());
+    let mut formatter = Formatter::new();
+    formatter.admitted_block();
+    assert_eq!(
+        formatter.fact(Fact::GroupStarted { forge: 37 }, &steps, wall(3723)),
+        item(Target::Stderr, b"01:02:03Z Forge 37 (Forgejo): started\n")
+    );
+}
+
+#[test]
+fn every_group_fact_binds_the_owned_number_and_keeps_the_playground_label() {
+    use crate::{layout, machine::Why, terminal::max_bytes};
+    for (template, expected) in
+        [(b"Forge $forge (Forgejo)".as_slice(), b"Forge 65535 (Forgejo)".as_slice()), (b"Playground", b"Playground")]
+    {
+        let mut steps = labelled(template, b"forgejo-65535");
+        steps[0].label = Some(layout::bound_label(template, u16::MAX));
+        steps[0].asked.as_mut().unwrap().forge = u16::MAX;
         let mut formatter = Formatter::new();
-        assert_eq!(formatter.fact(fact, &steps, wall(3723)), item(Target::Stderr, block));
         formatter.admitted_block();
-        assert_eq!(formatter.fact(fact, &steps, wall(3723)), item(Target::Stderr, timed));
-        assert!(usize::try_from(crate::terminal::max_bytes(&steps)).unwrap() >= timed.len());
+        for (fact, suffix) in [
+            (Fact::GroupStarting { forge: u16::MAX }, b": starting\n".as_slice()),
+            (Fact::GroupStarted { forge: u16::MAX }, b": started\n"),
+            (Fact::GroupFailed { forge: u16::MAX, why: Why::NotWritten }, b": failed, record not written\n"),
+            (Fact::GroupStopped { forge: u16::MAX }, b": stopped\n"),
+        ] {
+            let output = formatter.fact(fact, &steps, wall(3723));
+            assert_eq!(output.bytes, crate::lines::joined(&[b"01:02:03Z ", expected, suffix]));
+            assert!(output.bytes.len() <= usize::try_from(max_bytes(&steps)).unwrap());
+        }
     }
+    assert_eq!(layout::bound_label(b"$forge/$forge", 17).as_ref(), b"17/17");
 }
 #[test]
 fn lifecycle_output_bound_covers_long_labels_and_signal_numbers() {
