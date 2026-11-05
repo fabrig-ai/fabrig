@@ -290,6 +290,12 @@ fn a_parked_smith_run_resumes_from_the_prefix_restored_through_both_roots() {
 }
 
 #[test]
+fn an_answered_producer_delivers_again_after_its_first_delivery() {
+    let mut world = World::questioning_producer(924);
+    world.continue_delivered_producer();
+}
+
+#[test]
 fn a_withheld_store_commit_holds_the_party_reply_and_worker_assignment() {
     let mut world = World::chat(916, report_script(false));
     world.store.fault(temper_engine_domain_world::store::Fault::Hold { commits: 1 });

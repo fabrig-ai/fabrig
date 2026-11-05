@@ -954,3 +954,224 @@ fn debug_of_records_without_a_credential_is_the_derived_form() {
         assert_eq!(debug, expected);
     }
 }
+
+#[test]
+fn oversized_open_credential_silently_closes_and_owner_close_is_ignored() {
+    let mut channel = Peer::new(Role::Initiator);
+    channel.down(Request::Open { credential: skein_lib::bytes::zeroed(65) });
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    assert!(channel.events.is_empty(), "oversized Open has no owner answer");
+    assert!(channel.below.is_empty(), "oversized Open sends nothing");
+    channel.down(Request::Close);
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    assert!(channel.events.is_empty(), "Close after oversized Open is ignored");
+    assert!(channel.below.is_empty());
+}
+
+#[test]
+fn two_pipes_framing_error_after_finish_waits_for_owner_close() {
+    let (mut channel, _) = ready_pair_mode(StreamMode::Two);
+    channel.down(Request::Finish);
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    match channel.below.pop() {
+        Some(Lower::FinishWrite) => {}
+        record => panic!("expected write Finish: {record:?}"),
+    }
+    channel.down(Request::Read);
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    drop(channel.below.pop());
+    channel.machine.up(LowerEvent::Read(stream::Up::Bytes(Box::from([0_u8]))), &mut channel.events, &mut channel.below);
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    drop(channel.below.pop());
+    channel.machine.up(
+        LowerEvent::Read(stream::Up::Bytes(Box::from([0_u8; 7]))),
+        &mut channel.events,
+        &mut channel.below,
+    );
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    let right = match channel.below.pop() {
+        Some(Lower::Write(stream::OutputDown::Room { right, .. })) => right,
+        record => panic!("expected refusal room: {record:?}"),
+    };
+    channel.machine.up(
+        LowerEvent::Write(stream::OutputUp::Settled { right, outcome: stream::OutputOutcome::Granted }),
+        &mut channel.events,
+        &mut channel.below,
+    );
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    match channel.below.pop() {
+        Some(Lower::Write(stream::OutputDown::Send { bytes, .. })) => {
+            assert_eq!(parse_header(bytes.get(..8).expect("header")).expect("Refuse").kind, 3);
+        }
+        record => panic!("expected refusal: {record:?}"),
+    }
+    match channel.events.pop() {
+        Some(Event::Drained) => {}
+        event => panic!("expected refusal drain: {event:?}"),
+    }
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    assert!(channel.events.is_empty(), "framing refusal after Finish has no terminal");
+    assert!(channel.below.is_empty(), "Finish is not repeated");
+    channel.down(Request::Close);
+    match channel.events.pop() {
+        Some(Event::Closed { why: super::Closed::Owner }) => {}
+        event => panic!("expected owner terminal: {event:?}"),
+    }
+    assert!(channel.events.is_empty());
+}
+
+fn queued_output_right(channel: &mut Peer) -> Token {
+    let mut writer = frame_writer(0x0101, 1).expect("measured frame");
+    writer.put(b"x").expect("body fits");
+    channel.down(Request::Send { token: Token::new(9), frame: writer.finish().expect("frame") });
+    match channel.events.pop() {
+        Some(Event::Sent { token }) => assert_eq!(token, Token::new(9)),
+        event => panic!("expected admission: {event:?}"),
+    }
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    match channel.below.pop() {
+        Some(Lower::Write(stream::OutputDown::Room { right, .. })) => right,
+        record => panic!("expected room: {record:?}"),
+    }
+}
+
+#[test]
+fn one_stream_output_failure_then_grant_has_no_terminal() {
+    let (_, mut channel) = ready_pair();
+    let right = queued_output_right(&mut channel);
+    channel.machine.up(LowerEvent::WriteFailed(stream::Fault::Reset), &mut channel.events, &mut channel.below);
+    assert!(channel.events.is_empty(), "failure still holds the output right");
+    channel.machine.up(
+        LowerEvent::Write(stream::OutputUp::Settled { right, outcome: stream::OutputOutcome::Granted }),
+        &mut channel.events,
+        &mut channel.below,
+    );
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    assert!(channel.events.is_empty(), "grant after failure leaves no terminal");
+    assert!(channel.below.is_empty(), "failed output neither sends nor releases the grant");
+}
+
+#[test]
+fn end_with_demand_out_still_withdraws_the_demand() {
+    let (mut channel, _) = ready_pair();
+    channel.down(Request::Read);
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    match channel.below.pop() {
+        Some(Lower::Read(stream::Down::Demand { read: stream::Read::Fill(1), room: 0 })) => {}
+        record => panic!("expected header demand: {record:?}"),
+    }
+    channel.machine.up(LowerEvent::Read(stream::Up::End), &mut channel.events, &mut channel.below);
+    match channel.events.pop() {
+        Some(Event::Ended) => {}
+        event => panic!("expected read answer: {event:?}"),
+    }
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    match channel.below.pop() {
+        Some(Lower::Read(stream::Down::Demand { read: stream::Read::Nothing, room: 0 })) => {}
+        record => panic!("expected withdrawal after End: {record:?}"),
+    }
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    assert!(channel.below.is_empty(), "withdrawal goes down once");
+    assert!(channel.events.is_empty());
+}
+
+#[test]
+fn two_pipes_truncation_drains_ignores_close_and_refusal_failure_reports_in_order() {
+    let (_, mut channel) = ready_pair_mode(StreamMode::Two);
+    let right = queued_output_right(&mut channel);
+    channel.down(Request::Read);
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    drop(channel.below.pop());
+    channel.machine.up(LowerEvent::Read(stream::Up::Bytes(Box::from([1_u8]))), &mut channel.events, &mut channel.below);
+    channel.machine.up(LowerEvent::Read(stream::Up::End), &mut channel.events, &mut channel.below);
+    assert!(channel.events.is_empty(), "truncation waits for queued output");
+    channel.down(Request::Close);
+    assert!(channel.events.is_empty(), "Close while draining is ignored");
+    channel.machine.up(
+        LowerEvent::Write(stream::OutputUp::Settled { right, outcome: stream::OutputOutcome::Granted }),
+        &mut channel.events,
+        &mut channel.below,
+    );
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    match channel.below.pop() {
+        Some(Lower::Write(stream::OutputDown::Send { bytes, .. })) => assert_eq!(bytes.get(8..), Some(&b"x"[..])),
+        record => panic!("expected queued output to drain: {record:?}"),
+    }
+    match channel.events.pop() {
+        Some(Event::Drained) => {}
+        event => panic!("expected drain: {event:?}"),
+    }
+    match channel.events.pop() {
+        Some(Event::Closed { why: super::Closed::Truncated }) => {}
+        event => panic!("expected truncation terminal: {event:?}"),
+    }
+    assert!(channel.events.is_empty());
+    assert!(channel.below.is_empty());
+
+    let (_, mut channel) = ready_pair_mode(StreamMode::Two);
+    channel.down(Request::Refuse { reason: 256, text: Box::from([]) });
+    channel.machine.up(LowerEvent::WriteFailed(stream::Fault::Reset), &mut channel.events, &mut channel.below);
+    match channel.events.pop() {
+        Some(Event::OutputFailed) => {}
+        event => panic!("expected output failure before terminal: {event:?}"),
+    }
+    match channel.events.pop() {
+        Some(Event::Closed { why: super::Closed::Stream }) => {}
+        event => panic!("expected stream terminal: {event:?}"),
+    }
+    channel.machine.poll(&mut channel.events, &mut channel.below);
+    assert!(channel.events.is_empty());
+    assert!(channel.below.is_empty());
+}
+
+#[test]
+fn two_pipes_read_failure_during_opening_drains_terms_before_terminal() {
+    let mut initiator = Peer::new_mode(Role::Initiator, StreamMode::Two);
+    let mut responder = Peer::new_mode(Role::Responder, StreamMode::Two);
+    initiator.down(Request::Open { credential: Box::from([]) });
+    for _ in 0_u32..20_u32 {
+        initiator.step(&mut responder);
+        responder.step(&mut initiator);
+    }
+    match responder.events.pop() {
+        Some(Event::Opening { .. }) => {}
+        event => panic!("expected opening: {event:?}"),
+    }
+    responder.down(Request::Accept { version: 2 });
+    responder.machine.up(
+        LowerEvent::Read(stream::Up::Failed(stream::Fault::Reset)),
+        &mut responder.events,
+        &mut responder.below,
+    );
+    assert!(responder.events.is_empty(), "opening output still needs to drain");
+    for kind in [2, 4] {
+        responder.machine.poll(&mut responder.events, &mut responder.below);
+        let right = match responder.below.pop() {
+            Some(Lower::Write(stream::OutputDown::Room { right, .. })) => right,
+            record => panic!("expected opening output room: {record:?}"),
+        };
+        responder.machine.up(
+            LowerEvent::Write(stream::OutputUp::Settled { right, outcome: stream::OutputOutcome::Granted }),
+            &mut responder.events,
+            &mut responder.below,
+        );
+        responder.machine.poll(&mut responder.events, &mut responder.below);
+        match responder.below.pop() {
+            Some(Lower::Write(stream::OutputDown::Send { bytes, .. })) => {
+                assert_eq!(parse_header(bytes.get(..8).expect("header")).expect("opening frame").kind, kind);
+            }
+            record => panic!("expected opening output: {record:?}"),
+        }
+        match responder.events.pop() {
+            Some(Event::Drained) => {}
+            event => panic!("expected opening drain: {event:?}"),
+        }
+    }
+    match responder.events.pop() {
+        Some(Event::Closed { why: super::Closed::Stream }) => {}
+        event => panic!("expected terminal after Terms: {event:?}"),
+    }
+    responder.machine.poll(&mut responder.events, &mut responder.below);
+    assert!(responder.events.is_empty());
+    assert!(responder.below.is_empty());
+}

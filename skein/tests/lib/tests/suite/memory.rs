@@ -23,7 +23,7 @@ use std::any::type_name;
 use skein_heap::Meter;
 use skein_lib::length::usize_of;
 use skein_lib::stream::{Delimiter, Read};
-use skein_lib::{Deadlines, Id, Intake, Journal, List, Map, Queue, Rng, Set, Slab, Stack, Time};
+use skein_lib::{Deadlines, Id, Intake, Journal, List, Lru, Map, Queue, Rng, Set, Slab, Stack, Time};
 
 /// Tiny capacities, a B-tree's (a leaf is full at 11 and splits at 12), and
 /// enough for a tree of three levels.
@@ -475,6 +475,60 @@ fn deadlines<K: Item>(capacity: u32) {
     assert!(table.len() <= capacity);
 }
 
+/// Both use and key indexes: filled, refreshed, thinned, emptied and refilled,
+/// then driven at random, with eviction and replacement at capacity.
+fn lru<K: Item, V: Item>(capacity: u32) {
+    let mut metered = Metered::new("Lru", type_name::<(K, V)>(), capacity, Lru::<K, V>::price(capacity));
+    metered.start();
+    let mut table = Lru::<K, V>::with_capacity(capacity);
+    metered.end(());
+    let insert = |metered: &mut Metered, table: &mut Lru<K, V>, n: u32| {
+        metered.start();
+        let left = table.insert(K::nth(n), V::nth(n));
+        metered.end(left);
+    };
+    let remove = |metered: &mut Metered, table: &mut Lru<K, V>, n: u32| {
+        metered.start();
+        let removed = table.remove(K::nth(n));
+        metered.end(removed);
+    };
+    let get = |metered: &mut Metered, table: &mut Lru<K, V>, n: u32| {
+        metered.start();
+        let _found = table.get(K::nth(n));
+        metered.end(());
+    };
+    for n in 0..=capacity {
+        insert(&mut metered, &mut table, n);
+    }
+    assert_eq!(table.len(), capacity);
+    for n in (0..=capacity).rev() {
+        get(&mut metered, &mut table, n);
+        insert(&mut metered, &mut table, n);
+    }
+    for (taken, put) in thinning(capacity) {
+        remove(&mut metered, &mut table, taken);
+        insert(&mut metered, &mut table, put);
+    }
+    let keys = keys(capacity);
+    for n in 0..keys {
+        remove(&mut metered, &mut table, n);
+    }
+    assert!(table.is_empty());
+    for n in (0..capacity).rev() {
+        insert(&mut metered, &mut table, n);
+    }
+    let mut rng = Rng::new(0x1_2_3 ^ u64::from(capacity));
+    for _ in 0..8 * capacity + 8 {
+        let n = below(&mut rng, keys);
+        match below(&mut rng, 3) {
+            0 => insert(&mut metered, &mut table, n),
+            1 => remove(&mut metered, &mut table, n),
+            _ => get(&mut metered, &mut table, n),
+        }
+    }
+    assert!(table.len() <= capacity);
+}
+
 #[test]
 fn a_slab_grows_within_its_held_and_peak_bounds() {
     for capacity in CAPACITIES {
@@ -549,6 +603,16 @@ fn a_deadline_table_holds_no_more_than_its_price() {
         deadlines::<u64>(capacity);
         deadlines::<u128>(capacity);
         deadlines::<[u64; 8]>(capacity);
+    }
+}
+
+#[test]
+fn a_lru_holds_no_more_than_its_price() {
+    for capacity in CAPACITIES {
+        lru::<u16, u16>(capacity);
+        lru::<u64, u64>(capacity);
+        lru::<u128, u128>(capacity);
+        lru::<[u64; 8], [u64; 8]>(capacity);
     }
 }
 

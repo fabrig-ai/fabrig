@@ -201,6 +201,7 @@ fn a_field_that_is_not_one_and_an_obsolete_fold_are_bad_requests() {
         b"Host: \x1b[0m\r\n",
         b" folded\r\n",
         b"\tfolded\r\n",
+        b" \t \r\n",
     ] {
         let mut head = Vec::from(&b"GET / HTTP/1.1\r\n"[..]);
         head.extend_from_slice(field);

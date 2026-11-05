@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, bytes};
 
 use super::{Body, Call, Limits, Rejection};
-use crate::header::{self, content, is_field_byte, is_ows, is_tchar, trim};
+use crate::header::{self, Coding, FieldError, Length, content, is_ows, is_tchar};
 use crate::{Header, Method, Version};
 
 /// A request head being read.
@@ -88,7 +88,11 @@ impl Head {
                 // An obsolete fold, which a server may refuse (RFC 9112, 5.2),
                 // or whitespace before the first field (RFC 9112, 2.2).
                 Some(&first) if is_ows(first) => return Err(Rejection::Header),
-                Some(_) | None => field(content, &mut self.headers)?,
+                Some(_) | None => match header::field(content, &mut self.headers) {
+                    Ok(()) => {}
+                    Err(FieldError::Malformed) => return Err(Rejection::Header),
+                    Err(FieldError::Full) => return Err(Rejection::TooManyHeaders),
+                },
             },
         }
         // The blank line that ends the head is still due.
@@ -125,7 +129,7 @@ impl Head {
             Body::Length(length) if length > limits.body => return Err(Rejection::BodyTooLong),
             Body::None | Body::Length(_) | Body::Chunked => {}
         }
-        let persist = persistent(line.version, &headers);
+        let persist = header::persistent(line.version, &headers);
         let sends = match body {
             Body::None | Body::Length(0) => false,
             Body::Length(_) | Body::Chunked => true,
@@ -250,38 +254,6 @@ fn request_line(line: &[u8]) -> Result<RequestLine, Rejection> {
     Ok(RequestLine { method, target: bytes::copy_of(target), version })
 }
 
-/// `Name: value` (RFC 9112, 5): a token, a colon with no whitespace
-/// before it, and a value, trimmed.
-fn field(line: &[u8], headers: &mut List<Header>) -> Result<(), Rejection> {
-    let mut colon = None;
-    for (at, &byte) in line.iter().enumerate() {
-        if byte == b':' {
-            colon = Some(at);
-            break;
-        }
-        if !is_tchar(byte) {
-            return Err(Rejection::Header);
-        }
-    }
-    let (name, value) = match colon {
-        Some(at) if at > 0 => (line.get(..at), line.get(at.saturating_add(1)..)),
-        Some(_) | None => return Err(Rejection::Header),
-    };
-    let name = name.expect("before the colon");
-    let value = trim(value.expect("after the colon"));
-    for &byte in value {
-        if !is_field_byte(byte) {
-            return Err(Rejection::Header);
-        }
-    }
-    if headers.room() == 0 {
-        return Err(Rejection::TooManyHeaders);
-    }
-    let header = Header { name: bytes::copy_of(name), value: bytes::copy_of(value) };
-    headers.push(header).expect("room was checked");
-    Ok(())
-}
-
 /// How the body of a request is framed (RFC 9112, 6.1 and 6.3), or why
 /// its framing is refused.
 ///
@@ -303,86 +275,17 @@ fn framing(version: Version, headers: &[Header]) -> Result<Body, Rejection> {
         if version == Version::Http10 || lengths {
             return Err(Rejection::Framing);
         }
-        return codings(headers);
+        return match header::transfer_coding(headers) {
+            Coding::Chunked => Ok(Body::Chunked),
+            Coding::Coded => Err(Rejection::Coding),
+            Coding::Absent | Coding::Faulty => Err(Rejection::Framing),
+        };
     }
     if !lengths {
         return Ok(Body::None);
     }
-    match content_length(headers) {
-        Some(length) => Ok(Body::Length(length)),
-        None => Err(Rejection::Framing),
-    }
-}
-
-/// The codings of a request's `Transfer-Encoding`, in order across its
-/// fields: `chunked` last and once, and no other.
-fn codings(headers: &[Header]) -> Result<Body, Rejection> {
-    let mut chunked = 0_u32;
-    let mut other = false;
-    let mut last_chunked = false;
-    for header in headers {
-        if !header.is(b"transfer-encoding") {
-            continue;
-        }
-        let mut at = 0;
-        // Bounded by the value: each element moves past its comma.
-        for _ in 0..=header.value.len() {
-            let Some((element, next)) = header::element(&header.value, at) else { break };
-            at = next;
-            if element.is_empty() {
-                continue;
-            }
-            last_chunked = element.eq_ignore_ascii_case(b"chunked");
-            if last_chunked {
-                chunked = chunked.saturating_add(1);
-            } else {
-                other = true;
-            }
-        }
-    }
-    if !last_chunked || chunked > 1 {
-        return Err(Rejection::Framing);
-    }
-    if other {
-        return Err(Rejection::Coding);
-    }
-    Ok(Body::Chunked)
-}
-
-/// One length, however many times it is given (RFC 9110, 8.6): `None` for
-/// one that is not a length, past a `u64`, two different ones, or none
-/// listed.
-fn content_length(headers: &[Header]) -> Option<u64> {
-    let mut length = None;
-    for header in headers {
-        if !header.is(b"content-length") {
-            continue;
-        }
-        let mut at = 0;
-        // Bounded by the value: each element moves past its comma.
-        for _ in 0..=header.value.len() {
-            let Some((element, next)) = header::element(&header.value, at) else { break };
-            at = next;
-            if element.is_empty() {
-                continue;
-            }
-            let this = bytes::decimal(element)?;
-            match length {
-                Some(earlier) if earlier != this => return None,
-                Some(_) | None => length = Some(this),
-            }
-        }
-    }
-    length
-}
-
-/// Whether the connection persists after the exchange, as the request
-/// asks (RFC 9112, 9.3): in HTTP/1.1 unless it says `Connection: close`;
-/// in HTTP/1.0 only if it says `Connection: keep-alive`, and not `close`.
-fn persistent(version: Version, headers: &[Header]) -> bool {
-    let close = header::lists(headers, b"connection", b"close");
-    match version {
-        Version::Http11 => !close,
-        Version::Http10 => !close && header::lists(headers, b"connection", b"keep-alive"),
+    match header::content_length(headers) {
+        Length::Valid(length) => Ok(Body::Length(length)),
+        Length::Absent | Length::Invalid => Err(Rejection::Framing),
     }
 }

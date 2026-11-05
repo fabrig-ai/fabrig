@@ -817,7 +817,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
                 out,
             ));
         }
-        if let Address::Configure { .. } = address {
+        if let Address::Settings { .. } | Address::Configure { .. } = address {
             pages.chats = Some(chats::Chats::new(pages.next));
         }
         if let Address::Chats { filter, .. } = address {
