@@ -76,6 +76,70 @@ fn visibility(directory: &Path, public: bool) -> Step {
     })
 }
 
+fn change_until(directory: &Path, condition: &str) -> Step {
+    Step::Run(Command {
+        program: temper(),
+        args: [
+            "ctl".as_ref(),
+            directory.as_os_str(),
+            "change".as_ref(),
+            "show".as_ref(),
+            "2".as_ref(),
+            "--until".as_ref(),
+            condition.as_ref(),
+        ]
+        .into_iter()
+        .map(std::ffi::OsString::from)
+        .collect(),
+        env: vec![],
+        stdin: Stdin::Closed,
+        opens: None,
+        within: WITHIN,
+    })
+}
+
+fn owner_steps(tier: &Tier, client: &Path) -> Vec<Step> {
+    vec![
+        // The first profile signs ctl in with the initial printed link. This
+        // profile opens the next link, so neither reuses a spent sign-in link.
+        open_printed(),
+        exited(),
+        see(Find::exactly_named(Role::Button, b"Try the playground")),
+        press(Find::exactly_named(Role::Button, b"Try the playground")),
+        see(Find::exactly_named(Role::Status, b"Ready")),
+        Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
+        see(tier.states().live),
+        temper_client_browser_world::connected(),
+        see(heading(b"Chats")),
+        // The public index keeps goals that end while it holds the project.
+        visibility(client, true),
+        exited(),
+        see(Find::exactly_named(Role::Button, CHAT)),
+        press(Find::exactly_named(Role::Button, CHAT)),
+        see(Find::text("I’ll delegate this change".as_bytes())
+            .within(Box::new([Target::ExactRole { role: Role::Log, name: b"Conversation".as_slice().into() }]))),
+        see(Find::exactly_named(Role::Region, b"Task 2")),
+        see(Find::exactly_named(Role::Link, b"Task 2")
+            .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Task 2".as_slice().into() }]))),
+        press(
+            Find::exactly_named(Role::Link, b"Task 2")
+                .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Task 2".as_slice().into() }])),
+        ),
+        see(heading(TITLE)),
+        change_until(client, "ci:passed"),
+        exited(),
+        see(Find::text(b"Passed")),
+        see(Find::text(b"Approved")),
+        change_until(client, "landed"),
+        exited(),
+        see(Find::text("Landed · merge commit ".as_bytes())),
+        press(Find::exactly_named(Role::Link, b"Settings")),
+        press(Find::exactly_named(Role::Button, b"Sign out")),
+        see(tier.states().signed_out),
+        Step::Reopen,
+    ]
+}
+
 #[derive(Clone, Copy, Debug)]
 enum Page {
     Owner,
@@ -104,40 +168,7 @@ struct Walk {
 impl Walk {
     fn new(tier: &Tier) -> Self {
         let client = skein_scratch::Scratch::new("public-walk-ctl");
-        let script = Script::new(Box::new([
-            // The first profile signs ctl in with the initial printed link. This
-            // profile opens the next link, so neither reuses a spent sign-in link.
-            open_printed(),
-            exited(),
-            see(Find::exactly_named(Role::Button, b"Try the playground")),
-            press(Find::exactly_named(Role::Button, b"Try the playground")),
-            see(Find::exactly_named(Role::Status, b"Ready")),
-            Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
-            see(tier.states().live),
-            see(heading(b"Chats")),
-            // The public index keeps goals that end while it holds the project.
-            visibility(client.path(), true),
-            exited(),
-            see(Find::exactly_named(Role::Button, CHAT)),
-            press(Find::exactly_named(Role::Button, CHAT)),
-            see(Find::text("I’ll delegate this change".as_bytes())
-                .within(Box::new([Target::ExactRole { role: Role::Log, name: b"Conversation".as_slice().into() }]))),
-            see(Find::exactly_named(Role::Region, b"Task 2")),
-            see(Find::exactly_named(Role::Link, b"Task 2")
-                .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Task 2".as_slice().into() }]))),
-            press(
-                Find::exactly_named(Role::Link, b"Task 2")
-                    .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Task 2".as_slice().into() }])),
-            ),
-            see(heading(TITLE)),
-            see(Find::text(b"Passed")),
-            see(Find::text(b"Approved")),
-            see(Find::text("Landed · merge commit ".as_bytes())),
-            press(Find::exactly_named(Role::Link, b"Settings")),
-            press(Find::exactly_named(Role::Button, b"Sign out")),
-            see(tier.states().signed_out),
-            Step::Reopen,
-        ]));
+        let script = Script::new(owner_steps(tier, client.path()).into_boxed_slice());
         Self {
             client,
             script,

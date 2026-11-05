@@ -59,6 +59,8 @@ pub fn repository(config: &Config, request: &Request) -> Option<Box<[u8]>> {
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }
@@ -131,7 +133,15 @@ pub fn repository(config: &Config, request: &Request) -> Option<Box<[u8]>> {
         | Request::Update { at, .. }
         | Request::PostStatus { at, .. }
         | Request::CreateBranch { at, .. }
-        | Request::DeleteBranch { at, .. } => Some(full(at)),
+        | Request::DeleteBranch { at, .. } => {
+            let full = full(at);
+            for source in &config.sources {
+                if source.repository == full {
+                    return None;
+                }
+            }
+            Some(full)
+        }
     }
 }
 fn uid(config: &Config, login: &[u8]) -> Option<u64> {
@@ -177,6 +187,8 @@ pub fn op(config: &Config, request: &Request) -> Result<Op, a::Error> {
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }
@@ -389,6 +401,8 @@ fn write(config: &Config, request: &Request) -> Result<Op, a::Error> {
         | Request::Org { .. }
         | Request::CreateOrg { .. }
         | Request::CreateFile { .. }
+        | Request::Migrate { .. }
+        | Request::DeleteRepository { .. }
         | Request::CreateRepository { .. }
         | Request::Teams { .. }
         | Request::CreateTeam { .. }

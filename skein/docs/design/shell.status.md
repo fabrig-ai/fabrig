@@ -4,10 +4,14 @@
 
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
-  startup. 9: the macOS workflow
-  (`temper/docs/design/domain/testing.md`, 2.8) compiles the members that
-  reach rustls and runs temper's one story, neither yet seen green, and
-  no macOS runner runs skein's suites.
+  startup. 6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
+  read from published XNU, whose `main` may lag `macos-26`'s kernel, and
+  no recorded run shows it: a Linux test holds `listening`
+  (`skein-shell/src/listener_calls.rs`) on both answers, and only the
+  constant that selects macOS's goes unrun. 9: temper's one story has not
+  been seen green on the macOS workflow
+  (`temper/docs/design/domain/testing.md`, 2.8), and no macOS runner runs
+  skein's suites.
 - **Departs:** 7.5: the system parts have no design for the keeper's
   `poll_child`, `close_keeper_fd`, `abandon_binary` or `wait_readable`,
   but `skein-shell/src/process.rs`, `linux.rs` and `darwin.rs` expose

@@ -13,6 +13,8 @@ pub fn fetch_bytes(value: u64) -> Result<u64, Refused> {
 }
 /// Small-profile host admission, beside the pure plan profile returned by `small()`.
 pub mod small {
+    /// A copy may wait thirty minutes for its source (protocol/setup.md, 6.9).
+    pub const COPY_DEADLINE: skein_lib::Duration = skein_lib::Duration::from_secs(1800);
     // Four forges, each with one writing run and one Reachable beside it.
     pub const RUNS: u32 = 8;
     // A manifest return and an installation return for each of four forges.
@@ -56,6 +58,7 @@ impl Host {
             file_bytes: 4096,
             repositories: self.repositories,
             deadline: self.deadline,
+            copy_deadline: small::COPY_DEADLINE,
             backoff: self.backoff,
             backoff_max: self.backoff_max,
         }
@@ -119,6 +122,7 @@ pub fn small() -> Limits {
         file_bytes: 4096,
         repositories,
         deadline: Duration::from_secs(120),
+        copy_deadline: small::COPY_DEADLINE,
         backoff: Duration::from_millis(100),
         backoff_max: Duration::from_secs(5),
     }

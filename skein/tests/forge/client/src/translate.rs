@@ -379,7 +379,8 @@ pub fn answer(asked: &client::Op, answer: forge::Answer, l: &Limits) -> client::
                 })
                 .collect(),
         },
-        forge::Answer::Comment { .. }
+        forge::Answer::Copied { .. }
+        | forge::Answer::Comment { .. }
         | forge::Answer::Dependencies(_)
         | forge::Answer::Labels(_)
         | forge::Answer::Artifacts(_)

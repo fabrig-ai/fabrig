@@ -99,6 +99,7 @@ pub struct Domain {
     pub(crate) next_application_owner: u64,
     pub(crate) returns: Map<Token, (Time, Wall)>,
     pub(crate) adoption_restore: Map<Token, (Token, Option<forge::Repository>)>,
+    pub(crate) making_replies: Map<Token, forge::MakingKey>,
     pub(crate) forge_subscribing: Map<Token, forge::Subscriber>,
     pub(crate) forge_unsubscribing: Map<Token, (u64, forge::Topic)>,
     pub(crate) forge_reading: Map<Token, (ReplyTo, CallKey)>,
@@ -234,6 +235,21 @@ impl Domain {
     #[must_use]
     pub fn forge_ended(&self, forge: u16) -> bool {
         self.forge.forge_ended(forge)
+    }
+    /// The connector's kept repository-making row.
+    #[must_use]
+    pub fn making(&self, key: &forge::MakingKey) -> Option<&forge::RepositoryMaking> {
+        self.forge.making(key)
+    }
+    /// The oldest waiting repository-making row on the forge.
+    #[must_use]
+    pub fn next_making(&self, forge: u16) -> Option<&forge::RepositoryMaking> {
+        self.forge.next_making(forge)
+    }
+    /// A made repository whose adoption has no act in flight.
+    #[must_use]
+    pub fn making_due(&self, forge: u16) -> Option<forge::MakingKey> {
+        self.forge.making_due(forge)
     }
     /// Restored provider ids for the setup host's start-time reconcile.
     #[must_use]
@@ -456,6 +472,7 @@ impl Domain {
             next_application_owner: 1,
             returns: Map::with_capacity(limits.people.requests),
             adoption_restore: Map::with_capacity(limits.forge.adoptions),
+            making_replies: Map::with_capacity(limits.forge.makings),
             forge_subscribing: Map::with_capacity(limits.fleet.calls),
             forge_unsubscribing: Map::with_capacity(limits.fleet.calls),
             forge_reading: Map::with_capacity(limits.fleet.calls),
@@ -570,6 +587,7 @@ impl Domain {
             && self.revision_reads.is_empty()
             && self.store_answers.is_empty()
             && self.adoption_restore.is_empty()
+            && self.making_replies.is_empty()
             && self.forge_subscribing.is_empty()
             && self.forge_unsubscribing.is_empty()
             && self.forge_reading.is_empty()
@@ -799,6 +817,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::PlaygroundActs { .. }
             | Request::ResetAct { .. }
             | Request::BoxRemove { .. }
+            | Request::MakingCopied { .. }
             | Request::SetUp { .. }
             | Request::Bound { .. }
             | Request::Return { .. }

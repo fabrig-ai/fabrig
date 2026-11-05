@@ -80,7 +80,10 @@ impl Service {
         }
         config.repositories = repositories;
         let tally = Tally::new(config.tokens.len().saturating_add(limits.documents.inner));
-        let setup = crate::setup::Store::new(limits);
+        let mut setup = crate::setup::Store::new(limits);
+        for repository in &config.repositories {
+            setup.repository_high = setup.repository_high.max(repository.id);
+        }
         Ok(Self { config, calls: Slab::with_capacity(limits.calls), rng: Rng::new(seed), tally, setup })
     }
     /// A host supplies its bound local origin before it accepts requests.
@@ -214,9 +217,15 @@ fn check_base(base: &[u8], limits: &Limits) -> Result<(), Error> {
 /// Whether these limits are representable: every edge bound they size is finite
 /// and every capacity they derive fits (programming-model.md, 6.3).
 /// HTTP and document limits are usable, tokenizer reads fit HTTP, git decoding
-/// is finite, and the object walk's four-parent frontier fits u32.
+/// is finite, the object walk's four-parent frontier fits u32, and catalogue
+/// addresses have only `.invalid` hosts.
 #[must_use]
 pub fn valid(limits: &Limits, config: &Config) -> bool {
+    for source in &config.sources {
+        if !crate::setup::migrate::valid_source(&source.address) {
+            return false;
+        }
+    }
     limits.calls > 0
         && limits.connections > 0
         && limits.raw_bytes > 0

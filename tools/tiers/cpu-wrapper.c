@@ -78,7 +78,7 @@ static char *decimal(char *out, double value, uint64_t scale) {
     }
     return out;
 }
-static void record(const char *path, double start, double user, double system,
+static bool record(const char *path, double start, double user, double system,
                    int status, bool complete, unsigned leaked, bool pending, bool settling) {
     /* Reuse the identity buffer and write fixed decimal seconds without stdio. */
     char *out = append(record_data, "{\"profile\":");
@@ -116,13 +116,18 @@ static void record(const char *path, double start, double user, double system,
     int error = written == (ssize_t)length ? 0 : written < 0 ? errno : EIO;
     if (close(fd) && !error) error = errno;
     if (error) { errno = error; collector_failure("cpu-wrapper: write record"); }
-    /* A named suite must not replace another invocation's record. */
-    int published = suite_record && initial
-        ? (link(temporary_path, path) || unlink(temporary_path))
-        : rename(temporary_path, path);
-    if (published) {
+    /* Initial publication claims the basename without replacing an attempt. */
+    if (initial) {
+        if (link(temporary_path, path)) {
+            if (errno != EEXIST || suite_record) collector_failure("cpu-wrapper: publish record");
+            if (unlink(temporary_path)) collector_failure("cpu-wrapper: discard collision");
+            return false;
+        }
+        if (unlink(temporary_path)) collector_failure("cpu-wrapper: publish record");
+    } else if (rename(temporary_path, path)) {
         collector_failure("cpu-wrapper: publish record");
     }
+    return true;
 }
 static bool visit_child(pid_t child, int sig, double deadline, unsigned *seen) {
     if (child <= 0) { errno = EINVAL; return false; }
@@ -273,18 +278,28 @@ int main(int argc, char **argv) {
     const char *destination = suite_record ? argv[2] : argv[1];
     char *path = malloc(strlen(destination) + sizeof "/cpu-XXXXXX.tmp");
     if (!path) return 125;
-    strcpy(path, destination);
-    strcat(path, suite_record ? ".XXXXXX.tmp" : "/cpu-XXXXXX.tmp");
-    int fd = mkstemps(path, 4);
-    if (fd < 0) { perror("cpu-wrapper: attempt file"); return 125; }
-    initial_fd = fd;
-    temporary_path = strdup(path);
-    if (!temporary_path) return 125;
-    if (suite_record) strcpy(path, destination);
-    else path[strlen(path) - 4] = '\0';
     double start = now();
-    /* A forced SIGKILL leaves this explicit incomplete record, never invented CPU. */
-    record(path, start, 0, 0, 0, false, 0, true, false);
+    do {
+        strcpy(path, destination);
+        strcat(path, suite_record ? ".XXXXXX.tmp" : "/cpu-XXXXXX.tmp");
+        int fd = mkstemps(path, 4);
+        if (fd < 0) { perror("cpu-wrapper: attempt file"); return 125; }
+        initial_fd = fd;
+        free(temporary_path);
+        temporary_path = strdup(path);
+        if (!temporary_path) return 125;
+        if (suite_record) strcpy(path, destination);
+        else path[strlen(path) - 4] = '\0';
+        /* A forced SIGKILL leaves explicit incomplete accounting before spawn. */
+    } while (!record(path, start, 0, 0, 0, false, 0, true, false));
+    if (!suite_record) {
+        /* Updates cannot contend with another attempt's basename reservation. */
+        free(temporary_path);
+        temporary_path = malloc(strlen(path) + sizeof ".update.tmp");
+        if (!temporary_path) return 125;
+        strcpy(temporary_path, path);
+        strcat(temporary_path, ".update.tmp");
+    }
     pid_t test;
     /* Nextest signals our group. Ignore those signals in the supervisor, and
        restore their defaults only in the child: no forwarding or event queue. */

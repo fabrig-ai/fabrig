@@ -16,8 +16,13 @@ use crate::api::{
 use crate::limits::{self, Limits};
 
 /// A repository on the forge.
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "a retained gone slot is independent of hooks and injected git faults"
+)]
 #[derive(Debug)]
 pub(crate) struct Repository {
+    pub(crate) gone: bool,
     pub(crate) id: u32,
     pub(crate) name: Box<[u8]>,
     pub(crate) default: Box<[u8]>,
@@ -148,11 +153,28 @@ impl Repository {
         protection: Option<Protection>,
         hooked: bool,
     ) -> Repository {
+        let mut repository = Repository::empty(limits, name, default, checks, protection, hooked);
+        let default = copy_of(&repository.default);
+        repository.branches.insert(default, first).expect("a repository has room for its default branch");
+        repository.has.insert(first).expect("a repository has room for its first commit");
+        repository
+    }
+
+    /// An empty destination with no branches or commits (fake-forge.md, 2.6).
+    pub(crate) fn empty(
+        limits: &Limits,
+        name: Box<[u8]>,
+        default: Box<[u8]>,
+        checks: Checks,
+        protection: Option<Protection>,
+        hooked: bool,
+    ) -> Repository {
         let mut failing = List::with_capacity(u32::try_from(checks.contexts.len()).expect("bounded contexts"));
         for _ in &checks.contexts {
             failing.push(crate::api::Failing::Workflow).expect("one per context");
         }
-        let mut repository = Repository {
+        Repository {
+            gone: false,
             id: 0,
             name,
             default,
@@ -179,11 +201,7 @@ impl Repository {
             hooked,
             reachable: true,
             refusing: false,
-        };
-        let default = copy_of(&repository.default);
-        repository.branches.insert(default, first).expect("a repository has room for its default branch");
-        repository.has.insert(first).expect("a repository has room for its first commit");
-        repository
+        }
     }
 
     /// The permission of `user`.

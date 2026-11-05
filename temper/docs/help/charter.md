@@ -83,6 +83,14 @@ reaches the next run; a run already going keeps the sections it started
 with. Changing the charter's document list follows the charter's
 revision rule below.
 
+Read what a run received with `temper ctl DIR chat show TASK`: its gathered
+brief includes the document sections and their recorded commits. Follow
+`chat show TASK --before CURSOR` when the printed continuation leads to
+older transcript pages. To find a turn, read `task activity TASK` for its
+`A.T`, then `task turn TASK A.T`; follow its `--part PART --from OFFSET`
+continuation for a cut part. `task text` reads the task's specification or
+instructions, which do not establish the document content supplied to a run.
+
 ## How it changes
 
 A change of a charter reaches the tasks made after it. A task made

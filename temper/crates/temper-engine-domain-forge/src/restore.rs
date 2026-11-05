@@ -259,6 +259,13 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
         Stored::Entry { entry, .. } => {
             room(K::Entry, Rows(K::Entry), d.entries.len(), d.entries.capacity(), d.entries.contains_key(&entry.number))
         }
+        Stored::Making(row) => room(
+            K::Making,
+            Rows(K::Making),
+            d.repository_makings.len(),
+            d.repository_makings.capacity(),
+            d.repository_makings.contains_key(&row.key),
+        ),
         Stored::Dismissed { party, what } => room(
             K::Dismissed,
             Rows(K::Dismissed),

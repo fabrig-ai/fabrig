@@ -49,9 +49,18 @@ pub struct Faults {
     pub drop: u32,
     pub server_error: u32,
 }
+/// A catalogue address and its domain source (skein/docs/design/fake-forge.md, 4).
+#[derive(Debug)]
+pub struct Source {
+    pub address: Box<[u8]>,
+    pub repository: Box<[u8]>,
+    pub private: bool,
+    pub fill: skein_fake_forge_domain::api::Fill,
+}
 /// Scenario tables; tokens stay solely on this side of the domain boundary.
 #[derive(Debug)]
 pub struct Config {
+    pub sources: Box<[Source]>,
     pub hooks: Option<delivery::Endpoint>,
     pub base: Box<[u8]>,
     pub tokens: List<(Secret, u64)>,

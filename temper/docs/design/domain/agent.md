@@ -152,11 +152,14 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   lacked, and the run may `propose` it instead. A refused tool family
   is named from the call's tool, and repeated findings for that family
   print once; the refusal grants no additional authority.
-- **A coordinator's task reads.** `read_task {task, from?}` returns a related
-  task's current specification, state, dependencies and spec revision, and its
-  hold revision, reason and connector-supplied account. It also reads retained
-  ended direct delegates. A cut specification prints `next: OFFSET`; pass that
-  byte offset as `from`, and restart at zero if the spec revision changes.
+- **A coordinator's task reads.** `read_task {task, field?, from?}` returns a
+  related task's specification by default, state, dependencies and spec revision,
+  and its hold revision, reason and connector-supplied account. Retained ended
+  direct delegates remain readable. `field=result` reads kept terminal reports,
+  including descendants reached through a proven same-project requester chain
+  of live or retained intermediate tasks (jig's `domain/engine.md`, 7.3).
+  A cut answer prints `next: OFFSET`; pass that byte offset as `from` with the
+  same field, and restart specification reads at zero if the spec revision changes.
   Task reads decide nothing and keep no named-call record. Escalations name
   their task and hold revision and give this recovery call. Read access does
   not grant messages or amendments to ended tasks, or the subscribe family.

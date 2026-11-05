@@ -285,6 +285,8 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                     | w::ForgeReason::InvalidAnswer => None,
                 },
                 w::Outcome::Accepted(_)
+                | w::Outcome::MakeKept
+                | w::Outcome::MakeRefused(_)
                 | w::Outcome::Adopted(_)
                 | w::Outcome::CoreRefused(_)
                 | w::Outcome::SettingUp

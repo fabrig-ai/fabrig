@@ -30,9 +30,12 @@ pub(super) enum Kind {
     Adopt,
     Follow,
     Reachable,
+    Making,
 }
 #[derive(Debug)]
 pub(super) struct Run {
+    pub(super) making: Option<domain::MakingKey>,
+    pub(super) words: Option<Box<[u8]>>,
     pub(super) first: Option<Intent>,
     pub(super) previous: domain::Connection,
     pub(super) forge: u16,
@@ -176,6 +179,7 @@ impl Lifecycle {
                 continue;
             }
             if let Reconcile::Local(local) = pending
+                && !super::making::running(runs, *forge)
                 && (local.pending && local.restored || local.file.completed())
             {
                 return true;
@@ -266,6 +270,7 @@ pub(super) fn kind(plan: &host::Plan) -> Kind {
         host::Plan::Reconcile { .. } => Kind::Reconcile,
         host::Plan::Adopt { .. } => Kind::Adopt,
         host::Plan::Create { .. } => Kind::LocalCreate,
+        host::Plan::Copy { .. } => Kind::Making,
         host::Plan::Paste { .. } => Kind::Paste,
         host::Plan::TakeOver { .. } => Kind::LocalTakeOver,
         host::Plan::Check { .. } => Kind::Check,
@@ -346,6 +351,10 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
         refused(engine, token, forge, Box::from(b"forge ended".as_slice()));
         return;
     }
+    if kind == Kind::Making {
+        super::making::done(engine, token, outcome);
+        return;
+    }
     if kind == Kind::AdminReconcile || kind == Kind::AdminCreate {
         admin_done(engine, token, outcome);
         return;
@@ -368,7 +377,7 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
         return;
     }
     if kind == Kind::LocalCreate {
-        let reconcile::Outcome::Created { id } = outcome else { unreachable!("Create returns its repository") };
+        let reconcile::Outcome::Created { id, .. } = outcome else { unreachable!("Create returns its repository") };
         engine.setup.runs.remove(&token).expect("created run");
         engine.events.push(root::Event::Forge(Box::new(domain::Event::FirstMade { forge, id: id.get() })));
         adopt_local(engine, forge);
@@ -442,6 +451,7 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
         reconcile::Outcome::Nothing => root::SetupOutcome::Done,
         reconcile::Outcome::Identity { .. }
         | reconcile::Outcome::Reachable { .. }
+        | reconcile::Outcome::Copied { .. }
         | reconcile::Outcome::Created { .. } => {
             unreachable!("later plans are not staged")
         }
@@ -454,6 +464,10 @@ pub(super) fn stopped(engine: &mut crate::engine::Engine, token: Token, failure:
     if engine.domain.forge_ended(run.forge) {
         let forge = run.forge;
         refused(engine, token, forge, Box::from(b"forge ended".as_slice()));
+        return;
+    }
+    if run.kind == Kind::Making {
+        super::making::stopped(engine, token, failure);
         return;
     }
     if run.kind == Kind::Reachable {
@@ -518,7 +532,10 @@ pub(super) fn stopped(engine: &mut crate::engine::Engine, token: Token, failure:
             | reconcile::Why::Busy
             | reconcile::Why::Crowded
             | reconcile::Why::Down
-            | reconcile::Why::Unexpected => {}
+            | reconcile::Why::Unexpected
+            | reconcile::Why::Taken
+            | reconcile::Why::Empty
+            | reconcile::Why::TimedOut => {}
         }
     }
     finish(engine, token, root::SetupEnd::Stopped { forge: failure.forge, reason });
@@ -818,6 +835,7 @@ pub(super) fn next_run(lifecycle: &mut Lifecycle) -> Token {
     lifecycle.next_run = lifecycle.next_run.checked_add(1).expect("setup run names");
     run
 }
+#[expect(clippy::too_many_lines, reason = "the lifecycle pull serializes each forge's setup work")]
 pub(super) fn advance(engine: &mut crate::engine::Engine) {
     if engine.setup.closing || engine.drain.is_some() || engine.end.is_some() || engine.setup.component.is_none() {
         return;
@@ -830,10 +848,13 @@ pub(super) fn advance(engine: &mut crate::engine::Engine) {
         if engine.events.room() < 4 || engine.notes.room() == 0 {
             continue;
         }
-        if file_answer(engine, *forge) || start_pending(engine, *forge) {
+        if super::making::retry(engine, *forge) || file_answer(engine, *forge) || start_pending(engine, *forge) {
             continue;
         }
         if busy(engine, *forge) {
+            continue;
+        }
+        if super::making::pull(engine, *forge) {
             continue;
         }
         if engine.setup.lifecycle.adoptions.contains_key(forge) {
@@ -853,6 +874,8 @@ pub(super) fn advance(engine: &mut crate::engine::Engine) {
                 .insert(
                     run,
                     Run {
+                        making: None,
+                        words: None,
                         first: None,
                         forge: *forge,
                         kind: Kind::Adopt,
@@ -904,6 +927,8 @@ pub(super) fn advance(engine: &mut crate::engine::Engine) {
                 .insert(
                     run,
                     Run {
+                        making: None,
+                        words: None,
                         first: None,
                         forge: *forge,
                         kind: Kind::Reconcile,
@@ -957,6 +982,9 @@ fn local_stopped(engine: &mut crate::engine::Engine, forge: u16, why: crate::Set
     state(engine, forge, connection);
 }
 fn start_pending(engine: &mut crate::engine::Engine, forge: u16) -> bool {
+    if super::making::running(&engine.setup.runs, forge) {
+        return false;
+    }
     if let Some(local) = engine.setup.lifecycle.local(forge)
         && local.restored
         && local.pending
@@ -1001,6 +1029,8 @@ fn start_local(engine: &mut crate::engine::Engine, forge: u16) {
             .insert(
                 run,
                 Run {
+                    making: None,
+                    words: None,
                     first: None,
                     forge,
                     kind: Kind::LocalTakeOver,
@@ -1072,6 +1102,8 @@ fn reconcile_local(engine: &mut crate::engine::Engine, forge: u16) {
         .insert(
             run,
             Run {
+                making: None,
+                words: None,
                 first: None,
                 forge,
                 kind: Kind::LocalReconcile,
@@ -1147,6 +1179,8 @@ fn create_local(engine: &mut crate::engine::Engine, forge: u16) -> bool {
         .insert(
             run,
             Run {
+                making: None,
+                words: None,
                 first: Some(first),
                 forge,
                 kind: Kind::LocalCreate,
@@ -1317,6 +1351,11 @@ pub(crate) fn started(engine: &mut crate::engine::Engine, forge: u16) {
     }
     let local = engine.setup.lifecycle.local_mut(forge).expect("local start");
     local.trigger = Trigger::Asked;
+    if super::making::running(&engine.setup.runs, forge) {
+        engine.setup.lifecycle.local_mut(forge).expect("local start").pending = true;
+        return;
+    }
+    let local = engine.setup.lifecycle.local_mut(forge).expect("local start");
     local.pending = false;
     if !local.file.idle() || busy(engine, forge) {
         local_stopped(engine, forge, crate::SetupStopped::Busy);
@@ -1422,6 +1461,9 @@ pub(crate) fn removed(engine: &mut crate::engine::Engine, forge: u16, run: Token
 }
 /// Shell completions wait for the ordinary step's output room before doing work.
 fn file_answer(engine: &mut crate::engine::Engine, forge: u16) -> bool {
+    if super::making::running(&engine.setup.runs, forge) {
+        return false;
+    }
     let Some(local) = engine.setup.lifecycle.local_mut(forge) else { return false };
     if !local.file.completed() {
         return false;
@@ -1479,7 +1521,10 @@ fn reachable_failure(why: reconcile::Why) -> domain::ReachableAnswer {
         | reconcile::Why::KeyForm
         | reconcile::Why::Unknown
         | reconcile::Why::Crowded
-        | reconcile::Why::Unexpected => domain::AdoptionRefusal::InvalidAnswer,
+        | reconcile::Why::Unexpected
+        | reconcile::Why::Taken
+        | reconcile::Why::Empty
+        | reconcile::Why::TimedOut => domain::AdoptionRefusal::InvalidAnswer,
     };
     domain::ReachableAnswer::ForgeRefused(reason)
 }
@@ -1593,7 +1638,7 @@ fn admin_done(engine: &mut crate::engine::Engine, token: Token, outcome: reconci
         return;
     }
     if kind == Kind::AdminCreate {
-        let reconcile::Outcome::Created { id } = outcome else { unreachable!("Create returns its repository") };
+        let reconcile::Outcome::Created { id, .. } = outcome else { unreachable!("Create returns its repository") };
         engine.events.push(root::Event::Forge(Box::new(domain::Event::FirstMade { forge, id: id.get() })));
         keep_admin(engine, token);
         return;

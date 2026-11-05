@@ -19,7 +19,8 @@ A chat is a conversation between a party and an agent in a project: an untracked
   their charters name. An owner decides the proposal; the agent changes
   nothing itself (temper help settings).
 - **Its conversation** is what `chat show` reads: each turn's words, from
-  the party and from the agent, and each run's start and end.
+  the party and from the agent, the brief supplied to each run, and each
+  run's start and end.
 - **A reply is not a result.** The agent's words answer the party,
   and the chat goes on: it ends only when its party closes it.
 - **A change is another task's.** The stock chat can inspect its workspace;
@@ -94,6 +95,14 @@ A chat is a conversation between a party and an agent in a project: an untracked
 
 ## Acting on it
 
+- **Read a run's brief:** `temper ctl DIR chat show TASK` prints the
+  gathered brief, including charter document sections and their recorded
+  commits. Follow `chat show TASK --before CURSOR` as printed to reach
+  older transcript pages. `task text` reads a task's specification or
+  instructions; those fields do not establish which document content a
+  run received. For individual turns, `task activity TASK` gives the
+  attempt and turn as `A.T`; `task turn TASK A.T` reads its parts, with
+  `--part PART --from OFFSET` to follow a cut part's continuation.
 - **ctl:** `chat start` starts one in a project and `chat show` reads
   one; `task message` sends it words; `chat close` ends it, and the
   same `chat close` again gets its first answer; `task show` on its

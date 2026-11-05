@@ -138,6 +138,7 @@ fn preparations_four_scopes_grant_adopt_and_without_repository_it_is_refused_at_
                 repositories,
                 max_response_items: 2,
                 default_paging_num: 30,
+                sources: Box::new([]),
                 faults: fake::Faults { reset: 0, drop: 0, server_error: 0 },
             },
             &env.limits,

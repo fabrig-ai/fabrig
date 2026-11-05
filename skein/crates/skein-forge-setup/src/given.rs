@@ -43,12 +43,14 @@ pub enum Place {
     FileBytesLimit,
     CreateOrg,
     CreateRepository,
+    CopyFrom,
     Files,
     FilePath(u32),
     FileContent(u32),
     Plan,
     Page,
     Deadline,
+    CopyDeadline,
     Backoff,
     BackoffMax,
 }
@@ -177,6 +179,23 @@ pub fn check_create(limits: &Limits, string_bytes: u32, plan: &crate::host::Plan
         return Err(Refused { place: Place::Plan, other: None });
     };
     create_fields(limits, string_bytes, org, repository, files)
+}
+
+/// Checks a copy's destination, files and public source (forge-setup.md, 4.10).
+/// `string_bytes` is the host's admitted decoder string bound.
+pub fn check_copy(limits: &Limits, string_bytes: u32, plan: &crate::host::Plan) -> Result<(), Refused> {
+    limits::check(limits)?;
+    let crate::host::Plan::Copy { org, repository, from, files, .. } = plan else {
+        return Err(Refused { place: Place::Plan, other: None });
+    };
+    create_fields(limits, string_bytes, org, repository, files)?;
+    if !from.starts_with(b"https://")
+        || from.len() <= b"https://".len()
+        || crate::item::token(from, string_bytes).is_none()
+    {
+        return Err(Refused { place: Place::CopyFrom, other: None });
+    }
+    Ok(())
 }
 
 pub(crate) fn create_fields(

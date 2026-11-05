@@ -1,6 +1,6 @@
 # render: status
 
-2026-11-04. Where hearth's code lags or departs from [render.md](render.md).
+2026-11-05. Where hearth's code lags or departs from [render.md](render.md).
 
 - **Not yet:** 5.4: recording apt's and mmdebstrap's versions from
   `--version` in M2. `hearth-protocol-builder`'s resolution reply gives
@@ -13,7 +13,7 @@
   matching `Inst` triples to `Packages` stanzas in the domain. The code
   follows 5.3: the protocol layer sends `Inst` and `Stanza` events, then
   `Resolved` with the indices, tool versions and costs; the domain
-  assembles the closure.
+  assembles the closure. Section 10 keeps the question.
 - **Departs:** 8.4: unsettled: this section requires layer peak formulas
   and a builder-wide sum, while `skein/docs/foundation/programming-model.md`,
   6.3, requires edge bounds and measured heap ceilings, with no
@@ -21,4 +21,5 @@
   hearth's domain, protocol layer and nine queues, omitting skein's io
   and file terms; only its tests call it, and the 1 GiB they hold it to
   is no process's figure. The formulas retain the `worst_case` name
-  (`hearth/docs/development/debt/D002-process-worst-case.md`).
+  (`hearth/docs/development/debt/D002-process-worst-case.md`). Section 10
+  keeps the question.
