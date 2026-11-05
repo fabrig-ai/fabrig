@@ -767,7 +767,12 @@ fn home_repository_states_keep_their_words_and_events() {
                     d::pages::Act::Go { address: Address::Adopt { project: f::PROJECT } },
                 );
             }
-            assert_action(&mut view, Role::Button, b"Start", d::pages::Act::FirstChat);
+            assert_action(
+                &mut view,
+                Role::Button,
+                b"Start",
+                d::pages::Act::Go { address: Address::Configure { project: f::PROJECT } },
+            );
             assert_action(
                 &mut view,
                 Role::Link,

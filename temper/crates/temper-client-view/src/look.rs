@@ -1,6 +1,30 @@
 //! temper's style tokens and their names (client/browser.md, 2.5), as jig's `jig-client-shell-web` `look.rs`.
 use crate::frame::owner;
 use skein_ui::{Style, look::Names};
+/// A configuring session’s main. (client/README.md, 3.5).
+pub const SESSION: Style = Style { owner: owner(), token: 234 };
+/// The configuring layout’s path and runs’ line. (client/README.md, 3.5).
+pub const SESSION_TOP: Style = Style { owner: owner(), token: 235 };
+/// The configuring session’s composer form. (client/README.md, 3.5).
+pub const SESSION_FOOT: Style = Style { owner: owner(), token: 236 };
+/// The configuring session’s text area and Send. (client/README.md, 3.5).
+pub const SESSION_COMPOSER: Style = Style { owner: owner(), token: 237 };
+/// The configuring session’s keyboard hint. (client/README.md, 3.5).
+pub const SESSION_HINT: Style = Style { owner: owner(), token: 238 };
+/// The configuring session’s conversation region. (client/README.md, 3.5).
+pub const CONVO: Style = Style { owner: owner(), token: 239 };
+/// The configuring layout’s Where navigation. (client/README.md, 3.5).
+pub const CRUMBS: Style = Style { owner: owner(), token: 240 };
+/// The phone’s link back to Settings. (client/README.md, 3.5).
+pub const BACK: Style = Style { owner: owner(), token: 241 };
+/// The wide page’s path through Home and Settings. (client/README.md, 3.5).
+pub const TRAIL: Style = Style { owner: owner(), token: 242 };
+/// The configuring layout’s account and model line. (client/README.md, 3.5).
+pub const BYLINE: Style = Style { owner: owner(), token: 243 };
+/// The configuring agent’s introduction and starters. (client/README.md, 3.5).
+pub const STARTER: Style = Style { owner: owner(), token: 244 };
+/// The configuring session’s suggested first messages. (client/README.md, 3.5).
+pub const STARTERS: Style = Style { owner: owner(), token: 245 };
 /// A folded account.
 pub const ACCOUNT_ROW: Style = Style { owner: owner(), token: 124 };
 /// The rail switcher's panel.
@@ -685,6 +709,18 @@ pub const NAMES: Names<'static> = Names {
         b"temper-home-skip",
         b"temper-home-note",
         b"temper-home-ledes",
+        b"temper-session",
+        b"temper-session-top",
+        b"temper-session-foot",
+        b"temper-session-composer",
+        b"temper-session-hint",
+        b"temper-convo",
+        b"temper-crumbs",
+        b"temper-back",
+        b"temper-trail",
+        b"temper-byline",
+        b"temper-starter",
+        b"temper-starters",
     ],
     regions: &[b"temper-link"],
 };

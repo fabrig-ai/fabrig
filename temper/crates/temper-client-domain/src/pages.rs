@@ -86,7 +86,6 @@ pub enum Act {
         words: Box<[u8]>,
     },
     StartChat,
-    FirstChat,
     /// A starter of Configure (temper/docs/design/client/README.md, 3.5).
     Starter {
         words: Box<[u8]>,
@@ -444,13 +443,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 if let Some(chats) = &mut pages.chats {
                     chats.configure_chat(env, me, Some(project), words, &mut pages.serial, out);
                 }
-            }
-        }
-        Event::Act { act: Act::FirstChat } => {
-            let me = pages.me(client);
-            let project = conversation_project(pages);
-            if let Some(chats) = &mut pages.chats {
-                chats.first_chat(env, me, project, &pages.choice, &mut pages.serial, out);
             }
         }
         Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::RetryPlayground } => {
@@ -1001,7 +993,6 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::SignOut
         | Act::ChatWords { .. }
         | Act::StartChat
-        | Act::FirstChat
         | Act::Starter { .. }
         | Act::SkipToBegin
         | Act::Playground

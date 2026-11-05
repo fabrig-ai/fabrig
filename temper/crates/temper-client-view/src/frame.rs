@@ -621,7 +621,7 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
     let name = w.say(crate::words::Word::RailSettings, &[]);
     crate::link(b, &name, bindings.insert(Act::Go { address: Address::Settings { project } }));
     b.text(Run::Plain, &name);
-    if let Address::Settings { .. } = root.pages().address() {
+    if let Address::Settings { .. } | Address::Configure { .. } = root.pages().address() {
         b.state(skein_ui::State::Current);
     }
     forge_mark(b, root, w, true);

@@ -74,10 +74,9 @@ pub(crate) fn main(
         if offers_first_chat(root) {
             b.open(Role::Button);
             b.name(&words.say(Word::FirstChat, &[]));
-            if !ready_to_start(root) {
-                b.state(State::Disabled);
+            if let Some(project) = root.pages().project() {
+                b.bind(bindings.insert(Act::Go { address: Address::Configure { project } }));
             }
-            b.bind(bindings.insert(Act::FirstChat));
             b.close();
         }
         let ready = ready_to_start(root);
