@@ -695,7 +695,7 @@ pub fn up(client: &mut Client, env: &Env<Limits>, event: Up, above: &mut Queue<E
         Up::Failed(_) => true,
         Up::Bytes(_) | Up::End | Up::Room => false,
     };
-    let child = Env { now: env.now, wall: env.wall, limits: env.limits.http };
+    let child = env.with(env.limits.http);
     let before = below.len();
     http::up(&mut client.http, &child, event, &mut client.http_events, below);
     sent_evidence(client, below, before);
@@ -822,7 +822,7 @@ fn check_env(client: &Client, env: &Env<Limits>) {
 }
 
 fn http_down(client: &mut Client, env: &Env<Limits>, request: http::Request, below: &mut Queue<Down>) {
-    let child = Env { now: env.now, wall: env.wall, limits: env.limits.http };
+    let child = env.with(env.limits.http);
     let before = below.len();
     http::down(&mut client.http, &child, request, &mut client.http_events, below);
     sent_evidence(client, below, before);
@@ -840,7 +840,7 @@ fn sent_evidence(client: &mut Client, below: &Queue<Down>, before: u32) {
 }
 
 fn sse_down(client: &mut Client, env: &Env<Limits>, request: sse::Request) {
-    let child = Env { now: env.now, wall: env.wall, limits: event_stream(&env.limits) };
+    let child = env.with(event_stream(&env.limits));
     sse::down(&mut client.sse, &child, request, &mut client.sse_events, &mut client.sse_below);
     route_sse_down(client);
 }
@@ -1035,7 +1035,7 @@ fn request_id(provider: Provider, headers: &[Header]) -> Box<[u8]> {
 fn body_event(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Down>) {
     match client.state {
         State::Streaming => {
-            let child = Env { now: env.now, wall: env.wall, limits: event_stream(&env.limits) };
+            let child = env.with(event_stream(&env.limits));
             sse::up(&mut client.sse, &child, event, &mut client.sse_events, &mut client.sse_below);
             route_sse_down(client);
         }
@@ -1169,7 +1169,7 @@ fn event_data(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Que
                     if client.collector.waiting() == collector::Waiting::Close {
                         client.collector.restart();
                     }
-                    let child = Env { now: env.now, wall: env.wall, limits: filter::collector(&env.limits) };
+                    let child = env.with(filter::collector(&env.limits));
                     collector::down(
                         &mut client.collector,
                         &child,
@@ -1238,7 +1238,7 @@ fn collected_data(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) {
-    let child = Env { now: env.now, wall: env.wall, limits: filter::collector(&env.limits) };
+    let child = env.with(filter::collector(&env.limits));
     collector::up(&mut client.collector, &child, event, &mut client.collector_events, &mut client.collector_below);
     match client.collector_events.pop() {
         Some(collector::Event::Collected(document)) => client.event_data = EventData::Collected(document),
@@ -1454,7 +1454,7 @@ fn close_sse(client: &mut Client, env: &Env<Limits>) {
     }
     client.sse_events.clear();
     client.requests.clear();
-    let child = Env { now: env.now, wall: env.wall, limits: filter::collector(&env.limits) };
+    let child = env.with(filter::collector(&env.limits));
     drop(client.collector_below.pop());
     drop(client.collector_events.pop());
     collector::down(

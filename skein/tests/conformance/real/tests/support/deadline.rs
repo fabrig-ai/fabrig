@@ -1,7 +1,7 @@
 //! Real-clock harness waits (skein/docs/foundation/testing-strategy.md, 2.10).
 
 use skein_io::{self as io, Event, Request};
-use skein_lib::{Duration, Env, Queue, Token};
+use skein_lib::{Duration, Queue, Token};
 use skein_shell::{Clock, Kernel, Wait};
 use skein_world::{Deadline, Expired};
 
@@ -60,13 +60,13 @@ pub fn end_io(
 ) {
     let clock = Clock::new();
     let now = clock.now();
-    let env = Env { now: now.now, wall: now.wall, limits };
+    let env = now.with(limits);
     for entity in entities {
         io::down(state, &env, Request::Abort { entity: *entity }, submissions);
     }
     loop {
         let now = clock.now();
-        let env = Env { now: now.now, wall: now.wall, limits };
+        let env = now.with(limits);
         kernel.reap(completions);
         io::stage::up(state, &env, completions, events, submissions, now.now);
         while let Some(event) = events.pop() {

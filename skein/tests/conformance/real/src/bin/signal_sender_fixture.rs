@@ -16,7 +16,7 @@ mod deadlines;
 fn main() {
     use skein_io::kernel::{Pipe, ServiceSignal, Spawn, Way};
     use skein_io::{self as io, Event, Request};
-    use skein_lib::{Duration, Env, Token};
+    use skein_lib::{Duration, Token};
     use skein_shell::{Backend, Clock, Config, Kernel, Wait};
     use std::os::unix::ffi::OsStrExt;
 
@@ -125,7 +125,7 @@ fn main() {
     };
     let (mut submissions, mut completions, mut events) = deadlines::records(RECORDS);
     let now = clock.now();
-    let env = Env { now: now.now, wall: now.wall, limits };
+    let env = now.with(limits);
     let executable = std::env::current_exe().expect("sender fixture path");
     let parent = std::process::id().to_string();
     let (program, arguments) = if from_child {
@@ -163,7 +163,7 @@ fn main() {
     state.reclaim();
     loop {
         let now = clock.now();
-        let env = Env { now: now.now, wall: now.wall, limits };
+        let env = now.with(limits);
         // The stage may leave completions for the next iteration: watch each spawn once, as it lands.
         let held = usize::try_from(completions.len()).expect("the completion count fits usize");
         kernel.reap(&mut completions);
