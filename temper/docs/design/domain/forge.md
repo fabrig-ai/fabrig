@@ -1794,6 +1794,46 @@ delegate's terminal wakes it to offer the landed result.
   already landed on the base, including both independent appended lines
   and existing blank lines. Lost content is restored from the review's
   remarks; content is never removed just to make a check pass.
+- **A green head ends a CI repair.** A CI repair's reason is CI failed at
+  the head: a failed check, or a clean update whose CI then fails. When a
+  step of the change reads CI passed at its branch's head (5.3):
+  - **A repair not running ends,** without an agent's work, and the change
+    goes on from that head, checked as after a push (8.2, step 3), as if no
+    repair were needed. Not running is a repair due and not yet made; one
+    made whose task is due, preparing, waiting between its tries or for an
+    answer; one whose task is held; and one that ended failed, cancelled or
+    finding nothing to do. A task still live is cancelled, its reason `CI
+    passed at head H`, so that its end says that and not a failure. No fresh
+    repair is made for a green head, on a release or otherwise.
+  - **A run in progress finishes as a run does:** its attempt claimed or
+    running, or its task closing, is left alone. What it delivers is taken as
+    any repair's. Its failing, or its finding nothing to do, is read as ever
+    and, the head still green, holds nothing: the rule above ends it. Its brief
+    takes no word for this: it says what CI read when it was gathered, and one
+    gathered as CI turned names no failed check, as above. A run ending into a
+    retry wakes no change, so while a run is in progress at a green head the
+    change reads again at `poll_ms` (5.2).
+  - **It asks of the current head alone.** A push moves the head and the rule
+    asks of the new one; CI passed on an earlier head changes nothing. A head
+    its repair pushed before it stopped running is the current head, taken as
+    a repair's push is.
+  - **Other reasons are not touched:** a gate's request, a review's or a
+    check's; a landing's gate at its candidate (`landing.md`, 7.3); a
+    resolution; and a forge's merge queue ejecting the change (9.1), whose CI
+    at its own head may well have passed.
+  - **A hold ends too,** with no party's release, where the change is held on
+    this reason: at its repair, failed for good, cancelled or stalled; or at
+    its repair or its checking, past the bound or short of authority for the
+    next. While so held each wake a hint or a poll gives it reads as a step
+    does and makes no effect, and a read of CI passed ends the hold: the
+    deployment releases its task (jig's `domain/tasks.md`, section 7). Its
+    repairs, resolutions and updates count on, since only a person's release
+    lifts them. A hold at gating is not ended, being a gate's as much as CI's:
+    its release decides afresh. Nor is a hold for drift (8.5), nor a task a
+    placed hold or a party's stop also holds, which goes by its own release.
+  - **Counted as asked:** the repair stays in the change's repairs, on its
+    panel and in its result, whose reason for it goes on `then CI passed at H`
+    (8.2, step 7).
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../protocol/configuration.md`, section 3): a job of
@@ -1933,10 +1973,12 @@ delegate's terminal wakes it to offer the landed result.
   longer covers one. With a head pushed, its workspace starts from that
   branch, and only its success gives the pull request its title (8.1). A
   repair or a resolution that fails holds the same way, whatever it pushed
-  first: its head is not taken as the change's. A repair that fails for good holds at its attempted count; this
-  is a delegate failure, not repair exhaustion. Released, it asks for a
-  fresh repair with the same reason and current forge facts, under its
-  current authority, counted against the reset repair allowance. The
+  first: its head is not taken as the change's. A repair that fails for good
+  holds at its attempted count; this is a delegate failure, not repair
+  exhaustion. Released at a head CI has not passed at (a green head ends
+  its CI repair, above), it asks for a fresh repair with the same reason
+  and current forge facts, under its current authority, counted against
+  the reset repair allowance. The
   replacement's result supersedes the failed delegate's, including
   after a restart; a pending replacement is not asked twice.
   A delegate a person cancels holds at the same count and is released
@@ -2152,7 +2194,8 @@ What the connector makes of a change for the client's panel
   updates used, with their limits from `change_policy`; and its
   questions, its route, those taken of its bound and its open ones
   (8.11).
-- **CI at its head** is what its last step read (5.3), kept in memory
+- **CI at its head** is what its last step read (5.3), a held change's
+  read for a green head (8.4) among them, kept in memory
   beside its record, one verdict per change, while the change is live: a
   restart forgets it, and the panel says unknown until the change's next
   step reads it again. A change that has landed or ended keeps its last
@@ -2573,7 +2616,8 @@ adoption says so, 4.4) lands through that queue. Forgejo keeps none.
 - **Ejected,** for any reason but its landing (its group's CI failed, a
   conflict with what entered before it, a person took it out): a
   repair, as a failed CI is (8.4), its brief carrying the forge's reason
-  alone, the pull request's `dequeued` (section 20). The change takes
+  alone, the pull request's `dequeued` (section 20), which a green head
+  does not end. The change takes
   its base before the repair starts (8.2), so a conflict there is
   resolved. A head another hand moved is drift, as ever (8.5).
 - **Its place there,** `Pull.queued`, is read with the pull request and
@@ -3006,7 +3050,10 @@ conflict settled by the merge job alone, and one it leaves to a
 resolution, under rules asking an update and under rules asking none; a
 catch-up into a goal's branch, merged by the merge job, and one already
 contained, ended with no change; a
-semantic conflict repaired; the branch's own CI broken by a landing
+semantic conflict repaired; a CI repair ended by CI passing at its head,
+due, retrying or held, and one released after it with no fresh repair; a
+run of one left to finish; CI passed on an earlier head, changing nothing;
+a review's repair untouched; the branch's own CI broken by a landing
 temper did not make, the queue paused and repaired; its pull request
 closed by someone else, held, released and reopened; a landing that
 overlaps a goal's change, and one that does not; a goal's issue written,
@@ -3111,13 +3158,6 @@ whole.
   the client should also be posted on the forge as the person, so that
   the forge's protection requires it independently, needs a forge
   credential of the person's (jig's `domain/people.md`, section 12).
-- **A repair whose reason no longer holds at its head** (8.4): a running
-  repair goes on, and a released one asks afresh, though CI has since passed
-  at the head, as after a person ran it again. The request `first-goal-fixes`
-  of 2026-11-05 has such a repair end without an agent's work and the change
-  go on, reading 8.4 so, and no repair task made for a green head. Whether
-  that reaches a gate's and a base's reasons is part of the answer. Default: as
-  built. The user's to choose, with no answer yet.
 - **A repair held for its brief** (8.4): the repair's task is held, naming
   its reason, while the change stays `Repairing` and its panel shows no hold:
   a person reads why on the task, and releases it there. Default: so; whether

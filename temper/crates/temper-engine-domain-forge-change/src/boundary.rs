@@ -380,6 +380,9 @@ pub struct Heard {
     pub lacking: Option<AuthorityHold>,
     pub spend: Option<DelegateSpend>,
     pub delegate: Status,
+    /// Its delegate has a claimed or running attempt, or is closing: it finishes
+    /// as a run does (temper/docs/design/domain/forge.md, 8.4).
+    pub delegate_running: bool,
     pub effect: EffectResult,
     pub released: bool,
     pub cancelled: bool,
@@ -434,6 +437,12 @@ pub enum Decision {
     CancelGates { head: Commit },
     /// Cancel the live producing delegate: its early start conflicted (domain/forge.md, 8.11).
     CancelProducer,
+    /// Cancel the live CI repair: CI passed at this head and no run is in progress (8.4).
+    CancelRepair { head: Commit },
+    /// A CI repair ended at this green head. The top records it and steps on (8.4).
+    RepairEnded { head: Commit },
+    /// The change's CI hold ended; the root releases its task as the deployment's (8.4).
+    EndHold,
     /// Tell the top this change is ready for its queue or landing.
     Ready,
     /// Ask the top for the branch's one queue repair.

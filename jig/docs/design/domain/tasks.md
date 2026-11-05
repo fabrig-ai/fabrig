@@ -1071,7 +1071,11 @@ circle, each for another of the set, so that none of them could end.
   (people.md, 5.1). Nobody else. An escalation's holder decides the
   escalation (5.5; section 9). A party's request, an agent's tool and a
   procedure's step reach the same rules (people.md, 5.1; engine.md, 7.3;
-  connectors.md, 6.3).
+  connectors.md, 6.3). The deployment has a cancel within its project
+  (section 8.1) and one release: a procedure task of its project from a hold
+  of its own, whose cause its connector found gone (connectors.md, 6.3),
+  never where a placed hold or a party's stop also holds it, and recorded as
+  the deployment's. No party, tool or step asks for that release.
 - **What an amendment may change:** the spec and its parameters; the wake
   policy; the dependencies, added or removed (below); the authority,
   narrowed freely and widened only within

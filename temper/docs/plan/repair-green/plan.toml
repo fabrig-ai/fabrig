@@ -1,0 +1,36 @@
+draft = "repair-green"
+repo = "fabrig"
+sources = ["temper/docs/plan/repair-green/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "deployment-release"
+title = "the deployment may release a procedure from a hold of its own"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 7"
+
+[[part]]
+id = "green-repair"
+title = "a step reading CI passed at the head ends a CI repair that is not running"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.4"
+
+[[part]]
+id = "green-hold"
+title = "a change held on CI's reason goes on when CI passes at its head"
+mode = "direct"
+needs = ["deployment-release", "green-repair"]
+design = "temper/docs/design/domain/forge.md, 8.4"
+
+[[slice]]
+id = 1
+story = "CI red, a repair due, retrying or held, CI passed at the same head: the repair ends and the change goes on; a run in progress finishes; no fresh repair for a green head"
+parts = ["deployment-release", "green-repair", "green-hold"]
+walk = false
