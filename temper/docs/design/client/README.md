@@ -492,7 +492,7 @@ keeps (`../protocol/configuration.md`, section 2).
   "Closed", while an older page of ended chats remains, "More closed
   chats" reads it, in place of the last. With no line to show it says
   "No chats yet.", or under a filter "No live chats." or "No closed
-  chats.". A line names its project as the banner does, then "TN", a link to its page, then
+  chats.". A line names its project as the switcher does, then "TN", a link to its page, then
   its title, its status (the chatbar's: one word for one state in
   both places, and "Closed" for every ended chat, as the filter says
   it; the user's pick, 10-23), its
@@ -1157,8 +1157,7 @@ keeps (`../protocol/configuration.md`, section 2).
   the address's number, and the chats' link. One column of prose, in
   this order:
   - *Its intro:* a kicker, the current day and time, updated each minute
-    (the user's answer to `home-age-and-ci` in
-    `temper/docs/plan/look-round-3/plan.toml`), the level-1 heading and
+    (the user, 2026-11-04; section 11), the level-1 heading and
     a lede, as *To begin* or *Home on any project* (below) says.
   - *To begin* (`../draft/to-begin.md`, 2 to 4), while it shows (below).
   - *Needs you* and *Chats,* as on any Home, and left out, empty, while
@@ -1604,9 +1603,10 @@ is loading, unknown or cannot be shown (5.10).
 
 ### 4.3 Where the form is
 
-The form is a page of temper's, `Adopt { project }`, reached from the
-navigation's "Adopt a repository" (5.3); its place among a project's
-settings is open (section 11). The outcome's sentence (4.7) is what
+The form is a page of temper's, `Adopt { project }`, reached from
+`Settings`' "Adopt a repository" (3.5), Home's second step (3.5) and
+the banner's navigation (5.3); its place among a project's settings is
+open (section 11). The outcome's sentence (4.7) is what
 tells the person a repository is adopted: no page of temper's lists a
 project's resources (section 11).
 
@@ -2532,7 +2532,8 @@ that project's page.
 
 The acts of both, each one act and one request (3.6):
 
-- **Rename,** on the open project's row, offered while `me`'s role on
+- **Rename,** on the open project's row in the banner, and after the
+  rows in the rail, offered while `me`'s role on
   that project is owner, the role jig gives, which the context line
   reads too (5.6); jig judges the request (jig's `domain/people.md`,
   5.1). Pressed, the row becomes a form, "Rename PROJECT", holding the
@@ -2860,9 +2861,10 @@ repository, and the cues the playground's, copied in from its read:
   playground: a scripted model and in-memory forge. Use the wizard to
   set up temper", "set up temper" its link, which sends `EndPlayground`
   (4.8); while it is leaving, "Leaving the playground…" in its place,
-  with no link (5.1). Beside it, the frame's banner leads its corner
-  with "Set up temper", the same act, while the playground runs and is
-  not leaving: the way out, prominent (5.1).
+  with no link (5.1). Beside it, the rail's foot offers "Set up temper",
+  or the frame's banner leads its corner with it on a page that is no
+  project's, the same act, while the playground runs and is not
+  leaving: the way out, prominent (5.1, 5.3).
 - **The playground's start,** on the chats page, at the head of its
   pane (3.5; `first-run.html`, the first run's first step): the new
   chat's bar, "New chat" and the status "Ready"; while its start is
@@ -2884,11 +2886,11 @@ repository, and the cues the playground's, copied in from its read:
   or the composer starts the chat, its page keeps the frame (3.5).
 - **The context line,** after the chatbar: on a chat's page,
   "PROJECT · OWNER/NAME on Playground forge", PROJECT the project as
-  the banner names it; then "Signed in
+  the switcher names it; then "Signed in
   as the deployment’s owner" while `me`'s role on the deployment is
   `Owner`, else "Signed in as the project’s owner" while the person's
   role on the project is `Owner`, else "Signed in as NAME", the
-  person's name as the banner shows it. On the chats page's pane,
+  person's name as the rail shows it. On the chats page's pane,
   OWNER/NAME alone, since the switcher names the project (5.1). OWNER/NAME is a node of its
   own, for the look.
 - **The composer's line,** for the playground's LLM provider: "Using
@@ -2902,7 +2904,7 @@ repository, and the cues the playground's, copied in from its read:
   read's numbers, whatever names the records hold
   (`../protocol/setup.md`, 8.4). Its project is an ordinary project,
   named by the name its record holds wherever a project's name shows,
-  in the banner, the context line, the chats, a task's page and the
+  in the switcher, the context line, the chats, a task's page and the
   inbox: "Demo" as its start makes it, its new name once renamed. No
   fixed word names it.
 - **The welcome** (`welcome.html`; `../draft/archive/first-run.md`, 2.3): its
@@ -3891,7 +3893,7 @@ section 5. The pages' look and place are the user's to make (section
   from skein-shell's `open_termination_signals`, adopted by io.
 - **The text shell's settings** (skein's `ui-text.md`, section 3): the
   name `temper`; the longest line, 4096 bytes; a print interval of one
-  second; the status region, the banner's link state (5.1); temper's
+  second; the status region, the link's state (5.1); temper's
   lines, 32 (6.3); and their line bytes, DIRECTORY's bytes and 160:
   6.6's signed out holds DIRECTORY and 84 bytes, and a service's
   credential's line its credential's base64 and at most 57.
@@ -3938,9 +3940,8 @@ lines, each starting `temper: `.
 
 As skein's text shell prints (skein's `ui-text.md`, section 5). The
 first line is `== TITLE == STATUS`: TITLE the page's level-1 heading,
-STATUS the banner's link state, with "Behind" after it while the page
-is behind. For example, the adoption page, its banner and navigation
-left out:
+STATUS the link's state (5.1), with "Behind" after it while the page
+is behind. For example, the adoption page, its rail left out:
 
 ```
 == Adopt a repository into shop == Live
@@ -4678,7 +4679,7 @@ own tests:
   client started at a delegate's address draws its heading and its
   "Task brief", the client root's part of the browser's open of a
   page by its address (6.10); a repository adopted
-  from the navigation's link, its outcome read and the engine holding it;
+  from `Settings`' link, its outcome read and the engine holding it;
   refused: not found, a second home, a field the form refuses; a part
   of the forge's saying "Shown on the forge."; a change into the fake
   forge's repository, handed its pushed branch, its panel watched from
@@ -4781,16 +4782,21 @@ own tests:
 
 ## 11. Open questions
 
+- **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
+  sections 7, 9 and 10): the forges' rows carry `makings` and `temper ctl
+  forge list` says them. Home's line for a copy, the sheet "Add
+  repositories" and a failed row's dismissal wait for their look.
+  Default: no page shows a row.
 - **A project's age and a first CI run on Home** (*Home,* 3.5; the
   user's, each a new fact of a protocol): the user's greenfield mock's
   kicker says "PROJECT · made just now" and its repository's step "its
   CI ran on main and passed.". No client is given when a project was
-  made, nor a repository's CI outside a change. The user's answer to
-  `home-age-and-ci` in `temper/docs/plan/look-round-3/plan.toml` keeps
-  both facts out of the protocol: the kicker is the current day and
-  time, and the step says "temper can change its code now; checked
-  changes land on main through temper's merge queue.". Supplying a
-  creation age or a first CI result needs its own protocol decision.
+  made, nor a repository's CI outside a change. The user kept both facts
+  out of the protocol (2026-11-04): the kicker is the current day and
+  time, as on any Home (`../draft/to-begin.md`, 2), and the step says
+  "temper can change its code now; checked changes land on main through
+  temper's merge queue.". Supplying a creation age or a first CI result
+  needs its own protocol decision.
 - **What changed since the person last looked** (*Home,* 3.5; the
   request `project-home-everyday`): the mock's kicker adds "you last
   looked an hour ago", its headline opens with what landed, and a lede
@@ -4817,6 +4823,17 @@ own tests:
   a project landing by turn, and no client is given a project's `by`
   (`../domain/landing.md`, 13.1). A new fact of a protocol, the user's.
   Default: the merge queue's words on every project.
+- **A project's home in the switcher** (5.3, 4.4): `me` does not say
+  which repository is a project's home, so the first listed stands in
+  for it, and a row with several repositories never reads "3
+  repositories", the state `project-home`'s hand-made page draws. The
+  project's own document does say its home, per project; reading it for
+  each row is the candidate, or a fact of `me`'s, which is a protocol
+  change and the user's. Default: the stand-in.
+- **A whole welcome's page** (3.4): a browser at `/welcome` once the
+  welcome is whole moves on to the chats page, where Ready's act and "+
+  New project" open a project's Home (3.5, 5.3). Default: the chats
+  page, since the look request `project-home` named Ready's act alone.
 - **The mockups' question card:** the asker's lineage and its link
   ("Open T3 ↗"), and choices as buttons beside "Answer in words"
   (`world-solo.js`). jig's question carries words alone, so choices
@@ -4837,9 +4854,9 @@ own tests:
   credential once; another party's kept work. Default: not in temper's
   client; the person acts on them through the engine's configuration,
   or not at all.
-- **The form's place:** among a project's settings, once temper has
-  that page (`forge.md`, 5.3). Default: a page of its own, from the
-  navigation.
+- **The form's place:** among a project's settings (`forge.md`, 5.3),
+  which `Settings` (3.5) links and does not hold. Default: a page of its
+  own, from `Settings`, Home and the banner's navigation.
 - **The forge's `Refused`, split** into its causes (another project
   writes the repository; the project has a home; another deployment's
   branches under the prefix), so the form names the one. Default: the
@@ -5096,7 +5113,10 @@ own tests:
   count of tasks that could not move; without it, "Running work" and the
   review page draw counts alone and say in words which tasks stay.
 - **How work runs' place and look** (5.13): the user's to make, with
-  no mockup yet. Default: 5.13 as drawn.
+  no mockup yet. 5.13 and the banner's navigation place it after
+  "Accounts", which the rail leaves to `Settings` (5.3), so a project's
+  page has no such place yet. Default: 5.13 as drawn, on `Settings`
+  after "Accounts".
 - **The switcher's name** (5.1): the look requests name it "Project:
   NAME" apart from its summary's words, NAME; skein's disclosure names
   its summary by its words alone (skein's `ui-web.md`, section 6).

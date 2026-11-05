@@ -3515,6 +3515,10 @@ Each is intended; what it needs is named with it.
   bare deployment.
 - **Flags of their own** (`--welcome`, `--playground`), when a
   deployment wants some of the box's parts and not others (8.2).
+- **The welcome's copies** (6.7; `../draft/repository-copies.md`,
+  section 7): `SetUp`'s first repository as one of `Empty`, `Copies` or
+  `Nothing`, and Ready asking `MakeRepository` (6.9) for each address,
+  the first the project's home.
 - **After the first repository** (6.7): "New repository" on a connected owned or managed card is the general
   form of the same flow, with the same fields and `Create`, a managed
   forge's org needing an owner, and like it adopting nothing. The

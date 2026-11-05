@@ -2,6 +2,11 @@
 use crate::support;
 
 #[test]
+fn person_a_chat_waits_for_the_model_watch_before_pressing_start() {
+    support::person::a_chat_waits_for_the_model_watch_before_pressing_start();
+}
+
+#[test]
 fn terminal_a_command_waits_for_fresh_controls_when_returning_to_settings() {
     support::terminal::tests::a_command_waits_for_fresh_controls_when_returning_to_settings();
 }
