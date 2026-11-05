@@ -4,6 +4,7 @@ home-accounts-claude
 home-accounts-both
 home-accounts-key
 home-one-left
+home-with-goals
 home-at-work
 home-needs-several
 home-nothing-needs

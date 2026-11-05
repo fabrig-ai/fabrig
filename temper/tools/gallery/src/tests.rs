@@ -132,6 +132,16 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-with-goals",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Goals" },
+            Part::Named { role: Role::Link, name: "Needs you 1" },
+            Part::Named { role: Role::Button, name: "Reply" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
         name: "home-at-work",
         heading: "One thing needs you.",
         parts: &[

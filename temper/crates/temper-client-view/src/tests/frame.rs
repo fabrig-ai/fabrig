@@ -1509,7 +1509,7 @@ fn goals_opens_in_its_projects_frame() {
                 "Second · goalsA goal turns a draft into landed work.".as_bytes()
             );
             assert!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).is_empty());
-            assert!(fixtures::find(view.tree(), Role::Link, b"Goals").is_none(), "no rail entry yet");
+            assert!(fixtures::find(view.tree(), Role::Link, b"Goals").is_some(), "goals page keeps its rail entry");
             assert_eq!(skein_ui::outline::check(view.tree()), None);
             for node in view.tree().nodes() {
                 if node.role == Role::Main {
