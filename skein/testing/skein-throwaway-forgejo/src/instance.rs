@@ -151,6 +151,13 @@ impl Instance {
         let bytes = fs::read(self.scratch.join("server.log")).unwrap_or_default();
         self.mask(&String::from_utf8_lossy(&bytes[bytes.len().saturating_sub(2000)..]))
     }
+    /// Returns the server's captured output with the instance's secrets masked.
+    /// # Errors
+    /// Returns a failure to read the server log.
+    pub fn server_log(&self) -> Result<String, Failure> {
+        let bytes = fs::read(self.scratch.join("server.log"))?;
+        Ok(self.mask(&String::from_utf8_lossy(&bytes)))
+    }
     fn mask(&self, text: &str) -> String {
         let mut text = text.to_owned();
         for secret in &self.secrets {
@@ -395,7 +402,7 @@ pub(crate) fn ini(scratch: &Path, port: u16, settings: &Settings, user: &str, se
         .as_ref()
         .map_or_else(String::new, |hosts| format!("[webhook]\nALLOWED_HOST_LIST = {hosts}\n"));
     format!(
-        "APP_NAME = kit throwaway\nRUN_USER = {user}\nWORK_PATH = {path}\n[server]\nPROTOCOL = http\nHTTP_ADDR = 127.0.0.1\nHTTP_PORT = {port}\nROOT_URL = http://127.0.0.1:{port}/\nAPP_DATA_PATH = {path}/data\nDISABLE_SSH = true\nOFFLINE_MODE = true\n[database]\nDB_TYPE = sqlite3\nPATH = {path}/forgejo.db\n[repository]\nROOT = {path}/repositories\nDEFAULT_BRANCH = main\n[security]\nINSTALL_LOCK = true\nSECRET_KEY = {secret}\nINTERNAL_TOKEN = {internal}\n[service]\nDISABLE_REGISTRATION = true\n[log]\nMODE = console\nLEVEL = Error\n[git]\nPATH = {}\n[actions]\nENABLED = {}\n{cap}{hooks}",
+        "APP_NAME = kit throwaway\nRUN_USER = {user}\nWORK_PATH = {path}\n[server]\nPROTOCOL = http\nHTTP_ADDR = 127.0.0.1\nHTTP_PORT = {port}\nROOT_URL = http://127.0.0.1:{port}/\nAPP_DATA_PATH = {path}/data\nDISABLE_SSH = true\nOFFLINE_MODE = true\n[database]\nDB_TYPE = sqlite3\nPATH = {path}/forgejo.db\n[repository]\nROOT = {path}/repositories\nDEFAULT_BRANCH = main\n[security]\nINSTALL_LOCK = true\nSECRET_KEY = {secret}\nINTERNAL_TOKEN = {internal}\n[service]\nDISABLE_REGISTRATION = true\n[log]\nMODE = console\nLEVEL = Info\nROUTER = console\n[git]\nPATH = {}\n[actions]\nENABLED = {}\n{cap}{hooks}",
         settings.git.display(),
         settings.actions
     )
