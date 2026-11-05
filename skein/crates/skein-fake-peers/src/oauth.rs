@@ -80,6 +80,7 @@ pub struct Peer {
     key_set_url: Option<Box<[u8]>>,
     outgoing: Queue<issuer::Request>,
     connections: Vec<Connection>,
+    rejected: u64,
     next: u64,
     exchange: u64,
     observations: Vec<Observation>,
@@ -140,6 +141,7 @@ impl Peer {
             key_set_url,
             outgoing: Queue::uncapped(),
             connections: Vec::with_capacity(usize::try_from(limits.connections).expect("u32 fits")),
+            rejected: 0,
             next: 1,
             exchange: 1,
             observations: Vec::with_capacity(usize::try_from(limits.observations).expect("u32 fits")),
@@ -163,6 +165,13 @@ impl Peer {
     #[must_use]
     pub fn address(&self) -> Option<SocketAddr> {
         self.face.address
+    }
+
+    /// Connections turned away at the `connections` cap since the peer started;
+    /// a connection refused while stopping is not one. It holds without records.
+    #[must_use]
+    pub fn rejected(&self) -> u64 {
+        self.rejected
     }
 
     /// Keeps no outside records. Call on a fresh peer before its first pass.
@@ -219,9 +228,11 @@ impl Peer {
             }
             io::Event::Accepted { owner, socket, .. } => {
                 assert_eq!(owner, LISTENER, "one issuer listener accepts");
-                if self.face.stopping
-                    || self.connections.len() == usize::try_from(self.face.limits.connections).expect("u32 fits")
-                {
+                let full = self.connections.len() == usize::try_from(self.face.limits.connections).expect("u32 fits");
+                if self.face.stopping || full {
+                    if !self.face.stopping {
+                        self.rejected = self.rejected.checked_add(1).expect("finite world connections");
+                    }
                     self.face.requests.push(io::Request::Reject { socket });
                     return;
                 }

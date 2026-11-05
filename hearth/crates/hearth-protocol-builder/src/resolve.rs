@@ -98,7 +98,7 @@ impl Resolve {
             closing: false,
             exit: None,
             terminal: None,
-            pending: Queue::with_capacity(4),
+            pending: Queue::uncapped(),
             deadline,
             idle: env.now.saturating_add(env.limits.mmdebstrap.idle),
             started: env.now,
@@ -159,7 +159,7 @@ impl Resolve {
                     self.output.token = Some(pipes.next().expect("stdout"));
                     self.error.token = Some(pipes.next().expect("stderr"));
                     for pipe in [&mut self.output, &mut self.error] {
-                        let mut requests = Queue::with_capacity(1);
+                        let mut requests = Queue::uncapped();
                         output::open(
                             &mut pipe.reader,
                             &Env { now: env.now, wall: env.wall, limits: env.limits.mmdebstrap },
@@ -275,8 +275,8 @@ impl Resolve {
         }
         let pipe = if self.output.token == Some(owner) { &mut self.output } else { &mut self.error };
         assert_eq!(pipe.token, Some(owner), "current resolve pipe");
-        let mut seen = Queue::with_capacity(1);
-        let mut requests = Queue::with_capacity(1);
+        let mut seen = Queue::uncapped();
+        let mut requests = Queue::uncapped();
         output::up(
             &mut pipe.reader,
             &Env { now: env.now, wall: env.wall, limits: env.limits.mmdebstrap },

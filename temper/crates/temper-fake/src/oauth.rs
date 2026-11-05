@@ -12,7 +12,12 @@ pub const DOCUMENT_BYTES: u32 = 16_384;
 pub const URI_BYTES: u32 = 1024;
 /// Used authorization codes remain in the primitive until issuer restart.
 pub const CODE_SLOTS: u32 = 64;
-/// Two connections, each with at most one token request per peer pass.
+/// Connections the issuer serves at once: a browser's six per host, the
+/// engine's one, and one closing. `Peer`'s `valid` needs one socket more,
+/// within the Small profile's 16.
+pub const CONNECTIONS: u32 = 8;
+/// Token plans topped up before each peer pass, for the token requests one
+/// pass can meet. It bounds no connection: `CONNECTIONS` does.
 pub const PLAN_SLOTS: u32 = 2;
 const LIFETIME: u64 = 86_400;
 const REFRESH: &[u8] = b"fake-refresh";
@@ -106,7 +111,7 @@ impl Document {
             Transport::Plaintext,
             skein_fake_peers::Limits {
                 io: profile.io,
-                connections: PLAN_SLOTS,
+                connections: CONNECTIONS,
                 queue: 64,
                 plaintext: 131_072,
                 ciphertext: 131_072,
