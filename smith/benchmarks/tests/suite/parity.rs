@@ -1,5 +1,4 @@
 //! Parity's offline verdict uses attempt rows and committed source identities.
-#[path = "../common/parity.rs"]
 mod common;
 
 use common::Rows;

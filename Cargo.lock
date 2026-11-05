@@ -3788,6 +3788,7 @@ dependencies = [
  "skein-shell",
  "skein-world",
  "smith-agent-service",
+ "smith-bench",
  "smith-events",
  "smith-local-shell",
  "time",

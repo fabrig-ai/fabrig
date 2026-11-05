@@ -51,7 +51,7 @@ fn native_built_suite_pin_verifies_full_arm_commit_and_binary() {
         max_stdout_bytes: 1,
         max_stderr_bytes: 1,
         disk_estimate_bytes: 1,
-        ..crate::request_fixture::request(task_file, identity)
+        ..crate::fixture::request::request(task_file, identity)
     };
     let suite_file = root.join("suites/calibrate.toml");
     let valid = check_requests(&suite_file, &suite, std::slice::from_ref(&request));

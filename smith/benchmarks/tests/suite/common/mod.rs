@@ -1,4 +1,4 @@
-pub mod events;
+pub use smith_bench::fixture::events;
 
 use std::path::Path;
 
@@ -80,13 +80,11 @@ pub fn attempt() -> smith_bench::AttemptResult {
 mod observe;
 pub use observe::{captured, observe};
 
-use smith_bench as bench;
-mod request;
-pub use request::request;
+pub use smith_bench::fixture::request::request;
 
 pub mod edit;
 
-pub mod json;
+pub use smith_bench::fixture::json;
 
 mod tool;
 pub use tool::tool_pair;

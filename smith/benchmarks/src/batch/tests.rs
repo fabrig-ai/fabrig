@@ -195,7 +195,7 @@ fn block_requests() -> (crate::Suite, Vec<Request>) {
             let mut identity = result.identity.clone();
             identity.arm = arm.into();
             identity.attempt = format!("{arm}-{repetition}");
-            requests.push(crate::request_fixture::request(root.join("tests/recorded/tasks/valid/task.toml"), identity));
+            requests.push(crate::fixture::request::request(root.join("tests/recorded/tasks/valid/task.toml"), identity));
         }
     }
     (suite, requests)
