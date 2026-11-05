@@ -20,3 +20,16 @@ id = 1
 story = "a new workstream reuses the clone it evicts, and a changed file is the only one touched"
 parts = ["evict-keeps"]
 walk = false
+
+[[part]]
+id = "restart-keeps"
+title = "with TEMPER_WORKSPACE_REUSE set, a restart keeps the workspaces, and a damaged clone heals"
+mode = "direct"
+needs = ["evict-keeps"]
+design = "temper/docs/design/protocol/git.md, 2"
+
+[[slice]]
+id = 2
+story = "a restart reuses the clone it finds from that remote, and a stale index.lock heals on the next prepare"
+parts = ["restart-keeps"]
+walk = false
