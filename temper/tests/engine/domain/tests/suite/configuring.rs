@@ -257,7 +257,7 @@ fn the_configuring_agent_reads_each_kind() {
         completion + 10,
         json!({"setting":{"kind":"charter","number":CONFIGURING}}),
     );
-    assert!(pages > 1, "the stock configuring instructions require continuation from an offset");
+    assert_eq!(pages, 1, "the host allowance holds the stock configuring instructions");
     let (_, value) = text.split_once('\n').expect("charter heading");
     let value: serde_json::Value = serde_json::from_str(value).expect("reassembled charter JSON");
     assert_eq!(value["instructions"], std::str::from_utf8(&run.run.policy.instructions).expect("stock instructions"));
@@ -313,4 +313,128 @@ fn a_chat_is_offered_no_settings_tools() {
     for name in [b"settings".as_slice(), b"propose_settings"] {
         assert!(!offered.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name));
     }
+}
+
+#[test]
+fn settings_and_named_documents_use_the_host_answer_allowance() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let (inventory, error) = host_tool(&mut world.driver, &run, 1, b"settings", br"{}");
+    assert!(!error);
+    assert!(inventory.starts_with(b"newest revision 1\n"));
+    let input = json!({"setting":{"kind":"policy","number":1}});
+    let (whole, pages) = read_whole(&mut world.driver, &run, 2, input.clone());
+    assert!(whole.len() > 7000, "stock policy exercises a long JSON value");
+    assert_eq!(pages, 1, "the configured host allowance holds the whole stock policy");
+    let mut small = limits();
+    small.call_answer_bytes = 2048;
+    small.authority.segments = 8;
+    small.people.people = 4;
+    small.people.holdings = 4;
+    small.forge.client.answer_bytes = 65_536;
+    small.journal.transcript_bytes = 65_536;
+    let mut world = World::with_limits(config(), &small);
+    configuring_repository(&mut world);
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let (first, error) = host_tool(&mut world.driver, &run, 9, b"settings", input.to_string().as_bytes());
+    assert!(!error);
+    assert!(first.len() > 1000, "a long value fills the page after its heading");
+    let (continued, pages) = read_whole(&mut world.driver, &run, 10, input);
+    assert!(pages > 1);
+    assert_eq!(continued, whole, "continuations reconstruct every original byte");
+    configuring_documents(&mut world, &run);
+}
+
+fn configuring_repository(world: &mut World) {
+    use skein_fake_forge_domain::api as raw;
+    use temper_engine_domain_world::forge_stand::ForgeStand;
+    let paths = ["docs/direction.md", "docs/conventions.md"];
+    let contents = ["rules\n".repeat(5334), "words\n".repeat(2167)];
+    world.driver.forge = Some(ForgeStand::with_setup(Box::new([raw::Setup {
+        workflows: Box::new([]),
+        id: 2,
+        name: b"org/repo".as_slice().into(),
+        default: b"main".as_slice().into(),
+        tree: paths
+            .iter()
+            .zip(&contents)
+            .map(|(path, content)| raw::File { path: path.as_bytes().into(), content: content.as_bytes().into() })
+            .collect(),
+        labels: Box::new([]),
+        protection: None,
+        hooked: false,
+        checks: raw::Checks {
+            cues: Box::new([]),
+            contexts: Box::new([]),
+            latency_min: skein_lib::Duration::ZERO,
+            latency_max: skein_lib::Duration::ZERO,
+            silent: 0,
+            passes: 1000,
+            reruns: 0,
+            cue: None,
+        },
+    }])));
+    adopt_configuring_repository(world);
+}
+
+fn configuring_documents(world: &mut World, run: &engine::Assignment) {
+    use serde_json::json;
+    let paths = ["docs/direction.md", "docs/conventions.md"];
+    let contents = ["rules\n".repeat(5334), "words\n".repeat(2167)];
+    let (branch, error) = host_tool(&mut world.driver, run, 30, b"read_branch", br#"{"branch":"main"}"#);
+    assert!(!error, "{}", String::from_utf8_lossy(&branch));
+    let head = std::str::from_utf8(&branch).expect("head").trim();
+    for (index, path) in paths.iter().enumerate() {
+        for (offset, max_bytes) in [(0, None), (1, Some(64))] {
+            let mut input = json!({"head":head,"path":path});
+            if let Some(max_bytes) = max_bytes {
+                input["max_bytes"] = json!(max_bytes);
+            }
+            let (body, error) = host_tool(
+                &mut world.driver,
+                run,
+                31 + u32::try_from(index).expect("document index") * 2 + offset,
+                b"read_file",
+                input.to_string().as_bytes(),
+            );
+            assert!(!error, "{}", String::from_utf8_lossy(&body));
+            assert!(body.len() <= 2048 - b"read_file".len());
+            let text = std::str::from_utf8(&body).expect("file answer");
+            assert!(text.contains(path));
+            assert!(text.ends_with("[file truncated]"));
+            let (_, prefix) = text.split_once(":\n").expect("file metadata");
+            let prefix = prefix.strip_suffix("\n[file truncated]").expect("visible cut");
+            assert!(contents[index].starts_with(prefix) && !prefix.is_empty());
+            if max_bytes.is_some() {
+                assert_eq!(prefix.len(), 64);
+            }
+        }
+    }
+}
+
+fn adopt_configuring_repository(world: &mut World) {
+    use temper_engine_domain_forge as forge;
+    world.driver.send(Event::Party(PartyInput::Application {
+        scope: people::ApplicationScope::Project(PROJECT),
+        reply_to: ReplyTo::new(Token::new(29)),
+        sign_in: world.owner,
+        key: [29; 16],
+        digest: [29; 32],
+        carried: None,
+        request: engine::Application::Forge(forge::Ask::Adopt(forge::Adoption {
+            project: PROJECT,
+            home: false,
+            forge: 1,
+            host: b"forge.example".as_slice().into(),
+            owner: b"org".as_slice().into(),
+            name: b"repo".as_slice().into(),
+            checks: Box::new([]),
+            ci: true,
+            landing: b"main".as_slice().into(),
+            prefix: b"temper/".as_slice().into(),
+            role: forge::Role::Owned,
+        })),
+    }));
+    world.driver.settle();
 }
