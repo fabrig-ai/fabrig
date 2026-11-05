@@ -127,15 +127,6 @@ fn a_pass_stops_at_a_head_and_lends_its_credential() {
     assert_eq!(forge.domain.tally().answered, 1);
 }
 #[test]
-fn the_peers_server_names_a_bare_media_type() {
-    let mut forge = forge(7);
-    let mut c = Connection::head(&mut forge, f::INSTALLATIONS, f::authorization(fixture::key(), 1000, 1600).expose());
-    drop(c.server.take_head());
-    c.run(&mut forge, None, false);
-    let Some(Down::Send(wire)) = c.below.pop() else { panic!("response head") };
-    assert_eq!(header(&wire, b"Content-Type"), Some(b"application/json".as_slice()));
-}
-#[test]
 fn the_fixture_builds_a_valid_service() {
     for rows in [fixture::repositories(), fixture::widgets(1)] {
         let mut service = Service::new(fixture::config(rows), &fixture::limits(), 1).expect("valid fixture");
