@@ -1,5 +1,5 @@
 //! A call follows a job log once to a configured, separately pooled origin (4.5).
-use super::{Base, Common, GitHubForge, Waiting};
+use super::{Base, Common, GitHubCall, GitHubForge, Waiting};
 use crate::{Event, Fact, Limits};
 use skein_forge::{
     api,
@@ -20,6 +20,7 @@ impl Common {
         base: &mut Base,
         gh: &mut GitHubForge,
         holder: (Token, Id<Waiting>),
+        github: &mut GitHubCall,
         redirect: Redirect,
         retention: Retention,
         env: &Env<Limits>,
@@ -58,10 +59,6 @@ impl Common {
                 up.push(Event::Fact { forge: base.forge.number, fact: Fact::Origin { origin: redirect.origin } });
             }
             self.finish(call, id, Err(api::Error::Refused), up);
-            return;
-        };
-        let waiting = self.waiting.get_mut(id).expect("call");
-        let Some(github) = waiting.github() else {
             return;
         };
         github.route.as_mut().expect("sent route").origin = Some(index);

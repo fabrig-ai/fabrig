@@ -11,6 +11,17 @@ use crate::{
 use alloc::boxed::Box;
 use skein_forge::forgejo::plans::plan::Bounds;
 use skein_lib::{Env, Id, Lifecycle, List, Queue, Token};
+
+/// What `assign` did for a call.
+pub(super) enum Assigned {
+    /// No connection for it yet.
+    Waits,
+    /// It keeps the connection it holds.
+    Held,
+    /// A connection is newly its own: its exchange starts fresh.
+    New,
+}
+
 impl Common {
     pub(super) fn expire(
         &mut self,
@@ -54,17 +65,18 @@ impl Common {
         &mut self,
         call: Token,
         id: Id<Waiting>,
+        origin: Option<u32>,
         base: &mut Base,
         env: &Env<Limits>,
         io: &mut Queue<skein_io::Request>,
-    ) -> bool {
+    ) -> Assigned {
         let waiting = self.waiting.get(id).expect("call");
         if waiting.connection.is_some() {
-            return true;
+            return Assigned::Held;
         }
         let forge = waiting.repository.forge;
         if !super::ready(base.start) {
-            return false;
+            return Assigned::Waits;
         }
         let mut token = None;
 
@@ -76,7 +88,7 @@ impl Common {
                 continue;
             }
             if c.phase == Phase::Idle && !c.closing && !self.holders.contains_key(owner) {
-                if c.forge == forge && c.origin == waiting.origin() {
+                if c.forge == forge && c.origin == origin {
                     token = Some(*owner);
                     break;
                 }
@@ -89,14 +101,13 @@ impl Common {
             && call_connections < env.limits.connections
             && self.connections.len() < self.connections.capacity()
         {
-            let origin = waiting.origin();
             token = Some(self.open_call_origin(&base.forge, origin, env, io));
         }
         if token.is_none() {
             if let Some(other) = other {
                 self.connection_slab.get_mut(other).expect("idle other forge").close(env, false, io);
             }
-            return false;
+            return Assigned::Waits;
         }
         let token = token.expect("selected connection");
         if base.own == Some(token) {
@@ -109,12 +120,7 @@ impl Common {
         let _old = self.holders.insert(token, call).expect("one holder per connection");
         let waiting = self.waiting.get_mut(id).expect("indexed call");
         waiting.connection = Some(token);
-        match &mut waiting.side {
-            Side::Forgejo(call) => call.exchange = connection::forgejo::Exchange::new(),
-            Side::GitHub(call) => call.exchange = connection::github::Exchange::new(),
-            Side::Unbegun => {}
-        }
-        true
+        Assigned::New
     }
     fn begin_forgejo_call(
         &mut self,
@@ -124,14 +130,9 @@ impl Common {
         env: &Env<Limits>,
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
-    ) -> bool {
+    ) -> Option<(Box<ForgejoCall>, bool)> {
         let waiting = self.waiting.get_mut(id).expect("call");
-        if waiting.begun() {
-            return true;
-        }
-        let Some(cap) = super::page_cap(base.start) else {
-            return false;
-        };
+        let cap = super::page_cap(base.start)?;
         let op = waiting.op.take().expect("waiting operation");
         waiting.page_size = page_size(&op, crate::settings::Kind::Forgejo, cap, &env.limits, &self.shared);
         let mut plan = Plan::new(waiting.repository, op);
@@ -140,18 +141,20 @@ impl Common {
             &self.owner.word,
             &mut self.forgejo_tables,
         );
-        waiting.side = Side::Forgejo(Box::new(ForgejoCall { plan, exchange: connection::forgejo::Exchange::new() }));
-        match step {
-            Ok(step) => !self.call_step(id, step, env, up, io, call),
+        let mut forgejo = Box::new(ForgejoCall { plan, exchange: connection::forgejo::Exchange::new() });
+        let pump = match step {
+            Ok(step) => !self.call_step(id, &mut forgejo, step, env, up, io, call),
             Err(error) => {
                 self.finish(call, id, Err(error), up);
                 false
             }
-        }
+        };
+        Some((forgejo, pump))
     }
     fn pump_call(
         &mut self,
         holder: (Token, Id<Waiting>),
+        forgejo: &mut ForgejoCall,
         base: &mut Base,
         env: &Env<Limits>,
         up: &mut Queue<Event>,
@@ -166,14 +169,11 @@ impl Common {
                 let waiting = self.waiting.get_mut(id).expect("indexed call");
                 if waiting.revoked {
                     c.deadline = Some(env.now.saturating_add(env.limits.idle));
-                    let error = waiting.error(api::Error::Forbidden);
+                    let error = forgejo.plan.error(api::Error::Forbidden);
                     self.finish(call, id, Err(error), up);
                     break;
                 }
                 let deadline = waiting.deadline;
-                let Some(forgejo) = waiting.forgejo() else {
-                    break;
-                };
                 let plan = &mut forgejo.plan;
                 if let Some(request) = plan.pending() {
                     c.deadline = Some(deadline);
@@ -196,19 +196,14 @@ impl Common {
                 }
             }
             let waiting = self.waiting.get_mut(id).expect("indexed call");
-            let Some(forgejo) = waiting.forgejo() else { break };
             forgejo.exchange.pump(c, env, io);
             if c.written && !waiting.charged {
                 waiting.cost = waiting.cost.checked_add(1).expect("bounded exchanges");
                 waiting.charged = true;
             }
-            let Some(forgejo) = waiting.forgejo() else { break };
             if let Some(heard) = forgejo.exchange.heard(c) {
                 let heard = call_heard(heard, waiting, &mut self.diagnostics);
                 let page_size = waiting.page_size;
-                let Some(forgejo) = waiting.forgejo() else {
-                    break;
-                };
                 let step = forgejo.plan.heard(
                     heard,
                     bounds(page_size, &env.limits, &self.shared),
@@ -221,7 +216,7 @@ impl Common {
                 }
                 match step {
                     Ok(Some(step)) => {
-                        if self.call_step(id, step, env, up, io, call) {
+                        if self.call_step(id, forgejo, step, env, up, io, call) {
                             break;
                         }
                     }
@@ -243,9 +238,11 @@ impl Common {
             self.wake = Some(env.now);
         }
     }
+    #[expect(clippy::too_many_arguments, reason = "the call carries its plan through its checked step")]
     fn call_step(
         &mut self,
         id: Id<Waiting>,
+        forgejo: &mut ForgejoCall,
         step: Step,
         env: &Env<Limits>,
         up: &mut Queue<Event>,
@@ -254,9 +251,6 @@ impl Common {
     ) -> bool {
         let waiting = self.waiting.get_mut(id).expect("indexed call");
         let token = waiting.connection.expect("holder");
-        let Some(forgejo) = waiting.forgejo() else {
-            return true;
-        };
         let connection = *self.connections.get(&token).expect("connection");
         let c = self.connection_slab.get_mut(connection).expect("connection");
         match step {
@@ -343,6 +337,7 @@ pub(super) fn page_size(op: &api::Op, kind: crate::settings::Kind, cap: u32, l: 
 }
 
 impl Component {
+    #[expect(clippy::too_many_lines, reason = "the call keeps its side out through each dialect's drive")]
     pub(super) fn drive_calls(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
         let mut calls = List::with_capacity(self.common.calls.capacity());
         for (call, id) in &self.common.calls {
@@ -385,31 +380,50 @@ impl Component {
                 }
             }
             let base = &mut entry.base;
-            match (&waiting.side, &mut entry.dialect) {
-                (Side::Unbegun | Side::GitHub(_), Dialect::GitHub(gh)) => {
-                    let waiting = self.common.waiting.get_mut(id).expect("call");
-                    if waiting.github().is_none() {
-                        waiting.side = Side::GitHub(Box::new(GitHubCall {
-                            exchange: connection::github::Exchange::new(),
-                            plan: None,
-                            route: None,
-                            discovery: None,
-                            discovered: None,
-                        }));
-                    }
-                    self.common.drive_github_call((call, id), base, gh, env, up, io);
+            let side = core::mem::replace(&mut self.common.waiting.get_mut(id).expect("call").side, Side::Unbegun);
+            let side = match (side, &mut entry.dialect) {
+                (Side::Unbegun, Dialect::GitHub(gh)) => {
+                    let mut github = Box::new(GitHubCall::new());
+                    self.common.drive_github_call((call, id), &mut github, base, gh, env, up, io);
+                    Side::GitHub(github)
                 }
-                (Side::Unbegun | Side::Forgejo(_), Dialect::Forgejo { .. }) => {
-                    if self.common.assign(call, id, base, env, io)
-                        && self.common.begin_forgejo_call(call, id, base, env, up, io)
+                (Side::GitHub(mut github), Dialect::GitHub(gh)) => {
+                    self.common.drive_github_call((call, id), &mut github, base, gh, env, up, io);
+                    Side::GitHub(github)
+                }
+                (Side::Unbegun, Dialect::Forgejo { .. }) => match self.common.assign(call, id, None, base, env, io) {
+                    Assigned::Waits => Side::Unbegun,
+                    Assigned::Held | Assigned::New => match self.common.begin_forgejo_call(call, id, base, env, up, io)
                     {
-                        self.common.pump_call((call, id), base, env, up, io);
+                        Some((mut forgejo, pump)) => {
+                            if pump {
+                                self.common.pump_call((call, id), &mut forgejo, base, env, up, io);
+                            }
+                            Side::Forgejo(forgejo)
+                        }
+                        None => Side::Unbegun,
+                    },
+                },
+                (Side::Forgejo(mut forgejo), Dialect::Forgejo { .. }) => {
+                    let pump = match self.common.assign(call, id, None, base, env, io) {
+                        Assigned::Waits => false,
+                        Assigned::Held => true,
+                        Assigned::New => {
+                            forgejo.exchange = connection::forgejo::Exchange::new();
+                            true
+                        }
+                    };
+                    if pump {
+                        self.common.pump_call((call, id), &mut forgejo, base, env, up, io);
                     }
+                    Side::Forgejo(forgejo)
                 }
                 (Side::Forgejo(_), Dialect::GitHub(_)) | (Side::GitHub(_), Dialect::Forgejo { .. }) => {
                     self.common.finish(call, id, Err(api::Error::Unavailable), up);
+                    Side::Unbegun
                 }
-            }
+            };
+            self.common.waiting.get_mut(id).expect("call").side = side;
         }
         for (_, id) in &self.common.connections {
             let c = self.common.connection_slab.get_mut(*id).expect("indexed connection");
