@@ -405,6 +405,7 @@ name = "hearth-config-world"
 version = "0.0.0"
 dependencies = [
  "hearth-protocol-config",
+ "hearth-test-fixtures",
  "skein-heap",
  "skein-json",
  "skein-lib",
@@ -628,8 +629,16 @@ name = "hearth-template-world"
 version = "0.0.0"
 dependencies = [
  "hearth-protocol-template",
+ "hearth-test-fixtures",
  "skein-heap",
  "skein-lib",
+ "skein-scratch",
+]
+
+[[package]]
+name = "hearth-test-fixtures"
+version = "0.0.0"
+dependencies = [
  "skein-scratch",
 ]
 
