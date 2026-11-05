@@ -3,3 +3,27 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-needs/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/crates/temper-client-view/src/frame.rs", "temper/crates/temper-client-view/src/pages/inbox.rs", "temper/crates/temper-client-view/src/pages/home.rs", "temper/crates/temper-client-view/src/confirm.rs", "temper/crates/temper-client-domain/src/pages/inbox.rs", "temper/crates/temper-client-domain/src/pages/home.rs", "temper/crates/temper-client-domain/src/acts.rs", "temper/crates/temper-service/src/stock/chat.txt", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "question-words"
+title = "A question's line form, parsed in the client"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 8.2"
+
+[[part]]
+id = "stock-words"
+title = "The stock goal writes its questions in the line form"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 8.2"
+
+[[slice]]
+id = 1
+story = "A goal's question says its options in its words, and the client can read them"
+parts = ["question-words", "stock-words"]
+walk = false
