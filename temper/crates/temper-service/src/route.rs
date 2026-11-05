@@ -399,7 +399,14 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
 fn render_host(engine: &mut Engine, to: skein_lib::ReplyTo, answer: &root::CallAnswer, tool: &[u8], task: u64) {
     let bytes =
         engine.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool name"));
-    engine.events.push(crate::tools::render_for_task(to, answer, tool, bytes, task));
+    engine.events.push(crate::tools::render_for_task(
+        to,
+        answer,
+        tool,
+        bytes,
+        task,
+        engine.host_reply_bytes.unwrap_or(u32::MAX),
+    ));
 }
 
 /// A job uses the same repository translation as an agent (temper/docs/design/domain/worker.md, 4.4).
