@@ -70,11 +70,11 @@ fn registration(public: bool, wire: WireFormat) -> Registration {
         terms: None,
     }
 }
-fn state() -> Box<[u8]> {
-    boxed(b"0123456789abcdef")
+fn state() -> skein_lib::Secret {
+    secret(b"0123456789abcdef")
 }
-fn verifier() -> Box<[u8]> {
-    boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+fn verifier() -> skein_lib::Secret {
+    secret(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
 }
 fn step(client: &mut Client, event: Event) -> Option<Request> {
     let mut out = Queue::with_capacity(1);
@@ -171,7 +171,7 @@ fn public_sign_in_uses_s256_state_and_one_code_exchange() {
             client_id: None,
             uri,
             state: state(),
-            code: Some(boxed(b"one-use")),
+            code: Some(secret(b"one-use")),
             error: None,
             now: time(2),
         },
@@ -215,7 +215,7 @@ fn confidential_sign_in_sends_secret_in_json_only_to_token_endpoint() {
             client_id: None,
             uri: boxed(b"https://web.example/callback"),
             state: state(),
-            code: Some(boxed(b"grant")),
+            code: Some(secret(b"grant")),
             error: None,
             now: time(2),
         },
@@ -258,7 +258,7 @@ fn confidential_registration_can_require_pkce_too() {
             client_id: None,
             uri: boxed(b"https://web.example/callback"),
             state: state(),
-            code: Some(boxed(b"grant")),
+            code: Some(secret(b"grant")),
             error: None,
             now: time(2),
         },
@@ -378,7 +378,7 @@ fn localhost_registration_refuses_every_redirect_uri_change_before_exchange() {
                     client_id: None,
                     uri: boxed(uri),
                     state: state(),
-                    code: Some(boxed(b"code")),
+                    code: Some(secret(b"code")),
                     error: None,
                     now: time(2)
                 }
@@ -443,7 +443,7 @@ fn wrong_state_and_redirect_are_terminal_without_exchange() {
         );
         let uri =
             if wrong_uri { boxed(b"http://127.0.0.1:2345/other") } else { boxed(b"http://127.0.0.1:2345/callback") };
-        let returned_state = if wrong_uri { state() } else { boxed(b"unrelated-state!!") };
+        let returned_state = if wrong_uri { state() } else { secret(b"unrelated-state!!") };
         assert_eq!(
             failure(step(
                 &mut client,
@@ -451,7 +451,7 @@ fn wrong_state_and_redirect_are_terminal_without_exchange() {
                     client_id: None,
                     uri,
                     state: returned_state,
-                    code: Some(boxed(b"code")),
+                    code: Some(secret(b"code")),
                     error: None,
                     now: time(2)
                 }
@@ -465,7 +465,7 @@ fn wrong_state_and_redirect_are_terminal_without_exchange() {
                     client_id: None,
                     uri: boxed(b"http://127.0.0.1:2345/callback"),
                     state: state(),
-                    code: Some(boxed(b"code")),
+                    code: Some(secret(b"code")),
                     error: None,
                     now: time(3)
                 }
@@ -742,7 +742,7 @@ fn issuer_http_endpoints_are_admitted_only_on_numeric_loopback() {
                                 boxed(b"https://web.example/callback")
                             },
                             state: state(),
-                            code: Some(boxed(b"grant")),
+                            code: Some(secret(b"grant")),
                             error: None,
                             now: time(2),
                         },
@@ -847,7 +847,7 @@ fn a_sign_in_without_refresh_completes_and_round_trips() {
             client_id: None,
             uri: boxed(b"http://127.0.0.1:2345/callback"),
             state: state(),
-            code: Some(boxed(b"code")),
+            code: Some(secret(b"code")),
             error: None,
             now: time(2),
         },

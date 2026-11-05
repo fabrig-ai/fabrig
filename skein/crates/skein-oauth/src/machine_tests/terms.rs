@@ -69,6 +69,7 @@ fn resource(length: usize) -> Registration {
     additions.resource = Some(boxed([b'r'; RESOURCE_CAP + 1].get(..length).expect("resource fixture")));
     with_terms(additions)
 }
+#[expect(clippy::manual_map, reason = "step crate uses exhaustive matches without closures")]
 fn start(registration: Registration, nonce: Option<Box<[u8]>>, port: Option<u16>) -> Event {
     Event::SignIn {
         issued_client_id: None,
@@ -79,7 +80,10 @@ fn start(registration: Registration, nonce: Option<Box<[u8]>>, port: Option<u16>
         generation: 0,
         state: state(),
         verifier: Some(verifier()),
-        nonce,
+        nonce: match nonce {
+            Some(value) => Some(skein_lib::Secret::new(value)),
+            None => None,
+        },
         port,
         now: time(1),
     }
@@ -195,7 +199,7 @@ fn a_varying_redirect_takes_the_bound_port() {
                 client_id: None,
                 uri: boxed(bound_uri),
                 state: state(),
-                code: Some(boxed(b"one-use")),
+                code: Some(secret(b"one-use")),
                 error: None,
                 now: time(2),
             },

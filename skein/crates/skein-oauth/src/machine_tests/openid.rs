@@ -24,7 +24,7 @@ pub(super) fn sign_in(registration: Registration) -> Event {
         generation: 0,
         state: state(),
         verifier: Some(verifier()),
-        nonce: Some(boxed(b"0123456789abcdef")),
+        nonce: Some(secret(b"0123456789abcdef")),
         port: None,
         issued_client_id: None,
         id_token: None,
@@ -355,7 +355,7 @@ fn redeeming_with(keys: &[u8]) -> (Client, HttpRequest) {
         client_id: None,
         uri: boxed(b"http://127.0.0.1:2345/callback"),
         state: state(),
-        code: Some(boxed(b"code")),
+        code: Some(secret(b"code")),
         error: None,
         now: time(3),
     };

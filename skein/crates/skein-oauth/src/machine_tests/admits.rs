@@ -5,7 +5,7 @@ fn redirect() -> Redirect {
     Redirect {
         uri: boxed(b"http://127.0.0.1:2345/callback"),
         state: state(),
-        code: Some(boxed(b"code")),
+        code: Some(secret(b"code")),
         error: None,
         client_id: Some(boxed(b"issued")),
     }
@@ -68,11 +68,11 @@ fn a_refused_admission_leaves_the_right_redirect_to_be_taken() {
             1 => wrong.uri = boxed(b"http://127.0.0.1:2346/callback"),
             2 => wrong.error = Some(boxed(b"denied")),
             3 => wrong.code = None,
-            4 => wrong.code = Some(boxed(b"")),
+            4 => wrong.code = Some(secret(b"")),
             5 => wrong.client_id = None,
             6 => wrong.client_id = Some(boxed(b"")),
-            7 => wrong.state = boxed(b"1123456789abcdef"),
-            8 => wrong.state = boxed(b"0123456789abcde"),
+            7 => wrong.state = secret(b"1123456789abcdef"),
+            8 => wrong.state = secret(b"0123456789abcde"),
             9 | 10 => {}
             _ => unreachable!("fixture kind"),
         }
@@ -162,12 +162,12 @@ fn an_empty_optional_value_is_absent_and_the_event_keeps_its_failure_vocabulary(
         match kind {
             0 => {}
             1 => redirect.uri = boxed(b"http://127.0.0.1:2346/callback"),
-            2 => redirect.state = boxed(b"another"),
+            2 => redirect.state = secret(b"another"),
             3 => redirect.code = None,
-            4 => redirect.code = Some(boxed(b"")),
+            4 => redirect.code = Some(secret(b"")),
             5 => redirect.error = Some(boxed(b"denied")),
             6 => redirect.client_id = Some(boxed(b"")),
-            7 => redirect.code = Some(boxed(&[b'c'; 129])),
+            7 => redirect.code = Some(secret(&[b'c'; 129])),
             8 => redirect.client_id = Some(boxed(&[b'i'; 65])),
             _ => unreachable!("fixture kind"),
         }
@@ -186,7 +186,7 @@ fn admission_checks_deadline_before_address_and_state_without_moving_it() {
     let client = begin(false, false, false);
     let mut wrong = redirect();
     wrong.uri = boxed(b"http://localhost:2345/callback");
-    wrong.state = boxed(b"another-state");
+    wrong.state = secret(b"another-state");
     for (now, expected) in [
         (Time::from_nanos(120_999_999_999), Inadmissible::Address),
         (time(121), Inadmissible::NotWaiting),
@@ -220,7 +220,7 @@ fn cancelling_needs_reset_and_the_new_attempt_refuses_the_old_state() {
     drop(step(&mut client, Event::Reset));
     let mut event = openid::sign_in(registration(true, WireFormat::Form));
     let mut fresh = redirect();
-    fresh.state = boxed(b"fedcba9876543210");
+    fresh.state = secret(b"fedcba9876543210");
     if let Event::SignIn { state, nonce, now, .. } = &mut event {
         *state = fresh.state.clone();
         *nonce = None;

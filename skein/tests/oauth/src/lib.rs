@@ -245,7 +245,14 @@ pub fn visit(
 pub fn redirected(issuer: &mut fake::Issuer, url: Box<[u8]>) -> oauth::Event {
     let redirect = fake_step(issuer, fake::Event::Authorize { url, now: time(1) });
     let Some(fake::Request::Redirect { uri, state, code, client_id }) = redirect else { panic!("redirect expected") };
-    oauth::Event::Redirected { client_id, uri, state, code: Some(code), error: None, now: time(2) }
+    oauth::Event::Redirected {
+        client_id,
+        uri,
+        state: skein_lib::Secret::new(state),
+        code: Some(skein_lib::Secret::new(code)),
+        error: None,
+        now: time(2),
+    }
 }
 
 #[must_use]
@@ -301,7 +308,7 @@ fn start(
     seconds: u64,
 ) -> Option<oauth::Request> {
     let verifier = if registration.client_secret.is_none() || registration.pkce_for_confidential {
-        Some(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+        Some(skein_lib::Secret::new(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")))
     } else {
         None
     };
@@ -314,9 +321,9 @@ fn start(
             registration,
             key: 7,
             generation: 0,
-            state: boxed(b"0123456789abcdef"),
+            state: skein_lib::Secret::new(boxed(b"0123456789abcdef")),
             verifier,
-            nonce,
+            nonce: nonce.map(skein_lib::Secret::new),
             port,
             now: time(seconds),
         },

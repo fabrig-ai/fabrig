@@ -436,8 +436,8 @@ impl World {
         assert_eq!(code.as_ref(), value.expose(), "wire code");
         let event = oauth::Event::Redirected {
             uri: boxed(uri),
-            state,
-            code: Some(code),
+            state: Secret::new(state),
+            code: Some(Secret::new(code)),
             error: None,
             client_id: None,
             now: self.now,
@@ -491,7 +491,7 @@ fn event_bytes(event: &oauth::Event) -> usize {
     match event {
         oauth::Event::SignIn { registration, state, verifier, nonce, .. } => {
             let mut count =
-                state.len() + verifier.as_ref().map_or(0, |v| v.len()) + nonce.as_ref().map_or(0, |v| v.len());
+                state.len() + verifier.as_ref().map_or(0, Secret::len) + nonce.as_ref().map_or(0, Secret::len);
             count += registration.authorization_url.len()
                 + registration.token_endpoint.len()
                 + registration.client_id.len()
@@ -506,7 +506,7 @@ fn event_bytes(event: &oauth::Event) -> usize {
             count
         }
         oauth::Event::Redirected { uri, state, code, .. } => {
-            uri.len() + state.len() + code.as_ref().map_or(0, |v| v.len())
+            uri.len() + state.len() + code.as_ref().map_or(0, Secret::len)
         }
         oauth::Event::Http(answer) => answer.body.len(),
         oauth::Event::Tick { .. } | oauth::Event::Cancel | oauth::Event::Reset => 0,
@@ -542,9 +542,9 @@ pub fn run(seed: u64, story: Story) -> Outcome {
         registration: registration(),
         key: 7,
         generation: 0,
-        state: boxed(state.expose()),
-        verifier: Some(boxed(verifier.expose())),
-        nonce: Some(boxed(nonce.expose())),
+        state: Secret::new(boxed(state.expose())),
+        verifier: Some(Secret::new(boxed(verifier.expose()))),
+        nonce: Some(Secret::new(boxed(nonce.expose()))),
         port: None,
         issued_client_id: None,
         id_token: None,
@@ -644,7 +644,7 @@ fn code_ledger_refuses_unknown_expired_and_failed_first_presentations() {
         let (status, body) = world.post(&request);
         assert_eq!((status, body.as_ref()), (400, b"{\"error\":\"invalid_grant\"}".as_slice()));
         assert!(world.code.is_some(), "unknown code does not spend a different code");
-        let value = std::str::from_utf8(&code).expect("drawn code");
+        let value = std::str::from_utf8(code.expose()).expect("drawn code");
         let body =
             String::from_utf8(request.body.into_vec()).expect("form").replace("code=unknown", &format!("code={value}"));
         if expired {

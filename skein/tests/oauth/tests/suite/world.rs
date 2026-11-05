@@ -100,8 +100,8 @@ fn a_localhost_registration_signs_in_through_its_exact_redirect() {
             registration,
             key: 7,
             generation: 0,
-            state: boxed(b"0123456789abcdef"),
-            verifier: Some(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")),
+            state: skein_lib::Secret::new(boxed(b"0123456789abcdef")),
+            verifier: Some(skein_lib::Secret::new(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))),
             now: time(1),
         },
     ) else {
@@ -115,7 +115,14 @@ fn a_localhost_registration_signs_in_through_its_exact_redirect() {
     assert_eq!(uri.as_ref(), redirect_uri);
     let request = http(client_step(
         &mut client,
-        oauth::Event::Redirected { client_id, uri, state, code: Some(code), error: None, now: time(2) },
+        oauth::Event::Redirected {
+            client_id,
+            uri,
+            state: skein_lib::Secret::new(state),
+            code: Some(skein_lib::Secret::new(code)),
+            error: None,
+            now: time(2),
+        },
     ));
     assert!(bytes::find(&request.body, b"redirect_uri=http%3A%2F%2Flocalhost%3A1234%2Fcallback").is_some());
     let answer = response(fake_step(&mut issuer, fake::Event::Post { request, now: time(2), wall: wall(100) }));

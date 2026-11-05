@@ -11,7 +11,7 @@ use crate::listener::Listener;
 use crate::redirect;
 use crate::{Asked, Ends, Event, Failure, Limits, Lower, Refusal};
 use alloc::boxed::Box;
-use skein_lib::{CryptoRng, Env, Queue, Time, Writer, usize_of};
+use skein_lib::{CryptoRng, Env, Queue, Secret, Time, Writer, usize_of};
 use skein_oauth as oauth;
 use skein_oauth::Redirect;
 
@@ -172,7 +172,7 @@ impl Component {
                         *generation = record.generation;
                         issued_client_id.clone_from(&record.issued_client_id);
                         *id_token = match &record.id_token {
-                            Some(token) => Some(token.clone().into_exposed()),
+                            Some(token) => Some(token.clone()),
                             None => None,
                         };
                         subject.clone_from(&record.subject);
@@ -386,9 +386,9 @@ fn prepare_sign_in(
     env: &Env<Limits>,
     crypto: &mut CryptoRng,
 ) -> oauth::Event {
-    let state = draw(crypto, 24);
+    let state = Secret::new(draw(crypto, 24));
     let verifier = if registration.client_secret.is_none() || registration.pkce_for_confidential {
-        Some(draw(crypto, 32))
+        Some(Secret::new(draw(crypto, 32)))
     } else {
         None
     };
@@ -397,7 +397,10 @@ fn prepare_sign_in(
         None => false,
     };
     let nonce = if openid {
-        Some(draw(crypto, env.limits.client.nonce_bytes.min(32).checked_mul(3).expect("bounded nonce").div_euclid(4)))
+        Some(Secret::new(draw(
+            crypto,
+            env.limits.client.nonce_bytes.min(32).checked_mul(3).expect("bounded nonce").div_euclid(4),
+        )))
     } else {
         None
     };

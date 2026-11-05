@@ -6,6 +6,7 @@
 mod fetch;
 mod revoke;
 
+use crate::record::secret_ref;
 use crate::redirect::{form_fields, issued_id, missing_scopes, resource_field, validate_registration};
 use crate::{ClaimSelector, DecodeError, Failure, Json, Limits, OAuthError, RefreshState, SavedToken, TokenResponse};
 use crate::{classify, decode_error, decode_response, rotate};
@@ -84,7 +85,6 @@ pub enum Method {
 }
 
 /// A complete bounded request for the caller's HTTP/TLS stack.
-#[expect(missing_debug_implementations, reason = "request body contains credentials")]
 pub struct HttpRequest {
     pub id: u64,
     pub method: Method,
@@ -102,7 +102,6 @@ pub enum HttpEvidence {
 }
 
 /// Terminal HTTP answer, including bounded body and transport evidence.
-#[expect(missing_debug_implementations, reason = "answer may contain tokens")]
 pub struct HttpResponse {
     pub id: u64,
     pub status: u16,
@@ -115,11 +114,11 @@ pub struct HttpResponse {
 
 /// A redirect's values as its caller decoded them: the address without its query, and the
 /// fields the client reads (oauth.md, sections 3 and 6.5).
-#[expect(missing_debug_implementations, reason = "redirects carry state and codes")]
+#[derive(Debug)]
 pub struct Redirect {
     pub uri: Box<[u8]>,
-    pub state: Box<[u8]>,
-    pub code: Option<Box<[u8]>>,
+    pub state: Secret,
+    pub code: Option<Secret>,
     pub error: Option<Box<[u8]>>,
     pub client_id: Option<Box<[u8]>>,
 }
@@ -135,25 +134,25 @@ pub enum Inadmissible {
     State,
 }
 
-#[expect(missing_debug_implementations, reason = "events can contain secrets")]
+#[derive(Debug)]
 pub enum Event {
     SignIn {
         registration: Registration,
         key: u32,
         generation: u64,
-        state: Box<[u8]>,
-        verifier: Option<Box<[u8]>>,
-        nonce: Option<Box<[u8]>>,
+        state: Secret,
+        verifier: Option<Secret>,
+        nonce: Option<Secret>,
         port: Option<u16>,
         issued_client_id: Option<Box<[u8]>>,
-        id_token: Option<Box<[u8]>>,
+        id_token: Option<Secret>,
         subject: Option<Box<[u8]>>,
         now: Time,
     },
     Redirected {
         uri: Box<[u8]>,
-        state: Box<[u8]>,
-        code: Option<Box<[u8]>>,
+        state: Secret,
+        code: Option<Secret>,
         error: Option<Box<[u8]>>,
         client_id: Option<Box<[u8]>>,
         now: Time,
@@ -176,7 +175,6 @@ pub enum Event {
     Reset,
 }
 
-#[expect(missing_debug_implementations, reason = "requests can contain secrets")]
 pub enum Request {
     Visit { url: Box<[u8]> },
     Http(HttpRequest),
@@ -198,18 +196,18 @@ enum Phase {
 struct SignInValues {
     key: u32,
     generation: u64,
-    state: Box<[u8]>,
-    verifier: Option<Box<[u8]>>,
-    nonce: Option<Box<[u8]>>,
+    state: Secret,
+    verifier: Option<Secret>,
+    nonce: Option<Secret>,
     port: Option<u16>,
     issued_client_id: Option<Box<[u8]>>,
-    id_token: Option<Box<[u8]>>,
+    id_token: Option<Secret>,
     subject: Option<Box<[u8]>>,
     now: Time,
 }
 
 enum Grant {
-    SignIn { key: u32, generation: u64, code: Option<Box<[u8]>> },
+    SignIn { key: u32, generation: u64, code: Option<Secret> },
     Refresh { prior: RefreshState },
     Revoke { prior: RefreshState },
 }
@@ -217,9 +215,9 @@ enum Grant {
 struct Exchange {
     registration: Registration,
     grant: Grant,
-    state: Box<[u8]>,
-    verifier: Option<Box<[u8]>>,
-    nonce: Option<Box<[u8]>>,
+    state: Secret,
+    verifier: Option<Secret>,
+    nonce: Option<Secret>,
     deadline: Time,
     attempts: u32,
     visit: Option<Box<[u8]>>,
@@ -228,7 +226,6 @@ struct Exchange {
 }
 
 /// One sans-IO sign-in, refresh or revocation. The caller dispatches each entrance's output before the next.
-#[expect(missing_debug_implementations, reason = "machine retains secrets")]
 pub struct Client {
     limits: ClientLimits,
     phase: Phase,
@@ -366,7 +363,7 @@ impl Client {
         let mut exchange = Exchange {
             registration,
             grant: Grant::Refresh { prior },
-            state: bytes::copy_of(b""),
+            state: Secret::new(bytes::copy_of(b"")),
             verifier: None,
             nonce: None,
             deadline,
@@ -401,7 +398,7 @@ impl Client {
         if redirect.uri != exchange.registration.redirect_uri {
             return Err((Inadmissible::Address, Failure::InvalidRedirect));
         }
-        let code = present(redirect.code.as_deref());
+        let code = present(secret_ref(redirect.code.as_ref()));
         let error = present(redirect.error.as_deref());
         if code.is_some() == error.is_some() {
             return Err((Inadmissible::Address, Failure::Malformed));
@@ -409,7 +406,7 @@ impl Client {
         if code.is_some() && issued_id(&exchange.registration) && present(redirect.client_id.as_deref()).is_none() {
             return Err((Inadmissible::Address, Failure::Incomplete));
         }
-        if !skein_lib::sha256::equal(&redirect.state, &exchange.state) {
+        if !skein_lib::sha256::equal(redirect.state.expose(), exchange.state.expose()) {
             return Err((Inadmissible::State, Failure::InvalidRedirect));
         }
         Ok(())
@@ -540,7 +537,6 @@ impl Client {
         self.retry_or_fail(exchange, failure, answer.now, answer.retry_after, safe, out);
     }
 
-    #[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
     fn record(&self, exchange: &Exchange, response: &TokenResponse, wall: Wall) -> Result<SavedToken, Failure> {
         let prior = match &exchange.grant {
             Grant::Refresh { prior } => {
@@ -576,10 +572,7 @@ impl Client {
                     },
                     granted_scopes: None,
                     subject: identity.subject,
-                    id_token: match identity.token {
-                        Some(token) => Some(Secret::new(token)),
-                        None => None,
-                    },
+                    id_token: identity.token,
                 }
             }
         };
@@ -743,9 +736,9 @@ fn token_body(exchange: &Exchange, limits: &ClientLimits) -> Result<Box<[u8]>, F
         Grant::SignIn { code: Some(code), .. } => (
             b"authorization_code".as_slice(),
             b"code".as_slice(),
-            code.as_ref(),
+            code.expose(),
             Some(registration.redirect_uri.as_ref()),
-            exchange.verifier.as_deref(),
+            secret_ref(exchange.verifier.as_ref()),
         ),
         Grant::SignIn { code: None, .. } => return Err(Failure::Malformed),
         Grant::Revoke { prior } => return revoke::body(registration, prior, limits),
@@ -807,5 +800,52 @@ fn present(value: Option<&[u8]>) -> Option<&[u8]> {
     match value {
         Some(value) if !value.is_empty() => Some(value),
         Some(_) | None => None,
+    }
+}
+
+impl core::fmt::Debug for HttpRequest {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("HttpRequest")
+            .field("id", &self.id)
+            .field("method", &self.method)
+            .field("endpoint", &self.endpoint)
+            .field("content_type", &self.content_type)
+            .field("body_len", &self.body.len())
+            .field("deadline", &self.deadline)
+            .finish()
+    }
+}
+
+impl core::fmt::Debug for HttpResponse {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("HttpResponse")
+            .field("id", &self.id)
+            .field("status", &self.status)
+            .field("body_len", &self.body.len())
+            .field("retry_after", &self.retry_after)
+            .field("evidence", &self.evidence)
+            .field("now", &self.now)
+            .field("wall", &self.wall)
+            .finish()
+    }
+}
+
+impl core::fmt::Debug for Request {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Request::Visit { url } => f.debug_struct("Visit").field("url_len", &url.len()).finish(),
+            Request::Http(request) => f.debug_tuple("Http").field(request).finish(),
+            Request::Tokens { record, missing } => {
+                f.debug_struct("Tokens").field("record", record).field("missing", missing).finish()
+            }
+            Request::Revoked { confirmed } => f.debug_struct("Revoked").field("confirmed", confirmed).finish(),
+            Request::Failed { failure } => f.debug_struct("Failed").field("failure", failure).finish(),
+        }
+    }
+}
+
+impl core::fmt::Debug for Client {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Client").field("phase", &self.phase).finish_non_exhaustive()
     }
 }

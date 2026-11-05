@@ -420,8 +420,11 @@ impl Clients {
                         pending.client.as_mut().expect("visiting OAuth client").step(
                             oauth::Event::Redirected {
                                 uri: pending.redirect.clone(),
-                                state: query(parameters, b"state").unwrap_or_default(),
-                                code: query(parameters, b"code"),
+                                state: Secret::new(query(parameters, b"state").unwrap_or_default()),
+                                code: match query(parameters, b"code") {
+                                    Some(code) => Some(Secret::new(code)),
+                                    None => None,
+                                },
                                 error: None,
                                 client_id: None,
                                 now: self.env.now,
@@ -479,9 +482,9 @@ impl Clients {
                         registration,
                         key: 1,
                         generation: 1,
-                        state,
-                        verifier: Some(verifier),
-                        nonce: Some(nonce),
+                        state: Secret::new(state),
+                        verifier: Some(Secret::new(verifier)),
+                        nonce: Some(Secret::new(nonce)),
                         port: None,
                         issued_client_id: None,
                         id_token: None,

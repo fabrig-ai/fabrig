@@ -42,14 +42,14 @@ fn again(
         oauth::Event::SignIn {
             registration,
             issued_client_id,
-            id_token: id_token.map(skein_lib::Secret::into_exposed),
+            id_token,
             subject,
-            nonce,
+            nonce: nonce.map(skein_lib::Secret::new),
             port: None,
             key: 7,
             generation: 0,
-            state: boxed(b"0123456789abcdef"),
-            verifier: Some(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")),
+            state: skein_lib::Secret::new(boxed(b"0123456789abcdef")),
+            verifier: Some(skein_lib::Secret::new(boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))),
             now: time(1),
         },
     );
