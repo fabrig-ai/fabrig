@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 151;
+pub const N: usize = 152;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -331,6 +331,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "goal-amending", world: Reference, address: task(108), then: Shown },
         Sample { name: "goal-stop-dialog", world: Reference, address: task(108), then: Shown },
         Sample { name: "goal-toast", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-sending", world: Reference, address: task(108), then: Shown },
         Sample { name: "goal-running", world: Reference, address: task(108), then: Shown },
         Sample { name: "goal-needs-funds", world: Reference, address: task(108), then: Shown },
         Sample { name: "goal-needs-question", world: Reference, address: task(118), then: Shown },
@@ -676,7 +677,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
 }
 fn goal_domain(sample: &Sample) -> Domain {
     let base = match sample.name {
-        "goal-amending" | "goal-stop-dialog" | "goal-toast" => "goal-running",
+        "goal-amending" | "goal-stop-dialog" | "goal-toast" | "goal-sending" => "goal-running",
         name => name,
     };
     let mut root = crate::worlds::goals_world(sample.world, sample.address.clone(), base);
@@ -684,6 +685,18 @@ fn goal_domain(sample: &Sample) -> Domain {
         "goal-amending" => Act::Amend,
         "goal-stop-dialog" => Act::Close,
         "goal-toast" => Act::Pause,
+        "goal-sending" => {
+            step(
+                &mut root,
+                Event::Act {
+                    action: Action::Pages(Act::MessageWords {
+                        words: Box::from(b"Keep the Ready page in this goal.".as_slice()),
+                    }),
+                },
+                &mut Queue::uncapped(),
+            );
+            Act::Send
+        }
         _ => return root,
     };
     let mut out = Queue::uncapped();

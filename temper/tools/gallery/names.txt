@@ -56,6 +56,7 @@ needs-plain-words
 goal-amending
 goal-stop-dialog
 goal-toast
+goal-sending
 goal-running
 goal-needs-funds
 goal-needs-question

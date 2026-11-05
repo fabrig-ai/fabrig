@@ -1753,6 +1753,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* ==== ui: goals ==== */
+#app:has(> .temper-rail) .temper-goal-composer textarea { field-sizing: content; min-width: 0; overflow-y: auto; }
 
 /* The column includes the main gutters: 720 px of content plus 48 px on each side. */
 #app:has(> .temper-rail) .temper-goals { width: 100%; max-width: 816px; margin: 0 auto; padding: 64px 48px 96px; display: flex; flex-direction: column; gap: 60px; font: 15px/1.6 var(--gf-sans); letter-spacing: normal; }

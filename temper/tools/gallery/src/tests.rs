@@ -88,6 +88,15 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "goal-sending",
+        heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
+        parts: &[
+            Part::Text { text: "Keep the Ready page in this goal." },
+            Part::Named { role: Role::Status, name: "Being sent" },
+            Part::Named { role: Role::TextArea, name: "Tell first-run-projects something" },
+        ],
+    },
+    Holds {
         name: "goal-amending",
         heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
         parts: &[

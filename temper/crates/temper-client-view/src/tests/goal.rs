@@ -63,6 +63,7 @@ fn root(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: bool
     root_with_side(task, done, total, note, needs, Side::empty())
 }
 struct Side {
+    activity: Option<c::ActivityPage>,
     rows: List<c::TreeRow>,
     ended: c::TaskPage,
     need: Option<u64>,
@@ -71,6 +72,7 @@ struct Side {
 impl Side {
     fn empty() -> Self {
         Self {
+            activity: None,
             rows: List::uncapped(),
             ended: c::TaskPage {
                 live: List::uncapped(),
@@ -90,7 +92,7 @@ fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note>, n
         &limits,
         b"Shop",
         None,
-        None,
+        side.activity.clone(),
         None,
         Some(&[]),
     );
@@ -211,6 +213,10 @@ fn read_value(
         }
     }
     match what {
+        c::Read::Activity { .. } => match &side.activity {
+            Some(page) => Some(c::ReadValue::Activity(Box::new(page.clone()))),
+            None => None,
+        },
         c::Read::Question { task, message } if needs && side.cards.is_empty() => {
             Some(question(task, message, b"Where?"))
         }
@@ -273,7 +279,6 @@ fn read_value(
         | c::Read::Result { .. }
         | c::Read::Ended { .. }
         | c::Read::History { .. }
-        | c::Read::Activity { .. }
         | c::Read::Inbox { .. }
         | c::Read::Spend { .. }
         | c::Read::Project { .. }
@@ -1580,20 +1585,13 @@ pub(super) fn with_goal_answer(act: Act, answer: c::Answer) -> Domain {
     let mut task = if act == Act::Resume { paused_document() } else { document() };
     task.acts = offers(&[c::ActKind::Stop, c::ActKind::Release]);
     let mut root = root(task, DONE, TOTAL, None, false);
-    let mut out = press(&mut root, act);
-    let mut attempt = None;
-    while let Some(request) = out.pop() {
-        if let Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Send { attempt: sent, .. } } } = request
-        {
-            attempt = Some(sent);
-        }
-    }
+    let attempt = sent_attempt(press(&mut root, act));
     fixtures::root_event(
         &mut root,
         Event::Client {
             event: ClientEvent::Up {
                 up: Up::Answer {
-                    attempt: attempt.unwrap(),
+                    attempt,
                     envelope: skein_lib::RequestEnvelope::Final,
                     answer: Some(jig_client::Answered::Jig(answer)),
                     why: None,
@@ -1602,4 +1600,241 @@ pub(super) fn with_goal_answer(act: Act, answer: c::Answer) -> Domain {
         },
     );
     root
+}
+
+fn sent_attempt(mut out: Queue<Request>) -> skein_lib::Token {
+    let mut attempt = None;
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Send { attempt: sent, .. } } } = request
+        {
+            attempt = Some(sent);
+        }
+    }
+    attempt.unwrap()
+}
+
+mod composer {
+    use super::*;
+    use skein_ui::State;
+    const PERSON: u64 = fixtures::chat::PARTY;
+    const OTHER_PERSON: u64 = 89;
+    const FIRST: u64 = 1;
+    const SECOND: u64 = 2;
+    const THIRD: u64 = 3;
+    const PENDING: &[u8] = b"Keep it small.";
+
+    fn offered() -> c::Task {
+        let mut task = document();
+        task.acts = offers(&[c::ActKind::Message]);
+        task
+    }
+    fn without_composer(task: c::Task) {
+        let root = root(task, DONE, TOTAL, None, false);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            for node in tree.nodes() {
+                assert!(!node.styles.as_slice().contains(&look::GOAL_COMPOSER_BOX));
+                assert!(!node.styles.as_slice().contains(&look::GOAL_COMPOSER));
+                assert!(!node.styles.as_slice().contains(&look::GOAL_HINT));
+            }
+        }
+    }
+    fn word(message: u64, by: c::Requester, words: &[u8]) -> c::DecodedActivityLine {
+        c::DecodedActivityLine {
+            source: Box::new(c::ActivityLine {
+                task: TASK,
+                position: message,
+                at: MADE,
+                line: c::Activity::Words { message, by, kind: c::MessageKind::Words, words: text(words).bytes },
+            }),
+            decoded: None,
+        }
+    }
+    fn with_activity(rows: &[c::DecodedActivityLine]) -> Domain {
+        let mut side = Side::empty();
+        side.activity =
+            Some(c::ActivityPage { rows: List::from_boxed(rows.into()), before: None, after: None, cut: false });
+        root_with_side(offered(), DONE, TOTAL, None, false, side)
+    }
+    fn sent_lines(tree: &Tree) -> Box<[Box<[u8]>]> {
+        let mut lines = List::uncapped();
+        for (at, node) in tree.nodes().iter().enumerate() {
+            if node.styles.as_slice().contains(&look::GOAL_YOU) {
+                assert_eq!(node.role, Role::Paragraph);
+                lines.push(fixtures::node_text(tree, at)).unwrap();
+            }
+        }
+        lines.into_boxed()
+    }
+    #[test]
+    fn the_composer_shows_while_message_is_offered() {
+        let root = root(offered(), DONE, TOTAL, None, false);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let (tree, bindings, _) = draw(&root, &words);
+            let box_at = styled(&tree, look::GOAL_COMPOSER_BOX);
+            let composer = styled(&tree, look::GOAL_COMPOSER);
+            assert!(box_at < composer && composer < node_end(&tree, box_at));
+            assert!(node_end(&tree, styled(&tree, look::GOAL_TWO)) <= box_at);
+            let at = named_index(&tree, Role::TextArea, b"Tell Away mode something");
+            let node = &tree.nodes()[at];
+            assert!(composer < at && at < node_end(&tree, composer));
+            assert!(node.states.as_slice().contains(&State::SubmitsOnEnter));
+            let binding = node.binding.unwrap();
+            assert_eq!(
+                bindings.decode(binding.token, skein_ui::Act::Submit),
+                Some(temper_client_domain::Action::Pages(Act::Send))
+            );
+            assert_eq!(
+                bindings.decode(binding.token, skein_ui::Act::Input { value: Box::from(PENDING) }),
+                Some(temper_client_domain::Action::Pages(Act::MessageWords { words: Box::from(PENDING) }))
+            );
+            let send = &tree.nodes()[named_index(&tree, Role::Button, b"Send")];
+            assert_eq!(
+                bindings.decode(send.binding.unwrap().token, skein_ui::Act::Press),
+                Some(temper_client_domain::Action::Pages(Act::Send))
+            );
+        }
+    }
+    #[test]
+    fn not_offered_not_drawn() {
+        let mut task = offered();
+        task.acts = offers(&[]);
+        without_composer(task);
+    }
+    #[test]
+    fn not_waiting_holds_nothing() {
+        let mut task = offered();
+        task.acts.get_mut(0).unwrap().admission = c::Admission::Refused(c::Refusal::NotWaiting);
+        let root = root(task.clone(), DONE, TOTAL, None, false);
+        without_composer(task);
+        let tree = draw(&root, &fixtures::browser_words()).0;
+        let main = styled(&tree, look::GOAL);
+        assert_eq!(node_end(&tree, styled(&tree, look::GOAL_TWO)), node_end(&tree, main));
+    }
+    #[test]
+    fn ended_has_none() {
+        let mut task = offered();
+        end(&mut task, c::ChipEnding::Done(c::ResultValue::Report(text(b"Done."))));
+        without_composer(task);
+    }
+    #[test]
+    fn its_placeholder_and_hint() {
+        let root = root(offered(), DONE, TOTAL, None, false);
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            let node = &tree.nodes()[named_index(&tree, Role::TextArea, b"Tell Away mode something")];
+            assert_eq!(node.placeholder.as_deref(), Some(b"Tell Away mode something".as_slice()));
+            assert_eq!(
+                styled_text(&tree, look::GOAL_HINT).as_ref(),
+                b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."
+            );
+        }
+    }
+    #[test]
+    fn send_disabled_while_empty() {
+        let mut root = root(offered(), DONE, TOTAL, None, false);
+        for (draft, disabled) in [(b"".as_slice(), true), (PENDING, false), (b"", true)] {
+            press(&mut root, Act::MessageWords { words: Box::from(draft) });
+            let tree = draw(&root, &fixtures::browser_words()).0;
+            let node = &tree.nodes()[named_index(&tree, Role::Button, b"Send")];
+            assert_eq!(node.states.as_slice().contains(&State::Disabled), disabled);
+        }
+    }
+    #[test]
+    fn sent_words_oldest_first_then_being_sent() {
+        let mut root = with_activity(&[
+            word(SECOND, c::Requester::Person(PERSON), b"Second."),
+            word(FIRST, c::Requester::Person(PERSON), b"First."),
+        ]);
+        press(&mut root, Act::MessageWords { words: Box::from(PENDING) });
+        let attempt = sent_attempt(press(&mut root, Act::Send));
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            assert_eq!(sent_lines(&tree).as_ref(), row_words(&[b"First.", b"Second.", PENDING]).as_ref());
+            assert!(fixtures::find(&tree, Role::Status, b"Being sent").is_some());
+            assert!(node_end(&tree, styled(&tree, look::GOAL_SENT)) <= styled(&tree, look::GOAL_COMPOSER_BOX));
+            assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Its agent:").is_none());
+        }
+        assert!(root.pages().task().unwrap().words.is_empty());
+        fixtures::root_event(
+            &mut root,
+            Event::Client {
+                event: ClientEvent::Up {
+                    up: Up::Answer {
+                        attempt,
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                            c::DocumentOutcome::Said { task: TASK, message: THIRD },
+                        )))),
+                        why: None,
+                    },
+                },
+            },
+        );
+        read_latest(
+            &mut root,
+            &[
+                word(THIRD, c::Requester::Person(PERSON), PENDING),
+                word(SECOND, c::Requester::Person(PERSON), b"Second."),
+                word(FIRST, c::Requester::Person(PERSON), b"First."),
+            ],
+        );
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            assert_eq!(sent_lines(&tree).as_ref(), row_words(&[b"First.", b"Second.", PENDING]).as_ref());
+            assert!(fixtures::find(&tree, Role::Status, b"Being sent").is_none());
+        }
+    }
+    fn read_latest(root: &mut Domain, rows: &[c::DecodedActivityLine]) {
+        let handle = root.pages().task().unwrap().activity;
+        let mut out = Queue::uncapped();
+        temper_client_domain::step(
+            root,
+            &Env { now: Time::ZERO, wall: NOW, limits: fixtures::domain_limits() },
+            Event::Client {
+                event: ClientEvent::Read {
+                    handle,
+                    read: Readable::Jig(c::Read::Activity { task: TASK, before: None }),
+                },
+            },
+            &mut out,
+        );
+        let mut token = None;
+        while let Some(request) = out.pop() {
+            if let Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Read { read, .. } } } = request {
+                token = Some(read);
+            }
+        }
+        fixtures::root_event(
+            root,
+            Event::Client {
+                event: ClientEvent::Up {
+                    up: Up::ReadDone {
+                        read: token.unwrap(),
+                        result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+                            rows: List::from_boxed(rows.into()),
+                            before: None,
+                            after: None,
+                            cut: false,
+                        })))),
+                    },
+                },
+            },
+        );
+    }
+    #[test]
+    fn another_partys_words_are_not_drawn() {
+        let root = with_activity(&[
+            word(SECOND, c::Requester::Person(OTHER_PERSON), b"Another person."),
+            word(FIRST, c::Requester::Task(TASK), b"A tool or agent."),
+        ]);
+        let tree = draw(&root, &fixtures::browser_words()).0;
+        assert!(sent_lines(&tree).is_empty());
+        for node in tree.nodes() {
+            assert!(!node.styles.as_slice().contains(&look::GOAL_SENT));
+        }
+        let said = fixtures::text(&tree);
+        assert!(skein_lib::bytes::find(&said, b"Another person.").is_none());
+        assert!(skein_lib::bytes::find(&said, b"A tool or agent.").is_none());
+    }
 }
