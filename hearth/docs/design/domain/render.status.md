@@ -27,3 +27,10 @@
   `hearth-protocol-builder`'s `up` reads `!above.is_empty()`, of the whole
   queue, as that step's answer; the queue's order and the indices' `waiting`
   keep it true.
+- **Departs:** 8.5: the request of 2026-11-05 for the config machine has
+  the queues beside the JSON decoder uncapped, and one test driver keeps
+  both at capacity 1:
+  `hearth/testing/hearth-test-render/src/golden/repository.rs`, `decoded`,
+  with `JSON_QUEUE`. That round left the file alone, as another plan was
+  moving it into that kit, and no order rests on it: a second output
+  panics there, and loses nothing.
