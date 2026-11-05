@@ -678,7 +678,7 @@ fn checked_start_with(
         u32::try_from(checks::longest_remote(&parsed.application.machine, own.forge.name_bytes).unwrap_or(u64::MAX))
             .ok();
     let engine_bounds = temper_protocol_worker_wire::Bounds {
-        repositories: own.forge.resources_per_task,
+        repositories: own.checkout.repositories,
         name_bytes: own.forge.name_bytes,
         remote_bytes: remote.unwrap_or(u32::MAX).min(own.checkout.name_bytes),
         conflicts: own.checkout.conflicts,

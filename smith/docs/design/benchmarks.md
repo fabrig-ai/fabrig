@@ -920,6 +920,15 @@ Each runs in milliseconds, within the focused and fuzzy budgets.
   smith-bench both take it from.
 - **Repository bundles:** where a bundle is kept durably, so that another
   machine can run the task.
+- **A bundle's frozen source:** a bundle's `Cargo.toml` and `Cargo.lock`
+  keep the git source they were frozen with, which its
+  `.cargo/config.toml` replaces with `vendor/`, so a grader over the same
+  crates must name that source too. `shell-cwd`'s first `[[grade]]`
+  copies those lines into its grader's manifest at grade time, and no
+  tracked file names the source.
+  Whether a bundle frozen anew takes another. Default: it stays: a new
+  bundle changes the seed, so the task's version (5.2), and parity is
+  shown again (16.4).
 - **Concurrency:** attempts run serially; parallel ones would need
   disjoint CPUs.
 - **Task kinds beyond code,** such as chat, research or review, with

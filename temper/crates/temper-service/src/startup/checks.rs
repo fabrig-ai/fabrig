@@ -359,7 +359,7 @@ pub(super) fn names(remote: Option<u64>, limits: &limits::Limits, problems: &mut
 }
 fn bounded(bounds: &payload::Bounds, engine: bool, problems: &mut Problems) -> Option<payload::v1::Limits> {
     let ceilings = payload::v1::CEILINGS;
-    let repositories: &[u8] = if engine { b"forge.resources_per_task" } else { b"checkout.repositories" };
+    let repositories: &[u8] = b"checkout.repositories";
     let names: &[u8] = if engine { b"forge.name_bytes" } else { b"checkout.name_bytes" };
     for (name, bytes, bound) in [
         (
@@ -413,9 +413,7 @@ pub fn channel(
     {
         names(machine_remote(machine, limits.forge.name_bytes), limits, problems);
     }
-    // The engine's terms take the smaller of the two repository bounds
-    // (translate::limits), so a checkout's larger one makes the worker's
-    // parts past those terms and its hello never opens the link.
+    // Both sides carry checkout repositories; forge watches need no directories.
     let repository_shape = match (engine, worker) {
         (Some(engine), Some(worker)) => engine.repositories == worker.repositories,
         _ => true,
@@ -455,7 +453,7 @@ pub fn channel(
     if let [Some(engine), Some(worker)] = sizes
         && (!repository_shape || engine.items > worker.items)
     {
-        against(problems, b"forge.resources_per_task", b"checkout.repositories and checkout.name_bytes");
+        against(problems, b"checkout.repositories", b"the worker's checkout capacity and checkout.name_bytes");
     }
 }
 

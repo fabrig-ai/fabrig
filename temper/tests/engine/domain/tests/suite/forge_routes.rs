@@ -2276,10 +2276,77 @@ fn a_goal_ending_while_its_issue_is_opening_eventually_closes_that_issue() {
 
 #[test]
 fn a_goal_can_subscribe_to_main_without_guessing_repository_ids() {
-    let (mut world, goal, branch) = subscription_goal();
+    let (world, goal, branch) = subscription_goal();
+    subscription_after_first_batch(
+        world,
+        &goal,
+        &branch,
+        br#"{"topic":{"kind":"landings","branch":"main"},"paths":["file"]}"#,
+    );
+}
+
+#[test]
+fn a_stock_goal_can_subscribe_to_main_with_its_held_branches() {
+    for repository in [r#", "repository":{"forge":1,"repository":2}"#, r#", "repository":"org/repo""#, ""] {
+        let (world, goal) = stock_subscription_goal();
+        let branch = format!("temper/{}/g{}", goal.task, goal.task);
+        let json = format!(r#"{{"topic":{{"kind":"landings","branch":"main"{repository}}},"paths":["file"]}}"#);
+        subscription_after_first_batch(world, &goal, branch.as_bytes(), json.as_bytes());
+    }
+}
+
+fn stock_subscription_goal() -> (World, engine::Assignment) {
+    let limits = temper_engine_domain_world::forge_routes::box_limits();
+    let llm = jig_protocol_config::Llm {
+        endpoints: Box::new([]),
+        providers: Box::new([]),
+        descriptions: Box::new([None]),
+        models: walking::models(),
+    };
+    let mut defaults = temper_service::stock::defaults(&llm, limits.tasks.result_bytes);
+    defaults.rules.ceiling.tools = authority::Tools(1967);
+    let policy = defaults.policies.get_mut(&1).expect("project policy");
+    policy.policy.ceiling.tools = authority::Tools(1967);
+    for role in &mut policy.policy.roles {
+        role.authority.tools = authority::Tools(1967);
+    }
+    let mut world = World::configured_stock_limits(&defaults, &walking::models()[0], &limits);
+    world.adopt();
+    let mut event = protocol::hello_slots(Token::new(7), 2, Box::new([]));
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    else {
+        panic!("worker hello")
+    };
+    hello.bounds.turns = 800;
+    hello.bounds.time = Duration::from_secs(28_800);
+    hello.bounds.spend = defaults.rules.maximum_run_spend;
+    hello.bounds.message_bytes = limits.tasks.message_bytes.max(limits.tasks.result_bytes);
+    hello.bounds.inbox = limits.tasks.run_inbox;
+    world.send(event);
+    let people::Ask::Create { project, mut batch } = goal_branch::goal_request(&world, true) else { panic!("goal") };
+    batch[0].authority.tools = 1967;
+    batch[0].budget = people::Budget::AsAllowed { cap: None };
+    batch[0].tracked = Some(1);
+    batch[0].symbols[0].connector = 1;
+    let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    world.until(Until::Ready);
+    (world, goal)
+}
+
+fn subscription_after_first_batch(mut world: World, goal: &engine::Assignment, branch: &[u8], json: &[u8]) {
+    let held = live_task(&world, goal.task).holdings.clone();
+    assert_eq!(held.len(), 2, "goal holds g and r");
+    let run_branch = format!("temper/{}/r{}", goal.task, goal.task);
+    for branch in [branch, run_branch.as_bytes()] {
+        assert!(
+            held.iter().any(|holding| matches!(holding, tasks::Holding::Write { resource, .. }
+            if resource.path.last().is_some_and(|name| name.as_ref() == branch))),
+            "held branch"
+        );
+    }
     let made = change_tool::change_landing(
         &mut world,
-        &goal,
+        goal,
         93,
         None,
         b"Make the first batch",
@@ -2289,12 +2356,12 @@ fn a_goal_can_subscribe_to_main_without_guessing_repository_ids() {
     assert!(
         world.store.rows.values().any(|row| matches!(row,
         Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Change(change)
-            if change.base == branch))),
+            if change.base.as_ref() == branch))),
         "first batch targets g"
     );
-    let answer =
-        subscription_json(&mut world, &goal, 94, br#"{"topic":{"kind":"landings","branch":"main"},"paths":["file"]}"#);
+    let answer = subscription_json(&mut world, goal, 94, json);
     assert!(matches!(answer, engine::CallAnswer::Subscribed { .. }), "subscription: {answer:?}");
+    assert_eq!(live_task(&world, goal.task).holdings, held, "subscription retains g and r");
     let event =
         world.protocol.answer(Token::new(7), goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
     world.send(event);
@@ -2310,7 +2377,8 @@ fn a_goal_can_subscribe_to_main_without_guessing_repository_ids() {
         },
     })));
     await_new_forge_news(&mut world, goal.task, before);
-    finish_subscription_batch(&mut world, &goal);
+    assert_eq!(live_task(&world, goal.task).holdings, held, "news retains g and r");
+    finish_subscription_batch(&mut world, goal);
     world.close();
 }
 
@@ -2324,6 +2392,7 @@ fn finish_subscription_batch(world: &mut World, goal: &engine::Assignment) {
     let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
     let branch = row.branch.clone();
     change_tool::land_change(world, &producer, &branch);
+    assert_eq!(world.merges, 1, "first batch lands before teardown");
     let current = world.assigned.iter().rev().find(|run| run.task == goal.task).expect("current goal").clone();
     let event = world.protocol.answer(
         Token::new(7),

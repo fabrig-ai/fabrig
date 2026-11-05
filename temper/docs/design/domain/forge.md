@@ -766,8 +766,8 @@ Held by skein's `forge-client.md`, section 3. temper's part:
   watches. Two followed tier branches and up to four departing reads
   (`forge.client.pending`) keep the overlap within fifteen slots; shared
   resources count once. Six participating tasks and their six branch holds
-  fit small's `forge.tasks` and `forge.holds`, both eight; each change fits
-  `forge.resources_per_task`, two. Landed changes keep their watches until
+  fit small's `forge.tasks` and `forge.holds`, both eight; each change's two
+  names fit `forge.resources_per_task`, which is three. Landed changes keep their watches until
   they clear (`after-landing.md`, section 6). temper's `standard`, which
   `temper init`'s box runs, sizes them for a project of fabrig's scale
   (`../protocol/configuration.md`, 13.4): `forge.tasks` and
@@ -2705,6 +2705,15 @@ whole.
 
 ## 20. Open questions
 
+- **A failed row, dismissed** (4.5; `../draft/repository-copies.md`,
+  5.2): no request dismisses one yet; that comes with the sheet that
+  shows it. Default: asking for the name again replaces it, and failed
+  rows count against `forge.makings`.
+- **What a refused copy leaves** (4.5; skein's `forge-setup.md`,
+  section 9): Forgejo keeps an empty repository at the name of a source
+  it could not clone, and only the same address asked again takes it
+  away: asked from another, the row holds no `copying` and stops at
+  `Taken`. Default: so, and the person deletes it on the forge.
 - **A queue's throughput:** landings into one branch wait on CI one after
   another. If that binds, landings are batched: tested together, and
   bisected when they fail.

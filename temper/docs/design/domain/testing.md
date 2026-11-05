@@ -1235,8 +1235,8 @@ section 8; testing-strategy.md, 2.9).
   completions and its wall time.
 - **A chat's change lands on github.com, through a restart,** a test
   of its own, `crates/temper/tests/live_github.rs`, run by
-  `scripts/proof-live-github.sh OWNER`, `OWNER` the probe account or
-  the org `fabrig-ai`, one repository a run: the process tier's story of 2.6
+  `scripts/proof-live-github.sh OWNER`, `OWNER` the org `fabrig-ai` and
+  no other account, one repository a run: the process tier's story of 2.6
   ("a chat's change on connected GitHub, through a restart") on the
   real service, on the probe App of skein's conformance fixtures and
   its installation on `OWNER/temper-probe`, whose `ci` workflow is a
@@ -1252,7 +1252,7 @@ section 8; testing-strategy.md, 2.9).
     `log_poll`, 15 s.
   - **Offline startup admission:** `startup.rs` renders these same
     GitHub templates with synthetic ready captures and uses the live
-    story's pure engine shaper for both supported owners, distinct
+    story's pure engine shaper for that owner, distinct
     API/git sockets and the live polling defaults. Actual engine and
     worker preparation must admit without a relay, credentials or
     processes. The shared landing helper for this and the fake process
@@ -1261,8 +1261,8 @@ section 8; testing-strategy.md, 2.9).
     grants, the enforced CI/up-to-date/ exact-head gate rule, metadata
     and all capacities stay, including `core.policy_bytes=4096`. The
     pure service startup regression keeps the overbroad seed's named
-    refusal and the narrowed seed's admission for both owners. This is
-    offline coverage, and establishes no live proof.
+    refusal and the narrowed seed's admission. This is offline coverage,
+    and establishes no live proof.
   - **The relay,** the test's, between temper and github.com: plaintext
     HTTP/1.1 from the engine and the worker's git on loopback, verified
     TLS to `api.github.com` and `github.com` by skein's TLS client on the
@@ -2713,6 +2713,13 @@ scripts/proof-live.sh               the live tier
   process runs no `Drop`, and the runner's `give-back` finds no box up:
   the record stays in the store and the notice says so (2.7). Closing it
   is a return that starts its own box, in the runner's part.
+- **A managed sitting by a member who isn't an owner.**
+  `scripts/proof-live-github-managed.sh live` takes
+  `TEMPER_MANAGED_PERSON`, the login that makes the App under its own
+  account (`../protocol/setup.md`, 17.2), while the repository and the
+  installation stay `fabrig-ai`'s. That login is an owner of `fabrig-ai`:
+  a member's request waits on an owner's approval
+  (`../draft/github.md`, section 18).
 - **macOS past the one story** (`../draft/macos.md`, section 6, steps 6 to
   8): each tree's suites on the runner, under a `macos` nextest profile
   measured there and with each tree's list of Linux's own tests; the
