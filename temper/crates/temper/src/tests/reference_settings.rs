@@ -421,3 +421,24 @@ fn init_limits_hold_reference_delegation() {
         check_reference_delegation(reference_engine(&document["engine"]["limits"]));
     }
 }
+
+#[test]
+fn the_reference_project_file_shows_its_goals() {
+    let items = settings_form::file::decode(
+        include_bytes!("../../../../docs/examples/reference/project.json"),
+        &temper_client_tools::limits::form(),
+    )
+    .expect("reference project settings");
+    assert_eq!(items.len(), 1);
+    let SettingValue::Application(bytes) = value(&items, Setting::Application { kind: 7, scope: 1, number: 1 }) else {
+        panic!("project ways")
+    };
+    let decoded = temper_engine_smith::kinds::decode(
+        7,
+        bytes,
+        &temper_engine_smith::kinds::Bounds { segments: 16, segment_bytes: 4096, gates: 64, approvals: 64 },
+    )
+    .expect("reference ways");
+    let temper_engine_domain_forge::settings::Value::Ways(ways) = decoded.value else { panic!("project ways record") };
+    assert_eq!((ways.drafts, ways.goals, ways.changes, ways.away, ways.way), (true, true, true, true, 4));
+}
