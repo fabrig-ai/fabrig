@@ -55,3 +55,17 @@ Yes. `skein-forge-protocol-world` is a reader this spec names, and the edge can'
 - `tests/suite/fuzzy/github.rs`:3.
 
 Only the crate path changes there, `skein_forge_machine_world` to `skein_forge_kit`: assertions, test names and counts stay, and `rustfmt` may rewrap a line it shortens. Finish on the pushed branch, then run the acceptance's five-package nextest and clippy, which the first run couldn't build: the protocol suite's 35 tests are still unobserved.
+
+## Rebase (2026-11-05, step merge, foreman debt-24/forge-kit/foreman-2)
+
+resolve machine-world conflicts by retaining both the kit migration and connection seam
+The merge conflicts in `skein/tests/forge/machine/Cargo.toml` and `skein/tests/forge/machine/src/lib.rs`.
+The conflicting integration commit is `38d49979dab0dafd182d32e87146aec0e4c5f37d` (“Expose forge connection state only to the machine world”), merged by `dec7ef822c`.
+In `Cargo.toml`, retain the branch’s kit dependency and dependency cleanup, but set:
+`skein-forge-connection = { workspace = true, features = ["seam"] }`.
+In `src/lib.rs`, retain `pub mod hand;`, `pub mod memory;`, and `pub use skein_forge_kit::*;`.
+Also retain integration’s `pub use skein_forge_connection::seam::GitHub;`.
+Keep the moved modules in the kit; do not restore their world module declarations.
+Preserve integration’s hand scenarios and suites, changing only permitted import paths where needed.
+Regenerate `Cargo.lock` using `cargo metadata --offline --format-version 1 >/dev/null` if dependency reconciliation requires it.
+Run the spec’s clippy, five-package nextest, and temper-service checks through heavy; confirm test counts against the rebased integration baseline.
