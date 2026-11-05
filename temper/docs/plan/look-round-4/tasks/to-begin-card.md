@@ -105,3 +105,17 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report, every state with where it renders, and what 1366 by 630 showed.
+
+## Rebase (2026-11-05, step merge, foreman look-round-4/to-begin-card/foreman-1)
+
+rebase and combine both Home status updates in README.status.md
+The merge conflicts only in `temper/docs/design/client/README.status.md`.
+Integration commit `df6b13f213` adds the outstanding Home chat-row “landed” reader gap beside the onboarding entry that `e0e2f435a1` replaces.
+Resolve by retaining the branch’s replacement:
+  3.5, Home: no link to `Accounts` after the lede; Connected and its
+  rename are still drawn once To begin is gone.
+Immediately after it, preserve `df6b13f213`’s complete four-line entry about “landed”, the chat-row reader, and supplied chat state including “closed”.
+Keep the date `2026-11-05` and all other status entries.
+Do not restore the obsolete gaps for the card, Optional, Skip, or delivery/skip visibility.
+Preserve both sides’ changes in the automatically merged `temper/docs/design/client/journeys/project-landing/README.md` and `temper/tools/gallery/src/samples.rs`.
+This refusal requires a status-document conflict resolution; it reports no build or test failure.
