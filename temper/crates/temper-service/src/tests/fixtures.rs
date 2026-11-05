@@ -837,6 +837,7 @@ pub fn settle_root(
                 | root::Request::Connect { .. }
                 | root::Request::Replace { .. }
                 | root::Request::Manifest { .. }
+                | root::Request::AdoptAccess { .. }
                 | root::Request::Reachable { .. }
                 | root::Request::Install { .. }
                 | root::Request::Accept { .. }

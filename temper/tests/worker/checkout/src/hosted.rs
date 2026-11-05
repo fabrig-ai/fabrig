@@ -193,7 +193,8 @@ fn files(tree: Tree) -> Box<[api::File]> {
 fn commit(number: u64) -> git::Commit {
     invocation::object(&id(number)).expect("counted id")
 }
-fn apply(scenario: &mut Scenario, command: &Command) -> Answer {
+/// Run the command through the fake program's invocation check and answer.
+pub fn apply(scenario: &mut Scenario, command: &Command) -> Answer {
     let mut spawn = spawn_of(command);
     if !matches!(command, Command::Origin { .. }) {
         spawn.dir = scenario.at.clone().into();

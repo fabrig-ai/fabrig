@@ -464,6 +464,7 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
                 | Request::Connect { .. }
                 | Request::Replace { .. }
                 | Request::Manifest { .. }
+                | Request::AdoptAccess { .. }
                 | Request::Reachable { .. }
                 | Request::Install { .. }
                 | Request::Accept { .. }

@@ -765,3 +765,391 @@ fn setup_refuses_a_carried_value_of_another_kind() {
         }));
     }
 }
+
+// A private repository outside every bot team; API and git share its fixture id.
+#[expect(clippy::too_many_lines, reason = "one fixture seeds shared API and git state before its connected service")]
+pub(super) fn access_host(owned: bool) -> (crate::Service, Forge) {
+    use skein_fake_forge_domain as git;
+    use skein_fake_forge_forgejo as fake;
+    let mut forge = Forge::new(false);
+    let limits = skein_forge_machine_world::fixtures::fake_limits();
+    let mut repositories = List::with_capacity(1);
+    repositories.push(fake::Repository { id: 1, full: b"other/closed".as_slice().into(), protected: None }).unwrap();
+    forge.service = fake::Service::new(
+        fake::Config {
+            hooks: None,
+            base: b"http://127.0.0.1:9".as_slice().into(),
+            tokens: List::with_capacity(0),
+            users: List::with_capacity(0),
+            repositories,
+            max_response_items: 32,
+            default_paging_num: 30,
+            sources: Box::new([]),
+            faults: fake::Faults { reset: 0, drop: 0, server_error: 0 },
+        },
+        &limits,
+        7,
+    )
+    .unwrap();
+    let setup = forge.service.setup_mut();
+    let admin = setup.account(b"elsewhere-owner", true, b"");
+    setup.token(
+        admin,
+        b"admin",
+        &[b"write:admin", b"read:user", b"write:organization", b"write:repository"],
+        Secret::new(ADMIN.into()),
+    );
+    let bot = setup.account(b"temper", false, b"temper:bot");
+    for (name, token) in [(b"temper-api".as_slice(), b"test-api".as_slice()), (b"temper-git", b"test-git")] {
+        setup.token(bot, name, &[b"read:user", b"write:repository"], Secret::new(token.into()));
+    }
+    setup.org(b"other", b"elsewhere-owner");
+    setup.private(1).unwrap();
+    git::repository(
+        &mut forge.git,
+        &forge.config,
+        git::api::Setup {
+            id: 1,
+            name: b"other/closed".as_slice().into(),
+            default: b"main".as_slice().into(),
+            tree: Box::new([]),
+            labels: Box::new([]),
+            checks: git::api::Checks {
+                cues: Box::new([]),
+                contexts: Box::new([]),
+                latency_min: Duration::ZERO,
+                latency_max: Duration::ZERO,
+                silent: 0,
+                passes: 0,
+                reruns: 0,
+                cue: None,
+            },
+            workflows: Box::new([]),
+            protection: None,
+            hooked: false,
+        },
+    );
+    let mut config = if owned { local_config(true, false) } else { config() };
+    config.webhooks =
+        Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
+    config.engine.jig.limits.core.authority.segments = 8;
+    config.engine.jig.limits.core.people.amendment_bytes = 256;
+    let mut store = store(&forge);
+    if owned {
+        kept_record(&mut store, 1, Item::AdminToken, ADMIN);
+        kept_record(&mut store, 1, Item::WebhookSecret, b"hook-secret");
+    }
+    let mut service = local_service(config, store);
+    service.engine.as_mut().unwrap().setup.waiting_for_webhooks = false;
+    restore_local(&mut service);
+    if !owned {
+        ask(&mut service, bundle(1, ADMIN), None);
+    }
+    for tick in 1..20_000 {
+        turn(&mut service, &mut forge, tick);
+        if match service.engine.as_ref().unwrap().domain.forge_connection(1) {
+            domain::Connection::Connected { .. } => true,
+            _ => false,
+        } {
+            break;
+        }
+    }
+    assert!(match service.engine.as_ref().unwrap().domain.forge_connection(1) {
+        domain::Connection::Connected { .. } => true,
+        _ => false,
+    });
+    let engine = service.engine.as_mut().unwrap();
+    engine.step(root::Event::Party(root::PartyInput::SignedIn {
+        held: None,
+        reply_to: skein_lib::ReplyTo::new(Token::new(100)),
+        identity: jig_domain_people::Identity {
+            key: jig_domain_people::IdentityKey { provider: 1, subject: b"owner-a".as_slice().into() },
+            login: b"owner".as_slice().into(),
+            name: b"Owner".as_slice().into(),
+        },
+    }));
+    for tick in 20_000..20_032 {
+        turn(&mut service, &mut forge, tick);
+    }
+    (service, forge)
+}
+pub(super) fn adopt_private(service: &mut crate::Service, key: u8) {
+    service.engine.as_mut().unwrap().step(root::Event::Party(root::PartyInput::Application {
+        scope: jig_domain_people::ApplicationScope::Project(1),
+        reply_to: skein_lib::ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: 1,
+        key: [key; 16],
+        digest: [key; 32],
+        carried: None,
+        request: root::Application::Forge(domain::Ask::Adopt(domain::Adoption {
+            project: 1,
+            home: false,
+            forge: 1,
+            host: b"forge.example".as_slice().into(),
+            owner: b"other".as_slice().into(),
+            name: b"closed".as_slice().into(),
+            prefix: b"temper/".as_slice().into(),
+            role: domain::Role::Owned,
+            landing: b"main".as_slice().into(),
+            ci: true,
+            checks: Box::new([]),
+        })),
+    }));
+}
+pub(super) fn finish_access(service: &mut crate::Service, forge: &mut Forge) {
+    for tick in 20_032..40_000 {
+        turn(service, forge, tick);
+        let rows = service.engine.as_ref().unwrap().domain.forges();
+        if rows.rows[0].repositories.iter().any(|row| row.name.as_ref() == b"closed") {
+            assert!(service.engine.as_ref().unwrap().setup.public.is_empty());
+            for tick in 40_000..40_016 {
+                turn(service, forge, tick);
+            }
+            let records = fixtures::load(&mut service.engine.as_mut().unwrap().store, root::Range::Forge);
+            assert!(records.iter().any(|record| match record {
+                root::Record::Forge { row } => match row.as_ref() {
+                    domain::Stored::Repository(repository) =>
+                        repository.name.as_ref() == b"closed" && repository.kinds.push,
+                    _ => false,
+                },
+                root::Record::Core(_) => false,
+            }));
+            return;
+        }
+    }
+    let records = fixtures::load(&mut service.engine.as_mut().unwrap().store, root::Range::Forge);
+    panic!(
+        "private adoption did not finish: {records:?}; collaborator: {:?}; tally: {:?}",
+        forge.service.setup().collaborator(1, b"temper"),
+        forge.service.tally()
+    );
+}
+
+#[test]
+fn a_managed_adoption_grants_write_on_a_private_repository_without_a_hook() {
+    let (mut service, mut forge) = access_host(false);
+    assert!(forge.service.setup().collaborator(1, b"temper").is_none());
+    adopt_private(&mut service, 70);
+    finish_access(&mut service, &mut forge);
+    assert_eq!(forge.service.setup().collaborator(1, b"temper"), Some(skein_forge::forgejo::request::Grant::Write));
+    assert_eq!(forge.service.setup().repository_hooks(1).count(), 0);
+}
+#[test]
+fn an_adoption_without_admin_repository_scope_refuses_and_names_its_step() {
+    let (mut service, mut forge) = access_host(false);
+    let setup = forge.service.setup_mut();
+    setup.revoke(ADMIN);
+    let user = setup.find(b"elsewhere-owner").unwrap().id;
+    setup.token(user, b"limited", &[b"read:user"], Secret::new(ADMIN.into()));
+    let engine = service.engine.as_mut().unwrap();
+    public::adopt_access(engine, 1, Token::new(70), b"other".as_slice().into(), b"closed".as_slice().into());
+    let mut refused = false;
+    let mut named = false;
+    for tick in 20_032..40_000 {
+        let engine = service.engine.as_mut().unwrap();
+        for event in &engine.events {
+            if let root::Event::Forge(event) = event
+                && let domain::Event::AccessAnswered { request, answer, .. } = event.as_ref()
+                && *request == Token::new(70)
+            {
+                assert_eq!(*answer, Err(domain::AdoptionRefusal::NoAccess));
+                refused = true;
+            }
+        }
+        for note in &engine.notes {
+            if let crate::Note::ForgeSetupStopped { number: 1, why } = note {
+                assert_eq!(
+                    *why,
+                    crate::SetupStopped::Stopped {
+                        plan: crate::SetupPlan::Adopt,
+                        step: crate::SetupStep {
+                            stage: reconcile::Stage::Repository,
+                            why: reconcile::Why::Refused(403)
+                        }
+                    }
+                );
+                named = true;
+            }
+        }
+        if refused && named {
+            break;
+        }
+        // Inspect before the root consumes the host's terminal event.
+        advance(engine);
+        engine.forge.iterate(engine.env.now, Wall::EPOCH);
+        forge.turn_io(engine);
+        forge.turn_server(engine);
+        engine.env.now = Time::from_nanos(tick * 1_000_000);
+    }
+    assert!(refused && named);
+    assert!(service.engine.as_ref().unwrap().setup.runs.is_empty());
+    assert!(forge.service.setup().collaborator(1, b"temper").is_none());
+}
+#[test]
+fn a_second_access_is_in_flight_and_can_retry_after_the_first_plan() {
+    let (mut service, mut forge) = access_host(false);
+    let engine = service.engine.as_mut().unwrap();
+    for request in [70, 71] {
+        public::adopt_access(engine, 1, Token::new(request), b"other".as_slice().into(), b"closed".as_slice().into());
+    }
+    assert!(access_answered(engine, Some(Token::new(71)), domain::AdoptionRefusal::InFlight));
+    for tick in 20_032..40_000 {
+        turn(&mut service, &mut forge, tick);
+        if service.engine.as_ref().unwrap().setup.runs.is_empty() {
+            break;
+        }
+    }
+    adopt_private(&mut service, 72);
+    finish_access(&mut service, &mut forge);
+}
+
+#[test]
+fn a_managed_start_stop_names_repository_on_the_row_and_offers_connect() {
+    let forge = forge(true, true, false);
+    let mut service = service(&forge);
+    let engine = service.engine.as_mut().unwrap();
+    let run = Token::new(70);
+    engine
+        .setup
+        .runs
+        .insert(
+            run,
+            Run {
+                making: None,
+                words: None,
+                first: None,
+                previous: domain::Connection::NotConnected,
+                forge: 1,
+                kind: Kind::LocalReconcile,
+                internal: true,
+            },
+        )
+        .unwrap();
+    lifecycle::stopped(
+        engine,
+        run,
+        reconcile::Failure {
+            forge: 1,
+            step: reconcile::Stage::Repository,
+            why: reconcile::Why::Refused(403),
+            subject: b"other/closed".as_slice().into(),
+        },
+    );
+    for _ in 0_u32..16 {
+        crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+    }
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(
+        engine.domain.forge_connection(1),
+        domain::Connection::SetUpFailed { why: b"reconciling: Repository: Refused(403)".as_slice().into() }
+    );
+    assert!(engine.domain.forges().rows[0].admin, "Connect remains offered");
+    ask(&mut service, bundle(1, ADMIN), None);
+    assert_eq!(
+        service.engine.as_ref().unwrap().domain.forge_connection(1),
+        domain::Connection::Connecting,
+        "Connect is admitted"
+    );
+}
+
+#[test]
+fn each_access_stop_answers_by_its_step_and_names_adopt() {
+    use domain::AdoptionRefusal as Refusal;
+    use reconcile::{Stage, Why};
+    let forge = forge(true, true, false);
+    let cases = [
+        (Stage::Admin, Why::Missing, Refusal::NoAccess),
+        (Stage::Admin, Why::Down, Refusal::NoAccess),
+        (Stage::Repository, Why::Missing, Refusal::NotFound),
+        (Stage::Repository, Why::Refused(404), Refusal::NoAccess),
+        (Stage::Repository, Why::Down, Refusal::Unreachable),
+        (Stage::Repository, Why::TimedOut, Refusal::Unreachable),
+        (Stage::State, Why::Busy, Refusal::InFlight),
+        (Stage::Repository, Why::Unknown, Refusal::InvalidAnswer),
+        (Stage::Bot, Why::Missing, Refusal::InvalidAnswer),
+        (Stage::Bot, Why::Refused(403), Refusal::InvalidAnswer),
+    ];
+    for (step, why, expected) in cases {
+        let mut service = service(&forge);
+        let engine = service.engine.as_mut().unwrap();
+        while engine.notes.pop().is_some() {}
+        public::adopt_access(engine, 1, Token::new(70), b"other".as_slice().into(), b"closed".as_slice().into());
+        let run = *engine.setup.runs.first().unwrap().0;
+        lifecycle::stopped(
+            engine,
+            run,
+            reconcile::Failure { forge: 1, step, why, subject: b"other/closed".as_slice().into() },
+        );
+        assert!(engine.setup.runs.is_empty());
+        assert!(engine.setup.public.is_empty());
+        let mut answered = 0_u32;
+        while let Some(event) = engine.events.pop() {
+            if let root::Event::Forge(event) = event
+                && let domain::Event::AccessAnswered { answer, .. } = *event
+            {
+                assert_eq!(answer, Err(expected), "{step:?} {why:?}");
+                answered += 1;
+            }
+        }
+        assert_eq!(answered, 1);
+        assert!(engine.notes.iter().any(|note| match note {
+            crate::Note::ForgeSetupStopped {
+                number: 1,
+                why: crate::SetupStopped::Stopped { plan: crate::SetupPlan::Adopt, step: found },
+            } => found.stage == step && found.why == why,
+            _ => false,
+        }));
+    }
+}
+
+#[test]
+fn access_local_ends_and_full_entrances_answer_without_leaving_a_caller() {
+    let forge = forge(true, true, false);
+    let mut service = service(&forge);
+    for (reason, expected) in [
+        (b"setup host: busy".as_slice(), domain::AdoptionRefusal::InFlight),
+        (b"forge ended", domain::AdoptionRefusal::Unreachable),
+    ] {
+        let engine = service.engine.as_mut().unwrap();
+        public::adopt_access(engine, 1, Token::new(70), b"other".as_slice().into(), b"closed".as_slice().into());
+        let run = *engine.setup.runs.first().unwrap().0;
+        lifecycle::refused(engine, run, 1, reason.into());
+        assert!(engine.setup.runs.is_empty() && engine.setup.public.is_empty());
+        assert!(access_answered(engine, None, expected));
+        while engine.events.pop().is_some() {}
+    }
+    for public_full in [false, true] {
+        let engine = service.engine.as_mut().unwrap();
+        if public_full {
+            for number in 0..engine.setup.public.capacity() {
+                engine
+                    .setup
+                    .public
+                    .insert(
+                        Token::new(u64::from(number)),
+                        public::Caller::Reachable { forge: 1, request: Token::new(0) },
+                    )
+                    .unwrap();
+            }
+        } else {
+            engine.setup.env.limits.runs = 0;
+        }
+        public::adopt_access(engine, 1, Token::new(70), b"other".as_slice().into(), b"closed".as_slice().into());
+        assert!(access_answered(engine, None, domain::AdoptionRefusal::InFlight));
+        while engine.events.pop().is_some() {}
+        engine.setup.env.limits.runs = 4;
+        engine.setup.public = Map::with_capacity(engine.setup.public.capacity());
+    }
+}
+
+fn access_answered(engine: &crate::engine::Engine, request: Option<Token>, expected: domain::AdoptionRefusal) -> bool {
+    engine.events.iter().any(|event| match event {
+        root::Event::Forge(event) => match event.as_ref() {
+            domain::Event::AccessAnswered { request: found, answer, .. } => {
+                (request.is_none() || request == Some(*found)) && *answer == Err(expected)
+            }
+            _ => false,
+        },
+        _ => false,
+    })
+}

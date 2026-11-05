@@ -34,7 +34,7 @@ enum Phase {
 }
 #[derive(Debug)]
 pub(crate) struct Access {
-    id: u64,
+    id: Option<u64>,
     bot: Box<[u8]>,
     path: Option<Repo>,
     phase: Phase,
@@ -55,11 +55,17 @@ pub(crate) enum Fail {
 }
 impl Access {
     pub fn new(id: u64, bot: &[u8], url: Option<Box<[u8]>>) -> Self {
-        Self { id, bot: bot.into(), path: None, phase: Phase::Repository, url, page: 1, kept: None }
+        Self { id: Some(id), bot: bot.into(), path: None, phase: Phase::Repository, url, page: 1, kept: None }
     }
-    /// The first request: the repository by id.
+    pub fn named(at: Repo, bot: &[u8], url: Option<Box<[u8]>>) -> Self {
+        Self { id: None, bot: bot.into(), path: Some(at), phase: Phase::Repository, url, page: 1, kept: None }
+    }
+    /// The first request: the repository by the given id or path.
     pub fn begin(&mut self) -> Request {
-        Request::RepositoryById { id: self.id }
+        match self.id {
+            Some(id) => Request::RepositoryById { id },
+            None => Request::Repository { at: self.path.clone().expect("named repository has a path") },
+        }
     }
     /// Starts at the collaborator when creation already knows the repository path.
     pub fn known(&mut self, path: Repo) -> Request {
@@ -121,7 +127,9 @@ impl Access {
         match self.phase {
             Phase::Repository => match answer {
                 Reply::Document(Document::Repository(repo)) => {
-                    if repo.id != self.id {
+                    if let Some(id) = self.id
+                        && repo.id != id
+                    {
                         return Err(Why::Unexpected);
                     }
                     let at = Repo { owner: repo.owner.login, name: repo.name };
@@ -268,7 +276,7 @@ impl Access {
                 out.put(&path.name).expect("path capacity");
                 out.finish()
             }
-            None => skein_lib::Decimal::of(self.id).as_bytes().into(),
+            None => skein_lib::Decimal::of(self.id.expect("repository has an id or path")).as_bytes().into(),
         }
     }
 }
