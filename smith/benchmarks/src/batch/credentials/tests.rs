@@ -70,8 +70,8 @@ fn record(generation: u64) -> Box<[u8]> {
     let record = skein_oauth::SavedToken {
         key: 0,
         generation,
-        access_token: b"unissued-access".as_slice().into(),
-        refresh_token: Some(b"unissued-refresh".as_slice().into()),
+        access_token: skein_lib::Secret::new(b"unissued-access".as_slice().into()),
+        refresh_token: Some(skein_lib::Secret::new(b"unissued-refresh".as_slice().into())),
         expires_at: skein_lib::Wall::from_nanos(1_000_000_000_000),
         issued_client_id: None,
         granted_scopes: None,

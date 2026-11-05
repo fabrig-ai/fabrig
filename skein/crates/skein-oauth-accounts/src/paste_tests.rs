@@ -12,7 +12,8 @@ fn account(public: bool, issued: bool) -> Account {
     let mut account = refresh_account(0, ([127, 0, 0, 1], 31000).into());
     if let Account::SignIn { registration, keeper, .. } = &mut account {
         registration.redirect_uri = bytes::copy_of(if public { REGISTERED } else { CONFIDENTIAL });
-        registration.client_secret = if public { None } else { Some(bytes::copy_of(b"fake secret")) };
+        registration.client_secret =
+            if public { None } else { Some(skein_lib::Secret::new(bytes::copy_of(b"fake secret"))) };
         registration.terms = Some(skein_oauth::Terms { varying_port: public, issued_client_id: issued, ..terms() });
         *keeper = Keeper::Owner { kept: None };
     }

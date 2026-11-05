@@ -348,8 +348,8 @@ fn plan(status: u16) -> issuer::Plan {
     issuer::Plan {
         status,
         body: issuer::Body::Token(skein_oauth::TokenResponse {
-            access_token: bytes::copy_of(ACCESS),
-            refresh_token: Some(bytes::copy_of(REFRESH)),
+            access_token: skein_lib::Secret::new(bytes::copy_of(ACCESS)),
+            refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(REFRESH))),
             expires_in: 30,
             scope: None,
             id_token: None,

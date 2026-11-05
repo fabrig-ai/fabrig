@@ -186,7 +186,7 @@ impl Client {
         if !has_openid(&exchange.registration) {
             return Ok(Identity { subject: None, token: None });
         }
-        let token = response.id_token.as_deref().ok_or(Check::Missing)?;
+        let token = response.id_token.as_ref().ok_or(Check::Missing)?.expose();
         let terms = exchange.registration.terms.as_ref().ok_or(Check::Issuer)?;
         let openid = terms.openid.as_ref().ok_or(Check::Issuer)?;
         let expected = crate::jwt::Expected {

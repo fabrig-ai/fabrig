@@ -134,7 +134,7 @@ fn registration() -> oauth::Registration {
         redirect_uri: boxed(REDIRECT),
         scope: boxed(b"openid profile email"),
         wire: oauth::WireFormat::Form,
-        client_secret: Some(boxed(b"secret")),
+        client_secret: Some(skein_lib::Secret::new(boxed(b"secret"))),
         pkce_for_confidential: true,
         metadata_claim: None,
         terms: Some(oauth::Terms {
@@ -448,11 +448,11 @@ impl World {
     fn check_record(&mut self, record: &oauth::SavedToken) {
         assert!(record.refresh_token.is_none() && record.refresh_state().is_none(), "access-only sign-in");
         assert_eq!(record.subject.as_deref(), Some(person().subject.as_ref()), "record subject");
-        let claims = decoded_claims(record.id_token.as_deref().expect("ID token"));
+        let claims = decoded_claims(record.id_token.as_ref().expect("ID token").expose());
         assert_eq!(json_string(&claims, b"preferred_username"), person().username.expect("username"));
         assert_eq!(json_string(&claims, b"email"), person().email.expect("email").address);
         assert_eq!(json_string(&claims, b"name"), person().name.expect("name"));
-        let (status, body) = self.userinfo(USERINFO, &record.access_token);
+        let (status, body) = self.userinfo(USERINFO, record.access_token.expose());
         assert_eq!(status, 200);
         assert_eq!(json_string(&body, b"sub").as_ref(), record.subject.as_deref().expect("subject"));
         assert_eq!(json_string(&claims, b"sub"), json_string(&body, b"sub"), "ID token and userinfo agree");
@@ -497,7 +497,7 @@ fn event_bytes(event: &oauth::Event) -> usize {
                 + registration.client_id.len()
                 + registration.redirect_uri.len()
                 + registration.scope.len()
-                + registration.client_secret.as_ref().map_or(0, |v| v.len());
+                + registration.client_secret.as_ref().map_or(0, skein_lib::Secret::len);
             if let Some(terms) = &registration.terms
                 && let Some(openid) = &terms.openid
             {
@@ -522,7 +522,7 @@ fn request_bytes(request: Option<&oauth::Request>) -> usize {
         Some(oauth::Request::Tokens { record, missing }) => record
             .access_token
             .len()
-            .checked_add(record.id_token.as_ref().map_or(0, |value| value.len()))
+            .checked_add(record.id_token.as_ref().map_or(0, skein_lib::Secret::len))
             .expect("record bytes")
             .checked_add(record.subject.as_ref().map_or(0, |value| value.len()))
             .expect("record bytes")

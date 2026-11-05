@@ -5,7 +5,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use skein_json::Token;
-use skein_lib::{Duration, List, Queue, Time, Wall, Writer, bytes, usize_of};
+use skein_lib::{Duration, List, Queue, Secret, Time, Wall, Writer, bytes, usize_of};
 use skein_oauth::{
     HttpEvidence, HttpRequest, HttpResponse, Json, Limits as DocumentLimits, OAuthError, TokenResponse, challenge,
     encode_error, encode_response,
@@ -277,7 +277,7 @@ impl Issuer {
             if (200..300).contains(&plan.status) {
                 match &plan.body {
                     Body::Token(token) => {
-                        tokens.push(token.access_token.clone()).expect("one per plan");
+                        tokens.push(token.access_token.clone().into_exposed()).expect("one per plan");
                     }
                     Body::Error(_) | Body::Raw(_) => {}
                 }
@@ -386,6 +386,8 @@ impl Issuer {
         });
     }
 
+    #[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
+    #[expect(clippy::too_many_lines, reason = "the bounded token POST keeps its credential conversions in place")]
     fn post(&mut self, request: HttpRequest, now: Time, wall: Wall, out: &mut Queue<Request>) {
         self.carried.clear();
         if self.pending.is_some() {
@@ -440,8 +442,14 @@ impl Issuer {
                     out.push(Request::Refused);
                     return;
                 }
-                let next =
-                    if !revocation && (200..300).contains(&plan.status) { value.refresh_token.clone() } else { None };
+                let next = if !revocation && (200..300).contains(&plan.status) {
+                    match &value.refresh_token {
+                        Some(token) => Some(token.clone().into_exposed()),
+                        None => None,
+                    }
+                } else {
+                    None
+                };
                 let Ok(body) = encode_response(&value, &self.limits.document) else {
                     out.push(Request::Refused);
                     return;
@@ -489,6 +497,7 @@ impl Issuer {
         self.deliver(now, wall, out);
     }
 
+    #[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
     fn add_id_token(
         &self,
         value: &mut TokenResponse,
@@ -504,14 +513,17 @@ impl Issuer {
             && let Some(openid) = openid::configured(&self.config)
         {
             let code = self.code(fields).ok_or(Error::Plan)?;
-            value.id_token = openid::token(
+            value.id_token = match openid::token(
                 openid,
                 &self.limits,
                 field(fields, b"client_id").expect("accepted client"),
                 code.account.as_ref().ok_or(Error::Plan)?,
                 code.nonce.as_deref(),
                 wall,
-            )?;
+            )? {
+                Some(token) => Some(Secret::new(token)),
+                None => None,
+            };
         }
         Ok(())
     }

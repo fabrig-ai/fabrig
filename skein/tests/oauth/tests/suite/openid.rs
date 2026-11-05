@@ -169,7 +169,7 @@ fn two_subjects_share_an_address_in_one_world() {
         let record = record(finished(&mut client, &mut issuer, openid_registration()));
         assert_eq!(record.subject.as_deref(), Some(subject));
         let token = record.id_token.expect("ID token");
-        let payload = token.split(|byte| *byte == b'.').nth(1).expect("payload");
+        let payload = token.expose().split(|byte| *byte == b'.').nth(1).expect("payload");
         let payload = skein_lib::base64::decode(skein_lib::base64::Alphabet::Url, payload, documents().id_token_bytes)
             .expect("base64url");
         let json = oauth::Json::from_bytes(&payload, &documents()).expect("claims");
@@ -187,7 +187,7 @@ fn a_google_like_sign_in_keeps_an_access_only_identity() {
         let mut registration = openid_registration();
         registration.scope = boxed(b"openid email profile");
         if confidential {
-            registration.client_secret = Some(boxed(b"test-secret"));
+            registration.client_secret = Some(skein_lib::Secret::new(boxed(b"test-secret")));
         }
         let mut additions = skein_oauth_world::issued(&[]);
         additions.openid = Some(fake::OpenId {

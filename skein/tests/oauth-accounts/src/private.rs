@@ -83,8 +83,8 @@ impl FileSystem {
         let record = oauth::SavedToken {
             key: 0,
             generation: 0,
-            access_token: bytes::copy_of(b"old"),
-            refresh_token: Some(bytes::copy_of(b"seed")),
+            access_token: skein_lib::Secret::new(bytes::copy_of(b"old")),
+            refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(b"seed"))),
             metadata: None,
             expires_at: Wall::from_nanos(
                 Duration::from_secs(
@@ -269,8 +269,8 @@ impl Machine for FileSystem {
             let record = oauth::SavedToken {
                 key: 0,
                 generation: 1,
-                access_token: bytes::copy_of(b"new"),
-                refresh_token: Some(bytes::copy_of(b"seed")),
+                access_token: skein_lib::Secret::new(bytes::copy_of(b"new")),
+                refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(b"seed"))),
                 metadata: None,
                 expires_at: Wall::from_nanos(Duration::from_secs(30).as_nanos()),
                 issued_client_id: None,
@@ -298,8 +298,8 @@ impl Machine for FileSystem {
             let record = oauth::SavedToken {
                 key: 0,
                 generation: 0,
-                access_token: bytes::copy_of(b"old"),
-                refresh_token: Some(bytes::copy_of(b"seed")),
+                access_token: skein_lib::Secret::new(bytes::copy_of(b"old")),
+                refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(b"seed"))),
                 metadata: None,
                 expires_at: Wall::from_nanos(Duration::from_secs(30).as_nanos()),
                 issued_client_id: None,

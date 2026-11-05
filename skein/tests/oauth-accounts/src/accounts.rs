@@ -48,8 +48,8 @@ fn record(expiry: u64) -> oauth::SavedToken {
     oauth::SavedToken {
         key: ACCOUNT,
         generation: 0,
-        access_token: bytes::copy_of(b"old"),
-        refresh_token: Some(bytes::copy_of(b"seed")),
+        access_token: skein_lib::Secret::new(bytes::copy_of(b"old")),
+        refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(b"seed"))),
         metadata: None,
         expires_at: Wall::from_nanos(Duration::from_secs(expiry).as_nanos()),
         issued_client_id: None,
@@ -85,7 +85,7 @@ fn configuration(client: &world::Client) -> accounts::Account {
                     Story::Holding | Story::Wanted => Some(record(30)),
                     Story::WantedFailure => {
                         let mut kept = record(30);
-                        kept.refresh_token = Some(bytes::copy_of(b"revoked"));
+                        kept.refresh_token = Some(skein_lib::Secret::new(bytes::copy_of(b"revoked")));
                         Some(kept)
                     }
                     Story::Refreshing | Story::Keeping => Some(record(5)),

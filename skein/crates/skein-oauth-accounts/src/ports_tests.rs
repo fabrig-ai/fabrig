@@ -104,7 +104,7 @@ fn redirected(suffix: &[u8]) -> RedirectOutcome {
     let mut account = refresh_account(0, ADDRESS);
     if let Account::SignIn { registration, keeper, .. } = &mut account {
         registration.terms = Some(issued_terms());
-        registration.client_secret = Some(bytes::copy_of(b"secret"));
+        registration.client_secret = Some(skein_lib::Secret::new(bytes::copy_of(b"secret")));
         registration.redirect_uri = bytes::copy_of(b"https://service.example/callback");
         *keeper = Keeper::Owner { kept: None };
     }
@@ -276,7 +276,7 @@ fn signing_in_again_carries_the_held_records_hints() {
         registration.terms = Some(issued_terms());
         if let Keeper::Owner { kept: Some(record) } = keeper {
             record.issued_client_id = Some(bytes::copy_of(b"issued"));
-            record.id_token = Some(bytes::copy_of(b"token"));
+            record.id_token = Some(skein_lib::Secret::new(bytes::copy_of(b"token")));
             record.subject = Some(bytes::copy_of(b"person"));
         }
     }

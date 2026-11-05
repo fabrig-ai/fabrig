@@ -1331,7 +1331,7 @@ fn grant(slot: &mut State, source: &Source, now: Time, account: u32, up: &mut Qu
             *held = true;
             up.push(Event::Granted {
                 account,
-                token: record.access_token.clone(),
+                token: record.access_token.clone().into_exposed(),
                 generation: record.generation,
                 valid: expiry.saturating_since(now),
             });

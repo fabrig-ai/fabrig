@@ -63,14 +63,14 @@ fn single_byte_mutations_never_panic_and_round_trip_when_they_decode() {
         record: SavedToken {
             key: 7,
             generation: 9,
-            access_token: bytes::copy_of(b"access"),
-            refresh_token: Some(bytes::copy_of(b"refresh")),
+            access_token: skein_lib::Secret::new(bytes::copy_of(b"access")),
+            refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(b"refresh"))),
             metadata: Some(bytes::copy_of(b"metadata")),
             expires_at: Wall::from_nanos(123),
             issued_client_id: Some(bytes::copy_of(b"issued-client")),
             granted_scopes: Some(bytes::copy_of(b"scope one")),
             subject: Some(bytes::copy_of(b"subject")),
-            id_token: Some(bytes::copy_of(b"id-token")),
+            id_token: Some(skein_lib::Secret::new(bytes::copy_of(b"id-token"))),
             earliest_refresh_at: Some(Wall::from_nanos(100)),
         },
     };

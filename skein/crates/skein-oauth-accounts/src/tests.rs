@@ -111,7 +111,7 @@ fn tests_record(generation: u64) -> SavedToken {
     SavedToken {
         key: 0,
         generation,
-        access_token: bytes::copy_of(b"access"),
+        access_token: skein_lib::Secret::new(bytes::copy_of(b"access")),
         refresh_token: None,
         metadata: None,
         expires_at: Wall::from_nanos(30_000_000_000),
@@ -238,7 +238,7 @@ fn a_newer_record_announces_the_new_generation_while_held() {
 fn a_record_with_a_refresh_token_or_past_its_bounds_is_refused() {
     let (mut component, env, mut out) = setup();
     let mut record = tests_record(1);
-    record.refresh_token = Some(bytes::copy_of(b"refresh"));
+    record.refresh_token = Some(skein_lib::Secret::new(bytes::copy_of(b"refresh")));
     component.down(
         &env,
         Request::HandIn { account: 0, record },
@@ -248,7 +248,7 @@ fn a_record_with_a_refresh_token_or_past_its_bounds_is_refused() {
     );
     assert_refused(out.pop(), 0, Asked::HandIn, Refusal::NotAccessOnly);
     let mut record = tests_record(1);
-    record.access_token = bytes::copy_of(&[b'x'; 65]);
+    record.access_token = skein_lib::Secret::new(bytes::copy_of(&[b'x'; 65]));
     component.down(
         &env,
         Request::HandIn { account: 0, record },
@@ -320,7 +320,7 @@ fn a_released_record_still_announces_its_lead_without_an_expiry_failure() {
 pub(crate) fn refresh_account(account: u32, address: core::net::SocketAddr) -> Account {
     let mut record = tests_record(0);
     record.key = account;
-    record.refresh_token = Some(bytes::copy_of(b"refresh"));
+    record.refresh_token = Some(skein_lib::Secret::new(bytes::copy_of(b"refresh")));
     record.expires_at = Wall::from_nanos(5_000_000_000);
     Account::SignIn {
         origins: List::with_capacity(0),
@@ -602,10 +602,10 @@ fn scope_owner(granted: &[u8], kept: bool) -> private::Owner {
         terms.required_scopes = Some(bytes::copy_of(REQUIRED_SCOPES));
         registration.terms = Some(terms);
         registration.scope = bytes::copy_of(REQUIRED_SCOPES);
-        registration.client_secret = Some(bytes::copy_of(b"secret"));
+        registration.client_secret = Some(skein_lib::Secret::new(bytes::copy_of(b"secret")));
         registration.redirect_uri = bytes::copy_of(b"https://service.example/callback");
         let mut record = tests_record(0);
-        record.refresh_token = Some(bytes::copy_of(b"refresh"));
+        record.refresh_token = Some(skein_lib::Secret::new(bytes::copy_of(b"refresh")));
         record.granted_scopes = Some(bytes::copy_of(granted));
         *keeper = Keeper::Owner { kept: kept.then_some(record) };
     }

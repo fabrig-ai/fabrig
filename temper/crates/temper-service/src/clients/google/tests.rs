@@ -19,14 +19,14 @@ fn record(payload: &[u8], subject: &[u8]) -> oauth::SavedToken {
     oauth::SavedToken {
         key: 1,
         generation: 1,
-        access_token: b"throwaway-access".as_slice().into(),
+        access_token: Secret::new(b"throwaway-access".as_slice().into()),
         refresh_token: None,
         metadata: None,
         expires_at: Wall::from_nanos(3_600_000_000_000),
         issued_client_id: None,
         granted_scopes: None,
         subject: Some(subject.into()),
-        id_token: Some(token(payload)),
+        id_token: Some(Secret::new(token(payload))),
         earliest_refresh_at: None,
     }
 }

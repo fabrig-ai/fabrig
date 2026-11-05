@@ -227,7 +227,7 @@ fn token_plan(issuer: &mut fake::Issuer) {
         .queue(fake::Plan {
             status: 200,
             body: fake::Body::Token(oauth::TokenResponse {
-                access_token: b"throwaway-access".as_slice().into(),
+                access_token: Secret::new(b"throwaway-access".as_slice().into()),
                 refresh_token: None,
                 expires_in: 3600,
                 scope: Some(b"openid email profile".as_slice().into()),
