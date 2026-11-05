@@ -225,7 +225,7 @@ pub fn env_record(value: &[u8], _wall: Wall) -> Option<Borrowed> {
             earliest_refresh_at: None,
             key: 0,
             generation: 1,
-            access_token: value.into(),
+            access_token: skein_lib::Secret::new(value.into()),
             refresh_token: None,
             metadata: None,
             expires_at: Wall::from_nanos(u64::MAX),

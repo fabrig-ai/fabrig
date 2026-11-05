@@ -141,7 +141,7 @@ fn the_refresh_report_names_facts_without_token_bytes() {
     let now = Wall::from_nanos(10_000_500_000_000);
     let mut record = env_record(ACCESS.as_bytes(), now).expect("synthetic record").record;
     record.generation = 7;
-    record.refresh_token = Some(REFRESH.as_bytes().into());
+    record.refresh_token = Some(skein_lib::Secret::new(REFRESH.as_bytes().into()));
     record.expires_at = Wall::from_nanos(13_127_900_000_000);
     record.earliest_refresh_at = Some(Wall::from_nanos(11_840_900_000_000));
     let bytes = skein_oauth::encode_record(&record, &token_limits()).expect("bounded synthetic record");

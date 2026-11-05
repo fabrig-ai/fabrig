@@ -200,8 +200,8 @@ pub(super) fn issuer(
     peer.queue(skein_fake_oauth::Plan {
         status: 200,
         body: skein_fake_oauth::Body::Token(skein_oauth::TokenResponse {
-            access_token: ACCESS.as_ref().into(),
-            refresh_token: Some(b"fake-refresh".as_slice().into()),
+            access_token: skein_lib::Secret::new(ACCESS.as_ref().into()),
+            refresh_token: Some(skein_lib::Secret::new(b"fake-refresh".as_slice().into())),
             expires_in: 300,
             scope: Some(scopes.into_bytes().into()),
             id_token: None,

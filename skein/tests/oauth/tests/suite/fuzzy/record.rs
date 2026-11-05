@@ -21,13 +21,13 @@ fn full_record() -> SavedToken {
         key: 1,
         generation: 2,
         expires_at: Wall::from_nanos(3),
-        access_token: boxed(b"access"),
-        refresh_token: Some(boxed(b"refresh")),
+        access_token: skein_lib::Secret::new(boxed(b"access")),
+        refresh_token: Some(skein_lib::Secret::new(boxed(b"refresh"))),
         metadata: Some(boxed(b"account")),
         issued_client_id: Some(boxed(b"client")),
         granted_scopes: Some(boxed(b"read")),
         subject: Some(boxed(b"subject")),
-        id_token: Some(boxed(b"header.payload.signature")),
+        id_token: Some(skein_lib::Secret::new(boxed(b"header.payload.signature"))),
         earliest_refresh_at: Some(Wall::from_nanos(1)),
     }
 }

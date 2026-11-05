@@ -155,6 +155,7 @@ impl Component {
         }
     }
 
+    #[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
     pub(super) fn begin_sign_in(&mut self, env: &Env<Limits>, account: u32, io: &mut Queue<Lower>) {
         let registration = match self.sources.get(account).expect("configured source") {
             Source::SignIn { registration, .. } => copy_registration(registration),
@@ -170,7 +171,10 @@ impl Component {
                     State::Record { record, .. } | State::Loaded { record } => {
                         *generation = record.generation;
                         issued_client_id.clone_from(&record.issued_client_id);
-                        id_token.clone_from(&record.id_token);
+                        *id_token = match &record.id_token {
+                            Some(token) => Some(token.clone().into_exposed()),
+                            None => None,
+                        };
                         subject.clone_from(&record.subject);
                     }
                     State::Empty => {}

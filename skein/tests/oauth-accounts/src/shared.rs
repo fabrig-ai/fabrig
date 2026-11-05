@@ -28,8 +28,8 @@ fn record(generation: u64, seconds: u64) -> oauth::SavedToken {
     oauth::SavedToken {
         key: ACCOUNT,
         generation,
-        access_token: bytes::copy_of(b"shared"),
-        refresh_token: Some(bytes::copy_of(b"seed")),
+        access_token: skein_lib::Secret::new(bytes::copy_of(b"shared")),
+        refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(b"seed"))),
         metadata: None,
         expires_at: Wall::from_nanos(Duration::from_secs(seconds).as_nanos()),
         issued_client_id: None,

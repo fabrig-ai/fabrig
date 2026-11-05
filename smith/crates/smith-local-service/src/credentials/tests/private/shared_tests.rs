@@ -104,7 +104,7 @@ fn a_busy_lock_preserves_the_record() {
         Some((_, Settled::SignedIn { .. } | Settled::SignedOut { .. })) | None => panic!("lock refusal"),
     }
     assert_eq!(world.saved().generation, 1);
-    assert!(world.saved().refresh_token.as_deref() == Some(b"refresh-old".as_slice()));
+    assert!(world.saved().refresh_token.as_ref().expect("refresh token").expose() == b"refresh-old");
     world.close();
     world.files.close(held);
 }

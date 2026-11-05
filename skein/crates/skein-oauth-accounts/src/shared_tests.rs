@@ -47,7 +47,7 @@ fn seen(events: &mut Queue<Event>) -> Seen {
 }
 fn shared_record(generation: u64) -> SavedToken {
     let mut record = tests_record(generation);
-    record.refresh_token = Some(bytes::copy_of(b"refresh"));
+    record.refresh_token = Some(skein_lib::Secret::new(bytes::copy_of(b"refresh")));
     record
 }
 fn shared_account(edit: fn(&mut Account)) -> Account {
@@ -100,7 +100,7 @@ fn signing_in_as(subject: Option<Box<[u8]>>) -> Owner {
 fn locking(subject: Option<Box<[u8]>>) -> (Owner, skein_lib::Token) {
     let account = shared_account(|account| {
         if let Account::SignIn { registration, .. } = account {
-            registration.client_secret = Some(bytes::copy_of(b"fake secret"));
+            registration.client_secret = Some(skein_lib::Secret::new(bytes::copy_of(b"fake secret")));
             registration.redirect_uri = bytes::copy_of(b"https://service.example/callback");
         }
     });

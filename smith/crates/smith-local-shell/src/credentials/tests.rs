@@ -44,7 +44,7 @@ fn the_credential_catalog_uses_the_resolvers_needed_accounts_and_omits_values() 
 #[test]
 fn an_env_value_is_access_only_and_an_invalid_header_value_is_refused() {
     let record = env_record(b"UNISSUED_ACCESS", wall()).expect("synthetic API value");
-    assert!(record.record.access_token.as_ref() == b"UNISSUED_ACCESS", "the variable is the access value");
+    assert!(record.record.access_token.expose() == b"UNISSUED_ACCESS", "the variable is the access value");
     assert!(
         record.record.refresh_token.is_none() && record.record.metadata.is_none(),
         "an API variable holds no refresh or Codex identity"

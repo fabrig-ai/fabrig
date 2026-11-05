@@ -11,7 +11,7 @@ use crate::{ClaimSelector, DecodeError, Failure, Json, Limits, OAuthError, Refre
 use crate::{classify, decode_error, decode_response, rotate};
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
-use skein_lib::{Duration, Queue, Time, Wall, bytes, usize_of};
+use skein_lib::{Duration, Queue, Secret, Time, Wall, bytes, usize_of};
 
 /// Startup bounds for one client and exchange.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -60,7 +60,7 @@ pub enum WireFormat {
 }
 
 /// Caller-provided registration, with no provider identity or discovery.
-#[expect(missing_debug_implementations, reason = "registration may hold a client secret")]
+#[derive(Debug)]
 pub struct Registration {
     pub authorization_url: Box<[u8]>,
     pub token_endpoint: Box<[u8]>,
@@ -68,7 +68,7 @@ pub struct Registration {
     pub redirect_uri: Box<[u8]>,
     pub scope: Box<[u8]>,
     pub wire: WireFormat,
-    pub client_secret: Option<Box<[u8]>>,
+    pub client_secret: Option<Secret>,
     pub pkce_for_confidential: bool,
     pub metadata_claim: Option<ClaimSelector>,
     pub terms: Option<crate::Terms>,
@@ -540,6 +540,7 @@ impl Client {
         self.retry_or_fail(exchange, failure, answer.now, answer.retry_after, safe, out);
     }
 
+    #[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
     fn record(&self, exchange: &Exchange, response: &TokenResponse, wall: Wall) -> Result<SavedToken, Failure> {
         let prior = match &exchange.grant {
             Grant::Refresh { prior } => {
@@ -563,7 +564,7 @@ impl Client {
                 SavedToken {
                     key: *key,
                     generation: *generation,
-                    access_token: Box::new([]),
+                    access_token: Secret::new(Box::new([])),
                     refresh_token: None,
                     metadata: None,
                     expires_at: wall,
@@ -575,7 +576,10 @@ impl Client {
                     },
                     granted_scopes: None,
                     subject: identity.subject,
-                    id_token: identity.token,
+                    id_token: match identity.token {
+                        Some(token) => Some(Secret::new(token)),
+                        None => None,
+                    },
                 }
             }
         };
@@ -746,7 +750,7 @@ fn token_body(exchange: &Exchange, limits: &ClientLimits) -> Result<Box<[u8]>, F
         Grant::SignIn { code: None, .. } => return Err(Failure::Malformed),
         Grant::Revoke { prior } => return revoke::body(registration, prior, limits),
         Grant::Refresh { prior } => {
-            (b"refresh_token".as_slice(), b"refresh_token".as_slice(), prior.refresh_token.as_ref(), None, None)
+            (b"refresh_token".as_slice(), b"refresh_token".as_slice(), prior.refresh_token.expose(), None, None)
         }
     };
     let fields = [
@@ -762,8 +766,8 @@ fn token_body(exchange: &Exchange, limits: &ClientLimits) -> Result<Box<[u8]>, F
             Some(item) => Some((b"code_verifier".as_slice(), item)),
             None => None,
         },
-        match registration.client_secret.as_deref() {
-            Some(item) => Some((b"client_secret".as_slice(), item)),
+        match registration.client_secret.as_ref() {
+            Some(item) => Some((b"client_secret".as_slice(), item.expose())),
             None => None,
         },
     ];

@@ -153,7 +153,7 @@ fn issuer(story: Story) -> oauth::Peer {
     let mut plans = fixtures::issuer_plans(AccountStory::AccountSignInVaryingPort);
     if story == Story::Restart {
         let skein_fake_oauth::Body::Token(token) = &mut plans[0].body else { panic!("code grant") };
-        token.access_token = fixtures::TOKEN_FIRST.into();
+        token.access_token = skein_lib::Secret::new(fixtures::TOKEN_FIRST.into());
         plans.insert(1, fixtures::rotate());
     }
     let profile = fixtures::limits();

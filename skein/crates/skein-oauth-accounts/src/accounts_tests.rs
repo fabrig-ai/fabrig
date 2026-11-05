@@ -74,7 +74,7 @@ fn bad_record() -> Account {
     let mut configuration = refresh_account(ADDED, ADDRESS);
     if let Account::SignIn { keeper, .. } = &mut configuration {
         let mut record = tests_record(0);
-        record.access_token = bytes::copy_of(b"");
+        record.access_token = skein_lib::Secret::new(bytes::copy_of(b""));
         *keeper = Keeper::Owner { kept: Some(record) };
     }
     configuration
@@ -223,7 +223,7 @@ fn a_removed_name_is_free_for_add() {
             && owner.above.pop()
                 == Some(Event::Granted {
                     account: 0,
-                    token: tests_record(0).access_token,
+                    token: tests_record(0).access_token.into_exposed(),
                     generation: 0,
                     valid: Duration::from_secs(30)
                 })
@@ -344,7 +344,7 @@ fn wanted_private() -> Owner {
     owner.ask(Request::Want { account: 0, wanted: true });
     let load = owner.opened();
     let mut record = tests_record(0);
-    record.refresh_token = Some(bytes::copy_of(b"refresh"));
+    record.refresh_token = Some(skein_lib::Secret::new(bytes::copy_of(b"refresh")));
     owner.terminal(file::Event::Loaded {
         owner: load,
         bytes: skein_oauth::encode_record(&record, &owner.env.limits.client.document).expect("kept record"),

@@ -42,7 +42,7 @@ fn again(
         oauth::Event::SignIn {
             registration,
             issued_client_id,
-            id_token,
+            id_token: id_token.map(skein_lib::Secret::into_exposed),
             subject,
             nonce,
             port: None,
@@ -85,7 +85,7 @@ fn each_form_sends_what_it_must_and_nothing_else() {
         let mut issuer = issuer_with(true, Some(issued(&[b"client-1"])));
         let prior = if prior {
             let mut saved = signed_in(&mut issuer, issuing_registration(), success(b"access", Some(b"refresh"), 0));
-            saved.id_token = Some(boxed(b"held.header.signature"));
+            saved.id_token = Some(skein_lib::Secret::new(boxed(b"held.header.signature")));
             saved.subject = Some(boxed(b"subject"));
             Some(saved)
         } else {

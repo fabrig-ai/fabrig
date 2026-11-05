@@ -53,7 +53,7 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
             authorization_url: registration.authorization_url.clone(),
             token_endpoint: registration.token_endpoint.clone(),
             client_id: registration.client_id.clone(),
-            client_secret: registration.client_secret.clone(),
+            client_secret: registration.client_secret.clone().map(skein_lib::Secret::into_exposed),
             redirect_uri: registration.redirect_uri.clone(),
             refresh_token: bytes::copy_of(b"seed"),
             terms: super::issuer::port_terms(story),
@@ -66,8 +66,10 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
             .queue(fake::Plan {
                 status: 200,
                 body: fake::Body::Token(oauth::TokenResponse {
-                    access_token: vec![if story == Story::TwoPorts { b'a' } else { access }; 16].into_boxed_slice(),
-                    refresh_token: Some(bytes::copy_of(refresh)),
+                    access_token: skein_lib::Secret::new(
+                        vec![if story == Story::TwoPorts { b'a' } else { access }; 16].into_boxed_slice(),
+                    ),
+                    refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(refresh))),
                     expires_in: 30,
                     scope: (story == Story::RequiredScopes).then(|| bytes::copy_of(b"read")),
                     id_token: None,

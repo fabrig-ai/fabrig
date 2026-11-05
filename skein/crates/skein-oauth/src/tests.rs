@@ -27,6 +27,9 @@ fn limits() -> Limits {
         id_token_bytes: 1024,
     }
 }
+fn secret(input: &[u8]) -> skein_lib::Secret {
+    skein_lib::Secret::new(boxed(input))
+}
 fn boxed(input: &[u8]) -> Box<[u8]> {
     bytes::copy_of(input)
 }
@@ -40,12 +43,12 @@ fn selector() -> ClaimSelector {
     ClaimSelector { object: boxed(b"https://api.openai.com/auth"), field: boxed(b"chatgpt_account_id") }
 }
 fn request() -> RefreshRequest {
-    RefreshRequest { client_id: boxed(b"client-1"), refresh_token: boxed(b"refresh-old") }
+    RefreshRequest { client_id: boxed(b"client-1"), refresh_token: secret(b"refresh-old") }
 }
 fn response() -> TokenResponse {
     TokenResponse {
-        access_token: boxed(b"access-new"),
-        refresh_token: Some(boxed(b"refresh-new")),
+        access_token: secret(b"access-new"),
+        refresh_token: Some(secret(b"refresh-new")),
         expires_in: 30,
         scope: None,
         id_token: None,
@@ -56,8 +59,8 @@ fn record() -> SavedToken {
     SavedToken {
         key: 7,
         generation: 9,
-        access_token: boxed(b"access-old"),
-        refresh_token: Some(boxed(b"refresh-old")),
+        access_token: secret(b"access-old"),
+        refresh_token: Some(secret(b"refresh-old")),
         metadata: None,
         expires_at: wall(100),
         issued_client_id: None,
@@ -74,7 +77,7 @@ fn refresh_request_is_measured_and_matches_the_wire_contract() {
     let expected = br#"{"grant_type":"refresh_token","client_id":"client-1","refresh_token":"refresh-old"}"#;
     assert_eq!(encode_request(&request, &limits()).expect("encode"), boxed(expected));
     assert!(decode_request(&parse(expected), &limits()).expect("decode") == request);
-    let escaped = RefreshRequest { client_id: boxed(b"c\"\n"), refresh_token: boxed(b"r\\\t") };
+    let escaped = RefreshRequest { client_id: boxed(b"c\"\n"), refresh_token: secret(b"r\\\t") };
     let body = encode_request(&escaped, &limits()).expect("escaping");
     assert!(decode_request(&parse(&body), &limits()).expect("unescape") == escaped);
     let mut exact = limits();
@@ -148,15 +151,15 @@ fn bounded_decoders_refuse_wrong_grants_tokens_and_larger_preparsed_documents() 
             == Err(DecodeError::Malformed)
     );
     assert_eq!(
-        encode_response(&TokenResponse { access_token: boxed(b"x\r\nheader"), ..response() }, &limits()),
+        encode_response(&TokenResponse { access_token: secret(b"x\r\nheader"), ..response() }, &limits()),
         Err(DecodeError::Malformed)
     );
     assert_eq!(
-        encode_response(&TokenResponse { access_token: boxed(b"==="), ..response() }, &limits()),
+        encode_response(&TokenResponse { access_token: secret(b"==="), ..response() }, &limits()),
         Err(DecodeError::Malformed)
     );
     assert_eq!(
-        encode_request(&RefreshRequest { refresh_token: boxed(&[0xff]), ..request() }, &limits()),
+        encode_request(&RefreshRequest { refresh_token: secret(&[0xff]), ..request() }, &limits()),
         Err(DecodeError::Malformed)
     );
 }
@@ -243,8 +246,8 @@ fn an_access_only_record_has_no_refresh_state() {
 
 #[test]
 fn record_bounds_hold_with_and_without_a_refresh_token() {
-    for refresh_token in [None, Some(boxed(&[b'r'; 512]))] {
-        let mut record = SavedToken { access_token: boxed(&[b'a'; 512]), refresh_token, ..record() };
+    for refresh_token in [None, Some(secret(&[b'r'; 512]))] {
+        let mut record = SavedToken { access_token: secret(&[b'a'; 512]), refresh_token, ..record() };
         let encoded = encode_record(&record, &limits()).expect("token caps");
         let mut exact = limits();
         exact.record_bytes = u32::try_from(encoded.len()).expect("bounded length");
@@ -253,14 +256,14 @@ fn record_bounds_hold_with_and_without_a_refresh_token() {
         exact.record_bytes = exact.record_bytes.checked_sub(1).expect("record is nonempty");
         assert_eq!(encode_record(&record, &exact), Err(DecodeError::TooLarge));
         assert!(decode_record(&encoded, &exact) == Err(DecodeError::TooLarge));
-        record.access_token = boxed(&[b'a'; 513]);
+        record.access_token = secret(&[b'a'; 513]);
         assert_eq!(encode_record(&record, &limits()), Err(DecodeError::TooLarge));
     }
     let mut record = record();
     assert!(record.refresh_state().is_some());
-    record.refresh_token = Some(boxed(b""));
+    record.refresh_token = Some(secret(b""));
     assert_eq!(encode_record(&record, &limits()), Err(DecodeError::Malformed));
-    record.refresh_token = Some(boxed(&[b'r'; 513]));
+    record.refresh_token = Some(secret(&[b'r'; 513]));
     assert_eq!(encode_record(&record, &limits()), Err(DecodeError::TooLarge));
 }
 
@@ -301,7 +304,7 @@ fn refresh_only_startup_retains_or_rotates_refresh_and_resumes_saved_generation(
     let starting = RefreshState {
         key: 7,
         generation: 0,
-        refresh_token: boxed(b"refresh-old"),
+        refresh_token: secret(b"refresh-old"),
         issued_client_id: None,
         granted_scopes: None,
         subject: None,
@@ -311,7 +314,7 @@ fn refresh_only_startup_retains_or_rotates_refresh_and_resumes_saved_generation(
     answer.refresh_token = None;
     let first = rotate(&starting, &answer, None, wall(100), &limits()).expect("first refresh requires no access token");
     assert_eq!(first.generation, 1);
-    assert_eq!(first.refresh_token.as_deref().expect("refresh token"), b"refresh-old");
+    assert_eq!(first.refresh_token.as_ref().expect("refresh token").expose(), b"refresh-old");
     assert_eq!(first.remaining(wall(100)), Duration::from_secs(30));
     assert_eq!(first.remaining(wall(112)), Duration::from_secs(18));
     assert_eq!(first.remaining(wall(140)), Duration::ZERO);
@@ -321,7 +324,7 @@ fn refresh_only_startup_retains_or_rotates_refresh_and_resumes_saved_generation(
         rotate(&restarted.refresh_state().expect("record has refresh state"), &response(), None, wall(115), &limits())
             .expect("after restart");
     assert_eq!(next.generation, 2);
-    assert_eq!(next.refresh_token.as_deref().expect("refresh token"), b"refresh-new");
+    assert_eq!(next.refresh_token.as_ref().expect("refresh token").expose(), b"refresh-new");
     assert_eq!(next.expires_at, wall(145));
     assert!(restarted == first, "a candidate does not mutate the kept generation");
 }
@@ -329,7 +332,7 @@ fn refresh_only_startup_retains_or_rotates_refresh_and_resumes_saved_generation(
 #[test]
 fn jwt_rotation_keeps_claims_and_expiry_but_checked_overflow_never_reuses_a_name() {
     let previous = record();
-    let answer = TokenResponse { access_token: boxed(WITH_EXP), ..response() };
+    let answer = TokenResponse { access_token: secret(WITH_EXP), ..response() };
     let candidate = rotate(
         &previous.refresh_state().expect("record has refresh state"),
         &answer,
@@ -384,7 +387,7 @@ fn additions(present: [bool; 5]) -> SavedToken {
     value.issued_client_id = present[0].then_some(boxed(b"client"));
     value.granted_scopes = present[1].then_some(boxed(b"read"));
     value.subject = present[2].then_some(boxed(b"subject"));
-    value.id_token = present[3].then_some(boxed(b"header.payload.signature"));
+    value.id_token = present[3].then_some(secret(b"header.payload.signature"));
     value.earliest_refresh_at = present[4].then_some(wall(90));
     value
 }
@@ -413,8 +416,8 @@ fn byte_record() -> SavedToken {
     SavedToken {
         key: 1,
         generation: 2,
-        access_token: boxed(b"a"),
-        refresh_token: Some(boxed(b"r")),
+        access_token: secret(b"a"),
+        refresh_token: Some(secret(b"r")),
         metadata: None,
         expires_at: Wall::from_nanos(3),
         issued_client_id: None,
@@ -497,7 +500,7 @@ fn a_token_response_reads_scope_id_token_and_earliest() {
     let input = br#"{"access_token":"access-new","refresh_token":"refresh-new","expires_in":30,"scope":"read","id_token":"header.payload.signature","earliest_refresh_at":90}"#;
     let expected = TokenResponse {
         scope: Some(boxed(b"read")),
-        id_token: Some(boxed(b"header.payload.signature")),
+        id_token: Some(secret(b"header.payload.signature")),
         earliest_refresh_at: Some(wall(90)),
         ..response()
     };
@@ -527,6 +530,7 @@ fn a_twice_named_addition_is_malformed() {
     }
 }
 #[test]
+#[expect(clippy::manual_map, reason = "credential fixture conversion uses an explicit match")]
 fn each_new_cap_holds_at_its_boundary() {
     for (name, field, cap) in [("issued", 0_u8, 64), ("granted", 1, 64), ("subject", 2, 64), ("id", 3, 1024)] {
         for extra in [0, 1] {
@@ -536,7 +540,12 @@ fn each_new_cap_holds_at_its_boundary() {
                 0 => value.issued_client_id = bytes,
                 1 => value.granted_scopes = bytes,
                 2 => value.subject = bytes,
-                3 => value.id_token = bytes,
+                3 => {
+                    value.id_token = match bytes {
+                        Some(bytes) => Some(skein_lib::Secret::new(bytes)),
+                        None => None,
+                    };
+                }
                 _ => unreachable!(),
             }
             if extra == 0 {

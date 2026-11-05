@@ -175,8 +175,8 @@ fn plan(seed: u64) -> issuer::Plan {
     issuer::Plan {
         status: 200,
         body: issuer::Body::Token(skein_oauth::TokenResponse {
-            access_token: access.as_slice().into(),
-            refresh_token: Some(REFRESH.into()),
+            access_token: skein_lib::Secret::new(access.as_slice().into()),
+            refresh_token: Some(skein_lib::Secret::new(REFRESH.into())),
             expires_in: LIFETIME,
             scope: Some(SCOPES.into()),
             id_token: None,

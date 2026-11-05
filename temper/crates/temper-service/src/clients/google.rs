@@ -259,7 +259,7 @@ impl Google {
             redirect_uri: redirect,
             scope: bytes::copy_of(b"openid email profile"),
             wire: oauth::WireFormat::Form,
-            client_secret: Some(bytes::copy_of(self.settings.secret.expose())),
+            client_secret: Some(Secret::new(bytes::copy_of(self.settings.secret.expose()))),
             pkce_for_confidential: true,
             metadata_claim: None,
             terms: Some(oauth::Terms {
@@ -692,7 +692,7 @@ impl Clients {
             }
             oauth::Request::Tokens { record, missing: _ } => {
                 let claims = match &record.id_token {
-                    Some(token) => claims_from(token, &limits::client(google.limits).document),
+                    Some(token) => claims_from(token.expose(), &limits::client(google.limits).document),
                     None => None,
                 };
                 let Some(call) = pending.call else { return };
