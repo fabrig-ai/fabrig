@@ -263,3 +263,32 @@ fn permanent(outcome: &Outcome) -> bool {
 #[cfg(test)]
 #[path = "../tests/act_charges.rs"]
 mod tests;
+
+#[cfg(test)]
+mod classifications {
+    use super::*;
+    use crate::tests::{OutcomeClass, outcome_classes};
+    use crate::Reply;
+
+    #[test]
+    fn outcome_classes_keep_status_retention_reply_and_capacity() {
+        for (outcome, family, status, refusal) in outcome_classes() {
+            assert_eq!(outcome.act_status(), status, "{outcome:?}");
+            let (kept, reply) = match family {
+                OutcomeClass::Again(why) => (false, Reply::Again(why)),
+                OutcomeClass::SignedOut => (false, Reply::SignedOut),
+                OutcomeClass::Compound | OutcomeClass::Refused | OutcomeClass::CompoundRefused
+                | OutcomeClass::ServiceMade(_) | OutcomeClass::RolesSet(_) | OutcomeClass::ProjectMade(_)
+                | OutcomeClass::Settled => (true, Reply::Outcome(outcome.clone())),
+            };
+            assert_eq!(permanent(&outcome), kept, "{outcome:?}");
+            assert_eq!(super::super::requests::outcome_reply(outcome.clone()), reply, "{outcome:?}");
+            let capacity = if refusal == Some(Refusal::Limit { which: LimitKind::Projects }) {
+                Some(crate::CapacityCause::Limit { which: LimitKind::Projects })
+            } else { None };
+            assert_eq!(crate::capacity::permanent(&outcome), capacity, "{outcome:?}");
+            let made = match family { OutcomeClass::ProjectMade(project) => Some(project), _ => None };
+            assert_eq!(super::super::deletion::made_project(&outcome), made, "{outcome:?}");
+        }
+    }
+}
