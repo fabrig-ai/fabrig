@@ -1087,8 +1087,9 @@ from the engine's own answers, is where the look is tuned.
 - **An index,** `OUT/index.html`: each state's name, in the gallery's
   order, linking its page, with its mockup's address beside it where a
   mockup draws it.
-- **Static:** no script runs, so focus, caret, scroll and a run's live
-  text are not shown.
+- **Static:** no script runs. The opening focus is an `autofocus`
+  attribute, and a named sample may hold one disclosure open; caret,
+  scroll-following and live updates are not replayed.
 
 ### 7.2 Its states
 
@@ -1178,7 +1179,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-change-running` | a chat with a delegated change running: its one line |
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
 | `chat-goal` | a chat with a goal it started: its one line |
-| `chat-byline-open` | a chat with its byline pressed: the chooser's panel |
+| `chat-byline-open` | a new chat with its byline pressed: the chooser's panel |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's *Needs you* (`README.md`, 3.5): the first of a proposal and a question |
 | `needs-one` | *Needs you*: a question in the line form, the first of three |
