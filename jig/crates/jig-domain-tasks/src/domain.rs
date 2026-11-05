@@ -1403,6 +1403,7 @@ pub(crate) fn make_admitted(
                 flags: new.flags,
                 last_activity: env.wall,
                 ended_below: crate::Endings::ZERO,
+                ended_delegates: crate::Endings::ZERO,
                 question_lines: Box::new([]),
                 hold: 0,
                 proposal_rows: Box::new([]),

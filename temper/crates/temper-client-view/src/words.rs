@@ -11,6 +11,42 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    GoalsWaySeparator,
+    GoalsWayEnd,
+    GoalsKicker,
+    GoalsNone,
+    GoalsOne,
+    GoalsMany,
+    GoalsMoreOne,
+    GoalsMoreMany,
+    GoalsLede,
+    GoalsWays,
+    GoalsAll,
+    GoalsNeeds,
+    GoalsLive,
+    GoalsEnded,
+    GoalsEmpty,
+    GoalsMore,
+
+    Goals,
+    GoalCount,
+    GoalNeedsFunds,
+    GoalNeedsYou,
+    GoalPaused,
+    GoalPlanning,
+    GoalLanded,
+    GoalLandedAlone,
+    GoalStopped,
+    GoalFailed,
+    GoalPlanningLine,
+    GoalTasksLanded,
+    GoalLandedLine,
+    GoalStoppedLine,
+    GoalFailedLine,
+    GoalTaskByTask,
+    GoalTaskByTaskLine,
+    GoalLandWhole,
+    GoalLandWholeLine,
     Changes,
     ChangesKicker,
     ChangesNone,
@@ -899,8 +935,9 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Removing Connected removes seven phrases (client/README.md, 3.5).
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
+// Goal rows and ways add eighteen phrases; the page adds sixteen (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
-const PHRASES: u32 = 1399;
+const PHRASES: u32 = 1434;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -912,9 +949,45 @@ const PHRASES: u32 = 1399;
 // Removing Connected removes twenty-three literal and hole segments (3.5).
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
+// Goal rows and ways add twenty-eight literal and hole segments; the page adds thirty-four (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
-const SEGMENTS: u32 = 2422;
-const ALL: [Word; 803] = [
+const SEGMENTS: u32 = 2485;
+const ALL: [Word; 838] = [
+    Word::GoalsWaySeparator,
+    Word::GoalsWayEnd,
+    Word::GoalsKicker,
+    Word::GoalsNone,
+    Word::GoalsOne,
+    Word::GoalsMany,
+    Word::GoalsMoreOne,
+    Word::GoalsMoreMany,
+    Word::GoalsLede,
+    Word::GoalsWays,
+    Word::GoalsAll,
+    Word::GoalsNeeds,
+    Word::GoalsLive,
+    Word::GoalsEnded,
+    Word::GoalsEmpty,
+    Word::GoalsMore,
+    Word::Goals,
+    Word::GoalCount,
+    Word::GoalNeedsFunds,
+    Word::GoalNeedsYou,
+    Word::GoalPaused,
+    Word::GoalPlanning,
+    Word::GoalLanded,
+    Word::GoalLandedAlone,
+    Word::GoalStopped,
+    Word::GoalFailed,
+    Word::GoalPlanningLine,
+    Word::GoalTasksLanded,
+    Word::GoalLandedLine,
+    Word::GoalStoppedLine,
+    Word::GoalFailedLine,
+    Word::GoalTaskByTask,
+    Word::GoalTaskByTaskLine,
+    Word::GoalLandWhole,
+    Word::GoalLandWholeLine,
     Word::Changes,
     Word::ChangesKicker,
     Word::ChangesNone,
@@ -1723,6 +1796,41 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::GoalsWaySeparator => 3276,
+            Self::GoalsWayEnd => 3277,
+            Self::GoalsKicker => 3262,
+            Self::GoalsNone => 3263,
+            Self::GoalsOne => 3264,
+            Self::GoalsMany => 3265,
+            Self::GoalsMoreOne => 3266,
+            Self::GoalsMoreMany => 3267,
+            Self::GoalsLede => 3268,
+            Self::GoalsWays => 3269,
+            Self::GoalsAll => 3270,
+            Self::GoalsNeeds => 3271,
+            Self::GoalsLive => 3272,
+            Self::GoalsEnded => 3273,
+            Self::GoalsEmpty => 3274,
+            Self::GoalsMore => 3275,
+            Self::Goals => 3243,
+            Self::GoalCount => 3244,
+            Self::GoalNeedsFunds => 3245,
+            Self::GoalNeedsYou => 3246,
+            Self::GoalPaused => 3247,
+            Self::GoalPlanning => 3248,
+            Self::GoalLanded => 3249,
+            Self::GoalLandedAlone => 3250,
+            Self::GoalStopped => 3251,
+            Self::GoalFailed => 3252,
+            Self::GoalPlanningLine => 3253,
+            Self::GoalTasksLanded => 3254,
+            Self::GoalLandedLine => 3255,
+            Self::GoalStoppedLine => 3256,
+            Self::GoalFailedLine => 3257,
+            Self::GoalTaskByTask => 3258,
+            Self::GoalTaskByTaskLine => 3259,
+            Self::GoalLandWhole => 3260,
+            Self::GoalLandWholeLine => 3261,
             Self::Changes => 3208,
             Self::ChangesKicker => 3209,
             Self::ChangesNone => 3210,
@@ -2760,8 +2868,9 @@ impl Words {
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
+            // Goal rows and ways add 419 literal bytes; the page adds 250 (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 476,
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 419 + 250 + 476,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -2828,6 +2937,40 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::GoalsKicker => (&[b"", b" \xc2\xb7 goals"], &[Name]),
+        Word::GoalsNone => (&[b"No goals yet."], &[]),
+        Word::GoalsOne => (&[b"", b" goal, ", b" under way."], &[Number, Number]),
+        Word::GoalsMany => (&[b"", b" goals, ", b" under way."], &[Number, Number]),
+        Word::GoalsMoreOne => (&[b"More than ", b" goal, ", b" under way."], &[Number, Number]),
+        Word::GoalsMoreMany => (&[b"More than ", b" goals, ", b" under way."], &[Number, Number]),
+        Word::GoalsLede => (&[b"A goal turns a draft into landed work."], &[]),
+        Word::GoalsWays => (&[b"A goal turns a draft into landed work, its own way: "], &[]),
+        Word::GoalsWaySeparator => (&[b", "], &[]),
+        Word::GoalsWayEnd => (&[b"."], &[]),
+        Word::GoalsAll => (&[b"All"], &[]),
+        Word::GoalsNeeds => (&[b"Needs you"], &[]),
+        Word::GoalsLive => (&[b"Under way"], &[]),
+        Word::GoalsEnded => (&[b"Ended"], &[]),
+        Word::GoalsEmpty => (&[b"None."], &[]),
+        Word::GoalsMore => (&[b"More goals"], &[]),
+        Word::GoalCount => (&[b"", b" / ", b""], &[Number, Number]),
+        Word::GoalNeedsFunds => (&[b"needs funds"], &[]),
+        Word::GoalNeedsYou => (&[b"needs you"], &[]),
+        Word::GoalPaused => (&[b"paused by you"], &[]),
+        Word::GoalPlanning => (&[b"planning"], &[]),
+        Word::GoalLanded => (&[b"landed ", b""], &[Name]),
+        Word::GoalLandedAlone => (&[b"landed"], &[]),
+        Word::GoalStopped => (&[b"stopped"], &[]),
+        Word::GoalFailed => (&[b"failed"], &[]),
+        Word::GoalPlanningLine => (&[b"Planning from the draft."], &[]),
+        Word::GoalTasksLanded => (&[b"", b" of ", b" tasks landed."], &[Number, Number]),
+        Word::GoalLandedLine => (&[b"Landed."], &[]),
+        Word::GoalStoppedLine => (&[b"Stopped by you."], &[]),
+        Word::GoalFailedLine => (&[b"Failed."], &[]),
+        Word::GoalTaskByTask => (&[b"Task by task"], &[]),
+        Word::GoalTaskByTaskLine => (&[b"The same plan; each task lands on its own once checked."], &[]),
+        Word::GoalLandWhole => (&[b"Plan, tasks, land whole"], &[]),
+        Word::GoalLandWholeLine => (&[b"A plan from the draft, its tasks on a goal branch, landed as one change once all are checked."], &[]),
         Word::Changes => (&[b"Changes"], &[]),
         Word::ChangesKicker => (&[b"", b" \xc2\xb7 landing"], &[Name]),
         Word::ChangesNone => (&[b"Nothing is on the way to ", b"."], &[Name]),
@@ -3418,6 +3561,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
         Word::StartChat => (&[b"Start a chat"], &[]),
+        Word::Goals => (&[b"Goals"], &[]),
         Word::ConfigureTitle => (&[b"Configure temper"], &[]),
         Word::ConfigureQuestion => (&[b"How should temper run ", b"?"], &[Name]),
         Word::ConfigureLede => (&[b"Tell it how you work, in your own words or by pointing at a document."], &[]),

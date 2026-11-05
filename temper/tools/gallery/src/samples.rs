@@ -3,7 +3,7 @@ use crate::driver::step;
 use jig_client::contract as c;
 use skein_lib::{Queue, Token};
 use temper_client_domain::{Action, Address, Domain, Event, Request, address::Filter, pages::Act};
-use temper_client_domain::{ChatsFilter, PlanFilter};
+use temper_client_domain::{ChatsFilter, GoalsFilter, PlanFilter};
 
 use Then::{
     AccountRefused, Closing, Declined, Filled, Held, KeyReady, OutOfDate, Refused, Rejecting, Releasing, Renewed,
@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 115;
+pub const N: usize = 124;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -113,6 +113,7 @@ pub fn samples() -> [Sample; N] {
             address: Address::Home { project: 1 },
             then: Shown,
         },
+        Sample { name: "home-with-goals", world: Solo, address: Address::Home { project: 1 }, then: Shown },
         Sample {
             name: "home-at-work",
             world: FirstRun { step: 7 },
@@ -178,6 +179,54 @@ pub fn samples() -> [Sample; N] {
             name: "home-begin-one-chats",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-solo",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::All },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-reference",
+            world: Reference,
+            address: Address::Goals { project: 1, filter: GoalsFilter::All },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-none",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::All },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-needs",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::Needs },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-under-way",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::Live },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-ended",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::Ended },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-filter-empty",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::Needs },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-more",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::All },
             then: Shown,
         },
         Sample { name: "home-github", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
@@ -410,8 +459,15 @@ fn special_mockup(name: &str) -> Option<String> {
     None
 }
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one table maps each gallery page and its query to the corresponding mock")]
+#[expect(clippy::too_many_lines, reason = "one exhaustive table maps each page and world to its mockup")]
 pub fn mockup(sample: &Sample) -> Option<String> {
+    if sample.name.starts_with("goals-") {
+        return Some(if sample.world == Reference {
+            "goals.html?project=fabrig".to_owned()
+        } else {
+            "goals.html?project=hello".to_owned()
+        });
+    }
     if let Then::Paste(frame) = sample.then {
         return Some(format!(
             "connect-model.html?world=first-run&step=0&way=chatgpt&paste={}&elsewhere=1&bare",
@@ -468,7 +524,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Task { task, .. } => ("task", Some(task)),
         Address::ConnectForge { .. } => ("connect-forge", None),
         Address::Forges => ("forges", None),
-        Address::Home { .. }
+        Address::Goals { .. }
+        | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Configure { .. }
@@ -505,6 +562,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => String::new(),
     };
@@ -529,6 +587,9 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     if sample.name.starts_with("home-") {
         return home_domain(sample.name);
+    }
+    if sample.name.starts_with("goals-") {
+        return crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name);
     }
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();
@@ -874,6 +935,8 @@ fn home_domain(name: &str) -> Domain {
     use jig_client::{Down, Latest, Up, Watchable};
     use skein_lib::List;
     use temper_client_protocol_wire::{self as wire, v1 as w};
+    let with_goals = name == "home-with-goals";
+    let name = if with_goals { "home-at-work" } else { name };
     let (source, _) = crate::worlds::world(FirstRun { step: 7 }, Address::Settings { project: 1 }, Shown);
     let mut me = source.pages().me(source.client()).expect("sample me").clone();
     let mut projects = List::with_capacity(1);
@@ -890,6 +953,17 @@ fn home_domain(name: &str) -> Domain {
         temper_client_domain::pages::accounts::document(source.client()).expect("sample accounts").clone(),
     );
     let (chats, _) = crate::worlds::world(Solo, CHATS, Shown);
+    if with_goals {
+        me.projects.get_mut(0).expect("Home project").templates = chats
+            .pages()
+            .me(chats.client())
+            .expect("Solo frame")
+            .projects
+            .get(0)
+            .expect("Solo project")
+            .templates
+            .clone();
+    }
     let Some(Latest::Jig(c::Delivery::Tasks(chat_rows))) =
         chats.client().document(chats.pages().chats().expect("chats").live).expect("chats watch").latest
     else {
@@ -956,6 +1030,18 @@ fn home_domain(name: &str) -> Domain {
                             pending: List::with_capacity(0),
                         }))
                     }
+                    c::Subject::Tasks { query, .. } if query.tracked == Some(true) => {
+                        let mut rows = List::with_capacity(1);
+                        if with_goals {
+                            let mut goal = chat_rows.rows.get(0).expect("sample row").clone();
+                            goal.project = 1;
+                            goal.tracked = Some(1);
+                            goal.flags.conversation = false;
+                            goal.flags.listed = true;
+                            rows.push(goal).expect("one goal");
+                        }
+                        c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))
+                    }
                     c::Subject::Tasks { .. } => {
                         let mut rows = List::with_capacity(1);
                         if matches!(name, "home-ready" | "home-begin-settings-left" | "home-needs-under-begin") {
@@ -1020,24 +1106,26 @@ fn home_domain(name: &str) -> Domain {
                     &mut out,
                 );
             }
-            Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => crate::driver::answer(
-                &mut root,
-                read,
-                c::ReadValue::Tasks(Box::new(c::TaskPage {
-                    live: List::with_capacity(0),
-                    live_after: None,
-                    ended: c::EndedGroup::Rows {
-                        rows: if everyday {
-                            home_chat_rows(name, chat_rows.rows.get(0).expect("sample chat"), true)
-                        } else {
-                            List::with_capacity(0)
+            Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { query, .. }) } => {
+                crate::driver::answer(
+                    &mut root,
+                    read,
+                    c::ReadValue::Tasks(Box::new(c::TaskPage {
+                        live: List::with_capacity(0),
+                        live_after: None,
+                        ended: c::EndedGroup::Rows {
+                            rows: if everyday && query.tracked != Some(true) {
+                                home_chat_rows(name, chat_rows.rows.get(0).expect("sample chat"), true)
+                            } else {
+                                List::with_capacity(0)
+                            },
+                            after: None,
+                            cut: false,
                         },
-                        after: None,
-                        cut: false,
-                    },
-                })),
-                &mut out,
-            ),
+                    })),
+                    &mut out,
+                );
+            }
             Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
                 let mut rows = List::with_capacity(3);
                 if group == c::InboxReadGroup::Needs {

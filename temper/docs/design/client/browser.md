@@ -25,7 +25,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   per owner, never JSON (jig's `protocol/client.md`, section 3).
 - **The pages temper has,** in both shells: the inbox, the chats, a
   chat, a task's page and the adoption form (`README.md`, 3.5). A page a
-  later plan adds to the view (the board, the changes, the accounts) is
+  later plan adds to the view (the goals, the changes, the accounts) is
   in the browser once it is in the view, with its look and, where it
   has one, its browser-only story (4.2).
 - **No framework.** The client and its view are step code under the
@@ -233,6 +233,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | `Changes { project }` | `/projects/<project>/changes` |
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Configure { project }` | `/projects/<project>/settings/configure` |
+  | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
   | `Chats { filter, start }` | `/chats`, and its filter's and start's query |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |
@@ -276,6 +277,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   doesn't read as one of the page's, `/tasks/9?state=closed` among
   them, or a field of another name, is dropped, and the address
   replaced with the printed one. A filter chosen is a move (below).
+- **The goals' filter is its query,** as the chats list's: `/projects/<project>/goals`
+  is the list whole; `?state=needs` for "Needs you", `?state=live` for
+  "Under way" and `?state=ended` for "Ended"; any other value reads as the
+  list whole and prints without it. Choosing one is a move.
 - **The chats' start is `?at=start`,** as the welcome's step is
   `?at=`: `/chats?at=start` is the Chats page
   with the focus in its start's text area ("Start a chat", or the
@@ -564,6 +569,14 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   gives way to that line. At phone width the pane follows the prompt,
   as a section of its own. The sheet selects the pane's page by the
   pane (`:has`), so a page without it is drawn as before.
+- **Goals' look** is the greenfield mock's `goals.html`, its `mock.css`
+  rules taken exactly, values and all (`.col`, `.kicker`, `.headline`,
+  `.lede`, `.intro`, `.section`, `.section-head`, `.empty`, `.goal-rows`,
+  `.goal-row`, its `.state-*` and `.filters`, and their rules at 760 px and
+  under), in `temper.css`, scoped under the project's frame with its
+  `--gf-*` variables, as Home's are, on tokens of its own, `temper-goals*`.
+  A row's top line is `--gf-mono`, 12 px, faint: IBM Plex Mono 400 and 500,
+  bundled as the sans is, then JetBrains Mono, `ui-monospace`, `monospace`.
 - **Light only:** the mockups' palette is light, and `temper.css` sets
   `color-scheme: light`, where `skein-ui.css` follows the system's dark
   preference. A dark palette is open (section 5).
@@ -1141,6 +1154,14 @@ from the engine's own answers, is where the look is tuned.
 | `home-needs-under-begin` | hand-made Home deliveries: To begin showing above one question and one chat |
 | `home-begin-settings-left` | hand-made Home deliveries: the first and second steps left; their acts stay in Settings |
 | `home-begin-one-chats` | hand-made Home deliveries: the third step alone left; its act stays in Chats |
+| `goals-solo` | hand-made Goals deliveries: a small project's rows, one in each state, the mock's words where the client holds its facts |
+| `goals-reference` | hand-made Goals deliveries: the reference's rows, a goal of a hundred tasks among them, and its ways in the lede |
+| `goals-none` | hand-made Goals deliveries: "No goals yet."; the rail keeps Goals since the page is Goals |
+| `goals-needs` | hand-made Goals deliveries: the filter Needs you, "needs funds" and "needs you" |
+| `goals-under-way` | hand-made Goals deliveries: the filter Under way, running, planning and paused |
+| `goals-ended` | hand-made Goals deliveries: the filter Ended, landed, stopped and failed |
+| `goals-filter-empty` | hand-made Goals deliveries: a filter no goal matches, "None." |
+| `goals-more` | hand-made Goals deliveries: "More than N goals, M under way." and "More goals" |
 | `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
 | `configure` | the configuring page before its first words, template 3 listed |
 | `configure-typing` | words entered; Send enabled |

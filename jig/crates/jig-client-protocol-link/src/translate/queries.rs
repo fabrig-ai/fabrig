@@ -111,6 +111,8 @@ pub(super) fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, 
         budget: facts::budget(value.budget()),
         waits_on: waits(value.waits_on()),
         phases: documents::phase_counts_fields(value.phases()),
+        delegates_done: value.delegates_done(),
+        delegates_total: value.delegates_total(),
         held_below: value.held_below(),
         conversation: match value.conversation() {
             None => None,

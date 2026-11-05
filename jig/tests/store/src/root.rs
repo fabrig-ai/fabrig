@@ -297,6 +297,7 @@ pub fn live_task(number: u64) -> core::Record {
         flags: jig_domain_tasks::Flags::PLAIN,
         last_activity: skein_lib::Wall::EPOCH,
         ended_below: tasks::Endings { done: 0, failed: 0, cancelled: 0 },
+        ended_delegates: tasks::Endings { done: 0, failed: 0, cancelled: 0 },
         question_lines: Box::new([]),
         hold: 0,
         proposal_rows: Box::new([]),

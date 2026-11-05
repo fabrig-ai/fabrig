@@ -1945,6 +1945,15 @@ world, no cargo inside a test.
   propose renames a level of references down (12.2); the diff itself
   could take candidate pairs as matched until none fails, and propose
   them all in one pass.
+- **A rename to its own name:** a plan refuses `rename D D` (`Mismatch`,
+  11.3), and the diff takes it, pairing the two and writing no line
+  (10.1). Default: each stays as it is, since the diff never spells that
+  line.
+- **The generator's statements as structure:** nothing parses or rewrites
+  text an emitter wrote, and a function that may split is a value of
+  statements, but each statement is text from `format!`, under a
+  module-wide expect in every `emit_*` module, and `emit_tests.rs` cuts its
+  own source template. A syntax tree, should a consumer need more.
 - **Pieces of a converted type:** a patch whose conversion of a
   `pieces` field's items is not a copy, or an identity plan whose
   pieces reach a held field, is refused when planned (11.3). jig,

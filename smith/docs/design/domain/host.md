@@ -637,6 +637,15 @@ budgets.
 - **An isolated local agent:** the local host spawning its agent by
   choice, once contained trees give a process more containment than the
   inline agent has.
+- **The person's words beside the terminal:** the local domain holds none
+  and the local protocol's terminal renders what it emits (section 8), but
+  the service and the fronts write some of their own:
+  `smith-local-service/src/service/accounts.rs` (`Sign in: `),
+  `smith-local-service/src/service/choices.rs` (`Unknown model `), and a
+  chat's status, tool and notice lines in
+  `smith-local-shell/src/front/interactive.rs` and
+  `smith-local-shell/src/front/remote.rs`. Whether they move to the
+  terminal; they wait with no debt item to hold them.
 - **A vocabulary crate:** whether the face `smith-host-domain` and the
   inline agent share moves to a crate of its own, should a host want one
   kind without linking the other.

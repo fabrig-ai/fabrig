@@ -28,6 +28,10 @@ pub struct TaskLine {
     pub budget: BudgetLine,
     pub waits_on: WaitsOn,
     pub phases: PhaseCounts,
+    /// Direct delegates ended done (jig/docs/design/client/domain/contract.md, 5.1).
+    pub delegates_done: u32,
+    /// Direct delegates live or ended, cancelled ones left out.
+    pub delegates_total: u32,
     pub held_below: u32,
     pub conversation: Option<ConversationRead>,
 }
@@ -97,6 +101,11 @@ pub fn task_line(
         budget: super::task_tree::budget(row),
         waits_on: if ended { WaitsOn::Nothing } else { core.waits_on(limits, row.number) },
         phases,
+        delegates_done: row.ended_delegates.done,
+        delegates_total: u32::try_from(row.delegates.len())
+            .expect("live delegates bounded by u32")
+            .saturating_add(row.ended_delegates.done)
+            .saturating_add(row.ended_delegates.failed),
         held_below,
         conversation,
     })
