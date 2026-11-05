@@ -65,7 +65,7 @@ struct Intro {
 }
 fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intro {
     // The kicker is this Home's day and time, not a project's creation time.
-    let day = times.say(w, TimeForm::Day, times.now);
+    let day = times.say(w, TimeForm::Weekday, times.now);
     let clock = times.say(w, TimeForm::Clock, times.now);
     let mut kicker = w.say(Word::HomeDayTime, &[Hole::Name(day), Hole::Name(clock)]);
     let minute = skein_lib::Duration::from_secs(60);
@@ -103,13 +103,25 @@ fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intr
         }
     };
     let landed = if facts.to_begin() { 0 } else { facts.landed_since() };
-    let sentence = match landed {
-        0 => Box::default(),
-        1 => w.say(Word::HomeLandedOne, &[]),
-        2..=u64::MAX => w.say(Word::HomeLandedMany, &[Hole::Number(landed)]),
+    let brief = facts.brief();
+    let sentence = match brief {
+        Some(brief) => brief.sentence().into(),
+        None => match landed {
+            0 => Box::default(),
+            1 => w.say(Word::HomeLandedOne, &[]),
+            2..=u64::MAX => w.say(Word::HomeLandedMany, &[Hole::Number(landed)]),
+        },
     };
     let headline = if sentence.is_empty() { needs } else { crate::accounts::words::join(&[&sentence, b" ", &needs]) };
-    Intro { kicker, headline, lede: None, byline: None }
+    let (lede, byline) = match brief {
+        Some(brief) => {
+            let lede = if brief.lede().is_empty() { None } else { Some(brief.lede().into()) };
+            let at = times.say(w, TimeForm::Clock, skein_lib::Wall::from_nanos(brief.at()));
+            (lede, Some(w.say(Word::HomeByline, &[Hole::Name(at)])))
+        }
+        None => (None, None),
+    };
+    Intro { kicker, headline, lede, byline }
 }
 fn intro(
     b: &mut Builder,
@@ -125,6 +137,24 @@ fn intro(
     let mut intro = intro_words(w, name, facts, times);
     if facts.to_begin() {
         intro.lede = begin_lede(root, w);
+    }
+    if w.shell == Shell::Terminal && !facts.to_begin() {
+        // The shell uses the heading as its title; the intro also reads whole in its body.
+        text(b, Role::Heading { level: 1 }, &intro.headline, None);
+        b.open(Role::Paragraph);
+        text(b, Role::Text, &intro.kicker, Some(look::HOME_KICKER));
+        b.text(Run::Plain, b" ");
+        b.text(Run::Plain, &intro.headline);
+        if let Some(lede) = &intro.lede {
+            b.text(Run::Plain, b" ");
+            text(b, Role::Text, lede, Some(look::HOME_LEDE));
+        }
+        b.close();
+        if let Some(byline) = &intro.byline {
+            text(b, Role::Paragraph, byline, Some(look::HOME_BYLINE));
+        }
+        b.close();
+        return;
     }
     text(b, Role::Paragraph, &intro.kicker, Some(look::HOME_KICKER));
     text(b, Role::Heading { level: 1 }, &intro.headline, None);
