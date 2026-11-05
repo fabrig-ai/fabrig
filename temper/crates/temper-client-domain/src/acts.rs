@@ -167,6 +167,8 @@ pub(super) fn step(pages: &mut Pages, _env: &Env<Limits>, act: Act, out: &mut Qu
         | Act::DiscardAmendment
         | Act::SendAmendment
         | Act::AmendAgain
+        | Act::Mode { .. }
+        | Act::ShowSection { .. }
         | Act::Go { .. } => {
             unreachable!("only deciding acts routed here")
         }

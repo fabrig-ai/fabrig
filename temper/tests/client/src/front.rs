@@ -36,6 +36,8 @@ pub struct Joint {
     pub playground_starts: Vec<skein_lib::RequestKey>,
     pub playground_removals: Vec<skein_lib::RequestKey>,
     pub playground_reads: usize,
+    pub note_reads: usize,
+    pub note_read_ends: VecDeque<jig_client::contract::ReadNone>,
     /// Terminal replies for successive task-document attempts, before the real engine serves one.
     pub task_read_ends: VecDeque<jig_client::contract::ReadNone>,
     pub reachable_reads: Vec<(u16, Option<u64>, u32)>,
@@ -371,6 +373,19 @@ impl Joint {
             &engine_limits(),
             1,
         )
+    }
+    /// A chat with authority to write its document, read through the real client component.
+    #[must_use]
+    pub fn with_chat_draft(seed: u64, limits: client::Limits) -> Self {
+        let configs = std::array::from_fn(|_| {
+            let mut config = walking::config(seed);
+            config.core.defaults.rules.ceiling.notes = jig_domain_authority::Scopes(1);
+            let policy = &mut config.core.seed_projects[0].policy.policy;
+            policy.ceiling.notes = jig_domain_authority::Scopes(1);
+            policy.roles[0].authority.notes = jig_domain_authority::Scopes(1);
+            config
+        });
+        Self::with_engine(seed, &limits, Store::new(), configs, &engine_limits(), 1)
     }
     /// Temper's stock kinds through the joined client and engine roots.
     #[must_use]
@@ -850,6 +865,7 @@ impl Joint {
     ) -> Self {
         Self::with_engine_with_refused_hello(seed, limits, store, configs, engine_limits, slots, false)
     }
+    #[expect(clippy::too_many_lines, reason = "one joint front composes the engine and its read fixtures")]
     fn with_engine_with_refused_hello(
         seed: u64,
         limits: &client::Limits,
@@ -924,6 +940,8 @@ impl Joint {
             playground_starts: Vec::new(),
             playground_removals: Vec::new(),
             playground_reads: 0,
+            note_reads: 0,
+            note_read_ends: VecDeque::new(),
             task_read_ends: VecDeque::new(),
             reachable_reads: Vec::new(),
             reachable_empty: false,
@@ -1170,6 +1188,37 @@ impl Joint {
         }
         false
     }
+    fn note_read_end(&mut self, who: ClientId, request: &Request) -> bool {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Read {
+                            read,
+                            what: jig_client::Readable::Jig(jig_client::contract::Read::Notes { .. }),
+                        },
+                },
+        } = request
+        {
+            self.note_reads += 1;
+            if let Some(why) = self.note_read_ends.pop_front() {
+                self.callbacks.push((
+                    who,
+                    RootEvent::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read: *read,
+                                result: jig_client::Readout::Jig(jig_client::contract::ReadResult::None(why)),
+                            },
+                        },
+                    }
+                    .into(),
+                ));
+                return true;
+            }
+        }
+        false
+    }
     fn task_read_end(&mut self, who: ClientId, request: &Request) -> bool {
         if let Request::Unlinked {
             request:
@@ -1333,7 +1382,8 @@ impl Joint {
         if self.reachable(who, &request) || self.start_playground(who, &request) {
             return;
         }
-        if self.playground_read(who, &request) || self.task_read_end(who, &request) {
+        if self.playground_read(who, &request) || self.note_read_end(who, &request) || self.task_read_end(who, &request)
+        {
             return;
         }
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {
