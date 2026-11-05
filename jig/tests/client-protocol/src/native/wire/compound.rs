@@ -1,6 +1,6 @@
 //! Join a compound's independently decoded target and answered message position.
 use super::{Reader, Token, w};
-use jig_client_world::harness::Receipt;
+use jig_client_kit::harness::Receipt;
 pub(super) fn message(bytes: &[u8]) -> Option<(u64, u32)> {
     let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed request");
     if keyed.owner() != &w::Owner::Jig {

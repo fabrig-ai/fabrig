@@ -1,6 +1,6 @@
 use super::*;
 use jig_client::contract as c;
-use jig_client_world::harness::Receipt;
+use jig_client_kit::harness::Receipt;
 use skein_lib::{List, Overflow, Writer};
 const ATTEMPT: Token = Token::new(7);
 const TASK: u64 = 8;

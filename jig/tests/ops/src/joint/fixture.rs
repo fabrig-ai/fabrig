@@ -4,7 +4,7 @@ use crate::{
     client::Ops,
     conformance::{Config, Story},
 };
-use jig_client_world::{Settings, World};
+use jig_client_kit::{Settings, World};
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_ops_client_domain as client;
@@ -166,7 +166,7 @@ pub fn source_limits(seed: u64) -> root::Limits {
 
 /// Same Ops root/shell observer with the joint world's declared receiving profile.
 pub struct Client;
-impl jig_client_world::harness::App for Client {
+impl jig_client_kit::harness::App for Client {
     type Root = client::Domain;
     type View = view::View;
     type Limits = client::Limits;
@@ -213,8 +213,8 @@ impl jig_client_world::harness::App for Client {
     fn act(view: &mut Self::View, node: skein_ui::NodeId, act: skein_ui::Act) -> Option<Self::Event> {
         Ops::act(view, node, act)
     }
-    fn duty(request: Self::Request) -> jig_client_world::harness::Duty<Self> {
-        use jig_client_world::harness::Duty;
+    fn duty(request: Self::Request) -> jig_client_kit::harness::Duty<Self> {
+        use jig_client_kit::harness::Duty;
         match Ops::duty(request) {
             Duty::Store(value) => Duty::Store(value),
             Duty::Wire(value) => Duty::Wire(value),
@@ -236,16 +236,16 @@ impl jig_client_world::harness::App for Client {
     fn patch_limit(view: &Self::View) -> u32 {
         Ops::patch_limit(view)
     }
-    fn seen(tree: &skein_ui::Tree) -> Vec<jig_client_world::harness::Seen> {
+    fn seen(tree: &skein_ui::Tree) -> Vec<jig_client_kit::harness::Seen> {
         Ops::seen(tree)
     }
-    fn sent(request: &Self::Request) -> Option<jig_client_world::harness::Sent> {
+    fn sent(request: &Self::Request) -> Option<jig_client_kit::harness::Sent> {
         Ops::sent(request)
     }
-    fn received(event: &Self::Event) -> Vec<jig_client_world::harness::Receipt> {
+    fn received(event: &Self::Event) -> Vec<jig_client_kit::harness::Receipt> {
         Ops::received(event)
     }
-    fn card(tree: &skein_ui::Tree, node: skein_ui::NodeId) -> Option<jig_client_world::harness::CardKey> {
+    fn card(tree: &skein_ui::Tree, node: skein_ui::NodeId) -> Option<jig_client_kit::harness::CardKey> {
         Ops::card(tree, node)
     }
     fn window_changed(event: &Self::Event) -> bool {

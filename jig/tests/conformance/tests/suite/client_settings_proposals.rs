@@ -14,7 +14,7 @@ macro_rules! encoded {
     }};
 }
 fn limits() -> Limits {
-    let mut client = jig_client_world::test::limits().client.domain;
+    let mut client = jig_client_kit::test::limits().client.domain;
     client.rows = 8;
     Limits::new(client, 4).expect("client limits")
 }

@@ -1,6 +1,6 @@
 //! Independent party identities through the HTTP front (protocol/client.md, 8 and 14).
 use crate::{fixtures, stories};
-use jig_client_world::harness::{Seed, seed::RoleStory};
+use jig_client_kit::harness::{Seed, seed::RoleStory};
 use skein_fake_person::{Find, Step};
 use skein_lib::Duration;
 use skein_ui::Role;
@@ -10,7 +10,7 @@ fn two_parties_receive_their_own_me_over_http() {
     let mut world = fixtures::world(fixtures::SEED);
     world.seed(Seed::Roles { story: RoleStory::Goal });
     let clients = [1, 2].map(|party| {
-        let client = world.client(party, jig_client_world::stories::inbox());
+        let client = world.client(party, jig_client_kit::stories::inbox());
         world.person(
             client,
             fixtures::sign_in_then(vec![Step::See {

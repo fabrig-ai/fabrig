@@ -300,8 +300,8 @@ fn test_client_view_links_only_client_children_and_foundation() {
 
 #[test]
 fn client_world_joins_only_the_client_and_test_roles() {
-    let worlds: Vec<_> = manifests().into_iter().filter(|m| m.name.as_deref() == Some("jig-client-world")).collect();
-    assert_eq!(worlds.len(), 1, "one shared client world");
+    let worlds: Vec<_> = manifests().into_iter().filter(|m| m.name.as_deref() == Some("jig-client-kit")).collect();
+    assert_eq!(worlds.len(), 1, "one shared client kit");
     for manifest in worlds {
         assert!(
             manifest.dependencies.iter().all(|d| [
@@ -344,7 +344,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "sha2"
             ]
             .contains(&d.as_str())
-                || super::kits::pending_world_dependency("jig-client-world", d)),
+                || super::kits::pending_world_dependency("jig-client-kit", d)),
             "{}",
             manifest.path.display()
         );
@@ -718,6 +718,7 @@ fn the_identity_dependency_is_allowed_for_the_test_service_alone() {
 #[test]
 fn client_crates_carry_the_client_prefix() {
     let allowed = [
+        "jig-client-kit",
         "jig-protocol-engine-clients",
         "jig-protocol-engine-clients-http",
         "jig-engine-clients-world",

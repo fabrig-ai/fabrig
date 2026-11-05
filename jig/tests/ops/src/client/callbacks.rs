@@ -70,8 +70,8 @@ macro_rules! side {
 side!(infrastructure, infra, infrastructure, 2);
 side!(observability, obs, observability, 1);
 pub fn events(
-    values: Vec<(jig_client_world::harness::ClientId, Event)>,
-) -> Vec<(jig_client_world::harness::ClientId, Event)> {
+    values: Vec<(jig_client_kit::harness::ClientId, Event)>,
+) -> Vec<(jig_client_kit::harness::ClientId, Event)> {
     let mut out = Vec::new();
     for (client, event) in values {
         let up = match event {
@@ -98,7 +98,7 @@ pub fn events(
                 continue;
             }
             Event::Jig(event) => {
-                match jig_client_world::joint::transport::contract_event(&jig_client_test_domain::Event::Jig(event)) {
+                match jig_client_kit::joint::transport::contract_event(&jig_client_test_domain::Event::Jig(event)) {
                     Some(up) => up,
                     None => continue,
                 }

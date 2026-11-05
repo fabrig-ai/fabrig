@@ -1,8 +1,8 @@
 //! The client's unchanged people and referee, over link and shell machines.
 use crate::{engine::Engine, family, fixtures, net::Net};
+use jig_client_kit::{ClientId, Front, FrontFault, Test, harness::Observed};
 use jig_client_shell_native::{Conn, Connections};
 use jig_client_test_domain::{self as client, Event, Request};
-use jig_client_world::{ClientId, Front, FrontFault, Test, harness::Observed};
 use skein_lib::{
     Queue, Time, Token, Wall,
     stream::{Down, Up},
@@ -50,7 +50,7 @@ pub struct Protocol {
     clients: BTreeMap<ClientId, Side>,
     net: Net,
     callbacks: Vec<(ClientId, Event)>,
-    receipts: Vec<(ClientId, observe::Callback, u64, Vec<jig_client_world::harness::Receipt>)>,
+    receipts: Vec<(ClientId, observe::Callback, u64, Vec<jig_client_kit::harness::Receipt>)>,
     now: Time,
     last_client: Option<ClientId>,
     release: Option<Time>,
@@ -65,9 +65,9 @@ pub struct Protocol {
 impl Protocol {
     /// Construct a person story's starting facts before its core heap meter starts.
     #[must_use]
-    pub fn story(seed: u64, facts: &jig_client_world::stories::shared::b_seed::Facts) -> Self {
+    pub fn story(seed: u64, facts: &jig_client_kit::stories::shared::b_seed::Facts) -> Self {
         let (configuration, limits, peers) =
-            jig_client_world::stories::shared::b_config::setup(seed, facts, fixtures::owner_limits());
+            jig_client_kit::stories::shared::b_config::setup(seed, facts, fixtures::owner_limits());
         Self::with_engine(Engine::with_peers(seed, &limits, configuration, peers))
     }
     #[must_use]
@@ -246,37 +246,32 @@ impl Protocol {
     }
 }
 impl Front<Test> for Protocol {
-    fn seed(&mut self, seed: jig_client_world::harness::Seed) {
+    fn seed(&mut self, seed: jig_client_kit::harness::Seed) {
         assert!(self.clients.is_empty(), "seed before admitting clients");
-        if let jig_client_world::harness::Seed::TwoProjects { party } = seed {
-            let (configuration, limits) = jig_client_world::stories::shared::a_projects::setup(party);
+        if let jig_client_kit::harness::Seed::TwoProjects { party } = seed {
+            let (configuration, limits) = jig_client_kit::stories::shared::a_projects::setup(party);
             *self = Self::with_engine(Engine::configured(fixtures::SEED, &limits, configuration));
             return;
         }
-        if let jig_client_world::harness::Seed::Roles { story } = seed {
-            let (configuration, limits, peers) = jig_client_world::joint::role_fixture::setup(story);
+        if let jig_client_kit::harness::Seed::Roles { story } = seed {
+            let (configuration, limits, peers) = jig_client_kit::joint::role_fixture::setup(story);
             let mut engine = Engine::with_peers(fixtures::SEED, &limits, configuration, peers);
-            jig_client_world::joint::role_fixture::install(
-                &mut engine.driver,
-                story,
-                self.now,
-                fixtures::wall(self.now),
-            );
+            jig_client_kit::joint::role_fixture::install(&mut engine.driver, story, self.now, fixtures::wall(self.now));
             *self = Self::with_engine(engine);
             self.roles = true;
             return;
         }
-        jig_client_world::harness::seed::seed_core(&mut self.engine.driver, self.now, fixtures::wall(self.now), seed);
+        jig_client_kit::harness::seed::seed_core(&mut self.engine.driver, self.now, fixtures::wall(self.now), seed);
         self.advance(self.now, fixtures::wall(self.now));
     }
     fn constructor(
         &self,
-        _: jig_client_world::harness::ClientConstructor<Test>,
-    ) -> jig_client_world::harness::ClientConstructor<Test> {
+        _: jig_client_kit::harness::ClientConstructor<Test>,
+    ) -> jig_client_kit::harness::ClientConstructor<Test> {
         if self.roles {
-            |seed| jig_client_world::test::linked_with(&jig_client_world::stories::shared::a_roles::limits(), seed)
+            |seed| jig_client_kit::test::linked_with(&jig_client_kit::stories::shared::a_roles::limits(), seed)
         } else {
-            jig_client_world::test::linked
+            jig_client_kit::test::linked
         }
     }
     fn bind(&mut self, client: ClientId, party: u64) {
@@ -326,10 +321,10 @@ impl Front<Test> for Protocol {
             .chain(self.net.next_due())
             .min()
     }
-    fn sent(&self, request: &Request) -> Option<jig_client_world::harness::Sent> {
+    fn sent(&self, request: &Request) -> Option<jig_client_kit::harness::Sent> {
         observe::sent(request)
     }
-    fn receipts(&mut self, client: ClientId, event: &Event) -> Vec<jig_client_world::harness::Receipt> {
+    fn receipts(&mut self, client: ClientId, event: &Event) -> Vec<jig_client_kit::harness::Receipt> {
         let Event::Client { event } = event else { return Vec::new() };
         let Some(key) = observe::callback(event) else { return Vec::new() };
         self.receipts

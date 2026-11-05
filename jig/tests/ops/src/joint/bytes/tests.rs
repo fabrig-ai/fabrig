@@ -1,10 +1,10 @@
 use super::super::fixture::see;
 use super::*;
-use jig_client_world::harness::Front;
+use jig_client_kit::harness::Front;
 use skein_fake_person::{Find, Step};
 use skein_lib::Duration;
 use skein_ui::Role;
-type World = jig_client_world::World<super::super::fixture::Client, Joint>;
+type World = jig_client_kit::World<super::super::fixture::Client, Joint>;
 
 fn linked_conversation(seed: u64) -> (World, ClientId) {
     let mut world = super::super::fixture::world(seed);
@@ -24,7 +24,7 @@ fn linked_conversation(seed: u64) -> (World, ClientId) {
             see(b"delegate"),
         ],
     );
-    let outcome = world.run(jig_client_world::Until::Done);
+    let outcome = world.run(jig_client_kit::Until::Done);
     assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
     (world, client)
 }
@@ -33,7 +33,7 @@ fn a_linked_ops_root_starts_on_the_common_world_clock() {
     let (mut world, _) = linked_conversation(511);
     super::super::fixture::alert(world.front());
     let due = Time::from_nanos(world.front().engine.clock().now);
-    let outcome = world.run(jig_client_world::Until::Time(due.saturating_add(Duration::from_secs(1))));
+    let outcome = world.run(jig_client_kit::Until::Time(due.saturating_add(Duration::from_secs(1))));
     assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
     assert!(outcome.now >= due);
 }
