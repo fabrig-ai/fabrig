@@ -90,7 +90,7 @@ const BRANCHES_SPEC: Spec = Spec {
 const PULL_FILES_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"number":{"type":"integer","description":"The pull request's number.","minimum":1,"maximum":18446744073709551615},"head":{"type":"string","description":"The head's commit id: 40 or 64 lowercase hexadecimal digits."},"page":{"type":"integer","description":"The page.","minimum":1,"maximum":4294967295,"default":1}},"required":["number","head"]}"#;
 const PULL_FILES_SPEC: Spec = Spec {
     name: b"read_pull_files",
-    description: b"Read a page of the files a pull request changes at one head.",
+    description: b"Read changed files at a head. Sides fit forge and host limits; oversized pages omit contents. Use read_file at both commits; later pages skip this page.",
     schema: PULL_FILES_SCHEMA,
     effect: run::HostEffect::Read,
 };
@@ -108,11 +108,11 @@ const CHECKS_SPEC: Spec = Spec {
     schema: CHECKS_SCHEMA,
     effect: run::HostEffect::Read,
 };
-const FILE_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"head":{"type":"string","description":"The commit's id: 40 or 64 lowercase hexadecimal digits."},"path":{"type":"string","description":"A file's or a directory's path; \".\" or empty for the root."},"max_bytes":{"type":"integer","description":"At most this many bytes; the read's limit when absent.","minimum":1,"maximum":4294967295}},"required":["head","path"]}"#;
+const FILE_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"head":{"type":"string","description":"The commit's id: 40 or 64 lowercase hexadecimal digits."},"path":{"type":"string","description":"A file's or a directory's path; \".\" or empty for the root."},"max_bytes":{"type":"integer","description":"Raw prefix bytes; default: read limit. Leave host room for metadata and escaping (up to 4x); a cut is incomplete.","minimum":1,"maximum":4294967295}},"required":["head","path"]}"#;
 const FILE_SPEC: Spec = Spec {
     name: b"read_file",
     description:
-        b"Read a file at one head, cut at a byte limit; a directory's path, the root as \".\", lists its entries.",
+        b"Read a file prefix or list a directory. max_bytes limits raw bytes; metadata and escaping use host room. Too large: lower max_bytes; a prefix is incomplete.",
     schema: FILE_SCHEMA,
     effect: run::HostEffect::Read,
 };

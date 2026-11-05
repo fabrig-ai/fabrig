@@ -37,10 +37,10 @@ fn send(request: Request) -> Need {
     Need::Send { request: request.into(), auth: Auth::App { id: APP, key: secret(fixtures::DER) } }
 }
 fn document(app: App) -> Event {
-    Event::Reply(Reply::GithubDocument(Document::App(app)))
+    Event::Reply(Reply::GitHubDocument(Document::App(app)))
 }
 fn hook(url: &[u8]) -> Event {
-    Event::Reply(Reply::GithubDocument(Document::HookConfig(Hook { url: url.into() })))
+    Event::Reply(Reply::GitHubDocument(Document::HookConfig(Hook { url: url.into() })))
 }
 fn rows(ids: &[u64]) -> Event {
     let mut rows = skein_lib::List::with_capacity(u32::try_from(ids.len()).expect("fixture count"));
@@ -55,7 +55,7 @@ fn rows(ids: &[u64]) -> Event {
         }))
         .expect("fixture rows");
     }
-    Event::Reply(Reply::GithubRows(rows.into_boxed()))
+    Event::Reply(Reply::GitHubRows(rows.into_boxed()))
 }
 fn failure(subject: &[u8], why: Why) -> Need {
     Need::Stop(Failure { forge: 4, step: Stage::App, subject: subject.into(), why })
@@ -356,8 +356,8 @@ fn an_unusable_app_document_stops_before_the_hook() {
     for event in [
         document(invalid_slug),
         document(long_slug),
-        Event::Reply(Reply::GithubDocument(Document::Done)),
-        Event::Reply(Reply::GithubRows(Box::new([]))),
+        Event::Reply(Reply::GitHubDocument(Document::Done)),
+        Event::Reply(Reply::GitHubRows(Box::new([]))),
         Event::Reply(Reply::Rows(Box::new([]))),
         Event::Reply(Reply::Empty),
     ] {

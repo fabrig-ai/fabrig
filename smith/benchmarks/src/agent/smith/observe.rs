@@ -2,8 +2,8 @@
 //! Receiving bounds follow the selected product writer;
 //! no running domain state is known (benchmarks.md, sections 6 and 8).
 
-use crate::agent::{HarnessFault, Seen};
-use crate::{Counts, Spend, TokenRecord};
+use crate::agent::Seen;
+use crate::{Counts, Fault, Spend, TokenRecord};
 
 use super::Prepared;
 
@@ -62,9 +62,9 @@ pub struct Observing {
 
 impl Observing {
     /// Retain an outside observer with no knowledge of the running domains.
-    pub fn new(prepared: Prepared) -> Result<Self, HarnessFault> {
+    pub fn new(prepared: Prepared) -> Result<Self, Fault> {
         let receiving = prepared.registry.receiving;
-        let limits = receiving.limits().map_err(|what| HarnessFault { what })?;
+        let limits = receiving.limits().map_err(|error| crate::Fault::new(crate::FaultKind::Stream, error.detail))?;
         let observer = super::events::Observer::with_ceiling(&limits, receiving.encoded_line)?;
         let agent = prepared
             .program_source()
@@ -80,16 +80,15 @@ impl Observing {
     }
 
     /// Retain a settled agent capture or its missing evidence without borrowing host facts.
-    pub fn agent_trace(&mut self, bytes: Result<&[u8], String>) {
+    pub fn agent_trace(&mut self, bytes: Result<&[u8], Fault>) {
         if let Some(agent) = self.agent.as_mut() {
-            let parsed =
-                bytes.and_then(|bytes| agent.feed(bytes).and_then(|_| agent.finish()).map_err(|error| error.what));
-            self.agent_error = parsed.err();
+            let parsed = bytes.and_then(|bytes| agent.feed(bytes).and_then(|_| agent.finish()));
+            self.agent_error = parsed.err().map(|error| error.detail);
         }
     }
 
     /// Consume one complete event line and report its script cues.
-    pub fn feed_line(&mut self, line: &str) -> Result<Vec<Seen>, HarnessFault> {
+    pub fn feed_line(&mut self, line: &str) -> Result<Vec<Seen>, Fault> {
         self.observer.feed(format!("{line}\n").as_bytes())
     }
 
@@ -249,23 +248,20 @@ impl Observing {
     }
 
     /// Count scoped response usage once.
-    pub fn tokens(&self) -> Result<Vec<TokenRecord>, String> {
-        self.events().tokens().map_err(|error| error.what)
+    pub fn tokens(&self) -> Result<Vec<TokenRecord>, Fault> {
+        self.events().tokens()
     }
 
     /// Read the producer's notional spend in micro-dollars.
-    pub fn spend(&self, _records: &[TokenRecord]) -> Result<Spend, String> {
+    pub fn spend(&self, _records: &[TokenRecord]) -> Result<Spend, Fault> {
         super::events::reported_spend(self.events(), 1_000_000)
     }
 }
 
 #[cfg(test)]
-#[path = "../../../tests/common/events.rs"]
-pub(crate) mod test_events;
-
-#[cfg(test)]
 pub(crate) mod tests {
-    use super::{rejected_responses, test_events};
+    use super::rejected_responses;
+    use crate::fixture::events;
     use smith_events::{CompletionFailure, Event, Evidence, FailureClass, Outcome, Usage};
 
     pub(crate) fn program() -> super::Observing {
@@ -314,7 +310,7 @@ pub(crate) mod tests {
                 .any(|check| check.check == "stream-whole" && check.passed == (Measure::Observed { value: true }))
         );
         for error in ["agent trace open: missing", "agent trace read: denied"] {
-            observing.agent_trace(Err(error.into()));
+            observing.agent_trace(Err(crate::Fault::new(crate::FaultKind::Stream, error)));
             assert!(
                 observing
                     .health(Exit::Code(0), Forced::No)
@@ -327,8 +323,8 @@ pub(crate) mod tests {
     }
 
     fn rejection() -> super::super::events::Session {
-        let mut observer = super::super::events::Observer::new(&test_events::LIMITS).expect("limits");
-        observer.feed(&test_events::bytes(&test_events::balanced())).expect("records");
+        let mut observer = super::super::events::Observer::new(&events::LIMITS).expect("limits");
+        observer.feed(&events::bytes(&events::balanced())).expect("records");
         observer.finish().expect("complete");
         let mut session = observer.sessions()[0].clone();
         let Event::ResponseCompleted(value) = &mut session.records[4].event else { panic!("response terminal") };
@@ -385,7 +381,7 @@ pub(crate) mod tests {
         value.blocks = 1;
         assert!(!rejected_responses(std::slice::from_ref(&session), 1));
         let mut session = rejection();
-        session.records.push(test_events::record(include_str!(
+        session.records.push(events::record(include_str!(
             "../../../../crates/smith-events/golden/v4/text_delta_everything.jsonl"
         )));
         assert!(!rejected_responses(std::slice::from_ref(&session), 1));
