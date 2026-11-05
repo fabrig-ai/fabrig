@@ -1090,6 +1090,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-sheet-link",
         b"temper-sheet-foot",
         b"temper-sheet-error",
+        b"temper-home-facts",
+        b"temper-home-byline",
     ],
     regions: &[b"temper-link"],
 };
@@ -1194,3 +1196,18 @@ pub const SETTINGS_REFUSAL: Style = Style { owner: owner(), token: 360 };
 pub const SETTINGS_ROW: Style = Style { owner: owner(), token: 374 };
 pub const SETTINGS_PATH: Style = Style { owner: owner(), token: 375 };
 pub const SETTINGS_EMPTY: Style = Style { owner: owner(), token: 376 };
+
+/// Home status (temper/docs/design/client/README.md, 3.5).
+pub const HOME_FACTS: Style = Style { owner: owner(), token: 417 };
+/// Home brief attribution (temper/docs/design/client/README.md, 3.5).
+pub const HOME_BYLINE: Style = Style { owner: owner(), token: 418 };
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn homes_facts_and_byline_keep_their_own_style_names() {
+        use super::{HOME_BYLINE, HOME_FACTS, NAMES};
+        assert_eq!(NAMES.style(HOME_FACTS), Some(b"temper-home-facts".as_slice()));
+        assert_eq!(NAMES.style(HOME_BYLINE), Some(b"temper-home-byline".as_slice()));
+    }
+}

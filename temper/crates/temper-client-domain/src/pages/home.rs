@@ -1,31 +1,56 @@
-//! Home's facts from the session's settings watch (temper/docs/design/client/README.md, 3.5, Home).
+//! Home's facts, watches and entry look (temper/docs/design/client/README.md, 3.5, Home).
 use super::{Request, welcome};
 use crate::{Domain, forge, owner::Owner};
 use alloc::boxed::Box;
 use forge::dismissed::{self, Dismissal};
 use jig_client::{Client, Handle, Key, Latest, Told, contract as c};
-use skein_lib::{List, Queue, bytes};
+use skein_lib::{Env, List, Queue, bytes};
 use temper_client_protocol_wire::{source, v1 as w};
 
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "settings is a public read; request state belongs to this page")]
 pub struct Home {
     pub settings: Handle,
+    project: u32,
+    status: Option<Handle>,
+    document: Option<Box<w::ProjectStatus>>,
+    look: Look,
     pub add: Option<AddSheet>,
     skip: Option<Key>,
     skipped: bool,
     skip_refused: bool,
     copies: List<Key>,
 }
+#[derive(Debug)]
+enum Look {
+    NotSent,
+    Out(Key),
+    Answered,
+}
 impl Home {
-    pub(super) fn new() -> Self {
-        Self {
-            settings: forge::ways::handle(),
+    pub(super) fn new(project: u32, number: u64, limits: forge::Limits, out: &mut Queue<Request>) -> Self {
+        let mut home = Self {
             add: None,
+            settings: forge::ways::handle(),
+            project,
+            status: None,
+            document: None,
+            look: Look::NotSent,
             skip: None,
             skipped: false,
             skip_refused: false,
             copies: List::uncapped(),
+        };
+        if let Some(subject) = forge::status::watch(project, &limits) {
+            let handle = Handle { asker: Owner::Pages.asker(), number };
+            home.status = Some(handle);
+            out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+        }
+        home
+    }
+    pub(super) fn leave(&self, out: &mut Queue<Request>) {
+        if let Some(handle) = self.status {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
     }
     pub(super) fn skip(&mut self, project: u32, limits: forge::Limits, serial: &mut u64, out: &mut Queue<Request>) {
@@ -39,7 +64,13 @@ impl Home {
         self.skip_refused = false;
         out.push(Request::Client(jig_client::Event::Send { key, name: None, request }));
     }
-    pub(super) fn told(&mut self, told: &Told, limits: forge::Limits) -> bool {
+    pub(super) fn told(
+        &mut self,
+        told: &Told,
+        client: &Client,
+        limits: forge::Limits,
+        out: &mut Queue<Request>,
+    ) -> bool {
         match told {
             Told::Answered { key, outcome } => {
                 for index in 0..self.copies.len() {
@@ -78,6 +109,35 @@ impl Home {
             | Told::Text { .. } => {}
         }
         match told {
+            Told::Changed { handle } if Some(*handle) == self.status => {
+                self.document = match client.document(*handle) {
+                    Some(document) if document.state == jig_client::State::Ended => None,
+                    Some(document) => match document.latest {
+                        Some(Latest::Family(record)) => match forge::status::document(record, limits) {
+                            Some(document) if document.project() == self.project => Some(Box::new(document)),
+                            Some(_) | None => None,
+                        },
+                        Some(Latest::Jig(_)) | None => None,
+                    },
+                    None => None,
+                };
+                true
+            }
+            Told::Ended { handle, .. } if Some(*handle) == self.status => {
+                self.status = None;
+                self.document = None;
+                out.push(Request::Client(jig_client::Event::Unwatch { handle: *handle }));
+                true
+            }
+            Told::Pending { key } if self.looking(*key) => true,
+            Told::Answered { key, outcome } if self.looking(*key) => {
+                match forge::status::answer(outcome, limits) {
+                    forge::status::Answer::Looked | forge::status::Answer::Unknown | forge::status::Answer::Refused => {
+                        self.look = Look::Answered;
+                    }
+                }
+                true
+            }
             Told::Changed { handle } | Told::Ended { handle, .. } => *handle == self.settings,
             Told::Pending { key } if Some(*key) == self.skip => true,
             Told::Answered { key, outcome } if Some(*key) == self.skip => {
@@ -96,6 +156,21 @@ impl Home {
             | Told::Dropped { .. }
             | Told::Page { .. }
             | Told::Text { .. } => false,
+        }
+    }
+    fn looking(&self, key: Key) -> bool {
+        match self.look {
+            Look::Out(ours) => ours == key,
+            Look::NotSent | Look::Answered => false,
+        }
+    }
+    fn shown_status(&self) -> Status {
+        match self.look {
+            Look::Answered => match &self.document {
+                Some(document) => Status::Shown(document.clone()),
+                None => Status::Unknown,
+            },
+            Look::NotSent | Look::Out(_) => Status::Unknown,
         }
     }
     pub(super) fn copying(&self) -> bool {
@@ -258,6 +333,13 @@ pub struct Facts {
     pub delivered: bool,
     pub skip: Skip,
     pub skip_refused: bool,
+    pub status: Status,
+}
+/// Status stays unknown until this entry's look is answered and its document delivered.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Status {
+    Unknown,
+    Shown(Box<w::ProjectStatus>),
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Repository {
@@ -308,6 +390,26 @@ pub enum CopyState {
     Failed { words: Box<[u8]> },
 }
 impl Facts {
+    /// Changes landed since the previous sitting, zero until status is shown.
+    #[must_use]
+    pub fn landed_since(&self) -> u64 {
+        match &self.status {
+            Status::Shown(document) => document.landed().saturating_sub(document.seen()),
+            Status::Unknown => 0,
+        }
+    }
+    /// The brief that covers changes beyond the previous sitting.
+    #[must_use]
+    pub fn brief(&self) -> Option<&w::StatusBrief> {
+        match &self.status {
+            Status::Shown(document) => match document.brief() {
+                Some(brief) if brief.landed() > document.seen() => Some(brief),
+                Some(_) | None => None,
+            },
+            Status::Unknown => None,
+        }
+    }
+
     #[must_use]
     pub fn to_begin(&self) -> bool {
         self.delivered && self.skip == Skip::NotSkipped && self.left() > 0
@@ -379,7 +481,11 @@ pub fn facts(root: &Domain, project: u32) -> Facts {
         },
         Some(_) | None => Needs::Unknown,
     };
-    Facts { configured, repository, chat_asked, needs, delivered, skip, skip_refused }
+    let status = match home {
+        Some(home) => home.shown_status(),
+        None => Status::Unknown,
+    };
+    Facts { configured, repository, chat_asked, needs, delivered, skip, skip_refused, status }
 }
 #[must_use]
 pub fn repository(root: &Domain, project: u32) -> Repository {
@@ -604,4 +710,42 @@ pub(super) fn delivered(client: &Client, handle: Handle) -> bool {
         Some(document) => document.state == jig_client::State::Ended || document.latest.is_some(),
         None => false,
     }
+}
+
+/// Send this entry's look once the facts and dismissals settle and To begin is gone.
+pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<crate::Request>) {
+    let project = match root.pages.address() {
+        crate::Address::Home { project } => *project,
+        crate::Address::NewChat
+        | crate::Address::Inbox { .. }
+        | crate::Address::Chats { .. }
+        | crate::Address::Accounts
+        | crate::Address::Forges
+        | crate::Address::ConnectForge { .. }
+        | crate::Address::ConnectModel { .. }
+        | crate::Address::Welcome { .. }
+        | crate::Address::Chat { .. }
+        | crate::Address::Task { .. }
+        | crate::Address::Changes { .. }
+        | crate::Address::Settings { .. }
+        | crate::Address::Repositories { .. }
+        | crate::Address::Builders { .. }
+        | crate::Address::Goals { .. }
+        | crate::Address::Configure { .. }
+        | crate::Address::Adopt { .. } => return,
+    };
+    let Some(home) = root.pages.home.as_ref() else { return };
+    match home.look {
+        Look::NotSent => {}
+        Look::Out(_) | Look::Answered => return,
+    }
+    let facts = facts(root, project);
+    if !facts.delivered || !root.forge.settled() || facts.to_begin() {
+        return;
+    }
+    let Some(request) = forge::status::ask(project, &env.limits.forge) else { return };
+    root.pages.serial = root.pages.serial.checked_add(1).expect("page keys fit");
+    let key = Key { asker: Owner::Pages.asker(), number: root.pages.serial };
+    root.pages.home.as_mut().expect("Home is open").look = Look::Out(key);
+    crate::route::client(root, env, jig_client::Event::Send { key, name: None, request }, out);
 }

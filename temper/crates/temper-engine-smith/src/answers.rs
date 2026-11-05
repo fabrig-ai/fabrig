@@ -88,7 +88,7 @@ pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
 }
 
 /// Render a decided answer with its host tool's name, naming a refused family.
-/// File, pull-file and job reads and compare refusals fit the host body bound.
+/// File, pull-file, compare and job reads fit the host body bound.
 #[must_use]
 pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
     bounded(answer, tool, max_bytes, None)
@@ -102,8 +102,8 @@ pub fn answer_for_task(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: u
 }
 
 fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) -> HostAnswer {
+    let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
     if let CallAnswer::ForgeRead(read) = answer {
-        let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
         if let Ok(value @ (api::Answer::File { .. } | api::Answer::Directory { .. } | api::Answer::PullFiles { .. })) =
             read.as_ref()
         {
@@ -112,9 +112,14 @@ fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) 
         if read.as_ref() == &Err(api::Error::TooLarge) && (tool == b"read_file" || tool == b"read_pull_files") {
             return file_read_refusal(tool, None, cap);
         }
+        if tool == b"read_compare" {
+            return compare_bounded(read, cap);
+        }
+        if let Ok(api::Answer::Job { attempt, step, log, truncated }) = read.as_ref() {
+            return job_bounded(attempt, step.as_ref(), log, *truncated, max_bytes);
+        }
     }
     if let CallAnswer::TaskRead(read) = answer {
-        let cap = usize::try_from(max_bytes).expect("u32 fits").min(HostAnswer::CAPACITY);
         return match task_read(read, cap) {
             Ok(answer) => answer,
             Err(_) => {
@@ -124,35 +129,53 @@ fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) 
             }
         };
     }
-    if let CallAnswer::ForgeRead(read) = answer
-        && let Ok(api::Answer::Job { attempt, step, log, truncated }) = read.as_ref()
-    {
+    answer_text(answer, tool, task)
+}
+
+fn compare_bounded(read: &Result<api::Answer, api::Error>, cap: usize) -> HostAnswer {
+    let mut count = Text::counter();
+    let error = forge_read(&mut count, read, b"read_compare").expect("counting compare");
+    if count.len <= cap && read != &Err(api::Error::TooLarge) {
         let mut text = Text::new();
-        let result = job_text(&mut text, attempt, step.as_ref(), log, *truncated, max_bytes);
-        let result = match result {
-            Ok(()) => text.finish(false),
-            Err(problem) => Err(problem),
-        };
-        return match result {
-            Ok(answer) => answer,
-            Err(_) => {
-                const WHY: &[u8] = b"Job metadata exceeds the host answer limit.";
-                let length = usize::try_from(max_bytes).expect("u32 fits").min(WHY.len());
-                HostAnswer::new(bytes::copy_of(WHY.get(..length).expect("bounded feedback")), true)
-                    .expect("fixed host feedback fits")
-            }
-        };
+        if forge_read(&mut text, read, b"read_compare").is_ok()
+            && let Ok(answer) = text.finish(error)
+        {
+            return answer;
+        }
     }
-    let rendered = answer_text(answer, tool, task);
-    if tool == b"read_compare"
-        && let CallAnswer::ForgeRead(read) = answer
-        && read.as_ref() == &Err(api::Error::TooLarge)
-    {
-        let cap = usize::try_from(max_bytes).expect("u32 fits").min(rendered.text().len());
-        return HostAnswer::new(bytes::copy_of(rendered.text().get(..cap).expect("bounded refusal")), true)
-            .expect("compare refusal fits");
+    let measured = match read {
+        Ok(_) => Some(count.len),
+        Err(_) => None,
+    };
+    let mut text = Text::new();
+    read_size(&mut text, b"read_compare", measured, cap).expect("compare size");
+    compare_recovery(&mut text).expect("compare recovery");
+    answer_configuration(&mut text).expect("configuration recovery");
+    clipped_refusal(text, cap)
+}
+
+fn job_bounded(
+    attempt: &api::JobAttempt,
+    step: Option<&api::Step>,
+    log: &[u8],
+    truncated: bool,
+    max_bytes: u32,
+) -> HostAnswer {
+    let mut text = Text::new();
+    let result = job_text(&mut text, attempt, step, log, truncated, max_bytes);
+    let result = match result {
+        Ok(()) => text.finish(false),
+        Err(problem) => Err(problem),
+    };
+    match result {
+        Ok(answer) => answer,
+        Err(_) => {
+            const WHY: &[u8] = b"Job metadata exceeds the host answer limit.";
+            let length = skein_lib::usize_of(max_bytes).min(WHY.len());
+            HostAnswer::new(bytes::copy_of(WHY.get(..length).expect("bounded feedback")), true)
+                .expect("fixed host feedback fits")
+        }
     }
-    rendered
 }
 
 fn file_read_bounded(value: &api::Answer, cap: usize) -> HostAnswer {
@@ -169,11 +192,13 @@ fn file_read_bounded(value: &api::Answer, cap: usize) -> HostAnswer {
     }
     if let api::Answer::File { head, path, bytes, .. } = value {
         let mut text = Text::new();
-        if file_prefix(&mut text, head, path, bytes, cap).is_ok() {
+        if file_prefix(&mut text, head, path, bytes, count.len, cap).is_ok() {
             return text.finish(false).expect("file prefix fits");
         }
         let mut text = Text::new();
-        text.add(b"File metadata leaves no room for content at the host answer limit. Use a shorter path or increase core.call_answer_bytes; lowering max_bytes cannot fit metadata.").expect("fixed feedback");
+        read_size(&mut text, b"read_file", Some(count.len), cap).expect("file size");
+        text.add(b"File metadata leaves no room for content at the host answer limit. Use a shorter path; lowering max_bytes cannot fit metadata.\n").expect("fixed feedback");
+        answer_configuration(&mut text).expect("configuration recovery");
         return clipped_refusal(text, cap);
     }
     if let api::Answer::PullFiles { head, files, more } = value {
@@ -189,17 +214,32 @@ fn file_heading(text: &mut Text, head: &api::Commit, path: &[u8]) -> Result<(), 
     text.add(b":\n")
 }
 
-fn file_prefix(text: &mut Text, head: &api::Commit, path: &[u8], bytes: &[u8], cap: usize) -> Result<(), Problem> {
-    const CUT: &[u8] = b"\n[file truncated]";
+fn file_prefix(
+    text: &mut Text,
+    head: &api::Commit,
+    path: &[u8],
+    bytes: &[u8],
+    measured: usize,
+    cap: usize,
+) -> Result<(), Problem> {
+    let mut footer = Text::new();
+    footer.add(b"\n")?;
+    read_size(&mut footer, b"read_file", Some(measured), cap)?;
+    file_recovery(&mut footer)?;
+    answer_configuration(&mut footer)?;
+    footer.add(b"\n[file truncated]")?;
+    let footer = footer.finish(false)?;
     file_heading(text, head, path)?;
-    let room =
-        cap.checked_sub(text.len).ok_or(Problem::TooLarge)?.checked_sub(escaped_len(CUT)).ok_or(Problem::TooLarge)?;
+    let room = cap.checked_sub(text.len).ok_or(Problem::TooLarge)?;
+    let feedback_room = room.saturating_sub(footer.text().len());
+    let footer = if fitting_prefix(bytes, feedback_room).is_empty() { b"\n[file truncated]" } else { footer.text() };
+    let room = room.checked_sub(footer.len()).ok_or(Problem::TooLarge)?;
     let prefix = fitting_prefix(bytes, room);
     if prefix.is_empty() && !bytes.is_empty() {
         return Err(Problem::TooLarge);
     }
     text.add(prefix)?;
-    text.add(CUT)
+    text.add(footer)
 }
 
 fn fitting_prefix(bytes: &[u8], room: usize) -> &[u8] {
@@ -256,6 +296,7 @@ fn file_read_refusal(tool: &[u8], measured: Option<usize>, cap: usize) -> HostAn
     } else {
         file_recovery(&mut text).expect("fixed file recovery");
     }
+    answer_configuration(&mut text).expect("configuration recovery");
     clipped_refusal(text, cap)
 }
 
@@ -275,6 +316,7 @@ fn pull_inventory(head: &api::Commit, files: &[api::File], more: bool, size: usi
     let mut text = Text::new();
     read_size(&mut text, b"read_pull_files", Some(size), cap).expect("fixed size guidance");
     pull_recovery(&mut text).expect("fixed pull recovery");
+    answer_configuration(&mut text).expect("configuration recovery");
     text.add(b"Head commit ").expect("fixed head label");
     text.commit(head).expect("commit fits");
     text.add(if more { b"\nMore files available on next page.\n" } else { b"\nNo more file pages.\n" })
@@ -1078,11 +1120,20 @@ fn forge_read(text: &mut Text, read: &Result<api::Answer, api::Error>, tool: &[u
             text.add(b"Forge read failed: ")?;
             forge_error(text, *refusal)?;
             if tool == b"read_compare" && *refusal == api::Error::TooLarge {
-                text.add(b". read_compare returns a whole comparison, with no pages. Files and commits each must fit forge.client.rows; decoded answer bytes must fit forge.client.answer_bytes. This refusal does not identify which bound was exceeded.\nFor an existing pull, use read_pull to get its head, then read_pull_files with that head and page=1; advance page while more follows. Pull-file sides must fit whole too. Otherwise, or if a pull-file page is too large, use read_file to list directories at both endpoints, then read selected files at each endpoint within max_bytes.")?;
+                text.add(b". ")?;
+                compare_recovery(text)?;
             }
             Ok(true)
         }
     }
+}
+
+fn compare_recovery(text: &mut Text) -> Result<(), Problem> {
+    text.add(b"read_compare returns a whole comparison, with no pages. Files and commits each must fit forge.client.rows; decoded answer bytes must fit forge.client.answer_bytes.\nFor an existing pull, use read_pull to get its head, then read_pull_files with that head and page=1; advance page while more follows. Pull-file sides must fit whole too. Otherwise, or if a pull-file page is too large, use read_file to list directories at both endpoints, then read selected files at each endpoint within max_bytes.")
+}
+
+fn answer_configuration(text: &mut Text) -> Result<(), Problem> {
+    text.add(b"To read the whole content, increase the limiting core.call_answer_bytes (including tool name) or agent.json profile.declared.tool_payload (agent.limits.bodies.host_reply_text). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance.\n")
 }
 
 fn forge_error(text: &mut Text, error: api::Error) -> Result<(), Problem> {
