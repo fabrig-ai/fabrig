@@ -3687,7 +3687,9 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
 /// Sample clocks keep the mock’s dates and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
-        "home-morning" | "home-away" | "home-away-one" => Wall::from_nanos(1_792_483_440_000_000_000),
+        "home-morning" | "home-away" | "home-away-one" | "home-away-overturned" => {
+            Wall::from_nanos(1_792_483_440_000_000_000)
+        }
         "rail-away-on" => Wall::from_nanos(1_792_479_840_000_000_000),
         name if name.starts_with("goal-") => goal_wall(world, 0),
         "changes" | "changes-one" | "changes-empty" => offset(Reference, -173),
@@ -4416,7 +4418,7 @@ fn home_away_task(name: &str, task: u64) -> c::Task {
             _ => "forge-cards",
         },
     );
-    if name == "home-away-one" {
+    if name == "home-away-one" || (name == "home-away-overturned" && task == 101) {
         document.chip.details.phase = c::ChipPhase::Ended;
         document.chip.details.details.ended_at =
             Some(Wall::from_nanos(sample_now(FirstRun { step: 7 }, name).as_nanos() - 292 * 60_000_000_000));
@@ -4475,7 +4477,7 @@ pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
                     question: question.as_bytes().into(),
                     took: took.as_bytes().into(),
                     why: why.as_bytes().into(),
-                    overturned: false,
+                    overturned: name == "home-away-overturned" && number == 2,
                 },
             )
             .expect("Home decision"),

@@ -111,6 +111,14 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-away-overturned",
+        heading: "57 changes landed. Four things were decided for you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 4" },
+            Part::Named { role: Role::Button, name: "Overturn" },
+        ],
+    },
+    Holds {
         name: "home-away-one",
         heading: "57 changes landed. One thing was decided for you.",
         parts: &[
@@ -2828,6 +2836,7 @@ fn home_away_deliveries_draw_the_mock_words_and_off_span() {
     for (name, count, headline) in [
         ("home-away", 4, "57 changes landed. Four things were decided for you."),
         ("home-away-one", 1, "57 changes landed. One thing was decided for you."),
+        ("home-away-overturned", 4, "57 changes landed. Four things were decided for you."),
     ] {
         let sample = samples::samples().into_iter().find(|s| s.name == name).expect("Home away sample");
         let view = view(&sample);
@@ -2858,8 +2867,23 @@ fn home_away_deliveries_draw_the_mock_words_and_off_span() {
         );
         assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_TOOK)
             && n.name.as_deref() == Some(b"In temper serve".as_slice())));
-        assert!(
-            tree.nodes().iter().all(|n| n.role != Role::Button || n.name.as_deref() != Some(b"Overturn".as_slice()))
+        assert_eq!(
+            tree.nodes()
+                .iter()
+                .filter(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Overturn".as_slice()))
+                .count(),
+            match name {
+                "home-away" => 4,
+                "home-away-overturned" => 2,
+                _ => 0,
+            }
         );
+        if name == "home-away-overturned" {
+            assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
+                && n.name.as_deref() == Some(b"Overturned: it asks you again".as_slice())));
+            assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_OVERTURNED)));
+            assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
+                && n.name.as_deref() == Some("landed 03:12 · a new goal can undo it".as_bytes())));
+        }
     }
 }

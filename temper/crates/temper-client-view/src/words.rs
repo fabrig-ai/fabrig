@@ -704,6 +704,10 @@ pub enum Word {
     ToastAwayOff,
     ToastAwayRefused,
     AwayLimits,
+    ToastOverturnAlready,
+    ToastOverturnEnded,
+    ToastOverturned,
+    Overturn,
     HomeDecisionOverturned,
     HomeDecisionEnded,
     HomeDecisionLanded,
@@ -1205,7 +1209,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
-const PHRASES: u32 = 1697;
+// Overturn adds its button and three toast phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1701;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1222,8 +1227,9 @@ const PHRASES: u32 = 1697;
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Settings and Needs you include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
-const SEGMENTS: u32 = 2957;
-const ALL: [Word; 1098] = [
+// Overturn adds four literal segments (client/README.md, 3.5).
+const SEGMENTS: u32 = 2961;
+const ALL: [Word; 1102] = [
     Word::SettingsProposalTitle,
     Word::SettingsProposalDrafts,
     Word::SettingsProposalGoals,
@@ -1899,6 +1905,10 @@ const ALL: [Word; 1098] = [
     Word::ToastAwayOff,
     Word::ToastAwayRefused,
     Word::AwayLimits,
+    Word::ToastOverturnAlready,
+    Word::ToastOverturnEnded,
+    Word::ToastOverturned,
+    Word::Overturn,
     Word::HomeDecisionOverturned,
     Word::HomeDecisionEnded,
     Word::HomeDecisionLanded,
@@ -3010,6 +3020,10 @@ impl Word {
             Self::ToastAwayOff => 3638,
             Self::ToastAwayRefused => 3639,
             Self::AwayLimits => 3640,
+            Self::ToastOverturnAlready => 3657,
+            Self::ToastOverturnEnded => 3656,
+            Self::ToastOverturned => 3655,
+            Self::Overturn => 3654,
             Self::HomeDecisionOverturned => 3653,
             Self::HomeDecisionEnded => 3652,
             Self::HomeDecisionLanded => 3651,
@@ -3720,7 +3734,8 @@ impl Words {
             // The agent check refusal names its charter, adding 53 literal bytes.
             // Builders, flow paths and Home phrases add 204 literal bytes (3.5).
             // Home status and its last-look spans add 311 literal bytes (3.5).
-            text_bytes: 41203 + 204 + 901 + 311,
+            // Overturn adds 132 literal bytes (client/README.md, 3.5).
+            text_bytes: 41203 + 204 + 901 + 311 + 132,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -4513,6 +4528,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ToastAwayOff => (&[b"Away is off: questions wait for you again."], &[]),
         Word::ToastAwayRefused => (&[b"Away didn\xe2\x80\x99t change. Try again."], &[]),
         Word::AwayLimits => (&[b"Limits"], &[]),
+        Word::ToastOverturnAlready => (&[b"That was overturned already."], &[]),
+        Word::ToastOverturnEnded => (&[b"It has ended; a new goal can undo it."], &[]),
+        Word::ToastOverturned => (&[b"Overturned: its goal asks you again, under Still needs you."], &[]),
+        Word::Overturn => (&[b"Overturn"], &[]),
         Word::HomeDecisionOverturned => (&[b"Overturned: it asks you again"], &[]),
         Word::HomeDecisionEnded => (&[b"ended ", b" \xc2\xb7 a new goal can undo it"], &[Name]),
         Word::HomeDecisionLanded => (&[b"landed ", b" \xc2\xb7 a new goal can undo it"], &[Name]),

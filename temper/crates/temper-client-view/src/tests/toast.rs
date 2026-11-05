@@ -202,3 +202,37 @@ fn refused_says_try_again() {
         assert!(f::find(view.tree(), Role::Button, b"Limits").is_none());
     }
 }
+
+#[test]
+fn overturned_says_its_goal_asks_again() {
+    let root = super::home::overturn_answer(
+        temper_client_protocol_wire::v1::Outcome::Overturned,
+        Some(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said { task: 99, message: 9 }))),
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(
+            f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(),
+            b"Overturned: its goal asks you again, under Still needs you."
+        );
+    }
+}
+#[test]
+fn overturn_ended_says_a_new_goal_can_undo_it() {
+    let root = super::home::overturn_answer(
+        temper_client_protocol_wire::v1::Outcome::Overturned,
+        Some(c::Answer::Refused { refusal: c::Refusal::Unknown, at: None }),
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(
+            f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(),
+            b"It has ended; a new goal can undo it."
+        );
+    }
+}
+#[test]
+fn overturn_already_says_it_was_overturned() {
+    let root = super::home::overturn_answer(temper_client_protocol_wire::v1::Outcome::Unknown, None);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(), b"That was overturned already.");
+    }
+}

@@ -2129,3 +2129,172 @@ fn read_numbers(reads: &[(u64, Token)]) -> Box<[u64]> {
     }
     values.into_boxed()
 }
+
+fn overturn_limits() -> crate::Limits {
+    let mut limits = f::limits();
+    limits.client.domain.text = 512;
+    limits
+}
+fn overturn_fixture() -> Fixture {
+    let mut f = enter_skipped();
+    let mut second = decision(2, 0).into_parts();
+    second.question = b"Which retry?".as_slice().into();
+    second.took = b"Split it".as_slice().into();
+    let reads = task_reads(&decisions(&mut f, &[decision(1, 0), w::Decision::new(&w::CEILINGS, second).unwrap()]));
+    for (task, read) in reads {
+        let mut document = f::chat::task();
+        document.chip.task = task;
+        up(
+            &mut f.root,
+            Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(document)))) },
+        );
+    }
+    f
+}
+fn overturn_act(f: &mut Fixture, number: u32) -> (jig_client::Key, Queue<Request>) {
+    let key = jig_client::Key {
+        asker: crate::owner::Owner::Pages.asker(),
+        number: f.root.pages().serial.checked_add(1).unwrap(),
+    };
+    let mut out = Queue::uncapped();
+    crate::step(
+        &mut f.root,
+        &f::env(&overturn_limits()),
+        Event::Act { action: Action::Pages(Act::Away(pages::away::Act::Overturn { project: f::PROJECT, number })) },
+        &mut out,
+    );
+    (key, out)
+}
+fn overturn_answer(f: &mut Fixture, key: jig_client::Key, outcome: jig_client::Outcome) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    crate::route::told(&mut f.root, &f::env(&overturn_limits()), Told::Answered { key, outcome }, &mut out);
+    out
+}
+fn sent(out: &Queue<Request>) -> Box<[jig_client::Ask]> {
+    let mut sends = List::uncapped();
+    for request in out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Send { request, .. } } } =
+            request
+        {
+            sends.push(request.clone()).unwrap();
+        }
+    }
+    sends.into_boxed()
+}
+fn overturn_message(f: &mut Fixture, key: jig_client::Key) -> (jig_client::Key, Queue<Request>) {
+    let next = jig_client::Key { asker: key.asker, number: f.root.pages().serial.checked_add(1).unwrap() };
+    (next, overturn_answer(f, key, family_answer(w::Outcome::Overturned)))
+}
+#[test]
+fn overturn_sends_the_request_then_the_message() {
+    let mut f = overturn_fixture();
+    let (key, out) = overturn_act(&mut f, 1);
+    assert_eq!(sent(&out).as_ref(), [forge::decided::overturn(f::PROJECT, 1, &f::limits().forge).unwrap()]);
+    let (message, out) = overturn_message(&mut f, key);
+    assert_eq!(sent(&out).len(), 1);
+    assert_ne!(key, message);
+    assert!(f.root.pages().overturn_busy());
+    assert!(away_form(&f, 0).unwrap().rows[0].overturned);
+    overturn_answer(
+        &mut f,
+        message,
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::Said { task: 1, message: 9 },
+        )))),
+    );
+    assert!(!f.root.pages().overturn_busy());
+    assert_eq!(f.root.pages().needs().toast(), Some(&pages::needs::Toasted::Overturned));
+}
+#[test]
+fn the_message_says_question_and_took() {
+    let mut f = overturn_fixture();
+    let original = decision(1, 0);
+    let (key, _) = overturn_act(&mut f, 1);
+    decisions(&mut f, &[decision(2, 0)]);
+    let (_, out) = overturn_message(&mut f, key);
+    assert_eq!(
+        sent(&out).as_ref(),
+        [jig_client::Ask::Jig(Box::new(c::Ask::Message {
+            project: f::PROJECT,
+            task: 1,
+            words: c::Text::new(
+                skein_lib::bytes::concat(&[
+                    b"I overturn your decision. ",
+                    original.question(),
+                    b" You took ",
+                    original.took(),
+                    b". Ask me again with message, as a question, and wait for my answer.",
+                ]),
+                512
+            )
+            .unwrap(),
+        }))]
+    );
+    let question = [b'q'; 400];
+    let took = [b't'; 120];
+    let words = forge::decided::overturn_words(&question, &took);
+    assert_eq!(words.len(), 512);
+    c::Text::new(words, 512).expect("maximum overturn fits the deployed message bound");
+    let unicode = "é".repeat(200);
+    let words = forge::decided::overturn_words(unicode.as_bytes(), &took);
+    assert!(words.len() <= 512);
+    assert!(skein_lib::bytes::is_utf8(&words));
+    assert!(words.ends_with(&skein_lib::bytes::concat(&[
+        &took,
+        b". Ask me again with message, as a question, and wait for my answer."
+    ])));
+}
+#[test]
+fn a_refused_message_leaves_the_row_and_toasts() {
+    let mut f = overturn_fixture();
+    let (key, _) = overturn_act(&mut f, 1);
+    let (message, _) = overturn_message(&mut f, key);
+    overturn_answer(&mut f, message, jig_client::Outcome::NotKept);
+    assert!(away_form(&f, 0).unwrap().rows[0].overturned);
+    assert_eq!(f.root.pages().needs().toast(), Some(&pages::needs::Toasted::OverturnEnded));
+    assert!(sent(&overturn_act(&mut f, 1).1).is_empty());
+}
+#[test]
+fn a_refused_overturn_sends_no_message() {
+    for outcome in [
+        family_answer(w::Outcome::OverturnRefused(
+            w::OverturnRefused::new(&w::CEILINGS, w::OverturnRefusedParts { reason: w::OverturnRefusal::Already })
+                .unwrap(),
+        )),
+        family_answer(w::Outcome::OverturnRefused(
+            w::OverturnRefused::new(&w::CEILINGS, w::OverturnRefusedParts { reason: w::OverturnRefusal::Unknown })
+                .unwrap(),
+        )),
+        family_answer(w::Outcome::Unknown),
+        jig_client::Outcome::Unknown,
+    ] {
+        let mut f = overturn_fixture();
+        let (key, _) = overturn_act(&mut f, 1);
+        assert!(sent(&overturn_answer(&mut f, key, outcome)).is_empty());
+        assert!(!f.root.pages().overturn_busy());
+        assert_eq!(f.root.pages().needs().toast(), Some(&pages::needs::Toasted::OverturnAlready));
+    }
+}
+#[test]
+fn a_second_act_waits() {
+    let mut f = overturn_fixture();
+    let (key, _) = overturn_act(&mut f, 1);
+    for number in [1, 2] {
+        assert!(sent(&overturn_act(&mut f, number).1).is_empty());
+    }
+    let (message, _) = overturn_message(&mut f, key);
+    assert!(sent(&overturn_act(&mut f, 2).1).is_empty());
+    overturn_answer(&mut f, message, jig_client::Outcome::NotKept);
+    assert_eq!(sent(&overturn_act(&mut f, 2).1).len(), 1);
+}
+#[test]
+fn leaving_home_still_sends_it() {
+    let mut f = overturn_fixture();
+    let (key, _) = overturn_act(&mut f, 1);
+    event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+    assert!(f.root.pages().home().is_none());
+    let (message, out) = overturn_message(&mut f, key);
+    assert_eq!(sent(&out).len(), 1);
+    overturn_answer(&mut f, message, jig_client::Outcome::NotKept);
+    assert_eq!(f.root.pages().needs().toast(), Some(&pages::needs::Toasted::OverturnEnded));
+}

@@ -760,6 +760,11 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
         && let Some(home) = home
     {
         facts.away = home.away(root.forge().away(project), wall);
+        if let Some(form) = &mut facts.away {
+            for row in &mut form.rows {
+                row.overturned |= root.pages.overturns.marked(project, row.number);
+            }
+        }
     }
     facts
 }

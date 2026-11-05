@@ -1966,6 +1966,9 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-decision-why { font-size: 14px; color: var(--gf-muted); }
 #app > .temper-home .temper-decision-late { flex: none; max-width: 14em; font-size: 12.5px; color: var(--gf-faint); text-align: right; }
 #app > .temper-home .temper-decision-overturned .temper-decision-took { text-decoration: line-through; color: var(--gf-faint); }
+#app > .temper-home .temper-decision > .temper-home-small { flex: none; display: inline-flex; align-items: center; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); }
+#app > .temper-home .temper-decision > .temper-home-small:hover { border-color: #b4b4ae; }
+#app > .temper-home .temper-decision > .temper-home-small:disabled { opacity: .45; cursor: default; }
 #app > .temper-home > section:has(> .temper-decided) > .temper-home-head > button { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; font-size: 13px; color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app > .temper-home > section:has(> .temper-decided) > .temper-home-head > button:hover { text-decoration-color: var(--gf-ink); }
 @media (max-width: 760px) {
