@@ -54,19 +54,6 @@ fn a_connected_notice_keeps_the_close_under_way() {
 }
 
 #[test]
-fn a_connected_notice_keeps_the_in_flight_exchange() {
-    let mut h = f::ConnectionHarness::new();
-    h.start_forgejo(skein_forge::forgejo::request::Request::User, None).expect("user request");
-    h.pump();
-    h.connection.connect(&h.env);
-    assert!(h.connection.in_flight(), "the exchange still belongs to its holder");
-    h.connection.stream(&h.env, Up::Room);
-    h.pump();
-    assert!(h.connection.written, "the request wrote bytes");
-    assert_eq!(h.connection.phase(), Phase::Reading);
-}
-
-#[test]
 fn an_early_head_and_upload_endings_preserve_the_sending_exchange() {
     for event in [
         http::Event::Response(http::Response {

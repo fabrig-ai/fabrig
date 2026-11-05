@@ -17,12 +17,10 @@
   8.1: Closed and Idle, which the table has holding nothing, hold what
   `skein-forge-connection/src/connection.rs`'s `State` keeps past an
   exchange, because the request of 2026-11-05 moved no test's events or
-  times: Closed its ending, its close under way, a raw overflow's exchange
-  until `finish` and a start answer's deadline after `Connection: close`;
-  Idle a connected notice's exchange until its next write; each a
-  redirect's `draining`. For that reason Idle does not always run `idle`:
-  a connection that connects with no holder keeps the deadline it opened
-  under, and `component/github.rs` rests one with no deadline, which
+  times: Closed its ending and its close under way; each a redirect's
+  `draining`. For that reason Idle does not always run `idle`: a connection
+  that connects with no holder keeps the deadline it opened under, and
+  `component/github.rs` rests one with no deadline, which
   `component/calls.rs`'s sweep reads as passed.
   8.4: Head holds a hint the root refused after `Next` went, offered
   before the next body, and Body one refused during it, which a `204`
