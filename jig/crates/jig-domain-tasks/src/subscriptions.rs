@@ -15,7 +15,11 @@ fn hint_of(kind: &MessageKind) -> Option<u64> {
         MessageFamily::Hint(
             Hint::Notice { subscription, .. } | Hint::Timer { subscription } | Hint::News { subscription, .. },
         ) => Some(subscription),
-        MessageFamily::Spoken(_) | MessageFamily::Slot(_) | MessageFamily::Result | MessageFamily::Virtual => None,
+        MessageFamily::Spoken(_)
+        | MessageFamily::Slot(_)
+        | MessageFamily::Separate(_)
+        | MessageFamily::Result
+        | MessageFamily::Virtual => None,
     }
 }
 
@@ -206,7 +210,11 @@ fn matches_kind(kind: &MessageKind, subscription: &SubscriptionKind) -> bool {
             SubscriptionKind::Topic { .. } => class != NewsClass::Dropped,
             SubscriptionKind::Task { .. } | SubscriptionKind::Timer { .. } => false,
         },
-        MessageFamily::Spoken(_) | MessageFamily::Slot(_) | MessageFamily::Result | MessageFamily::Virtual => false,
+        MessageFamily::Spoken(_)
+        | MessageFamily::Slot(_)
+        | MessageFamily::Separate(_)
+        | MessageFamily::Result
+        | MessageFamily::Virtual => false,
     }
 }
 

@@ -32,7 +32,9 @@ use readiness::{
 };
 use routing::component_owner;
 
+mod dump;
 mod program;
+pub use dump::{Dump, Dumped, Model, Started};
 
 pub(crate) use program::bound;
 pub use program::{AdoptError, ProgramBackend, program_operations, program_valid};
@@ -171,6 +173,7 @@ struct Parts {
 /// Shared lower components, routing queues and their ordered close state.
 #[derive(Debug)]
 pub(crate) struct Stages {
+    dumps: Option<dump::Kept>,
     limits: Limits,
     events: Option<smith_protocol_events::events::Producer>,
     teardown: Teardown,

@@ -292,7 +292,8 @@ pub(super) const LIMITS: Limits = Limits {
     clients: CLIENTS,
     clients_http: jig_protocol_engine_clients_http::Limits {
         public_calls: 0,
-        calls: 4,
+        // Keep four ordinary exchanges beside both event streams.
+        calls: 6,
         streams: 2,
         body: CLIENTS.message_bytes,
         read: 16384,

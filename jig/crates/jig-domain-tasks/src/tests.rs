@@ -42,7 +42,7 @@ mod hold_origin;
 mod kept;
 mod keys;
 mod refusals;
-mod revisions;
+pub(crate) mod revisions;
 mod waiting;
 
 mod close_project;
@@ -253,8 +253,8 @@ fn job_spec_and_result_heap_bytes_include_their_allocations() {
 mod classifiers {
     use super::revisions::{Harness, task};
     use crate::{
-        Hint, Hold, MessageFamily, MessageKind, NewsClass, NoticeState, Party, Phase, ResultKind, Slot, Spoken, Stored,
-        Word,
+        Hint, Hold, MessageFamily, MessageKind, NewsClass, NoticeState, Party, Phase, ResultKind, Separate, Slot,
+        Spoken, Stored, Word,
     };
     use skein_lib::{Queue, Wall};
 
@@ -278,202 +278,65 @@ mod classifiers {
     }
 
     #[test]
-    #[expect(clippy::too_many_lines, reason = "one table pins every message family and its existing caller behaviour")]
+    #[expect(clippy::too_many_lines, reason = "one table pins every message family and its caller behaviour")]
     fn message_families_keep_their_inbox_and_activity_behaviour() {
+        use crate::SettingsOutcome::Rejected;
+        use Hint as H;
+        use MessageFamily as F;
         use MessageKind as M;
+        use NewsClass::{Dropped, Kept, Wakes};
+        use NoticeState::{Cancelled, Done, Failed};
         let mut h = Harness::new();
         h.make([task(TASK, &[])].into());
         let base = h.domain.task(TASK).expect("fixture task").clone();
-        // Spoken activity, separate slot, subscription hint, finish request,
-        // and membership in the news batch, read from the callers' lists.
-        for (kind, family, spoken, separate, hint, finish, news_batch) in [
-            (M::Escalation { task: SOURCE, revision: 3 }, MessageFamily::Virtual, false, false, false, false, false),
-            (
-                M::Proposal { proposer: SOURCE, proposal: 5, kind: crate::ProposalKind::Batch },
-                MessageFamily::Virtual,
-                false,
-                false,
-                false,
-                false,
-                false,
-            ),
-            (
-                M::PersonStalled { task: SOURCE },
-                MessageFamily::Slot(Slot::PersonStalled),
-                false,
-                false,
-                false,
-                false,
-                true,
-            ),
-            (
-                M::ProposalDecision { proposal: 5, accepted: true },
-                MessageFamily::Slot(Slot::ProposalDecision),
-                false,
-                false,
-                false,
-                false,
-                false,
-            ),
-            (
-                M::SettingsDecision { proposal: 5, outcome: crate::SettingsOutcome::Rejected },
-                MessageFamily::Slot(Slot::SettingsDecision),
-                false,
-                false,
-                false,
-                false,
-                false,
-            ),
-            (M::Words, MessageFamily::Spoken(Spoken::Words), true, false, false, false, false),
-            (
-                M::EffectNotMade { entry: 3 },
-                MessageFamily::Slot(Slot::EffectNotMade),
-                false,
-                false,
-                false,
-                false,
-                false,
-            ),
-            (M::Amendment { revision: 3 }, MessageFamily::Slot(Slot::Amendment), false, true, false, false, false),
-            (
-                M::FinishRequested { revision: 3 },
-                MessageFamily::Slot(Slot::FinishRequested),
-                false,
-                true,
-                false,
-                true,
-                false,
-            ),
-            (M::Question, MessageFamily::Spoken(Spoken::Question), true, false, false, false, false),
-            (
-                M::Answer { question: QUESTION },
-                MessageFamily::Spoken(Spoken::Answer { question: QUESTION }),
-                true,
-                false,
-                false,
-                false,
-                false,
-            ),
-            (
-                M::Notice { subscription: SUBSCRIPTION, target: SOURCE, state: NoticeState::Held { revision: 3 } },
-                MessageFamily::Hint(Hint::Notice {
-                    subscription: SUBSCRIPTION,
-                    target: SOURCE,
-                    state: NoticeState::Held { revision: 3 },
-                }),
-                false,
-                false,
-                true,
-                false,
-                false,
-            ),
-            (
-                M::Notice { subscription: SUBSCRIPTION, target: SOURCE, state: NoticeState::Done },
-                MessageFamily::Hint(Hint::Notice {
-                    subscription: SUBSCRIPTION,
-                    target: SOURCE,
-                    state: NoticeState::Done,
-                }),
-                false,
-                false,
-                true,
-                false,
-                false,
-            ),
-            (
-                M::Notice { subscription: SUBSCRIPTION, target: SOURCE, state: NoticeState::Failed },
-                MessageFamily::Hint(Hint::Notice {
-                    subscription: SUBSCRIPTION,
-                    target: SOURCE,
-                    state: NoticeState::Failed,
-                }),
-                false,
-                false,
-                true,
-                false,
-                false,
-            ),
-            (
-                M::Notice { subscription: SUBSCRIPTION, target: SOURCE, state: NoticeState::Cancelled },
-                MessageFamily::Hint(Hint::Notice {
-                    subscription: SUBSCRIPTION,
-                    target: SOURCE,
-                    state: NoticeState::Cancelled,
-                }),
-                false,
-                false,
-                true,
-                false,
-                false,
-            ),
-            (
-                M::Timer { subscription: SUBSCRIPTION },
-                MessageFamily::Hint(Hint::Timer { subscription: SUBSCRIPTION }),
-                false,
-                false,
-                true,
-                false,
-                false,
-            ),
-            (
-                M::News { subscription: SUBSCRIPTION, class: NewsClass::Wakes },
-                MessageFamily::Hint(Hint::News { subscription: SUBSCRIPTION, class: NewsClass::Wakes }),
-                false,
-                false,
-                true,
-                false,
-                true,
-            ),
-            (
-                M::News { subscription: SUBSCRIPTION, class: NewsClass::Kept },
-                MessageFamily::Hint(Hint::News { subscription: SUBSCRIPTION, class: NewsClass::Kept }),
-                false,
-                false,
-                true,
-                false,
-                true,
-            ),
-            (
-                M::News { subscription: SUBSCRIPTION, class: NewsClass::Dropped },
-                MessageFamily::Hint(Hint::News { subscription: SUBSCRIPTION, class: NewsClass::Dropped }),
-                false,
-                false,
-                true,
-                false,
-                true,
-            ),
-            (M::Result(ResultKind::Report), MessageFamily::Result, false, false, false, false, false),
-            (
-                M::Met { dependency: SOURCE, removed: true },
-                MessageFamily::Slot(Slot::Met),
-                false,
-                true,
-                false,
-                false,
-                false,
-            ),
-            (
-                M::QuestionEnded { question: QUESTION },
-                MessageFamily::Slot(Slot::QuestionEnded),
-                false,
-                false,
-                false,
-                false,
-                false,
-            ),
-            (
-                M::QuestionAnswered { question: QUESTION },
-                MessageFamily::Slot(Slot::QuestionAnswered),
-                false,
-                false,
-                false,
-                false,
-                false,
-            ),
-            (M::QuestionOwed, MessageFamily::Slot(Slot::QuestionOwed), false, false, false, false, false),
-            (M::NothingAwaited, MessageFamily::Slot(Slot::NothingAwaited), false, true, false, false, false),
+        let subscription = SUBSCRIPTION;
+        let target = SOURCE;
+        let held = NoticeState::Held { revision: 3 };
+        let notice = |state| F::Hint(H::Notice { subscription, target, state });
+        for (kind, family, category) in [
+            (M::Escalation { task: SOURCE, revision: 3 }, F::Virtual, 7),
+            (M::Proposal { proposer: SOURCE, proposal: 5, kind: crate::ProposalKind::Batch }, F::Virtual, 7),
+            (M::PersonStalled { task: SOURCE }, F::Slot(Slot::PersonStalled), 6),
+            (M::ProposalDecision { proposal: 5, accepted: true }, F::Slot(Slot::ProposalDecision), 7),
+            (M::SettingsDecision { proposal: 5, outcome: Rejected }, F::Slot(Slot::SettingsDecision), 7),
+            (M::Words, F::Spoken(Spoken::Words), 0),
+            (M::EffectNotMade { entry: 3 }, F::Slot(Slot::EffectNotMade), 7),
+            (M::Amendment { revision: 3 }, F::Separate(Separate::Amendment), 7),
+            (M::FinishRequested { revision: 3 }, F::Separate(Separate::FinishRequested), 7),
+            (M::Question, F::Spoken(Spoken::Question), 1),
+            (M::Answer { question: QUESTION }, F::Spoken(Spoken::Answer { question: QUESTION }), 2),
+            (M::Notice { subscription, target, state: held }, notice(held), 4),
+            (M::Notice { subscription, target, state: Done }, notice(Done), 4),
+            (M::Notice { subscription, target, state: Failed }, notice(Failed), 4),
+            (M::Notice { subscription, target, state: Cancelled }, notice(Cancelled), 4),
+            (M::Timer { subscription }, F::Hint(H::Timer { subscription }), 5),
+            (M::News { subscription, class: Wakes }, F::Hint(H::News { subscription, class: Wakes }), 6),
+            (M::News { subscription, class: Kept }, F::Hint(H::News { subscription, class: Kept }), 6),
+            (M::News { subscription, class: Dropped }, F::Hint(H::News { subscription, class: Dropped }), 6),
+            (M::Result(ResultKind::Report), F::Result, 3),
+            (M::Met { dependency: SOURCE, removed: true }, F::Separate(Separate::Met), 7),
+            (M::QuestionEnded { question: QUESTION }, F::Slot(Slot::QuestionEnded), 7),
+            (M::QuestionAnswered { question: QUESTION }, F::Slot(Slot::QuestionAnswered), 7),
+            (M::QuestionOwed, F::Slot(Slot::QuestionOwed), 7),
+            (M::NothingAwaited, F::Separate(Separate::NothingAwaited), 7),
         ] {
+            #[expect(clippy::match_same_arms, reason = "one arm per family keeps its caller behaviour explicit")]
+            let (spoken, hint, separate, finish) = match family {
+                F::Spoken(_) => (true, false, false, false),
+                F::Hint(_) => (false, true, false, false),
+                F::Slot(_) => (false, false, false, false),
+                F::Separate(slot) => (
+                    false,
+                    false,
+                    [Separate::Amendment, Separate::FinishRequested, Separate::Met, Separate::NothingAwaited]
+                        .contains(&slot),
+                    slot == Separate::FinishRequested,
+                ),
+                F::Result => (false, false, false, false),
+                F::Virtual => (false, false, false, false),
+            };
             assert_eq!(kind.family(), family, "{kind:?}: family");
+            assert_eq!(crate::wake::category(&kind), category, "{kind:?}: wake category");
             assert_eq!(kind.result().is_some(), family == MessageFamily::Result, "{kind:?}: result");
             let word = message_word(kind);
             let mut row = base.clone();
@@ -519,7 +382,7 @@ mod classifiers {
             let limits = crate::Limits { inbox_messages: 0, ..h.env.limits };
             assert_eq!(crate::inbox::room(&h.domain, &limits, TASK, 0, 0), separate, "{:?}: separate slot", word.kind);
 
-            let batch = message_word(M::News { subscription: SUBSCRIPTION + 1, class: NewsClass::Wakes });
+            let batch = message_word(M::News { subscription: SUBSCRIPTION + 1, class: Wakes });
             let row = &mut crate::domain::task_mut(&mut h.domain, TASK).expect("fixture task").record;
             row.inbox = Box::new([word.clone(), batch.clone()]);
             // Two single-hit messages reach the threshold only in the same category.
@@ -527,7 +390,7 @@ mod classifiers {
             crate::wake::after_message(&mut h.domain, &h.env, TASK, None, batch, &mut out);
             assert_eq!(
                 h.domain.task(TASK).expect("fixture task").inbox.first().expect("first word").eligible,
-                news_batch,
+                category == 6,
                 "{:?}: news batch",
                 word.kind
             );

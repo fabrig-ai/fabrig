@@ -618,6 +618,9 @@ fn start_child(
     hash.update(&owner.raw().to_be_bytes());
     let entropy = Secret::new(Box::from(hash.finish().as_slice()));
     let mut backend = backend::Backend::new(first, settings, &entropy);
+    if program.backend.keeping_given() {
+        backend.keep_given();
+    }
     backend.mounts(program.mounts.clone());
     backend.run_time(program.time);
     let grant = program.grant.as_ref().expect("installed program grant");
@@ -682,7 +685,11 @@ pub(super) fn fire(service: &mut Stages) {
         for index in 0..program.children.len() {
             if let Some(child) = program.children.get_mut(index).expect("child slot") {
                 child.backend.fire(&service.llm_env, &mut service.llm_events, &mut program.below);
-                if child.opening.is_none() && child.backend.closed() && child.backend.pending_measures() == 0 {
+                if child.opening.is_none()
+                    && child.backend.closed()
+                    && child.backend.pending_measures() == 0
+                    && !child.backend.pending_given()
+                {
                     *program.children.get_mut(index).expect("closed child slot") = None;
                 }
             }
@@ -980,3 +987,25 @@ mod tests;
 
 #[cfg(test)]
 mod validity_tests;
+
+pub(super) fn keep_given(service: &mut Stages) {
+    if let Some(program) = &mut service.program {
+        program.backend.keep_given();
+        for child in program.children.iter_mut().flatten() {
+            child.backend.keep_given();
+        }
+    }
+}
+
+pub(super) fn pop_given(service: &mut Stages) -> Option<smith_protocol_program::Given> {
+    let program = service.program.as_mut()?;
+    if let Some(given) = program.backend.pop_given() {
+        return Some(given);
+    }
+    for child in program.children.iter_mut().flatten() {
+        if let Some(given) = child.backend.pop_given() {
+            return Some(given);
+        }
+    }
+    None
+}

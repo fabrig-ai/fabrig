@@ -3206,6 +3206,7 @@ dependencies = [
 name = "skein-llm"
 version = "0.0.0"
 dependencies = [
+ "skein-fake-llm-protocol",
  "skein-http",
  "skein-json",
  "skein-json-world",

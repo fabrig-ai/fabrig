@@ -200,8 +200,24 @@ pub enum BelowEvent {
     File { event: file::Event, descriptor: Option<kernel::Fd> },
 }
 
+/// Program inputs kept for an asking owner (smith/docs/design/protocol/programs.status.md).
+#[derive(Debug)]
+pub enum Given {
+    /// Exact argv, excluding the program name, from the prepared launch.
+    Arguments(Box<[Box<[u8]>]>),
+    /// The stored instructions bytes.
+    Instructions(Box<[u8]>),
+    /// The MCP server's tools/list bytes.
+    Tools(Box<[u8]>),
+    /// One whole line sent to the child's stdin.
+    Input(Box<[u8]>),
+    /// One system/init line printed by the child.
+    Init(Box<[u8]>),
+}
+
 /// The run's program adapter, driven by the service (smith/docs/design/protocol/programs.md, sections 3, 5).
 pub struct Backend {
+    given: Option<Queue<Given>>,
     mounts: Box<[Mount]>,
     first: Token,
     settings: Settings,
@@ -251,6 +267,33 @@ impl core::fmt::Debug for Backend {
 }
 
 impl Backend {
+    /// Keeps later program inputs, never environment or MCP configuration.
+    pub fn keep_given(&mut self) {
+        if self.given.is_none() {
+            self.given = Some(Queue::uncapped());
+        }
+    }
+
+    /// Takes the next kept input.
+    pub fn pop_given(&mut self) -> Option<Given> {
+        self.given.as_mut()?.pop()
+    }
+
+    /// Whether captured inputs still need their owner.
+    #[must_use]
+    pub fn pending_given(&self) -> bool {
+        match &self.given {
+            Some(given) => !given.is_empty(),
+            None => false,
+        }
+    }
+
+    /// Whether later inputs are requested by the owner.
+    #[must_use]
+    pub const fn keeping_given(&self) -> bool {
+        self.given.is_some()
+    }
+
     /// Retain settings and names; emit nothing until the first Complete (section 3).
     #[must_use]
     pub fn new(first: Token, settings: Settings, entropy: &Secret) -> Self {
@@ -262,6 +305,7 @@ impl Backend {
         let delta_carry = redaction::carries(&settings);
         let measure_capacity = measures::capacity(&settings).expect("measure capacity");
         Self {
+            given: None,
             mounts: Box::default(),
             first,
             settings,

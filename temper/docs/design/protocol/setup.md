@@ -3835,6 +3835,12 @@ Each is intended; what it needs is named with it.
 - **A hook left at an old listener's address,** after the listener
   moves, is skein's question (skein's `forge-setup.md`, section 9).
   Default: left alone; the person deletes it.
+- **A task's text past what the clients receive** (8.1). A spec reads in
+  pieces of `documents.text_bytes`, 512, each a `read_task` turn, where the
+  request `first-goal-fixes` of 2026-11-05 has 8,192. Going past 512 needs the
+  web and terminal clients' `text` raised, or a task's text read under a
+  bound of its own (jig's `client/domain/contract.md`, 6). Default: 512. The
+  user's to choose, with no answer yet.
 - **A managed forge whose host list refuses the listener.** Default:
   nothing tells the person but the hints that never arrive
   (`../domain/forge.md`, section 4).

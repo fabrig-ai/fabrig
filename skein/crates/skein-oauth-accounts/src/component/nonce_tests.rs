@@ -34,7 +34,7 @@ fn the_nonce_is_drawn_from_the_seeded_generator() {
         &mut Queue::uncapped(),
         &mut Queue::uncapped(),
     );
-    let id = component.bindings.get(0).copied().flatten().expect("sign-in bound");
+    let id = component.entries.get(0).expect("account entry").binding.expect("sign-in bound");
     let exchange = component.exchanges.get(id).expect("admitted exchange");
     let nonce = match &exchange.sign_in {
         Some(oauth::Event::SignIn { nonce, .. }) => match nonce {

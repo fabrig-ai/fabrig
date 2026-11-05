@@ -39,7 +39,9 @@
     delegate or a write failed for good`: the panel's hold is the client
     wire's `failed` (`temper-client-protocol-wire/schema/client-wire-v1.schema`,
     `Hold`), and its words are the client's
-    (`temper-client-domain/src/forge/words.rs`, `FailedHold`).
+    (`temper-client-domain/src/forge/words.rs`, `FailedHold`), and the plan
+    `first-goal-fixes` edits neither, the ui drafts holding them, so a cancel
+    is said by `task show` and not by this line.
   - 8.4, 8.5: a goal's landing held past its repairs, then released after
     a change into its goal branch (`../draft/reference-landing.md`,
     section 9's second story), is built, but its story is ignored: after
@@ -127,6 +129,23 @@
   - 5.7: a live goal's "landed and total changes" are its delegates done and
     total, because the forge keeps no count a goal, and "failures the forge holds
     since" are what each tier holds now, because it keeps no times on them.
+- **Design departs:** 8.4, from the request `first-goal-fixes` of 2026-11-05,
+  item 1, not cut by its plan and the user's to answer (section 20): the request
+  reads 8.4 as ending a repair whose reason no longer holds at the head without
+  an agent's work, the change going on, with no repair task for a green head, and
+  asks for a failing test first in the forge world. 8.4 has no such rule: a
+  released failed repair asks afresh "with the same reason and current forge
+  facts". So a change stays `repairing` under a running repair with CI passed at
+  its head, and a release at that head makes a fresh repair, spending one
+  (`temper-engine-domain-forge-change/src/domain.rs`, `released_state`,
+  `repairing` and `repair_due`, none reading CI), which opens `Repair CI at HEAD:
+  no failed check named`. No such test exists, and the empty name alone is gone.
+- **Design departs:** 8.11, from the request `report-in-finish` of 2026-11-05,
+  decided by its plan's cut, for the user to see: the call's refusal and the
+  words at a step take a change's repair and resolution beside its producing
+  task, where the request names the producing task alone, because all three run
+  under the one charter and each would pay the same turn
+  (`temper-engine-domain/src/route/forge_route/relay.rs`, `asking_delegate`).
 - **Departs:** 9: the first keeps its turn only until the next ready change
   steps: `queue_first` (`temper-engine-domain-forge/src/domain.rs`) chooses
   among `queue_ready`'s changes, which leave out one at `Updating`, `Checking`,

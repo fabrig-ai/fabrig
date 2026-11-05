@@ -4,7 +4,7 @@
 - **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/tests/suite/bounds.rs`
 - **Seen:** 2026-11-04 at `66968a30ef`, in the request of plan hearth-workspace (its port table, and its rule that adopting the newer model in full is out of scope)
 - **Seen:** 2026-11-04 at `66968a30ef`, in `hearth/scripts/old-forms.txt` (`max_out`)
-- **Checked:** 2026-11-05 at `5e2270f79e`
+- **Checked:** 2026-11-05 at `c7a7d037c9`
 - **Value:** high (hearth paces as the other trees do; `iterate` shrinks; new code stops copying the old form)
 - **Size:** L
 - **Status:** open
@@ -70,7 +70,13 @@ first, and each order's test is named beside it.
 
 The queues beside git's machines, mmdebstrap's and the config decoder,
 these last in `hearth-protocol-builder/src/resolve.rs`, `indices.rs` and
-`read.rs`, are uncapped.
+`read.rs`, are uncapped. One test driver's stay at capacity 1, where a
+second output panics and loses nothing:
+`hearth/testing/hearth-test-render/src/golden/repository.rs`, `JSON_QUEUE`.
+What still has a capacity in `hearth-protocol-config` stays, and no output
+waits on it: its depth stacks and its key map are the edge (the tokenizer's
+depth, `Fault::Keys`), and its lists sized by a count or a limit already
+known allocate as they fill and refuse nothing.
 The machines' states keep the orders in
 `hearth/docs/design/domain/render.md`, 8.5, and their tests stand in
 `hearth/tests/git`, `hearth/tests/mmdebstrap` and `hearth/tests/config`. The queues beside the
