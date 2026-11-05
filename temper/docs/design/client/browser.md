@@ -155,6 +155,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   person (section 5). A service's credential is never shown: temper's
   client makes no service (`README.md`, section 11).
 
+The person's zone is one of the shell's inputs: `Date`'s offset, in minutes
+east of universal time, read at start and recorded in a journey's facts, so a
+replay says the same clocks (`README.md`, 5.12).
+
 ### 2.2 Serving
 
 - **The routes of the clients' listener,** temper's, in this order,
@@ -1165,6 +1169,11 @@ from the engine's own answers, is where the look is tuned.
 | `changes-empty` | a hand-made `ChangesPanel` delivery: nothing queued and nothing landed |
 | `changes-one` | a hand-made `ChangesPanel` delivery: one queued and four landed |
 | `changes-landed-only` | a hand-made `ChangesPanel` delivery, the mock's `hello`: nothing queued, something landed |
+| `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
+| `home-away-one` | hand-made Home deliveries: one `Decision`, the switch off: "One thing was decided for you." and the kicker's two times |
+| `home-away-overturned` | hand-made Home deliveries: a row overturned, its task live, and one ended, "landed 03:12" |
+| `rail-away-on` | a project's page with the switch on, "Away until 08:00", and its toast open |
+| `settings-away` | *How work runs* with the section `#away`, the defaults ticked |
 | `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |
 | `home-two-left` | hand-made Home deliveries: repository adopted; configuring and first chat left |
 | `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |

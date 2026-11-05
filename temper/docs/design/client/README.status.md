@@ -2,7 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.4, 5.5: the composer's
+- **Not yet:** 3.5, *Away*, whole, and its requests and subjects in 4.6 and section 8: `ui-away`'s tasks build them. 5.12: the zone, which every form reads as universal time. 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering: no

@@ -138,6 +138,15 @@ section 7).
   |---|---|---|---|---|
   | 34 | `Dismissed` | `Dismissed { party, what }`: the party, then what it dismissed, `ToBegin { project }` the one kind for now | what the person dismissed, on every device and across restarts (`../domain/forge.md`, 5.5). Its record is its key's fields, `{ party, what }`, as `Flight`'s is. Written by the party's `Dismiss` (`../client/README.md`, 4.6), a second writing nothing; erased in the decision that releases its project (jig's `domain/connectors.md`, section 2). A family of the forge connector's though it is people's, as `Binding` is. jig erases no party, so nothing erases a row by its party: a member removed keeps theirs, as a binding stays (`sign-in.md`, section 5; section 7) | the forge's `bindings` times its `judge_projects`: the members times the projects |
 
+- **A person's away and what was decided for them,** after them:
+
+  | Byte | Family | Key | What a row holds | Bounded by |
+  |---|---|---|---|---|
+  | 38 | `Away` | `Away { party, project }`: the party, then the project | a person's Away switch on a project: `since`, `until` or none, `kinds`, `landed`, `off` or none (`../domain/forge.md`, 5.8). Written by the party's `SetAway`; erased with its project. A family of the forge connector's though it is people's, as `Binding` is | `bindings` times `judge_projects` |
+  | 39 | `Decided` | `Decided { project, number }`: the project, then the row's number | what a goal decided while its person was away: `party`, `task`, `at`, `question` at most 400 bytes, `options` 2 to 6 of at most 120 bytes each, `took`, `why` at most 400 bytes, `overturned` (`../domain/forge.md`, 5.9). Written by the `decided` call the connector lets, and `Overturn`; the 65th of a project erases its oldest in that decision; erased with its project | 64 times `judge_projects` |
+
+  A named call's `CallPayload` gains `decided`, `CallDecided`: the taken
+  option's words, or none for ask (`../domain/forge.md`, 5.9).
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads a row: what a party sees of them comes in
   the forge's documents (`../client/README.md`, section 4).
@@ -173,6 +182,8 @@ section 7).
     its branch one byte string;
   - `Dismissed` is the party, then what it dismissed: 0 `ToBegin` and
     the project.
+  - `Away` is the party, then the project; `Decided` is the project,
+    then the number.
 - **Written out, not generated:** each family has a small encoder and
   decoder in `temper-protocol-store`. A property test holds each encoder
   to the order `Key` derives, on generated keys of every family, and
