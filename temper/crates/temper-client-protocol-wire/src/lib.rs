@@ -493,3 +493,10 @@ pub fn decode_proposal_items_answer(bytes: &[u8], limits: &v1::Limits) -> Option
     let record = v1::ProposalItemsAnswer::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }
+
+/// A goal reads its work as a goal (temper/docs/design/domain/agent.md, 4.3.2).
+pub const GOAL_SCOPE: &[u8] =
+    b"You are a goal: the work your person asked for, yours to plan and to change; you start no goal but an advisor.";
+/// A goal asks for agreement before changes (temper/docs/design/domain/agent.md, 8.2).
+pub const GOAL_AGREED: &[u8] =
+    b"The work is to be agreed: before anything is changed, ask your requester your plan with message, as a question, and wait for the answer.";

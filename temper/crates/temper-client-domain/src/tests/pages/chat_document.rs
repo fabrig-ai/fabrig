@@ -1,4 +1,3 @@
-use super::fixtures;
 use crate::pages::chat::document::{self, NoteChange, NoteWrite};
 
 #[test]
@@ -92,23 +91,6 @@ fn section_holding_finds_a_line() {
 fn a_line_past_the_end_is_the_last_section() {
     assert_eq!(document::section_holding(BODY, u32::MAX), 2);
 }
-#[test]
-fn drafts_offered_by_a_tracked_template() {
-    let mut me = fixtures::chats::me();
-    let template = me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap();
-    template.tracked = Some(1);
-    template.flags.conversation = false;
-    assert!(crate::pages::drafts_offered(&me, fixtures::PROJECT));
-    assert!(!crate::pages::drafts_offered(&me, fixtures::PROJECT + 1));
-}
-#[test]
-fn not_by_a_conversation() {
-    let mut me = fixtures::chats::me();
-    assert!(!crate::pages::drafts_offered(&me, fixtures::PROJECT));
-    me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().tracked = Some(1);
-    assert!(!crate::pages::drafts_offered(&me, fixtures::PROJECT));
-}
-
 fn collected(body: &[u8]) -> skein_lib::List<document::Section<'_>> {
     let capacity = u32::try_from(body.len()).unwrap().checked_add(1).unwrap();
     let mut sections = skein_lib::List::with_capacity(capacity);

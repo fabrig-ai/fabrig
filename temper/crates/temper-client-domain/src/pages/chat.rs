@@ -1,6 +1,7 @@
 //! One chat borrows its task and retains jig's bounded conversation projection
 //! (temper/docs/design/client/README.md, 3.5).
 pub mod document;
+pub mod sheet;
 use super::{Act, Request, activity::Asking, delegation};
 use crate::{Limits, owner::Owner};
 use alloc::boxed::Box;
@@ -34,6 +35,9 @@ pub struct Chat {
     pub shown: Option<u32>,
     pub shown_count: u64,
     draft_read: Handle,
+    goal_read: Handle,
+    goal_watched: Option<u64>,
+    pub proposed: Option<c::Recipient>,
     draft_asking: Asking,
     draft_project: Option<u32>,
     draft_out: bool,
@@ -88,6 +92,9 @@ impl Chat {
             shown: None,
             shown_count: 0,
             draft_read: handle(first.checked_add(2).expect("chat handles fit")),
+            goal_read: handle(first.checked_add(3).expect("chat handles fit")),
+            goal_watched: None,
+            proposed: None,
             draft_asking: Asking::new(),
             draft_project: None,
             draft_out: false,
@@ -99,7 +106,7 @@ impl Chat {
             asking,
             run: None,
             current_run: None,
-            next: first.checked_add(3).expect("chat handles fit"),
+            next: first.checked_add(4).expect("chat handles fit"),
             thread,
             rows: limits.client.domain.rows,
             words: Box::default(),
@@ -129,6 +136,9 @@ impl Chat {
         {
             unwatch(handle, out);
         }
+        if self.goal_watched.is_some() {
+            unwatch(self.goal_read, out);
+        }
         for (handle, _) in &self.decisions {
             unwatch(*handle, out);
         }
@@ -139,6 +149,60 @@ impl Chat {
             unwatch(delegation.handle, out);
         }
         self.next
+    }
+    /// The newest of this person's starts, with the goal number breaking a clock tie.
+    #[must_use]
+    pub fn goal_from(&self, root: &crate::Domain) -> Option<(u64, u64)> {
+        self.goal_fact(root.client(), root.forge())
+    }
+    fn goal_fact(&self, client: &Client, forge: &crate::forge::Side) -> Option<(u64, u64)> {
+        let project = self.task(client)?.project;
+        let mut newest = None;
+        for (goal, at) in forge.goals_from(project, self.task) {
+            let newer = match newest {
+                Some((prior_goal, prior_at)) => (at, goal) > (prior_at, prior_goal),
+                None => true,
+            };
+            if newer {
+                newest = Some((goal, at));
+            }
+        }
+        newest
+    }
+    pub(crate) fn goal_watch(&mut self, client: &Client, forge: &crate::forge::Side, out: &mut Queue<Request>) {
+        let next = match self.goal_fact(client, forge) {
+            Some((goal, _)) => Some(goal),
+            None => None,
+        };
+        if self.goal_watched == next {
+            return;
+        }
+        if self.goal_watched.is_some() {
+            unwatch(self.goal_read, out);
+        }
+        self.goal_watched = next;
+        if let Some(goal) = next {
+            out.push(Request::Client(jig_client::Event::Watch {
+                handle: self.goal_read,
+                subject: Watchable::Jig(c::Subject::Chips { tasks: List::from_boxed(Box::new([goal])) }),
+            }));
+        }
+    }
+    #[must_use]
+    pub fn goal_chip<'a>(&self, root: &'a crate::Domain) -> Option<&'a c::Chip> {
+        let (goal, _) = self.goal_from(root)?;
+        let document = root.client().document(self.goal_read)?;
+        if document.state == jig_client::State::Ended {
+            return None;
+        }
+        if let Some(Latest::Jig(c::Delivery::Chips(chips))) = document.latest {
+            for chip in chips {
+                if chip.task == goal {
+                    return Some(chip);
+                }
+            }
+        }
+        None
     }
     #[must_use]
     pub fn task<'a>(&'a self, client: &'a Client) -> Option<&'a c::Task> {
@@ -222,6 +286,7 @@ impl Chat {
                     }
                 }
             }
+            Told::Changed { handle } | Told::Ended { handle, .. } if handle == self.goal_read => {}
             Told::Changed { handle } if self.delegation_handle(handle).is_some() => {}
             Told::Ended { handle, why: jig_client::Why::SubjectEnded | jig_client::Why::Unknown }
                 if self.delegation_handle(handle).is_some() =>
@@ -858,13 +923,7 @@ impl Chat {
             Act::Older => ask_activity(&mut self.asking, self.activity, self.thread.older(), out),
             Act::AddDraft => {
                 let Some(task) = self.task(client) else { return };
-                let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else { return };
-                if self.draft.is_some()
-                    || self.writing
-                    || task.result.is_some()
-                    || super::chats::ended(&task.chip)
-                    || !document::drafts_offered(me, task.project)
-                {
+                if self.draft.is_some() || self.writing || task.result.is_some() || super::chats::ended(&task.chip) {
                     return;
                 }
                 self.writing = true;

@@ -93,8 +93,22 @@ fn document_root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str], state: Prop
 )]
 fn activity_root(body: Option<&[u8]>, mode: Mode, activity: c::ActivityPage, state: ProposalState) -> d::Domain {
     let limits = limits();
-    let (mut root, me_watch, watch, _, _) =
-        f::root_at_with_activity(d::Address::Chat { task: TASK }, &limits, b"Shop", None, Some(activity), None);
+    let drafts = state == ProposalState::DraftOffered
+        || state == ProposalState::EndedDraftOffered
+        || state == ProposalState::UnsendableDraftOffered;
+    let ways = d::forge::ways::Ways { drafts, ..d::forge::ways::Ways::STOCK };
+    let (mut root, me_watch, watch, _, _, _, _, _) = f::root_at_with_values(
+        d::Address::Chat { task: TASK },
+        &limits,
+        b"Shop",
+        None,
+        Some(activity),
+        None,
+        Some(&[]),
+        Some(ways),
+        false,
+        true,
+    );
     let source = f::chat::messaging_root();
     let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
@@ -643,7 +657,7 @@ fn plus(tree: &Tree) -> bool {
     tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"+ Draft"))
 }
 #[test]
-fn plus_draft_shows_with_a_tracked_template() {
+fn plus_draft_shows_when_the_setting_offers_it() {
     for shell in [Shell::Browser, Shell::Terminal] {
         let mut shown = view(&offered(None, false), shell);
         let node = shown.tree().nodes().iter().find(|node| node.name.as_deref() == Some(b"+ Draft")).unwrap();

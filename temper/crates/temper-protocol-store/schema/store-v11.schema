@@ -322,7 +322,7 @@ enum SettingSlot { default, change, proposal: Number, replaced: Number }
 record SettingRow { kind: u32 scope: u32 number: u32 slot: SettingSlot edit: SettingEdit }
 # A person's dismissals (protocol/store.md, 2).
 record ToBegin { project: u32 }
-record GoalFrom { project: u32 chat: u64 goal: u64 }
+record GoalFrom { project: u32 chat: u64 goal: u64 at: u64 }
 enum PersonFact { to_begin: ToBegin goal_from: GoalFrom }
 record Dismissed { party: u64 what: PersonFact }
 record LoggedChange { task: u64 pull: option u64 title: bytes 256 }

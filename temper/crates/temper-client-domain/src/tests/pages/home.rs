@@ -1025,7 +1025,7 @@ fn a_refused_goal_from_changes_no_page() {
     ready(&mut f);
     let before = home::facts(&f.root, f::PROJECT);
     let key = jig_client::Key { asker: crate::owner::Owner::Pages.asker(), number: CHAT };
-    let fact = forge::dismissed::PersonFact::GoalFrom { project: f::PROJECT, chat: CHAT, goal: CHAT + 1 };
+    let fact = forge::dismissed::PersonFact::GoalFrom { project: f::PROJECT, chat: CHAT, goal: CHAT + 1, at: 0 };
     event(
         &mut f.root,
         Event::Client {

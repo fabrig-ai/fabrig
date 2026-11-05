@@ -34,7 +34,7 @@ record Accept { forge: u16 installation: u64 }
 
 # A person's dismissals (client/README.md, 4.6).
 record ToBegin { project: u32 }
-record GoalFrom { project: u32 chat: u64 goal: u64 }
+record GoalFrom { project: u32 chat: u64 goal: u64 at: u64 }
 enum PersonFact { to_begin: ToBegin goal_from: GoalFrom }
 record Dismiss { what: PersonFact }
 versioned record Dismissals { dismissed: list 8192 PersonFact }

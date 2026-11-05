@@ -30,6 +30,7 @@ fn limits() -> temper_client_domain::Limits {
     let mut limits = fixtures::domain_limits();
     // Two complete note exchanges are carried together in the second turn.
     limits.client.domain.turn_text = NOTE_TURN_TEXT;
+    limits.client.domain.long_text = NOTE_TURN_TEXT;
     limits
 }
 fn env() -> Env<temper_client_domain::Limits> {
@@ -40,8 +41,10 @@ fn pump(front: &mut Joint, probe: &mut Probe) {
     for _ in 0..ROUNDS {
         Temper::take(&mut probe.0, &env, &mut probe.1);
         while let Some(request) = probe.1.pop() {
-            if let Duty::Wire(request) = Temper::duty(request) {
-                front.wire(CLIENT, env.now, env.wall, request);
+            match Temper::duty(request) {
+                Duty::Wire(request) => front.wire(CLIENT, env.now, env.wall, request),
+                Duty::Show { address, .. } => Temper::step(&mut probe.0, &env, Temper::went(address), &mut probe.1),
+                _ => {}
             }
         }
         for (who, event) in front.poll(env.now, env.wall) {
@@ -52,8 +55,31 @@ fn pump(front: &mut Joint, probe: &mut Probe) {
     }
 }
 fn opened() -> (Joint, u64, Probe) {
+    opened_with_goal(false)
+}
+fn opened_with_goal(goal: bool) -> (Joint, u64, Probe) {
     let mut front = Joint::with_chat_draft(fixtures::SEED, limits());
-    let task = fixtures::chat(&mut front, b"Write beside us");
+    let task = if goal {
+        fixtures::adopt_change_repository(&mut front);
+        let jig_domain_people::Ask::Create { project, mut batch } = front.engine.chat_ask(PROJECT, b"Write beside us")
+        else {
+            panic!("chat")
+        };
+        // Leave 400 of the fixture's 500 units for starting its goal.
+        batch[0].budget = jig_domain_people::Budget::Named;
+        batch[0].authority.spend = 100;
+        front.engine.send(temper_engine_domain::Event::Party(temper_engine_domain::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: skein_lib::ReplyTo::new(Token::new(901)),
+            sign_in: front.engine.session(),
+            key: [57; 16],
+            ask: jig_domain_people::Ask::Create { project, batch },
+        }));
+        front.engine.settle();
+        front.engine.last_assignment().task
+    } else {
+        fixtures::chat(&mut front, b"Write beside us")
+    };
     front.bind(CLIENT, fixtures::PARTY);
     let root = Root::Person(Box::new(temper_client_domain::unlinked(&limits(), fixtures::SEED)));
     let mut probe = (root, Queue::uncapped(), Vec::new());
@@ -180,4 +206,40 @@ fn a_chat_opened_again_starts_in_chat() {
         pump(&mut front, &mut probe);
     }
     assert_eq!(chat(&probe).mode, Mode::Chat);
+}
+
+#[test]
+fn a_goal_starts_from_a_document() {
+    let (mut front, task, mut probe) = opened_with_goal(true);
+    write(&mut front, task, 1, None, "# Our draft\nFirst\n", &mut probe);
+    pump(&mut front, &mut probe);
+    act(
+        &mut front,
+        &mut probe,
+        Act::OpenStart { draft: Some(b"docs/design/draft/our-draft.md".as_slice().into()), chat: Some(task) },
+    );
+    assert!(probe.0.person().pages().start().is_some(), "the chat opens the shared sheet");
+    act(&mut front, &mut probe, Act::StartGoal);
+    let root = probe.0.person();
+    let goal = root.pages().task().expect("the goal page opens").number;
+    let goal_row = front.engine.task(goal).expect("created goal");
+    let expected = format!(
+        "our-draft\n\nImplement this draft. First commit it, as it stands, at docs/design/draft/our-draft.md.\n\n# Our draft\nFirst\n\n\nYou are a goal: the work your person asked for, yours to plan and to change; you start no goal but an advisor.\nDraft: docs/design/draft/our-draft.md\nChat: T{task}"
+    );
+    assert_eq!(goal_row.spec.words.as_ref(), expected.as_bytes());
+    assert!(root.pages().start().is_none());
+    assert_eq!(root.forge().goals_from(PROJECT, task).collect::<Vec<_>>(), [(goal, env().wall.as_nanos())]);
+    assert!(root.pages().task().unwrap().document(root.client()).is_some());
+    Temper::step(&mut probe.0, &env(), Temper::went(fixtures::chat_page(task)), &mut probe.1);
+    pump(&mut front, &mut probe);
+    let root = probe.0.person();
+    let chat = root.pages().chat().unwrap();
+    assert_eq!(chat.goal_from(root), Some((goal, env().wall.as_nanos())));
+    assert_eq!(chat.goal_chip(root).expect("linked goal chip").task, goal);
+    act(
+        &mut front,
+        &mut probe,
+        Act::OpenStart { draft: Some(b"docs/design/draft/our-draft.md".as_slice().into()), chat: Some(task) },
+    );
+    assert!(probe.0.person().pages().start().is_none(), "a linked goal prevents another start");
 }

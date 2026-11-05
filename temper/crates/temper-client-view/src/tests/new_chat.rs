@@ -385,7 +385,7 @@ fn the_placeholder_and_the_meta_line() {
 }
 
 #[test]
-fn the_bar_offers_a_draft_only_with_a_tracked_template() {
+fn the_bar_offers_a_draft_when_the_setting_offers_it() {
     let mut root = super::document::offered(None, false);
     f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::NewChat { draft: false }) });
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {

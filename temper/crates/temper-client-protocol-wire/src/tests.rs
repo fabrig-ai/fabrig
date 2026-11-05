@@ -1424,8 +1424,11 @@ fn dismiss_and_dismissals_round_trip() {
     for what in [
         v1::PersonFact::ToBegin(v1::ToBegin::new(&limits, v1::ToBeginParts { project: u32::MAX }).unwrap()),
         v1::PersonFact::GoalFrom(
-            v1::GoalFrom::new(&limits, v1::GoalFromParts { project: u32::MAX, chat: u64::MAX, goal: u64::MAX })
-                .unwrap(),
+            v1::GoalFrom::new(
+                &limits,
+                v1::GoalFromParts { project: u32::MAX, chat: u64::MAX, goal: u64::MAX, at: u64::MAX },
+            )
+            .unwrap(),
         ),
     ] {
         let dismiss = v1::Dismiss::new(&limits, v1::DismissParts { what: what.clone() }).unwrap();

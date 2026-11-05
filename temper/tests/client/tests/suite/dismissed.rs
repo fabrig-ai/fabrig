@@ -254,13 +254,16 @@ fn a_party_with_no_role_is_refused() {
     assert!(story.rows().is_empty());
 }
 
-const GOAL_FROM: PersonFact = PersonFact::GoalFrom { project: PROJECT, chat: 7, goal: 11 };
+const GOAL_FROM: PersonFact = PersonFact::GoalFrom { project: PROJECT, chat: 7, goal: 11, at: 0 };
 #[test]
 fn a_goal_from_reaches_another_client_of_the_party() {
     let mut story = Story::new();
     story.other_person(true);
     story.dismiss_fact(CLIENT, FIRST, GOAL_FROM);
     story.answered_dismissed(CLIENT);
-    assert_eq!(story.probes[INBOX_CLIENT.0].root.person().forge().goals_from(PROJECT, 7).collect::<Vec<_>>(), [11]);
+    assert_eq!(
+        story.probes[INBOX_CLIENT.0].root.person().forge().goals_from(PROJECT, 7).collect::<Vec<_>>(),
+        [(11, 0)]
+    );
     assert_eq!(story.probes[OTHER_CLIENT.0].root.person().forge().goals_from(PROJECT, 7).collect::<Vec<_>>(), []);
 }

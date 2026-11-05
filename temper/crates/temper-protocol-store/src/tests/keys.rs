@@ -307,13 +307,14 @@ fn person_facts_sort_by_party_then_kind_and_fields() {
     use temper_engine_domain_forge::PersonFact;
     let mut previous = None;
     for (party, what) in [
-        (0, PersonFact::GoalFrom { project: u32::MAX, chat: u64::MAX, goal: u64::MAX }),
+        (0, PersonFact::GoalFrom { project: u32::MAX, chat: u64::MAX, goal: u64::MAX, at: u64::MAX }),
         (7, PersonFact::ToBegin { project: 0 }),
         (7, PersonFact::ToBegin { project: u32::MAX }),
-        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: 0 }),
-        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: u64::MAX }),
-        (7, PersonFact::GoalFrom { project: 0, chat: 1, goal: 0 }),
-        (7, PersonFact::GoalFrom { project: 1, chat: 0, goal: 0 }),
+        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: 0, at: 0 }),
+        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: 0, at: u64::MAX }),
+        (7, PersonFact::GoalFrom { project: 0, chat: 0, goal: u64::MAX, at: u64::MAX }),
+        (7, PersonFact::GoalFrom { project: 0, chat: 1, goal: 0, at: 0 }),
+        (7, PersonFact::GoalFrom { project: 1, chat: 0, goal: 0, at: 0 }),
         (u64::MAX, PersonFact::ToBegin { project: 0 }),
     ] {
         let key = Key::Dismissed { party, what };
