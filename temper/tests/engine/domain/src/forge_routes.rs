@@ -121,6 +121,8 @@ pub struct World {
 pub struct StoryLimits {
     /// Tool families granted by the deployment and project for this story.
     pub tools: Option<u64>,
+    /// Scalar note scopes and a resource scope held by the parent in narrowing stories.
+    pub notes: Option<authority::Scopes>,
     pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
     pub across: bool,
@@ -293,6 +295,7 @@ impl World {
         // Sizes subscription/hold notifications and workspace-resource bookkeeping
         let StoryLimits {
             tools,
+            notes,
             brief,
             stall,
             spec_bytes,
@@ -628,6 +631,14 @@ impl World {
                         let mut lib = landing.repositories[0].clone();
                         lib.repository = skein_forge::api::Repository { forge: 1, repository: 4 };
                         landing.repositories = Box::new([landing.repositories[0].clone(), lib]);
+                    }
+                }
+                if let Some(scopes) = notes {
+                    let resources: Box<[authority::ResourceScope]> =
+                        Box::new([authority::ResourceScope { connector: 0, pattern: grant.pattern.clone() }]);
+                    for authority in [&mut rules.ceiling, &mut policy.ceiling, &mut policy.roles[0].authority] {
+                        authority.notes = scopes;
+                        authority.note_resources.clone_from(&resources);
                     }
                 }
                 let mut domain = authority::Domain::new(rules, limits.authority).expect("read authority rules");
