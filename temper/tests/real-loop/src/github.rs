@@ -290,7 +290,7 @@ impl State {
         config.limits.body_bytes = 2048;
         (fixture.configure_domain)(&mut config);
         assert!(
-            skein_fake_forge_forgejo::git::fits(&protocol_limits().git(), &config.limits),
+            skein_fake_forge_http::git::fits(&protocol_limits().git(), &config.limits),
             "bounded git trees fit"
         );
         let clock = skein_shell::Clock::new().now();

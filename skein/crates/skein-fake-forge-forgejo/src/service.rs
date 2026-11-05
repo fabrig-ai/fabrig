@@ -224,6 +224,6 @@ pub fn valid(limits: &Limits, config: &Config) -> bool {
         && skein_json::tokenizer::largest_demand(&limits.documents.json) <= limits.http.read
         && skein_forge::forgejo::limits::check(&limits.documents).is_ok()
         && skein_json::tokenizer::tokenizer_bound(&limits.documents.json).is_some()
-        && crate::git::decoder_bound(&limits.git()).is_some()
+        && skein_fake_forge_http::git::decoder_bound(&limits.git()).is_some()
         && config.max_response_items.checked_mul(4).is_some()
 }

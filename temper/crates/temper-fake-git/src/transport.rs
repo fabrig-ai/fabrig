@@ -13,14 +13,14 @@ pub trait Transport: Remote {
     /// Start a fresh replay cursor before running the scanned checkout again.
     fn begin(&mut self) {}
     /// Encoding bounds for a missing route call; typed transports miss none.
-    fn route_limits(&self) -> Option<skein_fake_forge_forgejo::git::Limits> {
+    fn route_limits(&self) -> Option<skein_fake_forge_http::git::Limits> {
         None
     }
     /// Retain a missing call's terminal answer once, including an identity refusal.
     fn receive(
         &mut self,
-        _call: skein_fake_forge_forgejo::git::Call,
-        _answer: Result<skein_fake_forge_forgejo::git::Answer, api::Error>,
+        _call: skein_fake_forge_http::git::Call,
+        _answer: Result<skein_fake_forge_http::git::Answer, api::Error>,
         _authenticated: bool,
     ) {
         unreachable!("a typed transport never misses a call");

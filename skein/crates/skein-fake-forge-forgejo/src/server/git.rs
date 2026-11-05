@@ -2,10 +2,10 @@
 use super::{Event, Server, State, close, fail, respond, retire};
 use crate::{
     Hosted, Limits, Route, Service, errors,
-    git::{self, Call, Name},
     response, service,
 };
 use alloc::boxed::Box;
+use skein_fake_forge_http::git::{self, Call, Name};
 use skein_fake_forge_domain::{self as domain, api};
 use skein_http::{Method, server as http};
 use skein_json::tokenizer as json;

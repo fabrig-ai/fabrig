@@ -1,7 +1,7 @@
 //! The scripted remote decodes the route's actual request and writes server answers.
 use super::*;
 use crate::connection::{Connection, Failed, Reply};
-use skein_fake_forge_forgejo::git::{Answer, Call, Name, server};
+use skein_fake_forge_http::git::{Answer, Call, Name, server};
 use skein_json::tokenizer;
 use skein_lib::{
     Env, Queue,

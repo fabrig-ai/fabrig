@@ -5,7 +5,7 @@ use skein_fake_checkout::{
     git::{self as kit, Remote, Tree},
 };
 use skein_fake_forge_domain::api;
-use skein_fake_forge_forgejo::git::{self, Answer as RemoteAnswer, Call, Limits};
+use skein_fake_forge_http::git::{self, Answer as RemoteAnswer, Call, Limits};
 use skein_io::kernel::{self as k, Done, Exit, Fd, Op};
 use skein_lib::{Secret, Time, Wall};
 use skein_shell::Host;
