@@ -2460,10 +2460,11 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
   holds their records: the tasks child's, the core's set erased, and a
   connector's dropping of an application's values, a settings ask like
   the release's others. The people child's projections of them follow
-  in memory: it takes a projection event once its census is whole, from
-  its link on, never while loading, and a restart rebuilds them from the
-  records. What acts on them waits, by section 6: a proposer left due is
-  activated when the tasks child is told it is restored, and a word left
+  in memory: it takes a projection event once its census is whole, at
+  its link and again once its start has ended, never while loading or
+  sweeping, and a restart rebuilds them from the records. What acts on
+  them waits, by section 6: a proposer left due is activated when the
+  tasks child is told it is restored, and a word left
   for a live run is relayed after that run's next turn, as any restored
   task's are. Nothing is activated or relayed from the decision itself,
   so a first start and a second after a crash do the same.

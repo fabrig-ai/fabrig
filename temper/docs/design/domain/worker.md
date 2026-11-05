@@ -730,6 +730,15 @@ for; and that nothing is live once it settles.
 - **A workspace's repositories in parallel:** a checkout runs one
   operation at a time, so its repositories are cloned, fetched and pushed
   one after another.
+- **A workspace kept past its workstream.** The cache is keyed by workstream,
+  so a new one starts from an empty directory and every file is new to a
+  build. Keyed by repository, it could keep a clone across workstreams and a
+  restart once contained trees keep a run out of the git directory
+  (`../protocol/git.md`, section 10), perhaps with no switch. With that goes
+  which workspace a workstream takes: the departure in `worker.status.md`
+  considers only the least recently used, and after a restart only the one a
+  first hold takes, since nothing says which workstream held which. So a
+  clone another workstream wanted can be made again, wasteful and never wrong.
 - **jig's:** saving periodically, and a worker's failed dials before its
   first channel (jig's `domain/hosts.md`, section 12).
 - **A hold naming its run's last failure.** A task held `out of tries:
