@@ -397,8 +397,9 @@ An active agent task is one of:
   when present, is loading for a resume or a fresh brief's tail, including
   a transient retry's tail (engine.md, 7.1). An amendment or
   a cancel that comes meanwhile drops what was gathered and decides
-  again; a required section that cannot be gathered sends it back to due
-  after a backoff, as no attempt was made;
+  again; a brief that cannot be gathered sends it back to due after a
+  backoff, pausing it or counting a failure by why, as no attempt was
+  made (engine.md, 9.1);
 - **claimed:** an attempt is committed, naming the run and its attempt
   number, the writer slots of the holds its workspace writes (6.3), and
   the messages its start carries (8.2), before the run is assigned;
@@ -495,16 +496,20 @@ them (5.7).
   that fails is tried again after a jittered backoff, within a number
   of tries per class of failure:
   - *transient:* a peer unavailable, the engine's own reads missing, a
-    transcript the agent could not use (engine.md, 7.2);
+    transcript the agent could not use (engine.md, 7.2), a brief's
+    required section late or its system failing for now (engine.md, 9.1);
   - *permanent until something on a system changes:* a resource missing,
-    an identity refused, an assignment its host found invalid;
+    an identity refused, an assignment its host found invalid, a brief
+    whose system answers wrongly or whose required section cannot fit
+    (engine.md, 9.1);
   - *the run's own:* it reported failing;
   - *the agent's:* it crashed, broke its channel's rules, stalled;
   - *lost:* its host went away;
   - *invalid:* a result that broke its contract.
 
-  A refusal before anything ran (a host busy, a writer slot taken) is no
-  failure: the task claims again after a pause. Nor is a run ended
+  A refusal before anything ran (a host busy, a writer slot taken, no
+  room to gather a brief) is no failure: the task claims again after a
+  pause, with no bound, its retry notice saying why. Nor is a run ended
   because its LLM account's source turned limited, refused or in need of
   a sign-in: its task waits for its account, saying why (accounts.md,
   3.5 and 4.3). Such a terminal, or a checked placement losing its room,
@@ -539,7 +544,9 @@ them (5.7).
   bound (6.2), its joining a queue would close a circle of waits (6.7),
   its pool lost its allocation (6.6), or its procedure says
   it needs a decision. A hold keeps whatever the task had: its result
-  while closing, its inbox, its attempt number.
+  while closing, its inbox, its attempt number. A failure that came from
+  preparing keeps its reason on the retry notice and, past its tries, on
+  the hold, whose words say it (engine.md, 9.1).
 - **A hold is escalated** (section 9): it waits for the nearest task or
   party above it that may decide, which it wakes. Whoever it reaches
   decides it: releases the task from it, leaves the task held or passes
@@ -1058,7 +1065,11 @@ circle, each for another of the set, so that none of them could end.
   (people.md, 5.1). Nobody else. An escalation's holder decides the
   escalation (5.5; section 9). A party's request, an agent's tool and a
   procedure's step reach the same rules (people.md, 5.1; engine.md, 7.3;
-  connectors.md, 6.3).
+  connectors.md, 6.3). The deployment has a cancel within its project
+  (section 8.1) and one release: a procedure task of its project from a hold
+  of its own, whose cause its connector found gone (connectors.md, 6.3),
+  never where a placed hold or a party's stop also holds it, and recorded as
+  the deployment's. No party, tool or step asks for that release.
 - **What an amendment may change:** the spec and its parameters; the wake
   policy; the dependencies, added or removed (below); the authority,
   narrowed freely and widened only within

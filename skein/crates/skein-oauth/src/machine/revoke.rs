@@ -1,10 +1,12 @@
 //! Refresh-token revocation and its confirmed or unconfirmed terminal.
 
-use super::{Client, ClientLimits, Exchange, Failure, Grant, HttpEvidence, HttpResponse, Phase, Registration, Request};
+use super::{
+    Awaits, Client, ClientLimits, Exchange, Failure, Grant, HttpEvidence, HttpResponse, Phase, Registration, Request,
+};
 use crate::RefreshState;
 use crate::redirect::{form_fields, issued_id, validate_registration};
 use alloc::boxed::Box;
-use skein_lib::{Queue, Time, bytes, usize_of};
+use skein_lib::{Queue, Secret, Time, bytes, usize_of};
 
 pub(super) fn endpoint(registration: &Registration) -> Option<&[u8]> {
     registration.terms.as_ref()?.revocation_endpoint.as_deref()
@@ -26,11 +28,11 @@ impl Client {
         prior: RefreshState,
         now: Time,
         out: &mut Queue<Request>,
-    ) {
+    ) -> Phase {
         let result = self.start_revocation(registration, prior, now);
         match result {
-            Ok(start) => self.emit_start(Ok(start), out),
-            Err(_) => self.revoked(false, out),
+            Ok(start) => Self::emit_start(Ok(start), out),
+            Err(_) => Self::revoked(false, out),
         }
     }
 
@@ -39,7 +41,7 @@ impl Client {
         mut registration: Registration,
         prior: RefreshState,
         now: Time,
-    ) -> Result<(Exchange, Request, Phase), Failure> {
+    ) -> Result<(Exchange, Request, Awaits), Failure> {
         validate_registration(&registration, &self.limits, false)?;
         endpoint(&registration).ok_or(Failure::Malformed)?;
         if prior.refresh_token.is_empty() || prior.refresh_token.len() > usize_of(self.limits.document.token_bytes) {
@@ -58,7 +60,7 @@ impl Client {
         let mut exchange = Exchange {
             registration,
             grant: Grant::Revoke { prior },
-            state: bytes::copy_of(b""),
+            state: Secret::new(bytes::copy_of(b"")),
             verifier: None,
             nonce: None,
             deadline: now.checked_add(self.limits.sign_in_time).ok_or(Failure::Limit)?,
@@ -77,11 +79,11 @@ impl Client {
         answer: HttpResponse,
         deadline: Time,
         out: &mut Queue<Request>,
-    ) {
+    ) -> Phase {
         if answer.now >= deadline || answer.now >= exchange.deadline {
-            self.revoked(false, out);
+            Self::revoked(false, out)
         } else if answer.evidence == HttpEvidence::Unsent {
-            self.retry_or_fail(exchange, Failure::Unavailable, answer.now, answer.retry_after, true, out);
+            self.retry_or_fail(exchange, Failure::Unavailable, answer.now, answer.retry_after, true, out)
         } else if answer.status == 429 && answer.evidence == HttpEvidence::Response {
             self.retry_or_fail(
                 exchange,
@@ -90,16 +92,15 @@ impl Client {
                 answer.retry_after,
                 true,
                 out,
-            );
+            )
         } else {
-            self.revoked(answer.status == 200 && answer.evidence == HttpEvidence::Response, out);
+            Self::revoked(answer.status == 200 && answer.evidence == HttpEvidence::Response, out)
         }
     }
 
-    pub(super) fn revoked(&mut self, confirmed: bool, out: &mut Queue<Request>) {
-        self.active = None;
-        self.phase = Phase::Done;
+    pub(super) fn revoked(confirmed: bool, out: &mut Queue<Request>) -> Phase {
         out.push(Request::Revoked { confirmed });
+        Phase::Done
     }
 }
 
@@ -109,11 +110,11 @@ pub(super) fn body(
     limits: &ClientLimits,
 ) -> Result<Box<[u8]>, Failure> {
     let fields = [
-        Some((b"token".as_slice(), prior.refresh_token.as_ref())),
+        Some((b"token".as_slice(), prior.refresh_token.expose())),
         Some((b"token_type_hint".as_slice(), b"refresh_token".as_slice())),
         Some((b"client_id".as_slice(), registration.client_id.as_ref())),
-        match registration.client_secret.as_deref() {
-            Some(secret) => Some((b"client_secret".as_slice(), secret)),
+        match registration.client_secret.as_ref() {
+            Some(secret) => Some((b"client_secret".as_slice(), secret.expose())),
             None => None,
         },
     ];

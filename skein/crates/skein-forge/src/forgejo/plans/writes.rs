@@ -1,5 +1,5 @@
 //! Forge writes, with validation before resolution and no retry
-//! (forge.md, 3.2–3.4).
+//! (forge.md, 3.2–3.4, 5.2, 5.4).
 use crate::api;
 use crate::forgejo::plans::{
     Body, Heard,
@@ -17,29 +17,51 @@ use crate::marker;
 use alloc::boxed::Box;
 use skein_lib::{Duration, List};
 #[derive(Debug)]
-enum Stage {
-    Write,
-    Head,
-    Base,
-    Compare,
-    Reviewers,
-    User,
-    Add,
-    Remove,
+struct Open {
+    title: Box<[u8]>,
+    body: Box<[u8]>,
+    head: Box<[u8]>,
+    base: Box<[u8]>,
+}
+#[derive(Debug)]
+struct Looking {
+    missing: List<u64>,
+    position: u32,
+    add: List<Box<[u8]>>,
+    remove: List<Box<[u8]>>,
+}
+#[derive(Debug)]
+enum State {
+    New { write: api::Write },
+    Resolving { write: api::Write },
+    Writing { row: Repository, write: api::Write },
+    Merged { row: Repository },
+    OpenHead { row: Repository, open: Open },
+    OpenBase { row: Repository, open: Open, head: ObjectId },
+    OpenCompare { row: Repository, open: Open },
+    Reviewers { row: Repository, number: u64, reviewers: Box<[u64]> },
+    Searching { row: Repository, number: u64, looking: Looking },
+    Adding { row: Repository, number: u64, remove: List<Box<[u8]>> },
+    Removing { row: Repository },
+    Ended,
+}
+#[derive(Clone, Copy, Debug)]
+enum Errors {
+    Asked(Asked),
     Merged,
+}
+impl Errors {
+    fn error(self, error: api::Error) -> api::Error {
+        match self {
+            Self::Asked(asked) => failure::before_write(asked, error),
+            Self::Merged => api::Error::Timeout,
+        }
+    }
 }
 #[derive(Debug)]
 pub struct Plan {
     repository: api::Repository,
-    write: api::Write,
-    row: Option<Repository>,
-    resolving: bool,
-    stage: Stage,
-    head: Option<ObjectId>,
-    missing: List<u64>,
-    add: List<Box<[u8]>>,
-    remove: List<Box<[u8]>>,
-    position: u32,
+    state: State,
     status: u16,
     retry: Option<Duration>,
     request: Option<Exchange>,
@@ -53,156 +75,74 @@ impl Plan {
     }
     #[must_use]
     pub fn new(repository: api::Repository, write: api::Write) -> Self {
-        Self {
-            repository,
-            write,
-            row: None,
-            resolving: false,
-            stage: Stage::Write,
-            head: None,
-            missing: List::with_capacity(0),
-            add: List::with_capacity(0),
-            remove: List::with_capacity(0),
-            position: 0,
-            status: 0,
-            retry: None,
-            request: None,
-        }
+        Self { repository, state: State::New { write }, status: 0, retry: None, request: None }
     }
     pub fn begin(&mut self, bounds: Bounds, word: &[u8], tables: &mut Tables) -> Result<Step, api::Error> {
-        validate(&self.write)?;
-        self.row = tables.repository(self.repository).cloned();
-        if self.row.is_none() {
-            self.resolving = true;
-            return Ok(Step::send(Request::RepositoryById { id: u64::from(self.repository.repository) }));
-        }
-        self.initial(bounds, word)
-    }
-    fn at(&self) -> r::Repo {
-        let row = self.row.as_ref().expect("resolved repository");
-        r::Repo { owner: row.owner.clone(), name: row.name.clone() }
-    }
-    fn id(&self, bytes: api::Commit) -> ObjectId {
-        ObjectId { bytes, format: self.row.as_ref().expect("repository format").object_format }
-    }
-    fn initial(&mut self, bounds: Bounds, word: &[u8]) -> Result<Step, api::Error> {
-        self.stage = Stage::Write;
-        let at = self.at();
-        let request = match self.write.clone() {
-            api::Write::Dispatch { workflow, branch, inputs } => Request::Dispatch { at, workflow, branch, inputs },
-            api::Write::Rerun { attempt: job } => Request::Rerun { at, job: job.job },
-            api::Write::CreateIssue { key, title, body } => {
-                Request::CreateIssue { at, title, body: marked(word, &key, &body, bounds)? }
-            }
-            api::Write::Post { number, key, body } => {
-                Request::PostComment { at, number, body: marked(word, &key, &body, bounds)? }
-            }
-            api::Write::Review { number, key, verdict, body } => {
-                let event = match verdict {
-                    api::Verdict::Approve => r::ReviewEvent::Approved,
-                    api::Verdict::RequestChanges => r::ReviewEvent::RequestChanges,
-                    api::Verdict::Comment => r::ReviewEvent::Comment,
-                };
-                Request::PostReview { at, number, event, body: marked(word, &key, &body, bounds)? }
-            }
-            api::Write::Edit { number, title, body } => Request::EditIssue { at, number, title, body, state: None },
-            api::Write::Close { number } => {
-                Request::EditIssue { at, number, title: None, body: None, state: Some(d::IssueState::Closed) }
-            }
-            api::Write::Reopen { number } => {
-                Request::EditIssue { at, number, title: None, body: None, state: Some(d::IssueState::Open) }
-            }
-            api::Write::Update { number, style } => Request::Update {
-                at,
-                number,
-                style: Some(match style {
-                    api::UpdateStyle::Merge => r::UpdateStyle::Merge,
-                    api::UpdateStyle::Rebase => r::UpdateStyle::Rebase,
-                }),
-            },
-            api::Write::Status { commit, context, check, description, link } => {
-                let state = match check {
-                    api::Check::Pending => d::StatusState::Pending,
-                    api::Check::Passed => d::StatusState::Success,
-                    api::Check::Failed => d::StatusState::Failure,
-                };
-                Request::PostStatus { at, commit: self.id(commit), state, context, description, link }
-            }
-            api::Write::CreateBranch { branch, commit } => Request::CreateBranch { at, branch, from: self.id(commit) },
-            api::Write::DeleteBranch { branch } => Request::DeleteBranch { at, branch },
-            api::Write::OpenPull { head, .. } => {
-                self.stage = Stage::Head;
-                Request::Branch { at, name: head }
-            }
-            api::Write::SetReviewers { number, .. } => {
-                self.stage = Stage::Reviewers;
-                Request::Pull { at, number }
-            }
-            api::Write::Merge { number, head, how } => Request::Merge {
-                at,
-                number,
-                style: match how {
-                    api::MergeHow::Style => self.row.as_ref().expect("style").merge_style,
-                    api::MergeHow::FastForwardOnly => d::MergeStyle::FastForwardOnly,
-                },
-                head: self.id(head),
-            },
-        };
-        Ok(Step::send(request))
-    }
-    fn asked(&self) -> Asked {
-        match self.write {
-            api::Write::OpenPull { .. } => {
-                if self.before_write() {
-                    Asked::BeforeWrite
-                } else {
-                    Asked::OpenPull
+        let state = core::mem::replace(&mut self.state, State::Ended);
+        let step;
+        (self.state, step) = match state {
+            State::New { write } => {
+                validate(&write)?;
+                match tables.repository(self.repository).cloned() {
+                    Some(row) => initial(row, write, bounds, word)?,
+                    None => (
+                        State::Resolving { write },
+                        Step::send(Request::RepositoryById { id: u64::from(self.repository.repository) }),
+                    ),
                 }
             }
-            api::Write::Merge { .. } => Asked::Merge,
-            api::Write::Update { .. } => Asked::Update,
-            api::Write::DeleteBranch { .. } => Asked::DeleteBranch,
-            api::Write::Dispatch { .. }
-            | api::Write::Rerun { .. }
-            | api::Write::CreateIssue { .. }
-            | api::Write::Post { .. }
-            | api::Write::Review { .. }
-            | api::Write::Edit { .. }
-            | api::Write::SetReviewers { .. }
-            | api::Write::Close { .. }
-            | api::Write::Reopen { .. }
-            | api::Write::Status { .. }
-            | api::Write::CreateBranch { .. } => Asked::Write,
+            State::Resolving { .. }
+            | State::Writing { .. }
+            | State::Merged { .. }
+            | State::OpenHead { .. }
+            | State::OpenBase { .. }
+            | State::OpenCompare { .. }
+            | State::Reviewers { .. }
+            | State::Searching { .. }
+            | State::Adding { .. }
+            | State::Removing { .. }
+            | State::Ended => unreachable!("write begins once"),
+        };
+        Ok(step)
+    }
+    fn asked(&self) -> Asked {
+        match self.errors() {
+            Errors::Asked(asked) => asked,
+            Errors::Merged => Asked::Merge,
+        }
+    }
+    fn errors(&self) -> Errors {
+        match &self.state {
+            State::New { write } | State::Writing { write, .. } => Errors::Asked(asked(write)),
+            State::Resolving { write } => {
+                let asked = asked(write);
+                Errors::Asked(if asked == Asked::OpenPull { Asked::BeforeWrite } else { asked })
+            }
+            State::OpenHead { .. } | State::OpenBase { .. } | State::OpenCompare { .. } => {
+                Errors::Asked(Asked::BeforeWrite)
+            }
+            State::Merged { .. } => Errors::Merged,
+            State::Reviewers { .. } | State::Searching { .. } | State::Adding { .. } | State::Removing { .. } => {
+                Errors::Asked(Asked::Write)
+            }
+            State::Ended => unreachable!("ended write has no exchange"),
         }
     }
     fn expected(&self) -> u16 {
-        if self.resolving {
-            return 200;
-        }
-        match self.stage {
-            Stage::Head | Stage::Base | Stage::Compare | Stage::Reviewers | Stage::User | Stage::Merged => return 200,
-            Stage::Add => return 201,
-            Stage::Remove => return 204,
-            Stage::Write => {}
-        }
-        match self.write {
-            api::Write::Update { .. } | api::Write::Merge { .. } | api::Write::Review { .. } => 200,
-            api::Write::Dispatch { .. } | api::Write::Rerun { .. } | api::Write::DeleteBranch { .. } => 204,
-            api::Write::CreateIssue { .. }
-            | api::Write::Post { .. }
-            | api::Write::Edit { .. }
-            | api::Write::Close { .. }
-            | api::Write::Reopen { .. }
-            | api::Write::Status { .. }
-            | api::Write::CreateBranch { .. }
-            | api::Write::OpenPull { .. } => 201,
-            api::Write::SetReviewers { .. } => unreachable!("reviewer exchanges have their own stages"),
+        match &self.state {
+            State::New { .. } | State::Ended => unreachable!("write has no exchange"),
+            State::Resolving { .. }
+            | State::OpenHead { .. }
+            | State::OpenBase { .. }
+            | State::OpenCompare { .. }
+            | State::Reviewers { .. }
+            | State::Searching { .. }
+            | State::Merged { .. } => 200,
+            State::Adding { .. } => 201,
+            State::Removing { .. } => 204,
+            State::Writing { write, .. } => expected(write),
         }
     }
-    #[expect(
-        clippy::too_many_lines,
-        reason = "write exchanges classify refusals before retaining their answer document"
-    )]
     pub fn heard(
         &mut self,
         heard: Heard,
@@ -245,485 +185,463 @@ impl Plan {
                 | d::Row::Job(_) => Ok(None),
             },
             Heard::Failed(fault) => Err(self.error(failure::transport(fault))),
-            Heard::Done(body) => {
-                if !self.resolving && self.status == 409 {
-                    match self.write {
-                        api::Write::CreateBranch { .. } => {
-                            return Ok(Some(Step::Done(Ok(api::Answer::Branch(api::BranchCreation::Exists)))));
-                        }
-                        api::Write::Update { style: api::UpdateStyle::Rebase, .. } => {
-                            return Ok(Some(Step::Done(Err(api::Error::Conflict))));
-                        }
-                        api::Write::CreateIssue { .. }
-                        | api::Write::Post { .. }
-                        | api::Write::Review { .. }
-                        | api::Write::Edit { .. }
-                        | api::Write::Close { .. }
-                        | api::Write::Reopen { .. }
-                        | api::Write::Status { .. }
-                        | api::Write::Update { style: api::UpdateStyle::Merge, .. }
-                        | api::Write::Dispatch { .. }
-                        | api::Write::Rerun { .. }
-                        | api::Write::DeleteBranch { .. }
-                        | api::Write::OpenPull { .. }
-                        | api::Write::SetReviewers { .. }
-                        | api::Write::Merge { .. } => {}
-                    }
-                }
-                if self.status != self.expected() {
-                    let refusal = match &body {
-                        Body::Document(d::Document::Error(error)) => match &error.message {
-                            d::Body::Kept(message) => crate::forgejo::failure::refusal(self.status, message),
-                            d::Body::Long(_) => None,
-                        },
-                        Body::Document(_) | Body::Empty | Body::Raw { .. } | Body::Malformed(_) => None,
-                    };
-                    let classified = failure::classify(self.asked(), self.status, refusal, self.retry);
-                    if classified.drop != Drop::Nothing {
-                        tables.drop_repository(self.repository);
-                    }
-                    return Ok(Some(Step::Done(Err(self.error(classified.error)))));
-                }
-                let document = match body {
-                    Body::Document(document) => Some(document),
-                    Body::Empty => None,
-                    Body::Malformed(crate::forgejo::decode::Malformed::Bound { .. }) => {
-                        return Err(self.error(if self.before_write() {
-                            api::Error::TooLarge
-                        } else {
-                            api::Error::Timeout
-                        }));
-                    }
-                    Body::Malformed(_) | Body::Raw { .. } => return Err(self.error(api::Error::Timeout)),
-                };
-                if let Some(document) = &document {
-                    self.check_pull_ids(document)?;
-                    self.check_repository(document)?;
-                    crate::forgejo::plans::reads::keep::keep_document(document, self.repository.forge, tables);
-                }
-                if self.resolving {
-                    let Some(d::Document::Repository(repository)) = document else {
-                        return Err(self.error(api::Error::Timeout));
-                    };
-                    let row = reading::repository(repository);
-                    tables.keep_repository(self.repository, row.clone());
-                    self.row = Some(row);
-                    self.resolving = false;
-                    return Ok(Some(self.initial(bounds, word)?));
-                }
-                let step = match self.next(document, tables) {
-                    Ok(step) => step,
-                    Err(error) => return Err(self.error(error)),
-                };
-                Ok(Some(step))
+            Heard::Done(body) => self.done(body, bounds, word, tables),
+        }
+    }
+    fn done(
+        &mut self,
+        body: Body,
+        bounds: Bounds,
+        word: &[u8],
+        tables: &mut Tables,
+    ) -> Result<Option<Step>, api::Error> {
+        if self.status == 409
+            && let Some(answer) = self.conflict()
+        {
+            return Ok(Some(Step::Done(answer)));
+        }
+        if self.status != self.expected() {
+            let refusal = match &body {
+                Body::Document(d::Document::Error(error)) => match &error.message {
+                    d::Body::Kept(message) => crate::forgejo::failure::refusal(self.status, message),
+                    d::Body::Long(_) => None,
+                },
+                Body::Document(_) | Body::Empty | Body::Raw { .. } | Body::Malformed(_) => None,
+            };
+            let classified = failure::classify(self.asked(), self.status, refusal, self.retry);
+            if classified.drop != Drop::Nothing {
+                tables.drop_repository(self.repository);
             }
+            return Ok(Some(Step::Done(Err(self.error(classified.error)))));
         }
-    }
-    fn check_repository(&self, document: &d::Document) -> Result<(), api::Error> {
-        if !self.resolving {
-            return Ok(());
-        }
-        let repository = match document {
-            d::Document::Repository(repository) => repository,
-            d::Document::Token(_)
-            | d::Document::User(_)
-            | d::Document::Org(_)
-            | d::Document::CreatedFile { .. }
-            | d::Document::CreatedRepository(_)
-            | d::Document::Hook(_)
-            | d::Document::Team(_)
-            | d::Document::ApiSettings(_)
-            | d::Document::RepoSearch { .. }
-            | d::Document::Search { .. }
-            | d::Document::Listed { .. }
-            | d::Document::Issue(_)
-            | d::Document::Comment(_)
-            | d::Document::Pull(_)
-            | d::Document::Status(_)
-            | d::Document::Review(_)
-            | d::Document::CombinedStatus(_)
-            | d::Document::Branch(_)
-            | d::Document::Protection(_)
-            | d::Document::Permission(_)
-            | d::Document::Compare(_)
-            | d::Document::Tree { .. }
-            | d::Document::Runs { .. }
-            | d::Document::Job(_)
-            | d::Document::Run(_)
-            | d::Document::Error(_) => return Err(self.error(api::Error::Timeout)),
-        };
-        let Ok(id) = u32::try_from(repository.id) else {
-            return Err(api::Error::TooLarge);
-        };
-        if id != self.repository.repository {
-            return Err(self.error(api::Error::Timeout));
-        }
-        Ok(())
-    }
-    fn before_write(&self) -> bool {
-        match &self.write {
-            api::Write::OpenPull { .. } => {
-                self.resolving
-                    || match self.stage {
-                        Stage::Head | Stage::Base | Stage::Compare => true,
-                        Stage::Write | Stage::Reviewers | Stage::User | Stage::Add | Stage::Remove | Stage::Merged => {
-                            false
-                        }
-                    }
+        let document = match body {
+            Body::Document(document) => Some(document),
+            Body::Empty => None,
+            Body::Malformed(crate::forgejo::decode::Malformed::Bound { .. }) => {
+                return Err(self.error(if self.asked() == Asked::BeforeWrite {
+                    api::Error::TooLarge
+                } else {
+                    api::Error::Timeout
+                }));
             }
-            api::Write::CreateIssue { .. }
-            | api::Write::Post { .. }
-            | api::Write::Review { .. }
-            | api::Write::Edit { .. }
-            | api::Write::SetReviewers { .. }
-            | api::Write::Close { .. }
-            | api::Write::Reopen { .. }
-            | api::Write::Merge { .. }
-            | api::Write::Update { .. }
-            | api::Write::Status { .. }
-            | api::Write::CreateBranch { .. }
-            | api::Write::Dispatch { .. }
-            | api::Write::Rerun { .. }
-            | api::Write::DeleteBranch { .. } => false,
+            Body::Malformed(_) | Body::Raw { .. } => return Err(self.error(api::Error::Timeout)),
+        };
+        self.check_pull_ids(document.as_ref())?;
+        self.check_repository(document.as_ref())?;
+        if let Some(document) = &document {
+            crate::forgejo::plans::reads::keep::keep_document(document, self.repository.forge, tables);
+        }
+        let errors = self.errors();
+        let state = core::mem::replace(&mut self.state, State::Ended);
+        let step;
+        (self.state, step) = match next(state, document, self.repository, bounds, word, tables) {
+            Ok(next) => next,
+            Err(error) => return Err(errors.error(error)),
+        };
+        Ok(Some(step))
+    }
+    fn conflict(&self) -> Option<Result<api::Answer, api::Error>> {
+        match &self.state {
+            State::Writing { write, .. } => match write {
+                api::Write::CreateBranch { .. } => Some(Ok(api::Answer::Branch(api::BranchCreation::Exists))),
+                api::Write::Update { style: api::UpdateStyle::Rebase, .. } => Some(Err(api::Error::Conflict)),
+                api::Write::CreateIssue { .. }
+                | api::Write::Post { .. }
+                | api::Write::Review { .. }
+                | api::Write::Edit { .. }
+                | api::Write::Close { .. }
+                | api::Write::Reopen { .. }
+                | api::Write::Status { .. }
+                | api::Write::Update { style: api::UpdateStyle::Merge, .. }
+                | api::Write::Dispatch { .. }
+                | api::Write::Rerun { .. }
+                | api::Write::DeleteBranch { .. }
+                | api::Write::OpenPull { .. }
+                | api::Write::SetReviewers { .. }
+                | api::Write::Merge { .. } => None,
+            },
+            State::New { .. }
+            | State::Resolving { .. }
+            | State::Merged { .. }
+            | State::OpenHead { .. }
+            | State::OpenBase { .. }
+            | State::OpenCompare { .. }
+            | State::Reviewers { .. }
+            | State::Searching { .. }
+            | State::Adding { .. }
+            | State::Removing { .. } => None,
+            State::Ended => unreachable!("ended write has no conflict"),
         }
     }
-    fn check_pull_ids(&self, document: &d::Document) -> Result<(), api::Error> {
+    fn check_repository(&self, document: Option<&d::Document>) -> Result<(), api::Error> {
+        match &self.state {
+            State::Resolving { .. } => {}
+            State::New { .. }
+            | State::Writing { .. }
+            | State::Merged { .. }
+            | State::OpenHead { .. }
+            | State::OpenBase { .. }
+            | State::OpenCompare { .. }
+            | State::Reviewers { .. }
+            | State::Searching { .. }
+            | State::Adding { .. }
+            | State::Removing { .. } => return Ok(()),
+            State::Ended => unreachable!("ended write has no repository answer"),
+        }
         match document {
-            d::Document::Pull(pull) => {
-                let format = self.row.as_ref().expect("resolved pull").object_format;
+            Some(d::Document::Repository(repository)) => {
+                let Ok(id) = u32::try_from(repository.id) else {
+                    return Err(api::Error::TooLarge);
+                };
+                if id != self.repository.repository {
+                    return Err(self.error(api::Error::Timeout));
+                }
+                Ok(())
+            }
+            Some(_) | None => Err(self.error(api::Error::Timeout)),
+        }
+    }
+    fn check_pull_ids(&self, document: Option<&d::Document>) -> Result<(), api::Error> {
+        match document {
+            Some(d::Document::Pull(pull)) => {
+                let row = match &self.state {
+                    State::Writing { row, .. }
+                    | State::Merged { row }
+                    | State::OpenHead { row, .. }
+                    | State::OpenBase { row, .. }
+                    | State::OpenCompare { row, .. }
+                    | State::Reviewers { row, .. }
+                    | State::Searching { row, .. }
+                    | State::Adding { row, .. }
+                    | State::Removing { row } => row,
+                    State::New { .. } | State::Resolving { .. } | State::Ended => {
+                        unreachable!("pull answer needs a resolved repository")
+                    }
+                };
+                let format = row.object_format;
                 for id in [pull.head.sha, pull.base.sha, pull.merge_base, pull.merge_commit_sha].into_iter().flatten() {
                     if reading::commit(id, format).is_none() {
                         return Err(self.error(api::Error::Timeout));
                     }
                 }
+                Ok(())
             }
-            d::Document::Token(_)
-            | d::Document::User(_)
-            | d::Document::Org(_)
-            | d::Document::CreatedFile { .. }
-            | d::Document::CreatedRepository(_)
-            | d::Document::Hook(_)
-            | d::Document::Team(_)
-            | d::Document::ApiSettings(_)
-            | d::Document::Repository(_)
-            | d::Document::RepoSearch { .. }
-            | d::Document::Search { .. }
-            | d::Document::Listed { .. }
-            | d::Document::Issue(_)
-            | d::Document::Comment(_)
-            | d::Document::Status(_)
-            | d::Document::Review(_)
-            | d::Document::CombinedStatus(_)
-            | d::Document::Branch(_)
-            | d::Document::Protection(_)
-            | d::Document::Permission(_)
-            | d::Document::Compare(_)
-            | d::Document::Tree { .. }
-            | d::Document::Runs { .. }
-            | d::Document::Job(_)
-            | d::Document::Run(_)
-            | d::Document::Error(_) => {}
+            Some(_) | None => Ok(()),
         }
-        Ok(())
     }
     #[must_use]
     pub fn error(&self, error: api::Error) -> api::Error {
-        match self.stage {
-            Stage::Merged => api::Error::Timeout,
-            Stage::Write
-            | Stage::Head
-            | Stage::Base
-            | Stage::Compare
-            | Stage::Reviewers
-            | Stage::User
-            | Stage::Add
-            | Stage::Remove => failure::before_write(self.asked(), error),
-        }
-    }
-    fn next(&mut self, document: Option<d::Document>, tables: &mut Tables) -> Result<Step, api::Error> {
-        match self.stage {
-            Stage::Write => match self.write {
-                api::Write::Merge { number, .. } => {
-                    if document.is_some() {
-                        return Err(api::Error::Timeout);
-                    }
-                    self.stage = Stage::Merged;
-                    Ok(Step::send(Request::Pull { at: self.at(), number }))
-                }
-                api::Write::CreateIssue { .. }
-                | api::Write::OpenPull { .. }
-                | api::Write::Post { .. }
-                | api::Write::Review { .. }
-                | api::Write::Edit { .. }
-                | api::Write::SetReviewers { .. }
-                | api::Write::Close { .. }
-                | api::Write::Reopen { .. }
-                | api::Write::Update { .. }
-                | api::Write::Status { .. }
-                | api::Write::CreateBranch { .. }
-                | api::Write::Dispatch { .. }
-                | api::Write::Rerun { .. }
-                | api::Write::DeleteBranch { .. } => Ok(Step::Done(Ok(self.answer(document)?))),
-            },
-            Stage::Head | Stage::Base => self.branch(document),
-            Stage::Compare => {
-                let Some(d::Document::Compare(compare)) = document else {
-                    return Err(api::Error::InvalidAnswer);
-                };
-                if compare.total_commits == 0 {
-                    return Ok(Step::Done(Err(api::Error::NothingToMerge)));
-                }
-                let request = match &self.write {
-                    api::Write::OpenPull { title, body, head, base } => Request::OpenPull {
-                        at: self.at(),
-                        title: title.clone(),
-                        body: body.clone(),
-                        head: head.clone(),
-                        base: base.clone(),
-                    },
-                    api::Write::CreateIssue { .. }
-                    | api::Write::Post { .. }
-                    | api::Write::Review { .. }
-                    | api::Write::Edit { .. }
-                    | api::Write::SetReviewers { .. }
-                    | api::Write::Close { .. }
-                    | api::Write::Reopen { .. }
-                    | api::Write::Merge { .. }
-                    | api::Write::Update { .. }
-                    | api::Write::Status { .. }
-                    | api::Write::CreateBranch { .. }
-                    | api::Write::Dispatch { .. }
-                    | api::Write::Rerun { .. }
-                    | api::Write::DeleteBranch { .. } => unreachable!("opening's comparison"),
-                };
-                self.stage = Stage::Write;
-                Ok(Step::send(request))
-            }
-            Stage::Reviewers => {
-                let Some(d::Document::Pull(pull)) = document else {
-                    return Err(api::Error::Timeout);
-                };
-                Ok(self.reviewers(pull, tables))
-            }
-            Stage::User => {
-                let Some(d::Document::Search { ok: true }) = document else {
-                    return Err(api::Error::Missing);
-                };
-                let id = *self.missing.get(self.position).expect("looked-up reviewer");
-                let Some(login) = tables.user(self.repository.forge, id) else {
-                    return Err(api::Error::Missing);
-                };
-                self.add.push(Box::from(login)).expect("missing count");
-                self.position = self.position.saturating_add(1);
-                Ok(self.lookup(tables))
-            }
-            Stage::Add => {
-                self.stage = Stage::Remove;
-                Ok(self.reviewer_write())
-            }
-            Stage::Remove => Ok(Step::Done(Ok(api::Answer::Done))),
-            Stage::Merged => {
-                let Some(d::Document::Pull(pull)) = document else {
-                    return Err(api::Error::Timeout);
-                };
-                let Some(commit) = pull.merge_commit_sha else {
-                    return Err(api::Error::Timeout);
-                };
-                let Some(commit) = reading::commit(commit, self.row.as_ref().expect("format").object_format) else {
-                    return Err(api::Error::Timeout);
-                };
-                Ok(Step::Done(Ok(api::Answer::Merged(commit))))
-            }
-        }
-    }
-    fn reviewers(&mut self, pull: d::PullRequest, tables: &mut Tables) -> Step {
-        let reviewers = match &self.write {
-            api::Write::SetReviewers { reviewers, .. } => reviewers,
-            api::Write::CreateIssue { .. }
-            | api::Write::OpenPull { .. }
-            | api::Write::Post { .. }
-            | api::Write::Review { .. }
-            | api::Write::Edit { .. }
-            | api::Write::Close { .. }
-            | api::Write::Reopen { .. }
-            | api::Write::Merge { .. }
-            | api::Write::Update { .. }
-            | api::Write::Status { .. }
-            | api::Write::CreateBranch { .. }
-            | api::Write::Dispatch { .. }
-            | api::Write::Rerun { .. }
-            | api::Write::DeleteBranch { .. } => unreachable!("reviewer plan"),
-        };
-        let capacity = u32::try_from(reviewers.len()).expect("bounded op");
-        self.missing = List::with_capacity(capacity);
-        self.add = List::with_capacity(capacity);
-        self.remove = List::with_capacity(u32::try_from(pull.requested_reviewers.len()).expect("bounded inner"));
-        for id in reviewers {
-            let mut found = false;
-            for user in &pull.requested_reviewers {
-                found |= user.id == *id;
-            }
-            if !found && !self.missing.as_slice().contains(id) {
-                self.missing.push(*id).expect("desired count");
-            }
-        }
-        for user in pull.requested_reviewers {
-            if !reviewers.contains(&user.id) {
-                self.remove.push(user.login).expect("current count");
-            }
-        }
-        self.lookup(tables)
-    }
-    fn branch(&mut self, document: Option<d::Document>) -> Result<Step, api::Error> {
-        let Some(d::Document::Branch(branch)) = document else {
-            return Err(api::Error::InvalidAnswer);
-        };
-        if reading::commit(branch.commit, self.row.as_ref().expect("format").object_format).is_none() {
-            return Err(api::Error::InvalidAnswer);
-        }
-        let base = match &self.write {
-            api::Write::OpenPull { base, .. } => base.clone(),
-            api::Write::CreateIssue { .. }
-            | api::Write::Post { .. }
-            | api::Write::Review { .. }
-            | api::Write::Edit { .. }
-            | api::Write::SetReviewers { .. }
-            | api::Write::Close { .. }
-            | api::Write::Reopen { .. }
-            | api::Write::Merge { .. }
-            | api::Write::Update { .. }
-            | api::Write::Status { .. }
-            | api::Write::CreateBranch { .. }
-            | api::Write::Dispatch { .. }
-            | api::Write::Rerun { .. }
-            | api::Write::DeleteBranch { .. } => unreachable!("opening's branches"),
-        };
-        let request = match self.stage {
-            Stage::Head => {
-                self.head = Some(branch.commit);
-                self.stage = Stage::Base;
-                Request::Branch { at: self.at(), name: base }
-            }
-            Stage::Base => {
-                self.stage = Stage::Compare;
-                let after = self.head.expect("head branch");
-                Request::Compare { at: self.at(), before: branch.commit, after, files: false }
-            }
-            Stage::Write
-            | Stage::Compare
-            | Stage::Reviewers
-            | Stage::User
-            | Stage::Add
-            | Stage::Remove
-            | Stage::Merged => unreachable!("branch stages"),
-        };
-        Ok(Step::send(request))
-    }
-    fn lookup(&mut self, tables: &mut Tables) -> Step {
-        for _ in self.position..self.missing.len() {
-            let id = *self.missing.get(self.position).expect("missing reviewer");
-            let Some(login) = tables.user(self.repository.forge, id) else {
-                self.stage = Stage::User;
-                return Step::send(Request::UserSearch { uid: id, limit: Some(1) });
-            };
-            self.add.push(Box::from(login)).expect("missing count");
-            self.position = self.position.saturating_add(1);
-        }
-        self.stage = Stage::Add;
-        self.reviewer_write()
-    }
-    fn reviewer_write(&mut self) -> Step {
-        let number = match self.write {
-            api::Write::SetReviewers { number, .. } => number,
-            api::Write::CreateIssue { .. }
-            | api::Write::OpenPull { .. }
-            | api::Write::Post { .. }
-            | api::Write::Review { .. }
-            | api::Write::Edit { .. }
-            | api::Write::Close { .. }
-            | api::Write::Reopen { .. }
-            | api::Write::Merge { .. }
-            | api::Write::Update { .. }
-            | api::Write::Status { .. }
-            | api::Write::CreateBranch { .. }
-            | api::Write::Dispatch { .. }
-            | api::Write::Rerun { .. }
-            | api::Write::DeleteBranch { .. } => unreachable!("reviewer plan"),
-        };
-        match self.stage {
-            Stage::Add => {
-                if !self.add.is_empty() {
-                    let reviewers = core::mem::replace(&mut self.add, List::with_capacity(0)).into_boxed();
-                    return Step::send(Request::RequestReviewers { at: self.at(), number, reviewers });
-                }
-                self.stage = Stage::Remove;
-            }
-            Stage::Remove => {}
-            Stage::Write
-            | Stage::Head
-            | Stage::Base
-            | Stage::Compare
-            | Stage::Reviewers
-            | Stage::User
-            | Stage::Merged => unreachable!("reviewer writes"),
-        }
-        if self.remove.is_empty() {
-            return Step::Done(Ok(api::Answer::Done));
-        }
-        let reviewers = core::mem::replace(&mut self.remove, List::with_capacity(0)).into_boxed();
-        Step::send(Request::RemoveReviewers { at: self.at(), number, reviewers })
-    }
-    fn answer(&self, document: Option<d::Document>) -> Result<api::Answer, api::Error> {
-        match &self.write {
-            api::Write::CreateIssue { .. } => match document {
-                Some(d::Document::Issue(issue)) => Ok(api::Answer::Created(issue.number)),
-                Some(_) | None => Err(api::Error::Timeout),
-            },
-            api::Write::Post { .. } => match document {
-                Some(d::Document::Comment(comment)) => Ok(api::Answer::Commented(comment.id)),
-                Some(_) | None => Err(api::Error::Timeout),
-            },
-            api::Write::Review { .. } => match document {
-                Some(d::Document::Review(review)) => {
-                    if reading::commit(review.commit_id, self.row.as_ref().expect("format").object_format).is_none() {
-                        return Err(api::Error::Timeout);
-                    }
-                    Ok(api::Answer::Reviewed(review.id))
-                }
-                Some(_) | None => Err(api::Error::Timeout),
-            },
-            api::Write::Edit { .. } | api::Write::Close { .. } | api::Write::Reopen { .. } => match document {
-                Some(d::Document::Issue(_)) => Ok(api::Answer::Done),
-                Some(_) | None => Err(api::Error::Timeout),
-            },
-            api::Write::Status { .. } => match document {
-                Some(d::Document::Status(_)) => Ok(api::Answer::Done),
-                Some(_) | None => Err(api::Error::Timeout),
-            },
-            api::Write::CreateBranch { .. } => match document {
-                Some(d::Document::Branch(branch)) => {
-                    if reading::commit(branch.commit, self.row.as_ref().expect("format").object_format).is_none() {
-                        return Err(api::Error::Timeout);
-                    }
-                    Ok(api::Answer::Branch(api::BranchCreation::Created))
-                }
-                Some(_) | None => Err(api::Error::Timeout),
-            },
-            api::Write::Dispatch { .. }
-            | api::Write::Rerun { .. }
-            | api::Write::Update { .. }
-            | api::Write::DeleteBranch { .. } => match document {
-                None => Ok(api::Answer::Done),
-                Some(_) => Err(api::Error::Timeout),
-            },
-            api::Write::OpenPull { .. } => match document {
-                Some(d::Document::Pull(pull)) => Ok(api::Answer::Created(pull.number)),
-                Some(_) | None => Err(api::Error::Timeout),
-            },
-            api::Write::SetReviewers { .. } | api::Write::Merge { .. } => Err(api::Error::Timeout),
-        }
+        self.errors().error(error)
     }
 }
+fn at(row: &Repository) -> r::Repo {
+    r::Repo { owner: row.owner.clone(), name: row.name.clone() }
+}
+fn id(row: &Repository, bytes: api::Commit) -> ObjectId {
+    ObjectId { bytes, format: row.object_format }
+}
+fn initial(row: Repository, write: api::Write, bounds: Bounds, word: &[u8]) -> Result<(State, Step), api::Error> {
+    let at = at(&row);
+    let request = match write.clone() {
+        api::Write::Dispatch { workflow, branch, inputs } => Request::Dispatch { at, workflow, branch, inputs },
+        api::Write::Rerun { attempt: job } => Request::Rerun { at, job: job.job },
+        api::Write::CreateIssue { key, title, body } => {
+            Request::CreateIssue { at, title, body: marked(word, &key, &body, bounds)? }
+        }
+        api::Write::Post { number, key, body } => {
+            Request::PostComment { at, number, body: marked(word, &key, &body, bounds)? }
+        }
+        api::Write::Review { number, key, verdict, body } => {
+            let event = match verdict {
+                api::Verdict::Approve => r::ReviewEvent::Approved,
+                api::Verdict::RequestChanges => r::ReviewEvent::RequestChanges,
+                api::Verdict::Comment => r::ReviewEvent::Comment,
+            };
+            Request::PostReview { at, number, event, body: marked(word, &key, &body, bounds)? }
+        }
+        api::Write::Edit { number, title, body } => Request::EditIssue { at, number, title, body, state: None },
+        api::Write::Close { number } => {
+            Request::EditIssue { at, number, title: None, body: None, state: Some(d::IssueState::Closed) }
+        }
+        api::Write::Reopen { number } => {
+            Request::EditIssue { at, number, title: None, body: None, state: Some(d::IssueState::Open) }
+        }
+        api::Write::Update { number, style } => Request::Update {
+            at,
+            number,
+            style: Some(match style {
+                api::UpdateStyle::Merge => r::UpdateStyle::Merge,
+                api::UpdateStyle::Rebase => r::UpdateStyle::Rebase,
+            }),
+        },
+        api::Write::Status { commit, context, check, description, link } => {
+            let state = match check {
+                api::Check::Pending => d::StatusState::Pending,
+                api::Check::Passed => d::StatusState::Success,
+                api::Check::Failed => d::StatusState::Failure,
+            };
+            Request::PostStatus { at, commit: id(&row, commit), state, context, description, link }
+        }
+        api::Write::CreateBranch { branch, commit } => Request::CreateBranch { at, branch, from: id(&row, commit) },
+        api::Write::DeleteBranch { branch } => Request::DeleteBranch { at, branch },
+        api::Write::OpenPull { title, body, head, base } => {
+            drop(write);
+            let request = Request::Branch { at, name: head.clone() };
+            return Ok((State::OpenHead { row, open: Open { title, body, head, base } }, Step::send(request)));
+        }
+        api::Write::SetReviewers { number, reviewers } => {
+            return Ok((State::Reviewers { row, number, reviewers }, Step::send(Request::Pull { at, number })));
+        }
+        api::Write::Merge { number, head, how } => Request::Merge {
+            at,
+            number,
+            style: match how {
+                api::MergeHow::Style => row.merge_style,
+                api::MergeHow::FastForwardOnly => d::MergeStyle::FastForwardOnly,
+            },
+            head: id(&row, head),
+        },
+    };
+    Ok((State::Writing { row, write }, Step::send(request)))
+}
+fn asked(write: &api::Write) -> Asked {
+    match write {
+        api::Write::OpenPull { .. } => Asked::OpenPull,
+        api::Write::Merge { .. } => Asked::Merge,
+        api::Write::Update { .. } => Asked::Update,
+        api::Write::DeleteBranch { .. } => Asked::DeleteBranch,
+        api::Write::Dispatch { .. }
+        | api::Write::Rerun { .. }
+        | api::Write::CreateIssue { .. }
+        | api::Write::Post { .. }
+        | api::Write::Review { .. }
+        | api::Write::Edit { .. }
+        | api::Write::SetReviewers { .. }
+        | api::Write::Close { .. }
+        | api::Write::Reopen { .. }
+        | api::Write::Status { .. }
+        | api::Write::CreateBranch { .. } => Asked::Write,
+    }
+}
+fn expected(write: &api::Write) -> u16 {
+    match write {
+        api::Write::Update { .. } | api::Write::Merge { .. } | api::Write::Review { .. } => 200,
+        api::Write::Dispatch { .. } | api::Write::Rerun { .. } | api::Write::DeleteBranch { .. } => 204,
+        api::Write::CreateIssue { .. }
+        | api::Write::Post { .. }
+        | api::Write::Edit { .. }
+        | api::Write::Close { .. }
+        | api::Write::Reopen { .. }
+        | api::Write::Status { .. }
+        | api::Write::CreateBranch { .. }
+        | api::Write::OpenPull { .. } => 201,
+        api::Write::SetReviewers { .. } => unreachable!("reviewer exchanges have their own stages"),
+    }
+}
+fn next(
+    state: State,
+    document: Option<d::Document>,
+    repository: api::Repository,
+    bounds: Bounds,
+    word: &[u8],
+    tables: &mut Tables,
+) -> Result<(State, Step), api::Error> {
+    match state {
+        State::Resolving { write } => match document {
+            Some(d::Document::Repository(document)) => {
+                let row = reading::repository(document);
+                tables.keep_repository(repository, row.clone());
+                initial(row, write, bounds, word)
+            }
+            Some(_) | None => Err(api::Error::Timeout),
+        },
+        State::Writing { row, write } => written(row, write, document),
+        State::OpenHead { row, open } => {
+            let head = branch(&row, document)?;
+            let request = Request::Branch { at: at(&row), name: open.base.clone() };
+            Ok((State::OpenBase { row, open, head }, Step::send(request)))
+        }
+        State::OpenBase { row, open, head } => {
+            let before = branch(&row, document)?;
+            let request = Request::Compare { at: at(&row), before, after: head, files: false };
+            Ok((State::OpenCompare { row, open }, Step::send(request)))
+        }
+        State::OpenCompare { row, open } => compared(row, open, document),
+        State::Reviewers { row, number, reviewers: desired } => match document {
+            Some(d::Document::Pull(pull)) => Ok(reviewers(row, number, &desired, pull, repository.forge, tables)),
+            Some(_) | None => Err(api::Error::Timeout),
+        },
+        State::Searching { row, number, mut looking } => {
+            match document {
+                Some(d::Document::Search { ok: true }) => {}
+                Some(_) | None => return Err(api::Error::Missing),
+            }
+            let id = *looking.missing.get(looking.position).expect("looked-up reviewer");
+            let Some(login) = tables.user(repository.forge, id) else {
+                return Err(api::Error::Missing);
+            };
+            looking.add.push(Box::from(login)).expect("missing count");
+            looking.position = looking.position.saturating_add(1);
+            Ok(lookup(row, number, looking, repository.forge, tables))
+        }
+        State::Adding { row, number, remove } => Ok(remove_reviewers(row, number, remove)),
+        State::Removing { .. } => Ok((State::Ended, Step::Done(Ok(api::Answer::Done)))),
+        State::Merged { row } => match document {
+            Some(d::Document::Pull(pull)) => {
+                let commit = pull.merge_commit_sha.ok_or(api::Error::Timeout)?;
+                let commit = reading::commit(commit, row.object_format).ok_or(api::Error::Timeout)?;
+                Ok((State::Ended, Step::Done(Ok(api::Answer::Merged(commit)))))
+            }
+            Some(_) | None => Err(api::Error::Timeout),
+        },
+        State::New { .. } | State::Ended => unreachable!("write answer needs an exchange"),
+    }
+}
+fn compared(row: Repository, open: Open, document: Option<d::Document>) -> Result<(State, Step), api::Error> {
+    match document {
+        Some(d::Document::Compare(compare)) => {
+            if compare.total_commits == 0 {
+                return Ok((State::Ended, Step::Done(Err(api::Error::NothingToMerge))));
+            }
+            let request = Request::OpenPull {
+                at: at(&row),
+                title: open.title.clone(),
+                body: open.body.clone(),
+                head: open.head.clone(),
+                base: open.base.clone(),
+            };
+            let write = api::Write::OpenPull { title: open.title, body: open.body, head: open.head, base: open.base };
+            Ok((State::Writing { row, write }, Step::send(request)))
+        }
+        Some(_) | None => Err(api::Error::InvalidAnswer),
+    }
+}
+fn branch(row: &Repository, document: Option<d::Document>) -> Result<ObjectId, api::Error> {
+    match document {
+        Some(d::Document::Branch(branch)) => {
+            if reading::commit(branch.commit, row.object_format).is_none() {
+                return Err(api::Error::InvalidAnswer);
+            }
+            Ok(branch.commit)
+        }
+        Some(_) | None => Err(api::Error::InvalidAnswer),
+    }
+}
+fn reviewers(
+    row: Repository,
+    number: u64,
+    desired: &[u64],
+    pull: d::PullRequest,
+    forge: u16,
+    tables: &mut Tables,
+) -> (State, Step) {
+    let capacity = u32::try_from(desired.len()).expect("bounded op");
+    let mut looking = Looking {
+        missing: List::with_capacity(capacity),
+        position: 0,
+        add: List::with_capacity(capacity),
+        remove: List::with_capacity(u32::try_from(pull.requested_reviewers.len()).expect("bounded inner")),
+    };
+    for id in desired {
+        let mut found = false;
+        for user in &pull.requested_reviewers {
+            found |= user.id == *id;
+        }
+        if !found && !looking.missing.as_slice().contains(id) {
+            looking.missing.push(*id).expect("desired count");
+        }
+    }
+    for user in pull.requested_reviewers {
+        if !desired.contains(&user.id) {
+            looking.remove.push(user.login).expect("current count");
+        }
+    }
+    lookup(row, number, looking, forge, tables)
+}
+fn lookup(row: Repository, number: u64, mut looking: Looking, forge: u16, tables: &mut Tables) -> (State, Step) {
+    for _ in looking.position..looking.missing.len() {
+        let id = *looking.missing.get(looking.position).expect("missing reviewer");
+        let Some(login) = tables.user(forge, id) else {
+            return (
+                State::Searching { row, number, looking },
+                Step::send(Request::UserSearch { uid: id, limit: Some(1) }),
+            );
+        };
+        looking.add.push(Box::from(login)).expect("missing count");
+        looking.position = looking.position.saturating_add(1);
+    }
+    if looking.add.is_empty() {
+        return remove_reviewers(row, number, looking.remove);
+    }
+    let request = Request::RequestReviewers { at: at(&row), number, reviewers: looking.add.into_boxed() };
+    (State::Adding { row, number, remove: looking.remove }, Step::send(request))
+}
+fn remove_reviewers(row: Repository, number: u64, remove: List<Box<[u8]>>) -> (State, Step) {
+    if remove.is_empty() {
+        return (State::Ended, Step::Done(Ok(api::Answer::Done)));
+    }
+    let request = Request::RemoveReviewers { at: at(&row), number, reviewers: remove.into_boxed() };
+    (State::Removing { row }, Step::send(request))
+}
+fn written(row: Repository, write: api::Write, document: Option<d::Document>) -> Result<(State, Step), api::Error> {
+    let answer = match write {
+        api::Write::CreateIssue { .. } => match document {
+            Some(d::Document::Issue(issue)) => Ok(api::Answer::Created(issue.number)),
+            Some(_) | None => Err(api::Error::Timeout),
+        },
+        api::Write::Post { .. } => match document {
+            Some(d::Document::Comment(comment)) => Ok(api::Answer::Commented(comment.id)),
+            Some(_) | None => Err(api::Error::Timeout),
+        },
+        api::Write::Review { .. } => match document {
+            Some(d::Document::Review(review)) => {
+                if reading::commit(review.commit_id, row.object_format).is_none() {
+                    return Err(api::Error::Timeout);
+                }
+                Ok(api::Answer::Reviewed(review.id))
+            }
+            Some(_) | None => Err(api::Error::Timeout),
+        },
+        api::Write::Edit { .. } | api::Write::Close { .. } | api::Write::Reopen { .. } => match document {
+            Some(d::Document::Issue(_)) => Ok(api::Answer::Done),
+            Some(_) | None => Err(api::Error::Timeout),
+        },
+        api::Write::Status { .. } => match document {
+            Some(d::Document::Status(_)) => Ok(api::Answer::Done),
+            Some(_) | None => Err(api::Error::Timeout),
+        },
+        api::Write::CreateBranch { .. } => match document {
+            Some(d::Document::Branch(branch)) => {
+                if reading::commit(branch.commit, row.object_format).is_none() {
+                    return Err(api::Error::Timeout);
+                }
+                Ok(api::Answer::Branch(api::BranchCreation::Created))
+            }
+            Some(_) | None => Err(api::Error::Timeout),
+        },
+        api::Write::Dispatch { .. }
+        | api::Write::Rerun { .. }
+        | api::Write::Update { .. }
+        | api::Write::DeleteBranch { .. } => match document {
+            None => Ok(api::Answer::Done),
+            Some(_) => Err(api::Error::Timeout),
+        },
+        api::Write::OpenPull { .. } => match document {
+            Some(d::Document::Pull(pull)) => Ok(api::Answer::Created(pull.number)),
+            Some(_) | None => Err(api::Error::Timeout),
+        },
+        api::Write::SetReviewers { .. } => Err(api::Error::Timeout),
+        api::Write::Merge { number, .. } => {
+            if document.is_some() {
+                return Err(api::Error::Timeout);
+            }
+            let request = Request::Pull { at: at(&row), number };
+            return Ok((State::Merged { row }, Step::send(request)));
+        }
+    }?;
+    Ok((State::Ended, Step::Done(Ok(answer))))
+}
+
 fn marked(word: &[u8], key: &[u8], body: &[u8], bounds: Bounds) -> Result<Box<[u8]>, api::Error> {
     marker::encode(word, key, body, bounds.body_bytes).ok_or(api::Error::Refused)
 }

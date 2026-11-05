@@ -36,7 +36,7 @@ mod foreman;
 mod holds;
 mod relay;
 pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
-pub(crate) use relay::{ChangeStep, refused as relay_refused};
+pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 
 mod merge;
 
@@ -4370,11 +4370,35 @@ pub(crate) fn outputs(
                 let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { continue };
                 let brief = Token::new(row.task);
                 let event = match size {
-                    Some(size) if row.cutting => brief::GatherEvent::Cut { brief, section, size },
-                    Some(size) => brief::GatherEvent::Ready { brief, section, size },
-                    None => brief::GatherEvent::Missing { brief, section },
+                    Ok(size) if row.cutting => brief::GatherEvent::Cut { brief, section, size },
+                    Ok(size) => brief::GatherEvent::Ready { brief, section, size },
+                    Err(unread) => brief::GatherEvent::Missing {
+                        brief,
+                        section,
+                        why: brief::GatherFailure {
+                            fate: match unread.fate {
+                                forge::BriefFate::Capacity => brief::GatherFate::Capacity,
+                                forge::BriefFate::Transient => brief::GatherFate::Transient,
+                                forge::BriefFate::Permanent => brief::GatherFate::Permanent,
+                            },
+                            section: crate::assemble::forge_brief_name(&row.kind),
+                            words: unread.words,
+                        },
+                    },
                 };
                 domain.work.push(Work::Brief(event));
+            }
+            forge::Request::BriefReadRefused { section, stage, error } => {
+                let Some(row) = domain.brief_connectors.get(Id::from_token(section)) else { continue };
+                super::diagnostics::emit(
+                    domain,
+                    crate::Fact::BriefReadRefused {
+                        task: row.task,
+                        section: crate::assemble::forge_brief_name(&row.kind),
+                        stage,
+                        error,
+                    },
+                );
             }
             forge::Request::BriefTaken { .. } => unreachable!("the root takes completed sections directly"),
             forge::Request::MarkedForges => domain.mark_forges(),

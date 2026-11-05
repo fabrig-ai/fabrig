@@ -179,7 +179,7 @@ pub fn registration(story: Story) -> oauth::Registration {
         registration.redirect_uri = bytes::copy_of(b"http://127.0.0.1:31234/callback");
     }
     if confidential(story) {
-        registration.client_secret = Some(bytes::copy_of(b"fake-secret"));
+        registration.client_secret = Some(skein_lib::Secret::new(bytes::copy_of(b"fake-secret")));
         registration.redirect_uri = bytes::copy_of(b"https://service.example/callback");
     }
     if matches!(story, Story::VaryingTaken | Story::TwoPorts) {

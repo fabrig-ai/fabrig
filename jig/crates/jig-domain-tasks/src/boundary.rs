@@ -150,6 +150,7 @@ pub enum MessageFamily {
     Spoken(Spoken),
     Hint(Hint),
     Slot(Slot),
+    Separate(Separate),
     Result,
     Virtual,
 }
@@ -173,10 +174,6 @@ pub enum Hint {
 /// Control messages entering through reserved inbox room (domain/tasks.md, 8.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Slot {
-    Amendment,
-    FinishRequested,
-    Met,
-    NothingAwaited,
     EffectNotMade,
     SettingsDecision,
     ProposalDecision,
@@ -184,6 +181,15 @@ pub enum Slot {
     QuestionOwed,
     QuestionEnded,
     PersonStalled,
+}
+
+/// Messages with separately priced inbox slots (jig/docs/design/domain/tasks.md, 5.7 and 8.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Separate {
+    Amendment,
+    FinishRequested,
+    Met,
+    NothingAwaited,
 }
 
 /// Terminal shape carried with a delegate's bounded message words.
@@ -235,25 +241,7 @@ impl Word {
     /// Whether this message asks an agent to finish (domain/hosts.md, section 9).
     #[must_use]
     pub fn finish_requested(&self) -> bool {
-        match self.kind.family() {
-            MessageFamily::Slot(Slot::FinishRequested) => true,
-            MessageFamily::Slot(
-                Slot::Amendment
-                | Slot::Met
-                | Slot::NothingAwaited
-                | Slot::EffectNotMade
-                | Slot::SettingsDecision
-                | Slot::ProposalDecision
-                | Slot::QuestionAnswered
-                | Slot::QuestionOwed
-                | Slot::QuestionEnded
-                | Slot::PersonStalled,
-            )
-            | MessageFamily::Spoken(_)
-            | MessageFamily::Hint(_)
-            | MessageFamily::Result
-            | MessageFamily::Virtual => false,
-        }
+        self.kind.family() == MessageFamily::Separate(Separate::FinishRequested)
     }
 
     /// Whole admitted payload, including the opaque state of an approval result.
@@ -892,17 +880,21 @@ pub enum Phase {
         was: Was,
 
         why: Hold,
-        /// Exact connector-owned cause, retained in lifecycle milestones.
+        /// Exact cause, retained in lifecycle milestones.
         source: Option<Box<HoldSource>>,
     },
     /// Ended outcome; default restoration refuses it in the live arena.
     Ended(/** Final ending; this phase is excluded from the live restore arena. */ Ending),
 }
 
-/// What explains a hold beyond its reason: a connector's resource or effect, or the circle of
-/// waits a `Hold::Circle` names (client/domain/objects.md, 5; domain/tasks.md, 6.7).
+/// What explains a hold beyond its reason: a connector account, a preparation failure, or a
+/// circle of waits (client/domain/objects.md, 5; domain/tasks.md, 5.5 and 6.7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum HoldSource {
+    /// Why preparing failed past its allowance, only on `Hold::Failures`.
+    Preparation {
+        words: Box<[u8]>,
+    },
     Resource(Name),
     Effect {
         connector: u16,
@@ -1853,13 +1845,10 @@ pub enum Event {
     /// reply.
     /// Preparation became stale or waits for an account/host; return to due without a retry timer.
     PreparationWaiting { task: u64 },
-    PreparationFailed {
-        /// `Preparing` task to pause without consuming an activation failure try; absent or other-
-        /// phase tasks are ignored.
-        task: u64,
-    },
-    /// An unread transcript fails only a preparing task as transient, under its retry policy.
-    PreparationUnread { task: u64 },
+    /// Pause preparation without spending a try, retaining its reason.
+    PreparationPaused { task: u64, reason: Box<[u8]> },
+    /// Count a preparation failure, retaining its reason through backoff and hold.
+    PreparationCounted { task: u64, class: Class, reason: Box<[u8]> },
     /// Authorized notification preserving prior state and issuing `Stop` for any live run;
     /// absent tasks and unchanged reasons have no output.
     Hold {
@@ -2273,10 +2262,10 @@ impl MessageKind {
                 MessageFamily::Hint(Hint::News { subscription: *subscription, class: *class })
             }
             Self::PersonStalled { .. } => MessageFamily::Slot(Slot::PersonStalled),
-            Self::Amendment { .. } => MessageFamily::Slot(Slot::Amendment),
-            Self::FinishRequested { .. } => MessageFamily::Slot(Slot::FinishRequested),
-            Self::Met { .. } => MessageFamily::Slot(Slot::Met),
-            Self::NothingAwaited => MessageFamily::Slot(Slot::NothingAwaited),
+            Self::Amendment { .. } => MessageFamily::Separate(Separate::Amendment),
+            Self::FinishRequested { .. } => MessageFamily::Separate(Separate::FinishRequested),
+            Self::Met { .. } => MessageFamily::Separate(Separate::Met),
+            Self::NothingAwaited => MessageFamily::Separate(Separate::NothingAwaited),
             Self::Result(_) => MessageFamily::Result,
             Self::EffectNotMade { .. } => MessageFamily::Slot(Slot::EffectNotMade),
             Self::SettingsDecision { .. } => MessageFamily::Slot(Slot::SettingsDecision),

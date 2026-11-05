@@ -26,8 +26,9 @@ world tells none of their stories (`domain/forge.md`,
 but for the held landing's story, ignored for a restart fault
 (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story
-asks from a repair or a resolution and a step short of message room
-loses a foreman's verdict (`domain/forge.md`), and the foremen's
+asks from a repair or a resolution, or has its words refused, and a
+step short of message room loses a foreman's verdict
+(`domain/forge.md`), and the foremen's
 charter is not a setting. A
 project's policy in a change of settings and a revision restored are
 built through ctl, but the restore's stories in the domain world and
@@ -50,7 +51,18 @@ CI or tiers' workflows, and no walk applies the case's project file
 user's request of 2026-11-03 but for a message, a report, a person's
 spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
-with has not passed (`protocol/setup.md`). Much of a change's own
+with has not passed (`protocol/setup.md`). `temper init`'s documents hold
+`documents.text_bytes` at 512, where the `first-goal-fixes` request of
+2026-11-05 has 8,192, which the web and terminal clients refuse, so a spec
+reads in pieces of it (`protocol/setup.md`). A repair goes on at a head CI has
+since passed, and a release there makes a fresh one, where the design ends it
+(`domain/forge.md`), and `change show`'s
+`held:` line calls a cancelled delegate failed (`domain/forge.md`). A repair
+whose brief can't be read ends held naming why on the fake forge alone: the walk
+on a real Forgejo the `brief-failure` request of 2026-11-05 ends with has not
+passed, no test shows a gate's repair standing on its pull, and a forge not
+connected pauses a repair with no bound, by that plan's cut (`domain/forge.md`).
+No test runs real git on a dirty workspace (`protocol/git.md`). Much of a change's own
 bounds and gates, the forge's merge queue and a goal's issue lag, and
 the queue's first can lose its turn to a change stepped during it
 (`domain/forge.md`); so do Start goal's sheet, which no page opens, a live
@@ -81,7 +93,13 @@ request of 2026-11-05 has a restart too
 (`protocol/sign-in.md`); a connected Forgejo, its connect with its
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
-managed (`protocol/setup.md`); `temper forge sign-in` prints an owned
+managed (`protocol/setup.md`); a Forgejo connected as its admin polls,
+with no hook, where `draft/github.md` and the `adopt-access` request of
+2026-11-05 have one, which the user has not answered, and on a real
+Forgejo no story shows a plan making a hook (`protocol/setup.md`); a
+managed row set up failed offers Connect to ctl alone
+(`client/forge.md`), and the adoption form draws no read-only line
+(`client/README.md`); `temper forge sign-in` prints an owned
 Forgejo's command without its binary and paths
 (`protocol/setup.md`), a preparation keeps a runner's row when its
 configuration names a `uuid`, reading no row, where the `runner-labels`
@@ -91,6 +109,8 @@ is the user's to decide (`domain/worker.md`); with
 `TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
 workspaces stay as they are between workstreams and across a restart,
 for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
+with `TEMPER_DUMP_LLM` set, never a shipped default, an agent's
+environment holds that directory (`domain/worker.md`);
 a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
@@ -139,6 +159,8 @@ session's alone, beside a lag, any project's change of settings marking
 its first step; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
 bound on a migration, and its sheet, "Add repositories", is unbuilt;
+`draft/github.md`'s holds one the user has not answered, a Forgejo
+connected as its admin having its hook;
 `draft/first-run-projects.md`'s and `draft/to-begin.md`'s hold Home's "Add a
 repository" where they have "Adopt a repository";
 `draft/dogfood-hacks.md`'s holds one a plan's requester decided, with no

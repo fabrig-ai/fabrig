@@ -1,8 +1,7 @@
 //! Bounded task messages and atomic turn reads (domain/tasks.md, section 8.2).
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{
-    Hint, Limits, MessageFamily, MessageKind, NewsClass, Party, Phase, QuestionCredit, Refusal, Request, Slot, Spoken,
-    Word,
+    Hint, Limits, MessageFamily, MessageKind, NewsClass, Party, Phase, QuestionCredit, Refusal, Request, Spoken, Word,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, ReplyTo};
@@ -128,6 +127,7 @@ pub(crate) fn prepare_staged(
                 )
                 | MessageFamily::Spoken(_)
                 | MessageFamily::Slot(_)
+                | MessageFamily::Separate(_)
                 | MessageFamily::Result
                 | MessageFamily::Virtual => {}
             }
@@ -190,19 +190,11 @@ pub(crate) fn room_staged(
     let mut extra_bytes = 0_usize;
     for word in record.inbox {
         match word.kind.family() {
-            MessageFamily::Slot(Slot::Amendment | Slot::FinishRequested | Slot::Met | Slot::NothingAwaited) => {
+            MessageFamily::Separate(_) => {
                 extra_count = extra_count.checked_add(1).expect("bounded merged slots");
                 extra_bytes = extra_bytes.checked_add(word.words.len()).expect("bounded amendment bytes");
             }
-            MessageFamily::Slot(
-                Slot::EffectNotMade
-                | Slot::SettingsDecision
-                | Slot::ProposalDecision
-                | Slot::QuestionAnswered
-                | Slot::QuestionOwed
-                | Slot::QuestionEnded
-                | Slot::PersonStalled,
-            )
+            MessageFamily::Slot(_)
             | MessageFamily::Spoken(_)
             | MessageFamily::Hint(_)
             | MessageFamily::Result
@@ -271,6 +263,7 @@ pub(crate) struct MessagePlan {
     pub(crate) number: u64,
     pub(crate) prepared: Prepared,
     pub(crate) answer: Option<u64>,
+    pub(crate) asked_by: Option<u64>,
 }
 
 #[expect(clippy::too_many_lines, reason = "one inbox entrance preflights message and answer credits before mutation")]
@@ -304,18 +297,22 @@ pub(crate) fn check_message(
         Party::Task(source) => crate::refs::allows(domain, source, number),
         Party::Deployment { .. } => false,
     };
-    let sendable = match word.kind.family() {
-        MessageFamily::Spoken(_) => true,
-        MessageFamily::Hint(_) | MessageFamily::Slot(_) | MessageFamily::Result | MessageFamily::Virtual => false,
+    let spoken = match word.kind.family() {
+        MessageFamily::Spoken(spoken) if task.project == project && requester => spoken,
+        MessageFamily::Spoken(_)
+        | MessageFamily::Hint(_)
+        | MessageFamily::Slot(_)
+        | MessageFamily::Separate(_)
+        | MessageFamily::Result
+        | MessageFamily::Virtual => {
+            return Err(Box::new(crate::Problem {
+                task: Some(number),
+                why: Refusal::State,
+                blocked_by: None,
+                capacity: None,
+            }));
+        }
     };
-    if task.project != project || !requester || !sendable {
-        return Err(Box::new(crate::Problem {
-            task: Some(number),
-            why: Refusal::State,
-            blocked_by: None,
-            capacity: None,
-        }));
-    }
     if crate::batch::matches_job(task.executor) {
         return Err(Box::new(crate::Problem {
             task: Some(number),
@@ -360,9 +357,9 @@ pub(crate) fn check_message(
             capacity: None,
         }));
     }
-    let answer = match word.kind.family() {
-        MessageFamily::Spoken(Spoken::Words | Spoken::Question) => None,
-        MessageFamily::Spoken(Spoken::Answer { question }) => {
+    let answer = match spoken {
+        Spoken::Words | Spoken::Question => None,
+        Spoken::Answer { question } => {
             let valid = match word.from {
                 Party::Task(answerer) => {
                     let mut found = false;
@@ -411,9 +408,6 @@ pub(crate) fn check_message(
                 Party::Deployment { .. } => None,
             }
         }
-        MessageFamily::Hint(_) | MessageFamily::Slot(_) | MessageFamily::Result | MessageFamily::Virtual => {
-            unreachable!("root hints have reserved entrances")
-        }
     };
     if let Some(question) = answer {
         word.eligible = false;
@@ -441,7 +435,7 @@ pub(crate) fn check_message(
             capacity: Some(capacity),
         }));
     };
-    if prepared.word.kind == MessageKind::Question {
+    let asked_by = if prepared.word.kind == MessageKind::Question {
         let source = match prepared.word.from {
             Party::Task(source) => source,
             Party::Person(_) | Party::Deployment { .. } => {
@@ -461,8 +455,11 @@ pub(crate) fn check_message(
                 capacity: Some(crate::Capacity { cause: crate::capacity::inbox(source, &env.limits), ..capacity }),
             }));
         }
-    }
-    Ok(MessagePlan { number, prepared, answer })
+        Some(source)
+    } else {
+        None
+    };
+    Ok(MessagePlan { number, prepared, answer, asked_by })
 }
 
 pub(crate) fn apply_message(
@@ -471,7 +468,7 @@ pub(crate) fn apply_message(
     plan: MessagePlan,
     out: &mut Queue<Request>,
 ) -> (u64, Word) {
-    let MessagePlan { number, prepared, answer } = plan;
+    let MessagePlan { number, prepared, answer, asked_by } = plan;
     let sender = prepared.word.from;
     let task = task_mut(domain, number).expect("admitted task still live");
     task.record.last_activity = env.wall;
@@ -490,12 +487,8 @@ pub(crate) fn apply_message(
         crate::positions::sent_answer(domain, env, sender, question, heard, out);
     }
     publish(domain, env, number, out);
-    if prepared.word.kind == MessageKind::Question {
-        let source = match prepared.word.from {
-            Party::Task(source) => source,
-            Party::Person(_) | Party::Deployment { .. } => unreachable!("question source checked"),
-        };
-        let credit = question_credit(domain, number, &prepared.word);
+    if let Some(source) = asked_by {
+        let credit = question_credit(domain, source, number, &prepared.word);
         let source_row = task_mut(domain, source).expect("referenced questioner remains live");
         source_row.record.asked_requester |= source_row.record.requester == Party::Task(number);
         crate::activity::append(
@@ -660,18 +653,13 @@ pub(crate) fn finish_word(task: &crate::TaskRecord, message: u64) -> bool {
     }
 }
 
-pub(crate) fn question_credit(domain: &Domain, asked: u64, word: &Word) -> QuestionCredit {
+pub(crate) fn question_credit(domain: &Domain, source: u64, asked: u64, word: &Word) -> QuestionCredit {
     let answerer = Party::Task(asked);
     QuestionCredit {
         number: word.number,
         answerer,
         asked: Party::Task(asked),
-        line: match word.from {
-            Party::Task(source) => {
-                record(domain, source).expect("question source live").activity.checked_add(1).expect("activity room")
-            }
-            Party::Person(_) | Party::Deployment { .. } => unreachable!("questions come from tasks"),
-        },
+        line: record(domain, source).expect("question source live").activity.checked_add(1).expect("activity room"),
     }
 }
 

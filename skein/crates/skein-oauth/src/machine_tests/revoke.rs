@@ -11,7 +11,7 @@ fn configured(public: bool, wire: WireFormat, issued: bool, endpoint: bool) -> R
     registration
 }
 
-fn begin(registration: Registration, held_id: bool) -> Event {
+pub(super) fn begin(registration: Registration, held_id: bool) -> Event {
     let Event::Refresh { registration, prior, now } =
         refresh(registration, if held_id { Some(boxed(b"client-1")) } else { None })
     else {
@@ -59,11 +59,11 @@ fn a_revocation_posts_its_form() {
         assert_eq!(http.endpoint.as_ref(), ENDPOINT);
         assert_eq!(http.content_type, b"application/x-www-form-urlencoded");
         let mut fields = http.body.as_ref();
-        field(&mut fields, b"token", &expected_token);
+        field(&mut fields, b"token", expected_token.expose());
         field(&mut fields, b"token_type_hint", b"refresh_token");
         field(&mut fields, b"client_id", &expected_id);
         if let Some(secret) = expected_secret {
-            field(&mut fields, b"client_secret", &secret);
+            field(&mut fields, b"client_secret", secret.expose());
         }
         assert!(fields.is_empty());
     }

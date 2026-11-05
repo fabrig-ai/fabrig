@@ -50,7 +50,7 @@ fn a_failed_connection_holds_link_work_until_close() {
     h.connection.stream(&h.env, Up::Room);
     h.pump();
     assert!(h.connection.link.has_work(), "closed connection holds link events");
-    assert_eq!(h.connection.phase, Phase::Closed);
+    assert_eq!(h.connection.phase(), Phase::Closed);
     h.connection.close(&h.env, false, &mut h.io);
     h.pump();
     assert!(!h.connection.link.has_work(), "closing drains the link");
@@ -88,7 +88,7 @@ fn a_json_response_is_decoded_through_its_body_end() {
         ))),
         "decoded whole"
     );
-    assert_eq!(h.connection.phase, Phase::Idle, "reusable");
+    assert_eq!(h.connection.phase(), Phase::Idle, "reusable");
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn a_malformed_document_closes_without_reading_more() {
     let Some(Heard::Done(skein_forge::forgejo::plans::Body::Malformed(_))) = heard.last() else {
         unreachable!("malformed terminal");
     };
-    assert_eq!(h.connection.phase, Phase::Closed, "malformed closes");
+    assert_eq!(h.connection.phase(), Phase::Closed, "malformed closes");
 }
 
 #[test]
@@ -204,7 +204,7 @@ fn a_connection_close_answer_ends_its_connection_after_it() {
     let Some(Heard::Done(skein_forge::forgejo::plans::Body::Document(_))) = heard.last() else {
         unreachable!("document ends first");
     };
-    assert_eq!(h.connection.phase, Phase::Closed, "answer closed connection");
+    assert_eq!(h.connection.phase(), Phase::Closed, "answer closed connection");
 }
 
 #[test]
@@ -242,7 +242,7 @@ fn raw_reads_keep_the_range_and_refuse_bytes_past_remaining_answer_room() {
             Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(expected), more })),
             "{name}: raw body"
         );
-        assert_eq!(h.connection.phase, phase, "{name}: connection state");
+        assert_eq!(h.connection.phase(), phase, "{name}: connection state");
         assert!(contains(&h.sent, range), "{name}: range header");
     }
 }
@@ -308,7 +308,7 @@ fn a_chunked_raw_read_keeps_the_last_short_piece() {
         Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(&b"ab"[..]), more: false })),
         "final bytes kept"
     );
-    assert_eq!(h.connection.phase, Phase::Idle, "complete body reusable");
+    assert_eq!(h.connection.phase(), Phase::Idle, "complete body reusable");
 }
 
 #[test]
@@ -338,7 +338,7 @@ fn a_tail_read_keeps_a_200s_last_bytes_and_closes_when_some_were_dropped() {
         let heard = h.answer(&fixtures::ok(response));
         let kept = Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(expected), more });
         assert_eq!(heard.last(), Some(&kept), "{name}: The last bytes");
-        assert_eq!(h.connection.phase, phase, "{name}: Connection state");
+        assert_eq!(h.connection.phase(), phase, "{name}: Connection state");
         assert!(contains(&h.sent, b"Range: bytes=-3\r\n"), "{name}: Suffix range");
     }
 }
@@ -352,7 +352,7 @@ fn a_tail_read_keeps_at_most_the_raw_room() {
         heard.last(),
         Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(&b"mnopqrst"[..]), more: true }))
     );
-    assert_eq!(h.connection.phase, Phase::Closed, "Earlier bytes were dropped");
+    assert_eq!(h.connection.phase(), Phase::Closed, "Earlier bytes were dropped");
 }
 #[test]
 fn a_chunked_tail_read_keeps_the_last_bytes_across_pieces() {
@@ -363,7 +363,7 @@ fn a_chunked_tail_read_keeps_the_last_bytes_across_pieces() {
         heard.last(),
         Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(&b"cde"[..]), more: true }))
     );
-    assert_eq!(h.connection.phase, Phase::Closed, "Earlier bytes were dropped");
+    assert_eq!(h.connection.phase(), Phase::Closed, "Earlier bytes were dropped");
 }
 #[test]
 fn a_tail_read_past_body_bytes_in_is_malformed_and_closes() {
@@ -377,7 +377,7 @@ fn a_tail_read_past_body_bytes_in_is_malformed_and_closes() {
             field: b"log"
         })))
     );
-    assert_eq!(h.connection.phase, Phase::Closed, "Body limit closes");
+    assert_eq!(h.connection.phase(), Phase::Closed, "Body limit closes");
 }
 
 #[test]
@@ -584,4 +584,55 @@ fn a_failed_step_tail_falls_back_and_reports_omission_at_tiny_bounds() {
         assert_eq!(tail.dropped(), dropped);
         assert_eq!(tail.finish().as_ref(), expected);
     }
+}
+
+#[test]
+fn an_unheld_connect_keeps_the_request_deadline_in_idle() {
+    let mut h = fixtures::Harness::ready();
+    h.component.test_open_call(&h.env, &mut h.io);
+    h.run(Duration::ZERO);
+    h.connected(fixtures::FORGE);
+    assert_eq!(h.component.test_last_connection().phase(), Phase::Idle);
+    assert_eq!(h.component.test_last_connection().deadline, Some(Time::from_nanos(10_000_000_000)));
+    h.run(Duration::from_secs(5));
+    assert_eq!(h.connections_for(fixtures::FORGE), 1, "unheld connect outlives the idle clock");
+    h.run(Duration::from_secs(5));
+    assert_eq!(h.connections_for(fixtures::FORGE), 0, "unheld connect ends at the request clock");
+}
+
+#[test]
+fn an_idle_connection_without_a_deadline_closes_now() {
+    let mut h = fixtures::Harness::ready();
+    h.component.test_last_connection().rest(None);
+    h.run(Duration::ZERO);
+    assert_eq!(h.connections_for(fixtures::FORGE), 0, "None is already due");
+}
+
+#[test]
+fn a_start_answer_can_hold_a_closed_connection_until_close_clears_it() {
+    let mut h = fixtures::Harness::new(fixtures::settings());
+    h.connected(fixtures::FORGE);
+    h.component.test_last_connection().finish(&h.env, skein_http::client::Reuse::Close, false);
+    assert_eq!(h.component.test_last_connection().phase(), Phase::Closed);
+    assert_eq!(h.component.test_last_connection().deadline, None);
+    h.component.test_start_user(&h.env, &mut h.up);
+    assert_eq!(h.start(fixtures::FORGE), crate::start::Start::Settings { next: h.env.limits.start_backoff });
+    assert_eq!(h.component.test_last_connection().phase(), Phase::Closed);
+    assert_eq!(h.component.test_last_connection().deadline, Some(Time::from_nanos(10_000_000_000)));
+    h.component.test_last_connection().close(&h.env, false, &mut h.io);
+    assert_eq!(h.component.test_last_connection().deadline, None, "close clears the holder clock");
+}
+
+#[test]
+fn a_completed_call_releases_its_connection_on_the_idle_clock() {
+    use skein_forge::api;
+    let mut h = fixtures::known();
+    h.call(1, fixtures::REPO, api::Op::Write(api::Write::DeleteBranch { branch: Box::from(b"work".as_slice()) }));
+    h.run(Duration::ZERO);
+    h.run(Duration::from_secs(2));
+    h.answer(fixtures::FORGE, b"HTTP/1.1 204 No Content\r\n\r\n");
+    h.run(Duration::ZERO);
+    assert_eq!(h.answered(1).expect("call completed").result, Ok(api::Answer::Done));
+    assert_eq!(h.component.test_last_connection().phase(), Phase::Idle);
+    assert_eq!(h.component.test_last_connection().deadline, Some(Time::from_nanos(7_000_000_000)));
 }

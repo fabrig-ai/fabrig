@@ -33,7 +33,7 @@ fn a_rejected_generation_is_refreshed_and_the_newer_one_lent() {
     assert!(kept.is_some() && kept < granted, "the renewed record was kept before its token was lent");
     let stored = owner.last_kept().expect("the store holds the renewed record");
     let record = oauth::decode_record(stored, &fixtures::limits().client.document).expect("the stored record reads");
-    assert_eq!((record.generation, &*record.access_token), (2, TOKEN_SECOND));
+    assert_eq!((record.generation, record.access_token.expose()), (2, TOKEN_SECOND));
 }
 #[test]
 fn a_close_releases_and_ends_with_closed() {

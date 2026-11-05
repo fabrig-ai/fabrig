@@ -193,6 +193,12 @@ pub fn secret_text(entropy: &[u8; 32]) -> [u8; SECRET_BYTES] {
 }
 
 impl Server {
+    /// The exact tools/list answer, without connection authentication.
+    #[must_use]
+    pub fn tool_list(&self) -> &[u8] {
+        &self.tool_list
+    }
+
     /// Listen on IPv4 loopback; tool-list refusal has no I/O effects (smith/docs/design/protocol/programs.md, 9).
     pub fn new(
         first: Token,

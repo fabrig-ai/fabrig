@@ -1597,7 +1597,7 @@ fn decode_default(
     let field_revision = revision;
     let mut field_value = field_value;
     let kept = decode_names(models);
-    settings::remap(&mut field_value, &kept, names);
+    settings::remap(&mut field_value, &settings::moves(&kept, names), &kept, names);
     Ok(settings::Default { value: field_value, revision: field_revision })
 }
 fn encode_changed(
@@ -1629,7 +1629,7 @@ fn decode_changed(
     let mut field_value = field_value;
     let kept = decode_names(models);
     if let Some(value) = &mut field_value {
-        settings::remap(value, &kept, names);
+        settings::remap(value, &settings::moves(&kept, names), &kept, names);
     }
     Ok(settings::Changed { value: field_value, revision: field_revision })
 }
@@ -1778,13 +1778,14 @@ fn decode_revision(
     }
     let mut items = items.into_boxed();
     let kept = decode_names(models);
+    let moved = settings::moves(&kept, names);
     for item in &mut items {
         match &mut item.edit {
-            settings::Edit::Set(value) => settings::remap(value, &kept, names),
+            settings::Edit::Set(value) => settings::remap(value, &moved, &kept, names),
             settings::Edit::Removed | settings::Edit::Reset => {}
         }
         match &mut item.replaced {
-            settings::Replaced::Value(value) => settings::remap(value, &kept, names),
+            settings::Replaced::Value(value) => settings::remap(value, &moved, &kept, names),
             settings::Replaced::Default | settings::Replaced::Removed | settings::Replaced::NotOffered => {}
         }
     }
@@ -1855,9 +1856,10 @@ fn decode_proposal(
     let field_items = list_38.into_boxed();
     let mut field_items = field_items;
     let kept = decode_names(models);
+    let moved = settings::moves(&kept, names);
     for item in &mut field_items {
         match &mut item.edit {
-            settings::Edit::Set(value) => settings::remap(value, &kept, names),
+            settings::Edit::Set(value) => settings::remap(value, &moved, &kept, names),
             settings::Edit::Removed | settings::Edit::Reset => {}
         }
     }

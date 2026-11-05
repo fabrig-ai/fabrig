@@ -14,25 +14,31 @@ pub fn model_bit(name: &[u8], names: &[ModelName]) -> u64 {
     0
 }
 
-/// `value`, read under the catalogue `kept`, under today's `names`.
-pub fn remap(value: &mut Value, kept: &[ModelName], names: &[ModelName]) {
+/// The bit of today's model for each entry in the stored catalogue.
+#[must_use]
+pub fn moves(kept: &[ModelName], names: &[ModelName]) -> [u64; 64] {
     let mut moved = [0; 64];
     for (at, name) in kept.iter().enumerate() {
         *moved.get_mut(at).expect("bounded stored catalogue") = model_bit(&name.name, names);
     }
+    moved
+}
+
+/// `value`, read under the catalogue `kept`, under today's `names` using their `moved` bits.
+pub fn remap(value: &mut Value, moved: &[u64; 64], kept: &[ModelName], names: &[ModelName]) {
     match value {
         Value::Policy(value) => {
-            value.policy.ceiling.models = value.policy.ceiling.models.remap(&moved);
+            value.policy.ceiling.models = value.policy.ceiling.models.remap(moved);
             for role in &mut value.policy.roles {
-                role.authority.models = role.authority.models.remap(&moved);
+                role.authority.models = role.authority.models.remap(moved);
             }
         }
-        Value::Rules(value) => value.ceiling.models = value.ceiling.models.remap(&moved),
+        Value::Rules(value) => value.ceiling.models = value.ceiling.models.remap(moved),
         Value::Template(value) => {
             if let Some(choice) = &mut value.llm {
-                remap_choice(&mut choice.main, &moved, kept, names);
+                remap_choice(&mut choice.main, moved, kept, names);
                 for model in &mut choice.subagents {
-                    remap_choice(model, &moved, kept, names);
+                    remap_choice(model, moved, kept, names);
                 }
             }
         }

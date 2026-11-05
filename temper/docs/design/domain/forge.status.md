@@ -39,7 +39,26 @@
     delegate or a write failed for good`: the panel's hold is the client
     wire's `failed` (`temper-client-protocol-wire/schema/client-wire-v1.schema`,
     `Hold`), and its words are the client's
-    (`temper-client-domain/src/forge/words.rs`, `FailedHold`).
+    (`temper-client-domain/src/forge/words.rs`, `FailedHold`), and the plan
+    `first-goal-fixes` edits neither, the ui drafts holding them, so a cancel
+    is said by `task show` and not by this line.
+  - 8.4: the walk the request `brief-failure` of 2026-11-05 ends with has not
+    passed: on a real Forgejo, a change whose CI goes red gets a repair that
+    starts, and a repair whose brief can't be read ends held with the reason in
+    `temper ctl`. Its QA rung is not drafted yet, so both stand on the fake
+    forge's stories alone
+    (`tests/engine/domain/tests/suite/forge_routes/brief_failure.rs`).
+  - 8.4: `[the reviews could not be read: REASON]`, a gate's repair standing on
+    its pull, is unobserved: it is built (`temper-engine-domain-forge/src/brief.rs`,
+    `brief_answer`), but those stories run a CI repair's pair alone and no test
+    holds its words.
+  - 8.4: a green head ending a CI repair: the change reads no CI while a repair
+    is due or live, so a released repair at a green head asks afresh and a live
+    one stays (`temper-engine-domain-forge-change/src/domain.rs`, `repairing`,
+    `released_state`).
+  - 8.4: a hold on a CI repair's reason ending at a green head: a held change
+    reads nothing until a person releases it, and the deployment releases no
+    task.
   - 8.4, 8.5: a goal's landing held past its repairs, then released after
     a change into its goal branch (`../draft/reference-landing.md`,
     section 9's second story), is built, but its story is ignored: after
@@ -78,8 +97,9 @@
     is that step's alone, and `next_act` holds the change.
   - 8.11: a repair's or a resolution's question, relayed as a producer's
     is (`temper-engine-domain/src/route/forge_route/relay.rs`,
-    `asking_delegate`), is unobserved in stories: every relay story's
-    asker is the change's producing task
+    `asking_delegate`), and its words, refused as a producer's are, are
+    unobserved in stories: every relay story runs the change's producing
+    task only
     (`tests/engine/domain/tests/suite/forge_routes/questions.rs`,
     `foremen.rs` and `goal_questions.rs`).
   - 9: a branch a tier follows still pauses its queue on its own CI's
@@ -126,6 +146,23 @@
   - 5.7: a live goal's "landed and total changes" are its delegates done and
     total, because the forge keeps no count a goal, and "failures the forge holds
     since" are what each tier holds now, because it keeps no times on them.
+- **Design departs:** 8.4, from the request `brief-failure` of 2026-11-05, each
+  decided by its plan's cut, for the user to see:
+  - The request's true capacity is a place, an account or a brief slot. 8.4 also
+    pauses, with no bound, for a forge client `Busy` at the brief's deadline, a
+    forge not connected and a connector with no room, so a repair waits out a
+    disconnected forge unheld, though saying why, rather than making a person
+    release each.
+  - The request has a CI repair's stories in the forge world. They run in the
+    engine's domain world (`tests/engine/domain/tests/suite/forge_routes/brief_failure.rs`),
+    where the core and the connector meet; the forge world
+    (`tests/engine/forge/tests/suite/brief.rs`) tells a lone section's failure.
+- **Design departs:** 8.11, from the request `report-in-finish` of 2026-11-05,
+  decided by its plan's cut, for the user to see: the call's refusal and the
+  words at a step take a change's repair and resolution beside its producing
+  task, where the request names the producing task alone, because all three run
+  under the one charter and each would pay the same turn
+  (`temper-engine-domain/src/route/forge_route/relay.rs`, `asking_delegate`).
 - **Departs:** 9: the first keeps its turn only until the next ready change
   steps: `queue_first` (`temper-engine-domain-forge/src/domain.rs`) chooses
   among `queue_ready`'s changes, which leave out one at `Updating`, `Checking`,

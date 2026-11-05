@@ -6,6 +6,9 @@ use skein_lib::{Duration, Queue, Time, Wall, bytes};
 fn boxed(input: &[u8]) -> Box<[u8]> {
     bytes::copy_of(input)
 }
+fn secret(input: &[u8]) -> skein_lib::Secret {
+    skein_lib::Secret::new(boxed(input))
+}
 fn time(seconds: u64) -> Time {
     Time::from_nanos(seconds.saturating_mul(1_000_000_000))
 }
@@ -61,17 +64,17 @@ fn registration(public: bool, wire: WireFormat) -> Registration {
         },
         scope: boxed(b"read profile"),
         wire,
-        client_secret: if public { None } else { Some(boxed(b"secret")) },
+        client_secret: if public { None } else { Some(secret(b"secret")) },
         pkce_for_confidential: false,
         metadata_claim: None,
         terms: None,
     }
 }
-fn state() -> Box<[u8]> {
-    boxed(b"0123456789abcdef")
+fn state() -> skein_lib::Secret {
+    secret(b"0123456789abcdef")
 }
-fn verifier() -> Box<[u8]> {
-    boxed(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+fn verifier() -> skein_lib::Secret {
+    secret(b"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
 }
 fn step(client: &mut Client, event: Event) -> Option<Request> {
     let mut out = Queue::with_capacity(1);
@@ -100,8 +103,8 @@ fn token_body_with_scope(scope: Option<&[u8]>) -> Box<[u8]> {
     }
     encode_response(
         &TokenResponse {
-            access_token: boxed(b"access"),
-            refresh_token: Some(boxed(b"refresh-new")),
+            access_token: secret(b"access"),
+            refresh_token: Some(secret(b"refresh-new")),
             expires_in: 30,
             scope: granted,
             id_token: None,
@@ -129,7 +132,7 @@ fn refresh(registration: Registration, client_id: Option<Box<[u8]>>) -> Event {
         prior: RefreshState {
             key: 7,
             generation: 1,
-            refresh_token: boxed(b"seed"),
+            refresh_token: secret(b"seed"),
             issued_client_id: client_id,
             granted_scopes: None,
             subject: None,
@@ -168,7 +171,7 @@ fn public_sign_in_uses_s256_state_and_one_code_exchange() {
             client_id: None,
             uri,
             state: state(),
-            code: Some(boxed(b"one-use")),
+            code: Some(secret(b"one-use")),
             error: None,
             now: time(2),
         },
@@ -180,7 +183,7 @@ fn public_sign_in_uses_s256_state_and_one_code_exchange() {
     };
     assert_eq!(record.key, 7);
     assert_eq!(record.generation, 1);
-    assert_eq!(record.refresh_token.as_deref().expect("refresh token"), b"refresh-new");
+    assert_eq!(record.refresh_token.as_ref().expect("refresh token").expose(), b"refresh-new");
     assert!(client.is_done());
     assert!(step(&mut client, answered(http.id, 200, &token_body(), 4)).is_none(), "late answer ignored");
 }
@@ -212,7 +215,7 @@ fn confidential_sign_in_sends_secret_in_json_only_to_token_endpoint() {
             client_id: None,
             uri: boxed(b"https://web.example/callback"),
             state: state(),
-            code: Some(boxed(b"grant")),
+            code: Some(secret(b"grant")),
             error: None,
             now: time(2),
         },
@@ -255,7 +258,7 @@ fn confidential_registration_can_require_pkce_too() {
             client_id: None,
             uri: boxed(b"https://web.example/callback"),
             state: state(),
-            code: Some(boxed(b"grant")),
+            code: Some(secret(b"grant")),
             error: None,
             now: time(2),
         },
@@ -375,7 +378,7 @@ fn localhost_registration_refuses_every_redirect_uri_change_before_exchange() {
                     client_id: None,
                     uri: boxed(uri),
                     state: state(),
-                    code: Some(boxed(b"code")),
+                    code: Some(secret(b"code")),
                     error: None,
                     now: time(2)
                 }
@@ -440,7 +443,7 @@ fn wrong_state_and_redirect_are_terminal_without_exchange() {
         );
         let uri =
             if wrong_uri { boxed(b"http://127.0.0.1:2345/other") } else { boxed(b"http://127.0.0.1:2345/callback") };
-        let returned_state = if wrong_uri { state() } else { boxed(b"unrelated-state!!") };
+        let returned_state = if wrong_uri { state() } else { secret(b"unrelated-state!!") };
         assert_eq!(
             failure(step(
                 &mut client,
@@ -448,7 +451,7 @@ fn wrong_state_and_redirect_are_terminal_without_exchange() {
                     client_id: None,
                     uri,
                     state: returned_state,
-                    code: Some(boxed(b"code")),
+                    code: Some(secret(b"code")),
                     error: None,
                     now: time(2)
                 }
@@ -462,7 +465,7 @@ fn wrong_state_and_redirect_are_terminal_without_exchange() {
                     client_id: None,
                     uri: boxed(b"http://127.0.0.1:2345/callback"),
                     state: state(),
-                    code: Some(boxed(b"code")),
+                    code: Some(secret(b"code")),
                     error: None,
                     now: time(3)
                 }
@@ -482,7 +485,7 @@ fn refresh_rotation_preserves_old_token_when_answer_omits_one() {
             prior: RefreshState {
                 key: 3,
                 generation: 4,
-                refresh_token: boxed(b"old"),
+                refresh_token: secret(b"old"),
                 issued_client_id: None,
                 granted_scopes: None,
                 subject: None,
@@ -494,7 +497,7 @@ fn refresh_rotation_preserves_old_token_when_answer_omits_one() {
     assert!(bytes::find(&http.body, b"\"refresh_token\":\"old\"").is_some());
     let body = encode_response(
         &TokenResponse {
-            access_token: boxed(b"access"),
+            access_token: secret(b"access"),
             refresh_token: None,
             expires_in: 30,
             scope: None,
@@ -507,7 +510,7 @@ fn refresh_rotation_preserves_old_token_when_answer_omits_one() {
     let Some(Request::Tokens { record, .. }) = step(&mut client, answered(http.id, 200, &body, 2)) else {
         panic!("tokens expected")
     };
-    assert_eq!(record.refresh_token.as_deref().expect("refresh token"), b"old");
+    assert_eq!(record.refresh_token.as_ref().expect("refresh token").expose(), b"old");
     assert_eq!(record.generation, 5);
 }
 
@@ -525,7 +528,7 @@ fn rejected_grant_malformed_answer_and_late_answer_are_distinct() {
                 prior: RefreshState {
                     key: 1,
                     generation: 0,
-                    refresh_token: boxed(b"old"),
+                    refresh_token: secret(b"old"),
                     issued_client_id: None,
                     granted_scopes: None,
                     subject: None,
@@ -544,7 +547,7 @@ fn rejected_grant_malformed_answer_and_late_answer_are_distinct() {
             prior: RefreshState {
                 key: 1,
                 generation: 0,
-                refresh_token: boxed(b"old"),
+                refresh_token: secret(b"old"),
                 issued_client_id: None,
                 granted_scopes: None,
                 subject: None,
@@ -566,7 +569,7 @@ fn proved_unsent_attempt_retries_with_bounded_backoff() {
             prior: RefreshState {
                 key: 1,
                 generation: 0,
-                refresh_token: boxed(b"old"),
+                refresh_token: secret(b"old"),
                 issued_client_id: None,
                 granted_scopes: None,
                 subject: None,
@@ -739,7 +742,7 @@ fn issuer_http_endpoints_are_admitted_only_on_numeric_loopback() {
                                 boxed(b"https://web.example/callback")
                             },
                             state: state(),
-                            code: Some(boxed(b"grant")),
+                            code: Some(secret(b"grant")),
                             error: None,
                             now: time(2),
                         },
@@ -767,7 +770,7 @@ fn refresh_keeps_its_admitted_http_loopback_endpoint() {
         let prior = RefreshState {
             key: 7,
             generation: 1,
-            refresh_token: boxed(b"refresh-old"),
+            refresh_token: secret(b"refresh-old"),
             issued_client_id: None,
             granted_scopes: None,
             subject: None,
@@ -844,7 +847,7 @@ fn a_sign_in_without_refresh_completes_and_round_trips() {
             client_id: None,
             uri: boxed(b"http://127.0.0.1:2345/callback"),
             state: state(),
-            code: Some(boxed(b"code")),
+            code: Some(secret(b"code")),
             error: None,
             now: time(2),
         },
@@ -854,7 +857,7 @@ fn a_sign_in_without_refresh_completes_and_round_trips() {
         panic!("tokens expected")
     };
     assert_eq!((record.key, record.generation, record.expires_at), (7, 1, wall(33)));
-    assert!(record.access_token.as_ref() == b"access");
+    assert!(record.access_token.expose() == b"access");
     assert!(record.refresh_state().is_none());
     assert!(record.subject.is_none() && record.id_token.is_none());
     assert!(record.granted_scopes.as_deref() == Some(b"read"));
@@ -940,4 +943,52 @@ fn valid_ignores_heap_key_strings() {
     let bounds =
         ClientLimits { keys: u32::MAX, document: Limits { string_bytes: u32::MAX, ..limits().document }, ..limits() };
     assert!(client_valid(&bounds));
+}
+
+#[test]
+fn refused_and_ignored_events_preserve_the_exchange() {
+    for trace in [
+        "keys:http sign-in:limit refresh:limit revoke:revoked wrong-id:silent redirect:silent key-set:visit",
+        "refresh:http sign-in:limit refresh:limit revoke:revoked redirect:silent tokens:tokens",
+        "refresh:http rate-limit:silent sign-in:limit refresh:limit revoke:revoked wrong-id:silent redirect:silent retry:http tokens:tokens",
+        "redirect:silent cancel:silent refresh:http tokens:tokens",
+        "refresh:http tokens:tokens redirect:silent cancel:silent refresh:limit",
+    ] {
+        let mut client = Client::new(limits()).expect("client");
+        let mut id: u64 = 0;
+        for cell in trace.split_whitespace() {
+            let (input, expected) = cell.split_once(':').expect("input:output");
+            let event = match input {
+                "keys" => openid::sign_in(openid::registration_for_keys(true)),
+                "sign-in" => openid::sign_in(registration(true, WireFormat::Form)),
+                "refresh" => refresh(registration(true, WireFormat::Form), None),
+                "revoke" => revoke::begin(registration(true, WireFormat::Form), false),
+                "wrong-id" => answered(id.saturating_add(1), 200, b"", 3),
+                "redirect" => issued::redirect(None),
+                "cancel" => Event::Cancel,
+                "retry" => Event::Tick { now: time(4) },
+                "rate-limit" => answered(id, 429, b"", 2),
+                "key-set" => answered(id, 200, &openid::one_key(), 5),
+                "tokens" => answered(id, 200, &token_body(), 5),
+                _ => unreachable!("trace input"),
+            };
+            let deadline = client.next_deadline();
+            let result = match step(&mut client, event) {
+                Some(Request::Http(request)) => {
+                    id = request.id;
+                    "http"
+                }
+                Some(Request::Visit { .. }) => "visit",
+                Some(Request::Tokens { .. }) => "tokens",
+                Some(Request::Failed { failure: Failure::Limit }) => "limit",
+                Some(Request::Revoked { confirmed: false }) => "revoked",
+                None => "silent",
+                other => panic!("unexpected trace output: {other:?}"),
+            };
+            assert_eq!(result, expected, "{trace:?}: {input}");
+            if ["limit", "revoked", "silent"].contains(&expected) && input != "rate-limit" {
+                assert_eq!(client.next_deadline(), deadline, "{trace:?}: {input}");
+            }
+        }
+    }
 }

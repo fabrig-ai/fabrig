@@ -65,7 +65,13 @@ fn read(out: &mut Queue<Request>) -> (Token, Read) {
 
 fn answer(d: &mut Domain, owner: Token, result: Result<Answer, Error>) -> Queue<Request> {
     let mut out = Queue::uncapped();
+    let missing = result == Err(Error::Missing);
     assert!(brief::brief_answer(d, owner, result, &mut out));
+    if missing {
+        let Some(Request::BriefReadRefused { error: Some(Error::Missing), .. }) = out.pop() else {
+            panic!("missing read diagnostic");
+        };
+    }
     out
 }
 
@@ -84,7 +90,7 @@ fn finish(d: &mut Domain, owner: Token, bytes: &[u8], truncated: bool) {
         owner,
         Ok(Answer::File { head: HEAD, path: b"rules.md".as_slice().into(), bytes: bytes.into(), truncated }),
     );
-    let Some(Request::BriefSized { section: SECTION, size: Some(_) }) = out.pop() else {
+    let Some(Request::BriefSized { section: SECTION, size: Ok(_) }) = out.pop() else {
         panic!("sized document: {out:?}")
     };
     assert!(out.is_empty());
@@ -162,9 +168,9 @@ fn a_document_cut_again_keeps_its_commit() {
         },
     );
     let cut = outputs(&mut d, Event::CutBrief { section: SECTION, bytes: LINE_BUDGET });
-    assert_eq!(cut.as_ref(), &[Request::BriefSized { section: SECTION, size: Some(LINE_BUDGET) }]);
+    assert_eq!(cut.as_ref(), &[Request::BriefSized { section: SECTION, size: Ok(LINE_BUDGET) }]);
     let cut = outputs(&mut d, Event::CutBrief { section: SECTION, bytes: LINE_BUDGET - 6 });
-    assert_eq!(cut.as_ref(), &[Request::BriefSized { section: SECTION, size: Some(LINE_BUDGET - 6) }]);
+    assert_eq!(cut.as_ref(), &[Request::BriefSized { section: SECTION, size: Ok(LINE_BUDGET - 6) }]);
     let expected = with_head(b"[40 bytes cut]\n");
     assert_eq!(take(&mut d).as_ref(), expected.as_ref());
     assert!(d.briefs_idle());
@@ -228,7 +234,18 @@ fn a_failed_document_read_is_missing() {
                 read(&mut plan(&mut d, document(), BUDGET)).0
             };
             let mut out = answer(&mut d, owner, Err(result));
-            assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: None }));
+            assert_eq!(
+                out.pop(),
+                Some(Request::BriefReadRefused {
+                    section: SECTION,
+                    stage: if file { "file" } else { "branch" },
+                    error: Some(result)
+                })
+            );
+            assert_eq!(
+                out.pop(),
+                Some(Request::BriefSized { section: SECTION, size: Err(brief_words::unread_of(&Err(result))) })
+            );
             assert!(out.is_empty());
             assert!(d.take_brief(SECTION).is_none());
             assert!(d.briefs_idle());
@@ -272,7 +289,11 @@ fn a_busy_document_fails_at_its_gather_deadline() {
     assert!(out.is_empty());
     assert_eq!(brief::next_deadline(&d), Some(deadline));
     brief::expire(&mut d, deadline, &mut out);
-    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: None }));
+    assert_eq!(
+        out.pop(),
+        Some(Request::BriefReadRefused { section: SECTION, stage: "file", error: Some(Error::Busy) })
+    );
+    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Err(brief_words::BUSY) }));
     d.reclaim();
     brief::retry(&mut d, &mut out);
     assert!(out.is_empty());
@@ -329,7 +350,7 @@ fn an_ended_forges_repository_is_not_adopted_for_documents() {
     let mut d = setup();
     d.configured.remove(&REPO.forge);
     let mut out = plan(&mut d, document(), BUDGET);
-    let Some(Request::BriefSized { section: SECTION, size: Some(_) }) = out.pop() else { panic!("reason section") };
+    let Some(Request::BriefSized { section: SECTION, size: Ok(_) }) = out.pop() else { panic!("reason section") };
     assert!(out.is_empty());
     assert_eq!(take(&mut d).as_ref(), b"Repository org/repo on forge.example is not adopted.");
 }

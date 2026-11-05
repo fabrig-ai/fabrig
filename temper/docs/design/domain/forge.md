@@ -1693,6 +1693,46 @@ delegate's terminal wakes it to offer the landed result.
   already landed on the base, including both independent appended lines
   and existing blank lines. Lost content is restored from the review's
   remarks; content is never removed just to make a check pass.
+- **A green head ends a CI repair.** A CI repair's reason is CI failed at
+  the head: a failed check, or a clean update whose CI then fails. When a
+  step of the change reads CI passed at its branch's head (5.3):
+  - **A repair not running ends,** without an agent's work, and the change
+    goes on from that head, checked as after a push (8.2, step 3), as if no
+    repair were needed. Not running is a repair due and not yet made; one
+    made whose task is due, preparing, waiting between its tries or for an
+    answer; one whose task is held; and one that ended failed, cancelled or
+    finding nothing to do. A task still live is cancelled, its reason `CI
+    passed at head H`, so that its end says that and not a failure. No fresh
+    repair is made for a green head, on a release or otherwise.
+  - **A run in progress finishes as a run does:** its attempt claimed or
+    running, or its task closing, is left alone. What it delivers is taken as
+    any repair's. Its failing, or its finding nothing to do, is read as ever
+    and, the head still green, holds nothing: the rule above ends it. Its brief
+    takes no word for this: it says what CI read when it was gathered, and one
+    gathered as CI turned names no failed check, as above. A run ending into a
+    retry wakes no change, so while a run is in progress at a green head the
+    change reads again at `poll_ms` (5.2).
+  - **It asks of the current head alone.** A push moves the head and the rule
+    asks of the new one; CI passed on an earlier head changes nothing. A head
+    its repair pushed before it stopped running is the current head, taken as
+    a repair's push is.
+  - **Other reasons are not touched:** a gate's request, a review's or a
+    check's; a landing's gate at its candidate (`landing.md`, 7.3); a
+    resolution; and a forge's merge queue ejecting the change (9.1), whose CI
+    at its own head may well have passed.
+  - **A hold ends too,** with no party's release, where the change is held on
+    this reason: at its repair, failed for good, cancelled or stalled; or at
+    its repair or its checking, past the bound or short of authority for the
+    next. While so held each wake a hint or a poll gives it reads as a step
+    does and makes no effect, and a read of CI passed ends the hold: the
+    deployment releases its task (jig's `domain/tasks.md`, section 7). Its
+    repairs, resolutions and updates count on, since only a person's release
+    lifts them. A hold at gating is not ended, being a gate's as much as CI's:
+    its release decides afresh. Nor is a hold for drift (8.5), nor a task a
+    placed hold or a party's stop also holds, which goes by its own release.
+  - **Counted as asked:** the repair stays in the change's repairs, on its
+    panel and in its result, whose reason for it goes on `then CI passed at H`
+    (8.2, step 7).
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../protocol/configuration.md`, section 3): a job of
@@ -1731,8 +1771,54 @@ delegate's terminal wakes it to offer the landed result.
   byte or row limit, the section keeps its pull identity and gathered content
   and appends a comparison-omitted notice within its byte budget. This completes
   the section; it does not retry the comparison or raise the client's limits.
-  Other comparison read failures still fail the section. The same rule applies
-  to the pull sections for reviews and repairs.
+  Other comparison read failures are the section's read failures (below). The
+  same rule applies to the pull sections for reviews and repairs.
+- **A brief section's read that fails.** Every section says why it could not
+  be read, and how that counts (jig's `domain/engine.md`, 9.1):
+
+  | What the read met | Counts as | REASON |
+  |---|---|---|
+  | `Busy`, still refused at the brief's deadline | capacity | `the forge client is busy` |
+  | `NotConnected`: a wait for access, as for a stall above | capacity | `the forge is not connected` |
+  | no room for another section or read in the connector | capacity | `the connector has no room for another read` |
+  | `Unavailable` | transient | `the forge could not be reached` |
+  | `Timeout` | transient | `the forge did not answer in time` |
+  | `RateLimited` | transient | `the forge is limiting calls` |
+  | a pull whose head is no longer the pinned one, or a change that has moved past it | transient | `the change's head moved` |
+  | `InvalidAnswer` | permanent | `the forge's answer did not match its read` |
+  | an answer of another shape | permanent | `the forge answered another read` |
+  | `Forbidden`, `NotInstalled` | permanent | `the forge forbids this read`, `the forge App is not installed` |
+  | `Missing`, `MissingJob` | permanent | `the forge has no such object` |
+  | `TooLarge` | permanent | `the answer is past the client's limit` |
+  | any other error | permanent | `the forge refused this read` |
+  | no change for the pull, its identity past the section's bytes, or a title that fills them; no repository for a home-access reason | permanent | `the change cannot be named in its section` |
+  | failed checks whose heads do not fit their section | permanent | `the failed checks do not fit their section` |
+  | a section the plan gave wrong bounds, or the connector no longer holds | permanent | `the connector cannot hold this section` |
+
+  A repair's two forge sections, its pull section and its reason (CI's or
+  reviews'), are a pair, and each can stand without the other: the agent has
+  the other's words and its forge tools to read again. A read of one that
+  counts as transient or permanent becomes words in that section's place,
+  after what it had gathered, and the brief goes on:
+  `[the pull request could not be read: REASON]`,
+  `[the failed checks could not be read: REASON]` or
+  `[the reviews could not be read: REASON]`. The pull section's identity needs
+  no read, so it always names the pull request.
+  A repair with neither its reason nor its pull cannot start: when both fail,
+  the second fails the brief with its own REASON, which counts by the table.
+  A capacity refusal never becomes words: the brief fails and the task pauses,
+  so the run starts with its sections once there is room.
+  A section with no partner (a review's or a resolution's pull section) is
+  what its run is for, so its read failing fails the brief. A charter's
+  document stays optional (jig's `domain/engine.md`, 9), its failure leaving
+  the missing marker. A failed job's log stays the check's own marker within
+  a CI section that was read.
+  Each read that fails, words or not, is one line in the engine's log, naming
+  the task, the section, the stage and the forge's error, as a tool read's
+  `read refused` line does:
+  `temper serve: brief read refused task=T section=pull stage=item error=InvalidAnswer`.
+  A brief that fails adds one more, naming how it counts and its reason:
+  `temper serve: brief failed task=T counts=permanent reason=pull: ...`.
 - **A verdict whose post is refused** (8.3) is no repair and no stall:
   the gate counts as temper's verdict says, nothing is held for the
   post, and its `Forbidden` narrows what temper may do in that
@@ -1782,9 +1868,10 @@ delegate's terminal wakes it to offer the landed result.
   (its producer failed for good), deciding afresh makes a fresh producer, one more of its
   tasks, holding by the rule above when its authority no longer covers
   one. A repair that fails for good holds at its attempted count; this
-  is a delegate failure, not repair exhaustion. Released, it asks for a
-  fresh repair with the same reason and current forge facts, under its
-  current authority, counted against the reset repair allowance. The
+  is a delegate failure, not repair exhaustion. Released at a head CI has
+  not passed at (a green head ends it, above), it asks for a fresh repair
+  with the same reason and current forge facts, under its current
+  authority, counted against the reset repair allowance. The
   replacement's result supersedes the failed delegate's, including
   after a restart; a pending replacement is not asked twice.
   A delegate a person cancels holds at the same count and is released
@@ -1792,8 +1879,9 @@ delegate's terminal wakes it to offer the landed result.
   was cancelled`, with the cancel's reason where it gave one, within the
   hold's bytes (`its resolution`, `its merge job`, `its producer`). A
   cancelled repair, resolution or merge job holds as a decision of the
-  procedure, not as a failed effect; a cancelled producer keeps a failed
-  producer's hold, carrying those words.
+  procedure, not as a failed effect; a cancelled producer, a catch-up's
+  first merge job among them, keeps a failed producer's hold, carrying
+  those words.
   A change is a procedure, with no run of its own to repeat: a
   release asking to run it again is refused saying so, never as
   missing authority.
@@ -1999,7 +2087,8 @@ What the connector makes of a change for the client's panel
   updates used, with their limits from `change_policy`; and its
   questions, its route, those taken of its bound and its open ones
   (8.11).
-- **CI at its head** is what its last step read (5.3), kept in memory
+- **CI at its head** is what its last step read (5.3), a held change's
+  read for a green head (8.4) among them, kept in memory
   beside its record, one verdict per change, while the change is live: a
   restart forgets it, and the panel says unknown until the change's next
   step reads it again. A change that has landed or ended keeps its last
@@ -2126,8 +2215,23 @@ section 9): the foreman and the requester decide, and the change relays
   live), oldest first, as its open questions, kept on its record, and
   works them one at a time in that order: the next gets its foreman, or
   is passed up, once the one before is answered. A question from any
-  other task, and every task's words, receive fallback feedback naming
+  other task, and any other task's words, receive fallback feedback naming
   the enabled route and the answer form; words do not settle a question.
+- **Its own agents' words.** Its agent's report goes in its `finish`,
+  and the question form is its one use of `message` to its change. Its
+  words settle nothing, and in a run that may wait, what reaches it
+  before its `finish` refuses that `finish` until read (smith's
+  `domain/run.md`, section 6), so feedback meant for a requester would
+  cost it a turn. The `message` call itself refuses them, nothing sent:
+  a call in the words form to the change from its producing task, or
+  the repair or the resolution it has live, answers with an error
+  saying `Your report goes in finish; this change takes no words. To
+  ask: message target=this change, form=question.` Words or an answer
+  from such an agent found in the change's inbox at a step receive those
+  same words, as words, in place of the fallback feedback.
+  A question of theirs past the open-queue ceiling keeps the fallback
+  feedback (below). The stock coding charter tells its run the same
+  (`../protocol/configuration.md`, 13.4).
 - **Bounded.** It counts the questions it takes, each as its turn comes,
   from its making or its last release, against its bound,
   `forge.change_policy.questions` (4 in `small`, 80 in `standard`, which
@@ -2218,8 +2322,8 @@ section 9): the foreman and the requester decide, and the change relays
   change into the landing branch, and amendments of the live changes it
   concerns.
 
-A change keeps at most 16 open questions. Its configured question allowance
-must be less than 16, leaving room for the question past that allowance. A
+A change keeps at most 128 open questions. Its configured question allowance
+must be less than 128, leaving room for the question past that allowance. A
 question beyond the open-queue ceiling is answered with fallback feedback
 describing the enabled route and answer form; it never enters the relay (2026-11-04).
 
@@ -2394,7 +2498,8 @@ adoption says so, 4.4) lands through that queue. Forgejo keeps none.
 - **Ejected,** for any reason but its landing (its group's CI failed, a
   conflict with what entered before it, a person took it out): a
   repair, as a failed CI is (8.4), its brief carrying the forge's reason
-  alone, the pull request's `dequeued` (section 20). The change takes
+  alone, the pull request's `dequeued` (section 20), which a green head
+  does not end. The change takes
   its base before the repair starts (8.2), so a conflict there is
   resolved. A head another hand moved is drift, as ever (8.5).
 - **Its place there,** `Pull.queued`, is read with the pull request and
@@ -2827,7 +2932,10 @@ conflict settled by the merge job alone, and one it leaves to a
 resolution, under rules asking an update and under rules asking none; a
 catch-up into a goal's branch, merged by the merge job, and one already
 contained, ended with no change; a
-semantic conflict repaired; the branch's own CI broken by a landing
+semantic conflict repaired; a CI repair ended by CI passing at its head,
+due, retrying or held, and one released after it with no fresh repair; a
+run of one left to finish; CI passed on an earlier head, changing nothing;
+a review's repair untouched; the branch's own CI broken by a landing
 temper did not make, the queue paused and repaired; its pull request
 closed by someone else, held, released and reopened; a landing that
 overlaps a goal's change, and one that does not; a goal's issue written,
@@ -2932,6 +3040,14 @@ whole.
   the client should also be posted on the forge as the person, so that
   the forge's protection requires it independently, needs a forge
   credential of the person's (jig's `domain/people.md`, section 12).
+- **A repair held for its brief** (8.4): the repair's task is held, naming
+  its reason, while the change stays `Repairing` and its panel shows no hold:
+  a person reads why on the task, and releases it there. Default: so; whether
+  the panel says it too stays open.
+- **A forge out of reach or not connected** (8.4): `Unavailable` counts as
+  transient, so a long outage holds each repair preparing through it, naming
+  why; `NotConnected` pauses with no bound and no hold, its notice naming why.
+  Default: so; the allowance is the user's.
 - **A failing check's repair brief:** a check gate that says no is
   repaired as a review that says no is, and its repair's brief carries
   the pull request's reviews section (8.4). A check's verdict is not a
@@ -2997,3 +3113,8 @@ whole.
   `Status` carries only for a failed Actions run; until skein's dialect
   carries it on every row, every row is CI (5.3), another App's check
   runs among them, and its suites with no run list nothing.
+- **A refused `message` keeps no record** (8.11): the call's refusal of an
+  agent's own words is rendered and kept with no call's record, as the
+  `goal` tool's refusal is, where a decided call's answer is kept
+  (`root.md`, 5.2). So a call asked again decides again, from the change as
+  it then stands. Default: so.

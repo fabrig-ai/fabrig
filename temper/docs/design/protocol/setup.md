@@ -3794,6 +3794,16 @@ Each is intended; what it needs is named with it.
   name its loopback address. Taking `web` when it has one changes those
   three and that section, whose "its `web` is always null" goes with
   them; the request of 2026-11-05 left `docs/design/client/` alone.
+- **An adopted row's kinds after the forge changes** (5.4;
+  `../domain/forge.md`, 4.2): a row keeps the kinds its adoption read,
+  and only a capability refusal reads them afresh, which a row that may
+  not push never meets. So a repository adopted while temper's user could
+  only read stays so in its row until it is adopted again, whatever the
+  forge says after: a person's write on a connected Forgejo, or reconcile's
+  repair on a managed one, for a row whose adoption ran no `Adopt`. "Work
+  there fails until it has write" (`../client/README.md`, 4.7) does not
+  say so. Reading each adopted repository's permission at a connect is
+  what would close it.
 - **Reading a runner's row** (6.3): a preparation goes by
   `runner/config.yaml`, since Forgejo's command line cannot read the
   row. So a row a person removed stays gone until that file is removed
@@ -3825,6 +3835,12 @@ Each is intended; what it needs is named with it.
 - **A hook left at an old listener's address,** after the listener
   moves, is skein's question (skein's `forge-setup.md`, section 9).
   Default: left alone; the person deletes it.
+- **A task's text past what the clients receive** (8.1). A spec reads in
+  pieces of `documents.text_bytes`, 512, each a `read_task` turn, where the
+  request `first-goal-fixes` of 2026-11-05 has 8,192. Going past 512 needs the
+  web and terminal clients' `text` raised, or a task's text read under a
+  bound of its own (jig's `client/domain/contract.md`, 6). Default: 512. The
+  user's to choose, with no answer yet.
 - **A managed forge whose host list refuses the listener.** Default:
   nothing tells the person but the hints that never arrive
   (`../domain/forge.md`, section 4).
@@ -3850,10 +3866,14 @@ Each is intended; what it needs is named with it.
   needs either, a store schema change in place until the first release
   (store.md, section 4; skein's `codec.md`, section 5).
 - **A managed Forgejo's listener.** 5.5 serves a forge connected as its
-  admin none, so it polls, while 5.3, 5.4 and skein's `forge-setup.md`,
-  4.5, make each hook when one is configured. A forge on another host
-  can't reach a loopback listener; one on this host could. The user's.
-  Default: 5.5's.
+  admin none, so it polls. `../draft/github.md`, 12.2, and the request
+  `adopt-access` of 2026-11-05 have its hook at adoption and at each
+  start's repair, and 5.3's table, 5.6's last point and `credentials.md`,
+  section 2's webhooks' secret read as if it had one. A forge on another
+  host can't reach a loopback listener, and given one it would post,
+  signed, to its own loopback; one on this host could. The user's, not
+  yet answered. Recommended: serve it to a managed forge whose API is on
+  loopback, and keep polling for one elsewhere. Default: 5.5's.
 - **Demo after a reset** (8.4; `../draft/first-run-projects.md`, 9):
   a second playground run makes "Demo" again, the first having been
   deleted by the reset, and reuses nothing but the name. The user's to

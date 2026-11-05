@@ -79,8 +79,8 @@ fn every_refresh_slot_holds_its_maximal_records_and_tls_connection() {
                         kept: Some(SavedToken {
                             key: account,
                             generation: 1,
-                            access_token: bytes::copy_of(&[b'a'; 256]),
-                            refresh_token: Some(bytes::copy_of(&[b'r'; 256])),
+                            access_token: skein_lib::Secret::new(bytes::copy_of(&[b'a'; 256])),
+                            refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(&[b'r'; 256]))),
                             metadata: Some(bytes::copy_of(&[b'm'; 256])),
                             expires_at: Wall::from_nanos(5_000_000_000),
                             issued_client_id: None,
@@ -416,7 +416,7 @@ fn registration(
         redirect_uri,
         scope: bytes::copy_of(scope),
         wire: skein_oauth::WireFormat::Form,
-        client_secret,
+        client_secret: client_secret.map(skein_lib::Secret::new),
         pkce_for_confidential: false,
         metadata_claim: None,
         terms: None,
@@ -427,8 +427,8 @@ fn maximal_private_record(account: u32) -> SavedToken {
     SavedToken {
         key: account,
         generation: 0,
-        access_token: bytes::copy_of(&[b'a'; 256]),
-        refresh_token: Some(bytes::copy_of(&[b'r'; 256])),
+        access_token: skein_lib::Secret::new(bytes::copy_of(&[b'a'; 256])),
+        refresh_token: Some(skein_lib::Secret::new(bytes::copy_of(&[b'r'; 256]))),
         metadata: Some(bytes::copy_of(&[b'm'; 256])),
         expires_at: Wall::from_nanos(30_000_000_000),
         issued_client_id: None,
@@ -443,7 +443,7 @@ fn handed_in_record(account: u32) -> SavedToken {
     SavedToken {
         key: account,
         generation: 1,
-        access_token: bytes::copy_of(&[b'x'; 64]),
+        access_token: skein_lib::Secret::new(bytes::copy_of(&[b'x'; 64])),
         refresh_token: None,
         metadata: Some(bytes::copy_of(&[b'm'; 64])),
         expires_at: Wall::from_nanos(30_000_000_000),
@@ -477,9 +477,9 @@ fn two_varying_sign_ins_pass_memory_checks() {
 
 fn shared_memory_record(account: u32) -> SavedToken {
     let mut record = handed_in_record(account);
-    record.refresh_token = Some(bytes::copy_of(&[b'r'; 64]));
+    record.refresh_token = Some(skein_lib::Secret::new(bytes::copy_of(&[b'r'; 64])));
     record.granted_scopes = Some(bytes::copy_of(&[b's'; 64]));
-    record.id_token = Some(bytes::copy_of(&[b'i'; 64]));
+    record.id_token = Some(skein_lib::Secret::new(bytes::copy_of(&[b'i'; 64])));
     record.expires_at = Wall::from_nanos(Duration::from_secs(5).as_nanos());
     record
 }

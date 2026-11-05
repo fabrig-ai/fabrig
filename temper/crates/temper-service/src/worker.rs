@@ -71,6 +71,7 @@ pub struct Worker {
     next: u64,
     program: Box<[u8]>,
     arguments: Box<[Box<[u8]>]>,
+    environment: Box<[Box<[u8]>]>,
     directory: Option<Fd>,
     path: Box<[u8]>,
     root_close: Option<Token>,
@@ -177,6 +178,7 @@ impl Worker {
             next: 2,
             program: config.agent.program.clone(),
             arguments: config.agent.arguments.clone(),
+            environment: Box::default(),
             directory: Some(runtime.root),
             path: runtime.path,
             root_close: None,
@@ -190,6 +192,11 @@ impl Worker {
     pub(crate) fn reuse_workspaces(&mut self) {
         self.root.reuse_workspaces();
         self.git.component.keep_workspaces();
+    }
+
+    /// Give each agent the dump directory (temper/docs/design/draft/dogfood-hacks.md, 2.13).
+    pub(crate) fn dump_llm(&mut self, directory: &[u8]) {
+        self.environment = Box::new([skein_lib::bytes::concat(&[b"TEMPER_DUMP_LLM=", directory])]);
     }
 
     pub fn configure_program_sources(
@@ -653,7 +660,7 @@ impl Worker {
             host::Launch {
                 program: self.program.clone(),
                 arguments: self.arguments.clone(),
-                environment: Box::default(),
+                environment: self.environment.clone(),
                 root: self.directory.expect("prepared worker root"),
                 directory: b".".as_slice().into(),
             },

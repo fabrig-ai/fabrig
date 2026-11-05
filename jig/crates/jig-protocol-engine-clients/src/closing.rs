@@ -35,7 +35,7 @@ impl Component {
                     Waiting::SignOut { sign_in: number, committed: false }
                     | Waiting::Watch { sign_in: number, .. }
                     | Waiting::Keep { sign_in: number, .. }
-                    | Waiting::Get { owner: SecretOwner::SignIn(number), .. }
+                    | Waiting::Get { owner: super::services::GetOwner::SignIn(number), .. }
                     | Waiting::LinkGet { sign_in: number, .. }
                     | Waiting::Moving { sign_in: number, .. }
                     | Waiting::Made { sign_in: number, .. }

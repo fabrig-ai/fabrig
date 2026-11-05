@@ -6,6 +6,7 @@ mod opening;
 
 mod coding;
 mod content;
+mod dump;
 mod fact_drain;
 mod grants;
 mod memory;

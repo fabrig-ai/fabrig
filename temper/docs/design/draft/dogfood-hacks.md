@@ -98,6 +98,47 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 - **The pipeline:** its merge queue runs this gate on a machine of its own, with its checks in order.
 - **A real design:** a question: what a deployment's CI on a build machine looks like, and how it keeps a warm build of its own.
 
+### 2.10 A comparison's charters
+
+- **What:** for one comparison, a settings file outside this repository makes the deployment's charters carry the pipeline's prompts, models and efforts exactly. The goal's charter becomes a tick, at medium effort, that starts what a plan says. A producer charter becomes the plan's cutter, with the shell and write access, its instructions a pointer to a brief. The coding charter runs at high effort and the foreman at medium, both with the pipeline's text. The worker runs 8 at once with 10 workspaces, the pipeline's own table for that machine, by the user's word.
+- **Why:** the user asked, on 2026-11-05, for prompts, models and effort to match exactly, so that a difference in the results is temper's and not its words.
+- **Cost and risk:** a settings revision that's wrong for anything else, and these charters assume this one repository's plan format. The tick is still a model's run where the pipeline's is code, so its minutes are reported apart; writing it as a program would be a feature, not a hack. A planner with a shell reaches what 2.4 says the worker reaches. Ten targets could reach the machine's disk budget, but a workspace fills only when used, so a small plan fills few.
+- **The pipeline:** its cutter and foreman have a shell, and its tick is code.
+- **A real design:** a question: whether a planner writes through a change at all, and how stock charters take what the comparison shows.
+
+### 2.11 Briefs on the worker's disk
+
+- **What:** the cutter's charter points at a file on the one worker's disk that holds the pipeline's brief, along with a charter's reference copies, outside this repository.
+- **Why:** the brief is the pipeline's, is larger than a charter should hold, and must match byte for byte, by checksum.
+- **Cost and risk:** it works on one worker alone, and a change to the file changes runs with no settings revision to show it.
+- **The pipeline:** it starts each run with a pointer to a brief on disk, in the same way.
+- **A real design:** none: the brief is the pipeline's and goes with it.
+
+### 2.12 Reading what a run was sent
+
+- **What:** smith's trace, turned on in the worker's agent document with everything captured, gives each smith run's system text, tools and effort. A Claude run's effort is read from its own session file. `request-dump` adds a dump of what leaves for the provider, as its own entry when it lands.
+- **Why:** a match can't be claimed from settings alone: what a run was sent has to be read.
+- **Cost and risk:** the trace and session files hold whatever the run was sent, so repository text and anything an agent read, on the worker's disk. The trace's delivery is best effort, so a count of its runs against the task list is part of reading it.
+- **The pipeline:** its runs keep their own session records on the machine that ran them.
+- **A real design:** a question: what a deployment's operators may read of a run's prompts.
+
+### 2.13 Each model request kept in a file
+
+- **What:** `TEMPER_DUMP_LLM=DIR` on the worker, unset by default; an empty value counts as unset. It's read once, at the worker's start, and goes to each agent as the one variable in the environment the worker gives it; nothing reaches an agent's commands or its program. Set, a run writes files to `DIR`, each whole by rename and mode 0600, in a directory made 0700; a directory open to others, or another's, is refused.
+  - **Names:** `<identity>-a<activation>-<number>-<what>`: the run's 16-byte identity in hex, its activation and a number counting this agent's files, both six digits. An agent knows no task or engine run: the identity is what names the run, and the text it was sent says what it was working on.
+  - **The API, with an OpenAI-style account or Anthropic's:** `openai.json` or `anthropic.json`, one per request before it's sent: the body as the client rendered it for the provider, those very bytes, before any gzip. Its encoder takes the prompt and limits alone, never a credential or an endpoint, so no header, token or URL reaches it.
+  - **Claude Code, a subscription's included: a gap.** The program makes its own calls, so temper never sees a request of its. What temper gives it is kept instead: `claude-code-argv.txt` (model and effort among them), `claude-code-instructions` (Markdown), `claude-code-tools.json` (the MCP tools it's offered), `claude-code-stdin.json` (each line on its input) and `claude-code-init.json` (its `system/init`, naming the model it took and its tools). Not kept: the program's own system prompt and built-in tools' descriptions, its later requests' messages, effort as it sends it, tool answers (they go over MCP), its environment, and `mcp.json`, which holds the MCP secret.
+  - **One start file a run,** `start.txt`: mode, budget, reserve, waiting, main's and sub-agents' models with effort, tools granted, host tools by name, the brief's titles.
+  - **Bounded:** before each file, an agent sums the sizes in `DIR`; past 4 GiB it stops, with one line. A failed write takes one line too, and the run goes on. A line goes to the agent's standard error and to `DIR/dump.log`, since a worker shows that error only as a failed run's tail.
+- **Why:** dogfooding compares temper with the pipeline, and prompts, models and effort must match exactly. Nobody could read what a run was sent: the rendered prompt wasn't kept, and a Claude run's effort couldn't be read.
+- **Cost and risk:**
+  - the files hold whatever the run was sent: repository text and anything an agent read. They stay on the worker's disk, and nothing removes them;
+  - unset, one branch at each request. Set, a second copy of each body until it's written, and a write and a scan of `DIR` that block the agent's loop;
+  - the bound counts what's already in `DIR`, so a full directory stops every later run's files until a person empties it; agents writing at once can pass it by one request each;
+  - no test runs the variable from a worker through a real agent process to a file: the worlds cover each half, and the next comparison's run is the proof.
+- **The pipeline:** keeps each call's rendered brief as a plain file beside its report. What a CLI then sends on the wire isn't kept there.
+- **A real design:** a question: what a deployment's operators may read of a run's prompts.
+
 ## 3. Left out, with its gap
 
 For the user to weigh; each can become an entry.

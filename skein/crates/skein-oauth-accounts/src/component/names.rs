@@ -1,14 +1,14 @@
 //! Stable account numbers and their bounded places (oauth.md, section 6.2).
 
-use super::{Component, Lifecycle, Name};
+use super::{AccountEntry, Component, Lifecycle, Name};
 use crate::{Asked, Event, Refusal, Request};
 use skein_lib::{List, Queue};
 use skein_oauth::{Registration, SavedToken};
 
 impl Component {
     fn place(&self, account: u32) -> Option<u32> {
-        for place in 0..self.names.len() {
-            match self.names.get(place).expect("bounded names") {
+        for place in 0..self.entries.len() {
+            match &self.entries.get(place).expect("account entry").name {
                 Name::Live { number, .. } if *number == account => return Some(place),
                 Name::Live { .. } | Name::Removing { .. } | Name::Free => {}
             }
@@ -76,11 +76,17 @@ impl Component {
     }
 }
 
-pub(super) fn number(names: &List<Name>, place: u32) -> u32 {
-    match names.get(place).expect("account name") {
-        Name::Live { number, .. } | Name::Removing { number } => *number,
-        Name::Free => unreachable!("free account emits nothing"),
+impl Name {
+    pub(super) fn number(&self) -> u32 {
+        match self {
+            Name::Live { number, .. } | Name::Removing { number } => *number,
+            Name::Free => unreachable!("free account emits nothing"),
+        }
     }
+}
+
+pub(super) fn number(entries: &List<AccountEntry>, place: u32) -> u32 {
+    entries.get(place).expect("account entry").name.number()
 }
 
 pub(super) fn missing_id(registration: &Registration, record: &SavedToken) -> bool {
@@ -99,7 +105,7 @@ pub(super) fn missing_id(registration: &Registration, record: &SavedToken) -> bo
 #[cfg(test)]
 impl Component {
     pub(crate) fn private_expected(&self, account: u32) -> skein_io::file::Expect {
-        match self.keepers.get(account).expect("account keeper") {
+        match &self.entries.get(account).expect("account entry").store {
             crate::keeper::Store::Private(keeper) => keeper.expected,
             crate::keeper::Store::Owner => unreachable!("private keeper fixture"),
         }

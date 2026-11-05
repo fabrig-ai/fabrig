@@ -27,7 +27,7 @@ fn fixture(full: bool) -> Moved {
     let mut record = SavedToken {
         key: 7,
         generation: 9,
-        access_token: bytes::copy_of(b"a"),
+        access_token: skein_lib::Secret::new(bytes::copy_of(b"a")),
         refresh_token: None,
         metadata: None,
         expires_at: Wall::from_nanos(123),
@@ -38,12 +38,12 @@ fn fixture(full: bool) -> Moved {
         earliest_refresh_at: None,
     };
     if full {
-        record.refresh_token = Some(bytes::copy_of(b"refresh"));
+        record.refresh_token = Some(skein_lib::Secret::new(bytes::copy_of(b"refresh")));
         record.metadata = Some(bytes::copy_of(b"metadata"));
         record.issued_client_id = Some(bytes::copy_of(b"issued-client"));
         record.granted_scopes = Some(bytes::copy_of(b"scope one"));
         record.subject = Some(bytes::copy_of(b"subject"));
-        record.id_token = Some(bytes::copy_of(b"id-token"));
+        record.id_token = Some(skein_lib::Secret::new(bytes::copy_of(b"id-token")));
         record.earliest_refresh_at = Some(Wall::from_nanos(100));
     }
     Moved {
@@ -300,7 +300,7 @@ fn an_invalid_nested_record_is_refused_by_name() {
 #[test]
 fn encode_refuses_a_record_skein_will_not_encode() {
     let mut original = fixture(true);
-    original.record.access_token = bytes::copy_of(b"invalid bearer!");
+    original.record.access_token = skein_lib::Secret::new(bytes::copy_of(b"invalid bearer!"));
     assert_eq!(moved::encode(&original, &limits()).err(), Some(Unread::Record));
 }
 

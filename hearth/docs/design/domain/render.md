@@ -1309,9 +1309,9 @@ or a named predicate keeps each one, and a test holds it.
 `hearth/docs/development/debt/D001-room-checks-and-max-out.md` lists every
 room check that remains, and what it keeps.
 
-- **One read at a time.** A git machine, and mmdebstrap's pipe reader
-  and list reader, have at most one demand out, and make the next once
-  the last is answered.
+- **One read at a time.** A git machine, mmdebstrap's pipe reader and
+  list reader, and the JSON decoder have at most one demand out, and make
+  the next once the last is answered.
 - **A blob's piece is taken before the next is read.** `cat-file`'s
   machine stops after each piece until it is told `Next`. A body waits in
   git's pipe, never in the builder, so a static file of 64 MiB is held a
@@ -1326,6 +1326,11 @@ room check that remains, and what it keeps.
 - **A list's end follows its last stanza.** A scan gives at most one
   stanza. A list with no blank line after its last stanza gives that
   stanza and then its end, and the end comes once.
+- **A decoder gives one thing a delivery.** The JSON decoder gives the
+  next demand or a document's outcome, and a read takes one of each from a
+  delivery and drops the decoder at its outcome, so that anything beside
+  it would be lost. The outcome comes once, with no read out; `Closed`
+  comes last, and once.
 - **Resumed work goes before the next event.** While the protocol layer
   has work to resume, no io or file event enters it (`work_pending`).
 - **One record at a time.** The client's printer takes the next record
@@ -1530,11 +1535,11 @@ Over generated repositories, valid by construction and then mutated:
 - **Where a resolution's closure is made:** 8.2's `Resolved` carries the
   closure, while 5.3 has the domain match `Inst` triples to `Packages`
   stanzas; one of the two is to change.
-- **What the queues beside the config and records machines keep:**
-  `Decode`'s and `Client`'s, in `hearth-protocol-builder`, hold what one
-  entry point of a machine gives. What each keeps goes in 8.5, with its
-  test, before its cap goes; it depends on those machines' move to the
-  model (`hearth/docs/development/debt/D001-room-checks-and-max-out.md`).
+- **What the queues beside the records machine keep:** `Client`'s, in
+  `hearth-protocol-builder`, hold what one entry point of the machine
+  gives. What each keeps goes in 8.5, with its test, before its cap goes;
+  it depends on that machine's move to the model
+  (`hearth/docs/development/debt/D001-room-checks-and-max-out.md`).
 - **How the builder paces with its own queues uncapped:** an uncapped
   `answers` can hold a copy of every target's spec, so it takes a
   watermark (`skein/docs/foundation/programming-model.md`, 7.1) or a stop

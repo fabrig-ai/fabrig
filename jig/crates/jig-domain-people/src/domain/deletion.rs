@@ -1,8 +1,6 @@
 //! Project closure and retained deletion progress (jig/docs/design/domain/people.md, 5.2).
 use super::Domain;
-use crate::{
-    Act, ApplicationScope, Ask, AskFamily, DeletionStep, KeptDeletion, Key, Outcome, OutcomeFamily, Request, Stored,
-};
+use crate::{Act, Ask, DeletionStep, KeptDeletion, Key, Outcome, OutcomeFamily, Request, Stored};
 use skein_lib::{Duration, List, Queue};
 
 pub(super) fn keep(
@@ -116,13 +114,5 @@ pub(super) fn act_project(act: &Act) -> Option<u32> {
 }
 
 pub(super) fn ask_project(ask: &Ask) -> Option<u32> {
-    match ask.family() {
-        AskFamily::Project(project) | AskFamily::Application(ApplicationScope::Project(project)) => Some(project),
-        AskFamily::Application(ApplicationScope::Own | ApplicationScope::Deployment)
-        | AskFamily::Restore
-        | AskFamily::Deployment
-        | AskFamily::Account
-        | AskFamily::Lift
-        | AskFamily::Seen => None,
-    }
+    ask.family().named_project()
 }
