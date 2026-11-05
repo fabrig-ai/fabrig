@@ -187,6 +187,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::SETTINGS_AT..=rows::REVISIONS_AT
         | rows::PROPOSAL_AT
         | rows::TASK_TEXT_AT
+        | rows::TASK_NOTES_AT
         | rows::PROJECT_SHOW_AT => {
             reads::start(runner, client, env, called, out);
         }
