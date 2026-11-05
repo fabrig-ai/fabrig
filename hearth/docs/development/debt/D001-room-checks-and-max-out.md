@@ -1,15 +1,15 @@
 # D001: The service and its machines pace work by room checks and `MAX_OUT`
 
 - **Kind:** complexity
-- **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-protocol-config/src/json.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/tests/suite/bounds.rs`
+- **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/tests/suite/bounds.rs`
 - **Seen:** 2026-11-04 at `66968a30ef`, in the request of plan hearth-workspace (its port table, and its rule that adopting the newer model in full is out of scope)
 - **Seen:** 2026-11-04 at `66968a30ef`, in `hearth/scripts/old-forms.txt` (`max_out`)
-- **Checked:** 2026-11-05 at `e013b19d72`
+- **Checked:** 2026-11-05 at `5e2270f79e`
 - **Value:** high (hearth paces as the other trees do; `iterate` shrinks; new code stops copying the old form)
 - **Size:** L
 - **Status:** open
 - **Paid when:** no hearth step crate defines a `MaxOut` or a `MAX_OUT` constant, `iterate` asks no queue for room but the kernel's edge, the queues between a service's own layers are uncapped, and the orders the room checks kept are named predicates with world tests.
-- **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 57`
+- **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 53`
 
 ## What
 
@@ -21,7 +21,7 @@ hearth still holds the old form:
 - step crates of the builder still declare what one entry point may emit:
   `MAX_OUT` in five domains, `MaxOut` and `MAX_OUT_*` in
   `hearth-protocol-builder`, and `MaxOut`, `UP_MAX_OUT` and `DOWN_MAX_OUT`
-  in the config and records machines;
+  in the records machine;
 - `hearth-service-builder/src/lib.rs` keeps eight capped queues, and
   `told` is the only uncapped one. Before each entry point it asks
   `io_room` or `protocol_room`; after it, `within` asserts the constant.
@@ -29,7 +29,7 @@ hearth still holds the old form:
 - `Service::new` refuses `limits.queue` under 3, "queues holding every
   MAX_OUT", and `tests/builder/tests/suite/bounds.rs` sizes a world on
   that figure;
-- 23 `.room()` calls remain in non-test step code.
+- 23 `.room()` calls remain on 21 lines of non-test step code.
 
 The count leaves out the eight `io::MAX_OUT_*` uses, the kernel's edge.
 
@@ -47,7 +47,7 @@ First list what each room check keeps, a capacity or an order, as 7.2
 asks, and write each order's test. Then make the inner queues uncapped,
 from the machines up, and take the constants and `within` out. Do it with
 D004, which rewrites the same `io_up` and `io_down`.
-Git and mmdebstrap are done; config and records come next, then the service.
+Git, mmdebstrap and config are done; records comes next, then the service.
 
 ## What each room check keeps
 
@@ -67,17 +67,13 @@ first, and each order's test is named beside it.
 | `hearth-domain-render/src/parts/exports.rs`, `push` | `record.room() == 0` | Nothing: it doubles a list by hand and refuses nothing. `List::uncapped` does the same. |
 | `hearth-domain-render/src/schema.rs`, `push`, `fault` and `add_default` | `faults.room() == 0`, twice, and `values.room() == 0` | Nothing, the same. |
 | `hearth-domain-render/src/schema/references.rs`, `condition` | `faults.room() == 0` | Nothing, the same. |
-| `hearth-protocol-config/src/document.rs` | `pending.room() == 0` | Nothing, the same: a stack whose depth the decoder's limits bound. |
-| `hearth-protocol-config/src/json.rs` | `values.room() == 0` | Nothing, the same. |
-| `hearth-protocol-config/src/json.rs`, `Decoder`'s `events` | capacity 1 | Nothing: the tokenizer answers one `Next` with one event, and `drive` takes it before it asks the next. |
-| `hearth-protocol-builder/src/read.rs`, `Decode`'s `below` | capacity 1 | An order: one read out at a time, which the tokenizer's state keeps. `a_decoder_has_one_read_out_whatever_the_cuts`, in `hearth/tests/config`. |
-| `hearth-protocol-builder/src/read.rs`, `Decode`'s `above` | capacity 1 | An order: a delivery gives one event, the one `resume` takes, and the outcome comes once, `Closed` last, once. `drive`'s returns and `Waiting` keep them. `a_delivery_gives_a_decoder_s_caller_at_most_one_event` and `a_decoder_s_outcome_comes_once_and_closed_last`, in `hearth/tests/config`. |
 
-The queues beside git's machines and mmdebstrap's, these last in
-`hearth-protocol-builder/src/resolve.rs` and `indices.rs`, are uncapped.
+The queues beside git's machines, mmdebstrap's and the config decoder,
+these last in `hearth-protocol-builder/src/resolve.rs`, `indices.rs` and
+`read.rs`, are uncapped.
 The machines' states keep the orders in
 `hearth/docs/design/domain/render.md`, 8.5, and their tests stand in
-`hearth/tests/git` and `hearth/tests/mmdebstrap`. The queues beside the
+`hearth/tests/git`, `hearth/tests/mmdebstrap` and `hearth/tests/config`. The queues beside the
 records machine, `Client`'s in `client.rs`, stay capped with no row yet:
 each gets one, and its order's test, in that machine's round.
 
