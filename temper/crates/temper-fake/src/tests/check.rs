@@ -67,6 +67,7 @@ pub const LIMITS: d::Limits = d::Limits {
     collaborators: 8,
     landings: 8,
     landing_members: 2,
+    landings_kept: 16,
     gates: 2,
     receipts_per_gate: 4,
     ignored_paths: 4,
