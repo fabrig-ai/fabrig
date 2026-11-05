@@ -161,7 +161,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Text { text: "Left: " },
             Part::Text { text: "Risk: " },
             Part::Named { role: Role::Disclosure, name: "6 landed" },
-            Part::Named { role: Role::Image, name: "6 landed of 9" },
+            Part::Named { role: Role::Figure, name: "6 landed of 9" },
         ],
     },
     Holds {
@@ -225,7 +225,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "goal-no-report",
         heading: "6 of 9 tasks landed.",
-        parts: &[Part::Text { text: "running" }, Part::Named { role: Role::Image, name: "6 landed of 9" }],
+        parts: &[Part::Text { text: "running" }, Part::Named { role: Role::Figure, name: "6 landed of 9" }],
     },
     Holds {
         name: "needs-one",
@@ -1153,7 +1153,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Text {
                 text: "The old parser accepts a trailing comma as an empty last field. RFC 4180 does not. Keep it, or drop it in 0.5?",
             },
-            Part::Named { role: Role::Image, name: "0 landed of 2" },
+            Part::Named { role: Role::Figure, name: "0 landed of 2" },
         ],
     },
     Holds {

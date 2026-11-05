@@ -775,10 +775,10 @@ fn the_bar_is_named_and_classed() {
         ],
         &[],
     ));
-    for words in [fixtures::browser_words(), fixtures::words()] {
+    for (words, role) in [(fixtures::browser_words(), Role::Figure), (fixtures::words(), Role::Image)] {
         let tree = draw(&root, &words).0;
         let at = styled(&tree, look::GOAL_BAR);
-        assert_eq!(tree.nodes()[at].role, Role::Image);
+        assert_eq!(tree.nodes()[at].role, role);
         assert_eq!(tree.nodes()[at].name.as_deref(), Some(b"1 landed of 3".as_slice()));
         assert_eq!(tree.nodes()[at].size, 4);
         assert_eq!(tree.nodes()[at.checked_add(1).unwrap()].styles.as_slice(), [look::GOAL_BAR_LANDED]);

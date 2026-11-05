@@ -3551,7 +3551,8 @@ an open need on it, whether it has a report, and its direct delegates' total.
     depth-1 rows and the ended page, merged by number, a delegate in both
     drawn once as the tree's; a delegate's own delegates aren't drawn; cancelled
     ones are left out.
-    - `div.bar`, `Role::Image` named "N landed of M", a `<span>` per task in
+    - `figure.bar` (`Role::Figure` in the browser, `Role::Image` in the terminal),
+      named "N landed of M", a `<span>` per task in
       order, class `landed` for an ended done, `running` for a running one,
       none otherwise.
     - Each task not yet landed, `p.task-line`, with class `running` when
