@@ -1,0 +1,3 @@
+draft = "clearer-words"
+repo = "fabrig"
+sources = ["temper/docs/plan/clearer-words/inputs/request.md", "temper/docs/design/protocol/tooling.md", "AGENTS.md", "DESIGN.md"]
