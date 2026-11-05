@@ -48,3 +48,12 @@ The hand-forgejo spec declares `needs = ["hand-face"]` and requires “The scrip
 Hand-face owns the missing shared harness and suite scaffolding; its acceptance requires “`pub mod hand;` in `lib.rs`” and “`tests/suite/hand.rs`, `hand/forgejo.rs` and `hand/github.rs`”.
 Hand-forgejo's ownership says “`hand.rs` only gains what its files read.”
 The next hand-forgejo run uses the completed prerequisite's harness, scaffolding and reported script, then performs its migration and acceptance checks.
+
+### 2026-11-05: Publish hand-face's completed report with its required move script and rerun this task (recommended), or authorize hand-forgejo to write its own migration script? (debt-24/hand-forgejo-2, foreman debt-24/hand-forgejo/foreman-2)
+
+Publish hand-face's completed report with its required move script, then rerun hand-forgejo.
+The task's Steps require “The script from `hand-face`'s report”.
+Hand-face step 3 requires “the one-shot script the later tasks reuse; keep the script in your report, as text.”
+The recorded answer requires the next run to use “the completed prerequisite's harness, scaffolding and reported script”.
+The shared code is present; the required reported script remains missing.
+The next hand-forgejo run uses that script, performs its migration and acceptance checks, then commits and pushes.
