@@ -48,9 +48,15 @@ impl Metered {
         }
         while let Some(request) = self.below.pop() {
             let span = Span::start();
-            below.push(copy_io(&request));
+            let (copy, original) = match request {
+                skein_io::Request::Stream { stream, down: Down::Send(bytes) } => (
+                    skein_io::Request::Stream { stream, down: Down::Send(bytes.clone()) }, Some(bytes)
+                ),
+                request => (request, None),
+            };
+            below.push(copy);
             outside += span.end().net;
-            drop(request);
+            drop(original);
         }
         m.steps.check(measured, 0, &"host step");
         m.steps.outside(outside);
@@ -103,29 +109,6 @@ impl Metered {
     }
     pub fn next_deadline(&self) -> Option<Time> {
         self.host.next_deadline()
-    }
-}
-fn copy_io(request: &skein_io::Request) -> skein_io::Request {
-    match request {
-        skein_io::Request::Connect { owner, addr } => skein_io::Request::Connect { owner: *owner, addr: *addr },
-        skein_io::Request::Stream { stream, down } => skein_io::Request::Stream {
-            stream: *stream,
-            down: match down {
-                Down::Demand { read, room } => Down::Demand { read: *read, room: *room },
-                Down::Send(bytes) => Down::Send(bytes.clone()),
-                Down::Finish => Down::Finish,
-            },
-        },
-        skein_io::Request::Close { entity } => skein_io::Request::Close { entity: *entity },
-        skein_io::Request::Abort { entity } => skein_io::Request::Abort { entity: *entity },
-        skein_io::Request::Listen { .. }
-        | skein_io::Request::Bind { .. }
-        | skein_io::Request::Reject { .. }
-        | skein_io::Request::Output { .. }
-        | skein_io::Request::Spawn { .. }
-        | skein_io::Request::Signal { .. }
-        | skein_io::Request::Usage { .. }
-        | skein_io::Request::Window { .. } => panic!("host socket request"),
     }
 }
 fn request_bytes(request: &Request) -> usize {
