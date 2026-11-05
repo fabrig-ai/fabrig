@@ -8,7 +8,7 @@
   `Board { project }` with its reordering, no address in
   `temper-client-domain`'s `address.rs`. 5.3: the banner's "Board" and "Changes". 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
-  with their tests, and with them How work runs' offer of `Configure` and
+  with their tests, and with them How work runs' "Configure temper" entry and
   a review's "Change something"; ctl supplies the review groups and running-work effect
   (`tools.md`, 5.2). 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
@@ -47,7 +47,13 @@
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
-- **Departs:** 3.5, With no project yet, and 5.3: where the document
+- **Departs:** 3.5, Settings: "Configure temper" chooses among the rows
+  `temper-client-domain`'s `Chats::open_configuring` is delivered, whose
+  live watch holds a window of `limits.client.domain.rows` by latest
+  activity, so a configuring chat not closed but past that window isn't
+  seen and the link opens `Configure { project }`; `configure-temper-name`'s
+  landing accepted it, raising no bound for one link.
+  3.5, With no project yet, and 5.3: where the document
   shows the welcome, with no project, the banner's place for it reads "No project yet" followed by the new
   project's form, "New project" and "Create" (`temper-client-view`'s
   `frame.rs`, `switcher`), where 5.3 ends the switcher's list with that
