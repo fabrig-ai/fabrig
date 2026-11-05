@@ -446,9 +446,13 @@ mod tests {
                 local::TurnLine::Text(b"Working".as_slice().into()),
                 local::TurnLine::Tool { name: b"inspect".as_slice().into() },
                 local::TurnLine::Ended(local::ToolVerdict::Finished),
+                local::TurnLine::Ended(local::ToolVerdict::Failed),
             ]),
         };
-        assert_eq!(notice_text(&notice, b"main", &[], 128).as_ref(), b"Working\nTool: inspect\nTool finished\n");
+        assert_eq!(
+            notice_text(&notice, b"main", &[], 128).as_ref(),
+            b"Working\nTool: inspect\nTool finished\nTool failed\n"
+        );
     }
 
     #[test]
@@ -468,16 +472,6 @@ mod tests {
         for (lines, cap, expected) in rows {
             let notice = local::Notice::Turn { lines };
             assert_eq!(notice_text(&notice, b"main", &[], cap).as_ref(), expected);
-        }
-    }
-
-    #[test]
-    fn tool_terminals_keep_their_verdict_words() {
-        for (verdict, expected) in [
-            (local::ToolVerdict::Finished, b"Tool finished\n".as_slice()),
-            (local::ToolVerdict::Failed, b"Tool failed\n".as_slice()),
-        ] {
-            assert_eq!(tool_verdict_text(verdict), expected);
         }
     }
 
