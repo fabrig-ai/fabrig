@@ -1065,7 +1065,8 @@ const PHRASES: u32 = 1545;
 // Goal rows and ways add twenty-eight literal and hole segments; the page adds thirty-four (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Settings and Needs you include their literal segments (client/README.md, 3.5, 5.13).
-const SEGMENTS: u32 = 2654;
+// The agent check refusal names its charter, adding two segments.
+const SEGMENTS: u32 = 2656;
 const ALL: [Word; 949] = [
     Word::SettingsProposalTitle,
     Word::SettingsProposalDrafts,
@@ -3215,6 +3216,7 @@ impl Words {
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
             // How work runs adds 1181 bytes; agent-written reports add thirteen (5.13).
             // The settings proposal adds 279 literal bytes (5.13).
+            // The agent check refusal names its charter, adding 53 literal bytes.
             text_bytes: 32768
                 + 288
                 + 149
@@ -3231,7 +3233,8 @@ impl Words {
                 + 225
                 + 15
                 + 54
-                + 279,
+                + 279
+                + 53,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3874,7 +3877,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AgentSpend => (&[b"Agent spend too small."], &[]),
         Word::AgentTime => (&[b"Agent time too short."], &[]),
         Word::AgentWaiting => (&[b"Agent waiting too short."], &[]),
-        Word::AgentChecks => (&[b"Agent checks exceed the change reserve."], &[]),
+        Word::AgentChecks => (&[b"Agent check timeout exceeds reserve_time for charter ", b". See settings help for held revisions."], &[Number]),
         Word::AgentMessage => (&[b"Agent message bound too small."], &[]),
         Word::AgentInbox => (&[b"Agent inbox too small."], &[]),
         Word::AgentUnacknowledged => (&[b"Agent unacknowledged turns too few."], &[]),
