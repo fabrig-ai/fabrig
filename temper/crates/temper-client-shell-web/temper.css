@@ -615,8 +615,8 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 /* .card.card-pad and .card-top h2: the task's stacked cards. */
 .temper-page > .temper-task-card { min-width: 0; padding: 17.5px 21px; border: 1px solid var(--temper-line); border-radius: 5.83px; background: var(--temper-paper); margin-block: 0 10.5px; overflow-wrap: anywhere; }
 .temper-task-card > h2 { margin: 0; font: 700 16.33px/1.3 var(--temper-mono); letter-spacing: -.025em; }
-/* What was asked and .rule: markdown followed by the supplied resource row. */
-.temper-task-card > p, .temper-task-card > ul:not(.temper-events), .temper-task-card > ol, .temper-task-card > pre, .temper-task-card > blockquote { margin: 16.33px 0 0; font-size: 14px; line-height: 1.7; }
+/* A task card's markdown and supplied resource row. */
+.temper-task-card > p, .temper-task-card > ul, .temper-task-card > ol, .temper-task-card > pre, .temper-task-card > blockquote { margin: 16.33px 0 0; font-size: 14px; line-height: 1.7; }
 .temper-task-card pre { overflow-x: auto; white-space: pre; overflow-wrap: normal; }
 .temper-task-card code { font: inherit; }
 .temper-task-card > .temper-meta { border-top: 1px solid var(--temper-line); padding-top: 14px; margin-top: 14px; }
@@ -660,15 +660,6 @@ dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-ac
 .temper-plan-hold button:first-of-type { background: var(--temper-accent); border-color: var(--temper-accent); color: white; }
 .temper-plan-hold button:first-of-type:hover { background: #a8563e; }
 .temper-plan-hold textarea { display: block; width: 100%; min-height: 87.5px; margin-top: 9.33px; border: 1px solid #d8d0c5; border-radius: 5.83px; padding: 9.33px; resize: vertical; font: inherit; }
-/* .timeline and .event: faint wall-clock times beside activity words. */
-.temper-events { display: grid; list-style: none; padding: 0; margin: 0; }
-.temper-events > li { display: grid; grid-template-columns: 63px minmax(0, 1fr); gap: 14px; padding: 9.33px 0; border-bottom: 1px solid #f0ede8; font-size: 12.83px; }
-.temper-events > li:last-child { border-bottom: 0; }
-.temper-events > li > p { color: #a09c93; margin: 0; }
-.temper-events > li > div { min-width: 0; }
-.temper-events > li > div p { margin: 3.5px 0 0; color: var(--temper-muted); font-size: 12.83px; }
-/* .event strong: the first line is the ink headline, level with the time. */
-.temper-events > li > div > p:first-child { margin-top: 0; color: var(--temper-ink); }
 /* .page at 850px: keep the task heading on the page's left edge. */
 @media (max-width: 850px) {
   .temper-main.temper-page > .temper-task-heading { margin-left: 19.83px; }

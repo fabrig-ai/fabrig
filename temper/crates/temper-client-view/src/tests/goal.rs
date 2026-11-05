@@ -903,10 +903,16 @@ fn landed_rows_fold_under_n_landed_with_their_end() {
         assert_eq!(tree.nodes()[at].role, Role::Disclosure);
         assert_eq!(tree.nodes()[at].name.as_deref(), Some(b"3 landed".as_slice()));
         assert!(!tree.nodes()[at].states.as_slice().contains(&skein_ui::State::Expanded));
-        assert_eq!(
-            lines(&tree).as_ref(),
+        let expected = if words.shell == crate::words::Shell::Terminal {
+            [
+                row_words(&[b"Earlier", " · ".as_bytes(), b"06:20"]),
+                row_words(&[b"Later", " · ".as_bytes(), b"06:20"]),
+                row_words(&[b"No time"]),
+            ]
+        } else {
             [row_words(&[b"Earlier", b"06:20"]), row_words(&[b"Later", b"06:20"]), row_words(&[b"No time"])]
-        );
+        };
+        assert_eq!(lines(&tree).as_ref(), expected);
     }
 }
 fn section_text(tree: &Tree, name: &[u8]) -> Box<[u8]> {

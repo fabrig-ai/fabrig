@@ -858,6 +858,7 @@ impl Task {
             self.thread.failed();
         }
     }
+    /// Tracked pages read needs through their inbox, without task cards (client/README.md, 5.11).
     pub(crate) fn held(&mut self, chip: &c::Chip, out: &mut Queue<Request>) {
         if self.shape == Shape::Tracked || chip.phase != c::Phase::Held {
             return;

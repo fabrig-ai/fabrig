@@ -21,7 +21,6 @@ use temper_client_domain::{
     },
 };
 
-#[cfg_attr(not(test), expect(dead_code, reason = "goal-route hands over"))]
 pub(crate) fn main(
     b: &mut Builder,
     root: &Domain,
@@ -548,6 +547,9 @@ impl<'a> Delegates<'a> {
             None => None,
         };
         if let Some(said) = said {
+            if words.shell == Shell::Terminal {
+                text(b, Role::Text, &words.say(Word::ToolSeparator, &[]));
+            }
             b.open(Role::Text);
             if row.line == Some(goal::Line::Held) {
                 b.style(look::GOAL_LINE_NEEDS);
