@@ -461,20 +461,23 @@ impl Host for Fake {
             self.effects(vec![Effect::ReadCode]);
         }
         let env = Env { now, wall, limits: self.limits };
-        while self.io.is_ready() {
-            skein_io::resume(&mut self.io, &env, &mut self.io_events, &mut self.submissions);
-        }
-        while let Some(mut complete) = self.completions.pop() {
+        for _ in 0..self.completions.len() {
+            let mut complete = self.completions.pop().expect("completion present at stage entry");
             if complete.op.raw() & FILE_BIT != 0 {
                 file_namespace(&mut complete.op, &mut complete.kind);
                 file_layer::up(&mut self.files, complete, &mut self.file_events, &mut self.file_submissions);
             } else {
-                skein_io::up(&mut self.io, &env, complete, &mut self.io_events, &mut self.submissions);
+                self.completions.push(complete);
             }
         }
-        while self.io.is_due(now) {
-            skein_io::fire(&mut self.io, &env, &mut self.io_events, &mut self.submissions);
-        }
+        skein_io::stage::up(
+            &mut self.io,
+            &env,
+            &mut self.completions,
+            &mut self.io_events,
+            &mut self.submissions,
+            now,
+        );
         if self.files.is_due(now) {
             file_layer::expire(&mut self.files, now, &mut self.file_submissions);
         }
