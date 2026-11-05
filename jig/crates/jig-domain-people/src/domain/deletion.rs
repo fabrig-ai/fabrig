@@ -1,6 +1,8 @@
 //! Project closure and retained deletion progress (jig/docs/design/domain/people.md, 5.2).
 use super::Domain;
-use crate::{Act, Ask, DeletionStep, KeptDeletion, Key, Outcome, Request, Stored};
+use crate::{
+    Act, ApplicationScope, Ask, AskFamily, DeletionStep, KeptDeletion, Key, Outcome, OutcomeFamily, Request, Stored,
+};
 use skein_lib::{Duration, List, Queue};
 
 pub(super) fn keep(
@@ -93,52 +95,16 @@ pub(super) fn kept_answer(domain: &Domain, outcome: &Outcome) -> bool {
 }
 
 pub(super) fn made_project(outcome: &Outcome) -> Option<u32> {
-    match outcome {
-        Outcome::ProjectMade { project } => Some(*project),
-        Outcome::Restored { .. }
-        | Outcome::Again(_)
-        | Outcome::SignedOut
-        | Outcome::Compound { .. }
-        | Outcome::CompoundRefused { .. }
-        | Outcome::MarkedSeen { .. }
-        | Outcome::Applied { .. }
-        | Outcome::NoteEdited { .. }
-        | Outcome::ServiceMade { .. }
-        | Outcome::Adopted { .. }
-        | Outcome::RolesSet { .. }
-        | Outcome::PolicyChanged { .. }
-        | Outcome::Renamed { .. }
-        | Outcome::ProjectRemoved { .. }
-        | Outcome::VisibilitySet { .. }
-        | Outcome::SettingsChanged { .. }
-        | Outcome::MovedToNewest { .. }
-        | Outcome::PoolSet { .. }
-        | Outcome::Said { .. }
-        | Outcome::QuestionAnswered { .. }
-        | Outcome::Amended { .. }
-        | Outcome::Moved { .. }
-        | Outcome::Stopped { .. }
-        | Outcome::Cancelled { .. }
-        | Outcome::Lifted { .. }
-        | Outcome::Released { .. }
-        | Outcome::Created { .. }
-        | Outcome::Proposed { .. }
-        | Outcome::Withdrawn { .. }
-        | Outcome::PersonTaken { .. }
-        | Outcome::PersonHandedBack { .. }
-        | Outcome::PersonAnswered { .. }
-        | Outcome::EscalationDecided { .. }
-        | Outcome::ProposalDecided { .. }
-        | Outcome::AccountSignInStarted { .. }
-        | Outcome::AccountProgramDeclared { .. }
-        | Outcome::AccountKeyKept { .. }
-        | Outcome::AccountMovingOut { .. }
-        | Outcome::AccountFinishing { .. }
-        | Outcome::AccountMovedIn { .. }
-        | Outcome::AccountChanged
-        | Outcome::AccountRemoved { .. }
-        | Outcome::AccountSignedOut { .. }
-        | Outcome::Refused(_) => None,
+    match outcome.family() {
+        OutcomeFamily::ProjectMade(project) => Some(project),
+        OutcomeFamily::Again(_)
+        | OutcomeFamily::SignedOut
+        | OutcomeFamily::Compound
+        | OutcomeFamily::Refused
+        | OutcomeFamily::CompoundRefused
+        | OutcomeFamily::ServiceMade(_)
+        | OutcomeFamily::RolesSet(_)
+        | OutcomeFamily::Settled => None,
     }
 }
 
@@ -150,44 +116,13 @@ pub(super) fn act_project(act: &Act) -> Option<u32> {
 }
 
 pub(super) fn ask_project(ask: &Ask) -> Option<u32> {
-    match ask {
-        Ask::Application { scope, .. } => match scope {
-            crate::ApplicationScope::Project(project) => Some(*project),
-            crate::ApplicationScope::Own | crate::ApplicationScope::Deployment => None,
-        },
-        Ask::Restore { .. }
-        | Ask::Lift { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. }
-        | Ask::MakeProject { .. }
-        | Ask::ChangeSettings { .. }
-        | Ask::MoveToNewest { .. } => None,
-        Ask::RemoveProject { .. }
-        | Ask::SetVisibility { .. }
-        | Ask::Rename { .. }
-        | Ask::Compound { .. }
-        | Ask::EditNote { .. }
-        | Ask::MakeService { .. }
-        | Ask::Adopt { .. }
-        | Ask::SetRoles { .. }
-        | Ask::ChangePolicy { .. }
-        | Ask::SetPool { .. }
-        | Ask::DecideEscalation { .. }
-        | Ask::DecideProposal { .. }
-        | Ask::Say { .. }
-        | Ask::AnswerQuestion { .. }
-        | Ask::Amend { .. }
-        | Ask::Move { .. }
-        | Ask::TakePerson { .. }
-        | Ask::HandBackPerson { .. }
-        | Ask::AnswerPerson { .. }
-        | Ask::Stop { .. }
-        | Ask::Cancel { .. }
-        | Ask::Release { .. }
-        | Ask::Create { .. }
-        | Ask::Propose { .. }
-        | Ask::Withdraw { .. } => Some(super::project(ask)),
+    match ask.family() {
+        AskFamily::Project(project) | AskFamily::Application(ApplicationScope::Project(project)) => Some(project),
+        AskFamily::Application(ApplicationScope::Own | ApplicationScope::Deployment)
+        | AskFamily::Restore
+        | AskFamily::Deployment
+        | AskFamily::Account
+        | AskFamily::Lift
+        | AskFamily::Seen => None,
     }
 }

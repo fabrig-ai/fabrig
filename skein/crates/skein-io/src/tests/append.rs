@@ -288,3 +288,56 @@ fn an_append_deadline_settles_pending_independent_room_before_the_stream_failure
     let close = rig.complete(cancel, Ok(Done::Nothing)).take(Kind::Close);
     finish(&mut rig, stream, close);
 }
+
+#[test]
+fn no_timeout_write_error_spills_the_queue_without_continuing_short_writes_or_repeating_failure() {
+    let (mut rig, stream) = write_pipe(None);
+    let first = send(&mut rig, stream, b"one").take(Kind::PipeWrite);
+    send(&mut rig, stream, b"two").nothing();
+    send(&mut rig, stream, b"e").nothing();
+    let mut failed = rig.complete(first, Err(Error::BrokenPipe));
+    assert_eq!(failed.events, [Event::Stream { owner: stream, up: Up::Failed(Fault::Reset) }]);
+    let second = failed.take(Kind::PipeWrite);
+    let Op::PipeWrite { bytes, from, .. } = &second.kind else { panic!("queued write") };
+    assert_eq!((bytes.as_ref(), *from), (&b"two"[..], 0));
+    let mut spilled = rig.complete(second, Ok(Done::Count(1)));
+    assert!(spilled.events.is_empty());
+    let third = spilled.take(Kind::PipeWrite);
+    let Op::PipeWrite { bytes, from, .. } = &third.kind else { panic!("queued write") };
+    assert_eq!((bytes.as_ref(), *from), (&b"e"[..], 0));
+    let mut ignored = rig.complete(third, Err(Error::BrokenPipe));
+    assert!(ignored.events.is_empty());
+    let close = ignored.take(Kind::Close);
+    finish(&mut rig, stream, close);
+}
+
+#[test]
+#[should_panic(expected = "only an unfinished write pipe sends")]
+fn finish_then_demand_grants_room_but_a_later_send_panics() {
+    let (mut rig, stream) = write_pipe(None);
+    send(&mut rig, stream, b"one").take(Kind::PipeWrite);
+    rig.down(Request::Stream { stream, down: Down::Finish }).nothing();
+    rig.down(Request::Stream { stream, down: Down::Demand { read: Read::Nothing, room: 1 } }).nothing();
+    assert_eq!(rig.next().events, [Event::Stream { owner: stream, up: Up::Room }]);
+    rig.down(Request::Stream { stream, down: Down::Send(Box::from(&b"x"[..])) });
+}
+
+#[test]
+fn close_and_abort_carry_the_pending_terminal_before_actual_closed_without_a_second_answer() {
+    for abort in [false, true] {
+        let (mut rig, stream) = write_pipe(None);
+        let right = Token::new(17);
+        rig.down(Request::Output { stream, down: OutputDown::Room { right, bytes: 8 } }).nothing();
+        let request = if abort { Request::Abort { entity: stream } } else { Request::Close { entity: stream } };
+        let close = rig.down(request).take(Kind::Close);
+        assert_eq!(
+            rig.complete(close, Ok(Done::Nothing)).events,
+            [
+                Event::Output { owner: stream, up: OutputUp::Settled { right, outcome: OutputOutcome::Cancelled } },
+                Event::Closed { owner: stream },
+            ]
+        );
+        rig.next().nothing();
+        rig.empty();
+    }
+}

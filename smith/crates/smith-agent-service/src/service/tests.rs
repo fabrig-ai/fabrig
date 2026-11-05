@@ -479,6 +479,50 @@ fn done_is_some_only_when_closed() {
 }
 
 #[test]
+fn a_deferred_io_completion_keeps_the_service_awake_and_unsettled() {
+    let mut service = without_channel();
+    teardown::answered(&mut service.stages);
+    teardown::follow(&mut service.stages, Some(&service.frame));
+    assert!(teardown::components_closed(&service.stages, Some(&service.frame)));
+    let owner = Token::new(41);
+    service.stages.io_requests.push(io::Request::Usage { owner });
+    service.stages.io_requests.push(io::Request::Window { owner, stream: Token::new(42) });
+    io_down(&mut service.stages, Some(&mut service.frame));
+    let submitted = service.stages.submissions.pop().expect("usage reaches the kernel");
+    service.stages.completions.push(kernel::Complete {
+        op: submitted.op,
+        kind: submitted.kind,
+        result: Ok(kernel::Done::Usage(kernel::Usage::ZERO)),
+    });
+    // Hold ready work first, then let it drain without room for a completion.
+    service.stages.io_submissions = Queue::with_capacity(0);
+    up::io_up(&mut service.stages, Some(&mut service.frame));
+    assert!(service.frame.io.is_ready());
+    assert!(service.stages.completions.is_empty());
+    assert!(service.stages.operations.is_empty());
+    assert_eq!(service.stages.io_completions.len(), 1);
+    service.stages.io_submissions = Queue::with_capacity(1);
+    up::io_up(&mut service.stages, Some(&mut service.frame));
+    assert!(!service.frame.io.is_ready());
+    assert_eq!(service.stages.io_completions.len(), 1);
+    assert_eq!(service.stages.io_events.pop(), Some(io::Event::Window { owner, window: io::Window::Gone }));
+    assert!(service.stages.io_events.is_empty());
+    assert!(!teardown::components_closed(&service.stages, Some(&service.frame)), "the completion still owes its event");
+    assert!(work_pending(&service, Time::ZERO), "the retained completion must prevent sleep");
+    teardown::follow(&mut service.stages, Some(&service.frame));
+    assert_eq!(
+        service.stages.teardown,
+        Teardown::Closing { at: Time::ZERO, answer: Answer::Sent, close: Close::Graceful, step: Step::Components }
+    );
+    service.stages.io_submissions = Queue::uncapped();
+    up::io_up(&mut service.stages, Some(&mut service.frame));
+    assert!(service.stages.io_completions.is_empty());
+    assert_eq!(service.stages.io_events.pop(), Some(io::Event::Usage { owner, usage: io::Measured::Read(kernel::Usage::ZERO) }));
+    service.frame.io.reclaim();
+    assert!(teardown::components_closed(&service.stages, Some(&service.frame)));
+}
+
+#[test]
 fn a_settled_event_producer_is_runnable_before_its_usage_request() {
     let mut service = event_service();
     teardown::answered(&mut service.stages);
@@ -883,6 +927,7 @@ mod validity {
             for native in [
                 io::Limits { sockets: u32::MAX, ..base.io },
                 io::Limits { sockets: u32::MAX / 8 + 1, ..base.io },
+                io::Limits { sockets: 1 << 24, ..base.io },
                 io::Limits { sockets: 1, ..base.io },
                 io::Limits { sockets: 2, ..base.io },
                 io::Limits { intake: base.io.intake + 1, ..base.io },

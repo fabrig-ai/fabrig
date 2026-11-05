@@ -211,6 +211,108 @@ pub enum Subject {
     },
 }
 
+/// Watch routing categories (`client/domain/contract.md`, section 7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum SubjectShape {
+    Application { scope: ApplicationScope, connector: u16, subject: skein_lib::Token },
+    Run(u64),
+    Retained(u64),
+    Chips,
+    Other,
+}
+
+/// Changes that mark subjects without consulting live child state
+/// (`client/domain/contract.md`, section 7.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Touch {
+    Party(u64),
+    Frames,
+    Settings,
+    Deployment,
+    Accounts(Option<u64>),
+}
+
+impl Subject {
+    /// Select the watch route without exposing unrelated document subjects.
+    #[must_use]
+    pub fn shape(&self) -> SubjectShape {
+        match self {
+            Self::Application { scope, connector, subject } => {
+                SubjectShape::Application { scope: *scope, connector: *connector, subject: *subject }
+            }
+            Self::Run { task } => SubjectShape::Run(*task),
+            Self::Task { task } | Self::Tree { task } => SubjectShape::Retained(*task),
+            Self::Chips { .. } => SubjectShape::Chips,
+            Self::Frame { .. }
+            | Self::Inbox { .. }
+            | Self::Accounts { .. }
+            | Self::Query { .. }
+            | Self::Settings
+            | Self::Deployment
+            | Self::Proposal { .. }
+            | Self::Escalation { .. }
+            | Self::Question { .. }
+            | Self::PersonTask { .. }
+            | Self::Result { .. }
+            | Self::Project { .. }
+            | Self::Note { .. } => SubjectShape::Other,
+        }
+    }
+
+    /// Whether these changed facts affect this watched document.
+    #[must_use]
+    pub fn touched_by(&self, touch: Touch) -> bool {
+        match self {
+            Self::Frame { party } => touch == Touch::Party(*party) || touch == Touch::Frames,
+            Self::Inbox { party } => touch == Touch::Party(*party),
+            Self::Settings => touch == Touch::Settings,
+            Self::Deployment => touch == Touch::Deployment,
+            Self::Accounts { party: owner } => match touch {
+                Touch::Accounts(party) => party.is_none() || party == Some(*owner),
+                Touch::Party(_) | Touch::Frames | Touch::Settings | Touch::Deployment => false,
+            },
+            Self::Application { .. }
+            | Self::Task { .. }
+            | Self::Tree { .. }
+            | Self::Run { .. }
+            | Self::Chips { .. }
+            | Self::Query { .. }
+            | Self::Proposal { .. }
+            | Self::Escalation { .. }
+            | Self::Question { .. }
+            | Self::PersonTask { .. }
+            | Self::Result { .. }
+            | Self::Project { .. }
+            | Self::Note { .. } => false,
+        }
+    }
+
+    /// Borrow the bounded task names of a chips watch.
+    #[must_use]
+    pub fn chips(&self) -> Option<&List<u64>> {
+        match self {
+            Self::Chips { tasks } => Some(tasks),
+            Self::Application { .. }
+            | Self::Task { .. }
+            | Self::Tree { .. }
+            | Self::Run { .. }
+            | Self::Frame { .. }
+            | Self::Inbox { .. }
+            | Self::Accounts { .. }
+            | Self::Query { .. }
+            | Self::Settings
+            | Self::Deployment
+            | Self::Proposal { .. }
+            | Self::Escalation { .. }
+            | Self::Question { .. }
+            | Self::PersonTask { .. }
+            | Self::Result { .. }
+            | Self::Project { .. }
+            | Self::Note { .. } => None,
+        }
+    }
+}
+
 /// The subjects a watch may name (`protocol/client.md`, section 7).
 /// Own subjects take their party from the authenticated sign-in in the core.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

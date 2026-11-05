@@ -256,20 +256,16 @@ impl Agent {
 impl Host for Agent {
     fn iterate(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: limits() };
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &env, &mut self.events, &mut self.submissions);
-        }
-        while let Some(complete) = self.completions.pop() {
+        for _ in 0..self.completions.len() {
+            let complete = self.completions.pop().expect("completion present at stage entry");
             if complete.op == ROOT_CLOSE {
                 assert_eq!(complete.result, Ok(Done::Nothing));
                 self.root_closing = false;
             } else {
-                io::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
+                self.completions.push(complete);
             }
         }
-        while self.io.is_due(now) {
-            io::fire(&mut self.io, &env, &mut self.events, &mut self.submissions);
-        }
+        io::stage::up(&mut self.io, &env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
             self.event(now, event);
         }

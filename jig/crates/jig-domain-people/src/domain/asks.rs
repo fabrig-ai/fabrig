@@ -1,47 +1,16 @@
 //! Request shape and payload validation (domain/people.md, 5.1).
-use crate::{Ask, LimitKind, Limits, Refusal, Seen};
+use crate::{ApplicationScope, Ask, AskFamily, LimitKind, Limits, Refusal, Seen};
 use alloc::boxed::Box;
 
 pub(super) fn project(ask: &Ask) -> u32 {
-    match ask {
-        Ask::Application { scope, .. } => match scope {
-            crate::ApplicationScope::Project(project) => *project,
-            crate::ApplicationScope::Own | crate::ApplicationScope::Deployment => 0,
-        },
-        // An account request names no project; its check is its holder (domain/authority.md, 8.4).
-        Ask::Lift { .. }
-        | Ask::MarkSeen { .. }
-        | Ask::AccountSignIn { .. }
-        | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => 0,
-        Ask::Restore { .. } | Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => {
-            crate::DEPLOYMENT
-        }
-        Ask::RemoveProject { project, .. }
-        | Ask::SetVisibility { project, .. }
-        | Ask::Rename { project, .. }
-        | Ask::Compound { project, .. }
-        | Ask::EditNote { project, .. }
-        | Ask::MakeService { project, .. }
-        | Ask::Adopt { project, .. }
-        | Ask::SetRoles { project, .. }
-        | Ask::ChangePolicy { project, .. }
-        | Ask::SetPool { project, .. }
-        | Ask::DecideEscalation { project, .. }
-        | Ask::DecideProposal { project, .. }
-        | Ask::Say { project, .. }
-        | Ask::AnswerQuestion { project, .. }
-        | Ask::Amend { project, .. }
-        | Ask::Move { project, .. }
-        | Ask::TakePerson { project, .. }
-        | Ask::HandBackPerson { project, .. }
-        | Ask::AnswerPerson { project, .. }
-        | Ask::Stop { project, .. }
-        | Ask::Cancel { project, .. }
-        | Ask::Release { project, .. }
-        | Ask::Create { project, .. }
-        | Ask::Propose { project, .. }
-        | Ask::Withdraw { project, .. } => *project,
+    match ask.family() {
+        AskFamily::Project(project) | AskFamily::Application(ApplicationScope::Project(project)) => project,
+        AskFamily::Application(ApplicationScope::Own | ApplicationScope::Deployment)
+        | AskFamily::Restore
+        | AskFamily::Deployment
+        | AskFamily::Account
+        | AskFamily::Lift
+        | AskFamily::Seen => crate::DEPLOYMENT,
     }
 }
 
@@ -321,4 +290,94 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         }
     };
     Refusal::Limit { which }
+}
+
+#[cfg(test)]
+mod classifications {
+    use super::*;
+    use crate::tests::{AskClass, LIMITS, ask_classes};
+    use crate::{Domain, Holding, Identity, IdentityKey, Outcome, RequestKey, Role};
+    use skein_lib::{Env, List, Queue, Time, Wall};
+
+    #[test]
+    fn ask_classes_keep_all_three_scopes_and_answer_reservations() {
+        for (ask, family) in ask_classes() {
+            assert_eq!(ask.family(), family, "{ask:?}");
+            let (scope, capacity, deletion, reserved) = match family {
+                AskClass::Project(project) | AskClass::Application(ApplicationScope::Project(project)) => {
+                    (project, Some(project), Some(project), true)
+                }
+                AskClass::Restore | AskClass::Deployment | AskClass::Application(ApplicationScope::Deployment) => {
+                    (crate::DEPLOYMENT, Some(crate::DEPLOYMENT), None, true)
+                }
+                AskClass::Application(ApplicationScope::Own) | AskClass::Account | AskClass::Lift => {
+                    (0, None, None, true)
+                }
+                AskClass::Seen => (0, None, None, false),
+            };
+            assert_eq!(project(&ask), scope, "{ask:?}");
+            assert_eq!(crate::capacity::project(&ask), capacity, "{ask:?}");
+            assert_eq!(super::super::deletion::ask_project(&ask), deletion, "{ask:?}");
+            assert_eq!(super::super::requests::reserves_answer(&ask), reserved, "{ask:?}");
+        }
+    }
+
+    #[test]
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        clippy::disallowed_methods,
+        reason = "step tests use ordinary Rust to read expected roster members from every table row"
+    )]
+    fn every_ask_only_applies_rosters_with_their_exact_members() {
+        for (ask, _) in ask_classes() {
+            let expected = match &ask {
+                Ask::SetRoles { project, holdings } => Some((*project, holdings.clone())),
+                _ => None,
+            };
+            let expected_roster = expected.as_ref().map(|(project, holdings)| (*project, holdings.as_ref()));
+            assert_eq!(ask.roster(), expected_roster, "{ask:?}");
+            let mut domain = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+            let env = Env { limits: LIMITS, now: Time::ZERO, wall: Wall::EPOCH };
+            domain.start_restore(env.wall);
+            assert!(domain.start_link(&env));
+            domain.start_sweep();
+            assert!(domain.start_complete(&env));
+            domain.roles.insert(7, Box::new([Holding { person: 9, role: Role::Owner }])).unwrap();
+            for person in [8, 9] {
+                domain
+                    .people
+                    .insert(
+                        person,
+                        Identity {
+                            key: IdentityKey { provider: 0, subject: Box::new([u8::try_from(person).unwrap()]) },
+                            login: Box::new([]),
+                            name: Box::new([]),
+                        },
+                    )
+                    .unwrap();
+            }
+            let id = domain
+                .pending
+                .insert(super::super::requests::Pending::Party(super::super::requests::PartyPending {
+                    key: RequestKey { person: 9, key: [8; 16] },
+                    ask: ask.clone(),
+                    models: Box::new([]),
+                    replies: List::with_capacity(0),
+                    part: None,
+                }))
+                .unwrap();
+            let mut out = Queue::uncapped();
+            let result = super::super::parties::apply_roles(&mut domain, &env, id.token(), &mut out);
+            match expected {
+                Some((project, holdings)) => {
+                    assert_eq!(result, Ok(()), "{ask:?}");
+                    assert_eq!(domain.roles.get(&project), Some(&holdings));
+                }
+                None => {
+                    assert_eq!(result, Err(Outcome::Refused(Refusal::Unknown)), "{ask:?}");
+                    assert!(out.pop().is_none());
+                }
+            }
+        }
+    }
 }
