@@ -1,15 +1,15 @@
 # D001: The service and its machines pace work by room checks and `MAX_OUT`
 
 - **Kind:** complexity
-- **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-protocol-mmdebstrap`, `hearth-protocol-config/src/json.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/tests/suite/bounds.rs`
+- **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-protocol-config/src/json.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/tests/suite/bounds.rs`
 - **Seen:** 2026-11-04 at `66968a30ef`, in the request of plan hearth-workspace (its port table, and its rule that adopting the newer model in full is out of scope)
 - **Seen:** 2026-11-04 at `66968a30ef`, in `hearth/scripts/old-forms.txt` (`max_out`)
-- **Checked:** 2026-11-05 at `efd6a36487`
+- **Checked:** 2026-11-05 at `271316c8d0`
 - **Value:** high (hearth paces as the other trees do; `iterate` shrinks; new code stops copying the old form)
 - **Size:** L
 - **Status:** open
 - **Paid when:** no hearth step crate defines a `MaxOut` or a `MAX_OUT` constant, `iterate` asks no queue for room but the kernel's edge, the queues between a service's own layers are uncapped, and the orders the room checks kept are named predicates with world tests.
-- **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 70`
+- **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 57`
 
 ## What
 
@@ -21,7 +21,7 @@ hearth still holds the old form:
 - step crates of the builder still declare what one entry point may emit:
   `MAX_OUT` in five domains, `MaxOut` and `MAX_OUT_*` in
   `hearth-protocol-builder`, and `MaxOut`, `UP_MAX_OUT` and `DOWN_MAX_OUT`
-  in the mmdebstrap, config and records machines;
+  in the config and records machines;
 - `hearth-service-builder/src/lib.rs` keeps eight capped queues, and
   `told` is the only uncapped one. Before each entry point it asks
   `io_room` or `protocol_room`; after it, `within` asserts the constant.
@@ -29,7 +29,7 @@ hearth still holds the old form:
 - `Service::new` refuses `limits.queue` under 3, "queues holding every
   MAX_OUT", and `tests/builder/tests/suite/bounds.rs` sizes a world on
   that figure;
-- 25 `.room()` calls remain in non-test step code.
+- 23 `.room()` calls remain in non-test step code.
 
 The count leaves out the eight `io::MAX_OUT_*` uses, the kernel's edge.
 
@@ -47,7 +47,7 @@ First list what each room check keeps, a capacity or an order, as 7.2
 asks, and write each order's test. Then make the inner queues uncapped,
 from the machines up, and take the constants and `within` out. Do it with
 D004, which rewrites the same `io_up` and `io_down`.
-Git is done; mmdebstrap, config and records come next, then the service.
+Git and mmdebstrap are done; config and records come next, then the service.
 
 ## What each room check keeps
 
@@ -61,11 +61,6 @@ first, and each order's test is named beside it.
 | Where | Check | Keeps |
 |---|---|---|
 | `hearth-protocol-mmdebstrap/src/tail.rs`, `admit` | `tail.lines.room() == 0` | A capacity, `tail_lines`, at an edge. An order too: the oldest line leaves first. `generated_failures_keep_the_reference_s_tail_and_cause`, in `hearth/tests/mmdebstrap`. |
-| `hearth-protocol-builder/src/resolve.rs`, `requests` | capacity 1, twice | An order: one scan out at a time, which `Reader`'s `waiting` keeps. `a_pipe_reader_has_one_scan_out_whatever_the_cuts`, in `hearth/tests/mmdebstrap`. |
-| `hearth-protocol-builder/src/resolve.rs`, `seen` | capacity 1 | An order: a delivery gives one thing, the one `stream` takes, and the pipe's end comes last, once. `line`'s one return and `Reader`'s `ended` keep them. `a_delivery_gives_a_pipe_s_caller_at_most_one_thing` and `a_pipe_ends_once_and_last`, in `hearth/tests/mmdebstrap`. |
-| `hearth-protocol-builder/src/resolve.rs`, `pending` | capacity 4 | Nothing: it holds each pipe's next demand, and one scan out at a time keeps that to two. |
-| `hearth-protocol-builder/src/indices.rs`, `demands` | capacity 1, twice | An order: one scan out at a time, which `Stanzas`' `state` keeps. `a_list_reader_has_one_scan_out_whatever_the_cuts`, in `hearth/tests/mmdebstrap`. |
-| `hearth-protocol-builder/src/indices.rs`, `found`, and its loop on `UP_MAX_OUT.above` | capacity 2 | An order: a list's end follows its last stanza, once, which `up`'s `End` arm and `State::Ended` keep. `a_list_s_end_follows_its_last_stanza_and_comes_once`, in `hearth/tests/mmdebstrap`. A capacity too: one stanza a scan, `a_delivery_gives_a_list_s_caller_at_most_one_stanza`, there too. |
 | `hearth-protocol-builder/src/lib.rs`, `revision_stdout` | `stdout.room()`, three times | A capacity at an edge: `rev-parse`'s answer, of `MAX_STDOUT` and one byte to see excess. |
 | `hearth-protocol-builder/src/indices.rs`, `Indices` | `self.intake.room()` | A capacity: a read of a `Packages` file asks for no more than its intake holds. |
 | `hearth-protocol-tree/src/fields.rs`, `Fields::value` | `values.room()` | A capacity at an edge: a stored value's items, refused past `limit`. |
@@ -75,11 +70,11 @@ first, and each order's test is named beside it.
 | `hearth-protocol-config/src/document.rs` | `pending.room() == 0` | Nothing, the same: a stack whose depth the decoder's limits bound. |
 | `hearth-protocol-config/src/json.rs` | `values.room() == 0` | Nothing, the same. |
 
-The queues beside each git machine, in
-`hearth-protocol-builder/src/lib.rs` and `read.rs`, are uncapped. The
-machine's states keep the orders in
+The queues beside git's machines and mmdebstrap's, these last in
+`hearth-protocol-builder/src/resolve.rs` and `indices.rs`, are uncapped.
+The machines' states keep the orders in
 `hearth/docs/design/domain/render.md`, 8.5, and their tests stand in
-`hearth/tests/git`.
+`hearth/tests/git` and `hearth/tests/mmdebstrap`.
 
 ### The service
 
