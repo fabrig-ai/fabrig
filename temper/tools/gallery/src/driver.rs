@@ -1,13 +1,18 @@
 //! The one event path used by the sample worlds and their follow-up acts.
 use jig_client::contract as c;
-use skein_lib::{Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token};
 use temper_client_domain::{Domain, Event, Limits, Request};
 
 pub fn limits() -> Limits {
     temper_client_shell_terminal::limits::native().client
 }
 pub fn step(root: &mut Domain, event: Event, out: &mut Queue<Request>) {
-    temper_client_domain::step(root, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() }, event, out);
+    temper_client_domain::step(
+        root,
+        &Env { now: Time::ZERO, wall: crate::worlds::now(crate::samples::World::Solo), limits: limits() },
+        event,
+        out,
+    );
 }
 pub fn deliver(root: &mut Domain, watch: Token, value: c::Delivery, out: &mut Queue<Request>) {
     step(

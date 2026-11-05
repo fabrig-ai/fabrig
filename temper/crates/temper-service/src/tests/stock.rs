@@ -548,6 +548,22 @@ fn the_chats_words_mark_an_advisors_read_only_report() {
 }
 
 #[test]
+fn only_the_goals_paragraph_ends_with_the_questions_line_form() {
+    // domain/agent.md, 8.2: a goal writes its question in the client's line form.
+    const SENTENCE: &str = " Write a question to your requester as one line asking it, a blank line, what they need to know, then a line starting Saw: with what you saw, and a line starting Choice: for each option, the one you recommend ending (recommended).";
+    let words = include_str!("../stock/chat.txt");
+    for (role, expected) in [
+        ("If your brief says you are a goal", true),
+        ("If neither line is in your brief", false),
+        ("If your brief says you are an advisor", false),
+    ] {
+        let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(role)).expect("role instructions");
+        assert_eq!(paragraph.contains(SENTENCE.trim_start()), expected, "{role}: question line form");
+        assert_eq!(paragraph.ends_with(SENTENCE), expected, "{role}: question line form ends the paragraph");
+    }
+}
+
+#[test]
 fn the_goals_words_survey_before_planning_and_sequence_changes() {
     let words = include_str!("../stock/chat.txt");
     assert!(

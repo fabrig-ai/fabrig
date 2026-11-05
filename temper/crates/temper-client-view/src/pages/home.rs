@@ -136,44 +136,6 @@ const ROWS: usize = 5;
 fn inbox_address(project: u32) -> Address {
     Address::Inbox { filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None } }
 }
-fn need_title(card: &temper_client_domain::pages::inbox::Card, w: &Words) -> Box<[u8]> {
-    if let Some(page) = &card.page
-        && let Some(title) = super::inbox::task_title(page)
-        && !title.is_empty()
-    {
-        return title.into();
-    }
-    match super::inbox::source_task(card.object) {
-        Some(task) => w.say(Word::TaskWho, &[Hole::Number(task)]),
-        None => w.say(need_kind(card.group), &[]),
-    }
-}
-fn need_kind(group: jig_client::contract::InboxGroup) -> Word {
-    use jig_client::contract::InboxGroup;
-    match group {
-        InboxGroup::Proposals => Word::HomeProposal,
-        InboxGroup::Questions => Word::HomeQuestion,
-        InboxGroup::Escalations => Word::HomeHeld,
-        InboxGroup::PersonTasks => Word::HomePersonTask,
-        InboxGroup::Results => Word::InboxUpdates,
-        InboxGroup::Replies => Word::Reply,
-    }
-}
-fn need_when(card: &temper_client_domain::pages::inbox::Card, w: &Words, times: &mut Times) -> Box<[u8]> {
-    let kind = w.say(need_kind(card.group), &[]);
-    let since = match &card.page {
-        Some(page) => super::inbox::waiting_since(page),
-        None => None,
-    };
-    match since {
-        Some(since) => crate::accounts::words::join(&[
-            &kind,
-            &w.say(Word::ToolSeparator, &[]),
-            &times.say(w, TimeForm::Span, since),
-        ]),
-        None => kind,
-    }
-}
 fn needs(
     b: &mut Builder,
     root: &Domain,
@@ -219,8 +181,8 @@ fn needs(
                 b.style(look::HOME_ROWS);
                 for card in others {
                     b.open(Role::Item);
-                    let title = need_title(card, w);
-                    let when = need_when(card, w, times);
+                    let title = super::ask::need_title(card, w);
+                    let when = super::ask::need_when(card, w, times);
                     let label = crate::accounts::words::join(&[&title, &w.say(Word::ToolSeparator, &[]), &when]);
                     crate::link(b, &label, bindings.insert(Act::Go { address: inbox_address(project) }));
                     row_words(b, w, &title, &when);
@@ -243,8 +205,8 @@ fn ask(
     project: u32,
     times: &mut Times,
 ) {
-    let title = need_title(card, w);
-    let when = need_when(card, w, times);
+    let title = super::ask::need_title(card, w);
+    let when = super::ask::need_when(card, w, times);
     let suffix = crate::accounts::words::join(&[&w.say(Word::ToolSeparator, &[]), &when]);
     b.open(Role::Slot);
     b.style(look::ASK);

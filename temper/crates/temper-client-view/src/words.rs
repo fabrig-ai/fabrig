@@ -75,6 +75,24 @@ pub enum Word {
     Configuring,
 
     HomeOpen,
+    NeedsLaterMeta,
+    NeedsYourReply,
+    NeedsPlaceholder,
+    NeedsSendReply,
+    NeedsProgress,
+    NeedsProgressCut,
+    NeedsSaw,
+    NeedsRecommended,
+    NeedsReply,
+    NeedsLater,
+    NeedsNext,
+    NeedsLast,
+    NeedsAnswered,
+    NeedsDone,
+    NeedsFunds,
+    NeedsFundsUsed,
+    NeedsRelease,
+    NeedsKindFunds,
     HomeNeedsNone,
     HomeNeedsOne,
     HomeNeedsMany,
@@ -161,6 +179,11 @@ pub enum Word {
     BrandHome,
     RailHome,
     NeedsYouCount,
+    NeedsYouCountCut,
+    ToastAnswered,
+    ToastLater,
+    ToastUndo,
+    AnsweredReply,
     RailSettings,
     Sections,
 
@@ -870,7 +893,7 @@ pub enum Word {
 // The owned row's Runs and first-password lines add two words and three phrases.
 // A failed setup's step adds five phrases.
 // A task document's reading line and eight lasting read ends (client/README.md, 3.5).
-// The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
+// The paste of a sign-in's address adds sixteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds three literal phrases and segments.
 // Eighteen playground, removal and forge choice literals.
@@ -900,8 +923,9 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
 // Goal rows and ways add eighteen phrases; the page adds sixteen (client/README.md, 3.5).
+// Needs count, toast and page kinds add twenty-three phrases (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
-const PHRASES: u32 = 1399;
+const PHRASES: u32 = 1422;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -914,9 +938,10 @@ const PHRASES: u32 = 1399;
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
 // Goal rows and ways add twenty-eight literal and hole segments; the page adds thirty-four (3.5).
+// Needs count, toast and page kinds add fifty-one segments (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
-const SEGMENTS: u32 = 2408;
-const ALL: [Word; 803] = [
+const SEGMENTS: u32 = 2459;
+const ALL: [Word; 826] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -979,6 +1004,24 @@ const ALL: [Word; 803] = [
     Word::ConfigureWhere,
     Word::Configuring,
     Word::HomeOpen,
+    Word::NeedsLaterMeta,
+    Word::NeedsYourReply,
+    Word::NeedsPlaceholder,
+    Word::NeedsSendReply,
+    Word::NeedsProgress,
+    Word::NeedsProgressCut,
+    Word::NeedsSaw,
+    Word::NeedsRecommended,
+    Word::NeedsReply,
+    Word::NeedsLater,
+    Word::NeedsNext,
+    Word::NeedsLast,
+    Word::NeedsAnswered,
+    Word::NeedsDone,
+    Word::NeedsFunds,
+    Word::NeedsFundsUsed,
+    Word::NeedsRelease,
+    Word::NeedsKindFunds,
     Word::HomeNeedsNone,
     Word::HomeNeedsOne,
     Word::HomeNeedsMany,
@@ -1065,6 +1108,11 @@ const ALL: [Word; 803] = [
     Word::BrandHome,
     Word::RailHome,
     Word::NeedsYouCount,
+    Word::NeedsYouCountCut,
+    Word::ToastAnswered,
+    Word::ToastLater,
+    Word::ToastUndo,
+    Word::AnsweredReply,
     Word::RailSettings,
     Word::Sections,
     Word::ForgeHereVersionDetails,
@@ -1725,41 +1773,41 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
-            Self::GoalsWaySeparator => 3241,
-            Self::GoalsWayEnd => 3242,
-            Self::GoalsKicker => 3227,
-            Self::GoalsNone => 3228,
-            Self::GoalsOne => 3229,
-            Self::GoalsMany => 3230,
-            Self::GoalsMoreOne => 3231,
-            Self::GoalsMoreMany => 3232,
-            Self::GoalsLede => 3233,
-            Self::GoalsWays => 3234,
-            Self::GoalsAll => 3235,
-            Self::GoalsNeeds => 3236,
-            Self::GoalsLive => 3237,
-            Self::GoalsEnded => 3238,
-            Self::GoalsEmpty => 3239,
-            Self::GoalsMore => 3240,
-            Self::Goals => 3208,
-            Self::GoalCount => 3209,
-            Self::GoalNeedsFunds => 3210,
-            Self::GoalNeedsYou => 3211,
-            Self::GoalPaused => 3212,
-            Self::GoalPlanning => 3213,
-            Self::GoalLanded => 3214,
-            Self::GoalLandedAlone => 3215,
-            Self::GoalStopped => 3216,
-            Self::GoalFailed => 3217,
-            Self::GoalPlanningLine => 3218,
-            Self::GoalTasksLanded => 3219,
-            Self::GoalLandedLine => 3220,
-            Self::GoalStoppedLine => 3221,
-            Self::GoalFailedLine => 3222,
-            Self::GoalTaskByTask => 3223,
-            Self::GoalTaskByTaskLine => 3224,
-            Self::GoalLandWhole => 3225,
-            Self::GoalLandWholeLine => 3226,
+            Self::GoalsWaySeparator => 3267,
+            Self::GoalsWayEnd => 3268,
+            Self::GoalsKicker => 3253,
+            Self::GoalsNone => 3254,
+            Self::GoalsOne => 3255,
+            Self::GoalsMany => 3256,
+            Self::GoalsMoreOne => 3257,
+            Self::GoalsMoreMany => 3258,
+            Self::GoalsLede => 3259,
+            Self::GoalsWays => 3260,
+            Self::GoalsAll => 3261,
+            Self::GoalsNeeds => 3262,
+            Self::GoalsLive => 3263,
+            Self::GoalsEnded => 3264,
+            Self::GoalsEmpty => 3265,
+            Self::GoalsMore => 3266,
+            Self::Goals => 3234,
+            Self::GoalCount => 3235,
+            Self::GoalNeedsFunds => 3236,
+            Self::GoalNeedsYou => 3237,
+            Self::GoalPaused => 3238,
+            Self::GoalPlanning => 3239,
+            Self::GoalLanded => 3240,
+            Self::GoalLandedAlone => 3241,
+            Self::GoalStopped => 3242,
+            Self::GoalFailed => 3243,
+            Self::GoalPlanningLine => 3244,
+            Self::GoalTasksLanded => 3245,
+            Self::GoalLandedLine => 3246,
+            Self::GoalStoppedLine => 3247,
+            Self::GoalFailedLine => 3248,
+            Self::GoalTaskByTask => 3249,
+            Self::GoalTaskByTaskLine => 3250,
+            Self::GoalLandWhole => 3251,
+            Self::GoalLandWholeLine => 3252,
 
             Self::ConfigureTitle => 3189,
             Self::ConfigureQuestion => 3190,
@@ -1788,6 +1836,24 @@ impl Word {
             Self::ConfigureWhere => 3187,
             Self::Configuring => 3188,
             Self::HomeOpen => 3165,
+            Self::NeedsLaterMeta => 3216,
+            Self::NeedsYourReply => 3217,
+            Self::NeedsPlaceholder => 3218,
+            Self::NeedsSendReply => 3219,
+            Self::NeedsProgress => 3220,
+            Self::NeedsProgressCut => 3221,
+            Self::NeedsSaw => 3222,
+            Self::NeedsRecommended => 3223,
+            Self::NeedsReply => 3224,
+            Self::NeedsLater => 3225,
+            Self::NeedsNext => 3226,
+            Self::NeedsLast => 3227,
+            Self::NeedsAnswered => 3228,
+            Self::NeedsDone => 3229,
+            Self::NeedsFunds => 3230,
+            Self::NeedsFundsUsed => 3232,
+            Self::NeedsRelease => 3233,
+            Self::NeedsKindFunds => 3231,
             Self::HomeNeedsNone => 3145,
             Self::HomeNeedsOne => 3146,
             Self::HomeNeedsMany => 3147,
@@ -1871,6 +1937,11 @@ impl Word {
             Self::BrandHome => 3080,
             Self::RailHome => 3081,
             Self::NeedsYouCount => 3083,
+            Self::NeedsYouCountCut => 3086,
+            Self::ToastAnswered => 3087,
+            Self::ToastLater => 3088,
+            Self::ToastUndo => 3089,
+            Self::AnsweredReply => 3090,
             Self::RailSettings => 3084,
             Self::Sections => 3085,
 
@@ -2579,6 +2650,13 @@ fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(2).ok_or(Invalid::Overflow)
 }
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    // The toast wraps the outgoing choice or the reply label (3.5).
+    if word == Word::ToastAnswered {
+        return temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow);
+    }
+    if word == Word::AnsweredReply {
+        return Ok(temper_client_protocol_wire::CUE_BYTES);
+    }
     // The phone link names the joined title, question and its colon (3.5).
     if word == Word::HomeAnswerName {
         return home_answer_bytes(joined);
@@ -2748,12 +2826,14 @@ impl Words {
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Goal rows and ways add 419 literal bytes; the page adds 250 (3.5).
+            // Needs count, toast and page kinds add 327 literal bytes (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 5 + 419 + 250 + 476,
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 5 + 419 + 250 + 476 + 87 + 225 + 15,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
+                .max(temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
                 .max(temper_client_domain::forge::PLAYGROUND_WHY_BYTES)
                 .max(temper_client_domain::forge::OWNED_PASSWORD_BYTES)
@@ -2872,6 +2952,24 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicJob => (&[b"a job"], &[]),
         Word::PublicReading => (&[b"Reading\xe2\x80\xa6"], &[]),
         Word::HomeOpen => (&[b"Open"], &[]),
+        Word::NeedsLaterMeta => (&[b" \xc2\xb7 later"], &[]),
+        Word::NeedsYourReply => (&[b"Your reply"], &[]),
+        Word::NeedsPlaceholder => (&[b"Your words go to ", b"\xe2\x80\x99s agent"], &[Name]),
+        Word::NeedsSendReply => (&[b"Send reply"], &[]),
+        Word::NeedsProgress => (&[b"", b" of ", b""], &[Number, Number]),
+        Word::NeedsProgressCut => (&[b"", b" of ", b"+"], &[Number, Number]),
+        Word::NeedsSaw => (&[b"What the agent saw"], &[]),
+        Word::NeedsRecommended => (&[b"recommended"], &[]),
+        Word::NeedsReply => (&[b"Reply\xe2\x80\xa6"], &[]),
+        Word::NeedsLater => (&[b"Later"], &[]),
+        Word::NeedsNext => (&[b"Next: ", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::NeedsLast => (&[b"The last one"], &[]),
+        Word::NeedsAnswered => (&[b"Answered"], &[]),
+        Word::NeedsKindFunds => (&[b"funds"], &[]),
+        Word::NeedsFunds => (&[b"", b" of ", b" used"], &[Number, Number]),
+        Word::NeedsFundsUsed => (&[b"", b" of ", b" used."], &[Number, Number]),
+        Word::NeedsRelease => (&[b"Release"], &[]),
+        Word::NeedsDone => (&[b"Every question is answered. Work carries on; Home tells you what changed."], &[]),
         Word::HomeNeedsNone => (&[b"Nothing needs you."], &[]),
         Word::HomeNeedsOne => (&[b"One thing needs you."], &[]),
         Word::HomeNeedsMany => (&[b"", b" things need you."], &[Number]),
@@ -3031,6 +3129,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BrandHome => (&[b"temper home"], &[]),
         Word::RailHome => (&[b"Home"], &[]),
         Word::NeedsYouCount => (&[b"Needs you ", b""], &[Number]),
+        Word::NeedsYouCountCut => (&[b"Needs you ", b"+"], &[Number]),
+        Word::ToastAnswered => (&[b"Answered: ", b""], &[Name]),
+        Word::ToastLater => (&[b"Later: it stays in Needs you, after the others."], &[]),
+        Word::ToastUndo => (&[b"Undo"], &[]),
+        Word::AnsweredReply => (&[b"Replied: \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name]),
         Word::RailSettings => (&[b"Settings"], &[]),
         Word::Sections => (&[b"Sections"], &[]),
         Word::ForgeHereVersionDetails => (&[b"temper box downloads Forgejo ", b" and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart."], &[Name]),

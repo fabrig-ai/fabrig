@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 120;
+pub const N: usize = 131;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -255,6 +255,57 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "needs-one",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-saw-open",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-reply-open",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-second-answered",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-later",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-last",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-done",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample { name: "needs-proposal", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "needs-held", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "needs-funds", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "needs-plain-words",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "task-solo-T3", world: Solo, address: task(3), then: Shown },
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
@@ -423,6 +474,9 @@ fn model_sample(name: &'static str, kind: temper_client_domain::WayKind, then: T
     Sample { name, world: World::Reference, address: Address::ConnectModel { way: Some(way) }, then }
 }
 fn special_mockup(name: &str) -> Option<String> {
+    if name.starts_with("needs-") || name == "inbox-solo" || name == "inbox-reference" || name == "inbox-empty" {
+        return Some("../greenfield/needs.html".to_owned());
+    }
     match name {
         "forges-github-install" => return Some("forges.html?world=first-run-github&step=3&bare".to_owned()),
         "forge-admin-details" => {
@@ -571,6 +625,9 @@ pub fn mockup(sample: &Sample) -> Option<String> {
 }
 #[must_use]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name.starts_with("needs-") {
+        return crate::needs::domain(sample.name);
+    }
     if sample.name.starts_with("configure") {
         return configure_domain(sample);
     }
@@ -1044,8 +1101,8 @@ fn home_domain(name: &str) -> Domain {
                         c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))
                     }
                     c::Subject::Inbox { .. } => c::Delivery::Inbox(Box::new(temper_fixtures::client_documents::inbox(
-                        List::with_capacity(0),
-                        0,
+                        home_needs(name),
+                        me.needs_total,
                         c::Count { value: 0, limited: false },
                         0,
                         false,
@@ -1114,24 +1171,7 @@ fn home_domain(name: &str) -> Domain {
                 );
             }
             Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
-                let mut rows = List::with_capacity(3);
-                if group == c::InboxReadGroup::Needs {
-                    let tasks: &[u64] = match name {
-                        "home-at-work" | "home-needs-under-begin" => &[3],
-                        "home-needs-several" => &[3, 2, 1],
-                        _ => &[],
-                    };
-                    for task in tasks {
-                        rows.push(temper_fixtures::client_documents::entry(
-                            c::ObjectKey::Question { task: *task, message: 1 },
-                            1,
-                            1,
-                            home_since(4),
-                            None,
-                        ))
-                        .expect("Home needs");
-                    }
-                }
+                let rows = if group == c::InboxReadGroup::Needs { home_needs(name) } else { List::with_capacity(0) };
                 crate::driver::answer(
                     &mut root,
                     read,
@@ -1404,4 +1444,24 @@ fn home_accounts(name: &str, mut accounts: c::Accounts) -> c::Accounts {
     rows.push(row).expect("account variant");
     accounts.accounts = rows;
     accounts
+}
+
+fn home_needs(name: &str) -> skein_lib::List<c::InboxEntry> {
+    let mut rows = skein_lib::List::with_capacity(3);
+    let tasks: &[u64] = match name {
+        "home-at-work" | "home-needs-under-begin" => &[3],
+        "home-needs-several" => &[3, 2, 1],
+        _ => &[],
+    };
+    for task in tasks {
+        rows.push(temper_fixtures::client_documents::entry(
+            c::ObjectKey::Question { task: *task, message: 1 },
+            1,
+            1,
+            home_since(4),
+            None,
+        ))
+        .expect("Home needs");
+    }
+    rows
 }

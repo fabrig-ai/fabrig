@@ -35,6 +35,17 @@ configure-chats-tag
 chats-solo
 chat-solo-T10
 inbox-solo
+needs-one
+needs-saw-open
+needs-reply-open
+needs-second-answered
+needs-later
+needs-last
+needs-done
+needs-proposal
+needs-held
+needs-funds
+needs-plain-words
 settings
 task-solo-T3
 accounts-solo
