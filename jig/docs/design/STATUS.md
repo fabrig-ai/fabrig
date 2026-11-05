@@ -1,6 +1,6 @@
 # Status
 
-2026-11-04. Where jig's code lags or departs from its design, from the
+2026-11-05. Where jig's code lags or departs from its design, from the
 status files below. Agents in a host's own process are the widest gap:
 no root composes `smith-inline-agent`, so the engine's own slots, a
 hub's agent capability and the tools a worker begins with their calls
@@ -29,6 +29,9 @@ Public reading's remaining departure is the public index's memory fit
 check (`protocol/configuration.md`). Both services compose jig's service
 parts, a bundle's helpers among them, but the lines they share stay past
 temper's debt bound, which awaits the user (`protocol/service.md`).
+The test root is not in `ops`'s shape, which also awaits the user, and
+temper keeps copies of parts jig shares (`domain/root.md`,
+`domain/hosts.md`).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `client/domain/contract.md`, `client/domain/testing.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`, `examples.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`). `domain/core.md`,

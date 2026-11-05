@@ -64,13 +64,14 @@ pub(crate) enum FlightRender {
     Settings { from: u32, requested: Option<u64> },
     Amended(crate::Changed),
     Change(Box<ChangeChoice>),
+    PersonRoles(Box<[u32]>),
 }
 
 impl FlightRender {
     fn is_core_read(&self) -> bool {
         match self {
             Self::TaskRead | Self::Settings { .. } => true,
-            Self::Plain | Self::Amended(_) | Self::Change(_) => false,
+            Self::Plain | Self::Amended(_) | Self::Change(_) | Self::PersonRoles(_) => false,
         }
     }
 }
@@ -128,6 +129,8 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
         FlightRender::Settings { from: *from, requested }
     } else if let crate::Tool::Change { changes } = &body.tool {
         change_choice(domain, key.task, changes)
+    } else if let crate::Tool::Delegate { batch } = &body.tool {
+        person_roles(domain, key.task, batch)
     } else if let crate::Tool::Amend { amendment, .. } = &body.tool {
         FlightRender::Amended(crate::Changed::amendment(amendment))
     } else {
@@ -162,6 +165,66 @@ fn change_choice(domain: &Domain, task: u64, changes: &[crate::ChangeCall]) -> F
         project: context.project,
         producers: producers.into_boxed(),
     }))
+}
+
+fn person_roles(domain: &Domain, task: u64, batch: &[crate::Delegate]) -> FlightRender {
+    let Some(context) = domain.core.tasks.delegation(task) else { return FlightRender::Plain };
+    let mut roles = List::with_capacity(u32::try_from(batch.len()).expect("admitted delegate batch"));
+    for member in batch {
+        if let jig_domain_tasks::Executor::Person(jig_domain_tasks::PersonAddress::Role(role)) = member.executor {
+            let permission = jig_domain_authority::Executor::Role(role);
+            let mut missing =
+                !context.authority.delegation.kinds.contains(&jig_domain_tasks::AuthorityExecutor::Role(role))
+                    || !domain.core.authority.rules().ceiling.delegation.kinds.contains(&permission);
+            if let Some(policy) = domain.core.authority.policy(context.project) {
+                missing |= !policy.ceiling.delegation.kinds.contains(&permission);
+            }
+            if missing {
+                roles.push(role).expect("bounded person roles");
+            }
+        }
+    }
+    FlightRender::PersonRoles(roles.into_boxed())
+}
+
+/// Name refused person roles before settlement so retries keep the same feedback.
+fn person_refusal(domain: &Domain, render: &FlightRender, key: CallKey, answer: SettledAnswer) -> SettledAnswer {
+    let FlightRender::PersonRoles(roles) = render else { return answer };
+    if roles.is_empty() {
+        return answer;
+    }
+    let Some(CallAnswer::DelegationDenied { .. }) = super::call_answer(domain, key) else { return answer };
+    let SettledAnswer::Host { error: true, body } = &answer else { return answer };
+    let mut capacity = body.len();
+    for role in roles {
+        let digits = Decimal::of(u64::from(*role)).as_bytes().len();
+        capacity = capacity
+            .saturating_add(b"Person role  requires {\"role\":} in delegation.kinds; ".len())
+            .saturating_add(digits.saturating_mul(2));
+    }
+    if capacity > skein_lib::usize_of(domain.limits.call_answer_bytes) {
+        return SettledAnswer::Host { error: true, body: Box::from(b"busy".as_slice()) };
+    }
+    let mut words = Writer::new(capacity);
+    for role in roles {
+        let number = Decimal::of(u64::from(*role));
+        if words.put(b"Person role ").is_err()
+            || words.put(number.as_bytes()).is_err()
+            || words.put(b" requires {\"role\":").is_err()
+            || words.put(number.as_bytes()).is_err()
+            || words.put(b"} in delegation.kinds; ").is_err()
+        {
+            return SettledAnswer::Host { error: true, body: Box::from(b"busy".as_slice()) };
+        }
+    }
+    finish_refusal(words, body)
+}
+
+fn finish_refusal(mut words: Writer, body: &[u8]) -> SettledAnswer {
+    if words.put(body).is_err() {
+        return SettledAnswer::Host { error: true, body: Box::from(b"busy".as_slice()) };
+    }
+    SettledAnswer::Host { error: true, body: words.finish() }
 }
 
 fn admit(domain: &mut Domain, to: ReplyTo, key: CallKey, tool: &crate::Tool) -> Option<ReplyTo> {
@@ -244,7 +307,9 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
                 answer
             }
         }
-        FlightRender::Plain | FlightRender::TaskRead | FlightRender::Settings { .. } => answer,
+        FlightRender::Plain | FlightRender::TaskRead | FlightRender::Settings { .. } | FlightRender::PersonRoles(_) => {
+            answer
+        }
     };
     emit(
         decision,
@@ -268,6 +333,7 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
         return;
     };
     let answer = change_refusal(domain, &flight.render, key, answer);
+    let answer = person_refusal(domain, &flight.render, key, answer);
     let mut call = SettledCall { serial: 0, tool: flight.tool, answer };
     let reading = flight.render.is_core_read();
     let recorded = !reading && domain.core.call_parts.contains_key(&key);
@@ -336,10 +402,7 @@ fn change_refusal(domain: &Domain, render: &FlightRender, key: CallKey, answer: 
             }
         }
     }
-    if words.put(body).is_err() {
-        return SettledAnswer::Host { error: true, body: Box::from(b"busy".as_slice()) };
-    }
-    SettledAnswer::Host { error: true, body: words.finish() }
+    finish_refusal(words, body)
 }
 
 /// An answer made at decode decides nothing (domain/root.md, 5.2).

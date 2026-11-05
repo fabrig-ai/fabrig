@@ -808,7 +808,7 @@ host tools' calls (6.8).
 
 Its `assignment` assembles that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes, its checks required to pass, and the workspace tools the run's policy grants. Its `charter` translates what `assignment` assembled, decides `deliver`, and grants `modify` only to a run that can deliver: what a run writes leaves its workspace only by a delivery, so a run with no `deliver` inspects alone, whatever its policy says (a rail, not an instruction). A root calls them and decides none of it.
 
-Its `hosted` puts a run's whole hand-over together from what the hub link kept (`jig-domain-hub-link`'s `Assignment`), and so reads the brief's placed parts: the brief's sections with their titles, the charter, the start's messages with their senders and words, and the answered calls by their names. What a root gives it is its own: its tools, its endpoints, its deployment and its bounds. A place in the brief that an application offers no section for refuses the assignment. So no root renders words, titles or a call's name, and the hub receives the same assignment from every root.
+Its `hosted` puts a run's whole hand-over together from what the hub link kept (`jig-domain-hub-link`'s `Assignment`), and so reads the brief's placed parts: the brief's sections with their titles, the charter, the start's messages with their senders and words, and the answered calls by their names. What a root gives it is its own: its tools, its endpoints, its deployment and its bounds. A place in the brief that an application offers no section for refuses the assignment. Its `message` puts together, the same way, a task's message to a run under way, with its sender and words. So a root that calls them renders no words, titles or a call's name, and the hub receives the same assignment from each. An application with a tool vocabulary of its own, as temper is (`temper/docs/design/protocol/README.md`, 5), puts its hand-over together itself.
 
 - **Instructions and brief:** the charter's instructions, and the brief's
   sections rendered as smith's titled sections, in order, the
@@ -1084,6 +1084,13 @@ agent for ever.
 - **Agents other than smith:** the contract of section 2 is jig's; an
   agent that spoke it through a capability of its own could run beside
   smith. Not wanted yet.
+- **What a root outside the charter shares.** `hosted` takes jig's tools and
+  jig's charter, so a root with its own keeps its own hand-over. Whether the
+  parts of it that are no application's, the answered calls and the start's
+  messages, come apart from the charter, so that such a root shares them and
+  keeps its charter, workspace and message translations, is open
+  (`jig/docs/development/debt/D004-ops-root-jig-wiring.md`). Default: it
+  keeps its own.
 - **A message's rendering allowance.** A message admitted at
   `tasks.message_bytes` reaches a run with its sender's label, kind and
   number before its words (section 9), and the host and smith measure

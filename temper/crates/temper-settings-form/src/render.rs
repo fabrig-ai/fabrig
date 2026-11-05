@@ -133,11 +133,6 @@ pub fn value_inline(value: &c::SettingValue, limits: &Limits, out: &mut Text) {
     encode_value(value, &mut write);
     out.put(&write.finish());
 }
-fn value_text(value: &c::SettingValue, limits: &Limits, out: &mut Text) {
-    value_inline(value, limits, out);
-    out.put(b"\n");
-    template_resources_text(value, out);
-}
 fn template_resources_text(value: &c::SettingValue, out: &mut Text) {
     if let c::SettingValue::Template(template) = value {
         for resource in &template.resources {
@@ -412,7 +407,7 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
                     c::RevisionEdit::Removed => out.put(b"removed\n"),
                     c::RevisionEdit::Reset => out.put(b"reset\n"),
                 }
-                replaced_text(&item.replaced, limits, out);
+                replaced_text(item.setting, &item.replaced, limits, out);
             }
         }
         c::RevisionAnswer::Forgotten(f) => {
@@ -468,10 +463,10 @@ fn encode_revision_read(setting: c::Setting, revision: u32, out: &mut Encoder) {
     out.string(&text.finish());
 }
 
-fn replaced_text(replaced: &c::RevisionReplaced, limits: &Limits, out: &mut Text) {
+fn replaced_text(setting: c::Setting, replaced: &c::RevisionReplaced, limits: &Limits, out: &mut Text) {
     out.put(b"    was: ");
     match replaced {
-        c::RevisionReplaced::Value(set) => value_text(&set.value, limits, out),
+        c::RevisionReplaced::Value(set) => named_value_text(setting, &set.value, limits, out),
         c::RevisionReplaced::TooLarge(size) => {
             out.put(b"too large, ");
             out.number(size.bytes);
@@ -577,7 +572,7 @@ fn encode_revision(answer: &c::RevisionAnswer, out: &mut Encoder) {
                     }
                 }
                 out.key(b"replaced");
-                encode_replaced(&item.replaced, out);
+                encode_replaced(item.setting, &item.replaced, out);
                 out.object_end();
             }
             out.array_end();
@@ -596,12 +591,12 @@ fn encode_revision(answer: &c::RevisionAnswer, out: &mut Encoder) {
     }
 }
 
-fn encode_replaced(replaced: &c::RevisionReplaced, out: &mut Encoder) {
+fn encode_replaced(setting: c::Setting, replaced: &c::RevisionReplaced, out: &mut Encoder) {
     match replaced {
         c::RevisionReplaced::Value(set) => {
             out.object_start();
             out.key(b"set");
-            encode_value(&set.value, out);
+            encode_named_value(setting, &set.value, out);
             out.object_end();
         }
         c::RevisionReplaced::TooLarge(size) => {

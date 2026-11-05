@@ -433,7 +433,7 @@ and `connect-forge.html`.
 - **A forge's name:** "Forgejo on this machine" for an owned Forgejo,
   "GitHub" for GitHub, "Forgejo at HOST" for another Forgejo, HOST its
   `web` address's host, and "Playground forge" for the playground's
-  (`README.md`, 5.6). PROJECT is a project as the banner names it
+  (`README.md`, 5.6). PROJECT is a project as the switcher names it
   (`README.md`, 5.1).
 - **What the row carries** (`README.md`, 4.6): its number, kind,
   mode, connection, offer, its first repository, its `web` address, the
@@ -785,8 +785,9 @@ and `connect-forge.html`.
   no repository of its own and makes no project: the repositories its
   installations reach are the adoption form's picker's (`README.md`,
   4.4).
-- **Elsewhere:** the navigation's
-  "Forges" carries a dot, amber while a forge sets up or connects, red
+- **Elsewhere:** the banner's navigation's "Forges", `Settings`'
+  "Forges" and the rail's "Settings"
+  carry a dot, amber while a forge sets up or connects, red
   while one needs the person: set up failed, stopped, or not connected
   with a reason (`README.md`, 5.3). The dot's words, the entry's state
   in words: "a forge is setting up" or "a forge needs you". The

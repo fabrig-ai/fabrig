@@ -1,6 +1,6 @@
 # Status
 
-2026-11-04. Where smith's code lags or departs from its design, from
+2026-11-05. Where smith's code lags or departs from its design, from
 the status files below. Containment waits on skein's contained trees
 (skein's `io.md`, 6.2 to 6.4): the agent and its commands run as
 plain children in process groups, so the view, the writable scope
@@ -13,9 +13,10 @@ and threshold notes (`domain/run.md`), what a program offers read
 from its `system/init` and a live run on Claude Code 2.1.312
 (`protocol/programs.md`), whether the live refresh story passes on a
 main holding it (`testing.md`), the `--account` flag (`shell.md`,
-`testing.md`), and the benchmarks' calibrations and arms, with four
-departures (`benchmarks.md`). Two domain worlds call protocol crates
-(`testing.md`), and the local domain composes person-facing text
+`testing.md`), and the benchmarks' calibrations and arms, `shell-cwd`
+at version 3, unseen on its bundle and a version past its baselines,
+with four departures (`benchmarks.md`). Two domain worlds call
+protocol crates (`testing.md`), and the local domain composes person-facing text
 (`domain/host.md`). Two step
 crates drive skein's JSON tokenizer over a whole buffer by hand
 (`domain/tools.md`, `protocol/events.md`), and two hand copies of

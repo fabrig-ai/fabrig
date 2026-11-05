@@ -810,7 +810,7 @@ fn effect_text(reading: &Reading, out: &mut Text) {
                 out.number(u64::from(held.head.number));
                 out.put(b": ");
                 out.number(u64::from(held.holders));
-                out.put(b" live tasks\n");
+                out.put(if held.holders == 1 { b" live task\n" } else { b" live tasks\n" });
             }
         }
         None => out.put(b"  held revision counts unavailable\n"),
