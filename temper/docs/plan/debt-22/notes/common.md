@@ -9,6 +9,8 @@ Every task of this plan names this note.
 - **Behaviour stays unchanged.** If a test's visible events or outcome change, stop and ask. Don't retime a test or
   rewrite an assertion to make a refactor pass. A test may change how it reaches the code (a call's spelling, a fixture,
   its file); what it asserts stays, and a task names any exception.
+  A size pin that shrinks because of the task's own change is the one standing exception (fabrig/debt, 2026-11-05): update
+  it and say so in your report. A pin that grows, or a visible event or refusal that changes, still stops and asks.
 - **Stop and ask** on a budget, a timeout, a stored format, a wire format or a breaking public interface beyond what your
   spec says. An addition is fine.
 - **A test that pins a rule must be able to fail on that rule.** Break the rule by hand, watch the test go red, restore
