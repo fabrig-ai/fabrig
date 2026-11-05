@@ -20,7 +20,7 @@ pub use failure::scripts;
 use skein_fake_llm_domain::{self as domain, api};
 use skein_http::{Header, Method, header, server as http, sse::writer as sse};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Env, Id, List, Queue, ReplyTo, Slab, Token, bytes};
+use skein_lib::{Env, Id, List, Queue, ReplyTo, Slab, Token, bytes, len_u64, usize_of};
 use skein_llm::anthropic;
 use skein_llm::openai;
 
@@ -154,9 +154,7 @@ impl Service {
         {
             return Err(Error::Limits);
         }
-        if config.path.len() > usize::try_from(limits.http.head).expect("u32 fits usize")
-            || config.headers.len() > usize::try_from(limits.http.headers).expect("u32 fits usize")
-        {
+        if config.path.len() > usize_of(limits.http.head) || config.headers.len() > usize_of(limits.http.headers) {
             return Err(Error::Limits);
         }
         for &byte in &config.path {
@@ -189,7 +187,7 @@ impl Service {
             let len = header::field_len(header.name.len(), header.value.len()).ok_or(Error::Limits)?;
             encoded = encoded.checked_add(len).ok_or(Error::Limits)?;
         }
-        if encoded > usize::try_from(limits.http.head).expect("u32 fits usize") {
+        if encoded > usize_of(limits.http.head) {
             return Err(Error::Limits);
         }
         Ok(Service { config, calls: Slab::with_capacity(limits.calls), count: 0 })
@@ -690,16 +688,13 @@ fn http_event(
     }
     match event {
         http::Event::Body(Up::Bytes(data)) => {
-            if data.len() > usize::try_from(server.body.room()).expect("u32 fits usize") {
+            if data.len() > usize_of(server.body.room()) {
                 close(server, service, env, above, below);
                 return;
             }
             if let Some(remaining) = server.remaining_body {
-                server.remaining_body = Some(
-                    remaining
-                        .checked_sub(skein_lib::len_u64(data.len()))
-                        .expect("HTTP delivers within the announced body"),
-                );
+                server.remaining_body =
+                    Some(remaining.checked_sub(len_u64(data.len())).expect("HTTP delivers within the announced body"));
             }
             for byte in data {
                 server.body.push(byte).expect("checked body cap");
@@ -873,10 +868,7 @@ fn send_error(server: &mut Server, env: &Env<Limits>) {
     let Some(body) = &server.reply else {
         return;
     };
-    let end = server
-        .reply_offset
-        .saturating_add(usize::try_from(env.limits.http.send).expect("u32 fits usize"))
-        .min(body.len());
+    let end = server.reply_offset.saturating_add(usize_of(env.limits.http.send)).min(body.len());
     let Some(piece) = body.get(server.reply_offset..end) else {
         return;
     };
@@ -890,9 +882,7 @@ fn send_error(server: &mut Server, env: &Env<Limits>) {
 }
 
 fn answer_fits(answer: &api::Answer, limits: &documents::Limits) -> bool {
-    if answer.parts.len()
-        > usize::try_from(limits.openai.output_items.min(limits.anthropic.output_items)).expect("u32 fits usize")
-    {
+    if answer.parts.len() > usize_of(limits.openai.output_items.min(limits.anthropic.output_items)) {
         return false;
     }
     let mut length = Some(0_usize);
@@ -914,9 +904,7 @@ fn answer_fits(answer: &api::Answer, limits: &documents::Limits) -> bool {
         };
     }
     match length {
-        Some(length) => {
-            length <= usize::try_from(limits.openai.answer.max(limits.anthropic.answer)).expect("u32 fits usize")
-        }
+        Some(length) => length <= usize_of(limits.openai.answer.max(limits.anthropic.answer)),
         None => false,
     }
 }
@@ -926,9 +914,7 @@ fn answer_fits(answer: &api::Answer, limits: &documents::Limits) -> bool {
 pub fn head_bytes(headers: &[Header]) -> Option<u64> {
     let mut bytes = u64::try_from(headers.len().checked_mul(size_of::<Header>())?).ok()?;
     for header in headers {
-        bytes = bytes
-            .checked_add(u64::try_from(header.name.len()).ok()?)?
-            .checked_add(u64::try_from(header.value.len()).ok()?)?;
+        bytes = bytes.checked_add(len_u64(header.name.len()))?.checked_add(len_u64(header.value.len()))?;
     }
     Some(bytes)
 }

@@ -1,7 +1,7 @@
 //! One bounded ZIP entry, stored or deflated, checked against its central directory.
 use crate::api::Error;
 use alloc::boxed::Box;
-use skein_lib::{List, bytes::copy_of};
+use skein_lib::{List, bytes::copy_of, usize_of};
 
 /// The archive's single file, cut only after its CRC has been checked.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -131,7 +131,7 @@ fn data(bytes: &[u8], entry: &Entry) -> Result<core::ops::Range<usize>, Error> {
 /// Both the archive and its inflated entry must fit `bound`, the owner's existing answer bound.
 /// The returned file is cut after its path takes its share of that bound.
 pub fn read(archive: &[u8], max_bytes: u32, bound: u32) -> Result<File, Error> {
-    if archive.len() > usize::try_from(bound).expect("u32 fits") || max_bytes > bound {
+    if archive.len() > usize_of(bound) || max_bytes > bound {
         return Err(Error::TooLarge);
     }
     let entry = entry(archive)?;
@@ -158,11 +158,11 @@ pub fn read(archive: &[u8], max_bytes: u32, bound: u32) -> Result<File, Error> {
     if inflated.len() != entry.inflated || super::inflate::crc(inflated.as_slice()) != entry.crc {
         return Err(Error::InvalidAnswer);
     }
-    let room = usize::try_from(bound).expect("u32 fits").checked_sub(entry.name.len()).ok_or(Error::TooLarge)?;
-    let kept = usize::try_from(max_bytes.min(entry.inflated)).expect("u32 fits").min(room);
+    let room = usize_of(bound).checked_sub(entry.name.len()).ok_or(Error::TooLarge)?;
+    let kept = usize_of(max_bytes.min(entry.inflated)).min(room);
     Ok(File {
         path: entry.name,
         bytes: copy_of(inflated.as_slice().get(..kept).expect("bounded output")),
-        truncated: usize::try_from(entry.inflated).expect("u32 fits") > kept,
+        truncated: usize_of(entry.inflated) > kept,
     })
 }

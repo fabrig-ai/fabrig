@@ -1,7 +1,7 @@
 use crate::{DecodeError, Json, Limits, common, json};
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
-use skein_lib::{Wall, bytes};
+use skein_lib::{Wall, bytes, usize_of};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[expect(missing_debug_implementations, reason = "credential values must never occur in traces")]
@@ -141,7 +141,7 @@ pub fn decode_response(value: &Json, limits: &Limits) -> Result<TokenResponse, D
 }
 pub fn encode_error(error: &OAuthError, limits: &Limits) -> Result<Box<[u8]>, DecodeError> {
     common::bounded(&error.code, limits.detail_bytes)?;
-    if error.detail.len() > usize::try_from(limits.detail_bytes).expect("u32 fits usize") {
+    if error.detail.len() > usize_of(limits.detail_bytes) {
         return Err(DecodeError::TooLarge);
     }
     let mut measure = Encoder::measure(&limits.writer_limits());

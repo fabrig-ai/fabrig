@@ -3,7 +3,7 @@
 //! writes give way when full. Fake token lengths are content bytes divided by four. Contract: fake-llm.md, section 2.1.
 
 use crate::api::{Caching, Mark, Part, Query, Role, ToolChoice};
-use skein_lib::{Duration, Queue, Time};
+use skein_lib::{Duration, Queue, Time, usize_of};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 struct Entry {
@@ -76,11 +76,10 @@ pub(crate) fn valid(query: &Query) -> bool {
                 match mark {
                     Mark::System => {}
                     Mark::Part { message, part } => {
-                        let Some(message) = query.messages.get(usize::try_from(*message).expect("u32 fits usize"))
-                        else {
+                        let Some(message) = query.messages.get(usize_of(*message)) else {
                             return false;
                         };
-                        if message.parts.get(usize::try_from(*part).expect("u32 fits usize")).is_none() {
+                        if message.parts.get(usize_of(*part)).is_none() {
                             return false;
                         }
                     }
@@ -182,9 +181,8 @@ fn allowed(caching: &Caching, message: usize, part: usize) -> bool {
         Caching::Scope(_) | Caching::Unscoped => true,
         Caching::Marks(marks) => match marks.last() {
             Some(Mark::Part { message: last_message, part: last_part }) => {
-                message < usize::try_from(*last_message).expect("u32 fits usize")
-                    || (message == usize::try_from(*last_message).expect("u32 fits usize")
-                        && part <= usize::try_from(*last_part).expect("u32 fits usize"))
+                message < usize_of(*last_message)
+                    || (message == usize_of(*last_message) && part <= usize_of(*last_part))
             }
             Some(Mark::System) | None => false,
         },

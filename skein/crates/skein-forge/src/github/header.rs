@@ -2,7 +2,7 @@
 use super::limits::Limits;
 use crate::{api, time};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Wall, bytes};
+use skein_lib::{Duration, Wall, bytes, usize_of};
 /// GitHub's rate window, present only when all three fields arrived.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct RateFields {
@@ -167,11 +167,7 @@ pub fn field(head: &mut Head, name: &[u8], value: &[u8], limits: &Limits) {
     } else if name.eq_ignore_ascii_case(b"ETag") {
         head.etag = Etag::new(raw_value);
     } else if name.eq_ignore_ascii_case(b"Location") {
-        head.location = if value.len() <= usize::try_from(limits.target_bytes).expect("u32 fits usize") {
-            Some(bytes::copy_of(value))
-        } else {
-            None
-        };
+        head.location = if value.len() <= usize_of(limits.target_bytes) { Some(bytes::copy_of(value)) } else { None };
     } else if name.eq_ignore_ascii_case(b"Content-Type") {
         let (media, _) = split(value, b';');
         head.json = media.trim_ascii().eq_ignore_ascii_case(b"application/json");

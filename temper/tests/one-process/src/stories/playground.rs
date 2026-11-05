@@ -3,7 +3,7 @@ use super::{press, see};
 use skein_fake_forge_domain::api;
 use skein_fake_person::{Find, Step};
 use skein_ui::Role;
-use temper_client_domain::{Address, ChatsFilter};
+use temper_client_domain::Address;
 
 const REPOSITORY: &[u8] = b"playground/widget";
 
@@ -32,17 +32,16 @@ pub(crate) fn person() -> (Vec<Step<Address>>, Vec<u32>) {
         Step::Go { address: Address::Welcome { step: temper_client_domain::Step::Welcome } },
         see(Find::named(Role::Button, b"Try the playground")),
         press(Role::Button, b"Try the playground"),
+        Step::Go { address: Address::NewChat },
         see(Find::named(Role::Button, b"Add CSV export to widget")),
         see(Find::text(REPOSITORY)),
     ];
     for (index, script) in scripts["asked"].as_array().expect("three suggested requests").iter().enumerate() {
         if index > 0 {
-            steps.push(Step::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } });
+            steps.push(Step::Go { address: Address::NewChat });
             steps.push(see(Find::named(Role::Button, script["cue"].as_str().expect("suggestion").as_bytes())));
         }
         steps.push(press(Role::Button, script["cue"].as_str().expect("suggestion").as_bytes()));
-        steps.push(see(Find::named(Role::TextArea, b"Start a chat")));
-        steps.push(press(Role::Button, b"Start"));
         for turn in script["turns"].as_array().expect("scripted turns") {
             for line in turn["lines"].as_array().expect("reply lines") {
                 if let Some(text) = line["text"].as_str() {

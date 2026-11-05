@@ -13,7 +13,7 @@ use skein_json::{
     tokenizer,
     writer::{self, Encoder},
 };
-use skein_lib::Writer;
+use skein_lib::{Writer, usize_of};
 const fn field(key: &'static [u8], read: Read, required: bool) -> Field {
     Field { key, read, required }
 }
@@ -62,7 +62,7 @@ pub(crate) fn fields(kind: SetupKind) -> &'static [Field] {
 pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
     let mut measure = Target { length: 0, writer: None };
     let method = target(request, &mut measure);
-    if measure.length > usize::try_from(limits.target_bytes).expect("u32 fits") {
+    if measure.length > usize_of(limits.target_bytes) {
         return Err(Refusal::TooLong);
     }
     let mut out = Target { length: 0, writer: Some(Writer::new(measure.length)) };

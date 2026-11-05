@@ -652,7 +652,10 @@ the host tests (section 14).
   it does nothing. An open menu takes Escape first, to close itself; a
   component that takes Escape for itself keeps it.
 - **Menus and disclosures are the page part's to fold,** with no step. A
-  disclosure is `<details>` and `<summary>`. A menu is a button of the
+  disclosure is `<details>` and `<summary>`. An open disclosure that folds
+  away (`ui.md`, 3.2) folds on a press outside it, the press still going to
+  what it lands on, and on Escape, after an open menu and before a form's
+  Escape; a press inside it leaves it open. A menu is a button of the
   page part's, named by the menu's name, that opens its items with the
   platform's keys (arrows, Escape): ARIA's menu-button pattern. A press
   on an item closes the menu. **An address changed folds the

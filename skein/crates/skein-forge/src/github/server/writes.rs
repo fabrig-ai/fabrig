@@ -6,7 +6,7 @@ use skein_json::{
     tokenizer::{self, Event},
     writer::Encoder,
 };
-use skein_lib::{List, Overflow, Writer, bytes};
+use skein_lib::{List, Overflow, Writer, bytes, len_u64};
 
 /// Repository write paths carry placeholders until `write_body` decodes the body.
 pub(super) fn route(method: super::Method, path: &[u8]) -> Option<Request> {
@@ -250,7 +250,7 @@ impl Parser {
                     | Event::Failed(_)
                     | Event::Closed => return None,
                 };
-                if u64::try_from(text.len()).ok()? > u64::from(cap) {
+                if len_u64(text.len()) > u64::from(cap) {
                     return None;
                 }
                 self.fields.values.push(Value { key, text }).ok()?;
@@ -274,7 +274,7 @@ impl Parser {
             Want::ListItem => match event {
                 Event::Token(Token::ArrayEnd) => self.want = Want::Key,
                 Event::Token(Token::String(login)) => {
-                    if u64::try_from(login.len()).ok()? > u64::from(limits.string_bytes) {
+                    if len_u64(login.len()) > u64::from(limits.string_bytes) {
                         return None;
                     }
                     self.fields.logins.as_mut()?.push(login).ok()?;
@@ -329,7 +329,7 @@ impl Parser {
     }
 }
 fn parse(body: &[u8], specs: &[Field], limits: &Limits) -> Option<Fields> {
-    if u64::try_from(body.len()).ok()? > u64::from(limits.body_bytes) {
+    if len_u64(body.len()) > u64::from(limits.body_bytes) {
         return None;
     }
     let mut feed = tokenizer::Feed::new(body, &limits.json);
@@ -457,7 +457,7 @@ pub fn write_body(request: Request, body: &[u8], limits: &Limits) -> Option<Requ
                 limits,
             )?;
             let branch = fields.get(b"ref")?.strip_prefix(b"refs/heads/")?;
-            if u64::try_from(branch.len()).ok()? > u64::from(limits.string_bytes) {
+            if len_u64(branch.len()) > u64::from(limits.string_bytes) {
                 return None;
             }
             Some(Request::CreateBranch {

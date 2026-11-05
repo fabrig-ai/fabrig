@@ -133,7 +133,7 @@ pub fn agent_task_page() -> skein_ui::Tree {
     synthetic_frame(&mut b, false);
     b.open(Role::Main);
     b.style(look::MAIN);
-    b.style(look::CHAT);
+    b.style(look::AGENT_PAGE);
     b.open(Role::Slot);
     b.style(look::AGENT_LINEAGE);
     b.open(Role::Slot);
@@ -146,7 +146,7 @@ pub fn agent_task_page() -> skein_ui::Tree {
     b.close();
     b.close();
     b.open(Role::Slot);
-    b.style(look::CHATBAR);
+    b.style(look::TASKBAR);
     b.open(Role::Slot);
     text(&mut b, Role::Heading { level: 1 }, "T34 · Refresh token handling".as_bytes());
     b.open(Role::Status);

@@ -29,17 +29,15 @@ pub fn name(bytes: &[u8]) -> Name {
     Name::new(bytes.into()).expect("a test name")
 }
 
-/// The longest authority `limits` take: a working directory of as many names
-/// as fit, a repository at the root, so that a place's path is as long as an
-/// absolute one, and the others at mounts as long as they may be.
+/// A one-name working directory leaves room for maximum resolved file paths;
+/// the sibling mounts and host paths are as long as the limits take.
 #[must_use]
 pub fn authority(limits: &Limits) -> Authority {
     let len = usize::try_from(limits.path_bytes).expect("a small limit");
-    let names = len.div_ceil(2);
-    let cwd: Box<[Name]> = (0..names).map(|_| name(b"a")).collect();
+    let cwd = name(b"a");
     let mut repos = vec![Directory {
         host: Box::new([name(&vec![b'h'; usize::try_from(limits.host_path_bytes).expect("bounded host path")])]),
-        mount: Box::new([]),
+        mount: cwd.clone(),
         root: Token::new(0),
         writable: true,
     }];
@@ -47,22 +45,22 @@ pub fn authority(limits: &Limits) -> Authority {
         let mount = format!("{repo:0>len$}");
         repos.push(Directory {
             host: Box::new([name(&vec![b'h'; usize::try_from(limits.host_path_bytes).expect("bounded host path")])]),
-            mount: Box::new([name(mount.as_bytes())]),
+            mount: name(mount.as_bytes()),
             root: Token::new(repo.into()),
             writable: false,
         });
     }
-    Authority { cwd, repos: repos.into(), grants: GRANTS }
+    Authority { cwd: Some(cwd), repos: repos.into(), grants: GRANTS }
 }
 
 /// The path of a file whose absolute path is exactly `path_bytes` long,
 /// distinct for each `file`.
 #[must_use]
 pub fn path(limits: &Limits, file: u64) -> Path {
-    let len = usize::try_from(limits.path_bytes - 1).expect("a small limit");
+    let len = usize::try_from(limits.path_bytes - 3).expect("a small limit");
     let name = format!("f{file:0>len$}");
     let parts = Box::new([Part::Name { name: Name::new(name.into_bytes().into()).expect("a name") }]);
-    Path { absolute: true, parts }
+    Path { absolute: false, parts }
 }
 
 /// Builds a read for the fixture file under the supplied path limits.

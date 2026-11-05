@@ -204,10 +204,7 @@ fn each_refused_retry_gets_a_new_name_and_only_one_request_at_a_time() {
 fn switcher_creation_opens_home_once_membership_arrives() {
     use pages::switcher;
     let (mut root, me) = ready_default();
-    event(
-        &mut root,
-        Event::Went { place: crate::Place::Address(Address::Chats { filter: crate::ChatsFilter::All, start: false }) },
-    );
+    event(&mut root, Event::Went { place: crate::Place::Address(Address::Chats { filter: crate::ChatsFilter::All }) });
     event(
         &mut root,
         Event::Act {

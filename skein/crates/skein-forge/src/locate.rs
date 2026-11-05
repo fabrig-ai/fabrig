@@ -1,9 +1,10 @@
 //! Locate's owned names and the forge's nonzero repository id (forge.md, 3.7).
 use crate::api::Answer;
+use skein_lib::len_u64;
 
 #[must_use]
 pub fn bytes(owner: &[u8], name: &[u8]) -> Option<u64> {
-    u64::try_from(owner.len()).ok()?.checked_add(u64::try_from(name.len()).ok()?)
+    len_u64(owner.len()).checked_add(len_u64(name.len()))
 }
 
 #[must_use]

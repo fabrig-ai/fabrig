@@ -1,7 +1,7 @@
 //! Values retained by the owner, and their decoders (forge-setup.md, 4.2 and 6.4).
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
-use skein_lib::{List, Secret, Writer};
+use skein_lib::{List, Secret, Writer, len_u64};
 
 /// Values kept by the host, never paths in the kit.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -126,7 +126,7 @@ pub fn accepted(bytes: &[u8], installations: u32) -> Option<Box<[u64]>> {
 #[must_use]
 pub fn pasted(bytes: &[u8], key_bytes: u32) -> Option<&[u8]> {
     let bound = u64::from(key_bytes).checked_mul(2)?;
-    if bytes.is_empty() || u64::try_from(bytes.len()).ok()? > bound {
+    if bytes.is_empty() || len_u64(bytes.len()) > bound {
         return None;
     }
     for byte in bytes {

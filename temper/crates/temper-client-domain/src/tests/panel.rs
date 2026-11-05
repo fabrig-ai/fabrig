@@ -143,7 +143,7 @@ fn only_a_forge_procedure_document_opens_its_projects_panel() {
 #[test]
 fn leaving_closes_the_panel_and_reopening_uses_a_fresh_handle() {
     for place in [
-        Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }),
+        Place::Address(Address::Chats { filter: ChatsFilter::All }),
         Place::Address(Address::Adopt { project: PROJECT }),
     ] {
         let (mut root, watch, first) = opened();
@@ -259,8 +259,7 @@ fn invalid_records_end_unknown_and_unwatch_once() {
             family_open(&mut task_document(&mut root, task_watch, &task), TASK).is_none(),
             "{row}: terminal after a later task document"
         );
-        let closed =
-            closes(&mut went(&mut root, Place::Address(Address::Chats { filter: ChatsFilter::All, start: false })));
+        let closed = closes(&mut went(&mut root, Place::Address(Address::Chats { filter: ChatsFilter::All })));
         assert!(!closed.as_slice().contains(&watch), "already unwatched");
         for &watch in &closed {
             up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
@@ -299,8 +298,7 @@ fn jig_endings_keep_unknown_and_other_reasons_apart_from_loading() {
             assert_eq!(root.forge().panel().unwrap().state, expected);
             assert_eq!(root.forge().panel().unwrap().handle, None);
         }
-        let closed =
-            closes(&mut went(&mut root, Place::Address(Address::Chats { filter: ChatsFilter::All, start: false })));
+        let closed = closes(&mut went(&mut root, Place::Address(Address::Chats { filter: ChatsFilter::All })));
         assert!(!closed.as_slice().contains(&watch), "jig already ended it");
         for &watch in &closed {
             up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
@@ -466,10 +464,8 @@ fn a_panel_ending_before_the_last_task_document_reopens_exactly_once() {
 }
 #[test]
 fn leaving_before_a_late_panel_ending_asks_nothing() {
-    for address in [
-        Address::Chats { filter: ChatsFilter::All, start: false },
-        Address::Task { task: NEXT, filter: PlanFilter::All },
-    ] {
+    for address in [Address::Chats { filter: ChatsFilter::All }, Address::Task { task: NEXT, filter: PlanFilter::All }]
+    {
         let (mut root, task_watch, panel_watch, mut task) = change_opened();
         finish_change(&mut task);
         task_document(&mut root, task_watch, &task);

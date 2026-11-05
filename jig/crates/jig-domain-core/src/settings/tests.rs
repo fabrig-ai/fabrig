@@ -6,6 +6,19 @@ use crate::{
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Time};
 
+#[test]
+fn history_copy_orders_held_and_history_with_the_revision_number() {
+    for number in [0, 7, u32::MAX] {
+        assert_eq!(
+            history_copy(number),
+            (
+                crate::Key::Core(crate::CoreKey::Settings(Key::Held(number))),
+                crate::Key::Core(crate::CoreKey::Settings(Key::History(number))),
+            ),
+        );
+    }
+}
+
 fn template() -> Template {
     Template {
         resources: Box::new([]),
@@ -820,4 +833,60 @@ fn delegation_count_restore_names_overflow() {
         check::restore_fit(Setting::Rules, &value, &limits),
         Err(Failure { setting: Setting::Rules, fault: Fault::Count })
     );
+}
+
+fn catalogue(name: &[u8], efforts: &[&[u8]]) -> ModelName {
+    let mut result = List::with_capacity(u32::try_from(efforts.len()).unwrap());
+    for effort in efforts {
+        result.push(Box::from(*effort)).unwrap();
+    }
+    ModelName { name: name.into(), efforts: result.into_boxed() }
+}
+
+#[test]
+fn remap_template_choices_follow_model_and_effort_names_and_mark_departures() {
+    let kept = [catalogue(b"first", &[b"low", b"high"]), catalogue(b"left", &[])];
+    for (names, expected) in [
+        (
+            [catalogue(b"new", &[]), catalogue(b"first", &[b"high", b"low"])],
+            tasks::ModelEffort { model: 1, effort: Some(0) },
+        ),
+        (
+            [catalogue(b"new", &[]), catalogue(b"other", &[])],
+            tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: Some(1) },
+        ),
+        (
+            [catalogue(b"first", &[b"low"]), catalogue(b"new", &[])],
+            tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: Some(1) },
+        ),
+    ] {
+        let mut template = template();
+        template.llm = Some(tasks::LlmChoice {
+            account: None,
+            main: tasks::ModelEffort { model: 0, effort: Some(1) },
+            subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
+        });
+        let mut value = Value::Template(Box::new(template));
+        remap(&mut value, &kept, &names);
+        let Value::Template(template) = value else { panic!("template") };
+        let choice = template.llm.unwrap();
+        assert_eq!(choice.main, expected);
+        assert_eq!(choice.subagents[0], tasks::ModelEffort { model: tasks::ModelEffort::GONE, effort: None });
+    }
+}
+
+#[test]
+fn remap_named_masks_follow_names_and_drop_departures_while_all_stays() {
+    let kept = [catalogue(b"first", &[]), catalogue(b"left", &[])];
+    let names = [catalogue(b"new", &[]), catalogue(b"first", &[])];
+    for (before, after) in
+        [(authority::Models::Named(3), authority::Models::Named(2)), (authority::Models::All, authority::Models::All)]
+    {
+        let mut rules = config(1).defaults.rules;
+        rules.ceiling.models = before;
+        let mut value = Value::Rules(Box::new(rules));
+        remap(&mut value, &kept, &names);
+        let Value::Rules(rules) = value else { panic!("rules") };
+        assert_eq!(rules.ceiling.models, after);
+    }
 }

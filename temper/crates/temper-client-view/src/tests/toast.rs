@@ -43,8 +43,7 @@ fn act(root: &mut d::Domain, act: pages::Act) {
 }
 #[test]
 fn toast_is_last_on_home_and_chats_in_both_shells_and_undo_is_only_held() {
-    for address in [Address::Home { project: f::PROJECT }, Address::Chats { filter: d::ChatsFilter::All, start: false }]
-    {
+    for address in [Address::Home { project: f::PROJECT }, Address::Chats { filter: d::ChatsFilter::All }] {
         for (reply, later, said) in [
             (false, false, "Answered: First"),
             (true, false, "Answered: Replied: “My words”"),

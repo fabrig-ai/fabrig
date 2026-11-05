@@ -3,6 +3,7 @@ use crate::platform::Platform;
 use skein_lib::{
     Writer,
     base64::{self, Alphabet},
+    len_u64,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -62,7 +63,7 @@ impl Store {
     }
 }
 fn size(key: &[u8], value: &[u8]) -> Option<u64> {
-    u64::try_from(key.len()).ok()?.checked_add(u64::try_from(value.len()).ok()?)
+    len_u64(key.len()).checked_add(len_u64(value.len()))
 }
 fn encoded(bytes: &[u8]) -> Result<Box<[u8]>, Refused> {
     let len =

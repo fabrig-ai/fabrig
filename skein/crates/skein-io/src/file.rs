@@ -488,6 +488,10 @@ impl core::fmt::Debug for Event {
 }
 
 impl Event {
+    pub(crate) fn failed(owner: Token, error: crate::kernel::Error) -> Event {
+        Event::Failed { owner, error, committed: false, residue: None }
+    }
+
     #[must_use]
     pub const fn owner(&self) -> Token {
         match self {

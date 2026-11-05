@@ -77,7 +77,7 @@ pub(crate) struct Event {
 }
 impl Poller {
     pub(crate) fn open(operations: u32) -> Result<Self, i32> {
-        let capacity = usize::try_from(operations).expect("u32 fits usize");
+        let capacity = skein_lib::usize_of(operations);
         Ok(Self {
             fd: open()?,
             events: vec![event(0, 0, 0, 0); capacity].into_boxed_slice(),

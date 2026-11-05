@@ -6,12 +6,13 @@
     reason = "the test recognizes the expected kernel record cases"
 )]
 
+use super::file::file_env;
 use crate::file::{Event, Expect, Request, Unsafe};
-use crate::file_layer::{self, FileIo};
+use crate::file_layer::{self, FileIo, step};
 use crate::kernel::{Complete, Done, Error, Fd, Kind, Op, OpenHow, Stat, Submit};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use skein_lib::{Duration, Queue, Time, Token};
+use skein_lib::{Duration, Env, Queue, Time, Token};
 
 const OWNER: Token = Token::new(7);
 const PARENT: Fd = Fd::new(42);
@@ -21,6 +22,7 @@ const USER: u32 = 17;
 
 struct Rig {
     io: FileIo,
+    env: Env<file_layer::Limits>,
     root: Token,
     events: Queue<Event>,
     subs: Queue<Submit>,
@@ -28,17 +30,17 @@ struct Rig {
 
 impl Rig {
     fn new() -> Self {
-        let mut io = FileIo::new(3, 16, 4, Duration::from_secs(1)).with_effective_user(USER);
+        let mut io = FileIo::with_limits(&file_env().limits).with_effective_user(USER);
         io.seed_randomness(23);
         let root = io.adopt_root(Fd::new(41)).unwrap();
-        Self { io, root, events: Queue::with_capacity(1), subs: Queue::with_capacity(2) }
+        Self { io, env: file_env(), root, events: Queue::with_capacity(1), subs: Queue::with_capacity(2) }
     }
     fn down(&mut self, request: Request) {
-        file_layer::down(&mut self.io, Time::ZERO, request, &mut self.events, &mut self.subs);
+        step::down(&mut self.io, &self.env, request, &mut self.events, &mut self.subs);
     }
     fn done(&mut self, result: Result<Done, Error>) {
         let Submit { op, kind } = self.subs.pop().expect("one operation");
-        file_layer::up(&mut self.io, Complete { op, kind, result }, &mut self.events, &mut self.subs);
+        step::up(&mut self.io, &self.env, Complete { op, kind, result }, &mut self.events, &mut self.subs);
     }
     fn begin(&mut self) {
         self.down(Request::OpenPrivate { owner: OWNER, root: self.root, path: Box::from(&b"secret"[..]) });
@@ -107,8 +109,9 @@ impl Rig {
         for (slot, byte) in buf.iter_mut().zip(bytes) {
             *slot = *byte;
         }
-        file_layer::up(
+        step::up(
             &mut self.io,
+            &self.env,
             Complete {
                 op,
                 kind: Op::Read { fd, at, buf },
@@ -211,7 +214,7 @@ fn making_a_directory_preserves_mode_and_exists_is_a_failure() {
             rig.events.pop(),
             Some(match result {
                 Ok(_) => Event::Made { owner: OWNER },
-                Err(error) => Event::Failed { owner: OWNER, error, committed: false, residue: None },
+                Err(error) => Event::failed(OWNER, error),
             }),
             "{label}"
         );
@@ -225,8 +228,9 @@ fn cancelling_an_open_private_root_closes_a_descriptor_that_won_the_race() {
     let target = rig.subs.pop().unwrap();
     file_layer::cancel(&mut rig.io, OWNER, &mut rig.subs);
     let cancel = rig.subs.pop().unwrap();
-    file_layer::up(
+    step::up(
         &mut rig.io,
+        &rig.env,
         Complete { op: target.op, kind: target.kind, result: Ok(Done::Fd(PARENT)) },
         &mut rig.events,
         &mut rig.subs,
@@ -234,8 +238,9 @@ fn cancelling_an_open_private_root_closes_a_descriptor_that_won_the_race() {
     rig.done(Ok(Done::Nothing));
     assert_eq!(rig.events.pop(), Some(Event::Cancelled { owner: OWNER }));
     assert!(!rig.io.takes(), "cancel completion is still owned");
-    file_layer::up(
+    step::up(
         &mut rig.io,
+        &rig.env,
         Complete { op: cancel.op, kind: cancel.kind, result: Err(Error::TooLate) },
         &mut rig.events,
         &mut rig.subs,
@@ -283,10 +288,7 @@ fn every_failed_private_open_stage_closes_its_owned_descriptors_before_one_termi
             let Op::Close { .. } = &rig.subs.iter().next().unwrap().kind else { panic!("only cleanup closes") };
             rig.done(Ok(Done::Nothing));
         }
-        assert_eq!(
-            rig.events.pop(),
-            Some(Event::Failed { owner: OWNER, error: Error::Other(5), committed: false, residue: None })
-        );
+        assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::Other(5))));
         assert!(rig.events.is_empty() && rig.io.takes());
         assert_eq!(rig.io.open_files(), 1);
     }
@@ -357,7 +359,7 @@ fn denied_private_opens_use_path_metadata_only_to_name_a_refusal() {
             let expected = if probe == 0 {
                 Event::Refused { owner: OWNER, found: Unsafe::Owner { found: USER + 1, expected: USER } }
             } else {
-                Event::Failed { owner: OWNER, error: Error::Permission, committed: false, residue: None }
+                Event::failed(OWNER, Error::Permission)
             };
             assert_eq!(rig.events.pop(), Some(expected));
             assert_eq!(rig.io.open_files(), if root_request { 1 } else { 2 });
@@ -425,7 +427,11 @@ fn a_failed_parent_sync_answers_committed() {
         rig.making(private);
         rig.assert_next(Op::Sync { fd: PARENT });
         if expired {
-            file_layer::expire(&mut rig.io, Time::from_nanos(Duration::from_secs(2).as_nanos()), &mut rig.subs);
+            step::expire(
+                &mut rig.io,
+                &Env { now: Time::from_nanos(Duration::from_secs(2).as_nanos()), ..rig.env },
+                &mut rig.subs,
+            );
         }
         rig.done(if expired { Ok(Done::Nothing) } else { Err(Error::Other(5)) });
         rig.assert_next(Op::Close { fd: PARENT });
@@ -505,13 +511,10 @@ fn reopening_a_replaced_file_keeps_the_loads_deadline() {
     let deadline = rig.io.next_deadline().expect("the load deadline");
     rig.reopen();
     assert_eq!(rig.io.next_deadline(), Some(deadline));
-    file_layer::expire(&mut rig.io, deadline, &mut rig.subs);
+    step::expire(&mut rig.io, &Env { now: deadline, ..rig.env }, &mut rig.subs);
     rig.done(Ok(Done::Stat(file_stat())));
     rig.assert_next(Op::Close { fd: FILE });
     rig.done(Ok(Done::Nothing));
-    assert_eq!(
-        rig.events.pop(),
-        Some(Event::Failed { owner: OWNER, error: Error::TimedOut, committed: false, residue: None })
-    );
+    assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::TimedOut)));
     assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
 }

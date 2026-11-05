@@ -4,7 +4,7 @@ use crate::{ClientLimits, Failure, Registration};
 use alloc::boxed::Box;
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use core::str::FromStr;
-use skein_lib::{Decimal, List, Writer, bytes};
+use skein_lib::{Decimal, List, Writer, bytes, usize_of};
 
 /// An issuer's additions to its client registration (oauth.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -43,10 +43,7 @@ pub struct OpenId {
 /// Validates an owner's registration before an exchange or component starts.
 pub fn validate_registration(registration: &Registration, limits: &ClientLimits, sign_in: bool) -> Result<(), Failure> {
     for value in [&registration.authorization_url, &registration.token_endpoint, &registration.redirect_uri] {
-        if value.is_empty()
-            || value.len() > usize::try_from(limits.uri_bytes).expect("u32 fits")
-            || value.contains(&b'#')
-        {
+        if value.is_empty() || value.len() > usize_of(limits.uri_bytes) || value.contains(&b'#') {
             return Err(Failure::Limit);
         }
     }
@@ -68,13 +65,13 @@ pub fn validate_registration(registration: &Registration, limits: &ClientLimits,
         }
     }
     if registration.client_id.is_empty()
-        || registration.client_id.len() > usize::try_from(limits.document.client_bytes).expect("u32 fits")
-        || registration.scope.len() > usize::try_from(limits.scope_bytes).expect("u32 fits")
+        || registration.client_id.len() > usize_of(limits.document.client_bytes)
+        || registration.scope.len() > usize_of(limits.scope_bytes)
     {
         return Err(Failure::Limit);
     }
     if let Some(secret) = &registration.client_secret
-        && (secret.is_empty() || secret.len() > usize::try_from(limits.document.client_bytes).expect("u32 fits"))
+        && (secret.is_empty() || secret.len() > usize_of(limits.document.client_bytes))
     {
         return Err(Failure::Limit);
     }
@@ -211,7 +208,7 @@ pub(crate) fn authorization_url(
         (subject, limits.document.subject_bytes),
     ] {
         if let Some(value) = value
-            && value.len() > usize::try_from(cap).expect("u32 fits")
+            && value.len() > usize_of(cap)
         {
             return Err(Failure::Limit);
         }
@@ -264,7 +261,7 @@ pub(crate) fn authorization_url(
     let query = form_fields(all.as_slice(), limits.url_bytes)?;
     let prefix = registration.authorization_url.len().checked_add(1).ok_or(Failure::Limit)?;
     let length = prefix.checked_add(query.len()).ok_or(Failure::Limit)?;
-    if length > usize::try_from(limits.url_bytes).expect("u32 fits") {
+    if length > usize_of(limits.url_bytes) {
         return Err(Failure::Limit);
     }
     let mut writer = Writer::new(length);
@@ -288,7 +285,7 @@ pub(crate) fn form_fields(fields: &[Option<(&[u8], &[u8])>], cap: u32) -> Result
         length = length.checked_add(encoded_len(value)?).ok_or(Failure::Limit)?;
         count = count.checked_add(1).ok_or(Failure::Limit)?;
     }
-    if length > usize::try_from(cap).expect("u32 fits") {
+    if length > usize_of(cap) {
         return Err(Failure::Limit);
     }
     let mut writer = Writer::new(length);
@@ -360,8 +357,7 @@ pub(crate) fn sign_in_values(
 ) -> Result<(), Failure> {
     let openid = has_openid(registration);
     match (openid, nonce) {
-        (true, Some(value)) if (16..=usize::try_from(limits.nonce_bytes).expect("u32 fits")).contains(&value.len()) => {
-        }
+        (true, Some(value)) if (16..=usize_of(limits.nonce_bytes)).contains(&value.len()) => {}
         (false, None) => {}
         (true, Some(_) | None) | (false, Some(_)) => return Err(Failure::Limit),
     }
@@ -379,7 +375,7 @@ pub(crate) fn sign_in_values(
             let prefix = 7_usize.checked_add(host.len()).ok_or(Failure::Limit)?;
             let prefix = prefix.checked_add(digits.as_bytes().len()).ok_or(Failure::Limit)?;
             let length = prefix.checked_add(path.len()).ok_or(Failure::Limit)?;
-            if length > usize::try_from(limits.uri_bytes).expect("u32 fits") {
+            if length > usize_of(limits.uri_bytes) {
                 return Err(Failure::Limit);
             }
             let mut writer = Writer::new(length);
@@ -400,7 +396,7 @@ fn validate_terms(registration: &Registration, limits: &ClientLimits) -> Result<
         None => (None, None),
     };
     for uri in [issuer, key_set, terms.revocation_endpoint.as_deref()].into_iter().flatten() {
-        if uri.len() > usize::try_from(limits.uri_bytes).expect("u32 fits") {
+        if uri.len() > usize_of(limits.uri_bytes) {
             return Err(Failure::Limit);
         }
         if uri.is_empty() || uri.contains(&b'#') || !issuer_endpoint(uri) {
@@ -429,14 +425,14 @@ fn validate_terms(registration: &Registration, limits: &ClientLimits) -> Result<
         }
         parameter_bytes = parameter_bytes.checked_add(name.len()).ok_or(Failure::Limit)?;
     }
-    if parameter_bytes > usize::try_from(limits.parameter_bytes).expect("u32 fits") {
+    if parameter_bytes > usize_of(limits.parameter_bytes) {
         return Err(Failure::Limit);
     }
     for (value, cap) in
         [(terms.resource.as_deref(), limits.resource_bytes), (terms.required_scopes.as_deref(), limits.scope_bytes)]
     {
         if let Some(value) = value
-            && value.len() > usize::try_from(cap).expect("u32 fits")
+            && value.len() > usize_of(cap)
         {
             return Err(Failure::Limit);
         }

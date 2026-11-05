@@ -1,7 +1,7 @@
 //! Role-based text, independent of styles (ui-text.md, 5).
 use skein_ui::{EntryKind, Limits, Node, NodeId, Region, Role, Run, State, Tree};
 
-use skein_lib::{Decimal, List, Stack};
+use skein_lib::{Decimal, List, Stack, len_u64};
 /// One page's lines and its numbered node identities, beginning with `[1]`.
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "ruling 106 keeps the configured name bound private")]
@@ -41,7 +41,7 @@ fn room(nodes: u32, depth: u32, text: u64) -> Option<(u32, u64)> {
     Some((u32::try_from(lines).ok()?, bytes))
 }
 fn tree_room(tree: &Tree, name: &[u8]) -> Option<u32> {
-    let mut text = u64::try_from(name.len()).ok()?;
+    let mut text = len_u64(name.len());
     let mut ends = Stack::with_capacity(tree.len());
     let mut depth = 0;
     for at in 0..tree.len() {
@@ -55,13 +55,13 @@ fn tree_room(tree: &Tree, name: &[u8]) -> Option<u32> {
         ends.push(at.saturating_add(n.size)).expect("Ancestors fit tree nodes");
         depth = depth.max(ends.len());
         if let Some(value) = &n.value {
-            text = text.checked_add(u64::try_from(value.text.len()).ok()?)?;
+            text = text.checked_add(len_u64(value.text.len()))?;
         }
         for bytes in [n.name.as_deref(), n.description.as_deref(), n.external.as_deref()].into_iter().flatten() {
-            text = text.checked_add(u64::try_from(bytes.len()).ok()?)?;
+            text = text.checked_add(len_u64(bytes.len()))?;
         }
         for run in &n.text {
-            text = text.checked_add(u64::try_from(run.text.len()).ok()?)?;
+            text = text.checked_add(len_u64(run.text.len()))?;
         }
     }
     u32::try_from(room(tree.len(), depth, text)?.1).ok()
@@ -563,6 +563,7 @@ fn states(n: &Node, out: &mut List<u8>) {
                     raw(out, if state == State::Pressed { b" (pressed)" } else { b" (selected)" });
                 }
             }
+            State::FoldsAway => {}
             State::Required => raw(out, b" (required)"),
             State::Completed => raw(out, b" (completed)"),
             State::SubmitsOnEnter => {
