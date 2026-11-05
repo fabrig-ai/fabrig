@@ -1,7 +1,7 @@
 # ui-settings: the plan
 
 From `inputs/request.md`: Settings' frame, How work runs and Repositories, as the greenfield mock draws them.
-This is the first push: the engine. The client's tasks follow in the next batches.
+So far: the engine, its entrances, and the frame. How work runs' controls, the rail, the card and the proof follow.
 
 ## Parts and tasks
 
@@ -9,6 +9,8 @@ This is the first push: the engine. The client's tasks follow in the next batche
 |---|---|---|---|---|
 | 1 | `project-templates` | | medium, 25 | jig's `Core::project_templates` |
 | 2 | `ways-kind` | 1 | high, 150 | kinds 6 and 7, the route, a project's read |
+| 3 | `ways-ctl` | 2 | high, 110 | the entrances take them; ctl, the file, the agent's tool and words; the reference's `project.json` |
+| 4 | `settings-frame` | | high, 170 | `Address::Repositories`, the tabs, Repositories, `Forges` and `Accounts` in the frame, "Sign out" |
 
 ## What the cut settled, so far
 
@@ -19,5 +21,7 @@ This is the first push: the engine. The client's tasks follow in the next batche
 - **The reference's kind 7 is a file of its own, `docs/examples/reference/project.json`, not `settings.json`** as the
   request says: `settings.json` is applied before the case's project exists, and jig refuses a project's item then.
   Its `way` is 4, the reference's goal.
+- **The rail's foot keeps its line "Sign out did not reach the engine."** The request moves it with "Sign out", from the stub. The tab gets it, and the rail's stays: it is 6.6's, and
+  a person with a lost sign-out is on any page.
 - **Formats that change:** temper's store family 20 and the client wire gain the two values, in place. Existing
   stores keep decoding: an enum gains variants. No compatibility is kept beyond that.

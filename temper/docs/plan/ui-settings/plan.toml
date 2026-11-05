@@ -25,8 +25,28 @@ mode = "direct"
 needs = ["project-templates"]
 design = "temper/docs/design/protocol/configuration.md, 13.2"
 
+[[part]]
+id = "ways-ctl"
+title = "Kinds 6 and 7 through the entrances, temper ctl, the configuring agent and the reference"
+mode = "direct"
+needs = ["ways-kind"]
+design = "temper/docs/design/client/tools.md, 5.3"
+
+[[part]]
+id = "settings-frame"
+title = "Settings' frame, its tabs and Repositories"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
 [[slice]]
 id = 1
 story = "A project's owner changes its ways and its questions, its members read them, and a change takes its project's questions"
-parts = ["project-templates", "ways-kind"]
+parts = ["project-templates", "ways-kind", "ways-ctl"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A project's settings are tabs in its frame, and its repositories, forges and accounts sit under them"
+parts = ["settings-frame"]
 walk = false
