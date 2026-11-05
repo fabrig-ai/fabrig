@@ -7,6 +7,8 @@ use skein_lib::{Time, Wall};
 pub enum Seed {
     /// A signed-out owner with a project that permits starting conversations.
     ChatProject { party: u64, project: u32 },
+    /// A signed-out owner belonging to two named projects.
+    TwoProjects { party: u64 },
     /// Project and deployment facts for the configured first owner.
     Profile,
     /// The next conversation completes with this retained report.
@@ -59,6 +61,7 @@ pub fn seed_core(driver: &mut Driver, now: Time, wall: Wall, seed: Seed) {
         | Seed::ChatResult { .. }
         | Seed::PendingGoal { .. }
         | Seed::Roles { .. } => {}
+        Seed::TwoProjects { .. } => unreachable!("the front rebuilds its project configuration"),
         Seed::Conversation { party, project, words } => {
             let peers = driver.world.peers.as_ref().expect("ordinary core peers");
             let number = u64::try_from(peers.parties.len()).expect("seed party count fits");

@@ -31,6 +31,7 @@ pub fn signing_in_and_starting_a_chat<F: Front<Test>>(world: &mut World<Test, F>
 }
 
 pub mod a_person;
+pub mod a_projects;
 
 #[cfg(test)]
 mod a_tests;
