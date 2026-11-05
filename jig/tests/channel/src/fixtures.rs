@@ -301,13 +301,13 @@ pub fn provider_at(
     dialect: skein_fake_llm_protocol::documents::Provider,
 ) -> skein_fake_peers::llm::Peer {
     use skein_fake_llm_protocol::{documents, provider};
-    let mut config = skein_llm_world::fake::config();
+    let mut config = skein_llm_kit::fake::config();
     config.latency_min = latency;
     config.latency_max = latency;
     config.script_bytes = config.script_bytes.max(16_384);
     config.answer_bytes = config.answer_bytes.max(16_384);
     config.query_bytes = config.query_bytes.max(16_384);
-    let mut protocol = skein_llm_world::fake::limits(&skein_llm_world::limits());
+    let mut protocol = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
     protocol.documents.openai.request = 32_768;
     protocol.documents.openai.strings = 16_384;
     protocol.documents.openai.answer = protocol.documents.openai.answer.max(16_384);

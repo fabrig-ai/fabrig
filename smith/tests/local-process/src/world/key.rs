@@ -6,8 +6,8 @@ use skein_fake_peers::{Transport, llm::Peer};
 /// The inline chat script on the API route with one explicit test key.
 #[must_use]
 pub fn provider(value: Box<[u8]>) -> Peer {
-    let config = skein_llm_world::fake::config();
-    let mut protocol = skein_llm_world::fake::limits(&skein_llm_world::limits_for(skein_llm::Provider::OpenAi));
+    let config = skein_llm_kit::fake::config();
+    let mut protocol = skein_llm_kit::fake::limits(&skein_llm_kit::limits_for(skein_llm::Provider::OpenAi));
     protocol.documents.openai.request = 32_768;
     protocol.documents.openai.strings = 16_384;
     protocol.documents.openai.tokens = 4096;

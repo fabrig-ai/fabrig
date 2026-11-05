@@ -18,7 +18,7 @@ skein-shell.workspace = true
 [dev-dependencies]
 skein-world.workspace = true
 skein-scratch.workspace = true
-skein-tls-world.workspace = true
+skein-tls-kit.workspace = true
 rustls = { workspace = true, features = ["std"] }
 jig-protocol-config.workspace = true
 

@@ -1,7 +1,7 @@
 //! Connected GitHub QA, confined to the world's public harness and cited recipes.
 use skein_fake_forge_domain::{Observation, api as raw};
 use skein_fake_forge_forgejo::Route;
-use skein_forge_machine_world::joint::{self, REPO};
+use skein_forge_kit::joint::{self, REPO};
 use skein_lib::{Duration, Wall};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;

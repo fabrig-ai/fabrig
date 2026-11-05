@@ -301,7 +301,7 @@ fn a_read_only_connect_keeps_its_policy_and_leaves_the_hook_at_paste_and_reconci
     let (mut service, bearer) = http_owner();
     assert_eq!(http_paste_with_policy(&mut service, &bearer, 1, 7, Some(true)), w::Outcome::Connecting);
     let mut face = Face::new();
-    let mut github = skein_forge_machine_world::github::Fake::new(7);
+    let mut github = skein_forge_kit::github::Fake::new(7);
     // App, bot, hook: a differing hook must finish paste without a PATCH.
     for _ in 0_u32..3 {
         github_reply(&mut service, &mut face, &mut github);

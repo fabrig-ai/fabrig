@@ -8,7 +8,7 @@ use crate::{CUT_MARKER_BYTES, render_bound, render_outcome};
 
 #[test]
 fn replay_admits_an_ordered_run_beyond_one_reasoning_item() {
-    let mut client = skein_llm_world::limits();
+    let mut client = skein_llm_kit::limits();
     client.reasoning = 64;
     client.output_items = 4;
     let limits = crate::limits::replay_limits(&client).expect("checked share");
@@ -26,7 +26,7 @@ fn replay_admits_an_ordered_run_beyond_one_reasoning_item() {
 
 #[test]
 fn completion_prices_one_reasoning_share_and_refuses_its_overflow() {
-    let mut client = skein_llm_world::limits();
+    let mut client = skein_llm_kit::limits();
     client.output_items = 4;
     client.reasoning = 32;
     let smaller = crate::completion_bound(&client, 4096).expect("one share");
@@ -925,7 +925,7 @@ fn skein_failures_map_to_the_sessions_classes() {
 fn each_providers_prompt_allowance_counts_its_tool_inventory() {
     use skein_llm::Provider;
 
-    let client = skein_llm_world::limits();
+    let client = skein_llm_kit::limits();
     for provider in [Provider::OpenAi, Provider::Anthropic] {
         let empty = crate::prompt_allowance(provider, &client, 0).expect("empty tool inventory");
         let one = crate::prompt_allowance(provider, &client, 1).expect("one tool");

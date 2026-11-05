@@ -137,7 +137,7 @@ pub(crate) fn write(directory: &Path, program: &Path, bundle: &Path) {
     private(&directory.join("secrets/forge-1.user"), b"42\n");
     private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
     private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
-    private(&directory.join("root.der"), skein_tls_world::pki::ROOT);
+    private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     let (agent, value) = documents(directory, program, bundle);
     private(&directory.join("agent.json"), &agent);
     private(&directory.join("temper.json"), &value);

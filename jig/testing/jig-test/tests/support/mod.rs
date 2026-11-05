@@ -53,7 +53,7 @@ pub(super) fn configuration_value(directory: &Path) -> serde_json::Value {
         private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose());
     }
     private(&directory.join("worker.secret"), b"worker-secret");
-    private(&directory.join("root.der"), skein_tls_world::pki::ROOT);
+    private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     agent_configuration(directory);
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_world::fixtures::engine_document()).expect("engine JSON");

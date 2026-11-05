@@ -9,7 +9,7 @@ publish.workspace = true
 
 [dependencies]
 smith-protocol-llm = { workspace = true, features = ["fixture"] }
-skein-llm-world.workspace = true
+skein-llm-kit.workspace = true
 skein-lib.workspace = true
 smith-domain = { workspace = true, features = ["fixture"] }
 smith-host-domain.workspace = true
