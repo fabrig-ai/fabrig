@@ -11,17 +11,13 @@ pub(super) fn changes(core: &Core, items: &[s::Item]) -> bool {
     }
     for item in items {
         if let Some(project) = project(item.setting) {
-            match &item.edit {
-                s::Edit::Set(s::Value::Policy(value)) => {
-                    if core.configured_policy(project).as_ref() != Some(value.as_ref()) {
+            match value(item) {
+                Some(value) => {
+                    if core.configured_policy(project).as_ref() != Some(value) {
                         return true;
                     }
                 }
-                s::Edit::Set(
-                    s::Value::Charter(_) | s::Value::Template(_) | s::Value::Rules(_) | s::Value::Application(_),
-                )
-                | s::Edit::Removed
-                | s::Edit::Reset => return true,
+                None => return true,
             }
         }
     }
@@ -29,30 +25,22 @@ pub(super) fn changes(core: &Core, items: &[s::Item]) -> bool {
 }
 
 pub(super) fn check(core: &Core, limits: &Limits, items: &[s::Item]) -> Result<(), people::Refusal> {
-    let mut rules = core.current.rules();
-    for item in items {
-        if item.setting == s::Setting::Rules {
-            rules = match &item.edit {
-                s::Edit::Set(s::Value::Rules(value)) => value,
-                s::Edit::Reset => match core.current.default_value(s::Setting::Rules).expect("default rules") {
-                    s::Value::Rules(value) => value,
-                    s::Value::Charter(_) | s::Value::Template(_) | s::Value::Policy(_) | s::Value::Application(_) => {
-                        unreachable!("checked rules")
-                    }
-                },
-                s::Edit::Set(
-                    s::Value::Charter(_) | s::Value::Template(_) | s::Value::Policy(_) | s::Value::Application(_),
-                )
-                | s::Edit::Removed => unreachable!("checked rules edit"),
-            };
-        }
+    let rules = match s::check::edit(items, s::Setting::Rules) {
+        Some(s::Edit::Set(value)) => value.as_rules(),
+        Some(s::Edit::Reset) => match core.current.default_value(s::Setting::Rules) {
+            Some(value) => value.as_rules(),
+            None => None,
+        },
+        Some(s::Edit::Removed) | None => None,
     }
+    .unwrap_or(core.current.rules());
     for item in items {
-        if let Some(project) = project(item.setting) {
+        if let Some(project) = project(item.setting)
+            && let Some(value) = value(item)
+        {
             if !core.open_project(project) {
                 return Err(people::Refusal::Unknown);
             }
-            let value = value(item);
             for role in &value.policy.roles {
                 if !role.authority.models.at_most(value.policy.ceiling.models)
                     || !role.authority.models.at_most(rules.ceiling.models)
@@ -100,7 +88,7 @@ pub(super) fn has_approver(core: &Core, items: &[s::Item]) -> bool {
 pub(super) fn commit(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, items: &[s::Item]) {
     for item in items {
         let Some(project) = project(item.setting) else { continue };
-        let value = value(item);
+        let Some(value) = value(item) else { continue };
         let (snapshot, resize) = core
             .check_policy_replacement(&env.limits, project, value, core.authority.rules())
             .expect("policy replacement preflighted before settings mutate");
@@ -168,11 +156,9 @@ pub(super) fn project(setting: s::Setting) -> Option<u32> {
         | s::Setting::Application { .. } => None,
     }
 }
-fn value(item: &s::Item) -> &crate::ConfiguredPolicy {
+fn value(item: &s::Item) -> Option<&crate::ConfiguredPolicy> {
     match &item.edit {
-        s::Edit::Set(s::Value::Policy(value)) => value,
-        s::Edit::Set(s::Value::Charter(_) | s::Value::Template(_) | s::Value::Rules(_) | s::Value::Application(_))
-        | s::Edit::Removed
-        | s::Edit::Reset => unreachable!("checked project policy edit"),
+        s::Edit::Set(value) => value.as_policy(),
+        s::Edit::Removed | s::Edit::Reset => None,
     }
 }

@@ -738,7 +738,7 @@ mod tests {
                 3 => row.linked.first_mut().expect("change").project = 2,
                 4 => row.linked.first_mut().expect("change").requester = tasks::Party::Task(21),
                 5 => producer.depth = 3,
-                _ => unreachable!(),
+                _ => panic!("fixture fault is in 0..6"),
             }
             assert_eq!(retained_reply(&mut core, &limits, row, 0), Err(tasks::Refusal::Reference), "fault {fault}");
         }

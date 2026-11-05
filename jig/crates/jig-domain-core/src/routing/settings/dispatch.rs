@@ -229,8 +229,7 @@ fn decide_with(
                 s::Setting::Charter(_) => charters = true,
                 s::Setting::Template(_) | s::Setting::Policy(_) => templates = true,
                 s::Setting::Rules => rules = true,
-                jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
-                jig_domain_people::Setting::ProjectPolicy { .. } => {}
+                s::Setting::Application { .. } | s::Setting::ProjectPolicy { .. } => {}
             }
         }
     }
@@ -490,37 +489,38 @@ fn withdraw_pending(
     pending: skein_lib::List<(people::Proposer, u32)>,
 ) {
     for (proposer, proposal) in pending.into_boxed() {
-        if let people::Proposer::Task(task) = proposer {
-            let message = crate::fresh(&mut core.counters, crate::Family::Message).expect("settings outcome sequence");
-            crate::routing::children::append_tasks(
+        match proposer {
+            people::Proposer::Task(task) => {
+                let message =
+                    crate::fresh(&mut core.counters, crate::Family::Message).expect("settings outcome sequence");
+                crate::routing::children::append_tasks(
+                    core,
+                    env,
+                    jig_domain_tasks::Event::DecideSettingsProposal {
+                        reply_to: None,
+                        decision: jig_domain_tasks::SettingsDecision {
+                            proposer: task,
+                            proposal: u64::from(proposal),
+                            message,
+                            by: jig_domain_tasks::Party::Deployment { project: people::DEPLOYMENT },
+                            outcome: jig_domain_tasks::SettingsOutcome::Stale { newest: core.current.newest() },
+                            reason: Box::new([]),
+                        },
+                    },
+                    out,
+                );
+            }
+            people::Proposer::Party(person) => crate::routing::children::append_tasks(
                 core,
                 env,
-                jig_domain_tasks::Event::DecideSettingsProposal {
+                jig_domain_tasks::Event::WithdrawPersonProposal {
                     reply_to: None,
-                    decision: jig_domain_tasks::SettingsDecision {
-                        proposer: task,
-                        proposal: u64::from(proposal),
-                        message,
-                        by: jig_domain_tasks::Party::Deployment { project: people::DEPLOYMENT },
-                        outcome: jig_domain_tasks::SettingsOutcome::Stale { newest: core.current.newest() },
-                        reason: Box::new([]),
-                    },
+                    proposer: person,
+                    proposal: u64::from(proposal),
                 },
                 out,
-            );
-            continue;
+            ),
         }
-        let people::Proposer::Party(person) = proposer else { unreachable!("party or task") };
-        crate::routing::children::append_tasks(
-            core,
-            env,
-            jig_domain_tasks::Event::WithdrawPersonProposal {
-                reply_to: None,
-                proposer: person,
-                proposal: u64::from(proposal),
-            },
-            out,
-        );
     }
 }
 

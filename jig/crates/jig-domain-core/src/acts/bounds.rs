@@ -86,19 +86,8 @@ fn creating_executors(
 ) -> Result<(List<u32>, List<super::CreateProcedure>), people::Refusal> {
     let role = core.authority.role(project, held.number()).expect("creating role");
     let mut charters = List::with_capacity(limits.documents.lines);
-    for setting in &core.current.offered() {
-        let number = match setting {
-            crate::settings::Setting::Charter(number) => *number,
-            crate::settings::Setting::Template(_)
-            | crate::settings::Setting::Policy(_)
-            | crate::settings::Setting::Rules
-            | jig_domain_people::Setting::ProjectPolicy { .. } => continue,
-            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
-        };
-        let charter = core.charter(number).expect("offered charter");
-        if creating_charter(core, limits, party, project, held, charter.number)
-            && charters.push(charter.number).is_err()
-        {
+    for number in core.current.offered_charters() {
+        if creating_charter(core, limits, party, project, held, number) && charters.push(number).is_err() {
             return Err(people::Refusal::Limit { which: people::LimitKind::Authority });
         }
     }

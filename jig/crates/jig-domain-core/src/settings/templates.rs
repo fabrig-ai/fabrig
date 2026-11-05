@@ -114,15 +114,7 @@ pub(crate) fn valid(
             }
         }
     }
-    for setting in &current.offered() {
-        let number = match setting {
-            super::Setting::Template(number) => *number,
-            super::Setting::Charter(_)
-            | super::Setting::Policy(_)
-            | super::Setting::Rules
-            | jig_domain_people::Setting::ProjectPolicy { .. } => continue,
-            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
-        };
+    for number in current.offered_templates() {
         let template = current.template(number).expect("offered template");
         let mut executor = template.executor;
         for entry in overrides {
@@ -192,17 +184,9 @@ pub(crate) fn valid_current_executor(
 /// Copy current templates directly into the frame's merged values.
 #[must_use]
 pub fn current_merged(current: &super::Current, overrides: &[jig_domain_people::TemplateOverride]) -> Box<[Template]> {
-    let names = current.offered();
-    let mut result = skein_lib::List::with_capacity(names.len());
-    for setting in &names {
-        let number = match setting {
-            super::Setting::Template(number) => *number,
-            super::Setting::Charter(_)
-            | super::Setting::Policy(_)
-            | super::Setting::Rules
-            | jig_domain_people::Setting::ProjectPolicy { .. } => continue,
-            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
-        };
+    let names = current.offered_templates();
+    let mut result = skein_lib::List::with_capacity(u32::try_from(names.len()).expect("offered template count"));
+    for &number in &names {
         let template = current.template(number).expect("offered template");
         let mut value = template.clone();
         for entry in overrides {
