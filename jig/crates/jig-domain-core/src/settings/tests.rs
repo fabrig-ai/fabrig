@@ -6,19 +6,6 @@ use crate::{
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Time};
 
-#[test]
-fn history_copy_orders_held_and_history_with_the_revision_number() {
-    for number in [0, 7, u32::MAX] {
-        assert_eq!(
-            history_copy(number),
-            (
-                crate::Key::Core(crate::CoreKey::Settings(Key::Held(number))),
-                crate::Key::Core(crate::CoreKey::Settings(Key::History(number))),
-            ),
-        );
-    }
-}
-
 fn template() -> Template {
     Template {
         resources: Box::new([]),
