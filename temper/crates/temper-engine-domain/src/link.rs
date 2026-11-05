@@ -122,7 +122,7 @@ pub(crate) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: T
     if let Some(Payload::Answer { task, end, .. }) = domain.hub_link.payload(payload) {
         match end {
             hub::Ending::Link(host::Ending::Failed { failure, detail, .. }) => {
-                domain.run_diagnostics.push(crate::RunDiagnostic {
+                domain.run_diagnostics.failed.push(crate::RunDiagnostic {
                     task: *task,
                     run: run.raw(),
                     attempt: attempt.raw(),
@@ -131,7 +131,7 @@ pub(crate) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: T
                 });
             }
             hub::Ending::Link(host::Ending::Refused(reason)) => {
-                domain.run_refusals.push(crate::RunRefusalDiagnostic {
+                domain.run_diagnostics.refused.push(crate::RunRefusalDiagnostic {
                     task: *task,
                     run: run.raw(),
                     attempt: attempt.raw(),
