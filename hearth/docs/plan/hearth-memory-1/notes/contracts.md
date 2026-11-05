@@ -70,3 +70,16 @@ pub fn checked_diff(from: &Repository, to: &Repository, seed: u64, limits: limit
 - **Its name:** `fixtures::large::scenario()`, in `hearth/tests/builder/src/fixtures/large.rs`.
 - **Its test:** `a_large_render_holds_no_more_than_its_ceiling`, in `hearth/tests/builder/tests/suite/memory.rs`.
 - **The design names these figures.** A task that must change them says so in its report, and `close` carries them into the design.
+
+## 5. Tests a formula already has
+
+These stay, with the formula's new name in the test's name and body. Each is the formula's test of its value, so `notes/common.md`, "A formula
+left" asks no other. Every other formula that stays gets one.
+
+| Formula | Today's test | Becomes |
+|---|---|---|
+| `hearth_protocol_accounts::decoder_bound` | `the_worst_case_covers_the_list_and_the_names` | `the_decoder_bound_covers_the_list_and_the_names` |
+| `hearth_domain_tree::limits::walk_bound` | `the_worst_case_is_a_sum_that_fits_or_nothing` | `the_walk_bound_is_a_sum_that_fits_or_nothing` |
+| `hearth_protocol_tree::limits::decoder_bound`, `decoded_bound` | `worst_case_and_held_are_none_past_a_u64_for_a_resolution_only` | `the_bounds_are_none_past_a_u64_for_a_resolution_only` |
+| the same | `worst_case_and_held_are_none_past_the_encoders_depth` | `the_bounds_are_none_past_the_encoders_depth` |
+| `hearth_domain_render::evaluate::template::run_bound` | `a_run_whose_worst_case_cannot_fit_returns_none` | `a_run_whose_bound_cannot_fit_returns_none` |
