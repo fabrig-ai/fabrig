@@ -67,7 +67,7 @@ fn scenario(seed: u64) {
             prior: oauth::RefreshState {
                 key: 1,
                 generation: 3,
-                refresh_token: box_of(b"seed"),
+                refresh_token: skein_lib::Secret::new(box_of(b"seed")),
                 issued_client_id: None,
                 granted_scopes: None,
                 subject: None,
@@ -89,11 +89,19 @@ fn scenario(seed: u64) {
     let terminal = client_step(&mut client, oauth::Event::Http(answer));
     match (mode, terminal) {
         (0, Some(oauth::Request::Tokens { record, .. })) => {
-            assert_eq!(record.refresh_token.as_deref().expect("refresh token"), b"next", "seed {seed}");
+            assert_eq!(
+                record.refresh_token.as_ref().map(skein_lib::Secret::expose).expect("refresh token"),
+                b"next",
+                "seed {seed}"
+            );
             assert_eq!(issuer.generation(), 1, "seed {seed}");
         }
         (1, Some(oauth::Request::Tokens { record, .. })) => {
-            assert_eq!(record.refresh_token.as_deref().expect("refresh token"), b"seed", "seed {seed}");
+            assert_eq!(
+                record.refresh_token.as_ref().map(skein_lib::Secret::expose).expect("refresh token"),
+                b"seed",
+                "seed {seed}"
+            );
             assert_eq!(issuer.generation(), 0, "seed {seed}");
         }
         (2, Some(oauth::Request::Failed { failure: oauth::Failure::Refused })) => {}
@@ -114,8 +122,8 @@ fn plan(mode: u64, delay: u64) -> fake::Plan {
         0 => fake::Plan {
             status: 200,
             body: fake::Body::Token(oauth::TokenResponse {
-                access_token: box_of(b"access"),
-                refresh_token: Some(box_of(b"next")),
+                access_token: skein_lib::Secret::new(box_of(b"access")),
+                refresh_token: Some(skein_lib::Secret::new(box_of(b"next"))),
                 expires_in: 30,
                 scope: None,
                 id_token: None,
@@ -127,7 +135,7 @@ fn plan(mode: u64, delay: u64) -> fake::Plan {
         1 => fake::Plan {
             status: 200,
             body: fake::Body::Token(oauth::TokenResponse {
-                access_token: box_of(b"access"),
+                access_token: skein_lib::Secret::new(box_of(b"access")),
                 refresh_token: None,
                 expires_in: 30,
                 scope: None,

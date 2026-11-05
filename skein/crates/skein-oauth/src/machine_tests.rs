@@ -6,6 +6,9 @@ use skein_lib::{Duration, Queue, Time, Wall, bytes};
 fn boxed(input: &[u8]) -> Box<[u8]> {
     bytes::copy_of(input)
 }
+fn secret(input: &[u8]) -> skein_lib::Secret {
+    skein_lib::Secret::new(boxed(input))
+}
 fn time(seconds: u64) -> Time {
     Time::from_nanos(seconds.saturating_mul(1_000_000_000))
 }
@@ -61,7 +64,7 @@ fn registration(public: bool, wire: WireFormat) -> Registration {
         },
         scope: boxed(b"read profile"),
         wire,
-        client_secret: if public { None } else { Some(boxed(b"secret")) },
+        client_secret: if public { None } else { Some(secret(b"secret")) },
         pkce_for_confidential: false,
         metadata_claim: None,
         terms: None,
@@ -100,8 +103,8 @@ fn token_body_with_scope(scope: Option<&[u8]>) -> Box<[u8]> {
     }
     encode_response(
         &TokenResponse {
-            access_token: boxed(b"access"),
-            refresh_token: Some(boxed(b"refresh-new")),
+            access_token: secret(b"access"),
+            refresh_token: Some(secret(b"refresh-new")),
             expires_in: 30,
             scope: granted,
             id_token: None,
@@ -129,7 +132,7 @@ fn refresh(registration: Registration, client_id: Option<Box<[u8]>>) -> Event {
         prior: RefreshState {
             key: 7,
             generation: 1,
-            refresh_token: boxed(b"seed"),
+            refresh_token: secret(b"seed"),
             issued_client_id: client_id,
             granted_scopes: None,
             subject: None,
@@ -180,7 +183,7 @@ fn public_sign_in_uses_s256_state_and_one_code_exchange() {
     };
     assert_eq!(record.key, 7);
     assert_eq!(record.generation, 1);
-    assert_eq!(record.refresh_token.as_deref().expect("refresh token"), b"refresh-new");
+    assert_eq!(record.refresh_token.as_ref().expect("refresh token").expose(), b"refresh-new");
     assert!(client.is_done());
     assert!(step(&mut client, answered(http.id, 200, &token_body(), 4)).is_none(), "late answer ignored");
 }
@@ -482,7 +485,7 @@ fn refresh_rotation_preserves_old_token_when_answer_omits_one() {
             prior: RefreshState {
                 key: 3,
                 generation: 4,
-                refresh_token: boxed(b"old"),
+                refresh_token: secret(b"old"),
                 issued_client_id: None,
                 granted_scopes: None,
                 subject: None,
@@ -494,7 +497,7 @@ fn refresh_rotation_preserves_old_token_when_answer_omits_one() {
     assert!(bytes::find(&http.body, b"\"refresh_token\":\"old\"").is_some());
     let body = encode_response(
         &TokenResponse {
-            access_token: boxed(b"access"),
+            access_token: secret(b"access"),
             refresh_token: None,
             expires_in: 30,
             scope: None,
@@ -507,7 +510,7 @@ fn refresh_rotation_preserves_old_token_when_answer_omits_one() {
     let Some(Request::Tokens { record, .. }) = step(&mut client, answered(http.id, 200, &body, 2)) else {
         panic!("tokens expected")
     };
-    assert_eq!(record.refresh_token.as_deref().expect("refresh token"), b"old");
+    assert_eq!(record.refresh_token.as_ref().expect("refresh token").expose(), b"old");
     assert_eq!(record.generation, 5);
 }
 
@@ -525,7 +528,7 @@ fn rejected_grant_malformed_answer_and_late_answer_are_distinct() {
                 prior: RefreshState {
                     key: 1,
                     generation: 0,
-                    refresh_token: boxed(b"old"),
+                    refresh_token: secret(b"old"),
                     issued_client_id: None,
                     granted_scopes: None,
                     subject: None,
@@ -544,7 +547,7 @@ fn rejected_grant_malformed_answer_and_late_answer_are_distinct() {
             prior: RefreshState {
                 key: 1,
                 generation: 0,
-                refresh_token: boxed(b"old"),
+                refresh_token: secret(b"old"),
                 issued_client_id: None,
                 granted_scopes: None,
                 subject: None,
@@ -566,7 +569,7 @@ fn proved_unsent_attempt_retries_with_bounded_backoff() {
             prior: RefreshState {
                 key: 1,
                 generation: 0,
-                refresh_token: boxed(b"old"),
+                refresh_token: secret(b"old"),
                 issued_client_id: None,
                 granted_scopes: None,
                 subject: None,
@@ -767,7 +770,7 @@ fn refresh_keeps_its_admitted_http_loopback_endpoint() {
         let prior = RefreshState {
             key: 7,
             generation: 1,
-            refresh_token: boxed(b"refresh-old"),
+            refresh_token: secret(b"refresh-old"),
             issued_client_id: None,
             granted_scopes: None,
             subject: None,
@@ -854,7 +857,7 @@ fn a_sign_in_without_refresh_completes_and_round_trips() {
         panic!("tokens expected")
     };
     assert_eq!((record.key, record.generation, record.expires_at), (7, 1, wall(33)));
-    assert!(record.access_token.as_ref() == b"access");
+    assert!(record.access_token.expose() == b"access");
     assert!(record.refresh_state().is_none());
     assert!(record.subject.is_none() && record.id_token.is_none());
     assert!(record.granted_scopes.as_deref() == Some(b"read"));

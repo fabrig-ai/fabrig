@@ -200,7 +200,7 @@ impl Client {
         self.facts.push(Fact::Keep(generation));
         let yes = self.story != Story::NotKept;
         let size = if self.large { 256 } else { 16 };
-        assert_eq!(record.access_token.as_ref(), vec![if generation == 1 { b'a' } else { b'b' }; size]);
+        assert_eq!(record.access_token.expose(), vec![if generation == 1 { b'a' } else { b'b' }; size]);
         self.records.push(record);
         if self.story == Story::PasteThenListener && self.callback != super::paste::Callback::Finished {
             self.pending_keep = Some((account, generation));

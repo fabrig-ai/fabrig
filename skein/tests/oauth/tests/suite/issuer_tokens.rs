@@ -30,7 +30,7 @@ fn signed_in_and_refreshed() -> Issued {
     let request = sign_in_with(&mut client, &mut issuer, revocable_registration());
     let answer = response(fake_step(&mut issuer, fake::Event::Post { request, now: time(2), wall: wall(100) }));
     let saved = record(client_step(&mut client, oauth::Event::Http(answer)));
-    let mut held = vec![saved.access_token.clone()];
+    let mut held = vec![saved.access_token.clone().into_exposed()];
     drop(client_step(&mut client, oauth::Event::Reset));
     let request = http(client_step(
         &mut client,
@@ -42,7 +42,7 @@ fn signed_in_and_refreshed() -> Issued {
     ));
     let answer = response(fake_step(&mut issuer, fake::Event::Post { request, now: time(3), wall: wall(101) }));
     let saved = record(client_step(&mut client, oauth::Event::Http(answer)));
-    held.push(saved.access_token.clone());
+    held.push(saved.access_token.clone().into_exposed());
     Issued { client, issuer, registration: revocable_registration(), saved, granted, held }
 }
 

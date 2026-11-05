@@ -109,11 +109,11 @@ pub(super) fn body(
     limits: &ClientLimits,
 ) -> Result<Box<[u8]>, Failure> {
     let fields = [
-        Some((b"token".as_slice(), prior.refresh_token.as_ref())),
+        Some((b"token".as_slice(), prior.refresh_token.expose())),
         Some((b"token_type_hint".as_slice(), b"refresh_token".as_slice())),
         Some((b"client_id".as_slice(), registration.client_id.as_ref())),
-        match registration.client_secret.as_deref() {
-            Some(secret) => Some((b"client_secret".as_slice(), secret)),
+        match registration.client_secret.as_ref() {
+            Some(secret) => Some((b"client_secret".as_slice(), secret.expose())),
             None => None,
         },
     ];

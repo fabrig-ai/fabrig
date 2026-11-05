@@ -82,7 +82,7 @@ pub fn registration(public: bool) -> oauth::Registration {
         },
         scope: boxed(b"read profile"),
         wire: if public { oauth::WireFormat::Form } else { oauth::WireFormat::Json },
-        client_secret: if public { None } else { Some(boxed(b"secret")) },
+        client_secret: if public { None } else { Some(skein_lib::Secret::new(boxed(b"secret"))) },
         pkce_for_confidential: false,
         metadata_claim: None,
         terms: None,
@@ -107,7 +107,7 @@ pub fn configured_issuer(registration: &oauth::Registration, terms: Option<fake:
             authorization_url: registration.authorization_url.clone(),
             token_endpoint: registration.token_endpoint.clone(),
             client_id: registration.client_id.clone(),
-            client_secret: registration.client_secret.clone(),
+            client_secret: registration.client_secret.clone().map(skein_lib::Secret::into_exposed),
             redirect_uri: registration.redirect_uri.clone(),
             refresh_token: boxed(b"seed"),
             terms,
@@ -161,8 +161,8 @@ pub fn success(access: &[u8], refresh: Option<&[u8]>, delay: u64) -> fake::Plan 
     fake::Plan {
         status: 200,
         body: fake::Body::Token(oauth::TokenResponse {
-            access_token: boxed(access),
-            refresh_token: refresh.map(boxed),
+            access_token: skein_lib::Secret::new(boxed(access)),
+            refresh_token: refresh.map(boxed).map(skein_lib::Secret::new),
             expires_in: 30,
             scope: None,
             id_token: None,

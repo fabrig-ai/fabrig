@@ -9,7 +9,7 @@ fn openid_owner() -> private::Owner {
     let mut account = refresh_account(0, ([127, 0, 0, 1], 31000).into());
     if let Account::SignIn { registration, origins, .. } = &mut account {
         registration.scope = bytes::copy_of(b"openid");
-        registration.client_secret = Some(bytes::copy_of(b"secret"));
+        registration.client_secret = Some(skein_lib::Secret::new(bytes::copy_of(b"secret")));
         registration.redirect_uri = bytes::copy_of(b"https://service.example/callback");
         registration.terms = Some(skein_oauth::Terms {
             openid: Some(skein_oauth::OpenId { issuer: bytes::copy_of(b"http://127.0.0.1:31001"), key_set: None }),

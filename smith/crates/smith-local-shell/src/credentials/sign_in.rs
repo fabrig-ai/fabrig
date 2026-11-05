@@ -283,7 +283,7 @@ mod tests {
                 super::super::env_record(b"synthetic-access", Wall::EPOCH).expect("synthetic record").record;
             saved.generation = 7;
             saved.expires_at = expires_at;
-            saved.refresh_token = refreshable.then(|| b"synthetic-refresh".as_slice().into());
+            saved.refresh_token = refreshable.then(|| skein_lib::Secret::new(b"synthetic-refresh".as_slice().into()));
             saved.earliest_refresh_at = refreshable.then_some(earliest);
             let bytes = oauth::encode_record(&saved, &document_limits()).expect("bounded record");
             let path = scratch.path().join(if refreshable { "refreshable" } else { "access-only" });

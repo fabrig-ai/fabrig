@@ -667,7 +667,7 @@ impl skein_world::Referee<crate::process::Proc> for Run {
             )
             .expect("private store");
             assert_eq!(
-                tokens.load(0).expect("record").expect("saved before grant use").access_token.as_ref(),
+                tokens.load(0).expect("record").expect("saved before grant use").access_token.expose(),
                 b"access-new"
             );
             self.saved_before_query = true;

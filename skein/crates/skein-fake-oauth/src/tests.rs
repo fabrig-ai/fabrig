@@ -238,7 +238,7 @@ fn granted_lists_queued_tokens_in_answer_order() {
             .queue(Plan {
                 status: 200,
                 body: Body::Token(TokenResponse {
-                    access_token: bytes::copy_of(access),
+                    access_token: Secret::new(bytes::copy_of(access)),
                     refresh_token: None,
                     expires_in: 30,
                     scope: None,
@@ -300,15 +300,19 @@ fn openid_terms(fault: Option<Fault>) -> Terms {
     });
     terms
 }
+#[expect(clippy::manual_map, reason = "credential fixture conversion uses an explicit match")]
 fn token_plan(scripted: Option<&[u8]>) -> Plan {
     Plan {
         status: 200,
         body: Body::Token(TokenResponse {
-            access_token: bytes::copy_of(b"access"),
+            access_token: Secret::new(bytes::copy_of(b"access")),
             refresh_token: None,
             expires_in: 60,
             scope: None,
-            id_token: copy_optional(scripted),
+            id_token: match copy_optional(scripted) {
+                Some(token) => Some(Secret::new(token)),
+                None => None,
+            },
             earliest_refresh_at: None,
         }),
         delay: Duration::ZERO,

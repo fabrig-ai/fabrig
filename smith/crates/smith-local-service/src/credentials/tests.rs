@@ -72,7 +72,7 @@ fn borrowed() -> Borrowed {
         record: skein_oauth::SavedToken {
             key: 0,
             generation: 1,
-            access_token: b"header.eyJleHAiOjEyMH0.signature".as_slice().into(),
+            access_token: Secret::new(b"header.eyJleHAiOjEyMH0.signature".as_slice().into()),
             refresh_token: None,
             issued_client_id: None,
             granted_scopes: None,
@@ -158,7 +158,7 @@ fn releasing_a_finished_runs_grants_prevents_a_later_grant_failure() {
 #[test]
 fn a_handed_in_refresh_token_is_refused_before_the_owner_starts() {
     let mut borrowed = borrowed();
-    borrowed.record.refresh_token = Some(b"refresh".as_slice().into());
+    borrowed.record.refresh_token = Some(Secret::new(b"refresh".as_slice().into()));
     let mut sources = List::with_capacity(1);
     assert!(sources.push(Source::Env { account: 7, borrowed }).is_ok());
     assert!(Accounts::new(sources, limits(), [7; 32]).is_err());
