@@ -66,4 +66,4 @@ disallowed_macros = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
-jig-engine-clients-world = { path = "../engine-clients" }
+jig-engine-clients-kit.workspace = true

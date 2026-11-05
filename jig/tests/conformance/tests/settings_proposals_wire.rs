@@ -7,7 +7,7 @@ static HEAP: heap::Counting = heap::Counting;
 
 use jig_client_protocol_wire::v19 as w;
 use jig_domain_core::{self as core, settings as s};
-use jig_engine_clients_world::{Peer, fixtures};
+use jig_engine_clients_kit::{Peer, fixtures};
 use skein_lib::Token;
 use skein_lib::{List, Writer};
 

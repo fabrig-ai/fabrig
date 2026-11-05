@@ -21,9 +21,9 @@ fn limits() -> Limits {
 fn submitted(
     ask: &w::Ask,
     limits: &Limits,
-) -> (jig_engine_clients_world::Peer, skein_lib::Token, jig_domain_core::Event) {
-    let mut peer = jig_engine_clients_world::Peer::started(&jig_engine_clients_world::fixtures::settings());
-    let bearer = jig_engine_clients_world::fixtures::signed_in(&mut peer);
+) -> (jig_engine_clients_kit::Peer, skein_lib::Token, jig_domain_core::Event) {
+    let mut peer = jig_engine_clients_kit::Peer::started(&jig_engine_clients_kit::fixtures::settings());
+    let bearer = jig_engine_clients_kit::fixtures::signed_in(&mut peer);
     let keyed = w::Keyed::new(
         limits.wire(),
         w::KeyedParts { key: [7; 16], owner: w::Owner::Jig, version: 19, request: encoded!(ask), value: None },
