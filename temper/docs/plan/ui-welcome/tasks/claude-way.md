@@ -122,3 +122,18 @@ Options, pre-approved:
 ## Report
 
 The order on the wire, from the world test; what a refused second press read as; the builder and directory.
+
+## Rebase (2026-11-05, step merge, foreman ui-welcome/claude-way/foreman-1)
+
+combine Changes and Claude vocabulary capacities and gallery entries during rebase
+The merge refused `temper/crates/temper-client-view/src/words.rs` and `temper/tools/gallery/src/samples.rs`.
+Rebase onto the landing trunk; integration commit `e023627d916b6ea9088355f39d46bc7e64d4447f` brought in main’s Changes work and reassigned welcome phrase IDs.
+In `words.rs`, preserve Changes words, English, hole bounds, and existing phrase IDs, including welcome IDs 3243–3259.
+Retain all six Claude words and assign them IDs 3260–3265 in their existing order; their branch IDs 3225–3230 collide with Changes.
+Combine capacities: `PHRASES = 1422`, `SEGMENTS = 2457`, and `ALL: [Word; 826]`.
+Preserve both text-byte additions: main’s `+ 367` and Claude’s `+ 468`, with the Claude capacity comments.
+In `samples.rs`, preserve the four Changes samples from `a22e3cceb7a0a9b18985eab27e628ca583a0c066` and all three Claude samples; set `N = 124`.
+Keep Changes mock mappings and `changes_world` dispatch, plus Claude mock mappings, dispatch, and the `claude` helper.
+Keep the automatically merged gallery names, assertions, and browser table entries for both sets.
+Through heavy, run the affected view welcome tests and gallery library tests; verify names and state assertions cover all 124 samples.
+Reprint journeys with `heavy cargo run -p temper-client-journeys`; commit and report any generated changes required by the combined code.
