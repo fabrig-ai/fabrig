@@ -55,3 +55,7 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report, naming the builder.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Yes: the walk turns on Settings, How work runs, 'Chats can write drafts' first, as part of the recording; stock defaults stay. That setting decides + Draft (ruling 8, coord/ui/report/rulings.md).
