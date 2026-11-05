@@ -606,12 +606,9 @@ pub fn reroute_replayed(settings: Settings, winner: usize) -> World {
             winner == 1 && settings.base == Base::Requester,
         );
     }
-    let (mut first_state, mut replay_state) = (String::new(), String::new());
     for _ in 0..500 {
         if first.settled() {
             assert!(replay.settled(), "replay settles at identical cut");
-            drop(first_state);
-            drop(replay_state);
             first.close();
             replay.close();
             return first;
@@ -623,8 +620,7 @@ pub fn reroute_replayed(settings: Settings, winner: usize) -> World {
         let first_trace = std::mem::take(&mut first.trace);
         let replay_trace = std::mem::take(&mut replay.trace);
         assert_eq!(first_trace, replay_trace, "role trace: {settings:?}");
-        first_state.clear();
-        replay_state.clear();
+        let (mut first_state, mut replay_state) = (String::new(), String::new());
         write!(first_state, "{first:?}").expect("write to string");
         first_state.shrink_to_fit();
         write!(replay_state, "{replay:?}").expect("write to string");
