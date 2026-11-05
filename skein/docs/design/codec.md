@@ -146,7 +146,8 @@ enum Form {
   decoded size is the owner's to count against the same sum. An owner
   bounding the items by that sum splits with `piece::split_within`,
   which charges each item and its length and refuses past the owner's
-  most; one reserving by count counts first with `piece::count`.
+  most; one reserving by count counts first with `piece::count` and takes
+  each item with `piece::counted`.
 - **A type uses only types declared before it.** The types form a tree, and
   decoding nests to a fixed depth.
 - **No imports.** A record of another family, such as a charter carried in
@@ -1954,6 +1955,14 @@ world, no cargo inside a test.
   statements, but each statement is text from `format!`, under a
   module-wide expect in every `emit_*` module, and `emit_tests.rs` cuts its
   own source template. A syntax tree, should a consumer need more.
+- **A piece's whole loop:** `piece::split_within` (3) holds the split, the
+  charge and the bound, and each owner writes its own `for`, decoding each
+  item with its type's generated code, since a loop over any type would take
+  a closure or a trait. The generator could write the loop, with the
+  rest of a record family's translation.
+- **A record's own `to_bytes`:** an owner makes a `Writer`, encodes into it
+  and takes its bytes at each site. Generated per record, it changes the
+  generator and every family's generated code.
 - **Pieces of a converted type:** a patch whose conversion of a
   `pieces` field's items is not a copy, or an identity plan whose
   pieces reach a held field, is refused when planned (11.3). jig,

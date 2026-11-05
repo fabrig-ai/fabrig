@@ -518,7 +518,7 @@ pub enum AgentShortfall {
     Spend,
     Time,
     Waiting,
-    Checks,
+    Checks { charter: u32 },
     Message,
     Inbox,
     Unacknowledged,
