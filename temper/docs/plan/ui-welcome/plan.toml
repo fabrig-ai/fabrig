@@ -1,0 +1,5 @@
+draft = "ui-welcome"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-welcome/inputs/request.md", "temper/docs/design/draft/first-run-projects.md", "temper/docs/design/draft/first-run-projects.status.md", "temper/docs/design/draft/to-begin.md", "temper/docs/design/draft/repository-copies.md", "temper/docs/design/draft/repository-copies.status.md", "temper/docs/design/draft/claude-provider.md", "temper/docs/design/draft/serve-without-box.md", "temper/docs/design/draft/fetch-progress.md", "temper/docs/design/client/journeys.md", "temper/crates/temper-client-view/src/pages/welcome.rs", "temper/crates/temper-client-view/src/pages/connect_model.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
