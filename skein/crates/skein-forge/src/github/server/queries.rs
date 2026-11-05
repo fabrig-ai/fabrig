@@ -5,7 +5,7 @@ use skein_json::{
     Document,
     document::{self as json_document, Compact, Kind},
 };
-use skein_lib::bytes;
+use skein_lib::{bytes, len_u64};
 
 /// The two query documents understood by the fake.
 #[derive(Debug)]
@@ -86,13 +86,13 @@ fn read_variables(walk: &mut Walk<'_>, limits: &Limits) -> Option<Variables> {
 }
 fn string(walk: &mut Walk<'_>, limits: &Limits) -> Option<Box<[u8]>> {
     let text = walk.text(Kind::String)?;
-    if text.is_empty() || u64::try_from(text.len()).ok()? > u64::from(limits.string_bytes) {
+    if text.is_empty() || len_u64(text.len()) > u64::from(limits.string_bytes) {
         return None;
     }
     Some(Box::from(text))
 }
 fn parsed(body: &[u8], limits: &Limits) -> Option<Document> {
-    if u64::try_from(body.len()).ok()? > u64::from(limits.body_bytes) {
+    if len_u64(body.len()) > u64::from(limits.body_bytes) {
         return None;
     }
     skein_json::parse(body, &limits.json, &json_document::Limits { tokens: 16, text: limits.body_bytes }).ok()

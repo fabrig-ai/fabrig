@@ -19,7 +19,7 @@ use connection::{Connection, Refused};
 pub use limits::{Limits, Stacked, Unusable, documents, github, http};
 use run::{Run, Send, forgejo_pair};
 pub use settings::{Forge, Kind, Settings, Transport};
-use skein_lib::{CryptoRng, Env, List, Map, Queue, Secret, Time, Token, bytes, earliest};
+use skein_lib::{CryptoRng, Env, List, Map, Queue, Secret, Time, Token, bytes, earliest, usize_of};
 
 /// A service's setup plans: one writing run and one Reachable per forge (6.3).
 pub struct Host {
@@ -421,7 +421,7 @@ impl Host {
                     up.push(Event::Need { run: token, need });
                 }
                 reconcile::Need::Draw(count) => {
-                    let mut drawn = bytes::zeroed(usize::try_from(count).expect("draw count fits"));
+                    let mut drawn = bytes::zeroed(usize_of(count));
                     self.crypto.fill(&mut drawn);
                     run.step(reconcile::Event::Drawn(Secret::new(drawn)), &mut self.plan_out);
                 }

@@ -12,7 +12,7 @@ use skein_forge::forgejo::{
     document::{Document, Row},
     request::{Page, Request},
 };
-use skein_lib::{Queue, Secret};
+use skein_lib::{Queue, Secret, usize_of};
 
 #[derive(Debug)]
 enum State {
@@ -182,7 +182,7 @@ impl TakeOver {
                 | Row::Step(_) => return Err(Why::Unexpected),
             }
         }
-        if rows.len() < usize::try_from(self.cap.expect("cap read before listing")).expect("u32 fits") {
+        if rows.len() < usize_of(self.cap.expect("cap read before listing")) {
             Ok(self.done())
         } else {
             self.page = self.page.checked_add(1).ok_or(Why::Unexpected)?;

@@ -11,7 +11,7 @@ use crate::forgejo::{
     request::{Method, Request},
 };
 use skein_json::tokenizer;
-use skein_lib::{Decimal, Writer};
+use skein_lib::{Decimal, Writer, usize_of};
 #[expect(clippy::too_many_lines, reason = "the encoder exhaustively names every dialect request")]
 pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
     let length = match request {
@@ -109,7 +109,7 @@ pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refu
         | Request::CreateUser { .. }
         | Request::DeleteBranch { .. } => unreachable!("start encoder dispatch"),
     };
-    if length > usize::try_from(limits.target_bytes).expect("u32 fits") {
+    if length > usize_of(limits.target_bytes) {
         return Err(Refusal::TooLong);
     }
     let mut out = Writer::new(length);

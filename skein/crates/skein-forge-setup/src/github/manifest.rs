@@ -3,7 +3,7 @@ use super::given::{self, Given, Place, Refused};
 use crate::plan::{self, Event, Need, Outcome, Stage, Why};
 use alloc::boxed::Box;
 use skein_forge::github as dialect;
-use skein_lib::{Queue, Writer, bytes::hex_digit};
+use skein_lib::{Queue, Writer, bytes::hex_digit, usize_of};
 
 /// The account that will own the App (forge-setup.md, 5.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -37,7 +37,7 @@ impl Manifest {
         match target {
             Target::Personal => (),
             Target::Org(login) => {
-                let bound = usize::try_from(given.limits.name_bytes).expect("a u32 fits a usize");
+                let bound = usize_of(given.limits.name_bytes);
                 if login.is_empty() || login.len() > bound {
                     return Err(Refused { place: Place::Target, other: None });
                 }
