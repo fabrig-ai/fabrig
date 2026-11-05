@@ -48,7 +48,7 @@ fn every_refresh_slot_holds_its_maximal_records_and_tls_connection() {
     limits.accounts = 4;
     limits.exchanges = 4;
     limits.io.sockets = 6;
-    let trust = skein_tls_world::pki::client(&[]);
+    let trust = skein_tls_kit::pki::client(&[]);
     let meter = Meter::new();
     meter.start();
     let mut configured = List::with_capacity(limits.accounts);
@@ -73,7 +73,7 @@ fn every_refresh_slot_holds_its_maximal_records_and_tls_connection() {
                     registration,
                     endpoint: Endpoint {
                         address: "127.0.0.1:31000".parse().expect("loopback"),
-                        transport: Transport::Tls { server_name: skein_tls_world::pki::name(), trust: trust.clone() },
+                        transport: Transport::Tls { server_name: skein_tls_kit::pki::name(), trust: trust.clone() },
                     },
                     keeper: Keeper::Owner {
                         kept: Some(SavedToken {

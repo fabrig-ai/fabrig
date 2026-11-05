@@ -20,7 +20,7 @@ skein-shell.workspace = true
 skein-fake-oauth.workspace = true
 skein-fake-machine.workspace = true
 skein-fake-peers.workspace = true
-skein-tls-world = { path = "../tls" }
+skein-tls-kit.workspace = true
 
 [dev-dependencies]
 skein-heap.workspace = true

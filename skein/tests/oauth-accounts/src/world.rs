@@ -421,8 +421,8 @@ impl Client {
                             transport: match self.transport {
                                 Transport::Plaintext => accounts::Transport::Plaintext,
                                 Transport::Tls => accounts::Transport::Tls {
-                                    server_name: skein_tls_world::pki::name(),
-                                    trust: skein_tls_world::pki::client(&[]),
+                                    server_name: skein_tls_kit::pki::name(),
+                                    trust: skein_tls_kit::pki::client(&[]),
                                 },
                             },
                         },
@@ -1000,7 +1000,7 @@ pub(crate) fn issuer_with_terms(
 #[must_use]
 pub fn run(seed: u64, story: Story, faulted: bool, memory: Memory) -> Outcome<Process> {
     let mut config = skein_sim::Config::calm();
-    config.wall = skein_tls_world::pki::VALID;
+    config.wall = skein_tls_kit::pki::VALID;
     if faulted {
         config.buffer = 127;
         config.faults.short_recv = 300;
@@ -1133,12 +1133,12 @@ fn protocol_connection(seed: u64, mut client: Client, room: bool) -> (Client, Ve
     let mut client_wire = Wire::new(seed);
     let mut server_wire = Wire::new(seed.wrapping_add(1));
     let mut tls = (client.transport == Transport::Tls).then(|| {
-        skein_tls_world::drive::Wire::new(skein_tls_world::server::Server::new(
-            skein_tls_world::pki::Server::plain().config(),
+        skein_tls_kit::drive::Wire::new(skein_tls_kit::server::Server::new(
+            skein_tls_kit::pki::Server::plain().config(),
         ))
     });
     let mut close = TlsClose::default();
-    let epoch = if tls.is_some() { skein_tls_world::pki::VALID } else { Wall::EPOCH };
+    let epoch = if tls.is_some() { skein_tls_kit::pki::VALID } else { Wall::EPOCH };
     client.address = Some((Ipv4Addr::LOCALHOST, 31000).into());
     let mut now = Time::ZERO;
     client.start(&Env { now, wall: epoch, limits: profile });

@@ -6,7 +6,7 @@ use skein_heap::Meter;
 use skein_io::kernel::Addr;
 use skein_lib::{Duration, Env, List, Queue, Time, Token};
 use skein_llm_connection::{Component, Deadlines, Endpoint, Event, Limits, Request};
-use skein_tls_world::pki;
+use skein_tls_kit::pki;
 
 fn full_pool_limits() -> Limits {
     Limits {

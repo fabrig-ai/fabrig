@@ -4,7 +4,7 @@ use skein_lib::stream::Down;
 use skein_lib::{Duration, Env, Queue, Time, Token};
 use skein_link::{Event, Limits, Link, Moved, Start};
 use skein_tls::client;
-use skein_tls_world::{drive::Wire, pki, server::Server};
+use skein_tls_kit::{drive::Wire, pki, server::Server};
 
 pub const SOCKET: Token = Token::new(1);
 // Small plaintext demands, with rustls's maximum handshake (including its header) held.

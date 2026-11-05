@@ -16,7 +16,7 @@ skein-lib.workspace = true
 skein-io.workspace = true
 skein-link.workspace = true
 skein-tls.workspace = true
-skein-tls-world = { path = "../tls" }
+skein-tls-kit.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
