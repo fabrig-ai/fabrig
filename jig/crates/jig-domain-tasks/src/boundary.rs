@@ -1861,13 +1861,6 @@ pub enum Event {
     PreparationPaused { task: u64, reason: Box<[u8]> },
     /// Count a preparation failure, retaining its reason through backoff and hold.
     PreparationCounted { task: u64, class: Class, reason: Box<[u8]> },
-    PreparationFailed {
-        /// `Preparing` task to pause without consuming an activation failure try; absent or other-
-        /// phase tasks are ignored.
-        task: u64,
-    },
-    /// An unread transcript fails only a preparing task as transient, under its retry policy.
-    PreparationUnread { task: u64 },
     /// Authorized notification preserving prior state and issuing `Stop` for any live run;
     /// absent tasks and unchanged reasons have no output.
     Hold {

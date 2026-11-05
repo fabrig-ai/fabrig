@@ -323,7 +323,7 @@ fn required_forge_context_without_optional_core_room_abandons_the_documents() {
         if let Work::Brief(brief::GatherEvent::Plan { .. }) = work {
             panic!("no room for a ready plan");
         }
-        if let Work::Core(jig_domain_core::Event::BriefAssembled { task: 8, ready: false }) = work {
+        if let Work::Core(jig_domain_core::Event::BriefAssembled { task: 8, failure: Some(_) }) = work {
             failed = true;
         }
     }

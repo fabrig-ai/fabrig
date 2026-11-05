@@ -377,6 +377,7 @@ impl Application for OpsApplication {
                 | core::Now::BriefCorePlanned { .. }
                 | core::Now::WorkspaceRequest { .. }
                 | core::Now::RunPreparationFailed { .. }
+                | core::Now::BriefFailed { .. }
                 | core::Now::RunPrepared { .. }
                 | core::Now::EndedEscalation { .. }
                 | core::Now::RestoreRefused,

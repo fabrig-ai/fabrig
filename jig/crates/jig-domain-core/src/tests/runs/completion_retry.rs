@@ -51,6 +51,7 @@ fn current_stream(out: &[Request]) -> &Request {
                 | Now::BriefCorePlanned { .. }
                 | Now::WorkspaceRequest { .. }
                 | Now::RunPreparationFailed { .. }
+                | Now::BriefFailed { .. }
                 | Now::RunPrepared { .. }
                 | Now::EndedEscalation { .. }
                 | Now::RestoreRefused => {}

@@ -580,7 +580,7 @@ fn refusals_and_preparation_failure_do_not_spend_tries() {
     w.make(Party::Person(1), vec![task(1, &[])]);
     let reply_to = w.to();
     w.send(Event::Prepare { reply_to, task: 1 });
-    w.send(Event::PreparationFailed { task: 1 });
+    w.send(Event::PreparationPaused { task: 1, reason: b"brief: no brief slot is free".as_slice().into() });
     assert_eq!(w.record(1).attempt, 0);
     w.advance();
     for attempt in 1..=5 {

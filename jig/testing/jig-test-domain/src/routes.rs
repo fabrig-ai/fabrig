@@ -427,6 +427,10 @@ fn route_now(
             domain.now.push(crate::Request::Now(value));
         }
         core::Now::BriefCorePlanned { task, sections, .. } => {
+            if let Some(failure) = domain.scripted_brief_failure {
+                work.push(Work::Core(core::Event::BriefAssembled { task, failure: Some(failure) }));
+                return;
+            }
             work.push(Work::Core(jig_domain_hub_link::brief_plan(
                 task,
                 sections,
@@ -436,7 +440,7 @@ fn route_now(
         }
         core::Now::CompleteBrief { brief, order } => {
             domain.hub_link.keep_brief(brief.raw(), order);
-            work.push(Work::Core(core::Event::BriefAssembled { task: brief.raw(), ready: true }));
+            work.push(Work::Core(core::Event::BriefAssembled { task: brief.raw(), failure: None }));
         }
         core::Now::WorkspaceRequest { task, attempt, context } => {
             prepare_workspace(domain, env, work, task, attempt, &context);
@@ -476,6 +480,9 @@ fn route_now(
                 },
                 work,
             );
+        }
+        core::Now::BriefFailed { task, failure } => {
+            domain.brief_failures.push((task, failure));
         }
         core::Now::RunPreparationFailed { task } | core::Now::DropAssignment { task } => {
             drop(domain.hub_link.take_assignment(task));
