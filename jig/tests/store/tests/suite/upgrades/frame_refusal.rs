@@ -2,7 +2,11 @@
 
 use jig_domain_core as core;
 use jig_protocol_store::{Event, Limits, Request, TranscriptRead, Write, sizes};
-use jig_store_world::{World, root::{self, LIVE as TASK}, world::Restored};
+use jig_store_world::{
+    World,
+    root::{self, LIVE as TASK},
+    world::Restored,
+};
 use skein_lib::Token;
 use std::collections::BTreeMap;
 
