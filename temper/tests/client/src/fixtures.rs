@@ -294,6 +294,8 @@ pub fn adopt(owner: &[u8], name: &[u8]) -> Vec<skein_fake_person::Step<temper_cl
     vec![
         Step::See { find: Find::exactly_named(Role::Link, b"Settings"), within: WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, b"Settings") },
+        Step::See { find: Find::exactly_named(Role::Link, b"Repositories"), within: WITHIN },
+        Step::Press { find: Find::exactly_named(Role::Link, b"Repositories") },
         Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within: WITHIN },
         Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
         Step::See { find: Find::named(Role::TextField, b"Owner"), within: WITHIN },

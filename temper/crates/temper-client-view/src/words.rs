@@ -11,6 +11,24 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    SettingsKicker,
+    SettingsHowHeading,
+    SettingsHowLede,
+    SettingsRepositoriesHeading,
+    SettingsRepositoriesLede,
+    SettingsForgesHeading,
+    SettingsForgesLede,
+    SettingsAccountsHeading,
+    SettingsAccountsLede,
+    SettingsAccountsTab,
+    SettingsHowTab,
+    SettingsRepositoriesTab,
+    SettingsConfigureHelp,
+    SettingsRepositoriesCount,
+    SettingsNoneTag,
+    SettingsNoneBody,
+    SettingsSignedIn,
+
     ConfigureTitle,
     ConfigureQuestion,
     ConfigureLede,
@@ -864,7 +882,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
-const PHRASES: u32 = 1364;
+// Settings adds seventeen phrases and thirty-one literal/hole segments (3.5).
+const PHRASES: u32 = 1381;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -877,8 +896,25 @@ const PHRASES: u32 = 1364;
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
-const SEGMENTS: u32 = 2345;
-const ALL: [Word; 768] = [
+const SEGMENTS: u32 = 2376;
+const ALL: [Word; 785] = [
+    Word::SettingsKicker,
+    Word::SettingsHowHeading,
+    Word::SettingsHowLede,
+    Word::SettingsRepositoriesHeading,
+    Word::SettingsRepositoriesLede,
+    Word::SettingsForgesHeading,
+    Word::SettingsForgesLede,
+    Word::SettingsAccountsHeading,
+    Word::SettingsAccountsLede,
+    Word::SettingsAccountsTab,
+    Word::SettingsHowTab,
+    Word::SettingsRepositoriesTab,
+    Word::SettingsConfigureHelp,
+    Word::SettingsRepositoriesCount,
+    Word::SettingsNoneTag,
+    Word::SettingsNoneBody,
+    Word::SettingsSignedIn,
     Word::ConfigureTitle,
     Word::ConfigureQuestion,
     Word::ConfigureLede,
@@ -1652,6 +1688,23 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::SettingsKicker => 3220,
+            Self::SettingsHowHeading => 3221,
+            Self::SettingsHowLede => 3222,
+            Self::SettingsRepositoriesHeading => 3223,
+            Self::SettingsRepositoriesLede => 3224,
+            Self::SettingsForgesHeading => 3225,
+            Self::SettingsForgesLede => 3226,
+            Self::SettingsAccountsHeading => 3227,
+            Self::SettingsAccountsLede => 3228,
+            Self::SettingsAccountsTab => 3236,
+            Self::SettingsHowTab => 3229,
+            Self::SettingsRepositoriesTab => 3230,
+            Self::SettingsConfigureHelp => 3231,
+            Self::SettingsRepositoriesCount => 3232,
+            Self::SettingsNoneTag => 3233,
+            Self::SettingsNoneBody => 3234,
+            Self::SettingsSignedIn => 3235,
             Self::ConfigureTitle => 3189,
             Self::ConfigureQuestion => 3190,
             Self::ConfigureLede => 3191,
@@ -2639,7 +2692,8 @@ impl Words {
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 476,
+            // Settings adds 771 literal bytes (3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 476 + 771,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3260,6 +3314,23 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
         Word::StartChat => (&[b"Start a chat"], &[]),
+        Word::SettingsKicker => (&[b"", b" \xc2\xb7 settings"], &[Name]),
+        Word::SettingsHowHeading => (&[b"How work runs in ", b"."], &[Name]),
+        Word::SettingsHowLede => (&[b"Everything the other pages do for this project comes from here, so each project, and each person, can work its own way."], &[]),
+        Word::SettingsRepositoriesHeading => (&[b"What ", b" works on."], &[Name]),
+        Word::SettingsRepositoriesLede => (&[b"The repositories chats and goals in ", b" read and change."], &[Name]),
+        Word::SettingsForgesHeading => (&[b"Where your code lives."], &[]),
+        Word::SettingsForgesLede => (&[b"Each forge temper is connected to, or setting up. Add one to bring its repositories to temper."], &[]),
+        Word::SettingsAccountsHeading => (&[b"What agents run on."], &[]),
+        Word::SettingsAccountsLede => (&[b"The LLM accounts temper\xe2\x80\x99s agents run on for you. A task keeps its account: while the account is limited, the task waits for it."], &[]),
+        Word::SettingsAccountsTab => (&[b"Accounts"], &[]),
+        Word::SettingsHowTab => (&[b"How work runs"], &[]),
+        Word::SettingsRepositoriesTab => (&[b"Repositories"], &[]),
+        Word::SettingsConfigureHelp => (&[b"Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept."], &[]),
+        Word::SettingsRepositoriesCount => (&[b"Repositories \xc2\xb7 ", b""], &[Number]),
+        Word::SettingsNoneTag => (&[b"No repository yet"], &[]),
+        Word::SettingsNoneBody => (&[b"Chats in ", b" talk and plan, but change no code until a repository is in."], &[Name]),
+        Word::SettingsSignedIn => (&[b"Signed in as ", b""], &[Name]),
         Word::ConfigureTitle => (&[b"Configure temper"], &[]),
         Word::ConfigureQuestion => (&[b"How should temper run ", b"?"], &[Name]),
         Word::ConfigureLede => (&[b"Tell it how you work, in your own words or by pointing at a document."], &[]),

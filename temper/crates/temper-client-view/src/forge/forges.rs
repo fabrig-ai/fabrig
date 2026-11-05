@@ -24,11 +24,19 @@ pub(crate) fn main(
     bindings: &mut Bindings,
     forge: &mut ForgeBindings,
     sign_in: &crate::forge_sign_in::Forges,
+    project: Option<u32>,
 ) {
     b.open(Role::Main);
     b.style(look::MAIN);
-    b.style(look::FORGES);
-    connect::text(b, w, Role::Heading { level: 1 }, Word::ForgesTitle);
+    if let Some(project) = project {
+        b.style(look::SETTINGS);
+        crate::pages::settings::open(b, root, w, bindings, project, crate::pages::settings::Tab::Forges);
+        b.open(Role::Slot);
+        b.style(look::FORGES);
+    } else {
+        b.style(look::FORGES);
+        connect::text(b, w, Role::Heading { level: 1 }, Word::ForgesTitle);
+    }
     let rows = listed::rows(root.forges(), forge::connect::playground(root.forge()));
     let mut count = 0_u64;
     for row in &rows {
@@ -68,6 +76,10 @@ pub(crate) fn main(
                 b.close();
             }
         }
+    }
+    if project.is_some() {
+        b.close();
+        b.close();
     }
     b.close();
 }

@@ -88,6 +88,7 @@ impl Switcher {
             | Address::Inbox { .. } => self.close(),
             Address::Home { .. }
             | Address::Settings { .. }
+            | Address::Repositories { .. }
             | Address::Configure { .. }
             | Address::Chats { .. }
             | Address::Chat { .. }

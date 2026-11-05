@@ -1020,7 +1020,11 @@ fn strip_exclusions_and_forges_navigation_through_settings_match_pages() {
         follow(&mut world, client, vec![press(Role::Link, b"Settings")]);
         assert!(node(&world, client, Role::Link, b"Settings").states.as_slice().contains(&State::Current));
         assert!(!node(&world, client, Role::Link, b"Forges").states.as_slice().contains(&State::Current));
-        follow(&mut world, client, vec![press(Role::Link, b"Forges"), see(Role::Heading { level: 1 }, b"Forges")]);
+        follow(
+            &mut world,
+            client,
+            vec![press(Role::Link, b"Forges"), see(Role::Heading { level: 1 }, b"Where your code lives.")],
+        );
     }
 }
 

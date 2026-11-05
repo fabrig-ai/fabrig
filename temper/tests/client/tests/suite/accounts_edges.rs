@@ -97,7 +97,11 @@ fn accounts_navigation_from_connect_model_walks_settings() {
         .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Accounts"))
         .expect("accounts navigation");
     assert!(!entry.states.as_slice().contains(&State::Current));
-    follow(&mut world, client, vec![press(Role::Link, b"Accounts"), see(Role::Heading { level: 1 }, b"Accounts")]);
+    follow(
+        &mut world,
+        client,
+        vec![press(Role::Link, b"Accounts"), see(Role::Heading { level: 1 }, b"What agents run on.")],
+    );
 }
 
 // client/README.md 3.5 Accounts: the person's accounts come before the deployment's.

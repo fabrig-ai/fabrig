@@ -1434,13 +1434,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-welcome .temper-welcome-project > button { justify-content: center; min-height: 48px; font-size: 15.5px; }
 }
 
-/* The project's settings */
-.temper-settings > ul { list-style: none; margin: 7px 0 14px; padding: 0; }
-.temper-settings > ul > li { padding: 9.33px 0; }
-.temper-settings .temper-nav-needs, .temper-settings .temper-nav-limited { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 5px; vertical-align: 1px; overflow: hidden; text-indent: 100%; white-space: nowrap; }
-.temper-settings .temper-nav-needs { background: var(--temper-red); }
-.temper-settings .temper-nav-limited { background: var(--temper-amber); }
-
 /* The project's frame */
 :root:has(#app > .temper-rail) {
   --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73;
@@ -1677,6 +1670,53 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* ==== ui: settings ==== */
+
+/* The settings column, head, tabs and rows, from greenfield/mock.css. */
+#app > .temper-settings { width: auto; min-width: 0; margin: 0; padding: 64px 48px 96px; font: 400 15px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+.temper-settings-col { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 60px; }
+.temper-settings-intro { display: flex; flex-direction: column; gap: 16px; }
+.temper-settings .temper-settings-kicker { margin: 0; font-size: 13px; color: var(--gf-muted); }
+.temper-settings .temper-settings-headline { margin: 0; font: 500 32px/1.25 var(--gf-sans); letter-spacing: -.02em; }
+.temper-settings .temper-settings-lede { margin: 0; font-size: 17px; line-height: 1.65; color: var(--gf-ink-2); }
+.temper-settings-tabs { display: flex; flex-wrap: wrap; gap: 20px; border-bottom: 1px solid var(--gf-line); font-size: 14px; }
+.temper-settings .temper-settings-tabs a { padding: 8px 0; color: var(--gf-muted); text-decoration: none; }
+.temper-settings .temper-settings-tabs a[aria-current] { color: var(--gf-ink); font-weight: 500; box-shadow: inset 0 -2px var(--gf-ink); }
+.temper-settings-body { display: flex; flex-direction: column; gap: 44px; }
+.temper-settings-setting { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 280px); align-items: center; gap: 6px 28px; padding: 14px 0; border-bottom: 1px solid var(--gf-line); }
+.temper-settings-setting > div > .temper-settings-detail { display: block; margin-top: 2px; font-size: 13.5px; color: var(--gf-muted); }
+.temper-settings-end { display: flex; justify-content: flex-end; }
+.temper-settings-section { display: flex; flex-direction: column; gap: 14px; }
+.temper-settings-body > .temper-settings-section { gap: 0; }
+.temper-settings-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.temper-settings .temper-settings-section-title { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+.temper-settings-section-head a { font-size: 13px; }
+.temper-settings-lines { display: flex; flex-direction: column; border-top: 1px solid var(--gf-line); }
+.temper-settings-lines > div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 4px; border-bottom: 1px solid var(--gf-line); text-decoration: none; }
+.temper-settings-lines .temper-settings-when { flex: none; font-size: 13px; color: var(--gf-faint); }
+.temper-settings-band { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; padding: 20px 24px; border-radius: 12px; background: var(--gf-signal-pale); }
+.temper-settings-band > p { flex: 1 1 280px; margin: 0; }
+.temper-settings-band .temper-settings-tag { display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gf-signal); }
+.temper-settings-band .temper-settings-btn:not(.temper-settings-primary) { border-color: #f1d5bd; }
+.temper-settings-quiet-band { background: #f1f1ee; }
+.temper-settings-quiet-band .temper-settings-tag { color: var(--gf-muted); }
+.temper-settings .temper-settings-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 14.5px; text-decoration: none; text-align: left; }
+.temper-settings .temper-settings-btn:hover { border-color: #b4b4ae; }
+.temper-settings .temper-settings-btn.temper-settings-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+.temper-settings .temper-settings-primary:hover { background: #000; }
+.temper-settings .temper-settings-btn:is(.temper-settings-small, .temper-settings-primary) { min-height: 34px; padding: 5px 12px; font-size: 13.5px; }
+.temper-settings-tabs :is(.temper-nav-needs, .temper-nav-limited) { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-left: 5px; vertical-align: 1px; overflow: hidden; text-indent: 100%; white-space: nowrap; }
+.temper-settings-tabs .temper-nav-needs { background: var(--temper-red); }
+.temper-settings-tabs .temper-nav-limited { background: var(--temper-amber); }
+@media (max-width: 760px) {
+  #app > .temper-settings { padding: 8px 20px 112px; }
+  .temper-settings-col { gap: 32px; }
+  .temper-settings-intro { gap: 10px; }
+  .temper-settings .temper-settings-headline { font-size: 25px; line-height: 1.3; letter-spacing: -.015em; }
+  .temper-settings .temper-settings-lede { font-size: 15.5px; }
+  .temper-settings-tabs { flex-wrap: wrap; }
+  .temper-settings-setting { grid-template-columns: minmax(0, 1fr); }
+}
+
 
 /* configure-temper-name: the opening as a page and one column for turns and composer. */
 #app > .temper-session .temper-thread { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; padding: 36px 40px 24px; }
