@@ -5,7 +5,7 @@
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
-  `Board { project }` with its reordering, and `Changes { project }`: no
+  `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:
   `Proposal { proposal }` and the fuller page's sections, with a review's
   "Change something"; ctl supplies the review groups and running-work effect
@@ -49,7 +49,13 @@
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
-- **Departs:** 3.5, With no project yet, and 5.3: where the document
+- **Departs:** 3.5, Settings: "Configure temper" chooses among the rows
+  `temper-client-domain`'s `Chats::open_configuring` is delivered, whose
+  live watch holds a window of `limits.client.domain.rows` by latest
+  activity, so a configuring chat not closed but past that window isn't
+  seen and the link opens `Configure { project }`; `configure-temper-name`'s
+  landing accepted it, raising no bound for one link.
+  3.5, With no project yet, and 5.3: where the document
   shows the welcome, with no project, the banner's place for it reads "No project yet" followed by the new
   project's form, "New project" and "Create" (`temper-client-view`'s
   `frame.rs`, `switcher`), where 5.3 ends the switcher's list with that

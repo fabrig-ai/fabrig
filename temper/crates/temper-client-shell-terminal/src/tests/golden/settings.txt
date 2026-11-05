@@ -10,17 +10,18 @@ demo:
   [6] Home
   [7] Needs you
   [8] Chats
-  [9] + New chat
-  [10] Set up temper
-  [11] Settings (current)
+  [9] Changes
+  [10] + New chat
+  [11] Set up temper
+  [12] Settings (current)
   * Pat
 demo · settings
 Everything the other pages do for this project comes from here, so each project, and each person, can work its own way.
 Settings:
-  [12] How work runs (current)
-  [13] Repositories
-  [14] Forges
-  [15] Accounts
+  [13] How work runs (current)
+  [14] Repositories
+  [15] Forges
+  [16] Accounts
 Configure temper
 Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept.
-[16] Start
+[17] Start

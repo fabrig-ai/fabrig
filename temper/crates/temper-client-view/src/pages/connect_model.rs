@@ -301,6 +301,7 @@ fn welcome(root: &Domain) -> bool {
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Home { .. }
+        | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Repositories { .. }
         | Address::Configure { .. }
