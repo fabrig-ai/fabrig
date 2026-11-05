@@ -168,8 +168,10 @@ fn a_run_waits_and_its_next_message_resumes_it() {
 fn an_undecodable_transcript_is_refused_before_the_resumed_agent_starts() {
     let outcome = run(Story::InvalidTranscript);
     assert_eq!(outcome.verdict, Verdict::Passed);
-    assert_eq!(outcome.agent_starts, 1);
-    assert_eq!(outcome.answers_acknowledged, 1);
+    assert_eq!(outcome.agent_starts, 2);
+    assert_eq!(outcome.answers_acknowledged, 2);
+    assert_eq!(outcome.turns_committed, 2);
+    assert_eq!(outcome.resumed_turns, Some(0));
 }
 
 #[test]

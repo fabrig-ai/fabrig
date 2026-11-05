@@ -19,6 +19,35 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             }
             out.unsigned(u64::from(value.charter()));
         }
+        6 => {
+            let Ok(value) = w::ProjectQuestions::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.string(match value.route() {
+                w::QuestionsRoute::None => b"none",
+                w::QuestionsRoute::Foreman => b"foreman",
+                w::QuestionsRoute::Up => b"up",
+            });
+        }
+        7 => {
+            let Ok(value) = w::ProjectWays::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"drafts");
+            out.boolean(value.drafts());
+            out.key(b"goals");
+            out.boolean(value.goals());
+            out.key(b"changes");
+            out.boolean(value.changes());
+            out.key(b"away");
+            out.boolean(value.away());
+            out.key(b"way");
+            out.unsigned(u64::from(value.way()));
+            out.object_end();
+        }
         _ => return false,
     }
     true

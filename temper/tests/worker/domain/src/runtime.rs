@@ -404,7 +404,7 @@ impl World {
                 };
                 Done::Fetched { commit: Commit::new(commit) }
             }
-            Op::IsAncestor { .. } => panic!("this fixture has no producer retry"),
+            Op::Look { .. } | Op::IsAncestor { .. } => panic!("this fixture has no producer retry"),
             Op::Merge { theirs, .. } => {
                 assert_eq!(theirs.raw(), BASE);
                 Done::Conflicted { files: Box::new([Box::from(PATH)]) }

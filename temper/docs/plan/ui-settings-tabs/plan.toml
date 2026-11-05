@@ -1,0 +1,63 @@
+draft = "ui-settings-tabs"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-settings-tabs/inputs/request.md", "temper/docs/design/client/forge.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# See plan.md: one line of tasks, since temper.css, the gallery and the terminal's goldens conflict across plans.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "forges-tab"
+title = "Forges in the mock's language, and the helpers the tabs share"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "A person's forges are folded rows under Settings' tabs, in the mock's language, in every state"
+parts = ["forges-tab"]
+walk = false
+
+[[part]]
+id = "accounts-tab"
+title = "Accounts in the mock's language"
+mode = "direct"
+needs = ["forges-tab"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "flow-paths"
+title = "The flows' paths, Adopt in the language, and Start over's return"
+mode = "direct"
+needs = ["accounts-tab"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "builders-tab"
+title = "Builders: the deployment's hosts, read-only, the fifth tab"
+mode = "direct"
+needs = ["flow-paths"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 2
+story = "A person's accounts are the same rows, and the old pages' rules are gone"
+parts = ["accounts-tab"]
+walk = false
+
+[[slice]]
+id = 3
+story = "A flow says where it is in Settings and leads back to its tab"
+parts = ["flow-paths"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A person with a role in the deployment reads its builders in Settings"
+parts = ["builders-tab"]
+walk = false

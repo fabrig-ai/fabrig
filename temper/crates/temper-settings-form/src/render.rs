@@ -23,6 +23,15 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             out.number(u64::from(number));
             return;
         }
+        c::Setting::Application { kind: 6 | 7, scope, .. } => {
+            out.put(if let c::Setting::Application { kind: 6, .. } = setting {
+                b"project-questions "
+            } else {
+                b"project-ways "
+            });
+            out.number(u64::from(scope));
+            return;
+        }
         c::Setting::Application { kind, scope, number } => {
             out.put(b"application kind ");
             out.number(u64::from(kind));
@@ -41,6 +50,23 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
         out.number(u64::from(number));
     }
 }
+/// Mark a project's fallback value when its inventory has no explicit change.
+pub fn stock_text(value: &c::ReadValue, out: &mut Text) {
+    if let c::ReadValue::Setting(document) = value
+        && let c::Setting::Application { kind: 6 | 7, .. } = document.setting
+    {
+        let stock = match &document.application {
+            None => true,
+            Some(state) => match state.follows {
+                c::ApplicationFollows::Default | c::ApplicationFollows::Removed { .. } => true,
+                c::ApplicationFollows::Changed { .. } => false,
+            },
+        };
+        if stock {
+            out.put(b"the stock\n");
+        }
+    }
+}
 pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
     let (kind, number) = match setting {
         c::Setting::Charter(n) => (b"charter".as_slice(), Some(n.number)),
@@ -52,17 +78,21 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
             match kind {
                 1 | 2 => out.string(b"landing-rule"),
                 3 => out.string(b"forge-charter"),
+                6 => out.string(b"project-questions"),
+                7 => out.string(b"project-ways"),
                 _ => out.unsigned(u64::from(kind)),
             }
-            if kind == 2 {
+            if kind == 2 || kind == 6 || kind == 7 {
                 out.key(b"project");
                 out.unsigned(u64::from(scope));
             } else if kind != 1 && kind != 3 {
                 out.key(b"scope");
                 out.unsigned(u64::from(scope));
             }
-            out.key(b"number");
-            out.unsigned(u64::from(number));
+            if kind != 6 && kind != 7 {
+                out.key(b"number");
+                out.unsigned(u64::from(number));
+            }
             out.object_end();
             return;
         }
@@ -222,6 +252,7 @@ pub fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: 
             if let Some(value) = &document.value {
                 named_value_text(document.setting, value, limits, out);
             }
+            stock_text(value, out);
             if let Some(state) = &document.application {
                 application_text(state, out);
             }

@@ -231,6 +231,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | `Home { project }` | `/projects/<project>` |
   | `Changes { project }` | `/projects/<project>/changes` |
   | `Settings { project }` | `/projects/<project>/settings` |
+  | `Repositories { project }` | `/projects/<project>/settings/repositories` |
+  | `Builders { project }` | `/projects/<project>/settings/builders` |
   | `Configure { project }` | `/projects/<project>/settings/configure` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
   | `Chats { filter }` | `/chats`, and its filter's query |
@@ -525,6 +527,25 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   under its name, the list's name shown before its items. A goal's page takes
   nothing from it. `scripts/bundle.sh` passes the three to `skein-ui-bundle` in
   that order.
+- **Settings' look** is the greenfield mock's `settings.html`, its
+  `mock.css` rules taken exactly, values and all (`.col`, `.intro`, `.kicker`,
+  `.headline`, `.lede`, `.tabs`, `.settings`, `.setting`, `.checks`, `.switch`,
+  `.toggle-row`, `.section`, `.section-head`, `.lines`, `.when`, `.band`,
+  `.quiet-band`, `.facts`, `.btn.small`, and their rules at 760 px and under),
+  in `temper.css`, scoped under the project's frame with its `--gf-*` variables,
+  as Home's are, on tokens of its own, `temper-settings*`. A disabled select is
+  faint on no fill. A proposal of settings' card takes the conversation's
+  `.proposal`, with `.proposal.superseded` at `opacity: .5` and `.proposal-state.ok`.
+  The mock's `.proposal-split` is the review page's (`README.md`, 5.13).
+  `Forges` and `Accounts` take the same values on their rows (`README.md`, 3.5,
+  *The rows*): `.lines`' hairline and padding on a `details`, the chevron of
+  `.switcher > summary::after` and, opened, `.setting`, `.btn` and its kinds and
+  `.text`. A control a row shares with `ConnectForge` or the welcome takes them
+  by a rule scoped under the row, so those pages keep their look. `Builders`
+  adds `.empty`, and `Adopt` takes the `.col`, `.text` and `.btn`. No rule
+  under the `--temper-*` tokens reaches these pages: the old rows' and pages'
+  rules go, rather than being overridden. A flow's path takes `Configure`'s
+  crumbs' values, its "‹" alone at 760 px and under.
 - **The project's frame** is the greenfield mock's `home.html`, in
   the welcome's paper, ink and IBM Plex from temper's files
   (`temper.css`, The project's frame): the rail a 232 px column at the
@@ -1197,6 +1218,18 @@ from the engine's own answers, is where the look is tuned.
 | `configure-sending` | the configuring start out; starters and Send disabled, words kept |
 | `configure-refused` | the start refused; jig's words below the composer, the words kept |
 | `configure-chat` | the solo world’s T10 as a configuring chat, conversation and proposal in the Settings layout |
+| `settings` | hand-made settings deliveries: How work runs with every part of kind 7 shown |
+| `settings-all-hidden` | hand-made settings deliveries: kind 7's stock, the mock's `settings.html?project=hello` |
+| `settings-goals` | hand-made settings deliveries: Goals shown, its ways of working with one the default |
+| `settings-chat-open` | hand-made settings deliveries: a configuring chat open, "Go on" |
+| `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
+| `repositories` | the Repositories tab with rows |
+| `repositories-none` | the Repositories tab's quiet band |
+| `forges-in-settings` | `Forges` inside Settings' frame |
+| `accounts-in-settings` | `Accounts` inside Settings' frame, "Sign out" at its foot |
+| `builders` | the Builders tab, its hosts connected, draining and not connected |
+| `builders-not-owner` | the Builders tab for a person with no role in the deployment |
+| `builders-none` | the Builders tab with no host connected |
 | `configure-chats-tag` | the solo world’s chats with T10 tagged Configuring beside ordinary chats |
 | `chats-solo` | the solo world's chats |
 | `chats-live` | `chats-solo` under "Live" |

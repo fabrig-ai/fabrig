@@ -232,6 +232,8 @@ impl Session {
             | Address::Chat { .. }
             | Address::Task { .. }
             | Address::Home { .. }
+            | Address::Builders { .. }
+            | Address::Repositories { .. }
             | Address::Settings { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. } => self.at = None,
@@ -576,6 +578,8 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
                 | Address::Welcome { .. }
                 | Address::Chat { .. }
                 | Address::Task { .. }
+                | Address::Builders { .. }
+                | Address::Repositories { .. }
                 | Address::Settings { .. }
                 | Address::Configure { .. }
                 | Address::Adopt { .. } => None,

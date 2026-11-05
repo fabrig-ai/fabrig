@@ -228,6 +228,100 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Text { text: "running" }, Part::Named { role: Role::Figure, name: "6 landed of 9" }],
     },
     Holds {
+        name: "builders",
+        heading: "Where agents work.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Builders · 3" },
+            Part::Text { text: "Workshop" },
+            Part::Text { text: "Finishing" },
+            Part::Text { text: "Away" },
+            Part::Text { text: "2 slots · 1 in use" },
+            Part::Text { text: "Connected" },
+            Part::Text { text: "Draining" },
+            Part::Text { text: "Not connected" },
+        ],
+    },
+    Holds {
+        name: "builders-none",
+        heading: "Where agents work.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Builders · 0" },
+            Part::Text { text: "No builder is connected." },
+        ],
+    },
+    Holds {
+        name: "builders-not-owner",
+        heading: "Where agents work.",
+        parts: &[Part::Text { text: "Builders are seen by the deployment’s owners." }],
+    },
+    Holds {
+        name: "forges-empty",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::Text, name: "No forge yet" },
+            Part::Named { role: Role::Link, name: "Connect a forge" },
+            Part::Text { text: "No forge of yours yet." },
+        ],
+    },
+    Holds {
+        name: "forges-setting-up",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Forgejo on this machine",
+                description: "Forge 3 · Forgejo · Setting up: preparing\nwork/hello",
+            },
+            Part::Named { role: Role::Link, name: "Open its set-up ›" },
+        ],
+    },
+    Holds {
+        name: "forges-fetching",
+        heading: "Where your code lives.",
+        parts: &[Part::Described {
+            role: Role::Disclosure,
+            name: "Forgejo on this machine",
+            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 42%\nwork/hello",
+        }],
+    },
+    Holds {
+        name: "forges-fetching-bytes",
+        heading: "Where your code lives.",
+        parts: &[Part::Described {
+            role: Role::Disclosure,
+            name: "Forgejo on this machine",
+            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 41 MB\nwork/hello",
+        }],
+    },
+    Holds {
+        name: "forges-failed",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Set up again" },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Forgejo on this machine",
+                description: "Forge 3 · Forgejo · Set up failed: its port, 127.0.0.1:8368, is taken by another program. temper box’s output has the rest.",
+            },
+        ],
+    },
+    Holds {
+        name: "forges-replacing",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::TextField, name: "Private key" },
+            Part::Named { role: Role::Button, name: "Replace the key" },
+        ],
+    },
+    Holds {
+        name: "forges-removing",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Remove this forge?" },
+            Part::Named { role: Role::Button, name: "Remove" },
+        ],
+    },
+    Holds {
         name: "needs-one",
         heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
         parts: &[Part::Named { role: Role::Button, name: "Later" }],
@@ -912,7 +1006,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "forges-github-install",
-        heading: "Forges",
+        heading: "Where your code lives.",
         parts: &[Part::Named { role: Role::Button, name: "Install on GitHub" }],
     },
     Holds {
@@ -1231,13 +1325,13 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "forges-first-run-7",
-        heading: "Forges",
+        heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges 1" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges · 1" },
             Part::Described {
                 role: Role::Disclosure,
                 name: "Forgejo on this machine",
-                description: "forge 3 · Forgejo · Connected as temper\nwork/hello",
+                description: "Forge 3 · Forgejo · Connected as temper\nwork/hello",
             },
             Part::Absent { role: Role::Heading { level: 2 }, name: "The playground" },
         ],
@@ -1390,14 +1484,52 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Button, name: "Open" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
-        name: "settings",
-        heading: "Settings for tally",
+        name: "repositories",
+        heading: "What tally works on.",
         parts: &[
-            Part::Named { role: Role::Link, name: "Configure temper" },
+            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Repositories · 1" },
+            Part::Named { role: Role::Text, name: "robin/tally" },
+            Part::Named { role: Role::Link, name: "Adopt a repository" },
+        ],
+    },
+    Holds {
+        name: "repositories-none",
+        heading: "What gallery works on.",
+        parts: &[
+            Part::Named { role: Role::Text, name: "No repository yet" },
+            Part::Text { text: "Chats in gallery talk and plan, but change no code until a repository is in." },
+            Part::Named { role: Role::Link, name: "Adopt a repository" },
+        ],
+    },
+    Holds {
+        name: "forges-in-settings",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges · 1" },
+        ],
+    },
+    Holds {
+        name: "accounts-in-settings",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 1" },
+            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Text, name: "Signed in as Robin" },
+            Part::Named { role: Role::Button, name: "Sign out" },
+        ],
+    },
+    Holds {
+        name: "settings",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Builders" },
+            Part::Named { role: Role::Text, name: "Configure temper" },
             Part::Named { role: Role::Link, name: "Forges" },
             Part::Named { role: Role::Link, name: "Accounts" },
-            Part::Named { role: Role::Link, name: "Adopt a repository" },
-            Part::Named { role: Role::Button, name: "Sign out" },
+            Part::Named { role: Role::Link, name: "Start" },
+            Part::Named { role: Role::Navigation, name: "Settings" },
         ],
     },
     Holds {
@@ -1414,8 +1546,9 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "accounts-solo",
-        heading: "Accounts",
+        heading: "What agents run on.",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 1" },
             Part::Named { role: Role::Heading { level: 3 }, name: "Claude" },
             Part::Named { role: Role::Item, name: "Claude Code login claude-robin · Ready" },
             Part::Named { role: Role::Item, name: "API key · Ready" },
@@ -1562,14 +1695,79 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Link, name: "Home" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
+        name: "accounts-states",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 11" },
+            Part::Text { text: "Ready" },
+            Part::Text { text: "Checking" },
+            Part::Text { text: "Granted" },
+            Part::Text { text: "Limited by " },
+            Part::Text { text: "temper reached its usage limit on your ChatGPT plan. Tasks on it wait." },
+            Part::Text { text: "Signed out of ChatGPT." },
+            Part::Text { text: "OpenAI refused temper’s sign-in. Check the configuration’s registration." },
+            Part::Text { text: "Cannot load " },
+            Part::Text { text: "Cancelled" },
+            Part::Text { text: "Closing" },
+            Part::Text { text: "Moving to another deployment" },
+        ],
+    },
+    Holds {
+        name: "accounts-key",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::TextField, name: "Key (pasted once)" },
+            Part::Named { role: Role::Button, name: "Add key" },
+        ],
+    },
+    Holds {
+        name: "accounts-removing",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Text { text: "Remove this account and all its sources?" },
+            Part::Named { role: Role::Button, name: "Confirm" },
+        ],
+    },
+    Holds {
+        name: "accounts-signing-in",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" },
+            Part::Named { role: Role::Button, name: "Finish connecting" },
+        ],
+    },
+    Holds {
+        name: "accounts-program-needs-sign-in",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Text { text: "Claude Code isn't signed in for 'claude-robin' on " },
+            Part::Named { role: Role::Button, name: "Check again" },
+        ],
+    },
+    Holds {
+        name: "accounts-empty",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 0" },
+            Part::Named { role: Role::Text, name: "No account yet" },
+            Part::Named { role: Role::Link, name: "Connect a model" },
+        ],
+    },
+    Holds {
         name: "accounts-reference",
-        heading: "Accounts",
-        parts: &[Part::Named { role: Role::Heading { level: 3 }, name: "Claude" }],
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 2" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "Claude" },
+        ],
     },
     Holds {
         name: "accounts-first-run-1",
-        heading: "Accounts",
-        parts: &[Part::Named { role: Role::Disclosure, name: "Scripted model · the playground’s" }],
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 0" },
+            Part::Named { role: Role::Disclosure, name: "Scripted model · the playground’s" },
+        ],
     },
     Holds {
         name: "google-sign-in",
@@ -2034,7 +2232,7 @@ fn print_writes_every_page_and_the_bundle() {
     let closing = fs::read_to_string(out.join("chat-closing.html")).expect("confirmation page");
     assert!(closing.contains("<dialog open "), "static confirmation opens");
     let chats = fs::read_to_string(out.join("chats-solo.html")).expect("chats page");
-    assert!(chats.contains("<title>Talk to an agent. · temper</title>"), "shell heading title");
+    assert!(chats.contains("<title>Talk to an agent about robin/tally. · temper</title>"), "shell heading title");
     let signed_out = fs::read_to_string(out.join("signed-out.html")).expect("signed-out page");
     assert!(signed_out.contains("<title>temper</title>"), "shell title without heading");
     // Reprinting replaces the whole owned directory, including stale files.
@@ -2118,7 +2316,7 @@ fn gallery_chat_clocks_are_separate_leaves_under_the_speakers() {
 
 #[test]
 fn model_samples_link_the_mockup_state_that_draws_them() {
-    let rows = [
+    let mut rows = [
         ("connect-model-choose", Some("connect-model.html?world=reference&bare")),
         ("connect-model-key-details", Some("connect-model.html?world=reference&way=key&bare")),
         ("connect-model-program-details", Some("connect-model.html?world=reference&way=program&bare")),
@@ -2139,6 +2337,7 @@ fn model_samples_link_the_mockup_state_that_draws_them() {
         ),
         ("connect-model-key-lost", None),
     ];
+    rows.sort_by_key(|row| row.0);
     let models: Vec<_> =
         samples::samples().into_iter().filter(|sample| sample.name.starts_with("connect-model-")).collect();
     assert_eq!(models.len(), rows.len(), "every model sample has a row");

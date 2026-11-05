@@ -43,6 +43,9 @@ pub fn page() -> skein_ui::Tree {
 pub fn delegation_page(landed: bool) -> skein_ui::Tree {
     first_run_page(client::Address::Chat { task: 1 }, landed)
 }
+pub fn settings() -> skein_ui::Tree {
+    first_run_page(client::Address::Settings { project: 1 }, true)
+}
 pub fn first_run() -> skein_ui::Tree {
     first_run_page(client::Address::NewChat, true)
 }

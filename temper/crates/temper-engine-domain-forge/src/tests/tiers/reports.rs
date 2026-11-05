@@ -84,6 +84,100 @@ fn confirmed(d: &mut Domain) {
     send(d, DISPATCH + 1);
     red(d);
 }
+fn failed_rerun() -> Domain {
+    let mut d = one();
+    completed(&mut d, api::Conclusion::Failure, Some(1));
+    report(&mut d, b"design-listed\n", false);
+    send(&mut d, DISPATCH + 1);
+    let mut run = workflow(&d, api::Conclusion::Failure, Some(1));
+    run.id = RUN + 1;
+    run.number = 2;
+    run.url = b"https://forge.example/run/72".as_slice().into();
+    answer(&mut d, api::Answer::Runs { runs: Box::new([run.clone()]), more: false });
+    answer(&mut d, api::Answer::Run(run));
+    d
+}
+fn report_error(d: &mut Domain, error: api::Error) -> Box<[Request]> {
+    d.tier_ops.reads.insert(READ, (REPO, TIER.into())).unwrap();
+    let mut out = Queue::uncapped();
+    crate::tiers::answered(d, &env(), READ, Err(error), &mut out);
+    collect(out)
+}
+#[test]
+fn a_busy_rerun_report_is_read_again_without_repeating_tests() {
+    let mut d = failed_rerun();
+    let saved = row(&d).clone();
+    let out = report_error(&mut d, api::Error::Busy);
+    assert_eq!(row(&d).record.run, saved.record.run, "Busy must not consume a runner-fault allowance");
+    assert_eq!(row(&d).flight.as_ref().unwrap().report, saved.flight.as_ref().unwrap().report);
+    let at = env().now.saturating_add(LIMITS.client.poll);
+    assert_eq!(row(&d).flight.as_ref().unwrap().next, Some(at));
+    assert!(!out.contains(&Request::WakeProcedure { task: TIER_TASK }));
+    let mut clock = env();
+    clock.now = at;
+    let mut out = Queue::uncapped();
+    crate::tiers::fire(&mut d, &clock, &mut out);
+    assert!(collect(out).contains(&Request::WakeProcedure { task: TIER_TASK }));
+    tier_step(&mut d, DISPATCH + 2, false);
+    assert!(!d.entries.contains_key(&(DISPATCH + 2)), "the report poll must not dispatch or rerun tests");
+    let follow = d.tier_ops.follows.get(&(REPO, TIER.into())).unwrap();
+    assert!(follow.writes.is_empty());
+    assert_eq!(row(&d).flight.as_ref().unwrap().report.as_ref().unwrap().id, RUN + 1);
+    report(&mut d, b"design-listed\n", false);
+    assert_eq!(row(&d).record.run.as_ref().unwrap().faults, 0);
+    assert_eq!(
+        judgement(&d).landings.as_ref(),
+        &[p::Blame::Owns(p::Failures::Tests(Box::new([b"design-listed".as_slice().into()])))]
+    );
+    let out = finish(&mut d);
+    let Some(TierDecision::Done { words }) = choice(&out) else { panic!("completed red") };
+    assert!(words.starts_with(b"Tier browser run 1: red, 1 test failing"));
+}
+#[test]
+fn a_missing_rerun_report_records_why_before_retrying() {
+    let mut d = failed_rerun();
+    let out = report_error(&mut d, api::Error::Missing);
+    let reason = b"forge run 2 https://forge.example/run/72; artifact report: target missing\n";
+    let saved = out
+        .iter()
+        .find_map(|request| match request {
+            Request::Save { record: Stored::Tier(row), .. }
+                if skein_lib::bytes::find(&row.observations, reason).is_some() =>
+            {
+                Some(row.clone())
+            }
+            _ => None,
+        })
+        .expect("save the report failure before retrying");
+    assert!(skein_lib::bytes::find(&saved.observations, b"Runner fault: Failed-test rerun: commit ").is_some());
+    assert_eq!(saved.record.run.as_ref().unwrap().faults, 1);
+    let mut cold = restoring(None);
+    outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
+    outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut cold, Event::ReadAfresh);
+    let words = cold.tier_execution_words(TIER_TASK).unwrap();
+    assert!(skein_lib::bytes::find(&words, reason).is_some());
+    send(&mut cold, DISPATCH + 2);
+    completed(&mut cold, api::Conclusion::Success, None);
+    let out = finish(&mut cold);
+    let projection = out
+        .iter()
+        .find_map(|request| match request {
+            Request::TierDecision { decision: TierDecision::Done { .. }, projection, .. } => projection.as_deref(),
+            _ => None,
+        })
+        .expect("completed task keeps its execution facts");
+    assert!(skein_lib::bytes::find(projection, reason).is_some());
+}
+#[test]
+fn a_workflow_fault_records_why_before_retrying() {
+    let mut d = one();
+    completed(&mut d, api::Conclusion::Failure, Some(0));
+    let words = d.tier_execution_words(TIER_TASK).unwrap();
+    assert!(skein_lib::bytes::find(&words, b"Runner fault: Judged run: commit ").is_some());
+    assert!(skein_lib::bytes::find(&words, b"forge run 1 https://forge.example/run/71; set-up\n").is_some());
+    assert_eq!(row(&d).record.run.as_ref().unwrap().faults, 1);
+}
 #[test]
 fn failure_reads_the_named_artifact_before_rerunning() {
     let mut d = one();

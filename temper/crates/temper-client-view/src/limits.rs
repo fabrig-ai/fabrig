@@ -10,7 +10,7 @@ impl Limits {
     #[must_use]
     #[expect(
         clippy::too_many_lines,
-        reason = "the view envelope keeps each bounded page contribution in one derivation"
+        reason = "one checked set of expressions prices the composed pages and their edges"
     )]
     pub fn of(domain: &temper_client_domain::Limits, words: &Words) -> Option<Limits> {
         let receiving = &domain.client.domain;
@@ -26,6 +26,8 @@ impl Limits {
         let text = text.max(temper_client_protocol_wire::CUE_BYTES.checked_add(24)?);
         // The sign-in return link percent-encodes a whole authorization address.
         let text = text.max(3400);
+        // Builders draws each admitted host name whole, as name and text (client/README.md, 3.5).
+        let builder_name = jig_client::contract::PROGRAM_HOST_NAME.checked_mul(2)?;
         let markdown = skein_ui::markdown::max_nodes(receiving.text)?;
         let cards = card_nodes(receiving, markdown)?;
         // Each watched task has one card at its first anchor: sixteen structural
@@ -167,8 +169,9 @@ impl Limits {
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
-            text_per_node: text,
-            text_bytes: nodes.checked_mul(text)?,
+            text_per_node: text.max(builder_name),
+            // Whole builder names are held once per document row; the other nodes retain their price.
+            text_bytes: nodes.checked_mul(text)?.checked_add(receiving.rows.checked_mul(builder_name)?)?,
             drawing_bytes: 0,
             scene_marks: 0,
             scene_bytes: 0,

@@ -48,6 +48,7 @@ pub fn workspace(op: &Op) -> Token {
         | Op::Fetch { at, .. }
         | Op::Create { at, .. }
         | Op::CheckOut { at, .. }
+        | Op::Look { at, .. }
         | Op::IsAncestor { at, .. }
         | Op::Merge { at, .. }
         | Op::Commit { at, .. }
@@ -64,7 +65,7 @@ pub fn identity(op: &Op) -> Option<u32> {
         | Op::Create { identity, .. }
         | Op::Commit { identity, .. }
         | Op::Push { identity, .. } => Some(*identity),
-        Op::Make { .. } | Op::CheckOut { .. } | Op::IsAncestor { .. } | Op::Merge { .. } => None,
+        Op::Make { .. } | Op::CheckOut { .. } | Op::Look { .. } | Op::IsAncestor { .. } | Op::Merge { .. } => None,
     }
 }
 
@@ -75,12 +76,18 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
         Op::Clone { remote, .. } | Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => {
             Some(remote)
         }
-        Op::Make { .. } | Op::CheckOut { .. } | Op::IsAncestor { .. } | Op::Merge { .. } | Op::Commit { .. } => None,
+        Op::Make { .. }
+        | Op::CheckOut { .. }
+        | Op::Look { .. }
+        | Op::IsAncestor { .. }
+        | Op::Merge { .. }
+        | Op::Commit { .. } => None,
     }
 }
 
 /// Runs `op` on the fakes, as the protocol layer would run its git
 /// invocation, git reaching the forge through `forge`, and says how it ended.
+#[expect(clippy::too_many_lines, reason = "the world translates every checkout operation in one table")]
 pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
     match op {
         Op::Make { workspace } => {
@@ -90,10 +97,19 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             disk.mkdir(&dir);
             Done::Succeeded
         }
+        Op::Look { at, remote } => {
+            let directory = path(&at);
+            Done::Looked {
+                holds: disk.content(&[directory.as_slice(), b"/.git/temper-remote"].concat()) == Some(remote.as_ref()),
+            }
+        }
         Op::Clone { at, remote, identity: _, account: _ } => {
             assert!(disk.exists(&dir(at.workspace)), "a repository is cloned into a workspace made");
             match git::clone_repository(forge, disk, &remote, &path(&at)) {
-                Ok(()) => Done::Succeeded,
+                Ok(()) => {
+                    disk.write(&[path(&at).as_slice(), b"/.git/temper-remote"].concat(), &remote);
+                    Done::Succeeded
+                }
                 Err(fault) => failed(fault),
             }
         }
@@ -119,6 +135,9 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
         }
         Op::CheckOut { at, commit, .. } => {
             assert_cloned(disk, &at);
+            if disk.exists(&[path(&at).as_slice(), b"/.git/index.lock"].concat()) {
+                return Done::Failed { fault: Fault::Broken };
+            }
             let checked_out = git::check_out(forge, disk, &path(&at), fake(commit));
             checked_out.expect("a checkout is of a commit fetched into the repository");
             Done::Succeeded
