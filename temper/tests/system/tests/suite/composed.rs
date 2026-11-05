@@ -639,3 +639,10 @@ fn assert_unfinished_reads(agent: &smith_agent_world::World) {
         .collect::<Vec<_>>();
     assert_eq!(refused, [true, true, false, false, false, false]);
 }
+
+#[test]
+fn a_long_chat_recovers_from_unusable_resume_history() {
+    for mode in [0, 1, 2] {
+        World::recover_long_chat(mode);
+    }
+}
