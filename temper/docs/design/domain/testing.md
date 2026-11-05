@@ -983,8 +983,9 @@ terminal client, the captures and the faults.
 - **Forgejo signing in through temper,** a test of its own at the end of
   `crates/temper/tests/process.rs`, on `support/forgejo_sign_in.rs`
   (../protocol/sign-in.md, 9.8): an owned Forgejo prepared by temper's
-  commands, with 9.4's settings in its `app.ini`, beside `temper serve`
-  with jig's provider; the key and the client's secret made by `temper
+  commands with no group's file (../protocol/setup.md, 7.4), with 9.4's
+  settings in its `app.ini`, beside `temper serve` with jig's provider
+  and a bundle; the key and the client's secret made by `temper
   forge sign-in` in the test's scratch directory, and the temper source
   added by the command it prints. A scripted client with a cookie jar
   signs in to temper by the printed link (the member of Google's
@@ -994,7 +995,10 @@ terminal client, the captures and the faults.
   admin, then names the member's account by their login, their address
   and its external id, `sub` (`3:sam@example.com`, Google's provider and
   the address), which only Google's provider gives, so the link
-  provider's identity cannot pass. It aims at 2 s, as a world's story
+  provider's identity cannot pass. The forge is then connected as its
+  admin by the handover file, as `temper help server`'s walk does, and
+  the page answers with its forge's meta (../protocol/sign-in.md, 9.7).
+  It aims at 2 s, as a world's story
   does (6.1), and takes about 3 s whole: about 2.5 s is the owned
   Forgejo's preparation and start, as every owned-Forgejo story pays,
   and about 0.5 s is temper's part; being past its aim, it waits on the
