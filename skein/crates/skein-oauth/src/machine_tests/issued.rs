@@ -30,7 +30,7 @@ fn begin(registration: Registration, held: bool) -> Event {
         now: time(1),
     }
 }
-fn redirect(client_id: Option<Box<[u8]>>) -> Event {
+pub(super) fn redirect(client_id: Option<Box<[u8]>>) -> Event {
     Event::Redirected {
         uri: boxed(b"https://web.example/callback"),
         state: state(),

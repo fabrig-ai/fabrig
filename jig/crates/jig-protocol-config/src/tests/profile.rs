@@ -172,3 +172,15 @@ fn profiles_retain_a_day_of_deciding_answers_with_fivefold_room() {
         assert_eq!(people.request_retention, skein_lib::Duration::from_secs(86_400));
     }
 }
+
+#[test]
+fn supplied_profiles_keep_four_exchanges_beside_every_stream() {
+    const ORDINARY_EXCHANGES: u32 = 4;
+    for selected in [Profile::Small, Profile::Standard] {
+        let limits = profile(selected);
+        let streams = limits.clients.streams.max(limits.clients_http.streams);
+        let minimum = streams.checked_add(ORDINARY_EXCHANGES).expect("profile carrier count");
+        assert!(limits.clients_http.calls >= minimum, "{selected:?} HTTP calls carry streams and ordinary exchanges");
+        assert!(limits.clients.exchanges >= limits.clients_http.calls, "{selected:?} component carries HTTP calls");
+    }
+}

@@ -59,7 +59,7 @@ impl Setup {
     }
 
     pub fn read(spawn: &Spawn) -> Self {
-        assert_eq!(spawn.args.len(), 1, "one startup record");
+        assert!((1..=2).contains(&spawn.args.len()), "startup record and optional dump settings");
         serde_json::from_slice(&spawn.args[0]).expect("scenario setup")
     }
 }

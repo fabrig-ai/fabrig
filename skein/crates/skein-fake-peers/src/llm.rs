@@ -61,10 +61,27 @@ pub struct Peer {
     observations: Vec<Observation>,
     observed_bytes: u64,
     recording: bool,
+    kept_bodies: Option<Vec<Box<[u8]>>>,
     ignore_half_close: bool,
 }
 
 impl Peer {
+    /// Keeps each later request body as read, after inflation.
+    #[must_use]
+    pub fn keeping_bodies(mut self) -> Self {
+        self.kept_bodies.get_or_insert_with(Vec::new);
+        for connection in &mut self.connections {
+            connection.server.keep_body();
+        }
+        self
+    }
+
+    /// Request bodies in the order the peer read them.
+    #[must_use]
+    pub fn bodies(&self) -> &[Box<[u8]>] {
+        self.kept_bodies.as_deref().unwrap_or_default()
+    }
+
     /// Adopts a held listener before the first drive, so the face's queued
     /// Listen claims its address. On refusal the caller keeps the descriptor.
     pub fn adopt_listener(&mut self, fd: kernel::Fd, addr: SocketAddr) -> Result<(), kernel::Fd> {
@@ -115,6 +132,7 @@ impl Peer {
             observations: Vec::with_capacity(usize_of(limits.observations)),
             observed_bytes: 0,
             recording: true,
+            kept_bodies: None,
             ignore_half_close: false,
         })
     }
@@ -235,6 +253,9 @@ impl Peer {
                     plain: Queue::uncapped(),
                     closing: false,
                 };
+                if self.kept_bodies.is_some() {
+                    connection.server.keep_body();
+                }
                 provider::start(
                     &mut connection.server,
                     &mut self.service,
@@ -329,6 +350,11 @@ impl Peer {
                     &mut connection.above,
                     &mut connection.below,
                 );
+            }
+            if let Some(bodies) = &mut self.kept_bodies
+                && let Some(body) = connection.server.take_kept_body()
+            {
+                bodies.push(body);
             }
             if let Some(down) = connection.below.pop() {
                 connection.wire.down(down, &mut connection.plain, &mut self.face.requests);

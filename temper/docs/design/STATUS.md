@@ -26,8 +26,9 @@ world tells none of their stories (`domain/forge.md`,
 but for the held landing's story, ignored for a restart fault
 (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story
-asks from a repair or a resolution and a step short of message room
-loses a foreman's verdict (`domain/forge.md`), and the foremen's
+asks from a repair or a resolution, or has its words refused, and a
+step short of message room loses a foreman's verdict
+(`domain/forge.md`), and the foremen's
 charter is not a setting. A
 project's policy in a change of settings and a revision restored are
 built through ctl, but the restore's stories in the domain world and
@@ -104,6 +105,8 @@ is the user's to decide (`domain/worker.md`); with
 `TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
 workspaces stay as they are between workstreams and across a restart,
 for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
+with `TEMPER_DUMP_LLM` set, never a shipped default, an agent's
+environment holds that directory (`domain/worker.md`);
 a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
