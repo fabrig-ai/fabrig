@@ -19,6 +19,7 @@ pub mod panel;
 pub mod playground;
 pub mod replace;
 pub mod start;
+pub mod status;
 pub mod tokens;
 mod vocabulary;
 pub mod words;

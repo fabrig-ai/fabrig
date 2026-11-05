@@ -44,6 +44,15 @@ pub fn ask(what: Dismissal, limits: &Limits) -> Option<Ask> {
 }
 
 impl Side {
+    /// The dismissals have been delivered or their watch has ended.
+    #[must_use]
+    pub fn settled(&self) -> bool {
+        match self.dismissed {
+            State::Unknown => false,
+            State::Rows(_) | State::Ended => true,
+        }
+    }
+
     /// `None` until the first document, or once the watch is refused or ended.
     #[must_use]
     pub fn dismissed(&self, what: Dismissal) -> Option<bool> {
