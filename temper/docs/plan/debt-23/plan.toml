@@ -1,0 +1,3 @@
+draft = "debt-23"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-23/inputs/request.md", "temper/docs/plan/debt-23/inputs/debt21-review.md", "skein/docs/development/debt/D023-llm-client-states.md", "jig/docs/development/debt/D016-positional-payloads.md", "hearth/docs/development/debt/D006-lifecycles-in-flags.md"]
