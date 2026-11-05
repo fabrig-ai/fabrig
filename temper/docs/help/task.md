@@ -17,15 +17,13 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   rules for waking say. A change task is a delegate run by the forge,
   whose result is a change landed (temper help box) or an explanation
   that no change applies; it starts with
-  half of what its parent has left to spend. A change asks no one unless
-  its maker names its questions: then its producer, repairs and resolutions
-  ask it, and it has each question settled by a foreman of its own, which
-  reads the change's words and the design and answers, tells the producer
-  to finish, or passes the question up, or passes it straight to its
-  requester; it answers the asker, holding an answer until its dependencies
-  have landed, and past its bound of questions it holds. A question or words
-  a change does not take are answered that it takes none, naming its
-  requester; a party's words to it are taken unanswered.
+  half its parent's remaining spend. Questions go to `none`, a `foreman`
+  (answers, finishes or escalates), or `up` to its requester.
+  It relays producer, repair and resolution questions,
+  holds answers until dependencies land, and holds past its question bound.
+  To answer an escalation, use `read_task` on the change for its answer number, then `message` with
+  `form=answer`. Words and amendment reasons leave questions open; a party's
+  words are taken unanswered.
   A change whose authority no longer covers its next step (its tasks all
   made, its depth used, too little left to spend) holds, saying what it
   lacks; released with nothing more, it holds again, and its way out is
@@ -118,7 +116,9 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   `subscribe`, `introduce`, `decide_escalation` and `propose`.
   `read_task`: specs by default; `field=result` reads retained descendant reports
   through a proven same-project requester chain. Continue with `from=next`;
-  restart specs on a new revision.
+  restart revised specs. It lists durable question numbers and
+  answerers after delivery is consumed: use `message` to the printed target
+  with `form=answer` and `question` set to that number.
   `message` is offered only to a run whose authority holds the message
   family: a change's coder, repairer and resolver are offered it where
   the change relays their questions; its reviewer is not offered it.

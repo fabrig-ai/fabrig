@@ -2417,6 +2417,7 @@ fn task_reads_declare_read_effect_and_decode_continuations() {
 fn held_task_read() -> jig_domain_core::reads::run_task::TaskRead {
     jig_domain_core::reads::run_task::TaskRead {
         task: 23,
+        questions: Box::new([]),
         state: jig_domain_core::reads::run_task::TaskState::Held,
         spec_revision: 8,
         dependencies: Box::new([5]),
@@ -2571,4 +2572,24 @@ fn authority_deficits(bits: u16) -> jig_domain_authority::Lacks {
         notes: bits & 128 != 0,
         models: bits & 256 != 0,
     }
+}
+
+#[test]
+fn task_reads_name_durable_answer_targets_and_answerers() {
+    let mut read = held_task_read();
+    read.questions = Box::new([tasks::QuestionCredit {
+        number: 103,
+        answerer: tasks::Party::Task(18),
+        asked: tasks::Party::Task(18),
+        line: 106,
+    }]);
+    let rendered = answer(&engine::CallAnswer::TaskRead(Box::new(Ok(read))));
+    assert!(
+        skein_lib::bytes::find(rendered.text(), b"Answer target 23, question 103 answerer task 18, activity 106")
+            .is_some()
+    );
+    let refused = answer(&engine::CallAnswer::MessageRefused(tasks::Problem::new(Some(23), tasks::Refusal::Reference)));
+    assert!(refused.error());
+    assert!(skein_lib::bytes::find(refused.text(), b"Use read_task on the target task").is_some());
+    assert!(skein_lib::bytes::find(refused.text(), b"form=answer").is_some());
 }

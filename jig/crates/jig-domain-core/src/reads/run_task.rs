@@ -36,6 +36,8 @@ pub struct TaskRead {
     pub state: TaskState,
     pub spec_revision: u64,
     pub dependencies: Box<[u64]>,
+    /// Durable unanswered credits, bounded by `tasks.inbox_messages`.
+    pub questions: Box<[tasks::QuestionCredit]>,
     pub words: TaskText,
     pub hold: Option<TaskHold>,
 }
@@ -131,6 +133,7 @@ fn value(
         state,
         spec_revision: row.revisions.spec,
         dependencies: row.dependencies.clone(),
+        questions: row.questions.clone(),
         words,
         hold,
     })
@@ -264,6 +267,7 @@ pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Id<Pending>, resu
 pub fn owned_bytes(read: &TaskRead) -> u64 {
     let mut bytes = u64::try_from(read.words.bytes.len()).expect("bounded words");
     bytes = bytes.saturating_add(u64::try_from(size_of_val(read.dependencies.as_ref())).expect("bounded dependencies"));
+    bytes = bytes.saturating_add(u64::try_from(size_of_val(read.questions.as_ref())).expect("bounded questions"));
     if let Some(TaskHold { words: Some(words), .. }) = &read.hold {
         bytes = bytes.saturating_add(u64::try_from(words.len()).expect("bounded hold words"));
     }
@@ -276,6 +280,10 @@ pub fn answer_bound(limits: &Limits) -> Option<u64> {
     u64::try_from(size_of::<Result<TaskRead, tasks::Refusal>>())
         .ok()?
         .checked_add(u64::from(limits.tasks.dependencies).checked_mul(u64::try_from(size_of::<u64>()).ok()?)?)?
+        .checked_add(
+            u64::from(limits.tasks.inbox_messages)
+                .checked_mul(u64::try_from(size_of::<tasks::QuestionCredit>()).ok()?)?,
+        )?
         .checked_add(u64::from(limits.documents.text_bytes))?
         .checked_add(u64::from(tasks::HOLD_ACCOUNT_BYTES))
 }
@@ -283,6 +291,35 @@ pub fn answer_bound(limits: &Limits) -> Option<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn task_reads_keep_question_credits_after_delivery_is_consumed() {
+        let (core, mut limits) = crate::tests::make_tree();
+        let mut row = core.tasks.task(2).expect("delegate").clone();
+        row.inbox = Box::new([]);
+        limits.tasks.inbox_messages = 2;
+        let credit = tasks::QuestionCredit {
+            number: 103,
+            answerer: tasks::Party::Task(1),
+            asked: tasks::Party::Task(1),
+            line: 106,
+        };
+        row.questions = Box::new([credit.clone(), tasks::QuestionCredit { number: 104, ..credit.clone() }]);
+        let read = value(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[]).expect("requester read");
+        assert_eq!(read.questions, row.questions);
+        let inline = u64::try_from(size_of::<Result<TaskRead, tasks::Refusal>>()).expect("carrier");
+        assert!(answer_bound(&limits).expect("bounded answer") >= inline + owned_bytes(&read));
+        let mut without = read.clone();
+        without.questions = Box::new([]);
+        assert_eq!(
+            owned_bytes(&read) - owned_bytes(&without),
+            u64::try_from(size_of_val(row.questions.as_ref())).expect("credit bytes")
+        );
+        assert_eq!(
+            value(&core, &limits, 3, &row, TaskTextField::Specification, 0, &[]),
+            Err(tasks::Refusal::Reference)
+        );
+    }
 
     #[test]
     fn task_reads_preserve_connector_words_and_require_a_relationship() {

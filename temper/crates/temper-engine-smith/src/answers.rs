@@ -315,17 +315,13 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
             subscription_refusal(&mut text, *task, topic, cause, *limit, *existing)?;
             true
         }
+        CallAnswer::MessageRefused(problem) => refused_problem(&mut text, problem, true)?,
         CallAnswer::EscalationRefused(problem)
         | CallAnswer::ProposalRefused(problem)
         | CallAnswer::EffectRefused(problem)
         | CallAnswer::ControlRefused(problem)
-        | CallAnswer::MessageRefused(problem)
         | CallAnswer::SubscriptionRefused(problem)
-        | CallAnswer::DelegationRefused(problem) => {
-            text.add(b"Refused: ")?;
-            task_problem(&mut text, problem)?;
-            true
-        }
+        | CallAnswer::DelegationRefused(problem) => refused_problem(&mut text, problem, false)?,
         CallAnswer::Proposed { proposal, holder } => {
             proposed(&mut text, *proposal, *holder, task)?;
             false
@@ -1350,6 +1346,7 @@ fn task_read_metadata(text: &mut Text, read: &jig_domain_core::reads::run_task::
         text.add(b" ")?;
         text.number(*task)?;
     }
+    task_read_questions(text, read)?;
     if let Some(hold) = &read.hold {
         text.add(b"\nHold revision ")?;
         text.number(hold.revision)?;
@@ -1443,4 +1440,37 @@ fn task_read_words(text: &mut Text, words: &jig_domain_core::reads::TaskText, ma
     text.add(prefix)?;
     text.add(b"\nnext: ")?;
     text.number(words.from.checked_add(skein_lib::len_u64(prefix.len())).ok_or(Problem::TooLarge)?)
+}
+
+fn task_read_questions(text: &mut Text, read: &jig_domain_core::reads::run_task::TaskRead) -> Result<(), Problem> {
+    for question in &read.questions {
+        text.add(b"\nAnswer target ")?;
+        text.number(read.task)?;
+        text.add(b", question ")?;
+        text.number(question.number)?;
+        text.add(b" answerer ")?;
+        let (kind, number): (&[u8], u64) = match question.answerer {
+            jig_domain_tasks::Party::Task(number) => (b"task ", number),
+            jig_domain_tasks::Party::Person(number) => (b"person ", number),
+            jig_domain_tasks::Party::Deployment { project } => (b"deployment for project ", u64::from(project)),
+        };
+        text.add(kind)?;
+        text.number(number)?;
+        text.add(b", activity ")?;
+        text.number(question.line)?;
+    }
+    Ok(())
+}
+
+fn refused_problem(
+    text: &mut Text,
+    problem: &jig_domain_tasks::Problem,
+    recover_question: bool,
+) -> Result<bool, Problem> {
+    text.add(b"Refused: ")?;
+    task_problem(text, problem)?;
+    if recover_question && problem.why == jig_domain_tasks::Refusal::Reference {
+        text.add(b". Use read_task on the target task to find its open question number and authorized answerer; send message with target, form=answer and question set to that number.")?;
+    }
+    Ok(true)
 }
