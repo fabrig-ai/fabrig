@@ -92,7 +92,14 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             brief_outputs(domain, env, decision, &mut child);
         }
         core::Now::WorkspaceRequest { task, attempt, context } => workspace(domain, env, task, attempt, &context),
-        core::Now::BriefFailed { .. } => {}
+        core::Now::BriefFailed { task, failure } => {
+            let counts = match failure.fate {
+                brief::GatherFate::Capacity => "capacity",
+                brief::GatherFate::Transient => "transient",
+                brief::GatherFate::Permanent => "permanent",
+            };
+            super::diagnostics::emit(domain, crate::Fact::BriefFailed { task, counts, reason: failure.reason() });
+        }
         core::Now::RunPreparationFailed { task } => {
             drop(domain.brief_document_titles.remove(&task));
             if let Some(sections) = crate::link::take_sections(domain, task) {

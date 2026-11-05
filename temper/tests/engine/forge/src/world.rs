@@ -1189,6 +1189,7 @@ impl World {
                 | top::Request::News { .. }
                 | top::Request::Read { .. }
                 | top::Request::BriefReady { .. }
+                | top::Request::BriefReadRefused { .. }
                 | top::Request::BriefSized { .. }
                 | top::Request::BriefTaken { .. }
                 | top::Request::Drift { .. }) => {

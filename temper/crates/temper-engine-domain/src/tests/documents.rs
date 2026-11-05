@@ -351,7 +351,7 @@ fn a_gathered_document_keeps_its_kind_and_frees_the_binding_at_completion() {
     brief_outputs(&mut domain, &env, &mut decision, &mut requests);
     let Some(Work::Forge(event)) = domain.work.pop() else { panic!("forge gather") };
     forge::step(&mut domain.forge, &crate::translate::environment_forge(&env), event, &mut out);
-    let Some(forge::Request::BriefSized { section, size: Some(size) }) = out.pop() else { panic!("gathered words") };
+    let Some(forge::Request::BriefSized { section, size: Ok(size) }) = out.pop() else { panic!("gathered words") };
     assert_eq!(section, token);
     assert!(out.is_empty());
     requests.push(brief::GatherRequest::Complete {
