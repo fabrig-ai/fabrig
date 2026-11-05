@@ -992,6 +992,11 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
   the application's codec prints for the address; a reload. A go and a
   reload accept the page's closing warning, as a person who chose to go
   answers it (browser.md, section 6).
+  A semantic press whose node is `Gone` before mouse input finds its target
+  again, from its outermost scope and with its match number kept, and starts
+  a new press through the kit's checks. At most three such replacements are
+  tried; a missing replacement or an exhausted retry fails the act. Other
+  refusals fail at once. A press whose mouse input has begun is never retried.
 - **It reads the current address,** the kit's `Address`, from the page's
   navigation history (browser.md, section 6), as the address bar shows
   it: what the application's codec printed, or what its page replaced,

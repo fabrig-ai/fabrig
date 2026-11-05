@@ -42,3 +42,12 @@ fn a_hello_promising_more_unacknowledged_turns_than_smith_sends_does_not_fit() {
     let limits = Limits { bounds: host::Bounds { unacknowledged: 3, ..fixture.bounds }, ..limits() };
     assert!(!valid(&limits));
 }
+
+#[test]
+fn the_agent_capacity_must_cover_the_host_slots() {
+    let mut limits = limits();
+    limits.agent.agents = limits.host.slots;
+    assert!(valid(&limits), "equal agent capacity fits");
+    limits.agent.agents = limits.host.slots.checked_sub(1).unwrap();
+    assert!(!valid(&limits), "every host slot needs an agent");
+}

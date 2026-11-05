@@ -127,7 +127,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 
 ## checkout
 
-- `checkout.workspaces`: count, 3. Bounds workspaces cached on the worker's disk and held at once; preparation is refused when all are held.
+- `checkout.workspaces`: count, 3. Bounds workspaces cached on disk and held at once; at least the slots; preparation refuses when all are held.
 - `checkout.repositories`: count, 2. Bounds repositories named by one checkout specification.
 - `checkout.name_bytes`: bytes, 256. Bounds a workstream key, repository name, remote or branch.
 - `checkout.message_bytes`: bytes, 4,096. Bounds a commit message's title and body together.
@@ -139,7 +139,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 
 ## git_component
 
-- `git_component.operations`: count, 3. Bounds simultaneous git component operations.
+- `git_component.operations`: count, 3. Bounds simultaneous git component operations; at least the workspaces.
 - `git_component.stdout_bytes`: bytes, 1,024. Bounds standard output retained from a git operation.
 - `git_component.stderr_bytes`: bytes, 512. Bounds standard error retained from a git operation.
 - `git_component.read_bytes`: bytes, 4,096. Bounds one read from a git operation's output.
