@@ -5,7 +5,7 @@ use crate::{
     service::{Outcome, Request},
 };
 use skein_fake_forge_domain::{self as domain, api};
-use skein_fake_forge_protocol::git::{self, Call};
+use skein_fake_forge_http::git::{self, Call};
 use skein_forge::github::request::Method;
 use skein_lib::{
     Duration, List, ReplyTo, Secret, Token, Wall,

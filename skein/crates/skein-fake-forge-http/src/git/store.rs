@@ -9,7 +9,7 @@ use skein_fake_forge_domain::{self as domain, api};
 use skein_json::writer::Encoder;
 use skein_lib::{List, Set};
 
-pub(crate) fn answer(hosted: &mut Hosted<'_>, call: Call, limits: &Limits, cap: u32) -> Result<Box<[u8]>, api::Error> {
+pub fn answer(hosted: &mut Hosted<'_>, call: Call, limits: &Limits, cap: u32) -> Result<Box<[u8]>, api::Error> {
     let answer = match call {
         Call::Commit { parent, tree, message } => {
             Answer::Stored(domain::commit(hosted.domain, hosted.config, parent, tree, &message)?)
