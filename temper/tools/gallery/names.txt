@@ -21,6 +21,9 @@ home-needs-under-begin
 home-begin-settings-left
 home-begin-one-chats
 home-github
+home-morning-card
+home-answered
+home-one-need
 configure
 configure-typing
 configure-sending
