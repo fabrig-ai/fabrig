@@ -98,7 +98,7 @@ impl Host {
                             | reconcile::Need::Send { .. }
                             | reconcile::Need::Draw(_),
                         )
-                        | None => cut(&mut run, &mut self.connections, &mut self.plan_out),
+                        | None => cut(&mut run, Why::Down, &mut self.connections, &mut self.plan_out),
                     }
                     match run.pending.take() {
                         Some(reconcile::Need::Done(outcome)) => up.push(Event::Done { run: token, outcome }),
@@ -130,6 +130,10 @@ impl Host {
         if let (Kind::Forgejo(given), Plan::Create { .. }) = (&configured.kind, &plan) {
             crate::given::check_create(&given.limits, env.limits.string_bytes, &plan)
                 .expect("the owner checks a creation plan before sending it");
+        }
+        if let (Kind::Forgejo(given), Plan::Copy { .. }) = (&configured.kind, &plan) {
+            crate::given::check_copy(&given.limits, env.limits.string_bytes, &plan)
+                .expect("the owner checks a copy plan before sending it");
         }
         let refused = if configured.supports(&plan) {
             let mut busy = self.slots() == self.runs.capacity();
@@ -191,7 +195,7 @@ impl Host {
                     | reconcile::Need::Send { .. }
                     | reconcile::Need::Draw(_),
                 )
-                | None => cut(&mut run, &mut self.connections, &mut self.plan_out),
+                | None => cut(&mut run, Why::Down, &mut self.connections, &mut self.plan_out),
             }
             match run.pending.take() {
                 Some(reconcile::Need::Done(outcome)) => up.push(Event::Done { run: token, outcome }),
@@ -312,7 +316,7 @@ impl Host {
                 }
             }
             if let Some(token) = connection {
-                self.drive_connection(token, env, io);
+                self.drive_connection(token, env, up, io);
                 continue;
             }
             let mut next = None;
@@ -376,7 +380,13 @@ impl Host {
         self.closing && !self.ended && self.connections.is_empty()
     }
 
-    fn drive_connection(&mut self, token: Token, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) {
+    fn drive_connection(
+        &mut self,
+        token: Token,
+        env: &Env<Limits>,
+        up: &mut Queue<Event>,
+        io: &mut Queue<skein_io::Request>,
+    ) {
         let c = self.connections.get_mut(&token).expect("owned connection");
         c.link.fire(env.now, io);
         c.pump(env, io);
@@ -384,6 +394,9 @@ impl Host {
             && let Some(run) = self.runs.get_mut(&c.run)
             && run.connection == Some(token)
         {
+            if let Some(words) = c.words.take() {
+                up.push(Event::Said { run: c.run, words });
+            }
             run.reply(reply, &mut self.plan_out);
         }
         if c.closed && !c.ready() {
@@ -430,7 +443,7 @@ impl Host {
             return;
         }
         if run.deadline <= env.now {
-            cut(run, &mut self.connections, &mut self.plan_out);
+            cut(run, run.deadline_why, &mut self.connections, &mut self.plan_out);
             return;
         }
         let forge = configured(&self.settings, run.forge).expect("live runs name held forges");
@@ -475,18 +488,14 @@ fn open(run: Token, forge: &Forge, agent: &[u8], send: &Send, env: &Env<Limits>)
         },
     }
 }
-/// Ends a run at once, as its deadline does: its connection aborted, a send it waits
-/// on heard as down, and the run halted `Down`, its stop pending.
-fn cut(run: &mut Run, connections: &mut Map<Token, Connection>, out: &mut Queue<reconcile::Need>) {
+/// Ends a run at once with the given why, its connection aborted and its stop pending (6.3).
+fn cut(run: &mut Run, why: Why, connections: &mut Map<Token, Connection>, out: &mut Queue<reconcile::Need>) {
     if let Some(connection) = run.connection
         && let Some(c) = connections.get_mut(&connection)
     {
         c.abort();
     }
-    if run.send.is_some() {
-        run.step(reconcile::Event::Reply(Reply::Down), out);
-    }
-    run.halt(Why::Down, out);
+    run.halt(why, out);
 }
 impl core::fmt::Debug for Host {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

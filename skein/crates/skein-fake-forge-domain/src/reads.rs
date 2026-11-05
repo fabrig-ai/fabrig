@@ -39,6 +39,9 @@ use crate::{pulls, wiki};
 pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &Read) -> Result<Answer, Error> {
     let limits = &config.limits;
     let repository = domain.repositories.get(id).expect("a repository of the forge");
+    if repository.gone {
+        return Err(Error::Missing(What::Repository));
+    }
     match read {
         Read::Artifacts { run } => {
             let kept = crate::actions::run(repository, *run).or(Err(Error::Missing(What::Job)))?;

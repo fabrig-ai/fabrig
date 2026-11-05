@@ -1,6 +1,7 @@
 //! Durable setup needs and held manifest pages (protocol/forge.md, 2.6).
 pub(crate) mod diagnostics;
 pub(crate) mod lifecycle;
+pub(crate) mod making;
 pub(crate) mod public;
 mod routes;
 pub(crate) use routes::{MANIFEST_SCRIPT_HASH, MANIFEST_STYLE_HASH, PAGE_STYLE_HASH, busy};
@@ -321,7 +322,7 @@ impl Layer {
     pub(crate) fn lifecycle_ready(&self, engine: &crate::engine::Engine) -> bool {
         !self.closing
             && self.component.is_some()
-            && self.lifecycle.ready(&self.runs, self.env.limits.runs, &engine.domain)
+            && (self.lifecycle.ready(&self.runs, self.env.limits.runs, &engine.domain) || making::ready(engine))
     }
     /// A served page stays available for reload, until its own clock/count evicts it.
     pub(crate) fn page(&self, forge: u16, state: &[u8], now: Time) -> Option<&[u8]> {
@@ -459,6 +460,7 @@ fn forge(plan: &host::Plan) -> u16 {
         | host::Plan::Reconcile { forge, .. }
         | host::Plan::Adopt { forge, .. }
         | host::Plan::Create { forge, .. }
+        | host::Plan::Copy { forge, .. }
         | host::Plan::Paste { forge, .. }
         | host::Plan::Check { forge }
         | host::Plan::TakeOver { forge, .. }
@@ -516,6 +518,8 @@ pub(crate) fn request(engine: &mut crate::engine::Engine, run: Token) {
             .insert(
                 run,
                 Run {
+                    making: None,
+                    words: None,
                     first: None,
                     forge: number,
                     kind,
@@ -564,6 +568,7 @@ fn is_install(plan: &host::Plan) -> bool {
         | host::Plan::TakeOver { .. }
         | host::Plan::Adopt { .. }
         | host::Plan::Create { .. }
+        | host::Plan::Copy { .. }
         | host::Plan::Reachable { .. } => false,
     }
 }
@@ -578,6 +583,7 @@ fn matches_app_plan(plan: &host::Plan) -> bool {
         | host::Plan::TakeOver { .. }
         | host::Plan::Adopt { .. }
         | host::Plan::Create { .. }
+        | host::Plan::Copy { .. }
         | host::Plan::Reachable { .. } => false,
     }
 }
@@ -657,6 +663,10 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
                         engine.setup.down(host::Request::Answer { run, answer: host::Answer::Read(value) });
                     }
                     host::Need::Write { item, bytes } => {
+                        if item == skein_forge_setup::item::Item::Copying {
+                            making::copying(engine, run);
+                            continue;
+                        }
                         lifecycle::keep(
                             engine,
                             forge,
@@ -669,6 +679,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
             }
             host::Event::Done { run, outcome } => lifecycle::done(engine, run, outcome),
             host::Event::Stop { run, failure } => lifecycle::stopped(engine, run, failure),
+            host::Event::Said { run, words } => making::said(engine, run, words),
             host::Event::Closed => engine.setup.closed = true,
         }
         if engine.end.is_some() {
@@ -714,7 +725,7 @@ fn item_record(item: skein_forge_setup::item::Item) -> Option<Item> {
         I::AppSlug => Item::AppSlug,
         I::AppKey => Item::AppKey,
         I::Accepted => Item::Accepted,
-        I::Pasted => return None,
+        I::Pasted | I::Copying => return None,
     })
 }
 #[expect(
@@ -799,6 +810,9 @@ fn read_item(
         if item == skein_forge_setup::item::Item::AdminToken {
             return None; // A caller's admin read never falls back to records or adoptions.
         }
+    }
+    if item == skein_forge_setup::item::Item::Copying {
+        return making::read(engine, run);
     }
     if item == skein_forge_setup::item::Item::Pasted {
         return None;

@@ -233,6 +233,8 @@ fn indices_are_kept() {
     for (index, name) in KEPT_INDICES.iter().enumerate() {
         assert_eq!(table::TOOLS[index].name, *name, "old index {index}");
     }
+    assert_eq!(table::TOOLS[65].name, b"repository make");
+    assert_eq!(table::TOOLS[66].name, b"repository copy");
     assert_eq!(table::TOOLS[usize::from(jig::rows::TASK_DECIDE_AT)].name, b"task decide");
     for (index, group) in table::GROUPS.iter().enumerate() {
         if table::TOOLS.iter().any(|row| row.name == group.name) {

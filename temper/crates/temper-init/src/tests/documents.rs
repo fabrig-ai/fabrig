@@ -129,7 +129,8 @@ fn the_default_is_the_owned_example_so_edited() {
             "{row}"
         );
         let mut expected = owned.clone();
-        expected["engine"]["acts"] = json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account"] }]);
+        expected["engine"]["acts"] =
+            json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account", "adopt"] }]);
         assert!(!actual["engine"]["owners"].as_array().unwrap().is_empty());
         // The startup turn_bounds writer holds these to each document's own
         // agent; init adds a demo endpoint, so smith derives a different T.

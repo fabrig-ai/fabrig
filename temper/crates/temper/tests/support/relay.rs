@@ -837,6 +837,9 @@ pub mod managed_transport {
     }
     pub struct Answer(Message);
     impl Answer {
+        pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+            read_message(&mut io::Cursor::new(bytes), Some("POST"))?.map(Self).ok_or_else(invalid)
+        }
         pub fn status(&self) -> Result<u16> {
             self.0.status()
         }

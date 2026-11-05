@@ -21,7 +21,11 @@ const ASK_PLAN: &[u8] =
 /// The caller owns its plan regardless of who requested it (domain/agent.md, 4.3.2).
 pub(crate) fn refusal(domain: &Domain, task: u64, advisor: bool, agree: bool) -> Option<&'static [u8]> {
     let row = domain.core.tasks.task(task)?;
-    if row.tracked.is_some() && row.spec.asks && (agree || !advisor) {
+    if row.tracked.is_some()
+        && row.spec.asks
+        && (!row.asked_requester || requester_question(row).is_some())
+        && (agree || !advisor)
+    {
         Some(ASK_PLAN)
     } else if advisor && agree {
         Some(b"an advisor agrees nothing: set agree or advisor, not both")
@@ -169,6 +173,15 @@ pub(crate) fn change_refusal(domain: &Domain, task: u64) -> Option<Box<[u8]>> {
     if !row.asked_requester {
         return Some(ASK_PLAN.into());
     }
+    let number = Decimal::of(requester_question(row)?);
+    let label = b"wait for the answer to question ";
+    let mut writer = Writer::new(label.len().checked_add(number.as_bytes().len()).expect("bounded question refusal"));
+    writer.put(label).expect("measured question refusal");
+    writer.put(number.as_bytes()).expect("measured question number");
+    Some(writer.finish())
+}
+
+fn requester_question(row: &tasks::TaskRecord) -> Option<u64> {
     let mut pending = None;
     for question in &row.questions {
         if question.asked == row.requester {
@@ -178,12 +191,7 @@ pub(crate) fn change_refusal(domain: &Domain, task: u64) -> Option<Box<[u8]>> {
             });
         }
     }
-    let number = Decimal::of(pending?);
-    let label = b"wait for the answer to question ";
-    let mut writer = Writer::new(label.len().checked_add(number.as_bytes().len()).expect("bounded question refusal"));
-    writer.put(label).expect("measured question refusal");
-    writer.put(number.as_bytes()).expect("measured question number");
-    Some(writer.finish())
+    pending
 }
 
 /// The root reads the chat's own immutable activity, newest first, independently of its caller's summary.

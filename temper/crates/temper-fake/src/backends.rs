@@ -430,7 +430,19 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
             &text(&git)?,
             b",\"admin_token\":",
             &text(&path(&paths.data, b"forgejo-admin.token"))?,
-            br#", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}]}"#,
+            br##", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}],
+                "sources":[
+                    {"address":"https://code.example.invalid/acme/widget","repository":{
+                        "owner":"acme","name":"widget","landing":"main","tree":[
+                            {"path":"README.md","content":"# Widget\n"},
+                            {"path":".github/workflows/ci.yml","content":"name: ci\non: [push, pull_request]\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo widget\n"}
+                        ]}},
+                    {"address":"https://code.example.invalid/acme/gadget","repository":{
+                        "owner":"acme","name":"gadget","landing":"trunk","branches":["topic"],"tree":[
+                            {"path":"README.md","content":"# Gadget\n"},
+                            {"path":".github/workflows/ci.yml","content":"name: ci\non: [push, pull_request]\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo gadget\n"}
+                        ]}}
+                ]}"##,
         ]),
     })
 }

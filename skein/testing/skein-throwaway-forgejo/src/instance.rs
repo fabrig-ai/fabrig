@@ -1,4 +1,5 @@
 use crate::{Account, Exchange, Failure, Forgejo, Init, Made, Outgoing, Settings, Token, WorkPath, http};
+use skein_lib::Duration;
 use skein_world::{Deadline, Expired};
 use std::{
     fs::{self, File},
@@ -60,20 +61,7 @@ impl Instance {
             "admin",
             &instance.secrets,
         )?;
-        let log = File::create(instance.scratch.join("server.log"))?;
-        *instance.child.get_mut().expect("child lock") = Some(
-            instance
-                .work
-                .as_ref()
-                .expect("prepared work path")
-                .command()
-                .arg("web")
-                .stdout(log.try_clone()?)
-                .stderr(log)
-                .spawn()
-                .map_err(|e| Failure::Spawn { step: "web", error: e.to_string() })?,
-        );
-        instance.ready()?;
+        instance.restart()?;
         let password = instance.admin.password.clone();
         instance.admin.token = instance.token("fixture", &password)?;
         let user = instance.exchange(&Outgoing::get("/api/v1/user", Some(&instance.admin.token)))?;
@@ -102,15 +90,15 @@ impl Instance {
         instance.admin.id = number(&value(&user)?, b"id").ok_or_else(|| Failure::Io("admin id missing".into()))?;
         Ok(instance)
     }
-    fn ready(&mut self) -> Result<(), Failure> {
+    fn ready(&self) -> Result<(), Failure> {
         let interval = skein_lib::Duration::from_millis(50);
         let mut deadline = Deadline::arm(
             "the throwaway Forgejo startup",
             interval.saturating_mul(u64::from(self.settings.ready_polls)),
         );
-        deadline.watch_process(self.child.get_mut().expect("child lock").as_ref().expect("web started").id());
+        deadline.watch_process(self.child.lock().expect("child lock").as_ref().expect("web started").id());
         for _ in 0..self.settings.ready_polls {
-            if let Some(status) = self.child.get_mut().expect("child lock").as_mut().expect("web started").try_wait()? {
+            if let Some(status) = self.child.lock().expect("child lock").as_mut().expect("web started").try_wait()? {
                 return Err(Failure::Exited { step: "web", status: status.to_string(), log_tail: self.log_tail() });
             }
             if self.exchange(&Outgoing::get("/api/v1/version", None)).is_ok_and(|x| x.status == 200) {
@@ -121,7 +109,7 @@ impl Instance {
             }
             http::host::wait(deadline.remaining().min(interval))?;
         }
-        if let Some(status) = self.child.get_mut().expect("child lock").as_mut().expect("web started").try_wait()? {
+        if let Some(status) = self.child.lock().expect("child lock").as_mut().expect("web started").try_wait()? {
             return Err(Failure::Exited { step: "web", status: status.to_string(), log_tail: self.log_tail() });
         }
         let log_tail = self.log_tail();
@@ -170,6 +158,7 @@ impl Instance {
         let response = self.request(
             &Outgoing::json("POST", &target, None, b"{\"name\":\"throwaway\",\"scopes\":[\"all\"]}"),
             Some(&auth),
+            Duration::from_secs(10),
         )?;
         self.expect(&target, &response, 201)?;
         let token = text(&value(&response)?, b"sha1").ok_or_else(|| Failure::Io("token missing".into()))?;
@@ -263,19 +252,25 @@ impl Instance {
     /// # Errors
     /// Returns a connection, framing or bounded-read failure.
     pub fn exchange(&self, outgoing: &Outgoing<'_>) -> Result<Exchange, Failure> {
+        self.exchange_patient(outgoing, Duration::from_secs(10))
+    }
+    /// One exchange with the caller's patience for the answer after connecting.
+    /// # Errors
+    /// Returns a connection, framing or bounded-read failure.
+    pub fn exchange_patient(&self, outgoing: &Outgoing<'_>, patience: Duration) -> Result<Exchange, Failure> {
         let auth = outgoing.token.map(|t| format!("token {}", t.value()));
-        self.request(outgoing, auth.as_deref())
+        self.request(outgoing, auth.as_deref(), patience)
     }
     /// One basic-auth exchange with the credential masked in the recording.
     /// # Errors
     /// Returns a connection, framing or bounded-read failure.
     pub fn exchange_basic(&self, outgoing: &Outgoing<'_>, login: &str, secret: &str) -> Result<Exchange, Failure> {
         let auth = format!("Basic {}", http::basic(&format!("{login}:{secret}")));
-        self.request(outgoing, Some(&auth))
+        self.request(outgoing, Some(&auth), Duration::from_secs(10))
     }
-    fn request(&self, outgoing: &Outgoing<'_>, auth: Option<&str>) -> Result<Exchange, Failure> {
+    fn request(&self, outgoing: &Outgoing<'_>, auth: Option<&str>, patience: Duration) -> Result<Exchange, Failure> {
         let process = self.child.lock().expect("child lock").as_ref().map(Child::id);
-        let result = http::exchange(self.port, outgoing, auth, self.settings.answer_bytes, process);
+        let result = http::exchange(self.port, outgoing, auth, self.settings.answer_bytes, process, patience);
         match result {
             Ok(exchange) => Ok(exchange),
             Err(http::Attempt::Failed(error)) => Err(error),
@@ -293,17 +288,50 @@ impl Instance {
     pub fn secrets(&self) -> Vec<String> {
         self.secrets.clone()
     }
+    /// Ends the owned process and keeps its scratch for a restart.
+    /// # Errors
+    /// Refuses an attached instance or returns a child termination failure.
+    pub fn kill(&self) -> Result<(), Failure> {
+        self.work.as_ref().ok_or_else(|| Failure::Io("attached instance has no offline work path".into()))?;
+        self.end_child()
+    }
+    /// Starts the owned process on its existing scratch and port, waiting for its API.
+    /// # Errors
+    /// Refuses an attached or running instance, or returns a startup failure.
+    pub fn restart(&self) -> Result<(), Failure> {
+        let work =
+            self.work.as_ref().ok_or_else(|| Failure::Io("attached instance has no offline work path".into()))?;
+        {
+            let mut child = self.child.lock().expect("child lock");
+            if child.is_some() {
+                return Err(Failure::Io("instance is already running; kill it before restarting".into()));
+            }
+            let log = File::options().create(true).append(true).open(self.scratch.join("server.log"))?;
+            *child = Some(
+                work.command()
+                    .arg("web")
+                    .stdout(log.try_clone()?)
+                    .stderr(log)
+                    .spawn()
+                    .map_err(|e| Failure::Spawn { step: "web", error: e.to_string() })?,
+            );
+        }
+        self.ready()
+    }
     /// # Errors
     /// Returns a child or scratch removal failure after attempting both.
     pub fn stop(self) -> Result<(), Failure> {
         self.cleanup()
     }
-    fn cleanup(&self) -> Result<(), Failure> {
-        let child_result = self.child.lock().expect("child lock").take().map_or(Ok(()), |mut child| {
+    fn end_child(&self) -> Result<(), Failure> {
+        self.child.lock().expect("child lock").take().map_or(Ok(()), |mut child| {
             let kill = child.kill();
             let wait = child.wait();
-            kill.and(wait.map(|_| ()))
-        });
+            kill.and(wait.map(|_| ())).map_err(Failure::from)
+        })
+    }
+    fn cleanup(&self) -> Result<(), Failure> {
+        let child_result = self.end_child();
         let remove = if self.work.is_some() { fs::remove_dir_all(&self.scratch) } else { Ok(()) };
         child_result?;
         remove?;
@@ -394,8 +422,9 @@ pub(crate) fn ini(scratch: &Path, port: u16, settings: &Settings, user: &str, se
         .webhook_hosts
         .as_ref()
         .map_or_else(String::new, |hosts| format!("[webhook]\nALLOWED_HOST_LIST = {hosts}\n"));
+    let migrations = if settings.local_migrations { "[migrations]\nALLOW_LOCALNETWORKS = true\n" } else { "" };
     format!(
-        "APP_NAME = kit throwaway\nRUN_USER = {user}\nWORK_PATH = {path}\n[server]\nPROTOCOL = http\nHTTP_ADDR = 127.0.0.1\nHTTP_PORT = {port}\nROOT_URL = http://127.0.0.1:{port}/\nAPP_DATA_PATH = {path}/data\nDISABLE_SSH = true\nOFFLINE_MODE = true\n[database]\nDB_TYPE = sqlite3\nPATH = {path}/forgejo.db\n[repository]\nROOT = {path}/repositories\nDEFAULT_BRANCH = main\n[security]\nINSTALL_LOCK = true\nSECRET_KEY = {secret}\nINTERNAL_TOKEN = {internal}\n[service]\nDISABLE_REGISTRATION = true\n[log]\nMODE = console\nLEVEL = Error\n[git]\nPATH = {}\n[actions]\nENABLED = {}\n{cap}{hooks}",
+        "APP_NAME = kit throwaway\nRUN_USER = {user}\nWORK_PATH = {path}\n[server]\nPROTOCOL = http\nHTTP_ADDR = 127.0.0.1\nHTTP_PORT = {port}\nROOT_URL = http://127.0.0.1:{port}/\nAPP_DATA_PATH = {path}/data\nDISABLE_SSH = true\nOFFLINE_MODE = true\n[database]\nDB_TYPE = sqlite3\nPATH = {path}/forgejo.db\n[repository]\nROOT = {path}/repositories\nDEFAULT_BRANCH = main\n[security]\nINSTALL_LOCK = true\nSECRET_KEY = {secret}\nINTERNAL_TOKEN = {internal}\n[service]\nDISABLE_REGISTRATION = true\n[log]\nMODE = console\nLEVEL = Error\n[git]\nPATH = {}\n[actions]\nENABLED = {}\n{cap}{hooks}{migrations}",
         settings.git.display(),
         settings.actions
     )

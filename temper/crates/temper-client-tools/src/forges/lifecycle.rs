@@ -69,7 +69,8 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
             let end = match request.request() {
                 w::Request::EndPlayground => true,
                 w::Request::RemoveForge(_) => false,
-                w::Request::Adopt(_)
+                w::Request::MakeRepository(_)
+                | w::Request::Adopt(_)
                 | w::Request::SetUp(_)
                 | w::Request::Dismiss(_)
                 | w::Request::Return(_)
@@ -251,6 +252,8 @@ fn answer_words(answer: w::Outcome, end: bool) -> Option<AnswerWords> {
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Dismissed
         | w::Outcome::EndRefused(_)
+        | w::Outcome::MakeKept
+        | w::Outcome::MakeRefused(_)
         | w::Outcome::Adopted(_)
         | w::Outcome::CoreRefused(_)
         | w::Outcome::ForgeRefused(_)

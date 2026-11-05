@@ -364,6 +364,7 @@ fn user_repos_harness(all_repositories: bool) -> fixtures::Harness {
         repositories,
         max_response_items: 4,
         default_paging_num: 4,
+        sources: Box::new([]),
         faults: Faults { reset: 0, drop: 0, server_error: 0 },
     };
     let mut h = fixtures::Harness::new(config);

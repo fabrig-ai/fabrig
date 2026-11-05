@@ -20,6 +20,7 @@ mod kinds;
 mod landing_routes;
 mod limits;
 mod make;
+mod making;
 mod panel;
 mod playground;
 mod projection;
@@ -87,6 +88,7 @@ const LIMITS: Limits = Limits {
     output: 80,
     facts: 16,
     adoptions: 2,
+    makings: 2,
     applications: 4,
     bindings: 4,
     collaborators: 8,
@@ -401,6 +403,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BoxRemove { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
+        | Request::MakingCopied { .. }
+        | Request::MakingAct { .. }
         | Request::RestartDone { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
@@ -482,6 +486,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BoxRemove { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
+        | Request::MakingCopied { .. }
+        | Request::MakingAct { .. }
         | Request::RestartDone { .. } => panic!("branches call"),
     };
     assert!(
@@ -560,6 +566,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BoxRemove { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
+        | Request::MakingCopied { .. }
+        | Request::MakingAct { .. }
         | Request::RestartDone { .. } => panic!("settings follows collision read"),
     }
 }
@@ -1559,6 +1567,7 @@ fn setup_row(number: u16, kind: Kind, connection: Connection, offer: Offer) -> R
         app: None,
         web: None,
         repositories: Box::new([]),
+        makings: Box::new([]),
         owned: None,
         admin: false,
         read_only: false,
@@ -1997,6 +2006,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                     files: 1,
                     file_bytes: 4096,
                     deadline: Duration::from_secs(120),
+                    copy_deadline: Duration::from_secs(1800),
                     backoff: Duration::from_millis(100),
                     backoff_max: Duration::from_secs(5),
                 };

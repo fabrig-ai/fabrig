@@ -80,9 +80,12 @@ task turn TASK TURN [--part PART] [--from OFFSET]
   --part PART: a number; optional. Only this part
   --from OFFSET: a number; optional. From this byte of the part
 Read one turn of a task's run, part by part
-Prints: A turn's header, then its words, calls and results in order; a cut part ends with `N bytes left; read on with: task turn TASK TURN --part PART --from OFFSET`
+Prints: A turn's header, then its words including the brief supplied to the run, calls and results in order; a cut part ends with `N bytes left; read on with: task turn TASK TURN --part PART --from OFFSET`
 --json: the record turn.
 Key: none.
+Read task activity TASK to find the attempt and turn as A.T, then
+task turn TASK A.T. Archived turn text includes the brief supplied to the run,
+with charter document sections and their recorded commits.
 A part prints at most 16384 bytes at a time. A turn past ctl's
 bound prints its size and `past the limit; report it`, and one it
 cannot decode `unreadable; report it`, both with exit 0: report

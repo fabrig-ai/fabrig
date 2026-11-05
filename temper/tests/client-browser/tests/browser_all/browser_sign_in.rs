@@ -22,11 +22,14 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
         Step::Person(PersonStep::Reload),
         see(first_chat(b"Hello")),
         see(tier.states().live),
+        temper_client_browser_world::connected(),
         Step::Address(FIRST_CHAT_ADDRESS.into()),
         Step::StopServer,
         see(Find::exactly_named(Role::Status, b"Offline")),
         Step::StartServer,
+        Step::Person(PersonStep::Gone { find: tier.states().offline, within: WITHIN }),
         see(tier.states().live),
+        temper_client_browser_world::connected(),
         see(first_chat(b"Hello")),
     ]);
     for _ in 0..RAPID_RELOADS {
@@ -34,6 +37,7 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
     }
     steps.extend([
         see(tier.states().live),
+        temper_client_browser_world::connected(),
         Step::Address(FIRST_CHAT_ADDRESS.into()),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Settings") }),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Sign out") }),

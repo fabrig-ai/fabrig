@@ -69,6 +69,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.name_bytes`: bytes, 64. Bounds names retained by the forge connector.
 - `forge.output`: count, 80. Bounds output records reserved for one forge step.
 - `forge.facts`: count, 16. Bounds facts awaiting the forge connector's drain.
+- `forge.makings`: count, 32. Bounds repositories being made or failed, from 1 to 64.
 - `forge.adoptions`: count, 2. Bounds repository adoptions in flight.
 - `forge.applications`: count, 32. Bounds keyed adoption answers retained for request retention.
 - `forge.collaborators`: count, 8. Bounds collaborators retained by the forge connector.

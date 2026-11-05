@@ -22,7 +22,7 @@
 
 ## Why it matters
 
-The same shape as D013: positions instead of entries, and flags whose
+The same shape: positions instead of entries, and flags whose
 meaning depends on a state the type does not hold. The phase
 comparisons are where the review found `SignIn`, `Refresh` and
 `Revoke` dropped outside `Idle` with no terminal.

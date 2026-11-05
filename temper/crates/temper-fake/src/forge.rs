@@ -9,7 +9,7 @@ use skein_fake_forge_domain::{self as domain, api};
 use skein_fake_forge_protocol as forgejo;
 use skein_fake_peers::forge::Forge;
 use skein_forge_setup::given::login;
-use skein_lib::{Duration, List, Secret, bytes};
+use skein_lib::{Duration, Env, List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes};
 use temper_forge_setup::name::{branch, relative, repository};
 
 /// Setup increments its account number before insertion, so it cannot issue MAX.
@@ -38,6 +38,16 @@ pub struct Repository {
     pub landing: Box<[u8]>,
     pub ci: Option<Ci>,
 }
+/// A source repository and its public catalogue address (protocol/setup.md, 7.5).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Source {
+    pub address: Box<[u8]>,
+    pub repository: Box<[u8]>,
+    pub landing: Box<[u8]>,
+    pub tree: Box<[api::File]>,
+    pub branches: Box<[Box<[u8]>]>,
+    pub private: bool,
+}
 /// The checked standalone forge document; it reads no deployment or bot identity.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Document {
@@ -45,6 +55,7 @@ pub struct Document {
     admin_token: Box<[u8]>,
     owner: Box<[u8]>,
     repositories: Box<[Repository]>,
+    sources: Box<[Source]>,
     github: Option<github::Github>,
     ci_ms: u32,
 }
@@ -71,6 +82,7 @@ impl Document {
             admin_token: bytes::copy_of(admin_token),
             owner: fake.owner.clone(),
             repositories: repositories.into_boxed(),
+            sources: Box::new([]),
             github: None,
             ci_ms: 0,
         }
@@ -94,6 +106,10 @@ impl Document {
         let admin_token = read::field(&mut o, &d, b"admin_token", crate::limits::PATH_BYTES, &p)?;
         let owner = read::field(&mut o, &d, b"owner", 40, &p)?;
         let repositories_at = read::required(&mut o, &d, b"repositories", &p)?;
+        let sources = match o.member(&d, b"sources") {
+            Some(at) => sources(&d, at, &p.member(b"sources"))?,
+            None => Box::new([]),
+        };
         let github = match o.member(&d, b"github") {
             Some(at) => Some(github::decode(&d, at, &p.member(b"github"))?),
             None => None,
@@ -183,7 +199,8 @@ impl Document {
         if let Some(github) = &github {
             github.check(repositories.as_slice())?;
         }
-        Ok(Self { listen, admin_token, owner, repositories: repositories.into_boxed(), github, ci_ms })
+        check_sources(&sources, repositories.as_slice())?;
+        Ok(Self { listen, admin_token, owner, repositories: repositories.into_boxed(), sources, github, ci_ms })
     }
     #[must_use]
     pub fn listen(&self) -> SocketAddr {
@@ -201,9 +218,14 @@ impl Document {
     pub fn repositories(&self) -> &[Repository] {
         &self.repositories
     }
+    #[must_use]
+    pub fn sources(&self) -> &[Source] {
+        &self.sources
+    }
     /// The same seed order gives the same commit at every start: skein stores
     /// tree, message and parents, with no author or time; its id is a count.
-    /// No grant is seeded. Seed observations are drained, so a file holds the run alone.
+    /// Source branch setup retains no write permission. Seed observations are drained,
+    /// so a file holds the run alone.
     #[must_use]
     pub fn seed(&self, seed: u64) -> (Forge, forgejo::Config) {
         let mut domain = domain::Domain::new(&LIMITS, seed);
@@ -244,11 +266,8 @@ impl Document {
             }
             repositories.push(forgejo::Repository { id, full, protected: None }).expect("sixteen repositories");
         }
-        for _ in 0..LIMITS.limits.observations {
-            if domain.pop_observation().is_none() {
-                break;
-            }
-        }
+        let sources = seed_sources(&mut domain, &mut repositories, &self.sources);
+        drain_seed_observations(&mut domain);
         let mut users = List::with_capacity(1);
         users.push((OWNER, self.owner.clone())).expect("one domain owner");
         let config = forgejo::Config {
@@ -258,10 +277,214 @@ impl Document {
             repositories,
             max_response_items: 32,
             default_paging_num: 30,
+            sources,
             hooks: None,
             faults: forgejo::Faults { reset: 0, drop: 0, server_error: 0 },
         };
         (Forge::new(domain, LIMITS), config)
+    }
+}
+fn sources(d: &skein_json::Document, at: u32, p: &Path) -> Result<Box<[Source]>, Refusal> {
+    let items = read::list(d, at, 0, p)?;
+    let mut sources = List::<Source>::with_capacity(items.len());
+    for (i, at) in items.iter().enumerate() {
+        let p = read::index(p, i);
+        let mut o = read::object(d, *at, &p)?;
+        let address = read::field(&mut o, d, b"address", 512, &p)?;
+        source_address(&address, &p.member(b"address"))?;
+        let repository_at = read::required(&mut o, d, b"repository", &p)?;
+        let private = match o.member(d, b"private") {
+            Some(at) => match jig_protocol_config::read::boolean(d, at) {
+                Ok(private) => private,
+                Err(why) => return Err(read::kind(&p.member(b"private"), why)),
+            },
+            None => false,
+        };
+        read::finish(o, d, &p)?;
+        let rp = p.member(b"repository");
+        let mut o = read::object(d, repository_at, &rp)?;
+        let owner = read::field(&mut o, d, b"owner", 40, &rp)?;
+        let name = read::field(&mut o, d, b"name", 100, &rp)?;
+        if !login(&owner) {
+            return Err(read::why(&rp.member(b"owner"), b"expected a Forgejo login"));
+        }
+        if !repository(&name) {
+            return Err(read::why(&rp.member(b"name"), b"expected a Forgejo repository name"));
+        }
+        let repository = read::joined(&[&owner, b"/", &name]);
+        let landing = read::field(&mut o, d, b"landing", LIMITS.limits.name_bytes, &rp)?;
+        if !branch(&landing) {
+            return Err(read::why(&rp.member(b"landing"), b"expected a branch name"));
+        }
+        let at = read::required(&mut o, d, b"tree", &rp)?;
+        let tree = tree(d, at, &rp.member(b"tree"))?;
+        let mut branches = List::with_capacity(crate::ENTRIES);
+        if let Some(at) = o.member(d, b"branches") {
+            let bp = rp.member(b"branches");
+            for (i, at) in read::list(d, at, 0, &bp)?.iter().enumerate() {
+                let bp = read::index(&bp, i);
+                let name = read::text(d, *at, LIMITS.limits.name_bytes, &bp)?;
+                if !branch(&name) {
+                    return Err(read::why(&bp, b"expected a branch name"));
+                }
+                if name == landing || branches.as_slice().contains(&name) {
+                    return Err(read::why(&bp, b"must be unique and other than landing"));
+                }
+                branches.push(name).expect("bounded branches");
+            }
+        }
+        read::finish(o, d, &rp)?;
+        for previous in &sources {
+            if previous.address == address || previous.repository == repository {
+                return Err(read::why(&p, b"source address and repository must be unique"));
+            }
+        }
+        sources
+            .push(Source { address, repository, landing, tree, branches: branches.into_boxed(), private })
+            .expect("bounded sources");
+    }
+    Ok(sources.into_boxed())
+}
+fn source_address(address: &[u8], p: &Path) -> Result<(), Refusal> {
+    let why = read::why(p, b"expected an https source address with a DNS host");
+    let tail = address.strip_prefix(b"https://").ok_or(why.clone())?;
+    let slash = bytes::find(tail, b"/").ok_or(why.clone())?;
+    let authority = tail.get(..slash).expect("found separator");
+    let host = match bytes::find(authority, b":") {
+        None => authority,
+        Some(colon) => {
+            let port = authority.get(colon.saturating_add(1)..).expect("found colon");
+            let port = skein_forge::forgejo::id::unsigned(port).ok_or(why.clone())?;
+            if port == 0 || port > u64::from(u16::MAX) {
+                return Err(why);
+            }
+            authority.get(..colon).expect("found colon")
+        }
+    };
+    if !host.ends_with(b".invalid") || host.len() <= b".invalid".len() {
+        return Err(read::why(&p.member(host), b"expected a host ending in .invalid"));
+    }
+    let mut label_start = true;
+    let mut hyphen = false;
+    for byte in host {
+        if *byte == b'.' {
+            if label_start || hyphen {
+                return Err(why);
+            }
+            label_start = true;
+        } else {
+            if (!byte.is_ascii_alphanumeric() && *byte != b'-') || (label_start && *byte == b'-') {
+                return Err(why);
+            }
+            label_start = false;
+        }
+        hyphen = *byte == b'-';
+    }
+    if label_start || hyphen {
+        return Err(why);
+    }
+    Ok(())
+}
+fn check_sources(sources: &[Source], repositories: &[Repository]) -> Result<(), Refusal> {
+    let p = Path::root().member(b"sources");
+    let count = sources.len().checked_add(repositories.len()).expect("bounded lists");
+    if count > usize::try_from(crate::ENTRIES).expect("u32 fits") {
+        return Err(read::why(&p, b"sources and repositories together are past their bound"));
+    }
+    let count = u32::try_from(sources.len()).expect("bounded sources");
+    for repository in repositories {
+        if repository.id.unwrap_or(0).checked_add(count).is_none() {
+            return Err(read::why(&p, b"no repository ids left for sources"));
+        }
+        let full = read::joined(&[&repository.owner, b"/", &repository.name]);
+        for source in sources {
+            if source.repository == full {
+                return Err(read::why(&p, b"source repository must be other than repositories"));
+            }
+        }
+    }
+    Ok(())
+}
+fn seed_sources(
+    domain: &mut domain::Domain,
+    repositories: &mut List<forgejo::Repository>,
+    sources: &[Source],
+) -> Box<[forgejo::Source]> {
+    let mut catalogue = List::with_capacity(crate::ENTRIES);
+    let mut id = 0_u32;
+    for repository in &*repositories {
+        id = id.max(repository.id);
+    }
+    for source in sources {
+        id = id.checked_add(1).expect("checked source ids");
+        let first = domain::repository(
+            domain,
+            &LIMITS,
+            api::Setup {
+                workflows: Box::new([]),
+                id,
+                name: source.repository.clone(),
+                default: source.landing.clone(),
+                tree: source.tree.clone(),
+                labels: Box::new([]),
+                checks: checks(None),
+                protection: None,
+                hooked: false,
+            },
+        );
+        seed_branches(domain, source, first);
+        domain::grant(domain, &source.repository, 1, api::Permission::Read);
+        drain_seed_observations(domain);
+        repositories
+            .push(forgejo::Repository { id, full: source.repository.clone(), protected: None })
+            .expect("checked joint repository bound");
+        catalogue
+            .push(forgejo::Source {
+                address: source.address.clone(),
+                repository: source.repository.clone(),
+                private: source.private,
+                fill: api::Fill::Whole,
+            })
+            .expect("bounded sources");
+    }
+    catalogue.into_boxed()
+}
+fn seed_branches(domain: &mut domain::Domain, source: &Source, first: u64) {
+    if source.branches.is_empty() {
+        return;
+    }
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
+    let mut out = Queue::with_capacity(LIMITS.limits.calls);
+    domain::grant(domain, &source.repository, OWNER, api::Permission::Admin);
+    for branch in &source.branches {
+        domain::step(
+            domain,
+            &env,
+            domain::Event::Call {
+                reply_to: ReplyTo::new(Token::new(1)),
+                user: OWNER,
+                repository: source.repository.clone(),
+                op: api::Op::Write(api::Write::CreateBranch { branch: branch.clone(), commit: first }),
+            },
+            &mut out,
+        );
+        domain::fire(domain, &env, &mut out);
+        match out.pop().expect("zero-latency branch answer") {
+            domain::Request::Reply { result, .. } => {
+                result.expect("checked source branch");
+            }
+            domain::Request::Hook { .. } => unreachable!("source hooks are disabled"),
+        }
+        assert!(out.is_empty(), "one source branch answer");
+        domain.reclaim();
+    }
+    domain::grant(domain, &source.repository, OWNER, api::Permission::None);
+}
+fn drain_seed_observations(domain: &mut domain::Domain) {
+    for _ in 0..LIMITS.limits.observations {
+        if domain.pop_observation().is_none() {
+            break;
+        }
     }
 }
 fn tree(d: &skein_json::Document, at: u32, p: &Path) -> Result<Box<[api::File]>, Refusal> {

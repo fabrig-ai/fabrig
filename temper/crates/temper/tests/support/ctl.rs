@@ -497,12 +497,7 @@ impl Calls {
     }
     pub(super) fn visited(&mut self, status: u16) {
         self.visit_handed();
-        self.ends.push(Ended {
-            exit: Some(Exit::Code(0)),
-            stdout: format!("HTTP/1.1 {status}\n").into_bytes(),
-            stderr: Vec::new(),
-        });
-        self.observed_at.push(Some(self.wall));
+        assert_eq!(status, 200, "the sign-in returns to the box page");
         self.action = None;
     }
     /// Queue another step before this batch runs.
@@ -1431,8 +1426,8 @@ pub mod read_condition_tests {
         let ended = world.run(&clock, Duration::from_secs(2));
         assert!(ended.procs.iter().all(Host::is_empty), "returned visit drains the call host");
         let Process::Calls(calls) = &ended.procs[0] else { panic!("call host") };
-        assert_eq!(calls.ends().len(), 1, "one browser visit completed");
-        assert_eq!(calls.ends()[0].exit, Some(Exit::Code(0)));
+        assert!(calls.ends().is_empty(), "a browser visit is no command call");
+        assert!(calls.observed_at().is_empty(), "no command observation for a visit");
         scratch.remove();
     }
 

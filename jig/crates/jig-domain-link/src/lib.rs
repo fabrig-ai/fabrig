@@ -6,6 +6,25 @@ extern crate alloc;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Token};
 
+/// How a root takes an event (jig/docs/design/domain/root.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Class {
+    /// Finishes or advances admitted work, taken at any backlog.
+    Admitted,
+    /// New work, handed back unchanged at the watermark.
+    New,
+    /// Its admitted part is stepped; its new part waits at the watermark.
+    Mixed,
+}
+
+impl Class {
+    /// A child's `new_work`, as a class.
+    #[must_use]
+    pub const fn of(new_work: bool) -> Self {
+        if new_work { Self::New } else { Self::Admitted }
+    }
+}
+
 /// A configuration-directory name (accounts.md, 3.4), never an account number.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct SourceName(skein_lib::Name<32>);
@@ -290,7 +309,13 @@ pub enum Phase {
 
 #[cfg(test)]
 mod tests {
-    use super::{Form, GrantTable, Scheme};
+    use super::{Class, Form, GrantTable, Scheme};
+
+    #[test]
+    fn a_childs_new_work_names_its_class() {
+        assert_eq!(Class::of(true), Class::New);
+        assert_eq!(Class::of(false), Class::Admitted);
+    }
 
     #[test]
     fn a_form_names_its_table() {

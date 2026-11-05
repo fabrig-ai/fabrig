@@ -31,6 +31,7 @@ pub(crate) enum WriteKind {
     HookConfig,
     NewOrg,
     NewRepository,
+    Migration,
     NewFile,
     Author,
     Committer,
@@ -74,6 +75,25 @@ pub(crate) fn fields(kind: WriteKind) -> &'static [Field] {
         }
         WriteKind::Author | WriteKind::Committer => {
             const { &[field(b"name", Read::Text, true), field(b"email", Read::Text, true)] }
+        }
+        WriteKind::Migration => {
+            const {
+                &[
+                    field(b"clone_addr", Read::Text, true),
+                    field(b"repo_owner", Read::Text, true),
+                    field(b"repo_name", Read::Text, true),
+                    field(b"service", Read::Text, true),
+                    field(b"private", Read::Boolean, true),
+                    field(b"mirror", Read::Boolean, true),
+                    field(b"issues", Read::Boolean, true),
+                    field(b"labels", Read::Boolean, true),
+                    field(b"milestones", Read::Boolean, true),
+                    field(b"pull_requests", Read::Boolean, true),
+                    field(b"releases", Read::Boolean, true),
+                    field(b"wiki", Read::Boolean, true),
+                    field(b"lfs", Read::Boolean, true),
+                ]
+            }
         }
         WriteKind::NewRepository => {
             const {
@@ -167,6 +187,7 @@ pub(crate) fn element(kind: WriteKind) -> Option<Kind> {
         | WriteKind::NewFile
         | WriteKind::Author
         | WriteKind::Committer
+        | WriteKind::Migration
         | WriteKind::NewRepository
         | WriteKind::NewOrg
         | WriteKind::NewTeam
@@ -198,6 +219,13 @@ pub(super) fn route(method: Method, bytes: &[u8], limits: &Limits) -> Result<Rou
         return Err(Unrouted::NotFound);
     }
     let at = Repo { owner: owner.clone(), name: name.clone() };
+    if tail.is_empty() {
+        return if method == Method::Delete {
+            Ok(Route::Ready(Request::DeleteRepository { at }))
+        } else {
+            Err(Unrouted::Method)
+        };
+    }
     route_tail(method, at, tail, &target.query, limits)
 }
 #[expect(clippy::too_many_lines, reason = "each mutation route declares its method and body kind")]
@@ -438,6 +466,8 @@ impl BodyDecoder {
                 | Request::Org { .. }
                 | Request::CreateOrg { .. }
                 | Request::CreateFile { .. }
+                | Request::Migrate { .. }
+                | Request::DeleteRepository { .. }
                 | Request::CreateRepository { .. }
                 | Request::Teams { .. }
                 | Request::CreateTeam { .. }
@@ -491,7 +521,7 @@ impl BodyDecoder {
         }
     }
 
-    fn flag(&mut self, key: &'static [u8], value: bool) -> Result<(), Malformed> {
+    fn flag(&mut self, kind: Kind, key: &'static [u8], value: bool) -> Result<(), Malformed> {
         if let Request::CreateOrgHook { hook, .. }
         | Request::EditOrgHook { hook, .. }
         | Request::CreateRepoHook { hook, .. }
@@ -508,6 +538,12 @@ impl BodyDecoder {
             if key == b"private" {
                 *private = value;
             } else if !value {
+                return Err(Malformed::Value { field: key });
+            }
+            return Ok(());
+        }
+        if kind == Kind::Write(WriteKind::Migration) {
+            if value != (key == b"private") {
                 return Err(Malformed::Value { field: key });
             }
             return Ok(());
@@ -538,7 +574,7 @@ impl BodyDecoder {
                 self.set_id(id.expect("required id"));
                 return Ok(());
             }
-            Value::Boolean(value) => return self.flag(key, value),
+            Value::Boolean(value) => return self.flag(kind, key, value),
             Value::Number(_) | Value::Time(_) => return Err(Malformed::Shape { field: key }),
         };
         let text = text.expect("text field");
@@ -590,6 +626,18 @@ impl BodyDecoder {
                 crate::forgejo::client::orgs::team_text(spec, key, text)?;
             }
             Request::CreateOrg { name, .. } => org_name(name, key, text)?,
+            Request::Migrate { at, from } => match key {
+                b"clone_addr" => *from = text,
+                b"repo_owner" => at.owner = text,
+                b"repo_name" => at.name = text,
+                b"service" => {
+                    if text.as_ref() != b"git" {
+                        return Err(Malformed::Value { field: key });
+                    }
+                }
+                _ => unreachable!("migration text fields"),
+            },
+            Request::DeleteRepository { .. } => unreachable!("repository deletion has no body"),
             Request::CreateRepository { name, .. } => {
                 if key == b"name" {
                     *name = text;
@@ -758,6 +806,8 @@ impl BodyDecoder {
             | Request::Org { .. }
             | Request::CreateOrg { .. }
             | Request::CreateFile { .. }
+            | Request::Migrate { .. }
+            | Request::DeleteRepository { .. }
             | Request::CreateRepository { .. }
             | Request::Teams { .. }
             | Request::CreateTeam { .. }

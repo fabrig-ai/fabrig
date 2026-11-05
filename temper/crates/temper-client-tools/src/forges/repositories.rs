@@ -153,6 +153,7 @@ fn json(page: &Page, out: &mut Encoder) {
     out.boolean(page.more);
     out.object_end();
 }
+#[expect(clippy::too_many_lines, reason = "the wire outcome match rejects every unrelated operation")]
 fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits) -> jig::Printed {
     let value = match outcome {
         Outcome::Full { held, room_at } => {
@@ -219,6 +220,8 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
         }
         w::Outcome::Unknown => return render::failure(b"unknown", structured, 1),
         w::Outcome::Accepted(_)
+        | w::Outcome::MakeKept
+        | w::Outcome::MakeRefused(_)
         | w::Outcome::Adopted(_)
         | w::Outcome::CoreRefused(_)
         | w::Outcome::Returning

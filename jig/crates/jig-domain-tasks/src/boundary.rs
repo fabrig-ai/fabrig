@@ -4,7 +4,7 @@
 //! owns exact transport replay and commits related rows/effects atomically.
 use crate::{Authority, Class, Funder, Numbers, Tries};
 use alloc::boxed::Box;
-use skein_lib::{Duration, List, ReplyTo, Wall};
+use skein_lib::{Decimal, Duration, List, ReplyTo, Wall};
 
 /// A connector's procedure whose tasks, made with a pending dependency, are active and
 /// kept rather than waiting (jig/docs/design/domain/connectors.md, 6.1).
@@ -303,6 +303,29 @@ pub enum Party {
         /** Project on whose behalf deployment configuration starts the task. */
         project: u32,
     },
+}
+
+impl Party {
+    /// The numeric party label carried by a host message (domain/hosts.md, 9).
+    #[must_use]
+    pub fn sender(self) -> Box<[u8]> {
+        match self {
+            Self::Task(number) | Self::Person(number) => Box::from(Decimal::of(number).as_bytes()),
+            Self::Deployment { .. } => Box::from(b"deployment".as_slice()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Party;
+
+    #[test]
+    fn party_sender_labels() {
+        assert_eq!(Party::Task(123).sender().as_ref(), b"123");
+        assert_eq!(Party::Person(456).sender().as_ref(), b"456");
+        assert_eq!(Party::Deployment { project: 7 }.sender().as_ref(), b"deployment");
+    }
 }
 
 /// Task executor selected by the root. The procedure's owner interprets its opaque code.
