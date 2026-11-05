@@ -1,0 +1,3 @@
+draft = "first-goal-fixes"
+repo = "fabrig"
+sources = ["temper/docs/plan/first-goal-fixes/inputs/request.md", "temper/docs/help/change.md", "AGENTS.md", "DESIGN.md"]
