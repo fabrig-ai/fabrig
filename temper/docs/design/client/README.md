@@ -2533,8 +2533,10 @@ The words for each offered source are:
   "temper runs Claude Code, signed in to your Claude subscription on each
   host its agents run on. Name the login, then sign in on each host, in a
   terminal there:", the existing program-name input labeled "Name", the
-  command, and "Claude Code asks you to sign in. temper never reads its
-  login." Its neutral act is "Use your Claude subscription".
+  command, and "If this machine has no Claude Code, this fetches it
+  first. Claude Code asks you to sign in. temper never reads its login."
+  (`../protocol/setup.md`, 6.6, which fetches it and says so in that
+  terminal). Its neutral act is "Use your Claude subscription".
 - **The banner:** "Agents need an LLM account to run." and "Continue
   with ChatGPT", "Use your Claude subscription", "Use an API key", one
   for each way the configured providers offer (The ways, above), each
@@ -2547,8 +2549,9 @@ The words for each offered source are:
   agents now run on it."; for a program's login: "Declared your Claude
   subscription · claude-alice", then "Run this on each host temper’s
   agents run on, in a terminal there:", the command, `temper
-  program-login claude-alice`, and "Claude Code asks you to sign in.
-  temper never reads its login."; for a sign-in, A sign-in's (below).
+  program-login claude-alice`, and "If this machine has no Claude Code,
+  this fetches it first. Claude Code asks you to sign in. temper never
+  reads its login."; for a sign-in, A sign-in's (below).
   The tools' declaration act names the box's three directories as
   placeholders and skips a directory already signed in (`tools.md`,
   5.5, area 5).
