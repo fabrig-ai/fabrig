@@ -29,6 +29,7 @@ impl Walk {
             now: Time::ZERO,
             wall: Wall::EPOCH,
             primary: Primary::Control,
+            zone_minutes: 0,
             ways: None,
             forges: Vec::new(),
             path: b"/accounts/connect".as_slice().into(),

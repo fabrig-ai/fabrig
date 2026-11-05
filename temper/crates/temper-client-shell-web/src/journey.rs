@@ -20,6 +20,7 @@ pub struct Facts {
     pub now: Time,
     pub wall: Wall,
     pub primary: Primary,
+    pub zone_minutes: i32,
     #[expect(clippy::type_complexity, reason = "the start keeps the meta content and its page origin together")]
     pub ways: Option<(Box<[u8]>, Box<[u8]>)>,
     pub forges: Vec<Box<[u8]>>,
@@ -34,7 +35,7 @@ impl Facts {
         let ways = self.ways.as_ref().map_or(temper_client_view::sign_in::Ways::NONE, |(content, origin)| {
             temper_client_view::sign_in::Ways::parse(&String::from_utf8_lossy(content), origin)
         });
-        let mut host = Host::new(self.seed, self.now, self.wall, ways);
+        let mut host = Host::new(self.seed, self.now, self.wall, self.zone_minutes, ways);
         let mut forges = temper_client_view::forge_sign_in::Forges::new();
         for content in &self.forges {
             forges.read(&String::from_utf8_lossy(content));

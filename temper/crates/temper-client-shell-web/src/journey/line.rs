@@ -11,6 +11,7 @@ pub enum Line {
     Seed(u64),
     Clocks { now: Time, wall: Wall },
     Primary(Primary),
+    Zone(i32),
     Ways { content: Box<[u8]>, origin: Box<[u8]> },
     Forge(Box<[u8]>),
     Path(Box<[u8]>),
@@ -48,6 +49,7 @@ pub struct Unreadable {
 
 impl Line {
     /// The line's text and its newline.
+    #[expect(clippy::too_many_lines, reason = "one ordered dispatch writes each journey record's strict fields")]
     pub fn write(&self, out: &mut Vec<u8>) {
         let mut w = Text { out, first: true };
         match self {
@@ -63,6 +65,10 @@ impl Line {
                 w.word(if matches!(self, Self::Clocks { .. }) { b"clocks" } else { b"turn" });
                 w.number(now.as_nanos());
                 w.number(wall.as_nanos());
+            }
+            Self::Zone(minutes) => {
+                w.word(b"zone");
+                w.word(minutes.to_string().as_bytes());
             }
             Self::Primary(primary) => {
                 w.word(b"primary");
@@ -155,6 +161,7 @@ impl Line {
             Self::Seed(_) => b"seed",
             Self::Clocks { .. } => b"clocks",
             Self::Primary(_) => b"primary",
+            Self::Zone(_) => b"zone",
             Self::Ways { .. } => b"ways",
             Self::Forge(_) => b"forge",
             Self::Path(_) => b"path",
@@ -426,6 +433,15 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
     let line = match r.word()?.as_ref() {
         b"journey" => Line::Journey { version: r.count()? },
         b"seed" => Line::Seed(r.number()?),
+        b"zone" => {
+            let word = r.word()?;
+            let text = std::str::from_utf8(&word).map_err(|_| "invalid zone")?;
+            let minutes = text.parse::<i32>().map_err(|_| "invalid zone")?;
+            if minutes.to_string().as_bytes() != word.as_ref() {
+                return Err("invalid zone");
+            }
+            Line::Zone(minutes)
+        }
         b"clocks" => Line::Clocks { now: Time::from_nanos(r.number()?), wall: Wall::from_nanos(r.number()?) },
         b"turn" => Line::Turn { now: Time::from_nanos(r.number()?), wall: Wall::from_nanos(r.number()?) },
         b"primary" => Line::Primary(match r.word()?.as_ref() {
@@ -517,6 +533,7 @@ impl Clone for Line {
             Self::Seed(value) => Self::Seed(*value),
             Self::Clocks { now, wall } => Self::Clocks { now: *now, wall: *wall },
             Self::Primary(value) => Self::Primary(*value),
+            Self::Zone(value) => Self::Zone(*value),
             Self::Ways { content, origin } => Self::Ways { content: content.clone(), origin: origin.clone() },
             Self::Forge(value) => Self::Forge(value.clone()),
             Self::Path(value) => Self::Path(value.clone()),
