@@ -234,24 +234,7 @@ pub(crate) fn delivery(domain: &mut Domain, event: hub::Event) -> crate::Deliver
         hub::Request::AssignedJob { channel, job } => {
             let workspace = domain.job_workspaces.remove(&job.task);
             assert_eq!(workspace.is_some(), job.workspace.is_some(), "prepared job items");
-            let host_workspace = if workspace.is_some() {
-                Some(host::Workspace { workstream: job.workstream, items: Token::new(job.task) })
-            } else {
-                None
-            };
-            crate::Delivery::AssignedJob {
-                channel,
-                workspace,
-                job: host::JobAssignment {
-                    run: Token::new(job.task),
-                    attempt: Token::new(job.attempt),
-                    kind: job.kind,
-                    spec: job.spec,
-                    deadline: job.deadline,
-                    workspace: host_workspace,
-                    grants: job.grants,
-                },
-            }
+            crate::Delivery::AssignedJob { channel, workspace, job: hub::job_assignment(job) }
         }
         hub::Request::Message { channel, run, attempt, word } => {
             crate::Delivery::Link { channel, down: message(run, attempt, &word) }
@@ -259,9 +242,10 @@ pub(crate) fn delivery(domain: &mut Domain, event: hub::Event) -> crate::Deliver
         hub::Request::Relayed { channel, run, attempt, call: name, answer } => {
             let answer = match answer {
                 None => host::Relayed::Busy,
-                Some(call) => match call.answer {
-                    core::SettledAnswer::Host { error, body } => host::Relayed::Answer { error, text: body },
-                    core::SettledAnswer::Delivery { .. } => {
+                Some(mut call) => match hub::settled_answer(call.answer) {
+                    Ok(answer) => answer,
+                    Err(answer) => {
+                        call.answer = answer;
                         return crate::Delivery::Host(Box::new(crate::HostDelivery::Answer {
                             channel,
                             task: run.raw(),
@@ -549,7 +533,7 @@ fn met_words(dependency: u64, removed: bool, words: &[u8]) -> Box<[u8]> {
 /// Shared by live delivery and the inbox carried at start (domain/agent.md, 5).
 #[must_use]
 pub fn inbox_sender(word: &tasks::Word) -> Box<[u8]> {
-    let label = sender(word.from);
+    let label = word.from.sender();
     let (kind, question, end) = match word.kind {
         tasks::MessageKind::Question => (b" asks (question ".as_slice(), word.number, b")".as_slice()),
         tasks::MessageKind::Answer { question } => (b" answers question ".as_slice(), question, b"".as_slice()),
@@ -582,13 +566,6 @@ pub fn inbox_sender(word: &tasks::Word) -> Box<[u8]> {
     writer.put(question.as_bytes()).expect("measured question");
     writer.put(end).expect("measured end");
     writer.finish()
-}
-
-fn sender(value: tasks::Party) -> Box<[u8]> {
-    match value {
-        tasks::Party::Task(number) | tasks::Party::Person(number) => Box::from(Decimal::of(number).as_bytes()),
-        tasks::Party::Deployment { .. } => Box::from(&b"deployment"[..]),
-    }
 }
 
 fn escalation_words(task: u64, revision: u64, words: &[u8]) -> Box<[u8]> {
