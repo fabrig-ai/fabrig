@@ -84,3 +84,16 @@ Either winner, with both clients naming the same one: fabrig/debt, the plan's ow
 - **If another shared story holds a front's schedule,** that's the same case: stop and ask fabrig/debt.
 
 Finish the rest on the pushed branch (`21d128213a`): the four other ignores, the seam test and its break, the optional delegate story, the checks and times above. `seed-projects`' run has found the other four stories pass on this front. `seed-projects` depends on this repair and won't make it.
+
+## Rebase (2026-11-05, step merge, foreman debt-24/protocol-parties/foreman-2)
+
+preserve shared role fixtures while adopting integration’s jig-core-kit migration
+The merge conflicts in `jig/tests/client/src/joint/role_fixture.rs` with integration commit `91cdbfa3f49ac1e41ea44286bf623896f9effee9` (“Share the core world harness through jig-core-kit”).
+Resolve by keeping this branch’s `configured`, `roles`, `with_driver`, public `setup` and `install`, and the `seeded` wrapper.
+Apply the incoming crate migration throughout that file: use `jig_core_kit` for `Peers`, `peers::fixture`, `peers::journal`, and `fixtures::ask_as`.
+Preserve the `DelegateHold` configuration and member-requested chat setup in `install`.
+Keep the incoming dependency changes and automatic merges in `client-protocol/src/engine.rs` and `fixtures.rs`.
+Also update `jig/tests/client-protocol/src/front/effects.rs`, `Protocol::two_run_slots`: its `jig_core_world::peers::Peers::new` must become `jig_core_kit::peers::Peers::new`.
+That reference survives in the branch’s extracted module while the incoming manifest removes `jig-core-world`.
+Keep the role stories, agreement-on-either-winner assertion, and HTTP identity seam intact.
+After rebasing, run formatting, the specified clippy check, and both `jig-client-protocol-world` and `jig-client-world` suites through heavy.
