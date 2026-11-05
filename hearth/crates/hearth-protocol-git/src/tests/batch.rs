@@ -96,8 +96,8 @@ fn a_fault_while_idle_or_between_pieces_waits_for_the_next_request() {
     for paused in [false, true] {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits::SHIPPED };
         let mut machine = batch::Batch::START;
-        let mut above = Queue::with_capacity(1);
-        let mut below = Queue::with_capacity(1);
+        let mut above = Queue::uncapped();
+        let mut below = Queue::uncapped();
         let read = Request::Read { oid: oid(), size: 1, max: 1 };
         if paused {
             batch::down(&mut machine, &env, read, &mut above, &mut below);
