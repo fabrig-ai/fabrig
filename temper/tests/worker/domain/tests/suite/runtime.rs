@@ -25,10 +25,10 @@ fn fenced_turns_survive_busy_reconnect_and_crossed_acknowledgements() {
 }
 
 #[test]
-fn merge_paths_and_expected_heads_cross_the_worker_and_park_has_no_saved_merge() {
+fn merge_paths_and_expected_heads_cross_the_worker_and_park_saves_the_resolved_merge() {
     let world = run(Settings { seed: 19, turns: 2, byte_slots: 1, merging: true, close: Close::Committed });
-    assert_eq!(world.stats().commits, 2, "unresolved paths then an explicit resolution");
-    assert_eq!(world.stats().saves, 0);
+    assert_eq!(world.stats().commits, 3, "a marker refusal, its resolved delivery and parking save");
+    assert_eq!(world.stats().saves, 1);
 }
 
 #[test]
