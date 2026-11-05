@@ -17,7 +17,7 @@ jig-conformance.workspace = true
 jig-core-world = { path = "../core" }
 jig-test-domain.workspace = true
 jig-test-connector.workspace = true
-jig-test-connector-world = { path = "../test-connector" }
+jig-test-connector-kit.workspace = true
 jig-test-system.workspace = true
 jig-fake-workers.workspace = true
 jig-fake-parties.workspace = true

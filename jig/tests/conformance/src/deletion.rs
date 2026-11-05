@@ -80,7 +80,7 @@ fn adoption(world: &mut World) {
         number: 1,
         event: connector::Event::Adopt {
             project: 1,
-            resource: jig_test_connector_world::path(1, 1),
+            resource: jig_test_connector_kit::path(1, 1),
             role: connector::ResourceRole::Participating,
         },
     });
@@ -254,7 +254,7 @@ fn task_rows(world: &mut World) {
     world.send(root::Event::Connector {
         number: 1,
         event: connector::Event::System(connector::SystemEvent::Pool {
-            path: jig_test_connector_world::path(1, 2),
+            path: jig_test_connector_kit::path(1, 2),
             slots: 2,
             lost: Box::new([]),
         }),

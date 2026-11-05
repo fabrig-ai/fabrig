@@ -20,7 +20,6 @@ const PENDING: &[(&str, &str, &str)] = &[
     ("jig-conformance-world", "jig-client-world", "The fixture reuses the shared client harness."),
     ("jig-conformance-world", "jig-core-world", "The fixture uses the core world driver and its peers."),
     ("jig-conformance-world", "jig-engine-clients-world", "The client fixture reuses engine protocol scenarios."),
-    ("jig-conformance-world", "jig-test-connector-world", "The fixture uses the connector simulator."),
     ("jig-core-world", "jig-test-connector-world", "The fixture uses the connector simulator."),
     ("jig-engine-clients-world", "jig-client-world", "The fixture reuses the shared client harness."),
     ("jig-engine-clients-world", "jig-core-world", "The fixture uses the core world driver and its peers."),
@@ -35,9 +34,6 @@ const PENDING: &[(&str, &str, &str)] = &[
     ("jig-test", "jig-client-protocol-world", "The fixture uses the protocol client driver."),
     ("jig-test", "jig-protocol-accounts-world", "The fixture uses the accounts protocol peer."),
     ("jig-test", "skein-tls-world", "The process tests use the TLS fixture."),
-    ("jig-test-domain", "jig-test-connector-world", "The fixture uses the connector simulator."),
-    ("jig-test-store", "jig-test-connector-world", "The fixture uses the connector simulator."),
-    ("jig-test-store-files", "jig-test-connector-world", "The fixture uses the connector simulator."),
 ];
 
 pub(super) fn pending_world_dependency(package: &str, dependency: &str) -> bool {

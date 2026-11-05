@@ -311,7 +311,7 @@ impl Application for Testing {
     fn systems(config: &Config, _: u64) -> [System; 2] {
         let mut systems = [System::new(), System::new()];
         if matches!(config.scenario, Some(Scenario::ChangedJudge | Scenario::NarrowingPolicy)) {
-            systems[1].other_hand(&jig_test_connector_world::path(1, 1), 13);
+            systems[1].other_hand(&jig_test_connector_kit::path(1, 1), 13);
         }
         systems
     }
@@ -649,7 +649,7 @@ impl Application for Testing {
             root::Delivery::Procedure { connector: number, code, context, .. } => {
                 vec![Input::Event(root::Event::Connector {
                     number,
-                    event: root::procedure_input(&context, code, jig_test_connector_world::path(1, 1)),
+                    event: root::procedure_input(&context, code, jig_test_connector_kit::path(1, 1)),
                 })]
             }
             root::Delivery::Core(core::Held::Sources { channel, sources }) => {

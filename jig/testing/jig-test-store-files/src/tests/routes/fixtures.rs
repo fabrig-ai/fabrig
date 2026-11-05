@@ -3,7 +3,7 @@ use jig_test_connector as d;
 use skein_lib::{Token, Wall};
 pub const FIRST: u16 = 1;
 pub fn path() -> d::Path {
-    jig_test_connector_world::path(1, 1)
+    jig_test_connector_kit::path(1, 1)
 }
 pub struct Component {
     pub store: jig_protocol_store::Store,
