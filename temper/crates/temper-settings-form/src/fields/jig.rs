@@ -170,7 +170,7 @@ pub static FIELDS: [Field; 191] = [
         value: Value::Nanoseconds,
         list: None,
         null: false,
-        line: b"Of `time`, the part kept for the run to finish its work and report.",
+        line: b"Of `time`, the part kept for finishing and reporting. With `modify` true, at least the worker's check timeout (`check_timeout` in milliseconds). A worker refuses admission if any applicable current or held charter version has less reserve. See settings help for recovery through held revisions.",
     },
     Field {
         shape: Shape::Charter,

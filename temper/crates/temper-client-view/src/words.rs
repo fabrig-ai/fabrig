@@ -1011,7 +1011,7 @@ const PHRASES: u32 = 1483;
 // Byline forms add twenty-eight segments (client/README.md, 5.5).
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
 // Delegation lines add seven literal segments (client/README.md, 5.7).
-const SEGMENTS: u32 = 2599;
+const SEGMENTS: u32 = 2601;
 const ALL: [Word; 887] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
@@ -3055,7 +3055,7 @@ impl Words {
             // New chat adds 157 and the configuring opening 476 literal bytes (client/README.md, 3.5).
             // Changes adds 367 literal bytes (client/README.md, 3.5).
             // Chats adds 141 net literal bytes (client/README.md, 3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 476 + 157 + 141 + 419 + 250 + 87 + 225 + 15 + 54,
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 476 + 157 + 141 + 419 + 250 + 87 + 225 + 15 + 54 + 53,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -3712,7 +3712,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AgentSpend => (&[b"Agent spend too small."], &[]),
         Word::AgentTime => (&[b"Agent time too short."], &[]),
         Word::AgentWaiting => (&[b"Agent waiting too short."], &[]),
-        Word::AgentChecks => (&[b"Agent checks exceed the change reserve."], &[]),
+        Word::AgentChecks => (&[b"Agent check timeout exceeds reserve_time for charter ", b". See settings help for held revisions."], &[Number]),
         Word::AgentMessage => (&[b"Agent message bound too small."], &[]),
         Word::AgentInbox => (&[b"Agent inbox too small."], &[]),
         Word::AgentUnacknowledged => (&[b"Agent unacknowledged turns too few."], &[]),
