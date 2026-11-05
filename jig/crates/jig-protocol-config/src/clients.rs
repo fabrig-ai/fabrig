@@ -216,6 +216,7 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         (b"core.settings.alternatives".as_slice(), core.settings.alternatives, wire.charter_alternatives),
         (b"core.run_bytes".as_slice(), core.run_bytes, wire.charter_instructions),
         (b"documents.text_bytes".as_slice(), core.documents.text_bytes, wire.document_text_bytes),
+        (b"notes.body_bytes".as_slice(), core.notes.body_bytes, wire.document_text_bytes),
         (b"people.words".as_slice(), core.people.words, wire.document_text_bytes),
         (b"documents.rows".as_slice(), core.documents.rows, wire.revisions_page_rows),
         (b"documents.lines".as_slice(), core.documents.lines, wire.revision_row_items),
@@ -248,6 +249,7 @@ mod settings_tests {
         let mut limits = crate::profile(crate::Profile::Small);
         limits.clients.wire.document_text_bytes = limits.core.people.words;
         limits.core.documents.text_bytes = 128;
+        limits.core.notes.body_bytes = 128;
         let mut problems = Problems::empty();
         check_settings(&limits, &mut problems);
         assert!(problems.is_empty(), "at ceiling: {problems:?}");
@@ -299,6 +301,10 @@ mod settings_tests {
     #[test]
     fn setting_names_fit_the_wire() {
         ceiling(b"documents.text_bytes", 65_536);
+    }
+    #[test]
+    fn note_bodies_fit_the_wire() {
+        ceiling(b"notes.body_bytes", 65_536);
     }
     #[test]
     fn revision_page_rows_fit_the_wire() {
