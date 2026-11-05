@@ -260,7 +260,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             crate::activity::account_refused(domain, owner, account, code, reason, out);
         }
         Event::Agent(crate::FromAgent::Finished { owner, turns, spent, read, finish }) => {
-            hosted::finished(domain, env, owner, turns, spent, finish, read, out);
+            hosted::finished(domain, env, owner, hosted::Last { turns, spent, finish, read }, out);
         }
         Event::RelayCancelled { run, attempt, call } => hosted::relay_cancelled(domain, run, attempt, &call, out),
         Event::CancelAll { reason } => {
@@ -311,7 +311,14 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             LinkDown::Check { name } => crate::sources::check(&mut domain.sources, env, name, out),
             LinkDown::SignOut { name } => crate::sources::sign_out(&mut domain.sources, env, name, out),
             LinkDown::Message { run, attempt, name, sender, words, finish_requested } => {
-                hosted::inbound(domain, env, run, attempt, name, sender, words, finish_requested, out);
+                hosted::inbound_named(
+                    domain,
+                    env,
+                    run,
+                    attempt,
+                    hosted::NamedEvent { name, event: words, sender: Some(sender), finish_requested },
+                    out,
+                );
             }
             LinkDown::AssignJob { job } => crate::jobs::assign(domain, env, job, out),
             LinkDown::Assign { assignment } => hosted::assign(domain, env, assignment, out),
