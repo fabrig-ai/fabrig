@@ -3,3 +3,22 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-away/inputs/request.md", "temper/docs/design/draft/to-begin.md", "temper/crates/temper-client-view/src/pages/home.rs", "temper/crates/temper-client-domain/src/pages/home.rs", "temper/crates/temper-client-domain/src/forge/dismissed.rs", "temper/crates/temper-engine-domain-forge/src/dismissed.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+# This trunk takes ui-home-status' unlanded commits through home-base; `after` holds its end check and landing until they've landed. See plan.md.
+after = ["ui-home-status", "ui-settings", "ui-goal-page"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "home-base"
+title = "ui-home-status' merged code on this trunk"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "this trunk stands on the Home that ui-home-status draws"
+parts = ["home-base"]
+walk = false
