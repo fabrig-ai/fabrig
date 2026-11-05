@@ -32,7 +32,7 @@ mod connect;
 mod status;
 pub use status::{
     BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, ProjectFacts, SITTING, StatusRunning,
-    StatusView, status_subject,
+    StatusView, status_paragraphs, status_subject,
 };
 mod dismissed;
 pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, Dismissal};
