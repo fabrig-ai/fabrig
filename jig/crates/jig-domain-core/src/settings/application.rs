@@ -366,10 +366,12 @@ pub(crate) fn judged(
             env,
             &mut routed,
             decision.person,
-            decision.change,
-            decision.room,
-            kept,
-            decision.proposal,
+            crate::routing::settings::dispatch::Judged {
+                change: decision.change,
+                room: decision.room,
+                kept,
+                proposal: decision.proposal,
+            },
         ),
         Err(why) => Err(why),
     };
