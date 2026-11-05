@@ -63,6 +63,7 @@ pub(crate) fn main(
             crate::choice::byline(b, root, Some(task), words, bindings);
         }
         super::document::seg(b, chat, words, bindings);
+        super::chat_sheet::bar(b, root, words, bindings);
         if chat.draft.is_none()
             && !chat.writing
             && task.result.is_none()
@@ -571,6 +572,10 @@ pub(crate) fn conversation(
 }
 
 // Agent task pages keep their own treatment of moments (client/README.md, 5.12).
+#[expect(
+    clippy::too_many_lines,
+    reason = "one conversation walk interleaves turns, proposals and the person's goal start"
+)]
 pub(crate) fn conversation_with_times(
     b: &mut Builder,
     thread: &Thread,
@@ -596,6 +601,7 @@ pub(crate) fn conversation_with_times(
         conversation_head(b, root, words, bindings);
     }
     let lines = thread.lines().into_boxed();
+    let mut started = super::chat_sheet::started(proposals);
     let mut day = None;
     // A chat started with no words opens on its first words line (3.5).
     if thread.lines.edges.after == jig_client::thread::window::Edge::End
@@ -606,6 +612,7 @@ pub(crate) fn conversation_with_times(
         request_message(b, request, speakers.requester, words, clock.as_deref());
     }
     for line in lines {
+        super::chat_sheet::before(b, &mut started, Some(&line), words, bindings);
         if hidden_line(&line, projected, delegations) {
             heard_card(b, &line, delegations, (&mut tasks, &mut shown), words, bindings);
             continue;
@@ -664,6 +671,7 @@ pub(crate) fn conversation_with_times(
         }
         b.close();
     }
+    super::chat_sheet::before(b, &mut started, None, words, bindings);
     // The live delegates anchor follows the window's last line (client/README.md, 5.7).
     live_delegates(b, &mut tasks, delegations, &mut shown, words, bindings);
     if let Some(root) = proposals {
