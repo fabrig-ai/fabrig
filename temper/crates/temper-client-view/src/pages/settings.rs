@@ -251,59 +251,6 @@ fn shows(
     }
     b.close();
 }
-/// The Goals table's shape (client/README.md, 5.13). Replace `ways` with
-/// `goals::ways` when that page supplies the shared table.
-#[derive(Debug)]
-struct Way {
-    number: u32,
-    name: Box<[u8]>,
-    line: Box<[u8]>,
-}
-fn ways(root: &Domain, w: &Words, project: u32) -> skein_lib::List<Way> {
-    let Some(me) = root.pages().me(root.client()) else { return skein_lib::List::with_capacity(0) };
-    let mut result = skein_lib::List::with_capacity(0);
-    for member in &me.projects {
-        if member.project != project {
-            continue;
-        }
-        result = skein_lib::List::with_capacity(member.templates.len());
-        let mut after = None;
-        for _ in 0..member.templates.len() {
-            let mut next: Option<&jig_client::contract::Template> = None;
-            for template in &member.templates {
-                if template.tracked.is_some()
-                    && match after {
-                        Some(number) => template.number > number,
-                        None => true,
-                    }
-                    && match next {
-                        Some(previous) => template.number < previous.number,
-                        None => true,
-                    }
-                {
-                    next = Some(template);
-                }
-            }
-            let Some(template) = next else { break };
-            let words = match template.name.bytes() {
-                b"whole" | b"Plan, tasks, land whole" => Some((Word::SettingsWhole, Word::SettingsWholeLine)),
-                b"each" | b"Task by task" => Some((Word::SettingsEach, Word::SettingsEachLine)),
-                b"goal" | b"review" | b"Plan, then wait for me" => {
-                    Some((Word::SettingsReview, Word::SettingsReviewLine))
-                }
-                b"one" | b"One agent, one branch" => Some((Word::SettingsOne, Word::SettingsOneLine)),
-                _ => None,
-            };
-            let (name, line) = match words {
-                Some((name, line)) => (w.say(name, &[]), w.say(line, &[])),
-                None => (template.name.bytes().into(), Box::default()),
-            };
-            result.push(Way { number: template.number, name, line }).expect("offered templates fit");
-            after = Some(template.number);
-        }
-    }
-    result
-}
 fn working(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, project: u32, shown: Ways) {
     section(b, w, Word::SettingsWays);
     b.open(Role::ChoiceGroup);
@@ -312,9 +259,13 @@ fn working(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindin
         Some(me) => ways::default_way(me, project, &shown),
         None => None,
     };
-    for way in &ways(root, w, project) {
+    let offered = match root.pages().me(root.client()) {
+        Some(me) => super::goals::ways(me, project, w),
+        None => skein_lib::List::uncapped(),
+    };
+    for way in &offered {
         // TaskLine records no template: there is no delivered usage count.
-        row_line(b, &way.name, &way.line);
+        row_line(b, &way.name, way.line.as_deref().unwrap_or(&[]));
         b.open(Role::Slot);
         b.style(look::SETTINGS_TOGGLE_ROW);
         b.open(Role::Choice);
@@ -355,7 +306,7 @@ fn facts(b: &mut Builder, w: &Words) {
 }
 fn status(b: &mut Builder, w: &Words) {
     section(b, w, Word::SettingsStatus);
-    disabled_select(b, w, Word::SettingsReports, Some(Word::SettingsReportsLine), Word::SettingsCountsOnly);
+    disabled_select(b, w, Word::SettingsReports, Some(Word::SettingsReportsLine), Word::SettingsAgentReports);
     disabled_select(b, w, Word::SettingsRewritten, None, Word::SettingsOnOpen);
     disabled_select(b, w, Word::SettingsBrief, Some(Word::SettingsBriefLine), Word::SettingsOff);
     facts(b, w);

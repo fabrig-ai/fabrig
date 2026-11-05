@@ -409,7 +409,7 @@ fn how(ways: Option<Ways>) -> d::Domain {
     let template = stock.pages().me(stock.client()).unwrap().projects.get(0).unwrap().templates.get(0).unwrap();
     let project = me.projects.get_mut(0).unwrap();
     project.templates = List::with_capacity(2);
-    for (number, name) in [(11, "one"), (4, "whole")] {
+    for (number, name) in [(11, "One agent, one branch"), (4, "goal for a draft")] {
         let mut template = template.clone();
         template.number = number;
         template.name = c::DocumentText::complete(c::Text::new(name.as_bytes().into(), 32).unwrap());
@@ -813,7 +813,8 @@ fn no_used_by_with_no_template_recorded() {
     assert!(
         text.contains("A plan from the draft, its tasks on a goal branch, landed as one change once all are checked.")
     );
-    assert!(text.contains("No plan: one agent works the draft through and opens one change."));
+    let custom = setting_row(view.tree(), b"One agent, one branch");
+    assert!(!custom.iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)));
     assert!(!text.contains("Used by"));
 }
 #[test]
@@ -825,7 +826,7 @@ fn disabled_sections_say_so_once_and_their_controls_are_disabled() {
             (
                 "Status",
                 vec!["Status lines and reports", "Rewritten", "The brief on Home"],
-                vec!["None: counts only", "When someone opens it", "Off"],
+                vec!["Written by each goal’s agent", "When someone opens it", "Off"],
             ),
             ("Telling you", vec!["Notifications", "Quiet hours"], vec!["Off", "None"]),
         ] {

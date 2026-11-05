@@ -45,7 +45,7 @@ Hidden
 Status lines and reports
 Written words, beside the counts temper keeps itself.
 Status lines and reports: (disabled)
-  [-] (*) None: counts only
+  [-] (*) Written by each goal’s agent
 Rewritten
 Rewritten: (disabled)
   [-] (*) When someone opens it

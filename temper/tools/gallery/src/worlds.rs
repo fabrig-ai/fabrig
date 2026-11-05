@@ -265,7 +265,7 @@ fn world_in_layout(
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) } => {
                     let document = match subject {
                         c::Subject::Me => {
-                            let mut me = frame(w, connecting, configuring);
+                            let me = frame(w, connecting, configuring);
                             Some(c::Delivery::Me(Box::new(me)))
                         }
                         c::Subject::Accounts => {

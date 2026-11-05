@@ -29,7 +29,7 @@ pub enum Word {
     SettingsStatus,
     SettingsReports,
     SettingsReportsLine,
-    SettingsCountsOnly,
+    SettingsAgentReports,
     SettingsRewritten,
     SettingsOnOpen,
     SettingsBrief,
@@ -1034,7 +1034,7 @@ const ALL: [Word; 899] = [
     Word::SettingsStatus,
     Word::SettingsReports,
     Word::SettingsReportsLine,
-    Word::SettingsCountsOnly,
+    Word::SettingsAgentReports,
     Word::SettingsRewritten,
     Word::SettingsOnOpen,
     Word::SettingsBrief,
@@ -1938,7 +1938,7 @@ impl Word {
             Self::SettingsStatus => 3310,
             Self::SettingsReports => 3311,
             Self::SettingsReportsLine => 3312,
-            Self::SettingsCountsOnly => 3313,
+            Self::SettingsAgentReports => 3313,
             Self::SettingsRewritten => 3314,
             Self::SettingsOnOpen => 3315,
             Self::SettingsBrief => 3316,
@@ -3055,7 +3055,8 @@ impl Words {
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Goal rows and ways add 419 literal bytes; the page adds 250 (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 419 + 250 + 476 + 771 + 1181,
+            // How work runs adds 1181 bytes; agent-written reports add thirteen (5.13).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 367 + 419 + 250 + 476 + 771 + 1181 + 13,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3764,7 +3765,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsStatus => (&[b"Status"], &[]),
         Word::SettingsReports => (&[b"Status lines and reports"], &[]),
         Word::SettingsReportsLine => (&[b"Written words, beside the counts temper keeps itself."], &[]),
-        Word::SettingsCountsOnly => (&[b"None: counts only"], &[]),
+        Word::SettingsAgentReports => (&[b"Written by each goal\xe2\x80\x99s agent"], &[]),
         Word::SettingsRewritten => (&[b"Rewritten"], &[]),
         Word::SettingsOnOpen => (&[b"When someone opens it"], &[]),
         Word::SettingsBrief => (&[b"The brief on Home"], &[]),
