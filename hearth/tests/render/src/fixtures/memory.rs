@@ -10,17 +10,17 @@ pub const TEMPLATE_LIMITS: hearth_domain_render::limits::Limits = hearth_domain_
     ..hearth_domain_render::limits::SHIPPED
 };
 
-pub fn each<T>(bound: u64, rows: impl IntoIterator<Item = (T, &'static str)>, run: impl Fn(&T, &Roots)) {
+pub fn each<T>(ceiling: u64, rows: impl IntoIterator<Item = (T, &'static str)>, run: impl Fn(&T, &Roots)) {
     let roots = super::wide_roots();
     for (input, what) in rows {
-        peak(&Meter::new(), bound, &what, || run(&input, &roots));
+        peak(&Meter::new(), ceiling, &what, || run(&input, &roots));
     }
 }
-pub fn peak(meter: &Meter, bound: u64, what: &dyn core::fmt::Debug, run: impl FnOnce()) {
+pub fn peak(meter: &Meter, ceiling: u64, what: &dyn core::fmt::Debug, run: impl FnOnce()) {
     meter.start();
     run();
     let measured = meter.end();
-    meter.check(measured, bound, what);
+    meter.check(measured, ceiling, what);
 }
 
 /// The evaluator keeps its configured peaks. Repeating assignment to x
@@ -54,7 +54,8 @@ fn compiled_template(source: &str) -> hearth_domain_render::evaluate::template::
 
 // Fifteen fields each fill the template's one-MiB output allowance.
 // Their records and keys fit in the expanded allowance's remaining MiB.
-const EXPANDED_COPIES: u64 = hearth_domain_render::limits::SHIPPED.expanded / TEMPLATE_LIMITS.rendered_file as u64 - 1;
+pub const EXPANDED_COPIES: usize = 15;
+pub const EXPANDED_TEXT_BYTES: usize = 15_728_640;
 #[must_use]
 pub fn expanded_template()
 -> (hearth_domain_render::revision::declaration::Declaration, hearth_domain_render::evaluate::template::Template) {

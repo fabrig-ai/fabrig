@@ -103,10 +103,6 @@ pub fn kept_templates() -> Repository {
     }
     repository
 }
-#[must_use]
-pub fn bound() -> u64 {
-    hearth_domain_render::limits::worst_case(&SHIPPED).expect("shipped bound")
-}
 pub const LIMITS: Limits = SHIPPED;
 
 pub const NEW_OID: &[u8] = b"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn";
