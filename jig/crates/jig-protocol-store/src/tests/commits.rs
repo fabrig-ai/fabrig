@@ -115,6 +115,47 @@ fn a_save_puts_the_encoded_record_under_its_key() {
     assert_eq!(jig_row(&mut store, &note().key()), Some(note()));
 }
 
+fn raw_row(store: &mut Store, key: &Key) -> Option<Box<[u8]>> {
+    let key = keys::encode(key, fixtures::KEY_LIMIT).expect("fixture key fits");
+    crate::open::get(store, Token::new(0), key).expect("memory get succeeds")
+}
+
+#[test]
+fn a_copy_puts_the_same_note_bytes_under_its_destination() {
+    let mut store = committed_note();
+    let to = fixtures::notes_entry(18).key();
+    let bytes = raw_row(&mut store, &note().key()).expect("committed note exists");
+    let writes = Box::new([fixtures::header(2), Write::Copy { from: note().key(), to: to.clone() }]);
+    assert_committed(&commit(&mut store, 2, writes), 2);
+    assert_eq!(raw_row(&mut store, &to), Some(bytes));
+}
+
+#[test]
+fn a_copy_reads_before_an_earlier_save_in_its_commit() {
+    let mut store = committed_note();
+    let mut entry = fixtures::note_entry();
+    entry.body = Box::from(b"new body".as_slice());
+    let saved = Record::Notes(jig_domain_notes::Record::Entry(entry));
+    let to = fixtures::notes_entry(18).key();
+    let bytes = raw_row(&mut store, &note().key()).expect("committed note exists");
+    let writes = Box::new([
+        fixtures::header(2),
+        fixtures::save(saved.clone()),
+        Write::Copy { from: note().key(), to: to.clone() },
+    ]);
+    assert_committed(&commit(&mut store, 2, writes), 2);
+    assert_eq!(raw_row(&mut store, &to), Some(bytes));
+    assert_eq!(jig_row(&mut store, &note().key()), Some(saved));
+}
+
+#[test]
+fn a_copy_of_a_missing_source_fails_its_commit() {
+    let mut store = committed_note();
+    let writes =
+        Box::new([fixtures::header(2), Write::Copy { from: fixtures::notes_entry(18).key(), to: note().key() }]);
+    assert_failed(&commit(&mut store, 2, writes), 2);
+}
+
 #[test]
 fn an_erase_removes_the_key_from_the_store() {
     let mut store = committed_note();
