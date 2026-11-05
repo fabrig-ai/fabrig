@@ -124,21 +124,16 @@ impl Driver {
                         }
                         self.requests.push(request);
                     }
-                    request @ Request::CancelRelay { .. } => {
-                        if let Request::CancelRelay { run, attempt, call } = &request {
-                            self.immediate.push_back(Event::RelayCancelled {
-                                run: *run,
-                                attempt: *attempt,
-                                call: call.clone(),
-                            });
-                        }
-                        self.requests.push(request);
+                    Request::CancelRelay { run, attempt, call } => {
+                        self.immediate.push_back(Event::RelayCancelled { run, attempt, call: call.clone() });
+                        self.requests.push(Request::CancelRelay { run, attempt, call });
                     }
                     request @ (Request::Source { .. }
                     | Request::SourceFault
                     | Request::Hello(_)
                     | Request::Link(_)
                     | Request::Answer { .. }
+                    | Request::JobAnswer { .. }
                     | Request::Stop
                     | Request::Io { .. }
                     | Request::Job { .. }
