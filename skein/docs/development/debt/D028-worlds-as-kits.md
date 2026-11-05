@@ -17,9 +17,11 @@
   `skein-tls-world` (4), `skein-json-world` (3, one from the step crate
   `skein-llm`'s dev-dependencies), `skein-forge-machine-world` (2),
   `skein-forge-client-world`, `skein-http-world` and `skein-echo-world`.
-- One `#[path]` crosses a crate's root:
+- Three `#[path]`s cross a crate's root:
   `skein/tests/fake-peers/tests/suite/github_memory.rs` compiles a file
-  of `skein/tests/fake-forge`. The review counted 10; most are gone.
+  of `skein/tests/fake-forge`, and `skein/tests/forge/dialect/tests/common/mod.rs`
+  and `skein/tests/fake-forge/tests/suite/forgejo_memory.rs` compile fixtures
+  their crates' unit tests share. The review counted 10; most are gone.
 - `skein/docs/foundation/testing-strategy.md`, 7, moves a harness
   when a second user needs it, and `skein/docs/design/testing.md`, 6,
   puts skein's shared harnesses in `testing/`.
