@@ -202,22 +202,12 @@ pub(crate) fn charge(room: &mut u64, bytes: Option<u64>) -> Result<(), w::Proble
 }
 /// The pieces a list holds, each its four length bytes and then its record.
 pub(crate) fn piece_count(bytes: &[u8]) -> Result<u32, w::Problem> {
-    let mut reader = Reader::new(bytes);
-    let mut count = 0_u32;
-    for _ in 0..=reader.remaining() / 4 {
-        if reader.is_empty() {
-            return Ok(count);
-        }
-        let Some(length) = reader.u32() else {
-            return Err(piece_problem(skein_codec::Reason::Malformed));
-        };
-        if reader.skip(length).is_none() {
-            return Err(piece_problem(skein_codec::Reason::Malformed));
-        }
-        count = count.checked_add(1).expect("pieces are fewer than their bytes");
+    match skein_codec::piece::count(bytes) {
+        Ok(count) => Ok(count),
+        Err(reason) => Err(piece_problem(reason)),
     }
-    unreachable!("each piece takes at least its four length bytes")
 }
+
 pub(crate) fn account_source_piece(
     bytes: &[u8],
     limits: &Limits,
@@ -231,7 +221,7 @@ pub(crate) fn account_source_piece(
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
-        let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else { unreachable!("counted pieces split") };
+        let item = skein_codec::piece::counted(&mut reader);
         let row = w::AccountSource::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(account_source(&row, room)?).expect("counted pieces fit");
     }
@@ -250,7 +240,7 @@ pub(crate) fn account_line_piece(
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
-        let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else { unreachable!("counted pieces split") };
+        let item = skein_codec::piece::counted(&mut reader);
         let row = w::AccountLine::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(account_line(&row, limits, room)?).expect("counted pieces fit");
     }
@@ -269,7 +259,7 @@ pub(crate) fn account_sign_in_piece(
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
-        let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else { unreachable!("counted pieces split") };
+        let item = skein_codec::piece::counted(&mut reader);
         let row = w::AccountSignIn::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(account_sign_in(&row)).expect("counted pieces fit");
     }
@@ -377,7 +367,7 @@ pub(crate) fn account_piece(bytes: &[u8], limits: &Limits, room: &mut u64) -> Re
     let mut reader = Reader::new(bytes);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
-        let Ok(Some(item)) = skein_codec::piece::split(&mut reader) else { unreachable!("counted pieces split") };
+        let item = skein_codec::piece::counted(&mut reader);
         let row = w::Account::decode(limits.receiving(), &mut Reader::new(&item))?;
         rows.push(account_fields(&row, limits, room)?).expect("counted pieces fit");
     }

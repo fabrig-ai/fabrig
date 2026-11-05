@@ -15,7 +15,7 @@ use skein_world::end_to_end::Command;
 use crate::guard::Guard;
 use crate::isolate::{Machine, Private};
 use crate::process::{Bounds, Capture, execute};
-use crate::{CheckVerdict, Exit, Forced, Grade, Measure, OutcomeCheck};
+use crate::{CheckVerdict, Exit, Fault, Forced, Grade, Input, Measure, OutcomeCheck, input, refuse_if};
 
 /// Safe materialised file observations, supplied to outcome and scope checks.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -34,38 +34,35 @@ pub enum Entry {
 pub type Snapshot = BTreeMap<PathBuf, Entry>;
 
 /// Inspect a settled directory without following links or opening special nodes.
-pub fn snapshot(root: &Path) -> Result<Snapshot, String> {
+pub fn snapshot(root: &Path) -> Result<Snapshot, Fault> {
     let mut entries = BTreeMap::new();
     walk(root, root, &mut entries, true)?;
     Ok(entries)
 }
 
 /// Inspect every node, including cache and git metadata, without following links.
-pub fn snapshot_all(root: &Path) -> Result<Snapshot, String> {
+pub fn snapshot_all(root: &Path) -> Result<Snapshot, Fault> {
     let mut entries = BTreeMap::new();
     walk(root, root, &mut entries, false)?;
     Ok(entries)
 }
 
-fn walk(root: &Path, directory: &Path, entries: &mut Snapshot, skip_git: bool) -> Result<(), String> {
+fn walk(root: &Path, directory: &Path, entries: &mut Snapshot, skip_git: bool) -> Result<(), Fault> {
     use std::os::unix::fs::PermissionsExt;
-    let mut children = fs::read_dir(directory)
-        .map_err(|error| error.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| error.to_string())?;
+    let mut children = fs::read_dir(directory)?.collect::<Result<Vec<_>, _>>()?;
     children.sort_by_key(fs::DirEntry::file_name);
     for child in children {
         if skip_git && child.file_name() == ".git" {
             continue;
         }
         let path = child.path();
-        let metadata = fs::symlink_metadata(&path).map_err(|error| error.to_string())?;
+        let metadata = fs::symlink_metadata(&path)?;
         if metadata.is_dir() {
             entries.insert(path.strip_prefix(root).expect("walk stays under root").into(), Entry::Directory);
             walk(root, &path, entries, skip_git)?;
         } else {
             let entry = if metadata.is_symlink() {
-                Entry::Link { target: fs::read_link(&path).map_err(|error| error.to_string())? }
+                Entry::Link { target: fs::read_link(&path)? }
             } else if metadata.is_file() {
                 Entry::File {
                     sha256: crate::arm::binary_digest(&path)?,
@@ -80,21 +77,17 @@ fn walk(root: &Path, directory: &Path, entries: &mut Snapshot, skip_git: bool) -
     Ok(())
 }
 
-pub(crate) fn file(root: &Path, relative: &Path) -> Result<PathBuf, String> {
+pub(crate) fn file(root: &Path, relative: &Path) -> Result<PathBuf, Fault> {
     if relative.is_absolute() || relative.components().any(|part| !matches!(part, Component::Normal(_))) {
-        return Err("check path must be relative without traversal".into());
+        return Err(input("check path must be relative without traversal"));
     }
     let mut path = root.to_path_buf();
     for part in relative.components() {
         path.push(part);
-        let metadata = fs::symlink_metadata(&path).map_err(|error| error.to_string())?;
-        if metadata.is_symlink() {
-            return Err("check path traverses a link".into());
-        }
+        let metadata = fs::symlink_metadata(&path)?;
+        refuse_if(metadata.is_symlink(), Input, "check path traverses a link")?;
     }
-    if !fs::metadata(&path).map_err(|error| error.to_string())?.is_file() {
-        return Err("check path is not a regular file".into());
-    }
+    refuse_if(!fs::metadata(&path)?.is_file(), Input, "check path is not a regular file")?;
     Ok(path)
 }
 
@@ -147,21 +140,21 @@ pub fn checks(
             };
             let value = match check {
                 OutcomeCheck::FileContent { path, content } => file(workspace, path)
-                    .and_then(|path| fs::read(path).map_err(|error| error.to_string()))
+                    .and_then(|path| fs::read(path).map_err(Fault::from))
                     .map(|bytes| bytes == content.as_bytes()),
                 OutcomeCheck::FileDigest { path, sha256 } => {
                     file(workspace, path).and_then(|path| crate::arm::binary_digest(&path)).map(|got| got == *sha256)
                 }
                 OutcomeCheck::FileSize { path, bytes_at_least } => file(workspace, path)
-                    .and_then(|path| fs::metadata(path).map_err(|error| error.to_string()))
+                    .and_then(|path| fs::metadata(path).map_err(Fault::from))
                     .map(|metadata| metadata.len() >= *bytes_at_least),
                 OutcomeCheck::Absent { path } => {
                     Ok(!after.contains_key(path) && !after.keys().any(|item| item.starts_with(path)))
                 }
                 OutcomeCheck::Pattern { path, pattern } => {
-                    regex::Regex::new(pattern).map_err(|error| error.to_string()).and_then(|pattern| {
+                    regex::Regex::new(pattern).map_err(|error| input(error.to_string())).and_then(|pattern| {
                         file(workspace, path)
-                            .and_then(|path| fs::read_to_string(path).map_err(|error| error.to_string()))
+                            .and_then(|path| fs::read_to_string(path).map_err(Fault::from))
                             .map(|text| pattern.is_match(&text))
                     })
                 }
@@ -174,7 +167,7 @@ pub fn checks(
             };
             let (passed, detail) = match value {
                 Ok(passed) => (passed, Vec::new()),
-                Err(error) => (false, vec![error]),
+                Err(error) => (false, vec![error.detail]),
             };
             CheckVerdict {
                 check: format!("{name}:{}", path.display()),
@@ -214,9 +207,9 @@ pub fn command(
     grade: &Grade,
     bounds: Bounds,
     environment: &BTreeMap<String, String>,
-) -> Result<GradeResult, String> {
-    let (program, arguments) = grade.command.split_first().ok_or("empty grading command")?;
-    let maximum = usize::try_from(grade.max_output_bytes).map_err(|error| error.to_string())?;
+) -> Result<GradeResult, Fault> {
+    let (program, arguments) = grade.command.split_first().ok_or_else(|| input("empty grading command"))?;
+    let maximum = usize::try_from(grade.max_output_bytes)?;
     let command = Command {
         program: crate::isolate::program(machine, directory, Path::new(program))?,
         arguments: arguments.iter().map(Into::into).collect(),
@@ -253,19 +246,14 @@ pub fn command(
 }
 
 /// Archive exactly these bytes as a new private file, retaining its digest.
-pub fn archive(guard: &Guard, directory: &Path, name: &str, bytes: &[u8]) -> Result<crate::Artifact, String> {
+pub fn archive(guard: &Guard, directory: &Path, name: &str, bytes: &[u8]) -> Result<crate::Artifact, Fault> {
     use std::io::Write;
     use std::os::unix::fs::OpenOptionsExt;
     if Path::new(name).components().any(|part| !matches!(part, Component::Normal(_))) {
-        return Err("archive name must be a relative ordinary path".into());
+        return Err(input("archive name must be a relative ordinary path"));
     }
     let path = guard.write_path(&directory.join(name))?;
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(path)
-        .map_err(|error| error.to_string())?;
-    file.write_all(bytes).and_then(|()| file.sync_all()).map_err(|error| error.to_string())?;
+    let mut file = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)?;
+    file.write_all(bytes).and_then(|()| file.sync_all())?;
     Ok(crate::Artifact { path: name.into(), sha256: format!("{:x}", Sha256::digest(bytes)) })
 }

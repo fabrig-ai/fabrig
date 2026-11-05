@@ -293,7 +293,7 @@ fn a_document_answer_is_a_github_document() {
             }),
         ),
     ] {
-        assert_eq!(answer(&request, &app(), body), Reply::GithubDocument(document));
+        assert_eq!(answer(&request, &app(), body), Reply::GitHubDocument(document));
     }
 }
 #[test]
@@ -306,7 +306,7 @@ fn a_listing_answer_is_github_rows() {
             ])),
         (br#"{"repositories":[]}"#, Box::new([])),
     ] {
-        assert_eq!(answer(&reachable(), &bearer(), body), Reply::GithubRows(expected));
+        assert_eq!(answer(&reachable(), &bearer(), body), Reply::GitHubRows(expected));
     }
 }
 #[test]

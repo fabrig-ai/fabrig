@@ -3,6 +3,8 @@ mod hooks;
 mod orgs;
 mod tokens;
 mod walk;
+use crate::forgejo::Reply as Answer;
+use crate::forgejo::{reply, unexpected};
 pub use crate::plan::{Event, Failure, Need, Outcome, Reply, Stage, Why};
 use crate::{
     call::Auth,
@@ -14,7 +16,6 @@ use alloc::boxed::Box;
 pub use hooks::hook_url;
 use skein_forge::forgejo::{document::Document, request::Request};
 use skein_lib::{Queue, Secret, Writer, bytes};
-pub(crate) use tokens::{reply, unexpected};
 #[derive(Debug)]
 enum State {
     Begin,
@@ -99,25 +100,21 @@ impl Reconcile {
     }
     fn advance(&mut self, state: State, event: Event) -> Need {
         match state {
-            State::Begin => match event {
-                Event::Begin => {
+            State::Begin => match event.begin() {
+                Ok(()) => {
                     self.state = State::AdminFile;
                     Need::Read(Item::AdminToken)
                 }
-                Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(Stage::Admin, Why::Unexpected)
-                }
+                Err(why) => self.stop(Stage::Admin, why),
             },
-            State::AdminFile => match event {
-                Event::Read(Some(token)) if !token.is_empty() => {
+            State::AdminFile => match event.read() {
+                Ok(Some(token)) if !token.is_empty() => {
                     self.admin = Some(token);
                     self.state = State::Admin;
                     self.send(Request::User)
                 }
-                Event::Read(_) => self.stop(Stage::Admin, Why::Missing),
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(Stage::Admin, Why::Unexpected)
-                }
+                Ok(_) => self.stop(Stage::Admin, Why::Missing),
+                Err(why) => self.stop(Stage::Admin, why),
             },
             State::Admin => self.admin(event),
             State::Bot => self.bot(event),
@@ -130,8 +127,8 @@ impl Reconcile {
                 self.state = State::Tokens;
                 tokens::advance(self, event)
             }
-            State::Id(id) => match event {
-                Event::Read(value) => {
+            State::Id(id) => match event.read() {
+                Ok(value) => {
                     let bytes = id.to_le_bytes();
                     if match value {
                         Some(value) => value.expose() == bytes,
@@ -143,15 +140,11 @@ impl Reconcile {
                         Need::Write { item: Item::User, bytes: Secret::new(bytes::copy_of(&bytes)) }
                     }
                 }
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(Stage::Bot, Why::Unexpected)
-                }
+                Err(why) => self.stop(Stage::Bot, why),
             },
-            State::Written => match event {
-                Event::Written => self.start_orgs(),
-                Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Drawn(_) => {
-                    self.stop(Stage::Bot, Why::Unexpected)
-                }
+            State::Written => match event.written() {
+                Ok(()) => self.start_orgs(),
+                Err(why) => self.stop(Stage::Bot, why),
             },
             State::Orgs => orgs::advance(self, event),
             State::Access => walk::advance(self, event),
@@ -181,8 +174,8 @@ impl Reconcile {
         }
     }
     fn draw(&mut self, event: Event) -> Need {
-        match event {
-            Event::Drawn(value) if value.len() == 32 => {
+        match event.drawn() {
+            Ok(value) if value.len() == 32 => {
                 self.state = State::Create;
                 self.send(Request::CreateUser {
                     login: self.bot_login.clone(),
@@ -192,55 +185,22 @@ impl Reconcile {
                     must_change_password: false,
                 })
             }
-            Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                self.stop(Stage::Bot, Why::Unexpected)
-            }
+            Ok(_) => self.stop(Stage::Bot, Why::Unexpected),
+            Err(why) => self.stop(Stage::Bot, why),
         }
     }
 }
 pub(crate) fn account(event: Event) -> Result<skein_forge::forgejo::document::User, Why> {
-    match event {
-        Event::Reply(reply) => match reply {
-            Reply::Document(document) => match document {
-                Document::User(user) => Ok(user),
-                Document::Token(_)
-                | Document::Org(_)
-                | Document::CreatedFile { .. }
-                | Document::CreatedRepository(_)
-                | Document::Hook(_)
-                | Document::Team(_)
-                | Document::ApiSettings(_)
-                | Document::Repository(_)
-                | Document::Search { .. }
-                | Document::RepoSearch { .. }
-                | Document::Listed { .. }
-                | Document::Issue(_)
-                | Document::Comment(_)
-                | Document::Status(_)
-                | Document::Review(_)
-                | Document::Pull(_)
-                | Document::CombinedStatus(_)
-                | Document::Branch(_)
-                | Document::Protection(_)
-                | Document::Permission(_)
-                | Document::Compare(_)
-                | Document::Tree { .. }
-                | Document::Runs { .. }
-                | Document::Run(_)
-                | Document::Job(_)
-                | Document::Error(_) => Err(Why::Unexpected),
-            },
-            Reply::Status(status) => Err(Why::Refused(status)),
-            Reply::Down => Err(Why::Down),
-            Reply::Unsigned => Err(Why::KeyForm),
-            Reply::Rows(_) | Reply::Empty | Reply::GithubDocument(_) | Reply::GithubRows(_) => Err(Why::Unexpected),
-        },
-        Event::Begin | Event::Read(_) | Event::Written | Event::Drawn(_) => Err(Why::Unexpected),
+    match reply(event)? {
+        Answer::Document(Document::User(user)) => Ok(user),
+        other @ (Answer::Document(_) | Answer::Rows(_) | Answer::Empty | Answer::Status(_) | Answer::Down) => {
+            Err(unexpected(other))
+        }
     }
 }
 /// Consumes one event and emits at most one need; terminal machines ignore later events.
 pub fn step(machine: &mut Reconcile, event: Event, out: &mut Queue<Need>) {
-    let event = normal(event);
+    let event = plan::normal(event);
     let state = core::mem::replace(&mut machine.state, State::Ended);
     match state {
         State::Ended => (),
@@ -258,14 +218,6 @@ pub fn step(machine: &mut Reconcile, event: Event, out: &mut Queue<Need>) {
             let need = machine.advance(state, event);
             out.push(need);
         }
-    }
-}
-
-/// An empty secret read is no secret: `Read(Some(empty))` is `Read(None)`.
-pub(crate) fn normal(event: Event) -> Event {
-    match event {
-        Event::Read(Some(value)) if value.is_empty() => Event::Read(None),
-        other @ (Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_)) => other,
     }
 }
 

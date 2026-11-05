@@ -49,13 +49,13 @@ impl Check {
     }
 
     fn read_token(&mut self, event: Event, subject: &[u8], next: State) -> Need {
-        match event {
-            Event::Read(Some(token)) => {
+        match event.read() {
+            Ok(Some(token)) => {
                 self.state = next;
                 Need::Send { request: Request::User.into(), auth: Auth::Token(token) }
             }
-            Event::Read(None) => self.stop(subject, Why::Missing),
-            Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => self.stop(subject, Why::Unexpected),
+            Ok(None) => self.stop(subject, Why::Missing),
+            Err(why) => self.stop(subject, why),
         }
     }
 
@@ -65,14 +65,12 @@ impl Check {
 
     fn advance(&mut self, state: State, event: Event) -> Need {
         match state {
-            State::Begin => match event {
-                Event::Begin => {
+            State::Begin => match event.begin() {
+                Ok(()) => {
                     self.state = State::ApiRead;
                     Need::Read(Item::ApiToken)
                 }
-                Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(b"api", Why::Unexpected)
-                }
+                Err(why) => self.stop(b"api", why),
             },
             State::ApiRead => self.read_token(event, b"api", State::ApiUser),
             State::ApiUser => match reconcile::account(event) {
@@ -100,12 +98,12 @@ impl Check {
                 }
                 Err(why) => self.stop(b"git", why),
             },
-            State::UserRead => match event {
-                Event::Read(None) => {
+            State::UserRead => match event.read() {
+                Ok(None) => {
                     self.state = State::UserWritten;
                     Need::Write { item: Item::User, bytes: Secret::new(bytes::copy_of(&self.id().to_le_bytes())) }
                 }
-                Event::Read(Some(value)) => {
+                Ok(Some(value)) => {
                     if match item::user(value.expose()) {
                         Some(id) => id.get() == self.id(),
                         None => false,
@@ -115,11 +113,11 @@ impl Check {
                         self.stop(b"api", Why::OtherUser)
                     }
                 }
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => self.stop(b"api", Why::Unexpected),
+                Err(why) => self.stop(b"api", why),
             },
-            State::UserWritten => match event {
-                Event::Written => self.done(),
-                Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Drawn(_) => self.stop(b"api", Why::Unexpected),
+            State::UserWritten => match event.written() {
+                Ok(()) => self.done(),
+                Err(why) => self.stop(b"api", why),
             },
             State::Ended => unreachable!("terminal machine is not advanced"),
         }
@@ -128,7 +126,7 @@ impl Check {
 
 /// Consumes one event and emits at most one need; terminal machines ignore later events.
 pub fn step(machine: &mut Check, event: Event, out: &mut Queue<Need>) {
-    let event = reconcile::normal(event);
+    let event = plan::normal(event);
     let state = core::mem::replace(&mut machine.state, State::Ended);
     match state {
         State::Ended => (),

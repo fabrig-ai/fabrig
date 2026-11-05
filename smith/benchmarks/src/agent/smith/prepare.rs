@@ -2,13 +2,12 @@
 //! The arm and append-only face registry choose the codec; user login
 //! bytes are read only by credential.rs (benchmarks.md, sections 6.2 and 10).
 
-use std::fs::{self, OpenOptions};
-use std::io::Write;
-use std::os::unix::fs::OpenOptionsExt;
+use crate::{Fault, configuration};
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::agent::{Context, Invocation};
-use crate::isolate::{Setup, SetupStep};
+use crate::isolate::SetupStep;
 
 use super::{FaceSince, faces, settings};
 
@@ -27,13 +26,9 @@ pub struct Prepared {
     pub serial: Option<std::fs::File>,
 }
 
-fn configuration(reason: impl Into<String>) -> Setup {
-    Setup { step: SetupStep::Configuration, reason: reason.into() }
-}
-
 /// Read check's version 1 or 2 teardown bound (benchmarks.md, section 10).
 /// Both versions use the same effective limits shape.
-pub fn teardown_from_check(bytes: &[u8]) -> Result<skein_lib::Duration, Setup> {
+pub fn teardown_from_check(bytes: &[u8]) -> Result<skein_lib::Duration, Fault> {
     let report: serde_json::Value =
         serde_json::from_slice(bytes).map_err(|error| configuration(format!("Smith check JSON: {error}")))?;
     if !matches!(report["version"].as_u64(), Some(1 | 2)) {
@@ -61,22 +56,12 @@ pub fn teardown_from_check(bytes: &[u8]) -> Result<skein_lib::Duration, Setup> {
     teardown.ok_or_else(|| configuration("Smith check lacks service.teardown"))
 }
 
-fn write(context: &Context<'_>, path: &Path, bytes: &[u8]) -> Result<(), Setup> {
-    let result: Result<(), String> = (|| {
-        let path = context.guard.write_path(path)?;
-        let mut file = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .mode(0o600)
-            .open(path)
-            .map_err(|error| error.to_string())?;
-        file.write_all(bytes).and_then(|()| file.sync_all()).map_err(|error| error.to_string())
-    })();
-    result.map_err(configuration)
+fn write(context: &Context<'_>, path: &Path, bytes: &[u8]) -> Result<(), Fault> {
+    crate::arm::write_new(context.guard, path, bytes, 0o600).map_err(Fault::at(SetupStep::Configuration))
 }
 
 /// Prepare the selected arm, refusing a nonzero product startup check.
-pub fn prepare(context: &Context<'_>) -> Result<Prepared, Setup> {
+pub fn prepare(context: &Context<'_>) -> Result<Prepared, Fault> {
     let (prepared, receipt) = prepare_checked(context, &[])?;
     if let Some(receipt) = receipt {
         return Err(configuration(format!("Smith check refused setup with {:?}", receipt.exit)));
@@ -88,7 +73,7 @@ pub fn prepare(context: &Context<'_>) -> Result<Prepared, Setup> {
 pub fn prepare_checked(
     context: &Context<'_>,
     overrides: &[String],
-) -> Result<(Prepared, Option<crate::process::ProcessResult>), Setup> {
+) -> Result<(Prepared, Option<crate::process::ProcessResult>), Fault> {
     if context.pin.pin.agent != crate::Agent::Smith || context.pin.pin.version != "built-arm" {
         return Err(configuration("Smith requires a built-arm configuration pin"));
     }
@@ -97,11 +82,11 @@ pub fn prepare_checked(
         crate::arm::ArmRef::Installed { .. } => return Err(configuration("Smith requires a verified built arm")),
     };
     let program = build.directory.join("smith");
-    let verified = crate::arm::read_build(&program).map_err(configuration)?;
+    let verified = crate::arm::read_build(&program).map_err(Fault::at(SetupStep::Configuration))?;
     if verified != *build || context.installed_version != build.arm.commit {
         return Err(configuration("Smith arm differs from its planned full source identity"));
     }
-    let pin = crate::read_configuration(context.pin_file).map_err(|error| configuration(error.to_string()))?;
+    let pin = crate::read_configuration(context.pin_file).map_err(Fault::at(SetupStep::Configuration))?;
     if pin != *context.pin {
         return Err(configuration("Smith configuration changed since planning"));
     }
@@ -128,15 +113,15 @@ pub fn prepare_checked(
     {
         registry.shape = super::events::Shape::Exec;
     }
-    let bytes = fs::read(directory.join(&pin.pin.configuration)).map_err(|error| configuration(error.to_string()))?;
+    let bytes = fs::read(directory.join(&pin.pin.configuration)).map_err(Fault::at(SetupStep::Configuration))?;
     if bytes.len() > 65_536 {
         return Err(configuration("Smith settings layer exceeds its bound"));
     }
-    let text = std::str::from_utf8(&bytes).map_err(|error| configuration(error.to_string()))?;
-    let base: toml::Value = toml::from_str(text).map_err(|error| configuration(error.to_string()))?;
-    let base = serde_json::to_value(base).map_err(|error| configuration(error.to_string()))?;
+    let text = std::str::from_utf8(&bytes).map_err(Fault::at(SetupStep::Configuration))?;
+    let base: toml::Value = toml::from_str(text).map_err(Fault::at(SetupStep::Configuration))?;
+    let base = serde_json::to_value(base).map_err(Fault::at(SetupStep::Configuration))?;
     let root = context.private.root.join("smith");
-    crate::run::private_parent(context.guard, &root).map_err(configuration)?;
+    crate::run::private_parent(context.guard, &root).map_err(Fault::at(SetupStep::Configuration))?;
     exec(context, &base, program, registry, overrides)
 }
 
@@ -146,12 +131,12 @@ fn exec(
     program: PathBuf,
     registry: FaceSince,
     overrides: &[String],
-) -> Result<(Prepared, Option<crate::process::ProcessResult>), Setup> {
+) -> Result<(Prepared, Option<crate::process::ProcessResult>), Fault> {
     let account = settings::account(context)?;
     crate::credential::logins::smith(context.home, &account)?;
     if account == "claude" {
-        let working =
-            crate::isolate::working_directory(context.guard, context.private, context.task).map_err(configuration)?;
+        let working = crate::isolate::working_directory(context.guard, context.private, context.task)
+            .map_err(Fault::at(SetupStep::Configuration))?;
         crate::credential::logins::claude(context.environment, &working)?;
     }
     let serial =
@@ -180,7 +165,7 @@ fn exec(
             force_walk: true,
         },
     )
-    .map_err(configuration)?;
+    .map_err(Fault::at(SetupStep::Configuration))?;
     write(context, &directory.join("check.json"), &receipt.stdout)?;
     write(context, &directory.join("check-stderr.log"), &receipt.stderr)?;
     if receipt.error.is_some() || receipt.forced != crate::Forced::No {
@@ -199,7 +184,7 @@ fn render(
     program: PathBuf,
     registry: FaceSince,
     serial: Option<std::fs::File>,
-) -> Result<Prepared, Setup> {
+) -> Result<Prepared, Fault> {
     let login = context.home;
     let mut rendered = settings::product(context, base, login)?;
     let trace = if registry.shape == super::events::Shape::Chat || settings::program(context)? {
@@ -211,16 +196,12 @@ fn render(
     };
     chat_trace(&mut rendered, trace.as_deref());
     let directory = context.private.config.join("smith");
-    crate::run::private_parent(context.guard, &directory).map_err(configuration)?;
+    crate::run::private_parent(context.guard, &directory).map_err(Fault::at(SetupStep::Configuration))?;
     let settings = directory.join("config.toml");
     let mut layer = rendered.clone();
     layer.as_object_mut().expect("product layer").remove("invocation");
-    let document: toml::Value = serde_json::from_value(layer).map_err(|error| configuration(error.to_string()))?;
-    write(
-        context,
-        &settings,
-        toml::to_string(&document).map_err(|error| configuration(error.to_string()))?.as_bytes(),
-    )?;
+    let document: toml::Value = serde_json::from_value(layer).map_err(Fault::at(SetupStep::Configuration))?;
+    write(context, &settings, toml::to_string(&document).map_err(Fault::at(SetupStep::Configuration))?.as_bytes())?;
     Ok(Prepared {
         face: registry.shape,
         registry,
@@ -235,7 +216,7 @@ fn render(
 }
 
 // The external check's successful stdout is the only source of this invocation's bound.
-fn accept_check(mut prepared: Prepared, bytes: &[u8]) -> Result<Prepared, Setup> {
+fn accept_check(mut prepared: Prepared, bytes: &[u8]) -> Result<Prepared, Fault> {
     prepared.teardown = teardown_from_check(bytes)?;
     Ok(prepared)
 }
@@ -435,7 +416,7 @@ mod tests {
     #[test]
     fn check_teardown_refuses_a_missing_bound() {
         let refused = teardown_from_check(&report(&json!([]))).expect_err("bound required");
-        assert_eq!(refused.step, SetupStep::Configuration);
+        assert_eq!(refused.kind, crate::FaultKind::Setup(SetupStep::Configuration));
     }
 
     #[test]

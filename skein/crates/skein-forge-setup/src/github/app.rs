@@ -1,8 +1,9 @@
 //! The App shared by GitHub's plans (forge-setup.md, 6.4).
+use crate::github::{Reply, reply};
 use crate::{
     call::Auth,
     item,
-    plan::{Event, Reply, Why, reply},
+    plan::{Event, Why},
 };
 use core::num::NonZeroU64;
 use skein_lib::Secret;
@@ -32,17 +33,12 @@ pub(crate) fn id_of(read: Option<Secret>) -> Option<NonZeroU64> {
 /// The unauthenticated bot read's nonzero identity (forge-setup.md, 5.3).
 pub(crate) fn bot(event: Event) -> Result<NonZeroU64, Why> {
     match reply(event)? {
-        Reply::GithubDocument(skein_forge::github::document::Document::BotUser(id)) => {
+        Reply::Document(skein_forge::github::document::Document::BotUser(id)) => {
             NonZeroU64::new(id).ok_or(Why::Unexpected)
         }
         Reply::Status(404) => Err(Why::Missing),
         Reply::Status(status) => Err(Why::Refused(status)),
         Reply::Down => Err(Why::Down),
-        Reply::Document(_)
-        | Reply::Rows(_)
-        | Reply::Empty
-        | Reply::GithubDocument(_)
-        | Reply::GithubRows(_)
-        | Reply::Unsigned => Err(Why::Unexpected),
+        Reply::Empty | Reply::Document(_) | Reply::Rows(_) | Reply::Unsigned => Err(Why::Unexpected),
     }
 }

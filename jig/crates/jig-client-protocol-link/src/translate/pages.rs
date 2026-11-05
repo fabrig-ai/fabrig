@@ -5,7 +5,7 @@ use super::documents::{
     object_key_fields, offered_piece, proposed_task_piece, result_fields, specification_document_fields,
     task_contract_document_fields, task_fields, task_link_fields,
 };
-use super::{Undecodable, piece_problem, too_large};
+use super::{Undecodable, too_large};
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;

@@ -1,8 +1,9 @@
 //! Prune complete listings and uninstall strays when permitted (forge-setup.md, 5.6, step 4).
 use super::{app::Kept, given::Given};
+use crate::github::{Reply, reply};
 use crate::{
     item::{self, Item},
-    plan::{self, Event, Need, Reply, Stage, Why, reply},
+    plan::{self, Event, Need, Stage, Why},
 };
 use alloc::boxed::Box;
 use skein_forge::github::{document::Row, pin::PAGE_CAP, request::Request};
@@ -167,7 +168,7 @@ impl Sweep {
 
 fn rows(event: Event) -> Result<Box<[Row]>, Why> {
     match reply(event)? {
-        Reply::GithubRows(rows) => {
+        Reply::Rows(rows) => {
             if rows.len() > usize::try_from(PAGE_CAP).expect("page cap fits usize") {
                 return Err(Why::Unexpected);
             }
@@ -176,7 +177,7 @@ fn rows(event: Event) -> Result<Box<[Row]>, Why> {
         Reply::Unsigned => Err(Why::KeyForm),
         Reply::Down => Err(Why::Down),
         Reply::Status(status) => Err(Why::Refused(status)),
-        Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::GithubDocument(_) => Err(Why::Unexpected),
+        Reply::Empty | Reply::Document(_) => Err(Why::Unexpected),
     }
 }
 fn deleted(event: Event) -> Result<(), Why> {
@@ -185,7 +186,7 @@ fn deleted(event: Event) -> Result<(), Why> {
         Reply::Unsigned => Err(Why::KeyForm),
         Reply::Down => Err(Why::Down),
         Reply::Status(status) => Err(Why::Refused(status)),
-        Reply::Document(_) | Reply::Rows(_) | Reply::GithubDocument(_) | Reply::GithubRows(_) => Err(Why::Unexpected),
+        Reply::Document(_) | Reply::Rows(_) => Err(Why::Unexpected),
     }
 }
 
@@ -196,8 +197,8 @@ fn deleted(event: Event) -> Result<(), Why> {
 pub(crate) fn step(machine: &mut Sweep, event: Event, out: &mut Queue<Progress>) {
     let state = core::mem::replace(&mut machine.state, State::Ended);
     let progress = match state {
-        State::Begin { kept, accepted } => match event {
-            Event::Begin => match machine.pages.checked_mul(PAGE_CAP) {
+        State::Begin { kept, accepted } => match event.begin() {
+            Ok(()) => match machine.pages.checked_mul(PAGE_CAP) {
                 Some(capacity) => {
                     let auth = kept.auth();
                     machine.state = State::Read(Reading {
@@ -212,16 +213,12 @@ pub(crate) fn step(machine: &mut Sweep, event: Event, out: &mut Queue<Progress>)
                 }
                 None => machine.stop(b"installations", Why::Unexpected),
             },
-            Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                machine.stop(b"installations", Why::Unexpected)
-            }
+            Err(why) => machine.stop(b"installations", why),
         },
         State::Read(read) => machine.page(read, event),
-        State::Written(work) => match event {
-            Event::Written => machine.delete_next(work),
-            Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Drawn(_) => {
-                machine.stop(b"installations", Why::Unexpected)
-            }
+        State::Written(work) => match event.written() {
+            Ok(()) => machine.delete_next(work),
+            Err(why) => machine.stop(b"installations", why),
         },
         State::Delete { work, id } => match deleted(event) {
             Ok(()) => machine.delete_next(work),

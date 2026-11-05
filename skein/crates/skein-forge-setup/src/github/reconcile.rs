@@ -6,9 +6,10 @@ use super::{
     hook::{self, Hook},
     installations::{self, Sweep},
 };
+use crate::github::{Reply, reply};
 use crate::{
     item::{self, Item},
-    plan::{self, Event, Need, Outcome, Reply, Stage, Why, reply},
+    plan::{self, Event, Need, Outcome, Stage, Why},
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -108,39 +109,37 @@ impl Reconcile {
     }
     fn advance(&mut self, state: State, event: Event) -> Need {
         match state {
-            State::Begin => match event {
-                Event::Begin => {
+            State::Begin => match event.begin() {
+                Ok(()) => {
                     self.state = State::Id;
                     Need::Read(Item::AppId)
                 }
-                Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(b"id", Why::Unexpected)
-                }
+                Err(why) => self.stop(b"id", why),
             },
-            State::Id => match event {
-                Event::Read(None) => self.stop(b"id", Why::Missing),
-                Event::Read(Some(value)) => match item::app_id(value.expose()) {
+            State::Id => match event.read() {
+                Ok(None) => self.stop(b"id", Why::Missing),
+                Ok(Some(value)) => match item::app_id(value.expose()) {
                     Some(id) => {
                         self.state = State::Key(id);
                         Need::Read(Item::AppKey)
                     }
                     None => self.stop(b"id", Why::Unexpected),
                 },
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => self.stop(b"id", Why::Unexpected),
+                Err(why) => self.stop(b"id", why),
             },
-            State::Key(id) => match event {
-                Event::Read(None) => self.stop(b"key", Why::Missing),
-                Event::Read(Some(key)) => {
+            State::Key(id) => match event.read() {
+                Ok(None) => self.stop(b"key", Why::Missing),
+                Ok(Some(key)) => {
                     if item::app_key(key.expose(), self.given.limits.key_bytes).is_none() {
                         return self.stop(b"key", Why::Unexpected);
                     }
                     self.state = State::Accepted(Kept::new(id, key));
                     Need::Read(Item::Accepted)
                 }
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => self.stop(b"key", Why::Unexpected),
+                Err(why) => self.stop(b"key", why),
             },
-            State::Accepted(kept) => match event {
-                Event::Read(read) => {
+            State::Accepted(kept) => match event.read() {
+                Ok(read) => {
                     let accepted = match read {
                         Some(value) => item::accepted(value.expose(), self.given.limits.installations),
                         None => Some(Box::<[u64]>::default()),
@@ -152,9 +151,7 @@ impl Reconcile {
                     self.state = State::App { kept, accepted };
                     Need::Send { request: Request::App.into(), auth }
                 }
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(b"accepted", Why::Unexpected)
-                }
+                Err(why) => self.stop(b"accepted", why),
             },
             State::App { kept, accepted } => self.proved(kept, accepted, event),
             State::Hook { child, checked } => self.hook(child, checked, event),
@@ -165,13 +162,11 @@ impl Reconcile {
 }
 fn document(event: Event) -> Result<App, Why> {
     match reply(event)? {
-        Reply::GithubDocument(Document::App(app)) => Ok(app),
+        Reply::Document(Document::App(app)) => Ok(app),
         Reply::Unsigned => Err(Why::KeyForm),
         Reply::Status(status) => Err(Why::Refused(status)),
         Reply::Down => Err(Why::Down),
-        Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::GithubDocument(_) | Reply::GithubRows(_) => {
-            Err(Why::Unexpected)
-        }
+        Reply::Empty | Reply::Document(_) | Reply::Rows(_) => Err(Why::Unexpected),
     }
 }
 

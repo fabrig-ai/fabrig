@@ -34,4 +34,4 @@ disagree; most of jig's growth since 10-18 is here.
 A skein job first (`AGENTS.md`: a missing generic mechanism goes into skein before its
 jig consumer): skein-codegen "mirror" declarations that emit the owned domain-side types,
 both translations, typed piece helpers and the limits mapping from bound classes in the
-schema. D008 is the short-term step inside jig and shrinks with it.
+schema.
