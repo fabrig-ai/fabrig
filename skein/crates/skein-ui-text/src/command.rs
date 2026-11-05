@@ -118,6 +118,7 @@ pub fn command(line: &[u8], numbers: Option<&[NodeId]>, tree: &Tree, longest: u3
         | Role::Disclosure
         | Role::Image
         | Role::Figure
+        | Role::Group
         | Role::Slot
         | Role::Drawing => Act::Press,
     };

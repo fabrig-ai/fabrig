@@ -298,6 +298,7 @@ fn the_group_presses_its_mode() {
         let root = root(Some(BODY), mode, &[]);
         let view = view(&root, Shell::Browser);
         let group = styled(view.tree(), look::SEG)[0];
+        assert_eq!(group.role, Role::Group);
         assert_eq!(group.name.as_deref(), Some(b"The draft".as_slice()));
         let buttons: Vec<_> = view
             .tree()
