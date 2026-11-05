@@ -1,48 +1,11 @@
-//! GitHub start transcripts; the only credentials here are artificial fixture values.
-use super::fixtures::{self, FORGE, Harness};
-use crate::{Event, Request};
+//! GitHub mint plan and component completion step tests.
+use super::fixtures;
+use crate::Component;
 use alloc::boxed::Box;
-use skein_lib::{Duration, Wall};
-
-pub(super) const LIVE: &[u8] = br#"[{"id":1,"account":{"id":22,"login":"acme","type":"Organization"},"created_at":"1970-01-01T00:00:01Z","suspended_at":null}]"#;
-
-pub(super) const SUSPENDED: &[u8] = br#"[{"id":1,"account":{"id":22,"login":"acme","type":"Organization"},"created_at":"1970-01-01T00:00:01Z","suspended_at":"1970-01-01T00:00:02Z"}]"#;
-
-pub(super) const FULL: &[u8] = b"artificial-full-api-secret";
-
-pub(super) const CONTENTS: &[u8] = b"artificial-contents-git-secret";
-
-pub(super) const EXPIRES: &[u8] = b"1970-01-01T01:00:00Z";
-
-pub(super) const EXPIRY: Wall = Wall::from_nanos(3_600_000_000_000);
-
-pub(super) const VIEWER: &[u8] = br#"{"data":{"viewer":{"databaseId":9,"login":"test-app[bot]"}}}"#;
-
-pub(super) const NEXT_PAGE: &[u8] =
-    b"Link: <https://api.github.test/app/installations?per_page=100&page=2>; rel=\"next\"\r\n";
-
+use skein_lib::{Env, Queue, Time, Wall};
 const SMALL_TOKEN_BOUND: u32 = 8;
-
-#[derive(Clone, Copy, Debug)]
-#[expect(dead_code, reason = "the shared start fixture retains phases used by the moved scenarios")]
-enum Stage {
-    Listing,
-    Full,
-    Contents,
-    Identity,
-}
-
-pub(super) fn accepted(h: &mut Harness, ids: &[u64]) {
-    h.send(Request::Installations { forge: FORGE, accepted: Box::from(ids) });
-}
-
-fn harness() -> Harness {
-    let mut h = Harness::new(fixtures::github_settings());
-    accepted(&mut h, &[1]);
-    h.connected(FORGE);
-    h
-}
-
+const FULL: &[u8] = b"artificial-full-api-secret";
+const EXPIRES: &[u8] = b"1970-01-01T01:00:00Z";
 pub(super) fn mint(token: &[u8], expires: &[u8]) -> Box<[u8]> {
     let mut body = skein_lib::Writer::new(
         token.len().checked_add(expires.len()).expect("fixture fields").checked_add(28).expect("JSON framing"),
@@ -53,49 +16,6 @@ pub(super) fn mint(token: &[u8], expires: &[u8]) -> Box<[u8]> {
     body.put(expires).expect("measured expiry");
     body.put(b"\"}").expect("measured mint");
     fixtures::response(201, &body.finish())
-}
-
-fn listed(h: &mut Harness) {
-    h.answer(FORGE, &fixtures::ok(LIVE));
-}
-
-pub(super) fn full(h: &mut Harness) {
-    h.answer(FORGE, &mint(FULL, EXPIRES));
-}
-
-pub(super) fn contents(h: &mut Harness) {
-    h.answer(FORGE, &mint(CONTENTS, EXPIRES));
-}
-
-fn at(stage: Stage) -> Harness {
-    let mut h = harness();
-    match stage {
-        Stage::Listing => {}
-        Stage::Full => listed(&mut h),
-        Stage::Contents => {
-            listed(&mut h);
-            full(&mut h);
-        }
-        Stage::Identity => {
-            listed(&mut h);
-            full(&mut h);
-            contents(&mut h);
-        }
-    }
-    h
-}
-
-pub(super) fn contains(bytes: &[u8], needle: &[u8]) -> bool {
-    for piece in bytes.windows(needle.len()) {
-        if piece == needle {
-            return true;
-        }
-    }
-    false
-}
-
-pub(super) fn tokens(h: &Harness) -> &[Event] {
-    h.git_tokens.as_ref().expect("GitHub harness").as_slice()
 }
 
 #[test]
@@ -143,22 +63,37 @@ fn github_mint_one_past_a_small_token_bound_is_too_large() {
 
 #[test]
 fn github_full_mint_replaces_levels_and_contents_mint_preserves_them() {
-    use skein_forge::github::document::{Level, Levels};
-    let mut h = at(Stage::Full);
-    let full = br#"{"token":"artificial-full","expires_at":"1970-01-01T01:00:00Z","permissions":{"contents":"write","pull_requests":"write"}}"#;
-    h.answer(FORGE, &fixtures::response(201, full));
+    use skein_forge::github::document::{Level, Levels, Minted, Viewer};
+    let limits = fixtures::limits();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut component = Component::new(fixtures::github_settings(), &limits, &fixtures::shared()).expect("fixture");
+    let mut up = Queue::uncapped();
+    let gh = component.test_github_mut();
+    gh.accept(&[1]);
+    gh.begin_read(limits.start_backoff);
+    component.test_paged(Box::from([fixtures::installation()]), false, &env, &mut up);
+    component.test_local_step(&env, &mut up);
     let expected = Levels { contents: Level::Write, pull_requests: Level::Write };
-    assert_eq!(h.component.test_github().rows.get(&1).expect("installation").permissions, expected);
-    let narrowed =
-        br#"{"token":"artificial-git","expires_at":"1970-01-01T01:00:00Z","permissions":{"contents":"write"}}"#;
-    h.answer(FORGE, &fixtures::response(201, narrowed));
-    assert_eq!(h.component.test_github().rows.get(&1).expect("installation").permissions, expected);
-    h.answer(FORGE, &fixtures::ok(VIEWER));
-    h.run(Duration::ZERO);
-    assert!(h.component.test_github().identity_checked);
-    h.component.test_github_mut().rows.get_mut(&1).expect("installation").full.pending = true;
-    h.run(Duration::ZERO);
+    let minted = |token: &[u8], permissions| {
+        Ok(Minted {
+            token: skein_lib::Secret::new(Box::from(token)),
+            expires: Wall::from_nanos(3_600_000_000_000),
+            permissions,
+        })
+    };
+    component.test_minted(minted(b"artificial-full", expected), &env, &mut up);
+    component.test_local_step(&env, &mut up);
+    assert_eq!(component.test_github().rows.get(&1).expect("installation").permissions, expected);
+    let narrowed = Levels { contents: Level::Write, pull_requests: Level::None };
+    component.test_minted(minted(b"artificial-git", narrowed), &env, &mut up);
+    component.test_local_step(&env, &mut up);
+    assert_eq!(component.test_github().rows.get(&1).expect("installation").permissions, expected);
+    component.test_identified(Viewer { id: 9, login: Box::from(b"test-app[bot]".as_slice()) }, &env, &mut up);
+    component.test_local_step(&env, &mut up);
+    assert!(component.test_github().identity_checked);
+    component.test_github_mut().rows.get_mut(&1).expect("installation").full.pending = true;
+    component.test_local_step(&env, &mut up);
     // An absent permissions object in the next full mint revokes both kept levels.
-    h.answer(FORGE, &mint(FULL, EXPIRES));
-    assert_eq!(h.component.test_github().rows.get(&1).expect("installation").permissions, Levels::NONE);
+    component.test_minted(minted(FULL, Levels::NONE), &env, &mut up);
+    assert_eq!(component.test_github().rows.get(&1).expect("installation").permissions, Levels::NONE);
 }

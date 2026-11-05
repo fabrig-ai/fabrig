@@ -1,6 +1,6 @@
 //! Installation reconciliation through the component boundary and the landed page plan.
-use super::fixtures::{self, FORGE, Harness};
-use crate::{Account, Change, Event, Request};
+use super::fixtures;
+use crate::{Account, Change, Component, Event};
 use alloc::boxed::Box;
 use skein_forge::{
     api,
@@ -12,54 +12,9 @@ use skein_forge::{
         },
     },
 };
-use skein_lib::{Duration, List, Wall};
-
-const SUSPENDED: &[u8] = br#"[{"id":1,"account":{"id":22,"login":"acme","type":"Organization"},"created_at":"1970-01-01T00:00:01Z","suspended_at":"1970-01-01T00:00:02Z"}]"#;
-
-const OTHER: &[u8] = br#"[{"id":2,"account":{"id":23,"login":"other","type":"User"},"created_at":"1970-01-01T00:00:01Z","suspended_at":"1970-01-01T00:00:02Z"}]"#;
-
-const NEXT_PAGE: &[u8] = b"Link: <https://api.github.test/app/installations?per_page=100&page=2>; rel=\"next\"\r\n";
+use skein_lib::{Env, List, Queue, Time, Wall};
 
 const PAGE_CAP: u32 = skein_forge::github::pin::PAGE_CAP;
-
-fn accepted(h: &mut Harness, ids: &[u64]) {
-    h.send(Request::Installations { forge: FORGE, accepted: Box::from(ids) });
-}
-
-fn harness(cap: u32, ids: &[u64]) -> Harness {
-    let mut h = Harness::with(
-        crate::Limits { installations: cap, ..fixtures::limits() },
-        fixtures::shared(),
-        fixtures::github_settings(),
-    );
-    accepted(&mut h, ids);
-    h.connected(FORGE);
-    h
-}
-
-fn changes(h: &mut Harness) -> Box<[(u64, Option<Account>, Change)]> {
-    h.run(Duration::ZERO);
-    let events = h.installation_events.as_mut().expect("GitHub fixture");
-    let mut out = List::with_capacity(events.len());
-    for event in events.as_slice() {
-        match event {
-            Event::Installation { installation, account, change, .. } => {
-                out.push((*installation, account.clone(), *change)).expect("measured changes");
-            }
-            Event::Fact { .. }
-            | Event::GitToken { .. }
-            | Event::Answered(_)
-            | Event::Hint(_)
-            | Event::Listening { .. }
-            | Event::ListenerLost
-            | Event::Connected { .. }
-            | Event::Stopped { .. }
-            | Event::Closed => unreachable!("installation collection"),
-        }
-    }
-    events.clear();
-    out.into_boxed()
-}
 
 fn account() -> Account {
     Account { id: 22, login: Box::from(b"acme".as_slice()) }
@@ -111,11 +66,38 @@ fn outcome(
 
 #[test]
 fn installation_page_limits_are_not_table_overflow() {
-    let mut h = harness(1, &[1]);
-    h.answer(FORGE, &fixtures::response_with_fields(200, OTHER, NEXT_PAGE));
-    h.answer(FORGE, &fixtures::ok(SUSPENDED));
-    assert_eq!(changes(&mut h).as_ref(), [(1, Some(account()), Change::Suspended)]);
-    assert_eq!(h.facts.as_ref().expect("facts").len(), 1);
+    let limits = crate::Limits { installations: 1, ..fixtures::limits() };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut component = Component::new(fixtures::github_settings(), &limits, &fixtures::shared()).expect("fixture");
+    let mut up = Queue::uncapped();
+    let gh = component.test_github_mut();
+    gh.accept(&[1]);
+    gh.begin_read(limits.start_backoff);
+    let other = document::Installation {
+        id: 2,
+        account: 23,
+        login: Box::from(b"other".as_slice()),
+        kind: document::Account::User,
+        created: Wall::from_nanos(1_000_000_000),
+        suspended: true,
+    };
+    component.test_paged(Box::from([other]), true, &env, &mut up);
+    component.test_local_step(&env, &mut up);
+    let mut suspended = fixtures::installation();
+    suspended.suspended = true;
+    component.test_paged(Box::from([suspended]), false, &env, &mut up);
+    component.test_local_step(&env, &mut up);
+    let mut changes = List::with_capacity(1);
+    let mut facts = 0;
+    while let Some(event) = up.pop() {
+        if let Event::Installation { installation, account, change, .. } = event {
+            changes.push((installation, account, change)).expect("one change");
+        } else if let Event::Fact { .. } = event {
+            facts += 1;
+        }
+    }
+    assert_eq!(changes.as_slice(), [(1, Some(account()), Change::Suspended)]);
+    assert_eq!(facts, 1);
     assert_eq!(page_outcome(PAGE_CAP, None).expect("full page").rows.len(), 100);
 }
 
