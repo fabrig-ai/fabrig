@@ -1050,6 +1050,13 @@ fn home_domain(name: &str) -> Domain {
         name => name,
     };
     let with_goals = name == "home-with-goals";
+    let goals_source = with_goals.then(|| {
+        crate::worlds::goals_world(
+            Solo,
+            Address::Goals { project: 1, filter: temper_client_domain::GoalsFilter::All },
+            "goals-solo",
+        )
+    });
     let name = if with_goals { "home-at-work" } else { name };
     let (source, _) = crate::worlds::world(FirstRun { step: 7 }, Address::Settings { project: 1 }, Shown);
     let mut me = source.pages().me(source.client()).expect("sample me").clone();
@@ -1153,14 +1160,16 @@ fn home_domain(name: &str) -> Domain {
                         }))
                     }
                     c::Subject::Tasks { query, .. } if query.tracked == Some(true) => {
-                        let mut rows = List::with_capacity(1);
-                        if with_goals {
-                            let mut goal = chat_rows.rows.get(0).expect("sample row").clone();
-                            goal.project = 1;
-                            goal.tracked = Some(1);
-                            goal.flags.conversation = false;
-                            goal.flags.listed = true;
-                            rows.push(goal).expect("one goal");
+                        let mut rows = List::with_capacity(0);
+                        if let Some(source) = &goals_source {
+                            rows = source
+                                .pages()
+                                .goals()
+                                .expect("Goals source")
+                                .live(source.client())
+                                .expect("live goals")
+                                .rows
+                                .clone();
                         }
                         c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))
                     }
@@ -1233,6 +1242,25 @@ fn home_domain(name: &str) -> Domain {
                 );
             }
             Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { query, .. }) } => {
+                if query.tracked == Some(true)
+                    && let Some(source) = &goals_source
+                {
+                    crate::driver::answer(
+                        &mut root,
+                        read,
+                        c::ReadValue::Tasks(Box::new(c::TaskPage {
+                            live: List::with_capacity(0),
+                            live_after: None,
+                            ended: c::EndedGroup::Rows {
+                                rows: List::from_boxed(source.pages().goals().expect("Goals source").ended().into()),
+                                after: None,
+                                cut: false,
+                            },
+                        })),
+                        &mut out,
+                    );
+                    continue;
+                }
                 crate::driver::answer(
                     &mut root,
                     read,
@@ -1262,7 +1290,20 @@ fn home_domain(name: &str) -> Domain {
                         cut: false,
                         before: None,
                         after: None,
-                        selection: None,
+                        selection: goals_source.as_ref().map(|source| {
+                            let page = source.pages().goals().expect("Goals source");
+                            let live = page.live(source.client()).expect("live goals");
+                            let mut goals = List::uncapped();
+                            for line in live.rows.iter().chain(page.ended()) {
+                                if page.needs_person(line.chip.task) {
+                                    goals.push(line.chip.task).expect("goal selection");
+                                }
+                            }
+                            List::from_boxed(Box::new([c::InboxSelection {
+                                cursor: c::InboxCursor::Number { number: 1 },
+                                goals,
+                            }]))
+                        }),
                     })),
                     &mut out,
                 );
@@ -1301,6 +1342,35 @@ fn home_domain(name: &str) -> Domain {
                         },
                         ending: None,
                     })),
+                    &mut out,
+                );
+            }
+            Down::Read {
+                read,
+                what: jig_client::Readable::Jig(c::Read::Notes { scope: c::NoteScope::Task { project, task }, .. }),
+            } if goals_source.is_some() => {
+                let mut rows = List::uncapped();
+                if let Some(report) =
+                    goals_source.as_ref().expect("Goals source").pages().goals().expect("Goals page").report(task)
+                {
+                    rows.push(c::Note {
+                        number: 1,
+                        revision: c::Revision { value: 1 },
+                        scope: c::NoteScope::Task { project, task },
+                        description: home_text(&format!("report: {}", String::from_utf8_lossy(&report.headline))),
+                        body: home_text(""),
+                        writer: c::NoteAuthor::Task { task, attempt: 1 },
+                        tasks: List::with_capacity(0),
+                        changed: None,
+                        acts: List::with_capacity(0),
+                        cut: false,
+                    })
+                    .expect("goal report");
+                }
+                crate::driver::answer(
+                    &mut root,
+                    read,
+                    c::ReadValue::Notes(Box::new(c::NotePage { rows, before: None, after: None, cut: false })),
                     &mut out,
                 );
             }

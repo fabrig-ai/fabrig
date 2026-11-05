@@ -221,9 +221,9 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn home_limits() -> d::Limits {
     let mut limits = f::domain_limits();
-    // Home's nine handles plus the goal-presence watch and ended read (README.md, 3.5).
-    limits.client.domain.handles = 11;
-    limits.client.domain.watches = 11;
+    // Home, goal presence, the Goals page and the standing Needs watch (README.md, 3.5).
+    limits.client.domain.handles = 15;
+    limits.client.domain.watches = 13;
     limits.client.domain.reads = 16;
     limits
 }
@@ -286,6 +286,7 @@ struct StatusFixture {
     document: w::ProjectStatus,
     answered: bool,
     goals: bool,
+    goal_rows: Option<ChatFixture>,
 }
 #[expect(
     clippy::disallowed_methods,
@@ -585,6 +586,23 @@ fn settle_home(
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }) }
                 if query.tracked == Some(true) =>
             {
+                if let Some(goals) = status.and_then(|fixture| fixture.goal_rows.as_ref()) {
+                    let mut more = drive(
+                        root,
+                        d::Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::Watched {
+                                    watch,
+                                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(goals.live.clone()))),
+                                },
+                            },
+                        },
+                    );
+                    while let Some(request) = more.pop() {
+                        out.push(request);
+                    }
+                    continue;
+                }
                 let mut rows = List::uncapped();
                 if status.is_some_and(|fixture| fixture.goals) {
                     let mut goal = super::chats::line();
@@ -640,7 +658,12 @@ fn settle_home(
                         cut: group == c::InboxReadGroup::Needs && needs.cut,
                         before: None,
                         after: None,
-                        selection: None,
+                        selection: status.filter(|fixture| fixture.goals).map(|_| {
+                            List::from_boxed(Box::new([c::InboxSelection {
+                                cursor: c::InboxCursor::Number { number: 1 },
+                                goals: List::from_boxed(Box::new([9])),
+                            }]))
+                        }),
                     })),
                 )
             }
@@ -667,6 +690,20 @@ fn settle_home(
                     continue;
                 }
                 read_done(root, read, home_need_page(c::ObjectKey::PersonTask(task)))
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { query, .. }) }
+                if query.tracked == Some(true) && status.and_then(|fixture| fixture.goal_rows.as_ref()).is_some() =>
+            {
+                read_done(
+                    root,
+                    read,
+                    c::ReadValue::Tasks(Box::new(status.unwrap().goal_rows.as_ref().unwrap().ended.clone())),
+                )
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Notes { scope, .. }) }
+                if status.is_some_and(|fixture| fixture.goals) =>
+            {
+                read_done(root, read, goal_notes(scope))
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => read_done(
                 root,
@@ -1900,7 +1937,12 @@ fn status_parts() -> w::ProjectStatusParts {
     }
 }
 fn status_home(parts: w::ProjectStatusParts, answered: bool, beginning: bool, goals: bool) -> d::Domain {
-    let fixture = StatusFixture { document: w::ProjectStatus::new(&w::CEILINGS, parts).unwrap(), answered, goals };
+    let fixture = StatusFixture {
+        document: w::ProjectStatus::new(&w::CEILINGS, parts).unwrap(),
+        answered,
+        goals,
+        goal_rows: None,
+    };
     home_documents_with_status(
         forge_rows(true),
         !beginning,
@@ -2318,5 +2360,137 @@ fn home_funds_and_proposal_keep_decisions_confirmation_and_short_lines() {
             "Add a README: 31 of 40 used · funds".as_bytes(),
             d::pages::Act::Needs(d::pages::needs::Act::Open { object: funds }),
         );
+    }
+}
+
+fn goal_notes(scope: c::NoteScope) -> c::ReadValue {
+    let mut rows = List::uncapped();
+    if scope == (c::NoteScope::Task { project: f::PROJECT, task: 9 }) {
+        rows.push(c::Note {
+            number: 1,
+            revision: c::Revision { value: 1 },
+            scope,
+            description: f::task::document_words(b"report: A goal report."),
+            body: f::task::document_words(b""),
+            writer: c::NoteAuthor::Task { task: 9, attempt: 1 },
+            tasks: List::with_capacity(0),
+            changed: Some(f::NOW),
+            acts: List::with_capacity(0),
+            cut: false,
+        })
+        .unwrap();
+    }
+    c::ReadValue::Notes(Box::new(c::NotePage { rows, before: None, after: None, cut: false }))
+}
+
+fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
+    let mut goals = chat_fixture(live, ended, false, false);
+    for row in goals.live.rows.iter_mut() {
+        row.tracked = Some(1);
+    }
+    if let c::EndedGroup::Rows { rows, .. } = &mut goals.ended.ended {
+        for row in rows.iter_mut() {
+            row.tracked = Some(1);
+            row.chip.details.phase = c::ChipPhase::Ended;
+            row.chip.details.details.ending =
+                Some(c::ChipEnding::Done(c::ResultValue::Report(f::task::document_words(b"Landed."))));
+        }
+    }
+    let fixture = StatusFixture {
+        document: w::ProjectStatus::new(&w::CEILINGS, status_parts()).unwrap(),
+        answered: true,
+        goals: true,
+        goal_rows: Some(goals),
+    };
+    home_documents_with_status(
+        forge_rows(true),
+        !beginning,
+        !beginning,
+        Some(NeedsFixture { objects: &[c::ObjectKey::Question { task: 9, message: 1 }], cut: false, read: true }),
+        Some(chat_fixture(1, 0, false, false)),
+        Some(&[]),
+        true,
+        Some(&fixture),
+    )
+    .0
+}
+
+#[test]
+fn goals_takes_chats_place() {
+    let root = home_goals(2, 3, false);
+    assert!(root.pages().goals().unwrap().report(9).is_some(), "Home reads the goal report");
+    assert!(root.pages().goals().unwrap().needs_person(9), "Home reads the goal needs");
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let region = main_find(view.tree(), Role::Region, b"Goals");
+        main_find(view.tree(), Role::Heading { level: 2 }, b"Goals");
+        for node in main_nodes(view.tree()) {
+            assert!(node.role != Role::Region || node.name.as_deref() != Some(b"Chats"));
+        }
+        absent(&f::main_text(view.tree()), CHAT_SENTENCE);
+        let text = f::nodes_text(subtree(view.tree(), region));
+        contains(&text, "A goal report.");
+        contains(&text, "needs you");
+        contains(&text, "planning");
+        contains(&text, "landed");
+        main_find(view.tree(), Role::Button, b"Reply");
+        let row = main_find(view.tree(), Role::Link, b"README \xc2\xb7 needs you");
+        assert_eq!(
+            crate::act(&mut view, row, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go {
+                address: Address::Task { task: 9, filter: d::PlanFilter::All },
+            }))
+        );
+        let goals = f::find(view.tree(), Role::Link, b"Goals").unwrap();
+        assert!(!subtree(view.tree(), goals)[0].states.as_slice().contains(&skein_ui::State::Current));
+        contains(&printed(&view), "A goal report.");
+    }
+}
+
+#[test]
+fn goals_rows_are_live_first_and_at_least_five() {
+    for (live, ended, shown) in [(2, 5, 5), (6, 1, 6), (0, 3, 3), (1, 1, 2)] {
+        let root = home_goals(live, ended, false);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let region = main_find(view.tree(), Role::Region, b"Goals");
+            let mut rows = List::uncapped();
+            for node in subtree(view.tree(), region) {
+                if node.styles.as_slice().contains(&crate::look::GOALS_ROW) {
+                    rows.push(node).unwrap();
+                }
+            }
+            assert_eq!(usize::try_from(rows.len()).unwrap(), shown, "max(five, live), limited by available rows");
+            for (row, title) in rows.iter().zip(CHAT_TITLES) {
+                assert!(row.name.as_deref().unwrap().starts_with(title), "live then ended in page order");
+            }
+        }
+    }
+}
+
+#[test]
+fn all_n_links_to_goals() {
+    let root = home_goals(2, 5, false);
+    assert_eq!(root.pages().goals().unwrap().count(root.client()), 7);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let link = main_find(view.tree(), Role::Link, b"All 7");
+        assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/projects/1/goals".as_slice()));
+        assert_eq!(
+            crate::act(&mut view, link, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go {
+                address: Address::Goals { project: f::PROJECT, filter: d::GoalsFilter::All },
+            }))
+        );
+    }
+}
+
+#[test]
+fn to_begin_keeps_chats() {
+    let root = home_goals(1, 1, true);
+    assert!(root.has_goals(f::PROJECT));
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        main_find(view.tree(), Role::Heading { level: 2 }, b"To begin");
+        main_find(view.tree(), Role::Region, b"Chats");
+        for node in main_nodes(view.tree()) {
+            assert!(node.role != Role::Region || node.name.as_deref() != Some(b"Goals"));
+        }
     }
 }
