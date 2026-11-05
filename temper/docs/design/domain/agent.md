@@ -929,7 +929,8 @@ of `../draft/v0.1.0.md`, 2.1.
     and no choices, and they are answered by a reply alone. Any question
     a person, a change's relay or an older goal wrote draws this way.
 - **The person answers in the inbox,** `temper ctl task answer TASK
-  QUESTION TEXT` (`../client/tools.md`, 5.3) or the inbox's page, and
+  QUESTION TEXT` (`../client/tools.md`, 5.3), Home's card or the inbox's
+  page, and
   nobody else does: the answer reaches the goal itself, as its
   requester's, never through the chat's model, which may not answer a
   question that waits in its person's inbox (jig's `domain/people.md`,
