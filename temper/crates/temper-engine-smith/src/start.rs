@@ -162,8 +162,19 @@ fn charter_with_history(assignment: &engine::Assignment, resumed: bool) -> run::
 /// bounds and schema costs (temper/docs/design/domain/agent.md, 4.3).
 pub fn fit_brief(charter: &mut run::Charter, workspace: Option<&run::Workspace>, limits: &run::Limits) {
     let Some(room) = run::brief_room(charter, workspace, limits) else { return };
-    let room = u64::from(room);
     let owned = charter.owned_bytes().expect("bounded charter ownership");
+    fit(charter, u64::from(room), owned);
+}
+
+/// Fit gathered sections to a total decoded charter ownership allowance before
+/// assignment admission. Fixed instructions, tools and contracts stay whole;
+/// the caller reserves any additional encoded framing (domain/agent.md, 4.3).
+pub fn fit_brief_bytes(charter: &mut run::Charter, bytes: u64) {
+    let owned = charter.owned_bytes().expect("bounded charter ownership").min(bytes);
+    fit(charter, u64::MAX, owned);
+}
+
+fn fit(charter: &mut run::Charter, room: u64, owned: u64) {
     let mut omitted = List::with_capacity(u32::try_from(charter.brief.sections.len()).expect("bounded sections"));
     for index in (0..charter.brief.sections.len()).rev() {
         if run::brief_bytes(&charter.brief).expect("bounded brief bytes") <= room
