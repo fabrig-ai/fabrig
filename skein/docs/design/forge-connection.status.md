@@ -32,6 +32,11 @@
   Closing, because Closing takes nothing more from the stream and could
   lose the answer. A fault's Closing stays under the deadline it had until
   its close goes, where the table has io's alone; no reason is recorded.
+  7.1: a forge's dialect is not asked again, and the request of 2026-11-05
+  that gave Forgejo's plans their states has it so too;
+  `component/calls.rs`'s step matches `(side, &mut entry.dialect)`, a tuple,
+  for every call it steps, because a GitHub call takes `gh` from its entry
+  either way, and that request's debt item did not name this file.
   7.2:
   each forge must have its own connection in addition to the calls'
   `connections` limit; `skein-forge-connection/src/component.rs`'s
