@@ -1,6 +1,6 @@
 //! One mmdebstrap run, its pipe readers, deadlines and scratch reclamation (hearth/docs/design/domain/render.md, 5.2).
 use crate::{Asked, Roots, Told, builder::vocabulary::Event, limits::Limits, render, translate, walk::Walker};
-use crate::{held::Held, indices::Indices};
+use crate::{Current, held::Held, indices::Indices};
 use alloc::boxed::Box;
 use hearth_protocol_mmdebstrap::output::{self, Reader, Seen};
 use hearth_protocol_mmdebstrap::{tail, vector};
@@ -448,19 +448,8 @@ enum Scratch {
 }
 impl crate::Protocol {
     pub(super) fn resolve(&mut self, request: Request, env: &Env<Limits>, below: &mut Queue<Asked>) {
-        self.resolving =
-            Some(Resolve::new(request, self.roots, &self.store_path, self.file_read, self.proxy.as_ref(), env, below));
-    }
-    pub(super) fn resume_resolve(
-        &mut self,
-        env: &Env<Limits>,
-        above: &mut Queue<Event>,
-        below: &mut Queue<Asked>,
-    ) -> bool {
-        let Some(resolve) = &mut self.resolving else { return false };
-        if resolve.resume(self.roots, env, above, below) {
-            self.resolving = None;
-        }
-        true
+        let resolve =
+            Resolve::new(request, self.roots, &self.store_path, self.file_read, self.proxy.as_ref(), env, below);
+        self.current = Current::Resolving(resolve);
     }
 }

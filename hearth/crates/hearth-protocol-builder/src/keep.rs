@@ -1,5 +1,5 @@
 //! A rendered file's single temporary, handed to the store after sync.
-use crate::{Asked, Limits, builder::vocabulary::Event, cache::Cache, render};
+use crate::{Asked, Current, Limits, builder::vocabulary::Event, cache::Cache, render};
 use alloc::boxed::Box;
 use render::vocabulary::{Class, Digest, Failure};
 use skein_io::{file, kernel::Fd};
@@ -103,15 +103,17 @@ impl Keep {
 
 impl crate::Protocol {
     pub(super) fn temporary(&mut self) -> Option<Box<[u8]>> {
-        if let Some(keep) = &self.keeping {
-            return Some(keep.temporary());
+        match &self.current {
+            Current::Keeping(keep) => return Some(keep.temporary()),
+            Current::Call(_) | Current::Step(_) | Current::Idle | Current::Resolving(_) | Current::Git { .. } => {}
         }
-        Some(crate::read::current(&mut self.mode)?.temporary())
+        Some(crate::read::current(&mut self.current)?.temporary())
     }
     pub(super) fn keep(&mut self, request: render::vocabulary::Request, env: &Env<Limits>) {
         let render::vocabulary::Request::Keep { request, path, sha256, bytes } = request else {
             unreachable!("keep request")
         };
-        self.keeping = Some(Keep::new(self.roots.cache.fd, &mut self.rng, request, path, sha256, bytes, env.now));
+        self.current =
+            Current::Keeping(Keep::new(self.roots.cache.fd, &mut self.rng, request, path, sha256, bytes, env.now));
     }
 }

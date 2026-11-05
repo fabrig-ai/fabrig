@@ -1,7 +1,7 @@
 //! Store io, with no waiting in the protocol layer (hearth/docs/design/domain/store.md, 8.2).
 pub(super) mod names;
 use crate::{
-    Asked, Roots,
+    Asked, Current, Roots,
     builder::{
         self,
         store::vocabulary::{Directory, Entry, Event, Helper, Request, Why},
@@ -468,9 +468,9 @@ fn loaded(bytes: &[u8], pending: &Request, limits: &Limits) -> Event {
 impl crate::Protocol {
     pub(super) fn store_request(&mut self, request: Request, limits: &Limits, below: &mut Queue<Asked>) {
         let temporary = self.temporary();
-        let index = match &self.resolving {
-            Some(resolve) => resolve.index(),
-            None => None,
+        let index = match &self.current {
+            Current::Resolving(resolve) => resolve.index(),
+            Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Git { .. } => None,
         };
         self.store.down(request, &self.roots, limits, temporary, index, below);
     }
@@ -479,8 +479,9 @@ impl crate::Protocol {
         if !self.store.resume(above) {
             return false;
         }
-        if let Some(resolve) = &mut self.resolving {
-            resolve.index_settled();
+        match &mut self.current {
+            Current::Resolving(resolve) => resolve.index_settled(),
+            Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Git { .. } => {}
         }
         true
     }
