@@ -7,6 +7,7 @@
   and the programs for trees.
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
+  6: `testing/skein-protocol-kit` doesn't exist.
 - **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no
