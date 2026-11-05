@@ -13,11 +13,10 @@
 //!   events, for a test to compare with the same seed's.
 
 use std::cell::RefCell;
-use std::collections::VecDeque;
 use std::rc::Rc;
 
 use skein_io::kernel::{Complete, Op, Submit};
-use skein_io::{Event, Io, Limits, MAX_OUT_DOWN, MAX_OUT_FIRE, MAX_OUT_RESUME, MAX_OUT_UP, MaxOut, Request};
+use skein_io::{Event, Io, Limits, Request, stage};
 use skein_lib::{Env, Queue, Time, Wall};
 use skein_sim::{Config, Entry, Pid, Sim};
 use skein_world::{Host, Memory};
@@ -42,7 +41,7 @@ pub struct Proc {
     pub completions: Queue<Complete>,
     pub subs: Queue<Submit>,
     events: Queue<Event>,
-    requests: VecDeque<Request>,
+    requests: Queue<Request>,
     /// What io told, in order, for replay.
     pub log: Vec<String>,
     /// Iterations whose down stage stopped with requests waiting, as io
@@ -61,11 +60,14 @@ impl Proc {
             completions: Queue::with_capacity(ROOM),
             subs: Queue::with_capacity(ROOM),
             events: Queue::uncapped(),
-            requests: VecDeque::new(),
+            requests: Queue::with_capacity(ROOM),
             log: Vec::new(),
             held_back: 0,
         };
         proc.owner.start(&mut proc.requests);
+        for request in &proc.requests {
+            proc.ledger.asked(request);
+        }
         proc
     }
 
@@ -74,42 +76,22 @@ impl Proc {
     pub fn iterate(&mut self, now: Time, wall: Wall, directory: &mut Directory) {
         self.env.now = now;
         self.env.wall = wall;
-        // io's stage: the ready list first, then completions, then deadlines.
-        while self.io.is_ready() && self.room(MAX_OUT_RESUME) {
-            let mark = self.marks();
-            skein_io::resume(&mut self.io, &self.env, &mut self.events, &mut self.subs);
-            self.within(mark, MAX_OUT_RESUME, "resume");
-        }
-        if !self.io.is_ready() {
-            while !self.completions.is_empty() && self.room(MAX_OUT_UP) {
-                let complete = self.completions.pop().expect("not empty");
-                let mark = self.marks();
-                skein_io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.subs);
-                self.within(mark, MAX_OUT_UP, "up");
-            }
-        }
-        while self.io.is_due(now) && self.room(MAX_OUT_FIRE) {
-            let mark = self.marks();
-            skein_io::fire(&mut self.io, &self.env, &mut self.events, &mut self.subs);
-            self.within(mark, MAX_OUT_FIRE, "fire");
-        }
+        stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.subs, now);
         // The owner's stage.
+        let queued = self.requests.len();
         while let Some(event) = self.events.pop() {
             self.ledger.event(&event);
             self.log.push(format!("{} {event:?}", now.as_nanos()));
             self.owner.on(now, event, directory, &mut self.requests);
         }
         self.owner.tick(now, directory, &mut self.requests);
-        // io's down stage.
-        while self.io.takes() && self.room(MAX_OUT_DOWN) {
-            let Some(request) = self.requests.pop_front() else {
-                break;
-            };
-            self.ledger.request(&request);
-            let mark = self.marks();
-            skein_io::down(&mut self.io, &self.env, request, &mut self.subs);
-            self.within(mark, MAX_OUT_DOWN, "down");
+        for request in self.requests.iter().skip(usize::try_from(queued).expect("small request queue")) {
+            self.ledger.asked(request);
         }
+        // io's down stage.
+        let before = self.requests.len();
+        stage::down(&mut self.io, &self.env, &mut self.requests, &mut self.subs);
+        self.ledger.taken(before - self.requests.len());
         if !self.io.takes() && !self.requests.is_empty() {
             self.held_back += 1;
         }
@@ -123,19 +105,6 @@ impl Proc {
         }
         assert!(accepts <= self.env.limits.accepts, "{accepts} accepts armed in one iteration, past the batch");
         self.io.reclaim();
-    }
-
-    fn room(&self, max: MaxOut) -> bool {
-        self.subs.room() >= max.submissions
-    }
-
-    fn marks(&self) -> u32 {
-        self.subs.len()
-    }
-
-    /// An entry point emitted no more than it declared.
-    fn within(&self, subs: u32, max: MaxOut, entry: &str) {
-        assert!(self.subs.len() - subs <= max.submissions, "{entry} submitted no more than its submission bound");
     }
 
     /// Whether the loop has work now, without the kernel or time.
