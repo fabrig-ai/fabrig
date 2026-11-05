@@ -2881,15 +2881,10 @@ name = "skein-fake-forge-tests"
 version = "0.0.0"
 dependencies = [
  "skein-fake-forge-domain",
- "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
- "skein-fake-forge-http",
  "skein-forge",
  "skein-forge-kit",
- "skein-http",
- "skein-json",
  "skein-lib",
- "skein-tls",
  "skein-world",
 ]
 

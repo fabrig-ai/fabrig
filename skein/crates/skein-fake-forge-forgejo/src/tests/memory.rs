@@ -5,8 +5,8 @@ mod tests {
     use super::domain;
     use alloc::boxed::Box;
     use skein_fake_forge_http::git;
-    use skein_lib::{List, Writer};
     use skein_heap::Meter;
+    use skein_lib::{List, Writer};
 
     fn bytes(count: u32, byte: u8) -> Box<[u8]> {
         let mut writer = Writer::new(count.try_into().expect("test bytes"));
