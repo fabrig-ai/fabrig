@@ -3,6 +3,7 @@ use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_forge_world::{World, changes};
 const PROJECT: u32 = 5;
+const SEED: u64 = 17;
 const CHANGE: u64 = 51;
 const BRANCH: &[u8] = b"temper/51";
 const TITLE: &[u8] = b"Small fix";
@@ -15,7 +16,7 @@ fn view(world: &World) -> top::ChangesView {
 }
 #[test]
 fn a_landed_change_keeps_its_title_after_its_close() {
-    let mut world = World::new(17);
+    let mut world = World::new(SEED);
     world.adopt();
     world.produce(BRANCH);
     world.status(BRANCH, skein_fake_forge_domain::api::Check::Passed);
@@ -52,5 +53,16 @@ fn a_landed_change_keeps_its_title_after_its_close() {
     let closed = view(&world);
     assert_eq!(closed.landed, landed.landed);
     assert_eq!((closed.landed[0].task, closed.landed[0].title.as_ref()), (CHANGE, TITLE));
-    assert!(!world.stored().contains_key(&top::Key::Change(CHANGE)));
+    world.restart();
+    world.run_for(1);
+    assert_eq!(view(&world), closed);
+
+    let mut restored = World::new(SEED);
+    for (_, record) in world.stored() {
+        if matches!(record, top::Stored::Repository(_) | top::Stored::LandingLog(_)) {
+            restored.event(top::Event::Restore { record: record.clone() });
+        }
+    }
+    assert!(restored.document(PROJECT, CHANGE).is_none());
+    assert_eq!(view(&restored), closed);
 }
