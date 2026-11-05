@@ -141,6 +141,7 @@ pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_d
             crate::forge::records::connect(engine, kept.number);
         }
     }
+    crate::clients::forge_sign_in::refresh(engine);
 }
 
 fn record_settings(

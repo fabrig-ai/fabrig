@@ -51,6 +51,18 @@ the rest kept:
 Every owner of provider 3 is a member. Adding a member is a change of
 this file and a restart.
 
+To sign your people in to Forgejo through temper too, add
+`engine.clients.provider`: `{"key": "provider.key", "clients": [{"id":
+"forgejo", "secret": "forgejo-client.secret", "redirect_uri":
+"https://git.example.com/user/oauth2/temper/callback"}], "addresses":
+[3]}`, and in `application.sign_in`, `"forges": [{"forge": 1, "client":
+"forgejo"}]`. Before step 3, this makes the key and the client's secret
+and prints the Forgejo command to run once, after step 4:
+
+```
+temper forge sign-in --config CONFIG --data DATA --cache CACHE 1
+```
+
 `engine.memory_bytes`, 1 GiB (`1073741824`) in `owned.json`, is the
 engine's budget for the transcripts and turns it holds. While what it
 holds is at or past the figure, a task that comes due waits to start
@@ -92,7 +104,8 @@ may read, or that is a link: give it to `temper`, mode 0600.
 ## 3. Start Forgejo, then the engine
 
 Units under `temper`, each with `UMask=0077`, `ProtectSystem=strict`,
-`ReadWritePaths=/var/lib/temper`, `NoNewPrivileges=yes`. Forgejo's:
+`PrivateTmp=yes`, `ReadWritePaths=/var/lib/temper`, `NoNewPrivileges=yes`.
+`strict` leaves `/tmp` read-only without `PrivateTmp`. Forgejo's:
 
 ```
 temper forge fetch --config CONFIG --data DATA --cache CACHE 1
@@ -101,26 +114,28 @@ temper forge run --config CONFIG --data DATA --cache CACHE 1 forgejo
 ```
 
 The engine's, after Forgejo's `http://127.0.0.1:3000/api/v1/version`
-answers, since it takes Forgejo's handover at its start:
+answers, since it connects a forge it keeps at its start:
 
 ```
 temper serve --config CONFIG --data DATA --cache CACHE
 ```
 
-Expect: `fetch` and `prepare` print nothing and exit 0; `run` is
-Forgejo's own output; `serve` prints its sign-in link,
+Expect: `fetch` says how far each binary has gone, `fetched BINARY DONE
+of TOTAL bytes`, and nothing for one already there; `prepare` prints
+nothing; each exits 0. `run` is Forgejo's own output; `serve` prints its
+sign-in link,
 `https://temper.example.com/jig/v1/sign-in/link?secret=` and its
 secret, and on stderr `listening clients 127.0.0.1:8367`.
+With `sign_in.forges`, `serve`'s stderr says
+`temper serve: forge 1: no sign-in through temper: no such forge is kept`
+until step 6 connects it.
 
 If not: a refused start names its member, file or address, or what
 reading `DATA` back refused (`temper serve: restore KIND: REASON`,
 `temper serve: restart refused during PHASE: REASON`, the reason naming
 the store's cause and the record's family and key when it has one): keep
 `DATA` as it is and
-report that line as a finding. A forge
-not prepared: `serve`'s stderr says
-`temper serve: forge 1: Not connected: prepare it with` the command;
-run `prepare`, then start the engine again.
+report that line as a finding.
 
 ## 4. The TLS proxy
 
@@ -164,7 +179,9 @@ unit's journal.
   directories, its document the example's worker part, `workers[0]`
   with `engine` `{"socket": "127.0.0.1:8369"}`, `name` `"w1"`,
   `secret` `"secrets/w1.secret"`, `agent` naming the binary and
-  `agent.json` by absolute paths.
+  `agent.json` by absolute paths; its unit as step 3's,
+  `ReadWritePaths` its own home: without `PrivateTmp=yes` a Claude Code
+  run fails `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
 - The runner, Forgejo runner 13.2.1 under a user of its own, its
   `url` `http://127.0.0.1:3000`, its `uuid` and secret those of
   `DATA/forge-1/runner/`; its jobs in rootless podman.
@@ -183,7 +200,15 @@ it needs: `engine.limits.overrides.core.policy_bytes:
 core.policy_bytes is 100; the stock's policy 1 needs 2390 bytes; raise
 it in engine.limits.overrides`; raise that override and start again.
 
-## 6. Sign in, through a tunnel
+A task held `out of tries: run failures`: its runs failed, each for the
+reason the engine's journal names,
+`temper serve: task TASK run RUN attempt ATTEMPT failed CLASS: DETAIL`:
+
+```
+journalctl -u temper -o cat | grep 'task TASK run'
+```
+
+## 6. Sign in, through a tunnel, and connect the forge
 
 The link names the public origin, whose route the proxy refuses: give
 it to ctl with the listener's origin in its place, on `engine`, as
@@ -196,11 +221,25 @@ journalctl -u temper -o cat | grep -o 'https://temper.example.com/jig/v1/sign-in
 A person's browser opens the same link through `ssh -L
 8367:127.0.0.1:8367 engine`.
 
+Then connect the Forgejo of step 3. Without a box temper keeps no record
+of it until this, so `forge list` is empty and `forge setup` is refused;
+on a new store it is forge 1:
+
+```
+temper ctl DIR forge connect forgejo-admin DATA/forge-1/admin_token --api 127.0.0.1:3000 --git http://127.0.0.1:3000 --web https://git.example.com --key KEY
+temper ctl DIR forge list --until connected:1
+```
+
+Keep `DATA/forge-1/admin_token`: the next redeploy's connect reads it.
+
 Expect: `party 1 · sam · ` and the party's name: the first of
-`engine.owners`.
+`engine.owners`. `connecting`; then the wait prints the forges, forge
+`1` `managed`, then `met`.
 
 If not: `temper ctl: the sign-in link was refused`: it was spent or
 expired, and temper printed a fresh one: run the line again.
+`connected already` (exit 2): a kept store keeps its forge, and there is
+nothing to do. Other refusals: as temper help forgejo says in its step 2.
 
 ## 7. Redeploy from main
 
@@ -214,9 +253,10 @@ temper ctl DIR account export ACCOUNT FILE
 ```
 
 Then stop the units; install the new binary and documents; remove
-`DATA` but `DATA/secrets/` and `DATA/forge-1/`, and on `worker` its
-data but `secrets/`; start Forgejo, the engine, the worker and the
-runner; sign in again (step 6); then:
+`DATA` but `DATA/secrets/` and `DATA/forge-1/` and, with Forgejo's sign-in
+through temper, the provider's key and the client's secret, and on
+`worker` its data but `secrets/`; start Forgejo, the engine, the worker
+and the runner; sign in and connect the forge again (step 6); then:
 
 ```
 temper ctl DIR account import FILE --key KEY

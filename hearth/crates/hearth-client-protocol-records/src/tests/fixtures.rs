@@ -80,7 +80,7 @@ pub fn wg0_changed() -> crate::diff::Change {
     const LINES: [(LineKind, &[u8]); 7] = [
         (LineKind::Header, b"@@ -9,5 +9,5 @@ ListenPort=51820"),
         (LineKind::Context, b"[WireGuardPeer]"),
-        (LineKind::Context, "PublicKey=m3NY8…=".as_bytes()),
+        (LineKind::Context, "PublicKey=AAAA…=".as_bytes()),
         (LineKind::Context, b"AllowedIPs=10.0.0.1/32"),
         (LineKind::Removed, b"Endpoint=203.0.113.157:51820"),
         (LineKind::Added, b"Endpoint=203.0.113.158:51820"),
@@ -119,7 +119,7 @@ pub const WG0_TEXT: &str = concat!(
     "carbon-prod                                         rebuild from config\n",
     "  config   ~ /etc/systemd/network/wg0.netdev        0644 root:root\n",
     "               @@ -9,5 +9,5 @@ ListenPort=51820\n                [WireGuardPeer]\n",
-    "                PublicKey=m3NY8…=\n                AllowedIPs=10.0.0.1/32\n",
+    "                PublicKey=AAAA…=\n                AllowedIPs=10.0.0.1/32\n",
     "               -Endpoint=203.0.113.157:51820\n               +Endpoint=203.0.113.158:51820\n                PersistentKeepalive=25\n",
 );
 pub fn tally(targets: u32, changed: u32, unchanged: u32) -> crate::diff::Tally {
@@ -333,7 +333,7 @@ pub fn composition_error(why: crate::errors::Composition) -> crate::errors::Erro
 }
 
 pub fn composition_on(host: crate::errors::Host) -> crate::errors::Error {
-    composition_error(crate::errors::Composition::On { on: copy_of(b"rhi-lab"), host })
+    composition_error(crate::errors::Composition::On { on: copy_of(b"east-lab"), host })
 }
 pub fn missing_task() -> crate::errors::Error {
     let mut error = composition_error(crate::errors::Composition::Task);

@@ -1172,7 +1172,7 @@ shift and the activator, stays M3's (section 7).
   Secure Boot off, on an msdos disk laid out as hearth/docs/design/domain/machine.md (5.1) says.
 - **Containers [M5] run inside a VM,** which is their host target: its
   hearth runs the container targets with systemd-nspawn, as `carbon`,
-  `rhi` and `vul` do (hearth/docs/design/domain/slots.md, section 12). A VM needs no nesting
+  `east` and `south` do (hearth/docs/design/domain/slots.md, section 12). A VM needs no nesting
   settings for that, unlike an Incus container, and the real tier
   cannot run them: nspawn needs root.
 

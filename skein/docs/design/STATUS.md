@@ -17,7 +17,9 @@ No macOS runner runs skein's suites (`shell.md`). json, tls and http's collector
 (`json.md`, `tls.md`, `http.md`). A few items lag in `lib.md`,
 `examples.md`, `forge-setup.md`, `kv.md` and `ui.md`, and the LLM live
 suite's logins have no design (`skein-live`), five of its provider
-stories being manual, run by the owner (`llm.md`). The code departs
+stories being manual, run by the owner (`llm.md`). Most carriers still
+print the bytes they hold, credentials among them on known paths
+(`lib.md`), as does a server's written head (`http.md`). The code departs
 in `skein-playground`'s manifest (`playground.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and

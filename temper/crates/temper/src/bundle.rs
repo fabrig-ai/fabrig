@@ -130,7 +130,13 @@ fn finish(page: Box<[u8]>, digest: Box<[u8]>, files: Map<Box<[u8]>, File>) -> Bu
     for byte in &page {
         hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
     }
-    Bundle { page, etag: format!("\"{hash:016x}\"").into_bytes().into_boxed_slice(), digest, files }
+    Bundle {
+        page,
+        forge_meta_bytes: 0,
+        etag: format!("\"{hash:016x}\"").into_bytes().into_boxed_slice(),
+        digest,
+        files,
+    }
 }
 
 /// Check each digest name once, shared by directory and embedded reads.

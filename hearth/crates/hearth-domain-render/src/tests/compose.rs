@@ -347,12 +347,12 @@ use fixtures::containers;
 fn containers_are_the_targets_placed_on_a_host_in_name_order() {
     let mut fleet = containers::fleet();
     fleet.targets.reverse();
-    let containers = containers::on(&fleet, b"rhi-prod").expect("valid containers");
-    assert_eq!(containers::names(&containers).as_ref(), containers::RHI_PROD_CONTAINERS);
+    let containers = containers::on(&fleet, b"east-prod").expect("valid containers");
+    assert_eq!(containers::names(&containers).as_ref(), containers::EAST_PROD_CONTAINERS);
 }
 #[test]
 fn a_target_placed_on_another_host_is_not_listed() {
-    let containers = containers::on(&containers::fleet(), b"rhi-lab").expect("valid containers");
+    let containers = containers::on(&containers::fleet(), b"east-lab").expect("valid containers");
     assert_eq!(containers::names(&containers).as_ref(), [b"mail-lab".as_slice()]);
 }
 #[test]
@@ -362,7 +362,7 @@ fn a_target_nothing_is_placed_on_has_an_empty_containers_map() {
 #[test]
 fn a_containers_placement_map_leaves_absent_fields_out() {
     assert_eq!(
-        containers::root(&containers::fleet(), b"rhi-lab"),
+        containers::root(&containers::fleet(), b"east-lab"),
         crate::evaluate::Value::Map(Box::new([crate::evaluate::Entry {
             key: Box::from(b"mail-lab".as_slice()),
             value: Some(crate::evaluate::Value::Map(Box::new([
@@ -372,7 +372,7 @@ fn a_containers_placement_map_leaves_absent_fields_out() {
                 },
                 crate::evaluate::Entry {
                     key: Box::from(b"on".as_slice()),
-                    value: Some(crate::evaluate::Value::String(Box::from(b"rhi-lab".as_slice())))
+                    value: Some(crate::evaluate::Value::String(Box::from(b"east-lab".as_slice())))
                 },
             ]))),
         }]))
@@ -387,8 +387,8 @@ fn a_base_envs_placement_replaces_the_environments_for_containers() {
         containers::document(Some(containers::placement(Some(b"empty-prod")))),
     );
     let fleet = containers::discovered(documents);
-    let containers = containers::on(&fleet, b"rhi-prod").expect("valid containers");
-    assert_eq!(containers::names(&containers).as_ref(), containers::RHI_PROD_CONTAINERS);
+    let containers = containers::on(&fleet, b"east-prod").expect("valid containers");
+    assert_eq!(containers::names(&containers).as_ref(), containers::EAST_PROD_CONTAINERS);
 }
 #[test]
 fn a_container_with_a_refused_placement_fails_its_host() {
