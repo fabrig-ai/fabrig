@@ -41,3 +41,16 @@ The pairs; the fixtures; the checks; `cargo fmt`; `(cd skein && python3 -I -B sc
 ## Report
 
 The common note's items; the pairs; the lines. The item's **Paid when**, in a sentence each.
+
+## Answers
+
+### 2026-11-05: resume connection-close after forge-sockets supplies its shared Sockets implementation (recommended), or explicitly defer D030 closure to a later task? (debt-24/connection-close-1, foreman debt-24/connection-close/foreman-1)
+
+Resume connection-close after forge-sockets supplies its shared Sockets implementation; D030 closure remains required.
+The task declares `needs = ["forge-sockets"]`.
+Its goal says: “Skein D030's **Paid when** holds and its copies leave.”
+D030 requires “one io harness for the forge worlds.”
+`skein/docs/design/fake-forge.md`, 10.6 specifies that the worlds “play their wire through one io harness (`skein_forge_kit::sockets`, testing.md, 6)”.
+Acceptance requires D030’s deletion and removal of both named **Not yet** entries; it provides no option to defer closure to another task.
+The checkout has neither `sockets.rs` nor `pub mod sockets`, confirming the missing prerequisite.
+The next run resumes from the pushed branch after that prerequisite is supplied, verifies **Paid when**, removes D030 and the named status entries, completes the required checks, and commits and pushes.
