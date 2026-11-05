@@ -1,0 +1,3 @@
+draft = "debt-24"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-24/inputs/request.md", "temper/docs/plan/debt-24/inputs/debt22-review.md", "skein/docs/development/debt/D028-worlds-as-kits.md", "skein/docs/development/debt/D030-forge-connection-harness-tests.md", "jig/docs/development/debt/D029-protocol-front-one-identity.md", "jig/docs/development/debt/D031-worlds-as-kits.md", "jig/docs/development/debt/D035-bare-numbers-in-worlds.md"]
