@@ -3472,9 +3472,13 @@ pub(super) fn append_change_replies(
     relay::apply(domain, env, task, decision)
 }
 
-/// The change names who requested its already agreed work (domain/forge.md, 8.1).
-fn takes_no_messages(requester: tasks::Party, limit: u32) -> Box<[u8]> {
+/// Feedback names the question route and answer form (domain/forge.md, 8.1, 8.11).
+fn takes_no_messages(requester: tasks::Party, route: forge_change::Route, limit: u32) -> Box<[u8]> {
     let mut words = List::with_capacity(limit);
+    if route != forge_change::Route::None {
+        append(&mut words, b"Relays questions. Use read_task on this change; message target=this change, form=answer, question=number. Words do not answer.");
+        return words.into_boxed();
+    }
     append(&mut words, b"A change takes no questions, answers or words; its requester is ");
     let (kind, number): (&[u8], u64) = match requester {
         tasks::Party::Task(number) => (b"task ", number),
