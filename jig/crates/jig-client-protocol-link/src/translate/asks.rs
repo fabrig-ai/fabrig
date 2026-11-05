@@ -374,8 +374,21 @@ pub(crate) fn wire_seen(value: &c::SeenThrough, limits: &w::Limits) -> Result<w:
     })
 }
 
+fn writable_note_scope(value: &c::NoteScope, limits: &w::Limits, path: w::Path) -> Result<w::NoteScope, w::Problem> {
+    match value {
+        c::NoteScope::Tasks { .. } => Err(w::Problem { path, reason: skein_codec::Reason::Malformed }),
+        c::NoteScope::Deployment
+        | c::NoteScope::Project(_)
+        | c::NoteScope::Resource { .. }
+        | c::NoteScope::Task { .. } => wire_note_scope(value, limits),
+    }
+}
+
 pub(crate) fn wire_note_scope(value: &c::NoteScope, limits: &w::Limits) -> Result<w::NoteScope, w::Problem> {
     Ok(match value {
+        c::NoteScope::Tasks { project } => {
+            w::NoteScope::Tasks(w::NoteScopeTasks::new(limits, w::NoteScopeTasksParts { project: *project })?)
+        }
         c::NoteScope::Deployment => w::NoteScope::Deployment,
         c::NoteScope::Project(value) => {
             w::NoteScope::Project(w::NoteScopeProject::new(limits, w::NoteScopeProjectParts { value: *value })?)
@@ -632,7 +645,7 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
                 w::EditNoteParts {
                     project: *project,
                     note: *note,
-                    scope: wire_note_scope(scope, limits)?,
+                    scope: writable_note_scope(scope, limits, w::Path::EditNoteScope)?,
                     revision: wire_revision(*revision, limits)?,
                     description: bytes::copy_of(description.bytes()),
                     body: bytes::copy_of(body.bytes()),
@@ -645,7 +658,7 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
             w::DeleteNoteParts {
                 project: *project,
                 note: *note,
-                scope: wire_note_scope(scope, limits)?,
+                scope: writable_note_scope(scope, limits, w::Path::DeleteNoteScope)?,
                 revision: wire_revision(*revision, limits)?,
             },
         )?),

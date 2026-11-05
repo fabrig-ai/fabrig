@@ -252,6 +252,8 @@ pub enum NoteScope {
     Resource { project: u32, connector: u16, pattern: super::Pattern },
     /// For one goal.
     Task { project: u32, task: u64 },
+    /// Read-only list of a project's goal-scoped notes, without bodies.
+    Tasks { project: u32 },
 }
 
 /// How an object ended.

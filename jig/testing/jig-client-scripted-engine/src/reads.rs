@@ -376,8 +376,15 @@ impl<A: crate::Application> Engine<A> {
                     | Read::Turn { .. } | Read::PersonTask { .. } | Read::Result { .. } | Read::Ended { .. } | Read::History { .. } | Read::Activity { .. } | Read::Spend { .. } | Read::Project { .. } | Read::Notes { .. } | Read::Settings | Read::Setting(_) | Read::Revision(_) | Read::Revisions(_) | Read::Deployment => false,
                 }
             }).collect()),
-            Rows::Notes(rows) => Rows::Notes(rows.into_iter().filter(|row| {
-                matches!(query, Read::Notes { scope, description, .. } if *scope == row.scope && description.as_ref().is_none_or(|needle| needle.bytes().is_empty() || row.description.bytes().windows(needle.bytes().len()).any(|window| window == needle.bytes())))
+            Rows::Notes(rows) => Rows::Notes(rows.into_iter().filter_map(|mut row| {
+                if let Read::Notes { scope: NoteScope::Tasks { project }, description, .. } = query {
+                    if description.is_some() || !matches!(row.scope, NoteScope::Task { project: owner, .. } if owner == *project) {
+                        return None;
+                    }
+                    row.body = jig_client_domain::contract::DocumentText { bytes: jig_client_domain::contract::Text::new(Box::new([]), 0).expect("empty text"), cut: true };
+                    return Some(row);
+                }
+                matches!(query, Read::Notes { scope, description, .. } if *scope == row.scope && description.as_ref().is_none_or(|needle| needle.bytes().is_empty() || row.description.bytes().windows(needle.bytes().len()).any(|window| window == needle.bytes()))).then_some(row)
             }).collect()),
             Rows::Tasks(rows) => Rows::Tasks(rows),
             Rows::Ended(rows) => Rows::Ended(rows), Rows::History(rows) => Rows::History(rows),
@@ -410,10 +417,10 @@ impl<A: crate::Application> Engine<A> {
             Read::Notes { scope, .. } => {
                 return match scope {
                     NoteScope::Deployment => self.truth.frames.get(&party).is_some_and(|f| f.deployment_role.is_some()),
-                    NoteScope::Project(project) | NoteScope::Resource { project, .. } => {
-                        self.truth.visible(party, *project)
-                    }
-                    NoteScope::Task { project, .. } => self.truth.visible(party, *project),
+                    NoteScope::Project(project)
+                    | NoteScope::Resource { project, .. }
+                    | NoteScope::Task { project, .. }
+                    | NoteScope::Tasks { project } => self.truth.visible(party, *project),
                 };
             }
             Read::Tasks { query, .. } => {
@@ -454,5 +461,67 @@ fn empty(read: &Read) -> Rows {
         | Read::Revision(_)
         | Read::Revisions(_)
         | Read::Deployment => unreachable!("documents do not request a row source"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jig_client_domain::contract::{DocumentText, NoteAuthor, Revision, Text};
+
+    #[test]
+    fn tasks_select_goal_notes_without_bodies() {
+        let mut script = crate::Script::default();
+        for (number, scope) in [
+            (1, NoteScope::Deployment),
+            (2, NoteScope::Project(1)),
+            (
+                3,
+                NoteScope::Resource {
+                    project: 1,
+                    connector: 1,
+                    pattern: jig_client_domain::contract::Pattern {
+                        segments: List::with_capacity(0),
+                        last: jig_client_domain::contract::PatternEnd::Open(Box::new([])),
+                    },
+                },
+            ),
+            (4, NoteScope::Task { project: 2, task: 4 }),
+            (5, NoteScope::Task { project: 1, task: 5 }),
+            (6, NoteScope::Task { project: 1, task: 6 }),
+        ] {
+            script.truth.notes.insert(
+                number,
+                Note {
+                    number,
+                    scope,
+                    revision: Revision { value: 1 },
+                    description: DocumentText::complete(Text::new(Box::new(*b"draft"), 5).unwrap()),
+                    body: DocumentText::complete(Text::new(Box::new(*b"body"), 4).unwrap()),
+                    writer: NoteAuthor::Task { task: number, attempt: 1 },
+                    tasks: List::with_capacity(0),
+                    changed: None,
+                    acts: List::with_capacity(0),
+                    cut: false,
+                },
+            );
+        }
+        let engine = Engine::new(script, 1).unwrap();
+        let query = Read::Notes { scope: NoteScope::Tasks { project: 1 }, description: None, after: None };
+        let Rows::Notes(rows) = engine.rows_for(1, &query) else { panic!("notes rows") };
+        assert_eq!(rows.len(), 2);
+        for (row, task) in rows.iter().zip([5, 6]) {
+            assert_eq!(row.scope, NoteScope::Task { project: 1, task });
+            assert!(row.body.bytes().is_empty());
+            assert!(row.body.cut);
+            assert!(!row.cut);
+        }
+        let query = Read::Notes {
+            scope: NoteScope::Tasks { project: 1 },
+            description: Some(Text::new(Box::new([]), 0).unwrap()),
+            after: None,
+        };
+        let Rows::Notes(rows) = engine.rows_for(1, &query) else { panic!("notes rows") };
+        assert!(rows.is_empty());
     }
 }

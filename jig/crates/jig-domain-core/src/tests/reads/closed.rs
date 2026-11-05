@@ -377,3 +377,257 @@ fn no_document_lists_a_closed_project_or_its_tasks() {
         assert!(inbox.updates.is_empty());
     }
 }
+
+fn document_row(name: u64, scope: notes::Scope) -> crate::reads::Row {
+    stored_row(
+        Record::Notes(notes::Record::Entry(notes::Entry {
+            name,
+            scope,
+            description: Box::new(*b"draft"),
+            body: Box::new(*b"# Draft\n"),
+            references: List::with_capacity(0),
+            author: notes::Author::Task { task: name, attempt: 1 },
+            revision: 1,
+            changed: Wall::EPOCH,
+        })),
+        None,
+    )
+}
+
+fn project_documents(
+    core: &mut Core,
+    limits: &Limits,
+    sign_in: u64,
+    project: u32,
+    rows: Box<[crate::reads::Row]>,
+) -> Box<crate::reads::Page> {
+    let Held::ReadLoad { load, range } =
+        read_start(core, limits, sign_in, crate::reads::Read::Notes { project, from: None })
+    else {
+        panic!("project notes load")
+    };
+    assert_eq!(range.scope, crate::reads::Scope::Notes { project });
+    let crate::reads::Answer::Page(page) =
+        loaded_answer(core, limits, load, crate::reads::Loaded::Page { rows, next: None }).unwrap()
+    else {
+        panic!("project notes page")
+    };
+    page
+}
+
+#[test]
+fn project_notes_hold_goal_scoped_rows_alone() {
+    for project in [0, 1] {
+        let (mut core, limits) = two_parties();
+        let scope = crate::reads::Scope::Notes { project };
+        let goal = notes::Scope::Goal { project, goal: 7 };
+        let other = notes::Scope::Goal { project: 99, goal: 7 };
+        let resources = notes::Scope::Resources {
+            project,
+            connector: 1,
+            pattern: notes::Pattern { segments: Box::new([]), last: notes::Last::Open(Box::new([])) },
+        };
+        let scopes = [notes::Scope::Deployment, notes::Scope::Project { project }, resources, other, goal.clone()];
+        for (name, owner) in (1..).zip(scopes) {
+            assert_eq!(
+                crate::reads::admits(1, &scope, &Key::Notes(notes::Key::Line { scope: owner.clone(), name })),
+                owner == goal
+            );
+            let Held::ReadLoad { load, .. } =
+                read_start(&mut core, &limits, 10, crate::reads::Read::Notes { project, from: None })
+            else {
+                panic!("notes load")
+            };
+            let answer = loaded_answer(
+                &mut core,
+                &limits,
+                load,
+                crate::reads::Loaded::Page { rows: Box::new([document_row(name, owner.clone())]), next: None },
+            )
+            .unwrap();
+            if owner == goal {
+                let crate::reads::Answer::Page(page) = answer else { panic!("goal notes page") };
+                assert_eq!(page.rows.len(), 1);
+                let crate::reads::PageRow::Note(note) = page.rows.get(0).unwrap() else { panic!("goal note") };
+                assert_eq!(note.number, 5);
+                assert_eq!(note.scope, NoteLocation::Goal { project, task: 7 });
+                assert_eq!(page.next, None);
+            } else {
+                let crate::reads::Answer::Page(page) = answer else { panic!("filtered notes page") };
+                assert!(page.rows.is_empty(), "out-of-scope entries yield no notes");
+            }
+            core.reclaim();
+        }
+    }
+}
+
+#[test]
+fn project_notes_leave_out_each_body() {
+    let (mut core, mut limits) = two_parties();
+    limits.documents.lines = 1;
+    let first = document_row(1, notes::Scope::Goal { project: 1, goal: 1 });
+    let mut second = document_row(2, notes::Scope::Goal { project: 1, goal: 2 });
+    let Record::Notes(notes::Record::Entry(entry)) = &mut second.value else { panic!("note entry") };
+    entry.body = Box::new([]);
+    entry.references = List::from_boxed(Box::new([1, 2]));
+    let page = project_documents(&mut core, &limits, 10, 1, Box::new([first, second]));
+    assert_eq!(page.rows.len(), 2);
+    for (index, row) in page.rows.iter().enumerate() {
+        let crate::reads::PageRow::Note(note) = row else { panic!("note row") };
+        assert!(note.body.bytes.is_empty());
+        assert!(note.body.cut, "even an empty source body is omitted");
+        assert_eq!(note.cut, index == 1, "Note.cut still describes omitted references");
+        assert_eq!(note.description.bytes.as_ref(), b"draft");
+        assert_eq!(note.revision, 1);
+    }
+}
+
+fn remove_observer(core: &mut Core, limits: &Limits) {
+    let mut out = Queue::uncapped();
+    people::step(
+        &mut core.people,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
+        people::Event::Roles {
+            project: 1,
+            holdings: Box::new([people::Holding { person: 1, role: people::Role::Owner }]),
+        },
+        &mut out,
+    );
+    assert_eq!(core.people.role(2, 1), None);
+}
+
+#[test]
+fn project_notes_are_the_projects_visibility() {
+    let (mut core, limits) = two_parties();
+    assert_eq!(core.people.role(2, 1), Some(people::Role::Observer));
+    let page = project_documents(
+        &mut core,
+        &limits,
+        11,
+        1,
+        Box::new([document_row(1, notes::Scope::Goal { project: 1, goal: 1 })]),
+    );
+    assert_eq!(page.rows.len(), 1, "an observer reads another party's chat");
+    let Held::ReadLoad { load, .. } =
+        read_start(&mut core, &limits, 11, crate::reads::Read::Notes { project: 1, from: None })
+    else {
+        panic!("observer load")
+    };
+    remove_observer(&mut core, &limits);
+    assert_eq!(
+        loaded_answer(
+            &mut core,
+            &limits,
+            load,
+            crate::reads::Loaded::Page {
+                rows: Box::new([document_row(1, notes::Scope::Goal { project: 1, goal: 1 })]),
+                next: None,
+            }
+        ),
+        Some(crate::reads::Answer::None(crate::reads::Why::Unknown))
+    );
+    let Held::Read { answer, .. } =
+        read_start(&mut core, &limits, 11, crate::reads::Read::Notes { project: 1, from: None })
+    else {
+        panic!("no project role admits no load")
+    };
+    assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Unknown));
+}
+
+fn write_chat_document(core: &mut Core, limits: &Limits, task: u64, title: &[u8]) -> crate::reads::Row {
+    core.proofs.insert(task, RunProof::claimed(task, 1, 1, None, fleet::HostKind::Engine)).unwrap();
+    let mut out = watch_outputs(
+        core,
+        limits,
+        Event::NamedAction {
+            to: ReplyTo::new(Token::new(task)),
+            key: CallKey { task, attempt: 1, completion: 1, position: 0 },
+            action: NamedAction::Note {
+                entry: notes::New {
+                    name: 0,
+                    scope: notes::Scope::Goal { project: 1, goal: task },
+                    description: skein_lib::bytes::copy_of(title),
+                    body: Box::new(*b"# Draft\n"),
+                    references: List::with_capacity(0),
+                    author: notes::Author::Party { party: 1 },
+                },
+                recalled: None,
+            },
+        },
+    );
+    // A first write loads its absent entry and then its empty scope's index.
+    for _ in 0_u32..2 {
+        let mut owner = None;
+        for request in &out {
+            if let Request::Held(value) = request
+                && let Held::NotesLoad { owner: load, .. } = value.as_ref()
+            {
+                assert!(owner.is_none(), "one notes load at a time");
+                owner = Some(*load);
+            }
+        }
+        let owner = owner.expect("chat note load");
+        out = watch_outputs(
+            core,
+            limits,
+            Event::Notes(notes::Event::Loaded {
+                owner,
+                rows: notes::Rows { records: List::with_capacity(0) },
+                more: false,
+            }),
+        );
+    }
+    let mut entry = None;
+    for request in out {
+        if let Request::Write(Write::Save(Record::Notes(notes::Record::Entry(value)))) = request {
+            assert!(entry.is_none(), "one document written by this chat");
+            entry = Some(value);
+        }
+    }
+    let entry = entry.expect("chat wrote its document");
+    assert_eq!(entry.author, notes::Author::Task { task, attempt: 1 });
+    assert_eq!(entry.body.as_ref(), b"# Draft\n");
+    stored_row(Record::Notes(notes::Record::Entry(entry)), None)
+}
+
+#[test]
+fn a_party_lists_two_chats_documents() {
+    let (people, _) = two_parties();
+    let (mut core, limits) = tree_core();
+    core.people = people.people;
+    let mut rules = core.authority.rules().clone();
+    rules.ceiling.notes = authority::Scopes::GOAL;
+    let mut policy = core.authority.policy(1).unwrap().clone();
+    policy.ceiling.notes = authority::Scopes::GOAL;
+    policy.roles[0].authority.notes = authority::Scopes::GOAL;
+    core.authority = authority::Domain::new(rules, limits.authority).unwrap();
+    let mut out = Queue::uncapped();
+    authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
+    make_task(&mut core, &limits, 1);
+    make_task(&mut core, &limits, 2);
+    for task in [1, 2] {
+        assert!(core.tasks.task(task).unwrap().flags.conversation);
+        assert_eq!(core.note_goal(core.tasks.task(task).unwrap()), Some(task));
+    }
+    let first = write_chat_document(&mut core, &limits, 1, b"First draft");
+    let second = write_chat_document(&mut core, &limits, 2, b"Second draft");
+    let page = project_documents(&mut core, &limits, 11, 1, Box::new([first, second]));
+    assert_eq!(page.rows.len(), 2);
+    for (row, (task, title)) in page.rows.iter().zip([(1, b"First draft".as_slice()), (2, b"Second draft".as_slice())])
+    {
+        let crate::reads::PageRow::Note(note) = row else { panic!("chat document") };
+        assert_eq!(note.scope, NoteLocation::Goal { project: 1, task });
+        assert_eq!(note.description.bytes.as_ref(), title);
+        assert!(note.body.bytes.is_empty());
+        assert!(note.body.cut);
+        assert!(!note.cut);
+    }
+    assert_eq!(page.next, None, "one read lists both documents");
+    remove_observer(&mut core, &limits);
+    let Held::Read { answer, .. } =
+        read_start(&mut core, &limits, 11, crate::reads::Read::Notes { project: 1, from: None })
+    else {
+        panic!("a party with no role reads none")
+    };
+    assert_eq!(answer, crate::reads::Answer::None(crate::reads::Why::Unknown));
+}

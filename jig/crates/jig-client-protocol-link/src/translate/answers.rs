@@ -145,8 +145,9 @@ pub(crate) fn pattern(value: &w::Pattern) -> c::Pattern {
     c::Pattern { segments: list0, last: pattern_end(value.last()) }
 }
 
-pub(crate) fn note_scope(value: &w::NoteScope) -> c::NoteScope {
-    match value {
+pub(crate) fn note_scope(value: &w::NoteScope) -> Result<c::NoteScope, w::Problem> {
+    Ok(match value {
+        w::NoteScope::Tasks(_) => return Err(super::piece_problem(skein_codec::Reason::Malformed)),
         w::NoteScope::Deployment => c::NoteScope::Deployment,
         w::NoteScope::Project(row) => c::NoteScope::Project(row.value()),
         w::NoteScope::Resource(row) => c::NoteScope::Resource {
@@ -155,11 +156,11 @@ pub(crate) fn note_scope(value: &w::NoteScope) -> c::NoteScope {
             pattern: pattern(row.pattern()),
         },
         w::NoteScope::Task(row) => c::NoteScope::Task { project: row.project(), task: row.task() },
-    }
+    })
 }
 
-pub(crate) fn made(value: &w::Made) -> c::Made {
-    match value {
+pub(crate) fn made(value: &w::Made) -> Result<c::Made, w::Problem> {
+    Ok(match value {
         w::Made::Tasks(row) => {
             let mut list0 = List::with_capacity(row.tasks().len());
             for item in row.tasks() {
@@ -172,8 +173,8 @@ pub(crate) fn made(value: &w::Made) -> c::Made {
         }
         w::Made::Service(row) => c::Made::Service { party: row.party() },
         w::Made::PersonResult(row) => c::Made::PersonResult { task: row.task() },
-        w::Made::Note(row) => c::Made::Note { note: row.note(), scope: note_scope(row.scope()) },
-    }
+        w::Made::Note(row) => c::Made::Note { note: row.note(), scope: note_scope(row.scope())? },
+    })
 }
 
 pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decision, w::Problem> {
@@ -213,7 +214,7 @@ pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome,
     Ok(match value {
         w::Outcome::Restored(value) => restore_outcome_restored(value)?,
         w::Outcome::Document(row) => c::Outcome::Document(document_outcome(row.value(), limits)?),
-        w::Outcome::Made(row) => c::Outcome::Made { what: made(row.what()) },
+        w::Outcome::Made(row) => c::Outcome::Made { what: made(row.what())? },
         w::Outcome::MovedToNewest(value) => c::Outcome::MovedToNewest(c::OutcomeMovedToNewest {
             newest: value.newest(),
             moved: value.moved(),

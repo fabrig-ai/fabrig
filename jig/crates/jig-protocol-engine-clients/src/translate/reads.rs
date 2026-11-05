@@ -71,8 +71,9 @@ fn group(parent: w::InboxReadGroup, kind: Option<w::InboxGroup>) -> Option<reads
     }
     Some(group)
 }
-fn note_scope(value: w::NoteScope) -> notes::Scope {
-    match value {
+fn note_scope(value: w::NoteScope) -> Option<notes::Scope> {
+    Some(match value {
+        w::NoteScope::Tasks(_) => return None,
         w::NoteScope::Deployment => notes::Scope::Deployment,
         w::NoteScope::Project(value) => notes::Scope::Project { project: value.value() },
         w::NoteScope::Task(value) => notes::Scope::Goal { project: value.project(), goal: value.task() },
@@ -89,7 +90,7 @@ fn note_scope(value: w::NoteScope) -> notes::Scope {
                 pattern: notes::Pattern { segments: pattern.segments.into_boxed(), last },
             }
         }
-    }
+    })
 }
 pub(crate) fn none(why: reads::Why, limits: &w::Limits) -> w::ReadAnswer {
     let value = match why {
@@ -259,6 +260,19 @@ fn read_notes(value: w::ReadNotes) -> Option<reads::Read> {
             Some(value) => Some(cursor::decode(value.value())?),
             None => None,
         };
-        reads::Read::ScopedNotes { scope: note_scope(parts.scope), description: parts.description, from }
+        match parts.scope {
+            w::NoteScope::Tasks(value) => {
+                if parts.description.is_some() {
+                    return None;
+                }
+                reads::Read::Notes { project: value.project(), from }
+            }
+            scope @ (w::NoteScope::Deployment
+            | w::NoteScope::Project(_)
+            | w::NoteScope::Resource(_)
+            | w::NoteScope::Task(_)) => {
+                reads::Read::ScopedNotes { scope: note_scope(scope)?, description: parts.description, from }
+            }
+        }
     })
 }

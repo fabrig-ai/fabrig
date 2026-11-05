@@ -100,6 +100,9 @@ pub(in crate::codec) fn wire_turn_name(value: &c::TurnName, limits: &w::Limits) 
 
 pub(in crate::codec) fn wire_note_scope(value: &c::NoteScope, limits: &w::Limits) -> Result<w::NoteScope, w::Problem> {
     Ok::<_, w::Problem>(match value {
+        c::NoteScope::Tasks { project } => {
+            w::NoteScope::Tasks(w::NoteScopeTasks::new(limits, w::NoteScopeTasksParts { project: *project })?)
+        }
         c::NoteScope::Deployment => w::NoteScope::Deployment,
         c::NoteScope::Project(value) => {
             w::NoteScope::Project(w::NoteScopeProject::new(limits, w::NoteScopeProjectParts { value: *(value) })?)

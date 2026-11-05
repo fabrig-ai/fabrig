@@ -101,7 +101,7 @@ pub enum Scope {
     Activity { task: u64 },
     /// One filtered inbox group in its semantic order.
     Inbox { group: Group, filter: Filter },
-    /// Notes selected by their owning project.
+    /// Goal-scoped notes selected by their owning project, without bodies.
     Notes { project: u32 },
     /// Exact notes owner scope and optional byte substring of its descriptions.
     ScopedNotes { scope: notes::Scope, description: Option<Box<[u8]>> },
@@ -231,7 +231,7 @@ pub enum Read {
     Project {
         project: u32,
     },
-    /// Project notes from their owning child's rows.
+    /// Goal-scoped project notes from their owning child's rows, without bodies.
     Notes {
         project: u32,
         from: Option<Cursor>,

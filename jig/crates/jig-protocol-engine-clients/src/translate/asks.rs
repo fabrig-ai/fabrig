@@ -267,6 +267,7 @@ fn pattern(value: w::Pattern) -> p::Pattern {
 }
 fn note_scope(value: w::NoteScope, project: u32, path: w::Path) -> Result<p::NoteScope, Untranslatable> {
     Ok(match value {
+        w::NoteScope::Tasks(_) => return Err(Untranslatable { path }),
         w::NoteScope::Deployment => p::NoteScope::Deployment,
         w::NoteScope::Project(v) => {
             if v.value() != project {

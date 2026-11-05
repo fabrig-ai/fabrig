@@ -301,3 +301,54 @@ fn cursor_boundaries_refuse_unrepresentable_scopes_oversized_values_and_other_fo
     assert_eq!(cursor::decode_window(&trailing.finish()), None);
     assert_eq!(cursor::decode(&[1, 1, 10, 7, 0, 0, 0, 0, 0, 0, 0, 0]), None, "previous owner format");
 }
+
+fn tasks_read(description: Option<Box<[u8]>>, after: Option<w::Cursor>) -> w::Read {
+    let limits = f::wire();
+    w::Read::Notes(
+        w::ReadNotes::new(
+            &limits,
+            w::ReadNotesParts {
+                scope: w::NoteScope::Tasks(
+                    w::NoteScopeTasks::new(&limits, w::NoteScopeTasksParts { project: 13 }).unwrap(),
+                ),
+                description,
+                after,
+            },
+        )
+        .unwrap(),
+    )
+}
+
+#[test]
+fn tasks_translates_onto_the_project_read() {
+    let cursor = reads::Cursor::Store { scope: reads::Scope::Notes { project: 13 }, after: None };
+    let encoded = crate::translate::cursor::encode(&cursor, 1024).unwrap();
+    for (after, from) in
+        [(None, None), (Some(w::Cursor::new(&f::wire(), w::CursorParts { value: encoded }).unwrap()), Some(cursor))]
+    {
+        let mut exchange = f::read_exchange();
+        let (owner, reply, read) = exchange.read(&tasks_read(None, after));
+        assert_eq!(read, reads::Read::Notes { project: 13, from });
+        let mut page = f::notes_page();
+        let reads::PageRow::Note(note) = page.rows.get_mut(0).unwrap() else { panic!("note row") };
+        note.scope = core::documents::NoteLocation::Goal { project: 13, task: 19 };
+        note.body = core::documents::Text { bytes: Box::new([]), cut: true };
+        let expected = crate::translate::pages::page(&f::models(), &read, &page, &f::wire()).unwrap();
+        let w::ReadValue::Notes(_) = &expected else { panic!("notes wire page") };
+        exchange.release_read(reply, reads::Answer::Page(Box::new(page)));
+        assert_eq!(exchange.read_answer(owner), f::value_answer(&expected));
+    }
+}
+
+#[test]
+fn a_description_on_tasks_is_refused() {
+    for description in [Box::<[u8]>::from([]), Box::from(b"title".as_slice())] {
+        let value = tasks_read(Some(description), None);
+        assert_eq!(crate::translate::reads::read(value.clone()), None);
+        let mut exchange = f::read_exchange();
+        let owner = exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, 19, f::encoded_read(&value))));
+        exchange.authenticate();
+        assert_eq!(exchange.read_answer(owner), f::read_none(w::ReadNone::Unknown));
+        assert!(exchange.out.is_empty());
+    }
+}
