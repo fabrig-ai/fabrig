@@ -10,7 +10,7 @@ use super::{
 use crate::{
     call::Auth,
     item::{self, Item},
-    reconcile::{self, Event, Need, Outcome, Reply, Stage, Why},
+    plan::{self, Event, Need, Outcome, Reply, Stage, Why, reply, unexpected},
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -51,7 +51,7 @@ impl Paste {
         Ok(Self { given: given.clone(), app, state: State::Begin })
     }
     fn stop(&self, subject: &[u8], why: Why) -> Need {
-        app::stop(self.given.forge, Stage::App, subject, why)
+        plan::stop(self.given.forge, Stage::App, subject, why)
     }
     fn hook(&mut self, mut child: Hook, checked: Checked, event: Event) -> Need {
         let mut out = Queue::uncapped();
@@ -83,7 +83,7 @@ impl Paste {
     }
     fn proved(&mut self, key: Secret, user: Option<NonZeroU64>, event: Event) -> Need {
         let subject = Decimal::of(self.app.get());
-        let app = match reconcile::reply(event) {
+        let app = match reply(event) {
             Ok(Reply::GithubDocument(Document::App(app))) => app,
             Ok(Reply::Unsigned) => return self.stop(b"key", Why::KeyForm),
             Ok(
@@ -95,7 +95,7 @@ impl Paste {
                 | Reply::GithubDocument(_)
                 | Reply::GithubRows(_)),
             ) => {
-                return self.stop(subject.as_bytes(), reconcile::unexpected(reply));
+                return self.stop(subject.as_bytes(), unexpected(reply));
             }
             Err(why) => return self.stop(subject.as_bytes(), why),
         };

@@ -1,10 +1,11 @@
 //! Gives the bot access before its owner's first call (forge-setup.md, 4.5, steps 1 to 4).
-use crate::call::Auth;
 use crate::{
     access::{Access, Fail, Move, Shared},
+    call::Auth,
     given::{self, Given, Place, Refused},
     item::Item,
-    reconcile::{self, Event, Failure, Need, Outcome, Stage, Why},
+    plan::{self, Event, Need, Outcome, Stage, Why},
+    reconcile,
 };
 use alloc::boxed::Box;
 use skein_forge::forgejo::request::Request;
@@ -68,7 +69,7 @@ impl Adopt {
                 unreachable!("adoption's two stages")
             }
         };
-        Need::Stop(Failure { forge: self.forge, step, subject, why })
+        plan::stop(self.forge, step, &subject, why)
     }
     fn advance(&mut self, state: State, event: Event) -> Need {
         match state {

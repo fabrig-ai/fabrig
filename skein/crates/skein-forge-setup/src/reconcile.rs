@@ -3,133 +3,18 @@ mod hooks;
 mod orgs;
 mod tokens;
 mod walk;
+pub use crate::plan::{Event, Failure, Need, Outcome, Reply, Stage, Why};
 use crate::{
-    call::{Auth, Call},
+    call::Auth,
     given::{self, Given, Refused},
     item::Item,
+    plan,
 };
 use alloc::boxed::Box;
 pub use hooks::hook_url;
-use skein_forge::forgejo::{
-    document::{Document, Row},
-    request::Request,
-};
+use skein_forge::forgejo::{document::Document, request::Request};
 use skein_lib::{Queue, Secret, Writer, bytes};
 pub(crate) use tokens::{reply, unexpected};
-/// One effect for the host, or the run's terminal outcome.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Need {
-    /// The host signs `Auth::App` per request, so a plan never holds a JWT.
-    Send {
-        request: Call,
-        auth: Auth,
-    },
-    Read(Item),
-    Write {
-        item: Item,
-        bytes: Secret,
-    },
-    Draw(u32),
-    Done(Outcome),
-    Stop(Failure),
-}
-/// What a plan hands its owner when it ends (forge-setup.md, 4.2).
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Outcome {
-    /// Nothing to serve or show.
-    Nothing,
-    /// The first repository, ready for adoption (4.9).
-    Created { id: core::num::NonZeroU64, branch: Box<[u8]> },
-    /// A public repository copied and ready for adoption (4.10).
-    Copied { id: core::num::NonZeroU64, branch: Box<[u8]> },
-    /// The form target, manifest JSON and the host-given state they were made for (5.1).
-    Manifest { state: Box<[u8]>, target: Box<[u8]>, manifest: Box<[u8]> },
-    /// The App's missing wanted access, possibly empty (5.6 and 5.8).
-    Lacking { lacking: Box<[crate::github::Lacking]> },
-    /// The install link and its host-issued Accept state (5.4 and 5.7).
-    Install { state: Box<[u8]>, url: Box<[u8]> },
-    /// The user a connected Forgejo's tokens belong to (4.6).
-    Identity { id: u64, login: Box<[u8]> },
-    /// One page of repositories for the picker (4.8).
-    Reachable { rows: Box<[crate::reachable::Reached]>, more: bool },
-}
-/// The outcome of the outstanding need.
-#[derive(Clone, PartialEq, Eq, Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::large_enum_variant, reason = "a reply's document moves whole, as the store's records do")
-)]
-pub enum Event {
-    Begin,
-    Read(Option<Secret>),
-    Reply(Reply),
-    Written,
-    Drawn(Secret),
-}
-/// An HTTP answer decoded by the host.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Reply {
-    Document(Document),
-    /// A page of rows: a list, or a repository search that answered `ok`.
-    Rows(Box<[Row]>),
-    Empty,
-    Status(u16),
-    Down,
-    GithubDocument(skein_forge::github::document::Document),
-    GithubRows(Box<[skein_forge::github::document::Row]>),
-    /// The host could not sign the App's JWT: the request was not sent.
-    Unsigned,
-}
-/// Names the stopped step, never its credentials.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Failure {
-    pub forge: u16,
-    pub step: Stage,
-    pub subject: Box<[u8]>,
-    pub why: Why,
-}
-/// Setup's steps: the bot's id is in Bot; Repository is a repository's access and hook (4.5).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Stage {
-    Admin,
-    Bot,
-    Token,
-    Org,
-    Repository,
-    File,
-    App,
-    Installation,
-    State,
-}
-/// Why the forge could not be reconciled.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Why {
-    Missing,
-    Refused(u16),
-    NotAdmin,
-    BotIsAdmin,
-    Unmarked,
-    OtherUser,
-    /// The answered App id is not the id kept or given.
-    OtherApp,
-    /// The key is not an `RSA PRIVATE KEY` PEM, exceeds `key_bytes`, or will not sign.
-    KeyForm,
-    /// The state is unknown, used, expired, or belongs to another forge or plan.
-    Unknown,
-    /// Another run of the forge is live, or every host slot is held (6.5).
-    Busy,
-    /// The installation listing exceeds `pages`; the strays seen were
-    /// uninstalled and the accepted set was left unpruned.
-    Crowded,
-    /// The copy destination belongs to another run (4.10).
-    Taken,
-    /// The copied source has no default branch (4.10).
-    Empty,
-    /// The copy exceeded its whole-run deadline (4.10).
-    TimedOut,
-    Down,
-    Unexpected,
-}
 #[derive(Debug)]
 enum State {
     Begin,
@@ -192,14 +77,11 @@ impl Reconcile {
         Need::Send { request: request.into(), auth: Auth::Token(self.admin.clone().expect("admin checked before bot")) }
     }
     fn stop(&mut self, stage: Stage, why: Why) -> Need {
-        self.state = State::Ended;
-        self.admin = None;
-        self.shared.secret = None;
         let subject = match stage {
             Stage::Admin | Stage::App | Stage::Installation | Stage::State => self.admin_name.clone(),
             Stage::Bot | Stage::Token | Stage::Org | Stage::Repository | Stage::File => self.bot_login.clone(),
         };
-        Need::Stop(Failure { forge: self.forge, step: stage, subject, why })
+        self.stop_named(stage, &subject, why)
     }
     fn id(&mut self, user: skein_forge::forgejo::document::User) -> Need {
         if user.id == 0 {
@@ -424,9 +306,10 @@ impl Reconcile {
         Need::Done(Outcome::Nothing)
     }
     fn stop_named(&mut self, stage: Stage, name: &[u8], why: Why) -> Need {
-        let Need::Stop(mut failure) = self.stop(stage, why) else { unreachable!("stop") };
-        failure.subject = name.into();
-        Need::Stop(failure)
+        self.state = State::Ended;
+        self.admin = None;
+        self.shared.secret = None;
+        plan::stop(self.forge, stage, name, why)
     }
 }
 

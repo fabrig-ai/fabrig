@@ -8,7 +8,7 @@ use super::{
 use crate::{
     call::Auth,
     item,
-    reconcile::{self, Event, Need, Outcome, Reply, Stage, Why},
+    plan::{self, Event, Need, Outcome, Reply, Stage, Why, reply, unexpected},
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -64,7 +64,7 @@ impl Convert {
         self.state = State::Ended;
         self.code = None;
         self.key = None;
-        app::stop(self.forge, Stage::App, subject, why)
+        plan::stop(self.forge, Stage::App, subject, why)
     }
     fn subject(&self) -> Box<[u8]> {
         match self.state {
@@ -122,7 +122,7 @@ impl Convert {
                     self.stop(&subject, Why::Unexpected)
                 }
             },
-            State::Conversion => match reconcile::reply(event) {
+            State::Conversion => match reply(event) {
                 Ok(Reply::GithubDocument(Document::Conversion(conversion))) => self.converted(conversion),
                 Ok(
                     reply @ (Reply::Document(_)
@@ -136,7 +136,7 @@ impl Convert {
                 ) => self.stop(&subject, unsigned_unexpected(reply)),
                 Err(why) => self.stop(&subject, why),
             },
-            State::App => match reconcile::reply(event) {
+            State::App => match reply(event) {
                 Ok(Reply::GithubDocument(Document::App(app))) => {
                     if app.id != self.id {
                         return self.stop(&subject, Why::OtherApp);
@@ -181,7 +181,7 @@ fn unsigned_unexpected(reply: Reply) -> Why {
         | Reply::Rows(_)
         | Reply::Empty
         | Reply::GithubDocument(_)
-        | Reply::GithubRows(_)) => reconcile::unexpected(other),
+        | Reply::GithubRows(_)) => unexpected(other),
     }
 }
 /// Consumes one event, emitting its next need; ended
