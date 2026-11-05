@@ -2722,6 +2722,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-fake-forge-http"
+version = "0.0.0"
+dependencies = [
+ "skein-http",
+ "skein-lib",
+]
+
+[[package]]
 name = "skein-fake-forge-protocol"
 version = "0.0.0"
 dependencies = [

@@ -1,0 +1,15 @@
+[package]
+autotests = false
+name = "skein-fake-forge-http"
+description = "What the fake forge's HTTP layers share"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+skein-http.workspace = true
+[lints]
+workspace = true

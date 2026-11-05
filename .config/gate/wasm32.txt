@@ -45,6 +45,7 @@ smith-protocol-translate
 smith-protocol-machine
 skein-tls
 skein-fake-forge-github
+skein-fake-forge-http
 skein-fake-peers
 smith-protocol-events
 smith-protocol-llm

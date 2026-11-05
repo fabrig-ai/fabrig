@@ -16,6 +16,7 @@ members = [
     "skein/crates/skein-fake-checkout",
     "skein/crates/skein-fake-forge-domain",
     "skein/crates/skein-fake-forge-github",
+    "skein/crates/skein-fake-forge-http",
     "skein/crates/skein-fake-forge-protocol",
     "skein/crates/skein-fake-llm-domain",
     "skein/crates/skein-fake-llm-protocol",
@@ -67,6 +68,7 @@ members = [
     "skein/crates/skein-fake-forge-domain",
     "skein/crates/skein-fake-forge-protocol",
     "skein/crates/skein-fake-forge-github",
+    "skein/crates/skein-fake-forge-http",
     "skein/crates/skein-fake-llm-domain",
     "skein/crates/skein-fake-llm-protocol",
     "skein/crates/skein-fake-peers",
@@ -370,6 +372,7 @@ skein-oauth-accounts = { path = "skein/crates/skein-oauth-accounts" }
 skein-fake-forge-domain = { path = "skein/crates/skein-fake-forge-domain" }
 skein-fake-forge-protocol = { path = "skein/crates/skein-fake-forge-protocol" }
 skein-fake-forge-github = { path = "skein/crates/skein-fake-forge-github" }
+skein-fake-forge-http = { path = "skein/crates/skein-fake-forge-http" }
 skein-fake-llm-domain = { path = "skein/crates/skein-fake-llm-domain" }
 skein-fake-llm-protocol = { path = "skein/crates/skein-fake-llm-protocol" }
 skein-fake-peers = { path = "skein/crates/skein-fake-peers" }
