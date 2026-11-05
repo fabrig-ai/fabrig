@@ -4283,11 +4283,8 @@ pub(crate) fn outputs(
             forge::Request::BoxRemove { forge } => {
                 assert!(super::now(domain, Request::BoxRemove { forge }), "box removal door");
             }
-            forge::Request::SetUp { forge, request, org, repository, playground } => {
-                assert!(
-                    super::now(domain, Request::SetUp { forge, request, org, repository, playground }),
-                    "forge set up door reserved"
-                );
+            forge::Request::SetUp { forge, request, first } => {
+                assert!(super::now(domain, Request::SetUp { forge, request, first }), "forge set up door reserved");
             }
             forge::Request::ApplicationPart { request, adoption, repository } => {
                 super::applications::part(domain, request, adoption, repository);

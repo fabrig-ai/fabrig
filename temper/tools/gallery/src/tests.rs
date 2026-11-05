@@ -351,6 +351,86 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-copying",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "Copying acme/widget from github.com…" },
+            Part::Text { text: "Waiting to copy" },
+            Part::Absent { role: Role::Button, name: "Copy again" },
+        ],
+    },
+    Holds {
+        name: "home-copy-failed",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "acme/widget is in Widget" },
+            Part::Text { text: "acme/other failed at repository: name taken" },
+            Part::Named { role: Role::Button, name: "Copy again" },
+        ],
+    },
+    Holds {
+        name: "home-copied",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "acme/widget, acme/other are in Widget" },
+            Part::Text {
+                text: "Chats can change their code now, on your Forgejo; nothing goes back where they were copied from.",
+            },
+            Part::Absent { role: Role::Button, name: "Copy" },
+        ],
+    },
+    Holds {
+        name: "home-copy-one",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "acme/widget is in Widget" },
+            Part::Text {
+                text: "Chats can change its code now, on your Forgejo; nothing goes back where it was copied from.",
+            },
+        ],
+    },
+    Holds {
+        name: "home-copy-offer",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "Copy https://github.com/acme/widget" },
+            Part::Text { text: "https://github.com/acme/other" },
+            Part::Named { role: Role::Button, name: "Copy" },
+        ],
+    },
+    Holds {
+        name: "home-add-repository",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Make an empty one" },
+            Part::Named { role: Role::Button, name: "Copy a public one" },
+            Part::Named { role: Role::Link, name: "Adopt another…" },
+            Part::NoRole { role: Role::Dialog },
+        ],
+    },
+    Holds {
+        name: "home-add-repository-sheet",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Add a repository to Hello" },
+            Part::Named { role: Role::ChoiceGroup, name: "A repository" },
+            Part::Value { role: Role::TextField, name: "Organization", value: "work" },
+            Part::Value { role: Role::TextField, name: "Name", value: "hello" },
+            Part::Named { role: Role::Button, name: "Cancel" },
+            Part::Named { role: Role::Button, name: "Add it" },
+        ],
+    },
+    Holds {
+        name: "home-add-repository-copies",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Add a repository to Hello" },
+            Part::Value { role: Role::TextArea, name: "Their addresses, one per line", value: "" },
+            Part::Absent { role: Role::TextField, name: "Organization" },
+            Part::Named { role: Role::Button, name: "Add it" },
+        ],
+    },
+    Holds {
         name: "home-refused",
         heading: "Hello is ready.",
         parts: &[
@@ -629,47 +709,47 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-paste-expired",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT from another computer",
         parts: &[
             Part::Named { role: Role::Status, name: "This sign-in has ended." },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
-            Part::Absent { role: Role::TextField, name: "Address of the page that couldn't be reached" },
+            Part::Absent { role: Role::TextField, name: "Address of the page that couldn’t be reached" },
         ],
     },
     Holds {
         name: "welcome-model-declined",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-model-renewed",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
+        parts: &[Part::Named { role: Role::Link, name: "Continue" }],
     },
     Holds {
         name: "welcome-model-refused",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-waiting",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-written",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-too-long",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-sending",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-finishing",
@@ -678,33 +758,33 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-paste-address",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-state",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-too-many",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT from another computer",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-ended",
-        heading: "Connect a model",
+        heading: "Signing in to ChatGPT from another computer",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-lost",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-unsent",
-        heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn't be reached" }],
+        heading: "Signing in to ChatGPT from another computer",
+        parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "forges-github-install",
@@ -739,22 +819,67 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-model-claude",
+        heading: "Your Claude subscription",
+        parts: &[
+            Part::Text { text: "temper program-login claude-pat" },
+            Part::Named { role: Role::Button, name: "I’ve signed in" },
+            Part::Absent { role: Role::TextField, name: "Name" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-claude-checking",
+        heading: "Your Claude subscription",
+        parts: &[
+            Part::Named { role: Role::Status, name: "Checking Claude Code’s sign-in on this machine…" },
+            Part::Absent { role: Role::Button, name: "I’ve signed in" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-claude-not-yet",
+        heading: "Your Claude subscription",
+        parts: &[
+            Part::Text { text: "temper program-login claude-pat" },
+            Part::Named {
+                role: Role::Alert,
+                name: "Claude Code isn’t signed in here yet. Run the command above, then press I’ve signed in.",
+            },
+            Part::Named { role: Role::Button, name: "I’ve signed in" },
+        ],
+    },
+    Holds {
         name: "welcome-model-key-details",
+        heading: "An OpenAI API key",
+        parts: &[Part::Named { role: Role::TextField, name: "Key, pasted once" }],
+    },
+    Holds {
+        name: "welcome-model-connected",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::TextField, name: "Key (pasted once)" }],
+        parts: &[
+            Part::Named { role: Role::Status, name: "ChatGPT plan · sam@example.com" },
+            Part::Named { role: Role::Link, name: "Continue" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-away",
+        heading: "Connect a model",
+        parts: &[
+            Part::Named { role: Role::Status, name: "ChatGPT’s sign-in, in this tab" },
+            Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn't be reached?" },
+        ],
     },
     Holds {
         name: "welcome-model-signing-in",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Heading { level: 2 }, name: "Signing in to ChatGPT" }],
+        parts: &[Part::Named { role: Role::Status, name: "ChatGPT’s sign-in, in this tab" }],
     },
     Holds {
         name: "welcome-model-signin-ready",
         heading: "Connect a model",
-        parts: &[Part::Named {
-            role: Role::Slot,
-            name: "ChatGPT · pat@example.com is on the Accounts page, with its details.",
-        }],
+        parts: &[
+            Part::Named { role: Role::Link, name: "Continue" },
+            Part::Absent { role: Role::Button, name: "Continue with ChatGPT" },
+        ],
     },
     Holds {
         name: "github-app-details",
@@ -801,9 +926,76 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-sheet-copies",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Choice, name: "Copies of public repositories" },
+            Part::Named { role: Role::TextArea, name: "Their addresses, one per line" },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
+        ],
+    },
+    Holds {
+        name: "welcome-sheet-copies-refused",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Choice, name: "Copies of public repositories" },
+            Part::Named {
+                role: Role::Alert,
+                name: "Not an address: not an address. Write it as github.com/owner/name.",
+            },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
+        ],
+    },
+    Holds {
+        name: "welcome-sheet-nothing",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Choice, name: "Nothing for now" },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
+        ],
+    },
+    Holds {
+        name: "welcome-forge-under-way",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Forgejo on this machine · Setting up: preparing" },
+            Part::Named { role: Role::Disclosure, name: "Each step" },
+            Part::Named { role: Role::Link, name: "Continue" },
+            Part::Absent { role: Role::Link, name: "View" },
+        ],
+    },
+    Holds {
+        name: "welcome-forge-connected",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · connected as temper · work/hello made",
+            },
+            Part::Named { role: Role::Link, name: "Continue" },
+            Part::Absent { role: Role::Disclosure, name: "Each step" },
+            Part::Absent { role: Role::Link, name: "View" },
+        ],
+    },
+    Holds {
+        name: "welcome-forge-github",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "GitHub · temper’s App on sam" },
+            Part::Named { role: Role::Link, name: "Continue" },
+            Part::Absent { role: Role::Disclosure, name: "Each step" },
+            Part::Absent { role: Role::Link, name: "View" },
+        ],
+    },
+    Holds {
         name: "welcome-model-choose",
         heading: "Connect a model",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "ChatGPT" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Claude" },
             Part::Named { role: Role::Paragraph, name: "Sign in, in this tab · about a minute" },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
         ],
@@ -826,9 +1018,52 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-ready-copies",
+        heading: "Ready",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Everything is connected. Create your first project, with 2 repositories in it, and start working.",
+            },
+            Part::Named { role: Role::Paragraph, name: "Forge Forgejo on this machine · connected as temper" },
+            Part::Named { role: Role::TextField, name: "Your first project" },
+            Part::Named { role: Role::Button, name: "Create your project" },
+        ],
+    },
+    Holds {
+        name: "welcome-ready-none",
+        heading: "Almost ready",
+        parts: &[
+            Part::Named { role: Role::Slot, name: "Forge none yet" },
+            Part::Named { role: Role::Link, name: "Connect a forge" },
+            Part::Named { role: Role::Slot, name: "Model none yet" },
+            Part::Named { role: Role::Link, name: "Connect a model" },
+            Part::Named { role: Role::TextField, name: "Your first project" },
+            Part::Named { role: Role::Button, name: "Create your project" },
+            Part::Named { role: Role::Link, name: "‹ Back" },
+            Part::Named { role: Role::Button, name: "Try the playground instead" },
+        ],
+    },
+    Holds {
+        name: "welcome-ready-signing",
+        heading: "Almost ready",
+        parts: &[
+            Part::Named { role: Role::Slot, name: "Forge none yet" },
+            Part::Named { role: Role::Paragraph, name: "Model ChatGPT plan · signing in…" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
+            Part::Named { role: Role::TextField, name: "Your first project" },
+            Part::Named { role: Role::Link, name: "‹ Back" },
+        ],
+    },
+    Holds {
         name: "welcome-ready-under-way",
         heading: "Almost ready",
         parts: &[
+            Part::Named { role: Role::Paragraph, name: "Forge Forgejo on this machine · Setting up: preparing" },
+            Part::Named { role: Role::Paragraph, name: "Model ChatGPT plan · sam@example.com" },
+            Part::Named { role: Role::Paragraph, name: "Forgejo is still setting up; this page moves on by itself." },
+            Part::Named { role: Role::Link, name: "‹ Back" },
+            Part::Absent { role: Role::Button, name: "Try the playground instead" },
             Part::Named {
                 role: Role::Paragraph,
                 name: "Your first project can be created once your forge and model are ready.",
@@ -847,11 +1082,18 @@ const HOLDS: [Holds; samples::N] = [
                 role: Role::Paragraph,
                 name: "Everything is connected. Create your first project and start working.",
             },
-            Part::Named { role: Role::Paragraph, name: "Forge Forgejo on this machine · connected as temper" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forge Forgejo on this machine · connected as temper · work/hello made",
+            },
             Part::Named { role: Role::Paragraph, name: "Model ChatGPT plan · sam@example.com" },
             Part::Named { role: Role::TextField, name: "Your first project" },
             Part::Named { role: Role::Button, name: "Create your project" },
             Part::Absent { role: Role::Disclosure, name: "Each step" },
+            Part::Named { role: Role::Link, name: "‹ Back" },
+            Part::Named { role: Role::Link, name: "Open Forgejo ↗" },
+            Part::Absent { role: Role::Button, name: "Try the playground instead" },
+            Part::Absent { role: Role::Paragraph, name: "Forgejo is still setting up; this page moves on by itself." },
         ],
     },
     Holds {
@@ -883,6 +1125,20 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Region, name: "GitHub" },
             Part::Named { role: Role::Region, name: "Forgejo on this machine" },
             Part::Named { role: Role::Region, name: "Your Forgejo" },
+        ],
+    },
+    Holds {
+        name: "welcome-go-on",
+        heading: "Welcome to temper",
+        parts: &[
+            Part::Named { role: Role::List, name: "Steps" },
+            Part::Named { role: Role::Region, name: "Set up temper" },
+            Part::Named { role: Role::Link, name: "Go on setting up" },
+            Part::Absent { role: Role::Region, name: "Try the playground" },
+            Part::Absent {
+                role: Role::Paragraph,
+                name: "Tried the playground first? Set up whenever you like; the playground then steps aside.",
+            },
         ],
     },
     Holds {
@@ -1734,6 +1990,7 @@ fn print_writes_every_page_and_the_bundle() {
         let page = fs::read_to_string(out.join(format!("{}.html", sample.name))).expect("sample page");
         if matches!(sample.address, temper_client_domain::Address::Welcome { .. }) {
             assert!(!page.contains("<summary>Menu</summary>"), "welcome has a bare frame");
+            assert!(page.contains("<title>Welcome · first run · temper</title>"), "{}: welcome title", sample.name);
         } else if page.contains("class=\"temper-rail\"") {
             assert!(page.contains("class=\"temper-tabbar\""), "{}: project sections", sample.name);
         } else {
@@ -1874,6 +2131,9 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
     for (name, expected) in [
         ("welcome-forge-choose", vec!["Run on this machine"]),
         ("welcome-forge-details", vec!["Run on this machine", "Run on this machine"]),
+        ("welcome-forge-under-way", vec!["Continue"]),
+        ("welcome-forge-connected", vec!["Continue"]),
+        ("welcome-forge-github", vec!["Continue"]),
         ("welcome-model-choose", vec!["Continue with ChatGPT"]),
         ("github-app-details", vec!["GitHub"]),
         ("github-install", vec!["Install on GitHub"]),

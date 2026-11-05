@@ -486,12 +486,12 @@ fn the_label_is_the_records_or_the_modes() {
         let mut record = runtime_record(domain::Kind::Forgejo, mode);
         record.number = FORGE;
         record.first = match first {
-            Some(label) => Some(domain::FirstIntent {
+            Some(label) => Some(domain::FirstIntent::Empty(domain::EmptyIntent {
                 playground: false,
                 org: b"other".as_slice().into(),
                 repository: b"first".as_slice().into(),
                 label: label.into(),
-            }),
+            })),
             None => None,
         };
         let engine = service.engine.as_mut().unwrap();

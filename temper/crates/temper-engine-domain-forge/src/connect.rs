@@ -265,12 +265,12 @@ fn make(
                     if first.org.eq_ignore_ascii_case(b"temper") {
                         return Err(ForgeRefusal::FirstIsBot);
                     }
-                    Some(crate::FirstIntent {
+                    Some(crate::FirstIntent::Empty(crate::EmptyIntent {
                         playground: false,
                         org: first.org.clone(),
                         repository: first.repository.clone(),
                         label: first.label.clone(),
-                    })
+                    }))
                 }
                 None => None,
             }
@@ -353,12 +353,12 @@ fn with_intent(d: &Domain, forge: u16, how: crate::How) -> crate::How {
         crate::How::ForgejoAdmin { first: None } => {
             let first = match d.record(forge) {
                 Some(record) => match &record.first {
-                    Some(first) => Some(crate::FirstAsk {
+                    Some(crate::FirstIntent::Empty(first)) => Some(crate::FirstAsk {
                         org: first.org.clone(),
                         repository: first.repository.clone(),
                         label: first.label.clone(),
                     }),
-                    None => None,
+                    Some(crate::FirstIntent::Copies { .. } | crate::FirstIntent::Nothing) | None => None,
                 },
                 None => None,
             };
@@ -533,12 +533,12 @@ fn keep_first(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
     if let Some(record) = d.record(forge) {
         let mut record = record.clone();
         record.first = match d.first.get(&forge) {
-            Some(first) => Some(crate::FirstIntent {
+            Some(first) => Some(crate::FirstIntent::Empty(crate::EmptyIntent {
                 playground: first.playground,
                 org: first.org.clone(),
                 repository: first.repository.clone(),
                 label: first.label.clone(),
-            }),
+            })),
             None => None,
         };
         if d.record(forge) != Some(&record) {

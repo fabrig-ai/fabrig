@@ -1896,3 +1896,357 @@ fn home_funds_and_proposal_keep_decisions_confirmation_and_short_lines() {
         );
     }
 }
+
+const COPY_ADDRESSES: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
+fn copy_forges(states: &[Option<w::MakingState>], unasked: bool) -> List<w::ForgeRow> {
+    let rows = forge_rows(false);
+    let mut row = rows.get(0).unwrap().clone().into_parts();
+    row.first = None;
+    let mut addresses = List::with_capacity(2);
+    for address in COPY_ADDRESSES.iter().take(states.len()) {
+        addresses.push((*address).into()).unwrap();
+    }
+    row.starts_with =
+        w::StartsWith::Copies(w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses }).unwrap());
+    row.makings = List::with_capacity(2);
+    row.repositories = List::with_capacity(2);
+    for (address, state) in COPY_ADDRESSES.iter().zip(states) {
+        let (org, name) = d::forge::making::target(address).unwrap();
+        if let Some(state) = state {
+            row.makings
+                .push(
+                    w::RepositoryMaking::new(
+                        &w::CEILINGS,
+                        w::RepositoryMakingParts {
+                            org,
+                            name,
+                            state: state.clone(),
+                            from: w::MakeFrom::Copy(
+                                w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: (*address).into() })
+                                    .unwrap(),
+                            ),
+                            into: Some(
+                                w::MakeInto::new(
+                                    &w::CEILINGS,
+                                    w::MakeIntoParts { project: f::PROJECT, home: *address == COPY_ADDRESSES[0] },
+                                )
+                                .unwrap(),
+                            ),
+                        },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        } else if !unasked {
+            row.repositories
+                .push(
+                    w::Adoption::new(&w::CEILINGS, w::AdoptionParts { owner: org, name, project: f::PROJECT }).unwrap(),
+                )
+                .unwrap();
+        }
+    }
+    List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, row).unwrap()]))
+}
+#[test]
+fn home_copy_lines_keep_order_completion_and_retry_in_browser_and_terminal() {
+    let failed = w::MakingState::Failed(
+        w::MakingFailed::new(
+            &w::CEILINGS,
+            w::MakingFailedParts {
+                step: w::MakeStep::Repository,
+                reason: w::MakeFailure::Taken,
+                words: b"name taken".as_slice().into(),
+            },
+        )
+        .unwrap(),
+    );
+    let made =
+        w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 1, branch: b"main".as_slice().into() }).unwrap();
+    for (states, expected, done, retry) in [
+        (
+            [Some(w::MakingState::Making), Some(w::MakingState::Waiting)],
+            ["Copying acme/widget from github.com…", "Waiting to copy"],
+            false,
+            false,
+        ),
+        ([None, Some(failed)], ["acme/widget is in Shop", "acme/other failed at repository: name taken"], true, true),
+        (
+            [Some(w::MakingState::Made(made.clone())), Some(w::MakingState::Adopting(made))],
+            ["Adopting acme/widget into Shop…", "Adopting acme/other into Shop…"],
+            false,
+            false,
+        ),
+    ] {
+        let (root, _) = home_root(copy_forges(&states, false), false, false);
+        for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+            let text = f::main_text(view.tree());
+            let first = skein_lib::bytes::find(&text, expected[0].as_bytes()).expect("first copy's words");
+            let second = skein_lib::bytes::find(&text, expected[1].as_bytes()).expect("second copy's words");
+            assert!(first < second);
+            let line = styled(view.tree(), crate::look::HOME_COPY);
+            assert_eq!(line.styles.as_slice().contains(&crate::look::HOME_DONE), done);
+            assert_eq!(crate::look::NAMES.style(crate::look::HOME_COPY), Some(b"temper-home-copy".as_slice()));
+            if retry {
+                assert_action(
+                    &mut view,
+                    Role::Button,
+                    b"Copy again",
+                    d::pages::Act::CopyAgain { org: b"acme".as_slice().into(), name: b"other".as_slice().into() },
+                );
+            } else {
+                absent(&text, "Copy again");
+            }
+            if !browser {
+                let text = printed(&view);
+                contains(&text, expected[0]);
+                contains(&text, expected[1]);
+                if done {
+                    contains(&text, "Done. acme/widget is in Shop");
+                }
+            }
+        }
+    }
+}
+#[test]
+fn home_completed_copies_name_the_sources_and_explain_where_chats_write_in_both_shells() {
+    for (count, title, detail) in [
+        (
+            1,
+            "acme/widget is in Shop",
+            "Chats can change its code now, on your Forgejo; nothing goes back where it was copied from.",
+        ),
+        (
+            2,
+            "acme/widget, acme/other are in Shop",
+            "Chats can change their code now, on your Forgejo; nothing goes back where they were copied from.",
+        ),
+    ] {
+        let (root, _) = home_root(copy_forges(&[None, None][..count], false), false, false);
+        for (view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+            let text = f::main_text(view.tree());
+            contains(&text, title);
+            main_find(view.tree(), Role::Paragraph, detail.as_bytes());
+            absent(&text, "temper can change its code now;");
+            let step = styled(view.tree(), crate::look::HOME_DONE);
+            assert_eq!(step.role, Role::Item);
+            assert_eq!(step.styles.as_slice(), &[crate::look::HOME_STEP, crate::look::HOME_DONE]);
+            if !browser {
+                let heading = skein_lib::bytes::concat(&[b"2. Done. ", title.as_bytes()]);
+                assert!(skein_lib::bytes::find(&printed(&view), &heading).is_some());
+            }
+        }
+    }
+}
+#[test]
+fn home_unasked_copies_offer_the_filled_addresses_and_one_copy_act_in_both_shells() {
+    let (root, _) = home_root(copy_forges(&[None, None], true), false, false);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        contains(&f::main_text(view.tree()), "Copy https://github.com/acme/widget");
+        main_find(view.tree(), Role::Paragraph, b"https://github.com/acme/other");
+        assert_action(&mut view, Role::Button, b"Copy", d::pages::Act::CopyOffered);
+        let button = main_find(view.tree(), Role::Button, b"Copy");
+        assert!(subtree(view.tree(), button)[0].styles.as_slice().contains(&crate::look::HOME_PRIMARY));
+    }
+    contains(&printed(&f::page_view(&root)), "Copy https://github.com/acme/widget");
+    contains(&printed(&f::page_view(&root)), "https://github.com/acme/other");
+}
+
+fn add_rows() -> List<w::ForgeRow> {
+    let mut row = forge_rows(false).get(0).unwrap().clone().into_parts();
+    row.first = None;
+    row.starts_with = w::StartsWith::Nothing;
+    List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, row).unwrap()]))
+}
+fn add_act(root: &mut d::Domain, act: d::pages::Act) -> Queue<d::Request> {
+    drive(root, d::Event::Act { action: d::Action::Pages(act) })
+}
+#[test]
+fn home_add_step_offers_small_make_copy_and_quiet_adoption_in_both_shells() {
+    use d::forge::forges::Start;
+    let (root, _) = home_root(add_rows(), false, false);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        contains(&f::main_text(view.tree()), "Add a repository");
+        main_find(
+            view.tree(),
+            Role::Paragraph,
+            b"Your Forgejo has none yet. Until one is in, chats talk and plan but change no code.",
+        );
+        for (name, start) in [(b"Make an empty one".as_slice(), Start::Empty), (b"Copy a public one", Start::Copies)] {
+            assert_action(&mut view, Role::Button, name, d::pages::Act::AddOpen { start });
+            let node = main_find(view.tree(), Role::Button, name);
+            assert_eq!(subtree(view.tree(), node)[0].styles.as_slice(), &[crate::look::HOME_SMALL]);
+        }
+        assert_action(
+            &mut view,
+            Role::Link,
+            "Adopt another…".as_bytes(),
+            d::pages::Act::Go { address: Address::Adopt { project: f::PROJECT } },
+        );
+        let node = main_find(view.tree(), Role::Link, "Adopt another…".as_bytes());
+        assert!(subtree(view.tree(), node)[0].styles.as_slice().contains(&crate::look::HOME_QUIET));
+    }
+    contains(&printed(&f::page_view(&root)), "Add a repository");
+}
+#[test]
+fn home_add_sheet_keeps_choices_fields_cancel_escape_and_input_in_both_shells() {
+    use d::forge::forges::Start;
+    use d::pages::home::AddField;
+    for (start, role, name, field, value) in [
+        (Start::Empty, Role::TextField, "Organization", AddField::Org, "work"),
+        (Start::Copies, Role::TextArea, "Their addresses, one per line", AddField::Addresses, ""),
+    ] {
+        let (mut root, _) = home_root(add_rows(), false, false);
+        add_act(&mut root, d::pages::Act::AddOpen { start });
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            main_find(view.tree(), Role::Dialog, b"Add a repository to Shop");
+            main_find(view.tree(), Role::Paragraph, b"Made or copied on your Forgejo, then in this project at once.");
+            main_find(view.tree(), Role::ChoiceGroup, b"A repository");
+            absent(&f::main_text(view.tree()), "Nothing for now");
+            for (choice, name) in
+                [(Start::Empty, b"An empty repository".as_slice()), (Start::Copies, b"Copies of public repositories")]
+            {
+                let node = main_find(view.tree(), Role::Choice, name);
+                assert_eq!(
+                    subtree(view.tree(), node)[0].states.as_slice().contains(&skein_ui::State::Selected),
+                    choice == start
+                );
+                assert_eq!(
+                    crate::act(&mut view, node, Act::Toggle),
+                    Some(d::Action::Pages(d::pages::Act::AddChoose { start: choice }))
+                );
+            }
+            let input = main_find(view.tree(), role, name.as_bytes());
+            assert_eq!(subtree(view.tree(), input)[0].value.as_ref().unwrap().text.as_ref(), value.as_bytes());
+            assert_eq!(
+                crate::act(&mut view, input, Act::Input { value: b"written".as_slice().into() }),
+                Some(d::Action::Pages(d::pages::Act::AddWrite { field, words: b"written".as_slice().into() }))
+            );
+            assert_eq!(
+                crate::act(&mut view, input, Act::Submit),
+                if role == Role::TextField { Some(d::Action::Pages(d::pages::Act::AddSubmit)) } else { None }
+            );
+            let cancel = main_find(view.tree(), Role::Button, b"Cancel");
+            assert_eq!(subtree(view.tree(), cancel)[0].shortcut, Some(skein_ui::Shortcut::ESCAPE));
+            assert_action(&mut view, Role::Button, b"Cancel", d::pages::Act::AddClose);
+            assert_action(&mut view, Role::Button, b"Add it", d::pages::Act::AddSubmit);
+        }
+        let text = printed(&f::page_view(&root));
+        contains(&text, "Add a repository to Shop");
+        contains(&text, name);
+        add_act(&mut root, d::pages::Act::AddClose);
+        assert!(root.pages().home().unwrap().add.is_none());
+    }
+}
+#[test]
+fn home_add_sheet_says_welcome_validation_alerts_in_both_shells() {
+    use d::forge::forges::Start;
+    use d::pages::home::AddField;
+    for (start, field, text, expected) in [
+        (Start::Empty, AddField::Org, "", "Both an organization and a name."),
+        (Start::Copies, AddField::Addresses, "", "At least one address, as github.com/owner/name."),
+        (Start::Copies, AddField::Addresses, "bad", "Not an address: bad. Write it as github.com/owner/name."),
+    ] {
+        let (mut root, _) = home_root(add_rows(), false, false);
+        add_act(&mut root, d::pages::Act::AddOpen { start });
+        add_act(&mut root, d::pages::Act::AddWrite { field, words: text.as_bytes().into() });
+        add_act(&mut root, d::pages::Act::AddSubmit);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            main_find(view.tree(), Role::Dialog, b"Add a repository to Shop");
+            main_find(view.tree(), Role::Alert, expected.as_bytes());
+        }
+        contains(&printed(&f::page_view(&root)), expected);
+    }
+}
+#[test]
+fn home_empty_making_has_its_own_words_in_both_shells() {
+    let mut row = add_rows().get(0).unwrap().clone().into_parts();
+    row.makings = List::from_boxed(Box::new([w::RepositoryMaking::new(
+        &w::CEILINGS,
+        w::RepositoryMakingParts {
+            org: b"work".as_slice().into(),
+            name: b"hello".as_slice().into(),
+            from: w::MakeFrom::Empty,
+            into: Some(w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: f::PROJECT, home: true }).unwrap()),
+            state: w::MakingState::Making,
+        },
+    )
+    .unwrap()]));
+    let (root, _) = home_root(List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, row).unwrap()])), false, false);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        main_find(view.tree(), Role::Paragraph, "Making work/hello…".as_bytes());
+        absent(&f::main_text(view.tree()), "Copy");
+        contains(&f::main_text(view.tree()), "Add a repository");
+    }
+    contains(&printed(&f::page_view(&root)), "Making work/hello…");
+}
+
+#[test]
+fn home_add_waits_for_kept_and_reports_forge_refusals_in_both_shells() {
+    use d::forge::forges::Start;
+    for (why, words) in [
+        (None, None),
+        (Some(w::MakeRefusal::NoSuchForge), Some("no such forge")),
+        (Some(w::MakeRefusal::NotOffered), Some("not offered")),
+        (Some(w::MakeRefusal::NotOwner), Some("not owner")),
+        (Some(w::MakeRefusal::Invalid), Some("invalid")),
+        (Some(w::MakeRefusal::HomeHeld), Some("The project has a home already.")),
+        (Some(w::MakeRefusal::Full), Some("full")),
+    ] {
+        let (mut root, _) = home_root(add_rows(), false, false);
+        add_act(&mut root, d::pages::Act::AddOpen { start: Start::Empty });
+        let mut sent = add_act(&mut root, d::pages::Act::AddSubmit);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let add = main_find(view.tree(), Role::Button, b"Add it");
+            assert!(subtree(view.tree(), add)[0].states.as_slice().contains(&skein_ui::State::Disabled));
+            main_find(view.tree(), Role::Dialog, b"Add a repository to Shop");
+        }
+        let mut stored = drive(&mut root, d::Event::Client { event: jig_client::Event::Stored });
+        while let Some(request) = stored.pop() {
+            sent.push(request);
+        }
+        let mut attempt = None;
+        while let Some(request) = sent.pop() {
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: found, .. } },
+            } = request
+            {
+                attempt = Some(found);
+            }
+        }
+        let outcome = match why {
+            Some(why) => {
+                w::Outcome::MakeRefused(w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { why }).unwrap())
+            }
+            None => w::Outcome::MakeKept,
+        };
+        let record = wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap());
+        drive(
+            &mut root,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Answer {
+                        attempt: attempt.unwrap(),
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        why: None,
+                        answer: Some(jig_client::Answered::Family(jig_client::Family {
+                            family: wire::FORGE,
+                            version: wire::CLIENT_VERSION,
+                            bytes: record,
+                        })),
+                    },
+                },
+            },
+        );
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            match words {
+                Some(words) => {
+                    let alert = skein_lib::bytes::concat(&[b"Could not add the repository: ", words.as_bytes()]);
+                    main_find(view.tree(), Role::Alert, &alert);
+                    let add = main_find(view.tree(), Role::Button, b"Add it");
+                    assert!(!subtree(view.tree(), add)[0].states.as_slice().contains(&skein_ui::State::Disabled));
+                }
+                None => assert!(root.pages().home().unwrap().add.is_none()),
+            }
+        }
+    }
+}

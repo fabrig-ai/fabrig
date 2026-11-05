@@ -79,6 +79,10 @@ pub(crate) fn main(
     let line = match repository {
         Repository::In { owner, name } => w.say(Word::NewChatIn, &[Hole::Name(owner), Hole::Name(name)]),
         Repository::Unknown
+        | Repository::Copying { .. }
+        | Repository::CopiesIn { .. }
+        | Repository::CopyOffer { .. }
+        | Repository::Add { .. }
         | Repository::Adopting(_)
         | Repository::Offer { .. }
         | Repository::GitHub { .. }
