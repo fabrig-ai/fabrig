@@ -17,3 +17,8 @@
   out, because a hand-out would commit the connector's rows and the
   procedure step apart (the code's side is
   `jig/docs/development/debt/D004-ops-root-jig-wiring.md`).
+  3: the user's request of 2026-11-05 has temper's consumers use `Class`,
+  but `temper-engine-domain/src/admission.rs`, `completes`, keeps its yes
+  or no, as the section allows, reading `LinkUp`'s `new_work`, because
+  `Class` would be a new dependency and would change the public
+  `completes`, whose callers read a `bool`.

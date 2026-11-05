@@ -84,7 +84,7 @@ fn declaring_a_program_login_shows_its_command_on_ready() {
     press(&mut front, &mut root, Role::Button, b"Use your Scripted subscription", skein_ui::Act::Press);
     assert!(text(&root).contains("Declared your Scripted subscription · claude-alice"));
     assert!(text(&root).contains("temper program-login claude-alice"));
-    assert!(text(&root).contains("Claude Code asks you to sign in. temper never reads its login."));
+    assert!(text(&root).contains("If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login."));
 }
 #[test]
 fn a_creation_key_is_absent_from_the_small_store() {

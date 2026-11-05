@@ -246,8 +246,8 @@ impl Observe for ServiceObserver {
         Some(complete)
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, _wall: Wall) -> bool {
-        if stories::playground() {
-            while let Some(note) = service.notes().pop() {
+        while let Some(note) = service.notes().pop() {
+            if stories::playground() {
                 eprintln!("story A at {} ns: service {note:?}", now.as_nanos());
             }
         }

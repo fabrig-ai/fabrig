@@ -3,6 +3,68 @@ use std::{fs, os::unix::ffi::OsStrExt};
 use temper_client_tools::jig::call::Parsed;
 
 #[test]
+fn box_help_configures_coding_run_tools() {
+    let page = help::answer(&configured(&["help", "box"])).expect("box help");
+    let (before_start, _) = page.split_once("\n## 2. ").expect("box startup step");
+    let (_, recipe) = before_start.split_once("**Coding runs:**").expect("coding run tools recipe before startup");
+    let text = recipe.split_whitespace().collect::<Vec<_>>().join(" ");
+    for required in [
+        "`CONFIG/agent.json`",
+        "preserve the rest of the document",
+        "exactly the configured environment",
+        "deployment-specific absolute paths",
+        "Install",
+        "`cargo`",
+        "`.cargo/bin`",
+        "usable `HOME`",
+        "credentials",
+        "restart the box",
+    ] {
+        assert!(text.contains(required), "coding run tools recipe missing {required}");
+    }
+    let example = recipe.split("```json\n").nth(1).expect("command environment example");
+    let example: serde_json::Value =
+        serde_json::from_str(example.split("```").next().expect("JSON fence")).expect("valid environment JSON");
+    let mut document = coding_run_agent_document();
+    document["environment"] = example["environment"].clone();
+    // Inert endpoints keep configuration parsing independent of DNS, trust files and services.
+    for endpoint in document["endpoints"].as_array_mut().expect("init endpoints") {
+        endpoint["address"] = "127.0.0.1:9".into();
+        endpoint["transport"] = "plaintext".into();
+        endpoint.as_object_mut().expect("endpoint object").remove("server_name");
+    }
+    let configured = smith_agent_shell::config::from_value(document).expect("documented command environment");
+    let entries = configured.service.environment.command_entries();
+    for expected in
+        [b"PATH=/home/coder/.cargo/bin:/usr/local/bin:/usr/bin:/bin".as_slice(), b"HOME=/home/coder".as_slice()]
+    {
+        assert!(entries.iter().any(|entry| entry.as_ref() == expected), "missing command entry {expected:?}");
+    }
+}
+
+fn coding_run_agent_document() -> serde_json::Value {
+    let port = |number| core::num::NonZeroU16::new(number).expect("fixed nonzero port");
+    let facts = temper_init::Facts {
+        binary: b"/opt/temper/bin/temper",
+        git: Some(b"/usr/bin/git"),
+        claude: Some(b"/opt/temper/bin/claude"),
+        ports: temper_init::Ports {
+            clients: port(8367),
+            owned: port(8368),
+            forge: port(8369),
+            llm: port(8370),
+            webhooks: port(8371),
+        },
+        login: Some(b"coder"),
+    };
+    let directories = temper_init::Directories { config: b"/etc/temper", data: b"/var/lib/temper" };
+    let answer = temper_init::files(&facts, &directories, &[0; 32], &[1; 32]).expect("init files");
+    let file = answer.files.iter().find(|file| file.name == b"agent.json").expect("init agent document");
+    let temper_init::Content::Bytes { bytes, .. } = &file.content else { panic!("agent document bytes") };
+    serde_json::from_slice(bytes).expect("init agent JSON")
+}
+
+#[test]
 fn box_step_seven_names_every_ending_and_the_direct_report() {
     let page = help::answer(&configured(&["help", "box"])).expect("box help");
     let (_, steps) = page.split_once("\n## 7. ").expect("step 7");

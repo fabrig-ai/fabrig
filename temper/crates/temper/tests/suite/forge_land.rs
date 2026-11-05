@@ -380,7 +380,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
                 "connect":10000, "handshake":10000, "headers":[],
                 "models":[{"name":"claude-haiku-5-5", "prices":{"input":1, "cached":1, "output":1, "unit":1000},
                     "window":1_048_576, "output":8192, "reasoning_item":65536, "head":60000, "idle":30000}]},
-            agent_before["endpoints"][1]
+            agent_before["endpoints"].as_array().unwrap().iter().find(|endpoint| endpoint["name"] == "demo").unwrap()
         ])
     );
     assert_eq!(agent["profile"], agent_before["profile"]);
@@ -390,12 +390,12 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
         json!({
             "providers":[{"name":"anthropic", "number":2, "signed_in_plan":false,
                 "manage_usage":"https://claude.ai/settings/usage", "models":["claude-haiku-5-5"],
-                "sources":{"programs":["claude_code"]}}, before["engine"]["llm"]["providers"][1]],
+                "sources":{"programs":["claude_code"]}}, before["engine"]["llm"]["providers"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()],
             "endpoints":[{"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
                 "address":{"host":"api.anthropic.com", "port":443}, "transport":"tls", "server_name":"api.anthropic.com",
-                "headers":[], "connect_ms":10000, "handshake_ms":10000}, before["engine"]["llm"]["endpoints"][1]],
+                "headers":[], "connect_ms":10000, "handshake_ms":10000}, before["engine"]["llm"]["endpoints"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()],
             "models":[{"name":"claude-haiku-5-5", "endpoint":"claude", "window":1_048_576, "output":8192,
-                "prices":{"input":1, "cached":1, "output":1, "unit":1000}}, before["engine"]["llm"]["models"][1]]
+                "prices":{"input":1, "cached":1, "output":1, "unit":1000}}, before["engine"]["llm"]["models"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()]
         })
     );
     assert_eq!(value["application"], before["application"], "including init's demo");

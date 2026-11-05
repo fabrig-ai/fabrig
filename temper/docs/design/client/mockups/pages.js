@@ -1380,7 +1380,7 @@
         <p>temper runs Claude Code, signed in to your Claude subscription on each host its agents run on. Name the login, then sign in on each host, in a terminal there:</p>
         <label class="forge-field"><span>Name</span><input type="text" value="claude-sam"></label>
         <pre><code>temper program-login claude-sam</code></pre>
-        <p class="muted tiny">Claude Code asks you to sign in. temper never reads its login.</p>
+        <p class="muted tiny">If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.</p>
         <button class="button" data-later="Mockup: the login is declared; its row on Accounts says, for each host, whether Claude Code is signed in there.">Use your Claude subscription</button></div>`;
   }
   function pasteGallery(wasPlayground) {

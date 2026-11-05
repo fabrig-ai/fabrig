@@ -95,15 +95,13 @@ fn encode(json: &mut Encoder, value: Value<'_>) {
         Value::Text(None) => json.null(),
         Value::Programs { claude, directory } => {
             json.object_start();
-            if let Some(claude) = claude {
-                json.key(b"claude_code");
-                json.object_start();
-                json.key(b"path");
-                json.string(claude);
-                json.key(b"directory");
-                json.string(directory);
-                json.object_end();
-            }
+            json.key(b"claude_code");
+            json.object_start();
+            json.key(b"path");
+            json.string(claude.unwrap_or(crate::FETCHED));
+            json.key(b"directory");
+            json.string(directory);
+            json.object_end();
             json.object_end();
         }
     }
