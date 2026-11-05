@@ -792,3 +792,8 @@ the next turn of that same cued script (decided 2026-11-02).
 - **Logins out of the run's reach:** a contained tree that keeps the
   configuration directories from the run's commands while the program
   reads its own, which would lift section 7's one-person rule.
+- **What a program sends:** Claude Code makes its own calls, so a host can
+  read what it gave the program and not the requests: the program's system
+  prompt and built-in tools' descriptions, its later messages and its effort
+  as sent. Reading them would take a proxy in front of the program, which
+  changes the path a subscription's call takes. Default: not read.
