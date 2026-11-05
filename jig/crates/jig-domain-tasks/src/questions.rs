@@ -31,17 +31,12 @@ impl Domain {
     }
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "one person question carries its recipient, sender and terminal destination"
-)]
 pub(crate) fn person_question(
     domain: &mut Domain,
     env: &Env<Limits>,
     reply_to: ReplyTo,
-    project: u32,
+    (project, person): (u32, u64),
     task: u64,
-    person: u64,
     word: Word,
     out: &mut Queue<Request>,
 ) {
@@ -73,22 +68,23 @@ pub(crate) fn person_question(
     out.push(Request::Sent { reply_to, task, word });
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "one person answer carries its question, notice and terminal destination"
-)]
+pub(crate) struct Answering {
+    pub(crate) project: u32,
+    pub(crate) recipient: u64,
+    pub(crate) person: u64,
+    pub(crate) question: u64,
+    pub(crate) word: Word,
+    pub(crate) notice: u64,
+}
+
 pub(crate) fn person_answer(
     domain: &mut Domain,
     env: &Env<Limits>,
     reply_to: ReplyTo,
-    project: u32,
-    recipient: u64,
-    person: u64,
-    question: u64,
-    mut word: Word,
-    notice: u64,
+    answering: Answering,
     out: &mut Queue<Request>,
 ) {
+    let Answering { project, recipient, person, question, mut word, notice } = answering;
     let Some(asker) = domain.question_asker(recipient, person, question) else {
         return refused(reply_to, Some(recipient), Refusal::Reference, out);
     };
