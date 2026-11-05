@@ -6,7 +6,7 @@ use crate::forgejo::plans::{
     reading,
     tables::{Repository, Tables},
 };
-use crate::forgejo::{document as d, header, id::ObjectId, request as r};
+use crate::forgejo::{document as d, header, request as r};
 use alloc::boxed::Box;
 use skein_lib::List;
 #[derive(Debug)]
@@ -93,20 +93,14 @@ impl Plan {
             count: 0,
         })
     }
-    fn at(&self) -> r::Repo {
-        r::Repo { owner: self.row.owner.clone(), name: self.row.name.clone() }
-    }
-    fn id(&self, bytes: api::Commit) -> ObjectId {
-        ObjectId { bytes, format: self.row.object_format }
-    }
     pub fn begin(&mut self) -> Step {
         let request = match &self.state {
             State::Listing { checks, page } => r::Request::CombinedStatus {
-                at: self.at(),
-                commit: self.id(checks.head),
+                at: self.row.at(),
+                commit: self.row.id(checks.head),
                 page: r::Page { page: Some(*page), limit: Some(self.limit) },
             },
-            State::Run { attempt, .. } => r::Request::Run { at: self.at(), run: attempt.run },
+            State::Run { attempt, .. } => r::Request::Run { at: self.row.at(), run: attempt.run },
             State::RunLookup { .. }
             | State::JobsLookup { .. }
             | State::Job { .. }
@@ -358,8 +352,8 @@ impl Plan {
                         if self.count == self.limit {
                             page = page.checked_add(1).ok_or(api::Error::TooLarge)?;
                             let step = self.send(r::Request::CombinedStatus {
-                                at: self.at(),
-                                commit: self.id(checks.head),
+                                at: self.row.at(),
+                                commit: self.row.id(checks.head),
                                 page: r::Page { page: Some(page), limit: Some(self.limit) },
                             });
                             return Ok((State::Listing { checks, page }, Some(step)));
@@ -376,7 +370,7 @@ impl Plan {
                 }
                 match run {
                     Some(run) => {
-                        let step = self.send(r::Request::Jobs { at: self.at(), run });
+                        let step = self.send(r::Request::Jobs { at: self.row.at(), run });
                         Ok((State::JobsLookup { checks, job_index, run, missing: false }, Some(step)))
                     }
                     None => self.next_check(checks),
@@ -398,7 +392,7 @@ impl Plan {
                 if head != attempt.head || run.id != attempt.run {
                     return Err(api::Error::MissingJob);
                 }
-                let sent = self.send(r::Request::Job { at: self.at(), job: attempt.job });
+                let sent = self.send(r::Request::Job { at: self.row.at(), job: attempt.job });
                 Ok((State::Job { attempt, max, step: None }, Some(sent)))
             }
             State::Job { attempt, max, step } => {
@@ -411,7 +405,7 @@ impl Plan {
                 }
                 let sent = Step::Send(Exchange {
                     request: r::Request::JobLog {
-                        at: self.at(),
+                        at: self.row.at(),
                         job: attempt.job,
                         attempt: attempt.attempt,
                         step: match &step {
@@ -441,8 +435,8 @@ impl Plan {
             checks.position = checks.position.saturating_add(1);
             if let Some((run_number, job_index)) = header::job_link(&status.url, &self.row.html_url) {
                 let step = self.send(r::Request::Runs {
-                    at: self.at(),
-                    head_sha: self.id(checks.head),
+                    at: self.row.at(),
+                    head_sha: self.row.id(checks.head),
                     run_number,
                     page: r::Page { page: Some(1), limit: Some(1) },
                 });
