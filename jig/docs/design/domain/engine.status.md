@@ -51,6 +51,17 @@ and unread-tail retry guard in 7.1 and 7.2.
   excluding the remaining state writes, closing the project and cancellation
   operations. No reason is recorded.
 
+- **Departs:** 9.1: a transcript's load refused for want of a load slot
+  counts as transient, though the section pauses a task for room that frees
+  by itself and the request `brief-failure` of 2026-11-05 keeps a true capacity
+  refusal's pause: temper's root answers no slot as `TranscriptLoad::Failed`
+  (`temper-engine-domain/src/restart.rs`, `loads::begin`;
+  `archive.rs`, `transcript_failed`), one word for that and a page it cannot
+  take. So two conversations loading together can spend a transient try, and
+  the next run starts fresh from the tail rather than resuming (7.2). Shipped
+  `root.loads.loads` is 2 (`temper-service/src/limits.rs`); the two stories that
+  met it set 3 in their fixtures (`temper/tests/system/src/composed/agreement.rs`,
+  `temper/tests/real-loop/src/green_light.rs`). No reason is recorded.
 - **Departs:** 6: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it. 8: the
   client wire drops the failing charter's number of a

@@ -30,9 +30,9 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
 
             admission
         }
-        Act::Stop => allowed(control(core, limits, who, Control::Stop)),
-        Act::Cancel => allowed(control(core, limits, who, Control::Cancel { reason_len: 0, grace: None })),
-        Act::Release => allowed(control(core, limits, who, Control::Release { again: None })),
+        Act::Stop => allowed(control(core, limits, who, row, Control::Stop)),
+        Act::Cancel => allowed(control(core, limits, who, row, Control::Cancel { reason_len: 0, grace: None })),
+        Act::Release => allowed(control(core, limits, who, row, Control::Release { again: None })),
         Act::Move => allowed(core.move_admit(
             who,
             limits.tasks.tree_tasks,
@@ -66,9 +66,14 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
     }
 }
 
-fn control(core: &Core, limits: &Limits, who: PartyTask, control: Control) -> Result<(), people::Refusal> {
+fn control(
+    core: &Core,
+    limits: &Limits,
+    who: PartyTask,
+    row: &tasks::TaskRecord,
+    control: Control,
+) -> Result<(), people::Refusal> {
     core.control_admit(who, control, &limits.tasks, &tasks::CompoundAdmission::new(&core.tasks, 0))?;
-    let row = core.tasks.task(who.task).expect("admitted task control");
     match control {
         Control::Stop => mutable(row),
         Control::Cancel { .. } => match &row.phase {

@@ -764,3 +764,8 @@ for; and that nothing is live once it settles.
   or a path to clients alone. Default: the line alone, which `temper help
   server` says how to read, until that proves too little. The user's to
   decide.
+- **What a deployment's operators may read of a run's prompts.** A run's
+  prompts hold repository text and anything an agent read, and a real
+  design of keeping them starts from who may read them
+  (`../draft/dogfood-hacks.md`, 2.12 and 2.13). Default: nothing past what an
+  agent's document asks its trace to keep.

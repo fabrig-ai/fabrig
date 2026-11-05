@@ -2,7 +2,7 @@
 use crate::{
     Amendment, Authority, Contract, Domain, Ending, Executor, HoldSource, Last, Limits, MessageFamily, MessageKind,
     New, Numbers, Parameter, PersonAction, PersonProposal, Phase, ProposalAction, RestoreBound, RestoreCause,
-    RestoreLlmWhy, ResultField, ResultKind, Slot, Spec, TaskRecord, TaskResult, Was,
+    RestoreLlmWhy, ResultField, ResultKind, Separate, Spec, TaskRecord, TaskResult, Was,
 };
 
 pub(crate) fn bound(which: RestoreBound, held: u64, limit: u64) -> Result<(), RestoreCause> {
@@ -400,16 +400,8 @@ fn payload(word: &crate::Word, limits: &Limits) -> Result<usize, RestoreCause> {
 
 fn ordinary(kind: &MessageKind) -> bool {
     match kind.family() {
-        MessageFamily::Slot(Slot::Amendment | Slot::FinishRequested | Slot::Met | Slot::NothingAwaited) => false,
-        MessageFamily::Slot(
-            Slot::EffectNotMade
-            | Slot::SettingsDecision
-            | Slot::ProposalDecision
-            | Slot::QuestionAnswered
-            | Slot::QuestionOwed
-            | Slot::QuestionEnded
-            | Slot::PersonStalled,
-        )
+        MessageFamily::Separate(_) => false,
+        MessageFamily::Slot(_)
         | MessageFamily::Spoken(_)
         | MessageFamily::Hint(_)
         | MessageFamily::Result
@@ -488,21 +480,13 @@ fn inbox(value: &TaskRecord, limits: &Limits) -> Result<(), RestoreCause> {
             bytes = bytes.checked_add(size).ok_or(RestoreCause::Accounting)?;
         } else {
             match word.kind.family() {
-                MessageFamily::Slot(Slot::Met | Slot::NothingAwaited) => {
+                MessageFamily::Separate(Separate::Met | Separate::NothingAwaited) => {
                     met = met.checked_add(1).ok_or(RestoreCause::Accounting)?;
                 }
-                MessageFamily::Slot(Slot::Amendment | Slot::FinishRequested) => {
+                MessageFamily::Separate(Separate::Amendment | Separate::FinishRequested) => {
                     amendments = amendments.checked_add(1).ok_or(RestoreCause::Accounting)?;
                 }
-                MessageFamily::Slot(
-                    Slot::EffectNotMade
-                    | Slot::SettingsDecision
-                    | Slot::ProposalDecision
-                    | Slot::QuestionAnswered
-                    | Slot::QuestionOwed
-                    | Slot::QuestionEnded
-                    | Slot::PersonStalled,
-                )
+                MessageFamily::Slot(_)
                 | MessageFamily::Spoken(_)
                 | MessageFamily::Hint(_)
                 | MessageFamily::Result

@@ -944,3 +944,51 @@ fn valid_ignores_heap_key_strings() {
         ClientLimits { keys: u32::MAX, document: Limits { string_bytes: u32::MAX, ..limits().document }, ..limits() };
     assert!(client_valid(&bounds));
 }
+
+#[test]
+fn refused_and_ignored_events_preserve_the_exchange() {
+    for trace in [
+        "keys:http sign-in:limit refresh:limit revoke:revoked wrong-id:silent redirect:silent key-set:visit",
+        "refresh:http sign-in:limit refresh:limit revoke:revoked redirect:silent tokens:tokens",
+        "refresh:http rate-limit:silent sign-in:limit refresh:limit revoke:revoked wrong-id:silent redirect:silent retry:http tokens:tokens",
+        "redirect:silent cancel:silent refresh:http tokens:tokens",
+        "refresh:http tokens:tokens redirect:silent cancel:silent refresh:limit",
+    ] {
+        let mut client = Client::new(limits()).expect("client");
+        let mut id: u64 = 0;
+        for cell in trace.split_whitespace() {
+            let (input, expected) = cell.split_once(':').expect("input:output");
+            let event = match input {
+                "keys" => openid::sign_in(openid::registration_for_keys(true)),
+                "sign-in" => openid::sign_in(registration(true, WireFormat::Form)),
+                "refresh" => refresh(registration(true, WireFormat::Form), None),
+                "revoke" => revoke::begin(registration(true, WireFormat::Form), false),
+                "wrong-id" => answered(id.saturating_add(1), 200, b"", 3),
+                "redirect" => issued::redirect(None),
+                "cancel" => Event::Cancel,
+                "retry" => Event::Tick { now: time(4) },
+                "rate-limit" => answered(id, 429, b"", 2),
+                "key-set" => answered(id, 200, &openid::one_key(), 5),
+                "tokens" => answered(id, 200, &token_body(), 5),
+                _ => unreachable!("trace input"),
+            };
+            let deadline = client.next_deadline();
+            let result = match step(&mut client, event) {
+                Some(Request::Http(request)) => {
+                    id = request.id;
+                    "http"
+                }
+                Some(Request::Visit { .. }) => "visit",
+                Some(Request::Tokens { .. }) => "tokens",
+                Some(Request::Failed { failure: Failure::Limit }) => "limit",
+                Some(Request::Revoked { confirmed: false }) => "revoked",
+                None => "silent",
+                other => panic!("unexpected trace output: {other:?}"),
+            };
+            assert_eq!(result, expected, "{trace:?}: {input}");
+            if ["limit", "revoked", "silent"].contains(&expected) && input != "rate-limit" {
+                assert_eq!(client.next_deadline(), deadline, "{trace:?}: {input}");
+            }
+        }
+    }
+}

@@ -21,3 +21,9 @@
   checks that an outstanding built-in result and a finishing completion
   survive such notices, but does not identify the record refused in the
   live coding-producer sightings or establish their resolution.
+- **Departs:** 5.1: an owner may ask a backend for what the program was given
+  (`Backend::keep_given`, `Backend::pop_given`): its argv, instructions, MCP
+  tools, each input line and its `system/init`, because the program makes its
+  own calls and these are all a development deployment can read of them. Never
+  its environment or `mcp.json`, which hold the MCP secret. Unasked, nothing is
+  kept.
