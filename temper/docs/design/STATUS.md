@@ -100,7 +100,10 @@ reference's profile does not grant and configuring's stage 1 follows
 (`draft/reference-code-production.md`); `draft/serve-without-box.md`'s
 status holds a departure the user has not answered, the deployment's
 read's `owned`, and `draft/to-begin.md`'s another, a dismissal erased
-with its project alone; the others record what the
+with its project alone; `draft/repository-copies.md`'s holds two the
+user has not answered, what a refused copy leaves and Forgejo's own
+bound on a migration, and its welcome and sheet are unbuilt; the others
+record what the
 design carries of them and where it lags or departs.
 `domain/README.md` and `protocol/llm.md` have no gap.
 
@@ -150,6 +153,7 @@ Drafts:
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
+- [`draft/own-way.md`](draft/own-way.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
