@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use core::net::SocketAddr;
 use jig_protocol_config::Path;
 use skein_fake_forge_domain::{self as domain, api};
-use skein_fake_forge_protocol as forgejo;
+use skein_fake_forge_forgejo as forgejo;
 use skein_fake_peers::forge::Forge;
 use skein_forge_setup::given::login;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes};
@@ -595,7 +595,7 @@ pub const LIMITS: domain::Config = domain::Config {
 
 /// The git route's wire bounds, shared by the peer and its process client.
 #[must_use]
-pub fn git_limits() -> skein_fake_forge_protocol::Limits {
+pub fn git_limits() -> skein_fake_forge_forgejo::Limits {
     crate::wire::forge_limits()
 }
 

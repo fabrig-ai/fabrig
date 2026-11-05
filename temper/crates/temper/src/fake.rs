@@ -458,7 +458,7 @@ fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_sh
                 List::with_capacity(if arguments.observations.is_some() { limits::OBSERVATION_BYTES } else { 0 });
             let (observations, writer) = match &arguments.observations {
                 Some(path) => {
-                    let mut writer = skein_fake_forge_protocol::observations::Writer::new(&forge::LIMITS.limits);
+                    let mut writer = skein_fake_forge_forgejo::observations::Writer::new(&forge::LIMITS.limits);
                     writer
                         .stop(&mut shared.borrow_mut().domain, &mut buffer)
                         .map_err(|why| format!("first checkpoint: {why:?}"))?;
@@ -597,7 +597,7 @@ struct Host {
     ready: Option<Box<[u8]>>,
     observation_path: Option<PathBuf>,
     observations: Option<File>,
-    writer: Option<skein_fake_forge_protocol::observations::Writer>,
+    writer: Option<skein_fake_forge_forgejo::observations::Writer>,
     buffer: List<u8>,
     git_calls: forge::observations::GitCalls,
     installations: forge::observations::Installations,

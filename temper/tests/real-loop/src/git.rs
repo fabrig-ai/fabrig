@@ -33,7 +33,7 @@ fn routed(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
     Proc::new(Kind::GitRoute(Box::new(temper_fake_git::Git::new(
         spawn,
         temper_fake_git_hosted::start(inherited),
-        temper_fake_git::Route::new(crate::github::protocol_limits()),
+        temper_fake_git::Route::new(crate::github::protocol_limits().git()),
     ))))
 }
 pub(crate) fn route_program() -> HostedProgram<Proc> {

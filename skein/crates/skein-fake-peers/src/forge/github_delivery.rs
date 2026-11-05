@@ -268,7 +268,7 @@ impl Peer {
             return;
         }
         let size = u64::try_from(post.head.len() + post.body.len()).expect("bounded post");
-        let post = skein_fake_forge_protocol::delivery::Post { head: post.head, body: post.body };
+        let post = skein_fake_forge_forgejo::delivery::Post { head: post.head, body: post.body };
         self.observe(Observation::Delivery { post: Some(post), outcome }, size);
     }
 }

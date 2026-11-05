@@ -206,7 +206,7 @@ impl State {
         for setup in &setups {
             table
                 .repositories
-                .push(skein_fake_forge_protocol::Repository {
+                .push(skein_fake_forge_forgejo::Repository {
                     id: setup.id,
                     full: setup.name.clone(),
                     protected: setup.protection.as_ref().map(|p| p.branch.clone()),
@@ -263,7 +263,7 @@ impl State {
         (Self { handle, moved: false, hooked: false, repository }, peer)
     }
     pub(crate) fn hand_hooks(&mut self, address: SocketAddr) {
-        self.handle.borrow_mut().hooks = Some(skein_fake_forge_protocol::delivery::Endpoint {
+        self.handle.borrow_mut().hooks = Some(skein_fake_forge_forgejo::delivery::Endpoint {
             forge: 1,
             host: address.to_string().into_bytes().into(),
             secret: Secret::new(HOOK_SECRET.into()),
@@ -321,8 +321,8 @@ const CALLS: u32 = 4;
 /// `git::fits`, and a body fits one string); a buffer's pages are resident
 /// only as a call fills them.
 #[must_use]
-pub fn protocol_limits() -> skein_fake_forge_protocol::Limits {
-    skein_fake_forge_protocol::Limits {
+pub fn protocol_limits() -> skein_fake_forge_forgejo::Limits {
+    skein_fake_forge_forgejo::Limits {
         calls: CALLS,
         // Room past the forge client's calls for the peer's other
         // connections: with only the calls' four, a call found the slots

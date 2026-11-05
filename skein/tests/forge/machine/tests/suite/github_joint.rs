@@ -69,7 +69,7 @@ fn records_then_connect_make_github_ready_for_repository_calls() {
     assert_eq!(world.start_counts().served, START_REQUESTS);
     assert_eq!(world.request_counts().written, CALL_REQUESTS);
     assert_eq!(world.tally().users.get(&9), Some(&(START_REQUESTS + CALL_REQUESTS)));
-    assert_eq!(world.tally().routes.get(&skein_fake_forge_protocol::Route::Branch), Some(&1));
+    assert_eq!(world.tally().routes.get(&skein_fake_forge_forgejo::Route::Branch), Some(&1));
 }
 
 #[test]
@@ -272,13 +272,13 @@ fn github_compare_reads_a_two_commit_change_through_the_fake() {
         )
         .expect("commit")
         .expect("changed");
-        commits.push(skein_fake_forge_protocol::routes::object(head).bytes);
+        commits.push(skein_fake_forge_forgejo::routes::object(head).bytes);
     }
     world
         .direct(raw::Op::Git(raw::Git::Push { branch: Box::from(b"feature".as_slice()), commit: head, expected: None }))
         .expect("push");
-    let before = skein_fake_forge_protocol::routes::object(base).bytes;
-    let after = skein_fake_forge_protocol::routes::object(head).bytes;
+    let before = skein_fake_forge_forgejo::routes::object(base).bytes;
+    let after = skein_fake_forge_forgejo::routes::object(head).bytes;
     world.call(CALL, REPO, Op::Read(Read::Compare { before, after }));
     world.run_for(SECOND);
     let answer = world.answered(CALL).expect("one terminal");
@@ -297,5 +297,5 @@ fn github_compare_reads_a_two_commit_change_through_the_fake() {
         })
     );
     assert_eq!(answer.cost, 4, "resolve, compare and two file sides");
-    assert_eq!(world.tally().routes.get(&skein_fake_forge_protocol::Route::Compare), Some(&1));
+    assert_eq!(world.tally().routes.get(&skein_fake_forge_forgejo::Route::Compare), Some(&1));
 }

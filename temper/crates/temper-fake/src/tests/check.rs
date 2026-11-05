@@ -7,7 +7,7 @@
 )]
 use crate::check::{self, Reason};
 use skein_fake_forge_domain::promises::{Allowance, Breach, Decision, Profile, Promise, Verdict, Why};
-use skein_fake_forge_protocol::routes;
+use skein_fake_forge_forgejo::routes;
 use skein_forge::api::{Repository, Write};
 use skein_forge_client::{Condition, Effect, Entry, Writer};
 use skein_lib::{Duration, Wall};

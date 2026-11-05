@@ -131,7 +131,7 @@ the crate `tests/fake-checkout`, by the rule below.
 
 A code forge has fakes of its own (fake-forge.md). `skein-fake-forge-domain`,
 a step crate on skein-lib alone, plays a forge's state, CI, merges and git,
-and `skein-fake-forge-protocol` serves Forgejo's API over it on skein's HTTP
+and `skein-fake-forge-forgejo` serves Forgejo's API over it on skein's HTTP
 server. The forge peer in `skein-fake-peers` hosts that layer on loopback
 io. Its GitHub layer (`skein-fake-forge-github`) shares the domain and
 hosts API/browser routes on one listener and signed job logs on a second
@@ -308,7 +308,8 @@ crates/skein-ui-web             the browser parts (ui-web.md): each part's pure 
 crates/skein-ui-bundle          the bundler, a tool built optimized (ui-web.md, 4.2)
 crates/skein-fake-llm-*         the scripted LLM peer: its domain and its byte peer (fake-llm.md), a product the worlds and the real loop use
 crates/skein-fake-forge-domain  the fake forge's domain (fake-forge.md, 2 and 3)
-crates/skein-fake-forge-protocol its Forgejo protocol layer (fake-forge.md, 4)
+crates/skein-fake-forge-http    what its two layers share (fake-forge.md, 12)
+crates/skein-fake-forge-forgejo its Forgejo protocol layer (fake-forge.md, 4)
 crates/skein-fake-oauth         an independent rotating OAuth issuer (oauth.md, 5)
 crates/skein-fake-peers         the LLM, OAuth and forge peers hosted on loopback io, in a world or as an application's own process (fake-forge.md, 5); links skein-fake-forge-github for GitHub's API/browser and blob faces
 crates/skein-fake-checkout      files, scripted commands and local git for a service's domain worlds, and for a service's fake git as a program (fake-checkout.md)

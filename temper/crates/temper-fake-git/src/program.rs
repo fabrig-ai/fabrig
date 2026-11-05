@@ -379,7 +379,7 @@ impl<T: Transport> Git<T> {
         }
         self.checkout = checkout;
     }
-    fn request(&mut self, call: skein_fake_forge_protocol::git::Call) {
+    fn request(&mut self, call: skein_fake_forge_http::git::Call) {
         let checked = self.checked.as_ref().expect("admitted route invocation");
         let remote = crate::check::remote(&checked.command)
             .map(<[u8]>::to_vec)

@@ -11,7 +11,7 @@
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no
   reason is recorded.
-  6: `crates/skein-fail-stop`, `crates/skein-fake-forge-protocol`
+  6: `crates/skein-fail-stop`, `crates/skein-fake-forge-forgejo`
   (a memory suite) and `crates/skein-forge` have a `tests/` directory,
   where 6 puts what drives a crate from outside under `tests/`; no reason
   is recorded.

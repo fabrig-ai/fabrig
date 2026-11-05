@@ -62,7 +62,7 @@ fn sources_seed_their_trees_branches_and_catalogue() {
             Ok(skein_fake_forge_domain::api::Permission::Read),
             "the site admin can fetch the catalogue source for migration"
         );
-        assert!(skein_fake_forge_protocol::valid(&crate::wire::forge_limits(), &config));
+        assert!(skein_fake_forge_forgejo::valid(&crate::wire::forge_limits(), &config));
         assert_eq!(
             forge.domain.metadata(&source.repository).expect("seeded repository").default_branch.as_ref(),
             b"trunk"

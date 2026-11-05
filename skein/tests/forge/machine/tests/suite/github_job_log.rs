@@ -155,7 +155,7 @@ fn job_log_origins() -> List<LogOrigin> {
 }
 fn attempt() -> api::JobAttempt {
     // The first repository's initial commit starts the fixture's first run and job.
-    let head = skein_fake_forge_protocol::routes::object(1).bytes;
+    let head = skein_fake_forge_forgejo::routes::object(1).bytes;
     api::JobAttempt { head, run: 1, job: 1, attempt: 1 }
 }
 fn read(world: &mut Machine, call: u64, max_bytes: u32) {
@@ -347,8 +347,8 @@ fn github_failed_checks_pin_jobs_whose_logs_keep_the_gate_timestamp() {
         &[STATUS, CHECKS, JOB, JOB, LOG, BLOB, NEXT_STATUS, NEXT_CHECKS, NEXT_JOB, NEXT_JOB, NEXT_LOG, NEXT_BLOB],
     );
     // Both failed heads go through the same checks read exposed to reviewers.
-    checks_log(&mut w, skein_fake_forge_protocol::routes::object(1).bytes, 2);
-    checks_log(&mut w, skein_fake_forge_protocol::routes::object(2).bytes, 4);
+    checks_log(&mut w, skein_fake_forge_forgejo::routes::object(1).bytes, 2);
+    checks_log(&mut w, skein_fake_forge_forgejo::routes::object(2).bytes, 4);
     finish(&mut w, READY_REQUESTS + 12);
 }
 

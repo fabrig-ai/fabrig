@@ -254,11 +254,7 @@ fn github_fake_delivery_payload_choice_reaches_the_dialects_oversize_path() {
     let mut service = Service::new(config, &f::limits(), 1).unwrap();
     let (id, _) = service
         .release(
-            Delivery::Issue {
-                repository: 2,
-                number: 3,
-                body: skein_forge::forgejo::document::Body::Kept(f::boxed(b"hello")),
-            },
+            Delivery::Issue { repository: 2, number: 3, body: skein_forge::text::Body::Kept(f::boxed(b"hello")) },
             Some(1),
             wall(1200),
         )
@@ -275,15 +271,11 @@ fn github_fake_delivery_payload_choice_reaches_the_dialects_oversize_path() {
     let mut small = f::limits().github;
     small.writer.length = 8192;
     let sent = github::server::encode(
-        &Delivery::Issue {
-            repository: 2,
-            number: 3,
-            body: skein_forge::forgejo::document::Body::Kept(f::boxed(&[b'x'; 5000])),
-        },
+        &Delivery::Issue { repository: 2, number: 3, body: skein_forge::text::Body::Kept(f::boxed(&[b'x'; 5000])) },
         &github::limits::Limits { body_bytes: 6000, ..small },
     )
     .unwrap();
-    let Delivery::Issue { body: skein_forge::forgejo::document::Body::Long(_), .. } =
+    let Delivery::Issue { body: skein_forge::text::Body::Long(_), .. } =
         github::delivery::decode(sent.event, &sent.body, &f::limits().github).unwrap()
     else {
         panic!("oversize issue body")
