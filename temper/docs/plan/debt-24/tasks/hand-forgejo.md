@@ -1,0 +1,40 @@
++++
+id = "hand-forgejo"
+part = "connection-worlds"
+kind = "migration"
+needs = ["hand-face"]
+files = ["skein/tests/forge/machine/tests/suite/hand/forgejo.rs", "skein/tests/forge/machine/tests/suite/hand/forgejo/**", "skein/tests/forge/machine/src/hand.rs", "skein/crates/skein-forge-connection/src/tests.rs", "skein/crates/skein-forge-connection/src/tests/contents.rs", "skein/crates/skein-forge-connection/src/tests/writes.rs", "skein/crates/skein-forge-connection/src/tests/reads.rs", "skein/crates/skein-forge-connection/src/tests/connection.rs", "skein/crates/skein-forge-connection/src/tests/artifact.rs", "skein/crates/skein-forge-connection/src/tests/abort.rs"]
+effort = "medium"
+minutes = 35
++++
+
+# The Forgejo tests move to the machine world
+
+## Goal
+
+Skein D030's Forgejo batch: `contents`, `writes`, `reads`, `connection`, `artifact`, `abort`, and `src/tests.rs`' six sites, about 88 tests. By `temper/docs/plan/debt-24/notes/hand.md`.
+
+Acceptance:
+
+- Their `Harness` tests are in `tests/suite/hand/forgejo/`, under the same file names. `artifact` and `abort` leave the crate; the mixed files keep what isn't on `Harness`. `reads`'s and `connection`'s tests that use a private drive call stay in the crate until `connection-seam`, for `hand-rows`.
+- Each test's asserts read as they did; `artifact`'s ceiling holds.
+- `heavy cargo nextest run -p skein-forge-connection --lib` and `-p skein-forge-machine-world` pass; the world gains what the crate loses.
+
+## Inputs
+
+- `temper/docs/plan/debt-24/notes/common.md`
+- `temper/docs/plan/debt-24/notes/hand.md`
+- `skein/docs/design/forge-connection.md`, 10
+
+## Owns and may change
+
+- **Owns:** the files in the header. `hand.rs` only gains what its files read.
+- **`hand/github.rs` and `hand/github/` aren't yours:** `hand-github` holds them at once.
+
+## Steps
+
+The script from `hand-face`'s report; `cargo fmt`; `(cd skein && python3 -I -B scripts/old_forms.py)`; `heavy cargo clippy -p skein-forge-machine-world -p skein-forge-connection --all-targets -- -D warnings`; the tests above. Commit and push.
+
+## Report
+
+The common note's items; the assert comparison; the time. A move: no rule to break by hand.

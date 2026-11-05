@@ -2,7 +2,8 @@
 
 2026-11-05. Where skein's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 4: the fake machine's entry inodes, groups, modes past
+- **Not yet:** 6: the kits for the JSON, HTTP, TLS, LLM and forge worlds, and the boundary test; packages still depend on those worlds.
+  4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.
   7: `live-skein` has no CPU budget or wall hard limit in

@@ -13,8 +13,28 @@ Two independent parts (`inputs/request.md`): the spot review of debt-22, and the
 | review 5, 7, note | `spot-review` | `accounts-lending` | | high | 50 | `Notice` splits; `has_work` asks what `fire` asks, pin first |
 | review 4 | `spot-review` | `accounts-entry` | `accounts-lending` | high | 75 | `AccountEntry`'s methods; one `let entry` per function |
 | review 8 | `spot-review` | `jig-tables` | | medium | 25 | two tables lose what can't fail |
+| D029 | `front-identities` | `protocol-parties` | | high | 60 | the protocol fixture signs in several parties; six stories run |
+| D029 | `front-identities` | `seed-projects` | `protocol-parties` | high | 40 | `Seed::TwoProjects`, one story on three fronts; the item goes |
+| D028, D031 | `skein-kits` | `kit-packages` | | medium | 20 | twelve empty kits, so later tasks don't meet on the root manifest |
+| D028 | `skein-kits` | `json-kit` | `kit-packages` | medium | 25 | JSON's reference and generator |
+| D028 | `skein-kits` | `http-kit` | `kit-packages` | medium | 20 | HTTP's reference |
+| D028 | `skein-kits` | `llm-kit` | `http-kit` | medium | 30 | the LLM world's library |
+| D028 | `skein-kits` | `tls-kit` | `llm-kit`, `hand-face` | medium | 35 | certificates, server, driver, meter |
+| D028 | `skein-kits` | `forge-kit` | `tls-kit`, `hand-face` | medium | 45 | the machine world's library but `memory`, `hand`; the client's `LIMITS` |
+| D028 | `skein-kits` | `echo-edge` | | medium | 25 | the echo's shell stops reading its world |
+| D028 | `skein-kits` | `path-fixtures` | `forge-kit` | medium | 35 | four `#[path]`s go |
+| D028 | `skein-kits` | `skein-world-readers` | `llm-kit`, `tls-kit`, `forge-kit`, `world-exemptions` | medium | 30 | smith, temper and jig read the kits |
+| D028 | `skein-kits` | `world-gate` | the eight above | medium | 25 | `skein_worlds.rs`; the item goes |
+| D030 | `connection-worlds` | `hand-face` | | high | 40 | `Harness` lifted to `hand`; a baseline; `free_rate` |
+| D030 | `connection-worlds` | `hand-forgejo` | `hand-face` | medium | 35 | about 88 Forgejo tests move |
+| D030 | `connection-worlds` | `hand-github` | `hand-face` | medium | 25 | about 73 public GitHub tests move |
+| D030 | `connection-worlds` | `connection-seam` | `hand-github`, `hand-forgejo` | high | 35 | the `seam` feature |
+| D030 | `connection-worlds` | `hand-rows` | `connection-seam` | medium | 30 | about 137 tests that read private rows move |
+| D030 | `connection-worlds` | `hand-seeded` | `hand-rows` | high | 40 | about 106 tests that seed move; the crate's fake goes |
+| D030 | `connection-worlds` | `connection-residue` | `hand-seeded` | high | 30 | `Harness` leaves the crate |
+| D031 | `jig-kits` | `world-exemptions` | | medium | 25 | `skein-world` and smith's world exempt; two unused edges go; Measure 27 |
 
-295 implementer-minutes so far, all in `spot-review`. No debt item closes in it, by the request.
+So far, `spot-review` is 295 implementer-minutes; no debt item closes in it, by the request. The table grows with each push.
 
 ## What was decided
 
@@ -29,11 +49,30 @@ Two independent parts (`inputs/request.md`): the spot review of debt-22, and the
 - **`ask_classes` keeps `SetRoles` and `RemoveProject`.** `project`, `capacity::project`, `deletion::ask_project` and `reserves_answer` all read `ask.family()`, so a further `F::Project(7)` row repeats one arm of `Ask::family`. `SetRoles` is what the roster test needs. Rows `models::selectors` reads go only after a hand break shows another test holds them.
 - **`collaborators_finish_without_measuring_the_rows_again` goes:** it pins `rows: 0`, a bound no client builds.
 
+- **D029 needs no production change.** The engine prints one link, but `people::Event::Mint` signs in any party, as temper and the Joint front do. So the item's "several printed links" isn't taken: its **Paid when** doesn't ask for it, and it would change `jig-protocol-engine-clients` and `jig-protocol-config` for a test's sake. A party other than 1 skips `/sign-in/link`, and its later calls go over HTTP.
+- **The six role stories and the two-project story are newly held,** so their lines stand against "fewer test lines".
+- **Twelve empty kits go first.** Every kit adds root `Cargo.toml` lines, and no plan so far says how a merge treats `Cargo.lock`, so `kit-packages` meets them once, and later tasks hold their own package blocks.
+- **A world's `lib.rs` re-exports its kit.** `pub use <kit>::*` keeps a world's own suites and other drafts' new tests compiling, and lets a kit's task leave other trees alone. So jig's world tests keep 756 + 73 + 52 references, and `skein-world-readers` does smith's, temper's and jig's at one time.
+- **D028 and D031 can't end with fewer test lines from moves alone.** A move's net Rust is the re-export, and each kit adds a manifest and a `clippy.toml`. The report names that against the request's "fewer test lines". Real reductions the surveys found are small, and `connection-close` takes the forge ones.
+- **A `#[path]` "across a crate's root" means another package's.** The item counted those (it said three; there are four, `examples/ui/shell-web` being the one it missed). Five inside one package (a `tests/` file reading its `src/`) and three manifests' `path =` stay.
+- **`admitted.rs` is one copy the rule forces.** A crate's unit tests and a world can share a fixture only by `#[path]`, or by a public item in production code, and a kit would give two copies of the crate's types. So the dialect world gets its own, trimmed. `forgejo_memory`'s fixture is the opposite: its six tests move into the crate.
+- **The echo goes beyond the item's list.** Its shell's dev-edge is one of the 17: `client_limits` and `plan` move to `skein-echo-client`, and `end_to_end.rs` moves into the shell.
+- **`smith/benchmarks/.../shell-cwd/grader`** is outside the workspace and pinned to an older source, so it stays on `skein_llm_world`.
+- **D030 is paid by the item's Paid when, not its last sentence.** "The moved tests use the fake's own server" would rewrite nearly every test: they write literal bytes (`status(503)`, malformed bodies, `acme/widgets`) a fake won't serve, and the fake's identities differ. So `hand` keeps them scripted, and only `github_files` meets the fake. `skein/docs/design/forge-connection.md`, 10 says so, in this plan's commit.
+- **`ConnectionHarness` and `HookHarness` stay in the crate, and the item's search reads them.** They step one entity with events, which is 2.1's own shape, and the request exempts a legitimate use of a word. The acceptance is `rg -lw Harness`.
+- **The `seam` feature is the plan's one new mechanism.** 217 tests read or seed private rows, so they can't move otherwise without a rewrite, which the request forbids. A real start would change their `connections_opened` and add RSA work. No design text rules a test feature in or out, and the request allows additions. No service turns it on, and `connection-seam` proves that with `cargo tree`. This is the call most worth fabrig/debt's second look.
+- **The D030 moves are a chain only where they must be.** `hand-forgejo` and `hand-github` hold different directories, and the rest follow helpers (`github_start`, then `github_renewal`, then the seed batch). The survey expects -400 to -700 lines, not the review's larger guess, and it's measured at the end.
+- **`world-exemptions` reads "smith's own world kits" as `smith-agent-process-world`.** Smith has no `testing/` and no such item, and about seven of smith's packages and temper's read it, so a kit for it isn't this plan's. It's the item's clause, so it isn't a question, and fabrig/debt may differ.
+
 ## Overlaps
 
 - The spot review's tasks meet no other draft's files. `jig-domain-people/src/tests.rs` and `jig-domain-tasks/src/tests.rs` aren't in any listed task's files.
 - Inside this plan: `forgejo-repository` and `forgejo-written` hold `writes.rs` in order, and `accounts-lending` and `accounts-entry` hold `skein-oauth-accounts`' `component` in order.
 
+- `skein-world-readers` holds a `use` line in temper's tests that other drafts are changing (`temper/crates/temper/tests/fake_backends/**`, `temper/crates/temper-service/src/tests/**`, `temper/tests/engine/**`); it goes late, and it searches again before it pushes.
+- `jig/tests/client-protocol` and `jig/tests/client` are D029's and then D031's, in that order.
+- `skein/tests/forge/machine` is shared by D028's and D030's tasks: `hand-face` goes first; the `hand-*` tasks hold `src/hand.rs` and `tests/suite/hand/**`, and `tls-kit` and `forge-kit` hold the rest.
+
 ## Critical path
 
-So far: `accounts-lending`, then `accounts-entry`, 125 minutes. The test items are still being cut.
+So far: `http-kit`'s chain through `kit-packages`, `llm-kit`, `tls-kit`, `forge-kit`, `path-fixtures`, `world-gate`, about 200 minutes; D030's chain is about 200 too. The rest of the test items are still being cut.
