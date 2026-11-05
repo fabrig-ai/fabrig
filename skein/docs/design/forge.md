@@ -1058,7 +1058,7 @@ such a request costs nothing.
 | anything after a byte was written: a reset, the end of the stream, the call's deadline, `5xx`; a `429` after one of the call's writes succeeded (`Merge`'s read after its merge) | `Timeout` |
 | a malformed answer (5.3) | `Timeout` on a write; `InvalidAnswer` on a read |
 | `401`, `403` | `Forbidden` |
-| a `404` on a branch leaf (`reads::Stage::Read`, `Read::Branch`) or contents leaf (`contents::Stage::File`), classified as `Asked::Leaf` | `Missing`, `Drop::Nothing`: the repository row stays |
+| a `404` on a branch leaf (`Read::Branch`'s own read, not its resolution) or contents leaf (`Read::File`'s own read), classified as `Asked::Leaf` | `Missing`, `Drop::Nothing`: the repository row stays |
 | every other `404` that ends the call (one 5.2 says ends nothing is an answer, and the path stays), including repository resolution, its own GET and listings | `Missing`, the repository's path dropped; `MissingJob` on `Job`'s reads |
 | `413` (Forgejo's quota) | `Full` |
 | `423` (the repository is archived) | `Forbidden` |

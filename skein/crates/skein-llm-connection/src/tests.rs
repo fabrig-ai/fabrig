@@ -72,7 +72,7 @@ pub(crate) fn credential() -> Credential {
 #[test]
 fn unknown_endpoint_is_refused() {
     let limits = limits();
-    let component = Component::new(List::with_capacity(1), &limits).expect("empty configuration fits");
+    let mut component = Component::new(List::with_capacity(1), &limits).expect("empty configuration fits");
     assert_eq!(component.admit(Token::new(7), 0, prompt(), Some(credential())).err(), Some(Refusal::Endpoint));
 }
 
@@ -81,7 +81,7 @@ fn invalid_and_oversized_requests_are_refused() {
     let limits = limits();
     let mut endpoints = List::with_capacity(1);
     endpoints.push(endpoint()).expect("one endpoint fits");
-    let component = Component::new(endpoints, &limits).expect("valid endpoints");
+    let mut component = Component::new(endpoints, &limits).expect("valid endpoints");
     let mut invalid = prompt();
     invalid.model = Box::new([]);
     assert_eq!(
@@ -626,7 +626,7 @@ fn the_measured_head_accepts_a_credential_at_its_bound_and_refuses_one_byte_more
     destination.credential = skein_llm::client::CredentialLimits { value: 2048 };
     let mut endpoints = List::with_capacity(1);
     endpoints.push(destination).expect("endpoint");
-    let component = Component::new(endpoints, &config).expect("measured endpoint");
+    let mut component = Component::new(endpoints, &config).expect("measured endpoint");
     let mut at_bound = credential();
     at_bound.value = Box::new([b'x'; 2048]);
     drop(
@@ -831,7 +831,7 @@ fn a_value_past_its_bound_is_refused_by_name() {
     let config = limits();
     let mut endpoints = List::with_capacity(config.endpoints);
     endpoints.push(endpoint()).expect("one endpoint fits");
-    let component = Component::new(endpoints, &config).expect("valid endpoint");
+    let mut component = Component::new(endpoints, &config).expect("valid endpoint");
     let mut value = credential();
     value.value = Box::new([b'x'; VALUE_BYTES + 1]);
     assert_eq!(
@@ -848,7 +848,7 @@ fn a_key_at_its_bound_fits_the_anthropic_measured_head() {
     destination.llm = skein_llm::Endpoint::anthropic();
     let mut endpoints = List::with_capacity(config.endpoints);
     endpoints.push(destination).expect("one endpoint fits");
-    let component = Component::new(endpoints, &config).expect("measured endpoint");
+    let mut component = Component::new(endpoints, &config).expect("measured endpoint");
     let value = Credential::key(Box::new([b'x'; VALUE_BYTES]));
     assert_eq!(component.admit(Token::new(7), 0, prompt(), Some(value)).err(), None);
 }
@@ -879,7 +879,7 @@ fn measured_admission_keeps_each_providers_lengths_and_refusals() {
         let wire = destination.llm.clone();
         let mut endpoints = List::with_capacity(1);
         endpoints.push(destination).unwrap();
-        let pool = Component::new(endpoints, &limits()).unwrap();
+        let mut pool = Component::new(endpoints, &limits()).unwrap();
         for enabled in [false, true] {
             for fault in 0_u32..3 {
                 let mut value = credential();
@@ -1000,4 +1000,31 @@ fn valid_ignores_heap_pool_sum() {
     let mut endpoints = List::with_capacity(1);
     endpoints.push(endpoint()).unwrap();
     assert!(valid(&bounds, &endpoints));
+}
+
+#[test]
+fn an_owner_that_asks_takes_each_call_s_body() {
+    for keep in [false, true] {
+        let mut pool = component();
+        if keep {
+            pool.keep_bodies();
+        }
+        let mut immediate = pool.admit(Token::new(7), 0, prompt(), Some(credential())).unwrap();
+        assert!(immediate.take_kept_body().is_none(), "the connection takes the copy");
+        let mut up = Queue::uncapped();
+        let mut io = Queue::uncapped();
+        start(&mut pool, &mut up, &mut io);
+        for _ in 0..2_u32 {
+            if keep {
+                let body = pool.pop_body().expect("both preparation paths keep their body");
+                assert_eq!(body.call, Token::new(7));
+                assert_eq!(body.provider, skein_llm::Provider::OpenAi);
+                assert!(bytes::find(&body.bytes, b"test-model").is_some());
+                assert!(bytes::find(&body.bytes, b"secret").is_none());
+            } else {
+                assert!(pool.pop_body().is_none());
+            }
+        }
+        assert!(pool.pop_body().is_none());
+    }
 }

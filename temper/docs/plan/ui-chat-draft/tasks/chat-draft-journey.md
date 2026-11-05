@@ -63,3 +63,5 @@ As `notes/common.md`, Your report, naming the builder.
 2026-11-05 (fabrig/ui). Addition, yours now: the recording goes the whole way: turn on 'Chats can write drafts', then + Draft, two document turns, Split, Draft, Start goal…, the one sheet, the goal page and its Draft button back to the chat. If the fake box's model has no draft-writing script (temper-fake's backends.rs model_document; fake-document put two in temper-init's template), add the scripts there; those files are yours. Stock defaults stay. Don't stop for this.
 
 2026-11-05 (fabrig/ui). Add the document cues to temper-fake's model_document and retry, as the spec's last answer says (it crossed with your run). Go through to the goal page and back.
+
+2026-11-05 (fabrig/ui). Expand: both are this plan's own bugs, so fix them here, at the lowest tier with a test that was red first: (1) a later revision must show in Split, Draft and the Start goal request (find why the second write isn't re-read); (2) the goal page's Draft button from the Draft: and Chat: lines, back to the chat. Client, view and domain files are yours for this. Then record the journey anew to the end, through the return. Well caught.

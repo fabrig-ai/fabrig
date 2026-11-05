@@ -123,6 +123,15 @@ impl Parent {
         parent
     }
 
+    pub(crate) fn dump_to(&mut self, settings: &DumpSettings) {
+        let mut startup = self.submissions.pop().expect("parent spawn");
+        let Op::Spawn { spawn } = &mut startup.kind else { panic!("initial spawn") };
+        let mut args = spawn.args.to_vec();
+        args.push(serde_json::to_vec(settings).expect("dump settings").into());
+        spawn.args = args.into();
+        self.submissions.push(startup);
+    }
+
     pub(crate) fn program_arguments(
         &mut self,
         arguments: Box<[Box<[u8]>]>,
@@ -499,7 +508,8 @@ fn make(spawn: &Spawn, inherited: &Inherited) -> Proc {
     } else {
         let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
         let (errors, capture) = crate::AgentErrors::pipe(fd);
-        let agent = crate::configured(configuration, 7, inherited, errors.clone());
+        let mut agent = crate::configured(configuration, 7, inherited, errors.clone());
+        dump_agent(&mut agent, spawn);
         Proc::Agent(Box::new(capture.host(agent)), errors)
     }
 }
@@ -846,8 +856,20 @@ pub struct World {
     root_path: Option<Box<[u8]>>,
     order: Option<Order>,
     coding: bool,
+    dumps: Option<DumpSettings>,
 }
 impl World {
+    /// Enables real filesystem capture while the rest of the world stays simulated.
+    pub fn dump_to(&mut self, directory: std::path::PathBuf, bound: u64) {
+        self.dumps = Some(DumpSettings { directory, bound });
+    }
+
+    /// Bodies read by the independent provider, in order.
+    #[must_use]
+    pub fn bodies(&self) -> &[Box<[u8]>] {
+        self.peer().bodies()
+    }
+
     /// Hold one real output completion while the parent sends Message entrances.
     pub fn order_pressure(&mut self, order: Order) {
         self.observe_facts(TraceCase::Failed, orders::OUTPUT_FRAMES);
@@ -893,6 +915,7 @@ impl World {
             root_path: None,
             order: None,
             coding: false,
+            dumps: None,
         }
     }
 
@@ -1277,6 +1300,9 @@ impl World {
                     setup,
                 },
             );
+            if let Some(dumps) = &self.dumps {
+                parent.dump_to(dumps);
+            }
             if self.coding {
                 coding::start(&mut parent, &self.charter);
             }
@@ -1301,7 +1327,8 @@ impl World {
             == Some(kernel::Exit::Code(u8::from(self.hang_up || self.hang_up_mid_call || self.refreshing.is_some())))
     }
     fn make_peer(&self) -> skein_fake_peers::llm::Peer {
-        peer::Peer::select(self).make(self)
+        let peer = peer::Peer::select(self).make(self);
+        if self.dumps.is_some() { peer.keeping_bodies() } else { peer }
     }
     fn parent(&self) -> &Parent {
         self.outcome
@@ -1429,3 +1456,16 @@ impl World {
 }
 
 mod grants;
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct DumpSettings {
+    pub directory: std::path::PathBuf,
+    pub bound: u64,
+}
+
+pub(crate) fn dump_agent(agent: &mut smith_agent_shell::Agent, spawn: &Spawn) {
+    if let Some(bytes) = spawn.args.get(1) {
+        let settings: DumpSettings = serde_json::from_slice(bytes).expect("dump settings");
+        agent.dump_to(smith_agent_shell::dump::Dumps::new(settings.directory, settings.bound));
+    }
+}
