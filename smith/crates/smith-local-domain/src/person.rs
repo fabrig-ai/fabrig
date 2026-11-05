@@ -231,7 +231,9 @@ pub(crate) fn turn_lines(turn: &agent::Turn, cap: u32) -> Box<[TurnLine]> {
     lines.into_boxed()
 }
 
-pub(crate) fn tool_verdict(result: &session::llm::Returned) -> ToolVerdict {
+/// The typed verdict for one told tool result.
+#[must_use]
+pub fn tool_verdict(result: &session::llm::Returned) -> ToolVerdict {
     match result {
         session::llm::Returned::Owned { outcome } => match outcome {
             tools::Outcome::Running { .. }
@@ -309,6 +311,14 @@ mod tests {
             &[
                 TurnLine::Text(b"Working".as_slice().into()),
                 TurnLine::Tool { name: b"inspect".as_slice().into() },
+                TurnLine::Ended(ToolVerdict::Finished),
+            ]
+        );
+        assert_eq!(
+            turn_lines(&turn, 4).as_ref(),
+            &[
+                TurnLine::Text(b"Work".as_slice().into()),
+                TurnLine::Tool { name: b"insp".as_slice().into() },
                 TurnLine::Ended(ToolVerdict::Finished),
             ]
         );

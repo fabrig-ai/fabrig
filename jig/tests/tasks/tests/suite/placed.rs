@@ -1,6 +1,6 @@
 use jig_domain_tasks::{
-    self as tasks, Active, CapacityCause, Class, Control, End, Event, Hold, Key, Mode, Owner, Party, Phase, PlacedHold,
-    Proposal, ProposalAction, ProposalHolder, ProposalState, Refusal, Scope, Stored,
+    self as tasks, Active, Cancel, CapacityCause, Class, End, Event, Hold, Key, Mode, Owner, Party, Phase, PlacedHold,
+    Proposal, ProposalAction, ProposalHolder, ProposalState, Refusal, Release, Scope, Stored,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 
@@ -30,7 +30,7 @@ fn release_from(w: &mut World, by: Party, task: u64) -> Reply {
     let reply_to = w.to();
     let call = reply_to.into_token().raw();
     let reply_to = skein_lib::ReplyTo::new(skein_lib::Token::new(call));
-    w.send(Event::Control { reply_to, by, task, control: Control::Release { again: None, message: None } });
+    w.send(Event::Release { reply_to, by, operation: Release { task, again: None, message: None } });
     w.replies[&call].clone()
 }
 
@@ -292,11 +292,10 @@ fn a_subtree_hold_ends_with_its_root() {
     goal_tree(&mut w);
     stop(&mut w, 1, 1, 100);
     let reply_to = w.to();
-    w.send(Event::Control {
+    w.send(Event::Cancel {
         reply_to,
         by: Party::Person(1),
-        task: 1,
-        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: Cancel { task: 1, reason: Box::new([]), grace: None, message: None },
     });
     w.complete_cancel();
     assert_eq!(w.live(), 0);
@@ -410,12 +409,7 @@ fn stopped_procedures() -> World {
 }
 
 fn release_event(w: &mut World, task: u64) -> Event {
-    Event::Control {
-        reply_to: w.to(),
-        by: PROCEDURE_OWNER,
-        task,
-        control: Control::Release { again: None, message: None },
-    }
+    Event::Release { reply_to: w.to(), by: PROCEDURE_OWNER, operation: Release { task, again: None, message: None } }
 }
 
 fn steps_in_commit(w: &mut World, event: Event, procedures: &[u64]) {
@@ -642,7 +636,9 @@ fn a_compound_cannot_stop_and_release_the_same_subtree_in_one_decision() {
     goal_tree(&mut w);
     let mut operations = skein_lib::List::with_capacity(3);
     operations.push(tasks::Operation::Stop { task: 1, hold: 100 }).expect("placed test setup");
-    operations.push(tasks::Operation::Release { task: 1, again: None, message: None }).expect("placed test setup");
+    operations
+        .push(tasks::Operation::Release(tasks::Release { task: 1, again: None, message: None }))
+        .expect("placed test setup");
     operations.push(tasks::Operation::Stop { task: 2, hold: 101 }).expect("placed test setup");
     let reply_to = w.to();
     let token = reply_to.into_token();

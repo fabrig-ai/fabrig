@@ -3,12 +3,18 @@
 //! domain; a second interrupt asks the selected child to drop through local policy.
 
 use alloc::boxed::Box;
-use skein_lib::{List, Queue};
+use skein_lib::{Decimal, List, Queue, bytes::concat};
 use smith_local_domain as local;
 
 mod entered;
 mod failure;
 pub use entered::{Entered, Slash, entered};
+
+/// The prompt shown while waiting for a person's line.
+pub const PROMPT: &[u8] = b"> ";
+
+/// The refusal of an unknown or incomplete local command.
+pub const REFUSED_COMMAND: &[u8] = b"Unknown or incomplete command";
 
 /// Receiving and display bounds of one local terminal.
 #[derive(Clone, Copy, Debug)]
@@ -90,14 +96,14 @@ impl Terminal {
         out.push(Event::Domain(Box::new(local::Event::Closed)));
     }
 
-    /// Forward bounded local-domain text to the terminal.
+    /// Forward bounded text to the terminal.
     pub fn show(&self, text: Box<[u8]>, out: &mut Queue<Event>) {
         let cap = usize::try_from(self.limits.show_bytes).expect("u32 fits usize");
         let kept = text.get(..cap).unwrap_or(text.as_ref());
         out.push(Event::Write(Box::from(kept)));
     }
 
-    /// Render a typed host notice as bounded UTF-8 lines ending in newlines.
+    /// Render a typed local notice as bounded UTF-8 text: a line ends in a newline, a choice doesn't.
     pub fn notice(
         &self,
         notice: &local::Notice,
@@ -160,7 +166,7 @@ pub fn notice_text(
             return text.bytes.into_boxed();
         }
         local::Notice::Answer(said) => {
-            append_text(&mut text.bytes, &said_text(said));
+            append_text(&mut text.bytes, said_text(said));
             return text.bytes.into_boxed();
         }
         local::Notice::Choice(choice) => return choice_text(choice, chat, cap),
@@ -253,39 +259,72 @@ pub fn tool_verdict_text(verdict: local::ToolVerdict) -> &'static [u8] {
 
 /// What an answer said, whole.
 #[must_use]
-pub fn said_text(said: &local::Said) -> Box<[u8]> {
+pub fn said_text(said: &local::Said) -> &[u8] {
     match said {
-        local::Said::Text(text) => text.clone(),
-        local::Said::Change => b"Change delivered".as_slice().into(),
-        local::Said::Parked => b"Chat parked".as_slice().into(),
+        local::Said::Text(text) => text,
+        local::Said::Change => b"Change delivered",
+        local::Said::Parked => b"Chat parked",
     }
 }
 
+/// Render `smith: tool NAME` with its newline.
+#[must_use]
+pub fn told_tool_line(name: &[u8]) -> Box<[u8]> {
+    concat(&[b"smith: tool ", name, b"\n"])
+}
+
+/// Render `smith: Tool finished` or `smith: Tool failed` with its newline.
+#[must_use]
+pub fn told_verdict_line(verdict: local::ToolVerdict) -> Box<[u8]> {
+    concat(&[b"smith: ", tool_verdict_text(verdict)])
+}
+
+/// Render `accepted in T turns, S notional, M ms` with its newline.
+#[must_use]
+pub fn accepted_line(turns: u32, spent: u64, millis: u64) -> Box<[u8]> {
+    concat(&[
+        b"accepted in ",
+        Decimal::of(u64::from(turns)).as_bytes(),
+        b" turns, ",
+        Decimal::of(spent).as_bytes(),
+        b" notional, ",
+        Decimal::of(millis).as_bytes(),
+        b" ms\n",
+    ])
+}
+
+/// Render ``needs input: answer with `smith exec --chat CHAT` `` with its newline.
+#[must_use]
+pub fn needs_input_line(chat: &[u8]) -> Box<[u8]> {
+    concat(&[b"needs input: answer with `smith exec --chat ", chat, b"`\n"])
+}
+
 fn append_text(shown: &mut List<u8>, text: &[u8]) {
-    let mut skip = 0_u8;
-    for (index, byte) in text.iter().enumerate() {
-        if skip > 0 {
-            skip = skip.checked_sub(1).expect("continuation count is positive");
-            continue;
-        }
-        let width = if *byte < 0x80 {
-            1_usize
-        } else if *byte < 0xe0 {
-            2_usize
-        } else if *byte < 0xf0 {
-            3_usize
-        } else {
-            4_usize
-        };
-        let Some(bytes) = text.get(index..index.saturating_add(width)) else { return };
-        if shown.room() < u32::try_from(width).expect("UTF-8 character width fits u32") {
-            return;
-        }
-        for value in bytes {
-            shown.push(*value).expect("character room checked before writing");
-        }
-        skip = u8::try_from(width.saturating_sub(1)).expect("UTF-8 character width fits u8");
+    for byte in whole_prefix(text, shown.room()) {
+        shown.push(*byte).expect("whole prefix fits shown room");
     }
+}
+
+/// The longest prefix of `text` made of whole characters that fits in `room` bytes.
+fn whole_prefix(text: &[u8], room: u32) -> &[u8] {
+    let room = usize::try_from(room).expect("u32 fits usize");
+    let mut end = 0_usize;
+    for (index, byte) in text.iter().enumerate() {
+        if index == end {
+            let width = match *byte {
+                0x00..=0x7f => 1_usize,
+                0x80..=0xdf => 2_usize,
+                0xe0..=0xef => 3_usize,
+                0xf0..=0xff => 4_usize,
+            };
+            let next = index.saturating_add(width);
+            if next > room || next > text.len() {
+                break;
+            }
+            end = next;
+        }
+    }
+    text.get(..end).expect("whole prefix ends within text")
 }
 
 fn older_words(why: local::Older) -> [&'static str; 2] {
@@ -305,7 +344,7 @@ fn older_words(why: local::Older) -> [&'static str; 2] {
     }
 }
 
-/// Render local choice feedback under the same display bound as domain text.
+/// Render local choice feedback under the display bound.
 #[must_use]
 pub fn choice_text(notice: &local::ChoiceNotice, chat: &[u8], cap: u32) -> Box<[u8]> {
     match notice {
@@ -391,37 +430,12 @@ struct Shown {
 
 // Keep one byte for a newline and cut only at a complete character.
 fn append(text: &mut Shown, bytes: &[u8]) {
-    if text.cut {
-        return;
-    }
-    let mut skip = 0_u8;
-    for (index, byte) in bytes.iter().enumerate() {
-        if skip > 0 {
-            skip = skip.checked_sub(1).expect("continuation count is positive");
-            continue;
-        }
-        let width = if *byte < 0x80 {
-            1
-        } else if *byte < 0xe0 {
-            2
-        } else if *byte < 0xf0 {
-            3
-        } else {
-            4
-        };
-        if width >= text.bytes.room() {
-            text.cut = true;
-            return;
-        }
-        let end = index.checked_add(usize::try_from(width).expect("character width fits usize")).expect("bounded text");
-        let Some(character) = bytes.get(index..end) else {
-            text.cut = true;
-            return;
-        };
-        for byte in character {
+    if !text.cut {
+        let prefix = whole_prefix(bytes, text.bytes.room().saturating_sub(1));
+        for byte in prefix {
             text.bytes.push(*byte).expect("character and newline room checked");
         }
-        skip = u8::try_from(width.checked_sub(1).expect("positive width")).expect("character width fits u8");
+        text.cut = prefix.len() < bytes.len();
     }
 }
 
@@ -432,7 +446,7 @@ fn newline(text: &mut Shown) {
 }
 
 fn decimal(text: &mut Shown, number: u64) {
-    append(text, skein_lib::Decimal::of(number).as_bytes());
+    append(text, Decimal::of(number).as_bytes());
 }
 
 #[cfg(test)]
@@ -446,9 +460,13 @@ mod tests {
                 local::TurnLine::Text(b"Working".as_slice().into()),
                 local::TurnLine::Tool { name: b"inspect".as_slice().into() },
                 local::TurnLine::Ended(local::ToolVerdict::Finished),
+                local::TurnLine::Ended(local::ToolVerdict::Failed),
             ]),
         };
-        assert_eq!(notice_text(&notice, b"main", &[], 128).as_ref(), b"Working\nTool: inspect\nTool finished\n");
+        assert_eq!(
+            notice_text(&notice, b"main", &[], 128).as_ref(),
+            b"Working\nTool: inspect\nTool finished\nTool failed\n"
+        );
     }
 
     #[test]
@@ -472,16 +490,6 @@ mod tests {
     }
 
     #[test]
-    fn tool_terminals_keep_their_verdict_words() {
-        for (verdict, expected) in [
-            (local::ToolVerdict::Finished, b"Tool finished\n".as_slice()),
-            (local::ToolVerdict::Failed, b"Tool failed\n".as_slice()),
-        ] {
-            assert_eq!(tool_verdict_text(verdict), expected);
-        }
-    }
-
-    #[test]
     fn local_choice_words_keep_their_terminal_byte_contract() {
         use local::ChoiceNotice;
         let effort = ChoiceNotice::Effort {
@@ -491,6 +499,10 @@ mod tests {
         };
         assert_eq!(
             choice_text(&effort, b"main", 1024).as_ref(),
+            b"Effort mystery is not declared; accepted: low, high"
+        );
+        assert_eq!(
+            notice_text(&local::Notice::Failure(local::Failure::EffortRefused(effort)), b"main", &[], 1024).as_ref(),
             b"Effort mystery is not declared; accepted: low, high"
         );
         let model = ChoiceNotice::ModelElsewhere { model: b"elsewhere/model".as_slice().into() };

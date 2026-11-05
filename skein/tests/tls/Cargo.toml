@@ -11,6 +11,7 @@ publish.workspace = true
 # The counting allocator, shared by the memory worlds.
 skein-heap.workspace = true
 skein-lib.workspace = true
+skein-protocol-kit.workspace = true
 skein-tls.workspace = true
 # Native ciphertext-output composition uses IO on the simulator.
 skein-io.workspace = true

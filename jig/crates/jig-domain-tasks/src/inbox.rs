@@ -263,31 +263,22 @@ pub(crate) fn room_staged(
         && total_bytes <= skein_lib::length::usize_of(limits.inbox_bytes)
 }
 
-#[expect(clippy::too_many_arguments, reason = "one message entrance carries its addressed word and authorization")]
 pub(crate) fn message(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     project: u32,
-    number: u64,
-    word: Word,
+    operation: crate::Message,
     authorized: bool,
     out: &mut Queue<Request>,
 ) {
-    match check_message(domain, &crate::compound::Staged::new(0), env, Message { project, number, word, authorized }) {
+    match check_message(domain, &crate::compound::Staged::new(0), env, project, operation, authorized) {
         Ok(plan) => {
             let (task, word) = apply_message(domain, env, plan, out);
             out.push(Request::Sent { reply_to: to, task, word });
         }
         Err(problem) => crate::capacity::refused(domain, env, to, *problem, out),
     }
-}
-
-pub(crate) struct Message {
-    pub project: u32,
-    pub number: u64,
-    pub word: Word,
-    pub authorized: bool,
 }
 
 pub(crate) struct MessagePlan {
@@ -301,9 +292,11 @@ pub(crate) fn check_message(
     domain: &Domain,
     staged: &crate::compound::Staged,
     env: &Env<Limits>,
-    message: Message,
+    project: u32,
+    operation: crate::Message,
+    authorized: bool,
 ) -> Result<MessagePlan, Box<crate::Problem>> {
-    let Message { project, number, mut word, authorized } = message;
+    let crate::Message { task: number, mut word } = operation;
     if !domain.ready() {
         return Err(Box::new(crate::Problem {
             task: Some(number),

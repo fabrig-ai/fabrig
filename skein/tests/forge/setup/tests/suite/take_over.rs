@@ -4,7 +4,7 @@ use skein_forge_setup::{
     item::Item,
     reconcile::{Failure, Outcome, Stage, Why},
 };
-use skein_forge_setup_world::{Ended, World, fixtures};
+use skein_forge_setup_world::{Ended, HostWorld, fixtures};
 
 fn failure(why: Why) -> Ended {
     Ended::Stop(Failure { forge: 1, step: Stage::Admin, subject: b"kit-admin".as_slice().into(), why })
@@ -12,7 +12,7 @@ fn failure(why: Why) -> Ended {
 
 #[test]
 fn the_taken_token_is_written_and_every_older_admin_token_is_deleted() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     let admin = fixtures::admin_handover(&mut world);
     let older: Vec<_> = world.store().issued().iter().take(5).map(|token| token.secret.clone()).collect();
     assert_eq!(world.take_over(fixtures::TAKEN), Ended::Done);
@@ -37,7 +37,7 @@ fn the_taken_token_is_written_and_every_older_admin_token_is_deleted() {
 
 #[test]
 fn a_second_take_over_of_the_same_token_deletes_nothing() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     fixtures::admin_handover(&mut world);
     assert_eq!(world.take_over(fixtures::TAKEN), Ended::Done);
     let deletes = world.tally().routes.get(&Route::DeleteToken).copied();
@@ -51,7 +51,7 @@ fn a_second_take_over_of_the_same_token_deletes_nothing() {
 
 #[test]
 fn the_reconcile_after_a_take_over_runs_with_the_taken_token() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     let admin = fixtures::admin_handover(&mut world);
     assert_eq!(world.take_over(fixtures::TAKEN), Ended::Done);
     assert_eq!(world.store().token_user(fixtures::ADMIN), None);
@@ -70,7 +70,7 @@ fn the_reconcile_after_a_take_over_runs_with_the_taken_token() {
 
 #[test]
 fn a_plain_users_token_is_refused_as_not_admin() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     let person = world.store_mut().account(b"person", false, b"A person");
     world.store_mut().token(person, b"handover", &[b"read:user"], fixtures::secret(fixtures::TAKEN));
     let kept = world.file(Item::AdminToken).cloned();
@@ -83,7 +83,7 @@ fn a_plain_users_token_is_refused_as_not_admin() {
 
 #[test]
 fn no_secret_is_in_a_take_overs_failure_debug_or_trace() {
-    let mut world = World::managed(7);
+    let mut world = HostWorld::new(7, &[]);
     let ended = world.take_over(fixtures::TAKEN);
     assert_eq!(ended, failure(Why::Refused(401)));
     let debug = format!("{ended:?}");

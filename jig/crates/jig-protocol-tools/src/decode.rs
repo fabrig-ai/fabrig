@@ -30,8 +30,8 @@ fn read(tool: &[u8], input: &[u8], limits: &Limits) -> Result<Decoded, Problem> 
         b"delegate" => return Ok(Decoded::Delegate(delegates(value.required(b"batch")?, limits)?)),
         b"message" => message(value)?,
         b"cancel" => core::NamedAction::Control {
-            target: value.required(b"target")?.number()?,
-            control: tasks::Control::Cancel {
+            cancel: tasks::Cancel {
+                task: value.required(b"target")?.number()?,
                 reason: value.required(b"reason")?.text()?,
                 grace: match value.field(b"grace")? {
                     Some(value) => Some(skein_lib::Duration::from_nanos(value.number()?)),

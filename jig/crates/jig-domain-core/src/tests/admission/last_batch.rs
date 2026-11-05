@@ -36,11 +36,10 @@ fn project_reads_the_whole_last_created_batch_after_ending_and_refuses_a_partial
         send_task(
             &mut core,
             &limits,
-            tasks::Event::Control {
+            tasks::Event::Cancel {
                 reply_to: ReplyTo::new(Token::new(1)),
                 by: tasks::Party::Task(100),
-                task: child,
-                control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+                operation: tasks::Cancel { task: child, reason: Box::new([]), grace: None, message: None },
             },
         );
         send_task(&mut core, &limits, tasks::Event::EffectsSettled { task: child });

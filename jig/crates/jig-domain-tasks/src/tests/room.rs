@@ -9,7 +9,7 @@
 )]
 use super::revisions::{Harness, task, to};
 use crate::{
-    Active, Capacity, CapacityAction, CapacityCause, Control, Domain, Event, Executor, Funder, Key, LiveRoom, New,
+    Active, Cancel, Capacity, CapacityAction, CapacityCause, Domain, Event, Executor, Funder, Key, LiveRoom, New,
     Party, Phase, Problem, ProcedureDecision, ProcedureEnd, Refusal, Request, RoomWait, Stored,
 };
 
@@ -42,11 +42,10 @@ fn batch(h: &mut Harness, parent: u64, number: u64) -> Vec<Request> {
 }
 
 fn finish(h: &mut Harness, number: u64) -> Vec<Request> {
-    h.send(Event::Control {
+    h.send(Event::Cancel {
         reply_to: to(),
         by: Party::Person(9),
-        task: number,
-        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: Cancel { task: number, reason: Box::new([]), grace: None, message: None },
     });
     h.send(Event::EffectsSettled { task: number });
     let out = h.send(Event::Settled { task: number });
@@ -198,11 +197,10 @@ fn a_changed_fact_and_cancellation_drop_the_wait() {
     let out = h.send(Event::WakeProcedure { task: 2 });
     assert_eq!(activations(&out), [2]);
     assert_eq!(h.domain.task(2).unwrap().room_wait, None);
-    let out = h.send(Event::Control {
+    let out = h.send(Event::Cancel {
         reply_to: to(),
         by: Party::Person(9),
-        task: 1,
-        control: Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        operation: Cancel { task: 1, reason: Box::new([]), grace: None, message: None },
     });
     assert!(out.iter().any(|request| match request {
         Request::Done { .. } => true,

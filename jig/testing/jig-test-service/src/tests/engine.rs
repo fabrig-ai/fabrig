@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::{End, Stop};
 use jig_domain_core as core;
+use jig_domain_tasks::Cancel;
 use jig_protocol_accounts::table::{Scheme, Value};
 use jig_protocol_engine_workers::{self as engine, GrantValue};
 use jig_protocol_store::Event as StoreEvent;
@@ -375,8 +376,7 @@ fn a_call_is_decoded_and_one_that_does_not_is_answered_an_error() {
                     panic!("named action");
                 };
                 assert_eq!(key, core::CallKey { task: 2, attempt: 3, completion: 7, position: 2 });
-                let core::NamedAction::Control { target, control: jig_domain_tasks::Control::Cancel { .. } } = action
-                else {
+                let core::NamedAction::Control { cancel: Cancel { task: target, .. } } = action else {
                     panic!("cancel action");
                 };
                 assert_eq!(target, 3);

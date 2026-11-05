@@ -29,6 +29,9 @@ use skein_http::client::{self, Call, Client, Error, Event, Limits, Request, Resp
 use skein_lib::stream::{Delimiter, Down, Fault, Read, Up};
 use skein_lib::{Env, Intake, Queue, Rng, Time, Wall};
 
+use skein_protocol_kit::below::{delivers, meets};
+use skein_protocol_kit::random::{draw, fault};
+
 use crate::generate;
 use crate::reference::{self, Outcome};
 
@@ -167,14 +170,6 @@ pub fn limits(rng: &mut Rng) -> Limits {
         read: draw(rng, 4, 256),
         send: draw(rng, 1, 256),
     }
-}
-
-fn fault(rng: &mut Rng) -> Fault {
-    [Fault::Reset, Fault::Invalid, Fault::Other][usize::try_from(rng.below(3)).expect("fits a usize")]
-}
-
-fn draw(rng: &mut Rng, low: u32, high: u32) -> u32 {
-    u32::try_from(rng.between(u64::from(low), u64::from(high))).expect("fits a u32")
 }
 
 /// A call the side above makes, and the body it uploads for it.
@@ -435,24 +430,6 @@ fn response_ends(exchanges: &[Exchange], server: &[u8], limits: &Limits) -> Vec<
         ends.push(offset);
     }
     ends
-}
-
-/// Whether `bytes` hold what `read` asks for, from their start.
-fn meets(read: Read, bytes: &[u8]) -> bool {
-    match read {
-        Read::Nothing => false,
-        Read::Fill(n) => bytes.len() >= usize::try_from(n).expect("fits a usize"),
-        Read::Arrived { .. } => !bytes.is_empty(),
-        Read::Scan { until, max } => {
-            let max = usize::try_from(max).expect("fits a usize");
-            let window = &bytes[..max.min(bytes.len())];
-            bytes.len() >= max || window.windows(until.as_bytes().len()).any(|found| found == until.as_bytes())
-        }
-        Read::Line { max } => {
-            let max = usize::try_from(max).expect("fits a usize");
-            bytes.len() >= max || bytes[..max.min(bytes.len())].iter().any(|&byte| byte == b'\r' || byte == b'\n')
-        }
-    }
 }
 
 struct World<'a> {
@@ -1061,26 +1038,5 @@ impl World<'_> {
         if !self.above.closed && self.above.terminal.is_some() && !self.above.spent && self.below.life == Life::Open {
             assert_eq!(waiting, Waiting::Call, "a connection kept waits for the next call");
         }
-    }
-}
-
-/// Whether `bytes` meet `read` exactly, or with what has arrived.
-fn delivers(read: Read, bytes: &[u8]) -> bool {
-    match read {
-        Read::Nothing => false,
-        Read::Fill(n) => bytes.len() == usize::try_from(n).expect("fits a usize"),
-        Read::Arrived { max } => !bytes.is_empty() && bytes.len() <= usize::try_from(max).expect("fits a usize"),
-        Read::Scan { until, max } => {
-            let delimiter = until.as_bytes();
-            let first = bytes.windows(delimiter.len()).position(|window| window == delimiter);
-            match first {
-                Some(at) => at + delimiter.len() == bytes.len(),
-                None => bytes.len() == usize::try_from(max).expect("fits a usize"),
-            }
-        }
-        Read::Line { max } => match bytes.iter().position(|&byte| byte == b'\r' || byte == b'\n') {
-            Some(at) => at + 1 == bytes.len(),
-            None => bytes.len() == usize::try_from(max).expect("fits a usize"),
-        },
     }
 }

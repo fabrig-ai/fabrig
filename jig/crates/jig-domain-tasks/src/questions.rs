@@ -43,7 +43,9 @@ pub(crate) fn person_question(domain: &mut Domain, env: &Env<Limits>, event: Eve
         domain,
         &crate::compound::Staged::new(0),
         env,
-        crate::inbox::Message { project, number: task, word, authorized: false },
+        project,
+        crate::Message { task, word },
+        false,
     ) {
         Ok(plan) => plan,
         Err(problem) => return crate::capacity::refused(domain, env, reply_to, *problem, out),
