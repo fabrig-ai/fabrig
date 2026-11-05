@@ -3,7 +3,7 @@
 use super::*;
 use crate::agent::{Close, Cue, Person, Script, Seen, Trigger};
 
-use crate::agent::smith::recorded_events as events;
+use crate::fixture::events;
 
 // The capture boundary is the eight-byte prefix asserted by the runner counterpart.
 const CAPTURE_BYTES: usize = 8;

@@ -16,8 +16,7 @@ fn stopping_keeps_the_printed_link_live_and_unspent() {
     let secret = component.link.as_ref().expect("live link").secret.clone();
     let until = component.link.as_ref().expect("live link").until;
     let owner = Token::new(99);
-    let record =
-        w::LinkSignIn::new(&env.limits.wire, w::LinkSignInParts { secret: secret.expose().into() }).expect("link");
+    let record = w::LinkSignIn::new(&env.limits.wire, w::LinkSignInParts { secret: secret.clone() }).expect("link");
     let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut body).expect("body");
     component.down(&env, Event::Stop, &mut out);

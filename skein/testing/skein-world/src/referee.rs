@@ -53,6 +53,9 @@ pub trait Referee<P> {
     /// expectation panics, naming the seed.
     fn observe(&mut self, now: Time, procs: &[P]);
 
+    /// The world is idle: nothing runs before the clock moves. A referee may change here what it will answer.
+    fn idle(&mut self, _now: Time, _procs: &[P], _settled: bool) {}
+
     /// The earliest of its expectations' deadlines and of what it will act
     /// on, for the world to wake at; by default none.
     fn next_deadline(&self) -> Option<Time> {

@@ -1219,6 +1219,21 @@ under the forge's change charter, or leaves that role to its charter's
 default; a parameter 11 that does not spell them refuses the change's
 start.
 
+Before building a change batch, the root reserves one task for each
+member and shares the remaining descendant capacity equally, bounded
+by each member's change policy: its task allowance, plus its question
+allowance for `foreman`. Room beyond a member's cap is redistributed;
+remainder slots go in call order. Each member needs at least one
+descendant for its producer. One change keeps its policy allowance
+within the requester's remaining authority. These allowances are
+prospective within the call, not reservations retained across calls.
+Admission remains atomic, with the same dependency and funding checks.
+An insufficient batch names the available and minimum required task
+capacity (two per member), and whether fewer changes per call can fit.
+Below two available tasks, smaller calls cannot help. The requester's
+remaining authority counts tasks already made over its life, including
+ended tasks, rather than allowances granted by earlier calls.
+
 Its agents hold the forge's reads (kind 1, section 2) on its
 repository, beside the kinds it makes (`agent.md`, 4.3.1): a reviewer
 reads its own pull request and its files, and a repair a failed job's
@@ -1956,7 +1971,8 @@ section 9): the foreman and the requester decide, and the change relays
   its requester, the change, in the question form, its words carrying
   its options and its recommendation, after pushing what it has; a
   question in the line form (`agent.md`, 8.2) reaches a person's client
-  as its choices, relayed whole, and any other as words. An
+  as its choices where it is relayed whole, and any other, or one with a
+  foreman's reasons beneath it (*Passed up,* below), as words. An
   agent that asked is kept by its own question (jig's
   `domain/tasks.md`, 5.7): its run parks, no try spent, until the
   change answers, and the change's wait for it is no stall (8.4). Its

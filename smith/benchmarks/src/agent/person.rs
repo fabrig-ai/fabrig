@@ -2,6 +2,7 @@
 //! One ordered cue fires once; its bounded line is written before input closes
 //! (benchmarks.md, section 6; reliability-plan 00, Interface sketches).
 
+use crate::{Fault, Input, bound, refuse_if};
 use std::collections::VecDeque;
 
 use serde::Deserialize;
@@ -56,9 +57,9 @@ pub(crate) struct Person {
 }
 
 impl Person {
-    pub(crate) fn new(script: Script) -> Result<Self, String> {
+    pub(crate) fn new(script: Script) -> Result<Self, Fault> {
         if script.cues.len() > 64 || script.close == Close::AfterPrompt && script.cues.len() > 1 {
-            return Err("script exceeds its cue bound or closes before a later cue".into());
+            return Err(bound("script exceeds its cue bound or closes before a later cue"));
         }
         for (index, cue) in script.cues.iter().enumerate() {
             let bytes = cue.text.as_bytes();
@@ -67,11 +68,9 @@ impl Person {
                 || !bytes.ends_with(b"\n")
                 || bytes[..bytes.len() - 1].contains(&b'\n')
             {
-                return Err("script needs complete bounded one-line cues".into());
+                return Err(bound("script needs complete bounded one-line cues"));
             }
-            if (index == 0) != (cue.when == Trigger::Start) {
-                return Err("only the first script cue may be Start".into());
-            }
+            refuse_if((index == 0) != (cue.when == Trigger::Start), Input, "only the first script cue may be Start")?;
         }
         let mut person = Self { script, next: 0, lines: VecDeque::new(), answered: false };
         if !person.script.cues.is_empty() {

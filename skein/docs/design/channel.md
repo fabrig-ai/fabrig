@@ -81,6 +81,10 @@ offset  size  field
     direction: from the initiator, or from the responder.
 - **Bodies** are the application's records, encoded by its codecs. The
   channel reads a body as bytes and hands it up whole.
+- **A frame prints its lengths** (lib.md, 6). A `Frame`'s `Debug` shows its
+  kind and its body's length, and `Event::Body`'s the same. A body the machine
+  is still reading (section 6) shows its length and how much is filled. None
+  shows a byte: a body may hold an application's credential.
 
 ## 4. The schema
 

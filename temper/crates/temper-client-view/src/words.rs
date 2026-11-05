@@ -1009,7 +1009,7 @@ const PHRASES: u32 = 1486;
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
 // The configuring opening adds twenty literal and hole segments (3.5).
 // The goal header and report use forty literal and hole segments; its side uses fifty-two (5.8).
-const SEGMENTS: u32 = 2583;
+const SEGMENTS: u32 = 2585;
 const ALL: [Word; 890] = [
     Word::GoalSideTasks,
     Word::GoalLandingTitle,
@@ -3041,7 +3041,7 @@ impl Words {
             // Needs count, toast, page and kinds add 367 literal bytes (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
             // The goal header and report use 358 literal bytes; its side uses 443 (5.8).
-            text_bytes: 443 + 32768 + 288 + 149 + 401 + 11 + 419 + 250 + 476 + 87 + 225 + 15 + 367 + 54 + 358,
+            text_bytes: 443 + 32768 + 288 + 149 + 401 + 11 + 419 + 250 + 476 + 87 + 225 + 15 + 367 + 54 + 358 + 53,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3709,7 +3709,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AgentSpend => (&[b"Agent spend too small."], &[]),
         Word::AgentTime => (&[b"Agent time too short."], &[]),
         Word::AgentWaiting => (&[b"Agent waiting too short."], &[]),
-        Word::AgentChecks => (&[b"Agent checks exceed the change reserve."], &[]),
+        Word::AgentChecks => (&[b"Agent check timeout exceeds reserve_time for charter ", b". See settings help for held revisions."], &[Number]),
         Word::AgentMessage => (&[b"Agent message bound too small."], &[]),
         Word::AgentInbox => (&[b"Agent inbox too small."], &[]),
         Word::AgentUnacknowledged => (&[b"Agent unacknowledged turns too few."], &[]),

@@ -2,8 +2,9 @@ use super::{fixtures::secret, github_fixtures as fixtures};
 use crate::{
     call::{Auth, Call},
     github::given::{Given, Place, Refused},
+    github::reachable::{self, Reachable},
     item::{self, Item},
-    reachable::{self, Reachable, Reached},
+    reachable::Reached,
     reconcile::{Event, Failure, Need, Outcome, Reply, Stage, Why},
 };
 use skein_forge::github::{
@@ -41,14 +42,14 @@ fn key() -> Secret {
     secret(KEY)
 }
 fn minted() -> Event {
-    Event::Reply(Reply::GithubDocument(Document::Minted(Minted {
+    Event::Reply(Reply::GitHubDocument(Document::Minted(Minted {
         permissions: skein_forge::github::document::Levels::NONE,
         token: secret(TOKEN),
         expires: Wall::from_nanos(100),
     })))
 }
 fn at_given(phase: usize, given: &Given, page: u32) -> Reachable {
-    let mut machine = Reachable::github(given, INSTALLATION, page).expect("given admitted");
+    let mut machine = Reachable::new(given, INSTALLATION, page).expect("given admitted");
     for event in [
         Event::Begin,
         Event::Read(Some(item::accepted_item(&[INSTALLATION, 11]))),
@@ -86,7 +87,7 @@ fn rows(count: u32) -> Box<[Row]> {
     rows.into_boxed()
 }
 fn page(count: u32) -> Event {
-    Event::Reply(Reply::GithubRows(rows(count)))
+    Event::Reply(Reply::GitHubRows(rows(count)))
 }
 fn outcome(count: u32, more: bool) -> Need {
     let mut rows = List::with_capacity(count);
@@ -152,7 +153,7 @@ fn each_row_carries_its_id_owner_name_and_privacy() {
     assert_eq!(
         go(
             &mut at(PAGE),
-            Event::Reply(Reply::GithubRows(Box::new([
+            Event::Reply(Reply::GitHubRows(Box::new([
                 row(9, 13, b"grace", b"private", true),
                 row(2, 5, b"ada", b"public", false),
             ])))
@@ -188,7 +189,7 @@ fn an_installation_not_accepted_stops_missing_and_reads_no_more() {
         assert!(out.is_empty());
     }
     for (id, subject) in [(0, b"0".as_slice()), (u64::MAX, b"18446744073709551615")] {
-        let mut machine = Reachable::github(&fixtures::given(), id, 1).expect("given admitted");
+        let mut machine = Reachable::new(&fixtures::given(), id, 1).expect("given admitted");
         go(&mut machine, Event::Begin);
         assert_eq!(go(&mut machine, Event::Read(None)), failure(Stage::Installation, subject, Why::Missing));
     }
@@ -239,7 +240,7 @@ fn a_row_of_another_kind_is_unexpected() {
     assert_eq!(
         go(
             &mut at(PAGE),
-            Event::Reply(Reply::GithubRows(Box::new([
+            Event::Reply(Reply::GitHubRows(Box::new([
                 row(9, 13, b"ada", b"work", false),
                 Row::Branch(b"main".as_slice().into()),
             ])))
@@ -254,7 +255,7 @@ fn a_reply_of_another_kind_is_unexpected_at_each_request() {
             Reply::Empty,
             Reply::Document(skein_forge::forgejo::document::Document::RepoSearch { ok: true }),
             Reply::Rows(Box::new([])),
-            Reply::GithubDocument(Document::Done),
+            Reply::GitHubDocument(Document::Done),
         ] {
             assert_eq!(go(&mut at(phase), Event::Reply(reply)), installation_failure(Why::Unexpected));
         }
@@ -347,7 +348,7 @@ fn no_secret_is_in_a_github_pickers_failure_or_outcome_debug() {
 #[test]
 fn github_picker_refuses_page_zero_naming_its_place() {
     assert_eq!(
-        Reachable::github(&fixtures::given(), INSTALLATION, 0).expect_err("zero page"),
+        Reachable::new(&fixtures::given(), INSTALLATION, 0).expect_err("zero page"),
         Refused { place: Place::Page, other: None }
     );
 }
@@ -357,7 +358,7 @@ fn github_picker_refuses_a_given_that_is_refused() {
     given.limits.reachable = 0;
     for page in [0, 1] {
         assert_eq!(
-            Reachable::github(&given, INSTALLATION, page).expect_err("zero reachable"),
+            Reachable::new(&given, INSTALLATION, page).expect_err("zero reachable"),
             Refused { place: Place::Reachable, other: None }
         );
     }
