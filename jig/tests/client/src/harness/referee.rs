@@ -368,7 +368,7 @@ impl Expectations for Rules {
         match observation {
             Observation::Decision { client, key, ask, scene } => {
                 if scene.is_some()
-                    && let Some(offer) = self.offers.sent(client, &ask, judge)
+                    && let Some(offer) = self.offers.sent(client, key, &ask, judge)
                 {
                     self.offers.draft(client, key, offer);
                 }

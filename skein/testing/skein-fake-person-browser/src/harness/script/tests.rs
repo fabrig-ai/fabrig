@@ -17,12 +17,14 @@ fn trouble_named_by_a_later_step_does_not_fail_the_run() {
     face.event(&skein_browser::boundary::Event::Trouble {
         page: Token::new(8),
         trouble: skein_browser::boundary::Trouble::Exception,
+        url: Box::default(),
         text: b"frame-ancestors".as_slice().into(),
     });
     assert_eq!(face.trouble(), &[]);
     face.event(&skein_browser::boundary::Event::Trouble {
         page: Token::new(7),
         trouble: skein_browser::boundary::Trouble::Exception,
+        url: Box::default(),
         text: b"frame-ancestors".as_slice().into(),
     });
     script.next(&mut face, Time::ZERO);
@@ -200,7 +202,11 @@ fn a_keep_waits_for_its_terminal_before_advancing() {
 #[test]
 fn a_refused_keep_names_the_selector_and_attribute() {
     let (mut script, mut face) = keeping();
-    face.event(&Event::Refused { op: ADDRESS_OP, why: skein_browser::boundary::Refusal::Protocol });
+    face.event(&Event::Refused {
+        op: ADDRESS_OP,
+        why: skein_browser::boundary::Refusal::Protocol,
+        detail: Box::default(),
+    });
     script.check_deadline(&mut face, Time::ZERO);
     assert!(!face.pending());
     assert_eq!(script.at(), 1);

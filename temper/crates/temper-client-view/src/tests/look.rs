@@ -127,12 +127,15 @@ const GOALS_NAMES: [(skein_ui::Style, &[u8]); 65] = [
     (SHEET_FOOT, b"temper-sheet-foot"),
     (SHEET_ERROR, b"temper-sheet-error"),
 ];
-const RAIL_NAMES: [(skein_ui::Style, &[u8]); 5] = [
+const RAIL_NAMES: [(skein_ui::Style, &[u8]); 8] = [
     (RAIL, b"temper-rail"),
     (RAIL_NAV, b"temper-rail-nav"),
     (RAIL_NEW, b"temper-rail-new"),
     (RAIL_FOOT, b"temper-rail-foot"),
     (TABBAR, b"temper-tabbar"),
+    (AWAY, b"temper-away"),
+    (AWAY_CHIP, b"temper-away-chip"),
+    (AWAY_TRACK, b"temper-away-track"),
 ];
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks the closed vocabulary of view tokens")]
@@ -618,5 +621,19 @@ fn welcome_and_repository_styles_keep_their_css_names() {
         (HOME_SMALL, b"temper-home-small"),
     ] {
         assert_eq!(NAMES.style(style), Some(name));
+    }
+}
+
+#[test]
+fn decision_tokens_name_the_away_rows() {
+    for (token, name) in [
+        (DECIDED, b"temper-decided".as_slice()),
+        (DECISION, b"temper-decision"),
+        (DECISION_TOOK, b"temper-decision-took"),
+        (DECISION_WHY, b"temper-decision-why"),
+        (DECISION_LATE, b"temper-decision-late"),
+        (DECISION_OVERTURNED, b"temper-decision-overturned"),
+    ] {
+        assert_eq!(NAMES.style(token), Some(name));
     }
 }

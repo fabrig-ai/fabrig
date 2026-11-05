@@ -78,7 +78,7 @@ impl Peer {
         assert_eq!(path.as_ref(), expected_path);
     }
     fn trouble(&mut self, expected: &[u8]) {
-        let Some(Event::Trouble { page, trouble, text }) = self.browser.events.pop_front() else {
+        let Some(Event::Trouble { page, trouble, text, .. }) = self.browser.events.pop_front() else {
             panic!("download trouble")
         };
         assert_eq!(page, PAGE);
@@ -151,7 +151,7 @@ fn invalid_letters_are_refused_before_any_command() {
             Request::Key { page: PAGE, op: OP, key: Key::Letter { letter, alt: true }, shift: true },
         );
         assert!(peer.browser.outgoing.is_empty());
-        let Some(Event::Refused { op: OP, why: Refusal::Protocol }) = peer.browser.events.pop_front() else {
+        let Some(Event::Refused { op: OP, why: Refusal::Protocol, .. }) = peer.browser.events.pop_front() else {
             panic!("invalid letter refused")
         };
     }

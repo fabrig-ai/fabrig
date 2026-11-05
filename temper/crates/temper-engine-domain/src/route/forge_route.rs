@@ -4262,6 +4262,10 @@ pub(crate) fn outputs(
     for _ in 0..out.len() {
         let request = out.pop().expect("connector output count");
         match request {
+            forge::Request::Decided { to, key, took } => {
+                decide_call(domain, &env.limits, decision, to, core_call(key), CallAnswer::Decided { took });
+            }
+
             forge::Request::MakingCopied { key } => {
                 assert!(super::now(domain, Request::MakingCopied { key }), "making copy door reserved");
             }
@@ -5001,8 +5005,10 @@ pub(crate) fn effect_answer(domain: &Domain, key: CallKey, part: &jig_domain_cor
             Some(answer) => answer,
             None => CallAnswer::from_core(part).expect("core effect status"),
         },
-        jig_domain_core::CallPart::Connector { .. }
-        | jig_domain_core::CallPart::EffectDenied { .. }
+        jig_domain_core::CallPart::Connector { .. } => {
+            connector_answer(domain, key).expect("connector owns its answer")
+        }
+        jig_domain_core::CallPart::EffectDenied { .. }
         | jig_domain_core::CallPart::ToolDenied { .. }
         | jig_domain_core::CallPart::EscalationDecided { .. }
         | jig_domain_core::CallPart::EscalationRefused(_)

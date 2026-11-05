@@ -14,6 +14,7 @@ pub struct StartGoal {
     pub draft: Box<[u8]>,
     pub name: Box<[u8]>,
     pub way: Option<u32>,
+    pub always: bool,
     pub pending: Option<Key>,
     pub error: Option<Failure>,
     sent: Option<Sent>,
@@ -33,7 +34,7 @@ enum Sent {
 
 /// The goal's title and draft provenance (client/README.md, 5.14).
 #[must_use]
-pub fn words(name: &[u8], path: &[u8], chat: Option<u64>) -> Box<[u8]> {
+pub fn words(name: &[u8], path: &[u8], chat: Option<u64>, always: bool) -> Box<[u8]> {
     let mut size = name.len().checked_add(path.len().checked_mul(2).expect("draft words fit")).expect("goal words fit");
     size = size.checked_add(b"\n\nBuild .\nDraft: ".len()).expect("goal words fit");
     let number = match chat {
@@ -44,6 +45,9 @@ pub fn words(name: &[u8], path: &[u8], chat: Option<u64>) -> Box<[u8]> {
         size = size.checked_add(b"\nChat: T".len()).expect("chat words fit");
         size = size.checked_add(number.as_bytes().len()).expect("chat words fit");
     }
+    if always {
+        size = size.checked_add(b"\nAsks: always".len()).expect("asks words fit");
+    }
     let mut words = Writer::new(size);
     words.put(name).expect("measured name");
     words.put(b"\n\nBuild ").expect("measured build");
@@ -53,6 +57,9 @@ pub fn words(name: &[u8], path: &[u8], chat: Option<u64>) -> Box<[u8]> {
     if let Some(number) = number {
         words.put(b"\nChat: T").expect("measured chat");
         words.put(number.as_bytes()).expect("measured chat number");
+    }
+    if always {
+        words.put(b"\nAsks: always").expect("measured asks");
     }
     words.finish()
 }
@@ -109,6 +116,7 @@ pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>,
         draft,
         name,
         way,
+        always: false,
         pending: None,
         error: None,
         sent: None,
@@ -119,6 +127,12 @@ impl StartGoal {
     pub(super) fn name(&mut self, words: Box<[u8]>) {
         if self.pending.is_none() {
             self.name = words;
+            self.error = None;
+        }
+    }
+    pub(super) fn asks(&mut self, always: bool) {
+        if self.pending.is_none() {
+            self.always = always;
             self.error = None;
         }
     }
@@ -146,7 +160,7 @@ impl StartGoal {
             self.error = Some(Failure::TooLong);
             return;
         }
-        let Ok(words) = c::Text::new(words(self.name.trim_ascii(), &self.draft, self.chat), bound) else {
+        let Ok(words) = c::Text::new(words(self.name.trim_ascii(), &self.draft, self.chat, self.always), bound) else {
             self.error = Some(Failure::TooLong);
             return;
         };

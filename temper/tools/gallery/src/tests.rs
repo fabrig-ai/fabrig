@@ -61,7 +61,7 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 temper_client_domain::pages::needs::Act::Open { object },
             ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
             {
-                assert!(sample.name.starts_with("home-"));
+                assert!(sample.name.starts_with("home-") || matches!(sample.name, "rail-away-on" | "rail-away-off"));
                 assert!(
                     samples::domain(&sample)
                         .pages()
@@ -102,6 +102,48 @@ enum Part {
     Plan { live: u32, title: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "home-away",
+        heading: "57 changes landed. Four things were decided for you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 4" },
+            Part::Named { role: Role::Button, name: "Limits" },
+        ],
+    },
+    Holds {
+        name: "home-away-overturned",
+        heading: "57 changes landed. Four things were decided for you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 4" },
+            Part::Named { role: Role::Button, name: "Overturn" },
+        ],
+    },
+    Holds {
+        name: "home-away-one",
+        heading: "57 changes landed. One thing was decided for you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 1" },
+            Part::Named { role: Role::Button, name: "Limits" },
+            Part::Named { role: Role::Button, name: "Away: off" },
+        ],
+    },
+    Holds {
+        name: "rail-away-off",
+        heading: "41 changes landed overnight. Three things need you.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Away: off" },
+            Part::Text { text: "Away is off: questions wait for you again." },
+        ],
+    },
+    Holds {
+        name: "rail-away-on",
+        heading: "41 changes landed overnight. Three things need you.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Away until 08:00" },
+            Part::Text { text: "Away until 08:00: agents decide within Hello’s limits." },
+            Part::Named { role: Role::Button, name: "Limits" },
+        ],
+    },
     Holds { name: "start-goal", heading: "Talk to an agent", parts: &[Part::NoRole { role: Role::Dialog }] },
     Holds {
         name: "start-goal-draft",
@@ -110,6 +152,9 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Dialog, name: "Start a goal from first-run-projects.md" },
             Part::Value { role: Role::TextField, name: "Name", value: "first-run-projects" },
             Part::Named { role: Role::ChoiceGroup, name: "How it runs" },
+            Part::Named { role: Role::ChoiceGroup, name: "When it needs you" },
+            Part::Named { role: Role::Choice, name: "Follow the away switch" },
+            Part::Named { role: Role::Choice, name: "Always ask" },
             Part::Named { role: Role::Button, name: "Start goal" },
         ],
     },
@@ -155,6 +200,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "goal-running",
         heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
         parts: &[
+            Part::Text { text: "Plan, tasks, land whole · follows the away switch" },
             Part::Text { text: "31 of 40 spent" },
             Part::Text { text: "since Mon 19:10" },
             Part::Text { text: "waits on 2 tasks" },
@@ -1629,6 +1675,15 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "settings-away",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "While you’re away, agents may decide" },
+            Part::Named { role: Role::Check, name: "Implementation choices within a task" },
+            Part::Named { role: Role::Select, name: "Away until" },
+        ],
+    },
+    Holds {
         name: "settings",
         heading: "How work runs in tally.",
         parts: &[
@@ -2686,26 +2741,6 @@ fn reference_lede_names_the_worlds_templates_in_number_order() {
 }
 
 #[test]
-fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
-    for (name, role, label) in [
-        ("goal-amending", Role::Region, "Amend task 108"),
-        ("goal-stop-dialog", Role::Dialog, "Stop first-run-projects?"),
-        ("goal-toast", Role::Status, ""),
-    ] {
-        let sample = samples::samples().into_iter().find(|sample| sample.name == name).unwrap();
-        let root = samples::domain(&sample);
-        let view = view(&sample);
-        if name == "goal-toast" {
-            assert_eq!(root.pages().needs().toast(), Some(&temper_client_domain::pages::needs::Toasted::Paused));
-            assert!(root.pages().task().unwrap().pending.is_empty());
-            assert!(view.tree().nodes().iter().any(|node| node.role == role));
-        } else {
-            find(view.tree(), role, label, name);
-        }
-    }
-}
-
-#[test]
 fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
     for (name, off) in [
         ("settings-drafts-off", "Chats can write drafts"),
@@ -2733,6 +2768,26 @@ fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
             .iter()
             .any(|node| node.role == Role::Heading { level: 2 } && node.name.as_deref() == Some(b"Ways of working"));
         assert_eq!(ways, off != "Goals", "{name}: ways");
+    }
+}
+
+#[test]
+fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
+    for (name, role, label) in [
+        ("goal-amending", Role::Region, "Amend task 108"),
+        ("goal-stop-dialog", Role::Dialog, "Stop first-run-projects?"),
+        ("goal-toast", Role::Status, ""),
+    ] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).unwrap();
+        let root = samples::domain(&sample);
+        let view = view(&sample);
+        if name == "goal-toast" {
+            assert_eq!(root.pages().needs().toast(), Some(&temper_client_domain::pages::needs::Toasted::Paused));
+            assert!(root.pages().task().unwrap().pending.is_empty());
+            assert!(view.tree().nodes().iter().any(|node| node.role == role));
+        } else {
+            find(view.tree(), role, label, name);
+        }
     }
 }
 
@@ -2794,5 +2849,81 @@ fn the_chat_log_follows_its_end_until_the_person_scrolls_away() {
         assert!(!patches.is_empty(), "the chat changes");
         page.apply(&patches, &mut ops);
         assert_eq!(ops.iter().any(|op| matches!(op, Op::ScrollEnd { node } if *node == log)), follow);
+    }
+}
+
+#[test]
+fn home_away_deliveries_draw_the_mock_words_and_off_span() {
+    use temper_client_view::look;
+    for (name, count, headline) in [
+        ("home-away", 4, "57 changes landed. Four things were decided for you."),
+        ("home-away-one", 1, "57 changes landed. One thing was decided for you."),
+        ("home-away-overturned", 4, "57 changes landed. Four things were decided for you."),
+    ] {
+        let sample = samples::samples().into_iter().find(|s| s.name == name).expect("Home away sample");
+        let view = view(&sample);
+        let tree = view.tree();
+        assert!(
+            tree.nodes()
+                .iter()
+                .any(|n| n.role == (Role::Heading { level: 1 }) && n.name.as_deref() == Some(headline.as_bytes()))
+        );
+        assert_eq!(tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::DECISION)).count(), count);
+        assert!(
+            tree.nodes().iter().any(|n| n.name.as_deref() == Some("welcome-stall · 01:05".as_bytes())),
+            "the decision task read supplies its title"
+        );
+        if count == 1 {
+            assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
+                && n.name.as_deref() == Some("landed 03:12 · a new goal can undo it".as_bytes())));
+        }
+        let kicker =
+            tree.nodes().iter().find(|n| n.styles.as_slice().contains(&look::HOME_KICKER)).expect("away kicker");
+        assert_eq!(
+            kicker.name.as_deref(),
+            Some(if count == 4 {
+                "While you were away · Mon 23:10 to now".as_bytes()
+            } else {
+                "While you were away · Mon 23:10 to 08:03".as_bytes()
+            })
+        );
+        assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_TOOK)
+            && n.name.as_deref() == Some(b"In temper serve".as_slice())));
+        assert_eq!(
+            tree.nodes()
+                .iter()
+                .filter(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Overturn".as_slice()))
+                .count(),
+            match name {
+                "home-away" => 4,
+                "home-away-overturned" => 2,
+                _ => 0,
+            }
+        );
+        if name == "home-away-overturned" {
+            assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
+                && n.name.as_deref() == Some(b"Overturned: it asks you again".as_slice())));
+            assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_OVERTURNED)));
+            assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
+                && n.name.as_deref() == Some("landed 03:12 · a new goal can undo it".as_bytes())));
+        }
+    }
+}
+
+#[test]
+fn settings_away_draws_the_default_choices() {
+    let sample = samples::samples().into_iter().find(|sample| sample.name == "settings-away").expect("Away settings");
+    assert_eq!(samples::mockup(&sample).as_deref(), Some("../greenfield/settings.html#away"));
+    let view = view(&sample);
+    for (role, name, state, expected) in [
+        (Role::Check, "Implementation choices within a task", skein_ui::State::Pressed, true),
+        (Role::Check, "Retries and splitting a failing task", skein_ui::State::Pressed, true),
+        (Role::Check, "A design document’s wording", skein_ui::State::Pressed, true),
+        (Role::Check, "Adding a dependency", skein_ui::State::Pressed, false),
+        (Role::Option, "08:00, the end of quiet hours", skein_ui::State::Selected, true),
+    ] {
+        let id = find(view.tree(), role, name, sample.name);
+        let node = view.tree().nodes().iter().find(|node| node.id == id).expect("Away control");
+        assert_eq!(node.states.as_slice().contains(&state), expected, "{name}");
     }
 }

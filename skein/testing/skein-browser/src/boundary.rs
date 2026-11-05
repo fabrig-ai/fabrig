@@ -141,6 +141,7 @@ pub enum Event {
     Refused {
         op: Token,
         why: Refusal,
+        detail: Box<[u8]>,
     },
     /// The URL an `Address` request read, whole, at most `Limits::text` bytes; terminal.
     Address {
@@ -169,6 +170,7 @@ pub enum Event {
         page: Token,
         trouble: Trouble,
         text: Box<[u8]>,
+        url: Box<[u8]>,
     },
     Closed {
         owner: Token,

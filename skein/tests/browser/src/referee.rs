@@ -55,7 +55,7 @@ impl Referee {
             let (owner, _) = self.downloads.remove(name.as_ref()).expect("each download ends once");
             assert_eq!(*person, owner);
         }
-        if let Event::Trouble { page, trouble: skein_browser::boundary::Trouble::Download, text } = event {
+        if let Event::Trouble { page, trouble: skein_browser::boundary::Trouble::Download, text, .. } = event {
             let (_, owner_page) = self.downloads.remove(text.as_ref()).expect("each download ends once");
             assert_eq!(*page, owner_page);
         }
@@ -135,7 +135,7 @@ mod tests {
         let mut referee = Referee::new();
         referee.press(Token::new(4));
         referee.command(br#"{"method":"Input.dispatchMouseEvent"}"#);
-        referee.event(&Event::Refused { op: Token::new(4), why: Refusal::Covered }, 0);
+        referee.event(&Event::Refused { op: Token::new(4), why: Refusal::Covered, detail: Box::default() }, 0);
     }
 
     #[test]

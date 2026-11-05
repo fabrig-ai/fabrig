@@ -109,6 +109,7 @@ struct Queued {
 
 #[derive(Debug)]
 struct Pending {
+    method: &'static [u8],
     id: u64,
     due: Time,
     kind: PendingKind,
@@ -392,7 +393,7 @@ impl Browser {
     fn queue_command(
         &mut self,
         env: &Env<Limits>,
-        method: &[u8],
+        method: &'static [u8],
         session: Option<&[u8]>,
         args: &Params<'_>,
         kind: PendingKind,
@@ -409,7 +410,7 @@ impl Browser {
         let Ok(bytes) = encode::command(self.next_id, method, session, &params, env.limits.command) else {
             return false;
         };
-        self.pending.push(Pending { id: self.next_id, due: env.now.saturating_add(env.limits.answer), kind });
+        self.pending.push(Pending { method, id: self.next_id, due: env.now.saturating_add(env.limits.answer), kind });
         let person = if let PendingKind::Target(page) = kind {
             match self.page(page) {
                 Some(page) => Some(page.person),
@@ -428,7 +429,7 @@ impl Browser {
         &mut self,
         env: &Env<Limits>,
         page: Token,
-        method: &[u8],
+        method: &'static [u8],
         args: &Params<'_>,
         kind: PendingKind,
     ) -> bool {
@@ -662,7 +663,14 @@ impl Browser {
                 if let Key::Letter { letter, .. } = key
                     && !letter.is_ascii_lowercase()
                 {
-                    self.events.push_back(Event::Refused { op, why: Refusal::Protocol });
+                    self.events.push_back(Event::Refused {
+                        op,
+                        why: Refusal::Protocol,
+                        detail: cut_text(
+                            Box::from(b"Key: letter must be lowercase a to z".as_slice()),
+                            env.limits.text,
+                        ),
+                    });
                     return;
                 }
                 if !self.admit_op(env, page, op, OpKind::Key { key, shift }) {
@@ -679,7 +687,7 @@ impl Browser {
             Request::Attribute { page, op, selector, name } => {
                 let limit = usize::try_from(env.limits.text).expect("text fits usize");
                 if selector.len() > limit || name.len() > limit {
-                    self.events.push_back(Event::Refused { op, why: Refusal::Limit });
+                    self.events.push_back(Event::Refused { op, why: Refusal::Limit, detail: Box::default() });
                     return;
                 }
                 let until = env.now.saturating_add(env.limits.answer);
@@ -709,7 +717,7 @@ impl Browser {
             None => true,
         };
         if self.phase != Phase::Ready || unavailable || self.op(token).is_some() {
-            self.events.push_back(Event::Refused { op: token, why: Refusal::Gone });
+            self.events.push_back(Event::Refused { op: token, why: Refusal::Gone, detail: Box::default() });
             return false;
         }
         if let OpKind::Go(_) = &kind {
@@ -717,14 +725,14 @@ impl Browser {
                 if active.page == page
                     && let OpKind::Go(_) = active.kind
                 {
-                    self.events.push_back(Event::Refused { op: token, why: Refusal::Limit });
+                    self.events.push_back(Event::Refused { op: token, why: Refusal::Limit, detail: Box::default() });
                     return false;
                 }
             }
         }
         let accepted = self.insert_op(Operation { token, page, kind, due: None, warned: false }, env.limits.ops);
         if !accepted {
-            self.events.push_back(Event::Refused { op: token, why: Refusal::Limit });
+            self.events.push_back(Event::Refused { op: token, why: Refusal::Limit, detail: Box::default() });
         }
         accepted
     }
@@ -769,7 +777,7 @@ impl Browser {
         }
     }
 
-    fn issue_step(&mut self, env: &Env<Limits>, op: Token, method: &[u8], params: &Params<'_>, step: Step) {
+    fn issue_step(&mut self, env: &Env<Limits>, op: Token, method: &'static [u8], params: &Params<'_>, step: Step) {
         let Some(op_state) = self.op(op) else {
             return;
         };
@@ -818,7 +826,7 @@ impl Browser {
     fn issue_character(&mut self, env: &Env<Limits>, op: Token, offset: usize, down: bool) {
         let Some((text, Entry::Keys)) = self.type_detail(op) else { return };
         let Ok(value) = core::str::from_utf8(&text) else {
-            self.finish_refused(op, Refusal::Protocol);
+            self.finish_protocol(op, cut_text(Box::from(b"Keys: text is not UTF-8".as_slice()), env.limits.text));
             return;
         };
         let character = match value.get(offset..) {
@@ -854,6 +862,14 @@ impl Browser {
     }
 
     fn finish_refused(&mut self, op: Token, why: Refusal) {
+        self.finish_refusal(op, why, Box::default());
+    }
+
+    fn finish_protocol(&mut self, op: Token, detail: Box<[u8]>) {
+        self.finish_refusal(op, Refusal::Protocol, detail);
+    }
+
+    fn finish_refusal(&mut self, op: Token, why: Refusal, detail: Box<[u8]>) {
         if let Some(operation) = self.remove_op(op) {
             if let Some(page) = self.page_mut(operation.page)
                 && let Some(Load::Go(waiting)) = page.load
@@ -862,7 +878,7 @@ impl Browser {
                 page.load = None;
                 page.load_due = None;
             }
-            self.events.push_back(Event::Refused { op, why });
+            self.events.push_back(Event::Refused { op, why, detail });
         }
     }
     fn finish_done(&mut self, op: Token) {
@@ -1348,14 +1364,14 @@ impl Browser {
             };
             let pending = self.pending.swap_remove(at);
             if let Some(error) = root.get(b"error") {
-                self.command_error(env, pending.kind, error);
+                self.command_error(env, pending.method, pending.kind, error);
                 return;
             }
             let Some(result) = root.get(b"result") else {
-                self.command_error(env, pending.kind, root);
+                self.command_error(env, pending.method, pending.kind, root);
                 return;
             };
-            self.reply(env, pending.kind, result);
+            self.reply(env, pending.method, pending.kind, result);
         } else if let Some(method) = field_text(root, b"method") {
             self.notification(env, &method, root);
         } else {
@@ -1363,14 +1379,14 @@ impl Browser {
         }
     }
 
-    fn command_error(&mut self, env: &Env<Limits>, kind: PendingKind, error: Value<'_>) {
-        let message = field_text(error, b"message").unwrap_or_default();
+    fn command_error(&mut self, env: &Env<Limits>, method: &[u8], kind: PendingKind, error: Value<'_>) {
+        let message = field_text(error, b"message").unwrap_or(Box::from(b"malformed reply".as_slice()));
         if self.retry_read(env, kind, &message) {
             return;
         }
         let why = if contains(&message, b"No node found at given location") {
             Refusal::Covered
-        } else if node_missing(&message) || message.as_ref() == b"Node is detached from document" {
+        } else if node_missing(&message) {
             Refusal::Gone
         } else {
             Refusal::Protocol
@@ -1399,7 +1415,11 @@ impl Browser {
                 } else {
                     why
                 };
-                self.finish_refused(op, reason);
+                if reason == Refusal::Protocol {
+                    self.finish_protocol(op, protocol_detail(method, &message, env.limits.text));
+                } else {
+                    self.finish_refused(op, reason);
+                }
             }
         }
     }
@@ -1438,7 +1458,7 @@ impl Browser {
         false
     }
 
-    fn reply(&mut self, env: &Env<Limits>, kind: PendingKind, result: Value<'_>) {
+    fn reply(&mut self, env: &Env<Limits>, method: &[u8], kind: PendingKind, result: Value<'_>) {
         match kind {
             PendingKind::Release | PendingKind::Dialog => {}
             PendingKind::Version => {
@@ -1522,7 +1542,7 @@ impl Browser {
                     self.close_page_local(page);
                 }
             }
-            PendingKind::Step(op, step) => self.step_reply(env, op, step, result),
+            PendingKind::Step(op, step) => self.step_reply(env, op, method, step, result),
             PendingKind::CloseBrowser => self.close_browser_local(),
             PendingKind::ClosePage(page) => self.close_page_local(page),
             PendingKind::ClosePerson(person) => self.close_person_local(person),
@@ -1599,7 +1619,12 @@ impl Browser {
                 let kept = part.len().min(text.room());
                 text.put(part.get(..kept).expect("prefix of part")).expect("text room checked");
             }
-            self.events.push_back(Event::Trouble { page, trouble: Trouble::Dialog, text: text.finish() });
+            self.events.push_back(Event::Trouble {
+                page,
+                trouble: Trouble::Dialog,
+                text: text.finish(),
+                url: Box::default(),
+            });
         }
     }
 
@@ -1657,7 +1682,7 @@ impl Browser {
             b"Runtime.exceptionThrown" => {
                 if let (Some(page), Some(params)) = (page, params) {
                     let text = opt_text(opt_field(params.get(b"exceptionDetails"), b"text")).unwrap_or_default();
-                    self.trouble(page, Trouble::Exception, text, env.limits.text);
+                    self.trouble(page, Trouble::Exception, text, Box::default(), env.limits.text);
                 }
             }
             b"Runtime.consoleAPICalled" => {
@@ -1676,7 +1701,7 @@ impl Browser {
                         None => None,
                     };
                     let text = opt_text(content).unwrap_or_default();
-                    self.trouble(page, Trouble::Console, text, env.limits.text);
+                    self.trouble(page, Trouble::Console, text, Box::default(), env.limits.text);
                 }
             }
             b"Log.entryAdded" => {
@@ -1684,13 +1709,14 @@ impl Browser {
                     let entry = params.get(b"entry");
                     if opt_text(opt_field(entry, b"level")).as_deref() == Some(b"error") {
                         let text = opt_text(opt_field(entry, b"text")).unwrap_or_default();
-                        self.trouble(page, Trouble::Log, text, env.limits.text);
+                        let url = opt_text(opt_field(entry, b"url")).unwrap_or_default();
+                        self.trouble(page, Trouble::Log, text, url, env.limits.text);
                     }
                 }
             }
             b"Inspector.targetCrashed" => {
                 if let Some(page) = page {
-                    self.trouble(page, Trouble::Crash, Box::default(), env.limits.text);
+                    self.trouble(page, Trouble::Crash, Box::default(), Box::default(), env.limits.text);
                     self.close_page_local(page);
                 }
             }
@@ -1705,7 +1731,7 @@ impl Browser {
                         }
                     }
                     if let Some(page) = page {
-                        self.trouble(page, Trouble::Crash, Box::default(), env.limits.text);
+                        self.trouble(page, Trouble::Crash, Box::default(), Box::default(), env.limits.text);
                         self.close_page_local(page);
                     }
                 }
@@ -1729,12 +1755,8 @@ impl Browser {
         }
     }
 
-    fn trouble(&mut self, page: Token, trouble: Trouble, mut text: Box<[u8]>, limit: u32) {
-        let limit = usize::try_from(limit).expect("u32 fits usize");
-        if text.len() > limit {
-            text = Box::from(text.get(..limit).expect("text is longer than limit"));
-        }
-        self.events.push_back(Event::Trouble { page, trouble, text });
+    fn trouble(&mut self, page: Token, trouble: Trouble, text: Box<[u8]>, url: Box<[u8]>, limit: u32) {
+        self.events.push_back(Event::Trouble { page, trouble, text: cut_text(text, limit), url: cut_text(url, limit) });
     }
 
     fn restart_finds(&mut self, env: &Env<Limits>, page: Token) {
@@ -1859,7 +1881,7 @@ impl Browser {
     }
 
     #[expect(clippy::too_many_lines, reason = "one match lists the reply transition for each operation step")]
-    fn step_reply(&mut self, env: &Env<Limits>, token: Token, step: Step, result: Value<'_>) {
+    fn step_reply(&mut self, env: &Env<Limits>, token: Token, method: &[u8], step: Step, result: Value<'_>) {
         match step {
             Step::History => {
                 let current = field_i64(result, b"currentIndex");
@@ -1872,15 +1894,15 @@ impl Browser {
                     None
                 };
                 let Some(current) = current else {
-                    self.finish_refused(token, Refusal::Protocol);
+                    self.finish_protocol(token, protocol_detail(method, b"malformed reply", env.limits.text));
                     return;
                 };
                 let Some(entries) = entries else {
-                    self.finish_refused(token, Refusal::Protocol);
+                    self.finish_protocol(token, protocol_detail(method, b"malformed reply", env.limits.text));
                     return;
                 };
                 let Some(direction) = direction else {
-                    self.finish_refused(token, Refusal::Protocol);
+                    self.finish_protocol(token, protocol_detail(method, b"malformed reply", env.limits.text));
                     return;
                 };
                 let Some(wanted) = current.checked_add(direction) else {
@@ -1908,7 +1930,8 @@ impl Browser {
             }
             Step::Go => {
                 if result.get(b"errorText").is_some() {
-                    self.finish_refused(token, Refusal::Protocol);
+                    let error = field_text(result, b"errorText").unwrap_or(Box::from(b"malformed reply".as_slice()));
+                    self.finish_protocol(token, protocol_detail(method, &error, env.limits.text));
                     return;
                 }
                 let page = self.op_page(token);
@@ -1924,7 +1947,7 @@ impl Browser {
                     return;
                 }
                 let Some(nodes) = field_array(result, b"nodes") else {
-                    self.finish_refused(token, Refusal::Protocol);
+                    self.finish_protocol(token, protocol_detail(method, b"malformed reply", env.limits.text));
                     return;
                 };
                 if let Some(op) = self.op_mut(token)
@@ -2044,7 +2067,7 @@ impl Browser {
                         Step::Hit,
                     );
                 } else {
-                    self.finish_refused(token, Refusal::Protocol);
+                    self.finish_protocol(token, protocol_detail(method, b"malformed reply", env.limits.text));
                 }
             }
             Step::Hit => {
@@ -2088,7 +2111,7 @@ impl Browser {
                     None => None,
                 };
                 let Some(name) = name else {
-                    self.finish_refused(token, Refusal::Protocol);
+                    self.finish_protocol(token, protocol_detail(method, b"malformed reply", env.limits.text));
                     return;
                 };
                 if name.as_ref() == b"INPUT"
@@ -2131,13 +2154,13 @@ impl Browser {
                 }
             }
             Step::AttributeRoot | Step::AttributeSelector | Step::AttributeValue => {
-                self.attribute_reply(env, token, step, result);
+                self.attribute_reply(env, token, method, step, result);
             }
             Step::Address => {
                 let current = field_i64(result, b"currentIndex");
                 let entries = field_array(result, b"entries");
                 let (Some(current), Some(entries)) = (current, entries) else {
-                    self.finish_refused(token, Refusal::Protocol);
+                    self.finish_protocol(token, protocol_detail(method, b"malformed reply", env.limits.text));
                     return;
                 };
                 let mut url = None;
@@ -2148,7 +2171,7 @@ impl Browser {
                     }
                 }
                 let Some(url) = url else {
-                    self.finish_refused(token, Refusal::Protocol);
+                    self.finish_protocol(token, protocol_detail(method, b"malformed reply", env.limits.text));
                     return;
                 };
                 if url.len() > usize::try_from(env.limits.text).expect("text limit fits usize") {
@@ -2235,9 +2258,10 @@ impl Browser {
     }
 
     fn mouse(&mut self, env: &Env<Limits>, token: Token, step: Step) {
+        let method = b"Input.dispatchMouseEvent";
         let at = if let Some(Operation { kind: OpKind::Press { at, .. }, .. }) = self.op(token) { *at } else { None };
         let Some((x, y)) = at else {
-            self.finish_refused(token, Refusal::Protocol);
+            self.finish_protocol(token, protocol_detail(method, b"malformed reply", env.limits.text));
             return;
         };
         let (kind, pressed) = match step {
@@ -2303,7 +2327,24 @@ fn waits_for_document(kind: &OpKind) -> bool {
 
 fn node_missing(message: &[u8]) -> bool {
     contains(message, b"No node found")
+        || contains(message, b"Node is detached from document")
         || contains(message, b"Could not find node")
         || contains(message, b"Cannot find node")
         || contains(message, b"No node with given id")
+}
+
+fn cut_text(text: Box<[u8]>, limit: u32) -> Box<[u8]> {
+    let limit = usize::try_from(limit).expect("u32 fits usize");
+    if text.len() > limit { Box::from(text.get(..limit).expect("text is longer than limit")) } else { text }
+}
+
+fn protocol_detail(method: &[u8], message: &[u8], limit: u32) -> Box<[u8]> {
+    let limit = usize::try_from(limit).expect("text limit fits usize");
+    let length = method.len().saturating_add(2).saturating_add(message.len()).min(limit);
+    let mut text = skein_lib::Writer::new(length);
+    for part in [method, b": ", message] {
+        let kept = part.len().min(text.room());
+        text.put(part.get(..kept).expect("prefix of part")).expect("text room checked");
+    }
+    text.finish()
 }

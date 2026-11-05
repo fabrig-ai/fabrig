@@ -57,6 +57,10 @@ fn making_row(rng: &mut Rng) -> forge::Stored {
     })
 }
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the seeded corpus mutates named decision answers beside the other store records"
+)]
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
@@ -133,6 +137,8 @@ fn store_decoders_never_panic_and_reencode_the_same() {
             outcome: Some(skein_forge_client::Outcome::Queued),
         },
         forge::CallPayload::Read(Box::new(Ok(skein_forge::api::Answer::Queued))),
+        forge::CallPayload::Decided { took: None },
+        forge::CallPayload::Decided { took: Some(Box::from(b"Small".as_slice())) },
         forge::CallPayload::Read(Box::new(Err(skein_forge::api::Error::NotInstalled))),
     ] {
         let row =
@@ -163,6 +169,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
 
 fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
     status_rows(rng, bounds);
+    away_rows(rng, bounds);
     setting_row(rng, bounds);
     let number = u16::try_from(rng.below(65_536)).expect("u16");
     let kind = if rng.below(2) == 0 { forge::Kind::Forgejo } else { forge::Kind::GitHub };
@@ -449,4 +456,37 @@ fn status_rows(rng: &mut Rng, bounds: &Bounds) {
         next_seen: rng.next_u64(),
     });
     row_and_key(&looked, rng, bounds);
+}
+
+fn away_rows(rng: &mut Rng, bounds: &Bounds) {
+    use skein_lib::Wall;
+    let project = u32::try_from(rng.below(4_294_967_296)).expect("u32");
+    let row = forge::Stored::Away(forge::Away {
+        party: rng.next_u64(),
+        project,
+        since: Wall::from_nanos(rng.next_u64()),
+        until: if rng.below(2) == 0 { None } else { Some(Wall::from_nanos(rng.next_u64())) },
+        kinds: u8::try_from(rng.below(16)).expect("four bits"),
+        landed: rng.next_u64(),
+        off: if rng.below(2) == 0 { None } else { Some(Wall::from_nanos(rng.next_u64())) },
+    });
+    row_and_key(&row, rng, bounds);
+    let count = rng.below(5) + 2;
+    let mut options = Vec::new();
+    for _ in 0..count {
+        options.push(temper_codecs_world::drawn(rng, 120).into_boxed_slice());
+    }
+    let row = forge::Stored::Decided(forge::Decided {
+        project,
+        number: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+        party: rng.next_u64(),
+        task: rng.next_u64(),
+        at: Wall::from_nanos(rng.next_u64()),
+        question: temper_codecs_world::drawn(rng, 400).into_boxed_slice(),
+        options: options.into_boxed_slice(),
+        took: u8::try_from(rng.below(count)).expect("option index"),
+        why: temper_codecs_world::drawn(rng, 400).into_boxed_slice(),
+        overturned: rng.below(2) == 0,
+    });
+    row_and_key(&row, rng, bounds);
 }

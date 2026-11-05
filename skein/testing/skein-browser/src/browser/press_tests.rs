@@ -19,8 +19,8 @@ fn refused(step: Step, error: &[u8]) -> Refusal {
         env.limits.ops,
     ));
     let document = Document::parse(error, env.limits.message).expect("CDP error");
-    browser.command_error(&env, PendingKind::Step(op, step), document.root());
-    let Some(Event::Refused { op: got, why }) = browser.events.pop_front() else { panic!("press refused") };
+    browser.command_error(&env, b"DOM.scrollIntoViewIfNeeded", PendingKind::Step(op, step), document.root());
+    let Some(Event::Refused { op: got, why, .. }) = browser.events.pop_front() else { panic!("press refused") };
     assert_eq!(got, op);
     assert!(browser.op(op).is_none());
     assert!(browser.events.is_empty(), "one terminal");

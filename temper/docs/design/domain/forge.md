@@ -1087,6 +1087,104 @@ new to say. Its charter is the stock's 9
   the subject `status` marked. A failed, cancelled, refused or empty run
   saves nothing and asks nobody: Home keeps the computed words, and the
   next chance is the next sitting. The procedure then ends.
+### 5.8 The Away switch
+
+A person's switch on one project: while it is on, the goals that person
+asked for may decide for themselves what its kinds allow, and show it
+afterwards (5.9). It is the person's own, no setting of the project. It
+owes nothing to the forge: the connector keeps it as it keeps a
+dismissal (5.5). No engine answers for an agent: the switch only changes
+what `decided` says.
+
+- **Its row,** `Away { party, project }`, at most one a party a project,
+  held in memory, restored whole at the restart step, at most `bindings`
+  times `judge_projects`; a row past that is refused at restart, as each
+  family's is. It holds:
+  - `since`, a wall: when it last went on;
+  - `until`, a wall or none: when it goes off by itself, which the
+    client works out (`../client/README.md`, 3.5), none for "I turn it
+    off";
+  - `kinds`, bits of what agents may decide: 1 `implementation`, 2
+    `retry`, 4 `wording`, 8 `dependency`. `other` has no bit, so no row
+    lets it;
+  - `landed`, `ProjectFacts.landed` (5.6) at `since`, 0 with no facts;
+  - `off`, a wall or none: when it went off, none while it has not.
+- **On at a wall** when `off` is none and `until` is none or after that
+  wall. Past `until` nothing is written: `decided` says ask, the client
+  draws it off, and the spell's end reads as `until`.
+- **`SetAway { project, on, until, kinds }`** (`../client/README.md`,
+  4.6) is admitted by the core as `Dismiss` is: the project its scope, a
+  party with a role there, in a project not being deleted. Its bits past
+  the four are refused by the wire. In the decision, at its wall:
+  - `on`, the row on: `until` and `kinds` replaced, the spell kept;
+  - `on`, no row or the row not on: a new spell: `since` the wall,
+    `landed` the project's count, `off` none, `until` and `kinds` as
+    asked;
+  - not `on`, the row on: `off` the wall, `until` and `kinds` as asked;
+  - not `on`, the row not on: `until` and `kinds` as asked, and `off`
+    its `until` where it ran out with none written, so the spell's end
+    stays where it was;
+  - not `on`, no row: a row with `since` and `off` the wall, `landed` the
+    count: Settings' choices kept while off;
+  - a row to make with the bound reached: answered too large, nothing
+    written;
+  - a row that comes out the same: answered, nothing written.
+
+  Otherwise the row saved, the subject `away` marked, answered, the
+  answer held behind the commit, held as a set up's is, in memory, and
+  unknown after a restart; the row says what stands.
+- **Its document:** the subject `away`, one number, `AWAY_SUBJECT`,
+  `1 << 60`, outside the task numbers, of the party's own scope. The
+  connector answers the watcher's party's rows in key order, as 5.5's.
+- **Erased with its project,** as 5.5's, marking the subject when any
+  went. jig erases no party (`../protocol/store.md`, section 7).
+
+### 5.9 Decided for you
+
+What a goal decided while its person was away, kept so that Home says so
+(`../client/README.md`, 3.5) and the person can overturn it. The agent
+decides: the host tool `decided` (`agent.md`, 4.3) asks the connector
+whether it may, and its answer is live, so a running goal needs no brief
+or wake.
+
+- **The caller's person,** which the root finds and hands over: a task
+  that is a goal (it is tracked), whose requester is a person, or a
+  conversation whose requester is a person (jig's `served_chat`), and
+  whose words hold no line `Asks: always`. Any other caller is answered
+  ask, by the root, with nothing asked of the connector.
+- **The judgement,** in the call's decision: decided where that party's
+  `Away` row for the task's project is on at the decision's wall (5.8)
+  and `kind` is among its `kinds`, and `other` never; otherwise ask,
+  nothing written.
+- **Its answer is kept as the call's,** `CallPayload::Decided`: its taken
+  option's words, or none for ask. A call answered replays that answer
+  whatever the switch says by then, and writes nothing again: calls are
+  named and decided once (`agent.md`, 4.3), as `change`'s are.
+- **Its row,** `Decided { project, number }`: `party`, the person's;
+  `task`, the caller; `at`, the decision's wall; `question`, at most 400
+  bytes; `options`, 2 to 6, each at most 120 bytes; `took`, an index into
+  them; `why`, at most 400 bytes; `overturned`. `number` is one above the
+  project's highest, 1 with none. At most `DECIDED_PER_PROJECT`, 64, a
+  project: the row that would pass that erases the project's oldest in
+  its decision. So the family is bounded by 64 times `judge_projects`,
+  and a row past that is refused at restart.
+- **Its document:** the subject `decided`, per project,
+  `(1 << 62) | (1 << 35) | project`, beside `status_subject` (5.6), of
+  the project's scope. It answers the asking party's rows alone, in
+  number order, each with its taken option's words in place of the
+  options and the index, as 5.6's is the asking party's own: what was
+  decided for one person is not another's to see or overturn.
+- **`Overturn { project, number }`** (`../client/README.md`, 4.6) is
+  admitted as `SetAway` is. In the decision: no such row, or another
+  party's: refused, unknown; `overturned` already: refused, overturned;
+  otherwise `overturned` set, the row saved, the subject `decided`
+  marked, answered. It sends no word to the task: the client does, once
+  answered, by its existing message, so that a refused message leaves
+  the row as it stands.
+- **Erased with its project,** as 5.5's, marking its subject.
+- **Only goals call it.** A question that skips the tool waits as ever,
+  and held tasks and proposals always wait, away or not: nothing here
+  answers for anyone.
 
 ## 6. Effects
 
@@ -3074,6 +3172,10 @@ whole.
   `Status` carries only for a failed Actions run; until skein's dialect
   carries it on every row, every row is CI (5.3), another App's check
   runs among them, and its suites with no run list nothing.
+- **What ends the Away switch** (5.8): `until`, by the client's next
+  08:00, and a hand. Quiet hours and notifications are the client's
+  later parts (`../client/README.md`, section 11); neither is the
+  switch's.
 - **A refused `message` keeps no record** (8.11): the call's refusal of an
   agent's own words is rendered and kept with no call's record, as the
   `goal` tool's refusal is, where a decided call's answer is kept

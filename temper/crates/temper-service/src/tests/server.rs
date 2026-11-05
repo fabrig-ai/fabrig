@@ -273,10 +273,10 @@ fn the_playgrounds_headers_file_is_the_policys() {
 
 // A one-byte read body is deliberately withheld to retain each mounted call.
 const HELD_READ_HEAD: &[u8] = b"POST /jig/v1/read HTTP/1.1\r\nHost: 127.0.0.1:7100\r\nContent-Type: application/octet-stream\r\nContent-Length: 1\r\n\r\n";
-// Refuse an empty request too: it still needs Discard before its response.
+// An empty request waits for admission too.
 const EMPTY_READ_HEAD: &[u8] = b"POST /jig/v1/read HTTP/1.1\r\nHost: 127.0.0.1:7100\r\nContent-Type: application/octet-stream\r\nContent-Length: 0\r\n\r\n";
 #[test]
-fn a_call_past_the_mounts_room_is_answered_busy() {
+fn a_call_past_the_mounts_room_waits_until_its_peer_closes() {
     let mut service = fixtures::started();
     fixtures::listening(&mut service);
     let capacity = fixtures::engine().jig.limits.clients_http.calls;
@@ -287,15 +287,15 @@ fn a_call_past_the_mounts_room_is_answered_busy() {
         peer.hold_body(service.engine.as_mut().expect("engine"));
         assert!(peers.push(peer).is_ok(), "one peer per mounted call");
     }
-    let busy_socket = Token::new(fixtures::http::SOCKET.raw().checked_add(u64::from(capacity)).unwrap());
-    let mut busy = fixtures::http::Peer::raw_on(service.engine.as_mut().expect("engine"), EMPTY_READ_HEAD, busy_socket);
-    let (status, _) = fixtures::answered(&mut service, &mut busy);
-    assert_eq!(status, 503);
-    let body = skein_lib::bytes::find(busy.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
-    assert_eq!(busy.received().get(body..), Some(b"".as_slice()));
+    let waiting_socket = Token::new(fixtures::http::SOCKET.raw().checked_add(u64::from(capacity)).unwrap());
+    let mut waiting =
+        fixtures::http::Peer::raw_on(service.engine.as_mut().expect("engine"), EMPTY_READ_HEAD, waiting_socket);
+    waiting.pump(service.engine.as_mut().expect("engine"), false);
+    assert!(waiting.received().is_empty(), "the full mapping leaves the request unanswered");
     assert_eq!(service.engine.as_ref().expect("engine").clients.early.len(), 0, "nothing reached the root");
-    // Only handling the HTTP terminal and retiring its call with server.done closes this socket.
-    assert_eq!(busy.closed(), 1);
+    assert_eq!(waiting.closed(), 0, "the waiting connection remains open");
+    waiting.close(service.engine.as_mut().expect("engine"));
+    assert_eq!(waiting.closed(), 1);
     peers.get_mut(0).unwrap().close(service.engine.as_mut().expect("engine"));
     let link = service.engine.as_mut().expect("engine").clients.links.pop().expect("printed link");
     let body = fixtures::http::link_body(service.engine.as_ref().expect("engine"), &link);

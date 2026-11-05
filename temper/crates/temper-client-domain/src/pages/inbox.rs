@@ -40,8 +40,14 @@ pub struct Inbox {
 fn client(out: &mut Queue<Request>, event: jig_client::Event) {
     out.push(Request::Client(event));
 }
+/// Inbox's sixteen cards share the read pool with Home's other facts (client/README.md, 3.5).
+#[must_use]
+pub fn card_capacity(reads: u32) -> u32 {
+    reads.min(16)
+}
 impl Inbox {
     pub(super) fn new(filter: Filter, first: u64, limits: &Limits, out: &mut Queue<Request>) -> Self {
+        let cards = card_capacity(limits.client.domain.reads);
         let inbox = Self {
             filter,
             cut: [false; 2],
@@ -51,9 +57,9 @@ impl Inbox {
                 handle(first.checked_add(2).expect("inbox handles fit")),
             ],
             next: first.checked_add(3).expect("inbox handles fit"),
-            window: limits.client.domain.rows.min((limits.client.domain.reads / 2).max(1)),
-            cards: List::with_capacity(limits.client.domain.reads),
-            previous: List::with_capacity(limits.client.domain.reads),
+            window: limits.client.domain.rows.min((cards / 2).max(1)),
+            cards: List::with_capacity(cards),
+            previous: List::with_capacity(cards),
             pending: Set::with_capacity(limits.client.domain.reads.checked_add(2).expect("inbox reads fit")),
         };
         client(

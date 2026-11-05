@@ -164,6 +164,8 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Playground(_)
             | d::Stored::Tier(_)
             | d::Stored::ProjectFacts(_)
+            | d::Stored::Away(_)
+            | d::Stored::Decided(_)
             | d::Stored::Looked(_)
             | d::Stored::LandingLog(_)
             | d::Stored::Verification(_) => {}

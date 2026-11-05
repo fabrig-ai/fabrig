@@ -1487,6 +1487,10 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
             assert_eq!(nodes[at].name.as_deref(), Some(project));
         }
         at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+        if style == crate::look::PROJECTS && nodes[at].styles.as_slice().contains(&crate::look::AWAY_CHIP) {
+            assert_eq!(nodes[at].role, Role::Button);
+            at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+        }
     }
     assert_eq!(at, rail.checked_add(usize::try_from(nodes[rail].size).unwrap()).unwrap());
 }

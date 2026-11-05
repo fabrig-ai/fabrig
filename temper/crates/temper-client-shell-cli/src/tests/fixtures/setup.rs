@@ -43,6 +43,8 @@ impl Frame {
             ),
             f::Request::Adopt(_)
             | f::Request::Dismiss(_)
+            | f::Request::SetAway(_)
+            | f::Request::Overturn(_)
             | f::Request::Looked(_)
             | f::Request::Return(_)
             | f::Request::RemoveForge(_)

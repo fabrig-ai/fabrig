@@ -9,6 +9,7 @@ use jig_client::{
 use skein_lib::{Env, Queue, Time};
 pub mod accounts;
 mod activity;
+pub mod away;
 pub mod builders;
 pub mod changes;
 pub mod chat;
@@ -37,6 +38,9 @@ pub(crate) enum PlaygroundChoice {
 #[expect(clippy::partial_pub_fields, reason = "Home is public page state; navigation bookkeeping stays private")]
 pub struct Pages {
     needs: needs::Session,
+    away: Option<away::Pending>,
+    overturns: away::Overturns,
+    away_focus: u64,
     address: Address,
     project: Option<u32>,
     watching: bool,
@@ -88,6 +92,9 @@ pub enum Act {
     StartWay {
         template: u32,
     },
+    StartAsks {
+        always: bool,
+    },
     StartCancel,
     StartGoal,
     /// Ready's Create, or its name field's Enter.
@@ -127,6 +134,7 @@ pub enum Act {
     },
     Choice(choice::Act),
     Needs(needs::Act),
+    Away(away::Act),
     Switcher(switcher::Act),
     SignOut,
     Playground,
@@ -237,6 +245,9 @@ impl Pages {
     pub fn new() -> Self {
         Self {
             needs: needs::Session::default(),
+            away: None,
+            overturns: away::Overturns::new(),
+            away_focus: 0,
             address: Address::Inbox { filter: crate::address::Filter::ALL },
             project: None,
             watching: false,
@@ -447,7 +458,7 @@ pub fn me_handle() -> Handle {
 pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Act { act: Act::OpenStart { draft, chat } } => start_goal::open(pages, client, draft, chat),
-        Event::Act { act: Act::StartDraft { .. } } => {}
+        Event::Act { act: Act::StartDraft { .. } | Act::Away(_) } => {}
         Event::Act { act: Act::StartName { words } } => {
             if let Some(start) = &mut pages.start {
                 start.name(words);
@@ -457,6 +468,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             let me = pages.me(client);
             if let Some(start) = &mut pages.start {
                 start.way(me, template);
+            }
+        }
+        Event::Act { act: Act::StartAsks { always } } => {
+            if let Some(start) = &mut pages.start {
+                start.asks(always);
             }
         }
         Event::Act { act: Act::StartCancel } => pages.start = None,
@@ -820,6 +836,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if away::told(pages, env, client, &told, out) {
+        return true;
+    }
     if start_goal::told(pages, env, client, &told, out) {
         return true;
     }
@@ -1058,7 +1077,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         }
         if let Address::Home { project } = address {
             pages.home = Some(home::Home::new(project, pages.next, env.limits.forge, out));
-            pages.next = pages.next.checked_add(1).expect("page handles fit");
+            pages.next = pages.next.checked_add(2).expect("page handles fit");
             pages.chats = Some(chats::Chats::new(pages.next));
             pages.next = pages.next.checked_add(2).expect("page handles fit");
             pages.inbox = Some(inbox::Inbox::new(
@@ -1369,6 +1388,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::StartDraft { .. }
         | Act::StartName { .. }
         | Act::StartWay { .. }
+        | Act::StartAsks { .. }
         | Act::StartCancel
         | Act::StartGoal
         | Act::Pause
@@ -1381,6 +1401,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::SendAmendment
         | Act::AmendAgain
         | Act::Switcher(_)
+        | Act::Away(_)
         | Act::Needs(_)
         | Act::Choice(_)
         | Act::MakeDefault
@@ -1592,6 +1613,7 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             pages.accounts = accounts::Accounts::default();
             pages.needs.configure(false, limits, out);
             pages.needs = needs::Session::default();
+            pages.overturns = away::Overturns::new();
             pages.choice = choice::Draft::default();
             pages.switcher = switcher::Switcher::default();
             pages.party = None;
