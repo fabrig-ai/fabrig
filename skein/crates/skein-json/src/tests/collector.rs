@@ -34,7 +34,7 @@ impl Machine {
         let basic = env(limits.tokenizer);
         Machine {
             collector: Collector::new(filter, &limits, caps).expect("valid filter"),
-            env: Env { now: basic.now, wall: basic.wall, limits },
+            env: basic.with(limits),
             above: Queue::with_capacity(4),
             below: Queue::with_capacity(4),
         }

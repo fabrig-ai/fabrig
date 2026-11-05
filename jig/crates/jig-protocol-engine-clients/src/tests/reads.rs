@@ -42,9 +42,11 @@ fn a_cursor_round_trips_to_the_same_position() {
 #[test]
 fn a_cursor_that_does_not_decode_is_answered_unknown() {
     let limits = f::wire();
-    for (label, bytes) in
-        [("unknown format", &[255][..]), ("unknown variant", &[1, 255][..]), ("truncated scope", &[1, 1, 10][..])]
-    {
+    for (label, bytes) in [
+        ("unknown format", &[0, 2][..]),
+        ("unknown variant", &[0, 1, 2][..]),
+        ("truncated scope", &[0, 1, 0, 1, 10][..]),
+    ] {
         let mut exchange = f::read_exchange();
         let after = w::Cursor::new(&limits, w::CursorParts { value: bytes.into() }).expect(label);
         let value = w::Read::Spend(
@@ -252,4 +254,50 @@ fn a_client_reading_a_too_linked_task_is_told_its_join_bound() {
         jig_client_protocol_link::translate::reads::none(reason.value()),
         jig_client_domain::contract::ReadNone::TooLinked { joins: 4 },
     );
+}
+
+#[test]
+fn cursor_boundaries_refuse_unrepresentable_scopes_oversized_values_and_other_forms() {
+    use crate::translate::cursor;
+    use jig_domain_core::documents;
+    let after = documents::Cursor::Number { number: 7 };
+    for scope in [
+        reads::Scope::TaskText { task: 7, field: reads::TaskTextField::Result, from: 0 },
+        reads::Scope::EndedTasks,
+        reads::Scope::TaskRows { task: 7 },
+        reads::Scope::SettingsHistory { first: 1, last: 2, newest: 2, whole: true },
+    ] {
+        for value in [
+            reads::Cursor::Store { scope: scope.clone(), after: None },
+            reads::Cursor::Live { scope, after, store_after: None },
+        ] {
+            assert_eq!(cursor::encode(&value, 1024), None);
+        }
+    }
+    let oversized = reads::Cursor::Store {
+        scope: reads::Scope::ScopedNotes {
+            scope: jig_domain_notes::Scope::Deployment,
+            description: Some(Box::new([0; 1024])),
+        },
+        after: None,
+    };
+    let bytes = cursor::encode(&oversized, 2048).expect("field within schema ceiling");
+    assert!(bytes.len() > 1024);
+    assert_eq!(cursor::decode(&bytes), None);
+    let tree = cursor::encode_tree(&after, 7, 3, 1024).expect("tree cursor");
+    assert_eq!(cursor::decode(&tree), None);
+    assert_eq!(cursor::decode_window(&tree), None);
+    let bare = crate::cursor_v1::DocumentCursor::Number(
+        crate::cursor_v1::Number::new(&crate::cursor_v1::CEILINGS, crate::cursor_v1::NumberParts { value: 7 })
+            .expect("number"),
+    );
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(bare.measure()));
+    bare.encode(&mut writer).expect("measured document cursor");
+    let bytes = writer.finish();
+    assert_eq!(cursor::decode_window(&bytes), Some(after));
+    let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).expect("small cursor"));
+    trailing.put(&bytes).expect("document cursor");
+    trailing.put(&[0]).expect("extra byte");
+    assert_eq!(cursor::decode_window(&trailing.finish()), None);
+    assert_eq!(cursor::decode(&[1, 1, 10, 7, 0, 0, 0, 0, 0, 0, 0, 0]), None, "previous owner format");
 }

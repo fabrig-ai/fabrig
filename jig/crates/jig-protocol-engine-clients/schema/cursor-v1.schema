@@ -1,0 +1,41 @@
+family jig-engine-cursor 1
+
+record Number { value: u64 }
+record Project { value: u32 }
+record Blob { value: bytes 1024 }
+enum Proposer { task: Number, party: Number }
+record Proposal { proposer: Proposer, number: u64 }
+enum InboxObject { question: Number, proposal: Proposal, escalation: Number, person_task, reply: Number, result: Number
+}
+record InboxCursor { task: u64, object: InboxObject, at: option u64 }
+enum DocumentCursor { number: Number, inbox: InboxCursor }
+record OwnerKey { value: bytes 1024 }
+record InboxPosition { at: option u64, task: u64, object: InboxObject, key: OwnerKey }
+enum Position { owner: OwnerKey, inbox: InboxPosition }
+enum Group { needs, updates, proposals, escalations, questions, person_tasks, results, replies }
+record Filter { project: option u32, goal: option u64 }
+record Inbox { group: Group, filter: Filter }
+enum Last { exact: Blob, open: Blob }
+record Pattern { segments: list 1024 bytes 1024, last: Last }
+record Goal { project: u32, goal: u64 }
+record Resources { project: u32, connector: u16, pattern: Pattern }
+enum NoteScope { deployment, project: Project, goal: Goal, resources: Resources }
+record ScopedNotes { scope: NoteScope, description: option bytes 1024 }
+record Question { task: u64, message: u64 }
+record Reply { task: u64, activity: u64 }
+record Turn { task: u64, attempt: u64, number: u32 }
+record History { task: u64, subtree: bool }
+enum Requester { none, person: Number, task: Number }
+record Query {
+    project: option u32, requester: Requester, root: option u64, parent: option u64,
+    label: option u32, phase: option u32, executor: option u32, tracked: option u32, order: u32
+}
+enum Scope { task: Number, proposal: Proposal, escalation: Number, question: Question, person_task: Number, result: Number, reply: Reply, turn: Turn, ended_delegates: Number, history: History, activity: Number, inbox: Inbox, notes: Project, scoped_notes: ScopedNotes, spend: Project, tasks: Query
+}
+record LiveCursor { scope: Scope, after: DocumentCursor, store_after: option Position }
+record StoreCursor { scope: Scope, after: option Position }
+enum Cursor { live: LiveCursor, store: StoreCursor }
+record Tree { task: u64, window: u32, after: DocumentCursor }
+record Owner { cursor: Cursor }
+enum Form { owner: Owner, tree: Tree }
+versioned record Held { form: Form }

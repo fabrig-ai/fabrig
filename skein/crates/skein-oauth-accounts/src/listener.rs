@@ -190,7 +190,7 @@ impl Listener {
                 Event::Stream { up, .. } => match &mut self.callback {
                     Some(callback) if callback.phase != Head::Closing && callback.phase != Head::Aborting => http::up(
                         &mut callback.http,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.server },
+                        &env.with(env.limits.server),
                         up,
                         &mut callback.events,
                         &mut callback.below,
@@ -287,7 +287,7 @@ impl Listener {
         if callback.phase == Head::Closing || callback.phase == Head::Aborting || callback.phase == Head::Judging {
             return;
         }
-        let http_env = Env { now: env.now, wall: env.wall, limits: env.limits.server };
+        let http_env = env.with(env.limits.server);
         if let Some(down) = callback.below.pop() {
             io.push(Request::Stream { stream: callback.socket, down });
             return;
@@ -416,7 +416,7 @@ impl Callback {
             self.below.clear();
             http::down(
                 &mut self.http,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.server },
+                &env.with(env.limits.server),
                 http::Request::Close,
                 &mut self.events,
                 &mut self.below,
