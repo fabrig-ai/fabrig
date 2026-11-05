@@ -15,8 +15,21 @@ mode = "direct"
 needs = []
 design = "skein/docs/design/browser.md, 5"
 
+[[part]]
+id = "browser-red"
+title = "the cookie and Sign out test's 503 and Protocol failures caught and fixed at their lowest tier"
+mode = "direct"
+needs = ["browser-says"]
+design = "temper/docs/design/client/browser.md, 4.6"
+
 [[slice]]
 id = 1
 story = "The cookie and Sign out test's failure names the 503's URL, the CDP method and error behind a Protocol refusal, and the step its person is at"
 parts = ["browser-says"]
+walk = false
+
+[[slice]]
+id = 2
+story = "Signing in, reloading, reconnecting and signing out passes every run, alone and in the whole tier, and a person's Sign out lands"
+parts = ["browser-red"]
 walk = false
