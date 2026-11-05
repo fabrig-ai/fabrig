@@ -2166,7 +2166,10 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   `checkout.message_bytes` equals it, so the checkout accepts the
   agent's largest call, and the engine's message and result bounds are
   the payload less two (13.4). A deployment whose models' output is
-  larger raises them with its T.
+  larger raises them with its T. A note's body is not bound by it: a
+  run builds a body past one call in parts, by line ranges, up to
+  `notes.body_bytes` (jig's `domain/engine.md`, section 10;
+  `../domain/agent.md`, 8.3).
 - **Memory:** `engine.memory_bytes` is the engine's byte budget
   (`../domain/root.md`, 4.1), independent of a model's edge bounds.
   The start checks those bounds, without comparing memory with a sum
