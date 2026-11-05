@@ -117,6 +117,8 @@ home-adopting
 home-after-skip
 home-answered
 home-at-work
+home-away
+home-away-one
 home-begin-one-chats
 home-begin-settings-left
 home-chats-sentence

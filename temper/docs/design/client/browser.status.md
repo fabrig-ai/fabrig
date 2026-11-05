@@ -12,7 +12,7 @@
   `start-goal-refused` still draw the sheet. Goals' entry goes to Chats'
   Drafts filter, as the `ui-goal-page` `goal-browser` answer of 2026-11-05
   accepts; `ui-chat-draft` owns the continuation.
-- **Not yet:** 7.2: `home-away`, `home-away-one`, `home-away-overturned`, `settings-away`. 7.1: a `home-*` state's title is its headline, then
+- **Not yet:** 7.2: `home-away-overturned`, `settings-away`. 7.1: a `home-*` state's title is its headline, then
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not
   the view's title.

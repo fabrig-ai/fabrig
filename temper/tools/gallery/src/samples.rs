@@ -73,7 +73,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 230;
+pub const N: usize = 232;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -109,6 +109,13 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "changes-landed-only", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
         Sample {
             name: "rail-away-on",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample { name: "home-away", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
+        Sample {
+            name: "home-away-one",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -728,6 +735,7 @@ fn special_mockup(name: &str) -> Option<String> {
         return Some("../greenfield/needs.html".to_owned());
     }
     match name {
+        "home-away" | "home-away-one" => return Some("../greenfield/home.html".to_owned()),
         "changes" | "changes-one" | "changes-empty" => return Some("changes.html".to_owned()),
         "changes-landed-only" => return Some("changes.html?project=hello".to_owned()),
         "forges-github-install" => return Some("forges.html?world=first-run-github&step=3&bare".to_owned()),
@@ -1623,10 +1631,14 @@ fn home_domain(name: &str) -> Domain {
     use skein_lib::List;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let away_sample = name == "rail-away-on";
+    let home_away = matches!(name, "home-away" | "home-away-one");
+    let away_name = name;
     let status_name = if away_sample { "home-morning" } else { name };
     let name = match name {
         "rail-away-on" => "home-morning",
-        "home-computed"
+        "home-away"
+        | "home-away-one"
+        | "home-computed"
         | "home-last-looked-none"
         | "home-landing-none"
         | "home-landing-red"
@@ -1647,6 +1659,9 @@ fn home_domain(name: &str) -> Domain {
     let mut projects = List::with_capacity(1);
     projects.push(me.projects.get(0).expect("Hello project").clone()).expect("one project");
     me.projects = projects;
+    if home_away {
+        me.projects.get_mut(0).expect("Away project").name = home_text("fabrig");
+    }
     if name.starts_with("home-cop") {
         me.projects.get_mut(0).expect("Home copy project").name = home_text("Widget");
     }
@@ -1692,6 +1707,7 @@ fn home_domain(name: &str) -> Domain {
         step(&mut root, Event::Client { event }, &mut out);
     }
     let mut away_watch = None;
+    let mut decided_watch = None;
     let everyday = matches!(
         name,
         "home-morning"
@@ -1805,7 +1821,9 @@ fn home_domain(name: &str) -> Domain {
                     w::Watch::Forges => wire::forges(
                         &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Home forges"),
                     ),
-                    w::Watch::Status(_) => match if status_name == "home-morning" {
+                    w::Watch::Status(_) => match if home_away {
+                        Some(crate::worlds::home_away_status())
+                    } else if status_name == "home-morning" {
                         Some(morning_status())
                     } else {
                         crate::worlds::home_status(status_name)
@@ -1813,6 +1831,11 @@ fn home_domain(name: &str) -> Domain {
                         Some(status) => wire::project_status(&status),
                         None => continue,
                     },
+                    w::Watch::Away if home_away => crate::worlds::home_away_record(away_name),
+                    w::Watch::Decided(_) if home_away => {
+                        decided_watch = Some(watch);
+                        continue;
+                    }
                     w::Watch::Away if away_sample => {
                         away_watch = Some(watch);
                         crate::worlds::away_record(false)
@@ -2100,6 +2123,9 @@ fn home_domain(name: &str) -> Domain {
     }
     if matches!(name, "home-add-repository-sheet" | "home-add-repository-copies") {
         crate::worlds::home_add_sheet(&mut root, name == "home-add-repository-copies");
+    }
+    if home_away {
+        crate::worlds::home_away_deliveries(&mut root, decided_watch.expect("Decided watch"), away_name);
     }
     if away_sample {
         crate::worlds::rail_away_on(&mut root, away_watch.expect("Away watch"));
