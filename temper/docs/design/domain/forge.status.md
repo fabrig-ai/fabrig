@@ -3,10 +3,6 @@
 2026-11-05. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 8.4: a brief section's read failure saying why, the pair of a repair's
-    sections, and their log lines: any such read fails the section
-    (`temper-engine-domain-forge/src/brief.rs`, `brief_answer`), and the
-    brief fails with it.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for

@@ -76,6 +76,9 @@ mod result;
 #[path = "forge_routes/tiers.rs"]
 mod tiers;
 
+#[path = "forge_routes/brief_failure.rs"]
+mod brief_failure;
+
 #[path = "forge_routes/repairs.rs"]
 mod repairs;
 
