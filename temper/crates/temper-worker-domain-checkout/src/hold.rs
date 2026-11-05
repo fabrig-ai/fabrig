@@ -3,7 +3,8 @@
 //! steps 2, 7 and 8, and 5).
 //!
 //! A prepare that passes the entrance holds a workspace ([`crate::cache`]) and
-//! readies it, one operation at a time. A workspace made again is made empty,
+//! readies it, one operation at a time. An evicted workspace may keep its
+//! matching clones when reuse is enabled. A workspace made again is made empty,
 //! and each repository cloned into it. Then each repository is fetched at its
 //! starting point and checked out. A base with heads merged in fetches every
 //! head and commits each new merge in order before it is ready. Its last
@@ -296,7 +297,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
     let id = domain.holds.insert(hold).expect("room for a hold for each workspace, and as many released");
     out.push(Request::Held { client, hold: id.token() });
     let first = match cached {
-        Cached::Reused => PrepareStep::Fetch { repository: 0 },
+        Cached::Reused | Cached::Kept => PrepareStep::Fetch { repository: 0 },
         Cached::Rebuilt | Cached::Evicted | Cached::New => PrepareStep::Make,
     };
     let hold = domain.holds.get_mut(id).expect("inserted above");
