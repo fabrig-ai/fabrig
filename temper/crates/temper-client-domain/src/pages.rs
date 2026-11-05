@@ -15,6 +15,7 @@ pub mod chats;
 pub mod choice;
 pub mod connect_model;
 pub mod delegation;
+pub mod goal;
 pub mod goals;
 pub mod home;
 pub mod inbox;
@@ -351,12 +352,18 @@ impl Pages {
     #[must_use]
     pub fn cards(&self) -> Option<&skein_lib::List<inbox::Card>> {
         if let Some(task) = &self.task {
+            if task.shape == task::Shape::Tracked {
+                return Some(&self.inbox.as_ref()?.cards);
+            }
             return Some(&task.cards);
         }
         if let Some(chat) = &self.chat { Some(&chat.cards) } else { Some(&self.inbox.as_ref()?.cards) }
     }
     pub(crate) fn cards_mut(&mut self) -> Option<&mut skein_lib::List<inbox::Card>> {
         if let Some(task) = &mut self.task {
+            if task.shape == task::Shape::Tracked {
+                return Some(&mut self.inbox.as_mut()?.cards);
+            }
             return Some(&mut task.cards);
         }
         if let Some(chat) = &mut self.chat { Some(&mut chat.cards) } else { Some(&mut self.inbox.as_mut()?.cards) }
@@ -1004,7 +1011,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         return true;
     }
     if let Some(task) = &mut pages.task {
-        return task.told(env.now, client, told, out);
+        return task_told(task, &mut pages.inbox, env, client, told, out);
     }
     if let Some(chat) = &mut pages.chat {
         let moved = match &told {
@@ -1039,6 +1046,47 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         return false;
     }
     true
+}
+
+fn task_told(
+    task: &mut task::Task,
+    inbox: &mut Option<inbox::Inbox>,
+    env: &Env<Limits>,
+    client: &Client,
+    told: Told,
+    out: &mut Queue<Request>,
+) -> bool {
+    // Share a monotone sequence: either child advances past the other's allocations before it runs.
+    if let Some(inbox) = &*inbox {
+        task.next = task.next.max(inbox.next);
+    }
+    let handled = task.told(env.now, client, told.clone(), out);
+    let filter = if task.shape == task::Shape::Tracked {
+        match task.document(client) {
+            Some(document) => {
+                Some(crate::address::Filter { project: Some(document.project), kind: None, goal: Some(task.number) })
+            }
+            None => None,
+        }
+    } else {
+        None
+    };
+    if let Some(open) = &*inbox
+        && Some(open.filter) != filter
+    {
+        task.next = task.next.max(inbox.take().expect("open inbox").leave(out));
+    }
+    if let Some(filter) = filter {
+        if inbox.is_none() {
+            *inbox = Some(inbox::Inbox::new(filter, task.next, &env.limits, out));
+        }
+        let inbox = inbox.as_mut().expect("tracked page inbox");
+        inbox.next = inbox.next.max(task.next);
+        let handled_inbox = if handled { false } else { inbox.told(client, told, out) };
+        task.next = task.next.max(inbox.next);
+        return handled || handled_inbox;
+    }
+    handled
 }
 
 fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act, out: &mut Queue<Request>) {

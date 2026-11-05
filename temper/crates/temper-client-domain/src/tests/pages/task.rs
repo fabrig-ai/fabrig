@@ -1245,12 +1245,21 @@ fn goal() -> (Task, f::Fixture) {
     page.told(Time::ZERO, &fixture.client, Told::Changed { handle: page.document }, &mut fixture.out);
     (page, fixture)
 }
+fn opening_goal_reads(out: &mut Queue<Request>) {
+    let Some(Request::Client(Event::Read { read: Readable::Jig(c::Read::Notes { .. }), .. })) = out.pop() else {
+        panic!("the goal's report read");
+    };
+    let Some(Request::Client(Event::Read { read: Readable::Jig(c::Read::Tasks { .. }), .. })) = out.pop() else {
+        panic!("the goal's own line read");
+    };
+}
 #[test]
 fn a_goal_reads_its_ended_delegates_on_its_own_handle() {
     let (page, mut fixture) = goal();
     let ended = page.ended.as_ref().unwrap();
     assert_eq!(page.shape, Shape::Tracked);
-    assert_eq!(page.next, ended.handle.number + 1);
+    // The ended page is followed by the report and own-line handles.
+    assert_eq!(page.next, ended.handle.number + 3);
     assert_ne!(ended.handle, page.document);
     assert_ne!(ended.handle, page.tree);
     assert_ne!(ended.handle, page.activity);
@@ -1258,12 +1267,14 @@ fn a_goal_reads_its_ended_delegates_on_its_own_handle() {
     assert!(ended.reading);
     assert!(!ended.stale);
     assert_eq!(fixture.out.pop(), Some(ended_read(&page)));
+    opening_goal_reads(&mut fixture.out);
     assert!(fixture.out.is_empty());
 }
 #[test]
 fn a_goals_tree_and_document_changes_reread_one_page_at_a_time() {
     let (mut page, mut fixture) = goal();
     assert_eq!(fixture.out.pop(), Some(ended_read(&page)));
+    opening_goal_reads(&mut fixture.out);
     for handle in [page.tree, page.document] {
         let kept = ended_page(false);
         answer_ended(&mut page, &mut fixture, kept.clone());
