@@ -3,8 +3,8 @@
 2026-11-05. Where skein's code lags or departs from [lib.md](lib.md).
 
 - **Not yet:** 3: `Slab::get2_mut`. 6: a carrier's lengths, beyond
-  skein-http's heads and skein-channel's frames (http.md, 2; channel.md,
-  3). These still derive `Debug` over what they carry, as the request of
+  skein-http's heads, skein-channel's frames and the oauth crates' bodies
+  and URLs (http.md, 2; channel.md, 3; oauth.md, 4). These still derive `Debug` over what they carry, as the request of
   2026-11-05 left them: skein-io's stream, pipe and kernel bytes, with
   lib's `stream::Down`, `stream::Up`, `Intake` and `Writer`; skein-kv's
   values; skein-oauth's `Json`; jig's bodies; skein-channel's refusal text

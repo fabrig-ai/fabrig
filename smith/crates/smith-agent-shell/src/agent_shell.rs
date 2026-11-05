@@ -1,6 +1,8 @@
 //! Shared agent startup and shell pass (smith/docs/design/protocol/agent.md, sections 4–6).
 //! It keeps the service, startup header, inherited mount descriptors and error
-//! output. It never keeps credentials outside the service or knows the driving
+//! output, and optional rendered request and program inputs for a private dump
+//! (smith/docs/design/protocol/agent.status.md). It never keeps credentials
+//! outside the service or knows the driving
 //! kernel, simulator or neighbours. `Agent::read` reads startup settings;
 //! `Agent::new` adopts caller resources; `Host::iterate` runs the same pass in
 //! the binary and worlds. `run` supplies the binary's kernel and clock.
@@ -48,6 +50,8 @@ pub struct Resources {
 
 /// The binary's agent and shell effects, hosted by a kernel or world until settlement.
 pub struct Agent {
+    #[cfg(unix)]
+    dumps: Option<crate::dump::Dumps>,
     service: service::Service,
     header: Option<smith_events::SessionStarted>,
     trace_root: Option<Fd>,
@@ -73,6 +77,13 @@ struct PreparedAgent {
 }
 
 impl Agent {
+    /// Writes later service captures before their submissions leave the shell.
+    #[cfg(unix)]
+    pub fn dump_to(&mut self, dumps: crate::dump::Dumps) {
+        self.service.keep_dumps();
+        self.dumps = Some(dumps);
+    }
+
     /// Read the binary's configuration and build the same invocation worlds host.
     /// Every startup refusal is written once to the supplied error output.
     #[cfg(unix)]
@@ -96,6 +107,8 @@ impl Agent {
             }
         };
         let mut agent = Self {
+            #[cfg(unix)]
+            dumps: None,
             service: prepared.service,
             header: prepared.header,
             trace_root: prepared.trace_root,
@@ -399,6 +412,12 @@ impl Host for Agent {
             self.close(root);
         }
         service::iterate(&mut self.service, now, wall);
+        #[cfg(unix)]
+        if let Some(dumps) = &mut self.dumps {
+            while let Some(dump) = self.service.pop_dump() {
+                dumps.write(dump, self.errors.as_mut());
+            }
+        }
         while let Some(given_up) = self.service.pop_given_up() {
             diagnostic(self.errors.as_mut(), &given_up_line(given_up));
         }
@@ -516,7 +535,7 @@ fn program_diagnostic_line(owner: Token, fault: smith_domain::run::Fault) -> Str
     )
 }
 
-fn diagnostic(errors: &mut dyn Write, line: &str) {
+pub(super) fn diagnostic(errors: &mut dyn Write, line: &str) {
     // Diagnostics are best effort, as trace records are; a broken operator
     // output cannot prevent the channel's answer or its lower settlement.
     drop(writeln!(errors, "smith: {line}"));
@@ -531,7 +550,26 @@ pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
 
 /// Run a decoded agent configuration with its kernel, clock and startup resources.
 #[cfg(unix)]
-pub fn run_decoded(decoded: config::Decoded, mut errors: Box<dyn Write>) -> Result<Exit, String> {
+pub fn run_decoded(decoded: config::Decoded, errors: Box<dyn Write>) -> Result<Exit, String> {
+    run_configured(decoded, None, errors)
+}
+
+/// Runs decoded startup with private request captures.
+#[cfg(unix)]
+pub fn run_dumping(
+    decoded: config::Decoded,
+    dumps: crate::dump::Dumps,
+    errors: Box<dyn Write>,
+) -> Result<Exit, String> {
+    run_configured(decoded, Some(dumps), errors)
+}
+
+#[cfg(unix)]
+fn run_configured(
+    decoded: config::Decoded,
+    dumps: Option<crate::dump::Dumps>,
+    mut errors: Box<dyn Write>,
+) -> Result<Exit, String> {
     let signals = skein_shell::open_termination_signals()
         .map_err(|errno| format!("termination signals cannot open (errno {errno})"))
         .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
@@ -561,6 +599,9 @@ pub fn run_decoded(decoded: config::Decoded, mut errors: Box<dyn Write>) -> Resu
         },
         errors,
     )?;
+    if let Some(dumps) = dumps {
+        agent.dump_to(dumps);
+    }
     let mut kernel = Kernel::open(KernelConfig { operations: agent.operations() })
         .map_err(|error| format!("agent kernel cannot open: {error}"))
         .inspect_err(|why| diagnostic(agent.errors.as_mut(), why))?;

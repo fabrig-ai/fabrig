@@ -72,6 +72,18 @@ fn missing_artifacts_and_unknown_runs_keep_the_repository_path() {
     }
 }
 #[test]
+fn a_second_matching_artifact_rejects_the_listing() {
+    let mut plan = Run::known(Op::Read(read(FILE_BYTES)));
+    plan.begin();
+    let server::Answer::Artifacts(rows) = listing() else {
+        panic!("artifact listing");
+    };
+    let row = rows.first().expect("artifact row").clone();
+    let duplicate = server::Answer::Artifacts(Box::new([row.clone(), row]));
+    let bytes = server::encode(&duplicate, &fixtures::limits()).expect("duplicate listing");
+    assert_eq!(plan.answer(200, &bytes), Step::Done(Err(Error::InvalidAnswer)));
+}
+#[test]
 #[expect(clippy::disallowed_methods, reason = "fixed ZIP record offsets name the edited method and CRC")]
 fn unsupported_or_corrupt_artifacts_fail_the_read() {
     let mut method = archive(&[b"failed.txt"], false, None);

@@ -7,7 +7,7 @@ const MAX_BITS: u32 = 4096; // limits().modulus_bits.
 const KEY_CAP: u32 = 4; // limits().keys.
 const METADATA: &[u8] = br#"{"issuer":"https://issuer.example","jwks_uri":"https://issuer.example/keys"}"#;
 
-fn registration_for_keys(direct: bool) -> Registration {
+pub(super) fn registration_for_keys(direct: bool) -> Registration {
     let mut registration = registration(true, WireFormat::Form);
     registration.scope = boxed(b"openid read");
     let mut additions = terms::terms(true, false);
