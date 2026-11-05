@@ -69,7 +69,7 @@ fn a_second_github_reconcile_writes_nothing() {
 fn a_young_or_future_stray_stays_until_past_state_life() {
     // Signed: App/hook/three pages, then App/hook/three pages/delete (22 signings).
     let life = fixtures::github_given().limits.state_life.as_nanos();
-    let wall = skein_forge_machine_world::github::WALL_BASE.as_nanos();
+    let wall = skein_forge_kit::github::WALL_BASE.as_nanos();
     let mut world = configured(&[]);
     world.put(Item::Accepted, accepted_item(&[]));
     let young = world.github_reinsert(1, Wall::from_nanos(wall));
@@ -196,12 +196,12 @@ fn github_setup_traces_and_failures_contain_no_secret() {
     done(&world, 6);
     accept(&mut world, 7, &state, 1);
     let diagnostics = format!("{:?} {:?} {:?}", world.github_requests(), world.needs(), &world.heard()[1..]);
-    let der = skein_forge_machine_world::github::app_key();
+    let der = skein_forge_kit::github::app_key();
     let pem = skein_fake_forge_github::keys::pem(der).expect("fixture PEM");
     let (webhook, token) = super::github_convert::drawn_secrets(&world, 7, &code);
-    let issued = Wall::from_nanos(skein_forge_machine_world::github::WALL_BASE.as_nanos() - 60_000_000_000);
+    let issued = Wall::from_nanos(skein_forge_kit::github::WALL_BASE.as_nanos() - 60_000_000_000);
     let expires = Wall::from_nanos(issued.as_nanos() + skein_forge::github::jwt::LIFE.as_nanos());
-    let bearer = skein_forge_machine_world::github::bearer(der, 8, issued, expires);
+    let bearer = skein_forge_kit::github::bearer(der, 8, issued, expires);
     let jwt = bearer.strip_prefix(b"Bearer ").expect("diagnostic bearer");
     for secret in [der, pem.as_ref(), code.expose(), webhook.expose(), token.expose(), jwt, b"ghs_", b"eyJ"] {
         assert!(!diagnostics.as_bytes().windows(secret.len()).any(|part| part == secret));

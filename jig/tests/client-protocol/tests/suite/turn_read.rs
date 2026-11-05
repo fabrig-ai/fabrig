@@ -1,16 +1,18 @@
 use jig_client::{Ask, Asker, Handle, Key, Readable, Readout, Watchable, contract as c};
-use jig_client_protocol_world::{client::Story, fixtures};
+use jig_client_protocol_world::{
+    client::Story,
+    fixtures::{self, PROJECT},
+};
 use skein_lib::Duration;
 // These handles belong to this story's single read, activity page and task watch.
 const TURN: Handle = Handle { asker: Asker::JIG, number: 31 };
 const ACTIVITY: Handle = Handle { asker: Asker::JIG, number: 32 };
-const TASK: Handle = Handle { asker: Asker::JIG, number: 33 };
+const TASK_WATCH: Handle = Handle { asker: Asker::JIG, number: 33 };
 // The cancellation is independent of the message request.
 const END: Key = Key { asker: Asker::JIG, number: 92 };
 const WORDS: Key = Key { asker: Asker::JIG, number: 91 };
 // The fixture creates its first task at 1; 9 is absent.
 const ABSENT: u64 = 9;
-const PROJECT: u32 = 1;
 // The worker's turn follows the run beginning and durable message at position 4.
 const COMMITTED_TURN: u64 = 4;
 const WAIT: Duration = Duration::from_secs(1);
@@ -31,8 +33,8 @@ fn committed_story(mut story: Story) -> (Story, u64) {
     let words = c::Text::new(Box::from(b"Please continue".as_slice()), 32).expect("bounded words");
     story.send(WORDS, Ask::Jig(Box::new(c::Ask::Message { project: PROJECT, task, words })));
     assert!(story.run_until(|s| !s.answered(WORDS).is_empty(), WAIT));
-    story.watch(TASK, Watchable::Jig(c::Subject::Task { task }));
-    assert!(story.run_until(|s| s.thread_activity(TASK, task) >= COMMITTED_TURN, WAIT));
+    story.watch(TASK_WATCH, Watchable::Jig(c::Subject::Task { task }));
+    assert!(story.run_until(|s| s.thread_activity(TASK_WATCH, task) >= COMMITTED_TURN, WAIT));
     (story, task)
 }
 

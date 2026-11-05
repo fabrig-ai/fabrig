@@ -308,6 +308,14 @@ impl World {
         self.signin_held(sign_in, user, None)
     }
 
+    pub fn sign_in_owner(&mut self) -> u64 {
+        self.signin(10, 1)
+    }
+
+    pub fn sign_in_second(&mut self) -> u64 {
+        self.signin(11, 2)
+    }
+
     pub fn signin_held(&mut self, sign_in: u64, user: u64, held: Option<u64>) -> u64 {
         let (call, reply_to) = self.call();
         let person = self.name();
@@ -1285,7 +1293,7 @@ impl World {
     /// Compact scenario matrix: each seed draws authority and crash cuts while
     /// every configured outcome is named and checked across the sweep.
     pub fn run(&mut self) {
-        let signin = self.signin(10, 1);
+        let signin = self.sign_in_owner();
         self.commit_all();
         let Reply::SignedIn { person, .. } = self.reply(signin).expect("sign-in replied") else { panic!("signed in") };
         self.roles(1, Box::new([Holding { person, role: Role::Member }]));

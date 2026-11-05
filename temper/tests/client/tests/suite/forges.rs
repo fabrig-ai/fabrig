@@ -1,7 +1,7 @@
 //! The tools' root joined to the engine root; only the box link is scripted
 //! (client/tools.md, 11.2; domain/testing.md, 6.3).
 use jig_client::{self as client, contract as c};
-use jig_client_world::{harness::ClientId, joint::transport::Transport};
+use jig_client_kit::{harness::ClientId, joint::transport::Transport};
 use jig_domain_people as people;
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
@@ -494,7 +494,7 @@ fn invalid_setup_names_are_refused_without_a_box_effect() {
 #[test]
 fn a_fresh_deployment_keeps_a_github_row_only_when_connected_and_removes_it_when_confirmed() {
     use super::connect_forge::{node, view};
-    use jig_client_world::harness::App;
+    use jig_client_kit::harness::App;
     use skein_ui::{Act, Role};
     use temper_client_domain::{self as client, Address};
     use temper_client_world::{app::Temper, front::account_acts as accounts};

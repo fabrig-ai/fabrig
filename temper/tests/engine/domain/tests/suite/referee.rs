@@ -4,8 +4,8 @@
 
 use jig_domain_people::Role;
 use jig_domain_tasks::{Party, SettingsRevision};
-use jig_people_world::referee::{People, RouteKind, Seen as PersonSeen};
-use jig_tasks_world::referee::{Seen as TaskSeen, Tasks};
+use jig_people_kit::referee::{People, RouteKind, Seen as PersonSeen};
+use jig_tasks_kit::referee::{Seen as TaskSeen, Tasks};
 use skein_fake_forge_domain::{self as fake, Observation, api as raw};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_world::domain::{Referee, Verdict};

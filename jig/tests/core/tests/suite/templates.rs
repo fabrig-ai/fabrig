@@ -1,11 +1,11 @@
 use crate::read_support::request;
 use crate::read_support::world;
+use jig_core_world::fixtures::PROJECT;
 use jig_core_world::reads::ask;
 use jig_core_world::reads::latest;
 use jig_core_world::world::fixture;
 use jig_domain_core::{documents, reads};
 use jig_domain_people as people;
-const PROJECT: u32 = 1;
 const GOAL: u32 = 2;
 const CHANGE: u8 = 1;
 const CHANGE_AGAIN: u8 = 2;

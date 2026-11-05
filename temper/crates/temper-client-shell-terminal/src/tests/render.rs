@@ -158,7 +158,7 @@ fn no_project_reads_the_same_in_the_terminal() {
                         down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Me) },
                     },
             } => {
-                let mut me = jig_client_world::stories::frame(1);
+                let mut me = jig_client_kit::stories::frame(1);
                 me.projects.clear();
                 Some(jig_client::Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(me))) })
             }

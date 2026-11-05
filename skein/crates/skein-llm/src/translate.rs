@@ -844,7 +844,7 @@ mod tests {
     #[test]
     fn drawn_carried_json_matches_the_old_compact_spelling_in_both_dialects() {
         use skein_json::Token;
-        use skein_json_world::generate::{self, Shape};
+        use skein_json_kit::generate::{self, Shape};
         for seed in 0..60 {
             let mut rng = skein_lib::Rng::new(seed);
             let mut tokens = generate::tokens(&mut rng, Shape { depth: 4, width: 3, string: 8 });

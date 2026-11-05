@@ -61,7 +61,7 @@ pub fn project_maker(seed: u64) -> World {
 pub fn resource_owner(seed: u64) -> World {
     let mut driver = chat(seed);
     let task = driver.assignment().task;
-    let resource = jig_test_connector_world::path(1, 1);
+    let resource = jig_test_connector_kit::path(1, 1);
     driver.offer(root::Event::Connector {
         number: 1,
         event: jig_test_connector::Event::Adopt {
@@ -102,11 +102,11 @@ pub fn lost_resource_writer(seed: u64) -> (World, u64) {
         event: jig_test_connector::Event::Names {
             task: child,
             project: 1,
-            resources: Box::new([jig_test_connector_world::path(1, 1)]),
+            resources: Box::new([jig_test_connector_kit::path(1, 1)]),
         },
     });
     let assignment = world.assigned.take().expect("the resource's assigned writer");
-    let resource = jig_test_connector_world::path(1, 1);
+    let resource = jig_test_connector_kit::path(1, 1);
     world.send(root::Event::Connector {
         number: 1,
         event: jig_test_connector::Event::System(jig_test_connector::SystemEvent::Fact {

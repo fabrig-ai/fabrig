@@ -1,12 +1,14 @@
 //! Independent upgrade contract checks through the public store world.
 //! jig/docs/design/protocol/store.md 8.3, 8.6 and 10.2.
 use jig_protocol_store::{Event, PatchSets, Request, TranscriptRead};
-use jig_store_world::{World, patches, root};
+use jig_store_world::{
+    World, patches,
+    root::{self, LIVE as TASK},
+};
 use skein_lib::Token;
 
 const SEED: u64 = 0x5141_4d31;
 const OWNER: Token = Token::new(401);
-const TASK: u64 = root::LIVE;
 const ATTEMPT: u64 = 1;
 const FIRST_TURN: u32 = 1;
 const ONE_ROW: u32 = 1;

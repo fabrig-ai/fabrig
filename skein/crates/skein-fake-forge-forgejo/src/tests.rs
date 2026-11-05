@@ -1,7 +1,11 @@
+#[global_allocator]
+static HEAP: skein_heap::Counting = skein_heap::Counting;
+
 mod answers;
 mod deliveries;
 mod fixtures;
 mod http;
+mod memory;
 mod response;
 mod routes;
 

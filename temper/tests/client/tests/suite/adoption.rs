@@ -1,4 +1,4 @@
-use jig_client_world::harness::{FrontFault, Until};
+use jig_client_kit::harness::{FrontFault, Until};
 use skein_fake_person::{Find, Step};
 use skein_ui::Role;
 use skein_world::domain::Verdict;
@@ -110,7 +110,7 @@ fn a_reload_with_an_adoption_pending_sends_it_once() {
 
 #[test]
 fn ready_adopts_the_first_repository_with_nothing_typed() {
-    use jig_client_world::harness::App;
+    use jig_client_kit::harness::App;
     use temper_client_domain::{self as d, Address};
     use temper_client_world::{app::Temper, front::account_acts as accounts};
     use temper_engine_domain_forge as forge;

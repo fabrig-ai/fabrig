@@ -1,5 +1,5 @@
 //! Owned Forgejo's welcome facts, read through the existing Joint.
-use jig_client_world::harness::{App, ClientId, Front};
+use jig_client_kit::harness::{App, ClientId, Front};
 use skein_lib::Queue;
 use temper_client_domain::{Address, Choice, Step};
 use temper_client_world::{

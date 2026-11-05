@@ -12,7 +12,7 @@ const FIRST: Token = Token::new(9701);
 const LATER: Token = Token::new(9702);
 const FIRST_KEY: [u8; 16] = [71; 16];
 const LATER_KEY: [u8; 16] = [72; 16];
-const PROJECT: u32 = 2;
+const MADE_PROJECT: u32 = 2;
 // MakeProject fans out to Roles, OpenPeriod and PeriodNext.
 const HANDOFFS: usize = 4;
 const ONCE: usize = 1;
@@ -25,7 +25,7 @@ fn a_wide_route_finishes_within_its_decision_before_a_later_entrance() {
     let mut driver = admission_support::project_maker(9701);
     let session = begin_story(&mut driver);
     driver.offer(ask(session, FIRST, FIRST_KEY, people::Ask::MakeProject { name: "Tally".into(), policy: 1 }));
-    hold_later(&mut driver, session, PROJECT);
+    hold_later(&mut driver, session, MADE_PROJECT);
     driver.drain();
 
     let (first_index, writes) = answer_transaction(&driver, FIRST_KEY);
@@ -34,23 +34,23 @@ fn a_wide_route_finishes_within_its_decision_before_a_later_entrance() {
     for write in writes {
         match write {
             root::Write::Save(root::Record::Core(core::Record::People(people::Stored::Policy {
-                project: PROJECT,
+                project: MADE_PROJECT,
                 name,
                 ..
             }))) if name.as_ref() == "Tally" => consequences.push("policy"),
             root::Write::Save(root::Record::Core(core::Record::People(people::Stored::Roles {
-                project: PROJECT,
+                project: MADE_PROJECT,
                 ..
             }))) => consequences.push("roles"),
             root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Ledger(
-                tasks::FundingRecord { funder: tasks::Funder::Period { project: PROJECT, .. }, .. },
+                tasks::FundingRecord { funder: tasks::Funder::Period { project: MADE_PROJECT, .. }, .. },
             )))) => consequences.push("period"),
             root::Write::Save(root::Record::Core(core::Record::People(people::Stored::Answer {
                 key,
                 outcome,
                 ..
             }))) if key.key == FIRST_KEY => {
-                assert_eq!(*outcome, people::Outcome::ProjectMade { project: PROJECT });
+                assert_eq!(*outcome, people::Outcome::ProjectMade { project: MADE_PROJECT });
                 consequences.push("answer");
             }
             root::Write::CopySettingsRevision(_)
@@ -78,8 +78,8 @@ fn a_wide_route_finishes_within_its_decision_before_a_later_entrance() {
     assert_eq!(
         replies,
         [
-            (&ReplyTo::new(FIRST), &people::Reply::Outcome(people::Outcome::ProjectMade { project: PROJECT })),
-            (&ReplyTo::new(LATER), &people::Reply::Outcome(people::Outcome::Renamed { project: PROJECT })),
+            (&ReplyTo::new(FIRST), &people::Reply::Outcome(people::Outcome::ProjectMade { project: MADE_PROJECT })),
+            (&ReplyTo::new(LATER), &people::Reply::Outcome(people::Outcome::Renamed { project: MADE_PROJECT })),
         ]
     );
     assert!(driver.domain.quiescent() && !driver.stopped);

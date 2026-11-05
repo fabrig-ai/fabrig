@@ -11,6 +11,8 @@ use alloc::boxed::Box;
 use skein_lib::{Env, Id, Lifecycle, List, Map, Queue, Slab, Time, Token, earliest};
 mod calls;
 pub(crate) mod entry;
+#[cfg(any(test, feature = "seam"))]
+pub(crate) mod seam;
 use entry::{Base, Dialect, ForgeEntry, GitHubForge};
 mod github;
 mod github_calls;
@@ -64,15 +66,19 @@ impl GitHubCall {
         self.route?.origin
     }
 }
-#[derive(Debug)]
-#[expect(clippy::enum_variant_names, reason = "the GitHub own plans retain their shared names")]
-pub(crate) enum OwnPlan {
-    GitHubInstallations(skein_forge::github::plans::start::Installations),
-    GitHubMinting(skein_forge::github::plans::start::Minting),
-    GitHubIdentity(skein_forge::github::plans::start::Identity),
-    GitHubLogPage(Box<skein_forge::github::plans::start::LogPage>),
-    GitHubLogDelivery(Box<skein_forge::github::plans::start::LogDelivery>),
+pub(crate) mod own {
+    use alloc::boxed::Box;
+    #[derive(Debug)]
+    #[expect(clippy::enum_variant_names, reason = "the GitHub own plans retain their shared names")]
+    pub enum OwnPlan {
+        GitHubInstallations(skein_forge::github::plans::start::Installations),
+        GitHubMinting(skein_forge::github::plans::start::Minting),
+        GitHubIdentity(skein_forge::github::plans::start::Identity),
+        GitHubLogPage(Box<skein_forge::github::plans::start::LogPage>),
+        GitHubLogDelivery(Box<skein_forge::github::plans::start::LogDelivery>),
+    }
 }
+pub(crate) use own::OwnPlan;
 #[derive(Debug)]
 pub(crate) struct Waiting {
     pub repository: api::Repository,

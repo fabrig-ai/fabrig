@@ -7,11 +7,10 @@ use jig_domain_people as people;
 use jig_ops_domain as root;
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
-use jig_ops_world::direct::Driver;
+use jig_ops_world::{PROJECT, direct::Driver};
 use skein_lib::{ReplyTo, Token};
 
 const SEED: u64 = 9205;
-const PROJECT: u32 = 1;
 const FIRST: Token = Token::new(960);
 const SECOND: Token = Token::new(961);
 const TURN: u32 = 1;

@@ -88,7 +88,7 @@ fn declaring_a_program_login_shows_its_command_on_ready() {
 }
 #[test]
 fn a_creation_key_is_absent_from_the_small_store() {
-    use jig_client_world::harness::Until;
+    use jig_client_kit::harness::Until;
     use skein_fake_person::{Find, Step};
     let mut world = fixtures::model_world(fixtures::SEED);
     let person = world.client(fixtures::PARTY, Address::ConnectModel { way: None });

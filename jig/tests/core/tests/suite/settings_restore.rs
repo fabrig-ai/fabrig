@@ -1,6 +1,7 @@
 //! Restoring a version through the real store (jig/docs/design/domain/engine.md, 17.5, 17.7, 17.10;
 //! jig/docs/design/domain/connectors.md, 17; jig/docs/design/domain/people.md, 5.1 and 5.2).
 use crate::settings_support::*;
+use jig_core_world::fixtures::PROJECT;
 use jig_core_world::{
     client_peer::ClientPeer,
     world::{Boot, Setup, World},
@@ -12,7 +13,6 @@ use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
 const HISTORY: u32 = 64;
-const PROJECT: u32 = 1;
 const SECOND: u32 = 2;
 const APP: settings::Setting = settings::Setting::Application { kind: 1, scope: PROJECT, number: 1 };
 const REASON: &[u8] = b"Return to the reviewed settings";

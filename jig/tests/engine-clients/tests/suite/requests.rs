@@ -152,7 +152,7 @@ fn keyed(key: [u8; 16], ask: &w::Ask) -> Box<[u8]> {
     keyed.encode(&mut out).expect("keyed bytes");
     out.finish()
 }
-fn route_real_core(peer: &mut Peer, world: &mut jig_core_world::world::World) -> Vec<[u8; 16]> {
+fn route_real_core(peer: &mut Peer, world: &mut jig_core_kit::world::World) -> Vec<[u8; 16]> {
     let mut keys = Vec::new();
     while let Some(event) = peer.take_core() {
         let core::Event::People(people::Event::Ask { models, reply_to, sign_in, key, ask }) = event else {
@@ -185,17 +185,17 @@ fn final_answer(peer: &Peer, socket: skein_lib::Token) -> w::Final {
     w::Final::decode(&limits, &mut skein_lib::Reader::new(answer.record())).expect("owner answer")
 }
 /// A member signed in through the peer, its asks routed to the real core.
-fn member_setup(seed: u64) -> (Peer, jig_core_world::world::World, Box<[u8]>) {
-    let world = jig_core_world::stories::offers::world(seed, Some(people::Role::Member));
+fn member_setup(seed: u64) -> (Peer, jig_core_kit::world::World, Box<[u8]>) {
+    let world = jig_core_kit::stories::offers::world(seed, Some(people::Role::Member));
     let mut peer = Peer::started(&real_core_settings());
     let bearer = bearer(&mut peer, world.sign_in.expect("member"), 1);
     (peer, world, bearer)
 }
 /// A member signed in through the peer, with task 2 created in project 1.
-fn amendment_setup(seed: u64) -> (Peer, jig_core_world::world::World, Box<[u8]>) {
+fn amendment_setup(seed: u64) -> (Peer, jig_core_kit::world::World, Box<[u8]>) {
     let (peer, mut world, bearer) = member_setup(seed);
     let sign_in = world.sign_in.expect("member");
-    jig_core_world::fixtures::ask_as(
+    jig_core_kit::fixtures::ask_as(
         &mut world,
         sign_in,
         CREATE_TASK,
@@ -229,7 +229,7 @@ fn real_core_settings() -> jig_protocol_engine_clients::Settings {
 #[test]
 fn a_v9_propose_beyond_the_role_is_answered_proposed() {
     let (mut peer, mut world, bearer) = amendment_setup(349);
-    let revision = jig_core_world::fixtures::live_row(&world, 2).revisions.spec;
+    let revision = jig_core_kit::fixtures::live_row(&world, 2).revisions.spec;
     let socket = peer.post(b"/jig/v1/request", propose_request(revision, 150), Some(&bearer));
     assert_eq!(
         route_real_core(&mut peer, &mut world),
@@ -242,12 +242,12 @@ fn a_v9_propose_beyond_the_role_is_answered_proposed() {
     let w::DocumentOutcome::Proposed(row) = owner.value() else { panic!("proposed") };
     assert_eq!(row.proposal(), 1);
     assert_eq!(row.to(), 0);
-    assert_eq!(jig_core_world::fixtures::live_row(&world, 2).numbers.budget, 20);
+    assert_eq!(jig_core_kit::fixtures::live_row(&world, 2).numbers.budget, 20);
 }
 #[test]
 fn a_v9_propose_sent_again_replays_the_same_proposal() {
     let (mut peer, mut world, bearer) = amendment_setup(350);
-    let revision = jig_core_world::fixtures::live_row(&world, 2).revisions.spec;
+    let revision = jig_core_kit::fixtures::live_row(&world, 2).revisions.spec;
     let body = propose_request(revision, 150);
     let first = peer.post(b"/jig/v1/request", body.clone(), Some(&bearer));
     assert_eq!(
@@ -269,13 +269,13 @@ fn a_v9_propose_sent_again_replays_the_same_proposal() {
 #[test]
 fn a_v9_amend_beyond_the_ceiling_stays_refused() {
     let (mut peer, mut world, bearer) = amendment_setup(351);
-    let revision = jig_core_world::fixtures::live_row(&world, 2).revisions.spec;
+    let revision = jig_core_kit::fixtures::live_row(&world, 2).revisions.spec;
     let socket = peer.post(b"/jig/v1/request", amend_request(revision, 2000), Some(&bearer));
     assert_eq!(route_real_core(&mut peer, &mut world), [[61; 16]]);
     let w::Final::Refused(refused) = final_answer(&peer, socket) else { panic!("refused") };
     let w::Refusal::Authority(row) = refused.refusal() else { panic!("authority refusal: {:?}", refused.refusal()) };
     assert_eq!(row.proposable(), &Some(false));
-    assert_eq!(jig_core_world::fixtures::live_row(&world, 2).proposal, None);
+    assert_eq!(jig_core_kit::fixtures::live_row(&world, 2).proposal, None);
 }
 
 fn propose_request(revision: u64, spend: u64) -> Box<[u8]> {

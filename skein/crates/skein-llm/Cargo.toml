@@ -16,7 +16,7 @@ skein-json.workspace = true
 skein-fake-llm-protocol.workspace = true
 skein-scratch.workspace = true
 # Draw existing generic JSON spelling controls; production has no world dependency.
-skein-json-world = { path = "../../tests/json" }
+skein-json-kit.workspace = true
 
 [lints]
 workspace = true

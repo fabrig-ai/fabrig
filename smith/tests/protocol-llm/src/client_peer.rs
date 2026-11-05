@@ -6,7 +6,7 @@
 use crate::codec::{self as codec, Context, Limits, Receiving};
 use skein_lib::Token;
 use skein_llm::client;
-use skein_llm_world::fake::Exchange;
+use skein_llm_kit::fake::Exchange;
 use smith_domain::{Event, llm};
 
 pub use smith_protocol_llm::fixture::schemas;

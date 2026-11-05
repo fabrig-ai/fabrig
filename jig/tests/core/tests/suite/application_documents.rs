@@ -1,5 +1,6 @@
 //! Connector values through the real root and independently observed store.
 
+use jig_core_world::fixtures::PROJECT;
 use jig_core_world::reads;
 use jig_core_world::watches;
 use jig_core_world::world::Cut;
@@ -11,7 +12,6 @@ use jig_test_connector::{self as connector, ClientDocument, ClientSubject};
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
-const PROJECT: u32 = 1;
 const CONNECTOR: u16 = 1;
 const OBJECT: u64 = 1;
 const OWN_REQUEST: u64 = 40001;
@@ -29,11 +29,11 @@ fn world(seed: u64) -> World {
         number: 1,
         event: connector::Event::Adopt {
             project: 1,
-            resource: jig_test_connector_world::path(1, 1),
+            resource: jig_test_connector_kit::path(1, 1),
             role: connector::ResourceRole::Owned,
         },
     });
-    let path = jig_test_connector_world::path(1, 1);
+    let path = jig_test_connector_kit::path(1, 1);
     world.systems[0].other_hand(&path, 0);
     let present = world.systems[0].answer(
         connector::SystemRequest::ReadFact { resource: path, observed: skein_lib::Wall::from_nanos(1) },
@@ -111,7 +111,7 @@ fn a_watched_connector_subject_is_delivered_whole_after_each_change() {
 fn a_panel_read_waits_for_the_commit_it_reflects() {
     let mut world = world(882);
     let task = world.assigned.as_ref().expect("story fixture supplies this value").task;
-    let path = jig_test_connector_world::path(1, 2);
+    let path = jig_test_connector_kit::path(1, 2);
     world.send(root::Event::Connector {
         number: 1,
         event: connector::Event::Adopt { project: 1, resource: path.clone(), role: connector::ResourceRole::Owned },
@@ -165,7 +165,7 @@ fn a_connector_subject_ends_when_its_object_does() {
         ClientSubject::Object { project: 1, object: 1 },
     );
     world.send(root::Event::Core(core::Event::Delivered { watcher: Token::new(51) }));
-    let path = jig_test_connector_world::path(1, 1);
+    let path = jig_test_connector_kit::path(1, 1);
     world.systems[0].remove(&path);
     let gone = world.systems[0].answer(
         connector::SystemRequest::ReadFact { resource: path.clone(), observed: skein_lib::Wall::from_nanos(100) },
@@ -240,7 +240,7 @@ fn a_deployment_scope_watch_without_a_deployment_role_is_refused() {
 #[test]
 fn an_application_read_carries_its_window_to_the_connector() {
     let mut world = world(886);
-    let path = jig_test_connector_world::path(1, 2);
+    let path = jig_test_connector_kit::path(1, 2);
     world.send(root::Event::Connector {
         number: 1,
         event: connector::Event::Adopt { project: 1, resource: path.clone(), role: connector::ResourceRole::Owned },

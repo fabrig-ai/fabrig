@@ -28,14 +28,15 @@ pub const FAMILIES: [Family; 6] =
 fn drain(world: &mut World) {
     world.drain().unwrap_or_else(|error| panic!("deletion story: {error:?}"));
 }
+const PARTY_REPLY_BASE: u64 = 9000;
+
 fn ask(world: &mut World, key: u8, ask: people::Ask) {
-    world.send(root::Event::Core(core::Event::People(people::Event::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(9000 + u64::from(key))),
-        sign_in: world.peers.peers.parties[0].sign_in.expect("owner signed in"),
-        key: [key; 16],
+    world.send(jig_core_kit::fixtures::party_ask(
+        PARTY_REPLY_BASE,
+        world.peers.peers.parties[0].sign_in.expect("owner signed in"),
+        key,
         ask,
-    })));
+    ));
     drain(world);
 }
 fn act(world: &mut World, key: u8, act: people::Act) {
@@ -80,7 +81,7 @@ fn adoption(world: &mut World) {
         number: 1,
         event: connector::Event::Adopt {
             project: 1,
-            resource: jig_test_connector_world::path(1, 1),
+            resource: jig_test_connector_kit::path(1, 1),
             role: connector::ResourceRole::Participating,
         },
     });
@@ -98,7 +99,7 @@ fn proposal_rows(world: &mut World) {
         to: ReplyTo::new(Token::new(9802)),
         key: core::CallKey { task, attempt, completion: 1, position: 0 },
         number: 1,
-        effect: jig_core_world::world::World::effect(),
+        effect: jig_core_kit::world::World::effect(),
         deadline: skein_lib::Wall::from_nanos(world.clock().now + 1_000_000_000),
         proposal: Some(b"ask the owner".as_slice().into()),
     });
@@ -254,7 +255,7 @@ fn task_rows(world: &mut World) {
     world.send(root::Event::Connector {
         number: 1,
         event: connector::Event::System(connector::SystemEvent::Pool {
-            path: jig_test_connector_world::path(1, 2),
+            path: jig_test_connector_kit::path(1, 2),
             slots: 2,
             lost: Box::new([]),
         }),
@@ -371,7 +372,7 @@ pub fn remove(world: &mut World) {
         world.peers.start_phases
     );
     for (key, record) in &world.store.rows {
-        if let Some(name) = jig_core_world::conformance::naming::naming(key, record) {
+        if let Some(name) = jig_core_kit::conformance::naming::naming(key, record) {
             assert!(
                 (name.project != Some(1) && !name.task.is_some_and(|task| tasks.contains(&task)))
                     || name.outlives.is_some(),

@@ -42,7 +42,7 @@ skein-fake-peers.workspace = true
 smith-local-process-world.workspace = true
 skein-sim.workspace = true
 skein-fake-machine.workspace = true
-skein-tls-world.workspace = true
+skein-tls-kit.workspace = true
 smith-agent-process-world.workspace = true
 
 [lints.rust]

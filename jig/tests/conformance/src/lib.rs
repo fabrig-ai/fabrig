@@ -3,9 +3,9 @@
 #![forbid(unsafe_code)]
 use jig_conformance::scenarios::Scenario;
 use jig_conformance::{Application, Clock, Input, Output};
-use jig_core_world::Store;
-use jig_core_world::conformance::Observer;
-use jig_core_world::peers::Peers;
+use jig_core_kit::Store;
+use jig_core_kit::conformance::Observer;
+use jig_core_kit::peers::Peers;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
@@ -67,7 +67,7 @@ impl Config {
     }
 
     fn root(self) -> (root::Config, root::Limits) {
-        let (mut config, mut limits) = jig_core_world::peers::fixture(self.seed, u32::from(self.engine));
+        let (mut config, mut limits) = jig_core_kit::peers::fixture(self.seed, u32::from(self.engine));
         config.core.worker_names =
             (0..self.workers).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
         if self.scenario == Some(Scenario::Compound) {
@@ -161,7 +161,7 @@ impl Config {
                 may: Box::new([people::ActKind::RemoveProject, people::ActKind::Adopt]),
             }]);
         }
-        jig_core_world::peers::journal(&mut limits);
+        jig_core_kit::peers::journal(&mut limits);
         (config, limits)
     }
 }
@@ -246,7 +246,7 @@ impl Neighbours {
                     if let Some(attempt) = row.attempt {
                         receipts.insert(Receipt::Outbox(
                             *number,
-                            jig_core_world::conformance::effect_key(row.key),
+                            jig_core_kit::conformance::effect_key(row.key),
                             attempt.number,
                         ));
                     }
@@ -311,7 +311,7 @@ impl Application for Testing {
     fn systems(config: &Config, _: u64) -> [System; 2] {
         let mut systems = [System::new(), System::new()];
         if matches!(config.scenario, Some(Scenario::ChangedJudge | Scenario::NarrowingPolicy)) {
-            systems[1].other_hand(&jig_test_connector_world::path(1, 1), 13);
+            systems[1].other_hand(&jig_test_connector_kit::path(1, 1), 13);
         }
         systems
     }
@@ -649,7 +649,7 @@ impl Application for Testing {
             root::Delivery::Procedure { connector: number, code, context, .. } => {
                 vec![Input::Event(root::Event::Connector {
                     number,
-                    event: root::procedure_input(&context, code, jig_test_connector_world::path(1, 1)),
+                    event: root::procedure_input(&context, code, jig_test_connector_kit::path(1, 1)),
                 })]
             }
             root::Delivery::Core(core::Held::Sources { channel, sources }) => {

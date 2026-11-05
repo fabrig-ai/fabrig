@@ -67,9 +67,9 @@ wasm-bindgen.workspace = true
 temper-worker-checkout-world.workspace = true
 smith-domain-run.workspace = true
 smith-agent-world.workspace = true
-jig-channel-world.workspace = true
+jig-channel-kit.workspace = true
 smith-agent-process-world.workspace = true
-skein-llm-world.workspace = true
+skein-llm-kit.workspace = true
 
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

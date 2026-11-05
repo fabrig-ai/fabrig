@@ -1,9 +1,9 @@
 //! Conformance over decoded client/agent bytes and independently read durable rows.
 pub(super) mod agent;
 use crate::world::Proc;
-use jig_channel_world::world::store::Store;
+use jig_channel_kit::world::store::Store;
 use jig_client_domain::contract as client;
-use jig_client_protocol_world::native::Received;
+use jig_client_protocol_kit::native::Received;
 use jig_conformance::referee as rules;
 use jig_domain_core as core;
 use jig_test_domain as root;
@@ -147,7 +147,7 @@ impl Referee {
                         jig_client::contract::AskAccountHolder::Deployment,
                         1,
                         None,
-                        skein_lib::Secret::new(jig_channel_world::fixtures::TOKEN.into()),
+                        skein_lib::Secret::new(jig_channel_kit::fixtures::TOKEN.into()),
                     ));
                 }
                 if !self.ready.contains(&index)
@@ -200,7 +200,7 @@ impl Referee {
             let mut reply = Vec::new();
             for row in store.rows.values() {
                 if let root::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) = row {
-                    let config = jig_channel_world::fixtures::agent_configuration();
+                    let config = jig_channel_kit::fixtures::agent_configuration();
                     let decoded = smith_protocol_channel::decode_turn(
                         &turn.transcript,
                         turn.turn,

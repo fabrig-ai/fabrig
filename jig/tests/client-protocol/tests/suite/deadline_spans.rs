@@ -1,10 +1,12 @@
 use jig_client::{Answered, Ask, Asker, Key, Outcome, contract as c, shapes};
-use jig_client_protocol_world::{client::Story, fixtures};
+use jig_client_protocol_world::{
+    client::Story,
+    fixtures::{self, PROJECT},
+};
 use skein_lib::{Duration, RequestKey, Time, Wall};
 // Five seconds exceeds the finite first bound while remaining inside the policy ceiling.
 const SPAN: Duration = Duration::from_secs(5);
 const WAIT: Duration = Duration::from_secs(1);
-const PROJECT: u32 = 1;
 const FIRST_TASK: u64 = 1;
 // The owner fixture starts with no proposals; the first explicit batch is proposal one.
 const FIRST_PROPOSAL: u64 = 1;
@@ -42,7 +44,7 @@ fn chat_fixture() -> (Story, c::Me, c::Text) {
     let mut me = story.shapes_me();
     me.projects.get_mut(0).expect("project").templates.get_mut(0).expect("chat template").deadline =
         c::TemplateDeadline::Span(SPAN);
-    (story, me, jig_client_world::stories::text(b"Hello"))
+    (story, me, jig_client_kit::stories::text(b"Hello"))
 }
 #[test]
 fn a_shaped_chat_span_reaches_the_engine() {
@@ -59,7 +61,7 @@ fn goal_fixture() -> (Story, c::Ask, c::Text) {
     let project = me.projects.get_mut(0).expect("project");
     assert_eq!(project.creating.as_ref().expect("creating").within.latest, Some(first));
     project.templates.get_mut(1).expect("goal template").deadline = c::TemplateDeadline::Span(SPAN);
-    let words = jig_client_world::stories::text(b"goal");
+    let words = jig_client_kit::stories::text(b"goal");
     let draft = shapes::GoalDraft {
         words: words.clone(),
         executor: c::Executor::Agent { charter: 1 },
@@ -240,7 +242,7 @@ fn requester_template_authority_crosses_shapes_and_new_task_bytes() {
             .ended_by,
         c::EndedBy::Requester
     );
-    let ask = shapes::chat(&me, PROJECT, jig_client_world::stories::text(b"Hello")).expect("requester chat fixture");
+    let ask = shapes::chat(&me, PROJECT, jig_client_kit::stories::text(b"Hello")).expect("requester chat fixture");
     send(&mut story, CREATE, ask);
     assert_eq!(story.task_ended_by(FIRST_TASK).expect("requester chat fixture"), jig_domain_tasks::EndedBy::Requester);
     let mut finite = me;
@@ -253,8 +255,7 @@ fn requester_template_authority_crosses_shapes_and_new_task_bytes() {
         .expect("requester chat fixture")
         .flags
         .ended_by = c::EndedBy::Result;
-    let ask =
-        shapes::chat(&finite, PROJECT, jig_client_world::stories::text(b"Finite")).expect("requester chat fixture");
+    let ask = shapes::chat(&finite, PROJECT, jig_client_kit::stories::text(b"Finite")).expect("requester chat fixture");
     send(&mut story, REPLAY, ask);
     assert_eq!(story.task_ended_by(FIRST_TASK + 1).expect("requester chat fixture"), jig_domain_tasks::EndedBy::Result);
 }
@@ -264,7 +265,7 @@ fn requester_without_conversation_is_refused_as_malformed() {
     let mut story = Story::requester_chat(fixtures::SEED);
     let me = story.shapes_me();
     let c::Ask::Create { project, mut tasks } =
-        shapes::chat(&me, PROJECT, jig_client_world::stories::text(b"Hello")).expect("requester chat fixture")
+        shapes::chat(&me, PROJECT, jig_client_kit::stories::text(b"Hello")).expect("requester chat fixture")
     else {
         panic!("chat creation")
     };

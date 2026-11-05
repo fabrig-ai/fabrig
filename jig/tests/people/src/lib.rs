@@ -2,7 +2,7 @@
 //! The parent closes each decision, commits its records and task together,
 //! withholds replies until durability, and cold-restores from durable rows.
 //! Referee observations come from client replies and durable task creations.
-pub mod referee;
+pub use jig_people_kit::*;
 mod world;
 pub use world::{ENDINGS, LIMITS, Settings, Stats, World, identity};
 

@@ -4,6 +4,8 @@ use jig_domain_tasks::{
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
 
+const STOP_HOLD: u64 = 100;
+
 fn stop(w: &mut World, task: u64, by: u64, hold: u64) -> Reply {
     let reply_to = w.to();
     let call = reply_to.into_token().raw();
@@ -46,11 +48,11 @@ fn goal_tree(w: &mut World) {
     let mut goal = task(1, &[]);
     goal.tracked = Some(1);
     assert_eq!(w.make(Party::Person(1), vec![goal]), Reply::Made(vec![1]));
-    w.claim(1, 1);
+    w.claim_task(1);
     assert_eq!(w.make(Party::Task(1), vec![task(2, &[]), task(3, &[])]), Reply::Made(vec![2, 3]));
-    w.claim(2, 2);
+    w.claim_task(2);
     assert_eq!(w.make(Party::Task(2), vec![task(4, &[])]), Reply::Made(vec![4]));
-    w.claim(4, 4);
+    w.claim_task(4);
 }
 
 fn park(w: &mut World) {
@@ -214,7 +216,7 @@ fn a_lift_without_tasks_keeps_the_record_until_the_last_release() {
         },
     });
     assert!(w.record(2).proposal.is_some());
-    assert_eq!(lift(&mut w, 100, 1, false), Reply::Lifted { released: 0 });
+    assert_eq!(lift(&mut w, STOP_HOLD, 1, false), Reply::Lifted { released: 0 });
     assert!(w.placed_hold(100).expect("placed test setup").lifted);
     assert_eq!(w.placed_hold(100).expect("placed test setup").revision, 2);
     assert!(w.record(2).proposal.is_none());
@@ -235,7 +237,7 @@ fn a_lift_with_tasks_releases_those_nothing_else_holds() {
     let escalation = w.record(3).escalation.clone();
     stop(&mut w, 1, 1, 100);
     park(&mut w);
-    assert_eq!(lift(&mut w, 100, 1, true), Reply::Lifted { released: 3 });
+    assert_eq!(lift(&mut w, STOP_HOLD, 1, true), Reply::Lifted { released: 3 });
     for number in [1, 2, 4] {
         due(&w, number);
     }
@@ -267,9 +269,9 @@ fn a_lift_naming_an_old_revision_is_refused_as_moved() {
     let mut w = World::new(909, LIMITS);
     goal_tree(&mut w);
     stop(&mut w, 1, 1, 100);
-    assert_eq!(lift(&mut w, 100, 1, false), Reply::Lifted { released: 0 });
+    assert_eq!(lift(&mut w, STOP_HOLD, 1, false), Reply::Lifted { released: 0 });
     assert!(
-        matches!(lift(&mut w, 100, 1, false), Reply::Refused(problem) if problem.why == Refusal::HoldRevision { revision: 2 })
+        matches!(lift(&mut w, STOP_HOLD, 1, false), Reply::Refused(problem) if problem.why == Refusal::HoldRevision { revision: 2 })
     );
 }
 
@@ -310,7 +312,7 @@ fn placed_holds_survive_a_restart() {
     park(&mut w);
     release_from(&mut w, Party::Person(1), 2);
     let revision = w.placed_hold(100).expect("placed test setup").revision;
-    lift(&mut w, 100, revision, false);
+    lift(&mut w, STOP_HOLD, revision, false);
     let hold = w.placed_hold(100).expect("placed test setup").clone();
     let rows = (1..=4).map(|number| w.record(number).clone()).collect::<Vec<_>>();
     w.restart();

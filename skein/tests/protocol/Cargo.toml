@@ -19,7 +19,7 @@ skein-json.workspace = true
 skein-world.workspace = true
 # The writer's two passes over a token sequence, for the documents each end
 # writes.
-skein-json-world = { path = "../json" }
+skein-json-kit.workspace = true
 
 [dev-dependencies]
 skein-protocol-kit.workspace = true

@@ -4,35 +4,10 @@ use skein_forge::api;
 use skein_forge_client::{
     self as client, Entry, Event, Key, Limits, Outcome, RecoveryClock, Request, Resource, Stored, Watch,
 };
+use skein_forge_kit::client::LIMITS;
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
 mod recovery;
 pub const REPO: api::Repository = api::Repository { forge: 0, repository: 0 };
-pub const LIMITS: Limits = Limits {
-    pending: 4,
-    calls: 2,
-    rate: 100,
-    reserve: 20,
-    window: Duration::from_secs(10),
-    op_bytes: 256,
-    answer_bytes: 4096,
-    rows: 2,
-    inbox: 32,
-    read_attempts: 3,
-    backoff: Duration::from_secs(1),
-    backoff_max: Duration::from_secs(4),
-    entries: 4,
-    write_attempts: 5,
-    lifetime: Duration::from_secs(10),
-    clock_margin: Duration::from_secs(1),
-    resources: 3,
-    repositories: 1,
-    poll: Duration::from_secs(5),
-    poll_max: Duration::from_secs(30),
-    hinted: Duration::from_secs(1),
-    slow: Duration::from_secs(40),
-    settle: Duration::from_secs(30),
-    facts: 8,
-};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Settings {
     pub seed: u64,

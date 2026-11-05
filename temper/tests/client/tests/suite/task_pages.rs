@@ -1,5 +1,5 @@
 //! task pages against B2's real engine, including terminal watch/read order.
-use jig_client_world::harness::{ClientId, Until, World};
+use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step, Target};
 use skein_ui::Role;
 use temper_client_domain::Address;

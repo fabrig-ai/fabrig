@@ -39,7 +39,7 @@ fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal, ()> {
 }
 #[test]
 fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
-    let mut client = jig_client_world::test::limits().client;
+    let mut client = jig_client_kit::test::limits().client;
     client.domain.rows = 8;
     let limits = Limits::new(client.domain, client.exchanges).expect("client limits");
     let t = limits.wire();
@@ -140,7 +140,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
 fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     use jig_domain_core::{documents as d, reads, settings as s};
     use jig_protocol_engine_clients::translate::settings as engine;
-    let limits = Limits::new(jig_client_world::test::limits().client.domain, 4).expect("client limits");
+    let limits = Limits::new(jig_client_kit::test::limits().client.domain, 4).expect("client limits");
     let t = limits.wire();
     let head = s::Head {
         number: 6,
@@ -222,17 +222,17 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
 #[test]
 fn an_owner_moves_running_work_through_the_client_and_hears_both_counts() {
     use jig_client::{Asker, Client, Event, Key, Told};
-    use jig_client_world::{
+    use jig_client_kit::{
         harness::ClientId,
         joint::{engine::Driver, session::Session},
     };
     use skein_lib::{Time, Wall};
     let now = Time::from_nanos(17);
     let wall = Wall::from_nanos(1_000_000_000_000);
-    let (configuration, owner_limits) = jig_core_world::peers::fixture(8455, 0);
+    let (configuration, owner_limits) = jig_core_kit::peers::fixture(8455, 0);
     let driver =
-        Driver::new(configuration, owner_limits, jig_core_world::peers::Peers::new(Vec::new(), Vec::new()), now, wall);
-    let mut limits = jig_client_world::test::limits();
+        Driver::new(configuration, owner_limits, jig_core_kit::peers::Peers::new(Vec::new(), Vec::new()), now, wall);
+    let mut limits = jig_client_kit::test::limits();
     // The real deployment's frame uses the joint world's document bounds.
     limits.client.domain.turn_text = 4096;
     limits.client.domain.turn_bytes = 4096;
@@ -277,7 +277,7 @@ fn an_owner_moves_running_work_through_the_client_and_hears_both_counts() {
 }
 
 fn move_exchange(
-    session: &mut jig_client_world::joint::session::Session,
+    session: &mut jig_client_kit::joint::session::Session,
     client: &mut jig_client::Client,
     now: skein_lib::Time,
     wall: skein_lib::Wall,
@@ -298,7 +298,7 @@ fn move_exchange(
             } else {
                 session
                     .send(
-                        jig_client_world::harness::ClientId(0),
+                        jig_client_kit::harness::ClientId(0),
                         now,
                         wall,
                         jig_client_test_domain::Request::Unlinked { request },

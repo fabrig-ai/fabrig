@@ -39,18 +39,17 @@ fn ask(world: &mut World, key: u8, ask: people::Ask) {
 }
 
 pub(crate) fn party_ask(peers: &crate::Neighbours, key: u8, ask: people::Ask) -> root::Event {
-    root::Event::Core(core::Event::People(people::Event::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(PARTY_REPLY_BASE + u64::from(key))),
-        sign_in: peers.peers.parties[0].sign_in.expect("scripted sign-in"),
-        key: [key; 16],
+    jig_core_kit::fixtures::party_ask(
+        PARTY_REPLY_BASE,
+        peers.peers.parties[0].sign_in.expect("scripted sign-in"),
+        key,
         ask,
-    }))
+    )
 }
 
 fn effect(world: &mut World, completion: u32, proposal: bool) {
     let (task, attempt) = parent(world);
-    let mut effect = jig_core_world::world::World::effect();
+    let mut effect = jig_core_kit::world::World::effect();
     if world.peers.scenario == Some(Scenario::OtherHand) {
         effect.condition = Some(0);
     }
@@ -77,7 +76,7 @@ fn pool(world: &mut World, slots: u32) {
     world.send(root::Event::Connector {
         number: 1,
         event: connector::Event::System(connector::SystemEvent::Pool {
-            path: jig_test_connector_world::path(1, 2),
+            path: jig_test_connector_kit::path(1, 2),
             slots,
             lost: Box::new([]),
         }),
@@ -149,7 +148,7 @@ impl ScenarioApplication for Testing {
                 "late and retried copies did not make one effect",
             ),
             Scenario::OtherHand => check(
-                applied == 0 && world.systems[0].state(&jig_test_connector_world::path(1, 1)) == Some(13),
+                applied == 0 && world.systems[0].state(&jig_test_connector_kit::path(1, 1)) == Some(13),
                 "conditional retry overwrote another participant",
             ),
             Scenario::UncertainRestarts => {
@@ -320,7 +319,7 @@ impl Continuation {
                             number: 1,
                             event: connector::Event::Adopt {
                                 project: 1,
-                                resource: jig_test_connector_world::path(1, 2),
+                                resource: jig_test_connector_kit::path(1, 2),
                                 role: connector::ResourceRole::Owned,
                             },
                         });
@@ -622,15 +621,15 @@ fn atomic(world: &mut World, action: Action) -> Result<(), Violation> {
                 }
             }
         }
-        Action::OtherHand => world.systems[0].other_hand(&jig_test_connector_world::path(1, 1), 13),
+        Action::OtherHand => world.systems[0].other_hand(&jig_test_connector_kit::path(1, 1), 13),
         Action::HoldWrites => world.peers.hold_writes = true,
         Action::ReleaseWrites => release_writes(world),
         Action::CheckDeadline => check_deadline(world)?,
         Action::ChangeJudge => {
-            world.systems[1].other_hand(&jig_test_connector_world::path(1, 1), 14);
+            world.systems[1].other_hand(&jig_test_connector_kit::path(1, 1), 14);
             let event = world.systems[1].answer(
                 connector::SystemRequest::ReadFact {
-                    resource: jig_test_connector_world::path(1, 1),
+                    resource: jig_test_connector_kit::path(1, 1),
                     observed: Wall::from_nanos(world.clock().now),
                 },
                 jig_test_system::Fault::None,

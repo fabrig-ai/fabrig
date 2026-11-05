@@ -725,28 +725,34 @@ mod artifact;
 #[test]
 fn write_errors_keep_the_exchange_state() {
     let limits = fixtures::limits();
-    for (write, bodies, expected) in [
-        (open_pull(), &[REPOSITORY, BRANCH, BRANCH][..], Error::Unavailable),
-        (Write::Merge { number: 1, head: HEAD, how: api::MergeHow::Style }, &[REPOSITORY, b""][..], Error::Timeout),
+    // Write, bodies heard, what Timeout becomes, what Forbidden becomes.
+    for (write, bodies, expected, forbidden) in [
+        (open_pull(), &[][..], Error::Unavailable, Error::Forbidden),
+        (open_pull(), &[REPOSITORY][..], Error::Unavailable, Error::Forbidden),
+        (open_pull(), &[REPOSITORY, BRANCH][..], Error::Unavailable, Error::Forbidden),
+        (open_pull(), &[REPOSITORY, BRANCH, BRANCH][..], Error::Unavailable, Error::Forbidden),
+        (
+            Write::Merge { number: 1, head: HEAD, how: api::MergeHow::Style },
+            &[REPOSITORY, b""][..],
+            Error::Timeout,
+            Error::Timeout,
+        ),
     ] {
-        for count in (if expected == Error::Timeout { bodies.len() } else { 0 })..=bodies.len() {
-            let mut tables = Tables::new(ROWS, ROWS);
-            let mut plan = writes::Plan::new(REPO, write.clone());
-            let mut step = plan.begin(BOUNDS, fixtures::WORD, &mut tables).unwrap();
-            write_hear(&mut plan, &mut tables, Heard::Head { status: 200, fields: fixtures::fields() }).unwrap();
-            for body in &bodies[..count] {
-                let Step::Send(exchange) = step else { panic!("exchange expected") };
-                let body = match crate::forgejo::client::decoder(&exchange.request, &limits) {
-                    Some(decoder) => Body::Document(fixtures::decode(decoder, body, &limits).document.unwrap()),
-                    None => Body::Empty,
-                };
-                step = write_hear(&mut plan, &mut tables, Heard::Done(body)).unwrap().unwrap();
-            }
-            assert_eq!(plan.error(Error::Timeout), expected, "{write:?} {count}");
-            let forbidden = if expected == Error::Timeout { Error::Timeout } else { Error::Forbidden };
-            assert_eq!(plan.error(Error::Forbidden), forbidden);
-            assert_eq!(write_hear(&mut plan, &mut tables, Heard::Done(Body::Empty)), Err(expected));
+        let mut tables = Tables::new(ROWS, ROWS);
+        let mut plan = writes::Plan::new(REPO, write.clone());
+        let mut step = plan.begin(BOUNDS, fixtures::WORD, &mut tables).unwrap();
+        write_hear(&mut plan, &mut tables, Heard::Head { status: 200, fields: fixtures::fields() }).unwrap();
+        for body in bodies {
+            let Step::Send(exchange) = step else { panic!("exchange expected") };
+            let body = match crate::forgejo::client::decoder(&exchange.request, &limits) {
+                Some(decoder) => Body::Document(fixtures::decode(decoder, body, &limits).document.unwrap()),
+                None => Body::Empty,
+            };
+            step = write_hear(&mut plan, &mut tables, Heard::Done(body)).unwrap().unwrap();
         }
+        assert_eq!(plan.error(Error::Timeout), expected, "{write:?} {}", bodies.len());
+        assert_eq!(plan.error(Error::Forbidden), forbidden);
+        assert_eq!(write_hear(&mut plan, &mut tables, Heard::Done(Body::Empty)), Err(expected));
     }
 }
 #[test]

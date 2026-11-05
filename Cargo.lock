@@ -148,6 +148,7 @@ version = "0.0.0"
 dependencies = [
  "serde_json",
  "skein-scratch",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -776,11 +777,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "jig-channel-world"
+name = "jig-channel-kit"
 version = "0.0.0"
 dependencies = [
  "jig-client",
- "jig-client-protocol-world",
+ "jig-client-protocol-kit",
  "jig-client-test-records",
  "jig-domain-accounts",
  "jig-domain-core",
@@ -809,7 +810,7 @@ dependencies = [
  "skein-kv",
  "skein-lib",
  "skein-llm",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-shell",
  "skein-sim",
  "skein-world",
@@ -823,6 +824,27 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-program",
+ "smith-transcript",
+]
+
+[[package]]
+name = "jig-channel-world"
+version = "0.0.0"
+dependencies = [
+ "jig-channel-kit",
+ "jig-domain-accounts",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-host",
+ "jig-domain-tasks",
+ "jig-protocol-worker-wire",
+ "serde_json",
+ "skein-lib",
+ "skein-sim",
+ "skein-world",
+ "smith-agent-process-world",
+ "smith-domain",
+ "smith-fake-claude",
  "smith-transcript",
 ]
 
@@ -878,6 +900,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-client-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-domain",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-scripted-engine",
+ "jig-client-test-domain",
+ "jig-client-test-kit",
+ "jig-client-test-protocol-wire",
+ "jig-client-test-view",
+ "jig-client-view",
+ "jig-core-kit",
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-domain-views",
+ "jig-fake-parties",
+ "jig-fake-workers",
+ "jig-protocol-config",
+ "jig-protocol-engine-clients",
+ "jig-protocol-transcript",
+ "jig-test-connector",
+ "jig-test-domain",
+ "jig-test-profile",
+ "sha2",
+ "skein-fake-person",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-text",
+ "skein-world",
+ "smith-transcript",
+]
+
+[[package]]
 name = "jig-client-protocol-http"
 version = "0.0.0"
 dependencies = [
@@ -885,6 +947,49 @@ dependencies = [
  "jig-client-protocol-wire",
  "skein-http",
  "skein-lib",
+]
+
+[[package]]
+name = "jig-client-protocol-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-domain",
+ "jig-client-kit",
+ "jig-client-protocol-http",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-shell-native",
+ "jig-client-test-domain",
+ "jig-client-test-protocol-wire",
+ "jig-client-test-view",
+ "jig-client-view",
+ "jig-core-kit",
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-fake-parties",
+ "jig-fake-workers",
+ "jig-protocol-config",
+ "jig-protocol-engine-clients",
+ "jig-protocol-engine-clients-http",
+ "jig-test-connector",
+ "jig-test-domain",
+ "jig-test-profile",
+ "jig-test-service",
+ "skein-fake-machine",
+ "skein-fake-person",
+ "skein-http",
+ "skein-io",
+ "skein-lib",
+ "skein-shell",
+ "skein-sim",
+ "skein-ui",
+ "skein-ui-text",
+ "skein-world",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -915,31 +1020,21 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-domain",
+ "jig-client-kit",
  "jig-client-protocol-http",
+ "jig-client-protocol-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
- "jig-client-shell-native",
  "jig-client-test-domain",
- "jig-client-test-protocol-wire",
- "jig-client-test-view",
  "jig-client-view",
- "jig-client-world",
- "jig-core-world",
- "jig-domain-accounts",
- "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-people",
  "jig-domain-tasks",
- "jig-domain-views",
- "jig-engine-clients-world",
- "jig-fake-parties",
- "jig-fake-workers",
- "jig-protocol-config",
+ "jig-engine-clients-kit",
  "jig-protocol-engine-clients",
  "jig-protocol-engine-clients-http",
  "jig-test-connector",
  "jig-test-domain",
- "jig-test-profile",
  "jig-test-service",
  "skein-fake-machine",
  "skein-fake-person",
@@ -949,9 +1044,7 @@ dependencies = [
  "skein-shell",
  "skein-sim",
  "skein-ui",
- "skein-ui-text",
  "skein-world",
- "smith-transcript",
 ]
 
 [[package]]
@@ -1115,6 +1208,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-domain",
+ "jig-client-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-scripted-engine",
@@ -1122,26 +1216,10 @@ dependencies = [
  "jig-client-test-kit",
  "jig-client-test-protocol-wire",
  "jig-client-test-records",
- "jig-client-test-view",
  "jig-client-view",
- "jig-core-world",
- "jig-domain-accounts",
- "jig-domain-authority",
- "jig-domain-core",
- "jig-domain-fleet",
- "jig-domain-notes",
  "jig-domain-people",
- "jig-domain-tasks",
- "jig-domain-views",
- "jig-fake-parties",
- "jig-fake-workers",
- "jig-protocol-config",
- "jig-protocol-engine-clients",
  "jig-protocol-transcript",
- "jig-test-connector",
- "jig-test-domain",
  "jig-test-profile",
- "sha2",
  "skein-fake-person",
  "skein-lib",
  "skein-scratch",
@@ -1172,14 +1250,14 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-domain",
+ "jig-client-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-scripted-engine",
  "jig-client-test-domain",
  "jig-client-test-records",
- "jig-client-world",
  "jig-conformance",
- "jig-core-world",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
@@ -1187,13 +1265,13 @@ dependencies = [
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
- "jig-engine-clients-world",
+ "jig-engine-clients-kit",
  "jig-fake-parties",
  "jig-fake-workers",
  "jig-protocol-engine-clients",
  "jig-protocol-transcript",
  "jig-test-connector",
- "jig-test-connector-world",
+ "jig-test-connector-kit",
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store",
@@ -1204,12 +1282,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-core-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-client-test-records",
+ "jig-conformance",
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-host",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-domain-views",
+ "jig-fake-parties",
+ "jig-fake-workers",
+ "jig-protocol-charter",
+ "jig-protocol-store",
+ "jig-protocol-tools",
+ "jig-test-connector",
+ "jig-test-connector-kit",
+ "jig-test-domain",
+ "jig-test-profile",
+ "jig-test-store",
+ "jig-test-store-files",
+ "jig-test-system",
+ "skein-lib",
+ "skein-world",
+ "smith-channel",
+]
+
+[[package]]
 name = "jig-core-world"
 version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
  "jig-client-test-records",
  "jig-conformance",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
@@ -1223,13 +1334,12 @@ dependencies = [
  "jig-fake-parties",
  "jig-fake-store",
  "jig-fake-workers",
- "jig-protocol-charter",
  "jig-protocol-config",
  "jig-protocol-engine-clients",
  "jig-protocol-store",
  "jig-protocol-tools",
  "jig-test-connector",
- "jig-test-connector-world",
+ "jig-test-connector-kit",
  "jig-test-domain",
  "jig-test-patches-smith",
  "jig-test-profile",
@@ -1347,15 +1457,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "jig-engine-clients-world"
+name = "jig-engine-clients-kit"
 version = "0.0.0"
 dependencies = [
- "jig-client",
- "jig-client-protocol-link",
  "jig-client-protocol-wire",
- "jig-client-test-records",
- "jig-client-world",
- "jig-core-world",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
@@ -1366,12 +1471,35 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-engine-clients",
  "jig-protocol-engine-clients-http",
+ "jig-test-service",
+ "skein-http",
+ "skein-io",
+ "skein-lib",
+ "skein-world",
+]
+
+[[package]]
+name = "jig-engine-clients-world"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-kit",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-test-records",
+ "jig-core-kit",
+ "jig-domain-core",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-engine-clients-kit",
+ "jig-protocol-config",
+ "jig-protocol-engine-clients",
+ "jig-protocol-engine-clients-http",
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-service",
  "serde_json",
  "skein-http",
- "skein-io",
  "skein-lib",
  "skein-oauth-issuer",
  "skein-scratch",
@@ -1447,10 +1575,10 @@ dependencies = [
 name = "jig-one-process-world"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-client",
  "jig-client-domain",
- "jig-client-protocol-world",
+ "jig-client-protocol-kit",
  "jig-client-shell-native",
  "jig-conformance",
  "jig-domain-accounts",
@@ -1460,7 +1588,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-fake-parties",
- "jig-protocol-accounts-world",
+ "jig-protocol-accounts-kit",
  "jig-protocol-config",
  "jig-protocol-store",
  "jig-protocol-worker-wire",
@@ -1481,7 +1609,6 @@ dependencies = [
  "skein-kv",
  "skein-lib",
  "skein-llm",
- "skein-llm-world",
  "skein-oauth-accounts",
  "skein-shell",
  "skein-sim",
@@ -1599,16 +1726,16 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-domain",
+ "jig-client-kit",
+ "jig-client-protocol-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
- "jig-client-protocol-world",
  "jig-client-scripted-engine",
  "jig-client-shell-native",
  "jig-client-test-domain",
  "jig-client-view",
- "jig-client-world",
  "jig-conformance",
- "jig-core-world",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
@@ -1651,10 +1778,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-people-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-people",
+ "skein-lib",
+ "skein-world",
+]
+
+[[package]]
 name = "jig-people-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-people",
+ "jig-people-kit",
  "sha2",
  "skein-lib",
  "skein-world",
@@ -1678,7 +1815,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "jig-protocol-accounts-world"
+name = "jig-protocol-accounts-kit"
 version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
@@ -1686,11 +1823,32 @@ dependencies = [
  "jig-protocol-accounts",
  "jig-protocol-config",
  "jig-protocol-store",
- "skein-codegen",
  "skein-fake-oauth",
  "skein-fake-peers",
- "skein-heap",
  "skein-http",
+ "skein-io",
+ "skein-kv",
+ "skein-lib",
+ "skein-oauth",
+ "skein-oauth-accounts",
+ "skein-sim",
+ "skein-tls",
+ "skein-world",
+]
+
+[[package]]
+name = "jig-protocol-accounts-world"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-accounts",
+ "jig-domain-core",
+ "jig-protocol-accounts",
+ "jig-protocol-accounts-kit",
+ "jig-protocol-config",
+ "jig-protocol-store",
+ "skein-codegen",
+ "skein-fake-peers",
+ "skein-heap",
  "skein-io",
  "skein-kv",
  "skein-lib",
@@ -1698,7 +1856,6 @@ dependencies = [
  "skein-oauth-accounts",
  "skein-scratch",
  "skein-sim",
- "skein-tls",
  "skein-world",
 ]
 
@@ -1903,7 +2060,7 @@ dependencies = [
 name = "jig-store-world"
 version = "0.0.0"
 dependencies = [
- "jig-core-world",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
@@ -1929,7 +2086,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "jig-tasks-world"
+name = "jig-tasks-kit"
 version = "0.0.0"
 dependencies = [
  "jig-domain-tasks",
@@ -1938,19 +2095,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-tasks-world"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-tasks",
+ "jig-tasks-kit",
+ "skein-lib",
+ "skein-world",
+]
+
+[[package]]
 name = "jig-test"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-client",
+ "jig-client-protocol-kit",
  "jig-client-protocol-link",
- "jig-client-protocol-world",
  "jig-client-shell-native",
  "jig-client-test-records",
  "jig-domain-accounts",
  "jig-domain-core",
  "jig-domain-host",
- "jig-protocol-accounts-world",
+ "jig-protocol-accounts-kit",
  "jig-protocol-config",
  "jig-protocol-store",
  "jig-test-domain",
@@ -1971,7 +2138,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-tls",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-world",
  "smith-agent-shell",
  "smith-host-protocol",
@@ -1987,10 +2154,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "jig-test-connector-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-test-connector",
+ "skein-lib",
+]
+
+[[package]]
 name = "jig-test-connector-world"
 version = "0.0.0"
 dependencies = [
  "jig-test-connector",
+ "jig-test-connector-kit",
  "jig-test-system",
  "sha2",
  "skein-heap",
@@ -2017,7 +2193,7 @@ dependencies = [
  "jig-protocol-store",
  "jig-protocol-tools",
  "jig-test-connector",
- "jig-test-connector-world",
+ "jig-test-connector-kit",
  "skein-lib",
 ]
 
@@ -2082,7 +2258,6 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-accounts",
- "jig-protocol-accounts-world",
  "jig-protocol-charter",
  "jig-protocol-config",
  "jig-protocol-engine-clients",
@@ -2127,7 +2302,7 @@ dependencies = [
  "jig-protocol-store",
  "jig-protocol-transcript",
  "jig-test-connector",
- "jig-test-connector-world",
+ "jig-test-connector-kit",
  "jig-test-domain",
  "skein-codec",
  "skein-kv",
@@ -2145,7 +2320,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-protocol-store",
  "jig-test-connector",
- "jig-test-connector-world",
+ "jig-test-connector-kit",
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store",
@@ -2720,7 +2895,6 @@ version = "0.0.0"
 dependencies = [
  "skein-echo-client",
  "skein-echo-service",
- "skein-echo-world",
  "skein-fail-stop",
  "skein-io",
  "skein-lib",
@@ -2789,6 +2963,7 @@ dependencies = [
  "skein-fake-forge-domain",
  "skein-fake-forge-http",
  "skein-forge",
+ "skein-heap",
  "skein-http",
  "skein-json",
  "skein-lib",
@@ -2823,14 +2998,10 @@ name = "skein-fake-forge-tests"
 version = "0.0.0"
 dependencies = [
  "skein-fake-forge-domain",
- "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
- "skein-fake-forge-http",
  "skein-forge",
- "skein-http",
- "skein-json",
+ "skein-forge-kit",
  "skein-lib",
- "skein-tls",
  "skein-world",
 ]
 
@@ -2907,13 +3078,14 @@ dependencies = [
  "skein-fake-peers",
  "skein-forge",
  "skein-forge-connection",
+ "skein-forge-kit",
  "skein-heap",
  "skein-http",
  "skein-io",
  "skein-json",
  "skein-lib",
  "skein-llm",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-oauth",
  "skein-shell",
  "skein-sim",
@@ -2969,6 +3141,7 @@ dependencies = [
  "skein-fake-forge-domain",
  "skein-forge",
  "skein-forge-client",
+ "skein-forge-kit",
  "skein-lib",
  "skein-world",
 ]
@@ -2985,7 +3158,6 @@ dependencies = [
 name = "skein-forge-connection"
 version = "0.0.0"
 dependencies = [
- "skein-fake-forge-domain",
  "skein-fake-forge-github",
  "skein-forge",
  "skein-heap",
@@ -3009,6 +3181,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-forge-kit"
+version = "0.0.0"
+dependencies = [
+ "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
+ "skein-fake-forge-github",
+ "skein-forge",
+ "skein-forge-client",
+ "skein-forge-connection",
+ "skein-http",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+ "skein-tls",
+ "skein-tls-kit",
+ "skein-world",
+]
+
+[[package]]
 name = "skein-forge-machine-world"
 version = "0.0.0"
 dependencies = [
@@ -3017,13 +3208,13 @@ dependencies = [
  "skein-fake-forge-github",
  "skein-forge",
  "skein-forge-connection",
+ "skein-forge-kit",
  "skein-heap",
- "skein-http",
  "skein-io",
  "skein-json",
  "skein-lib",
  "skein-tls",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-world",
 ]
 
@@ -3036,9 +3227,8 @@ dependencies = [
  "skein-fake-forge-github",
  "skein-forge",
  "skein-forge-client",
- "skein-forge-client-world",
  "skein-forge-connection",
- "skein-forge-machine-world",
+ "skein-forge-kit",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -3067,13 +3257,13 @@ dependencies = [
  "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
  "skein-forge",
- "skein-forge-machine-world",
+ "skein-forge-kit",
  "skein-forge-setup",
  "skein-heap",
  "skein-io",
  "skein-json",
  "skein-lib",
- "skein-tls-world",
+ "skein-tls-kit",
 ]
 
 [[package]]
@@ -3095,13 +3285,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-http-kit"
+version = "0.0.0"
+dependencies = [
+ "skein-http",
+]
+
+[[package]]
 name = "skein-http-world"
 version = "0.0.0"
 dependencies = [
  "skein-heap",
  "skein-http",
+ "skein-http-kit",
  "skein-json",
- "skein-json-world",
+ "skein-json-kit",
  "skein-lib",
  "skein-protocol-kit",
  "skein-scratch",
@@ -3137,11 +3335,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-json-kit"
+version = "0.0.0"
+dependencies = [
+ "skein-json",
+ "skein-lib",
+]
+
+[[package]]
 name = "skein-json-world"
 version = "0.0.0"
 dependencies = [
  "skein-heap",
  "skein-json",
+ "skein-json-kit",
  "skein-lib",
  "skein-protocol-kit",
  "skein-scratch",
@@ -3199,7 +3406,7 @@ dependencies = [
  "skein-lib",
  "skein-link",
  "skein-tls",
- "skein-tls-world",
+ "skein-tls-kit",
 ]
 
 [[package]]
@@ -3209,7 +3416,7 @@ dependencies = [
  "skein-fake-llm-protocol",
  "skein-http",
  "skein-json",
- "skein-json-world",
+ "skein-json-kit",
  "skein-lib",
  "skein-scratch",
 ]
@@ -3238,11 +3445,23 @@ dependencies = [
  "skein-lib",
  "skein-llm",
  "skein-llm-connection",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-sim",
  "skein-tls",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-world",
+]
+
+[[package]]
+name = "skein-llm-kit"
+version = "0.0.0"
+dependencies = [
+ "skein-fake-llm-domain",
+ "skein-fake-llm-protocol",
+ "skein-http",
+ "skein-json",
+ "skein-lib",
+ "skein-llm",
 ]
 
 [[package]]
@@ -3254,10 +3473,11 @@ dependencies = [
  "skein-fake-llm-protocol",
  "skein-heap",
  "skein-http",
- "skein-http-world",
+ "skein-http-kit",
  "skein-json",
  "skein-lib",
  "skein-llm",
+ "skein-llm-kit",
  "skein-scratch",
 ]
 
@@ -3299,7 +3519,7 @@ dependencies = [
  "skein-shell",
  "skein-sim",
  "skein-tls",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-world",
 ]
 
@@ -3338,7 +3558,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-llm",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-oauth",
  "skein-sim",
  "skein-world",
@@ -3390,7 +3610,7 @@ version = "0.0.0"
 dependencies = [
  "skein-http",
  "skein-json",
- "skein-json-world",
+ "skein-json-kit",
  "skein-lib",
  "skein-protocol-kit",
  "skein-world",
@@ -3487,6 +3707,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-tls-kit"
+version = "0.0.0"
+dependencies = [
+ "rustls",
+ "skein-heap",
+ "skein-lib",
+ "skein-tls",
+]
+
+[[package]]
 name = "skein-tls-world"
 version = "0.0.0"
 dependencies = [
@@ -3499,12 +3729,13 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-llm",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-protocol-kit",
  "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-tls",
+ "skein-tls-kit",
  "skein-world",
 ]
 
@@ -3710,11 +3941,11 @@ dependencies = [
  "skein-lib",
  "skein-llm",
  "skein-llm-connection",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-scratch",
  "skein-shell",
  "skein-sim",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-world",
  "smith-agent-service",
  "smith-agent-shell",
@@ -3800,7 +4031,7 @@ dependencies = [
  "skein-fake-llm-domain",
  "skein-lib",
  "skein-llm",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-world",
  "smith-agent-service",
  "smith-domain",
@@ -4009,7 +4240,7 @@ dependencies = [
  "skein-lib",
  "skein-shell",
  "skein-sim",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-world",
  "smith-agent-process-world",
  "smith-agent-service",
@@ -4066,14 +4297,14 @@ dependencies = [
  "skein-lib",
  "skein-llm",
  "skein-llm-connection",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-oauth",
  "skein-oauth-accounts",
  "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-tls",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-world",
  "smith-agent-process-world",
  "smith-agent-service",
@@ -4131,7 +4362,7 @@ dependencies = [
  "skein-oauth-accounts",
  "skein-sim",
  "skein-tls",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-world",
  "smith-agent-process-world",
  "smith-agent-service",
@@ -4172,7 +4403,7 @@ dependencies = [
  "skein-shell",
  "skein-sim",
  "skein-tls",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-world",
  "smith-agent-process-world",
  "smith-agent-service",
@@ -4266,7 +4497,7 @@ dependencies = [
  "skein-lib",
  "skein-llm",
  "skein-llm-connection",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-tls",
  "smith-domain",
  "smith-domain-tools",
@@ -4286,9 +4517,9 @@ dependencies = [
  "skein-lib",
  "skein-llm",
  "skein-llm-connection",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-tls",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-world",
  "smith-agent-service",
  "smith-agent-world",
@@ -4325,7 +4556,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-llm-connection",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-tls",
  "smith-domain",
  "smith-events",
@@ -4356,7 +4587,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-shell",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-world",
  "smith-agent-process-world",
  "smith-local-domain",
@@ -4389,7 +4620,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-llm",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-world",
  "smith-domain",
  "smith-domain-session",
@@ -4462,7 +4693,7 @@ dependencies = [
 name = "temper"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-client",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
@@ -4494,14 +4725,13 @@ dependencies = [
  "skein-kv",
  "skein-lib",
  "skein-llm",
- "skein-llm-world",
  "skein-oauth",
  "skein-oauth-accounts",
  "skein-scratch",
  "skein-shell",
  "skein-throwaway-forgejo",
  "skein-tls",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-ui",
  "skein-world",
  "smith-agent-service",
@@ -4561,7 +4791,7 @@ dependencies = [
 name = "temper-client-browser-world"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-client",
  "jig-client-fake-person-browser",
  "jig-client-protocol-link",
@@ -4585,7 +4815,7 @@ dependencies = [
  "skein-playground",
  "skein-scratch",
  "skein-sim",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-ui",
  "skein-ui-bundle",
  "skein-ui-web",
@@ -4688,12 +4918,12 @@ name = "temper-client-shell-terminal"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-kit",
  "jig-client-protocol-http",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-shell-native",
  "jig-client-test-records",
- "jig-client-world",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -4780,12 +5010,12 @@ version = "0.0.0"
 dependencies = [
  "jig-boundary",
  "jig-client",
+ "jig-client-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-test-domain",
  "jig-client-test-kit",
- "jig-client-world",
- "jig-core-world",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
@@ -4969,9 +5199,9 @@ name = "temper-engine-domain-world"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
- "jig-client-world",
  "jig-conformance",
  "jig-domain-accounts",
  "jig-domain-authority",
@@ -4983,12 +5213,12 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
- "jig-engine-clients-world",
- "jig-people-world",
+ "jig-engine-clients-kit",
+ "jig-people-kit",
  "jig-protocol-config",
  "jig-protocol-engine-clients",
  "jig-protocol-store",
- "jig-tasks-world",
+ "jig-tasks-kit",
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store-files",
@@ -5050,7 +5280,7 @@ dependencies = [
  "skein-forge",
  "skein-forge-client",
  "skein-forge-connection",
- "skein-forge-machine-world",
+ "skein-forge-kit",
  "skein-io",
  "skein-lib",
  "skein-tls",
@@ -5207,7 +5437,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-tls",
- "skein-tls-world",
+ "skein-tls-kit",
  "skein-world",
  "temper-forge-setup",
 ]
@@ -5253,7 +5483,7 @@ dependencies = [
 name = "temper-one-process-world"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-client",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
@@ -5308,7 +5538,7 @@ dependencies = [
 name = "temper-playground"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
@@ -5333,7 +5563,7 @@ dependencies = [
  "skein-lib",
  "skein-llm",
  "skein-llm-connection",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-playground",
  "skein-shell",
  "skein-sim",
@@ -5435,7 +5665,7 @@ dependencies = [
 name = "temper-real-loop-world"
 version = "0.0.0"
 dependencies = [
- "jig-channel-world",
+ "jig-channel-kit",
  "jig-client-protocol-wire",
  "jig-domain-authority",
  "jig-domain-core",
@@ -5462,7 +5692,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-llm",
- "skein-llm-world",
+ "skein-llm-kit",
  "skein-oauth",
  "skein-scratch",
  "skein-shell",
@@ -5530,7 +5760,7 @@ dependencies = [
  "skein-forge",
  "skein-forge-client",
  "skein-forge-connection",
- "skein-forge-machine-world",
+ "skein-forge-kit",
  "skein-forge-setup",
  "skein-http",
  "skein-io",

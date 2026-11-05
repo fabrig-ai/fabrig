@@ -1,5 +1,6 @@
 //! Deployment procedures spend at the effect (jig/docs/design/domain/authority.md, 6–7).
 use core::effects::connector;
+use jig_core_world::fixtures::PROJECT;
 use jig_core_world::world::fixture;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
@@ -7,7 +8,6 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 
-const PROJECT: u32 = 1;
 const PERSON: u64 = 1;
 const PERIOD: u64 = 1;
 const CONNECTOR: u16 = 1;

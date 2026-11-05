@@ -1,5 +1,5 @@
 //! Open chats through the person and the real engine, client/README.md, 3.5–3.6.
-use jig_client_world::harness::{ClientId, Until, World};
+use jig_client_kit::harness::{ClientId, Until, World};
 use jig_domain_tasks as tasks;
 use skein_fake_person::{Find, Step};
 use skein_ui::Role;

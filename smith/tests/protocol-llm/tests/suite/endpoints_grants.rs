@@ -21,7 +21,7 @@ fn destination(name: u32, provider: shared::Provider) -> ConfiguredEndpoint {
         handshake: skein_lib::Duration::from_secs(1),
         name: llm::Endpoint(name),
         destination: skein_llm_connection::Endpoint {
-            limits: skein_llm_world::limits(),
+            limits: skein_llm_kit::limits(),
             credential: skein_llm::client::CredentialLimits { value: 64 },
             address: SocketAddr::from(([127, 0, 0, 1], 443)),
             transport: skein_llm_connection::Transport::Tls {

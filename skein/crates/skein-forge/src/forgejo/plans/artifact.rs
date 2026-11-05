@@ -6,10 +6,7 @@ use super::{
 };
 use crate::{
     api,
-    forgejo::{
-        document as d,
-        request::{Repo, Request},
-    },
+    forgejo::{document as d, request::Request},
 };
 use alloc::boxed::Box;
 
@@ -32,11 +29,8 @@ impl Plan {
     pub(super) fn new(row: Repository, run: u64, name: Box<[u8]>, max: u32) -> Self {
         Self { row, run, name, max, state: State::Listing { id: None } }
     }
-    fn at(&self) -> Repo {
-        Repo { owner: self.row.owner.clone(), name: self.row.name.clone() }
-    }
     pub(super) fn begin(&self) -> Step {
-        Step::send(Request::Artifacts { at: self.at(), run: self.run, name: Some(self.name.clone()) })
+        Step::send(Request::Artifacts { at: self.row.at(), run: self.run, name: Some(self.name.clone()) })
     }
     pub(super) fn heard(
         &mut self,
@@ -48,13 +42,14 @@ impl Plan {
         match heard {
             Heard::Head { status, fields } => {
                 if status != 200 {
-                    let failure =
-                        super::failure::classify(super::failure::Asked::Leaf, status, None, fields.retry_after);
-                    match failure.drop {
-                        super::failure::Drop::Nothing => {}
-                        super::failure::Drop::Path | super::failure::Drop::Row => tables.drop_repository(repository),
-                    }
-                    return Err(failure.error);
+                    return Err(super::failure::refused(
+                        super::failure::Asked::Leaf,
+                        status,
+                        None,
+                        fields.retry_after,
+                        repository,
+                        tables,
+                    ));
                 }
                 Ok(None)
             }
@@ -113,7 +108,7 @@ impl Plan {
             State::Listing { id } => match body {
                 Body::Document(d::Document::Listed { skipped: 0 }) => {
                     let id = id.ok_or(api::Error::Missing)?;
-                    step = Step::send(Request::Run { at: self.at(), run: self.run });
+                    step = Step::send(Request::Run { at: self.row.at(), run: self.run });
                     State::Run { id }
                 }
                 Body::Empty | Body::Raw { .. } | Body::Document(_) | Body::Malformed(_) => return Err(invalid(body)),
@@ -125,7 +120,7 @@ impl Plan {
                     }
                     let head = super::reading::commit(run.commit_sha, self.row.object_format)
                         .ok_or(api::Error::InvalidAnswer)?;
-                    step = Step::send(Request::ArtifactZip { at: self.at(), id });
+                    step = Step::send(Request::ArtifactZip { at: self.row.at(), id });
                     State::Zip { head }
                 }
                 Body::Empty | Body::Raw { .. } | Body::Document(_) | Body::Malformed(_) => return Err(invalid(body)),

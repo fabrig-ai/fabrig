@@ -4,7 +4,7 @@ use super::{
     Time, Up, fixtures, github,
 };
 use skein_heap::{Measured, Span};
-use skein_tls_world::{meter::Steps, pki};
+use skein_tls_kit::{meter::Steps, pki};
 
 pub(crate) struct Metered {
     host: Host,

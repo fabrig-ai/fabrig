@@ -1,7 +1,7 @@
 //! Named chat deployments and provider replies shared by this world's stories.
 use crate::{Script, world::Settings};
-use jig_channel_world::fixtures as channel;
-pub(crate) use jig_protocol_accounts_world::fixtures::{ROOM, limits};
+use jig_channel_kit::fixtures as channel;
+pub(crate) use jig_protocol_accounts_kit::fixtures::{ROOM, limits};
 
 pub const SEED: u64 = 7;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -111,7 +111,7 @@ pub(crate) fn client_settings() -> jig_client_shell_native::Settings {
     jig_client_shell_native::Settings {
         engine: skein_io::Addr::Ip((std::net::Ipv4Addr::LOCALHOST, 7100).into()),
         directory: b"private".as_slice().into(),
-        limits: jig_client_protocol_world::fixtures::connections_limits(),
+        limits: jig_client_protocol_kit::fixtures::connections_limits(),
         io: skein_io::Limits {
             sockets: 32,
             names: 1,

@@ -261,7 +261,7 @@ pub(super) fn page_work(host: &mut NativeClient) -> (Vec<skein_lib::Token>, Vec<
 }
 
 pub(super) fn quiet_task(host: &mut NativeClient, watch: skein_lib::Token) {
-    let task = jig_client_world::stories::task();
+    let task = jig_client_kit::stories::task();
     assert_eq!(task.chip.task, TASK);
     assert_eq!(task.activity, 0);
     assert!(task.priority.is_some(), "the Task address becomes Tracked");

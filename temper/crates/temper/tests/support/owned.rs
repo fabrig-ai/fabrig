@@ -625,7 +625,7 @@ fn local_agent(directory: &Path, relative: &str, address: SocketAddr) {
         }
     }
     fs::write(path, serde_json::to_vec(&agent).expect("agent JSON")).expect("fake agent");
-    super::write_private(&directory.join("root.der"), skein_tls_world::pki::ROOT);
+    super::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
 }
 
 // Reuse the shell's conversion without making a second public configuration API.
@@ -676,7 +676,7 @@ impl Bounded {
             // Synthetic transports check registration without resolving or opening endpoints.
             let endpoint = || {
                 let (trust, _) =
-                    skein_tls::Config::from_der(&[skein_tls_world::pki::ROOT.into()], &[]).expect("fixture trust");
+                    skein_tls::Config::from_der(&[skein_tls_kit::pki::ROOT.into()], &[]).expect("fixture trust");
                 Endpoint {
                     address: "127.0.0.1:9".parse().expect("unopened stand-in"),
                     transport: Transport::Tls {
@@ -845,7 +845,7 @@ fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])]) -> Bou
     local_agent(directory, "agent.json", "127.0.0.1:8370".parse().expect("LLM stand-in"));
     let value =
         serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("template")).expect("template JSON");
-    let (trust, _) = skein_tls::Config::from_der(&[skein_tls_world::pki::ROOT.into()], &[]).expect("fixture trust");
+    let (trust, _) = skein_tls::Config::from_der(&[skein_tls_kit::pki::ROOT.into()], &[]).expect("fixture trust");
     bounded_document(
         directory,
         value,

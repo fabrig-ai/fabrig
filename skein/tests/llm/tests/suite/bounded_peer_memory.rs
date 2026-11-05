@@ -7,7 +7,7 @@
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
 use skein_fake_llm_protocol::provider;
 use skein_heap::Meter;
-use skein_http_world::reference;
+use skein_http_kit::reference;
 use skein_lib::Token;
 use skein_llm::{Block, Call, Completion, Credential, Endpoint, Provider, Stop, client};
 use skein_llm_world::fake::{Exchange, ObservationLimits};

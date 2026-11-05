@@ -1,5 +1,5 @@
+use jig_core_world::fixtures::PARTY;
 use jig_core_world::world::Setup;
-const PARTY: u64 = 1;
 const FIRST_TURN: u32 = 1;
 const SECOND_TURN: u32 = 2;
 const THIRD_TURN: u32 = 3;

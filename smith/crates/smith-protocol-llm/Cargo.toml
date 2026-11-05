@@ -22,7 +22,7 @@ smith-events.workspace = true
 
 [dev-dependencies]
 smith-domain-tools = { workspace = true, features = ["fixture"] }
-skein-llm-world.workspace = true
+skein-llm-kit.workspace = true
 
 [lints]
 workspace = true

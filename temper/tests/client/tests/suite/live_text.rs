@@ -1,5 +1,5 @@
 //! Scenarios at the separate piece/commit boundary (domain/testing.md, 6.3).
-use jig_client_world::harness::Until;
+use jig_client_kit::harness::Until;
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
 use temper_client_world::fixtures;
 

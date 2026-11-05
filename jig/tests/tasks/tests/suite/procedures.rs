@@ -48,7 +48,7 @@ fn a_procedure_steps_through_delegates_to_its_result() {
         Reply::Made(vec![3])
     );
     assert_eq!(world.record(2).phase, Phase::Active(Active::Idle));
-    world.claim(3, 3);
+    world.claim_task(3);
     world.terminal(3, End::Finished { result: TaskResult::Report { words: Box::new([7]) }, cancel_delegates: false });
     world.settle(3);
     assert_eq!(world.record(2).phase, Phase::Active(Active::Due));

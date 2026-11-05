@@ -9,4 +9,5 @@
 
 mod world;
 
-pub use world::{LIMITS, World, config, kind, path};
+pub use jig_test_connector_kit::*;
+pub use world::World;

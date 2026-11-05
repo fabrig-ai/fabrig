@@ -154,7 +154,7 @@ fn signing(seed: u64) -> World {
 }
 const PROVIDER: u32 = 3;
 fn ask(world: &mut World, key: u8, ask: people::Ask) -> Option<&people::Reply> {
-    ask_as(world, world.sign_in.expect("a signed-in party"), key, ask);
+    jig_core_world::fixtures::ask(world, key, ask);
     world.people_answers.last()
 }
 fn signed_in(world: &mut World) -> (u32, u32) {

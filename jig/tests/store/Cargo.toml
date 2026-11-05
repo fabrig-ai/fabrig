@@ -35,7 +35,7 @@ skein-sim.workspace = true
 [dev-dependencies]
 jig-test-profile.workspace = true
 jig-protocol-config.workspace = true
-jig-core-world = { path = "../core" }
+jig-core-kit.workspace = true
 skein-heap.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

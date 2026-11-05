@@ -14,10 +14,10 @@ doctest = false
 [dependencies]
 jig-test-profile.workspace = true
 jig-conformance.workspace = true
-jig-core-world = { path = "../core" }
+jig-core-kit.workspace = true
 jig-test-domain.workspace = true
 jig-test-connector.workspace = true
-jig-test-connector-world = { path = "../test-connector" }
+jig-test-connector-kit.workspace = true
 jig-test-system.workspace = true
 jig-fake-workers.workspace = true
 jig-fake-parties.workspace = true
@@ -57,10 +57,10 @@ jig-client-scripted-engine.workspace = true
 jig-client.workspace = true
 jig-client-test-domain.workspace = true
 jig-protocol-transcript.workspace = true
-jig-engine-clients-world = { path = "../engine-clients" }
+jig-engine-clients-kit.workspace = true
 jig-protocol-engine-clients.workspace = true
 jig-client-domain.workspace = true
 jig-client-protocol-wire.workspace = true
 jig-client-protocol-link.workspace = true
 jig-client-test-records = { path = "../../testing/jig-client-test-records" }
-jig-client-world = { path = "../client" }
+jig-client-kit.workspace = true

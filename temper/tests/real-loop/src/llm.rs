@@ -36,14 +36,14 @@ pub fn scripted_sized(scripts: Box<[api::Script]>, strings: u32) -> Recipe {
     // reader: a later request carries the prompt and finish call beside each
     // scripted item the conversation sends back.
     let request = REQUEST.checked_add(strings).expect("fake request admission");
-    let mut config = skein_llm_world::fake::config();
+    let mut config = skein_llm_kit::fake::config();
     config.latency_min = Duration::ZERO;
     config.latency_max = Duration::ZERO;
     config.script_bytes = config.script_bytes.max(strings);
     config.answer_bytes = config.answer_bytes.max(strings);
     // The domain admits the query that request carries: prompt, tools and items.
     config.query_bytes = config.query_bytes.max(request);
-    let mut protocol = skein_llm_world::fake::limits(&skein_llm_world::limits());
+    let mut protocol = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
     protocol.http.read = WIRE_CHUNK;
     protocol.http.send = WIRE_CHUNK;
     protocol.sse.chunk = WIRE_CHUNK;
@@ -66,7 +66,7 @@ pub fn scripted_sized(scripts: Box<[api::Script]>, strings: u32) -> Recipe {
             path: b"/v1/responses".as_slice().into(),
             headers: Box::new([]),
         },
-        credential: skein_llm::Credential::key(jig_channel_world::fixtures::KEY.into()),
+        credential: skein_llm::Credential::key(jig_channel_kit::fixtures::KEY.into()),
         protocol_limits: protocol,
         domain: domain::Domain::try_scripted(&config, 17, scripts).expect("bounded real-loop scripts"),
         domain_limits: config,

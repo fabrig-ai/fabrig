@@ -1,5 +1,5 @@
 //! Settings at the client/engine meeting point (temper/docs/design/client/README.md, 5.13 and 10).
-use jig_client_world::harness::{ClientId, Settings, Until, World};
+use jig_client_kit::harness::{ClientId, Settings, Until, World};
 use skein_fake_person::{Find, Step};
 use skein_ui::{Role, State};
 use skein_world::domain::Verdict;

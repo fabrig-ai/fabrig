@@ -224,22 +224,39 @@ struct SignInValues {
 }
 
 enum Grant {
-    SignIn { key: u32, generation: u64, code: Option<Secret> },
-    Refresh { prior: RefreshState },
-    Revoke { prior: RefreshState },
+    SignIn {
+        key: u32,
+        generation: u64,
+        code: Option<Secret>,
+        state: Secret,
+        verifier: Option<Secret>,
+        nonce: Option<Secret>,
+        visit: Option<Box<[u8]>>,
+        fetch: Option<fetch::Fetch>,
+        keys: Box<[crate::keys::Key]>,
+    },
+    Refresh {
+        prior: RefreshState,
+    },
+    Revoke {
+        prior: RefreshState,
+    },
 }
 
 struct Exchange {
     registration: Registration,
     grant: Grant,
-    state: Secret,
-    verifier: Option<Secret>,
-    nonce: Option<Secret>,
     deadline: Time,
     attempts: u32,
-    visit: Option<Box<[u8]>>,
-    fetch: Option<fetch::Fetch>,
-    keys: Box<[crate::keys::Key]>,
+}
+
+impl Exchange {
+    fn fetching(&self) -> bool {
+        match &self.grant {
+            Grant::SignIn { fetch, .. } => fetch.is_some(),
+            Grant::Refresh { .. } | Grant::Revoke { .. } => false,
+        }
+    }
 }
 
 /// One sans-IO sign-in, refresh or revocation. The caller dispatches each entrance's output before the next.
@@ -396,34 +413,28 @@ impl Client {
         now: Time,
     ) -> Result<(Exchange, Request, Awaits), Failure> {
         validate_registration(&registration, &self.limits, false)?;
+        self.refresh_values(&mut registration, &prior)?;
+        let deadline = now.checked_add(self.limits.sign_in_time).ok_or(Failure::Limit)?;
+        let mut exchange = Exchange { registration, grant: Grant::Refresh { prior }, deadline, attempts: 0 };
+        let (request, phase) = self.http_request(&mut exchange, now)?;
+        Ok((exchange, Request::Http(request), phase))
+    }
+
+    fn refresh_values(&self, registration: &mut Registration, prior: &RefreshState) -> Result<(), Failure> {
         if prior.refresh_token.is_empty() || prior.refresh_token.len() > usize_of(self.limits.document.token_bytes) {
             return Err(Failure::Limit);
         }
-        if let Err(error) = crate::record::validate_refresh_additions(&prior, &self.limits.document) {
+        if let Err(error) = crate::record::validate_refresh_additions(prior, &self.limits.document) {
             return Err(admit(error));
         }
-        if issued_id(&registration) {
+        if issued_id(registration) {
             let Some(client_id) = &prior.issued_client_id else { return Err(Failure::Refused) };
             if client_id.is_empty() {
                 return Err(Failure::Refused);
             }
             registration.client_id.clone_from(client_id);
         }
-        let deadline = now.checked_add(self.limits.sign_in_time).ok_or(Failure::Limit)?;
-        let mut exchange = Exchange {
-            registration,
-            grant: Grant::Refresh { prior },
-            state: Secret::new(bytes::copy_of(b"")),
-            verifier: None,
-            nonce: None,
-            deadline,
-            attempts: 0,
-            visit: None,
-            fetch: None,
-            keys: Box::default(),
-        };
-        let (request, phase) = self.http_request(&mut exchange, now)?;
-        Ok((exchange, Request::Http(request), phase))
+        Ok(())
     }
 
     /// Whether `Redirected` would take this redirect at `now`; changes nothing (oauth.md, section 3).
@@ -456,7 +467,11 @@ impl Client {
         if code.is_some() && issued_id(&exchange.registration) && present(redirect.client_id.as_deref()).is_none() {
             return Err((Inadmissible::Address, Failure::Incomplete));
         }
-        if !skein_lib::sha256::equal(redirect.state.expose(), exchange.state.expose()) {
+        let state = match &exchange.grant {
+            Grant::SignIn { state, .. } => state,
+            Grant::Refresh { .. } | Grant::Revoke { .. } => return Err((Inadmissible::Address, Failure::Malformed)),
+        };
+        if !skein_lib::sha256::equal(redirect.state.expose(), state.expose()) {
             return Err((Inadmissible::State, Failure::InvalidRedirect));
         }
         Ok(())
@@ -590,8 +605,8 @@ impl Client {
                 };
             }
             Grant::Revoke { .. } => return Err(Failure::Malformed),
-            Grant::SignIn { key, generation, .. } => {
-                let identity = match self.identity(exchange, response, wall) {
+            Grant::SignIn { key, generation, nonce, keys, .. } => {
+                let identity = match self.identity(&exchange.registration, nonce.as_ref(), keys, response, wall) {
                     Ok(value) => value,
                     Err(check) => return Err(Failure::Unverified { check }),
                 };
@@ -660,7 +675,7 @@ impl Client {
         if exchange.revoking() {
             Self::revoked(false, out)
         } else {
-            Self::finish(if exchange.fetch.is_some() { fetch::failure() } else { failure }, out)
+            Self::finish(if exchange.fetching() { fetch::failure() } else { failure }, out)
         }
     }
 
@@ -702,7 +717,7 @@ impl Client {
                         if exchange.revoking() {
                             Self::revoked(false, out)
                         } else {
-                            Self::finish(if exchange.fetch.is_some() { fetch::failure() } else { failure }, out)
+                            Self::finish(if exchange.fetching() { fetch::failure() } else { failure }, out)
                         }
                     }
                 }
@@ -716,8 +731,8 @@ impl Client {
             return Err(Failure::TimedOut);
         }
         let deadline = now.checked_add(self.limits.request_time).ok_or(Failure::Limit)?.min(exchange.deadline);
-        if exchange.fetch.is_some() {
-            return self.keys_request(exchange, now, deadline);
+        if exchange.fetching() {
+            return self.keys_request(exchange, deadline);
         }
         let body = token_body(exchange, &self.limits)?;
         let id = self.next_id;
@@ -762,12 +777,12 @@ fn admit(error: DecodeError) -> Failure {
 fn token_body(exchange: &Exchange, limits: &ClientLimits) -> Result<Box<[u8]>, Failure> {
     let registration = &exchange.registration;
     let (grant_type, name, value, redirect, verifier) = match &exchange.grant {
-        Grant::SignIn { code: Some(code), .. } => (
+        Grant::SignIn { code: Some(code), verifier, .. } => (
             b"authorization_code".as_slice(),
             b"code".as_slice(),
             code.expose(),
             Some(registration.redirect_uri.as_ref()),
-            secret_ref(exchange.verifier.as_ref()),
+            secret_ref(verifier.as_ref()),
         ),
         Grant::SignIn { code: None, .. } => return Err(Failure::Malformed),
         Grant::Revoke { prior } => return revoke::body(registration, prior, limits),

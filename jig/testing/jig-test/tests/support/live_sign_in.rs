@@ -1,8 +1,8 @@
 //! The live layer's person-driven sign-in, bounded answer and confirmed sign-out.
 use crate::support::{self, Person, Process};
 use jig_client::{Asker, Handle, Key, contract as c};
-use jig_client_protocol_world::native::{NativeClient, Received, Script};
-use jig_protocol_accounts_world::fixtures;
+use jig_client_protocol_kit::native::{NativeClient, Received, Script};
+use jig_protocol_accounts_kit::fixtures;
 use jig_protocol_config as config;
 use jig_protocol_store::{codec, transcripts};
 use skein_io::kernel::Signal;
@@ -575,12 +575,12 @@ impl Peers {
 
 /// Shared fake model and credential check for the process stories.
 pub(super) fn fake_peer(peers: Peers) -> (skein_fake_peers::llm::Peer, std::net::SocketAddr, skein_io::kernel::Fd) {
-    let mut script = jig_channel_world::fixtures::one_chat(WORDS.as_bytes());
+    let mut script = jig_channel_kit::fixtures::one_chat(WORDS.as_bytes());
     script.result = br#"{"form":"report","text":"Process answer","fields":{}}"#.as_slice().into();
     support::ports::provider(
         Box::new([skein_fake_llm_domain::api::Script {
             cue: Box::default(),
-            turns: jig_channel_world::fixtures::provider_turns(&script),
+            turns: jig_channel_kit::fixtures::provider_turns(&script),
         }]),
         skein_llm::Credential::bearer(match peers {
             Peers::Refusing => b"not the plan's grant".as_slice().into(),
@@ -632,7 +632,7 @@ mod tests {
     fn a_refused_plan_is_reported_with_the_run_failure() {
         let mut task = jig_client_protocol_link::translate::documents::task(
             jig_client_test_records::task_with_hold_record(),
-            &jig_client_protocol_world::fixtures::link_limits(),
+            &jig_client_protocol_kit::fixtures::link_limits(),
         )
         .expect("owner task fixture");
         let c::ChipPhaseFacts { phase, details } = task.chip.details.as_mut();

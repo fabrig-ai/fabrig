@@ -17,7 +17,6 @@ use skein_ui_web::{
 use std::{cell::RefCell, rc::Rc};
 
 #[cfg(debug_assertions)]
-#[path = "../../../../tests/browser/tests/suite/folds_fixture.rs"]
 mod folds_fixture;
 mod grow;
 #[cfg(debug_assertions)]

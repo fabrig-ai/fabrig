@@ -3,7 +3,7 @@
 use crate::api;
 use crate::forgejo::plans::{
     Body, Heard,
-    failure::{self, Asked, Drop},
+    failure::{self, Asked},
     plan::{Bounds, Exchange, Step},
     reading,
     tables::{Repository, Tables},
@@ -30,11 +30,25 @@ struct Looking {
     add: List<Box<[u8]>>,
     remove: List<Box<[u8]>>,
 }
+#[derive(Clone, Copy, Debug)]
+enum Written {
+    Issue,
+    Comment,
+    Review,
+    Edited,
+    Status,
+    Branch,
+    Bare,
+    Deleted,
+    Update(api::UpdateStyle),
+    Pull,
+    Merge { number: u64 },
+}
 #[derive(Debug)]
 enum State {
     New { write: api::Write },
     Resolving { write: api::Write },
-    Writing { row: Repository, write: api::Write },
+    Writing { row: Repository, written: Written },
     Merged { row: Repository },
     OpenHead { row: Repository, open: Open },
     OpenBase { row: Repository, open: Open, head: ObjectId },
@@ -113,7 +127,8 @@ impl Plan {
     }
     fn errors(&self) -> Errors {
         match &self.state {
-            State::New { write } | State::Writing { write, .. } => Errors::Asked(asked(write)),
+            State::New { write } => Errors::Asked(asked(write)),
+            State::Writing { written, .. } => Errors::Asked(written.exchange().0),
             State::Resolving { write } => {
                 let asked = asked(write);
                 Errors::Asked(if asked == Asked::OpenPull { Asked::BeforeWrite } else { asked })
@@ -140,7 +155,7 @@ impl Plan {
             | State::Merged { .. } => 200,
             State::Adding { .. } => 201,
             State::Removing { .. } => 204,
-            State::Writing { write, .. } => expected(write),
+            State::Writing { written, .. } => written.exchange().1,
         }
     }
     pub fn heard(
@@ -208,11 +223,8 @@ impl Plan {
                 },
                 Body::Document(_) | Body::Empty | Body::Raw { .. } | Body::Malformed(_) => None,
             };
-            let classified = failure::classify(self.asked(), self.status, refusal, self.retry);
-            if classified.drop != Drop::Nothing {
-                tables.drop_repository(self.repository);
-            }
-            return Ok(Some(Step::Done(Err(self.error(classified.error)))));
+            let error = failure::refused(self.asked(), self.status, refusal, self.retry, self.repository, tables);
+            return Ok(Some(Step::Done(Err(self.error(error)))));
         }
         let document = match body {
             Body::Document(document) => Some(document),
@@ -242,23 +254,19 @@ impl Plan {
     }
     fn conflict(&self) -> Option<Result<api::Answer, api::Error>> {
         match &self.state {
-            State::Writing { write, .. } => match write {
-                api::Write::CreateBranch { .. } => Some(Ok(api::Answer::Branch(api::BranchCreation::Exists))),
-                api::Write::Update { style: api::UpdateStyle::Rebase, .. } => Some(Err(api::Error::Conflict)),
-                api::Write::CreateIssue { .. }
-                | api::Write::Post { .. }
-                | api::Write::Review { .. }
-                | api::Write::Edit { .. }
-                | api::Write::Close { .. }
-                | api::Write::Reopen { .. }
-                | api::Write::Status { .. }
-                | api::Write::Update { style: api::UpdateStyle::Merge, .. }
-                | api::Write::Dispatch { .. }
-                | api::Write::Rerun { .. }
-                | api::Write::DeleteBranch { .. }
-                | api::Write::OpenPull { .. }
-                | api::Write::SetReviewers { .. }
-                | api::Write::Merge { .. } => None,
+            State::Writing { written, .. } => match written {
+                Written::Branch => Some(Ok(api::Answer::Branch(api::BranchCreation::Exists))),
+                Written::Update(api::UpdateStyle::Rebase) => Some(Err(api::Error::Conflict)),
+                Written::Issue
+                | Written::Comment
+                | Written::Review
+                | Written::Edited
+                | Written::Status
+                | Written::Update(api::UpdateStyle::Merge)
+                | Written::Bare
+                | Written::Deleted
+                | Written::Pull
+                | Written::Merge { .. } => None,
             },
             State::New { .. }
             | State::Resolving { .. }
@@ -334,15 +342,10 @@ impl Plan {
         self.errors().error(error)
     }
 }
-fn at(row: &Repository) -> r::Repo {
-    r::Repo { owner: row.owner.clone(), name: row.name.clone() }
-}
-fn id(row: &Repository, bytes: api::Commit) -> ObjectId {
-    ObjectId { bytes, format: row.object_format }
-}
 fn initial(row: Repository, write: api::Write, bounds: Bounds, word: &[u8]) -> Result<(State, Step), api::Error> {
-    let at = at(&row);
-    let request = match write.clone() {
+    let at = row.at();
+    let written = writing(&write);
+    let request = match write {
         api::Write::Dispatch { workflow, branch, inputs } => Request::Dispatch { at, workflow, branch, inputs },
         api::Write::Rerun { attempt: job } => Request::Rerun { at, job: job.job },
         api::Write::CreateIssue { key, title, body } => {
@@ -380,12 +383,11 @@ fn initial(row: Repository, write: api::Write, bounds: Bounds, word: &[u8]) -> R
                 api::Check::Passed => d::StatusState::Success,
                 api::Check::Failed => d::StatusState::Failure,
             };
-            Request::PostStatus { at, commit: id(&row, commit), state, context, description, link }
+            Request::PostStatus { at, commit: row.id(commit), state, context, description, link }
         }
-        api::Write::CreateBranch { branch, commit } => Request::CreateBranch { at, branch, from: id(&row, commit) },
+        api::Write::CreateBranch { branch, commit } => Request::CreateBranch { at, branch, from: row.id(commit) },
         api::Write::DeleteBranch { branch } => Request::DeleteBranch { at, branch },
         api::Write::OpenPull { title, body, head, base } => {
-            drop(write);
             let request = Request::Branch { at, name: head.clone() };
             return Ok((State::OpenHead { row, open: Open { title, body, head, base } }, Step::send(request)));
         }
@@ -399,44 +401,46 @@ fn initial(row: Repository, write: api::Write, bounds: Bounds, word: &[u8]) -> R
                 api::MergeHow::Style => row.merge_style,
                 api::MergeHow::FastForwardOnly => d::MergeStyle::FastForwardOnly,
             },
-            head: id(&row, head),
+            head: row.id(head),
         },
     };
-    Ok((State::Writing { row, write }, Step::send(request)))
+    let Some(written) = written else { unreachable!("reviewer exchanges have their own stages") };
+    Ok((State::Writing { row, written }, Step::send(request)))
+}
+impl Written {
+    fn exchange(self) -> (Asked, u16) {
+        match self {
+            Self::Pull => (Asked::OpenPull, 201),
+            Self::Merge { .. } => (Asked::Merge, 200),
+            Self::Update(_) => (Asked::Update, 200),
+            Self::Deleted => (Asked::DeleteBranch, 204),
+            Self::Review => (Asked::Write, 200),
+            Self::Bare => (Asked::Write, 204),
+            Self::Issue | Self::Comment | Self::Edited | Self::Status | Self::Branch => (Asked::Write, 201),
+        }
+    }
 }
 fn asked(write: &api::Write) -> Asked {
-    match write {
-        api::Write::OpenPull { .. } => Asked::OpenPull,
-        api::Write::Merge { .. } => Asked::Merge,
-        api::Write::Update { .. } => Asked::Update,
-        api::Write::DeleteBranch { .. } => Asked::DeleteBranch,
-        api::Write::Dispatch { .. }
-        | api::Write::Rerun { .. }
-        | api::Write::CreateIssue { .. }
-        | api::Write::Post { .. }
-        | api::Write::Review { .. }
-        | api::Write::Edit { .. }
-        | api::Write::SetReviewers { .. }
-        | api::Write::Close { .. }
-        | api::Write::Reopen { .. }
-        | api::Write::Status { .. }
-        | api::Write::CreateBranch { .. } => Asked::Write,
+    match writing(write) {
+        Some(written) => written.exchange().0,
+        None => Asked::Write,
     }
 }
-fn expected(write: &api::Write) -> u16 {
-    match write {
-        api::Write::Update { .. } | api::Write::Merge { .. } | api::Write::Review { .. } => 200,
-        api::Write::Dispatch { .. } | api::Write::Rerun { .. } | api::Write::DeleteBranch { .. } => 204,
-        api::Write::CreateIssue { .. }
-        | api::Write::Post { .. }
-        | api::Write::Edit { .. }
-        | api::Write::Close { .. }
-        | api::Write::Reopen { .. }
-        | api::Write::Status { .. }
-        | api::Write::CreateBranch { .. }
-        | api::Write::OpenPull { .. } => 201,
-        api::Write::SetReviewers { .. } => unreachable!("reviewer exchanges have their own stages"),
-    }
+fn writing(write: &api::Write) -> Option<Written> {
+    Some(match write {
+        api::Write::CreateIssue { .. } => Written::Issue,
+        api::Write::Post { .. } => Written::Comment,
+        api::Write::Review { .. } => Written::Review,
+        api::Write::Edit { .. } | api::Write::Close { .. } | api::Write::Reopen { .. } => Written::Edited,
+        api::Write::Status { .. } => Written::Status,
+        api::Write::CreateBranch { .. } => Written::Branch,
+        api::Write::Dispatch { .. } | api::Write::Rerun { .. } => Written::Bare,
+        api::Write::DeleteBranch { .. } => Written::Deleted,
+        api::Write::Update { style, .. } => Written::Update(*style),
+        api::Write::OpenPull { .. } => Written::Pull,
+        api::Write::Merge { number, .. } => Written::Merge { number: *number },
+        api::Write::SetReviewers { .. } => return None,
+    })
 }
 fn next(
     state: State,
@@ -455,15 +459,15 @@ fn next(
             }
             Some(_) | None => Err(api::Error::Timeout),
         },
-        State::Writing { row, write } => written(row, write, document),
+        State::Writing { row, written: kind } => written(row, kind, document),
         State::OpenHead { row, open } => {
             let head = branch(&row, document)?;
-            let request = Request::Branch { at: at(&row), name: open.base.clone() };
+            let request = Request::Branch { at: row.at(), name: open.base.clone() };
             Ok((State::OpenBase { row, open, head }, Step::send(request)))
         }
         State::OpenBase { row, open, head } => {
             let before = branch(&row, document)?;
-            let request = Request::Compare { at: at(&row), before, after: head, files: false };
+            let request = Request::Compare { at: row.at(), before, after: head, files: false };
             Ok((State::OpenCompare { row, open }, Step::send(request)))
         }
         State::OpenCompare { row, open } => compared(row, open, document),
@@ -503,15 +507,9 @@ fn compared(row: Repository, open: Open, document: Option<d::Document>) -> Resul
             if compare.total_commits == 0 {
                 return Ok((State::Ended, Step::Done(Err(api::Error::NothingToMerge))));
             }
-            let request = Request::OpenPull {
-                at: at(&row),
-                title: open.title.clone(),
-                body: open.body.clone(),
-                head: open.head.clone(),
-                base: open.base.clone(),
-            };
-            let write = api::Write::OpenPull { title: open.title, body: open.body, head: open.head, base: open.base };
-            Ok((State::Writing { row, write }, Step::send(request)))
+            let Open { title, body, head, base } = open;
+            let request = Request::OpenPull { at: row.at(), title, body, head, base };
+            Ok((State::Writing { row, written: Written::Pull }, Step::send(request)))
         }
         Some(_) | None => Err(api::Error::InvalidAnswer),
     }
@@ -573,69 +571,61 @@ fn lookup(row: Repository, number: u64, mut looking: Looking, forge: u16, tables
     if looking.add.is_empty() {
         return remove_reviewers(row, number, looking.remove);
     }
-    let request = Request::RequestReviewers { at: at(&row), number, reviewers: looking.add.into_boxed() };
+    let request = Request::RequestReviewers { at: row.at(), number, reviewers: looking.add.into_boxed() };
     (State::Adding { row, number, remove: looking.remove }, Step::send(request))
 }
 fn remove_reviewers(row: Repository, number: u64, remove: List<Box<[u8]>>) -> (State, Step) {
     if remove.is_empty() {
         return (State::Ended, Step::Done(Ok(api::Answer::Done)));
     }
-    let request = Request::RemoveReviewers { at: at(&row), number, reviewers: remove.into_boxed() };
+    let request = Request::RemoveReviewers { at: row.at(), number, reviewers: remove.into_boxed() };
     (State::Removing { row }, Step::send(request))
 }
-fn written(row: Repository, write: api::Write, document: Option<d::Document>) -> Result<(State, Step), api::Error> {
-    let answer = match write {
-        api::Write::CreateIssue { .. } => match document {
+fn written(row: Repository, written: Written, document: Option<d::Document>) -> Result<(State, Step), api::Error> {
+    let answer = match written {
+        Written::Issue => match document {
             Some(d::Document::Issue(issue)) => Ok(api::Answer::Created(issue.number)),
             Some(_) | None => Err(api::Error::Timeout),
         },
-        api::Write::Post { .. } => match document {
+        Written::Comment => match document {
             Some(d::Document::Comment(comment)) => Ok(api::Answer::Commented(comment.id)),
             Some(_) | None => Err(api::Error::Timeout),
         },
-        api::Write::Review { .. } => match document {
+        Written::Review => match document {
             Some(d::Document::Review(review)) => {
-                if reading::commit(review.commit_id, row.object_format).is_none() {
-                    return Err(api::Error::Timeout);
-                }
+                reading::commit(review.commit_id, row.object_format).ok_or(api::Error::Timeout)?;
                 Ok(api::Answer::Reviewed(review.id))
             }
             Some(_) | None => Err(api::Error::Timeout),
         },
-        api::Write::Edit { .. } | api::Write::Close { .. } | api::Write::Reopen { .. } => match document {
+        Written::Edited => match document {
             Some(d::Document::Issue(_)) => Ok(api::Answer::Done),
             Some(_) | None => Err(api::Error::Timeout),
         },
-        api::Write::Status { .. } => match document {
+        Written::Status => match document {
             Some(d::Document::Status(_)) => Ok(api::Answer::Done),
             Some(_) | None => Err(api::Error::Timeout),
         },
-        api::Write::CreateBranch { .. } => match document {
+        Written::Branch => match document {
             Some(d::Document::Branch(branch)) => {
-                if reading::commit(branch.commit, row.object_format).is_none() {
-                    return Err(api::Error::Timeout);
-                }
+                reading::commit(branch.commit, row.object_format).ok_or(api::Error::Timeout)?;
                 Ok(api::Answer::Branch(api::BranchCreation::Created))
             }
             Some(_) | None => Err(api::Error::Timeout),
         },
-        api::Write::Dispatch { .. }
-        | api::Write::Rerun { .. }
-        | api::Write::Update { .. }
-        | api::Write::DeleteBranch { .. } => match document {
+        Written::Bare | Written::Update(_) | Written::Deleted => match document {
             None => Ok(api::Answer::Done),
             Some(_) => Err(api::Error::Timeout),
         },
-        api::Write::OpenPull { .. } => match document {
+        Written::Pull => match document {
             Some(d::Document::Pull(pull)) => Ok(api::Answer::Created(pull.number)),
             Some(_) | None => Err(api::Error::Timeout),
         },
-        api::Write::SetReviewers { .. } => Err(api::Error::Timeout),
-        api::Write::Merge { number, .. } => {
+        Written::Merge { number } => {
             if document.is_some() {
                 return Err(api::Error::Timeout);
             }
-            let request = Request::Pull { at: at(&row), number };
+            let request = Request::Pull { at: row.at(), number };
             return Ok((State::Merged { row }, Step::send(request)));
         }
     }?;

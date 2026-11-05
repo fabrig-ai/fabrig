@@ -2,7 +2,7 @@
 use crate::{github::Github, referee::Accounting};
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_forge_connection::{Component, Event, Request};
-use skein_forge_machine_world::{fixtures as machine, joint::Joint};
+use skein_forge_kit::{fixtures as machine, joint::Joint};
 use skein_lib::{Duration, Env, Time, Wall};
 
 pub(crate) enum Driver {

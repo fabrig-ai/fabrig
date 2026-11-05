@@ -151,7 +151,7 @@ impl State {
     }
 }
 /// One connection's stack, socket identity and pending output.
-pub(crate) struct Connection {
+pub struct Connection {
     pub(crate) forge: u16,
     pub(crate) role: Use,
     pub(crate) origin: Option<u32>,
@@ -170,6 +170,10 @@ pub(crate) struct Connection {
     raw_cap: u32,
     json_limits: tokenizer::Limits,
 }
+#[cfg_attr(
+    feature = "seam",
+    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
+)]
 impl Connection {
     #[cfg(test)]
     pub fn new(forge: &Forge, l: &Limits, shared: Shared, deadline: Time) -> Self {
@@ -228,7 +232,7 @@ impl Connection {
             | Idle { until: held, .. } => *held = until,
         }
     }
-    pub(crate) fn phase(&self) -> Phase {
+    pub fn phase(&self) -> Phase {
         match self.state {
             Closed { .. } => Phase::Closed,
             Connecting { .. } => Phase::Connecting,

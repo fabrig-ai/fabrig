@@ -5,7 +5,7 @@ use skein_lib::{Duration, Secret, Wall};
 
 /// One GitHub forge's App JSON Web Token, signed and reused (5.2).
 #[derive(Debug)]
-pub(crate) struct Jwt {
+pub struct Jwt {
     token: Option<Secret>,
     expires: Wall,
 }
@@ -33,7 +33,7 @@ impl Jwt {
     }
 
     /// Drops the held token: a connect begins anew.
-    pub(crate) fn forget(&mut self) {
+    pub fn forget(&mut self) {
         self.token = None;
         self.expires = Wall::EPOCH;
     }

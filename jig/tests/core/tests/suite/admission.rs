@@ -219,12 +219,12 @@ fn facts(driver: &World) -> Vec<u64> {
 }
 
 fn resource_name() -> tasks::Name {
-    tasks::Name { connector: 1, path: jig_test_connector_world::path(1, 1).segments().into() }
+    tasks::Name { connector: 1, path: jig_test_connector_kit::path(1, 1).segments().into() }
 }
 
 fn changed_fact(driver: &World) -> connector::SystemEvent {
     connector::SystemEvent::Fact {
-        resource: jig_test_connector_world::path(1, 1),
+        resource: jig_test_connector_kit::path(1, 1),
         fact: connector::Fact { state: Some(CHANGED_STATE), observed: driver.env().wall, pending: false },
         origin: connector::Origin::Other,
     }

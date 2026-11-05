@@ -99,7 +99,7 @@ printf 'checked\n' > checks-ran.txt
         )
         .expect("check script");
         std::fs::set_permissions(check, std::fs::Permissions::from_mode(0o700)).expect("executable check");
-        std::fs::write(files.path().join("root.der"), skein_tls_world::pki::ROOT).expect("private test trust");
+        std::fs::write(files.path().join("root.der"), skein_tls_kit::pki::ROOT).expect("private test trust");
         git(&repo, &["init", "-q"]);
         std::fs::OpenOptions::new()
             .append(true)

@@ -321,10 +321,24 @@ more than one world needs them (testing-strategy.md, section 4):
   fake system beneath it that reports what it saw. The core's world runs two of them, so that
   judges, resources and kinds cross connectors, with names and kinds
   generated from the seed;
-- **the referee and the harness** of the conformance world.
+- **the referee and the harness** of the conformance world;
+- **what several worlds drive,** each a kit under `jig/testing`: the test
+  connector's paths and kinds (`jig-test-connector-kit`), the core's driver,
+  peers and referee (`jig-core-kit`), the client's harness, fronts and shared
+  stories (`jig-client-kit`), the engine clients' peer
+  (`jig-engine-clients-kit`), the protocol client (`jig-client-protocol-kit`),
+  the accounts' fixtures (`jig-protocol-accounts-kit`), the channel's
+  (`jig-channel-kit`), the people's referee (`jig-people-kit`) and the tasks'
+  world and referees (`jig-tasks-kit`).
 
 They stay in jig, and an application's worlds reuse them. What jig finds
 missing in skein's world harness goes into skein first.
+
+**A world's library is its own.** No package depends on a world; its own suite
+reads its kit through its library, which re-exports it.
+`jig/tests/boundary/src/tests/kits.rs` holds this. Two packages named as worlds
+are kits by design: skein's world harness, `skein-world`
+(`skein/docs/design/testing.md`, 6), and smith's `smith-agent-process-world`.
 
 ## 8. What an application adds
 

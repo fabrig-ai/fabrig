@@ -77,8 +77,8 @@ fn complete_requests(bytes: &[u8]) -> usize {
 
 #[expect(clippy::too_many_lines, reason = "the story drives both calls through one connection")]
 fn run(seed: u64) -> (Vec<String>, (u32, u32, bool)) {
-    let call = skein_llm_world::call(7);
-    let endpoints = plaintext_endpoints(skein_llm_world::limits(), call.endpoint);
+    let call = skein_llm_kit::call(7);
+    let endpoints = plaintext_endpoints(skein_llm_kit::limits(), call.endpoint);
     let mut component = Component::new(endpoints, &limits()).expect("valid component");
     let mut up = Queue::uncapped();
     let mut io = Queue::uncapped();
@@ -98,7 +98,7 @@ fn run(seed: u64) -> (Vec<String>, (u32, u32, bool)) {
     );
     component.down(&env, Request::Next { call: Token::new(7) }, &mut up, &mut io);
     let mut wire = Wire::new(seed);
-    let response = skein_llm_world::text_response(false);
+    let response = skein_llm_kit::text_response(false);
     let mut owner = None;
     let mut responded = 0_usize;
     let mut second_started = false;
@@ -165,7 +165,7 @@ fn run(seed: u64) -> (Vec<String>, (u32, u32, bool)) {
             component.fire(&env, &mut up, &mut io);
         }
         if completed == 1 && !component.has_work() && io.is_empty() && up.is_empty() && !second_started {
-            let second = skein_llm_world::call(8);
+            let second = skein_llm_kit::call(8);
             component.down(
                 &env,
                 Request::Start {
@@ -242,7 +242,7 @@ fn responses_calls_complete_reuse_and_replay_one_plaintext_connection() {
 
 #[expect(clippy::too_many_lines, reason = "the story drives three model policies through one actual connection")]
 fn per_call_reasoning_policy(endpoint_default: bool) {
-    let mut client_limits = skein_llm_world::limits();
+    let mut client_limits = skein_llm_kit::limits();
     client_limits.drop_reasoning = endpoint_default;
     client_limits.reasoning = 5;
     let endpoints = plaintext_endpoints(client_limits, skein_llm::Endpoint::openai());
@@ -256,12 +256,8 @@ fn per_call_reasoning_policy(endpoint_default: bool) {
         r#"{"type":"response.output_item.done","output_index":0,"item":{"id":"r","type":"reasoning","encrypted_content":"signed","summary":[]}}"#,
         r#"{"type":"response.completed","response":{"status":"completed","usage":{}}}"#,
     ];
-    let response = skein_llm_world::response(
-        200,
-        "Content-Type: text/event-stream\r\n",
-        &skein_llm_world::events(&documents),
-        false,
-    );
+    let response =
+        skein_llm_kit::response(200, "Content-Type: text/event-stream\r\n", &skein_llm_kit::events(&documents), false);
     let mut started = 0_u64;
     let mut completed = 0_u32;
     let mut failed = 0_u32;
@@ -273,7 +269,7 @@ fn per_call_reasoning_policy(endpoint_default: bool) {
     let mut closed = false;
     for _ in 0..40_000 {
         if started < 3 && started == u64::from(completed + failed) {
-            let mut input = skein_llm_world::call(started + 7);
+            let mut input = skein_llm_kit::call(started + 7);
             input.prompt.model = format!("model-{started}").into_bytes().into_boxed_slice();
             component.down(
                 &env,
@@ -359,7 +355,7 @@ fn per_call_reasoning_policy(endpoint_default: bool) {
         }
     }
     assert_eq!((started, completed, failed, dropped, connected, responded, closed), (3, 2, 1, 2, 1, 3, true));
-    let received = skein_llm_world::identity(&wire.received);
+    let received = skein_llm_kit::identity(&wire.received);
     for model in [b"model-0", b"model-1", b"model-2"] {
         assert!(received.windows(model.len()).any(|bytes| bytes == model));
     }
@@ -379,7 +375,7 @@ fn model_reasoning_policy_overrides_both_defaults_and_does_not_leak_on_reuse() {
 )]
 fn a_paused_owner_holds_the_connection_s_reads_and_its_reuse() {
     use skein_lib::stream::{Down, Up};
-    use skein_llm_world::{TINY_DELTAS, tiny_delta_response};
+    use skein_llm_kit::{TINY_DELTAS, tiny_delta_response};
     const FIRST: Token = Token::new(7);
     const SECOND: Token = Token::new(8);
     const SOCKET: Token = Token::new(100);
@@ -394,13 +390,13 @@ fn a_paused_owner_holds_the_connection_s_reads_and_its_reuse() {
     profile.connections = CALLS;
     profile.io.sockets = CALLS;
     let mut component =
-        Component::new(plaintext_endpoints(skein_llm_world::limits(), skein_llm::Endpoint::openai()), &profile)
+        Component::new(plaintext_endpoints(skein_llm_kit::limits(), skein_llm::Endpoint::openai()), &profile)
             .expect("two admitted calls on one endpoint binding");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile };
     let mut up = Queue::uncapped();
     let mut io = Queue::uncapped();
     for owner in [FIRST, SECOND] {
-        let call = skein_llm_world::call(owner.raw());
+        let call = skein_llm_kit::call(owner.raw());
         component.down(
             &env,
             Request::Start {
@@ -481,7 +477,7 @@ fn a_paused_owner_holds_the_connection_s_reads_and_its_reuse() {
         }
         let requests = complete_requests(&wire.received);
         if requests > responded {
-            let response = if responded == 0 { burst.clone() } else { skein_llm_world::text_response(false) };
+            let response = if responded == 0 { burst.clone() } else { skein_llm_kit::text_response(false) };
             wire.write(&response);
             responded += 1;
         }

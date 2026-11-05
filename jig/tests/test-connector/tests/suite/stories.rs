@@ -8,8 +8,21 @@ use jig_test_connector_world::{World, kind, path};
 use jig_test_system::Fault;
 use skein_lib::{Token, Wall};
 
+const DOC: u8 = 1;
+const POOLED_DOC: u8 = 2;
+const PROCEDURE: u16 = 1;
+const UNGUARDED_REQUIREMENT: u16 = 2;
+const NEWS_TOPIC: u16 = 1;
+
 fn effect(seed: u8, local: u16, purpose: u64, target: u64, condition: Option<u64>) -> Effect {
-    Effect { kind: kind(seed, local), resources: Box::from([path(seed, 1)]), purpose, condition, target, state: target }
+    Effect {
+        kind: kind(seed, local),
+        resources: Box::from([path(seed, DOC)]),
+        purpose,
+        condition,
+        target,
+        state: target,
+    }
 }
 
 fn keep(world: &mut World, entry: u64, local: u16, purpose: u64, target: u64, condition: Option<u64>) -> Vec<Request> {
@@ -58,7 +71,7 @@ fn keyed_effects_make_once_across_three_durable_restart_cuts() {
             _ => unreachable!(),
         }
         assert_eq!(made(&world, 1), 1, "seed {seed}");
-        assert_eq!(world.system.state(&path(seed, 1)), Some(7));
+        assert_eq!(world.system.state(&path(seed, DOC)), Some(7));
         assert_eq!(world.system.observed().iter().filter(|effect| effect.applied).count(), 1);
         assert!(world.records.contains_key(&RecordKey::Made(world.key(4, 10))));
     }
@@ -78,20 +91,20 @@ fn late_copies_retries_and_each_recovery_class_keep_their_promise() {
     assert_eq!(keyed.system.observed().iter().filter(|effect| effect.applied).count(), 1);
 
     let mut conditional = World::new(14);
-    conditional.system.other_hand(&path(14, 1), 1);
+    conditional.system.other_hand(&path(conditional.seed, DOC), 1);
     let kept = keep(&mut conditional, 1, 2, 11, 3, Some(1));
     conditional.release(&kept, &mut VecDeque::from([Fault::AfterApply]));
     conditional.cold_restart();
     conditional.settle_restart(&mut VecDeque::new());
     assert_eq!(made(&conditional, 1), 1);
-    assert_eq!(conditional.system.state(&path(14, 1)), Some(3));
+    assert_eq!(conditional.system.state(&path(conditional.seed, DOC)), Some(3));
 
     let mut another = World::new(15);
-    another.system.other_hand(&path(15, 1), 1);
+    another.system.other_hand(&path(another.seed, DOC), 1);
     let kept = keep(&mut another, 1, 2, 12, 3, Some(1));
     let prepared = another.event(Event::Make { entry: 1 });
     assert!(matches!(kept.as_slice(), [Request::Save { .. }, Request::Make { .. }]));
-    another.system.other_hand(&path(15, 1), 3);
+    another.system.other_hand(&path(another.seed, DOC), 3);
     another.release(&prepared, &mut VecDeque::new());
     assert_eq!(made(&another, 1), 0);
     assert!(another.trace().iter().any(|request| matches!(request, Request::Outcome { outcome: Outcome::Failed, .. })));
@@ -105,7 +118,7 @@ fn late_copies_retries_and_each_recovery_class_keep_their_promise() {
     let late = idempotent.system.deliver_late().expect("late idempotent copy exists");
     idempotent.event(Event::System(late));
     assert_eq!(made(&idempotent, 1), 1);
-    assert_eq!(idempotent.system.state(&path(16, 1)), Some(9));
+    assert_eq!(idempotent.system.state(&path(idempotent.seed, DOC)), Some(9));
 
     let mut unrecoverable = World::new(17);
     let kept = keep(&mut unrecoverable, 1, 4, 14, 8, None);
@@ -148,8 +161,8 @@ fn procedures_require_answers_and_current_facts_and_replay_the_same_decision() {
             added: Box::new([]),
             project: 1,
             task,
-            number: kind(19, 1),
-            resource: path(19, 1),
+            number: kind(world.seed, PROCEDURE),
+            resource: path(world.seed, DOC),
             signal,
         })
     };
@@ -171,7 +184,7 @@ fn procedures_require_answers_and_current_facts_and_replay_the_same_decision() {
     let repeated = step(&mut world, ProcedureSignal::Message);
     assert_eq!(repeated.last(), waiting.last());
     let fact = Fact { state: Some(5), observed: Wall::from_nanos(world.wall), pending: false };
-    world.event(Event::System(SystemEvent::Fact { resource: path(19, 1), fact, origin: Origin::Own }));
+    world.event(Event::System(SystemEvent::Fact { resource: path(world.seed, DOC), fact, origin: Origin::Own }));
     assert!(matches!(
         step(&mut world, ProcedureSignal::Message).last(),
         Some(Request::Step { decision: StepDecision::Finish { .. }, .. })
@@ -182,14 +195,14 @@ fn procedures_require_answers_and_current_facts_and_replay_the_same_decision() {
 #[test]
 fn verdicts_respect_freshness_and_a_fact_can_change_before_an_effect() {
     let mut world = World::new(20);
-    let resource = path(20, 1);
+    let resource = path(world.seed, DOC);
     let fact = Fact { state: Some(1), observed: Wall::from_nanos(1), pending: false };
     world.event(Event::System(SystemEvent::Fact { resource: resource.clone(), fact, origin: Origin::Other }));
     world.wall = 10;
     let token = Token::new(1);
     let judged = world.event(Event::Judge {
         token,
-        requirement: kind(20, 2),
+        requirement: kind(world.seed, UNGUARDED_REQUIREMENT),
         resources: Box::from([resource.clone()]),
         state: 1,
     });
@@ -209,7 +222,8 @@ fn verdicts_respect_freshness_and_a_fact_can_change_before_an_effect() {
 #[test]
 fn shrinking_pools_news_and_values_cross_the_root_once() {
     let mut world = World::new(21);
-    let resource = path(21, 2);
+    let resource = path(world.seed, POOLED_DOC);
+    let topic = kind(world.seed, NEWS_TOPIC);
     world.event(Event::Adopt { project: 1, resource: resource.clone(), role: ResourceRole::Owned });
     let mut held = Vec::new();
     let mut waiting = Vec::new();
@@ -225,7 +239,7 @@ fn shrinking_pools_news_and_values_cross_the_root_once() {
         }
         world.event(Event::Subscribe {
             task,
-            topic: kind(21, 1),
+            topic,
             wake_at: if task == 3 { 7 } else { 5 },
             keep_at: if task == 3 { 4 } else { 2 },
         });
@@ -238,22 +252,13 @@ fn shrinking_pools_news_and_values_cross_the_root_once() {
     ));
     assert_eq!(held, [1, 2], "shrinking the pool does not retract existing holds");
     assert_eq!(waiting, [3], "a waiting task cannot take a vanished slot");
-    let news =
-        world.event(Event::System(SystemEvent::News { topic: kind(21, 1), importance: 5, origin: Origin::Other }));
+    let news = world.event(Event::System(SystemEvent::News { topic, importance: 5, origin: Origin::Other }));
     let Some(Request::News { subscribers, .. }) = news.first() else { panic!("news reaches subscribers") };
     assert_eq!(subscribers.len(), 3);
     assert_eq!(subscribers.iter().filter(|subscriber| subscriber.class == Class::Wake).count(), 2);
     assert_eq!(subscribers.iter().filter(|subscriber| subscriber.class == Class::Keep).count(), 1);
-    assert!(
-        world
-            .event(Event::System(SystemEvent::News { topic: kind(21, 1), importance: 1, origin: Origin::Other }))
-            .is_empty()
-    );
-    assert!(
-        world
-            .event(Event::System(SystemEvent::News { topic: kind(21, 1), importance: 5, origin: Origin::Own }))
-            .is_empty()
-    );
+    assert!(world.event(Event::System(SystemEvent::News { topic, importance: 1, origin: Origin::Other })).is_empty());
+    assert!(world.event(Event::System(SystemEvent::News { topic, importance: 5, origin: Origin::Own })).is_empty());
     let token = Token::new(9);
     assert!(
         matches!(world.event(Event::Read { token, read: Read { resource: resource.clone(), size: 8 } }).as_slice(), [Request::Answer { bytes, .. }] if bytes.len() == 8)

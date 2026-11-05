@@ -1,6 +1,6 @@
 //! Translate temper's visible card vocabulary into the common referee's observations.
 use jig_client::contract::{ObjectKey, ProposalKey, Proposer};
-use jig_client_world::{
+use jig_client_kit::{
     harness::{CardKey, CardSeen, Seen},
     observe,
 };
