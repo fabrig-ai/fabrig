@@ -608,6 +608,8 @@ fn entries(
         | Address::Adopt { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Welcome { .. } => (false, false, false),
@@ -682,7 +684,15 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
     crate::link(b, &name, bindings.insert(Act::Go { address: Address::Settings { project } }));
     b.text(Run::Plain, &name);
     let current = match root.pages().address() {
-        Address::Settings { .. } | Address::Configure { .. } => true,
+        Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
+        | Address::Configure { .. }
+        | Address::Accounts
+        | Address::ConnectModel { .. }
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::Adopt { .. } => true,
         Address::Chat { .. } => crate::pages::chat::configuring(root),
         Address::Goals { .. }
         | Address::Changes { .. }
@@ -691,11 +701,6 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
         | Address::Chats { .. }
         | Address::NewChat
         | Address::Task { .. }
-        | Address::Accounts
-        | Address::ConnectModel { .. }
-        | Address::Forges
-        | Address::ConnectForge { .. }
-        | Address::Adopt { .. }
         | Address::Welcome { .. } => false,
     };
     if current {
@@ -716,6 +721,8 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::ConnectForge { .. }
@@ -775,6 +782,8 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Builders { .. }
+            | Address::Repositories { .. }
             | Address::Goals { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. }
@@ -846,6 +855,8 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
@@ -881,6 +892,8 @@ pub(crate) fn accounts_link(
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,
@@ -891,7 +904,7 @@ pub(crate) fn accounts_link(
     builder.close();
 }
 
-fn forge_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
+pub(crate) fn forge_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
     use temper_client_domain::forge::listed::{self, Dot};
     let dot = match listed::dot(root.forges(), temper_client_domain::forge::connect::playground(root.forge())) {
         Dot::None => None,
@@ -912,7 +925,7 @@ fn forge_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words,
     }
 }
 
-fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
+pub(crate) fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
     if let Some(mark) = crate::accounts::words::mark(root) {
         use crate::accounts::words::{Mark, Word};
         let (word, style) = match mark {

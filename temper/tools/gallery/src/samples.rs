@@ -1,4 +1,4 @@
-//! The promised names, in client/browser.md, 7.2's order.
+//! The promised names (client/browser.md, 7.2), sorted for the gallery index.
 use crate::driver::step;
 use jig_client::contract as c;
 use skein_lib::{Queue, Token};
@@ -20,6 +20,7 @@ pub enum World {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Then {
     Shown,
+    Hosts { role: bool, connected: bool },
     Working,
     DelegatedGoal,
     HeldChange,
@@ -72,7 +73,7 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 192;
+pub const N: usize = 212;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -83,7 +84,25 @@ fn task(task: u64) -> Address {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one table keeps every named gallery state in its promised order")]
 pub fn samples() -> [Sample; N] {
-    [
+    let mut samples = [
+        Sample {
+            name: "builders",
+            world: Solo,
+            address: Address::Builders { project: 1 },
+            then: Then::Hosts { role: true, connected: true },
+        },
+        Sample {
+            name: "builders-none",
+            world: Solo,
+            address: Address::Builders { project: 1 },
+            then: Then::Hosts { role: true, connected: false },
+        },
+        Sample {
+            name: "builders-not-owner",
+            world: Solo,
+            address: Address::Builders { project: 1 },
+            then: Then::Hosts { role: false, connected: false },
+        },
         Sample { name: "changes", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
         Sample { name: "changes-empty", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
         Sample { name: "changes-one", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
@@ -341,6 +360,17 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "repositories", world: Solo, address: Address::Repositories { project: 1 }, then: Shown },
+        Sample { name: "repositories-none", world: Bare, address: Address::Repositories { project: 1 }, then: Shown },
+        Sample { name: "forges-empty", world: Bare, address: Address::Forges, then: Shown },
+        Sample { name: "forges-setting-up", world: FirstRun { step: 6 }, address: Address::Forges, then: Shown },
+        Sample { name: "forges-fetching", world: FirstRun { step: 24 }, address: Address::Forges, then: Shown },
+        Sample { name: "forges-fetching-bytes", world: FirstRun { step: 25 }, address: Address::Forges, then: Shown },
+        Sample { name: "forges-failed", world: FirstRun { step: 9 }, address: Address::Forges, then: Shown },
+        Sample { name: "forges-replacing", world: Solo, address: Address::Forges, then: Shown },
+        Sample { name: "forges-removing", world: FirstRun { step: 7 }, address: Address::Forges, then: Shown },
+        Sample { name: "forges-in-settings", world: Solo, address: Address::Forges, then: Shown },
+        Sample { name: "accounts-in-settings", world: Solo, address: Address::Accounts, then: Shown },
         Sample {
             name: "needs-one",
             world: Solo,
@@ -526,6 +556,12 @@ pub fn samples() -> [Sample; N] {
             address: Address::Inbox { filter: Filter::ALL },
             then: Shown,
         },
+        Sample { name: "accounts-states", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-key", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-removing", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-signing-in", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-program-needs-sign-in", world: Solo, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-empty", world: Bare, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-reference", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-first-run-1", world: FirstRun { step: 1 }, address: Address::Accounts, then: Shown },
         Sample { name: "google-sign-in", world: Bare, address: CHATS, then: Then::GoogleSignIn },
@@ -558,7 +594,9 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "task-solo-T9", world: Solo, address: task(9), then: Shown },
         Sample { name: "forges-github-install", world: FirstRun { step: 20 }, address: Address::Forges, then: Shown },
         owned_sample("forge-admin-details", 23, false),
-    ]
+    ];
+    samples.sort_by_key(|sample| sample.name);
+    samples
 }
 fn first_chat(name: &'static str, step: u8, task: u64) -> Sample {
     Sample { name, world: World::FirstRun { step }, address: Address::Chat { task }, then: Then::Shown }
@@ -729,7 +767,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             Then::Declined => "#other-states-declined",
             Then::Renewed => "#other-states-renewed",
             Then::SignInRefused => "#other-states-refused",
-            Then::Shown
+            Then::Hosts { .. }
+            | Then::Shown
             | Then::Working
             | Then::DelegatedGoal
             | Then::HeldChange
@@ -771,6 +810,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Changes { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => {
             return None;
@@ -806,6 +847,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => String::new(),
@@ -1001,7 +1044,13 @@ pub fn domain(sample: &Sample) -> Domain {
         return root;
     }
     match sample.then {
-        Then::Shown | Then::Working | Then::Held | Then::DelegatedGoal | Then::HeldChange | Then::HeldTask => {}
+        Then::Hosts { .. }
+        | Then::Shown
+        | Then::Working
+        | Then::Held
+        | Then::DelegatedGoal
+        | Then::HeldChange
+        | Then::HeldTask => {}
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),
         Then::OutOfDate => step(
@@ -1043,6 +1092,17 @@ pub fn domain(sample: &Sample) -> Domain {
         | Then::Renewed
         | Then::SignInRefused => account(&mut root, sample.then, &mut out),
     }
+    if matches!(sample.name, "forges-replacing" | "forges-removing") {
+        use temper_client_domain::forge::{self, forges};
+        let act = if sample.name == "forges-replacing" {
+            forges::Act::OpenReplace { forge: 2 }
+        } else {
+            forges::Act::Remove { forge: 3 }
+        };
+        step(&mut root, Event::Act { action: Action::Forge(forge::Act::Forges(act)) }, &mut out);
+    }
+    account_states(&mut root, sample, accounts_watch, &mut out);
+    account_editor(&mut root, sample, &mut out);
     if sample.then == Then::Paste(PasteFrame::Expired) {
         let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("sample accounts").clone();
         doc.signing = skein_lib::List::with_capacity(1);
@@ -1065,6 +1125,104 @@ pub fn domain(sample: &Sample) -> Domain {
         );
     }
     root
+}
+fn account_states(root: &mut Domain, sample: &Sample, accounts_watch: Option<Token>, out: &mut Queue<Request>) {
+    if sample.name == "accounts-states" || sample.name == "accounts-program-needs-sign-in" {
+        let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("sample accounts").clone();
+        if sample.name == "accounts-states" {
+            let template = doc.accounts.get(1).expect("plan account").clone();
+            let states = [
+                c::AccountState::Granted,
+                c::AccountState::Asking,
+                c::AccountState::Later { until: None },
+                c::AccountState::Later { until: Some(skein_lib::Wall::EPOCH) },
+                c::AccountState::SignInAgain,
+                c::AccountState::Misconfigured,
+                c::AccountState::Unloaded { at: c::AccountPlace::File, why: c::AccountUnread::Unreadable },
+                c::AccountState::Cancelled,
+                c::AccountState::Closing,
+                c::AccountState::Moving,
+                c::AccountState::Granted,
+            ];
+            doc.accounts = skein_lib::List::with_capacity(u32::try_from(states.len()).expect("sample states"));
+            for (index, state) in states.into_iter().enumerate() {
+                let mut row = template.clone();
+                row.number = u32::try_from(index).expect("sample number").checked_add(1).expect("sample number");
+                row.place = row.number;
+                row.display = c::DocumentText::complete(
+                    c::Text::new(
+                        Box::from(format!("state {}", row.number).as_bytes()),
+                        crate::driver::limits().client.domain.text,
+                    )
+                    .expect("sample display"),
+                );
+                let source = row.sources.get_mut(0).expect("plan source");
+                source.number = row.number;
+                source.state = state;
+                source.usable = index == 0;
+                doc.accounts.push(row).expect("sample state");
+            }
+        } else {
+            let row = doc.accounts.get_mut(0).expect("program account");
+            let source = row.sources.get_mut(0).expect("program source");
+            source.state = c::AccountState::SignInAgain;
+            source.usable = false;
+            for host in doc.program_hosts.iter_mut() {
+                for program in host.programs.iter_mut() {
+                    program.state = Some(c::ProgramState::NotSignedIn);
+                }
+            }
+        }
+        crate::driver::deliver(
+            root,
+            accounts_watch.expect("accounts watch"),
+            c::Delivery::Accounts(Box::new(doc)),
+            out,
+        );
+    }
+}
+fn account_editor(root: &mut Domain, sample: &Sample, out: &mut Queue<Request>) {
+    if matches!(sample.name, "accounts-key" | "accounts-removing" | "accounts-signing-in") {
+        use temper_client_domain::pages::accounts::{Act as A, Operation, Row};
+        let row = Row { holder: c::AskAccountHolder::Own, account: 2 };
+        let act = if sample.name == "accounts-key" {
+            A::KeyFor { row, source: None }
+        } else {
+            A::Submit {
+                name: root.pages().account_name(),
+                row,
+                operation: if sample.name == "accounts-removing" {
+                    Operation::RemoveAccount
+                } else {
+                    Operation::SignIn { provider: 18 }
+                },
+            }
+        };
+        step(root, Event::Act { action: Action::Pages(Act::Accounts(act)) }, out);
+        if sample.name == "accounts-signing-in" {
+            step(root, Event::Client { event: jig_client::Event::Stored }, out);
+            let attempt = sent_attempt(out);
+            step(
+                root,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Answer {
+                            attempt,
+                            envelope: skein_lib::RequestEnvelope::Final,
+                            why: None,
+                            answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                                c::DocumentOutcome::AccountSignInStarted {
+                                    source: 43,
+                                    address: Box::from(b"https://issuer.example/visit".as_slice()),
+                                },
+                            )))),
+                        },
+                    },
+                },
+                out,
+            );
+        }
+    }
 }
 fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>) {
     use temper_client_domain::pages::{accounts::Way, connect_model::Act as A};

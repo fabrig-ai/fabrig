@@ -105,7 +105,7 @@ fn no_project_chosen_offers_no_adoption_link() {
 fn adopt_a_repository_is_offered_whatever_the_persons_role() {
     let mut view = fixtures::page_view(
         &fixtures::root_at(
-            temper_client_domain::Address::Settings { project: fixtures::PROJECT },
+            temper_client_domain::Address::Repositories { project: fixtures::PROJECT },
             &fixtures::domain_limits(),
         )
         .0,
@@ -157,11 +157,7 @@ fn choosing_another_project_changes_the_navigations_project() {
 }
 #[test]
 fn a_sign_out_that_did_not_reach_the_engine_is_offered_again() {
-    let mut root = fixtures::root_at(
-        temper_client_domain::Address::Settings { project: fixtures::PROJECT },
-        &fixtures::domain_limits(),
-    )
-    .0;
+    let mut root = fixtures::root_at(temper_client_domain::Address::Accounts, &fixtures::domain_limits()).0;
     fixtures::root_event(&mut root, temper_client_domain::Event::Act { action: Action::Pages(pages::Act::SignOut) });
     fixtures::root_event(&mut root, temper_client_domain::Event::Client { event: jig_client::Event::SignOutLost });
     let mut view = fixtures::view();
@@ -383,8 +379,8 @@ fn the_navigation_marks_only_the_current_page() {
         (Address::Inbox { filter: Filter::ALL }, Some(b"Needs you".as_slice())),
         (Address::Inbox { filter: Filter { goal: Some(9), ..Filter::ALL } }, Some(b"Needs you".as_slice())),
         (Address::Chats { filter: ChatsFilter::All }, Some(b"Chats".as_slice())),
-        (Address::Adopt { project: fixtures::PROJECT }, None),
-        (Address::Accounts, None),
+        (Address::Adopt { project: fixtures::PROJECT }, Some(b"Settings".as_slice())),
+        (Address::Accounts, Some(b"Settings".as_slice())),
         (Address::Chat { task: 9 }, Some(b"Chats".as_slice())),
         (Address::Task { task: 9 }, None),
     ] {
@@ -392,6 +388,9 @@ fn the_navigation_marks_only_the_current_page() {
         let view = fixtures::page_view(&root);
         let mut found = None;
         for node in view.tree().nodes() {
+            if node.role == Role::Main {
+                break;
+            }
             if node.states.as_slice().contains(&skein_ui::State::Current) {
                 assert_eq!(node.role, Role::Link);
                 assert!(found.is_none(), "one current page");

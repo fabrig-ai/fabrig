@@ -666,7 +666,7 @@ fn paste_case(case: usize) -> d::Domain {
 }
 #[test]
 fn the_paste_reads_each_state_in_its_words() {
-    // Each row drives the page through its public events, then reads the actual tree.
+    // Each row drives the page through its public events, then reads the tree.
     for (case, message, field, enabled, button_name) in [
         (0, "When ChatGPT is done, its tab shows a page that can't be reached.", true, false, "Finish connecting"),
         (1, "Copy that page's whole address from the address bar", true, true, "Finish connecting"),

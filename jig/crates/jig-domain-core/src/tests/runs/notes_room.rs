@@ -283,7 +283,7 @@ fn preparation_loads(out: &[Request]) -> List<(u64, (u64, u32))> {
 
 #[test]
 fn a_busy_root_keeps_an_agent_with_a_window_to_load_due() {
-    for (transient, closed) in [(0, false), (1, true)] {
+    for (transient, closed) in [(0, false), (1, true), (1, false)] {
         let (mut core, limits) = ready();
         previous_window(&mut core, &limits, transient, closed);
         let context = core.tasks.run_context(FIRST).unwrap();
@@ -307,6 +307,7 @@ fn a_busy_root_still_prepares_an_agent_with_nothing_to_load() {
     fn retry() -> (Core, Limits) {
         let (mut core, limits) = ready();
         previous_window(&mut core, &limits, 1, false);
+        core.proofs.get_mut(&FIRST).unwrap().window = None;
         (core, limits)
     }
     for setup in [ready, retry] {

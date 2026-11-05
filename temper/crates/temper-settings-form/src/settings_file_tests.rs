@@ -514,3 +514,75 @@ fn forge_document_forms_use_the_registered_connector_and_round_trip() {
         }
     }
 }
+
+const PROJECT_WAYS: &[u8] = br#"{"kind":"project-ways","project":7}"#;
+const WAYS: &[u8] = br#"{"drafts":true,"goals":false,"changes":true,"away":false,"way":4294967295}"#;
+#[test]
+fn project_ways_is_read_and_printed_whole() {
+    let items = file::decode(&kind_file(PROJECT_WAYS, WAYS), &Limits::standard()).expect("project ways file");
+    let item = items.get(0).expect("one item");
+    assert_eq!(item.setting, c::Setting::Application { kind: 7, scope: 7, number: 1 });
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("whole value") };
+    let c::SettingValue::Application(bytes) = &set.value else { panic!("ways bytes") };
+    let mut reader = skein_lib::Reader::new(bytes);
+    let ways =
+        temper_client_protocol_wire::v1::ProjectWays::decode(&temper_client_protocol_wire::v1::CEILINGS, &mut reader)
+            .expect("ways record");
+    assert_eq!(
+        (ways.drafts(), ways.goals(), ways.changes(), ways.away(), ways.way()),
+        (true, false, true, false, u32::MAX)
+    );
+    assert!(reader.is_empty());
+    let bounds = JsonLimits { depth: 32, length: 4096 };
+    let mut measure = Encoder::measure(&bounds);
+    assert!(crate::kinds::render(7, bytes, &mut measure));
+    let mut out = Encoder::write(measure.measured().expect("ways fits"), &bounds);
+    assert!(crate::kinds::render(7, bytes, &mut out));
+    assert_eq!(out.finish().as_ref(), WAYS);
+}
+#[test]
+fn project_settings_require_the_project_and_refuse_a_number() {
+    for kind in [b"project-ways".as_slice(), b"project-questions"] {
+        for (suffix, member) in [
+            ("", "project"),
+            (",\"project\":0", "project"),
+            (",\"project\":4294967296", "project"),
+            (",\"project\":7,\"number\":1", "number"),
+        ] {
+            let bytes = joined(&[br#"{"setting":{"kind":""#, kind, b"\"", suffix.as_bytes(), b"}}"]);
+            let why = file::read_setting(&bytes, &Limits::standard()).expect_err("bad selector");
+            assert!(skein_lib::bytes::find(&why, member.as_bytes()).is_some(), "{why:?}");
+        }
+        let selector = joined(&[br#"{"setting":{"kind":""#, kind, br#"","project":7}}"#]);
+        assert_eq!(
+            file::read_setting(&selector, &Limits::standard()).expect("project selector"),
+            c::Setting::Application { kind: if kind == b"project-ways" { 7 } else { 6 }, scope: 7, number: 1 }
+        );
+    }
+}
+#[test]
+fn project_values_refuse_missing_unknown_and_wrong_members() {
+    for (value, member) in [
+        (br#"{"drafts":true,"goals":true,"changes":true,"away":true}"#.as_slice(), b"way".as_slice()),
+        (br#"{"drafts":true,"goals":true,"changes":true,"way":0}"#, b"away"),
+        (br#"{"drafts":true,"goals":true,"away":true,"way":0}"#, b"changes"),
+        (br#"{"drafts":true,"changes":true,"away":true,"way":0}"#, b"goals"),
+        (br#"{"goals":true,"changes":true,"away":true,"way":0}"#, b"drafts"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":4294967296}"#, b"way"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":-1}"#, b"way"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":false}"#, b"way"),
+        (br#"{"drafts":1,"goals":true,"changes":true,"away":true,"way":0}"#, b"drafts"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":0,"extra":true}"#, b"extra"),
+    ] {
+        let why = file::decode(&kind_file(PROJECT_WAYS, value), &Limits::standard()).expect_err("malformed ways");
+        assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");
+    }
+    for route in [b"\"none\"".as_slice(), b"\"foreman\"", b"\"up\""] {
+        file::decode(&kind_file(br#"{"kind":"project-questions","project":7}"#, route), &Limits::standard())
+            .expect("valid route");
+    }
+    for value in [b"\"other\"".as_slice(), b"true", b"{}"] {
+        file::decode(&kind_file(br#"{"kind":"project-questions","project":7}"#, value), &Limits::standard())
+            .expect_err("malformed route");
+    }
+}

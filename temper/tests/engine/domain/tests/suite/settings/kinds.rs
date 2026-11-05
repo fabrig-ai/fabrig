@@ -84,13 +84,16 @@ fn ask(driver: &mut temper_engine_domain_world::direct::Driver, key: u8, ask: pe
 }
 
 fn propose(driver: &mut temper_engine_domain_world::direct::Driver, key: u8) -> (u64, u64) {
+    propose_items(driver, key, Box::new([kinds::item(1, 0, 2, &settings::Value::Rule(rule()))]))
+}
+
+fn propose_items(
+    driver: &mut temper_engine_domain_world::direct::Driver,
+    key: u8,
+    items: Box<[s::Item]>,
+) -> (u64, u64) {
     let against = kinds::revision(&driver.store.rows);
-    driver.send(kinds::proposal(
-        driver.session(),
-        against,
-        key,
-        Box::new([kinds::item(1, 0, 2, &settings::Value::Rule(rule()))]),
-    ));
+    driver.send(kinds::proposal(driver.session(), against, key, items));
     driver.settle();
     let proposal = driver
         .delivered
@@ -621,4 +624,172 @@ fn forgetting_erases_the_forges_replaced_rows() {
     assert!(
         matches!(kept(&driver, 1, 0, 2, settings::SettingSlot::Replaced(4)), Some(settings::Edit::Set(value)) if value.value == settings::Value::Rule(previous))
     );
+}
+
+fn project_ways() -> settings::Value {
+    settings::Value::Ways(settings::ProjectWays { drafts: true, goals: true, changes: false, away: true, way: 0 })
+}
+
+fn project_member(driver: &mut temper_engine_domain_world::direct::Driver) -> u64 {
+    driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        held: None,
+        reply_to: ReplyTo::new(Token::new(60)),
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
+            login: b"member".as_slice().into(),
+            name: b"Member".as_slice().into(),
+        },
+    }));
+    driver.settle();
+    let (member, session) = driver
+        .delivered
+        .iter()
+        .find_map(|delivery| {
+            if let Delivery::WebReply { to, reply: people::Reply::SignedIn { person, sign_in, .. } } = delivery
+                && *to == ReplyTo::new(Token::new(60))
+            {
+                Some((*person, *sign_in))
+            } else {
+                None
+            }
+        })
+        .expect("member signed in");
+    ask(
+        driver,
+        61,
+        people::Ask::SetRoles {
+            project: 1,
+            holdings: Box::new([
+                people::Holding { person: 1, role: people::Role::Owner },
+                people::Holding { person: member, role: people::Role::Member },
+            ]),
+        },
+    );
+    assert!(driver.delivered.iter().any(|delivery| matches!(
+        delivery,
+        Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::RolesSet { project: 1 }), .. }
+    )));
+    session
+}
+
+#[test]
+fn a_projects_ways_are_changed_by_its_owner_and_read_by_its_member() {
+    let mut driver = kinds::driver();
+    let value = project_ways();
+    apply(&mut driver, 62, Box::new([kinds::item(7, 1, 1, &value)]));
+    let stored = kept(&driver, 7, 1, 1, settings::SettingSlot::Change).unwrap().clone();
+    assert!(matches!(&stored, settings::Edit::Set(kept) if kept.value == value));
+    let member = project_member(&mut driver);
+    driver.send(engine::Event::Party(engine::PartyInput::ForgeRead {
+        reply: ReplyTo::new(Token::new(63)),
+        sign_in: member,
+        scope: people::ApplicationScope::Project(1),
+        query: engine::ForgeRead::Setting { kind: 7, scope: 1, number: 1 },
+    }));
+    driver.settle();
+    assert!(
+        driver.delivered.iter().any(|delivery| matches!(delivery,
+            Delivery::ForgeRead { reply, answer: engine::ForgeReadAnswer::Setting(Some(kept)) }
+                if *reply == ReplyTo::new(Token::new(63)) && kept.value == value
+        )),
+        "{:?}",
+        driver.delivered
+    );
+    let against = kinds::revision(&driver.store.rows);
+    driver.send(kinds::change(
+        member,
+        against,
+        64,
+        Box::new([kinds::item(
+            7,
+            1,
+            1,
+            &settings::Value::Ways(settings::ProjectWays {
+                drafts: false,
+                goals: false,
+                changes: false,
+                away: false,
+                way: 0,
+            }),
+        )]),
+    ));
+    driver.settle();
+    assert!(driver.delivered.iter().any(|delivery| matches!(delivery,
+        Delivery::WebReply { to, reply: people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Role { held: Some(people::Role::Member) })) }
+            if *to == ReplyTo::new(Token::new(64))
+    )), "{:?}", driver.delivered);
+    assert_eq!(kinds::revision(&driver.store.rows), against);
+    assert_eq!(kept(&driver, 7, 1, 1, settings::SettingSlot::Change), Some(&stored));
+}
+
+#[test]
+fn a_proposal_of_a_projects_ways_is_kept_then_accepted() {
+    let mut driver = kinds::driver();
+    let value = project_ways();
+    let (proposal, key) = propose_items(&mut driver, 65, Box::new([kinds::item(7, 1, 1, &value)]));
+    let proposed = kept(&driver, 7, 1, 1, settings::SettingSlot::Proposal(key)).expect("project ways proposed").clone();
+    assert!(matches!(&proposed, settings::Edit::Set(kept) if kept.value == value));
+    assert_eq!(kept(&driver, 7, 1, 1, settings::SettingSlot::Change), None);
+    assert_eq!(kinds::revision(&driver.store.rows), 1);
+    ask(
+        &mut driver,
+        66,
+        people::Ask::DecideProposal {
+            project: people::DEPLOYMENT,
+            proposer: people::Proposer::Party(1),
+            proposal,
+            decision: people::ProposalDecision::Accept,
+            running: Some(people::Running::Stays),
+        },
+    );
+    assert_eq!(kinds::revision(&driver.store.rows), 2, "{:?}", driver.delivered);
+    assert_eq!(kept(&driver, 7, 1, 1, settings::SettingSlot::Change), Some(&proposed));
+    assert_eq!(kept(&driver, 7, 1, 1, settings::SettingSlot::Proposal(key)), None);
+}
+
+#[test]
+fn a_project_member_reads_its_kinds_at_their_revisions() {
+    use temper_engine_domain_forge_change::Route;
+    let mut driver = kinds::driver();
+    let earlier = [settings::Value::Rule(rule()), settings::Value::Questions(Route::Foreman), project_ways()];
+    let later = [
+        settings::Value::Rule(settings::LandingRule { ci: true, ..rule() }),
+        settings::Value::Questions(Route::Up),
+        settings::Value::Ways(settings::ProjectWays {
+            drafts: false,
+            goals: false,
+            changes: true,
+            away: false,
+            way: 0,
+        }),
+    ];
+    for (key, values) in [(67, &earlier), (68, &later)] {
+        apply(
+            &mut driver,
+            key,
+            [2, 6, 7].into_iter().zip(values).map(|(kind, value)| kinds::item(kind, 1, 1, value)).collect(),
+        );
+    }
+    let member = project_member(&mut driver);
+    for (revision, values) in [(2, earlier), (3, later)] {
+        for (kind, value) in [2, 6, 7].into_iter().zip(values) {
+            const REPLY: ReplyTo = ReplyTo::new(Token::new(70));
+            driver.delivered.clear();
+            driver.send(engine::Event::Party(engine::PartyInput::ForgeRead {
+                reply: REPLY,
+                sign_in: member,
+                scope: people::ApplicationScope::Project(1),
+                query: engine::ForgeRead::RevisionSetting { kind, scope: 1, number: 1, revision },
+            }));
+            driver.settle();
+            assert!(
+                driver.delivered.iter().any(|delivery| matches!(delivery,
+                    Delivery::ForgeRead { reply: to, answer: engine::ForgeReadAnswer::Setting(Some(kept)) }
+                        if *to == REPLY && kept.value == value
+                )),
+                "kind {kind}, revision {revision}: {:?}",
+                driver.delivered
+            );
+        }
+    }
 }

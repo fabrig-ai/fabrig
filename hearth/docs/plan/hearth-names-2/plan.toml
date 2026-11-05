@@ -1,0 +1,34 @@
+draft = "hearth-names-2"
+repo = "fabrig"
+sources = ["hearth/docs/plan/hearth-names-2/inputs/request.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "hearth-values"
+title = "hearth's design, fixtures and goldens hold neutral values for the example fleet's SSH port and zone"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/protocol/format.md, 3.7"
+
+[[part]]
+id = "forgejo-transcript"
+title = "skein's captured Forgejo transcript holds a neutral SSH port"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 4.1"
+
+[[slice]]
+id = 1
+story = "the example fleet's SSH port and zone and the captured forge's SSH port read as neutral values: searches, symlink targets included, find none of the old ones, the design no longer asks about them, and the worlds that read them pass as they did"
+parts = ["hearth-values", "forgejo-transcript"]
+walk = false
+
+[[question]]
+id = "container-name"
+parts = ["hearth-values"]
+text = """One more name stays, since the request says nothing else changes: `hearth/docs/design/protocol/format.md`, 3.5, line 336 at this plan's base, names one of the three containers whose sentence this plan drops from `hearth/docs/design/domain/store.md`, 9.2. Should it go too? Recommendation: yes, as one small follow-up, with the sentence written around the target it becomes, `chat-prod`. No task here waits for this. The base id written beside that container in 3.5 and in `hearth/docs/design/domain/slots.md` stays either way: it is the first id past the builder's range and says nothing of a deployment."""

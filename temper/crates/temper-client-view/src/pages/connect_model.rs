@@ -272,10 +272,19 @@ pub(super) fn ready(root: &Domain, way: Way) -> bool {
         false
     }
 }
-pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
+pub(crate) fn main(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    pages: &mut crate::frame::Bindings,
+    project: Option<u32>,
+    text_per_node: u32,
+) {
     b.open(Role::Main);
     b.style(crate::look::MAIN);
     b.style(crate::look::PAGE);
+    super::settings::path(b, root, w, pages, project, super::settings::FlowTab::Accounts, Word::PathConnectAccount);
     crate::cards::text(b, Role::Heading { level: 1 }, &w.say(Word::ConnectModel, &[]));
     let way = model::way(root.pages(), root.client());
     let middle = if match way {
@@ -310,6 +319,8 @@ fn welcome(root: &Domain) -> bool {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => false,

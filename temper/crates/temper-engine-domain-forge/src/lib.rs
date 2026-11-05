@@ -409,7 +409,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                             .checked_mul(u64::try_from(size_of::<settings::RuleApproval>()).ok()?)?,
                     )
             }
-            settings::Edit::Set(settings::SizedValue { value: settings::Value::Charter(_), .. })
+            settings::Edit::Set(settings::SizedValue {
+                value: settings::Value::Charter(_) | settings::Value::Questions(_) | settings::Value::Ways(_),
+                ..
+            })
             | settings::Edit::Remove
             | settings::Edit::Reset => Some(0),
         },
