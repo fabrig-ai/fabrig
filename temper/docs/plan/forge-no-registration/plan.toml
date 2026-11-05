@@ -1,0 +1,3 @@
+draft = "forge-no-registration"
+repo = "fabrig"
+sources = ["temper/docs/plan/forge-no-registration/inputs/request.md", "temper/docs/design/draft/dogfood-hacks.md", "temper/docs/design/draft/dogfood-hacks.status.md", "AGENTS.md", "DESIGN.md"]
