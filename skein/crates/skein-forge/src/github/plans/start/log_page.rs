@@ -1,7 +1,7 @@
 //! One conditional or cursor page of the App's log (forge-github.md, 9.3).
 use super::{Event, State, Step, api, document, plan};
 use crate::github::{header, log, pin, plans::Heard, request::Request};
-use skein_lib::List;
+use skein_lib::{List, len_u64};
 
 #[derive(Debug)]
 pub struct LogPage {
@@ -101,13 +101,9 @@ impl LogPage {
                     | document::Row::File(_) => return Err(api::Error::InvalidAnswer),
                 };
                 let mut size = u64::try_from(size_of::<log::Row>()).or(Err(api::Error::TooLarge))?;
-                size = size
-                    .checked_add(u64::try_from(row.event.len()).or(Err(api::Error::TooLarge))?)
-                    .ok_or(api::Error::TooLarge)?;
+                size = size.checked_add(len_u64(row.event.len())).ok_or(api::Error::TooLarge)?;
                 if let Some(action) = &row.action {
-                    size = size
-                        .checked_add(u64::try_from(action.len()).or(Err(api::Error::TooLarge))?)
-                        .ok_or(api::Error::TooLarge)?;
+                    size = size.checked_add(len_u64(action.len())).ok_or(api::Error::TooLarge)?;
                 }
                 self.bytes = self.bytes.checked_add(size).ok_or(api::Error::TooLarge)?;
                 if self.rows.len() >= self.limit

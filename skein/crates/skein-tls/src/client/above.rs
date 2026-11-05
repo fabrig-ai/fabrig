@@ -5,7 +5,7 @@ use crate::session;
 use alloc::boxed::Box;
 use core::mem;
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Intake, Queue};
+use skein_lib::{Intake, Queue, usize_of};
 /// The side above's side of the plaintext stream.
 #[derive(Debug)]
 pub(super) struct Above {
@@ -114,14 +114,11 @@ pub(super) fn sent(
     below: &mut Queue<Down>,
 ) -> State {
     let grant = open.above.grant.take().expect("a Send within the room granted (lib.md, 7)");
-    assert!(bytes.len() <= usize::try_from(grant).expect("a u32 fits in a usize"), "a Send within the room granted");
+    assert!(bytes.len() <= usize_of(grant), "a Send within the room granted");
     let room = mem::replace(&mut open.below.granted, 0);
     match session::encrypt(&mut open.tls, &mut buffers.records, bytes, &mut buffers.owed) {
         Ok(Some(sealed)) => {
-            assert!(
-                sealed.len() <= usize::try_from(room).expect("a u32 fits in a usize"),
-                "the records within the room granted below: OVERHEAD and SLACK"
-            );
+            assert!(sealed.len() <= usize_of(room), "the records within the room granted below: OVERHEAD and SLACK");
             below.push(Down::Send(sealed));
         }
         Ok(None) => {}

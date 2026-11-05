@@ -11,9 +11,9 @@ use crate::{Settings, Span, Step, World};
 
 const PATHS: [&[u8]; 22] = [
     b".git/config",
-    b"vendor/lib/lib.rs",
-    b"third_party/lib.rs",
-    b"third_party/new.rs",
+    b"/lib/lib.rs",
+    b"../lib/lib.rs",
+    b"../lib/new.rs",
     b"src/lib.rs",
     b"src",
     b".",
@@ -28,7 +28,7 @@ const PATHS: [&[u8]; 22] = [
     b"dev",
     b"missing.rs",
     b"../docs/guide.md",
-    b"vendor/lib",
+    b"/lib",
     b"/etc/passwd",
     b"../..",
     b"Cargo.toml/x",

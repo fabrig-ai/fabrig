@@ -49,6 +49,23 @@ pub enum Models {
 }
 
 impl Models {
+    /// Reordering and removal affect effective authority, never a retained ask's identity.
+    #[must_use]
+    pub fn remap(self, moved: &[u64; 64]) -> Self {
+        match self {
+            Self::All => Self::All,
+            Self::Named(bits) => {
+                let mut result = 0;
+                for (bit, today) in moved.iter().enumerate() {
+                    if bits.checked_shr(u32::try_from(bit).expect("bounded bit")).unwrap_or(0) & 1 == 1 {
+                        result |= today;
+                    }
+                }
+                Self::Named(result)
+            }
+        }
+    }
+
     pub const NONE: Self = Self::Named(0);
     pub const ALL: Self = Self::All;
 

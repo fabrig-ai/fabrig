@@ -15,29 +15,6 @@ use alloc::boxed::Box;
 use jig_domain_tasks as domain;
 use skein_lib::{Reader, Writer};
 
-// Fixed nothing-awaited words share the met slot; the question reminder uses
-// the inbox envelope. Caller words keep their bounds (domain/tasks.md, 5.2 and 5.7).
-fn word_bytes(domain: &domain::Limits) -> u32 {
-    domain
-        .message_bytes
-        .max(domain.result_bytes)
-        .max(
-            u32::try_from(
-                b"Nothing more will come: your delegates have ended and no question waits. Finish with your result."
-                    .len(),
-            )
-            .expect("fixed nothing-awaited notice length"),
-        )
-        .max(
-            domain.inbox_bytes.min(
-                u32::try_from(
-                    b"You owe your requester a question: ask your plan with message, as a question, and wait.".len(),
-                )
-                .expect("fixed reminder length"),
-            ),
-        )
-}
-
 /// Fixed item sizes without any collection or byte payload (protocol/store.md, 5.1).
 pub(crate) const EMPTY: wire::Limits = wire::Limits {
     bytes_parameter_value: 0,
@@ -235,7 +212,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         rejected_person_proposal_reason: domain.message_bytes,
         approval_message_state: domain.result_bytes,
         verdict_message_fields: fields,
-        word_words: word_bytes(domain),
+        word_words: domain.word_bytes(),
         activity_words_words: domain.message_bytes,
         rejected_escalation_reason: domain.result_bytes,
         recurring_state_last_batch: domain.batch,
@@ -377,6 +354,6 @@ pub fn decode(
             domain::Stored::Pool(domain::PoolSlots { number, pool: value::read_name(pool, limits)?, slots })
         }
     };
-    models::remap(&mut row, &models::moves(&kept, names));
+    row.remap_models(&models::moves(&kept, names));
     Ok(row)
 }

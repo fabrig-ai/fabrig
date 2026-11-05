@@ -86,3 +86,17 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, *Your report*.
+
+## Rebase (2026-11-05, step merge, foreman ui-chats/conversation-turns/foreman-1)
+
+combine conversation turns with landed Needs you styles, vocabulary and gallery samples during rebase
+The merge failed on `temper/crates/temper-client-view/src/{look,words}.rs` and `temper/tools/gallery/src/samples.rs`.
+Rebase onto the updated integration containing `670f3aefab` (“Merge main to keep chats compatible with Needs you”), which incorporates main’s Needs you changes.
+In `look.rs`, preserve the incoming names through token 320. Tokens 295–297 now name `temper-chat`, `temper-chatbar`, and `temper-sidebar`; move `THREAD_INNER`, `TYPING`, and `BY_DELEGATE` to unused tokens 321–323 and append their names in that order.
+Keep both sides’ style-name tests in `src/tests/look.rs`.
+In `words.rs`, retain the incoming Needs/Home vocabulary and bounds, plus `ChatWorking` in the enum, `ALL`, identifier match and English match.
+Combine counts: `PHRASES = 1476`, `SEGMENTS = 2592`, and `ALL` length 880 against the inspected integration. `ChatWorking` identifier 3287 remains unused there.
+In gallery `samples.rs`, preserve incoming Home/Needs samples and fixture behavior, plus `Then::Working`, its exhaustive match arms and `chat-working`; combine `N` to 147.
+Preserve both sides of the automatically merged CSS, gallery names and tests.
+Run the focused view style/vocabulary/chat checks and gallery checks, including `the_chat_log_follows_its_end_until_the_person_scrolls_away`, through heavy.
+Regenerate and report any combined-code prints, goldens or counted baselines made stale by the rebase.

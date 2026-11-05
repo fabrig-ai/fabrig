@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as WriterLimits};
 use skein_lib::{
     Duration, Queue, Time, Wall, Writer,
     base64::{self, Alphabet},
-    bytes,
+    bytes, usize_of,
 };
 
 /// The fake's `OpenID` issuer, its documents and one scripted fault.
@@ -47,9 +47,9 @@ pub(super) fn configured(config: &Config) -> Option<&OpenId> {
 }
 pub(super) fn valid(openid: Option<&OpenId>, limits: &Limits) -> bool {
     let Some(openid) = openid else { return true };
-    openid.issuer.len() <= usize::try_from(limits.uri_bytes).expect("u32 fits")
-        && openid.key_set_url.len() <= usize::try_from(limits.uri_bytes).expect("u32 fits")
-        && openid.subject.len() <= usize::try_from(limits.document.string_bytes).expect("u32 fits")
+    openid.issuer.len() <= usize_of(limits.uri_bytes)
+        && openid.key_set_url.len() <= usize_of(limits.uri_bytes)
+        && openid.subject.len() <= usize_of(limits.document.string_bytes)
 }
 pub(super) fn get(
     config: &Config,
@@ -95,7 +95,7 @@ fn document(config: &Config, limits: &Limits, endpoint: &[u8]) -> Result<(u16, B
     Ok((404, Box::default()))
 }
 fn raw(limits: &Limits, value: &[u8]) -> Result<(u16, Box<[u8]>), Error> {
-    if value.len() > usize::try_from(limits.document.document_bytes).expect("u32 fits") {
+    if value.len() > usize_of(limits.document.document_bytes) {
         return Err(Error::Limits);
     }
     Ok((200, bytes::copy_of(value)))
@@ -131,7 +131,7 @@ pub(super) fn token(
     let header = encoded(&header(openid, limits)?)?;
     let payload = encoded(&claims(openid, limits, client, account, nonce, wall)?)?;
     let size = header.len().checked_add(payload.len()).ok_or(Error::Limits)?.checked_add(1).ok_or(Error::Limits)?;
-    if size > usize::try_from(cap).expect("u32 fits") {
+    if size > usize_of(cap) {
         return Err(Error::Limits);
     }
     let mut input = Writer::new(size);
@@ -141,7 +141,7 @@ pub(super) fn token(
     let input = input.finish();
     let signature = if openid.fault == Some(Fault::AlgNone) { Box::default() } else { sign(&input)? };
     let size = input.len().checked_add(signature.len()).ok_or(Error::Limits)?.checked_add(1).ok_or(Error::Limits)?;
-    if size > usize::try_from(cap).expect("u32 fits") {
+    if size > usize_of(cap) {
         return Err(Error::Limits);
     }
     let mut out = Writer::new(size);
@@ -200,7 +200,7 @@ fn sign(input: &[u8]) -> Result<Box<[u8]>, Error> {
 fn encoded(raw: &[u8]) -> Result<Box<[u8]>, Error> {
     let size =
         base64::encoded_len(Alphabet::Url, u32::try_from(raw.len()).or(Err(Error::Limits))?).ok_or(Error::Limits)?;
-    let mut out = Writer::new(usize::try_from(size).expect("u32 fits"));
+    let mut out = Writer::new(usize_of(size));
     base64::encode(Alphabet::Url, raw, &mut out).or(Err(Error::Limits))?;
     Ok(out.finish())
 }

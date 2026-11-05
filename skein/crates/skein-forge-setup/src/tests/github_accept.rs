@@ -31,7 +31,7 @@ fn stop(step: Stage, subject: &[u8], why: Why) -> Need {
     Need::Stop(Failure { forge: 4, step, subject: subject.into(), why })
 }
 fn reply(id: u64, suspended: bool) -> Event {
-    Event::Reply(Reply::GithubDocument(Document::Installation(Installation {
+    Event::Reply(Reply::GitHubDocument(Document::Installation(Installation {
         id,
         login: b"acme".as_slice().into(),
         account: 22,
@@ -116,8 +116,8 @@ fn accept_names_a_missing_refused_unsigned_or_wrong_installation() {
         (Event::Reply(Reply::Down), Stage::Installation, b"3", Why::Down),
         (reply(4, false), Stage::Installation, b"3", Why::Unexpected),
         (Event::Reply(Reply::Empty), Stage::Installation, b"3", Why::Unexpected),
-        (Event::Reply(Reply::GithubDocument(Document::BotUser(3))), Stage::Installation, b"3", Why::Unexpected),
-        (Event::Reply(Reply::GithubRows(Box::new([]))), Stage::Installation, b"3", Why::Unexpected),
+        (Event::Reply(Reply::GitHubDocument(Document::BotUser(3))), Stage::Installation, b"3", Why::Unexpected),
+        (Event::Reply(Reply::GitHubRows(Box::new([]))), Stage::Installation, b"3", Why::Unexpected),
     ] {
         let mut machine = pending(None);
         assert_eq!(go(&mut machine, event), stop(step, subject, why));

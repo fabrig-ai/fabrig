@@ -7,7 +7,7 @@ use super::{Grant, SignInValues, admit};
 use crate::redirect::{authorization_url, has_openid, sign_in_values, validate_registration};
 use crate::{Check, keys, pkce};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Queue, Time, Writer};
+use skein_lib::{Duration, Queue, Time, Writer, usize_of};
 
 pub(super) enum Fetch {
     Metadata { endpoint: Box<[u8]> },
@@ -24,7 +24,7 @@ pub(super) fn initial(registration: &Registration, limits: &ClientLimits) -> Res
     }
     let suffix = b"/.well-known/openid-configuration";
     let size = openid.issuer.len().checked_add(suffix.len()).ok_or(failure())?;
-    if size > usize::try_from(limits.uri_bytes).expect("u32 fits") {
+    if size > usize_of(limits.uri_bytes) {
         return Err(failure());
     }
     let mut out = Writer::new(size);
@@ -43,7 +43,7 @@ impl Client {
             values;
         validate_registration(&registration, &self.limits, true)?;
         sign_in_values(&mut registration, nonce.as_deref(), port, &self.limits)?;
-        if state.len() < 16 || state.len() > usize::try_from(self.limits.state_bytes).expect("u32 fits") {
+        if state.len() < 16 || state.len() > usize_of(self.limits.state_bytes) {
             return Err(Failure::Limit);
         }
         let pkce_required = registration.client_secret.is_none() || registration.pkce_for_confidential;

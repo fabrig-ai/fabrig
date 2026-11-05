@@ -338,6 +338,20 @@ fn note_line(note: temper_service::Note) -> String {
             format!("temper serve: forge {number}: not connected: {why}\n")
         }
 
+        temper_service::Note::ForgeSignIn { number, client, why } => {
+            use temper_service::clients::forge_sign_in::Unserved;
+            let why = match why {
+                Unserved::NotKept => "no such forge is kept".into(),
+                Unserved::NotForgejo => "it is not a Forgejo".into(),
+                Unserved::Origin { origin } => format!(
+                    "its browser origin {} is not client {}'s redirect_uri's",
+                    String::from_utf8_lossy(&origin),
+                    String::from_utf8_lossy(&client)
+                ),
+                Unserved::NoRoom => "no room for its meta within clients.bundle_bytes".into(),
+            };
+            format!("temper serve: forge {number}: no sign-in through temper: {why}\n")
+        }
         temper_service::Note::ForgeOrigin { number, origin } => origin_line(number, &origin),
         temper_service::Note::ForgeUnkept { number, installation } => {
             format!("temper serve: forge {number}: installation {installation}: not kept\n")
@@ -524,6 +538,25 @@ fn records_and_installation_notes_name_the_forge_and_reason() {
         note_line(Note::ForgeUnkept { number: 7, installation: 93 }),
         "temper serve: forge 7: installation 93: not kept\n"
     );
+}
+
+#[test]
+fn forge_sign_in_notes_name_each_unserved_reason() {
+    use temper_service::{Note, clients::forge_sign_in::Unserved};
+    for (why, words) in [
+        (Unserved::NotKept, "no such forge is kept"),
+        (Unserved::NotForgejo, "it is not a Forgejo"),
+        (
+            Unserved::Origin { origin: b"https://git.example.com".as_slice().into() },
+            "its browser origin https://git.example.com is not client forgejo's redirect_uri's",
+        ),
+        (Unserved::NoRoom, "no room for its meta within clients.bundle_bytes"),
+    ] {
+        assert_eq!(
+            note_line(Note::ForgeSignIn { number: 7, client: b"forgejo".as_slice().into(), why }),
+            format!("temper serve: forge 7: no sign-in through temper: {words}\n")
+        );
+    }
 }
 
 #[test]

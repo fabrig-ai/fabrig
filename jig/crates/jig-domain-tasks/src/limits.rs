@@ -96,10 +96,6 @@ pub struct Limits {
     pub charters: u32,
     /// Maximum documents per charter (domain/engine.md, 17.9).
     pub charter_documents: u32,
-    /// Charter versions held besides the newest view.
-    pub versions: u32,
-    /// Settings revisions held besides the newest.
-    pub revisions: u32,
     /// Maximum resource grants per task authority carrier.
     pub authority_grants: u32,
     /// Maximum base segments per carried grant pattern.
@@ -117,6 +113,19 @@ pub struct Limits {
     pub room_refusals: u32,
 }
 
+impl Limits {
+    /// The largest retained word, including fixed notices (jig/docs/design/protocol/store.md, 5.1).
+    #[must_use]
+    pub fn word_bytes(&self) -> u32 {
+        self.message_bytes
+            .max(self.result_bytes)
+            .max(u32::try_from(crate::run::NOTHING_AWAITED_WORDS.len()).expect("fixed notice length"))
+            .max(
+                self.inbox_bytes.min(u32::try_from(crate::questions::OWED_WORDS.len()).expect("fixed reminder length")),
+            )
+    }
+}
+
 /// Maximum ended identities named by bounded live dependencies, inputs or references.
 #[must_use]
 pub(crate) fn stub_capacity(limits: &Limits) -> Option<u32> {
@@ -132,7 +141,7 @@ pub(crate) fn stub_capacity(limits: &Limits) -> Option<u32> {
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
-pub fn valid(limits: &Limits) -> bool {
+pub fn valid(limits: &Limits, kept: crate::Kept) -> bool {
     if limits.placed_holds == 0
         || limits.project_placed_holds == 0
         || limits.party_placed_holds == 0
@@ -166,13 +175,88 @@ pub fn valid(limits: &Limits) -> bool {
     stub_capacity(limits).is_some()
         && limits.tasks.checked_mul(limits.subscriptions).is_some()
         && limits.tasks.checked_mul(limits.holdings).is_some()
-        && limits.revisions.checked_add(1).is_some()
+        && kept.revisions.checked_add(1).is_some()
         && crate::activity::line_bytes_limit(limits).is_some()
         && crate::waits::valid(limits)
         && limits.tasks.checked_mul(4).is_some()
-        && charter_capacity(limits).is_some()
+        && charter_capacity(limits, kept).is_some()
 }
 
-fn charter_capacity(limits: &Limits) -> Option<u32> {
-    limits.charters.checked_mul(2)?.checked_add(limits.versions)
+pub(crate) fn charter_capacity(limits: &Limits, kept: crate::Kept) -> Option<u32> {
+    limits.charters.checked_mul(2)?.checked_add(kept.versions)
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use crate::{Limits, Retries, Retry};
+    use skein_lib::Duration;
+
+    const RETRY: Retry = Retry { retries: 2, base: Duration::from_millis(10), max: Duration::from_secs(1) };
+    pub(crate) const LIMITS: Limits = Limits {
+        placed_holds: 16,
+        project_placed_holds: 8,
+        party_placed_holds: 4,
+        exemptions: 1,
+        tasks: 16,
+        funders: 32,
+        project_tasks: 16,
+        project_goals: 2,
+        tree_tasks: 16,
+        depth: 4,
+        delegates: 8,
+        references: 8,
+        subscriptions: 8,
+        batch: 8,
+        batch_bytes: 131_072,
+        dependencies: 8,
+        holdings: 4,
+        hold_kinds: 4,
+        resource_reports: 64,
+        pools: 8,
+        hold_segments: 4,
+        hold_bytes: 64,
+        hold_waiters: 8,
+        grace: Duration::from_secs(600),
+        hold_wait: Duration::from_secs(10),
+        circle: 8,
+        inputs: 4,
+        spec_bytes: 64,
+        parameters: 4,
+        result_bytes: 32,
+        run_inbox: 8,
+        inbox_messages: 8,
+        inbox_bytes: 128,
+        message_bytes: 32,
+        proposal_stall: Duration::from_millis(10),
+        escalation_stall: Duration::from_secs(3600),
+        person_stall: Duration::from_secs(3600),
+        saved_resources: 2,
+        contract_choices: 4,
+        charters: 2,
+        charter_documents: 2,
+        authority_grants: 4,
+        authority_segments: 4,
+        authority_bytes: 64,
+        executor_kinds: 3,
+        retries: Retries { transient: RETRY, permanent: RETRY, run: RETRY, agent: RETRY, lost: RETRY, invalid: RETRY },
+        facts: 16,
+        room_refusals: 2,
+    };
+
+    #[test]
+    fn word_bytes_covers_fixed_notices_and_caller_limits() {
+        // Byte lengths of the durable notice and reminder in run and questions.
+        const NOTICE: u32 = 97;
+        const REMINDER: u32 = 87;
+        for (bound, expected) in
+            [(REMINDER - 1, NOTICE), (REMINDER + 1, NOTICE), (NOTICE - 1, NOTICE), (NOTICE + 1, 98)]
+        {
+            for (message, result, inbox, expected) in
+                [(bound, 0, 0, expected), (0, bound, 0, expected), (0, 0, bound, NOTICE)]
+            {
+                let limits = Limits { message_bytes: message, result_bytes: result, inbox_bytes: inbox, ..LIMITS };
+                assert_eq!(limits.word_bytes(), expected, "{message}, {result}, {inbox}");
+            }
+        }
+    }
 }

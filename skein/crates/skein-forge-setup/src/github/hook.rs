@@ -1,6 +1,7 @@
 //! Read and repair the App's URL-only hook (forge-setup.md, 5.5, 5.6 and 5.8).
-use super::app::{self, Kept};
-use crate::reconcile::{self, Event, Need, Reply, Stage, Why};
+use super::app::Kept;
+use crate::github::{Reply, reply};
+use crate::plan::{self, Event, Need, Stage, Why};
 use alloc::boxed::Box;
 use skein_forge::github::{
     document::{Document, Hook as Config},
@@ -41,7 +42,7 @@ impl Hook {
     }
     fn stop(&self, why: Why) -> Progress {
         let subject = if why == Why::KeyForm { b"key" } else { self.slug.as_ref() };
-        Progress::Pending(app::stop(self.forge, Stage::App, subject, why))
+        Progress::Pending(plan::stop(self.forge, Stage::App, subject, why))
     }
 }
 
@@ -55,14 +56,12 @@ fn url(slug: &[u8]) -> Option<Box<[u8]>> {
 }
 
 fn config(event: Event) -> Result<Config, Why> {
-    match reconcile::reply(event)? {
-        Reply::GithubDocument(Document::HookConfig(config)) => Ok(config),
+    match reply(event)? {
+        Reply::Document(Document::HookConfig(config)) => Ok(config),
         Reply::Unsigned => Err(Why::KeyForm),
         Reply::Down => Err(Why::Down),
         Reply::Status(status) => Err(Why::Refused(status)),
-        Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::GithubDocument(_) | Reply::GithubRows(_) => {
-            Err(Why::Unexpected)
-        }
+        Reply::Empty | Reply::Document(_) | Reply::Rows(_) => Err(Why::Unexpected),
     }
 }
 
@@ -72,8 +71,8 @@ fn config(event: Event) -> Result<Config, Why> {
 pub(crate) fn step(machine: &mut Hook, event: Event, out: &mut Queue<Progress>) {
     let state = core::mem::replace(&mut machine.state, State::Ended);
     let progress = match state {
-        State::Begin(kept) => match event {
-            Event::Begin => match url(&machine.slug) {
+        State::Begin(kept) => match event.begin() {
+            Ok(()) => match url(&machine.slug) {
                 Some(url) => {
                     let auth = kept.auth();
                     machine.state = State::Read { kept, url };
@@ -81,7 +80,7 @@ pub(crate) fn step(machine: &mut Hook, event: Event, out: &mut Queue<Progress>) 
                 }
                 None => machine.stop(Why::Unexpected),
             },
-            Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => machine.stop(Why::Unexpected),
+            Err(why) => machine.stop(why),
         },
         State::Read { kept, url } => match config(event) {
             Ok(config) => {

@@ -521,7 +521,7 @@ fn stateless_accept_keeps_the_checked_installation_without_drawing_or_taking_sta
     }
     assert!(world.up.is_empty());
     world.host.runs.get_mut(&run).expect("accept running").reply(
-        reconcile::Reply::GithubDocument(Document::Installation(Installation {
+        reconcile::Reply::GitHubDocument(Document::Installation(Installation {
             id: 3,
             login: b"acme".as_slice().into(),
             account: 22,

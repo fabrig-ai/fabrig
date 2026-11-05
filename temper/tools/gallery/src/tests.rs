@@ -15,6 +15,21 @@ fn names_are_the_promised_ones() {
 }
 
 #[test]
+fn retired_chat_style_slots_stay_reserved() {
+    let names = &temper_client_view::look::NAMES;
+    for (token, expected) in [
+        (62, b"temper-reserved-62".as_slice()),
+        (295, b"temper-reserved-295"),
+        (296, b"temper-reserved-296"),
+        (297, b"temper-reserved-297"),
+        (298, b"temper-reserved-298"),
+        (299, b"temper-reserved-299"),
+    ] {
+        assert_eq!(names.style(skein_ui::Style { owner: names.owner, token }), Some(expected));
+    }
+}
+
+#[test]
 fn navigation_links_have_addresses_and_install_action_links_keep_their_binding() {
     for sample in samples::samples() {
         let mut view = view(&sample);
@@ -42,8 +57,22 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
             {
                 let reset = view.tree().nodes().iter().find(|shown| shown.id == node).expect("bound reset link");
                 assert!(matches!(reset.name.as_deref(), Some(b"set up temper" | b"Set up temper")));
+            } else if let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Needs(
+                temper_client_domain::pages::needs::Act::Open { object },
+            ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
+            {
+                assert!(sample.name.starts_with("home-"));
+                assert!(
+                    samples::domain(&sample)
+                        .pages()
+                        .inbox()
+                        .expect("Home inbox")
+                        .cards
+                        .iter()
+                        .any(|card| card.object == object)
+                );
             } else {
-                panic!("{}: link {node:?} has neither a destination nor its install act", sample.name);
+                panic!("{}: link {node:?} has neither a destination nor its action", sample.name);
             }
         }
     }
@@ -74,6 +103,96 @@ enum Part {
     PlanWithEnded { live: u32, ended: u32, before: &'static str, after: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "needs-one",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[Part::Named { role: Role::Button, name: "Later" }],
+    },
+    Holds {
+        name: "needs-saw-open",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[Part::Named { role: Role::Button, name: "Later" }],
+    },
+    Holds {
+        name: "needs-reply-open",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Named { role: Role::TextArea, name: "Your reply" },
+        ],
+    },
+    Holds {
+        name: "needs-second-answered",
+        heading: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Named { role: Role::Button, name: "Undo" },
+            Part::Text { text: "Answered: In jig’s store" },
+        ],
+    },
+    Holds {
+        name: "needs-later",
+        heading: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Text { text: "Later: it stays in Needs you, after the others." },
+        ],
+    },
+    Holds {
+        name: "needs-last",
+        heading: "The repository has no license. Name one in the README?",
+        parts: &[Part::Named { role: Role::Button, name: "Later" }, Part::Text { text: "The last one" }],
+    },
+    Holds {
+        name: "needs-done",
+        heading: "Nothing needs you.",
+        parts: &[Part::Named { role: Role::Link, name: "Home" }],
+    },
+    Holds {
+        name: "needs-proposal",
+        heading: "Accept how temper will run your work.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Accept" },
+            Part::Named { role: Role::Disclosure, name: "Reject" },
+            Part::Named { role: Role::TextArea, name: "Reason" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Text { text: "Funding after: 34" },
+        ],
+    },
+    Holds {
+        name: "needs-held",
+        heading: "first-run-projects",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Release" },
+            Part::Named { role: Role::Disclosure, name: "Leave held" },
+            Part::Named { role: Role::TextArea, name: "Reason" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Text { text: "Both halves of the store task run. The Ready page waits for this decision." },
+        ],
+    },
+    Holds {
+        name: "needs-funds",
+        heading: "31 of 40 used.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Release" },
+            Part::Named { role: Role::Disclosure, name: "Leave held" },
+            Part::Named { role: Role::TextArea, name: "Reason" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Absent { role: Role::Button, name: "Add $10" },
+            Part::Text { text: "first-run-projects" },
+        ],
+    },
+    Holds {
+        name: "needs-plain-words",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Absent { role: Role::Button, name: "In jig’s store" },
+        ],
+    },
     Holds {
         name: "changes",
         heading: "Three changes are on the way to main.",
@@ -189,13 +308,19 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "home-needs-several",
-        heading: "3 things need you.",
+        heading: "Three things need you.",
         parts: &[
             Part::Named { role: Role::Link, name: "Needs you 3" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
             Part::Named { role: Role::Link, name: "Answer in a row" },
-            Part::Named { role: Role::Link, name: "Hello in Rust · a question · 4 min" },
-            Part::Named { role: Role::Link, name: "What is in this repository? · a question · 4 min" },
+            Part::Named {
+                role: Role::Link,
+                name: "The repository has no license. Name one in the README? · a question · 4 min",
+            },
+            Part::Named {
+                role: Role::Link,
+                name: "The repository has no license. Name one in the README? · a question · 4 min",
+            },
             Part::Named { role: Role::Link, name: "All 3 chats" },
         ],
     },
@@ -397,6 +522,46 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "temper’s App reaches its repositories on sam." },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "home-morning-card",
+        heading: "Three things need you.",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+            },
+            Part::Named { role: Role::Button, name: "In jig’s store" },
+            Part::Named { role: Role::Disclosure, name: "What the agent saw" },
+            Part::Named { role: Role::Button, name: "Reply" },
+            Part::Named { role: Role::Button, name: "Later" },
+        ],
+    },
+    Holds {
+        name: "home-answered",
+        heading: "Two things need you.",
+        parts: &[
+            Part::Named { role: Role::Text, name: "In jig’s store" },
+            Part::Named { role: Role::Button, name: "Undo" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?",
+            },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 2" },
+        ],
+    },
+    Holds {
+        name: "home-one-need",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "MIT" },
+            Part::Named { role: Role::Button, name: "Later" },
+            Part::Named {
+                role: Role::Link,
+                name: "Add a README: The repository has no license. Name one in the README? Answer",
+            },
+            Part::Absent { role: Role::Link, name: "Answer in a row" },
         ],
     },
     Holds {
@@ -841,13 +1006,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "inbox-solo",
-        heading: "Inbox",
-        parts: &[
-            Part::Named { role: Role::Button, name: "Answer" },
-            Part::Named { role: Role::Heading { level: 3 }, name: "JSON output for tally report" },
-            Part::Named { role: Role::Button, name: "Accept" },
-            Part::Named { role: Role::Paragraph, name: "The old parser accepts" },
-        ],
+        heading: "It changes report’s output and its tests, and lands into main: more than a chat does alone.",
+        parts: &[Part::Named { role: Role::Button, name: "Open" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
         name: "settings",
@@ -943,9 +1103,56 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "chat-byline-open",
+        heading: "New chat",
+        parts: &[
+            Part::Described { role: Role::Disclosure, name: "Change model", description: "ChatGPT plan · gpt-6-luna" },
+            Part::Named { role: Role::Button, name: "Reset choice" },
+        ],
+    },
+    Holds { name: "chat-working", heading: "T6", parts: &[Part::Named { role: Role::Slot, name: "Writing" }] },
+    Holds {
         name: "chat-solo-T6",
         heading: "T6 · Why is tally sum slow on big files?",
         parts: &[Part::Named { role: Role::Paragraph, name: "T7 found it" }],
+    },
+    Holds {
+        name: "chat-held-task",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "The CSV import task is held" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "chat-change-running",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Task 2" },
+            Part::Named { role: Role::Paragraph, name: "Change" },
+            Part::Named { role: Role::Status, name: "Running" },
+        ],
+    },
+    Holds {
+        name: "chat-change-landed",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "CI passed. Landed" },
+            Part::Named { role: Role::Status, name: "Landed" },
+        ],
+    },
+    Holds {
+        name: "chat-change-held",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[Part::Named { role: Role::Status, name: "Held" }],
+    },
+    Holds {
+        name: "chat-goal",
+        heading: "T1 · Add CSV export to widget",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Started goal" },
+            Part::Named { role: Role::Link, name: "Task 2" },
+        ],
     },
     Holds {
         name: "chat-first-run-2-T1",
@@ -971,8 +1178,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "inbox-reference",
-        heading: "Inbox",
-        parts: &[Part::Named { role: Role::Link, name: "T1 Director replied" }],
+        heading: "Nothing needs you.",
+        parts: &[Part::Named { role: Role::Link, name: "Home" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
         name: "accounts-reference",
@@ -1015,11 +1222,8 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "inbox-empty",
-        heading: "Inbox",
-        parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you" },
-            Part::Absent { role: Role::List, name: "" },
-        ],
+        heading: "Nothing needs you.",
+        parts: &[Part::Named { role: Role::Link, name: "Home" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
         name: "chat-closing",
@@ -1156,12 +1360,18 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 12] = [
+const SPENDS: [(&str, Role, &str); 18] = [
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
+    ("chat-held-task", Role::Paragraph, "0 spent · of 40"),
     ("chat-reference-T1", Role::Paragraph, "6 spent · of 100"),
     ("chat-solo-T1", Role::Paragraph, "1 spent · of 40"),
     ("chat-solo-T6", Role::Paragraph, "1 spent · of 40"),
+    ("chat-working", Role::Paragraph, "1 spent · of 40"),
+    ("chat-change-running", Role::Paragraph, "0 spent · of 20"),
+    ("chat-change-landed", Role::Paragraph, "0 spent · of 20"),
+    ("chat-change-held", Role::Paragraph, "0 spent · of 20"),
+    ("chat-goal", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-2-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-3-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-first-run-4-T4", Role::Paragraph, "0 spent · of 20"),
@@ -1454,8 +1664,8 @@ fn times_read_against_each_mockup_worlds_fixed_now() {
     for (name, expected) in [
         ("chats-solo", "1 h 28 min"),
         ("chats-reference", "50 min"),
-        ("inbox-solo", "Waiting 12 min"),
-        ("inbox-solo", "Waiting 18 min"),
+        ("inbox-solo", "a proposal"),
+        ("inbox-solo", "12 min"),
         ("chat-solo-T10", "waiting 12 min"),
         ("chat-reference-T1", "Today · Thursday 22 October"),
         ("chat-solo-T10", "Today · Tuesday 27 October"),
@@ -1690,4 +1900,65 @@ fn reference_lede_names_the_worlds_templates_in_number_order() {
         String::from_utf8(text).expect("lede UTF-8"),
         "A goal turns a draft into landed work, its own way: task by task, plan, tasks, land whole, plan, then wait for me, one agent, one branch."
     );
+}
+
+#[test]
+fn the_byline_sample_opens_only_the_model_disclosure() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "chat-byline-open").unwrap();
+    let view = view(&sample);
+    let node = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Change model"))
+        .unwrap();
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert!(html.contains(&format!("data-node=\"{}\" open", node.id.0)));
+    assert_eq!(html.matches(" open").count(), 1);
+}
+
+#[test]
+fn the_chat_log_follows_its_end_until_the_person_scrolls_away() {
+    use skein_ui_web::page::{Event as PageEvent, Op};
+    use temper_client_domain::{Action, Event, pages::Act};
+    let sample = samples::samples().into_iter().find(|s| s.name == "chat-solo-T6").expect("chat sample");
+    let mut root = samples::domain(&sample);
+    let (mut view, bounds, patches) = built(&sample);
+    let log = find(view.tree(), Role::Log, "Conversation", sample.name);
+    let mut page = Page::new(
+        Look {
+            names: &[temper_client_view::look::NAMES],
+            pictures: &[],
+            components: &[],
+            elements: temper_client_view::look::ELEMENTS,
+            draw,
+        },
+        &bounds.tree,
+        b"temper",
+        Primary::Control,
+    );
+    let mut ops = Vec::new();
+    page.apply(&patches, &mut ops);
+    assert!(ops.iter().any(|op| matches!(op, Op::ScrollEnd { node } if *node == log)), "initial chat follows its end");
+    for (top, follow, words) in
+        [(800, true, b"At the end".as_slice()), (100, false, b"Reading earlier turns"), (800, true, b"Back at the end")]
+    {
+        ops.clear();
+        assert!(page.act(PageEvent::Scrolled { node: log, top, height: 1000, viewport: 200 }, &mut ops).is_none());
+        let mut out = Queue::uncapped();
+        driver::step(
+            &mut root,
+            Event::Act { action: Action::Pages(Act::MessageWords { words: words.into() }) },
+            &mut out,
+        );
+        if words == b"At the end" {
+            driver::step(&mut root, Event::Act { action: Action::Pages(Act::Send) }, &mut out);
+        }
+        let mut patches = Queue::with_capacity(bounds.tree.patches);
+        temper_client_view::build(&mut view, &root, worlds::sample_now(sample.world, sample.name), &mut patches);
+        let patches: Vec<_> = (0..patches.len()).map(|_| patches.pop().expect("queued patch")).collect();
+        assert!(!patches.is_empty(), "the chat changes");
+        page.apply(&patches, &mut ops);
+        assert_eq!(ops.iter().any(|op| matches!(op, Op::ScrollEnd { node } if *node == log)), follow);
+    }
 }

@@ -1,7 +1,7 @@
 //! Immutable task activity in commit order (domain/engine.md, sections 5.4, 5.5 and 7.2).
 //! Only the last position is live. Messages retain their original admission,
 //! before unread hints merge; history and lifecycle rows are named for demand loads.
-use crate::{MessageKind, Party, Request, Stored, TaskRecord, Word};
+use crate::{MessageFamily, MessageKind, Party, Request, Stored, TaskRecord, Word};
 use alloc::boxed::Box;
 use skein_lib::{Queue, Wall};
 
@@ -96,27 +96,13 @@ pub(crate) fn append(task: &mut TaskRecord, at: Wall, line: Line, out: &mut Queu
 }
 
 pub(crate) fn message(task: &mut TaskRecord, word: &Word, bound: u32, out: &mut Queue<Request>) {
-    let line = match word.kind {
-        MessageKind::Words | MessageKind::Question | MessageKind::Answer { .. } => {
+    let line = match word.kind.family() {
+        MessageFamily::Spoken(_) => {
             Line::Words { message: word.number, by: word.from, kind: word.kind.clone(), words: word.words.clone() }
         }
-        MessageKind::EffectNotMade { .. }
-        | MessageKind::Escalation { .. }
-        | MessageKind::Proposal { .. }
-        | MessageKind::SettingsDecision { .. }
-        | MessageKind::ProposalDecision { .. }
-        | MessageKind::FinishRequested { .. }
-        | MessageKind::Amendment { .. }
-        | MessageKind::Met { .. }
-        | MessageKind::QuestionAnswered { .. }
-        | MessageKind::QuestionOwed
-        | MessageKind::NothingAwaited
-        | MessageKind::QuestionEnded { .. }
-        | MessageKind::Notice { .. }
-        | MessageKind::Timer { .. }
-        | MessageKind::News { .. }
-        | MessageKind::PersonStalled { .. }
-        | MessageKind::Result(_) => Line::Heard(word.clone()),
+        MessageFamily::Hint(_) | MessageFamily::Slot(_) | MessageFamily::Result | MessageFamily::Virtual => {
+            Line::Heard(word.clone())
+        }
     };
     append(task, word.at, line, out);
     crate::positions::message(task, word, bound);

@@ -337,14 +337,7 @@ fn encode_model_names(names: &[Box<[u8]>], limits: &wire::Limits) -> Result<List
 fn model_moves(kept: &List<wire::ModelName>, names: &[core::settings::ModelName]) -> [u64; 64] {
     let mut moved = [0; 64];
     for (bit, name) in kept.iter().enumerate() {
-        for (today, configured) in names.iter().enumerate() {
-            if configured.name.as_ref() == name.name() {
-                if let (Some(slot), Ok(today)) = (moved.get_mut(bit), u32::try_from(today)) {
-                    *slot = 1_u64.checked_shl(today).unwrap_or(0);
-                }
-                break;
-            }
-        }
+        *moved.get_mut(bit).expect("bounded names") = core::settings::model_bit(name.name(), names);
     }
     moved
 }

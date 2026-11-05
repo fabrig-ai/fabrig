@@ -7,7 +7,7 @@ use crate::openai::{
 use alloc::boxed::Box;
 use core::mem;
 use skein_json::{Document, Kind, writer::Encoder};
-use skein_lib::{List, Queue, Wall, bytes};
+use skein_lib::{List, Queue, Wall, bytes, usize_of};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Item {
@@ -119,17 +119,8 @@ pub enum Part {
         cut: bool,
     },
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Output {
-    Part(Part),
-    TextDelta { index: u32, content_index: u32, text: Box<[u8]> },
-    ToolStart { index: u32, id: Box<[u8]>, name: Box<[u8]> },
-    ArgumentsDelta { index: u32, delta: Box<[u8]> },
-    ReasoningDelta { index: u32, summary_index: u32, text: Box<[u8]> },
-    Completed { stop: Stop, usage: Usage },
-    Failed { failure: Failure, detail: Box<[u8]> },
-    Progress,
-}
+/// Decoded events over this dialect's `Part` (skein/docs/design/llm.md, 2).
+pub type Output = crate::wire::Output<Part>;
 #[derive(Debug)]
 pub struct StreamDecoder {
     provider: Provider,
@@ -339,7 +330,7 @@ impl StreamDecoder {
                     return Err(DecodeError::Malformed);
                 }
                 for text in [&id, &call_id, &name] {
-                    if text.len() > usize::try_from(limits.strings).expect("u32 fits usize") {
+                    if text.len() > usize_of(limits.strings) {
                         return Err(DecodeError::limit(crate::Cap::Strings, limits.strings));
                     }
                 }
@@ -375,7 +366,7 @@ impl StreamDecoder {
                     Some((_, Opened::Tool { input, bytes, too_large, .. })) => {
                         *bytes = bytes.checked_add(length).ok_or(DecodeError::Malformed)?;
                         if !*too_large {
-                            if long.is_some() || delta.len() > usize::try_from(input.room()).expect("u32 fits usize") {
+                            if long.is_some() || delta.len() > usize_of(input.room()) {
                                 *too_large = true;
                                 input.clear();
                             } else {
@@ -410,7 +401,7 @@ impl StreamDecoder {
         limits: &Limits,
         out: &mut Queue<Output>,
     ) -> Result<(), DecodeError> {
-        let limit = usize::try_from(limits.strings).expect("u32 fits usize");
+        let limit = usize_of(limits.strings);
         if id.len() > limit || kind.len() > limit {
             return Err(DecodeError::limit(crate::Cap::Strings, limits.strings));
         }
@@ -601,7 +592,9 @@ impl StreamDecoder {
         self.opened.clear();
         let detail = match failure {
             Failure::Limit { which, bound } => common::limit_detail(which, bound),
-            Failure::Protocol
+            Failure::Cancelled
+            | Failure::TimedOut { .. }
+            | Failure::Protocol
             | Failure::Unauthorized
             | Failure::Refused
             | Failure::Unsupported
@@ -612,7 +605,7 @@ impl StreamDecoder {
             | Failure::ContextTooLong
             | Failure::Invalid => detail,
         };
-        let detail = if detail.len() > usize::try_from(self.detail_bytes).expect("u32 fits usize") {
+        let detail = if detail.len() > usize_of(self.detail_bytes) {
             common::clipped(&detail, self.detail_bytes)
         } else {
             detail
@@ -661,7 +654,7 @@ fn prepare(
                 Item::CutCall { id, call_id, name, arguments } => (id, call_id, name, arguments, true),
                 Item::Message { .. } | Item::Opaque { .. } => unreachable!("a function-call item"),
             };
-            let cap = usize::try_from(limits.strings).expect("u32 fits usize");
+            let cap = usize_of(limits.strings);
             if id.len() > cap || call_id.len() > cap || name.len() > cap {
                 return Err(DecodeError::limit(crate::Cap::Strings, limits.strings));
             }
@@ -931,43 +924,8 @@ fn read_usage(tokens: Option<(&Document, json::Span)>) -> Usage {
     }
     Usage { input, cache_read, cache_write, output: json::reported_unsigned(tokens, b"output_tokens"), reasoning }
 }
-pub fn decode_error(value: &Json, limits: &Limits) -> Result<ProviderError, DecodeError> {
-    let tokens = value.view();
-    let error = match json::optional_at(tokens, json::field(tokens, b"error")?)? {
-        Some(value) => value,
-        None => tokens,
-    };
-    read_error(error, limits)
-}
-fn read_error(tokens: (&Document, json::Span), limits: &Limits) -> Result<ProviderError, DecodeError> {
-    let kind = match json::optional_at(tokens, json::field(tokens, b"code")?)? {
-        Some(value) => {
-            if json::kind(value, 0) == Some(Kind::Null) && json::len(value) == 1 {
-                json::text(json::value_at(tokens, json::required(tokens, b"type")?)?)?
-            } else {
-                json::text(value)?
-            }
-        }
-        None => json::text(json::value_at(tokens, json::required(tokens, b"type")?)?)?,
-    };
-    let message = common::clipped(
-        json::text_ref(json::value_at(tokens, json::required(tokens, b"message")?)?)?,
-        limits.detail_bytes,
-    );
-    let resets_in_seconds = match json::optional_at(tokens, json::field(tokens, b"resets_in_seconds")?)? {
-        Some(value) => Some(json::unsigned(value)?),
-        None => None,
-    };
-    let resets_at = match json::optional_at(tokens, json::field(tokens, b"resets_at")?)? {
-        Some(value) => Some(json::unsigned(value)?),
-        None => None,
-    };
-    let param = match request::optional_text(tokens, b"param")? {
-        Some(param) => param,
-        None => Box::new([]),
-    };
-    Ok(ProviderError { param, kind, message, resets_in_seconds, resets_at })
-}
+pub use crate::wire::decode_error;
+use crate::wire::read_error;
 pub fn encode_error(error: &ProviderError, limits: &Limits) -> Result<Box<[u8]>, DecodeError> {
     encode_event(&Event::Failed { error: error.clone() }, limits)
 }
@@ -1351,12 +1309,7 @@ fn received_length(long: Option<u64>, stored: usize) -> u64 {
     }
 }
 
-pub(crate) fn long_text(value: (&Document, json::Span)) -> Option<u64> {
-    match json::record(value, 0) {
-        Some(record) if record.kind == Kind::Long && json::len(value) == 1 => Some(u64::from(record.len)),
-        Some(_) | None => None,
-    }
-}
+pub(crate) use crate::wire::json::long_text;
 
 fn arguments(value: (&Document, json::Span)) -> Result<Box<[u8]>, DecodeError> {
     match long_text(value) {

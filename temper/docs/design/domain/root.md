@@ -805,6 +805,15 @@ facts into operator notes as note room returns; a full diagnostic sink
 changes no tool decision. The root's bounded fact queue counts overflow,
 and no diagnostic variant enters the store or client wire.
 
+Final forge-read rendering checks the settled tool-name and body bytes against
+`core.call_answer_bytes`, then those bytes plus any retained typed answer
+against `root.journal.transcript_bytes`. An exceeded bound returns an error
+within both settled-answer limits, naming the bound, measured size and a
+narrower read route (`agent.md`, 8). The root retains the original tool
+identity for its `host-render` refusal fact even as it removes the flight.
+A rendering size refusal is terminal; forge-client admission busy retains
+its bounded retry path.
+
 
 ### 7.4 What a run left
 
@@ -1017,8 +1026,8 @@ Startup also checks the seed policy after enforced landing requirements are join
   watermark (its commits in flight and the door's outputs), so pacing
   stays close to it: at the commits alone, a person's watch waited
   twice as many offers behind admitted work.
-- **The watches' rooms are temper's:** 16 a party, 16 a stream and 16 in
-  all, above jig's profiles' 4, since temper's client opens 16
+- **The watches' rooms are temper's:** 17 a party, 17 a stream and 17 in
+  all, above jig's profiles' 4, since temper's client opens 17
   (`../protocol/configuration.md`, section 7). The rest of the views'
   limits are jig's small profile's: 4 runs watched, 65,536 bytes of a
   run's text, 32 subjects marked per change, 32 facts.

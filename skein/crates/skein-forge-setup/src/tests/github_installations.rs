@@ -48,7 +48,7 @@ fn row(id: u64, created: Wall, suspended: bool) -> Row {
     Row::Installation(installation(id, created, suspended))
 }
 fn rows(rows: &[Row]) -> Event {
-    Event::Reply(Reply::GithubRows(rows.into()))
+    Event::Reply(Reply::GitHubRows(rows.into()))
 }
 fn go(machine: &mut Sweep, event: Event) -> Progress {
     let mut out = Queue::uncapped();
@@ -237,12 +237,12 @@ fn a_failed_listing_at_the_bound_neither_prunes_nor_uninstalls() {
     given.limits.pages = 2;
     for (reply, expected) in [
         (
-            Reply::GithubRows(Box::from([row(7, Wall::EPOCH, false), row(0, NOW, false)])),
+            Reply::GitHubRows(Box::from([row(7, Wall::EPOCH, false), row(0, NOW, false)])),
             listing_failure(Why::Unexpected),
         ),
-        (Reply::GithubRows(Box::from([row(3, Wall::EPOCH, false)])), listing_failure(Why::Unexpected)),
+        (Reply::GitHubRows(Box::from([row(3, Wall::EPOCH, false)])), listing_failure(Why::Unexpected)),
         (
-            Reply::GithubRows(full_page(PAGE_CAP.checked_add(1).expect("one past cap"))),
+            Reply::GitHubRows(full_page(PAGE_CAP.checked_add(1).expect("one past cap"))),
             listing_failure(Why::Unexpected),
         ),
         (Reply::Status(403), listing_failure(Why::Refused(403))),
@@ -354,7 +354,7 @@ fn a_failed_delete_at_the_bound_names_its_installation() {
     for (reply, expected) in [
         (Reply::Status(403), failure(Stage::Installation, b"12345", Why::Refused(403))),
         (Reply::Down, failure(Stage::Installation, b"12345", Why::Down)),
-        (Reply::GithubRows(Box::new([])), failure(Stage::Installation, b"12345", Why::Unexpected)),
+        (Reply::GitHubRows(Box::new([])), failure(Stage::Installation, b"12345", Why::Unexpected)),
         (Reply::Unsigned, failure(Stage::App, b"key", Why::KeyForm)),
     ] {
         let mut given = given();
@@ -381,12 +381,12 @@ fn bad_duplicate_or_excess_rows_stop_before_any_mutation() {
         rows(&[row(3, Wall::EPOCH, false)]), // Duplicate across pages.
         rows(&[row(7, NOW, false), row(7, NOW, false)]),
         rows(&[row(7, NOW, false), Row::Branch(b"main".as_slice().into())]),
-        Event::Reply(Reply::GithubDocument(Document::Installation(installation(7, NOW, false)))),
-        Event::Reply(Reply::GithubDocument(Document::Done)),
+        Event::Reply(Reply::GitHubDocument(Document::Installation(installation(7, NOW, false)))),
+        Event::Reply(Reply::GitHubDocument(Document::Done)),
         Event::Reply(Reply::Rows(Box::new([]))),
         Event::Reply(Reply::Document(skein_forge::forgejo::document::Document::RepoSearch { ok: true })),
         Event::Reply(Reply::Empty),
-        Event::Reply(Reply::GithubRows(full_page(PAGE_CAP.checked_add(1).expect("one past cap")))),
+        Event::Reply(Reply::GitHubRows(full_page(PAGE_CAP.checked_add(1).expect("one past cap")))),
     ] {
         let mut machine = begun(&[1, 9]);
         assert_eq!(go(&mut machine, rows(&[row(3, Wall::EPOCH, false)])), page(2));
@@ -406,7 +406,7 @@ fn full_page(count: u32) -> Box<[Row]> {
 #[test]
 fn a_page_at_the_row_cap_is_followed() {
     let mut machine = begun(&[]);
-    assert_eq!(go(&mut machine, Event::Reply(Reply::GithubRows(full_page(PAGE_CAP)))), page(2));
+    assert_eq!(go(&mut machine, Event::Reply(Reply::GitHubRows(full_page(PAGE_CAP)))), page(2));
     assert_eq!(go(&mut machine, rows(&[])), Progress::Complete);
     silent(&mut machine);
 }
@@ -419,8 +419,8 @@ fn a_sweep_names_the_installation_whose_delete_failed() {
         (Reply::Status(403), Why::Refused(403)),
         (Reply::Status(500), Why::Refused(500)),
         (Reply::Down, Why::Down),
-        (Reply::GithubDocument(Document::Done), Why::Unexpected),
-        (Reply::GithubRows(Box::new([])), Why::Unexpected),
+        (Reply::GitHubDocument(Document::Done), Why::Unexpected),
+        (Reply::GitHubRows(Box::new([])), Why::Unexpected),
         (Reply::Rows(Box::new([])), Why::Unexpected),
     ] {
         let mut machine = begun(&[]);

@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use skein_lib::List;
+use skein_lib::{List, usize_of};
 use skein_ui::{
     Act, Limits, Made, Modifier, NodeId, Patch, Role, State,
     scene::{Point, Scene},
@@ -296,10 +296,7 @@ impl<'a> Page<'a> {
         assert!(!nodes.is_empty(), "insert holds a subtree");
         let mut open = Vec::new();
         for (index, made) in nodes.iter().enumerate() {
-            assert!(
-                self.nodes.len() < usize::try_from(self.limit).expect("node limit fits usize"),
-                "page fits the view's node limit"
-            );
+            assert!(self.nodes.len() < usize_of(self.limit), "page fits the view's node limit");
             while open.last().is_some_and(|(_, end)| index >= *end) {
                 open.pop();
             }
@@ -317,7 +314,7 @@ impl<'a> Page<'a> {
             };
             assert!(self.nodes.insert(made.id, held).is_none(), "inserted node has a fresh identity");
             self.attach(made.id, node_parent, if index == 0 { before } else { None });
-            let end = index + usize::try_from(made.size).expect("subtree size fits usize");
+            let end = index + usize_of(made.size);
             assert!(made.size > 0 && end <= nodes.len(), "insert subtree is contained");
             open.push((made.id, end));
         }

@@ -88,13 +88,20 @@ type Host = Option<(&'static [u8], Position)>;
 type Placed = (&'static str, Runs, Option<Firmware>, Option<&'static [u8]>, Host, Position);
 const PLACED: &[Placed] = &[
     ("x1-prod", Runs::Metal, Some(Firmware::Efi), Some(b"7th-gen"), None, Position { offset: 17, line: 2, column: 16 }),
-    ("ion-prod", Runs::Vm, Some(Firmware::Bios), Some(b"ionos"), None, Position { offset: 15, line: 1, column: 16 }),
+    (
+        "west-prod",
+        Runs::Vm,
+        Some(Firmware::Bios),
+        Some(b"provider-b"),
+        None,
+        Position { offset: 15, line: 1, column: 16 },
+    ),
     (
         "chat-prod",
         Runs::Container,
         None,
         None,
-        Some((b"rhi-prod", Position { offset: 44, line: 1, column: 45 })),
+        Some((b"east-prod", Position { offset: 44, line: 1, column: 45 })),
         Position { offset: 15, line: 1, column: 16 },
     ),
 ];
@@ -125,7 +132,7 @@ fn the_placed_examples_decode_to_their_placements_cut_anywhere() {
 }
 
 const DOCUMENTS: &[(&str, &[&[u8]])] = &[
-    ("ion-prod", &[]),
+    ("west-prod", &[]),
     ("chat-prod", &[]),
     ("stoa", &[b"1", b"2", b"3"]),
     ("fleet", &[]),

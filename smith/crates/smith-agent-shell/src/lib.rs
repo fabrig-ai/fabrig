@@ -7,6 +7,8 @@
 mod agent_shell;
 
 pub mod config;
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
 #[cfg(unix)]
 pub mod program;
 #[cfg(unix)]

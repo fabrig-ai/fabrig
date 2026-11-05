@@ -120,7 +120,7 @@ fn an_unsigned_reply_is_a_key_form_stop() {
 #[expect(clippy::disallowed_macros, reason = "the test checks that a wrong-dialect failure reveals no credential")]
 fn a_github_reply_to_a_forgejo_step_is_unexpected() {
     for reply in
-        [Reply::GithubDocument(skein_forge::github::document::Document::BotUser(7)), Reply::GithubRows(Box::new([]))]
+        [Reply::GitHubDocument(skein_forge::github::document::Document::BotUser(7)), Reply::GitHubRows(Box::new([]))]
     {
         for (mut run, stage, subject) in reply_steps() {
             let stopped = run.step(Event::Reply(reply.clone()));

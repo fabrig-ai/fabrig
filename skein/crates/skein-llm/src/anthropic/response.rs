@@ -1,8 +1,8 @@
 use crate::anthropic::{DecodeError, Failure, Json, Limits, ProviderError, RateLimit, Stop, Usage, classify};
-use crate::openai::{clip_detail, json};
+use crate::wire::{clipped as clip_detail, json};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind};
-use skein_lib::{List, Queue, Wall, bytes};
+use skein_lib::{List, Queue, Wall, bytes, usize_of};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum BlockStart {
@@ -70,17 +70,8 @@ pub enum Part {
     ToolCall { id: Box<[u8]>, name: Box<[u8]>, input: Box<[u8]>, too_large: bool, bytes: u64, cut: bool },
     Opaque { bytes: Box<[u8]> },
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Output {
-    Part(Part),
-    TextDelta { index: u32, content_index: u32, text: Box<[u8]> },
-    ToolStart { index: u32, id: Box<[u8]>, name: Box<[u8]> },
-    ArgumentsDelta { index: u32, delta: Box<[u8]> },
-    ReasoningDelta { index: u32, summary_index: u32, text: Box<[u8]> },
-    Completed { stop: Stop, usage: Usage },
-    Failed { failure: Failure, detail: Box<[u8]> },
-    Progress,
-}
+/// Decoded events over this dialect's `Part` (skein/docs/design/llm.md, 2).
+pub type Output = crate::wire::Output<Part>;
 
 #[derive(Debug)]
 enum Active {
@@ -283,9 +274,9 @@ impl StreamDecoder {
         let part = finish(active, limits)?;
         if thinking {
             let Part::Opaque { bytes } = part else { unreachable!("native reasoning") };
-            crate::openai::response::reasoning::charge(&mut self.reasoning_bytes, bytes.len(), limits)?;
+            crate::wire::reasoning::charge(&mut self.reasoning_bytes, bytes.len(), limits)?;
             self.reasoning = Some(match self.reasoning.take() {
-                Some(previous) => crate::openai::response::reasoning::append(&previous, &bytes, limits)?,
+                Some(previous) => crate::wire::reasoning::append(&previous, &bytes, limits)?,
                 None => bytes,
             });
             self.next = self.next.checked_add(1).ok_or(DecodeError::Malformed)?;
@@ -367,7 +358,7 @@ impl StreamDecoder {
                 Ok(Active::Text { text: value })
             }
             BlockStart::ToolCall { id, name, input } => {
-                let string_limit = usize::try_from(limits.strings).expect("u32 fits usize");
+                let string_limit = usize_of(limits.strings);
                 if id.is_empty() || name.is_empty() {
                     return Err(DecodeError::Malformed);
                 }
@@ -376,7 +367,7 @@ impl StreamDecoder {
                 }
                 self.reserve_received(id.len().saturating_add(name.len()), limits)?;
                 let mut value = List::with_capacity(limits.input);
-                let too_large = input.len() > usize::try_from(value.room()).expect("u32 fits usize");
+                let too_large = input.len() > usize_of(value.room());
                 if !too_large {
                     append(&mut value, &input, crate::Cap::Strings)?;
                 }
@@ -392,7 +383,7 @@ impl StreamDecoder {
             BlockStart::Thinking { text, signature, head } => {
                 let head = thinking_head(&head, &text, &signature, limits)?;
                 let serialized = head.to_bytes(&limits.document())?;
-                if serialized.len() > usize::try_from(limits.reasoning).expect("u32 fits usize") {
+                if serialized.len() > usize_of(limits.reasoning) {
                     return Err(DecodeError::limit(crate::Cap::Reasoning, limits.reasoning));
                 }
                 let mut value = List::with_capacity(limits.reasoning);
@@ -404,7 +395,7 @@ impl StreamDecoder {
             BlockStart::Redacted { value } => {
                 validate_redacted(value.view())?;
                 let data = value.to_bytes(&limits.document())?;
-                if data.len() > usize::try_from(limits.reasoning).expect("u32 fits usize") {
+                if data.len() > usize_of(limits.reasoning) {
                     return Err(DecodeError::limit(crate::Cap::Reasoning, limits.reasoning));
                 }
                 Ok(Active::Opaque { bytes: data })
@@ -413,7 +404,7 @@ impl StreamDecoder {
                 let value = Json::from_view(value.view(), &limits.document())?;
                 validate_opaque(value.view())?;
                 let data = value.to_bytes(&limits.document())?;
-                if data.len() > usize::try_from(limits.reasoning).expect("u32 fits usize") {
+                if data.len() > usize_of(limits.reasoning) {
                     return Err(DecodeError::limit(crate::Cap::Reasoning, limits.reasoning));
                 }
                 self.reserve_received(data.len(), limits)?;
@@ -460,7 +451,7 @@ impl StreamDecoder {
                     };
                     *bytes = bytes.checked_add(length).ok_or(DecodeError::Malformed)?;
                     if !*too_large {
-                        if long.is_some() || fragment.len() > usize::try_from(input.room()).expect("u32 fits usize") {
+                        if long.is_some() || fragment.len() > usize_of(input.room()) {
                             *too_large = true;
                             input.clear();
                         } else {
@@ -509,8 +500,10 @@ impl StreamDecoder {
         self.reasoning = None;
         self.over = true;
         let detail = match failure {
-            Failure::Limit { which, bound } => crate::openai::limit_detail(which, bound),
-            Failure::Protocol
+            Failure::Limit { which, bound } => crate::wire::limit_detail(which, bound),
+            Failure::Cancelled
+            | Failure::TimedOut { .. }
+            | Failure::Protocol
             | Failure::Unauthorized
             | Failure::Refused
             | Failure::Unsupported
@@ -534,13 +527,13 @@ pub(super) fn thinking_head(head: &Json, text: &[u8], signature: &[u8], limits: 
     if text_ref(tokens, b"thinking")? != text || optional_text(tokens, b"signature")?.as_ref() != signature {
         return Err(DecodeError::Malformed);
     }
-    if head.to_bytes(&limits.document())?.len() > usize::try_from(limits.reasoning).expect("u32 fits usize") {
+    if head.to_bytes(&limits.document())?.len() > usize_of(limits.reasoning) {
         return Err(DecodeError::limit(crate::Cap::Reasoning, limits.reasoning));
     }
     Ok(head)
 }
 fn append(out: &mut List<u8>, data: &[u8], cap: crate::Cap) -> Result<(), DecodeError> {
-    if data.len() > usize::try_from(out.room()).expect("u32 fits usize") {
+    if data.len() > usize_of(out.room()) {
         return Err(DecodeError::limit(cap, out.capacity()));
     }
     for &byte in data {
@@ -562,7 +555,7 @@ fn finish(active: Active, limits: &Limits) -> Result<Part, DecodeError> {
                 skein_json::writer::Limits { depth: limits.depth, length: limits.reasoning.min(limits.retained) };
             let mut measure = skein_json::writer::Encoder::measure(&bounded);
             write_thinking(&mut measure, &head, text.as_slice(), signature.as_slice());
-            let len = crate::openai::measured(measure, bounded, crate::Cap::Reasoning)?;
+            let len = crate::wire::measured(measure, bounded, crate::Cap::Reasoning)?;
             let mut out = skein_json::writer::Encoder::write(len, &bounded);
             write_thinking(&mut out, &head, text.as_slice(), signature.as_slice());
             Ok(Part::Opaque { bytes: out.finish() })
@@ -674,7 +667,7 @@ pub fn decode_event(value: &Json, limits: &Limits) -> Result<Event, DecodeError>
             let delta = match text_ref(delta, b"type")? {
                 b"text_delta" => Delta::Text { text: text(delta, b"text")? },
                 b"input_json_delta" => Delta::Arguments {
-                    text: match crate::openai::response::long_text(field(delta, b"partial_json")?) {
+                    text: match json::long_text(field(delta, b"partial_json")?) {
                         Some(_) => bytes::copy_of(b""),
                         None => text(delta, b"partial_json")?,
                     },
@@ -722,7 +715,7 @@ pub(super) fn validate_opaque(tokens: (&Document, json::Span)) -> Result<(), Dec
     }
 }
 pub fn decode_error(value: &Json, limits: &Limits) -> Result<ProviderError, DecodeError> {
-    crate::openai::decode_error(value, limits)
+    crate::wire::decode_error(value, limits)
 }
 fn read_usage(tokens: Option<(&Document, json::Span)>) -> UsagePatch {
     let Some(tokens) = tokens else {

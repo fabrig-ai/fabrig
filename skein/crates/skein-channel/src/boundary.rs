@@ -116,7 +116,7 @@ pub enum Event {
     Closed { why: Closed },
 }
 
-// skein/docs/design/lib.md, 6 and skein/docs/design/channel.md, 5: a credential prints as its length.
+// skein/docs/design/lib.md, 6 and skein/docs/design/channel.md, 3 and 5: bodies and credentials print lengths.
 impl core::fmt::Debug for Event {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
@@ -129,7 +129,9 @@ impl core::fmt::Debug for Event {
             Self::Ready { version, terms } => {
                 f.debug_struct("Ready").field("version", version).field("terms", terms).finish()
             }
-            Self::Body { kind, body } => f.debug_struct("Body").field("kind", kind).field("body", body).finish(),
+            Self::Body { kind, body } => {
+                f.debug_struct("Body").field("kind", kind).field("body_len", &body.len()).finish()
+            }
             Self::Ping => f.write_str("Ping"),
             Self::Unsupported { kind } => f.debug_struct("Unsupported").field("kind", kind).finish(),
             Self::Refused { reason, text } => {

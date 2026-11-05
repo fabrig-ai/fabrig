@@ -8,6 +8,10 @@ pub struct Limits {
 }
 impl Limits {
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the view envelope keeps each bounded page contribution in one derivation"
+    )]
     pub fn of(domain: &temper_client_domain::Limits, words: &Words) -> Option<Limits> {
         let receiving = &domain.client.domain;
         let text = words
@@ -18,14 +22,16 @@ impl Limits {
         // An account heading joins the provider, plan/display and holder's words.
         let text = text.max(receiving.text.checked_add(words.name_bytes.min(256).checked_mul(3)?)?.checked_add(64)?);
         let text = text.max(fold_bytes(receiving, words)?);
+        // The toast wraps a full outgoing choice or reply label and "Answered: ".
+        let text = text.max(temper_client_protocol_wire::CUE_BYTES.checked_add(24)?);
         // The sign-in return link percent-encodes a whole authorization address.
         let text = text.max(3400);
         let markdown = skein_ui::markdown::max_nodes(receiving.text)?;
         let cards = card_nodes(receiving, markdown)?;
-        // Each watched task has one card at its first anchor: fourteen structural
+        // Each watched task has one card at its first anchor: sixteen structural
         // nodes plus the result's markdown, and one region for live delegates.
         let delegations = temper_client_domain::pages::delegation::bound(domain);
-        let delegated = markdown.checked_add(14)?.checked_mul(delegations)?.checked_add(1)?;
+        let delegated = markdown.checked_add(16)?.checked_mul(delegations)?.checked_add(1)?;
         // Both chat and agent pages price a committed turn by turn_text; fields
         // and cards retain text. One turn node holds at most turn_text bytes.
         // A decoded turn shares text across texts, names, inputs, outcomes and
@@ -142,6 +148,8 @@ impl Limits {
             // Chats adds its intro (seven nodes), section head and repository tag
             // above the filters and empty words; rows retain borrowed lines and scalar keys.
             .checked_add(16)?
+            // A chat log holds its inner column and the working indicator with three dots.
+            .checked_add(5)?
             // Start a chat heading and its text outside the playground start (2), and
             // a failed playground start's alert, its text leaf and Try again (3).
             .checked_add(5)?
@@ -152,7 +160,9 @@ impl Limits {
                 temper_client_domain::forge::forges::ROWS
                     .checked_mul(temper_client_domain::forge::forges::INSTALLATIONS)?
                     .checked_mul(2)?,
-            )?;
+            )?
+            // The toast adds its status, text leaf and optional Undo button.
+            .checked_add(3)?;
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
@@ -181,7 +191,8 @@ fn card_nodes(receiving: &jig_client::DomainLimits, markdown: u32) -> Option<u32
         .checked_add(authority)?
         .checked_add(receiving.rows.checked_mul(16)?)?
         .checked_add(32)?;
-    let card = proposed.checked_mul(receiving.rows)?.checked_add(128)?;
+    // Conversation controls share one slot.
+    let card = proposed.checked_mul(receiving.rows)?.checked_add(129)?;
     let cards = card.checked_mul(receiving.reads.checked_add(1)?)?;
     Some(cards)
 }

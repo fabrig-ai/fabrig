@@ -40,6 +40,10 @@ A setting's value is whole: a JSON value, as `settings show` prints
 it in JSON. Its members, with their types and bounds, are in
 `temper help settings-fields`.
 
+The configuring chat's `settings` pages fill the host answer allowance;
+`next: OFFSET` continues at that byte offset. File replies also fit that
+allowance: `[file truncated]` marks a cut, including cuts for metadata room.
+
 ## How it changes
 
 A change is a set of items, at most one per setting. Each item does one
@@ -111,6 +115,35 @@ default that changed.
   its project, or none for the deployment; a project's policy names its
   project and is set alone. The inventory lists no project's policy;
   the tool reads it when named.
+
+### Recovering from a check reserve refusal
+
+A worker's check timeout must fit every applicable modifying charter's
+`reserve_time`, including versions held by tasks. A timeout of 60,000
+milliseconds needs at least 60 seconds of reserve; equality is sufficient.
+An accepted setting can still leave a worker unable to run it: proposal
+and acceptance do not validate against connected workers' bounds.
+
+When `task show TASK` names a charter's `reserve_time` in its next-run
+refusal:
+
+1. Read the task's `settings:` line and `settings show` to find its held
+   revision. Read that value with `settings show charter 2 --revision 13`
+   (substitute the charter and revision named in your deployment).
+2. Read the current charter with `settings show charter 2 --json`. Set
+   `reserve_time` to at least the worker's check timeout, in nanoseconds
+   in the settings file: 60 seconds is `60000000000`. Keep `time` greater
+   than the reserve. Apply the whole value with `settings apply FILE
+   --against REVISION --key KEY`, or propose it for an owner to accept.
+3. Updating the current setting leaves held charter versions in force.
+   Use `revision advance 13 --key KEY` for each affected held revision.
+   Read its moved and stayed counts and the tasks again. A live run keeps
+   its version until it ends, and a task that cannot move still holds
+   its revision (`temper help revision`).
+
+The worker is admitted on a later hello once all applicable versions fit.
+Changing the current reserve alone does not release an incompatible held
+version.
 
 ## Limits
 

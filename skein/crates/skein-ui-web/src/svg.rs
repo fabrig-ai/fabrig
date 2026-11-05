@@ -1,5 +1,6 @@
 //! Scenes as SVG, with all visual choices in the stylesheet (ui-web.md, 8).
 
+use skein_lib::usize_of;
 use skein_ui::{
     look::Names,
     scene::{Anchor, Mark, Scene},
@@ -54,7 +55,7 @@ fn marks(scene: &Scene, names: &[Names<'_>], index: &mut usize, end: usize, pare
         }
         match mark {
             Mark::Group { marks: count, .. } => {
-                let group_end = (*index + usize::try_from(count).expect("mark count fits usize")).min(end);
+                let group_end = (*index + usize_of(count)).min(end);
                 marks(scene, names, index, group_end, &mut element);
             }
             Mark::Text { .. } => element.text(scene.data(number)),

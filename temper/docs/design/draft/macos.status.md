@@ -1,8 +1,8 @@
 # macos: status
 
-2026-11-04. Where the design lags or departs from [macos.md](macos.md).
+2026-11-05. Where the design lags or departs from [macos.md](macos.md).
 
-skein carries section 3: the readiness backend on epoll and kqueue (skein's `kernel.md`; `shell.md`, 7.5). Section 6's steps 1 to 4 and the workflow of its step 5 stand in the design: skein's `forge.md`, 4.3, `../protocol/setup.md`, 6.1 and 6.6, and `../domain/testing.md`, 2.8. Step 5 itself, 2.4's story green on the runner, which is this draft's acceptance, stands open: no builder runs macOS, and `../domain/testing.status.md` holds it as not yet.
+skein carries section 3: the readiness backend on epoll and kqueue (skein's `kernel.md`; `shell.md`, 7.5). Section 6's steps 1 to 5 stand in the design: skein's `forge.md`, 4.3, `../protocol/setup.md`, 6.1 and 6.6, and `../domain/testing.md`, 2.8, and 2.4's story, this draft's acceptance, passes on the runner.
 
 - **Design lags:**
   - 4.1: smith's design says nothing of finding `rg` and `git` rather than taking `/usr/bin/rg` and `/usr/bin/git`, or of its tests' addresses and `/proc` uses. The code keeps both paths, though section 6's step 4 names smith's tools: the story's scripts reach no `rg` and macOS has `/usr/bin/git`, so the cut of `macos-cheap` left them, a small follow-up if a run shows otherwise.

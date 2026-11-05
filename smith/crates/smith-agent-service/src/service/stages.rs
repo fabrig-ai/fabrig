@@ -107,6 +107,7 @@ pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>, now: Time) -
             None => false,
         }
         || !service.completions.is_empty()
+        || !service.io_completions.is_empty()
         || !service.io_events.is_empty()
         || !service.file_events.is_empty()
         || channel_event_ready(service)
@@ -186,6 +187,7 @@ impl Stages {
                 file_submissions: Queue::uncapped(),
                 submissions: Queue::with_capacity(limits.queue),
                 completions: Queue::with_capacity(limits.queue),
+                io_completions: Queue::uncapped(),
                 owners: Slab::with_capacity(limits.routes),
                 operations: Map::with_capacity(limits.routes),
                 next_operation: 1,

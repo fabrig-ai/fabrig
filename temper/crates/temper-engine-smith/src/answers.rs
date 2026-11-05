@@ -13,17 +13,25 @@ use crate::Problem;
 struct Text {
     parts: List<Box<[u8]>>,
     len: usize,
+    count_only: bool,
 }
 
 impl Text {
     fn new() -> Self {
-        Self { parts: List::with_capacity(1024), len: 0 }
+        Self { parts: List::with_capacity(1024), len: 0, count_only: false }
+    }
+
+    fn counter() -> Self {
+        Self { parts: List::with_capacity(0), len: 0, count_only: true }
     }
 
     fn add(&mut self, text: &[u8]) -> Result<(), Problem> {
         const DIGITS: &[u8; 16] = b"0123456789abcdef";
         let len = escaped_len(text);
         self.len = self.len.checked_add(len).ok_or(Problem::TooLarge)?;
+        if self.count_only {
+            return Ok(());
+        }
         if self.len > HostAnswer::CAPACITY {
             return Err(Problem::TooLarge);
         }
@@ -85,28 +93,39 @@ impl Text {
     }
 }
 
-/// Render job logs within the configured host body bound, including metadata
-/// and byte escaping. A cut keeps the log's end and says bytes were omitted.
+/// Render file, pull-file and job reads within the host body bound, counting
+/// metadata and escaping. Files keep a marked prefix; cut logs keep the end.
 #[must_use]
 pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
     bounded(answer, &[], max_bytes, None)
 }
 
 /// Render a decided answer with its host tool's name, naming a refused family.
-/// Job logs and compare size refusals fit the configured host body bound.
+/// File, pull-file and job reads and compare refusals fit the host body bound.
 #[must_use]
 pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
     bounded(answer, tool, max_bytes, None)
 }
 
 /// Render host feedback with the proposing task's ctl name, retaining its holder.
-/// Task and job reads use the configured host body bound.
+/// Task, file, pull-file and job reads use the configured host body bound.
 #[must_use]
 pub fn answer_for_task(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: u64) -> HostAnswer {
     bounded(answer, tool, max_bytes, Some(task))
 }
 
 fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) -> HostAnswer {
+    if let CallAnswer::ForgeRead(read) = answer {
+        let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
+        if let Ok(value @ (api::Answer::File { .. } | api::Answer::Directory { .. } | api::Answer::PullFiles { .. })) =
+            read.as_ref()
+        {
+            return file_read_bounded(value, cap);
+        }
+        if read.as_ref() == &Err(api::Error::TooLarge) && (tool == b"read_file" || tool == b"read_pull_files") {
+            return file_read_refusal(tool, None, cap);
+        }
+    }
     if let CallAnswer::TaskRead(read) = answer {
         let cap = usize::try_from(max_bytes).expect("u32 fits").min(HostAnswer::CAPACITY);
         return match task_read(read, cap) {
@@ -147,6 +166,149 @@ fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) 
             .expect("compare refusal fits");
     }
     rendered
+}
+
+fn file_read_bounded(value: &api::Answer, cap: usize) -> HostAnswer {
+    let mut count = Text::counter();
+    forge_answer(&mut count, value).expect("counting allocates no answer text");
+    let mut text = Text::new();
+    if count.len <= cap {
+        let rendered = forge_answer(&mut text, value);
+        if rendered.is_ok()
+            && let Ok(answer) = text.finish(false)
+        {
+            return answer;
+        }
+    }
+    if let api::Answer::File { head, path, bytes, .. } = value {
+        let mut text = Text::new();
+        if file_prefix(&mut text, head, path, bytes, cap).is_ok() {
+            return text.finish(false).expect("file prefix fits");
+        }
+        let mut text = Text::new();
+        text.add(b"File metadata leaves no room for content at the host answer limit. Use a shorter path or increase core.call_answer_bytes; lowering max_bytes cannot fit metadata.").expect("fixed feedback");
+        return clipped_refusal(text, cap);
+    }
+    if let api::Answer::PullFiles { head, files, more } = value {
+        return pull_inventory(head, files, *more, count.len, cap);
+    }
+    file_read_refusal(b"read_file", Some(count.len), cap)
+}
+
+fn file_heading(text: &mut Text, head: &api::Commit, path: &[u8]) -> Result<(), Problem> {
+    text.add(path)?;
+    text.add(b" at ")?;
+    text.commit(head)?;
+    text.add(b":\n")
+}
+
+fn file_prefix(text: &mut Text, head: &api::Commit, path: &[u8], bytes: &[u8], cap: usize) -> Result<(), Problem> {
+    const CUT: &[u8] = b"\n[file truncated]";
+    file_heading(text, head, path)?;
+    let room =
+        cap.checked_sub(text.len).ok_or(Problem::TooLarge)?.checked_sub(escaped_len(CUT)).ok_or(Problem::TooLarge)?;
+    let prefix = fitting_prefix(bytes, room);
+    if prefix.is_empty() && !bytes.is_empty() {
+        return Err(Problem::TooLarge);
+    }
+    text.add(prefix)?;
+    text.add(CUT)
+}
+
+fn fitting_prefix(bytes: &[u8], room: usize) -> &[u8] {
+    let mut used = 0_usize;
+    let mut count = 0_usize;
+    for byte in bytes {
+        let size = escaped_len(core::slice::from_ref(byte));
+        if used.saturating_add(size) > room {
+            break;
+        }
+        used = used.saturating_add(size);
+        count = count.saturating_add(1);
+    }
+    bytes::utf8_prefix(bytes, count)
+}
+
+fn read_size(text: &mut Text, tool: &[u8], measured: Option<usize>, cap: usize) -> Result<(), Problem> {
+    text.add(tool)?;
+    if let Some(size) = measured {
+        text.add(b" rendered size ")?;
+        text.number(u64::try_from(size).expect("answer size fits u64"))?;
+        text.add(b" bytes; host answer limit ")?;
+    } else {
+        text.add(
+            b" too large at forge.client.rows or forge.client.answer_bytes (measured size unknown); host answer limit ",
+        )?;
+    }
+    text.number(u64::try_from(cap).expect("host bound fits u64"))?;
+    text.add(b" bytes.\n")
+}
+
+fn file_recovery(text: &mut Text) -> Result<(), Problem> {
+    text.add(b"Retry read_file with smaller max_bytes, leaving room for path/commit metadata and byte escaping overhead (up to 4 bytes per input byte). A truncated prefix is not the whole file; max_bytes is a prefix limit, not an offset. A directory lists paths for selected reads.\n")
+}
+
+fn pull_recovery(text: &mut Text) -> Result<(), Problem> {
+    text.add(b"Contents [omitted]. Use read_file for selected paths at the head commit (after) and the comparison's base commit (before; resolve separately), with max_bytes leaving room for metadata and escaping overhead. If paths are omitted, list directories there with read_file. Advancing page alone cannot recover this oversized page; later pages only list other files.\n")
+}
+
+fn clipped_refusal(text: Text, cap: usize) -> HostAnswer {
+    let whole = text.finish(true).expect("fixed size guidance fits host capacity");
+    let end = cap.min(whole.text().len());
+    HostAnswer::new(bytes::copy_of(whole.text().get(..end).expect("bounded refusal")), true)
+        .expect("refusal fits host capacity")
+}
+
+fn file_read_refusal(tool: &[u8], measured: Option<usize>, cap: usize) -> HostAnswer {
+    let mut text = Text::new();
+    read_size(&mut text, tool, measured, cap).expect("fixed size guidance");
+    if tool == b"read_pull_files" {
+        pull_recovery(&mut text).expect("fixed pull recovery");
+        text.add(b"No changed-path inventory available; use read_file directories at both endpoints.\n")
+            .expect("fixed inventory guidance");
+    } else {
+        file_recovery(&mut text).expect("fixed file recovery");
+    }
+    clipped_refusal(text, cap)
+}
+
+fn inventory_row(text: &mut Text, file: &api::File) -> Result<(), Problem> {
+    text.add(&file.path)?;
+    text.add(b": before ")?;
+    text.add(if file.before.is_some() { b"[omitted]" } else { b"[absent]" })?;
+    text.add(b", after ")?;
+    text.add(if file.after.is_some() { b"[omitted]" } else { b"[absent]" })?;
+    text.add(b"\n")
+}
+
+fn pull_inventory(head: &api::Commit, files: &[api::File], more: bool, size: usize, cap: usize) -> HostAnswer {
+    const CUT_ROOM: usize = 48;
+    // Six row parts and three for the omitted-path count.
+    const ROW_AND_CUT_PARTS: u32 = 9;
+    let mut text = Text::new();
+    read_size(&mut text, b"read_pull_files", Some(size), cap).expect("fixed size guidance");
+    pull_recovery(&mut text).expect("fixed pull recovery");
+    text.add(b"Head commit ").expect("fixed head label");
+    text.commit(head).expect("commit fits");
+    text.add(if more { b"\nMore files available on next page.\n" } else { b"\nNo more file pages.\n" })
+        .expect("fixed pagination");
+    let mut shown = 0_usize;
+    for file in files {
+        let mut count = Text::counter();
+        inventory_row(&mut count, file).expect("counting inventory");
+        if text.parts.room() < ROW_AND_CUT_PARTS || text.len.saturating_add(count.len).saturating_add(CUT_ROOM) > cap {
+            break;
+        }
+        inventory_row(&mut text, file).expect("measured inventory fits");
+        shown = shown.saturating_add(1);
+    }
+    if shown < files.len() {
+        text.add(b"[changed paths omitted: ").expect("reserved marker");
+        text.number(u64::try_from(files.len().saturating_sub(shown)).expect("file count fits"))
+            .expect("reserved count");
+        text.add(b"]\n").expect("reserved marker end");
+    }
+    clipped_refusal(text, cap)
 }
 
 fn job_text(
@@ -1133,10 +1295,7 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
             directory_text(text, head, path, entries, *truncated)?;
         }
         api::Answer::File { head, path, bytes, truncated } => {
-            text.add(path)?;
-            text.add(b" at ")?;
-            text.commit(head)?;
-            text.add(b":\n")?;
+            file_heading(text, head, path)?;
             text.add(bytes)?;
             if *truncated {
                 text.add(b"\n[file truncated]")?;
@@ -1390,6 +1549,10 @@ fn task_read(
         }
     };
     task_read_metadata(&mut text, read)?;
+    if let Some(code) = read.verdict_code {
+        text.add(b"\nVerdict: ")?;
+        text.number(u64::from(code))?;
+    }
     text.add(match read.words.field {
         jig_domain_core::reads::TaskTextField::Specification => b"\nWords from ",
         jig_domain_core::reads::TaskTextField::Result => b"\nResult from ",
@@ -1499,17 +1662,7 @@ fn task_read_words(text: &mut Text, words: &jig_domain_core::reads::TaskText, ma
     }
     let room =
         maximum.checked_sub(text.len).ok_or(Problem::TooLarge)?.checked_sub(CONTINUATION).ok_or(Problem::TooLarge)?;
-    let mut used = 0_usize;
-    let mut count = 0_usize;
-    for byte in &words.bytes {
-        let size = escaped_len(core::slice::from_ref(byte));
-        if used.saturating_add(size) > room {
-            break;
-        }
-        used = used.saturating_add(size);
-        count = count.saturating_add(1);
-    }
-    let prefix = bytes::utf8_prefix(&words.bytes, count);
+    let prefix = fitting_prefix(&words.bytes, room);
     if prefix.is_empty() && !words.bytes.is_empty() {
         return Err(Problem::TooLarge);
     }

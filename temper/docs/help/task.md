@@ -6,11 +6,10 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 
 ## What it is
 
-- **A task** has what was asked (its spec, words and inputs), its
-  executor (an agent under a charter, a procedure, a person, or a
-  role), its authority (what it may do, delegate and spend, and by
-  when), and its result contract: a report, a change, a verdict or an
-  approval. `task show` prints them; its number is its name.
+- **A task** has a spec (words and inputs), executor (agent under a charter,
+  procedure, person or role), authority (what it may do, delegate and spend,
+  and by when), and a contract: report, change, verdict or approval.
+  `task show` prints these.
 - **Delegates:** an agent's run makes child tasks of its own; each
   is a delegate of its parent, and together they make a tree. A
   delegate's result reaches its parent, which its run hears as its
@@ -49,9 +48,9 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   Preparing a host (`preparing`), Claimed by a host (`claimed`),
   Running (`running`), Retrying (`backing-off`), Executor active
   (`active`), Closing (`closing`), Held (`held`).
-- **Ended:** Completed, Failed, Cancelled, or Ended; a wait names
-  them all `ended`. An ended task keeps its result, and `task show` prints
-  it.
+- **Ended:** Completed, Failed, Cancelled, or Ended (`ended` to a wait).
+  `task show` prints the result; verdicts name `verdict CODE` with their
+  reason, also in requester wakes and `task activity`.
 - A start past a host's limits is refused and frees its reservation.
 - **What it waits on** prints after `waiting on:`: `Kept by its
   dependencies`, `Waiting for delegates`, `Waiting for news`, `Nothing
@@ -111,11 +110,12 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **temper's runs** act on their delegates with the host tools
   `delegate`, `change`, `goal`, `amend`, `message`, `cancel`, `release`,
   `subscribe`, `introduce`, `decide_escalation` and `propose`.
-  `read_task`: specs by default; `field=result` reads retained reports and Left
-  lists, including changes and reviews, via a proven same-project requester
-  chain. Use `from=next`; restart revised specs. It lists durable
-  question numbers and answerers after delivery is consumed: use `message` to
-  the printed target with `form=answer` and `question` set to that number.
+  `read_task`: specs; `field=result` reads retained reports and Left lists,
+  including changes and reviews, through a proven same-project requester
+  chain. Verdicts print `Verdict: CODE`; offsets count reason bytes.
+  `from=next` continues; restart revised specs. Durable question numbers and
+  answerers survive delivery: use `message` to the printed target with
+  `form=answer` and that `question` number.
   `message` is offered only to a run whose authority holds the message
   family: a change's coder, repairer and resolver are offered it where
   the change relays their questions; its reviewer is not offered it.

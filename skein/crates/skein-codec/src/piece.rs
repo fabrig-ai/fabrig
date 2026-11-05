@@ -1,7 +1,7 @@
 //! Items in one byte-bounded piece (codec.md, section 3).
 
 use alloc::boxed::Box;
-use skein_lib::{Overflow, Reader, Writer};
+use skein_lib::{Overflow, Reader, Writer, len_u64};
 
 use crate::Reason;
 
@@ -27,4 +27,34 @@ pub fn split(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]>>, Reason> {
     let length = reader.u32().ok_or(Reason::Malformed)?;
     let bytes = reader.bytes(length).ok_or(Reason::Malformed)?;
     Ok(Some(Box::from(bytes)))
+}
+
+/// Splits the next item and charges its bytes and its length to `sum`;
+/// `Reason::Bound` past `most` or on overflow.
+pub fn split_within(reader: &mut Reader<'_>, sum: &mut u64, most: u64) -> Result<Option<Box<[u8]>>, Reason> {
+    let Some(item) = split(reader)? else { return Ok(None) };
+    let length = len_u64(item.len());
+    *sum = sum.checked_add(length).ok_or(Reason::Bound)?.checked_add(4).ok_or(Reason::Bound)?;
+    if *sum > most {
+        return Err(Reason::Bound);
+    }
+    Ok(Some(item))
+}
+
+/// The items a piece holds; `Reason::Malformed` on a partial length or an item past the end.
+pub fn count(bytes: &[u8]) -> Result<u32, Reason> {
+    let mut reader = Reader::new(bytes);
+    for count in 0..=reader.remaining() {
+        if reader.is_empty() {
+            return Ok(count);
+        }
+        let length = reader.u32().ok_or(Reason::Malformed)?;
+        reader.skip(length).ok_or(Reason::Malformed)?;
+    }
+    unreachable!("each item consumes at least its four-byte length")
+}
+
+/// The next item of a piece `count` has counted.
+pub fn counted(reader: &mut Reader<'_>) -> Box<[u8]> {
+    split(reader).expect("count accepted the piece framing").expect("count includes the next item")
 }

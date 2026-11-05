@@ -551,6 +551,22 @@ fn the_chats_words_mark_an_advisors_read_only_report() {
 }
 
 #[test]
+fn only_the_goals_paragraph_ends_with_the_questions_line_form() {
+    // domain/agent.md, 8.2: a goal writes its question in the client's line form.
+    const SENTENCE: &str = " Write a question to your requester as one line asking it, a blank line, what they need to know, then a line starting Saw: with what you saw, and a line starting Choice: for each option, the one you recommend ending (recommended).";
+    let words = include_str!("../stock/chat.txt");
+    for (role, expected) in [
+        ("If your brief says you are a goal", true),
+        ("If neither line is in your brief", false),
+        ("If your brief says you are an advisor", false),
+    ] {
+        let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(role)).expect("role instructions");
+        assert_eq!(paragraph.contains(SENTENCE.trim_start()), expected, "{role}: question line form");
+        assert_eq!(paragraph.ends_with(SENTENCE), expected, "{role}: question line form ends the paragraph");
+    }
+}
+
+#[test]
 fn the_goals_words_survey_before_planning_and_sequence_changes() {
     let words = include_str!("../stock/chat.txt");
     assert!(
@@ -829,6 +845,30 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
             assert_eq!(spend, 80 * 24 * k, "{row}");
         }
     }
+}
+
+#[test]
+fn reference_coding_run_matches_stock() {
+    let engine = engine(&generated());
+    let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let coding = &stock.charters.iter().find(|charter| charter.number == 2).expect("coding charter 2").policy;
+    let reference = include_str!("../../../../docs/design/draft/reference-code-production.md");
+    let configuration = reference.split_once("## 14. Configuration\n").expect("reference configuration").1;
+    let row = configuration
+        .split("\n## ")
+        .next()
+        .unwrap()
+        .lines()
+        .find(|line| line.starts_with("| the coding agent's charter |"))
+        .expect("reference coding-charter row");
+    let run = format!(
+        "retain the stock run: {} turns and {} s, with a reserve of {} turn and {} s",
+        coding.turns,
+        coding.time.as_nanos() / 1_000_000_000,
+        coding.reserve_turns,
+        coding.reserve_time.as_nanos() / 1_000_000_000,
+    );
+    assert!(row.replace(',', "").contains(&run.replace(',', "")), "coding charter must {run}; documented row: {row}");
 }
 
 #[test]

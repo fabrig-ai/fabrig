@@ -10,7 +10,7 @@ use crate::forgejo::{
     request::{Method, Request},
 };
 use alloc::boxed::Box;
-use skein_lib::Writer;
+use skein_lib::{Writer, usize_of};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum FileKind {
     Range,
@@ -122,7 +122,7 @@ pub(crate) fn element(kind: FileKind) -> Option<Kind> {
 pub(super) fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
     let mut measure = Target { length: 0, writer: None };
     target(request, &mut measure);
-    if measure.length > usize::try_from(limits.target_bytes).expect("u32 fits") {
+    if measure.length > usize_of(limits.target_bytes) {
         return Err(Refusal::TooLong);
     }
     let mut write = Target { length: 0, writer: Some(Writer::new(measure.length)) };

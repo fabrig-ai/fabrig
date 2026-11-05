@@ -15,7 +15,7 @@ use crate::{
         install::{self, Install},
         manifest::{self, Manifest},
         paste::{self, Paste},
-        reconcile as github_reconcile,
+        reachable as github_reachable, reconcile as github_reconcile,
     },
     given::Given,
     item::{self, Bounds, Item},
@@ -84,6 +84,7 @@ pub(crate) enum Machine {
     Create(Box<Create>),
     Copy(Box<Copy>),
     Reachable(Reachable),
+    GitHubReachable(github_reachable::Reachable),
 }
 impl Machine {
     pub(crate) fn step(&mut self, event: Event, out: &mut Queue<reconcile::Need>) {
@@ -101,6 +102,7 @@ impl Machine {
             Self::Create(machine) => create::step(machine, event, out),
             Self::Copy(machine) => copy::step(machine, event, out),
             Self::Reachable(machine) => reachable::step(machine, event, out),
+            Self::GitHubReachable(machine) => github_reachable::step(machine, event, out),
         }
     }
     /// The host halts only machines that have received Begin.
@@ -118,7 +120,8 @@ impl Machine {
             | Self::Check(_)
             | Self::TakeOver(_)
             | Self::Adopt(_)
-            | Self::Reachable(_) => {
+            | Self::Reachable(_)
+            | Self::GitHubReachable(_) => {
                 self.halt_begun(why, out);
             }
         }
@@ -243,8 +246,8 @@ impl Run {
                             why: Why::Unexpected,
                         });
                     };
-                    match Reachable::github(given, id, page.get()) {
-                        Ok(machine) => Machine::Reachable(machine),
+                    match github_reachable::Reachable::new(given, id, page.get()) {
+                        Ok(machine) => Machine::GitHubReachable(machine),
                         Err(_) => return Err(super::about(forge, &plan, Why::Unexpected)),
                     }
                 }
@@ -333,8 +336,8 @@ impl Run {
             Reply::Document(_)
             | Reply::Rows(_)
             | Reply::Empty
-            | Reply::GithubDocument(_)
-            | Reply::GithubRows(_)
+            | Reply::GitHubDocument(_)
+            | Reply::GitHubRows(_)
             | Reply::Unsigned => false,
         };
         if !self.answered && retry {

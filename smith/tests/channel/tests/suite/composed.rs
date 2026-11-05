@@ -12,7 +12,6 @@ fn synthetic_grant() -> smith_protocol_translate::GrantValue {
     smith_protocol_translate::GrantValue::Bearer(Box::from(b"synthetic".as_slice()))
 }
 
-#[path = "composed/long.rs"]
 mod long;
 
 #[test]

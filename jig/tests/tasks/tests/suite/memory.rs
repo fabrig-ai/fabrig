@@ -271,7 +271,7 @@ fn measure_full_delegate_tree_dependency_edges_and_cold_restored_claims_fit() {
         m.event(Event::EffectsSettled { task });
         m.event(Event::Settled { task });
     }
-    assert!(!tasks::valid(&Limits { tasks: u32::MAX, ..l }));
+    assert!(!tasks::valid(&Limits { tasks: u32::MAX, ..l }, jig_domain_tasks::Kept { revisions: 4, versions: 8 }));
     let mut w = jig_tasks_world::World::new(3, l);
     w.make(Party::Person(1), vec![task(10, &[])]);
     w.claim(10, 10);

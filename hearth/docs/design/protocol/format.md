@@ -206,11 +206,11 @@ hearth/docs/design/domain/render.md. Open questions are in section 13.
 | Target | Base | Environment | Placement |
 |---|---|---|---|
 | `x1-prod` | x1 | prod | metal, efi, 7th-gen |
-| `rhi-prod` | rhi | prod | vm, bios, serverhino |
-| `ion-prod` | ion | prod | vm, bios, ionos |
-| `mail-prod` | mail | prod | container on `rhi-prod` |
+| `east-prod` | east | prod | vm, bios, provider-a |
+| `west-prod` | west | prod | vm, bios, provider-b |
+| `mail-prod` | mail | prod | container on `east-prod` |
 | `mail-lab` | mail | lab | vm, efi, incus; a container of a lab pool from M5 |
-| `chat-prod` | chat | prod | container on `rhi-prod` |
+| `chat-prod` | chat | prod | container on `east-prod` |
 | `stoa-1-lab` | stoa, member 1 | lab | the lab's |
 
 ### 3.2 Composition order
@@ -262,17 +262,17 @@ hosts/<base>/<base>-<env>.json     the base in <env>, without its members key
 
 ### 3.4 Placement
 
-`hosts/ion/ion-prod.json`:
+`hosts/west/west-prod.json`:
 
 ```json
-{ "placement": { "kind": "vm", "firmware": "bios", "hardware": "ionos" } }
+{ "placement": { "kind": "vm", "firmware": "bios", "hardware": "provider-b" } }
 ```
 
 | Field | Type | Meaning |
 |---|---|---|
 | `kind` | enum `metal`, `vm`, `container` | where the target runs |
 | `firmware` | enum `efi`, `bios` | how it boots (hearth/docs/design/domain/machine.md, sections 4 and 5); never for a container |
-| `hardware` | string | the profile tasks key hardware data by: `7th-gen`, `incus`, `ionos`, `serverhino`, `vultr`; never for a container |
+| `hardware` | string | the profile tasks key hardware data by: `7th-gen`, `incus`, `provider-a`, `provider-b`, `provider-c`; never for a container |
 | `on` | target | for a container only: its host, a target of the same environment that is not a container; absent for a build environment, which no host runs (hearth/docs/design/domain/artifacts.md, 2.3) [M6] |
 | `ids` | int | for a container on a host [M5]: the base of its 64 Ki id range, nspawn's `PrivateUsers=` (3.5) |
 | `binds` | map | for a container on a host [M5]: host paths bound into it, keyed by the path inside, each `{ "source": path, "read_only": bool }`, `read_only` true by default |
@@ -330,14 +330,14 @@ hosts/<base>/<base>-<env>.json     the base in <env>, without its members key
   where hearth/docs/design/draft/brainstorm.md (7.7) kept one in the host's configuration.
   The bash fleet's `runner:600` user, declared once for carbon and again
   for its container, shows what a second copy invites.
-- **The same environment only.** `chat-prod` runs on `rhi-prod`; a lab
+- **The same environment only.** `chat-prod` runs on `east-prod`; a lab
   container runs on a lab host. So the bash fleet's error, a container
   file that cannot vary by environment and so carries production's forge
-  host key in the lab, cannot be written. The Matrix container `rhi-chat`
+  host key in the lab, cannot be written. The container `east-chat`
   becomes the target `chat-prod`, with `hosts/chat/chat-prod.json`:
 
   ```json
-  { "placement": { "kind": "container", "on": "rhi-prod" } }
+  { "placement": { "kind": "container", "on": "east-prod" } }
   ```
 
 - **What a container's target holds** [M5]: tasks like any target's,
@@ -347,7 +347,7 @@ hosts/<base>/<base>-<env>.json     the base in <env>, without its members key
   class subvolumes sit on the host's top level, and its machine-id is no
   longer its host's (hearth/docs/design/domain/slots.md, 12.1).
 - **Users are not mirrored** [M5]. The bash fleet declared
-  carbon-forge's `runner:600` on carbon too, with a home inside the
+  a container's `runner:600` on its host too, with a home inside the
   container's `/srv`. A container's entries are bound into it alone,
   from its own class subvolumes, and never mounted on its host
   (hearth/docs/design/domain/slots.md, 12.1), so its host needs no such user; a host task that
@@ -358,7 +358,7 @@ hosts/<base>/<base>-<env>.json     the base in <env>, without its members key
   sets them with the rest of its placement:
 
   ```json
-  { "placement": { "kind": "container", "on": "rhi-prod", "ids": 327680 } }
+  { "placement": { "kind": "container", "on": "east-prod", "ids": 327680 } }
   ```
 
   - **Render puts them in the container's `boot` part,** a slot part,
@@ -777,9 +777,9 @@ nothing.
         "type": { "map": { "list": "string" } },
         "default": {
           "7th-gen": ["btrfs", "nvme"],
-          "ionos": ["btrfs", "virtio_blk", "virtio", "virtio_pci", "virtio_rng", "scsi_mod", "vmw_pvscsi"],
-          "serverhino": ["btrfs", "scsi_mod", "sd_mod", "virtio_scsi", "virtio_pci", "virtio_mmio"],
-          "vultr": ["btrfs", "virtio_blk", "virtio_pci"]
+          "provider-b": ["btrfs", "virtio_blk", "virtio", "virtio_pci", "virtio_rng", "scsi_mod", "vmw_pvscsi"],
+          "provider-a": ["btrfs", "scsi_mod", "sd_mod", "virtio_scsi", "virtio_pci", "virtio_mmio"],
+          "provider-c": ["btrfs", "virtio_blk", "virtio_pci"]
         },
         "doc": "Initramfs modules, by hardware profile."
       }
@@ -1887,7 +1887,7 @@ integer    = [ "-" ] [0-9]+
 | `target.name`, `.base`, `.environment` | the target | `x1-prod`, `x1`, `prod` |
 | `target.member` | the member's name; undefined outside a cluster | `1` |
 | `target.placement` | `kind`, `firmware`, `hardware`, `on` (3.4) | |
-| `target.containers` | the targets placed on this one: name to placement | `{"chat-prod": {…}}` on `rhi-prod` |
+| `target.containers` | the targets placed on this one: name to placement | `{"chat-prod": {…}}` on `east-prod` |
 | `debian` | the sources (5.3) | `debian.suite` |
 | `settings` | the task's own settings, defaults filled | `settings.port` |
 | `tasks.<task>.<setting>` | declared reads (6.4) | `tasks.core.domain` |
@@ -2021,10 +2021,10 @@ typed values make unneeded:
 }
 ```
 
-`hosts/ion/ion.json` holds `"vpn": {"address": "10.0.0.1", "hub": true}`,
-and `hosts/ion/ion-prod.json` what belongs to ion in production,
-`"vpn": {"endpoint": "203.0.113.157", "public_key": "m3NY8…="}`, the
-key as ion-prod's activator reported it.
+`hosts/west/west.json` holds `"vpn": {"address": "10.0.0.1", "hub": true}`,
+and `hosts/west/west-prod.json` what belongs to west in production,
+`"vpn": {"endpoint": "203.0.113.157", "public_key": "AAAA…="}`, the
+key as west-prod's activator reported it.
 
 `tasks/vpn/tree/etc/systemd/network/wg0.netdev.j2`:
 
@@ -2050,8 +2050,8 @@ PersistentKeepalive=25
 {% endfor %}
 ```
 
-- carbon-prod, a spoke, gets ion-prod's key, address and endpoint from
-  ion-prod's file; ion-prod gets carbon-prod's key from carbon-prod's.
+- carbon-prod, a spoke, gets west-prod's key, address and endpoint from
+  west-prod's file; west-prod gets carbon-prod's key from carbon-prod's.
   Nobody copies a key, and carbon-lab sees only lab peers, with lab keys.
 - **`wireguard-key` is [later]** (9.3). Until it exists, the vpn task
   names the private key as a secret file at the same path, an operator
@@ -2384,3 +2384,9 @@ hearth/docs/design/domain/artifacts.md (7.3) cite it.
   or its `ConfigurationDirectory=` could name its consumers without a
   `live` entry (5.14); it depends on how many entries the fleet's tasks
   need once written.
+- **The example fleet's SSH port and zone:** whether `10127` (3.7, 5.10)
+  and `Europe/Lisbon` (3.7, 5.3, 5.10; hearth/docs/design/domain/build.md, 14;
+  hearth/docs/design/domain/render.md, 9.2;
+  hearth/docs/design/draft/brainstorm.md, 6.2) stay, or give way to plainer
+  values as the examples' hosts and providers did. No step code holds
+  either, only the fixtures and goldens; it is the user's to decide.

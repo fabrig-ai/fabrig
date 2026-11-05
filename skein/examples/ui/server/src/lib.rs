@@ -1,6 +1,6 @@
 //! Bounded in-memory notes, separate from the server's routes (examples.md, 9.3).
 #![forbid(unsafe_code)]
-use skein_lib::{List, Reader, Writer};
+use skein_lib::{List, Reader, Writer, usize_of};
 use skein_ui_example_view::records::{Add, CEILINGS, Note, NoteParts, Notes, NotesParts};
 use std::collections::BTreeMap;
 pub mod bundle;
@@ -52,7 +52,7 @@ impl State {
             made = true;
             note
         };
-        let mut writer = Writer::new(usize::try_from(note.measure()).expect("note fits"));
+        let mut writer = Writer::new(usize_of(note.measure()));
         note.encode(&mut writer).expect("measured note fits");
         let bytes = writer.finish();
         if made {
@@ -65,7 +65,7 @@ impl State {
     }
     #[must_use]
     pub fn list(&self) -> Box<[u8]> {
-        let mut writer = Writer::new(usize::try_from(self.notes.measure()).expect("record fits usize"));
+        let mut writer = Writer::new(usize_of(self.notes.measure()));
         self.notes.encode(&mut writer).expect("measured record encodes");
         writer.finish()
     }
