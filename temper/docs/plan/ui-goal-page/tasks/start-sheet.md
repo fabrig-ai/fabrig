@@ -68,3 +68,7 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report: which of the Options' other plans were on your base.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Ruling (rulings.md, 3, 7): see start-domain's answer. Goals' "Start one from a draft" is a link to Chats' Drafts filter, no draft field; ui-chat-draft adds opening the sheet from a chat, so export what it needs. ui-away adds "When it needs you" later.
