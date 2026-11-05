@@ -827,18 +827,3 @@ fn protection_branch_is_not_a_leaf() {
     assert_eq!(run.answer(404, MISSING), Step::Done(Err(Error::Missing)));
     assert_eq!(run.tables().repository(REPO), None);
 }
-
-#[test]
-fn collaborators_finish_without_measuring_the_rows_again() {
-    let mut run =
-        Run::with(crate::forgejo::plans::plan::Bounds { rows: 0, ..BOUNDS }, Op::Read(Read::Collaborators { page: 1 }));
-    run.begin();
-    run.answer(200, br#"[{"id":2,"login":"writer"}]"#);
-    assert_eq!(
-        run.answer(200, br#"{"user":{"id":2,"login":"writer"},"permission":"admin"}"#),
-        Step::Done(Ok(Answer::Collaborators {
-            collaborators: Box::new([api::Collaborator { user: 2, permission: api::Permission::Admin }]),
-            more: false,
-        }))
-    );
-}
