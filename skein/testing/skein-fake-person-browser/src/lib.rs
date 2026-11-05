@@ -10,4 +10,7 @@ pub use skein_fake_person as person;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod press_tests;
+
 pub mod stories;

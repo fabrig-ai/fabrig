@@ -22,7 +22,9 @@ suite's logins have no design (`skein-live`), five of its provider
 stories being manual, run by the owner (`llm.md`). Most carriers still
 print the bytes they hold, credentials among them on known paths
 (`lib.md`, `oauth.md`), as does a server's written head (`http.md`). The code departs
-in `skein-playground`'s manifest (`playground.md`).
+in `skein-playground`'s manifest (`playground.md`). An owner may ask a call
+to keep its rendered body (`llm.md`, `llm-connection.md`), and a world the
+fake LLM peer to keep what it read (`fake-llm.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
 `browser.md` have no gap. The state machines of io's file store and
