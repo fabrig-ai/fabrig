@@ -1005,3 +1005,36 @@ fn skip_respects_its_page_and_request_bounds() {
         assert_eq!(f.root.pages().serial, serial);
     }
 }
+
+#[test]
+fn needs_count_falls_when_answered_and_keeps_later_cards() {
+    let mut f = fixture();
+    let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
+    let reads = inbox_reads(&out);
+    let mut rows = List::with_capacity(ONE);
+    rows.push(f::inbox_entry(f::acts::QUESTION, c::InboxGroup::Questions, f::PROJECT, 0)).unwrap();
+    let cards = inbox_page(&mut f.root, reads[0].0, rows, false);
+    inbox_page(&mut f.root, reads[1].0, List::with_capacity(EMPTY), false);
+    let cards = inbox_reads(&cards);
+    up(&mut f.root, Up::ReadDone { read: cards[0].0, result: Readout::Jig(c::ReadResult::Value(f::acts::question())) });
+    event(
+        &mut f.root,
+        Event::Act { action: Action::Pages(Act::Needs(pages::needs::Act::Later { object: f::acts::QUESTION })) },
+    );
+    assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: ONE, cut: false });
+    event(
+        &mut f.root,
+        Event::Act {
+            action: Action::Pages(Act::Needs(pages::needs::Act::Choose {
+                object: f::acts::QUESTION,
+                words: Box::from(*b"Yes"),
+            })),
+        },
+    );
+    assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: EMPTY, cut: false });
+    event(
+        &mut f.root,
+        Event::Act { action: Action::Pages(Act::Needs(pages::needs::Act::Undo { object: f::acts::QUESTION })) },
+    );
+    assert_eq!(home::facts(&f.root, f::PROJECT).needs, Needs::Count { count: ONE, cut: false });
+}
