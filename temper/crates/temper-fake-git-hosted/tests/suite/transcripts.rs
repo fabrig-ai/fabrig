@@ -4,6 +4,9 @@ use temper_worker_protocol_git::output;
 use temper_worker_protocol_git_world::transcripts;
 const CASES: &[(&str, Fault)] = &[
     ("version", Fault::None),
+    ("origin-no-repository", Fault::None),
+    ("origin-no-remote", Fault::None),
+    ("checkout-index-locked", Fault::None),
     ("clone", Fault::None),
     ("clone-empty", Fault::None),
     ("fetch-branch", Fault::None),
@@ -68,6 +71,7 @@ fn each_transcript_s_exit_and_masked_stdout_match_the_fake_s() {
 #[test]
 fn each_failure_transcript_s_stderr_classifies_as_the_fake_s() {
     let rows = [
+        ("checkout-index-locked", Fault::None, git::Kind::CheckOut),
         ("clone-missing-repository", Fault::MissingRepository, git::Kind::Clone),
         ("clone-stranger-private", Fault::MissingRepository, git::Kind::Clone),
         ("fetch-missing-branch", Fault::MissingBranch, git::Kind::Fetch),
@@ -509,4 +513,23 @@ fn hosted_git_fires_past_an_older_due_read_and_keeps_its_reply_once() {
     assert!(result.is_ok());
     assert!(forge.pending.is_empty(), "the older reply is returned once");
     assert_eq!(forge.domain.next_deadline(), None, "neither call waits on a timer");
+}
+
+#[test]
+fn a_clone_keeps_its_given_origin_url() {
+    let mut scenario = fixtures::named(b"fixture/specimen", None);
+    let clone = temper_worker_protocol_git::invocation::Command::Clone {
+        remote: scenario.remote.clone().into(),
+        directory: b"fresh".as_slice().into(),
+    };
+    let mut spawn = fixtures::spawn_of(&clone);
+    spawn.dir = b"workspaces/1".as_slice().into();
+    let cloned = temper_fake_git_hosted::check(&spawn).expect("clone invocation");
+    let _cloned = temper_fake_git_hosted::answer(&cloned, &mut scenario.checkout, &mut scenario.transport);
+    let command =
+        temper_worker_protocol_git::invocation::Command::Origin { directory: b"workspaces/1/fresh".as_slice().into() };
+    let checked = temper_fake_git_hosted::check(&fixtures::spawn_of(&command)).expect("local origin query");
+    let answer = temper_fake_git_hosted::answer(&checked, &mut scenario.checkout, &mut scenario.transport);
+    assert_eq!(answer.stdout, [scenario.remote.as_slice(), b"\n"].concat());
+    assert_eq!(answer.exit, transcripts::read("origin-matches").exit);
 }

@@ -61,7 +61,8 @@ impl Referee {
                 git::Done::Failed { fault: got } | git::Done::FailedWithOutput { fault: got, .. } => {
                     assert_eq!(got, fault);
                 }
-                other @ (git::Done::IsAncestor { .. }
+                other @ (git::Done::Looked { .. }
+                | git::Done::IsAncestor { .. }
                 | git::Done::Merged
                 | git::Done::Conflicted { .. }
                 | git::Done::Succeeded
