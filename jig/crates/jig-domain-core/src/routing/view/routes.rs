@@ -491,100 +491,71 @@ fn watch_document(
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "a live host reports its fenced turn, offset, text and call")]
+pub(crate) struct Written {
+    pub run: Token,
+    pub turn: views::TurnName,
+    pub offset: u32,
+}
+
 pub(crate) fn run_text(
     core: &mut Core,
     env: &Env<Limits>,
-    run: Token,
-    attempt: Token,
-    turn: u32,
-    retry: u32,
-    offset: u32,
+    written: Written,
     text: Box<[u8]>,
     call: Option<views::Call>,
 ) -> Queue<Request> {
+    let Written { run, turn, offset } = written;
     let mut out = Queue::uncapped();
     append_stream(super::marks::end_invalid(core, env), &mut out);
     let live = match core.proofs.get(&run.raw()) {
         Some(proof) => {
-            proof.attempt == attempt.raw()
+            proof.attempt == turn.attempt
                 && proof.terminal.is_none()
-                && turn != 0
+                && turn.turn != 0
                 && match proof.turn {
-                    Some(kept) => turn > kept.turn,
+                    Some(kept) => turn.turn > kept.turn,
                     None => true,
                 }
         }
         None => false,
     };
     if live {
-        let had_call = views::has_current_call(&core.views, run, attempt.raw());
-        append_stream(
-            route_view(
-                core,
-                env,
-                views::Event::Text {
-                    run,
-                    turn: views::TurnName { attempt: attempt.raw(), turn, retry },
-                    offset,
-                    text,
-                    call,
-                },
-            ),
-            &mut out,
-        );
-        if had_call && !views::has_current_call(&core.views, run, attempt.raw()) {
+        let had_call = views::has_current_call(&core.views, run, turn.attempt);
+        append_stream(route_view(core, env, views::Event::Text { run, turn, offset, text, call }), &mut out);
+        if had_call && !views::has_current_call(&core.views, run, turn.attempt) {
             changed_run(core, env, run, &mut out);
         }
     }
     out
 }
 
-#[expect(clippy::too_many_arguments, reason = "the host reports input with its fenced turn and provider identity")]
 pub(crate) fn run_input(
     core: &mut Core,
     env: &Env<Limits>,
-    run: Token,
-    attempt: Token,
-    turn: u32,
-    retry: u32,
-    offset: u32,
+    written: Written,
     id: Box<[u8]>,
     tool: Box<[u8]>,
     input: Box<[u8]>,
 ) -> Queue<Request> {
+    let Written { run, turn, offset } = written;
     let mut out = Queue::uncapped();
     append_stream(super::marks::end_invalid(core, env), &mut out);
     let live = match core.proofs.get(&run.raw()) {
         Some(proof) => {
-            proof.attempt == attempt.raw()
+            proof.attempt == turn.attempt
                 && proof.terminal.is_none()
-                && turn != 0
+                && turn.turn != 0
                 && match proof.turn {
-                    Some(kept) => turn > kept.turn,
+                    Some(kept) => turn.turn > kept.turn,
                     None => true,
                 }
         }
         None => false,
     };
     if live {
-        let had_call = views::has_current_call(&core.views, run, attempt.raw());
-        append_stream(
-            route_view(
-                core,
-                env,
-                views::Event::Input {
-                    run,
-                    turn: views::TurnName { attempt: attempt.raw(), turn, retry },
-                    offset,
-                    id,
-                    tool,
-                    input,
-                },
-            ),
-            &mut out,
-        );
-        if had_call && !views::has_current_call(&core.views, run, attempt.raw()) {
+        let had_call = views::has_current_call(&core.views, run, turn.attempt);
+        append_stream(route_view(core, env, views::Event::Input { run, turn, offset, id, tool, input }), &mut out);
+        if had_call && !views::has_current_call(&core.views, run, turn.attempt) {
             changed_run(core, env, run, &mut out);
         }
     }
