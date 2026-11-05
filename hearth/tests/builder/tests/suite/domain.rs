@@ -131,7 +131,6 @@ fn resolution_keys_equal_a_naive_transitive_closure_of_the_fake_universe() {
     });
 }
 
-#[path = "domain/naive.rs"]
 mod naive;
 
 /// Render's keys and config part for THIN's target, resolved in the same world.

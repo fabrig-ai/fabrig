@@ -1,7 +1,7 @@
 //! Both sides of a copy meet through HTTP (skein/docs/design/forge-setup.md, 4.10).
 use core::num::{NonZeroU32, NonZeroU64};
 use skein_fake_forge_domain::api::Fill;
-use skein_fake_forge_protocol::{Config, Repository, Route};
+use skein_fake_forge_forgejo::{Config, Repository, Route};
 use skein_forge::forgejo::request::Grant;
 use skein_forge_setup::{
     host::{File, Need, Plan},

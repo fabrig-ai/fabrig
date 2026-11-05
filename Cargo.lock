@@ -406,6 +406,7 @@ name = "hearth-config-world"
 version = "0.0.0"
 dependencies = [
  "hearth-protocol-config",
+ "hearth-test-fixtures",
  "skein-heap",
  "skein-json",
  "skein-lib",
@@ -453,6 +454,7 @@ name = "hearth-domain-render"
 version = "0.0.0"
 dependencies = [
  "hearth-lib",
+ "hearth-test-fixtures",
  "skein-lib",
 ]
 
@@ -513,6 +515,7 @@ dependencies = [
 name = "hearth-lib"
 version = "0.0.0"
 dependencies = [
+ "hearth-test-fixtures",
  "skein-lib",
 ]
 
@@ -587,6 +590,7 @@ name = "hearth-protocol-tree"
 version = "0.0.0"
 dependencies = [
  "hearth-lib",
+ "hearth-test-fixtures",
  "skein-lib",
 ]
 
@@ -629,7 +633,16 @@ name = "hearth-template-world"
 version = "0.0.0"
 dependencies = [
  "hearth-protocol-template",
+ "hearth-test-fixtures",
  "skein-heap",
+ "skein-lib",
+ "skein-scratch",
+]
+
+[[package]]
+name = "hearth-test-fixtures"
+version = "0.0.0"
+dependencies = [
  "skein-lib",
  "skein-scratch",
 ]
@@ -2710,11 +2723,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-fake-forge-forgejo"
+version = "0.0.0"
+dependencies = [
+ "skein-fake-forge-domain",
+ "skein-fake-forge-http",
+ "skein-forge",
+ "skein-heap",
+ "skein-http",
+ "skein-json",
+ "skein-lib",
+]
+
+[[package]]
 name = "skein-fake-forge-github"
 version = "0.0.0"
 dependencies = [
  "skein-fake-forge-domain",
- "skein-fake-forge-protocol",
+ "skein-fake-forge-http",
  "skein-forge",
  "skein-http",
  "skein-json",
@@ -2723,12 +2749,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "skein-fake-forge-protocol"
+name = "skein-fake-forge-http"
 version = "0.0.0"
 dependencies = [
  "skein-fake-forge-domain",
  "skein-forge",
- "skein-heap",
  "skein-http",
  "skein-json",
  "skein-lib",
@@ -2792,8 +2817,9 @@ version = "0.0.0"
 dependencies = [
  "rustls",
  "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
- "skein-fake-forge-protocol",
+ "skein-fake-forge-http",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
  "skein-fake-oauth",
@@ -2811,8 +2837,9 @@ version = "0.0.0"
 dependencies = [
  "rustls",
  "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
- "skein-fake-forge-protocol",
+ "skein-fake-forge-http",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
  "skein-fake-oauth",
@@ -2916,8 +2943,8 @@ name = "skein-forge-machine-world"
 version = "0.0.0"
 dependencies = [
  "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
- "skein-fake-forge-protocol",
  "skein-forge",
  "skein-forge-connection",
  "skein-heap",
@@ -2935,8 +2962,8 @@ name = "skein-forge-protocol-world"
 version = "0.0.0"
 dependencies = [
  "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
- "skein-fake-forge-protocol",
  "skein-forge",
  "skein-forge-client",
  "skein-forge-client-world",
@@ -2967,8 +2994,8 @@ name = "skein-forge-setup-world"
 version = "0.0.0"
 dependencies = [
  "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
- "skein-fake-forge-protocol",
  "skein-forge",
  "skein-forge-machine-world",
  "skein-forge-setup",
@@ -4105,6 +4132,7 @@ dependencies = [
 name = "smith-machine-world"
 version = "0.0.0"
 dependencies = [
+ "skein-fake-checkout",
  "skein-fake-machine",
  "skein-io",
  "skein-lib",
@@ -4114,6 +4142,7 @@ dependencies = [
  "skein-world",
  "smith-domain",
  "smith-protocol-machine",
+ "smith-tools-world",
 ]
 
 [[package]]
@@ -4274,18 +4303,15 @@ version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
  "skein-fake-llm-domain",
+ "skein-json",
  "skein-lib",
  "skein-llm",
  "skein-llm-world",
  "skein-world",
- "smith-agent-service",
  "smith-domain",
  "smith-domain-session",
  "smith-domain-tools",
- "smith-protocol-llm",
- "smith-protocol-translate",
  "smith-tools-world",
- "smith-transcript",
 ]
 
 [[package]]
@@ -4293,12 +4319,9 @@ name = "smith-tools-world"
 version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
- "skein-io",
  "skein-lib",
  "skein-world",
  "smith-domain-tools",
- "smith-machine-world",
- "smith-protocol-machine",
 ]
 
 [[package]]
@@ -4374,7 +4397,7 @@ dependencies = [
  "serde_json",
  "skein-fail-stop",
  "skein-fake-forge-domain",
- "skein-fake-forge-protocol",
+ "skein-fake-forge-forgejo",
  "skein-fake-llm-domain",
  "skein-fake-oauth",
  "skein-fake-peers",
@@ -4935,8 +4958,8 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-people",
  "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
- "skein-fake-forge-protocol",
  "skein-forge",
  "skein-forge-client",
  "skein-forge-connection",
@@ -4991,8 +5014,9 @@ dependencies = [
  "jig-protocol-config",
  "serde_json",
  "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
- "skein-fake-forge-protocol",
+ "skein-fake-forge-http",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
  "skein-fake-oauth",
@@ -5030,7 +5054,8 @@ version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
  "skein-fake-forge-domain",
- "skein-fake-forge-protocol",
+ "skein-fake-forge-forgejo",
+ "skein-fake-forge-http",
  "skein-fake-machine",
  "skein-fake-peers",
  "skein-forge",
@@ -5154,8 +5179,9 @@ dependencies = [
  "jig-test-store-files",
  "serde_json",
  "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
- "skein-fake-forge-protocol",
+ "skein-fake-forge-http",
  "skein-fake-llm-domain",
  "skein-fake-machine",
  "skein-fake-peers",
@@ -5205,7 +5231,8 @@ dependencies = [
  "serde_json",
  "skein-channel",
  "skein-fake-forge-domain",
- "skein-fake-forge-protocol",
+ "skein-fake-forge-forgejo",
+ "skein-fake-forge-http",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
  "skein-fake-machine",
@@ -5333,8 +5360,9 @@ dependencies = [
  "serde_json",
  "skein-channel",
  "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
- "skein-fake-forge-protocol",
+ "skein-fake-forge-http",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
  "skein-fake-oauth",
@@ -5408,8 +5436,8 @@ dependencies = [
  "skein-channel",
  "skein-codec",
  "skein-fake-forge-domain",
+ "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
- "skein-fake-forge-protocol",
  "skein-fake-oauth",
  "skein-forge",
  "skein-forge-client",
@@ -5552,7 +5580,7 @@ name = "temper-worker-checkout-world"
 version = "0.0.0"
 dependencies = [
  "skein-fake-forge-domain",
- "skein-fake-forge-protocol",
+ "skein-fake-forge-forgejo",
  "skein-fake-peers",
  "skein-io",
  "skein-lib",

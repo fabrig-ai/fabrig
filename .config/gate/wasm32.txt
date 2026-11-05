@@ -20,7 +20,7 @@ skein-sim-world
 skein-fake-llm-domain
 skein-fake-llm-protocol
 skein-fake-forge-domain
-skein-fake-forge-protocol
+skein-fake-forge-forgejo
 jig-protocol-transcript
 jig-client-protocol-wire
 jig-client-domain
@@ -45,6 +45,7 @@ smith-protocol-translate
 smith-protocol-machine
 skein-tls
 skein-fake-forge-github
+skein-fake-forge-http
 skein-fake-peers
 smith-protocol-events
 smith-protocol-llm

@@ -169,7 +169,7 @@ fn failed(remote: &[u8], fault: Fault) -> Answer {
     Answer { exit: 128, stdout: Vec::new(), stderr: stderr.into_bytes() }
 }
 pub(crate) fn count(commit: Commit) -> u64 {
-    skein_fake_forge_protocol::routes::commit(&skein_forge::forgejo::id::ObjectId {
+    skein_fake_forge_forgejo::routes::commit(&skein_forge::forgejo::id::ObjectId {
         format: skein_forge::forgejo::id::ObjectFormat::Sha1,
         bytes: commit.raw(),
     })

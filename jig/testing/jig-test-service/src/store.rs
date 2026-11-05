@@ -283,7 +283,6 @@ fn answer_routed(engine: &mut crate::Engine) {
 
 #[cfg(test)]
 mod sizing_tests {
-    use super::check_read_page;
     use jig_protocol_config::Profile;
     use jig_protocol_store::host::max_read;
 
@@ -293,26 +292,6 @@ mod sizing_tests {
             let configured = crate::limits::profile_limits(profile);
             let limits = super::limits(&configured.root, &configured.store).expect("admitted profile");
             assert!(max_read(&limits) >= limits.store.page.bytes);
-        }
-    }
-
-    #[test]
-    fn a_store_whose_reads_are_below_its_page_is_refused() {
-        let mut limits = crate::limits::profile_limits(Profile::Small).store;
-        let page = limits.store.page.bytes;
-        let below = page.checked_sub(1).unwrap();
-        // Synthetic fields check admission without constructing an invalid KV store.
-        limits.store.chunk = below;
-        limits.core.resume_bytes = below;
-        limits.core.load_bytes = u64::from(below);
-        assert_eq!(max_read(&limits), below);
-        assert_eq!(check_read_page(&limits), None);
-        for (chunk, resume, load) in [(page, below, below), (below, page, below), (below, below, page)] {
-            limits.store.chunk = chunk;
-            limits.core.resume_bytes = resume;
-            limits.core.load_bytes = u64::from(load);
-            assert_eq!(max_read(&limits), page);
-            assert_eq!(check_read_page(&limits), Some(()));
         }
     }
 }

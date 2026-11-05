@@ -1,7 +1,7 @@
 # D026: Three crates keep a `tests/` directory under `crates/`
 
 - **Kind:** tests
-- **Where:** `skein-forge/tests`, `skein-fake-forge-protocol/tests`, `skein-fail-stop/tests`
+- **Where:** `skein-forge/tests`, `skein-fake-forge-forgejo/tests`, `skein-fail-stop/tests`
 - **Seen:** 2026-10-31 at `4a6683c72`, in `reviews/2026-10-31-skein.md` (theme T5, layout) and `reviews/2026-10-31-skein-areas.md` (A0, A2)
 - **Seen:** 2026-10-31 at `337102750`, in `reviews/2026-10-31-skein-first.md` (theme 6 and decision D4)
 - **Checked:** 2026-11-03 at `41d63da8c3`
@@ -13,7 +13,7 @@
 
 ## What
 
-`skein-forge/tests` holds 6,781 lines; `skein-fake-forge-protocol/tests`
+`skein-forge/tests` holds 6,781 lines; `skein-fake-forge-forgejo/tests`
 (a memory suite) 146 and `skein-fail-stop/tests` 70. `testing.status.md`
 records the departure with no reason
 (`skein/docs/design/testing.status.md`). skein-forge's integration tests

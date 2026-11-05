@@ -1,7 +1,7 @@
 # D015: Flat forge request, answer and node enums are re-matched in every module
 
 - **Kind:** complexity
-- **Where:** `skein-forge/src/forgejo/request.rs`, `skein-forge/src/forgejo/client.rs`, `skein-forge/src/forgejo/server.rs`, `skein-forge/src/github/decode/walk.rs`, `skein-forge/src/github/request.rs`, `skein-fake-forge-protocol/src/server.rs`
+- **Where:** `skein-forge/src/forgejo/request.rs`, `skein-forge/src/forgejo/client.rs`, `skein-forge/src/forgejo/server.rs`, `skein-forge/src/github/decode/walk.rs`, `skein-forge/src/github/request.rs`, `skein-fake-forge-forgejo/src/server.rs`
 - **Seen:** 2026-10-31 at `4a6683c72`, in `reviews/2026-10-31-skein.md` (theme T3) and `reviews/2026-10-31-skein-areas.md` (A1, A2 F1, A5 F1)
 - **Seen:** 2026-10-31 at `337102750`, in `reviews/2026-10-31-skein-first.md` (theme 3)
 - **Checked:** 2026-11-03 at `41d63da8c3`
@@ -19,7 +19,7 @@
   `too_many_lines` expects under `forgejo/`.
 - The fake Forgejo repeats its setup group of variants in each
   exhaustive match (`Request::DeleteRepoHook` appears 16 times in
-  `skein-fake-forge-protocol/src`).
+  `skein-fake-forge-forgejo/src`).
 - GitHub's decoder `Node` (`github/decode/walk.rs`) has 85 variants;
   `Node::` appears 765 times under `github/`, and one decoder holds every
   family's state.

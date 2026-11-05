@@ -4,7 +4,7 @@ use crate::directories::Directories;
 use jig_protocol_store::{codec::component::Format, format, keys};
 use skein_fake_forge_domain::promises::Judge;
 use skein_fake_forge_domain::promises::Recorded;
-use skein_fake_forge_protocol::observations::decode_with_limits;
+use skein_fake_forge_forgejo::observations::decode_with_limits;
 use skein_io::{
     file,
     file_layer::{self, FileIo},

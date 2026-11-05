@@ -37,7 +37,7 @@ impl Forge {
             return;
         }
         if self.hooks != Some(bound) {
-            self.transport.forge.borrow_mut().hooks = Some(skein_fake_forge_protocol::delivery::Endpoint {
+            self.transport.forge.borrow_mut().hooks = Some(skein_fake_forge_forgejo::delivery::Endpoint {
                 forge: 1,
                 host: bound.to_string().into_bytes().into(),
                 secret: skein_lib::Secret::new(fixtures::HOOK_SECRET.into()),

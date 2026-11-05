@@ -11,6 +11,7 @@ skein-lib.workspace = true
 hearth-protocol-template.workspace = true
 
 [dev-dependencies]
+hearth-test-fixtures.workspace = true
 skein-scratch.workspace = true
 skein-heap.workspace = true
 

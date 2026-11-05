@@ -97,7 +97,7 @@ fn github_fake_tokens_on_app_routes_pay_before_the_credential_class_refusal() {
 
 #[test]
 fn github_fake_person_token_expiration_is_optional_and_follows_every_answer() {
-    let expiry = skein_forge::forgejo::time::read(b"2026-11-19T12:00:00Z").unwrap();
+    let expiry = skein_forge::time::read(b"2026-11-19T12:00:00Z").unwrap();
     for expires in [None, Some(expiry)] {
         let mut config = f::config();
         config.tokens = List::with_capacity(1);

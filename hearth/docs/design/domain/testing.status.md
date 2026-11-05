@@ -34,7 +34,7 @@
   real tools and the mirror, passing on the skein hearth builds on.
 - **Not yet:** 6.1, 6.2, 6.3, 6.4, 6.5: the real-build tier, its fetched .debs
   and extras, shared base layers, prerequisite checks and per-step cost checks.
-  The mirror supports M1's indexes; `hearth/tests/builder/tests/real.rs`
+  The mirror supports M1's indexes; `hearth/tests/builder/tests/real/main.rs`
   exercises render and diff with real git, rather than builds on btrfs.
   6.6: the built root booting in QEMU; the `real/boot.rs` module checks the
   rendered boot part, not a boot.
@@ -47,21 +47,26 @@
 - **Departs:** 5.5, 9.2: the `conformance` profile is `conformance-hearth` and
   also runs `recorded_*`, and there is no `measure` profile, because the
   root's tier profiles are `<tier>-<tree>` (`tools/tiers/design.md`, 1).
-- **Departs:** 3.1: `hearth/testing/hearth-fake-machine/Cargo.toml` takes
-  workspace lints and its `clippy.toml` takes the `ring` profile, rather
-  than the step crates' strict subset; the reason is unknown.
 - **Departs:** 8.4: a world's memory tests are modules of its suite, not a
   binary of their own, because a suite has one counting allocator
   (`skein/docs/design/testing.md`, 6).
 - **Departs:** 9.1: no global timeout holds hearth's suites alone, because
   the root has one `default` and one `fuzzy` profile, whose 150 s and 600 s
-  sum each tree's figures, hearth's 30 s and 120 s among them. Measured on
-  2026-11-05 by focused-budget: focused, 44.886618 CPU s, still 14.886618
-  CPU s over its 30 CPU s budget. Fuzzy measured on 2026-11-04 on a shared
-  machine: 68 CPU s and 16 to 21 s of wall. On a full gate hearth adds
-  27 s to the test build and 9 s to clippy. A change to `skein-lib` reaches
-  28 of hearth's 30 packages and rebuilds them in 3 s of wall, with its
-  compiler caches warm. `hearth-render-world`, in `.config/gate/always.txt`,
-  costs every hearth change 3.4 CPU s focused and 29 CPU s fuzzy. The
-  focused overrun remains open (`hearth/docs/design/domain/testing.md`, 11;
-  `skein/docs/foundation/testing-strategy.md`, 8.1).
+  sum each tree's figures, hearth's 30 s and 120 s among them.
+- **Departs:** 9.1: the focused suite is over its 30 CPU s, because the
+  repairs tried stopped short of it: 44.886618 CPU s on 2026-11-05, by
+  `tools/tiers/cpu.py`, 14.886618 over. That run came before the last
+  repair, which took 0.803158 CPU s off the builder's domain tests, and no
+  full run has followed it. The request expected the fixed scenarios to
+  bring most of the excess; instead the suite went from 35 to 36 CPU s in
+  the gate's records of 2026-11-04 to 48.292873 before the first repair,
+  and what raised it, or whether those figures compare, is unknown. The
+  figure stands (`hearth/docs/design/domain/testing.md`, 11).
+  Fuzzy, on 2026-11-04 on a shared machine: 68 CPU s and 16 to 21 s of
+  wall, before the large render joined it at 12.238013 CPU s; it has not
+  been measured since. Also of 2026-11-04: on a full gate hearth adds 27 s
+  to the test build and 9 s to clippy; a change to `skein-lib` reaches 28
+  of hearth's 30 packages and rebuilds them in 3 s of wall, with its
+  compiler caches warm; and `hearth-render-world`, in
+  `.config/gate/always.txt`, costs every hearth change 3.4 CPU s focused
+  and 29 CPU s fuzzy.

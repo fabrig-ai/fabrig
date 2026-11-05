@@ -300,8 +300,8 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     assert_eq!(limits.authority.projects, 8);
     assert!(engine::refused(generated().0, &limits).is_empty());
     let mut strict = limits;
-    strict.policy_bytes = 4096;
-    assert!(engine::refused(generated().0, &strict).is_empty(), "the actual landing join also admits at 4096");
+    strict.policy_bytes = 8192;
+    assert!(engine::refused(generated().0, &strict).is_empty(), "the landing join also admits at 8192");
     // Chosen GitHub-shaped owner: 39 ASCII bytes; repositories reach the
     // unchanged adoption field bound (64), not GitHub's external name limit.
     // Admission below proves acceptance by the current code, without live API claims.
@@ -414,12 +414,12 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
         "the next welcome selection exceeds the profile's project capacity"
     );
     let bytes = people::policy_bytes(&snapshot).expect("exact joined snapshot bytes");
-    assert_eq!(bytes, 3282);
+    assert_eq!(bytes, 5742);
     std::eprintln!(
-        "real init joined policy: {bytes}/4096 requested bytes, configured bound {}; profile project capacity {capacity}; adopted=2; owner=39, repositories=64 bytes each; next welcome MakeProject refuses Projects",
+        "real init joined policy: {bytes}/8192 requested bytes, configured bound {}; profile project capacity {capacity}; adopted=2; owner=39, repositories=64 bytes each; next welcome MakeProject refuses Projects",
         limits.policy_bytes
     );
-    assert!(bytes <= 4096);
+    assert!(bytes <= 8192);
 }
 
 #[test]

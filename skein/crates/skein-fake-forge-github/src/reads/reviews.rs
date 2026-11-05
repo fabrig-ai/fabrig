@@ -5,7 +5,7 @@ use crate::{
     service::{Limits, Response},
 };
 use skein_fake_forge_domain::api as a;
-use skein_forge::{api, forgejo::document::Body as Text, github::document as d};
+use skein_forge::{api, github::document as d, text::Body as Text};
 use skein_lib::{List, Wall};
 
 pub(super) fn reviews(answer: a::Answer, page: u32, size: u32, target: &[u8], limits: &Limits) -> Response {

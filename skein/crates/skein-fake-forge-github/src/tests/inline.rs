@@ -83,7 +83,7 @@ fn a_token_read_is_admitted_then_called() {
     let wire = get(&mut forge, b"/repos/acme/widgets/branches/main", auth.expose());
     assert!(wire.starts_with(b"HTTP/1.1 200 "), "branch response");
     assert_eq!(header(&wire, b"X-RateLimit-Used"), Some(b"1".as_slice()));
-    let commit = skein_forge::forgejo::id::write(&skein_fake_forge_protocol::routes::object(1));
+    let commit = github::id::write_commit(&domain::commit_bytes(1)).expect("padded SHA-1");
     assert!(bytes::find(&wire, &commit).is_some(), "domain commit in body");
 }
 #[test]
@@ -127,15 +127,6 @@ fn a_pass_stops_at_a_head_and_lends_its_credential() {
     assert_eq!(forge.domain.tally().answered, 1);
 }
 #[test]
-fn the_peers_server_names_a_bare_media_type() {
-    let mut forge = forge(7);
-    let mut c = Connection::head(&mut forge, f::INSTALLATIONS, f::authorization(fixture::key(), 1000, 1600).expose());
-    drop(c.server.take_head());
-    c.run(&mut forge, None, false);
-    let Some(Down::Send(wire)) = c.below.pop() else { panic!("response head") };
-    assert_eq!(header(&wire, b"Content-Type"), Some(b"application/json".as_slice()));
-}
-#[test]
 fn the_fixture_builds_a_valid_service() {
     for rows in [fixture::repositories(), fixture::widgets(1)] {
         let mut service = Service::new(fixture::config(rows), &fixture::limits(), 1).expect("valid fixture");
@@ -173,7 +164,7 @@ fn an_ambiguous_update_answers_the_stale_refusal() {
 fn a_hooked_pass_releases_due_hooks_ahead_of_its_call() {
     let (mut forge, auth) = token(9);
     assert!(forge.service.installations_mut().take_event().is_some(), "installation setup event");
-    let sha = skein_forge::forgejo::id::write(&skein_fake_forge_protocol::routes::object(1));
+    let sha = github::id::write_commit(&domain::commit_bytes(1)).expect("padded SHA-1");
     let body = f::parts(&[br#"{"ref":"refs/heads/feature","sha":""#, &sha, br#""}"#]);
     let wire = request(b"POST", b"/repos/acme/widgets/git/refs", auth.expose(), &body);
     assert!(forge.serve(&wire, wall(1199)).starts_with(b"HTTP/1.1 201 "), "branch created");

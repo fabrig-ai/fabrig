@@ -18,7 +18,7 @@ skein-tls.workspace = true
 skein-tls-world = { path = "../../tls" }
 skein-world.workspace = true
 skein-forge-connection.workspace = true
-skein-fake-forge-protocol.workspace = true
+skein-fake-forge-forgejo.workspace = true
 skein-fake-forge-domain.workspace = true
 skein-fake-forge-github.workspace = true
 

@@ -73,11 +73,6 @@ pub struct Clients {
     next_playground: u64,
     playground_carries: Queue<kit::SecretsRequest>,
 }
-fn invalid(what: What) -> Problems {
-    let mut problems = Problems::empty();
-    problems.push(Path::root().member(b"engine").member(b"clients"), what);
-    problems
-}
 impl Clients {
     pub(crate) fn playground_read(&mut self) -> Option<crate::HandoverRead> {
         self.playground_reads.pop()
@@ -141,38 +136,31 @@ impl Clients {
         files: &[(Box<[u8]>, skein_lib::Secret)],
     ) -> Result<Self, Problems> {
         if !crate::server::valid(&crate::limits::server(&config.limits)) {
-            return Err(invalid(What::Bound));
+            return Err(config::clients::invalid(What::Bound));
         }
         let config::Address::Addr(listener) = &clients.listener else {
-            return Err(invalid(What::Form));
+            return Err(config::clients::invalid(What::Form));
         };
         let link_provider = config::clients::link_provider(config);
         let link = if config.clients.link {
             let provider = match sign_in {
                 Some(sign_in) => sign_in.provider,
-                None => link_provider.ok_or(invalid(What::Refers))?,
+                None => link_provider.ok_or(config::clients::invalid(What::Refers))?,
             };
-            let mut identity = None;
-            for owner in &config.owners {
-                if owner.identity.provider == provider {
-                    identity =
-                        Some(people::Identity {
-                            key: owner.identity.clone(),
-                            login: match sign_in {
-                                Some(sign_in) => google::member_login(sign_in, &owner.identity.subject)
-                                    .ok_or(invalid(What::Refers))?,
-                                None => Box::from(b"owner".as_slice()),
-                            },
-                            name: match sign_in {
-                                Some(sign_in) => google::member_login(sign_in, &owner.identity.subject)
-                                    .ok_or(invalid(What::Refers))?,
-                                None => Box::from(b"Owner".as_slice()),
-                            },
-                        });
-                    break;
-                }
-            }
-            Some(identity.ok_or(invalid(What::Refers))?)
+            let owner = config::clients::link_owner(config, provider).ok_or(config::clients::invalid(What::Refers))?;
+            Some(people::Identity {
+                key: owner.identity.clone(),
+                login: match sign_in {
+                    Some(sign_in) => google::member_login(sign_in, &owner.identity.subject)
+                        .ok_or(config::clients::invalid(What::Refers))?,
+                    None => Box::from(b"owner".as_slice()),
+                },
+                name: match sign_in {
+                    Some(sign_in) => google::member_login(sign_in, &owner.identity.subject)
+                        .ok_or(config::clients::invalid(What::Refers))?,
+                    None => Box::from(b"Owner".as_slice()),
+                },
+            })
         } else {
             None
         };
@@ -225,7 +213,7 @@ impl Clients {
                 }
             }
         }
-        let component = kit::Component::new(initial, &env, &mut out).or(Err(invalid(What::Bound)))?;
+        let component = kit::Component::new(initial, &env, &mut out).or(Err(config::clients::invalid(What::Bound)))?;
         Ok(Self {
             listening: None,
             address: *listener,

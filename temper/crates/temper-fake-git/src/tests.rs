@@ -5,10 +5,7 @@ use skein_fake_checkout::{
     git::{self as kit, Remote, Tree},
 };
 use skein_fake_forge_domain::api;
-use skein_fake_forge_protocol::{
-    Limits,
-    git::{self, Answer as RemoteAnswer, Call},
-};
+use skein_fake_forge_http::git::{self, Answer as RemoteAnswer, Call, Limits};
 use skein_io::kernel::{self as k, Done, Exit, Fd, Op};
 use skein_lib::{Secret, Time, Wall};
 use skein_shell::Host;
@@ -34,9 +31,6 @@ const STORED: u64 = 3;
 const BODY_BYTES: u32 = 4096;
 fn limits() -> Limits {
     Limits {
-        calls: 1,
-        connections: 1,
-        raw_bytes: 1024,
         http: skein_http::server::Limits {
             head: 2048,
             headers: 8,
@@ -45,7 +39,7 @@ fn limits() -> Limits {
             response: 2048,
             send: 128,
         },
-        documents: skein_forge::forgejo::limits::Limits {
+        documents: skein_forge::limits::Limits {
             json: skein_json::tokenizer::Limits {
                 chunk: 128,
                 string: BODY_BYTES,
@@ -62,12 +56,12 @@ fn limits() -> Limits {
     }
 }
 fn commit(number: u64) -> temper_worker_domain_checkout::git::Commit {
-    temper_worker_domain_checkout::git::Commit::new(skein_fake_forge_protocol::routes::object(number).bytes)
+    temper_worker_domain_checkout::git::Commit::new(skein_fake_forge_forgejo::routes::object(number).bytes)
 }
 #[test]
 fn git_ids_and_counts_share_the_forge_codec() {
     for count in [0, BASE, TOPIC, STORED, u64::MAX] {
-        let object = skein_fake_forge_protocol::routes::object(count);
+        let object = skein_fake_forge_forgejo::routes::object(count);
         assert_eq!(crate::id::id(count).as_slice(), skein_forge::forgejo::id::write(&object).as_ref());
         assert_eq!(crate::answer::count(commit(count)), count);
     }

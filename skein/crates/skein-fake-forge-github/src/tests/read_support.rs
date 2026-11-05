@@ -157,7 +157,7 @@ pub fn exchange_events(h: &mut f::Harness, exchange: &github::plans::plan::Excha
     events
 }
 pub fn object(count: u64) -> api::Commit {
-    skein_fake_forge_protocol::routes::object(count).bytes
+    skein_fake_forge_domain::commit_bytes(count)
 }
 pub fn pull(h: &mut f::Harness) -> (u64, u64) {
     let first = h.first;

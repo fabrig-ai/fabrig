@@ -106,7 +106,8 @@ skein-forge-setup               the access and each forge's plan: Forgejo's reco
 │                                 GitHub's manifest flow
 ├── skein-lib, skein-io, skein-http, skein-json, skein-forge
 crates/skein-fake-forge-domain     the fake forge's domain
-crates/skein-fake-forge-protocol   Forgejo's API over it on skein's HTTP server; the setup's routes;
+crates/skein-fake-forge-http       what its two layers share: a connection's core and the git route
+crates/skein-fake-forge-forgejo   Forgejo's API over it on skein's HTTP server; the setup's routes;
                                      signed deliveries; the tally of requests served
 crates/skein-fake-forge-github    GitHub's API over it, at its pin (fake-forge.md, section 10)
 crates/skein-fake-peers            hosts the forge peer, beside the LLM and OAuth peers

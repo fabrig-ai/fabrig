@@ -52,6 +52,7 @@ pub fn panel(task: u64, step: w::Step) -> w::ChangePanel {
             step,
             hold: Some(w::Hold::Moved),
             runs: Some(29),
+            ci_required: true,
             ci: w::Ci::Passed,
             approvals: List::with_capacity(0),
             unmapped_reviews: List::with_capacity(0),

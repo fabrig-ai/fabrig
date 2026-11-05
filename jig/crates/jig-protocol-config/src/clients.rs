@@ -90,6 +90,24 @@ pub fn link_provider(config: &crate::Engine) -> Option<u16> {
     }
     link
 }
+/// The problem of the engine's clients' settings, at `engine.clients`.
+#[must_use]
+pub fn invalid(what: crate::What) -> Problems {
+    let mut problems = Problems::empty();
+    problems.push(Path::root().member(b"engine").member(b"clients"), what);
+    problems
+}
+/// The owner the printed link signs in, the first with an identity at `provider`.
+#[must_use]
+#[expect(clippy::manual_find, reason = "step code uses no closures (programming-model.md, 10.3)")]
+pub fn link_owner(config: &crate::Engine, provider: u16) -> Option<&jig_domain_people::InitialOwner> {
+    for owner in &config.owners {
+        if owner.identity.provider == provider {
+            return Some(owner);
+        }
+    }
+    None
+}
 #[must_use]
 pub fn public_bounds(config: &crate::Engine) -> jig_client_protocol_wire::PublicIndexBounds {
     jig_client_protocol_wire::PublicIndexBounds {

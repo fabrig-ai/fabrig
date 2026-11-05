@@ -269,6 +269,7 @@ fn stock_limits() -> engine::Limits {
     // Stock policy 1 holds ten grants; room for the design's five executor kinds.
     limits.authority.grants = 16;
     limits.authority.executors = 8;
+    limits.authority.roles = 4;
     limits.documents.grants = 16;
     limits.documents.executors = 8;
     limits.notes.scopes = 32;
@@ -287,6 +288,13 @@ fn deployment_without_projects() -> Driver {
     driver
 }
 
+fn set_policy_tools(policy: &mut authority::Policy, tools: authority::Tools) {
+    for role in &mut policy.roles {
+        role.authority.tools.0 &= tools.0;
+    }
+    policy.roles[0].authority.tools = tools;
+}
+
 #[test]
 fn an_owner_of_a_deployment_with_no_project_makes_one_from_policy_1() {
     let mut driver = deployment_without_projects();
@@ -303,7 +311,7 @@ fn an_owner_of_a_deployment_with_no_project_makes_one_from_policy_1() {
     assert_ne!(policy.policy.ceiling.tools, widened);
     rules.ceiling.tools = widened;
     policy.policy.ceiling.tools = widened;
-    policy.policy.roles[0].authority.tools = widened;
+    set_policy_tools(&mut policy.policy, widened);
     driver.send(Event::Party(PartyInput::ChangeSettings {
         kinds: Box::default(),
         reply_to: ReplyTo::new(Token::new(30)),

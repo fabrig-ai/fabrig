@@ -819,7 +819,7 @@ impl World {
                 }
                 let body = format!(r#"{{"repository":{{"id":1}},"issue":{{"number":1}},"comment":{{"body":"<!-- kit:key {} -->\n"}}}}"#, "61".repeat(512));
                 let secret = Secret::new(vec![b's';128].into_boxed_slice());
-                let signature = skein_fake_forge_protocol::delivery::sign(&secret, body.as_bytes());
+                let signature = skein_fake_forge_forgejo::delivery::sign(&secret, body.as_bytes());
                 let head = format!("POST /hooks/{forge} HTTP/1.1\r\nHost: loopback\r\nContent-Length: {}\r\nX-Forgejo-Event: issue_comment\r\nX-Forgejo-Signature: {}\r\n\r\n", body.len(), std::str::from_utf8(&signature).expect("signature"));
                 let peer = w.peers.values_mut().find(|p| p.tls.is_none() && p.pending.is_empty() && p.consumed == 0 && p.received.is_empty()).expect("new hook peer");
                 peer.write(head.as_bytes()); peer.write(body.as_bytes());
