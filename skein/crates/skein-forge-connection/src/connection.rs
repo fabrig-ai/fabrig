@@ -92,13 +92,14 @@ pub(crate) enum Use {
 /// A connection's phases hold their exchange (skein/docs/design/forge-connection.md, 8.1).
 enum State {
     // Raw overflow holds the exchange until finish; redirect draining survives its ending.
-    Closed { closing: bool, ended: Option<Ended>, exchange: Option<Exchange>, draining: bool },
-    Connecting,
-    Handshaking,
-    Sending { exchange: Exchange },
-    Reading { exchange: Exchange, draining: bool },
+    // A start answer can hold a deadline after Connection: close, until the component closes it.
+    Closed { closing: bool, ended: Option<Ended>, exchange: Option<Exchange>, draining: bool, until: Option<Time> },
+    Connecting { until: Option<Time> },
+    Handshaking { until: Option<Time> },
+    Sending { exchange: Exchange, until: Option<Time> },
+    Reading { exchange: Exchange, draining: bool, until: Option<Time> },
     // A connected notice can leave the holder's exchange in Idle until its next write.
-    Idle { exchange: Option<Exchange>, draining: bool },
+    Idle { exchange: Option<Exchange>, draining: bool, until: Option<Time> },
 }
 struct Exchange {
     upload: Option<Upload>,
@@ -108,37 +109,37 @@ struct Exchange {
 }
 impl State {
     fn take(&mut self) -> Self {
-        core::mem::replace(self, Closed { closing: false, ended: None, exchange: None, draining: false })
+        core::mem::replace(self, Closed { closing: false, ended: None, exchange: None, draining: false, until: None })
     }
     fn exchange_mut(&mut self) -> Option<&mut Exchange> {
         match self {
-            Sending { exchange } | Reading { exchange, .. } => Some(exchange),
+            Sending { exchange, .. } | Reading { exchange, .. } => Some(exchange),
             Closed { exchange, .. } | Idle { exchange, .. } => exchange.as_mut(),
-            Connecting | Handshaking => None,
+            Connecting { .. } | Handshaking { .. } => None,
         }
     }
     fn into_exchange(self) -> Option<Exchange> {
         match self {
-            Sending { exchange } | Reading { exchange, .. } => Some(exchange),
+            Sending { exchange, .. } | Reading { exchange, .. } => Some(exchange),
             Closed { exchange, .. } | Idle { exchange, .. } => exchange,
-            Connecting | Handshaking => None,
+            Connecting { .. } | Handshaking { .. } => None,
         }
     }
-    fn idle(self) -> Self {
-        Idle { draining: self.draining(), exchange: self.into_exchange() }
+    fn idle(self, until: Option<Time>) -> Self {
+        Idle { draining: self.draining(), exchange: self.into_exchange(), until }
     }
     fn end(self, ended: Option<Ended>, closing: bool) -> Self {
         let draining = self.draining();
         let (ended, closing) = match self {
             Closed { ended: previous, closing: requested, .. } => (ended.or(previous), closing || requested),
-            Connecting | Handshaking | Sending { .. } | Reading { .. } | Idle { .. } => (ended, closing),
+            Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } | Idle { .. } => (ended, closing),
         };
-        Closed { closing, ended, exchange: None, draining }
+        Closed { closing, ended, exchange: None, draining, until: None }
     }
     fn draining(&self) -> bool {
         match self {
             Reading { draining, .. } | Idle { draining, .. } | Closed { draining, .. } => *draining,
-            Connecting | Handshaking | Sending { .. } => false,
+            Connecting { .. } | Handshaking { .. } | Sending { .. } => false,
         }
     }
 }
@@ -189,12 +190,12 @@ impl Connection {
         };
         let link = Link::new(tls);
         let http = http::Client::new(&limits::http(l, link.encrypted(), &shared.io));
-        Self {
+        let mut connection = Self {
             forge: forge.number,
             role: Use::Calls,
             origin,
-            state: Connecting,
-            deadline: Some(deadline),
+            state: Connecting { until: Some(deadline) },
+            deadline: None,
             link,
             membership: Membership::Configured,
             written: false,
@@ -207,13 +208,39 @@ impl Connection {
             json_down: Queue::uncapped(),
             raw_cap: shared.answer_bytes,
             json_limits: limits::documents(l).json,
+        };
+        connection.follow();
+        connection
+    }
+    fn follow(&mut self) {
+        self.deadline = match self.state {
+            Closed { until, .. }
+            | Connecting { until }
+            | Handshaking { until }
+            | Sending { until, .. }
+            | Reading { until, .. }
+            | Idle { until, .. } => until,
+        };
+    }
+    pub(crate) fn hold(&mut self, until: Time) {
+        self.rest(Some(until));
+    }
+    pub(crate) fn rest(&mut self, until: Option<Time>) {
+        match &mut self.state {
+            Closed { until: held, .. }
+            | Connecting { until: held }
+            | Handshaking { until: held }
+            | Sending { until: held, .. }
+            | Reading { until: held, .. }
+            | Idle { until: held, .. } => *held = until,
         }
+        self.follow();
     }
     pub(crate) fn phase(&self) -> Phase {
         match self.state {
             Closed { .. } => Phase::Closed,
-            Connecting => Phase::Connecting,
-            Handshaking => Phase::Handshaking,
+            Connecting { .. } => Phase::Connecting,
+            Handshaking { .. } => Phase::Handshaking,
             Sending { .. } => Phase::Sending { written: self.written },
             Reading { .. } => Phase::Reading,
             Idle { .. } => Phase::Idle,
@@ -222,7 +249,7 @@ impl Connection {
     pub(crate) fn closing(&self) -> bool {
         match self.state {
             Closed { closing, .. } => closing,
-            Connecting | Handshaking | Sending { .. } | Reading { .. } | Idle { .. } => false,
+            Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } | Idle { .. } => false,
         }
     }
     pub(crate) fn draining(&self) -> bool {
@@ -251,15 +278,13 @@ impl Connection {
         self.written = false;
         let intake = Intake::with_capacity(env.limits.chunk.max(5));
         let json_body = JsonBody { intake, read: None, below: false, ended: false };
-        self.state = Sending {
-            exchange: Exchange { upload: Upload::of(upload), receive: Receiving::Empty, json_body, json_next: None },
-        };
+        let exchange = Exchange { upload: Upload::of(upload), receive: Receiving::Empty, json_body, json_next: None };
+        self.state = Sending { exchange, until: self.deadline };
+        self.follow();
         self.http_down(env, http::Request::Call(call));
         if self.exchange().upload.is_some() {
-            self.http_down(
-                env,
-                http::Request::Upload(Down::Demand { read: Read::Nothing, room: self.http_env(env).limits.send }),
-            );
+            let demand = Down::Demand { read: Read::Nothing, room: self.http_env(env).limits.send };
+            self.http_down(env, http::Request::Upload(demand));
         }
     }
     pub fn drain_redirect(&mut self, env: &Env<Limits>, io: &mut Queue<skein_io::Request>) -> bool {
@@ -272,13 +297,13 @@ impl Connection {
         self.drain(env, io);
         match &mut self.state {
             Idle { draining, .. } | Closed { draining, .. } => *draining = false,
-            Connecting | Handshaking | Sending { .. } | Reading { .. } => {}
+            Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } => {}
         }
         self.ready()
     }
     pub fn discard_redirect(&mut self, env: &Env<Limits>) {
         self.state = match self.state.take() {
-            Reading { mut exchange, .. } => {
+            Reading { mut exchange, until, .. } => {
                 exchange.json_body.intake.clear();
                 exchange.json_body.read = None;
                 exchange.json_body.below = false;
@@ -288,10 +313,11 @@ impl Connection {
                 self.json_up.clear();
                 self.json_down.clear();
                 self.http_down(env, http::Request::Discard);
-                Reading { exchange, draining: true }
+                Reading { exchange, draining: true, until }
             }
-            state @ (Closed { .. } | Connecting | Handshaking | Sending { .. } | Idle { .. }) => state,
+            state @ (Closed { .. } | Connecting { .. } | Handshaking { .. } | Sending { .. } | Idle { .. }) => state,
         };
+        self.follow();
     }
     fn link_env(&self, env: &Env<Limits>) -> Env<skein_link::Limits> {
         env.with(skein_link::Limits { tls: env.limits.tls, close_timeout: self.shared.io.close_timeout })
@@ -299,12 +325,15 @@ impl Connection {
     pub fn connect(&mut self, env: &Env<Limits>) {
         let state = self.state.take();
         self.state = match self.link.connected(&self.link_env(env)) {
-            Start::Handshaking => Handshaking,
-            Start::Ready => state.idle(),
+            Start::Handshaking => Handshaking { until: self.deadline },
+            Start::Ready => state.idle(self.deadline),
             Start::Closing => {
-                Closed { closing: false, ended: None, draining: state.draining(), exchange: state.into_exchange() }
+                let draining = state.draining();
+                let exchange = state.into_exchange();
+                Closed { closing: false, ended: None, draining, exchange, until: self.deadline }
             }
         };
+        self.follow();
     }
     pub fn stream(&mut self, env: &Env<Limits>, event: Up) {
         self.link.up(&self.link_env(env), event);
@@ -332,10 +361,11 @@ impl Connection {
                         let draining = state.draining();
                         let exchange = state.into_exchange().expect("a send belongs to an exchange");
                         self.state = if exchange.upload.is_some() {
-                            Sending { exchange }
+                            Sending { exchange, until: self.deadline }
                         } else {
-                            Reading { exchange, draining }
+                            Reading { exchange, draining, until: self.deadline }
                         };
+                        self.follow();
                     }
                     return Moved::Within;
                 }
@@ -358,11 +388,9 @@ impl Connection {
             self.json_demand(env, down);
             return Moved::Within;
         }
-        let next = match self.state.exchange_mut() {
-            Some(exchange) => exchange.json_next.take(),
-            None => None,
-        };
-        if let Some(request) = next {
+        if let Some(exchange) = self.state.exchange_mut()
+            && let Some(request) = exchange.json_next.take()
+        {
             self.json_request(env, request);
             return Moved::Within;
         }
@@ -382,10 +410,7 @@ impl Connection {
         for _ in 0_u32..64 {
             match self.step(env, io, false) {
                 Moved::Nothing => break,
-                Moved::Finished { reuse, raw } => {
-                    drop(raw);
-                    self.finish(env, reuse, false);
-                }
+                Moved::Finished { reuse, .. } => self.finish(env, reuse, false),
                 Moved::Within | Moved::Head(_) | Moved::Token(_) => {}
             }
         }
@@ -406,9 +431,10 @@ impl Connection {
     }
     pub(crate) fn finish(&mut self, env: &Env<Limits>, reuse: http::Reuse, closes: bool) {
         let close = reuse == http::Reuse::Close || closes;
-        self.state =
-            if close { self.state.take().end(None, false) } else { Idle { exchange: None, draining: self.draining() } };
-        self.deadline = if close { None } else { Some(env.now.saturating_add(env.limits.idle)) };
+        let draining = self.draining();
+        let until = Some(env.now.saturating_add(env.limits.idle));
+        self.state = if close { self.state.take().end(None, false) } else { Idle { exchange: None, draining, until } };
+        self.follow();
     }
     fn json_demand(&mut self, env: &Env<Limits>, down: Down) {
         let Some(exchange) = self.state.exchange_mut() else { return };
@@ -458,7 +484,10 @@ impl Connection {
     }
     fn link_event(&mut self, env: &Env<Limits>, event: skein_link::Event) {
         match event {
-            skein_link::Event::Ready => self.state = self.state.take().idle(),
+            skein_link::Event::Ready => {
+                self.state = self.state.take().idle(self.deadline);
+                self.follow();
+            }
             skein_link::Event::Stream(event) => {
                 let h = self.http_env(env);
                 http::up(&mut self.http, &h, event, &mut self.http_up, &mut self.http_down);
@@ -499,8 +528,7 @@ impl Connection {
                         }
                         if *read > u64::from(env.limits.body_bytes_in) {
                             self.exchange().receive = Receiving::Empty;
-                            self.malformed(decode::Malformed::Bound { field: b"log" });
-                            self.deadline = None;
+                            self.malformed_json(decode::Malformed::Bound { field: b"log" });
                         } else {
                             tail.write(&piece);
                             self.raw_demand(env);
@@ -528,8 +556,9 @@ impl Connection {
                                 ended: self.take_ended(),
                                 draining: self.draining(),
                                 exchange: self.state.take().into_exchange(),
+                                until: None,
                             };
-                            self.deadline = None;
+                            self.follow();
                             return Moved::Finished {
                                 reuse: http::Reuse::Close,
                                 raw: Payload::Raw { bytes: grow.finish(), more: true },
@@ -611,16 +640,14 @@ impl Connection {
     }
     fn raw_demand(&mut self, env: &Env<Limits>) {
         let Some(exchange) = self.state.exchange_mut() else { return };
-        let count = match &exchange.receive {
-            Receiving::Raw { grow, remaining, .. } => match remaining {
-                Some(left) => grow.room().min(env.limits.chunk).min(u32::try_from(*left).unwrap_or(u32::MAX)).max(1),
-                None => 1,
-            },
-            Receiving::Tail { remaining, .. } => match remaining {
-                Some(left) => env.limits.chunk.min(u32::try_from(*left).unwrap_or(u32::MAX)).max(1),
-                None => 1,
-            },
+        let (room, remaining) = match &exchange.receive {
+            Receiving::Raw { grow, remaining, .. } => (grow.room().min(env.limits.chunk), *remaining),
+            Receiving::Tail { remaining, .. } => (env.limits.chunk, *remaining),
             Receiving::Json | Receiving::Empty => return,
+        };
+        let count = match remaining {
+            Some(left) => room.min(u32::try_from(left).unwrap_or(u32::MAX)).max(1),
+            None => 1,
         };
         self.http_down(env, http::Request::Body(Down::Demand { read: Read::Fill(count), room: 0 }));
     }
@@ -635,29 +662,25 @@ impl Connection {
                 if next == Down::Finish {
                     let mut exchange = self.state.take().into_exchange().expect("upload belongs to an exchange");
                     exchange.upload = None;
-                    self.state = Reading { exchange, draining: false };
+                    self.state = Reading { exchange, draining: false, until: self.deadline };
+                    self.follow();
                 }
                 self.http_down(env, http::Request::Upload(next));
             }
-            Up::Failed(_) | Up::End => {
-                exchange.upload = None;
-            }
+            Up::Failed(_) | Up::End => exchange.upload = None,
             Up::Bytes(_) => unreachable!("uploads only write"),
         }
     }
     pub(crate) fn malformed_json(&mut self, error: decode::Malformed) {
-        self.malformed(error);
-        self.deadline = None;
-    }
-    fn malformed(&mut self, error: decode::Malformed) {
         self.state = self.state.take().end(Some(Ended::Malformed(error)), false);
+        self.follow();
     }
     pub fn failed(&mut self, failure: Failure) {
         if self.phase() == Phase::Closed {
             return;
         }
         self.state = self.state.take().end(Some(Ended::Failed(failure)), false);
-        self.deadline = None;
+        self.follow();
     }
     pub fn timeout(&mut self) {
         self.failed(if self.written { Failure::Seen } else { Failure::Unseen });
@@ -665,7 +688,7 @@ impl Connection {
     pub fn in_flight(&self) -> bool {
         match &self.state {
             Closed { exchange, .. } | Idle { exchange, .. } => exchange.is_some(),
-            Connecting | Handshaking | Sending { .. } | Reading { .. } => true,
+            Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } => true,
         }
     }
     pub fn close(&mut self, env: &Env<Limits>, abort: bool, io: &mut Queue<skein_io::Request>) {
@@ -673,7 +696,7 @@ impl Connection {
             return;
         }
         self.state = self.state.take().end(None, true);
-        self.deadline = None;
+        self.follow();
         self.link.close(&self.link_env(env), abort, io);
     }
     /// Aborts the connection, including a close still under way (programming-model.md, 5.2).
@@ -687,28 +710,26 @@ impl Connection {
     pub(crate) fn take_ended(&mut self) -> Option<Ended> {
         match &mut self.state {
             Closed { ended, .. } => ended.take(),
-            Connecting | Handshaking | Sending { .. } | Reading { .. } | Idle { .. } => None,
+            Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } | Idle { .. } => None,
         }
     }
     pub fn ready(&self) -> bool {
         let exchange = match &self.state {
             Closed { ended, .. } => return ended.is_some() || self.link.has_work(),
-            Sending { exchange } | Reading { exchange, .. } => Some(exchange),
+            Sending { exchange, .. } | Reading { exchange, .. } => Some(exchange),
             Idle { exchange, .. } => exchange.as_ref(),
-            Connecting | Handshaking => None,
+            Connecting { .. } | Handshaking { .. } => None,
         };
-        let json_ready = match exchange {
-            Some(exchange) => {
-                exchange.json_next.is_some() || (exchange.json_body.read.is_some() && !exchange.json_body.below)
-            }
-            None => false,
-        };
+        if let Some(exchange) = exchange
+            && (exchange.json_next.is_some() || (exchange.json_body.read.is_some() && !exchange.json_body.below))
+        {
+            return true;
+        }
         !self.http_up.is_empty()
             || !self.http_down.is_empty()
             || self.link.has_work()
             || !self.json_up.is_empty()
             || !self.json_down.is_empty()
-            || json_ready
     }
     /// The answer's remaining payload room, set by the holding plan before its raw read.
     pub fn raw_room(&mut self, room: u32) {
