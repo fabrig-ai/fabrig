@@ -1,0 +1,3 @@
+draft = "repair-green"
+repo = "fabrig"
+sources = ["temper/docs/plan/repair-green/inputs/request.md", "AGENTS.md", "DESIGN.md"]
