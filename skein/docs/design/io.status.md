@@ -2,10 +2,7 @@
 
 2026-11-05. Where skein's code lags or departs from [io.md](io.md).
 
-- **Not yet:** 2: the stage's assert on each entry's `MAX_OUT_*`. 8: the socket, output
-  and either worlds run on loops of their own, not on `skein_world` and the stage
-  (`skein/docs/development/debt/D032-world-harness-copies.md`).
-  5: a tree's metadata, the filesystem's status and sync, and
+- **Not yet:** 5: a tree's metadata, the filesystem's status and sync, and
   btrfs's subvolumes (`StatEntry` to `SubvolumePath`). 6, 6.2 to 6.4:
   cgroups and contained trees.
 - **Departs:** 3, 5, 7: for pipes, files and signals,

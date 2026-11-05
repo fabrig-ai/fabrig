@@ -5,7 +5,7 @@
 use std::net::{Ipv4Addr, SocketAddr};
 
 use skein_io::kernel::{Complete, Submit};
-use skein_io::{Event, Io, Limits, MAX_OUT_DOWN, MAX_OUT_FIRE, MAX_OUT_RESUME, MAX_OUT_UP, MaxOut, Request};
+use skein_io::{Event, Io, Limits, Request, stage};
 use skein_lib::stream::{Down, OutputDown, OutputOutcome, OutputUp, Read, Up};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_sim::{Config, Entry};
@@ -136,18 +136,6 @@ impl Driver {
             addr: skein_io::Addr::Ip(SocketAddr::from((Ipv4Addr::LOCALHOST, 0))),
         });
         driver
-    }
-
-    fn room(&self, max: MaxOut) -> bool {
-        self.subs.room() >= max.submissions
-    }
-
-    fn mark(&self) -> u32 {
-        self.subs.len()
-    }
-
-    fn within(&self, before: u32, max: MaxOut) {
-        assert!(self.subs.len().checked_sub(before).expect("submissions only append") <= max.submissions);
     }
 
     fn request_read(&mut self, owner: Token, bytes: u32) {
@@ -281,33 +269,11 @@ impl Host for Driver {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
-        while self.io.is_ready() && self.room(MAX_OUT_RESUME) {
-            let before = self.mark();
-            skein_io::resume(&mut self.io, &self.env, &mut self.up, &mut self.subs);
-            self.within(before, MAX_OUT_RESUME);
-        }
-        if !self.io.is_ready() {
-            while self.room(MAX_OUT_UP) {
-                let Some(completion) = self.completions.pop() else { break };
-                let before = self.mark();
-                skein_io::up(&mut self.io, &self.env, completion, &mut self.up, &mut self.subs);
-                self.within(before, MAX_OUT_UP);
-            }
-        }
-        while self.io.is_due(self.env.now) && self.room(MAX_OUT_FIRE) {
-            let before = self.mark();
-            skein_io::fire(&mut self.io, &self.env, &mut self.up, &mut self.subs);
-            self.within(before, MAX_OUT_FIRE);
-        }
+        stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.up, &mut self.subs, now);
         while let Some(event) = self.up.pop() {
             self.on(event);
         }
-        while self.io.takes() && self.room(MAX_OUT_DOWN) {
-            let Some(request) = self.requests.pop() else { break };
-            let before = self.mark();
-            skein_io::down(&mut self.io, &self.env, request, &mut self.subs);
-            self.within(before, MAX_OUT_DOWN);
-        }
+        stage::down(&mut self.io, &self.env, &mut self.requests, &mut self.subs);
         self.io.reclaim();
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
