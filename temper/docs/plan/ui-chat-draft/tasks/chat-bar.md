@@ -68,3 +68,23 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/chat-bar/foreman-1)
+
+reconcile chat-bar with the integration trunk’s onboarding and rebased Start over changes
+The merge failed on nine paths; this is the branch’s conflict to resolve.
+Rebase onto the landing trunk, preserving `c743b0bfd5` (main’s onboarding changes) and `d80e72e94a` (rebased Start over).
+Apply these resolutions:
+- `temper/crates/temper-client-domain/src/pages.rs`: retain the trunk’s Home actions and Start over routing; keep one scoped `too_many_lines` expectation on `confirmation`.
+- `temper/crates/temper-client-domain/src/pages/task.rs`: retain every Home action and `StartOver` in both exhaustive dispatches; keep one expectation on `amend`.
+- `temper/crates/temper-client-view/src/look.rs`: preserve onboarding tokens 326–338, document tokens 339–351 and `START_OVER` 352. Append `DOC_FLASH` at the next free token (353 on the inspected trunk), with its matching `NAMES` entry.
+- `temper/crates/temper-client-view/src/tests/look.rs`: retain onboarding assertions and both Start over and flash entries; reconcile the named-style array length.
+- `temper/crates/temper-client-view/src/pages/document.rs`: preserve configuring proposal status and ordinary draft paths, together with chat-bar’s section flash, keyed animation restart and focus count. Keep one `proposal_line` implementation.
+- `temper/crates/temper-client-view/src/tests/document.rs`: combine proposal-state fixture setup with chat-bar’s tool-call fixture changes; retain both suites’ assertions.
+- `temper/crates/temper-client-view/src/words.rs`: preserve the trunk vocabulary and capacities, adding chat-bar’s seven words, fifteen segments and 99 literal bytes once. Keep Start over’s six words and 148 bytes once; verify phrase IDs remain unique.
+- `temper/tools/gallery/src/samples.rs`: retain onboarding samples and all three chat-draft samples; reconcile `N` (180 on the inspected trunk) and preserve the split sample’s `ShowSection { line: 17 }`.
+- `temper/tools/gallery/src/worlds.rs`: retain onboarding’s `copies` argument and all callers, copy helpers and provider changes; also retain chat-bar’s `chat_note`, `chat_activity` and task-1 dispatch branches.
+Review automatically merged chat, hint, CSS and gallery code against the combined interfaces.
+Run focused domain, document, chat, style-name, phrase-capacity and gallery checks through heavy, then the spec’s client checks.
+Regenerate and report any affected goldens, journey prints or counted baselines using their existing tools.
+Preserve `Look-request: configure-chat-draft` on the resolution commit.
