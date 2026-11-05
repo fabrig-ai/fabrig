@@ -1,0 +1,3 @@
+draft = "adopt-access"
+repo = "fabrig"
+sources = ["temper/docs/plan/adopt-access/inputs/request.md", "skein/docs/design/forge-setup.md", "AGENTS.md", "DESIGN.md"]
