@@ -31,7 +31,7 @@ section 11.
   jig's, and copies no client root, view root, native client or card of
   jig's.
 - **Its pages,** on jig's (jig's `client/domain/pages.md`): the inbox
-  (home), the chats, a chat, a project's board, a task's page, the
+  (home), the chats, a chat, a project's goals, a task's page, the
   changes, the forge's adoption form, the forges, and the LLM accounts
   (3.5); "How work runs" and a proposal of settings' review (5.13).
   The mockups design them: their look, parts, words and acts. What no page
@@ -355,7 +355,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Inbox` (the root) | `inbox.html` | what needs the person, across projects, filtered by project, kind and goal (its root): proposals, questions, held tasks, person tasks; then updates (results, replies); "+ New chat", a link to the Chats page's start (`/chats?at=start`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | accept ("Accept"), reject with a reason, answer, release, leave held, take, hand back |
 | `Chats` | `chats.html`; the playground's start at the first run's first step, which `first-run.html` opens | a pane at the head of its main, a complementary region named "Project" (`browser.md`, 2.5): the new chat's bar (below), in the playground's project while the playground starts or runs the playground's start (4.8, 5.6), then the person's chats under the level-1 heading "Chats", as one list, "Your chats", live and ended together, newest first, under All, Live or Closed (below), each with its project and number, title, status, own spend and live delegates, and last the playground's banner while it runs or is leaving (5.1); beside the pane, the composer to start a chat alone: its text area "Start a chat", showing "Describe a change" while it is empty, and its button "Start chat", with the hint "enter to start · shift+enter for newline", then its line and its chooser (5.5) under it, and in the playground's start its suggested requests under them (5.6) | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; choose the list's filter; more closed chats |
 | `Chat { task }` | `chat.html` | its chatbar: its number and title, its status, its spend and acts; after it, the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate` or a `change`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); its status and spend; Stop and Close; the composer, while the chat lives: its line and its chooser (5.5), its text area "Message" with the placeholder "Message T6…", T6 the chat's number, shown while it is empty and never its name, and the hint "Enter to send · Shift+Enter for newline", and "Send", then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, its line and chooser alone; an ended chat draws no composer and no composer's line | `task`, `activity` a page at a time, older pages while its window has room (5.4), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7) | message, stop, close, accept or reject a proposal in place |
-| `Board { project }` | `board.html` | the project's goals in priority order, live, waiting and recently ended, with their progress, spend and deadlines; what needs the person; "Set a goal" | `tasks{query}`: the project, tracked, by priority; ended, by ended at | set a goal, reorder goals |
+| `Goals { project, filter }` | the greenfield mock's `goals.html` | the project's goals: its intro, its filters, a row a goal, each its state and its report's headline (*Goals,* below) | `me`; `tasks{query}`: the project, the goal template's label, tracked, by priority, its live group watched, its ended pages by when each ended; a row's report and delegates, one read at a time; `inbox`'s needs for that project | choose the filter; more goals |
 | `Task { task }` | `task.html` | a goal: its header, what was asked and the result it gives, its result once ended, its plan as a tree of its delegates, live and ended, with their counts and its filter, each task's state, spend and dependencies, its latest activity and history, its budget and authority (5.8), with Amend, Stop and Cancel (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Stop and its composer (5.11); either's own held card while it is held | `task`, `tree`, `activity` a page at a time, older pages on an agent's task's "Older"; `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change | a goal's plan's filter (5.8); as its document offers them (5.11): on a goal amend, stop, cancel; on an agent's task message, amend, stop; release its own held task or one of its plan |
 | `Changes { project }` | `changes.html` | the forge's changes and landing queues (`forge.md`, section 3) | the forge's, through the forge's side (4.2) | the forge's |
 | `Adopt { project }` | none: 4.4 | the adoption form, into `project` (4.4), with the picker of the repositories temper can reach on the chosen forge | `me`; the chosen forge's deployment part, for its kind, mode, user and installations (`forge.md`, 5.4); the picker's page, a `Reachable` request (section 8) | adopt a repository (4.4) |
@@ -1299,6 +1299,74 @@ keeps (`../protocol/configuration.md`, section 2).
   "Accounts" and "Adopt a repository", each with the marks 5.3 gives it;
   then "Sign out". A project's Delete, when it is built, is here
   (section 10).
+- **Goals** (the greenfield mock's `goals.html`), at `/projects/<project>/goals`,
+  in the project's frame, is the project's goals, the filter in its address:
+  `GoalsFilter`, All, Needs, Live or Ended, whose query is `?state=needs`,
+  `?state=live` or `?state=ended` (`browser.md`, 2.3). Choosing one is a move.
+  A goal is a tracked agent's task (5.8) at its own `Task` address, so that
+  Goals is the list and draws no goal page. Its parts, in order:
+  - **Its intro:** "fabrig · goals", the project's name in lower case as
+    drawn; the level-1 heading: "5 goals, 3 under way.", the first number
+    every row and the second those live and those needing the person; "1 goal,
+    1 under way." in the singular; "No goals yet." with none; "More than N
+    goals, M under way." while rows remain unread. Then "A goal turns a draft
+    into landed work, its own way: W.", W the project's ways in order, lower
+    case, joined by ", " (*Ways,* below).
+  - **Its filters:** "All", "Needs you", "Under way", "Ended", the chosen one
+    pressed. Under them, the rows, or "None."; "Needs you" is state needs,
+    "Under way" running, planning and paused, "Ended" landed, stopped and
+    failed.
+  - **"More goals",** a quiet button after the rows while the ended page has
+    more, as "more closed chats".
+
+  What it reads: the query `TaskQuery { project, label: the template's,
+  tracked, by priority }`, the label template `shapes::GOAL`'s, its live group
+  watched and its ended group read by when each ended, as `Chats`; `listed`
+  puts goals in the project's index. One read per row, one at a time, as the
+  inbox's cards: its report (*A goal's report,* below). The needs are `inbox`'s
+  group for the project, read again as the watch or `me`'s `needs_total`
+  moves, each row's `selection` naming its goals.
+
+  **A row** is one link to the goal's `Task`, public as `goals::row`, since
+  Home's area will reuse it: its top line the chip's title (its spec's first
+  line) at the left and at the right "6 / 9 · " and its state's word; then its
+  headline. "6 / 9" is done, then total, of the goal's direct delegates, not
+  counting cancelled ones, true past one page; it is left out, with its " · ",
+  while there are none. An ended row is marked.
+
+  **A goal's state** is a pure function, `goals::state`, the first that matches:
+
+  | State | When | Word |
+  |---|---|---|
+  | needs | a needs row's `selection` names the goal | "needs funds" where the goal's own chip is held for `HoldCategory::Exceeded`, else "needs you" |
+  | paused | live, held by a placed hold of mode Stop over its own subtree | "paused by you" |
+  | planning | live, no report, no delegates | "planning" |
+  | running | any other live | "running" |
+  | landed | ended, done | "landed " and its end in the clock form (5.12) |
+  | stopped | ended, cancelled | "stopped" |
+  | failed | ended, failed | "failed" |
+
+  A row's **headline** is its report's. With no report: "Planning from the
+  draft." planning; "N of M tasks landed." running or paused; "Landed." landed;
+  "Stopped by you." stopped; "Failed." failed; a goal that needs the person
+  takes running's words, or planning's with no delegates.
+
+  **Ways** are one public function, `goals::ways`, of the view, the project's
+  templates with `tracked` set, in number order, each with a name and a line.
+  Template `goal`: "Task by task", "The same plan; each task lands on its own
+  once checked." Template `goal for a draft`: "Plan, tasks, land whole", "A plan
+  from the draft, its tasks on a goal branch, landed as one change once all are
+  checked." Any other: its own name, no line. The filter's and the page's
+  words are drawn in the terminal as a page of its own, heading, filters as
+  numbered buttons, a row a numbered link with its state and headline.
+- **A goal's report** is the note `../domain/agent.md`, 8.3 shapes. `report::parse`
+  in the client's domain, pure, reads a note as `Report { headline, paragraphs,
+  left, risk, decided, at }`, a line's start alone making `Left:`, `Risk:` or
+  `Decided:`; the read is `Read::Notes { scope: NoteScope::Task { project, task
+  }, description: Some("report: "), after: None }`, the newest by `changed`
+  whose description opens so, since jig's filter finds its words anywhere. Notes
+  have no watch: a page reads again when the goal's `last_activity` moves. No
+  note yet is a normal state, never an error.
 - **A suggested request** (`chats.html`) starts a chat with the
   cue's words as its first message, as the composer's send does: one
   act, one request (3.6), the suggestions and the send disabled while
@@ -1421,8 +1489,8 @@ keeps (`../protocol/configuration.md`, section 2).
   `shapes::chat`; setting a goal is `shapes::set_goal`, a proposal where
   the person's authority does not cover it; closing a chat is
   `shapes::close_chat`, one compound request, with what becomes of each
-  live delegate; reordering goals is one compound request of priority
-  changes; amending and releasing a held task is one compound request.
+  live delegate; amending and releasing a held task is one compound
+  request; a goal's priority changes by its amendment (3.7).
   Every other act is one operation.
 - **Said before it is sent.** An act that cannot be undone (cancelling,
   closing a chat, accepting, rejecting, releasing, removing a forge,
@@ -2448,11 +2516,18 @@ page (5.1): a navigation named by the open project, in this order:
 - the switcher (*Projects in the rail,* below);
 - "Home", to the open project's `Home`; "Needs you", to the inbox,
   with the count of what needs the person from `me`, omitted when
-  zero, its page still the inbox; and "Chats", to `Chats`; current on
-  `Home`, on `Inbox`, and on `Chats` and `Chat`, but a configuring
-  chat's, whose current entry is "Settings". The entries the
-  banner's navigation offers for a project, "Board" and "Changes",
-  follow "Chats" when they are built;
+  zero, its page still the inbox; "Goals", to the project's `Goals`
+  with the filter All, shown only where the project has a goal or the
+  page is `Goals`, so that a fresh project keeps the rail the mock's
+  Default project does; and "Chats", to `Chats`; current on `Home`, on
+  `Inbox`, on `Goals`, on a goal (a tracked agent's `Task`) and on a
+  task whose document names a goal, and on `Chats` and `Chat`, but a
+  configuring chat's, whose current entry is "Settings". Whether a
+  project has a goal is `Domain::has_goals(project)`, a fact the domain
+  keeps whatever the rail does, from a live watch and one ended read of
+  the goals' query with window 1, per open project. The entries the
+  banner's navigation offers for a project, "Changes" follows "Chats"
+  when it is built;
 - "+ New chat", named "New chat", to the chats' start
   (`/chats?at=start`);
 - at its foot: while the playground runs and is not leaving (4.8),
@@ -2471,13 +2546,16 @@ page (5.1): a navigation named by the open project, in this order:
 rail: they are `Settings`' (3.5), each current on nothing there. On a phone, at 760 px and under, the rail is a top
 bar showing the switcher alone, and the tab bar closes the page: in the
 browser, a navigation named "Sections" after the main, with "Home",
-"Needs you", "Chats" and "Settings", as the rail's, drawn at phone
-width alone (`browser.md`, 2.5). The terminal has no tab bar.
+at most four, as the mock's: "Home", "Needs you", "Goals" and "Chats"
+with Goals shown, "Home", "Needs you", "Chats" and "Settings" without,
+as the rail's, drawn at phone width alone (`browser.md`, 2.5). The
+terminal has no tab bar; its frame prints "Goals" only where it shows,
+so that a project with no goal prints as it did.
 
 **The banner's navigation,** on a page that is no project's (5.1).
 In the mockups' top bar's order: "Inbox", with the count of what needs
 the person from `me`, omitted when zero; "Chats"; then, for the project
-the person is in, "Board" and "Changes"; and after them "Adopt a
+the person is in, "Changes"; and after them "Adopt a
 repository", to `Adopt { project }`; then "Forges", to `Forges`, with
 a dot, amber while a forge sets up or connects and red while one needs
 the person (`forge.md`, 5.4), its state also in words, "a forge is
@@ -2494,7 +2572,7 @@ unloaded, before amber for one limited; current on `Accounts` and
 (5.13), whatever the project. With no project chosen, the
 project's entries are not offered. The mockups' "Tasks", a list of a
 project's tasks, and "Workers", the deployment's hosts, are not in the
-navigation (the user's pick, 10-23): the Board covers what a task list
+navigation (the user's pick, 10-23): Goals covers what a task list
 is for, and the hosts are the operator's, through the engine's
 configuration. "Adopt
 a repository" and "Forges" are offered whatever the person's role: the
@@ -4645,7 +4723,7 @@ own tests:
   and outcome are decoded and encoded by the engine's routing (section
   8), exhaustive both ways. Stories: signing in and seeing the inbox; a
   chat started and answered; a goal proposed in a chat, accepted in the
-  inbox, and gone from the chat's card; goals reordered on the board; a
+  inbox, and gone from the chat's card; a
   held task released from a goal's plan; a goal's plan saying which
   task a delegate waits for, the rows' spend and the goal's budget,
   then, the first delegate ended, its dependant's line saying
@@ -4816,7 +4894,8 @@ own tests:
   answers in words.
 - **Goals on Home** (the same request): Goals in place of Chats where
   goals are on. Whether they are is the default configuration, still the
-  user's, and no fact says so; the private `Board` is not built either.
+  user's, and no fact says so (`Domain::has_goals` says whether a project
+  has any).
   Default: Chats.
 - **How a project lands, on To begin's second step**
   (`../draft/to-begin.md`, 3): its line names temper's landing turn for

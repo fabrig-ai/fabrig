@@ -25,7 +25,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   per owner, never JSON (jig's `protocol/client.md`, section 3).
 - **The pages temper has,** in both shells: the inbox, the chats, a
   chat, a task's page and the adoption form (`README.md`, 3.5). A page a
-  later plan adds to the view (the board, the changes, the accounts) is
+  later plan adds to the view (the goals, the changes, the accounts) is
   in the browser once it is in the view, with its look and, where it
   has one, its browser-only story (4.2).
 - **No framework.** The client and its view are step code under the
@@ -232,6 +232,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | `Home { project }` | `/projects/<project>` |
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Configure { project }` | `/projects/<project>/settings/configure` |
+  | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
   | `Chats { filter, start }` | `/chats`, and its filter's and start's query |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |
@@ -245,7 +246,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 
   `<task>` and `<project>` are the task's and the project's numbers in
   decimal. A later page's path comes with it, in this shape
-  (`/projects/<project>/board`, `/projects/<project>/changes`). The
+  (`/projects/<project>/changes`). The
   public pages' paths, under `/public`, are section 8's.
 - **The inbox's filter is its query:** the fields it sets, in one
   order, `?project=<project>&kind=<kind>&goal=<goal>`, and none with
@@ -275,6 +276,10 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   doesn't read as one of the page's, `/tasks/9?state=closed` among
   them, or a field of another name, is dropped, and the address
   replaced with the printed one. A filter chosen is a move (below).
+- **The goals' filter is its query,** as the chats list's: `/projects/<project>/goals`
+  is the list whole; `?state=needs` for "Needs you", `?state=live` for
+  "Under way" and `?state=ended` for "Ended"; any other value reads as the
+  list whole and prints without it. Choosing one is a move.
 - **The chats' start is `?at=start`,** as the welcome's step is
   `?at=`: `/chats?at=start` is the Chats page
   with the focus in its start's text area ("Start a chat", or the
@@ -563,6 +568,14 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   gives way to that line. At phone width the pane follows the prompt,
   as a section of its own. The sheet selects the pane's page by the
   pane (`:has`), so a page without it is drawn as before.
+- **Goals' look** is the greenfield mock's `goals.html`, its `mock.css`
+  rules taken exactly, values and all (`.col`, `.kicker`, `.headline`,
+  `.lede`, `.intro`, `.section`, `.section-head`, `.empty`, `.goal-rows`,
+  `.goal-row`, its `.state-*` and `.filters`, and their rules at 760 px and
+  under), in `temper.css`, scoped under the project's frame with its
+  `--gf-*` variables, as Home's are, on tokens of its own, `temper-goals*`.
+  A row's top line is `--gf-mono`, 12 px, faint: IBM Plex Mono 400 and 500,
+  bundled as the sans is, then JetBrains Mono, `ui-monospace`, `monospace`.
 - **Light only:** the mockups' palette is light, and `temper.css` sets
   `color-scheme: light`, where `skein-ui.css` follows the system's dark
   preference. A dark palette is open (section 5).

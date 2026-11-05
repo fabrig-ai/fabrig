@@ -530,7 +530,9 @@ it as any `delegate`:
   a change makes and its reads, so that `change` can narrow them again
   (4.3.1); its delegation kinds, with the tasks its subtree may still
   make, as jig counts them, less one for the goal itself, and a depth
-  one less, refused when either is spent; no notes; half of what its
+  one less, refused when either is spent; notes of the goal's own scope
+  alone, where the run's own authority holds that scope, so that it
+  writes its report (8.3); half of what its
   budget has left, refused when that is no more than a run's minimum, as
   `change`'s. A change the goal then makes has half of the goal's,
   so at most a quarter of the chat's: defaults, open to tuning;
@@ -924,6 +926,37 @@ of `../draft/v0.1.0.md`, 2.1.
   plan as its result, or changes first, is turned back to the inbox.
 - **Its stories:** `suite::fuzzy::green_light` on fakes (testing.md, 2.4), and
   rung B0 walked on real backends (`../draft/v0.1.0.md`, 2.1).
+
+### 8.3 A goal's report
+
+A goal tells its person where it stands in a **note**, one per goal, which
+needs no record, read or wire field of its own. The client reads and draws it
+(`../client/README.md`, 3.5, *A goal's report*); a person reads it first.
+
+- **Its shape:** scope goal (jig's `NoteScope::Task`, the tool's scope
+  `goal`). Its description is `report: ` then the headline, one line. Its body
+  is the report's paragraphs, separated by blank lines, then, each on its own
+  line and each optional: `Left: …`, `Risk: …`, `Decided: first, 05:40 ·
+  second, 05:12`. Only a line's start makes one of these; the words elsewhere
+  are a paragraph's. Limits: jig's notes, 256 bytes of description and 8 KB of
+  body in the standard profile.
+- **Revised in place:** the agent names the note and its revision from its
+  brief's index, so that one note stands. Where several answer, the client
+  takes the newest by `changed`.
+- **When:** after planning, and whenever what is true of the goal changes: a
+  task landed, failed or split, a decision taken, a risk found.
+- **Its words:** the headline says where the goal stands, in a sentence a person
+  reads first. The paragraphs say what happened and why, in the first person.
+  `Left:` what remains; `Risk:` what could go wrong; `Decided:` what it decided
+  itself, each with its time. A message that changes the plan becomes an
+  amendment the goal shows the person first.
+- **Who is told:** the goal's part of charter 1's instructions and the
+  reference's charter 5 (`../protocol/configuration.md`, 13.4 and 13.9). The
+  stock's authority holds the goal's scope (13.4); a charter that does not ask
+  for a report writes none, and no note yet is a normal state, never an error.
+- **Its story:** the scripted fake model writes a report in its goal script, so
+  that a walk on `temper box --fake-backends` shows one
+  (`../protocol/configuration.md`, 12.1).
 
 ## 9. The world
 
