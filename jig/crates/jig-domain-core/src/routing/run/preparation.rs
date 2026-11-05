@@ -497,15 +497,11 @@ pub(crate) fn plan_note_index(
     }
 }
 
-/// The window a preparation loads: the proof's, unless a fresh retry starts an open one over.
+/// Load the saved window for its tail even when a transient retry cannot resume it.
 fn transcript_from(core: &Core, context: &tasks::RunContext) -> Option<(u64, u32)> {
     let proof = core.proofs.get(&context.task)?;
     let window = proof.window?;
-    if context.tries.transient == 0 || proof.crossed || window.closed {
-        Some((window.attempt, window.turn))
-    } else {
-        None
-    }
+    Some((window.attempt, window.turn))
 }
 
 fn prepare_agent(
@@ -706,8 +702,12 @@ pub(crate) fn transcript_loaded(
 }
 
 pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
+    let retry = match core.contexts.get(&task) {
+        Some(context) => context.tries.transient > 0,
+        None => false,
+    };
     if let Some(transcript) = core.transcripts.get(&task)
-        && transcript.closed
+        && (transcript.closed || retry)
     {
         let previous_attempt = transcript.previous_attempt;
         drop(core.transcripts.remove(&task));

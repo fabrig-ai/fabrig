@@ -1068,7 +1068,7 @@ with its tail.
 - **No etckeeper and no secrets in the build:** the `pristine-debian`
   tag and `Manifest config` commit go, and so does `/secrets`, which os
   copied into the output for `customize.sh`.
-- **The fleet leaves the code:** os's Lisbon and en_US preseeds become
+- **The fleet leaves the code:** os's Etc/UTC and en_US preseeds become
   part data; the variant comes from placement; the initramfs
   configuration enters the packages part with `MICROCODE` explicit.
 - **Verification adds architecture and status;** no `/.manifest/` in the

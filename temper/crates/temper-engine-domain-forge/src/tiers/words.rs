@@ -23,7 +23,8 @@ fn part_identity(
         Some(run) if run.number != 0 && !run.url.is_empty() => {
             joined(&[&base, b", forge run ", skein_lib::Decimal::of(run.number).as_bytes(), b" ", &run.url, b"\n"])
         }
-        Some(_) | None => joined(&[&base, b"\n"]),
+        Some(run) => joined(&[&base, b", forge run id ", skein_lib::Decimal::of(run.id).as_bytes(), b"\n"]),
+        None => joined(&[&base, b"\n"]),
     }
 }
 
@@ -36,6 +37,19 @@ pub(super) fn observe(row: &mut TierRow, follow: &crate::runs::Follow) {
     if skein_lib::bytes::find(&row.observations, &line).is_none() {
         row.observations = joined(&[&row.observations, &line]);
     }
+}
+
+/// Keeps the part, forge run and reason before a runner fault resets its follower.
+pub(super) fn fault(row: &mut TierRow, follow: &crate::runs::Follow, reason: &[u8]) {
+    let part = identity(row, follow.run.as_ref());
+    row.observations = joined(&[
+        &row.observations,
+        b"Runner fault: ",
+        part.strip_suffix(b"\n").unwrap_or(&part),
+        b"; ",
+        reason,
+        b"\n",
+    ]);
 }
 
 impl Domain {
