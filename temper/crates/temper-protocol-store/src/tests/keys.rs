@@ -301,3 +301,51 @@ fn landing_log_keys_use_family_thirty_and_repository_order() {
     assert!(Key::Verification { repository, commit: [255; 32] } < key);
     assert!(key < Key::Dismissed { party: 0, what: temper_engine_domain_forge::Dismissal::ToBegin { project: 0 } });
 }
+
+#[test]
+fn status_keys_use_families_thirty_six_and_thirty_seven_in_order() {
+    for (party, project) in [(0, 0), (7, 3), (u64::MAX, u32::MAX)] {
+        let facts = Key::ProjectFacts { project };
+        let looked = Key::Looked { party, project };
+        let mut expected_facts = skein_kv::KeyWriter::new(u32::MAX);
+        expected_facts.tag(36).u64(u64::from(project));
+        let mut expected_looked = skein_kv::KeyWriter::new(u32::MAX);
+        expected_looked.tag(37).u64(party).u64(u64::from(project));
+        for (key, expected) in [(facts.clone(), expected_facts), (looked.clone(), expected_looked)] {
+            let bytes = keys::encode(&key, u32::MAX).unwrap();
+            assert_eq!(bytes, expected.finish().unwrap());
+            assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
+        }
+        assert!(
+            Key::Making(temper_engine_domain_forge::MakingKey {
+                forge: u16::MAX,
+                org: Box::new([]),
+                name: Box::new([])
+            }) < facts
+        );
+        assert!(facts < looked);
+    }
+    let earlier = Key::Looked { party: 1, project: u32::MAX };
+    let later = Key::Looked { party: 2, project: 0 };
+    assert!(earlier < later);
+    assert!(keys::encode(&earlier, u32::MAX) < keys::encode(&later, u32::MAX));
+}
+
+#[test]
+fn status_keys_refuse_project_width_truncation_and_trailing_bytes() {
+    for family in [36, 37] {
+        for (project, trailing) in [(4_294_967_296, false), (0, true)] {
+            let mut writer = skein_kv::KeyWriter::new(u32::MAX);
+            writer.tag(family);
+            if family == 37 {
+                writer.u64(7);
+            }
+            writer.u64(project);
+            if trailing {
+                writer.tag(0);
+            }
+            assert_eq!(keys::decode(&writer.finish().unwrap(), &fixtures::LIMITS), None);
+        }
+        assert_eq!(keys::decode(&[family], &fixtures::LIMITS), None);
+    }
+}

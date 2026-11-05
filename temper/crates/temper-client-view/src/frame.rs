@@ -573,7 +573,7 @@ fn goals_shown(root: &Domain, project: u32) -> bool {
 }
 
 fn goals_current(root: &Domain) -> bool {
-    if root.pages().goals().is_some() {
+    if let Address::Goals { .. } = root.pages().address() {
         return true;
     }
     if let Some(page) = root.pages().task()

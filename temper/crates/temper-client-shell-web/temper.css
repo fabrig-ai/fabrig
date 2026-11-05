@@ -1174,6 +1174,14 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 }
 
 /* Home's column. */
+
+/* ==== ui: home ==== */
+#app > .temper-home .temper-home-byline { margin: 0; font-size: 12px; color: var(--gf-faint); }
+#app > .temper-home .temper-home-facts { font-size: 13.5px; color: var(--gf-muted); }
+#app > .temper-home .temper-home-facts > a { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > .temper-home .temper-home-facts > a:hover { text-decoration-color: var(--gf-ink); }
+#app > .temper-home .temper-home-facts .temper-changes-red { color: var(--gf-signal); }
+
 #app > .temper-home { width: auto; min-width: 0; margin: 0; padding: 64px 48px 96px; display: flex; flex-direction: column; align-items: center; gap: 60px; font-size: 15px; letter-spacing: normal; }
 #app > .temper-home > * { width: 100%; max-width: 720px; margin: 0; }
 #app > .temper-home > .temper-home-intro { display: flex; flex-direction: column; gap: 16px; }
@@ -1206,7 +1214,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 /* Home for a project at work, the greenfield mockup's everyday home.html:
    what changed since the person last looked, what needs them, the chats,
    and the landing's line. */
-#app > .temper-home .temper-home-byline { margin: 0; font-size: 12px; color: var(--gf-faint); }
 #app > .temper-home .temper-home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 #app > .temper-home .temper-home-head > h2.temper-home-signal { color: var(--gf-signal); }
 #app > .temper-home .temper-home-head > a { font-size: 13px; color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
@@ -1218,7 +1225,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-rows > li > a { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 4px; color: var(--gf-ink); }
 #app > .temper-home .temper-home-rows > li > a:hover { background: #f1f1ef; }
 #app > .temper-home .temper-home-when { flex: none; font-size: 13px; color: var(--gf-faint); }
-#app > .temper-home > .temper-home-facts { font-size: 13.5px; color: var(--gf-muted); }
 #app > .temper-home .temper-home-empty { margin: 0; padding: 4px 0; color: var(--gf-muted); }
 
 @media (max-width: 760px) {
