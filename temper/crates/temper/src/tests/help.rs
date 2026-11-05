@@ -47,7 +47,7 @@ fn coding_run_agent_document() -> serde_json::Value {
     let facts = temper_init::Facts {
         binary: b"/opt/temper/bin/temper",
         git: Some(b"/usr/bin/git"),
-        claude: None,
+        claude: Some(b"/opt/temper/bin/claude"),
         ports: temper_init::Ports {
             clients: port(8367),
             owned: port(8368),

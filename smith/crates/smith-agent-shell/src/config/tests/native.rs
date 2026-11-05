@@ -2,6 +2,20 @@ use super::shaped_document;
 use crate::config::{ConfigurationRefusal, from_value, profile_from_value};
 use smith_agent_service::profile::{Check, Layer, LimitName, Refusal, Value};
 
+#[cfg(unix)]
+#[test]
+fn reading_bytes_keeps_file_content_and_absent_file_refusal() {
+    let scratch = skein_scratch::Scratch::new("smith-config-bytes");
+    let path = scratch.path().join("agent.json");
+    let bytes = b"unparsed configuration\0\xff";
+    std::fs::write(&path, bytes).expect("configuration fixture");
+    assert_eq!(crate::config::read_bytes(&path).expect("file bytes").as_ref(), bytes);
+    let absent = scratch.path().join("absent.json");
+    let refusal = format!("configuration metadata: {}: file absent", absent.display());
+    assert_eq!(crate::config::read_bytes(&absent).expect_err("absent file"), refusal);
+    assert_eq!(crate::config::read_decoded(&absent).err().as_deref(), Some(refusal.as_str()));
+}
+
 #[test]
 fn generated_values_build_the_native_agent_without_a_file() {
     let configuration = from_value(shaped_document()).expect("native configuration");

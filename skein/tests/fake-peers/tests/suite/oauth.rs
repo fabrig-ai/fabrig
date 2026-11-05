@@ -40,7 +40,7 @@ fn make_with_cap_at(
     };
     let limits = Limits {
         io: skein_io::Limits {
-            sockets: 3,
+            sockets: 4, // One listener, two held connections and one pending peer admission.
             refusals: 1,
             intake: 32_768,
             receive: 1024,
@@ -161,6 +161,48 @@ fn a_connection_past_the_peers_limit_is_rejected_and_the_peer_settles() {
     assert_eq!(support::call(&mut sim, client, 3, Op::Close { fd }), Done::Nothing);
     sim.assert_quiescent(client);
     sim.assert_no_open_fds(client);
+    assert_eq!(peer.rejected(), 0);
+}
+
+#[test]
+fn a_connection_past_the_cap_is_counted_and_admission_goes_on() {
+    const PASSES: usize = 100; // The calm simulator's bounded listener and connection drives.
+    let (mut sim, pid, client, peer) = world();
+    let mut peer = peer.without_records();
+    for _ in 0..PASSES {
+        pass(&mut sim, pid, &mut peer);
+    }
+    let address = peer.address().expect("issuer listener");
+    let connect = |sim: &mut skein_sim::Sim, peer: &mut oauth::Peer| {
+        let Done::Fd(fd) = support::call(sim, client, 1, Op::Socket { family: Family::Ipv4 }) else {
+            panic!("a socket returns its descriptor");
+        };
+        assert_eq!(support::call(sim, client, 2, Op::Connect { fd, addr: address }), Done::Nothing);
+        for _ in 0..PASSES {
+            pass(sim, pid, peer);
+        }
+        fd
+    };
+
+    let first = connect(&mut sim, &mut peer);
+    let second = connect(&mut sim, &mut peer);
+    assert_eq!(peer.rejected(), 0);
+
+    let third = connect(&mut sim, &mut peer);
+    assert_eq!(peer.rejected(), 1);
+    assert_eq!(support::call(&mut sim, client, 3, Op::Recv { fd: third, buf: Box::new([0]) }), Done::Count(0));
+    assert_eq!(support::call(&mut sim, client, 4, Op::Close { fd: third }), Done::Nothing);
+
+    assert_eq!(support::call(&mut sim, client, 5, Op::Close { fd: first }), Done::Nothing);
+    for _ in 0..PASSES {
+        pass(&mut sim, pid, &mut peer);
+    }
+    let reply = fetch(&mut sim, (pid, &mut peer), client, &request("GET", "/jwks", ""));
+    assert!(reply.starts_with(b"HTTP/1.1 200"));
+    assert_eq!(peer.rejected(), 1);
+    assert!(peer.observations().is_empty());
+    assert_eq!(support::call(&mut sim, client, 6, Op::Close { fd: second }), Done::Nothing);
+    settle(&mut sim, pid, client, &mut peer);
 }
 
 fn terms() -> issuer::Terms {

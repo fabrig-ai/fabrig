@@ -14,6 +14,9 @@ mod template;
 #[cfg(test)]
 mod tests;
 
+/// Claude Code is fetched when its program is first needed (protocol/setup.md, 6.6).
+pub const FETCHED: &[u8] = b"fetched";
+
 /// What the binary finds on the machine, each path absolute (setup.md, 8.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Facts<'a> {
@@ -21,7 +24,7 @@ pub struct Facts<'a> {
     pub binary: &'a [u8],
     /// The git found on PATH, or none: the worker's git.
     pub git: Option<&'a [u8]>,
-    /// The claude found on PATH, if any: Claude Code's program.
+    /// The claude found on PATH, or none when its pinned build is needed.
     pub claude: Option<&'a [u8]>,
     /// The listeners' ports on 127.0.0.1.
     pub ports: Ports,

@@ -22,3 +22,10 @@
   word `deployment`, where the section has a party by name: `Party::sender`
   (`jig/crates/jig-domain-tasks/src/boundary.rs`) reads a `Party`, which
   holds numbers. No reason is recorded.
+  9: the user's request of 2026-11-05 has temper's consumers use jig's
+  messages, but `temper-engine-domain/src/link.rs`'s `message`,
+  `inbox_sender` and `inbox_words` stay beside
+  `jig_protocol_charter::message`, because they render other words and
+  the request keeps behaviour unchanged; `inbox_sender` starts from
+  `Party::sender` (the code's side is
+  `jig/docs/development/debt/D004-ops-root-jig-wiring.md`).

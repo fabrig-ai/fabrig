@@ -104,6 +104,9 @@ Tasks made before keep it, on their revision.
 
 ## What temper guarantees
 
+- A large gathered brief is shortened to fit before a run starts. Cuts
+  are marked, and each marked section says where the agent can read the
+  rest. Instructions, tools and the result contract stay whole.
 - A task names no model a charter does not offer. With none named, a
   task takes, when it is made, the first of the charter's models with an
   account that can pay for it, else `model`; its runs keep the model it

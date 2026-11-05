@@ -16,4 +16,4 @@ pub mod trace;
 pub use agent_shell::{Agent, ProgramResources, Resources, given_up_line, identity};
 
 #[cfg(unix)]
-pub use agent_shell::run;
+pub use agent_shell::{run, run_decoded};
