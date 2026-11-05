@@ -11,9 +11,27 @@ words: `temper/docs/design/client/README.md`, 3.5, 4.8, 5.1, 5.3, 5.5, 5.6, 5.7,
 `folds-away` goes beside the chain, in skein. The rest is one chain of `needs`, since all of it conflicts in
 `temper.css`, `temper/tools/gallery/src/tests.rs`, `names.txt` and the terminal's goldens:
 
-1. `new-chat-address`: the address and its readers. (released)
+1. `new-chat-address`: the address and its readers, `NewChat` still drawing the old page.
+2. `new-chat-page`: `NewChat` on the session, `pages/session.rs`.
+3. `start-walks`: the composer leaves `Chats`; every walker starts through `NewChat`.
+4. `new-chat-playground`: the playground's start on `NewChat`, its banner in the frame.
+5. `chats-page`: the Chats page as the mock's.
+6. `session-layout`: every chat on the session; `CHAT` and `CHATBAR` renamed for the agent's page.
+7. `chat-byline`: the byline and its panel (needs `folds-away` too).
+8. `conversation-turns`: the column, the bubbles, the dots, the scroll.
+9. `tool-lines`: the pen, a change and a goal as one line, cards as `.proposal`.
+10. `chat-stories` and `playground-recording`, side by side: they share no file.
+11. `proof`: the renders beside the mock, the sweep.
 
-The rest of the chain follows in the next push.
+The request's order is kept. Its "the Chats page" comes after `NewChat` and the playground, and its last step, goldens,
+gallery and recording, is split: each task regenerates what it makes stale and adds the gallery states it draws, as
+*For every task of this plan* says, which leaves the recording, the stories and the proof to the end.
+
+## The critical path
+
+`new-chat-address` (75) → `new-chat-page` (80) → `start-walks` (70) → `new-chat-playground` (70) → `chats-page` (85) →
+`session-layout` (85) → `chat-byline` (75) → `conversation-turns` (85) → `tool-lines` (85) → `chat-stories` (60) →
+`proof` (75): 845 implementer-minutes. Every task is at most 90 minutes, as the request's *Size* has it.
 
 ## Calls the cut made
 
@@ -33,6 +51,9 @@ The rest of the chain follows in the next push.
 - **`chats-first-run-1`** stays the first run's Chats; the playground's start is a new state,
   `chat-new-first-run-1`, beside the request's list.
 - **No stored format, protocol or public interface changes,** but skein-ui's new state.
+- **A migration task of its own:** `start-walks`. 24 files of tests and worlds type in "Start a chat", so moving them is
+  separated from redrawing the Chats page.
+- **The browser tier stays at 12 tests:** it is at its cap, so `chat-stories` adds steps to an existing test.
 
 ## Overlaps with the drafts beside it
 

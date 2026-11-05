@@ -27,7 +27,9 @@ keeps that state whole: its words, the closed chats it read.
 pub(crate) enum Path { Chats, Settings }
 /// Opens the session's bar: the path and the heading. Its caller adds the right part and closes it.
 pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings,
-                  project: Option<u32>, path: Path, heading: &[u8]);
+                  project: Option<u32>, path: Path, heading: Heading<'_>);
+/// A page's heading is its words; a chat's keeps "TN · TITLE" as its name, and a browser shows the title.
+pub(crate) enum Heading<'a> { Words(&'a [u8]), Chat { whole: &'a [u8], title: &'a [u8] } }
 /// Opens `SESSION_RIGHT`, the bar's right part; its caller closes it.
 pub(crate) fn right(b: &mut Builder);
 pub(crate) fn foot(b: &mut Builder, name: &[u8]);
@@ -115,7 +117,9 @@ retires `CHAT` and `CHATBAR` from chats, and `pages/agent.rs` is outside it. `EN
 | `ChatWorking` | "Writing" |
 
 "No repository yet" is `NoRepositoryYet`, "Adopt a repository" `ForgeAdopt`, "+ New chat" `NewChatLink`,
-"New chat" `NewChat`. Word that no page uses any more goes.
+"New chat" `NewChat`. A word that no page uses any more goes. `PHRASES`, `SEGMENTS` and `ALL` in `words.rs` are
+exact, not ceilings: `english_phrase_declarations_match_the_vocabulary` checks them, and `SKEIN_CODEGEN_WRITE=1`
+rewrites `ALL`.
 
 ## Reading the repository
 
