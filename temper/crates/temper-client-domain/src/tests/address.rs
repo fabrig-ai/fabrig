@@ -201,6 +201,7 @@ fn each_number_spans_its_types_range() {
 fn the_welcome_prints_and_parses_each_step() {
     for (step, path) in [
         (Step::Welcome, b"/welcome".as_slice()),
+        (Step::WelcomeAsked, b"/welcome?at=welcome"),
         (Step::Forge { forge: None }, b"/welcome?at=forge"),
         (Step::Model { way: None }, b"/welcome?at=model"),
         (Step::Ready, b"/welcome?at=ready"),

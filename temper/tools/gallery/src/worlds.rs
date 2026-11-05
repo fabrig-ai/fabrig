@@ -154,12 +154,13 @@ fn template_preview(member: &mut c::MeProject) {
     });
 }
 fn providers(w: World) -> List<c::ProviderOffer> {
-    let mut rows = List::with_capacity(2);
+    let mut rows = List::with_capacity(3);
     let names: &[(u32, &str)] = match w {
         Reference => &[(17, "anthropic"), (18, "openai")],
         Solo => &[(17, "anthropic")],
-        FirstRun { step: 1..=5 | 10 } => &[(17, "Playground"), (18, "openai")],
-        World::Bare | FirstRun { .. } => &[(18, "openai")],
+        FirstRun { step: 1..=5 | 10 } => &[(17, "Playground"), (18, "openai"), (19, "anthropic")],
+        FirstRun { .. } => &[(18, "openai"), (19, "anthropic")],
+        World::Bare => &[(18, "openai")],
     };
     for (number, name) in names {
         let mut programs = List::with_capacity(1);
@@ -230,13 +231,16 @@ fn configure_frame(me: &mut c::Me) {
 }
 
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
-    world_in_layout(w, address, then, false, None, None)
+    world_in_layout(w, address, then, false, None, None, false)
 }
 pub(super) fn configuring_world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
-    world_in_layout(w, address, then, true, None, None)
+    world_in_layout(w, address, then, true, None, None, false)
 }
 pub(super) fn goals_world(w: World, address: Address, name: &str) -> Domain {
-    world_in_layout(w, address, Then::Shown, false, Some(name), None).0
+    world_in_layout(w, address, Then::Shown, false, Some(name), None, false).0
+}
+pub(super) fn copies_world(address: Address, then: Then) -> Domain {
+    world_in_layout(FirstRun { step: 7 }, address, then, false, None, None, true).0
 }
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch answers the gallery page’s document reads")]
 fn world_in_layout(
@@ -246,6 +250,7 @@ fn world_in_layout(
     configuring_chat: bool,
     goals: Option<&str>,
     settings: Option<&str>,
+    copies: bool,
 ) -> (Domain, Option<Token>) {
     let configuring = configuring_chat || matches!(address, Address::Configure { .. });
     let connecting = matches!(
@@ -388,7 +393,11 @@ fn world_in_layout(
                     let subject = match watching.watch() {
                         w::Watch::Forges => {
                             forge_watch = Some(watch);
-                            forges_watched(&mut root, w, watch, &mut out);
+                            if copies {
+                                copies_watched(&mut root, watch, &mut out);
+                            } else {
+                                forges_watched(&mut root, w, watch, &mut out);
+                            }
                             continue;
                         }
                         w::Watch::Change(subject) => subject,
@@ -464,6 +473,33 @@ fn forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue
         out,
     );
 }
+fn copies_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut rows =
+        wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("Ready forges").into_parts().forges;
+    let row = rows.get_mut(0).expect("Ready forge");
+    let mut parts = row.clone().into_parts();
+    parts.first = None;
+    parts.repositories.clear();
+    let mut addresses = List::with_capacity(2);
+    for address in [b"https://github.com/acme/widget".as_slice(), b"https://source.invalid/team/tool".as_slice()] {
+        addresses.push(address.into()).expect("two copies");
+    }
+    parts.starts_with = w::StartsWith::Copies(
+        w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses }).expect("Ready copies"),
+    );
+    *row = w::ForgeRow::new(&w::CEILINGS, parts).expect("Ready forge");
+    let record = jig_client::Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Ready rows")),
+    };
+    step(
+        root,
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },
+        out,
+    );
+}
 #[expect(clippy::too_many_lines, reason = "complete illustrative forge rows keep their additive fields together")]
 fn forges(world: World) -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -477,6 +513,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: FORGE,
@@ -518,6 +555,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 2,
@@ -627,6 +665,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 3,
@@ -2603,7 +2642,7 @@ fn accounts(w: World, then: Then) -> c::Accounts {
                 .expect("host");
         }
     }
-    let mut readiness = List::with_capacity(2);
+    let mut readiness = List::with_capacity(3);
     for provider in &providers(w) {
         readiness
             .push(c::PayerReadiness {
@@ -3450,6 +3489,7 @@ pub(super) fn settings_world(name: &str) -> Domain {
         name == "settings-chat-open",
         None,
         Some(name),
+        false,
     );
     if name == "settings-refused" {
         let mut out = Queue::uncapped();
@@ -3494,7 +3534,7 @@ pub(super) fn settings_world(name: &str) -> Domain {
 
 const SETTINGS_NEXT: c::ProposalKey = c::ProposalKey { proposer: c::Proposer::Task(10), number: 2 };
 pub(super) fn settings_chat_world(name: &str) -> Domain {
-    world_in_layout(Solo, Address::Chat { task: 10 }, Then::Shown, true, None, Some(name)).0
+    world_in_layout(Solo, Address::Chat { task: 10 }, Then::Shown, true, None, Some(name), false).0
 }
 fn settings_proposal(key: c::ProposalKey) -> c::ReadValue {
     let c::ReadValue::Proposal(mut proposal) = proposal() else { unreachable!("proposal fixture") };
@@ -3633,4 +3673,97 @@ fn settings_chat_frame(me: &mut c::Me) {
     way.flags.listed = true;
     templates.push(way).expect("default way");
     member.templates = templates;
+}
+/// Home's copies share Ready's intent; the watch supplies progress and adoptions (client/README.md, 3.5).
+pub(super) fn home_copies(
+    mut row: temper_client_protocol_wire::v1::ForgeRowParts,
+    state: &str,
+) -> temper_client_protocol_wire::v1::ForgeRowParts {
+    use temper_client_protocol_wire::v1 as w;
+    let addresses: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
+    let addresses = if state == "home-copy-one" { &addresses[..1] } else { &addresses[..] };
+    let mut intent = List::with_capacity(2);
+    for address in addresses {
+        intent.push((*address).into()).expect("copy intent");
+    }
+    row.first = None;
+    row.starts_with = w::StartsWith::Copies(
+        w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses: intent }).expect("copy intent"),
+    );
+    row.makings = List::with_capacity(2);
+    row.repositories = List::with_capacity(2);
+    // The watch's key order is other, widget, while Ready asked widget first.
+    for address in addresses.iter().rev() {
+        let (org, name) = temper_client_domain::forge::making::target(address).expect("copy target");
+        if state == "home-copy-offer" {
+            continue;
+        }
+        if matches!(state, "home-copied" | "home-copy-one") || state == "home-copy-failed" && *address == addresses[0] {
+            row.repositories
+                .push(
+                    w::Adoption::new(&w::CEILINGS, w::AdoptionParts { owner: org, name, project: PROJECT })
+                        .expect("copy adopted"),
+                )
+                .expect("two copies");
+        } else {
+            row.makings
+                .push(
+                    w::RepositoryMaking::new(
+                        &w::CEILINGS,
+                        w::RepositoryMakingParts {
+                            org,
+                            name,
+                            from: w::MakeFrom::Copy(
+                                w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: (*address).into() })
+                                    .expect("copy source"),
+                            ),
+                            into: Some(
+                                w::MakeInto::new(
+                                    &w::CEILINGS,
+                                    w::MakeIntoParts { project: PROJECT, home: *address == addresses[0] },
+                                )
+                                .expect("copy into"),
+                            ),
+                            state: if state == "home-copy-failed" {
+                                w::MakingState::Failed(
+                                    w::MakingFailed::new(
+                                        &w::CEILINGS,
+                                        w::MakingFailedParts {
+                                            step: w::MakeStep::Repository,
+                                            reason: w::MakeFailure::Taken,
+                                            words: b"name taken".as_slice().into(),
+                                        },
+                                    )
+                                    .expect("copy failure"),
+                                )
+                            } else if *address == addresses[0] {
+                                w::MakingState::Making
+                            } else {
+                                w::MakingState::Waiting
+                            },
+                        },
+                    )
+                    .expect("copy making"),
+                )
+                .expect("two copies");
+        }
+    }
+    row
+}
+
+/// Home’s Add sheet is page state reached through its own button (client/README.md, 3.5).
+pub(super) fn home_add_sheet(root: &mut Domain, copies: bool) {
+    step(
+        root,
+        Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::AddOpen {
+                start: if copies {
+                    temper_client_domain::forge::forges::Start::Copies
+                } else {
+                    temper_client_domain::forge::forges::Start::Empty
+                },
+            }),
+        },
+        &mut Queue::uncapped(),
+    );
 }
