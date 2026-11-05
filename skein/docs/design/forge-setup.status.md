@@ -19,3 +19,9 @@
   an owner reaches it only by building a `Host`, and
   `temper/crates/temper-service/src/setup/runtime.rs` records an `Add` as
   served whether the host took it or not.
+  8: 4.5's step 2 given a path stands on a site admin reading, by its
+  path, a private repository in an org it is not in, and no fact records
+  that read: `setup-repository-by-id-reads-its-path-for-an-admin` is the
+  id's, and `skein/tests/forge/conformance/src/repo_setup.rs` has none for
+  the path, so temper's process story alone shows it on a real Forgejo
+  (`temper/crates/temper/tests/support/forgejo_elsewhere.rs`).
