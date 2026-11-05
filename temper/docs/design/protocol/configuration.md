@@ -436,7 +436,7 @@ the playground is not offered.
 |---|---|
 | `core` | `engine`, by `jig-protocol-config`, with the deployment's id and seed |
 | `landings` | `application.landing`'s `projects` |
-| `kinds_stock` | not configured: the stock defaults of temper's kinds 1 to 3 (13.4), which the root gives the forge at each start (13.2) |
+| `kinds_stock` | not configured: the stock defaults of temper's kinds 1 to 3 (13.4), which the root gives the forge at each start (13.2); kinds 6 and 7 have none |
 | `forge.writers` | not configured: each forge's writer comes from its connect, its user as the routing tells the root (credentials.md, section 5) |
 | `forge.namespace` | not configured: the root derives it from the deployment's id |
 | `identities` | not configured: each kept forge's `GitIdentity { forge, credential }`, its credential the forge's number, comes with its record (forge.md, 2.1) |
@@ -1619,7 +1619,7 @@ The pages a person meets it on are `../client/README.md`, 5.13.
 
 ### 13.2 temper's kinds
 
-temper declares six kinds of its own beside jig's, each owned by the
+temper declares seven kinds of its own beside jig's, each owned by the
 forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 
 | Kind | Scope | Numbers | Value | Decided by |
@@ -1630,7 +1630,16 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 | 4, a project's landing | each project | 1 | how the project lands, by queue or by turn, and the turn's settings (`../domain/landing.md`, 13.1) | that project's owners |
 | 5, a repository's gates | each project | the repository's adoption, unique in the deployment: its forge's number shifted 16 bits left, with the forge's repository number below | a repository's test gates (`../domain/landing.md`, 13.1) | that project's owners |
 | 6, a project's questions | each project | 1 | the question route a change of the project takes when its maker names none: none, foreman or up (`../domain/forge.md`, 8.11) | that project's owners |
+| 7, a project's ways | each project | 1 | what the project shows and the way a goal starts by, a `ProjectWays` (below) | that project's owners |
 
+- **A project's ways' value** is a `ProjectWays` record in temper's
+  codec, read by the client alone (`../client/README.md`, 5.13):
+  `drafts`, `goals`, `changes` and `away`, each a bool, whether chats
+  can write drafts and whether the rail shows Goals, Changes and the
+  Away switch; and `way`, a template's number, the way a goal starts by,
+  0 for the first the project offers with `tracked` set. Its bound, the
+  kind's, is its encoding; the engine decides nothing by it. A value of
+  a project's questions is its route alone, a `ProjectQuestions` record.
 - **A landing rule's value** is a `LandingRule` record in temper's
   codec, section 3's rule member for member but `connector` and `kind`,
   which are always the forge's and its merge: `pattern`, `enforce`,
@@ -1654,6 +1663,10 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
     removed: the forge always has all three charters, and an owner who
     wants the stock's back resets it;
   - *a project's questions* that is not one of the three routes;
+  - *a project's ways* with a `way` neither 0 nor a template the project
+    offers, read by the root from the core as an approval's eligible
+    people are; a removed or reset item of kind 6 or 7 is always good,
+    the project going back to the stock (13.4);
   - *any item* whose value is not its kind's (a rule for
     kind 1 or 2, a charter's number for kind 3), or whose kind, scope or number
     the table above does not have.
@@ -1692,14 +1705,18 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 - **Erased with their project.** A project deleted (jig's
   `RemoveProject`, jig's `domain/people.md`, 5.2) has its settings
   erased by the connector owning each kind: the forge erases its kinds
-  2, 4, 5 and 6 of that project's scope, their current changes and the
+  2, 4, 5, 6 and 7 of that project's scope, their current changes and the
   items of pending proposals among them, in the deletion's steps, and
   the deployment's kinds 1 and 3 stay. A project made later, its number
   never the deleted one's, starts from the stock defaults.
 - **Read from the forge.** A client reads a landing rule's value, the
-  forge's charter, and a pending proposal's items of temper's kinds
-  through the forge's family (`../client/forge.md`, section 9); jig's
-  documents give their states and sizes alone.
+  forge's charter, a project's questions and ways, and a pending
+  proposal's items of temper's kinds through the forge's family
+  (`../client/forge.md`, section 9); jig's documents give their states
+  and sizes alone. A read asks in a scope: the deployment's, by a party
+  with a role in the deployment, for any kind; or a project's, by a party
+  with a role in that project, for a kind of each project's scope (2, 6
+  and 7) in that scope alone.
 - **Never pinned.** Every merge is judged by the landing rules the
   forge holds then, the deployment's and its project's, whatever
   revision its change was made in: what work may do is always current,
@@ -1784,7 +1801,15 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; number 3, its foremen's charter: charter 6 |
 | kind 6 | none for every project: a change asks no one unless its maker names a route |
+| kind 7 | for every project: `drafts`, `goals`, `changes` and `away` false, `way` 0, so that a fresh project shows Home, Needs you and Chats |
 | a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 1,920K is a week's. A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
+
+- **A project's kinds 6 and 7 have no row in the stock:** a project made
+  later has its own number, and a stock default names one scope (jig's
+  `domain/engine.md`, 17.5). So their stock is a constant of the code, the
+  value of a setting with none stored: the forge answers no value, and
+  who reads it, the root for kind 6 and the client for kind 7, takes the
+  stock.
 
 - **Each charter's host families** (its `tools`, jig's
   `domain/engine.md`, 7.1): charter 1, a chat's, names every host
@@ -2398,6 +2423,11 @@ that changes the stock changes nothing of them.
   - `settings.json`, applied once after the first start; then the rules
     and policy 1 changed as above, before the case's project is made,
     since a project takes policy 1 as it is made (13.6, step 1);
+  - `project.json`, applied once the case's project is made, its number
+    set by `jq` as `temper help configure` sets a `project-policy`'s: kind
+    7 of that project, all four shown and `way` 4, so that the project
+    shows its goals. A project's setting cannot be in `settings.json`,
+    which is applied before the project exists;
   - the repository's `.temper/pre-pr` and `.temper/merge`, and its
     tiers' workflows (below).
 
