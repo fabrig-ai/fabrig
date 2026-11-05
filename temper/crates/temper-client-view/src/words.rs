@@ -1086,7 +1086,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Byline forms add six phrases (client/README.md, 5.5).
 // The chat working indicator adds one phrase and one segment (client/README.md, 3.5).
 // Delegation lines add seven literal phrases (client/README.md, 5.7).
-const PHRASES: u32 = 1566;
+const PHRASES: u32 = 1568;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1116,7 +1116,7 @@ const PHRASES: u32 = 1566;
 // Goal rows, ways and page add sixty-three segments (client/README.md, 3.5).
 // Byline forms add twenty-eight segments (client/README.md, 5.5).
 // Delegation lines add seven literal segments (client/README.md, 5.7).
-const SEGMENTS: u32 = 2754;
+const SEGMENTS: u32 = 2760;
 const ALL: [Word; 969] = [
     Word::SettingsBuildersTab,
     Word::SettingsBuildersHeading,
