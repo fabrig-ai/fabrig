@@ -20,6 +20,7 @@ use crate::kernel::{Complete, Done, Error, Fd, Op, OpenHow, Submit};
 use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
+use core::mem;
 use skein_lib::{Duration, Map, Queue, Time, Token};
 
 mod directory;
@@ -47,32 +48,20 @@ impl core::fmt::Debug for Contents {
 
 #[derive(Debug)]
 enum Pending {
-    Lock {
-        owner: Token,
-    },
-    Create {
-        owner: Token,
-    },
-    OpenRead {
-        owner: Token,
-    },
-    OpenDirectory {
-        owner: Token,
-    },
+    Lock(Token),
+    Create(Token),
+    OpenRead(Token),
+    OpenDirectory(Token),
     Stat {
         owner: Token,
         fd: Fd,
     },
-    Stating {
-        owner: Token,
-    },
+    Stating(Token),
     Cleanup {
         owner: Token,
         error: Error,
     },
-    Write {
-        owner: Token,
-    },
+    Write(Token),
     Read {
         owner: Token,
         fd: Fd,
@@ -80,24 +69,12 @@ enum Pending {
         max: u32,
         bytes: Contents,
     },
-    Cut {
-        owner: Token,
-    },
-    Sync {
-        owner: Token,
-    },
-    Close {
-        owner: Token,
-    },
-    Rename {
-        owner: Token,
-    },
-    Remove {
-        owner: Token,
-    },
-    ListOpening {
-        owner: Token,
-    },
+    Cut(Token),
+    Sync(Token),
+    Close(Token),
+    Rename(Token),
+    Remove(Token),
+    ListOpening(Token),
     List {
         owner: Token,
         fd: Fd,
@@ -116,15 +93,18 @@ enum Pending {
     LoadOpening {
         owner: Token,
         max: u32,
+        loading: Option<Loading>,
     },
     LoadReopening {
         owner: Token,
         max: u32,
+        loading: Loading,
     },
     LoadStating {
         owner: Token,
         fd: Fd,
         max: u32,
+        loading: Option<Loading>,
     },
     LoadReading {
         owner: Token,
@@ -166,28 +146,42 @@ enum Pending {
 
 #[derive(Clone, Copy, Debug)]
 enum Stop {
+    Running,
     Deadline,
     Cancel,
+}
+
+// programming-model.md, 5.4: request and cancellation have separate lifecycles.
+#[derive(Debug)]
+enum Work {
+    Idle,
+    Active { pending: Pending, op: Token, deadline: Option<Time>, stop: Stop },
+}
+
+#[derive(Debug)]
+enum Cancelling {
+    Quiet,
+    Asked { op: Token, target: Token },
 }
 
 impl Pending {
     fn owner(&self) -> Token {
         match self {
-            Pending::Create { owner }
-            | Pending::OpenRead { owner }
-            | Pending::OpenDirectory { owner }
+            Pending::Create(owner)
+            | Pending::OpenRead(owner)
+            | Pending::OpenDirectory(owner)
             | Pending::Stat { owner, .. }
-            | Pending::Stating { owner }
+            | Pending::Stating(owner)
             | Pending::Cleanup { owner, .. }
-            | Pending::Write { owner }
+            | Pending::Write(owner)
             | Pending::Read { owner, .. }
-            | Pending::Cut { owner }
-            | Pending::Lock { owner }
-            | Pending::Sync { owner }
-            | Pending::Close { owner }
-            | Pending::Rename { owner }
-            | Pending::Remove { owner }
-            | Pending::ListOpening { owner }
+            | Pending::Cut(owner)
+            | Pending::Lock(owner)
+            | Pending::Sync(owner)
+            | Pending::Close(owner)
+            | Pending::Rename(owner)
+            | Pending::Remove(owner)
+            | Pending::ListOpening(owner)
             | Pending::List { owner, .. }
             | Pending::Page { owner, .. }
             | Pending::ListClosing { owner, .. }
@@ -207,24 +201,24 @@ impl Pending {
 
     fn can_cancel(&self) -> bool {
         match self {
-            Pending::Create { .. }
-            | Pending::OpenRead { .. }
-            | Pending::OpenDirectory { .. }
-            | Pending::Write { .. }
+            Pending::Create(_)
+            | Pending::OpenRead(_)
+            | Pending::OpenDirectory(_)
+            | Pending::Write(_)
             | Pending::Read { .. }
-            | Pending::Sync { .. }
-            | Pending::ListOpening { .. }
+            | Pending::Sync(_)
+            | Pending::ListOpening(_)
             | Pending::LoadOpening { .. }
             | Pending::LoadReading { .. }
             | Pending::ScanOpening { .. } => true,
-            Pending::Lock { .. }
-            | Pending::Cut { .. }
+            Pending::Lock(_)
+            | Pending::Cut(_)
             | Pending::Stat { .. }
-            | Pending::Stating { .. }
+            | Pending::Stating(_)
             | Pending::Cleanup { .. }
-            | Pending::Close { .. }
-            | Pending::Rename { .. }
-            | Pending::Remove { .. }
+            | Pending::Close(_)
+            | Pending::Rename(_)
+            | Pending::Remove(_)
             | Pending::List { .. }
             | Pending::Page { .. }
             | Pending::ListClosing { .. }
@@ -260,19 +254,14 @@ struct Opened {
 pub struct FileIo {
     files: Map<Token, Opened>,
     effective_user: Option<u32>,
-    loading: Option<Loading>,
     next_file: u64,
     next_op: u64,
-    pending: Option<Pending>,
-    outstanding: Option<Token>,
+    work: Work,
+    cancelling: Cancelling,
     max_read: u32,
     max_file: u32,
     max_entries: u32,
     timeout: Duration,
-    deadline: Option<Time>,
-    cancel_op: Option<Token>,
-    cancel_target: Option<Token>,
-    stop: Option<Stop>,
     random: Option<u64>,
 }
 
@@ -292,19 +281,14 @@ impl FileIo {
         FileIo {
             files: Map::with_capacity(files),
             effective_user: None,
-            loading: None,
             next_file: 1,
             next_op: 1,
-            pending: None,
-            outstanding: None,
+            work: Work::Idle,
+            cancelling: Cancelling::Quiet,
             max_read,
             max_file,
             max_entries,
             timeout,
-            deadline: None,
-            cancel_op: None,
-            cancel_target: None,
-            stop: None,
             random: None,
         }
     }
@@ -319,7 +303,13 @@ impl FileIo {
 
     #[must_use]
     pub const fn takes(&self) -> bool {
-        self.pending.is_none() && self.cancel_op.is_none()
+        match self.work {
+            Work::Idle => match self.cancelling {
+                Cancelling::Quiet => true,
+                Cancelling::Asked { .. } => false,
+            },
+            Work::Active { .. } => false,
+        }
     }
 
     #[must_use]
@@ -347,23 +337,18 @@ impl FileIo {
 
     #[must_use]
     pub const fn next_deadline(&self) -> Option<Time> {
-        self.deadline
+        match self.work {
+            Work::Idle => None,
+            Work::Active { deadline, .. } => deadline,
+        }
     }
 
     #[must_use]
     pub fn is_due(&self, now: Time) -> bool {
-        match self.deadline {
+        match self.next_deadline() {
             Some(deadline) => deadline <= now,
             None => false,
         }
-    }
-
-    fn issue(&mut self, op: Op, subs: &mut Queue<Submit>) {
-        assert!(self.outstanding.is_none(), "one kernel operation per file request");
-        assert!(op.is_valid(), "file request makes a valid kernel record");
-        let token = self.mint_op();
-        self.outstanding = Some(token);
-        subs.push(Submit { op: token, kind: op });
     }
 
     fn mint_op(&mut self) -> Token {
@@ -395,17 +380,26 @@ impl FileIo {
         self.files.insert(token, opened).ok()?;
         Some(token)
     }
+}
 
-    fn list(&mut self, root: Fd, subs: &mut Queue<Submit>) {
-        self.issue(
-            Op::List {
-                fd: root,
-                entries: vec![crate::kernel::Entry::BLANK; 32].into_boxed_slice(),
-                names: vec![0_u8; 8192].into_boxed_slice(),
-            },
-            subs,
-        );
-    }
+fn issue(io: &mut FileIo, pending: Pending, kind: Op, subs: &mut Queue<Submit>) -> Work {
+    assert!(kind.is_valid(), "file request makes a valid kernel record");
+    let op = io.mint_op();
+    subs.push(Submit { op, kind });
+    Work::Active { pending, op, deadline: None, stop: Stop::Running }
+}
+
+fn list(io: &mut FileIo, pending: Pending, fd: Fd, subs: &mut Queue<Submit>) -> Work {
+    issue(
+        io,
+        pending,
+        Op::List {
+            fd,
+            entries: vec![crate::kernel::Entry::BLANK; 32].into_boxed_slice(),
+            names: vec![0_u8; 8192].into_boxed_slice(),
+        },
+        subs,
+    )
 }
 
 /// One file request, only while `FileIo::takes` is true.
@@ -422,168 +416,157 @@ pub fn down_until(
     subs: &mut Queue<Submit>,
 ) {
     assert!(io.takes(), "a file request completes before the next begins");
-    io.loading = None;
-    io.deadline = Some(deadline);
-    down_inner(io, request, events, subs);
-    if io.pending.is_none() {
-        io.loading = None;
-        io.deadline = None;
-    }
+    io.work = down_inner(io, request, events, subs);
+    follow_work(io, Some(deadline));
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive request match keeps file admission in one place")]
-fn down_inner(io: &mut FileIo, request: Request, events: &mut Queue<Event>, subs: &mut Queue<Submit>) {
+fn down_inner(io: &mut FileIo, request: Request, events: &mut Queue<Event>, subs: &mut Queue<Submit>) -> Work {
     match request {
         Request::Lock { owner, root } => directory::lock(io, owner, root, events, subs),
         Request::MakeDirectory { owner, root, path, mode } => {
-            private::start(io, owner, root, path, private::Action::Make { mode }, events, subs);
+            private::start(io, owner, root, path, private::Action::Make { mode }, events, subs)
         }
         Request::OpenPrivate { owner, root, path } => match io.effective_user {
             Some(user) => private::start(io, owner, root, path, private::Action::Private { user }, events, subs),
             None => terminal_failure(events, owner, Error::InvalidArgument),
         },
         Request::Create { owner, root, name, mode } => create(io, owner, root, name, mode, false, events, subs),
-        Request::CreateNoFollow { owner, root, name, mode } => {
-            create(io, owner, root, name, mode, true, events, subs);
-        }
+        Request::CreateNoFollow { owner, root, name, mode } => create(io, owner, root, name, mode, true, events, subs),
         Request::OpenRead { owner, root, name } => opens::open_read(io, owner, root, name, OpenHow::Read, events, subs),
         Request::OpenReadNoFollow { owner, root, name } => {
-            opens::open_read(io, owner, root, name, OpenHow::ReadNoFollow, events, subs);
+            opens::open_read(io, owner, root, name, OpenHow::ReadNoFollow, events, subs)
         }
         Request::OpenWrite { owner, root, name } => {
-            opens::open_read(io, owner, root, name, OpenHow::Write, events, subs);
+            opens::open_read(io, owner, root, name, OpenHow::Write, events, subs)
         }
         Request::OpenWriteNoFollow { owner, root, name } => {
-            opens::open_read(io, owner, root, name, OpenHow::WriteNoFollow, events, subs);
+            opens::open_read(io, owner, root, name, OpenHow::WriteNoFollow, events, subs)
         }
         Request::Cut { owner, file, length } => opens::cut(io, owner, file, length, events, subs),
         Request::OpenDirectory { owner, root, name, no_follow } => {
             if name.contains(&0) {
-                events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::InvalidArgument));
+                return Work::Idle;
             }
             if io.files.len() == io.files.capacity() {
-                events.push(Event::Failed { owner, error: Error::TooManyOpenFiles, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::TooManyOpenFiles));
+                return Work::Idle;
             }
-            io.pending = Some(Pending::OpenDirectory { owner });
             let how = if no_follow { OpenHow::DirectoryNoFollow } else { OpenHow::Directory };
-            io.issue(Op::Open { root, path: name, how }, subs);
+            issue(io, Pending::OpenDirectory(owner), Op::Open { root, path: name, how }, subs)
         }
         Request::Load { owner, root, path, max, no_follow } => {
             let Some(fd) = io.file(root) else {
-                events.push(Event::Failed { owner, error: Error::NotFound, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::NotFound));
+                return Work::Idle;
             };
             if max > io.max_file || path.contains(&0) || path.len() >= 4096 {
-                events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::InvalidArgument));
+                return Work::Idle;
             }
-            if let Some(user) = io.private_owner(root) {
-                io.loading = Some(Loading { user, root: fd, path: path.clone(), reopened: false });
-            }
-            io.pending = Some(Pending::LoadOpening { owner, max });
-            let how = if no_follow || io.loading.is_some() { OpenHow::ReadNoFollow } else { OpenHow::Read };
-            io.issue(Op::Open { root: fd, path, how }, subs);
+            #[expect(clippy::manual_map, reason = "programming-model.md, 5.4: explicitly match private load metadata")]
+            let loading = match io.private_owner(root) {
+                Some(user) => Some(Loading { user, root: fd, path: path.clone(), reopened: false }),
+                None => None,
+            };
+            let how = if no_follow || loading.is_some() { OpenHow::ReadNoFollow } else { OpenHow::Read };
+            issue(io, Pending::LoadOpening { owner, max, loading }, Op::Open { root: fd, path, how }, subs)
         }
         Request::Scan { owner, root, path, max, max_bytes, no_follow } => {
             let Some(fd) = io.file(root) else {
-                events.push(Event::Failed { owner, error: Error::NotFound, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::NotFound));
+                return Work::Idle;
             };
             if max > io.max_entries || path.contains(&0) || path.len() >= 4096 {
-                events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::InvalidArgument));
+                return Work::Idle;
             }
-            io.pending = Some(Pending::ScanOpening { owner, max, max_bytes });
             let how = if no_follow { OpenHow::DirectoryNoFollow } else { OpenHow::Directory };
-            io.issue(Op::Open { root: fd, path, how }, subs);
+            issue(io, Pending::ScanOpening { owner, max, max_bytes }, Op::Open { root: fd, path, how }, subs)
         }
         Request::Store { owner, root, path, bytes, expected, no_follow } => {
-            store::start(io, owner, root, path, bytes, expected, no_follow, events, subs);
+            store::start(io, owner, root, path, bytes, expected, no_follow, events, subs)
         }
         Request::Stat { owner, file } => {
             let Some(fd) = io.file(file) else {
-                events.push(Event::Failed { owner, error: Error::NotFound, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::NotFound));
+                return Work::Idle;
             };
-            io.pending = Some(Pending::Stating { owner });
-            io.issue(Op::Stat { fd }, subs);
+            issue(io, Pending::Stating(owner), Op::Stat { fd }, subs)
         }
         Request::WriteAt { owner, file, offset, bytes } => {
             let Some(fd) = io.file(file) else {
-                events.push(Event::Failed { owner, error: Error::NotFound, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::NotFound));
+                return Work::Idle;
             };
             if bytes.is_empty() {
                 events.push(Event::Written { owner });
-                return;
+                return Work::Idle;
             }
             let Ok(op) = Op::write(fd, bytes, 0, offset) else {
-                events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::InvalidArgument));
+                return Work::Idle;
             };
-            io.pending = Some(Pending::Write { owner });
-            io.issue(op, subs);
+            issue(io, Pending::Write(owner), op, subs)
         }
         Request::ReadAt { owner, file, offset, max } => {
             let Some(fd) = io.file(file) else {
-                events.push(Event::Failed { owner, error: Error::NotFound, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::NotFound));
+                return Work::Idle;
             };
             if max == 0 || max > io.max_read {
-                events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::InvalidArgument));
+                return Work::Idle;
             }
             let buffer = vec![0_u8; usize::try_from(max).expect("u32 fits usize")].into_boxed_slice();
             let Ok(op) = Op::read(fd, buffer, offset) else {
-                events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::InvalidArgument));
+                return Work::Idle;
             };
-            io.pending = Some(Pending::Read { owner, fd, offset, max, bytes: Contents(Vec::new()) });
-            io.issue(op, subs);
+            issue(io, Pending::Read { owner, fd, offset, max, bytes: Contents(Vec::new()) }, op, subs)
         }
         Request::Sync { owner, file } => {
             let Some(fd) = io.file(file) else {
-                events.push(Event::Failed { owner, error: Error::NotFound, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::NotFound));
+                return Work::Idle;
             };
-            io.pending = Some(Pending::Sync { owner });
-            io.issue(Op::Sync { fd }, subs);
+            issue(io, Pending::Sync(owner), Op::Sync { fd }, subs)
         }
         Request::Close { owner, file } => {
             let Some(opened) = io.files.remove(&file) else {
-                events.push(Event::Failed { owner, error: Error::NotFound, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::NotFound));
+                return Work::Idle;
             };
-            io.pending = Some(Pending::Close { owner });
-            io.issue(Op::Close { fd: opened.fd }, subs);
+            issue(io, Pending::Close(owner), Op::Close { fd: opened.fd }, subs)
         }
-        Request::SyncDirectory { owner, root } => {
-            io.pending = Some(Pending::Sync { owner });
-            io.issue(Op::Sync { fd: root }, subs);
-        }
+        Request::SyncDirectory { owner, root } => issue(io, Pending::Sync(owner), Op::Sync { fd: root }, subs),
         Request::Rename { owner, from_root, from, to_root, to } => {
             if !crate::kernel::is_name(&from) || !crate::kernel::is_name(&to) {
-                events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::InvalidArgument));
+                return Work::Idle;
             }
-            io.pending = Some(Pending::Rename { owner });
-            io.issue(Op::Rename { from_dir: from_root, from, to_dir: to_root, to, no_replace: false }, subs);
+            issue(
+                io,
+                Pending::Rename(owner),
+                Op::Rename { from_dir: from_root, from, to_dir: to_root, to, no_replace: false },
+                subs,
+            )
         }
         Request::Remove { owner, root, name, directory } => {
             if !crate::kernel::is_name(&name) {
-                events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
-                return;
+                events.push(Event::failed(owner, Error::InvalidArgument));
+                return Work::Idle;
             }
-            io.pending = Some(Pending::Remove { owner });
-            io.issue(Op::Remove { dir: root, name, directory }, subs);
+            issue(io, Pending::Remove(owner), Op::Remove { dir: root, name, directory }, subs)
         }
         Request::ListPage { owner, directory, max } => directory::page(io, owner, directory, max, events, subs),
-        Request::List { owner, root } => {
-            io.pending = Some(Pending::ListOpening { owner });
-            io.issue(Op::Open { root, path: Box::from(&b"."[..]), how: OpenHow::Directory }, subs);
-        }
+        Request::List { owner, root } => issue(
+            io,
+            Pending::ListOpening(owner),
+            Op::Open { root, path: Box::from(&b"."[..]), how: OpenHow::Directory },
+            subs,
+        ),
     }
 }
 
@@ -597,141 +580,203 @@ fn create(
     no_follow: bool,
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
-) {
+) -> Work {
     if name.contains(&0) || mode & !crate::kernel::PERMISSIONS != 0 {
-        events.push(Event::Failed { owner, error: Error::InvalidArgument, committed: false, residue: None });
-        return;
+        events.push(Event::failed(owner, Error::InvalidArgument));
+        return Work::Idle;
     }
     if io.files.len() == io.files.capacity() {
-        events.push(Event::Failed { owner, error: Error::TooManyOpenFiles, committed: false, residue: None });
-        return;
+        events.push(Event::failed(owner, Error::TooManyOpenFiles));
+        return Work::Idle;
     }
-    io.pending = Some(Pending::Create { owner });
     let how =
         if no_follow { OpenHow::CreateNoFollow { mode: Some(mode) } } else { OpenHow::Create { mode: Some(mode) } };
-    io.issue(Op::Open { root, path: name, how }, subs);
+    issue(io, Pending::Create(owner), Op::Open { root, path: name, how }, subs)
 }
 
-fn read_whole(io: &mut FileIo, owner: Token, fd: Fd, max: u32, bytes: Contents, subs: &mut Queue<Submit>) {
+fn read_whole(io: &mut FileIo, owner: Token, fd: Fd, max: u32, bytes: Contents, subs: &mut Queue<Submit>) -> Work {
     let used = u32::try_from(bytes.0.len()).expect("whole load stays within its u32 bound");
     let left = max.checked_sub(used).expect("whole load stays within its bound");
     let asked = io.max_read.min(left.saturating_add(1));
     let buffer = vec![0_u8; usize::try_from(asked).expect("u32 fits usize")].into_boxed_slice();
     let offset = u64::from(used);
-    io.pending = Some(Pending::LoadReading { owner, fd, max, bytes });
     let op = Op::read(fd, buffer, offset).expect("a positive bounded whole-file read");
-    io.issue(op, subs);
+    issue(io, Pending::LoadReading { owner, fd, max, bytes }, op, subs)
 }
 
 /// Cancels the outstanding kernel operation after its request deadline. The
 /// terminal failure is emitted when the target has settled, exactly once.
 pub fn expire(io: &mut FileIo, now: Time, subs: &mut Queue<Submit>) {
-    if !io.is_due(now) || io.stop.is_some() {
+    if !io.is_due(now) {
         return;
     }
-    io.stop = Some(Stop::Deadline);
-    io.deadline = None;
-    submit_cancel(io, subs);
+    let work = mem::replace(&mut io.work, Work::Idle);
+    io.work = match work {
+        Work::Active { pending, op, deadline: Some(deadline), stop: Stop::Running } if deadline <= now => {
+            Work::Active { pending, op, deadline: None, stop: Stop::Deadline }
+        }
+        other @ (Work::Idle | Work::Active { .. }) => {
+            io.work = other;
+            return;
+        }
+    };
+    follow_cancel(io, subs);
 }
 
 /// Requests cancellation of the active owner's file operation. The terminal
 /// reports `Cancelled` only when the request was stopped before completion.
 pub fn cancel(io: &mut FileIo, owner: Token, subs: &mut Queue<Submit>) {
-    let Some(pending) = io.pending.as_ref() else {
-        return;
+    let work = mem::replace(&mut io.work, Work::Idle);
+    io.work = match work {
+        Work::Active { pending, op, deadline, stop: Stop::Running } if pending.owner() == owner => {
+            let can_abandon = match &pending {
+                Pending::Store(store) => store.can_abandon(),
+                Pending::Private(opening) => opening.can_abandon(),
+                Pending::Cleanup { .. } => false,
+                Pending::Lock(_)
+                | Pending::Create(_)
+                | Pending::OpenRead(_)
+                | Pending::OpenDirectory(_)
+                | Pending::Stat { .. }
+                | Pending::Stating(_)
+                | Pending::Write(_)
+                | Pending::Read { .. }
+                | Pending::Cut(_)
+                | Pending::Sync(_)
+                | Pending::Close(_)
+                | Pending::Rename(_)
+                | Pending::Remove(_)
+                | Pending::ListOpening(_)
+                | Pending::List { .. }
+                | Pending::Page { .. }
+                | Pending::ListClosing { .. }
+                | Pending::LoadOpening { .. }
+                | Pending::LoadReopening { .. }
+                | Pending::LoadStating { .. }
+                | Pending::LoadReading { .. }
+                | Pending::LoadClosing { .. }
+                | Pending::LoadTooLargeClosing { .. }
+                | Pending::ScanOpening { .. }
+                | Pending::ScanListing { .. }
+                | Pending::ScanClosing { .. } => true,
+            };
+            let stop = if can_abandon { Stop::Cancel } else { Stop::Running };
+            Work::Active { pending, op, deadline, stop }
+        }
+        other @ (Work::Idle | Work::Active { .. }) => {
+            io.work = other;
+            return;
+        }
     };
-    if io.stop.is_some() || pending.owner() != owner {
-        return;
-    }
-    match pending {
-        Pending::Store(store) => {
-            if !store.can_abandon() {
-                return;
-            }
-        }
-        Pending::Private(opening) => {
-            if !opening.can_abandon() {
-                return;
-            }
-        }
-        Pending::Cleanup { .. } => return,
-        Pending::Create { .. }
-        | Pending::OpenRead { .. }
-        | Pending::OpenDirectory { .. }
-        | Pending::Stat { .. }
-        | Pending::Stating { .. }
-        | Pending::Write { .. }
-        | Pending::Read { .. }
-        | Pending::Cut { .. }
-        | Pending::Lock { .. }
-        | Pending::Sync { .. }
-        | Pending::Close { .. }
-        | Pending::Rename { .. }
-        | Pending::Remove { .. }
-        | Pending::ListOpening { .. }
-        | Pending::List { .. }
-        | Pending::Page { .. }
-        | Pending::ListClosing { .. }
-        | Pending::LoadOpening { .. }
-        | Pending::LoadReopening { .. }
-        | Pending::LoadStating { .. }
-        | Pending::LoadReading { .. }
-        | Pending::LoadClosing { .. }
-        | Pending::LoadTooLargeClosing { .. }
-        | Pending::ScanOpening { .. }
-        | Pending::ScanListing { .. }
-        | Pending::ScanClosing { .. } => {}
-    }
-    io.stop = Some(Stop::Cancel);
-    submit_cancel(io, subs);
+    follow_cancel(io, subs);
 }
 
-fn submit_cancel(io: &mut FileIo, subs: &mut Queue<Submit>) {
-    let Some(target) = io.outstanding else {
-        return;
-    };
-    if !io.pending.as_ref().expect("an outstanding operation has a request").can_cancel() {
-        return;
+fn follow_cancel(io: &mut FileIo, subs: &mut Queue<Submit>) {
+    match io.cancelling {
+        Cancelling::Asked { .. } => return,
+        Cancelling::Quiet => {}
     }
+    match &io.work {
+        Work::Active { pending, op, stop: Stop::Deadline | Stop::Cancel, .. } if pending.can_cancel() => {
+            io.cancelling = submit_cancel(io, *op, subs);
+        }
+        Work::Idle | Work::Active { .. } => {}
+    }
+}
+
+fn submit_cancel(io: &mut FileIo, target: Token, subs: &mut Queue<Submit>) -> Cancelling {
     let op = io.mint_op();
-    io.cancel_op = Some(op);
-    io.cancel_target = Some(target);
     subs.push(Submit { op, kind: Op::Cancel { target } });
+    Cancelling::Asked { op, target }
 }
 
 /// One kernel completion. It may submit the continuation of a short transfer.
 pub fn up(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs: &mut Queue<Submit>) {
-    if io.cancel_op == Some(complete.op) {
-        io.cancel_op = None;
-        let target = io.cancel_target.take().expect("a cancel retains its original target");
-        if crate::layer::unsubmitted(complete.result) && io.outstanding == Some(target) {
-            // The stalled operation still owns its record. Retry a cancel the
-            // backend did not submit, without targeting a later cleanup step.
-            submit_cancel(io, subs);
+    let cancelling = mem::replace(&mut io.cancelling, Cancelling::Quiet);
+    io.cancelling = match cancelling {
+        Cancelling::Asked { op, target } if op == complete.op => {
+            let same_target = match io.work {
+                Work::Idle => false,
+                Work::Active { op, .. } => op == target,
+            };
+            io.cancelling = if crate::layer::unsubmitted(complete.result) && same_target {
+                submit_cancel(io, target, subs)
+            } else {
+                Cancelling::Quiet
+            };
+            return;
         }
-        return;
-    }
-    assert!(io.outstanding == Some(complete.op), "completion names the outstanding file operation");
-    io.outstanding = None;
-    match io.stop.take() {
-        Some(Stop::Deadline) => stopped(io, complete, Error::TimedOut, events, subs),
-        Some(Stop::Cancel) => cancelled(io, complete, events, subs),
-        None => up_inner(io, complete, events, subs),
-    }
-    if io.pending.is_none() {
-        io.loading = None;
-        io.deadline = None;
+        other @ (Cancelling::Quiet | Cancelling::Asked { .. }) => other,
+    };
+    let work = mem::replace(&mut io.work, Work::Idle);
+    let (next, deadline) = match work {
+        Work::Idle => unreachable!("a completion has an active file request"),
+        Work::Active { pending, op, deadline, stop } => {
+            assert!(op == complete.op, "completion names the outstanding file operation");
+            let next = match stop {
+                Stop::Deadline => stopped(io, pending, complete, Error::TimedOut, events, subs),
+                Stop::Cancel => cancelled(io, pending, complete, events, subs),
+                Stop::Running => up_inner(io, pending, complete, events, subs),
+            };
+            (next, deadline)
+        }
+    };
+    io.work = next;
+    follow_work(io, deadline);
+}
+
+fn follow_work(io: &mut FileIo, deadline: Option<Time>) {
+    match &mut io.work {
+        Work::Idle => {}
+        Work::Active { pending, deadline: next, .. } => {
+            *next = match pending {
+                Pending::Lock(_) => None,
+                Pending::Store(store) => store.deadline(deadline),
+                Pending::Create(_)
+                | Pending::OpenRead(_)
+                | Pending::OpenDirectory(_)
+                | Pending::Stat { .. }
+                | Pending::Stating(_)
+                | Pending::Cleanup { .. }
+                | Pending::Write(_)
+                | Pending::Read { .. }
+                | Pending::Cut(_)
+                | Pending::Sync(_)
+                | Pending::Close(_)
+                | Pending::Rename(_)
+                | Pending::Remove(_)
+                | Pending::ListOpening(_)
+                | Pending::List { .. }
+                | Pending::Page { .. }
+                | Pending::ListClosing { .. }
+                | Pending::LoadOpening { .. }
+                | Pending::LoadReopening { .. }
+                | Pending::LoadStating { .. }
+                | Pending::LoadReading { .. }
+                | Pending::LoadClosing { .. }
+                | Pending::LoadTooLargeClosing { .. }
+                | Pending::ScanOpening { .. }
+                | Pending::ScanListing { .. }
+                | Pending::ScanClosing { .. }
+                | Pending::Private(_) => deadline,
+            };
+        }
     }
 }
 
-fn cancelled(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs: &mut Queue<Submit>) {
-    let pending = io.pending.as_ref().expect("a cancelled completion has a request");
-    let can_abandon = match pending {
+fn cancelled(
+    io: &mut FileIo,
+    pending: Pending,
+    complete: Complete,
+    events: &mut Queue<Event>,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let can_abandon = match &pending {
         Pending::Store(store) => store.can_abandon(),
         Pending::Private(opening) => opening.can_abandon(),
-        Pending::OpenRead { .. }
+        Pending::OpenRead(_)
         | Pending::Stat { .. }
-        | Pending::ListOpening { .. }
+        | Pending::ListOpening(_)
         | Pending::List { .. }
         | Pending::Page { .. }
         | Pending::LoadOpening { .. }
@@ -740,41 +785,41 @@ fn cancelled(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, sub
         | Pending::LoadReading { .. }
         | Pending::ScanOpening { .. }
         | Pending::ScanListing { .. } => true,
-        Pending::Write { .. } => !write_finished(&complete),
+        Pending::Write(_) => !write_finished(&complete),
         Pending::Read { max, bytes, .. } => !read_finished(&complete, *max, bytes.0.len()),
-        Pending::Create { .. }
-        | Pending::OpenDirectory { .. }
-        | Pending::Stating { .. }
+        Pending::Create(_)
+        | Pending::OpenDirectory(_)
+        | Pending::Stating(_)
         | Pending::Cleanup { .. }
-        | Pending::Cut { .. }
-        | Pending::Lock { .. }
-        | Pending::Sync { .. }
-        | Pending::Close { .. }
-        | Pending::Rename { .. }
-        | Pending::Remove { .. }
+        | Pending::Cut(_)
+        | Pending::Lock(_)
+        | Pending::Sync(_)
+        | Pending::Close(_)
+        | Pending::Rename(_)
+        | Pending::Remove(_)
         | Pending::ListClosing { .. }
         | Pending::LoadClosing { .. }
         | Pending::LoadTooLargeClosing { .. }
         | Pending::ScanClosing { .. } => false,
     };
     let stop_won = match &complete.result {
-        Err(Error::Cancelled) => match pending {
+        Err(Error::Cancelled) => match &pending {
             Pending::Store(_) | Pending::Private(_) => can_abandon,
-            Pending::Create { .. }
-            | Pending::OpenRead { .. }
-            | Pending::OpenDirectory { .. }
+            Pending::Create(_)
+            | Pending::OpenRead(_)
+            | Pending::OpenDirectory(_)
             | Pending::Stat { .. }
-            | Pending::Stating { .. }
+            | Pending::Stating(_)
             | Pending::Cleanup { .. }
-            | Pending::Write { .. }
+            | Pending::Write(_)
             | Pending::Read { .. }
-            | Pending::Cut { .. }
-            | Pending::Lock { .. }
-            | Pending::Sync { .. }
-            | Pending::Close { .. }
-            | Pending::Rename { .. }
-            | Pending::Remove { .. }
-            | Pending::ListOpening { .. }
+            | Pending::Cut(_)
+            | Pending::Lock(_)
+            | Pending::Sync(_)
+            | Pending::Close(_)
+            | Pending::Rename(_)
+            | Pending::Remove(_)
+            | Pending::ListOpening(_)
             | Pending::List { .. }
             | Pending::Page { .. }
             | Pending::ListClosing { .. }
@@ -791,9 +836,9 @@ fn cancelled(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, sub
         Ok(_) | Err(_) => can_abandon,
     };
     if stop_won {
-        stopped(io, complete, Error::Cancelled, events, subs);
+        stopped(io, pending, complete, Error::Cancelled, events, subs)
     } else {
-        up_inner(io, complete, events, subs);
+        up_inner(io, pending, complete, events, subs)
     }
 }
 
@@ -847,88 +892,84 @@ fn read_finished(complete: &Complete, max: u32, prior: usize) -> bool {
     }
 }
 
-fn stopped(io: &mut FileIo, complete: Complete, reason: Error, events: &mut Queue<Event>, subs: &mut Queue<Submit>) {
-    let pending = io.pending.take().expect("a timed out completion has a request");
-    let pending = match pending {
+fn stopped(
+    io: &mut FileIo,
+    pending: Pending,
+    complete: Complete,
+    reason: Error,
+    events: &mut Queue<Event>,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let owner = pending.owner();
+    let fd = match pending {
         Pending::Private(opening) => {
-            private::stopped(io, opening, complete, reason, events, subs);
-            return;
+            return private::stopped(io, opening, complete, reason, events, subs);
         }
         Pending::Store(store) => {
-            store::stopped(io, store, complete, reason, events, subs);
-            return;
+            return store::stopped(io, store, complete, reason, events, subs);
         }
-        Pending::Lock { owner } => {
-            directory::locked(owner, complete, events);
-            return;
+        Pending::Lock(owner) => {
+            return directory::locked(owner, complete, events);
         }
-        direct @ (Pending::Stating { .. } | Pending::Rename { .. } | Pending::Remove { .. }) => {
-            io.pending = Some(direct);
-            up_inner(io, complete, events, subs);
-            return;
+        direct @ (Pending::Stating(_) | Pending::Rename(_) | Pending::Remove(_)) => {
+            return up_inner(io, direct, complete, events, subs);
         }
         page @ Pending::Page { .. } => {
-            directory::answered(io, page, complete, Some(reason), events, subs);
-            return;
+            return directory::answered(io, page, complete, Some(reason), events, subs);
         }
-        other @ (Pending::Create { .. }
-        | Pending::OpenRead { .. }
-        | Pending::OpenDirectory { .. }
-        | Pending::Stat { .. }
-        | Pending::Cleanup { .. }
-        | Pending::Write { .. }
-        | Pending::Read { .. }
-        | Pending::Cut { .. }
-        | Pending::Sync { .. }
-        | Pending::Close { .. }
-        | Pending::ListOpening { .. }
-        | Pending::List { .. }
-        | Pending::ListClosing { .. }
+
+        Pending::Create(_)
+        | Pending::OpenRead(_)
+        | Pending::OpenDirectory(_)
+        | Pending::ListOpening(_)
         | Pending::LoadOpening { .. }
+        | Pending::ScanOpening { .. } => match complete.result {
+            Ok(Done::Fd(fd)) => Some(fd),
+            Ok(
+                Done::Nothing
+                | Done::Count(_)
+                | Done::Accepted { .. }
+                | Done::Bound(_)
+                | Done::Stat(_)
+                | Done::Spawned { .. }
+                | Done::Exit(_)
+                | Done::Usage(_)
+                | Done::Signalled(_)
+                | Done::Window(_),
+            )
+            | Err(_) => None,
+        },
+        Pending::LoadStating { fd, .. }
+        | Pending::LoadReading { fd, .. }
+        | Pending::ScanListing { fd, .. }
+        | Pending::Stat { fd, .. }
+        | Pending::List { fd, .. } => Some(fd),
+        Pending::Cleanup { .. }
+        | Pending::Write(_)
+        | Pending::Read { .. }
+        | Pending::Cut(_)
+        | Pending::Sync(_)
+        | Pending::Close(_)
+        | Pending::ListClosing { .. }
         | Pending::LoadReopening { .. }
-        | Pending::LoadStating { .. }
-        | Pending::LoadReading { .. }
         | Pending::LoadClosing { .. }
         | Pending::LoadTooLargeClosing { .. }
-        | Pending::ScanOpening { .. }
-        | Pending::ScanListing { .. }
-        | Pending::ScanClosing { .. }) => other,
-    };
-    let owner = pending.owner();
-    let fd = match (pending, complete.result) {
-        (
-            Pending::Create { .. }
-            | Pending::OpenRead { .. }
-            | Pending::OpenDirectory { .. }
-            | Pending::ListOpening { .. }
-            | Pending::LoadOpening { .. }
-            | Pending::ScanOpening { .. },
-            Ok(Done::Fd(fd)),
-        )
-        | (
-            Pending::LoadStating { fd, .. }
-            | Pending::LoadReading { fd, .. }
-            | Pending::ScanListing { fd, .. }
-            | Pending::Stat { fd, .. }
-            | Pending::List { fd, .. },
-            _,
-        ) => Some(fd),
-        _ => None,
+        | Pending::ScanClosing { .. } => None,
     };
     if let Some(fd) = fd {
-        io.pending = Some(Pending::Cleanup { owner, error: reason });
-        io.issue(Op::Close { fd }, subs);
+        issue(io, Pending::Cleanup { owner, error: reason }, Op::Close { fd }, subs)
     } else {
-        terminal_failure(events, owner, reason);
+        terminal_failure(events, owner, reason)
     }
 }
 
-fn terminal_failure(events: &mut Queue<Event>, owner: Token, reason: Error) {
+fn terminal_failure(events: &mut Queue<Event>, owner: Token, reason: Error) -> Work {
     if reason == Error::Cancelled {
         events.push(Event::Cancelled { owner });
     } else {
-        events.push(Event::Failed { owner, error: reason, committed: false, residue: None });
+        events.push(Event::failed(owner, reason));
     }
+    Work::Idle
 }
 
 /// Retains a name-order prefix under both scan bounds. `cutoff` is the
@@ -974,51 +1015,13 @@ fn retain_scan_entry(
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive completion transition handles every file operation")]
-fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs: &mut Queue<Submit>) {
-    let pending = io.pending.take().expect("a completion has a request");
-    let pending = match pending {
-        Pending::Private(opening) => {
-            private::up(io, opening, complete, events, subs);
-            return;
-        }
-        Pending::Store(store) => {
-            store::up(io, store, complete, events, subs);
-            return;
-        }
-        Pending::Lock { owner } => {
-            directory::locked(owner, complete, events);
-            return;
-        }
-        page @ Pending::Page { .. } => {
-            directory::answered(io, page, complete, None, events, subs);
-            return;
-        }
-        other @ (Pending::Create { .. }
-        | Pending::OpenRead { .. }
-        | Pending::OpenDirectory { .. }
-        | Pending::Stat { .. }
-        | Pending::Stating { .. }
-        | Pending::Cleanup { .. }
-        | Pending::Write { .. }
-        | Pending::Read { .. }
-        | Pending::Cut { .. }
-        | Pending::Sync { .. }
-        | Pending::Close { .. }
-        | Pending::Rename { .. }
-        | Pending::Remove { .. }
-        | Pending::ListOpening { .. }
-        | Pending::List { .. }
-        | Pending::ListClosing { .. }
-        | Pending::LoadOpening { .. }
-        | Pending::LoadReopening { .. }
-        | Pending::LoadStating { .. }
-        | Pending::LoadReading { .. }
-        | Pending::LoadClosing { .. }
-        | Pending::LoadTooLargeClosing { .. }
-        | Pending::ScanOpening { .. }
-        | Pending::ScanListing { .. }
-        | Pending::ScanClosing { .. }) => other,
-    };
+fn up_inner(
+    io: &mut FileIo,
+    pending: Pending,
+    complete: Complete,
+    events: &mut Queue<Event>,
+    subs: &mut Queue<Submit>,
+) -> Work {
     if let Err(error) = complete.result {
         let owner = match pending {
             Pending::Stat { owner, fd }
@@ -1026,172 +1029,183 @@ fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs
             | Pending::LoadStating { owner, fd, .. }
             | Pending::LoadReading { owner, fd, .. }
             | Pending::ScanListing { owner, fd, .. } => {
-                io.pending = Some(Pending::Cleanup { owner, error });
-                io.issue(Op::Close { fd }, subs);
-                return;
+                return issue(io, Pending::Cleanup { owner, error }, Op::Close { fd }, subs);
             }
-            Pending::LoadOpening { owner, .. } => {
+            Pending::LoadOpening { owner, loading, .. } => {
                 if error == Error::Permission
-                    && let Some(loading) = io.loading.take()
+                    && let Some(loading) = loading
                 {
-                    private::denied_load(io, owner, loading, subs);
-                    return;
+                    return private::denied_load(io, owner, loading, subs);
                 }
-                match private::unsafe_open(error, io.loading.is_some()) {
+                match private::unsafe_open(error, loading.is_some()) {
                     Some(found) => events.push(Event::Refused { owner, found }),
-                    None => terminal_failure(events, owner, error),
+                    None => return terminal_failure(events, owner, error),
                 }
-                return;
+                return Work::Idle;
             }
             Pending::Cleanup { owner, error } => {
-                terminal_failure(events, owner, error);
-                return;
+                return terminal_failure(events, owner, error);
             }
-            Pending::Create { owner }
-            | Pending::OpenRead { owner }
-            | Pending::OpenDirectory { owner }
-            | Pending::Stating { owner }
-            | Pending::Write { owner }
+            Pending::Create(owner)
+            | Pending::OpenRead(owner)
+            | Pending::OpenDirectory(owner)
+            | Pending::Stating(owner)
+            | Pending::Write(owner)
             | Pending::Read { owner, .. }
-            | Pending::Cut { owner }
-            | Pending::Lock { owner }
-            | Pending::Sync { owner }
-            | Pending::Close { owner }
-            | Pending::Rename { owner }
-            | Pending::Remove { owner }
-            | Pending::ListOpening { owner }
+            | Pending::Cut(owner)
+            | Pending::Sync(owner)
+            | Pending::Close(owner)
+            | Pending::Rename(owner)
+            | Pending::Remove(owner)
+            | Pending::ListOpening(owner)
             | Pending::ListClosing { owner, .. }
             | Pending::LoadReopening { owner, .. }
             | Pending::LoadClosing { owner, .. }
             | Pending::LoadTooLargeClosing { owner, .. }
             | Pending::ScanOpening { owner, .. }
             | Pending::ScanClosing { owner, .. } => owner,
-            Pending::Store(_) | Pending::Private(_) | Pending::Page { .. } => {
-                unreachable!("dedicated file completion is handled separately")
-            }
+            Pending::Private(opening) => return private::up(io, opening, complete, events, subs),
+            Pending::Store(store) => return store::up(io, store, complete, events, subs),
+            Pending::Lock(owner) => return directory::locked(owner, complete, events),
+            page @ Pending::Page { .. } => return directory::answered(io, page, complete, None, events, subs),
         };
-        events.push(Event::Failed { owner, error, committed: false, residue: None });
-        return;
+        events.push(Event::failed(owner, error));
+        return Work::Idle;
     }
-    match (pending, complete.kind, complete.result.expect("checked success")) {
-        (Pending::Create { owner }, Op::Open { .. }, Done::Fd(fd)) => {
+    let done = complete.result.expect("checked success");
+    match pending {
+        Pending::Create(owner) => {
+            let fd = store::done_fd(done);
             if let Some(file) = io.insert(fd) {
                 events.push(Event::Opened { owner, file, len: 0 });
             } else {
-                events.push(Event::Failed { owner, error: Error::TooManyOpenFiles, committed: false, residue: None });
+                events.push(Event::failed(owner, Error::TooManyOpenFiles));
             }
         }
-        (Pending::OpenRead { owner }, Op::Open { .. }, Done::Fd(fd)) => {
-            io.pending = Some(Pending::Stat { owner, fd });
-            io.issue(Op::Stat { fd }, subs);
+        Pending::OpenRead(owner) => {
+            let fd = store::done_fd(done);
+            return issue(io, Pending::Stat { owner, fd }, Op::Stat { fd }, subs);
         }
-        (Pending::OpenDirectory { owner }, Op::Open { .. }, Done::Fd(fd)) => {
+        Pending::OpenDirectory(owner) => {
+            let fd = store::done_fd(done);
             if let Some(file) = io.insert(fd) {
                 events.push(Event::Opened { owner, file, len: 0 });
             } else {
-                io.pending = Some(Pending::Cleanup { owner, error: Error::TooManyOpenFiles });
-                io.issue(Op::Close { fd }, subs);
+                return issue(io, Pending::Cleanup { owner, error: Error::TooManyOpenFiles }, Op::Close { fd }, subs);
             }
         }
-        (Pending::Stating { owner }, Op::Stat { .. }, Done::Stat(stat)) => events.push(Event::Stated { owner, stat }),
-        (Pending::Stat { owner, fd }, Op::Stat { .. }, Done::Stat(stat)) => {
+        Pending::Stating(owner) => {
+            let stat = store::done_stat(done);
+            events.push(Event::Stated { owner, stat });
+        }
+        Pending::Stat { owner, fd } => {
+            let stat = store::done_stat(done);
             if let Some(file) = io.insert(fd) {
                 events.push(Event::Opened { owner, file, len: stat.size });
             } else {
-                events.push(Event::Failed { owner, error: Error::TooManyOpenFiles, committed: false, residue: None });
+                events.push(Event::failed(owner, Error::TooManyOpenFiles));
             }
         }
-        (Pending::Cleanup { owner, error }, Op::Close { .. }, Done::Nothing) => {
-            terminal_failure(events, owner, error);
+        Pending::Cleanup { owner, error } => {
+            store::done_nothing(done);
+            return terminal_failure(events, owner, error);
         }
-        (Pending::ListOpening { owner }, Op::Open { .. }, Done::Fd(fd)) => {
-            io.pending = Some(Pending::List { owner, fd, entries: Vec::new() });
-            io.list(fd, subs);
+        Pending::ListOpening(owner) => {
+            let fd = store::done_fd(done);
+            return list(io, Pending::List { owner, fd, entries: Vec::new() }, fd, subs);
         }
-        (Pending::LoadOpening { owner, max }, Op::Open { .. }, Done::Fd(fd)) => {
-            io.pending = Some(Pending::LoadStating { owner, fd, max });
-            io.issue(Op::Stat { fd }, subs);
+        Pending::LoadOpening { owner, max, loading } => {
+            let fd = store::done_fd(done);
+            return issue(io, Pending::LoadStating { owner, fd, max, loading }, Op::Stat { fd }, subs);
         }
-        (Pending::LoadReopening { owner, max }, Op::Close { .. }, Done::Nothing) => {
-            let loading = io.loading.as_ref().expect("only a private load reopens a replaced file");
+        Pending::LoadReopening { owner, max, loading } => {
+            store::done_nothing(done);
             let operation = Op::Open { root: loading.root, path: loading.path.clone(), how: OpenHow::ReadNoFollow };
-            io.pending = Some(Pending::LoadOpening { owner, max });
-            io.issue(operation, subs);
+            return issue(io, Pending::LoadOpening { owner, max, loading: Some(loading) }, operation, subs);
         }
-        (Pending::LoadStating { owner, fd, max }, Op::Stat { .. }, Done::Stat(stat)) => {
-            let unsafe_found = match io.loading.as_ref() {
+        Pending::LoadStating { owner, fd, max, mut loading } => {
+            let stat = store::done_stat(done);
+            let unsafe_found = match loading.as_ref() {
                 Some(loading) => private::unsafe_file(stat, loading.user),
                 None => None,
             };
             if unsafe_found == Some(crate::file::Unsafe::Links(0))
-                && let Some(loading) = io.loading.as_mut()
-                && !loading.reopened
+                && match loading.as_ref() {
+                    Some(loading) => !loading.reopened,
+                    None => false,
+                }
             {
-                loading.reopened = true;
-                io.pending = Some(Pending::LoadReopening { owner, max });
-                io.issue(Op::Close { fd }, subs);
+                loading.as_mut().expect("a private load reopens").reopened = true;
+                return issue(
+                    io,
+                    Pending::LoadReopening {
+                        owner,
+                        max,
+                        loading: loading.take().expect("a private reopen retains its path"),
+                    },
+                    Op::Close { fd },
+                    subs,
+                );
             } else if let Some(found) = unsafe_found {
-                private::refuse_file(io, owner, fd, found, events, subs);
+                return private::refuse_file(io, owner, fd, found, events, subs);
             } else if stat.kind != crate::kernel::Kind::File {
-                io.pending = Some(Pending::Cleanup { owner, error: Error::IsADirectory });
-                io.issue(Op::Close { fd }, subs);
+                return issue(io, Pending::Cleanup { owner, error: Error::IsADirectory }, Op::Close { fd }, subs);
             } else if stat.size > u64::from(max) {
-                io.pending = Some(Pending::LoadTooLargeClosing { owner, size: stat.size });
-                io.issue(Op::Close { fd }, subs);
-            } else {
-                let capacity =
-                    usize::try_from(max).expect("u32 fits usize").checked_add(1).expect("one more byte fits");
-                read_whole(io, owner, fd, max, Contents(Vec::with_capacity(capacity)), subs);
+                return issue(io, Pending::LoadTooLargeClosing { owner, size: stat.size }, Op::Close { fd }, subs);
             }
+            let capacity = usize::try_from(max).expect("u32 fits usize").checked_add(1).expect("one more byte fits");
+            return read_whole(io, owner, fd, max, Contents(Vec::with_capacity(capacity)), subs);
         }
-        (Pending::LoadReading { owner, fd, max, mut bytes }, Op::Read { buf, .. }, Done::Count(count)) => {
+        Pending::LoadReading { owner, fd, max, mut bytes } => {
+            let count = store::done_count(done);
+            let buf = store::read_buffer(complete.kind);
             let n = usize::try_from(count).expect("u32 fits usize");
             bytes.0.extend_from_slice(buf.get(..n).expect("read count is within buffer"));
             if bytes.0.len() > usize::try_from(max).expect("u32 fits usize") {
                 let size = skein_lib::len_u64(bytes.0.len());
-                io.pending = Some(Pending::LoadTooLargeClosing { owner, size });
-                io.issue(Op::Close { fd }, subs);
+                return issue(io, Pending::LoadTooLargeClosing { owner, size }, Op::Close { fd }, subs);
             } else if count == 0 {
-                io.pending = Some(Pending::LoadClosing { owner, bytes });
-                io.issue(Op::Close { fd }, subs);
-            } else {
-                read_whole(io, owner, fd, max, bytes, subs);
+                return issue(io, Pending::LoadClosing { owner, bytes }, Op::Close { fd }, subs);
             }
+            return read_whole(io, owner, fd, max, bytes, subs);
         }
-        (Pending::LoadClosing { owner, bytes }, Op::Close { .. }, Done::Nothing) => {
+        Pending::LoadClosing { owner, bytes } => {
+            store::done_nothing(done);
             events.push(Event::Loaded { owner, bytes: bytes.0.into_boxed_slice() });
         }
-        (Pending::LoadTooLargeClosing { owner, size }, Op::Close { .. }, Done::Nothing) => {
+        Pending::LoadTooLargeClosing { owner, size } => {
+            store::done_nothing(done);
             events.push(Event::TooLarge { owner, size });
         }
-        (Pending::ScanOpening { owner, max, max_bytes }, Op::Open { .. }, Done::Fd(fd)) => {
+        Pending::ScanOpening { owner, max, max_bytes } => {
+            let fd = store::done_fd(done);
             let cell = u64::try_from(size_of::<Entry>()).expect("entry cell fits u64");
             let by_bytes = max_bytes.checked_div(cell).expect("entry cell is nonzero");
             let capacity = u64::from(max).min(by_bytes).checked_add(1).expect("one transient entry fits");
-            io.pending = Some(Pending::ScanListing {
-                owner,
+            return list(
+                io,
+                Pending::ScanListing {
+                    owner,
+                    fd,
+                    max,
+                    max_bytes,
+                    entries: Vec::with_capacity(usize::try_from(capacity).expect("scan capacity fits usize")),
+                    bytes: 0,
+                    cutoff: None,
+                    total: 0,
+                },
                 fd,
-                max,
-                max_bytes,
-                entries: Vec::with_capacity(usize::try_from(capacity).expect("scan capacity fits usize")),
-                bytes: 0,
-                cutoff: None,
-                total: 0,
-            });
-            io.list(fd, subs);
+                subs,
+            );
         }
-        (
-            Pending::ScanListing { owner, fd, max, max_bytes, mut entries, mut bytes, mut cutoff, mut total },
-            Op::List { entries: records, names, .. },
-            Done::Count(count),
-        ) => {
+        Pending::ScanListing { owner, fd, max, max_bytes, mut entries, mut bytes, mut cutoff, mut total } => {
+            let count = store::done_count(done);
+            let (records, names) = list_parts(complete.kind);
             let count = usize::try_from(count).expect("u32 fits usize");
             if count == 0 {
                 let kept = skein_lib::len_u64(entries.len());
                 let more = total.checked_sub(kept).expect("retained entries were counted");
-                io.pending = Some(Pending::ScanClosing { owner, entries, more });
-                io.issue(Op::Close { fd }, subs);
-                return;
+                return issue(io, Pending::ScanClosing { owner, entries, more }, Op::Close { fd }, subs);
             }
             for record in records.get(..count).expect("list count is within buffer") {
                 let name = record.name(&names).expect("a listed entry names bytes");
@@ -1200,35 +1214,37 @@ fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs
                     retain_scan_entry(&mut entries, &mut bytes, &mut cutoff, max, max_bytes, name, record.kind);
                 }
             }
-            io.pending = Some(Pending::ScanListing { owner, fd, max, max_bytes, entries, bytes, cutoff, total });
-            io.list(fd, subs);
+            return list(
+                io,
+                Pending::ScanListing { owner, fd, max, max_bytes, entries, bytes, cutoff, total },
+                fd,
+                subs,
+            );
         }
-        (Pending::ScanClosing { owner, entries, more }, Op::Close { .. }, Done::Nothing) => {
+        Pending::ScanClosing { owner, entries, more } => {
+            store::done_nothing(done);
             events.push(Event::Scanned { owner, entries: entries.into_boxed_slice(), more });
         }
-        (Pending::Write { owner }, Op::Write { fd, bytes, from, at }, Done::Count(count)) => {
+        Pending::Write(owner) => {
+            let count = store::done_count(done);
+            let (fd, bytes, from, at) = store::write_parts(complete.kind);
             let next = from.checked_add(count).expect("write count fits");
             if count == 0 {
-                events.push(Event::Failed { owner, error: Error::Other(5), committed: false, residue: None });
+                events.push(Event::failed(owner, Error::Other(5)));
             } else if usize::try_from(next).expect("u32 fits usize") == bytes.len() {
                 events.push(Event::Written { owner });
             } else {
                 let at = at.checked_add(u64::from(count)).expect("write offset fits");
-                io.pending = Some(Pending::Write { owner });
                 let Ok(op) = Op::write(fd, bytes, next, at) else {
-                    io.pending = None;
-                    events.push(Event::Failed {
-                        owner,
-                        error: Error::InvalidArgument,
-                        committed: false,
-                        residue: None,
-                    });
-                    return;
+                    events.push(Event::failed(owner, Error::InvalidArgument));
+                    return Work::Idle;
                 };
-                io.issue(op, subs);
+                return issue(io, Pending::Write(owner), op, subs);
             }
         }
-        (Pending::Read { owner, fd, offset, max, mut bytes }, Op::Read { buf, .. }, Done::Count(count)) => {
+        Pending::Read { owner, fd, offset, max, mut bytes } => {
+            let count = store::done_count(done);
+            let buf = store::read_buffer(complete.kind);
             let n = usize::try_from(count).expect("u32 fits usize");
             bytes.0.extend_from_slice(buf.get(..n).expect("read count is within buffer"));
             let done = count == 0 || u32::try_from(bytes.0.len()).expect("read no more than max") == max;
@@ -1237,48 +1253,97 @@ fn up_inner(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs
             } else {
                 let at = offset.checked_add(skein_lib::len_u64(bytes.0.len())).expect("offset fits");
                 let left = max.checked_sub(u32::try_from(bytes.0.len()).expect("length fits u32")).expect("within max");
-                io.pending = Some(Pending::Read { owner, fd, offset, max, bytes });
                 let buffer = vec![0_u8; usize::try_from(left).expect("u32 fits usize")].into_boxed_slice();
                 let Ok(op) = Op::read(fd, buffer, at) else {
-                    io.pending = None;
-                    events.push(Event::Failed {
-                        owner,
-                        error: Error::InvalidArgument,
-                        committed: false,
-                        residue: None,
-                    });
-                    return;
+                    events.push(Event::failed(owner, Error::InvalidArgument));
+                    return Work::Idle;
                 };
-                io.issue(op, subs);
+                return issue(io, Pending::Read { owner, fd, offset, max, bytes }, op, subs);
             }
         }
-        (Pending::Cut { owner }, Op::Truncate { .. }, Done::Nothing) => events.push(Event::Cut { owner }),
-        (Pending::Sync { owner }, Op::Sync { .. }, Done::Nothing) => events.push(Event::Synced { owner }),
-        (Pending::Close { owner }, Op::Close { .. }, Done::Nothing) => events.push(Event::Closed { owner }),
-        (Pending::Rename { owner }, Op::Rename { .. }, Done::Nothing) => events.push(Event::Renamed { owner }),
-        (Pending::Remove { owner }, Op::Remove { .. }, Done::Nothing) => events.push(Event::Removed { owner }),
-        (Pending::List { owner, fd, mut entries }, Op::List { entries: records, names, .. }, Done::Count(count)) => {
+        Pending::Cut(owner) => {
+            store::done_nothing(done);
+            events.push(Event::Cut { owner });
+        }
+        Pending::Sync(owner) => {
+            store::done_nothing(done);
+            events.push(Event::Synced { owner });
+        }
+        Pending::Close(owner) => {
+            store::done_nothing(done);
+            events.push(Event::Closed { owner });
+        }
+        Pending::Rename(owner) => {
+            store::done_nothing(done);
+            events.push(Event::Renamed { owner });
+        }
+        Pending::Remove(owner) => {
+            store::done_nothing(done);
+            events.push(Event::Removed { owner });
+        }
+        Pending::List { owner, fd, mut entries } => {
+            let count = store::done_count(done);
+            let (records, names) = list_parts(complete.kind);
             let count = usize::try_from(count).expect("u32 fits usize");
             if count == 0 {
-                io.pending = Some(Pending::ListClosing { owner, entries });
-                io.issue(Op::Close { fd }, subs);
-                return;
+                return issue(io, Pending::ListClosing { owner, entries }, Op::Close { fd }, subs);
             }
             for record in records.get(..count).expect("list count is within buffer") {
                 let name = record.name(&names).expect("a listed entry names bytes");
                 entries.push(Entry { name: Box::from(name), kind: record.kind });
             }
             if entries.len() > usize::try_from(io.max_entries).expect("u32 fits usize") {
-                io.pending = Some(Pending::Cleanup { owner, error: Error::NoBufferSpace });
-                io.issue(Op::Close { fd }, subs);
-            } else {
-                io.pending = Some(Pending::List { owner, fd, entries });
-                io.list(fd, subs);
+                return issue(io, Pending::Cleanup { owner, error: Error::NoBufferSpace }, Op::Close { fd }, subs);
             }
+            return list(io, Pending::List { owner, fd, entries }, fd, subs);
         }
-        (Pending::ListClosing { owner, entries }, Op::Close { .. }, Done::Nothing) => {
+        Pending::ListClosing { owner, entries } => {
+            store::done_nothing(done);
             events.push(Event::Listed { owner, entries: entries.into_boxed_slice() });
         }
-        (_, _, _) => unreachable!("kernel validates completion shape"),
+        Pending::Private(opening) => {
+            return private::up(io, opening, Complete { result: Ok(done), ..complete }, events, subs);
+        }
+        Pending::Store(store) => return store::up(io, store, Complete { result: Ok(done), ..complete }, events, subs),
+        Pending::Lock(owner) => return directory::locked(owner, Complete { result: Ok(done), ..complete }, events),
+        page @ Pending::Page { .. } => {
+            return directory::answered(io, page, Complete { result: Ok(done), ..complete }, None, events, subs);
+        }
+    }
+    Work::Idle
+}
+
+fn list_parts(kind: Op) -> (Box<[crate::kernel::Entry]>, Box<[u8]>) {
+    match kind {
+        Op::List { entries, names, .. } => (entries, names),
+        Op::Socket { .. }
+        | Op::Bind { .. }
+        | Op::Listen { .. }
+        | Op::Accept { .. }
+        | Op::Connect { .. }
+        | Op::Recv { .. }
+        | Op::Send { .. }
+        | Op::Shutdown { .. }
+        | Op::Close { .. }
+        | Op::Open { .. }
+        | Op::Write { .. }
+        | Op::Append { .. }
+        | Op::Truncate { .. }
+        | Op::Sync { .. }
+        | Op::Lock { .. }
+        | Op::Stat { .. }
+        | Op::Rename { .. }
+        | Op::Remove { .. }
+        | Op::MakeDirectory { .. }
+        | Op::Read { .. }
+        | Op::Spawn { .. }
+        | Op::Wait { .. }
+        | Op::Signal { .. }
+        | Op::Usage
+        | Op::Window { .. }
+        | Op::ReadSignal { .. }
+        | Op::PipeRead { .. }
+        | Op::PipeWrite { .. }
+        | Op::Cancel { .. } => unreachable!("a directory list completes a list"),
     }
 }

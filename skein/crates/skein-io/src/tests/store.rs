@@ -196,10 +196,7 @@ fn a_link_in_a_parent_path_is_refused_before_any_write() {
     let Op::Open { how, .. } = &parent.kind else { panic!("parent open") };
     assert_eq!(*how, OpenHow::DirectoryNoFollow);
     rig.complete(parent, Err(Error::TooManyLinks));
-    assert_eq!(
-        rig.events.pop(),
-        Some(Event::Failed { owner: OWNER, error: Error::TooManyLinks, committed: false, residue: None })
-    );
+    assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::TooManyLinks)));
     assert!(rig.subs.is_empty());
 }
 
@@ -266,10 +263,7 @@ fn a_taken_temporary_name_draws_another_suffix() {
     let close = rig.take();
     assert_eq!(close.kind, Op::Close { fd: PARENT });
     rig.complete(close, Ok(Done::Nothing));
-    assert_eq!(
-        rig.events.pop(),
-        Some(Event::Failed { owner: OWNER, error: Error::Permission, committed: false, residue: None })
-    );
+    assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::Permission)));
     assert!(rig.events.is_empty() && rig.subs.is_empty());
 }
 
@@ -423,10 +417,7 @@ fn every_step_failed_before_or_at_rename_cleans_up_before_one_terminal() {
             }
         }
         assert!(failed && opened.is_empty() && !temp, "step {failed_at}: cleanup precedes the terminal");
-        assert_eq!(
-            rig.events.pop(),
-            Some(Event::Failed { owner: OWNER, error: Error::Other(5), committed: false, residue: None })
-        );
+        assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::Other(5))));
         assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
         assert_eq!(rig.io.open_files(), 1, "only the inherited root remains");
         assert_eq!(rig.io.next_deadline(), None);
@@ -461,10 +452,7 @@ fn an_unsubmitted_store_cancel_is_retried_while_the_stalled_write_remains_owned(
     let close = rig.take();
     assert_eq!(close.kind, Op::Close { fd: PARENT });
     rig.complete(close, Ok(Done::Nothing));
-    assert_eq!(
-        rig.events.pop(),
-        Some(Event::Failed { owner: OWNER, error: Error::TimedOut, committed: false, residue: None })
-    );
+    assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::TimedOut)));
     assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
 }
 
@@ -488,10 +476,7 @@ fn a_late_unsubmitted_store_cancel_never_cancels_the_cleanup_close() {
     rig.complete(remove, Ok(Done::Nothing));
     let close = rig.take();
     rig.complete(close, Ok(Done::Nothing));
-    assert_eq!(
-        rig.events.pop(),
-        Some(Event::Failed { owner: OWNER, error: Error::TimedOut, committed: false, residue: None })
-    );
+    assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::TimedOut)));
     assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
 }
 
@@ -597,10 +582,7 @@ fn each_cancellable_pre_rename_phase_settles_at_the_owners_deadline() {
             let submit = rig.take();
             old_file_step(&mut rig, submit, &mut opened, &mut temp);
         }
-        assert_eq!(
-            rig.events.pop(),
-            Some(Event::Failed { owner: OWNER, error: Error::TimedOut, committed: false, residue: None })
-        );
+        assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::TimedOut)));
         assert!(opened.is_empty() && !temp && rig.events.is_empty() && rig.io.takes());
         assert_eq!(rig.io.open_files(), 1);
     }
@@ -677,10 +659,7 @@ fn a_temporary_already_removed_by_another_owner_has_no_residue() {
     rig.complete(remove, Err(Error::NotFound));
     let close = rig.take();
     rig.complete(close, Ok(Done::Nothing));
-    assert_eq!(
-        rig.events.pop(),
-        Some(Event::Failed { owner: OWNER, error: Error::Other(5), committed: false, residue: None })
-    );
+    assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::Other(5))));
     assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
 }
 
