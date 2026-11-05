@@ -367,3 +367,24 @@ fn deployment_explains_tool_payload_and_its_dependencies() {
         assert!(text.contains(requirement), "deployment help must name {requirement}");
     }
 }
+
+#[test]
+fn approval_help_names_the_forge_and_project_policy_route() {
+    for name in [b"landing-rule".as_slice(), b"party", b"configure"] {
+        let text = find(name).expect("approval setup help").text;
+        let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for words in [
+            "collaborator",
+            "project-policy",
+            "repository adopt",
+            "project show",
+            "newest revision",
+            "maintainer",
+            "member",
+            "observer",
+        ] {
+            assert!(text.contains(words), "{name:?} must explain {words:?}: {text}");
+        }
+        assert!(text.contains("writer") && text.contains("counts") || text.contains("writer is excluded"));
+    }
+}
