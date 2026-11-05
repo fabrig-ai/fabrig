@@ -349,8 +349,8 @@ keeps (`../protocol/configuration.md`, section 2).
 
 | Address | Mockup | Shows | Watches and reads | Acts |
 |---|---|---|---|---|
-| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | open `Configure`; adopt the first repository again, or open the adoption form; skip "To begin" |
-| `Settings { project }` | none | a project's settings: "Settings for PROJECT", the links to `Forges`, `Accounts` and `Adopt { project }`, and "Sign out" (*Settings,* below) | `me` | sign out |
+| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | start the configuring chat; adopt the first repository again, or open the adoption form; skip "To begin" |
+| `Settings { project }` | none | a project's settings: "Settings for PROJECT", "Configure temper", the links to `Forges`, `Accounts` and `Adopt { project }`, and "Sign out" (*Settings,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | sign out |
 | `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
 | `Inbox` (the root) | `inbox.html` | what needs the person, across projects, filtered by project, kind and goal (its root): proposals, questions, held tasks, person tasks; then updates (results, replies); "+ New chat", a link to the Chats page's start (`/chats?at=start`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | accept ("Accept"), reject with a reason, answer, release, leave held, take, hand back |
 | `Chats` | `chats.html`; the playground's start at the first run's first step, which `first-run.html` opens | a pane at the head of its main, a complementary region named "Project" (`browser.md`, 2.5): the new chat's bar (below), in the playground's project while the playground starts or runs the playground's start (4.8, 5.6), then the person's chats under the level-1 heading "Chats", as one list, "Your chats", live and ended together, newest first, under All, Live or Closed (below), each with its project and number, title, status, own spend and live delegates, and last the playground's banner while it runs or is leaving (5.1); beside the pane, the composer to start a chat alone: its text area "Start a chat", showing "Describe a change" while it is empty, and its button "Start chat", with the hint "enter to start · shift+enter for newline", then its line and its chooser (5.5) under it, and in the playground's start its suggested requests under them (5.6) | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; choose the list's filter; more closed chats |
@@ -364,7 +364,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, by the store's state, empty, unfinished or whole (below): "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (5.6; `../draft/archive/first-run.md`, 2.3) | the playground's read (4.8); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; start a forge cut short over, or go on with it; `ConnectForge`'s and `ConnectModel`'s acts |
 | `Accounts` | `accounts.html` | the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (4.8); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
 | `ConnectModel { way }` | `connect-model.html` | connecting one more LLM account, `way` the way it is at, or none at Choose: Choose, a card for each way its providers offer (5.5, The ways); Signing in, at the provider, for a sign-in, or Details, a way's field, for a key or a program's login; and Ready, the account made, or how the sign-in ended (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
-| `HowWorkRuns` | none: the user's (5.13) | the settings in the person's words: the newest revision and who decided it; "Tell temper how you work"; pending proposals of settings; roles, ways to start work, rules, running work and history, each row tagged Default, Changed or Added (5.13) | `settings`; each setting shown, `setting` (jig's `client/domain/contract.md`, 5.1 and 6) | start the configuring chat; move a revision's tasks to the newest; propose a reset, a removal or a restore |
+| `HowWorkRuns` | none: the user's (5.13) | the settings in the person's words: the newest revision and who decided it; "Configure temper"; pending proposals of settings; roles, ways to start work, rules, running work and history, each row tagged Default, Changed or Added (5.13) | `settings`; each setting shown, `setting` (jig's `client/domain/contract.md`, 5.1 and 6) | start the configuring chat; move a revision's tasks to the newest; propose a reset, a removal or a restore |
 | `Proposal { proposal }` | none: the user's (5.13) | a proposal of settings: temper enforces and your agents follow, its effect on running work, the settings folded; withdrawn when stale; accepted (5.13) | the `proposal`; `settings`; each item's setting before | accept, choosing whether running work moves; reject with a reason; change something, in the chat |
 
 - **Words and facts:** a chat's status from jig's facts (jig's
@@ -1432,9 +1432,13 @@ keeps (`../protocol/configuration.md`, section 2).
   steps, and the sections of Home on any project keep their headings,
   each line one readable run of words.
 - **Settings:** `Settings { project }`, at `/projects/<project>/settings`,
-  has the level-1 heading "Settings for PROJECT"; a list of links, "Forges",
-  "Accounts" and "Adopt a repository", each with the marks 5.3 gives it;
-  then "Sign out". A project's Delete, when it is built, is here
+  has the level-1 heading "Settings for PROJECT"; a list of links,
+  "Configure temper", "Forges", "Accounts" and "Adopt a repository", each
+  with the marks 5.3 gives it; then "Sign out". "Configure temper" opens
+  the person's configuring chat in the project, the newest one not closed,
+  on its conversation; with none, `Configure { project }`. So `Settings`
+  reads the person's chats in the project as `Chats` does, and until they
+  are delivered the link opens `Configure`. A project's Delete, when it is built, is here
   (section 10).
 - **A suggested request** (`chats.html`) starts a chat with the
   cue's words as its first message, as the composer's send does: one
@@ -1448,8 +1452,9 @@ keeps (`../protocol/configuration.md`, section 2).
   yet, live or ended, under "All", the offer "Tell temper how you
   work", a button above the composer. Pressed, it opens `Configure {
   project }` (below). Home's first step makes the same offer, its
-  "Start" the same act, and "How work runs" too (5.13). The chat starts
-  with the person's own words, never with canned ones. Once the project
+  "Start" the same act: a step says what the person does, so both keep
+  these words, and what they open is named "Configure temper". The chat
+  starts with the person's own words, never with canned ones. Once the project
   holds a chat, the chats page's offer goes.
 - **The configuring chat's page** (the mock's
   `chat.html?id=new&configure=1`, in the project's frame):
@@ -1461,24 +1466,42 @@ keeps (`../protocol/configuration.md`, section 2).
   layout (`temper-session`) is the page's height, in this order:
   - *Its top bar:* the path, a navigation named "Where": on a wide page
     PROJECT, a link to `Home`, and "Settings", a link to `Settings`, each
-    followed by "/", then the level-1 heading "Tell temper how you
-    work"; on a phone "‹", a link named "Settings", alone before the
+    followed by "/", then the level-1 heading "Configure
+    temper", the page's title too; on a phone "‹", a link named "Settings", alone before the
     heading. At its right on a wide page, the line of what the chat's
     runs use, "ChatGPT plan · gpt-6-luna", the first usable account's
     kind, as Ready's model line chooses it, and the first model `me`
     serves for the project.
-  - *The conversation,* a region named "Conversation": centred, the
-    configuring agent's line, "temper’s configuring agent. Describe how
-    you work, in your own words or by pointing at a document. It
-    proposes how temper will run that; nothing changes until you
-    accept."; under it "Ways to begin", a list named so of three
-    starters: "I work alone on small changes: one chat per change, landed
-    once CI passes.", "I write a design draft first; agents plan its
-    tasks and land them together once checked." and "Not sure yet. What
-    can temper do?".
-  - *The composer,* a form named "Tell temper how you work", at the
-    foot, focused as the page opens: its text area "How do you work?",
-    that its placeholder too; "Send", the send arrow on ink in a rounded
+  - *The conversation,* a region named "Conversation", its opening a
+    page as `Home` is, starting at the conversation's top, with no
+    kicker: the level-2 heading "How should temper run PROJECT?", drawn
+    as Home's headline; the lede "Tell it how you work, in your own
+    words or by pointing at a document."; a list named "What it sets",
+    each item a term in ink and its line in grey after a pale dot: "How
+    work runs: how chats and goals start, are checked and land",
+    "Models: which plan or model each role runs on" and "Approvals: what
+    waits for you, and what lands on its own"; the note "It proposes the
+    settings; nothing changes until you accept.", small and muted; then
+    the section "Ways to begin", headed as Home's sections: its starters
+    as cards, as the welcome's choices, three to a row where they fit and
+    one a row on a phone, the whole card the button, its title over a
+    line in grey:
+
+    | Title | Line | The words it sends |
+    |---|---|---|
+    | "Small changes, alone" | "One chat per change, landed once CI passes." | "I work alone on small changes: one chat per change, landed once CI passes." |
+    | "A design draft first" | "Agents plan its tasks; they land together." | "I write a design draft first; agents plan its tasks and land them together once checked." |
+    | "Models by role" | "Claude for reviews, my ChatGPT plan for the rest." | "Use Claude for reviews and my ChatGPT plan for everything else." |
+
+    Under them a fourth starter, a button drawn as a link, "Not sure yet?
+    Ask what temper can do.", which sends "Not sure yet. What can temper
+    do?". The terminal has no style to tell a term from its line: each
+    item and each card is one line of words, "TERM: LINE", and "Ways to
+    begin" is its section's name, once.
+  - *The composer,* a form named "Configure temper", at the
+    foot, focused as the page opens: its text area "Describe how you
+    work, or what to change", that its placeholder too, its text 14
+    pixels in from the composer's edge; "Send", the send arrow on ink in a rounded
     square, grey while disabled, which it is while the text is empty;
     under it the chat page's hint, "Enter to send · Shift+Enter for
     newline". It has no composer's line and no chooser: the configuring
@@ -1486,11 +1509,21 @@ keeps (`../protocol/configuration.md`, section 2).
     phone the frame's top bar and tab bar go, so that the composer keeps
     the foot, and with them the model's line and the hint.
 
-  A starter or "Send" starts the chat, its words the first message, as
-  a suggested request does: one act, one request (3.6), from template 3
+  The conversation and the composer's foot each keep a scrollbar's gutter
+  on both edges and hold one column, at most 720 pixels and centred, so
+  that the opening, a chat's turns and the composer share their edges
+  whether or not the conversation scrolls, in every mode, the column
+  shifted by half a scrollbar where the platform's scrollbars take room. On
+  a phone
+  neither keeps a gutter and both stand 16 pixels in, the question at 26
+  pixels and the cards tighter. At 1366 by 680 the whole opening and the
+  composer show with no scrolling.
+
+  A starter or "Send" starts the chat, the words it sends the first
+  message, as a suggested request does: one act, one request (3.6), from template 3
   (`../protocol/configuration.md`, 13.4) while `me` lists it among the
   project's templates, else template 1, with its template's own models.
-  While it is out, the starters and "Send" are disabled and the words
+  While it is out, the four starters and "Send" are disabled and the words
   stay; made, the chat's page opens; refused, jig's words stay under the
   composer, the words kept. The chat names no repository.
 - **A configuring chat** is a chat whose chip's executor is the charter
@@ -3873,8 +3906,9 @@ section 5. The pages' look and place are the user's to make (section
   holds it to."; the newest revision, "Revision 8, accepted by Pat today
   at 14:03" (who decided it and when, 5.12; "temper's defaults" for the
   first start's and "temper 0.4's defaults" for a release's); the
-  offer "Tell temper how you work", which opens the open project's
-  `Configure { project }` (3.5); each
+  entry "Configure temper", which opens as `Settings`' does (3.5): the
+  person's configuring chat in the open project, the newest one not
+  closed, or `Configure { project }`; each
   pending proposal of settings as a line, "Proposal 13 waits for an
   owner. Lee asked for a Reviewer role, from "Reviews"", with "Review".
   Then five sections, each a level-2 heading with its count and a line
@@ -4928,6 +4962,13 @@ own tests:
 
 ## 11. Open questions
 
+- **A fresh configuring chat** (3.5, *The configuring chat's page*): "Start
+  over" in a configuring chat's top bar closes the chat, which stays in
+  Chats, Closed, its conversation and document kept, and opens `Configure`,
+  after the confirmation "Start a new configuring chat? This one stays in
+  Chats."; a command in the composer ("/clear") once the composer takes
+  commands. It waits for the look request `configure-chat-draft`, held,
+  which draws it. Default: a configuring chat is closed with its "Close".
 - **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
   sections 7, 9 and 10): the forges' rows carry `makings` and `temper ctl
   forge list` says them. Home's line for a copy, the sheet "Add

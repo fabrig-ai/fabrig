@@ -63,7 +63,7 @@ mod head;
 mod request;
 
 use head::Parsed;
-pub use request::{Body, Call, Refusal};
+pub use request::{Body, Call, Refusal, request_head_len};
 
 pub use crate::{Method, Version};
 
@@ -721,7 +721,7 @@ fn final_head(
         Framing::Chunked => (Rest::ChunkSize, true),
         Framing::UntilEnd => (Rest::UntilEnd, false),
     };
-    let persist = lasting && !exchange.close && head::persistent(status.version, headers.as_slice());
+    let persist = lasting && !exchange.close && crate::header::persistent(status.version, headers.as_slice());
     let response = Response { version: status.version, status: status.code, headers: headers.into_boxed(), framing };
     above.push(Event::Response(response));
     match exchange.request.upload {

@@ -32,4 +32,5 @@ Take off `tag` and split completions with `file_layer::owns`, as
 `skein/testing/skein-world/src/files.rs` does, then call the stage for
 `Io`'s and `file_layer::up` for the rest. `Io`'s `MAX_OUT_*` then sit inside
 the stage alone. Do it with D001, which rewrites the rest of `iterate`.
-skein's D044 is a second `Io` on one kernel, so it doesn't block this.
+A second `Io` on one kernel is the service's to tell apart (`skein/docs/design/io.md`, 5),
+so it doesn't block this.

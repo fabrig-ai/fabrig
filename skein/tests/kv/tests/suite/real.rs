@@ -60,7 +60,7 @@ impl World {
 
     fn env(&self) -> Env<Limits> {
         let now = self.clock.now();
-        Env { now: now.now, wall: now.wall, limits: self.limits }
+        now.with(self.limits)
     }
 
     fn ask(&mut self, request: Request) -> Event {

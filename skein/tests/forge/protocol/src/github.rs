@@ -233,7 +233,7 @@ impl Github {
         self.tick();
     }
     fn server_env(&self) -> Env<ServiceLimits> {
-        Env { now: self.env.now, wall: self.env.wall, limits: fixture::service_limits() }
+        self.env.with(fixture::service_limits())
     }
     fn release_hooks(&mut self) {
         inline::release(&mut self.service, &mut self.domain, &self.fake_env);

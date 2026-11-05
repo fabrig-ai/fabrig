@@ -9,7 +9,8 @@ use skein_lib::{
     stream::{Down, Read, Up},
 };
 use skein_ui::{Region, Tree};
-const TAG: u64 = 1 << 62;
+/// This terminal's namespace among its service's operations (lib.md, 4).
+const NAMESPACE: u8 = 4;
 const BATCH: u32 = 64;
 /// The application's whole terminal configuration, with no defaults.
 #[derive(Debug)]
@@ -137,7 +138,7 @@ impl Terminal {
     }
     #[must_use]
     pub fn owns(op: Token) -> bool {
-        op.raw() & TAG != 0
+        op.tag() == NAMESPACE
     }
     pub fn completions(&mut self) -> &mut Queue<Complete> {
         &mut self.completions
@@ -234,9 +235,9 @@ impl Terminal {
         self.immediate |= core::mem::replace(&mut self.after_act, false);
         for _ in 0..self.completions.len() {
             let mut complete = self.completions.pop().expect("counted completion");
-            complete.op = Token::new(complete.op.raw() & !TAG);
+            complete.op = Token::new(complete.op.untagged());
             if let Op::Cancel { target } = &mut complete.kind {
-                *target = Token::new(target.raw() & !TAG);
+                *target = Token::new(target.untagged());
             }
             skein_io::up(
                 &mut self.io,
@@ -309,10 +310,9 @@ impl Terminal {
         self.io.reclaim();
         for _ in 0..self.raw.len() {
             let mut submit = self.raw.pop().expect("counted submission");
-            assert!(submit.op.raw() & TAG == 0, "finite terminal operation namespace");
-            submit.op = Token::new(submit.op.raw() | TAG);
+            submit.op = Token::tagged(NAMESPACE, submit.op.raw()).expect("finite terminal operation namespace");
             if let Op::Cancel { target } = &mut submit.kind {
-                *target = Token::new(target.raw() | TAG);
+                *target = Token::tagged(NAMESPACE, target.raw()).expect("finite terminal operation namespace");
             }
             self.submissions.push(submit);
         }

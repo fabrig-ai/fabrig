@@ -352,9 +352,11 @@ tests/forge/machine             the forge component's machine world and the list
 tests/forge/protocol            the protocol world: the client and the component against the fake forge's protocol layer and domain, joined by streams cut at random, under a scripted durable owner that restarts; its fuzzy runs take seeds (forge-connection.md, 10)
 tests/forge/client              the client world: the client alone under a scripted parent, over the fake forge's domain (forge-client.md, 10)
 tests/forge/setup               the setup world: the host component over a store of items and the fake forge's setup routes and GitHub layer, through HTTP bytes, and its peak under a scenario ceiling with the counting allocator (forge-setup.md, 7)
+tests/forge/dialect             both dialects' documents, plans and bounds driven from outside, with their fuzzy mutations, skein-forge-dialect-tests
 tests/forge/conformance         the conformance tool, outside the suites: a throwaway Forgejo driven, each fact the dialect relies on recorded (fake-forge.md, 7)
 tests/forge/github              GitHub's conformance tool, outside the suites: the hosted fake and owner fixtures (fake-forge.md, 11)
-tests/fake-forge                the fake forge's domain against the counting allocator, skein-fake-forge-tests
+tests/fake-forge                the fake forge's domain, its Forgejo layer and its GitHub service against the counting allocator, skein-fake-forge-tests
+tests/fail-stop                 a panic on any thread aborts the process after its report, through a fixture binary, skein-fail-stop-tests
 tests/fake-peers                the LLM, OAuth and forge peers on loopback io against their clients, including GitHub's job-log redirect to its blob listener, skein-fake-peers-tests
 tests/fake-checkout             the fake checkout's leaf tests and its replay sweep against a small private remote, skein-fake-checkout-tests
 tests/channel                   the framed channel's machine and protocol worlds, skein-channel-world

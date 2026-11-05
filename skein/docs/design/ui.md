@@ -586,7 +586,7 @@ how far a piece of work has gone toward its end.
 - **A shell's own words** are phrases its application gives its parts
   (ui-web.md, 3.2); the text shell's are English (section 19).
 
-`skein_ui::date` turns a wall time into a civil date and back, in UTC, and reads and writes the `YYYY-MM-DD` form: the one calendar a view and its phrases share.
+`skein_ui::date` holds lib's `Civil` (lib.md, 8), turns a wall time into one and back, and reads and writes its `YYYY-MM-DD` form: the one calendar a view and its phrases share.
 
 ## 10. Markdown
 

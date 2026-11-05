@@ -1,10 +1,9 @@
-//! Repository paths and user logins, evicted by least recent use (forge.md, 3.5).
+//! Repository paths and user logins, evicted by least recent use (forge.md, 4.2).
 use crate::api;
 use crate::forgejo::{document::MergeStyle, id::ObjectFormat};
-pub use crate::users::UserEntry;
 use crate::users::Users;
 use alloc::boxed::Box;
-use skein_lib::Map;
+use skein_lib::Lru;
 /// The repository fields needed to address calls and read their answers.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Repository {
@@ -14,60 +13,32 @@ pub struct Repository {
     pub merge_style: MergeStyle,
     pub html_url: Box<[u8]>,
 }
-#[derive(Debug)]
-pub struct RepositoryEntry {
-    pub row: Repository,
-    pub used: u64,
-}
 /// The two bounded lookup tables. Forge starts hold their page caps beside settings' tokens.
 #[derive(Debug)]
 pub struct Tables {
-    repositories: Map<api::Repository, RepositoryEntry>,
+    repositories: Lru<api::Repository, Repository>,
     users: Users,
-    clock: u64,
 }
 impl Tables {
     #[must_use]
     pub fn new(repositories: u32, users: u32) -> Self {
-        Self { repositories: Map::with_capacity(repositories), users: Users::new(users), clock: 0 }
-    }
-    fn tick(&mut self) -> u64 {
-        self.clock = self.clock.checked_add(1).expect("fewer than u64::MAX table uses in a deployment");
-        self.clock
+        Self { repositories: Lru::with_capacity(repositories), users: Users::with_capacity(users) }
     }
     #[must_use]
     pub fn repository(&mut self, key: api::Repository) -> Option<&Repository> {
-        let used = self.tick();
-        let entry = self.repositories.get_mut(&key)?;
-        entry.used = used;
-        Some(&entry.row)
+        self.repositories.get(key)
     }
     pub fn keep_repository(&mut self, key: api::Repository, row: Repository) {
-        if !self.repositories.contains_key(&key) && self.repositories.len() == self.repositories.capacity() {
-            let mut oldest = None;
-            for (key, entry) in &self.repositories {
-                let order = (entry.used, *key);
-                if oldest.is_none() || Some(order) < oldest {
-                    oldest = Some(order);
-                }
-            }
-            if let Some((_, key)) = oldest {
-                drop(self.repositories.remove(&key));
-            }
-        }
-        let used = self.tick();
-        drop(self.repositories.insert(key, RepositoryEntry { row, used }).expect("room after eviction"));
+        drop(self.repositories.insert(key, row));
     }
     pub fn drop_repository(&mut self, key: api::Repository) {
-        drop(self.repositories.remove(&key));
+        drop(self.repositories.remove(key));
     }
     #[must_use]
     pub fn user(&mut self, forge: u16, id: u64) -> Option<&[u8]> {
-        let used = self.tick();
-        self.users.get(forge, id, used)
+        Some(self.users.get((forge, id))?.as_ref())
     }
     pub fn keep_user(&mut self, forge: u16, id: u64, login: Box<[u8]>) {
-        let used = self.tick();
-        self.users.keep(forge, id, login, used);
+        drop(self.users.insert((forge, id), login));
     }
 }
