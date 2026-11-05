@@ -2,7 +2,7 @@
 //! an `OpenID` ID token and checks its sign-in claims (oauth.md, section 2.2).
 use crate::{ClaimSelector, DecodeError, Json, Limits, common, json};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Wall, base64, bytes};
+use skein_lib::{Duration, Wall, base64, bytes, usize_of};
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[expect(missing_debug_implementations, reason = "credential values must never occur in traces")]
@@ -162,7 +162,7 @@ pub(crate) fn check_claims(
         return Err(Check::Nonce);
     }
     let subject = claim_text(tokens, b"sub").or(Err(Check::Missing))?;
-    if subject.is_empty() || subject.len() > usize::try_from(limits.subject_bytes).expect("u32 fits") {
+    if subject.is_empty() || subject.len() > usize_of(limits.subject_bytes) {
         return Err(Check::Missing);
     }
     Ok(bytes::copy_of(subject))

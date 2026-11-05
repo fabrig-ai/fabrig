@@ -4,7 +4,7 @@ use super::{Client, ClientLimits, Exchange, Failure, Grant, HttpEvidence, HttpRe
 use crate::RefreshState;
 use crate::redirect::{form_fields, issued_id, validate_registration};
 use alloc::boxed::Box;
-use skein_lib::{Queue, Time, bytes};
+use skein_lib::{Queue, Time, bytes, usize_of};
 
 pub(super) fn endpoint(registration: &Registration) -> Option<&[u8]> {
     registration.terms.as_ref()?.revocation_endpoint.as_deref()
@@ -42,9 +42,7 @@ impl Client {
     ) -> Result<(Exchange, Request, Phase), Failure> {
         validate_registration(&registration, &self.limits, false)?;
         endpoint(&registration).ok_or(Failure::Malformed)?;
-        if prior.refresh_token.is_empty()
-            || prior.refresh_token.len() > usize::try_from(self.limits.document.token_bytes).expect("u32 fits")
-        {
+        if prior.refresh_token.is_empty() || prior.refresh_token.len() > usize_of(self.limits.document.token_bytes) {
             return Err(Failure::Limit);
         }
         if let Err(error) = crate::record::validate_refresh_additions(&prior, &self.limits.document) {
