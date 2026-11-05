@@ -231,7 +231,9 @@ pub(crate) fn turn_lines(turn: &agent::Turn, cap: u32) -> Box<[TurnLine]> {
     lines.into_boxed()
 }
 
-pub(crate) fn tool_verdict(result: &session::llm::Returned) -> ToolVerdict {
+/// The typed verdict for one told tool result.
+#[must_use]
+pub fn tool_verdict(result: &session::llm::Returned) -> ToolVerdict {
     match result {
         session::llm::Returned::Owned { outcome } => match outcome {
             tools::Outcome::Running { .. }
