@@ -788,8 +788,10 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             },
         },
         Event::PreparationWaiting { task } => crate::run::preparation_waiting(domain, env, task, out),
-        Event::PreparationFailed { task } => crate::run::preparation_failed(domain, env, task, out),
-        Event::PreparationUnread { task } => crate::run::preparation_unread(domain, env, task, out),
+        Event::PreparationPaused { task, reason } => crate::run::preparation_paused(domain, env, task, &reason, out),
+        Event::PreparationCounted { task, class, reason } => {
+            crate::run::preparation_counted(domain, env, task, class, &reason, out);
+        }
         Event::Place { reply_to, hold } => crate::placed::place(domain, env, reply_to, hold, out),
         Event::Lift { reply_to, by, hold, revision, with_tasks } => crate::placed::lift(
             domain,

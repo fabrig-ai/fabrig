@@ -276,8 +276,8 @@ fn the_declaration_bound_covers_flat_conversion_and_refuses_unrepresentable_limi
     let output = u64::try_from(size_of::<Type>().max(size_of::<Spec>()).max(size_of::<Export>())).expect("output fits");
     let ty = u64::try_from(size_of::<Type>()).expect("type fits");
     let cases = [
-        (EMPTY, 3 * output + ty, record + event + DELIVERY),
-        (FLAT, 33 * (3 * output + ty), 33 * record + TEXT + TEXT + DELIVERY + event),
+        (EMPTY, 3 * output + ty, record + 4 * event + DELIVERY),
+        (FLAT, 33 * (3 * output + ty), 33 * record + TEXT + TEXT + DELIVERY + 4 * event),
     ];
     for (limits, schema, decoded) in cases {
         assert_eq!(schema::decoder_bound(&limits), Some(schema), "{limits:?}");

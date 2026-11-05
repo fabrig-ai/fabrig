@@ -892,17 +892,21 @@ pub enum Phase {
         was: Was,
 
         why: Hold,
-        /// Exact connector-owned cause, retained in lifecycle milestones.
+        /// Exact cause, retained in lifecycle milestones.
         source: Option<Box<HoldSource>>,
     },
     /// Ended outcome; default restoration refuses it in the live arena.
     Ended(/** Final ending; this phase is excluded from the live restore arena. */ Ending),
 }
 
-/// What explains a hold beyond its reason: a connector's resource or effect, or the circle of
-/// waits a `Hold::Circle` names (client/domain/objects.md, 5; domain/tasks.md, 6.7).
+/// What explains a hold beyond its reason: a connector account, a preparation failure, or a
+/// circle of waits (client/domain/objects.md, 5; domain/tasks.md, 5.5 and 6.7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum HoldSource {
+    /// Why preparing failed past its allowance, only on `Hold::Failures`.
+    Preparation {
+        words: Box<[u8]>,
+    },
     Resource(Name),
     Effect {
         connector: u16,
@@ -1853,13 +1857,10 @@ pub enum Event {
     /// reply.
     /// Preparation became stale or waits for an account/host; return to due without a retry timer.
     PreparationWaiting { task: u64 },
-    PreparationFailed {
-        /// `Preparing` task to pause without consuming an activation failure try; absent or other-
-        /// phase tasks are ignored.
-        task: u64,
-    },
-    /// An unread transcript fails only a preparing task as transient, under its retry policy.
-    PreparationUnread { task: u64 },
+    /// Pause preparation without spending a try, retaining its reason.
+    PreparationPaused { task: u64, reason: Box<[u8]> },
+    /// Count a preparation failure, retaining its reason through backoff and hold.
+    PreparationCounted { task: u64, class: Class, reason: Box<[u8]> },
     /// Authorized notification preserving prior state and issuing `Stop` for any live run;
     /// absent tasks and unchanged reasons have no output.
     Hold {

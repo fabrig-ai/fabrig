@@ -262,8 +262,9 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // The started-from dependency slice adds 16 bytes to the task owner.
 // The durable live-room condition adds 16 bytes to the task owner.
 // Direct delegates' endings occupy 16 aligned bytes in the task owner.
+// The retry notice's optional reason occupies 16 inline bytes.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2568;
+pub const TURN_OVERLAP_BYTES: u64 = 2584;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();

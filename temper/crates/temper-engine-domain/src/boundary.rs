@@ -503,6 +503,10 @@ pub enum Fact {
         findings: Box<[jig_domain_authority::Finding]>,
         error: Option<skein_forge::api::Error>,
     },
+    /// A brief section's forge read failed (temper/docs/design/domain/forge.md, 8.4).
+    BriefReadRefused { task: u64, section: &'static [u8], stage: &'static str, error: Option<skein_forge::api::Error> },
+    /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine.md, 9.1).
+    BriefFailed { task: u64, counts: &'static str, reason: Box<[u8]> },
     /// A decoded call refused at admission, before any tool runs.
     CallAdmissionRefused { task: u64, attempt: u64, tool: Box<[u8]>, layer: &'static str, reason: &'static str },
     /// A fenced answer reported a permanent preparation failure.

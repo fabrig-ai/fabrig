@@ -6,11 +6,20 @@ use alloc::boxed::Box;
 
 use skein_lib::{Decimal, Queue, Token, Writer};
 
+use crate::brief_words::{BOUNDS, CHECKS, ROOM};
 use crate::{BriefRead, BriefSource, Domain, Request, brief};
+
+#[derive(PartialEq, Eq, Debug)]
+pub(crate) struct Planned {
+    pub(crate) source: BriefSource,
+    pub(crate) partner: Option<Token>,
+}
 
 #[derive(Debug)]
 pub(crate) struct Pending {
     source: BriefSource,
+    partner: Option<Token>,
+    unread: bool,
     budget: u32,
     dropped: bool,
 }
@@ -18,6 +27,8 @@ pub(crate) struct Pending {
 #[derive(Debug)]
 pub(crate) struct Held {
     source: BriefSource,
+    partner: Option<Token>,
+    unread: bool,
     pub(crate) words: Box<[u8]>,
     ci: Option<crate::brief_ci::Section>,
     document: Option<crate::brief_document::Section>,
@@ -28,22 +39,24 @@ pub(crate) fn gather(
     domain: &mut Domain,
     section: Token,
     source: BriefSource,
+    partner: Option<Token>,
     parts: u32,
     bytes: u32,
     max_job_bytes: u32,
     limit: u32,
     out: &mut Queue<Request>,
 ) {
-    if domain.brief_pending.contains_key(&section)
-        || domain.brief_held.contains_key(&section)
-        || domain.brief_pending.len().saturating_add(domain.brief_held.len()) >= domain.brief_held.capacity()
-    {
-        out.push(Request::BriefSized { section, size: None });
+    if domain.brief_pending.contains_key(&section) || domain.brief_held.contains_key(&section) {
+        out.push(Request::BriefSized { section, size: Err(BOUNDS) });
+        return;
+    }
+    if domain.brief_pending.len().saturating_add(domain.brief_held.len()) >= domain.brief_held.capacity() {
+        out.push(Request::BriefSized { section, size: Err(ROOM) });
         return;
     }
     domain
         .brief_pending
-        .insert(section, Pending { source, budget: bytes, dropped: false })
+        .insert(section, Pending { source, partner, unread: false, budget: bytes, dropped: false })
         .expect("section room checked");
     brief::gather(domain, section, source, parts, bytes, max_job_bytes, limit, out);
 }
@@ -58,19 +71,29 @@ pub(crate) fn ready(domain: &mut Domain, section: Token, read: BriefRead, out: &
         return;
     }
     let words = match read {
-        BriefRead::Got { bytes, left } => render(pending.source, bytes, left, pending.budget),
-        BriefRead::Failed => None,
+        BriefRead::Got { bytes, left } => render(pending.source, bytes, left, pending.budget).ok_or(BOUNDS),
+        BriefRead::Failed(unread) => Err(unread),
     };
     match words {
-        Some(words) => {
+        Ok(words) => {
             let size = u32::try_from(words.len()).expect("bounded rendered section");
             domain
                 .brief_held
-                .insert(section, Held { source: pending.source, words, ci: None, document: None })
+                .insert(
+                    section,
+                    Held {
+                        source: pending.source,
+                        partner: pending.partner,
+                        unread: pending.unread,
+                        words,
+                        ci: None,
+                        document: None,
+                    },
+                )
                 .expect("pending reserved held room");
-            out.push(Request::BriefSized { section, size: Some(size) });
+            out.push(Request::BriefSized { section, size: Ok(size) });
         }
-        None => out.push(Request::BriefSized { section, size: None }),
+        Err(unread) => out.push(Request::BriefSized { section, size: Err(unread) }),
     }
 }
 
@@ -85,7 +108,7 @@ pub(crate) fn ready_ci(
     let Some(pending) = domain.brief_pending.remove(&section) else {
         let read = match ci.render(budget) {
             Some(bytes) => BriefRead::Got { bytes, left: 0 },
-            None => BriefRead::Failed,
+            None => BriefRead::Failed(CHECKS),
         };
         out.push(Request::BriefReady { owner: section, read });
         return;
@@ -98,11 +121,21 @@ pub(crate) fn ready_ci(
             let size = u32::try_from(words.len()).expect("bounded CI section");
             domain
                 .brief_held
-                .insert(section, Held { source: pending.source, words, ci: Some(ci), document: None })
+                .insert(
+                    section,
+                    Held {
+                        source: pending.source,
+                        partner: pending.partner,
+                        unread: pending.unread,
+                        words,
+                        ci: Some(ci),
+                        document: None,
+                    },
+                )
                 .expect("pending reserved held room");
-            out.push(Request::BriefSized { section, size: Some(size) });
+            out.push(Request::BriefSized { section, size: Ok(size) });
         }
-        None => out.push(Request::BriefSized { section, size: None }),
+        None => out.push(Request::BriefSized { section, size: Err(CHECKS) }),
     }
 }
 
@@ -122,25 +155,36 @@ pub(crate) fn ready_document(
             let size = u32::try_from(words.len()).expect("bounded document section");
             domain
                 .brief_held
-                .insert(section, Held { source: pending.source, words, ci: None, document: Some(document) })
+                .insert(
+                    section,
+                    Held {
+                        source: pending.source,
+                        partner: pending.partner,
+                        unread: pending.unread,
+                        words,
+                        ci: None,
+                        document: Some(document),
+                    },
+                )
                 .expect("pending reserved held room");
-            out.push(Request::BriefSized { section, size: Some(size) });
+            out.push(Request::BriefSized { section, size: Ok(size) });
         }
-        None => out.push(Request::BriefSized { section, size: None }),
+        None => out.push(Request::BriefSized { section, size: Err(BOUNDS) }),
     }
 }
 
 pub(crate) fn cut(domain: &mut Domain, section: Token, bytes: u32, out: &mut Queue<Request>) {
     let Some(held) = domain.brief_held.remove(&section) else {
-        out.push(Request::BriefSized { section, size: None });
+        out.push(Request::BriefSized { section, size: Err(BOUNDS) });
         return;
     };
     if bytes >= u32::try_from(held.words.len()).expect("bounded section") {
         let size = u32::try_from(held.words.len()).expect("bounded section");
         domain.brief_held.insert(section, held).expect("same held room");
-        out.push(Request::BriefSized { section, size: Some(size) });
+        out.push(Request::BriefSized { section, size: Ok(size) });
         return;
     }
+    let unread = if held.ci.is_some() { CHECKS } else { BOUNDS };
     let rendered = match &held.document {
         Some(document) => document.render(bytes),
         None => match &held.ci {
@@ -153,13 +197,23 @@ pub(crate) fn cut(domain: &mut Domain, section: Token, bytes: u32, out: &mut Que
             let size = u32::try_from(words.len()).expect("bounded cut");
             domain
                 .brief_held
-                .insert(section, Held { source: held.source, words, ci: held.ci, document: held.document })
+                .insert(
+                    section,
+                    Held {
+                        source: held.source,
+                        partner: held.partner,
+                        unread: held.unread,
+                        words,
+                        ci: held.ci,
+                        document: held.document,
+                    },
+                )
                 .expect("same held room");
-            out.push(Request::BriefSized { section, size: Some(size) });
+            out.push(Request::BriefSized { section, size: Ok(size) });
         }
         None => {
             domain.brief_held.insert(section, held).expect("same held room");
-            out.push(Request::BriefSized { section, size: None });
+            out.push(Request::BriefSized { section, size: Err(unread) });
         }
     }
 }
@@ -272,4 +326,21 @@ fn continues(byte: Option<&u8>) -> bool {
         Some(byte) => byte & 0b1100_0000 == 0b1000_0000,
         None => false,
     }
+}
+
+/// A section may stand on its partner once; both unread sections fail the brief.
+pub(crate) fn stand_on_partner(domain: &mut Domain, section: Token) -> bool {
+    let Some(pending) = domain.brief_pending.get(&section) else { return false };
+    let Some(partner) = pending.partner else { return false };
+    let readable = match domain.brief_pending.get(&partner) {
+        Some(partner) => !partner.unread && !partner.dropped,
+        None => match domain.brief_held.get(&partner) {
+            Some(partner) => !partner.unread,
+            None => domain.brief_planned.contains_key(&partner),
+        },
+    };
+    if readable {
+        domain.brief_pending.get_mut(&section).expect("pending section").unread = true;
+    }
+    readable
 }

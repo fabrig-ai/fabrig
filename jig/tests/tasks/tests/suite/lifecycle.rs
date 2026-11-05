@@ -580,7 +580,7 @@ fn refusals_and_preparation_failure_do_not_spend_tries() {
     w.make(Party::Person(1), vec![task(1, &[])]);
     let reply_to = w.to();
     w.send(Event::Prepare { reply_to, task: 1 });
-    w.send(Event::PreparationFailed { task: 1 });
+    w.send(Event::PreparationPaused { task: 1, reason: b"brief: no brief slot is free".as_slice().into() });
     assert_eq!(w.record(1).attempt, 0);
     w.advance();
     for attempt in 1..=5 {
@@ -913,4 +913,167 @@ fn open_still_refuses_bad_saved_work_before_normalizing_a_finish() {
     });
     refused(&w.replies[&call], Refusal::Contract);
     assert_eq!(w.record(1), &before);
+}
+
+const PREPARING_TASK: u64 = 1;
+const PREPARATION_PARTY: u64 = 1;
+
+fn prepare_reason_task(w: &mut World) {
+    let reply_to = w.to();
+    w.send(Event::Prepare { reply_to, task: PREPARING_TASK });
+}
+
+#[test]
+fn preparing_failures_hold_past_the_allowance_with_the_reason() {
+    let mut w = World::new(327, LIMITS);
+    w.make(Party::Person(PREPARATION_PARTY), vec![task(PREPARING_TASK, &[])]);
+    let allowance = LIMITS.retries.permanent.retries;
+    for count in 0..=allowance {
+        prepare_reason_task(&mut w);
+        w.send(Event::PreparationCounted {
+            task: PREPARING_TASK,
+            class: Class::Permanent,
+            reason: b"brief: required section cannot fit".as_slice().into(),
+        });
+        if count < allowance {
+            w.advance();
+        }
+    }
+    assert_eq!(
+        w.record(PREPARING_TASK).phase,
+        Phase::Held {
+            was: Was::Active(Active::Due),
+            why: Hold::Failures(Class::Permanent),
+            source: Some(Box::new(jig_domain_tasks::HoldSource::Preparation {
+                words: b"brief: required section cannot fit".as_slice().into(),
+            })),
+        }
+    );
+    assert_eq!(
+        w.record(PREPARING_TASK).retry_notice,
+        Some(jig_domain_tasks::RetryNotice::Failed {
+            class: Class::Permanent,
+            count: allowance + 1,
+            allowance,
+            reason: Some(b"brief: required section cannot fit".as_slice().into()),
+        })
+    );
+    assert_eq!(w.record(PREPARING_TASK).attempt, 0);
+    let before = w.records.clone();
+    w.restart();
+    assert_eq!(w.records, before);
+}
+
+#[test]
+fn preparation_pauses_keep_the_reason_without_spending_tries() {
+    let mut w = World::new(328, LIMITS);
+    w.make(Party::Person(PREPARATION_PARTY), vec![task(PREPARING_TASK, &[])]);
+    // More pauses than the transient allowance still spend no failure try.
+    let pauses = LIMITS.retries.transient.retries + 2;
+    for count in 1..=pauses {
+        prepare_reason_task(&mut w);
+        w.send(Event::PreparationPaused { task: PREPARING_TASK, reason: b"brief: no slot is free".as_slice().into() });
+        assert_eq!(
+            w.record(PREPARING_TASK).retry_notice,
+            Some(jig_domain_tasks::RetryNotice::Refused {
+                count,
+                reason: Some(b"brief: no slot is free".as_slice().into()),
+            })
+        );
+        assert_eq!(w.record(PREPARING_TASK).tries, jig_domain_tasks::Tries::NONE);
+        assert_eq!(w.record(PREPARING_TASK).attempt, 0);
+        let before = w.records.clone();
+        w.restart();
+        assert_eq!(w.records, before);
+        w.advance();
+    }
+}
+
+#[test]
+fn preparation_failures_back_off_with_their_class_and_reason() {
+    for class in [Class::Transient, Class::Permanent] {
+        let mut w = World::new(329, LIMITS);
+        w.make(Party::Person(PREPARATION_PARTY), vec![task(PREPARING_TASK, &[])]);
+        prepare_reason_task(&mut w);
+        w.send(Event::PreparationCounted {
+            task: PREPARING_TASK,
+            class,
+            reason: b"brief: section unavailable".as_slice().into(),
+        });
+        assert!(matches!(w.record(PREPARING_TASK).phase, Phase::Active(Active::BackingOff { .. })));
+        assert_eq!(w.record(PREPARING_TASK).tries.of(class), 1);
+        assert_eq!(
+            w.record(PREPARING_TASK).retry_notice,
+            Some(jig_domain_tasks::RetryNotice::Failed {
+                class,
+                count: 1,
+                allowance: LIMITS.retries.of(class).retries,
+                reason: Some(b"brief: section unavailable".as_slice().into()),
+            })
+        );
+        let before = w.records.clone();
+        w.restart();
+        assert_eq!(w.records, before);
+    }
+}
+
+#[test]
+fn preparation_reasons_cut_at_whole_characters() {
+    // 66 three-byte characters plus two ASCII bytes: 200 bytes, cut at 126.
+    const INPUT_CHARACTERS: usize = 66;
+    const KEPT_CHARACTERS: usize = 42;
+    let words = format!("{}ab", "界".repeat(INPUT_CHARACTERS));
+    let expected = "界".repeat(KEPT_CHARACTERS).into_bytes().into_boxed_slice();
+    for event in [
+        Event::PreparationPaused { task: PREPARING_TASK, reason: words.as_bytes().into() },
+        Event::PreparationCounted { task: PREPARING_TASK, class: Class::Permanent, reason: words.as_bytes().into() },
+    ] {
+        let mut w = World::new(330, LIMITS);
+        w.make(Party::Person(PREPARATION_PARTY), vec![task(PREPARING_TASK, &[])]);
+        prepare_reason_task(&mut w);
+        w.send(event);
+        let reason = match &w.record(PREPARING_TASK).retry_notice {
+            Some(
+                jig_domain_tasks::RetryNotice::Failed { reason, .. }
+                | jig_domain_tasks::RetryNotice::Refused { reason, .. },
+            ) => reason.as_ref().expect("preparation reason"),
+            None => panic!("preparation notice"),
+        };
+        assert_eq!(reason, &expected);
+        assert!(reason.len() <= usize::try_from(jig_domain_tasks::REASON_BYTES).expect("byte bound"));
+        assert!(std::str::from_utf8(reason).is_ok());
+    }
+}
+
+#[test]
+fn preparation_notifications_ignore_tasks_outside_preparing_and_restore() {
+    let events: [fn() -> Event; 2] = [
+        || Event::PreparationPaused { task: PREPARING_TASK, reason: b"brief: busy".as_slice().into() },
+        || Event::PreparationCounted {
+            task: PREPARING_TASK,
+            class: Class::Permanent,
+            reason: b"brief: unavailable".as_slice().into(),
+        },
+    ];
+    for event in events {
+        let mut w = World::new(331, LIMITS);
+        w.send(event());
+        w.make(Party::Person(PREPARATION_PARTY), vec![task(PREPARING_TASK, &[])]);
+        let before = w.records.clone();
+        w.send(event());
+        assert_eq!(w.records, before);
+        let mut domain = jig_tasks_world::domain(&LIMITS, 331);
+        let mut out = skein_lib::Queue::uncapped();
+        let mut preparing = w.record(PREPARING_TASK).clone();
+        preparing.phase = Phase::Active(Active::Preparing);
+        jig_domain_tasks::step(
+            &mut domain,
+            &w.env,
+            Event::Restore { record: jig_domain_tasks::Stored::Live(Box::new(preparing.clone())) },
+            &mut out,
+        );
+        jig_domain_tasks::step(&mut domain, &w.env, event(), &mut out);
+        assert!(out.is_empty());
+        assert_eq!(domain.task(PREPARING_TASK), Some(&preparing));
+    }
 }

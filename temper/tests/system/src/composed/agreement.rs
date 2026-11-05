@@ -44,7 +44,9 @@ impl World {
                 call(b"wait", b"{}"),
             ]),
         };
-        let mut world = Self::configured_with(seed, chat.clone(), true, config);
+        // Two conversations may load together; a continuing page needs a slot
+        // while its completed predecessor waits for reclaim.
+        let mut world = Self::configured_limits(seed, chat.clone(), true, config, |limits| limits.loads.loads = 3);
         let head = world.forge.branch(b"org/repo", b"main").expect("main exists");
         let mut hex = String::new();
         for byte in skein_fake_forge_domain::object_bytes(head) {

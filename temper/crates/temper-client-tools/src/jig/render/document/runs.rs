@@ -6,7 +6,7 @@ pub(super) fn encode_retry_notice(
     budget: &mut super::Cut,
 ) {
     match value {
-        jig_client::contract::RetryNotice::OwnerFailed { class, count, allowance } => {
+        jig_client::contract::RetryNotice::OwnerFailed { class, count, allowance, reason } => {
             out.object_start();
             out.key(b"owner_failed");
             out.object_start();
@@ -14,12 +14,16 @@ pub(super) fn encode_retry_notice(
             super::encode_hold_failure(*(class), out, budget);
             out.key(b"count");
             out.unsigned(u64::from(*(count)));
+            if let Some(reason) = reason {
+                out.key(b"reason");
+                super::encode_document_text(reason, out, budget);
+            }
             out.key(b"allowance");
             out.unsigned(u64::from(*(allowance)));
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::RetryNotice::Failed { class, count, allowance } => {
+        jig_client::contract::RetryNotice::Failed { class, count, allowance, reason } => {
             out.object_start();
             out.key(b"failed");
             out.object_start();
@@ -27,17 +31,25 @@ pub(super) fn encode_retry_notice(
             super::encode_failure_class(*(class), out, budget);
             out.key(b"count");
             out.unsigned(u64::from(*(count)));
+            if let Some(reason) = reason {
+                out.key(b"reason");
+                super::encode_document_text(reason, out, budget);
+            }
             out.key(b"allowance");
             out.unsigned(u64::from(*(allowance)));
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::RetryNotice::Refused { count } => {
+        jig_client::contract::RetryNotice::Refused { count, reason } => {
             out.object_start();
             out.key(b"refused");
             out.object_start();
             out.key(b"count");
             out.unsigned(u64::from(*(count)));
+            if let Some(reason) = reason {
+                out.key(b"reason");
+                super::encode_document_text(reason, out, budget);
+            }
             out.object_end();
             out.object_end();
         }
