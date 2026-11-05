@@ -1,0 +1,5 @@
+draft = "ui-away"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-away/inputs/request.md", "temper/docs/design/draft/to-begin.md", "temper/crates/temper-client-view/src/pages/home.rs", "temper/crates/temper-client-domain/src/pages/home.rs", "temper/crates/temper-client-domain/src/forge/dismissed.rs", "temper/crates/temper-engine-domain-forge/src/dismissed.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
