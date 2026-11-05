@@ -1,6 +1,6 @@
 //! Terminal documents and the next exchange of a JSON read (skein/docs/design/forge.md, 5.2).
 use super::{
-    Bounds, Plan, Request, Roster, State, Step, Tables, Whose, api, at, bytes, d, keep_document, reading, size,
+    Bounds, Plan, Request, Roster, State, Step, Tables, Whose, api, bytes, d, keep_document, reading, size,
     terminal,
 };
 use alloc::boxed::Box;
@@ -90,7 +90,7 @@ impl Plan {
                     .checked_div(u64::try_from(crate::measure::COMMENT_BYTES).expect("comment width"))
                     .expect("nonzero width");
                 let rows = List::with_capacity(bounds.rows.min(u32::try_from(room).expect("bounded room")));
-                let step = self.send(Request::Comments { at: at(&row), number: item.number });
+                let step = self.send(Request::Comments { at: row.at(), number: item.number });
                 return Ok((State::Comments { item, rows, more: false, size, after }, Some(step)));
             }
             State::Pull { row } => return Self::pull_status(row, pull(document)?, bounds),
@@ -100,7 +100,7 @@ impl Plan {
                     return Self::pull_status(row, pull, bounds);
                 }
                 let step = self.send(Request::Pulls {
-                    at: at(&row),
+                    at: row.at(),
                     page: super::r::Page { page: Some(1), limit: Some(bounds.page_size) },
                 });
                 return Ok((
@@ -121,7 +121,7 @@ impl Plan {
                 if !found && self.count.saturating_add(skipped) >= limit {
                     let page = page.checked_add(1).ok_or(api::Error::TooLarge)?;
                     let step = self.send(Request::Pulls {
-                        at: at(&row),
+                        at: row.at(),
                         page: super::r::Page { page: Some(page), limit: Some(bounds.page_size) },
                     });
                     return Ok((
@@ -143,8 +143,8 @@ impl Plan {
                     Some(_) | None => return Err(api::Error::InvalidAnswer),
                 };
                 let request = match protection {
-                    Some(name) => Request::Protection { at: at(&row), name },
-                    None => Request::Protections { at: at(&row) },
+                    Some(name) => Request::Protection { at: row.at(), name },
+                    None => Request::Protections { at: row.at() },
                 };
                 return Ok((State::Protection, Some(self.send(request))));
             }
@@ -179,7 +179,7 @@ impl Plan {
                     Some(_) | None => return Err(api::Error::InvalidAnswer),
                 }
                 let login = tables.user(self.repository.forge, user).ok_or(api::Error::Missing)?;
-                let step = self.send(Request::Permission { at: at(&row), login: bytes::copy_of(login) });
+                let step = self.send(Request::Permission { at: row.at(), login: bytes::copy_of(login) });
                 return Ok((State::Permission { row, whose }, Some(step)));
             }
             State::Collaborators { row, rows, limit, .. } => {

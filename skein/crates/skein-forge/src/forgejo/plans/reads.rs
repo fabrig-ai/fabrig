@@ -208,7 +208,7 @@ impl Plan {
         bounds: Bounds,
         tables: &mut Tables,
     ) -> Result<(State, Step), api::Error> {
-        let at = at(&row);
+        let at = row.at();
         let page_at = r::Page { page: Some(1), limit: Some(bounds.page_size) };
         let (state, request) = match read {
             api::Read::Runs { workflow, commit, page } => {
@@ -328,7 +328,7 @@ impl Plan {
     fn permission(&mut self, row: Repository, user: u64, whose: Whose, tables: &mut Tables) -> (State, Step) {
         match tables.user(self.repository.forge, user) {
             Some(login) => {
-                let request = Request::Permission { at: at(&row), login: bytes::copy_of(login) };
+                let request = Request::Permission { at: row.at(), login: bytes::copy_of(login) };
                 (State::Permission { row, whose }, self.send(request))
             }
             None => {
@@ -611,9 +611,6 @@ impl Plan {
         }
         Ok(state)
     }
-}
-fn at(row: &Repository) -> r::Repo {
-    r::Repo { owner: row.owner.clone(), name: row.name.clone() }
 }
 fn turn(mode: super::turn::Mode, row: Repository, bounds: Bounds) -> (State, Step) {
     let plan = super::turn::Plan::new(mode, row, bounds);

@@ -1,6 +1,6 @@
 //! Repository paths and user logins, evicted by least recent use (forge.md, 4.2).
 use crate::api;
-use crate::forgejo::{document::MergeStyle, id::ObjectFormat};
+use crate::forgejo::{document::MergeStyle, id::{ObjectFormat, ObjectId}, request::Repo};
 use crate::users::Users;
 use alloc::boxed::Box;
 use skein_lib::Lru;
@@ -12,6 +12,16 @@ pub struct Repository {
     pub object_format: ObjectFormat,
     pub merge_style: MergeStyle,
     pub html_url: Box<[u8]>,
+}
+impl Repository {
+    #[must_use]
+    pub fn at(&self) -> Repo {
+        Repo { owner: self.owner.clone(), name: self.name.clone() }
+    }
+    #[must_use]
+    pub fn id(&self, bytes: api::Commit) -> ObjectId {
+        ObjectId { bytes, format: self.object_format }
+    }
 }
 /// The two bounded lookup tables. Forge starts hold their page caps beside settings' tokens.
 #[derive(Debug)]
