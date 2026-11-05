@@ -28,7 +28,13 @@ pub struct Model {
 pub(crate) fn model(page: &temper_client_domain::pages::connect_model::ConnectModel) -> Model {
     let mut refusal = None;
     let request = match page.request.pending.as_ref().and_then(|pending| pending.outcome.as_ref()) {
-        None => if page.request.pending.is_some() { "pending" } else { "none" },
+        None => {
+            if page.request.pending.is_some() {
+                "pending"
+            } else {
+                "none"
+            }
+        }
         Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(answer))) => match answer {
             c::Answer::Refused { refusal: why, .. } => {
                 refusal = Some(jig_client::words::Word::refusal(why));

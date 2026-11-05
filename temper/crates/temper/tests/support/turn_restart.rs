@@ -92,6 +92,45 @@ struct Judge<'a> {
     progress: (u32, super::patience::Patience),
 }
 impl Judge<'_> {
+    fn stalled(&self, procs: &[Process], person: &person::Person, figures: &skein_world::Figures) {
+        let setup = procs.iter().find_map(|proc| match proc {
+            Process::Calls(calls) => Some(calls.ends().iter().map(|call| call.exit).collect::<Vec<_>>()),
+            Process::Binary(_)
+            | Process::Stdout(_)
+            | Process::Person(_)
+            | Process::Peer(_)
+            | Process::Issuer(_)
+            | Process::Visitor(_) => None,
+        });
+        eprintln!("stalled change: {}", read(self.root, &["change", "show", "3"]));
+        eprintln!("stalled landing task: {}", read(self.root, &["task", "show", "5"]));
+        eprintln!("stalled landings: {}", read(self.root, &["landing", "list", "--project", "1", "--ended"]));
+        eprintln!("stalled tasks: {}", read(self.root, &["task", "list", "--project", "1"]));
+        let runs = self.chat.forge.expect("forge").repository_observation("acme", "widget", "actions/runs?limit=100");
+        let runs: Vec<_> = runs["workflow_runs"]
+            .as_array()
+            .expect("runs")
+            .iter()
+            .map(|run| json!({"id":run["id"],"workflow":run["workflow_id"],"status":run["status"]}))
+            .collect();
+        eprintln!("stalled runs: {runs:?}");
+        let forge = self.chat.forge.expect("forge");
+        let pull = forge.repository_observation("acme", "widget", "pulls/1");
+        let main = forge.repository_observation("acme", "widget", "branches/main");
+        eprintln!(
+            "stalled pull: {}",
+            json!({"head":pull["head"]["sha"], "base":pull["base"]["sha"],
+        "merge_base":pull["merge_base"], "mergeable":pull["mergeable"], "main":main["commit"]["id"]})
+        );
+        let Process::Binary(binary) = &procs[0] else { panic!("serve") };
+        eprintln!("stalled serve stderr: {}", String::from_utf8_lossy(binary.stderr()));
+        panic!(
+            "turn restart stalled: native step {}, finished={}, setup={setup:?}, forge={}; {figures}",
+            person.steps_seen(),
+            person.finished,
+            self.chat.forge.expect("forge").failure_state()
+        );
+    }
     fn sample(&mut self) -> bool {
         let forge = self.chat.forge.expect("owned forge");
         if let Some(previous) = self.previous
@@ -201,34 +240,7 @@ impl Referee<Process> for Judge<'_> {
         if !self.chat.stopping()
             && let Some(figures) = self.progress.1.failed()
         {
-            let setup = procs.iter().find_map(|proc| match proc {
-                Process::Calls(calls) => Some(calls.ends().iter().map(|call| call.exit).collect::<Vec<_>>()),
-                Process::Binary(_)
-                | Process::Stdout(_)
-                | Process::Person(_)
-                | Process::Peer(_)
-                | Process::Issuer(_)
-                | Process::Visitor(_) => None,
-            });
-            eprintln!("stalled change: {}", read(self.root, &["change", "show", "3"]));
-            eprintln!("stalled landing task: {}", read(self.root, &["task", "show", "5"]));
-            eprintln!("stalled landings: {}", read(self.root, &["landing", "list", "--project", "1", "--ended"]));
-            eprintln!("stalled tasks: {}", read(self.root, &["task", "list", "--project", "1"]));
-            let runs =
-                self.chat.forge.expect("forge").repository_observation("acme", "widget", "actions/runs?limit=100");
-            let runs: Vec<_> = runs["workflow_runs"]
-                .as_array()
-                .expect("runs")
-                .iter()
-                .map(|run| json!({"id":run["id"],"workflow":run["workflow_id"],"status":run["status"]}))
-                .collect();
-            eprintln!("stalled runs: {runs:?}");
-            panic!(
-                "turn restart stalled: native step {}, finished={}, setup={setup:?}, forge={}; {figures}",
-                person.steps_seen(),
-                person.finished,
-                self.chat.forge.expect("forge").failure_state()
-            );
+            self.stalled(procs, person, &figures);
         }
         if !self.chat.stopping() && now >= self.poll {
             self.poll = now.saturating_add(Duration::from_millis(250));
