@@ -122,6 +122,7 @@ pub struct Domain {
     pub(crate) work: Queue<Work>,
     pub(crate) facts: Queue<Fact>,
     pub(crate) run_diagnostics: Queue<crate::RunDiagnostic>,
+    pub(crate) run_refusals: Queue<crate::RunRefusalDiagnostic>,
     pub(crate) facts_lost: u64,
 }
 
@@ -501,6 +502,7 @@ impl Domain {
             work: Queue::uncapped(),
             facts: Queue::with_capacity(crate::limits::FACTS),
             run_diagnostics: Queue::uncapped(),
+            run_refusals: Queue::uncapped(),
             facts_lost: 0,
             config: root_config,
             limits: *limits,
@@ -632,6 +634,13 @@ impl Domain {
     pub fn pop_run_diagnostic(&mut self) -> Option<crate::RunDiagnostic> {
         self.changed();
         self.run_diagnostics.pop()
+    }
+
+    /// Take the oldest accepted refusal's operator evidence, once.
+    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker.md, 4.3).
+    pub fn pop_run_refusal(&mut self) -> Option<crate::RunRefusalDiagnostic> {
+        self.changed();
+        self.run_refusals.pop()
     }
 
     /// The oldest of the root's own facts not drained yet.
