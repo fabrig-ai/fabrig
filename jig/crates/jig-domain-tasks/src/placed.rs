@@ -549,10 +549,9 @@ pub(crate) fn resumed(was: &crate::Was) -> Phase {
     match was {
         crate::Was::Waiting => Phase::Waiting,
         crate::Was::Closing(closing) => Phase::Closing(closing.clone()),
-        crate::Was::Active(crate::Active::Claimed { .. } | crate::Active::Running { .. }) => match was {
-            crate::Was::Active(active) => Phase::Active(*active),
-            crate::Was::Waiting | crate::Was::Closing(_) => unreachable!("active"),
-        },
+        crate::Was::Active(active @ (crate::Active::Claimed { .. } | crate::Active::Running { .. })) => {
+            Phase::Active(*active)
+        }
         crate::Was::Active(_) => Phase::Active(crate::Active::Due),
     }
 }
