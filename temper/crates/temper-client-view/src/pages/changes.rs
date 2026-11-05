@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::{
-    Address, Domain, PlanFilter,
+    Address, Domain,
     pages::{
         Act,
         changes::{From, State},
@@ -318,7 +318,7 @@ fn row_start(
     };
     let label = crate::accounts::words::join(&[title, b" ", &from, &words.say(Word::ToolSeparator, &[]), when]);
     b.open(Role::Item);
-    crate::link(b, &label, bindings.insert(Act::Go { address: Address::Task { task, filter: PlanFilter::All } }));
+    crate::link(b, &label, bindings.insert(Act::Go { address: Address::Task { task } }));
     b.open(Role::Text);
     b.run(Run::Plain, title);
     if !from.is_empty() {

@@ -3,7 +3,7 @@ use crate::driver::step;
 use jig_client::contract as c;
 use skein_lib::{Queue, Token};
 use temper_client_domain::{Action, Address, Domain, Event, Request, address::Filter, pages::Act};
-use temper_client_domain::{ChatsFilter, GoalsFilter, PlanFilter};
+use temper_client_domain::{ChatsFilter, GoalsFilter};
 
 use Then::{
     AccountRefused, Closing, Declined, Filled, Held, KeyReady, OutOfDate, Refused, Rejecting, Releasing, Renewed,
@@ -75,12 +75,12 @@ impl Sample {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
 }
-pub const N: usize = 213;
+pub const N: usize = 230;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
 fn task(task: u64) -> Address {
-    Address::Task { task, filter: PlanFilter::All }
+    Address::Task { task }
 }
 
 #[must_use]
@@ -469,6 +469,23 @@ pub fn samples() -> [Sample; N] {
             address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
             then: Shown,
         },
+        Sample { name: "goal-amending", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-stop-dialog", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-toast", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-sending", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-running", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-needs-funds", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-needs-question", world: Reference, address: task(118), then: Shown },
+        Sample { name: "goal-planning", world: Reference, address: task(122), then: Shown },
+        Sample { name: "goal-paused", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-landed", world: Reference, address: task(123), then: Shown },
+        Sample { name: "goal-landed-open", world: Reference, address: task(123), then: Shown },
+        Sample { name: "goal-stopped", world: Reference, address: task(118), then: Shown },
+        Sample { name: "goal-failed", world: Reference, address: task(122), then: Shown },
+        Sample { name: "goal-no-report", world: Reference, address: task(108), then: Shown },
+        Sample { name: "start-goal", world: Reference, address: CHATS, then: Shown },
+        Sample { name: "start-goal-draft", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "start-goal-refused", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-drafts-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-goals-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
@@ -770,6 +787,18 @@ fn special_mockup(name: &str) -> Option<String> {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one address table maps the gallery pages to their mockups")]
 pub fn mockup(sample: &Sample) -> Option<String> {
+    if sample.name.starts_with("goal-") {
+        let goal = match sample.name {
+            "goal-needs-question" | "goal-stopped" => "welcome-stall",
+            "goal-planning" | "goal-failed" => "forge-cards",
+            "goal-landed" | "goal-landed-open" => "pane-chat-line",
+            _ => "first-run-projects",
+        };
+        return Some(format!("../greenfield/goal.html?g={goal}"));
+    }
+    if matches!(sample.name, "task-solo-T3" | "task-reference-T12") {
+        return Some("../greenfield/goal.html".to_owned());
+    }
     if sample.name == "chat-new-first-run-1" {
         return None;
     }
@@ -847,8 +876,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::ConnectForge { .. } => ("connect-forge", None),
         Address::Forges => ("forges", None),
         Address::Goals { .. }
-        | Address::Home { .. }
         | Address::Changes { .. }
+        | Address::Home { .. }
         | Address::Settings { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
@@ -904,8 +933,79 @@ pub fn mockup(sample: &Sample) -> Option<String> {
     };
     Some(format!("{page}.html?world={world}{task}{forge}{way}&bare"))
 }
+fn goal_domain(sample: &Sample) -> Domain {
+    let base = match sample.name {
+        "goal-amending" | "goal-stop-dialog" | "goal-toast" | "goal-sending" => "goal-running",
+        name => name,
+    };
+    let mut root = crate::worlds::goals_world(sample.world, sample.address.clone(), base);
+    let act = match sample.name {
+        "goal-amending" => Act::Amend,
+        "goal-stop-dialog" => Act::Close,
+        "goal-toast" => Act::Pause,
+        "goal-sending" => {
+            step(
+                &mut root,
+                Event::Act {
+                    action: Action::Pages(Act::MessageWords {
+                        words: Box::from(b"Keep the Ready page in this goal.".as_slice()),
+                    }),
+                },
+                &mut Queue::uncapped(),
+            );
+            Act::Send
+        }
+        _ => return root,
+    };
+    let mut out = Queue::uncapped();
+    step(&mut root, Event::Act { action: Action::Pages(act) }, &mut out);
+    if sample.name == "goal-toast" {
+        while let Some(request) = out.pop() {
+            if let Some(jig_client::Down::Send { attempt, .. }) = crate::driver::down(request) {
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Answer {
+                                attempt,
+                                envelope: skein_lib::RequestEnvelope::Final,
+                                answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                                    c::DocumentOutcome::Stopped { task: 108 },
+                                )))),
+                                why: None,
+                            },
+                        },
+                    },
+                    &mut Queue::uncapped(),
+                );
+            }
+        }
+    }
+    root
+}
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with the world that builds it")]
+fn start_domain(sample: &Sample) -> Domain {
+    let (mut root, _) = crate::worlds::world(sample.world, sample.address.clone(), Then::Shown);
+    if sample.name != "start-goal" {
+        let mut out = Queue::uncapped();
+        step(
+            &mut root,
+            Event::Act {
+                action: Action::Pages(Act::OpenStart {
+                    draft: Some(b"docs/design/draft/first-run-projects.md".as_slice().into()),
+                    chat: Some(1),
+                }),
+            },
+            &mut out,
+        );
+        if sample.name == "start-goal-refused" {
+            step(&mut root, Event::Act { action: Action::Pages(Act::StartGoal) }, &mut out);
+        }
+    }
+    root
+}
+#[must_use]
+#[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
     if sample.name == "settings" || sample.name.starts_with("settings-") {
         return crate::worlds::settings_world(sample.name);
@@ -931,6 +1031,9 @@ pub fn domain(sample: &Sample) -> Domain {
         );
         return root;
     }
+    if sample.name.starts_with("start-goal") {
+        return start_domain(sample);
+    }
     if sample.name.starts_with("needs-") {
         return crate::needs::domain(sample.name);
     }
@@ -943,8 +1046,8 @@ pub fn domain(sample: &Sample) -> Domain {
     if sample.name.starts_with("home-") {
         return home_domain(sample.name);
     }
-    if sample.name.starts_with("goals-") {
-        return crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name);
+    if sample.name.starts_with("goals-") || sample.name.starts_with("goal-") {
+        return goal_domain(sample);
     }
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();

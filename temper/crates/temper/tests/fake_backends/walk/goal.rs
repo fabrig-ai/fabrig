@@ -1,4 +1,5 @@
-//! A chat's goal writes a report on the fake box (temper/docs/design/domain/agent.md, 8.3;
+//! A chat's goal writes a report, reached from its Goals row on the fake box
+//! (temper/docs/design/client/README.md, 5.3, 5.8, 5.13; temper/docs/design/domain/agent.md, 8.3;
 //! temper/docs/design/protocol/configuration.md, 12.1).
 use super::open_default::{browser_bounds, named};
 use super::{Act, Call, Walk, adoption, ctl, path};
@@ -19,31 +20,10 @@ const HEADLINE: &[u8] = b"The local goal wrote its report.";
 fn a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list() {
     let walk = Walk::new("walk-goal");
     let sandbox = walk.sandbox();
+    let ways = walk.scratch.path().join("goal-ways.json");
     let seen = walk.run_then(
         vec![
-            Act::After(Box::new(move |_| {
-                let document = temper_fake::forge::Document::decode(
-                    &std::fs::read(sandbox.join("config/forgejo.json")).expect("fake forge document"),
-                )
-                .expect("forge document");
-                Call::new(&[
-                    "forge",
-                    "connect",
-                    "forgejo-admin",
-                    path(&sandbox.join("data/forgejo-admin.token")),
-                    "--api",
-                    &document.listen().to_string(),
-                    "--git",
-                    &format!("http://{}", document.listen()),
-                    "--git-program",
-                    path(&sandbox.join("data/demo/bin/git")),
-                    "--first",
-                    "work/widget",
-                    "--key",
-                    "goal-forge",
-                    "--json",
-                ])
-            })),
+            Act::After(Box::new(move |_| connect(&sandbox))),
             walk.add_key(),
             Act::Now(Call::new(&["account", "list", "--until", "usable", "--json"])),
             Act::After(Box::new(|seen| {
@@ -65,6 +45,15 @@ fn a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list() {
             Act::Now(Call::new(&["task", "show", "1", "--until", "replied", "--json"])),
             Act::Now(Call::new(&["chat", "show", "1", "--json"])),
             Act::Now(Call::new(&["task", "show", "2", "--until", "ended", "--json"])),
+            Act::Now(Call::new(&["settings", "show", "--json"])),
+            Act::After(Box::new(move |seen| {
+                let value = serde_json::json!({"items": [{
+                    "setting": {"kind": "project-ways", "project": 1},
+                    "set": {"drafts": false, "goals": true, "changes": false, "away": false, "way": 0}
+                }]});
+                crate::support::write_private(&ways, &serde_json::to_vec(&value).expect("project ways JSON"));
+                ctl::settings_change(seen.last().expect("settings inventory"), &ways, "goal-ways")
+            })),
         ],
         show_goal,
     );
@@ -76,11 +65,36 @@ fn a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list() {
     walk.scratch.remove();
 }
 
+fn connect(sandbox: &Path) -> Call {
+    let document = temper_fake::forge::Document::decode(
+        &std::fs::read(sandbox.join("config/forgejo.json")).expect("fake forge document"),
+    )
+    .expect("forge document");
+    Call::new(&[
+        "forge",
+        "connect",
+        "forgejo-admin",
+        path(&sandbox.join("data/forgejo-admin.token")),
+        "--api",
+        &document.listen().to_string(),
+        "--git",
+        &format!("http://{}", document.listen()),
+        "--git-program",
+        path(&sandbox.join("data/demo/bin/git")),
+        "--first",
+        "work/widget",
+        "--key",
+        "goal-forge",
+        "--json",
+    ])
+}
+
 #[derive(Debug)]
 enum Page {
     Starting,
     Rail,
     Goals,
+    Goal,
     Done,
 }
 struct Judge {
@@ -96,7 +110,7 @@ impl Referee<NativeClient> for Judge {
                 self.page = Page::Rail;
             }
             Page::Rail if named(client, Role::Link, b"Goals").is_some() => {
-                // Away from the goals page, this link proves Domain::has_goals(1) is true.
+                // Project ways show Goals in the rail from Home (client/README.md, 5.3).
                 client.go(Address::Goals { project: 1, filter: GoalsFilter::All });
                 self.page = Page::Goals;
             }
@@ -105,20 +119,30 @@ impl Referee<NativeClient> for Judge {
                     text(client, Role::Heading { level: 1 }, b"1 goal, 0 under way."),
                     "the list counts the ended goal"
                 );
-                assert!(
-                    client.tree().nodes().iter().any(|node| {
+                let row = client
+                    .tree()
+                    .nodes()
+                    .iter()
+                    .find(|node| {
                         node.role == Role::Link
                             && node.name.as_deref().is_some_and(|name| {
                                 name.starts_with(b"Write a report for this local demonstration.")
                                     && name.windows(b"landed".len()).any(|part| part == b"landed")
                             })
-                    }),
-                    "the goal row names its landed state"
-                );
+                    })
+                    .expect("the goal row names its landed state")
+                    .id;
+                assert!(client.act(row, skein_ui::Act::Press), "the goal row opens its page");
+                self.page = Page::Goal;
+            }
+            Page::Goal if text(client, Role::Paragraph, b"I wrote this report on the local fake box.") => {
+                assert!(text(client, Role::Heading { level: 1 }, HEADLINE), "the report headlines the goal page");
+                assert!(named(client, Role::Region, b"Report").is_some(), "the goal page has its report");
+                assert!(text(client, Role::Heading { level: 2 }, b"Landing"), "the goal page shows Landing");
                 client.close();
                 self.page = Page::Done;
             }
-            Page::Starting | Page::Rail | Page::Goals | Page::Done => {}
+            Page::Starting | Page::Rail | Page::Goals | Page::Goal | Page::Done => {}
         }
         assert!(
             self.passed() || now < self.until,

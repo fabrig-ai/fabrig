@@ -423,7 +423,7 @@ and `connect-forge.html`.
   yet", "No forge of yours yet." and "Connect a forge", the same link. With
   no project its level-1 heading is "Forges", and the lede follows it. While the playground runs, neither link is
   drawn: there is nothing to add (`README.md`, 4.8). Each row is a disclosure, in the rows' look
-  (`README.md`, 3.5, *The rows*), folded to its summary: its name, "forge N · KIND · WEB" (its number, its kind and
+  (`README.md`, 3.5, *The rows*), folded to its summary: its name, "Forge N · KIND · WEB" (its number, its kind and
   its `web` address), its connection's words (below) and its line:
   connected, its repositories, "OWNER/NAME · project PROJECT" each;
   setting up, its set up's first repository, "ORG/NAME";

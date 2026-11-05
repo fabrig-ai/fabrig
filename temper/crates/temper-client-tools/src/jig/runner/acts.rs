@@ -482,7 +482,35 @@ fn build(
         _ => unreachable!("act tool"),
     };
     let phase = subject::ended(document);
-    Ok((Request::Act { ask, phase }, to))
+    Ok((Request::Act { ask, phase, asked: asked(call, document) }, to))
+}
+/// Past what the read contract asks, the refusal names the bound (client/tools.md, 5.5).
+fn asked(call: &Call, document: &c::ReadValue) -> Option<render::outcome::Asked> {
+    if call.tool != rows::ANSWER_AT {
+        return None;
+    }
+    let c::ReadValue::PersonTask(task) = document else { return None };
+    let (bound, choice, index) = match call.form {
+        1 => {
+            let c::TaskContractDocument::Verdict { choices, .. } = &task.contract else { return None };
+            let code = number(call, 2)?;
+            let mut bound = None;
+            for choice in choices {
+                if u64::from(choice.code) == code {
+                    bound = Some((choice.words, Some(choice.code), 3));
+                    break;
+                }
+            }
+            bound?
+        }
+        2 => {
+            let c::TaskContractDocument::Report { words } = &task.contract else { return None };
+            (*words, None, 2)
+        }
+        _ => return None,
+    };
+    let Some(Value::Text(text)) = value(call, index) else { return None };
+    if text.len() > skein_lib::length::usize_of(bound) { Some(render::outcome::Asked { bound, choice }) } else { None }
 }
 fn answer(call: &Call, limits: &Limits) -> Result<c::AnswerOn, Failed> {
     let task = number(call, 0).expect("task");
@@ -587,7 +615,7 @@ pub(crate) enum Request {
     MoveIn,
     Ask(c::Ask),
     Amend { ask: c::Ask, alternate: Option<c::Ask> },
-    Act { ask: c::Ask, phase: Option<c::Phase> },
+    Act { ask: c::Ask, phase: Option<c::Phase>, asked: Option<render::outcome::Asked> },
     Account { ask: c::Ask, context: render::outcome::Account },
     AddKey { holder: c::AskAccountHolder, provider: u32, join: Option<u32> },
     ReplaceKey { holder: c::AskAccountHolder, source: u32 },
@@ -619,10 +647,20 @@ pub(crate) fn prepared(
     };
     send(runner, client, called, request, to, out);
 }
-fn context(request: Request) -> (Request, Option<render::outcome::Account>, Option<c::Phase>) {
+struct Context {
+    request: Request,
+    account: Option<render::outcome::Account>,
+    ended_task: Option<c::Phase>,
+    asked: Option<render::outcome::Asked>,
+}
+fn context(request: Request) -> Context {
     match request {
-        Request::Act { ask, phase } => (Request::Ask(ask), None, phase),
-        Request::Account { ask, context } => (Request::Ask(ask), Some(context), None),
+        Request::Act { ask, phase, asked } => {
+            Context { request: Request::Ask(ask), account: None, ended_task: phase, asked }
+        }
+        Request::Account { ask, context } => {
+            Context { request: Request::Ask(ask), account: Some(context), ended_task: None, asked: None }
+        }
         request @ (Request::MoveOut { .. }
         | Request::Written { .. }
         | Request::MoveIn
@@ -631,7 +669,7 @@ fn context(request: Request) -> (Request, Option<render::outcome::Account>, Opti
         | Request::AddKey { .. }
         | Request::ReplaceKey { .. }
         | Request::DeclareProgram { .. }
-        | Request::CheckProgram { .. }) => (request, None, None),
+        | Request::CheckProgram { .. }) => Context { request, account: None, ended_task: None, asked: None },
     }
 }
 fn amendment_request(request: Request) -> (Request, Option<c::Ask>, bool) {
@@ -676,7 +714,7 @@ fn send(
         Some(name) => Some(crate::jig::key::named(runner.salt, name)),
         None => None,
     };
-    let (request, account, ended_task) = context(request);
+    let Context { request, account, ended_task, asked } = context(request);
     let mut holder = None;
     let mut exported = None;
     let event = match request {
@@ -730,6 +768,7 @@ fn send(
     }
     operation.account = account;
     operation.ended_task = ended_task;
+    operation.asked = asked;
     if called.call.tool != rows::EXPORT_AT
         && called.call.tool != rows::CHANGE_SETTINGS_AT
         && called.call.tool != rows::PROPOSE_SETTINGS_AT
@@ -867,7 +906,7 @@ fn close_request(call: &Call, document: &c::ReadValue, me: &c::Me, limits: &Limi
     // Only immutable routing scope enters the ask. Terminal history is kept
     // as answer context: an archived task can be Unknown to a fresh act.
     let phase = subject::ended(document);
-    Ok((Request::Act { ask: close(call, me, task.project, limits)?, phase }, None))
+    Ok((Request::Act { ask: close(call, me, task.project, limits)?, phase, asked: None }, None))
 }
 
 fn close(call: &Call, me: &c::Me, project: u32, limits: &Limits) -> Result<c::Ask, Failed> {

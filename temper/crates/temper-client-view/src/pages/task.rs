@@ -1,4 +1,4 @@
-//! A task's header, specification, supplied subtree and latest committed activity.
+//! Other task pages and shared task parts (temper/docs/design/client/README.md, 5.8–5.11).
 use crate::{
     frame::Bindings,
     look,
@@ -8,12 +8,11 @@ use alloc::boxed::Box;
 use jig_client::{Latest, contract as c};
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::{Builder, Role, Run, phrases::Hole};
-use temper_client_domain::PlanFilter;
 use temper_client_domain::{
     Address, Domain,
     pages::{
         Act,
-        delegation::{self, Kind, State as ResultState},
+        delegation::{self, State as ResultState},
         task::{self, Shape, State},
     },
 };
@@ -41,6 +40,13 @@ pub(crate) fn main(
         && page.document(root.client()).is_some()
     {
         super::agent::main(b, root, words, bindings, rows, times);
+        return;
+    }
+    if let Some(page) = root.pages().task()
+        && page.shape == Shape::Tracked
+        && page.document(root.client()).is_some()
+    {
+        super::goal::main(b, root, words, bindings, rows, times);
         return;
     }
     b.open(Role::Main);
@@ -80,32 +86,8 @@ pub(crate) fn main(
             let text_bound = words.capacity().expect("checked text capacity");
             super::change::toolbar(b, change, words, text_bound, super::serves_pages(root, change.forge()));
         }
-        if page.shape == Shape::Tracked {
-            if root.pages().confirmation().is_none()
-                && match &page.amending {
-                    Some(open) => open.done,
-                    None => true,
-                }
-                && (jig_client::facts::offer(task.acts.as_slice(), c::ActKind::Amend).is_some()
-                    || jig_client::facts::offer(task.acts.as_slice(), c::ActKind::Stop).is_some()
-                    || jig_client::facts::offer(task.acts.as_slice(), c::ActKind::Cancel).is_some())
-            {
-                b.open(Role::Slot);
-                b.style(look::TASK_ACTS);
-                act(b, task, c::ActKind::Amend, Word::Amend, Act::Amend, words, bindings);
-                act(b, task, c::ActKind::Stop, Word::Stop, Act::Stop, words, bindings);
-                act(b, task, c::ActKind::Cancel, Word::Cancel, Act::Close, words, bindings);
-                b.close();
-            }
-            amendment(b, root, words, bindings);
-            outcome(b, root, words);
-        }
         controls(b, &task.chip, root, words, bindings, rows);
         crate::choice::composer(b, root, Some(task), words, bindings, times);
-        if page.shape == Shape::Tracked {
-            asked(b, task, words);
-            result(b, task, words, look::TASK_CARD);
-        }
         if let Some(change) = change {
             super::change::start(b, change, words, bindings);
         }
@@ -122,10 +104,6 @@ pub(crate) fn main(
         }
         if let Some(change) = change {
             super::change::finish(b, change, words);
-        }
-        if page.shape == Shape::Tracked {
-            latest(b, page.latest.as_deref(), words, bindings);
-            budget(b, task, root.pages().me(root.client()), words, bindings);
         }
     }
     crate::confirm::main(b, root, words, bindings, rows);
@@ -168,10 +146,16 @@ pub(crate) fn act(
     match admission {
         c::Admission::Allowed | c::Admission::Bounded { .. } => {
             b.open(Role::Button);
-            if kind == c::ActKind::Cancel {
-                b.style(look::TASK_DANGER);
-            }
             b.name(&words.say(word, &[]));
+            if task.priority.is_some() {
+                b.style(look::GOAL_BTN);
+                if word != Word::SendAmendment {
+                    b.style(look::GOAL_SMALL);
+                }
+                if kind == c::ActKind::Cancel {
+                    b.style(look::GOAL_QUIET);
+                }
+            }
             b.bind(bindings.insert(act));
             b.close();
         }
@@ -216,14 +200,17 @@ fn amendment_outcome(b: &mut Builder, root: &Domain, words: &Words, bindings: &m
             ..
         })) = outcome
         {
-            button(b, Word::LookAgain, Act::AmendAgain, words, bindings);
+            button(b, Word::LookAgain, Act::AmendAgain, words, bindings, page.shape == Shape::Tracked);
         }
     }
 }
 
-fn button(b: &mut Builder, word: Word, act: Act, words: &Words, bindings: &mut Bindings) {
+fn button(b: &mut Builder, word: Word, act: Act, words: &Words, bindings: &mut Bindings, goal: bool) {
     b.open(Role::Button);
     b.name(&words.say(word, &[]));
+    if goal {
+        b.style(look::GOAL_BTN);
+    }
     b.bind(bindings.insert(act));
     b.close();
 }
@@ -233,7 +220,8 @@ pub(crate) fn amendment(b: &mut Builder, root: &Domain, words: &Words, bindings:
     let Some(open) = &page.amending else { return };
     let Some(task) = page.document(root.client()) else { return };
     b.open(Role::Region);
-    b.style(look::TASK_AMEND);
+    let goal = page.shape == Shape::Tracked;
+    b.style(if goal { look::GOAL_FIELD } else { look::TASK_AMEND });
     let title = words.say(Word::AmendTask, &[Hole::Number(page.number)]);
     b.name(&title);
     text(b, Role::Heading { level: 2 }, &title);
@@ -248,6 +236,9 @@ pub(crate) fn amendment(b: &mut Builder, root: &Domain, words: &Words, bindings:
         // The text area's name is its label too, drawn where a person sees it.
         text(b, Role::Paragraph, &words.say(Word::Specification, &[]));
         b.open(Role::TextArea);
+        if goal {
+            b.style(look::GOAL_TEXT);
+        }
         b.name(&words.say(Word::Specification, &[]));
         b.value(&open.words, 0);
         b.bind(bindings.insert(Act::AmendWords { words: Box::default() }));
@@ -262,6 +253,9 @@ pub(crate) fn amendment(b: &mut Builder, root: &Domain, words: &Words, bindings:
         }
         b.close();
         b.open(Role::TextField);
+        if goal {
+            b.style(look::GOAL_TEXT);
+        }
         b.name(&words.say(Word::AmendPriority, &[]));
         let priority = match tracking {
             c::Tracking::Tracked { priority } => priority,
@@ -282,7 +276,7 @@ pub(crate) fn amendment(b: &mut Builder, root: &Domain, words: &Words, bindings:
     } else {
         act(b, task, c::ActKind::Amend, Word::SendAmendment, Act::SendAmendment, words, bindings);
     }
-    button(b, Word::Discard, Act::DiscardAmendment, words, bindings);
+    button(b, Word::Discard, Act::DiscardAmendment, words, bindings, goal);
     amendment_outcome(b, root, words, bindings);
     b.close();
 }
@@ -300,11 +294,6 @@ pub(crate) fn header(
     b.style(look::TASK_HEADING);
     b.open(Role::Slot);
     b.style(look::META);
-    if change.is_none()
-        && let Some(priority) = task.priority
-    {
-        text(b, Role::Paragraph, &words.say(Word::GoalPriority, &[Hole::Number(u64::from(priority))]));
-    }
     if change.is_some() {
         b.open(Role::Paragraph);
         b.style(look::CHANGE_TAG);
@@ -457,45 +446,6 @@ fn phase_token(phase: c::Phase) -> skein_ui::Style {
         c::Phase::Closing | c::Phase::Ended | c::Phase::Cancelled => look::STATUS_QUIET,
     }
 }
-pub(crate) fn asked(b: &mut Builder, task: &c::Task, words: &Words) {
-    region(b, Word::Asked, words);
-    b.style(look::TASK_CARD);
-    b.open(Role::Paragraph);
-    b.style(look::TASK_CONTRACT);
-    let kind = match delegation::facts(task).kind {
-        Kind::Report => Word::GoalReport,
-        Kind::Change => Word::GoalChange,
-        Kind::Verdict => Word::GoalVerdict,
-        Kind::Job => Word::JobContract,
-        Kind::Approval => Word::GoalApproval,
-    };
-    let name = words.say(kind, &[]);
-    b.name(&name);
-    b.text(Run::Plain, &name);
-    b.close();
-    skein_ui::markdown::read(task.spec.specification.words.bytes(), 3, b);
-    let parts = !task.resources.is_empty()
-        || match &task.context {
-            Some(context) => !context.parts.is_empty(),
-            None => false,
-        };
-    if parts {
-        b.open(Role::Slot);
-        b.style(look::META);
-    }
-    for resource in &task.resources {
-        crate::forge::owner_part(b, &resource.part, words);
-    }
-    if let Some(context) = &task.context {
-        for part in &context.parts {
-            crate::forge::drawn(b, part, words);
-        }
-    }
-    if parts {
-        b.close();
-    }
-    b.close();
-}
 pub(crate) fn result(b: &mut Builder, task: &c::Task, words: &Words, style: skein_ui::Style) {
     let facts = delegation::facts(task);
     match facts.state {
@@ -513,90 +463,6 @@ pub(crate) fn result(b: &mut Builder, task: &c::Task, words: &Words, style: skei
     crate::cards::delegation::status(b, facts.state, words);
     if let Some(said) = facts.said {
         crate::cards::delegation::said(b, said, words);
-    }
-    b.close();
-}
-pub(crate) fn budget(b: &mut Builder, task: &c::Task, me: Option<&c::Me>, words: &Words, bindings: &mut Bindings) {
-    region(b, Word::BudgetAuthority, words);
-    b.style(look::TASK_CARD);
-    b.style(look::TASK_BUDGET);
-    let budget = &task.budget;
-    let authority = &task.authority.authority;
-    text(
-        b,
-        Role::Paragraph,
-        &words.say(
-            Word::BudgetLeft,
-            &[Hole::Number(budget.numbers.spent), Hole::Number(budget.left), Hole::Number(budget.numbers.budget)],
-        ),
-    );
-    for (term, amount) in
-        [(Word::DelegatesSpent, budget.numbers.spent_below), (Word::ReservedDelegates, budget.numbers.reserved)]
-    {
-        text(b, Role::Term, &words.say(term, &[]));
-        text(b, Role::Description, &words.say(Word::Amount, &[Hole::Number(amount)]));
-    }
-    text(b, Role::Term, &words.say(Word::FundedBy, &[]));
-    match budget.funder {
-        c::Funder::Task(number) => {
-            b.open(Role::Description);
-            task_link(b, number, words, bindings);
-            b.close();
-        }
-        c::Funder::Pool { person, .. } => {
-            let mine = match me {
-                Some(me) => me.party.number == person,
-                None => false,
-            };
-            let name = if mine {
-                words.say(Word::YourPool, &[])
-            } else {
-                words.say(Word::PersonPool, &[Hole::Number(person)])
-            };
-            text(b, Role::Description, &name);
-        }
-        c::Funder::Recurring { task, .. } => {
-            text(b, Role::Description, &words.say(Word::RecurringBudget, &[Hole::Number(task)]));
-        }
-        c::Funder::Period { project, .. } => {
-            text(b, Role::Description, &words.say(Word::ProjectBudget, &[Hole::Number(u64::from(project))]));
-        }
-    }
-    text(b, Role::Term, &words.say(Word::BudgetDeadline, &[]));
-    let deadline = match budget.deadline {
-        Some(at) => words.deadline(at),
-        None => words.say(Word::NoDeadline, &[]),
-    };
-    text(b, Role::Description, &deadline);
-    text(b, Role::Term, &words.say(Word::MaySpend, &[]));
-    text(b, Role::Description, &words.say(Word::Amount, &[Hole::Number(authority.spend)]));
-    text(b, Role::Term, &words.say(Word::MayDelegate, &[]));
-    let delegation = &authority.delegation;
-    let bounds = if delegation.tasks == 1 {
-        words.say(Word::DelegateOne, &[Hole::Number(u64::from(delegation.depth))])
-    } else {
-        words.say(
-            Word::DelegateBounds,
-            &[Hole::Number(u64::from(delegation.tasks)), Hole::Number(u64::from(delegation.depth))],
-        )
-    };
-    text(b, Role::Description, &bounds);
-    if let Some(models) = &authority.models {
-        text(b, Role::Term, &words.say(Word::Models, &[]));
-        match models {
-            c::AuthorityModels::All => text(b, Role::Description, &words.say(Word::AllModels, &[])),
-            c::AuthorityModels::Named(names) if names.is_empty() => {
-                text(b, Role::Description, &words.say(Word::NoModels, &[]));
-            }
-            c::AuthorityModels::Named(names) => {
-                for name in names {
-                    text(b, Role::Description, &words.model_name(name));
-                }
-            }
-        }
-    }
-    if task.authority.cut {
-        text(b, Role::Paragraph, &words.say(Word::AuthorityCut, &[]));
     }
     b.close();
 }
@@ -627,7 +493,7 @@ fn chip(b: &mut Builder, chip: &c::Chip, words: &Words, bindings: &mut Bindings)
 }
 pub(crate) fn task_link(b: &mut Builder, task: u64, words: &Words, bindings: &mut Bindings) {
     let name = words.say(Word::Task, &[Hole::Number(task)]);
-    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task, filter: PlanFilter::All } }));
+    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task } }));
     b.text(Run::Plain, &name);
     b.close();
 }
@@ -747,7 +613,6 @@ fn folded(b: &mut Builder, counts: &[(c::Phase, u32)], held_below: u32, words: &
 pub(crate) struct Plan<'a> {
     pub word: Word,
     pub ended: Option<(&'a c::TaskPage, bool)>,
-    pub goal: Option<(PlanFilter, u32)>,
 }
 impl<'a> Plan<'a> {
     fn of(page: &'a task::Task, task: &c::Task) -> Self {
@@ -777,41 +642,11 @@ impl<'a> Plan<'a> {
             )),
             Some(_) | None => None,
         };
-        let goal = if word == Word::Plan && page.ended.is_some() {
-            let live = task.chip.details.details.live_delegates;
-            Some((page.filter, live))
-        } else {
-            None
-        };
-        Self { word, ended, goal }
+        Self { word, ended }
     }
-    fn heading(&self, b: &mut Builder, words: &Words, bindings: &mut Bindings, ended_rows: &EndedRows<'_>) {
+    fn heading(&self, b: &mut Builder, words: &Words) {
         region(b, self.word, words);
         b.style(look::TASK_CARD);
-        if let Some((filter, live)) = self.goal {
-            if self.ended.is_some() {
-                text(
-                    b,
-                    Role::Paragraph,
-                    &words.say(
-                        if ended_rows.more { Word::PlanMoreCounts } else { Word::PlanCounts },
-                        &[Hole::Number(u64::from(live)), Hole::Number(skein_lib::len_u64(ended_rows.lines.len()))],
-                    ),
-                );
-            }
-            b.open(Role::Slot);
-            b.style(look::FILTERS);
-            for (value, word) in [(PlanFilter::All, Word::AllPlan), (PlanFilter::Live, Word::LivePlan)] {
-                b.open(Role::Button);
-                b.name(&words.say(word, &[]));
-                if filter == value {
-                    b.state(skein_ui::State::Pressed);
-                }
-                b.bind(bindings.insert(Act::PlanFilter { filter: value }));
-                b.close();
-            }
-            b.close();
-        }
     }
 }
 fn owner_plan_row(b: &mut Builder, row: &c::TreeRow, root: &Domain, words: &Words, bindings: &mut Bindings, rows: u32) {
@@ -833,12 +668,8 @@ pub(crate) fn plan(
     part: Plan<'_>,
 ) {
     let mut ended_rows = EndedRows::new(part.ended, tree);
-    part.heading(b, words, bindings, &ended_rows);
-    let Plan { word, ended, goal } = part;
-    if let Some((PlanFilter::Live, _)) = goal {
-        ended_rows.lines = &[];
-        ended_rows.more = false;
-    }
+    part.heading(b, words);
+    let Plan { word, ended } = part;
     b.open(Role::Tree);
     b.style(look::PLAN);
     b.name(&words.say(word, &[]));
@@ -887,10 +718,10 @@ pub(crate) fn plan(
     has_tree_content |= ended_rows.before(b, None, root, words, bindings, rows);
     b.close();
     if !has_tree_content {
-        let word = match (ended, goal) {
-            (_, Some((PlanFilter::Live, _))) | (None, _) => Word::NoLiveTasks,
-            (Some((_, true)), _) => Word::ItsTasksNone,
-            (Some((_, false)), _) => Word::ItsTasksNoneYet,
+        let word = match ended {
+            None => Word::NoLiveTasks,
+            Some((_, true)) => Word::ItsTasksNone,
+            Some((_, false)) => Word::ItsTasksNoneYet,
         };
         text(b, Role::Paragraph, &words.say(word, &[]));
     }
@@ -1112,60 +943,6 @@ fn owner_folds(b: &mut Builder, tree: &c::Tree, parent: u64, words: &Words) -> b
     shown
 }
 
-pub(crate) fn latest(b: &mut Builder, page: Option<&c::ActivityPage>, words: &Words, bindings: &mut Bindings) {
-    region(b, Word::Latest, words);
-    b.style(look::TASK_CARD);
-    if let Some(page) = page
-        && !page.rows.is_empty()
-    {
-        b.open(Role::List);
-        b.style(look::EVENTS);
-        for row in &page.rows {
-            b.open(Role::Item);
-            text(b, Role::Paragraph, &words.say(Word::ActivityAt, &[Hole::Wall(row.source.at)]));
-            b.open(Role::Slot);
-            activity(b, row, words, bindings);
-            b.close();
-            b.close();
-        }
-        b.close();
-    }
-    b.close();
-}
-fn activity(b: &mut Builder, event: &c::DecodedActivityLine, words: &Words, bindings: &mut Bindings) {
-    if let Some((_, text)) = event.word_message() {
-        text_node(b, text.bytes());
-        return;
-    }
-    if let Some((_, turn)) = event.decoded_turn() {
-        for message in &turn.messages {
-            for block in &message.blocks {
-                match block {
-                    c::Block::Text(text) => text_node(b, text.bytes()),
-                    c::Block::Call(call) => {
-                        text_node(b, call.tool.bytes());
-                        if let Some(text) = &call.outcome {
-                            text_node(b, text.bytes());
-                        }
-                    }
-                    c::Block::Result { summary, .. } => text_node(b, summary.bytes()),
-                    c::Block::Opaque { size, .. } => {
-                        text(b, Role::Paragraph, &words.say(Word::Opaque, &[Hole::Number(*size)]));
-                    }
-                }
-            }
-        }
-        return;
-    }
-    let source = &event.source;
-
-    if let c::Activity::Heard(c::Word { from: c::Requester::Task(task), kind: c::MessageKind::Result(_), .. }) =
-        &source.line
-    {
-        task_link(b, *task, words, bindings);
-    }
-    owner_activity(b, &source.line, words);
-}
 fn text_node(b: &mut Builder, value: &[u8]) {
     skein_ui::markdown::read(value, 3, b);
 }

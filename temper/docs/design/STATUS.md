@@ -27,8 +27,8 @@ but for the held landing's story, ignored for a restart fault
 (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story
 asks from a repair or a resolution and a step short of message room
-loses a foreman's verdict (`domain/forge.md`), and neither a
-project's question route nor the foremen's charter is a setting. A
+loses a foreman's verdict (`domain/forge.md`), and the foremen's
+charter is not a setting. A
 project's policy in a change of settings and a revision restored are
 built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
@@ -44,16 +44,18 @@ run that cannot deliver keeps the shell its charter grants, and on the
 fake box a fresh box's first goal alone writes its report
 (`domain/agent.md`). The reference is one profile a box is set up
 with, its rules hold no note scope but the goal's, where its charter 5
-also notes in the repository's, and the case's repository carries no
-CI or tiers' workflows (`protocol/configuration.md`). A fresh box holds the figures of the
+also notes in the repository's, the case's repository carries no
+CI or tiers' workflows, and no walk applies the case's project file
+(`protocol/configuration.md`). A fresh box holds the figures of the
 user's request of 2026-11-03 but for a message, a report, a person's
 spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). Much of a change's own
 bounds and gates, the forge's merge queue and a goal's issue lag, and
 the queue's first can lose its turn to a change stepped during it
-(`domain/forge.md`); so do the client's How work runs page
-and many of ctl's tools (`client/README.md`,
+(`domain/forge.md`); so do How work runs' controls for a person with a
+project's role alone, its stored way, which a goal's start does not read,
+and its drafts, which no chat offers yet, and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
 and whose download is past its bar (`playground.md`), upgrades'
@@ -66,10 +68,9 @@ where a worker's translation aborts on a stored source name smith
 refuses (`protocol/README.md`), and lags in a removal without the
 box (`domain/forge.md`), a project's Delete (`client/README.md`),
 a failure of the secrets' store on an accounts' request, which stops
-no engine (`protocol/credentials.md`), and
-a forge's Start over with no welcome, which ends at the inbox
-(`client/forge.md`), and a closed change whose repository a removal
-erased leaves no project the Changes document (`client/README.md`);
+no engine (`protocol/credentials.md`), and a closed change whose
+repository a removal erased leaves no project the Changes document
+(`client/README.md`);
 public reading still lacks a deployment's proxy configuration and
 figures, and its negative walk plays the proxy's own rules against
 scripted upstreams rather than temper's service
@@ -91,7 +92,8 @@ sign-in made with no model usable, which has none yet, or for an
 ending with no ChatGPT sign-in offered; Goals draws neither heading
 nor filters for a project with no goal template; `NewChat` draws its
 layout with no project, and says a project has no repository while
-the forges' rows are unknown; and under a kind or
+the forges' rows are unknown; an account's sources are a list, not
+`.setting` rows; and under a kind or
 goal filter Needs you's answered lines and head count what the filter
 leaves out (`client/README.md`). The
 case library's purpose is retired, the fake
