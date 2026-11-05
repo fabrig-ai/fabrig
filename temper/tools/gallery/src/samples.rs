@@ -3,7 +3,7 @@ use crate::driver::step;
 use jig_client::contract as c;
 use skein_lib::{Queue, Token};
 use temper_client_domain::{Action, Address, Domain, Event, Request, address::Filter, pages::Act};
-use temper_client_domain::{ChatsFilter, PlanFilter};
+use temper_client_domain::{ChatsFilter, GoalsFilter, PlanFilter};
 
 use Then::{
     AccountRefused, Closing, Declined, Filled, Held, KeyReady, OutOfDate, Refused, Rejecting, Releasing, Renewed,
@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 111;
+pub const N: usize = 119;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -174,6 +174,54 @@ pub fn samples() -> [Sample; N] {
             name: "home-begin-one-chats",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-solo",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::All },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-reference",
+            world: Reference,
+            address: Address::Goals { project: 1, filter: GoalsFilter::All },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-none",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::All },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-needs",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::Needs },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-under-way",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::Live },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-ended",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::Ended },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-filter-empty",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::Needs },
+            then: Shown,
+        },
+        Sample {
+            name: "goals-more",
+            world: Solo,
+            address: Address::Goals { project: 1, filter: GoalsFilter::All },
             then: Shown,
         },
         Sample { name: "home-github", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
@@ -406,6 +454,13 @@ fn special_mockup(name: &str) -> Option<String> {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one exhaustive table maps each page and world to its mockup")]
 pub fn mockup(sample: &Sample) -> Option<String> {
+    if sample.name.starts_with("goals-") {
+        return Some(if sample.world == Reference {
+            "goals.html?project=fabrig".to_owned()
+        } else {
+            "goals.html?project=hello".to_owned()
+        });
+    }
     if let Then::Paste(frame) = sample.then {
         return Some(format!(
             "connect-model.html?world=first-run&step=0&way=chatgpt&paste={}&elsewhere=1&bare",
@@ -520,6 +575,9 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     if sample.name.starts_with("home-") {
         return home_domain(sample.name);
+    }
+    if sample.name.starts_with("goals-") {
+        return crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name);
     }
     let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
     let mut out = Queue::uncapped();
@@ -947,6 +1005,9 @@ fn home_domain(name: &str) -> Domain {
                             pending: List::with_capacity(0),
                         }))
                     }
+                    c::Subject::Tasks { query, .. } if query.tracked == Some(true) => {
+                        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::with_capacity(0), more: false }))
+                    }
                     c::Subject::Tasks { .. } => {
                         let mut rows = List::with_capacity(1);
                         if matches!(name, "home-ready" | "home-begin-settings-left" | "home-needs-under-begin") {
@@ -1009,24 +1070,26 @@ fn home_domain(name: &str) -> Domain {
                     &mut out,
                 );
             }
-            Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => crate::driver::answer(
-                &mut root,
-                read,
-                c::ReadValue::Tasks(Box::new(c::TaskPage {
-                    live: List::with_capacity(0),
-                    live_after: None,
-                    ended: c::EndedGroup::Rows {
-                        rows: if everyday {
-                            home_chat_rows(name, chat_rows.rows.get(0).expect("sample chat"), true)
-                        } else {
-                            List::with_capacity(0)
+            Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { query, .. }) } => {
+                crate::driver::answer(
+                    &mut root,
+                    read,
+                    c::ReadValue::Tasks(Box::new(c::TaskPage {
+                        live: List::with_capacity(0),
+                        live_after: None,
+                        ended: c::EndedGroup::Rows {
+                            rows: if everyday && query.tracked != Some(true) {
+                                home_chat_rows(name, chat_rows.rows.get(0).expect("sample chat"), true)
+                            } else {
+                                List::with_capacity(0)
+                            },
+                            after: None,
+                            cut: false,
                         },
-                        after: None,
-                        cut: false,
-                    },
-                })),
-                &mut out,
-            ),
+                    })),
+                    &mut out,
+                );
+            }
             Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
                 let mut rows = List::with_capacity(3);
                 if group == c::InboxReadGroup::Needs {

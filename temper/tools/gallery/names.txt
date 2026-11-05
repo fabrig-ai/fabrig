@@ -16,6 +16,14 @@ home-skip-refused
 home-needs-under-begin
 home-begin-settings-left
 home-begin-one-chats
+goals-solo
+goals-reference
+goals-none
+goals-needs
+goals-under-way
+goals-ended
+goals-filter-empty
+goals-more
 home-github
 configure
 configure-typing
