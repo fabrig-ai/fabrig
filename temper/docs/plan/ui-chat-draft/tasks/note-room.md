@@ -83,3 +83,13 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report: every bound that moved, with its arithmetic.
+
+## Rebase (2026-11-05, step merge, foreman ui-chat-draft/note-room/foreman-1)
+
+resolve the engine status conflict by preserving both tasks’ gap removals
+The merge failed in `jig/docs/design/domain/engine.status.md`.
+Commit `238c482809` removes the body-bound gap; integration commit `e082e02833` removes the adjacent two-line gap for a written note’s answer.
+Rebase onto the landing’s current integration tip and retain both removals. Do not restore any gap already removed upstream.
+At `51986788f0`, the chat-scope gap remains; preserve it unless the new base has removed it.
+Keep all unrelated status text unchanged.
+`jig/tests/core/tests/suite/stories.rs` auto-merged without a reported conflict; preserve the whole-body readback story and upstream note-answer changes.
