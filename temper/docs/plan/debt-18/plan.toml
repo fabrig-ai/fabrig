@@ -20,3 +20,16 @@ id = 1
 story = "the effort rule has a test that can fail, the fakes refuse what they don't model, and terminal.rs holds the service's and headless front's words"
 parts = ["smith-review"]
 walk = false
+
+[[part]]
+id = "forge-setup-world"
+title = "the setup world's stories all run through the host, and World goes (skein D031)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-setup.md, 7"
+
+[[slice]]
+id = 2
+story = "Forgejo's setup stories play the host component through HTTP bytes"
+parts = ["forge-setup-world"]
+walk = false

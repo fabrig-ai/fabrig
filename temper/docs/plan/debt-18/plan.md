@@ -11,10 +11,11 @@ a copy. This file grows with each release.
 | review 2 | `smith-review` | `session-fake-strict` | | high | 40 | the fakes panic on what no fixture sends; `feedback_text` goes |
 | review 3, 4 | `smith-review` | `local-residue` | `effort-pin` | medium | 35 | notices read by type; residue goes; a row for the clips |
 | review 5, 6 | `smith-review` | `terminal-words` | `local-residue` | high | 50 | the person's words move; one UTF-8 helper; forwarders go |
+| skein D031 | `forge-setup-world` | `setup-one-world` | | high | 150 | 77 tests move onto `HostWorld`; `World`, `exchange.rs` and `decode.rs` go |
 
 ## Critical path
 
-So far: `effort-pin`, `local-residue`, `terminal-words`, 110 minutes.
+So far: `setup-one-world`, 150 minutes, alone. `effort-pin`, `local-residue`, `terminal-words` is 110.
 
 ## Decisions: the review, checked against the code
 
@@ -32,6 +33,23 @@ Every finding was read in the code at this plan's base. They hold, but for these
   `service/choices.rs`, `front/interactive.rs` and `front/remote.rs` hold more of a person's words: `terminal-words` reports
   them as left, and they're worth a smith item if fabrig/debt wants them.
 
+## Decisions: D031
+
+Re-measured: `World` has 77 tests. The survey's net is about 480 to 540 lines out, not the item's 766: `HostWorld` must gain a
+request log, a refusal, hook seeding and the plans' entrances. One task, since the fixtures take `&mut World` and moving
+stories piecemeal would mean two copies of the helpers.
+
+- **Four `draws` assertions move to step tests; this cut decided it.** The host draws inside itself, and its `Need` is `Read`
+  or `Write` (`skein/docs/design/forge-setup.md`, 6.3), so a story through the host can't see one, by the design this item
+  asks the world to follow. A draw counter in the host just for a test would be worse. The rule isn't lost: step tests hold
+  three of them, and the spec adds the fourth, with a bite. This is the request's "stop and ask" read narrowly: no event or
+  outcome of the code changes, only the tier that pins a plan's rule. fabrig/debt can overrule it.
+- **`secrets_absent` reads what the host hears,** the scope GitHub's stories already use. The spec adds a step test if none
+  renders `Need::Send` and `Event::Reply` for a secret.
+- **No user question.** Both are within the request.
+- **The fake gains three additions** (a request log, a refusal, hook methods), which temper's readers don't see. The stories keep
+  their spelling this way, and a fixed connection-index script would have been brittle.
+
 ## Overlaps
 
-None for this part: no draft beside this one touches smith.
+None so far: no draft beside this one touches smith or skein's forge setup.
