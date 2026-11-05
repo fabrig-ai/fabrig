@@ -1,10 +1,14 @@
 //! Pages use the owner's open directory as their cursor (io.md, 5).
-use super::{Complete, Done, Entry, Error, Event, Fd, FileIo, Op, Pending, Work, issue, Queue, Submit, Token, Vec, vec};
+use super::{
+    Complete, Done, Entry, Error, Event, Fd, FileIo, Op, Pending, Queue, Submit, Token, Vec, Work, issue, vec,
+};
 use alloc::boxed::Box;
 
 impl FileIo {
     fn list_at_most(&mut self, pending: Pending, fd: Fd, most: u32, subs: &mut Queue<Submit>) -> Work {
-        issue(self, pending,
+        issue(
+            self,
+            pending,
             Op::List {
                 fd,
                 entries: vec![crate::kernel::Entry::BLANK; usize::try_from(most.min(32)).expect("u32 fits usize")]
@@ -13,7 +17,7 @@ impl FileIo {
             },
             subs,
         )
-}
+    }
 }
 
 pub(super) fn page(
@@ -30,12 +34,12 @@ pub(super) fn page(
     if max == 0 || max > io.max_entries {
         return super::terminal_failure(events, owner, Error::InvalidArgument);
     }
-    io.list_at_most(Pending::Page {
-        owner,
+    io.list_at_most(
+        Pending::Page { owner, fd, max, entries: Vec::with_capacity(usize::try_from(max).expect("u32 fits usize")) },
         fd,
         max,
-        entries: Vec::with_capacity(usize::try_from(max).expect("u32 fits usize")),
-    }, fd, max, subs)
+        subs,
+    )
 }
 
 pub(super) fn answered(
@@ -65,13 +69,24 @@ pub(super) fn answered(
     } else if let Some(reason) = stopped {
         return super::terminal_failure(events, owner, reason);
     } else {
-        return io.list_at_most(Pending::Page { owner, fd, max, entries }, fd, max.checked_sub(held).expect("the list never takes past max"), subs);
+        return io.list_at_most(
+            Pending::Page { owner, fd, max, entries },
+            fd,
+            max.checked_sub(held).expect("the list never takes past max"),
+            subs,
+        );
     }
     Work::Idle
 }
 
 /// A lock is synchronous and always retains its own answer, even after a stop.
-pub(super) fn lock(io: &mut FileIo, owner: Token, root: Token, events: &mut Queue<Event>, subs: &mut Queue<Submit>) -> Work {
+pub(super) fn lock(
+    io: &mut FileIo,
+    owner: Token,
+    root: Token,
+    events: &mut Queue<Event>,
+    subs: &mut Queue<Submit>,
+) -> Work {
     let Some(fd) = io.file(root) else {
         return super::terminal_failure(events, owner, Error::NotFound);
     };

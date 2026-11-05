@@ -210,8 +210,7 @@ pub(super) fn up(
         Err(error) => {
             match opening.phase {
                 Phase::Opening if error == Error::Permission => {
-                    opening.terminal =
-                        Some(Event::failed(opening.owner, error));
+                    opening.terminal = Some(Event::failed(opening.owner, error));
                     opening.phase = Phase::DeniedOpening;
                     let operation = Op::Open {
                         root: opening.parent.expect("the same opened parent"),
@@ -336,7 +335,6 @@ pub(super) fn up(
             }
         },
     }
-
 }
 
 pub(super) fn stopped(

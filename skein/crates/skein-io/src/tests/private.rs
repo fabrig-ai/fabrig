@@ -283,10 +283,7 @@ fn every_failed_private_open_stage_closes_its_owned_descriptors_before_one_termi
             let Op::Close { .. } = &rig.subs.iter().next().unwrap().kind else { panic!("only cleanup closes") };
             rig.done(Ok(Done::Nothing));
         }
-        assert_eq!(
-            rig.events.pop(),
-            Some(Event::failed(OWNER, Error::Other(5)))
-        );
+        assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::Other(5))));
         assert!(rig.events.is_empty() && rig.io.takes());
         assert_eq!(rig.io.open_files(), 1);
     }
@@ -509,9 +506,6 @@ fn reopening_a_replaced_file_keeps_the_loads_deadline() {
     rig.done(Ok(Done::Stat(file_stat())));
     rig.assert_next(Op::Close { fd: FILE });
     rig.done(Ok(Done::Nothing));
-    assert_eq!(
-        rig.events.pop(),
-        Some(Event::failed(OWNER, Error::TimedOut))
-    );
+    assert_eq!(rig.events.pop(), Some(Event::failed(OWNER, Error::TimedOut)));
     assert!(rig.events.is_empty() && rig.subs.is_empty() && rig.io.takes());
 }

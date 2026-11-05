@@ -85,10 +85,7 @@ fn a_rename_of_a_name_holding_a_slash_fails_before_any_record() {
             &mut events,
             &mut subs,
         );
-        assert_eq!(
-            events.pop(),
-            Some(Event::failed(OWNER, Error::InvalidArgument))
-        );
+        assert_eq!(events.pop(), Some(Event::failed(OWNER, Error::InvalidArgument)));
         assert!(subs.is_empty());
     }
 }

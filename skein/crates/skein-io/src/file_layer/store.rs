@@ -351,7 +351,13 @@ fn cleanup(io: &mut FileIo, mut store: Store, events: &mut Queue<Event>, subs: &
     Work::Idle
 }
 
-fn fail(io: &mut FileIo, mut store: Store, failure: Failure, events: &mut Queue<Event>, subs: &mut Queue<Submit>) -> Work {
+fn fail(
+    io: &mut FileIo,
+    mut store: Store,
+    failure: Failure,
+    events: &mut Queue<Event>,
+    subs: &mut Queue<Submit>,
+) -> Work {
     store.failure = Some(failure);
     cleanup(io, store, events, subs)
 }
@@ -850,7 +856,7 @@ fn success(
                 return read_check(io, store, subs);
             }
             store.failure = Some(Failure::Kernel(Error::IsADirectory));
-                        store.phase = Phase::CheckClosing;
+            store.phase = Phase::CheckClosing;
             let fd = store.check.expect("checked file is open");
             return issue(io, store, Op::Close { fd }, subs);
         }
