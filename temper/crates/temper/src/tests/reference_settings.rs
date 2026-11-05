@@ -155,11 +155,9 @@ fn the_reference_settings_file_decodes() {
                   them under Left.";
     let instructions = stock.replace("You can run nothing.", checks);
     assert!(coder.instructions.bytes().starts_with(instructions.as_bytes()));
-    assert!(
-        std::str::from_utf8(coder.instructions.bytes())
-            .expect("coding instructions are UTF-8")
-            .contains("in the question form")
-    );
+    let coder_instructions = std::str::from_utf8(coder.instructions.bytes()).expect("coding instructions are UTF-8");
+    assert!(coder_instructions.contains("in the question form"));
+    assert!(coder_instructions.contains("Then call wait: the answer reaches this run."));
     let SettingValue::Charter(foreman) = value(&items, Setting::Charter(SettingNumber { number: FOREMAN })) else {
         panic!("foreman charter")
     };
@@ -184,8 +182,7 @@ fn the_reference_settings_file_decodes() {
     assert!(triage.documents.is_empty());
     assert!(bytes::find(triage.instructions.bytes(), b"You never edit, push or run anything.").is_some());
     assert!(
-        core::str::from_utf8(coder.instructions.bytes())
-            .expect("coding instructions")
+        coder_instructions
             .contains("Push as you go: deliver a first head as soon as the change builds, then again as it grows.")
     );
     let SettingValue::Template(goal) = value(&items, Setting::Template(SettingNumber { number: GOAL })) else {

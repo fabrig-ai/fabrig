@@ -2145,7 +2145,7 @@ fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
     }
     match title {
         Some(title) if !title.is_empty() => forge::text::fit(title, 256, "…".as_bytes()),
-        Some(_) | None => Box::from(b"Update repository".as_slice()),
+        Some(_) | None => Box::from(forge::DEFAULT_CHANGE_TITLE),
     }
 }
 
