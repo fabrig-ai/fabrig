@@ -84,7 +84,11 @@ loop's story (`client/tools.md`) and a connected Forgejo made
 managed (`protocol/setup.md`); `temper forge sign-in` prints an owned
 Forgejo's command without its binary and paths
 (`protocol/setup.md`), and a held task names no run's failure, which
-is the user's to decide (`domain/worker.md`); a kept GitHub forge whose base ends
+is the user's to decide (`domain/worker.md`); with
+`TEMPER_WORKSPACE_REUSE` set, never a shipped default, a worker's
+workspaces stay as they are between workstreams and across a restart,
+for one trusted person alone (`domain/worker.md`, `protocol/git.md`);
+a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
 design admits one with the printed link off
