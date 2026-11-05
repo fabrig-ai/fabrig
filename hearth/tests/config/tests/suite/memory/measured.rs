@@ -1,4 +1,4 @@
-//! Memory-only fixture, included by the integration test so heap stays a dev dependency.
+//! Memory measurements for the suite; heap stays a dev dependency.
 use hearth_protocol_config::{
     json::{self, Decoder, Request},
     limits::Limits,
