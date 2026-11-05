@@ -260,6 +260,7 @@ fn records_6(bytes: &[u8]) {
     check!(NoteScopeProject, bytes);
     check!(NoteScopeResource, bytes);
     check!(NoteScopeTask, bytes);
+    check!(NoteScopeTasks, bytes);
 }
 
 fn records_7(bytes: &[u8]) {

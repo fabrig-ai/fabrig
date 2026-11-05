@@ -793,11 +793,7 @@ fn project_notes_read_their_scopes_lines_with_entries() {
     let (rows, next) = page(load(&mut store, project_notes()));
     assert_eq!(
         values(&rows).as_ref(),
-        [
-            note_entry(&project_scope(), 2, b"match project"),
-            note_entry(&goal_scope(), 1, b"other goal"),
-            note_entry(&goal_scope(), 3, b"match goal"),
-        ]
+        [note_entry(&goal_scope(), 1, b"other goal"), note_entry(&goal_scope(), 3, b"match goal"),]
     );
     assert_eq!(next, None);
 }
@@ -814,27 +810,30 @@ fn scoped_notes_keep_only_matching_descriptions() {
 fn a_notes_cursor_resumes_after_its_line() {
     let mut store = notes_store();
     let mut range = project_notes();
-    range.after = Some(note_position(&project_scope(), 2));
+    range.after = Some(note_position(&goal_scope(), 1));
     let (rows, next) = page(load(&mut store, range));
-    assert_eq!(
-        values(&rows).as_ref(),
-        [note_entry(&goal_scope(), 1, b"other goal"), note_entry(&goal_scope(), 3, b"match goal")]
-    );
+    assert_eq!(values(&rows).as_ref(), [note_entry(&goal_scope(), 3, b"match goal")]);
     assert_eq!(next, None);
 }
 
 #[test]
-fn notes_across_two_scopes_come_by_scope_then_name() {
+fn notes_across_two_goals_come_by_scope_then_name() {
     let mut store = notes_store();
+    let next_goal = jig_domain_notes::Scope::Goal { project: fixtures::PROJECT, goal: GOAL + 1 };
+    commit_note(&mut store, 4, &next_goal, 4, b"next goal");
     let mut range = project_notes();
     range.rows = 2;
-    let (rows, next) = page(load(&mut store, range));
+    let (rows, next) = page(load(&mut store, range.clone()));
     assert_eq!(
         values(&rows).as_ref(),
-        [note_entry(&project_scope(), 2, b"match project"), note_entry(&goal_scope(), 1, b"other goal")]
+        [note_entry(&goal_scope(), 1, b"other goal"), note_entry(&goal_scope(), 3, b"match goal")]
     );
-    assert_eq!(reads::row_key(rows.first().expect("two rows")), Some(note_position(&project_scope(), 2)));
-    assert_eq!(next, Some(note_position(&goal_scope(), 1)));
+    assert_eq!(reads::row_key(rows.first().expect("two rows")), Some(note_position(&goal_scope(), 1)));
+    assert_eq!(next, Some(note_position(&goal_scope(), 3)));
+    range.after = next;
+    let (rows, next) = page(load(&mut store, range));
+    assert_eq!(values(&rows).as_ref(), [note_entry(&next_goal, 4, b"next goal")]);
+    assert_eq!(next, None);
 }
 
 #[test]

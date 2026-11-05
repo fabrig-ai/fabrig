@@ -955,15 +955,15 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
                 return Ok(None);
             };
             let belongs = match value.scope {
-                notes::Scope::Deployment => *project == 0,
-                notes::Scope::Project { project: owner }
-                | notes::Scope::Goal { project: owner, .. }
-                | notes::Scope::Resources { project: owner, .. } => owner == *project,
+                notes::Scope::Goal { project: owner, .. } => owner == *project,
+                notes::Scope::Deployment | notes::Scope::Project { .. } | notes::Scope::Resources { .. } => false,
             };
             if !belongs {
                 return Ok(None);
             }
-            Ok(Some(PageRow::Note(documents::note_from_entry(core, limits, range.party, value)?)))
+            let mut note = documents::note_from_entry(core, limits, range.party, value)?;
+            note.body = documents::Text { bytes: Box::new([]), cut: true };
+            Ok(Some(PageRow::Note(note)))
         }
         Scope::Spend { project } => {
             let Some(value) = ledger(&row.value) else {

@@ -147,12 +147,13 @@ fn read_cards(v: &ReadValue) -> Vec<Receipt> {
             .rows
             .iter()
             .filter_map(|n| match &n.scope {
-                NoteScope::Project(project) | NoteScope::Resource { project, .. } | NoteScope::Task { project, .. } => {
-                    Some(Receipt::Card {
-                        key: key(ObjectKey::Note { project: *project, note: n.number }),
-                        revisions: vec![(4, n.revision.value)],
-                    })
-                }
+                NoteScope::Project(project)
+                | NoteScope::Resource { project, .. }
+                | NoteScope::Task { project, .. }
+                | NoteScope::Tasks { project } => Some(Receipt::Card {
+                    key: key(ObjectKey::Note { project: *project, note: n.number }),
+                    revisions: vec![(4, n.revision.value)],
+                }),
                 NoteScope::Deployment => None,
             })
             .collect(),
