@@ -160,6 +160,8 @@ pub const HOME_TAG: Style = Style { owner: owner(), token: 229 };
 pub const HOME_SKIP: Style = Style { owner: owner(), token: 231 };
 /// Home’s lede and Accounts link (client/README.md, 3.5).
 pub const HOME_LEDES: Style = Style { owner: owner(), token: 233 };
+/// A copy’s line in Home’s repository step (client/README.md, 3.5).
+pub const HOME_COPY: Style = Style { owner: owner(), token: 310 };
 /// To begin’s remaining steps note (client/README.md, 3.5).
 pub const HOME_NOTE: Style = Style { owner: owner(), token: 232 };
 /// Home's first needs card (client/README.md, 3.5).
@@ -887,6 +889,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-field",
         b"temper-welcome-cmd",
         b"temper-welcome-current",
+        b"temper-home-copy",
     ],
     regions: &[b"temper-link"],
 };

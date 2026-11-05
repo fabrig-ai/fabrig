@@ -336,6 +336,54 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-copying",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "Copying acme/widget from github.com…" },
+            Part::Text { text: "Waiting to copy" },
+            Part::Absent { role: Role::Button, name: "Copy again" },
+        ],
+    },
+    Holds {
+        name: "home-copy-failed",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "acme/widget is in Widget" },
+            Part::Text { text: "acme/other failed at repository: name taken" },
+            Part::Named { role: Role::Button, name: "Copy again" },
+        ],
+    },
+    Holds {
+        name: "home-copied",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "acme/widget, acme/other are in Widget" },
+            Part::Text {
+                text: "Chats can change their code now, on your Forgejo; nothing goes back where they were copied from.",
+            },
+            Part::Absent { role: Role::Button, name: "Copy" },
+        ],
+    },
+    Holds {
+        name: "home-copy-one",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "acme/widget is in Widget" },
+            Part::Text {
+                text: "Chats can change its code now, on your Forgejo; nothing goes back where it was copied from.",
+            },
+        ],
+    },
+    Holds {
+        name: "home-copy-offer",
+        heading: "Widget is ready.",
+        parts: &[
+            Part::Text { text: "Copy https://github.com/acme/widget" },
+            Part::Text { text: "https://github.com/acme/other" },
+            Part::Named { role: Role::Button, name: "Copy" },
+        ],
+    },
+    Holds {
         name: "home-refused",
         heading: "Hello is ready.",
         parts: &[

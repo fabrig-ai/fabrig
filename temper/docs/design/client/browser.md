@@ -1161,6 +1161,11 @@ from the engine's own answers, is where the look is tuned.
 | `home-nothing-needs` | hand-made Home deliveries: all steps done, no needs and one chat |
 | `home-ready` | hand-made Home deliveries: all three steps done; plain Home |
 | `home-adopting` | hand-made Home deliveries: first adoption in flight; no repository acts |
+| `home-copying` | hand-made Home deliveries: acme/widget copying, acme/other waiting, in intent order |
+| `home-copy-failed` | hand-made Home deliveries: first copy adopted, second failed with the forge’s words and Copy again |
+| `home-copied` | hand-made Home deliveries: both copies adopted, with their source names and the Forgejo explanation |
+| `home-copy-one` | hand-made Home deliveries: one copy adopted, with its singular explanation |
+| `home-copy-offer` | hand-made Home deliveries: both addresses left unasked after a restart, with one filled Copy act |
 | `home-refused` | hand-made Home deliveries: first adoption refused; its words and retry acts |
 | `home-no-repository` | hand-made Home deliveries: no repository or first offer |
 | `home-after-skip` | hand-made Home deliveries: To begin skipped with steps left; plain Home with empty Needs you and Chats |
