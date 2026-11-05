@@ -2793,3 +2793,150 @@ fn setup_copy_addresses_are_canonicalised_before_admission() {
         forge::SetUpFirst::Copies { addresses: Box::new([Box::from(b"https://source.example/owner/repo".as_slice())]) }
     );
 }
+
+#[test]
+fn changes_document_encodes_and_decodes() {
+    let value = forge::ChangesView {
+        project: 7,
+        landing: Box::from(b"main".as_slice()),
+        more: 3,
+        landed_more: 4,
+        queues: Box::new([forge::ChangesQueue {
+            repository: Box::from(b"acme/shop".as_slice()),
+            branch: Box::from(b"main".as_slice()),
+            red: true,
+            changes: Box::new([
+                forge::ChangesQueued {
+                    task: 51,
+                    title: Box::from(b"First".as_slice()),
+                    ready_since: skein_lib::Wall::from_nanos(123),
+                    checks_since: Some(skein_lib::Wall::from_nanos(456)),
+                },
+                forge::ChangesQueued {
+                    task: 52,
+                    title: Box::from(b"Next".as_slice()),
+                    ready_since: skein_lib::Wall::from_nanos(789),
+                    checks_since: None,
+                },
+            ]),
+        }]),
+        landed: Box::new([forge::ChangesLanded {
+            task: 50,
+            title: Box::from(b"Landed".as_slice()),
+            at: skein_lib::Wall::from_nanos(987),
+        }]),
+    };
+    let bytes =
+        family::document(forge::Document::Changes(value.clone()), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+    let got = wire::decode_changes_panel(&bytes, &w::CEILINGS).unwrap();
+    assert_eq!((got.project(), got.landing(), got.more(), got.landed_more()), (7, b"main".as_slice(), 3, 4));
+    assert_eq!(got.queues().len(), 1);
+    let queue = got.queues().get(0).unwrap();
+    assert_eq!((queue.repository(), queue.branch(), queue.red()), (b"acme/shop".as_slice(), b"main".as_slice(), true));
+    assert_eq!(queue.changes().len(), 2);
+    for (wire, domain) in queue.changes().iter().zip(value.queues[0].changes.iter()) {
+        assert_eq!(
+            (wire.task(), wire.title(), wire.ready_since(), *wire.checks_since()),
+            (
+                domain.task,
+                domain.title.as_ref(),
+                domain.ready_since.as_nanos(),
+                match domain.checks_since {
+                    Some(at) => Some(at.as_nanos()),
+                    None => None,
+                }
+            )
+        );
+    }
+    assert_eq!(got.landed().len(), 1);
+    let landed = got.landed().get(0).unwrap();
+    assert_eq!((landed.task(), landed.title(), landed.at()), (50, b"Landed".as_slice(), 987));
+}
+#[test]
+fn the_changes_watch_names_its_project_subject() {
+    for project in [0, 7, u32::MAX] {
+        let record = wire::watching(
+            &w::Watching::new(
+                &w::CEILINGS,
+                w::WatchingParts {
+                    watch: w::Watch::Changes(
+                        w::ChangesSubject::new(&w::CEILINGS, w::ChangesSubjectParts { project }).unwrap(),
+                    ),
+                },
+            )
+            .unwrap(),
+        );
+        let got = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
+            &fixtures::forge_table(&[]),
+            None,
+            family::Deployment { welcome: false, owned: false },
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let root::Event::Party(root::PartyInput::Watch {
+            subject: jig_domain_core::documents::Watched::Application { scope, subject, connector },
+            ..
+        }) = got
+        else {
+            panic!("application watch")
+        };
+        assert_eq!(subject.raw(), forge::changes_subject(project));
+        assert_eq!(connector, wire::FORGE);
+        assert_eq!(scope, jig_domain_people::ApplicationScope::Project(7));
+    }
+}
+#[test]
+fn the_worst_small_changes_document_fits_its_decision() {
+    const REPOSITORY_BYTES: usize = 2048; // ChangesQueue.repository, the wire ceiling.
+    let limits = crate::limits::profile(crate::limits::Profile::Small);
+    let mut queues = List::with_capacity(32);
+    // Each live change may have its own queue; the view retains at most 32 queues.
+    for task in 0..limits.forge.changes.min(32) {
+        queues
+            .push(forge::ChangesQueue {
+                repository: Box::from([b'r'; REPOSITORY_BYTES]),
+                branch: repeated(b'b', limits.forge.name_bytes),
+                red: true,
+                changes: Box::new([forge::ChangesQueued {
+                    task: u64::from(task),
+                    title: Box::from([b't'; forge::LOGGED_TITLE_BYTES]),
+                    ready_since: skein_lib::Wall::EPOCH,
+                    checks_since: Some(skein_lib::Wall::EPOCH),
+                }]),
+            })
+            .unwrap();
+    }
+    let mut landed = List::with_capacity(limits.forge.changes_landed);
+    for task in 0..limits.forge.changes_landed {
+        landed
+            .push(forge::ChangesLanded {
+                task: u64::from(task),
+                title: Box::from([b't'; forge::LOGGED_TITLE_BYTES]),
+                at: skein_lib::Wall::EPOCH,
+            })
+            .unwrap();
+    }
+    let document = forge::Document::Changes(forge::ChangesView {
+        project: 1,
+        landing: repeated(b'b', limits.forge.name_bytes),
+        queues: queues.into_boxed(),
+        more: 0,
+        landed: landed.into_boxed(),
+        landed_more: 0,
+    });
+    let bytes = document.owned_bytes();
+    assert!(
+        bytes <= usize::try_from(limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes)).unwrap()
+    );
+}
+
+fn repeated(byte: u8, count: u32) -> Box<[u8]> {
+    let mut bytes = List::with_capacity(count);
+    for _ in 0..count {
+        bytes.push(byte).unwrap();
+    }
+    bytes.into_boxed()
+}

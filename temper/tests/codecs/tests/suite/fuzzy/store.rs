@@ -393,4 +393,18 @@ fn verification_row(
         }]),
     });
     row_and_key(&row, rng, bounds);
+    let row = forge::Stored::LandingLog(forge::LandingLog {
+        repository,
+        landings: Box::new([forge::LoggedLanding {
+            commit: [7; 32],
+            branch: temper_codecs_world::drawn(rng, LIMITS.name_bytes).into_boxed_slice(),
+            at: skein_lib::Wall::from_nanos(rng.next_u64()),
+            changes: Box::new([forge::LoggedChange {
+                task: rng.next_u64(),
+                pull: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+                title: temper_codecs_world::drawn(rng, 256).into_boxed_slice(),
+            }]),
+        }]),
+    });
+    row_and_key(&row, rng, bounds);
 }

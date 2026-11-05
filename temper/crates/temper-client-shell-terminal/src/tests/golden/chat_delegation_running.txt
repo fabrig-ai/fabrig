@@ -10,8 +10,9 @@ demo:
   [6] Home
   [7] Needs you
   [8] Chats (current)
-  [9] + New chat
-  [10] Settings
+  [9] Changes
+  [10] + New chat
+  [11] Settings
   * Pat
 T1 · Add CSV export to widget:
   * waiting on 1 delegate
@@ -33,10 +34,10 @@ Conversation:
       - Pull request opened
       - CI passed
       - Landed
-    [11] Task 2 ↗
+    [12] Task 2 ↗
   1 tool call: wait
     wait
 Using the default model
-[12] Message: (empty) (enter sends)
+[13] Message: (empty) (enter sends)
 Enter to send · Shift+Enter for newline
-[13] Send
+[14] Send

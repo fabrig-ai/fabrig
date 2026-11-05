@@ -1672,6 +1672,12 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* ==== ui: changes ==== */
+#app > .temper-changes .temper-changes-mono { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
+#app > .temper-changes .temper-changes-running { color: var(--gf-good); }
+#app > .temper-changes .temper-changes-red { color: var(--gf-signal); }
+#app > .temper-changes .temper-home-rows > .temper-changes-more { padding: 14px 4px; }
+#app > .temper-changes .temper-home-rows > li > a { text-decoration: none; }
+
 
 
 
