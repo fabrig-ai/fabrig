@@ -61,7 +61,8 @@ impl Delegate for Process {
         }
     }
 }
-pub(crate) fn issuer(story: Story) -> Process {
+#[must_use]
+pub fn issuer(story: Story) -> Process {
     let profile = fixtures::limits();
     let limits = fake::Limits {
         document: profile.client.document,

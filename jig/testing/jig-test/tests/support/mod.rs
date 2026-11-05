@@ -3,7 +3,7 @@ pub mod ports;
 pub mod trace;
 use crate::account_sign_in_visitor::Visitor;
 use jig_client_protocol_kit::native::{NativeClient, Script};
-use jig_protocol_accounts_world::{fixtures as accounts, world::Story};
+use jig_protocol_accounts_kit::{fixtures as accounts, world::Story};
 use skein_fake_peers::{Transport, oauth};
 use skein_io::kernel::{Complete, Done, Fd, Op, Signal, Submit};
 use skein_lib::{Duration, Queue, Time, Token, Wall};

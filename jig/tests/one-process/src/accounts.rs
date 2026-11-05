@@ -3,7 +3,7 @@ use crate::world::{self, Proc, ServiceHost};
 use crate::world_signals::SignalHost;
 use jig_client::{Asker, Handle, Key, contract as c};
 use jig_client_protocol_kit::native::{NativeClient, Received, Script};
-use jig_protocol_accounts_world::{fixtures, world::Story as AccountStory};
+use jig_protocol_accounts_kit::{fixtures, world::Story as AccountStory};
 use skein_fake_peers::{Transport, llm, oauth};
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_lib::{Duration, Queue, Time, Wall};
@@ -12,7 +12,7 @@ use skein_world::{Inherited, Memory, StartupRoot};
 
 // The process stories use this same browser source, without adding a second visitor.
 #[expect(dead_code, reason = "these stories follow redirects rather than paste them")]
-#[path = "../../protocol-accounts/src/visitor.rs"]
+#[path = "../../../testing/jig-protocol-accounts-kit/src/visitor.rs"]
 mod visitor;
 
 const ASK: Asker = Asker(88);

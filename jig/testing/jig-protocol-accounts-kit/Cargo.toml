@@ -11,6 +11,24 @@ publish.workspace = true
 test = false
 doctest = false
 
+[dependencies]
+skein-lib.workspace = true
+skein-world.workspace = true
+jig-domain-accounts.workspace = true
+jig-domain-core.workspace = true
+jig-protocol-accounts.workspace = true
+jig-protocol-config.workspace = true
+jig-protocol-store.workspace = true
+skein-kv.workspace = true
+skein-sim.workspace = true
+skein-fake-oauth.workspace = true
+skein-fake-peers.workspace = true
+skein-http.workspace = true
+skein-tls.workspace = true
+skein-oauth.workspace = true
+skein-oauth-accounts.workspace = true
+skein-io.workspace = true
+
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"
