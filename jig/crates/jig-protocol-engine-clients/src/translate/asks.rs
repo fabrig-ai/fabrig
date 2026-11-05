@@ -381,17 +381,10 @@ pub(super) fn amendment(
     })
 }
 pub(super) fn count(bytes: &[u8], path: w::Path) -> Result<u32, Untranslatable> {
-    let mut reader = Reader::new(bytes);
-    let mut count = 0_u32;
-    for _ in 0..bytes.len() {
-        if reader.is_empty() {
-            break;
-        }
-        let length = reader.u32().ok_or(Untranslatable { path })?;
-        reader.bytes(length).ok_or(Untranslatable { path })?;
-        count = count.checked_add(1).ok_or(Untranslatable { path })?;
+    match skein_codec::piece::count(bytes) {
+        Ok(count) => Ok(count),
+        Err(_) => Err(Untranslatable { path }),
     }
-    Ok(count)
 }
 pub(super) fn item(reader: &mut Reader<'_>, path: w::Path) -> Result<Box<[u8]>, Untranslatable> {
     match skein_codec::piece::split(reader) {
@@ -421,7 +414,7 @@ pub(super) fn grants(
     let mut reader = Reader::new(bytes);
     let mut total = 0;
     for _ in 0..count {
-        let bytes = item(&mut reader, path)?;
+        let bytes = skein_codec::piece::counted(&mut reader);
         let value = match w::Grant::decode(limits, &mut Reader::new(&bytes)) {
             Ok(value) => grant(value),
             Err(_) => return Err(Untranslatable { path }),
@@ -455,7 +448,7 @@ pub(super) fn authority(
     let mut reader = Reader::new(&v.note_resources);
     let mut total = 0;
     for _ in 0..count {
-        let bytes = item(&mut reader, path)?;
+        let bytes = skein_codec::piece::counted(&mut reader);
         let value = match w::ResourceScope::decode(limits, &mut Reader::new(&bytes)) {
             Ok(value) => value.into_parts(),
             Err(_) => return Err(Untranslatable { path }),
@@ -523,7 +516,7 @@ fn policy(
             let mut reader = Reader::new(v.requirements());
             let mut total = 0;
             for _ in 0..count {
-                let bytes = item(&mut reader, path)?;
+                let bytes = skein_codec::piece::counted(&mut reader);
                 let value = match w::PolicyRequirement::decode(limits, &mut Reader::new(&bytes)) {
                     Ok(value) => requirement(value),
                     Err(_) => return Err(Untranslatable { path }),

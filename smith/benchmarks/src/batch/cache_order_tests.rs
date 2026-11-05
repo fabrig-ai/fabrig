@@ -15,7 +15,7 @@ fn logical_calibration_requires_thirty_runs_but_one_suite_triplet_requires_three
                 teardown_ms: 0,
                 grace_ms: 1,
                 settlement_ms: 1,
-                ..crate::request_fixture::request(root.join("tasks/probes/cache-reuse/task.toml"), identity)
+                ..crate::fixture::request::request(root.join("tasks/probes/cache-reuse/task.toml"), identity)
             }
         })
         .collect();

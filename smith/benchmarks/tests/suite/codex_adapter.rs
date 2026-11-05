@@ -100,8 +100,8 @@ fn codex_refuses_later_person_lines_before_reading_a_login() {
         environment: &[],
     };
     let refusal = smith_bench::agent::codex::prepare(&context).expect_err("interactive task refused before login");
-    assert_eq!(refusal.step, smith_bench::isolate::SetupStep::Configuration);
-    assert!(refusal.reason.contains("later person lines"));
+    assert_eq!(refusal.kind, smith_bench::FaultKind::Setup(smith_bench::isolate::SetupStep::Configuration));
+    assert!(refusal.detail.contains("later person lines"));
     assert!(!scratch.root.join("codex").exists());
 }
 
@@ -186,7 +186,10 @@ fn the_pinned_adapter_refuses_version_drift_and_isolates_the_user_home() {
         wall: skein_lib::Wall::from_nanos(100_000_000_000),
         lifetime: skein_lib::Duration::from_secs(20),
     };
-    assert_eq!(Agent::Codex.prepare(&context).expect_err("version drift").step, SetupStep::Configuration);
+    assert_eq!(
+        Agent::Codex.prepare(&context).expect_err("version drift").kind,
+        smith_bench::FaultKind::Setup(SetupStep::Configuration)
+    );
     context.installed_version = "codex-cli 0.160.0";
     let prepared = Agent::Codex.prepare(&context).expect("pinned version");
     let PreparedAgent::Codex(codex) = &prepared else {
@@ -275,9 +278,9 @@ fn credentials_expiring_before_the_hard_deadline_refuse_before_creating_a_home()
         skein_lib::Duration::from_secs(20),
     )
     .expect_err("lapsed token");
-    assert_eq!(refusal.step, smith_bench::isolate::SetupStep::Credentials);
-    assert!(refusal.reason.contains(&format!("run `CODEX_HOME={} codex` once", source.display())));
-    assert!(!refusal.reason.contains("UNISSUED"));
+    assert_eq!(refusal.kind, smith_bench::FaultKind::Setup(smith_bench::isolate::SetupStep::Credentials));
+    assert!(refusal.detail.contains(&format!("run `CODEX_HOME={} codex` once", source.display())));
+    assert!(!refusal.detail.contains("UNISSUED"));
     assert!(!home.exists());
 }
 
@@ -299,7 +302,7 @@ fn changed_user_auth_is_reported_after_private_credentials_are_removed() {
     )
     .expect("conversion");
     std::fs::write(source.join("auth.json"), synthetic_auth(501)).expect("user refresh control");
-    assert!(borrowed.finish(&guard).expect_err("source changed").contains("stop before further inference"));
+    assert!(borrowed.finish(&guard).expect_err("source changed").detail.contains("stop before further inference"));
     assert!(!borrowed.credential.exists());
 }
 
@@ -360,12 +363,12 @@ fn malformed_named_rollouts_remain_available_for_archive_and_keep_the_cached_fau
         panic!("Codex observer");
     };
     observing.observer.observe_line(r#"{"type":"thread.started","thread_id":"root"}"#).expect("named root");
-    let first = observing.collect().expect_err("known shape fault").what;
+    let first = observing.collect().expect_err("known shape fault").detail;
     assert!(first.contains("thread root"));
     let retained = observing.collected.as_ref().expect("raw retained");
     assert_eq!(retained.files.len(), 1);
     assert_eq!(retained.files[0].bytes, raw);
-    assert_eq!(observing.collect().expect_err("cached fault").what, first);
+    assert_eq!(observing.collect().expect_err("cached fault").detail, first);
 }
 
 fn a_childs_inherited_parent_header_never_replaces_the_childs_ownership() {
@@ -525,8 +528,8 @@ fn paths_use_the_declared_working_directory_and_refuse_escaped_paths_before_cred
         refused_task.working_directory = Some(path.into());
         let context = Context { task: &refused_task, home: &root.join("missing-source-login"), ..context };
         assert_eq!(
-            smith_bench::agent::codex::prepare(&context).expect_err("working directory refused before login").step,
-            SetupStep::Configuration
+            smith_bench::agent::codex::prepare(&context).expect_err("working directory refused before login").kind,
+            smith_bench::FaultKind::Setup(SetupStep::Configuration)
         );
         assert!(!private.root.join("codex/auth.json").exists());
     }
@@ -756,8 +759,8 @@ fn a_codex_binary_whose_digest_differs_from_its_pin_is_refused() {
     std::fs::write(program, b"different executable\n").expect("changed executable");
     let context = smith_bench::agent::Context { home: &fixture.root.join("absent-login"), ..fixture.context() };
     let refusal = smith_bench::agent::codex::prepare(&context).expect_err("digest drift before credentials");
-    assert_eq!(refusal.step, smith_bench::isolate::SetupStep::Configuration);
-    assert!(refusal.reason.contains("differs from its pin"));
+    assert_eq!(refusal.kind, smith_bench::FaultKind::Setup(smith_bench::isolate::SetupStep::Configuration));
+    assert!(refusal.detail.contains("differs from its pin"));
     assert!(!fixture.private.root.join("codex/auth.json").exists());
 }
 

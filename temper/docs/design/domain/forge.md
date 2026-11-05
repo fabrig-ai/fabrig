@@ -1956,7 +1956,8 @@ section 9): the foreman and the requester decide, and the change relays
   its requester, the change, in the question form, its words carrying
   its options and its recommendation, after pushing what it has; a
   question in the line form (`agent.md`, 8.2) reaches a person's client
-  as its choices, relayed whole, and any other as words. An
+  as its choices where it is relayed whole, and any other, or one with a
+  foreman's reasons beneath it (*Passed up,* below), as words. An
   agent that asked is kept by its own question (jig's
   `domain/tasks.md`, 5.7): its run parks, no try spent, until the
   change answers, and the change's wait for it is no stall (8.4). Its

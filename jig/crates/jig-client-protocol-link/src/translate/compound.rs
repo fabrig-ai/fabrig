@@ -134,8 +134,5 @@ fn problem() -> w::Problem {
 }
 
 fn piece(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]>>, w::Problem> {
-    match skein_codec::piece::split(reader) {
-        Ok(value) => Ok(value),
-        Err(_) => Err(problem()),
-    }
+    super::piece(reader).or(Err(problem()))
 }

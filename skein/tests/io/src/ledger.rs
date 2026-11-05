@@ -13,7 +13,7 @@
 //!   more, so only a close after it.
 //! - Every socket announced is answered once.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use skein_io::{Event, Request};
 use skein_lib::Token;
@@ -24,6 +24,25 @@ enum Made {
     Listen,
     Connect,
     Bind,
+}
+
+/// The request fields the ledger reads, without owning stream payloads.
+#[derive(Debug)]
+enum Asked {
+    Listen { owner: Token },
+    Connect { owner: Token },
+    Bind { socket: Token, owner: Token },
+    Reject { socket: Token },
+    Stream { stream: Token, down: AskedDown },
+    Close { entity: Token },
+    Abort { entity: Token },
+}
+
+#[derive(Debug)]
+enum AskedDown {
+    Demand { read: Read, room: u32 },
+    Send,
+    Finish,
 }
 
 /// What an owner token has been told, and what it asked.
@@ -54,6 +73,7 @@ pub struct Ledger {
     /// io's tokens for its entities, and their owners'.
     sockets: BTreeMap<Token, Token>,
     announced: BTreeSet<Token>,
+    asked: VecDeque<Asked>,
 }
 
 impl Told {
@@ -75,28 +95,54 @@ impl Told {
 }
 
 impl Ledger {
-    /// A request, as io takes it.
-    pub fn request(&mut self, request: &Request) {
-        match request {
-            Request::Listen { owner, .. } => self.made(*owner, Made::Listen),
-            Request::Connect { owner, .. } => self.made(*owner, Made::Connect),
+    /// Records what the owner queued, without applying it before io takes it.
+    pub fn asked(&mut self, request: &Request) {
+        self.asked.push_back(match request {
+            Request::Listen { owner, .. } => Asked::Listen { owner: *owner },
+            Request::Connect { owner, .. } => Asked::Connect { owner: *owner },
+            Request::Bind { socket, owner } => Asked::Bind { socket: *socket, owner: *owner },
+            Request::Reject { socket } => Asked::Reject { socket: *socket },
+            Request::Stream { stream, down } => Asked::Stream {
+                stream: *stream,
+                down: match down {
+                    Down::Demand { read, room } => AskedDown::Demand { read: *read, room: *room },
+                    Down::Send(_) => AskedDown::Send,
+                    Down::Finish => AskedDown::Finish,
+                },
+            },
+            Request::Close { entity } => Asked::Close { entity: *entity },
+            Request::Abort { entity } => Asked::Abort { entity: *entity },
             Request::Output { .. }
             | Request::Spawn { .. }
             | Request::Window { .. }
             | Request::Usage { .. }
-            | Request::Signal { .. } => {
-                unreachable!("the socket world spawns no child")
-            }
-            Request::Bind { socket, owner } => {
+            | Request::Signal { .. } => unreachable!("the socket world spawns no child"),
+        });
+    }
+
+    /// Checks the requests io took, in their queue order.
+    pub fn taken(&mut self, count: u32) {
+        for _ in 0..count {
+            let request = self.asked.pop_front().expect("each taken request was queued");
+            self.request(&request);
+        }
+    }
+
+    /// A request, as io takes it.
+    fn request(&mut self, request: &Asked) {
+        match request {
+            Asked::Listen { owner } => self.made(*owner, Made::Listen),
+            Asked::Connect { owner } => self.made(*owner, Made::Connect),
+            Asked::Bind { socket, owner } => {
                 assert!(self.announced.remove(socket), "a socket is bound once, after it is announced");
                 self.made(*owner, Made::Bind);
                 self.owners.get_mut(owner).expect("just made").socket = Some(*socket);
                 self.sockets.insert(*socket, *owner);
             }
-            Request::Reject { socket } => {
+            Asked::Reject { socket } => {
                 assert!(self.announced.remove(socket), "a socket is rejected once, after it is announced");
             }
-            Request::Stream { stream, down } => {
+            Asked::Stream { stream, down } => {
                 let owner = self.sockets.get(stream).expect("a stream request names a socket io told");
                 let told = self.owners.get_mut(owner).expect("a socket's owner");
                 // The side above's half of the contract (lib.md, 7): a demand
@@ -105,7 +151,7 @@ impl Ledger {
                 // close after it.
                 assert!(!told.withdrawn, "nothing but a close after a withdrawal: {down:?}");
                 match down {
-                    Down::Demand { read, room } => {
+                    AskedDown::Demand { read, room } => {
                         let withdrawal = *read == Read::Nothing && *room == 0;
                         let outstanding = told.read != Read::Nothing || told.room > 0;
                         assert!(
@@ -120,10 +166,10 @@ impl Ledger {
                             told.room = *room;
                         }
                     }
-                    Down::Send(_) | Down::Finish => {}
+                    AskedDown::Send | AskedDown::Finish => {}
                 }
             }
-            Request::Close { entity } | Request::Abort { entity } => {
+            Asked::Close { entity } | Asked::Abort { entity } => {
                 if let Some(owner) = self.sockets.get(entity) {
                     self.owners.get_mut(owner).expect("a socket's owner").closing = true;
                 }
