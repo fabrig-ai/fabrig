@@ -7,7 +7,7 @@ pub mod delivery;
 use alloc::boxed::Box;
 use skein_lib::{List, Secret};
 pub mod errors;
-pub mod git;
+pub use skein_fake_forge_http::{Faults, Hosted, git};
 pub mod observations;
 pub mod response;
 pub mod routes;
@@ -42,13 +42,6 @@ pub struct Repository {
     pub full: Box<[u8]>,
     pub protected: Option<Box<[u8]>>,
 }
-/// Per-request chances in a thousand, drawn before and after the domain call.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Faults {
-    pub reset: u32,
-    pub drop: u32,
-    pub server_error: u32,
-}
 /// Scenario tables; tokens stay solely on this side of the domain boundary.
 #[derive(Debug)]
 pub struct Config {
@@ -63,10 +56,3 @@ pub struct Config {
 }
 #[cfg(test)]
 mod tests;
-
-/// The forge lent for one hosted pass, including direct object-store calls.
-#[derive(Debug)]
-pub struct Hosted<'a> {
-    pub domain: &'a mut skein_fake_forge_domain::Domain,
-    pub config: &'a skein_fake_forge_domain::Config,
-}

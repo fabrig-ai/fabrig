@@ -5,7 +5,7 @@ use skein_lib::List;
 pub mod client;
 mod read;
 pub mod server;
-pub(crate) mod store;
+pub mod store;
 pub(crate) mod write;
 
 /// What the route reads (fake-forge.md, section 12).

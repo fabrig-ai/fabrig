@@ -5,7 +5,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as domain, api};
-use skein_fake_forge_protocol::{
+use skein_fake_forge_http::{
     self as protocol,
     git::{self, Call, Name},
 };

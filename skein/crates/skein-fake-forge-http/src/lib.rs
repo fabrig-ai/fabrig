@@ -4,3 +4,19 @@
 
 extern crate alloc;
 pub mod connection;
+pub mod git;
+
+/// Per-request chances in a thousand, drawn before and after the domain call.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Faults {
+    pub reset: u32,
+    pub drop: u32,
+    pub server_error: u32,
+}
+
+/// The forge lent for one hosted pass, including direct object-store calls.
+#[derive(Debug)]
+pub struct Hosted<'a> {
+    pub domain: &'a mut skein_fake_forge_domain::Domain,
+    pub config: &'a skein_fake_forge_domain::Config,
+}
