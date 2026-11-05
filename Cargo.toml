@@ -4,6 +4,7 @@
 resolver = "3"
 members = [
     "skein/tests/forge/client",
+    "skein/tests/forge/dialect",
     "skein/tests/forge/setup",
     "skein/tests/forge/machine",
     "skein/tests/forge/protocol",
@@ -13,6 +14,7 @@ members = [
     "skein/crates/skein-channel",
     "skein/crates/skein-codec",
     "skein/crates/skein-fail-stop",
+    "skein/tests/fail-stop",
     "skein/crates/skein-fake-checkout",
     "skein/crates/skein-fake-forge-domain",
     "skein/crates/skein-fake-forge-github",

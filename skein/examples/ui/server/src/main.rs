@@ -348,7 +348,7 @@ impl Web {
     fn sse_down(&mut self, owner: Token, request: sse::Request) {
         let mut above = Queue::uncapped();
         let mut below = Queue::uncapped();
-        let env = Env { now: self.env.now, wall: self.env.wall, limits: sse_limits() };
+        let env = self.env.with(sse_limits());
         let conn = self.connections.get_mut(&owner).expect("live stream");
         sse::down(conn.writer.as_mut().expect("stream writer"), &env, request, &mut above, &mut below);
         self.drain_sse(owner, &mut above, &mut below);
@@ -356,7 +356,7 @@ impl Web {
     fn sse_up(&mut self, owner: Token, up: stream::Up) {
         let mut above = Queue::uncapped();
         let mut below = Queue::uncapped();
-        let env = Env { now: self.env.now, wall: self.env.wall, limits: sse_limits() };
+        let env = self.env.with(sse_limits());
         let conn = self.connections.get_mut(&owner).expect("live stream");
         sse::up(conn.writer.as_mut().expect("stream writer"), &env, up, &mut above, &mut below);
         self.drain_sse(owner, &mut above, &mut below);

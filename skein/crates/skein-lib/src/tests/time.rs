@@ -1,6 +1,6 @@
 //! Time, deadlines and randomness (lib.md, 8).
 
-use crate::{Deadlines, Duration, Rng, Time, Wall, earliest};
+use crate::{Civil, Deadlines, Duration, Rng, Time, Wall, earliest};
 
 #[test]
 fn arithmetic_is_checked_or_saturating() {
@@ -101,4 +101,39 @@ fn whole_milliseconds_round_down_without_overflow() {
         assert_eq!(Duration::from_nanos(nanos).as_millis(), millis);
     }
     assert_eq!(Duration::from_millis(123).as_millis(), 123);
+}
+
+#[test]
+#[expect(clippy::unreadable_literal, reason = "Day-count pins keep the calendar constants unique to the conversion")]
+fn civil_dates_follow_gregorian_centuries_and_walls_bounds() {
+    for (wall, date) in [
+        (Wall::EPOCH, Civil { year: 1970, month: 1, day: 1 }),
+        (Wall::from_nanos(951_782_400_000_000_000), Civil { year: 2000, month: 2, day: 29 }),
+        (Wall::from_nanos(4_107_542_400_000_000_000), Civil { year: 2100, month: 3, day: 1 }),
+        (Wall::from_nanos(u64::MAX), Civil { year: 2554, month: 7, day: 21 }),
+    ] {
+        assert_eq!(wall.civil(), date, "{wall:?}");
+        assert_eq!(date.days(), Some(i64::try_from(wall.as_secs() / 86_400).unwrap()), "{date:?}");
+        assert_eq!(date.wall().unwrap().as_secs(), wall.as_secs() / 86_400 * 86_400, "{date:?}");
+    }
+    for (date, days) in [
+        (Civil { year: 1969, month: 12, day: 31 }, Some(-1)),
+        (Civil { year: 0, month: 3, day: 1 }, Some(-719468)),
+        (Civil { year: 0, month: 2, day: 29 }, Some(-719469)),
+        (Civil { year: 1970, month: 13, day: 1 }, None),
+        (Civil { year: 2023, month: 2, day: 29 }, None),
+    ] {
+        assert_eq!(date.days(), days, "{date:?}");
+        assert_eq!(date.valid(), days.is_some(), "{date:?}");
+    }
+    for date in [
+        Civil { year: 1969, month: 12, day: 31 },
+        Civil { year: 2554, month: 7, day: 22 },
+        Civil { year: u32::MAX, month: 12, day: 31 },
+    ] {
+        assert_eq!(date.wall(), None, "{date:?}");
+    }
+    for (month, name) in [(0, None), (1, Some(b"Jan".as_slice())), (12, Some(b"Dec".as_slice())), (13, None)] {
+        assert_eq!(Civil::month_name(month), name, "{month}");
+    }
 }

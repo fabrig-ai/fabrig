@@ -91,6 +91,7 @@ A token's top four bits may tag its namespace (`Token::tagged`, `tag`, `untagged
 | `List<T>` | a sequence a step appends to | a buffer costing what it holds |
 | `Map<K, V>` | a table keyed by value, ordered by key | a B-tree, priced in tree nodes |
 | `Set<K>` | a `Map` without values | a B-tree, priced in tree nodes |
+| `Lru<K, V>` | a table that drops the entry used longest ago, the least key first among equal uses | a pair of B-trees, priced in tree nodes |
 | `Stack<T>` | what a parser keeps instead of recursing | a buffer costing what it holds |
 
 Each capped container refuses past its capacity, handing the value back
@@ -99,8 +100,13 @@ queue is a bug, asserted; `Queue::try_push` is the refusing form.
 `Queue::with_capacity` keeps its cap but allocates as it fills, growing
 exactly and never past the cap. A B-tree allocates as it fills, so its
 `price(capacity)` counts its nodes at capacity, not its entries.
-`List`, `Queue`, `Intake`, `Map`, `Set`, `Stack` and `Buffer` give this
+`List`, `Queue`, `Intake`, `Map`, `Set`, `Lru`, `Stack` and `Buffer` give this
 allocation price through `price(capacity)`.
+
+`Lru::get` makes an entry the most recently used. `Lru::insert` does too, and
+hands back what left: the old value under that key, the entry it evicted, or at
+capacity 0 the pair it was given, since a zero capacity keeps nothing. Its use
+clock saturates; at the end of it, equal uses still fall to the least key.
 
 `List::from_boxed` makes a list of owned items, its capacity their count,
 and `List::into_boxed` moves them into a box of exactly their number.
@@ -145,11 +151,12 @@ where it holds it.
   |---|---|
   | `Slab<T>` | each slot in index order: free, with its generation; occupied, with its generation, whether it is retired, and its value; or spent. Then the order in which its free and retired slots will be handed out again |
   | `Map<K, V>`, `Set<K>` | the count, then each entry in key order |
+  | `Lru<K, V>` | the count, then each entry from least to most recently used, never its clock |
   | `Queue<T>`, `List<T>`, `Stack<T>` | the count, then each item: a queue front to back, a list in order, a stack bottom to top |
   | `Deadlines<K>` | the count, then each armed deadline, its time and its key, in the order `expire` takes them |
   | `Journal<W, O>`, `RequestTable<O, R>` | their entries in their own order, and the counters, keys and attempts that decide what they emit next |
   | `Intake`, `Buffer` | the bytes it holds, in order |
-  | `Id<T>`, `Token`, `Time`, `Duration`, `Wall`, `Secret`, `Rng` | their value |
+  | `Id<T>`, `Token`, `Time`, `Duration`, `Wall`, `Civil`, `Secret`, `Rng` | their value |
   | `CryptoRng` | its stream number and how many bytes it has drawn, never its key |
 
 - **Never hashed:** a container's capacity, which its owner fixed, and
@@ -494,6 +501,17 @@ cannot manufacture independent room.
   saturating arithmetic. **`Wall`** is wall-clock time, nanoseconds since
   the Unix epoch, a type of its own with no arithmetic on spans, so it is
   never mixed with `Time` and never arms a deadline.
+- **`Civil`** is a date of the proleptic Gregorian calendar, in UTC: a
+  year, a month and a day, whose public fields may describe no date.
+  `Wall::civil` is the one conversion of a wall time to its date, which
+  every `Wall` has. `Civil::valid` says whether a calendar holds it, and
+  `Civil::days` counts its days from the epoch, signed, or gives `None`
+  for no date, so a time just outside `Wall` may still come in by its
+  offset. `Civil::wall` is its midnight, or `None` outside `Wall`.
+  `Civil::month_name` is a month's English three-byte name. The texts of
+  a date are their readers': RFC 3339 and the HTTP date's reading in
+  skein-forge (forge.md, 4.4), IMF-fixdate's writing in skein-http
+  (http.md, 5.4), and `YYYY-MM-DD` in skein-ui (ui.md, 9).
 - **`Deadlines`** is a layer's own timer table, bounded: `arm` a deadline
   for a key, `cancel` it, ask for the `next` one, and `expire` those that
   have passed, each removed before its handler runs. It is a pair of

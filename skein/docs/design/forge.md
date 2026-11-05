@@ -599,9 +599,8 @@ dialect knowledge it keeps is in the plans it is handed.
   that the component keeps and hands it: it reads a row, and fills one
   from the answers it hears (forge-connection.md, section 4). A row of
   a repository holds its `owner` and `name` (its path), the object
-  format, the merge style and the `html_url`. The tables are bounded and
-  evict the row
-  used longest ago.
+  format, the merge style and the `html_url`. The tables are lib's `Lru`
+  (lib.md, 5): bounded, and they evict the row used longest ago.
 - **It ends with the call's result,** its `Done`, and counts nothing:
   the call's cost is the component's, one for each request whose first
   byte it wrote (forge-connection.md, section 4.1). A plan ends on the
@@ -693,7 +692,7 @@ behaviour the conformance checked.
 What does not depend on a forge's documents sits at `skein_forge`'s
 root, and both dialects stand on it:
 
-- `time`: RFC 3339 and the HTTP date;
+- `time`: RFC 3339 and the HTTP date, on lib's `Civil` (lib.md, 8);
 - `path`: percent-encoding and a target's reading;
 - `text`: `Body`, a text kept whole or only counted;
 - `decode`: `Malformed`;
