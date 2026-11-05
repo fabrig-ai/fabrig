@@ -704,6 +704,19 @@ pub enum Word {
     ToastAwayOff,
     ToastAwayRefused,
     AwayLimits,
+    HomeDecisionOverturned,
+    HomeDecisionEnded,
+    HomeDecisionLanded,
+    HomeStillNeedsCount,
+    HomeStillNeeds,
+    HomeDecidedCount,
+    HomeDecidedMany,
+    HomeDecidedOne,
+    HomeAwayLandedMany,
+    HomeAwayLandedOne,
+    HomeAwayNow,
+    HomeAwaySpan,
+    HomeAway,
     TimeClock,
     TimePair,
     TimeDate,
@@ -1192,7 +1205,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
-const PHRASES: u32 = 1684;
+const PHRASES: u32 = 1697;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1209,8 +1222,8 @@ const PHRASES: u32 = 1684;
 // The configuring opening adds twenty literal and hole segments (3.5).
 // Settings and Needs you include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
-const SEGMENTS: u32 = 2928;
-const ALL: [Word; 1085] = [
+const SEGMENTS: u32 = 2957;
+const ALL: [Word; 1098] = [
     Word::SettingsProposalTitle,
     Word::SettingsProposalDrafts,
     Word::SettingsProposalGoals,
@@ -1886,6 +1899,19 @@ const ALL: [Word; 1085] = [
     Word::ToastAwayOff,
     Word::ToastAwayRefused,
     Word::AwayLimits,
+    Word::HomeDecisionOverturned,
+    Word::HomeDecisionEnded,
+    Word::HomeDecisionLanded,
+    Word::HomeStillNeedsCount,
+    Word::HomeStillNeeds,
+    Word::HomeDecidedCount,
+    Word::HomeDecidedMany,
+    Word::HomeDecidedOne,
+    Word::HomeAwayLandedMany,
+    Word::HomeAwayLandedOne,
+    Word::HomeAwayNow,
+    Word::HomeAwaySpan,
+    Word::HomeAway,
     Word::TimeClock,
     Word::TimePair,
     Word::TimeDate,
@@ -2984,6 +3010,19 @@ impl Word {
             Self::ToastAwayOff => 3638,
             Self::ToastAwayRefused => 3639,
             Self::AwayLimits => 3640,
+            Self::HomeDecisionOverturned => 3653,
+            Self::HomeDecisionEnded => 3652,
+            Self::HomeDecisionLanded => 3651,
+            Self::HomeStillNeedsCount => 3650,
+            Self::HomeStillNeeds => 3649,
+            Self::HomeDecidedCount => 3648,
+            Self::HomeDecidedMany => 3647,
+            Self::HomeDecidedOne => 3646,
+            Self::HomeAwayLandedMany => 3645,
+            Self::HomeAwayLandedOne => 3644,
+            Self::HomeAwayNow => 3643,
+            Self::HomeAwaySpan => 3642,
+            Self::HomeAway => 3641,
             Self::TimeClock => 1208,
             Self::TimePair => 1209,
             Self::TimeDate => 1210,
@@ -4474,6 +4513,19 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ToastAwayOff => (&[b"Away is off: questions wait for you again."], &[]),
         Word::ToastAwayRefused => (&[b"Away didn\xe2\x80\x99t change. Try again."], &[]),
         Word::AwayLimits => (&[b"Limits"], &[]),
+        Word::HomeDecisionOverturned => (&[b"Overturned: it asks you again"], &[]),
+        Word::HomeDecisionEnded => (&[b"ended ", b" \xc2\xb7 a new goal can undo it"], &[Name]),
+        Word::HomeDecisionLanded => (&[b"landed ", b" \xc2\xb7 a new goal can undo it"], &[Name]),
+        Word::HomeStillNeedsCount => (&[b"Still needs you \xc2\xb7 ", b""], &[Number]),
+        Word::HomeStillNeeds => (&[b"Still needs you"], &[]),
+        Word::HomeDecidedCount => (&[b"Decided for you \xc2\xb7 ", b""], &[Number]),
+        Word::HomeDecidedMany => (&[b"", b" things were decided for you."], &[Name]),
+        Word::HomeDecidedOne => (&[b"One thing was decided for you."], &[]),
+        Word::HomeAwayLandedMany => (&[b"", b" changes landed."], &[Number]),
+        Word::HomeAwayLandedOne => (&[b"One change landed."], &[]),
+        Word::HomeAwayNow => (&[b"now"], &[]),
+        Word::HomeAwaySpan => (&[b"While you were away \xc2\xb7 ", b" to ", b""], &[Name, Name]),
+        Word::HomeAway => (&[b"While you were away"], &[]),
         Word::TimeClock => (&[b"", b":", b""], &[Name, Name]),
         Word::TimeDate => (&[b"", b" ", b""], &[Number, Name]),
         Word::TimeDateYear => (&[b"", b" ", b""], &[Name, Number]),

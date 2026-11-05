@@ -103,6 +103,22 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "home-away",
+        heading: "57 changes landed. Four things were decided for you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 4" },
+            Part::Named { role: Role::Button, name: "Limits" },
+        ],
+    },
+    Holds {
+        name: "home-away-one",
+        heading: "57 changes landed. One thing was decided for you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 1" },
+            Part::Named { role: Role::Button, name: "Limits" },
+        ],
+    },
+    Holds {
         name: "rail-away-on",
         heading: "41 changes landed overnight. Three things need you.",
         parts: &[
@@ -2803,5 +2819,47 @@ fn the_chat_log_follows_its_end_until_the_person_scrolls_away() {
         assert!(!patches.is_empty(), "the chat changes");
         page.apply(&patches, &mut ops);
         assert_eq!(ops.iter().any(|op| matches!(op, Op::ScrollEnd { node } if *node == log)), follow);
+    }
+}
+
+#[test]
+fn home_away_deliveries_draw_the_mock_words_and_off_span() {
+    use temper_client_view::look;
+    for (name, count, headline) in [
+        ("home-away", 4, "57 changes landed. Four things were decided for you."),
+        ("home-away-one", 1, "57 changes landed. One thing was decided for you."),
+    ] {
+        let sample = samples::samples().into_iter().find(|s| s.name == name).expect("Home away sample");
+        let view = view(&sample);
+        let tree = view.tree();
+        assert!(
+            tree.nodes()
+                .iter()
+                .any(|n| n.role == (Role::Heading { level: 1 }) && n.name.as_deref() == Some(headline.as_bytes()))
+        );
+        assert_eq!(tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::DECISION)).count(), count);
+        assert!(
+            tree.nodes().iter().any(|n| n.name.as_deref() == Some("welcome-stall · 01:05".as_bytes())),
+            "the decision task read supplies its title"
+        );
+        if count == 1 {
+            assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
+                && n.name.as_deref() == Some("landed 03:12 · a new goal can undo it".as_bytes())));
+        }
+        let kicker =
+            tree.nodes().iter().find(|n| n.styles.as_slice().contains(&look::HOME_KICKER)).expect("away kicker");
+        assert_eq!(
+            kicker.name.as_deref(),
+            Some(if count == 4 {
+                "While you were away · Mon 23:10 to now".as_bytes()
+            } else {
+                "While you were away · Mon 23:10 to 08:03".as_bytes()
+            })
+        );
+        assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_TOOK)
+            && n.name.as_deref() == Some(b"In temper serve".as_slice())));
+        assert!(
+            tree.nodes().iter().all(|n| n.role != Role::Button || n.name.as_deref() != Some(b"Overturn".as_slice()))
+        );
     }
 }

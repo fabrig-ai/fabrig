@@ -370,8 +370,8 @@ pub fn home_root(
     rows: List<w::ForgeRow>,
     dismissed: Option<&[u32]>,
     goals: bool,
-) -> (temper_client_domain::Domain, Token, Token, Token, Token) {
-    let (root, me, _, _, accounts, _, settings, needs, _) = root_at_with_values(
+) -> (temper_client_domain::Domain, Token, Token, Token, Token, Token) {
+    let (root, me, _, _, accounts, _, settings, needs, away) = root_at_with_values(
         temper_client_domain::Address::Settings { project: PROJECT },
         limits,
         b"Shop",
@@ -389,6 +389,7 @@ pub fn home_root(
         accounts.expect("accounts watch"),
         settings.expect("session settings watch"),
         needs.expect("standing needs watch"),
+        away.expect("away watch"),
     )
 }
 
