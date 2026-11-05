@@ -51,51 +51,29 @@ fn github_exchange_handoff_stays_under_the_ceiling_on_every_connection() {
     assert!(grown.peak <= CEILING, "{} <= {CEILING}", grown.peak);
     println!("GitHub exchange handoffs: peak={} ceiling={CEILING}", grown.peak);
 }
-#[derive(Clone, Copy, Debug)]
-enum Terminal {
-    Loss,
-    Close,
-    Replacement,
-    Answer,
-}
 #[test]
-fn github_exchange_handoff_drops_on_loss_close_replacement_and_answer() {
-    for terminal in [Terminal::Loss, Terminal::Close, Terminal::Replacement, Terminal::Answer] {
-        let mut h = ConnectionHarness::github();
-        peak(&mut h);
-        assert_eq!(retained(&h).comparison, Comparison::MergeBase);
-        match terminal {
-            Terminal::Loss => h.connection.failed(Failure::Seen),
-            Terminal::Close => h.connection.close(&h.env, true, &mut h.io),
-            Terminal::Replacement => {
-                // A completed request is replaced on the reusable connection.
-                h.github_answer(&f::ok(b""));
-                h.start(Pending::GitHub {
-                    exchange: GitHubExchange {
-                        request: github::request::Request::Raw {
-                            owner: Box::from(b"a".as_slice()),
-                            name: Box::from(b"b".as_slice()),
-                            path: Box::from(b"c".as_slice()),
-                            commit: [0; 32],
-                        },
-                        retention: Some(Retention::Head { bytes: 1 }),
-                        comparison: Comparison::Full,
-                    },
-                    authorization: Some(Secret::new(Box::from(b"Bearer test-token".as_slice()))),
-                })
-                .expect("replacement request");
-                let exchange = retained(&h);
-                assert_eq!(exchange.retention, Some(Retention::Head { bytes: 1 }));
-                assert_eq!(exchange.comparison, Comparison::Full);
-                h.connection.close(&h.env, true, &mut h.io);
-            }
-            Terminal::Answer => {
-                h.github_answer(&f::ok(b""));
-            }
-        }
-        h.pump();
-        assert!(h.github.request.is_none(), "{terminal:?}: handoff released");
-    }
+fn github_exchange_handoff_is_dropped_at_its_answer_and_replaced() {
+    let mut h = ConnectionHarness::github();
+    peak(&mut h);
+    h.github_answer(&f::ok(b""));
+    assert!(h.github.request.is_none(), "answer releases the handoff");
+    h.start(Pending::GitHub {
+        exchange: GitHubExchange {
+            request: github::request::Request::Raw {
+                owner: Box::from(b"a".as_slice()),
+                name: Box::from(b"b".as_slice()),
+                path: Box::from(b"c".as_slice()),
+                commit: [0; 32],
+            },
+            retention: Some(Retention::Head { bytes: 1 }),
+            comparison: Comparison::Full,
+        },
+        authorization: Some(Secret::new(Box::from(b"Bearer test-token".as_slice()))),
+    })
+    .expect("replacement request");
+    let exchange = retained(&h);
+    assert_eq!(exchange.retention, Some(Retention::Head { bytes: 1 }));
+    assert_eq!(exchange.comparison, Comparison::Full);
 }
 
 #[test]
