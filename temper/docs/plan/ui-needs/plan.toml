@@ -1,0 +1,88 @@
+draft = "ui-needs"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-needs/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/crates/temper-client-view/src/frame.rs", "temper/crates/temper-client-view/src/pages/inbox.rs", "temper/crates/temper-client-view/src/pages/home.rs", "temper/crates/temper-client-view/src/confirm.rs", "temper/crates/temper-client-domain/src/pages/inbox.rs", "temper/crates/temper-client-domain/src/pages/home.rs", "temper/crates/temper-client-domain/src/acts.rs", "temper/crates/temper-service/src/stock/chat.txt", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "question-words"
+title = "A question's line form, parsed in the client"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 8.2"
+
+[[part]]
+id = "stock-words"
+title = "The stock goal writes its questions in the line form"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 8.2"
+
+[[slice]]
+id = 1
+story = "A goal's question says its options in its words, and the client can read them"
+parts = ["question-words", "stock-words"]
+walk = false
+
+[[part]]
+id = "needs-state"
+title = "What the client keeps: later, answered, at, the held send, the toast"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 2
+story = "An answer is held for five seconds, and Undo takes it back, with no page drawing it yet"
+parts = ["needs-state"]
+walk = false
+
+[[part]]
+id = "needs-frame"
+title = "The rail's count and link, the toast, and the journey they stale"
+mode = "direct"
+needs = ["needs-state"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "needs-page"
+title = "Needs you, the browser's page, every kind and state"
+mode = "direct"
+needs = ["question-words", "needs-frame"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "home-card"
+title = "Home's card, lines, answered lines, headline words and phone block"
+mode = "direct"
+needs = ["needs-page"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "needs-proof"
+title = "Rendered against the mock, one live walk, the status closed"
+mode = "direct"
+needs = ["home-card", "needs-frame", "stock-words"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 3
+story = "A person sees what needs them in a project's frame, and a toast with its act"
+parts = ["needs-frame"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A person answers one card at a time, by a choice, a reply or Later"
+parts = ["needs-page"]
+walk = false
+
+[[slice]]
+id = 5
+story = "A person answers on Home, in place, and the goal hears the words of the choice"
+parts = ["home-card", "needs-proof"]
+walk = false

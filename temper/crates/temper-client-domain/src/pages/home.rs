@@ -185,7 +185,7 @@ pub fn facts(root: &Domain, project: u32) -> Facts {
     }
     let needs = match root.pages().inbox() {
         Some(inbox) if inbox.filter.project == Some(project) && inbox.delivered(root.client()) => Needs::Count {
-            count: u32::try_from(inbox.needs().count()).expect("inbox cards fit"),
+            count: u32::try_from(root.pages().needs().open(inbox).len()).expect("inbox cards fit"),
             cut: *inbox.cut.first().expect("needs cut"),
         },
         Some(_) | None => Needs::Unknown,
