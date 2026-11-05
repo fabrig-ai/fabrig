@@ -1,0 +1,22 @@
+draft = "hearth-memory-4"
+repo = "fabrig"
+sources = ["hearth/docs/plan/hearth-memory-4/inputs/request.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "sentence"
+title = "format.md's 3.5 is written around the target chat-prod, and its open question goes"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/protocol/format.md, 3.5"
+
+[[slice]]
+id = 1
+story = "the design names no container of the example fleet, and no longer asks whether it should"
+parts = ["sentence"]
+walk = false
