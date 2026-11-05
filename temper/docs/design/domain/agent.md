@@ -253,6 +253,17 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   nanoseconds, 0 when left out; `after` a comment's id, 0 when left
   out; `max_bytes`, the read's limit when left out.
 
+- **A compare is whole, with no pages.** Its files and commits each fit
+  `forge.client.rows`, and its decoded answer fits
+  `forge.client.answer_bytes` (skein's `forge-client.md`, 2.3, and
+  `forge.md`, 5.2 and 5.3). A `read_compare` size refusal names both
+  limits without claiming which was exceeded. It directs a run with
+  an existing pull to `read_pull` for its head, then `read_pull_files`
+  at that head, from page 1 while more follows. Pull-file sides must
+  also fit whole. Otherwise, or when that page is too large, the run
+  lists directories with `read_file` at both endpoints and reads
+  selected files at each within `max_bytes`. The refusal stays marked
+  an error and fits the host answer's byte bound.
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).

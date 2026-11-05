@@ -6,6 +6,7 @@ mod hunks;
 mod listing;
 mod memory;
 mod recordings;
+mod tail;
 
 mod fuzzy {
     mod git;

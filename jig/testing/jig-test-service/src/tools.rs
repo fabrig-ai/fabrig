@@ -157,10 +157,8 @@ pub(super) fn number(bytes: &[u8]) -> Option<u32> {
 }
 pub(super) fn charter(value: root::Assignment, names: &[EndpointName], deployment: &[u8; 16]) -> Option<Assignment> {
     let tools = declarations(value.run.policy.call_timeout, value.run.authority.tools.0)?;
-    let answered = u32::try_from(value.answered.len()).ok()?;
-    let messages = u32::try_from(value.messages.len()).ok()?;
-    let given = charter::Given { tools, endpoints: names, deployment, limits: &charter::limits(), answered, messages };
-    charter::hosted(&value, given)
+    let parts = charter::RootParts { tools, endpoints: names, deployment, limits: &charter::limits() };
+    charter::hosted(&value, parts)
 }
 fn declarations(timeout: skein_lib::Duration, families: u64) -> Option<Box<[jig_protocol_charter::Tool]>> {
     let mut tools = skein_lib::List::with_capacity(u32::try_from(kit::declarations().len()).ok()?);

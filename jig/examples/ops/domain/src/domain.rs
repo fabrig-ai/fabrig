@@ -381,7 +381,7 @@ fn timers_due(domain: &Domain, env: &Env<Limits>) -> bool {
         }
     }
     match domain.core.effect_deadline() {
-        Some(due) => env.wall_due(due),
+        Some(due) => due <= env.wall,
         None => false,
     }
 }

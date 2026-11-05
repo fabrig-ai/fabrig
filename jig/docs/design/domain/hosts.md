@@ -762,6 +762,9 @@ with no agent:
 - **No turns, no relay, no calls:** a job reports nothing until its
   answer; the hub keeps that answer until it is acknowledged, as a
   run's.
+- **A root with no job capability** refuses what the hub asks of one:
+  that is its choice, and `ToJob::refused` spells the answer, a
+  `StartRefused` to a run and a `Gone` to a stop.
 
 ## 7. Workspaces
 
@@ -808,7 +811,7 @@ host tools' calls (6.8).
 
 Its `assignment` assembles that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes, its checks required to pass, and the workspace tools the run's policy grants. Its `charter` translates what `assignment` assembled, decides `deliver`, and grants `modify` only to a run that can deliver: what a run writes leaves its workspace only by a delivery, so a run with no `deliver` inspects alone, whatever its policy says (a rail, not an instruction). A root calls them and decides none of it.
 
-Its `hosted` puts a run's whole hand-over together from what the hub link kept (`jig-domain-hub-link`'s `Assignment`), and so reads the brief's placed parts: the brief's sections with their titles, the charter, the start's messages with their senders and words, and the answered calls by their names. What a root gives it is its own: its tools, its endpoints, its deployment and its bounds. A place in the brief that an application offers no section for refuses the assignment. Its `message` puts together, the same way, a task's message to a run under way, with its sender and words. So a root that calls them renders no words, titles or a call's name, and the hub receives the same assignment from each. An application with a tool vocabulary of its own, as temper is (`temper/docs/design/protocol/README.md`, 5), puts its hand-over together itself.
+Its `hosted` puts a run's whole hand-over together from what the hub link kept (the core's `Assignment`), and so reads the brief's placed parts: the brief's sections with their titles, the charter, the start's messages with their senders and words, and the answered calls by their names. What a root gives it is its own: its tools, its endpoints, its deployment and its bounds. A place in the brief that an application offers no section for refuses the assignment. Its `message` puts together, the same way, a task's message to a run under way, with its sender and words. So a root that calls them renders no words, titles or a call's name, and the hub receives the same assignment from each. An application with a tool vocabulary of its own, as temper is (`temper/docs/design/protocol/README.md`, 5), puts its hand-over together itself.
 
 - **Instructions and brief:** the charter's instructions, and the brief's
   sections rendered as smith's titled sections, in order, the

@@ -19,8 +19,8 @@ pub fn diff(stdout: &[u8], limits: &Limits, settings: &Settings) -> DiffOutcome 
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut machine = Diff::new(limits);
     let mut source = Source::quiet(stdout, settings);
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     hunks::down(&mut machine, &env, Request::Read, &mut above, &mut below);
     let mut calls = 0;
     for _ in 0..stdout.len().saturating_mul(30).saturating_add(100) {
@@ -52,8 +52,8 @@ pub fn diff(stdout: &[u8], limits: &Limits, settings: &Settings) -> DiffOutcome 
     panic!("diff did not settle: {settings:?}")
 }
 fn closed(machine: &mut Diff, env: &Env<Limits>, source: &mut Source) {
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
     hunks::down(machine, env, Request::Close, &mut above, &mut below);
     assert_eq!(above.pop(), Some(Event::Closed), "Close answers Closed");
     while let Some(down) = below.pop() {

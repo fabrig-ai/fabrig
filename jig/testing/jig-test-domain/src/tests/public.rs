@@ -272,7 +272,7 @@ fn an_application_kind_reaches_the_test_connector_and_back() {
 fn a_read_waits_for_newer_commits_before_its_completing_step() {
     let (mut domain, mut env) = fixture();
     crate::try_step(&mut domain, &env, projects(50)).unwrap();
-    let core::Write::Save(header) = domain.core.commit_header() else { panic!("one deployment header") };
+    let core::Write::Save(header) = domain.core.counters.commit_header() else { panic!("one deployment header") };
     let number = domain.core.counters.deployment().commits;
     let mut decision = domain.journal.decide();
     let saved = Write::Save(Record::Core(header));

@@ -517,8 +517,6 @@ cannot manufacture independent room.
 **`Env<L>`** is what a step reads besides its own state: `now`, `wall`,
 and its layer's `limits: L`. A step gets it behind a shared borrow.
 `env.with(limits)` hands a child step the same clocks with its own limits.
-`env.wall_due(expiry)` says whether a wall-clock expiry has come, on the
-step's clocks.
 
 ## 10. Testing
 

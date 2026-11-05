@@ -23,7 +23,7 @@ pub fn key(now: &Now) -> Option<Key> {
         }
         Now::RelayBusy { .. }
         | Now::CallBusy { .. }
-        | Now::Relayed { .. }
+        | Now::Link(_)
         | Now::EffectAnswer { .. }
         | Now::TaskRead { .. }
         | Now::SettingsAnswer { .. }
@@ -39,12 +39,7 @@ pub fn key(now: &Now) -> Option<Key> {
         | Now::NotesRecalled { .. }
         | Now::NotesRefused { .. }
         | Now::NoteBusy { .. }
-        | Now::DropPayload { .. }
         | Now::DropAssignment { .. }
-        | Now::TurnPayload { .. }
-        | Now::AnswerPayload { .. }
-        | Now::AcceptedTurn { .. }
-        | Now::RefusedPayload { .. }
         | Now::Activate { .. }
         | Now::StartPreparation { .. }
         | Now::CompleteBrief { .. }
@@ -101,7 +96,7 @@ pub fn answer(now: Now, row: Option<Record>) -> Option<core::Event> {
         },
         Now::RelayBusy { .. }
         | Now::CallBusy { .. }
-        | Now::Relayed { .. }
+        | Now::Link(_)
         | Now::EffectAnswer { .. }
         | Now::TaskRead { .. }
         | Now::SettingsAnswer { .. }
@@ -117,12 +112,7 @@ pub fn answer(now: Now, row: Option<Record>) -> Option<core::Event> {
         | Now::NotesRecalled { .. }
         | Now::NotesRefused { .. }
         | Now::NoteBusy { .. }
-        | Now::DropPayload { .. }
         | Now::DropAssignment { .. }
-        | Now::TurnPayload { .. }
-        | Now::AnswerPayload { .. }
-        | Now::AcceptedTurn { .. }
-        | Now::RefusedPayload { .. }
         | Now::Activate { .. }
         | Now::StartPreparation { .. }
         | Now::CompleteBrief { .. }

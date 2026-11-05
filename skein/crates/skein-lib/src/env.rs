@@ -1,4 +1,4 @@
-use crate::{Duration, Time, Wall};
+use crate::{Time, Wall};
 
 /// What a step reads besides its own state: the times of the current
 /// iteration and its layer's limits. A step receives it behind a shared
@@ -16,13 +16,6 @@ pub struct Env<L> {
 }
 
 impl<L> Env<L> {
-    /// Whether a wall-clock expiry has come, on this step's clocks.
-    #[must_use]
-    pub fn wall_due(&self, expiry: Wall) -> bool {
-        let remaining = expiry.as_nanos().saturating_sub(self.wall.as_nanos());
-        self.now.saturating_add(Duration::from_nanos(remaining)) <= self.now
-    }
-
     /// The same clocks with another layer's limits.
     #[must_use]
     pub fn with<M>(&self, limits: M) -> Env<M> {

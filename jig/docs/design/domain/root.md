@@ -311,8 +311,8 @@ It inspects nothing it holds. What jig asks of it:
   what it says goes back to the core as a worker's would (hosts.md,
   6.1). `jig-domain-hub-link` holds what every root would otherwise spell
   on this way: the job's assignment, a settled call's relay, a brief's
-  plan and completion, and which of the core's `Now`s are the link's. A
-  root sends the rest to its own child or its door.
+  plan, and what the core's `Now::Link` says to the link. A root sends
+  the rest to its own child or its door.
 - **Between the hub and its agent capability:** `smith-inline-agent`, in
   the engine. The root translates between them as a worker's root does
   between its hub and either of smith's agent capabilities, with the
@@ -525,7 +525,7 @@ application's.
   those steps from the roots would need a new hand-off for connectors'
   sections and a gather timeout in the core. Default: the steps stay in
   the roots, and `jig-domain-hub-link`'s `brief_plan`, which takes the
-  deadline, and `no_workspace` spell them once.
+  deadline, spells the first once.
 - **What a root keeps beside the journal.** Section 11 leaves a root
   nothing between steps but its children and the journal, and `ops`,
   with no store answers to queue and no public reads, keeps nothing

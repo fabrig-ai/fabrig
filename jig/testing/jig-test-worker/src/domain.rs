@@ -281,14 +281,7 @@ fn route(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 fn down(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
     match request {
-        host::Request::Job(host::ToJob::Run { owner, .. }) => hub(
-            domain,
-            env,
-            host::Event::Job(host::FromJob::StartRefused { owner, why: Box::from(&b"no job capability"[..]) }),
-        ),
-        host::Request::Job(host::ToJob::Stop { owner }) => {
-            hub(domain, env, host::Event::Job(host::FromJob::Gone { owner, detail: Box::new([]) }));
-        }
+        host::Request::Job(job) => hub(domain, env, host::Event::Job(job.refused())),
         host::Request::DeliverJob { owner, .. } => hub(
             domain,
             env,

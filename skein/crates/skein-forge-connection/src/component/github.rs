@@ -908,7 +908,6 @@ impl Common {
                 && self.connections.len() < self.connections.capacity()
             {
                 token = Some(self.open_own(base, connection::Use::Reserved, env, io));
-                gh.exchange = connection::github::Exchange::new();
             }
             let Some(token) = token else {
                 break;

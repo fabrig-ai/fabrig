@@ -176,6 +176,11 @@ fn build(scenario: &Scenario<'_>, seed: u64, config: Config, options: &Options) 
 pub fn run(scenario: &Scenario<'_>, seed: u64, config: Config) -> Outcome<Proc, Shared> {
     world(scenario, seed, config).run()
 }
+/// The call at the named limits, unmetered.
+#[must_use]
+pub fn with_limits(scenario: &Scenario<'_>, seed: u64, limits: hearth::Limits) -> Outcome<Proc, Shared> {
+    build(scenario, seed, Config::calm(), &Options { limits, ..Options::default() }).run()
+}
 #[must_use]
 pub fn two(scenario: &Scenario<'_>, seed: u64, config: Config) -> Outcome<Proc, Shared> {
     let mut world = world(scenario, seed, config);
