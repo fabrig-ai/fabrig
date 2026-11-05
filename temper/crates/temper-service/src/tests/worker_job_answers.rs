@@ -38,6 +38,7 @@ fn merge_assignment() -> root::Event {
 fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
     use root::checkout::git::{Commit, Done, Op, Want};
     match op {
+        Op::Look { .. } => Done::Looked { holds: false },
         Op::Fetch { want, .. } => Done::Fetched {
             commit: match want {
                 Want::Commit { commit } => commit,
