@@ -262,7 +262,10 @@ fn a_malformed_raw_miss_body_still_reads_a_directory() {
     let answer = h.answered(1).expect("directory");
     assert_eq!(
         (answer.cost, answer.result.clone()),
-        (2, Ok(Answer::Directory { head: HEAD, path: Box::from(&b"src"[..]), entries: Box::new([]), truncated: false }))
+        (
+            2,
+            Ok(Answer::Directory { head: HEAD, path: Box::from(&b"src"[..]), entries: Box::new([]), truncated: false })
+        )
     );
 }
 #[test]
