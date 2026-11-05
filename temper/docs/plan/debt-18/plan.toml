@@ -1,0 +1,3 @@
+draft = "debt-18"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-18/inputs/request.md", "temper/docs/plan/debt-18/inputs/smith-debt14-review.md", "skein/docs/development/debt/D031-forge-setup-two-worlds.md", "skein/docs/development/debt/D032-world-harness-copies.md", "skein/docs/development/debt/D035-codegen-diff-and-emit.md", "jig/docs/development/debt/D012-tasks-operation-vocabulary.md"]
