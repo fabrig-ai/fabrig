@@ -87,8 +87,8 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
 
     for (number, open, non_brief, remaining) in [
-        (1, false, 39_841, 360_294),
-        (1, true, 37_751, 362_384),
+        (1, false, 40_335, 359_800),
+        (1, true, 38_245, 361_890),
         (2, false, 34_305, 365_830),
         (3, false, 39_103, 361_032),
         (4, false, 32_064, 368_071),
@@ -158,7 +158,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     let brief = crate::limits::profile(crate::limits::Profile::Standard).root.brief;
     let largest = temper_engine_smith::charter(&assignment(1, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 360_294);
+    assert_eq!(room, 359_800);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));
