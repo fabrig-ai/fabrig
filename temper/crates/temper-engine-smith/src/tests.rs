@@ -2385,6 +2385,221 @@ fn read_compare_too_large_names_bounds_and_paged_fallback() {
 }
 
 #[test]
+fn file_and_pull_files_over_host_bound_name_limit_and_recovery() {
+    oversized_file_and_pull_feedback();
+    fitting_file_and_pull_feedback();
+    file_and_pull_rendering_boundaries();
+    pull_inventory_limits();
+    many_pull_paths_fit_the_text_fragments();
+}
+
+fn many_pull_paths_fit_the_text_fragments() {
+    use skein_forge::api;
+    let mut files = skein_lib::List::with_capacity(200);
+    for n in 0_u32..200 {
+        files
+            .push(api::File { path: format!("{n}").into_bytes().into(), before: Some(vec![0; 32].into()), after: None })
+            .expect("fixture files fit");
+    }
+    let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(api::Answer::PullFiles {
+        head: [0x11; 32],
+        files: files.into_boxed(),
+        more: false,
+    })));
+    let feedback = crate::answer_bounded(&recorded, 10_240);
+    assert!(feedback.error());
+    assert!(feedback.text().len() <= 10_240);
+    assert!(skein_lib::bytes::find(feedback.text(), b"[changed paths omitted:").is_some());
+    assert!(skein_lib::bytes::find(feedback.text(), b"list directories").is_some());
+}
+
+fn oversized_file_and_pull_feedback() {
+    use skein_forge::api;
+    for (tool, input) in [
+        (b"read_file".as_slice(), br#"{"head":"c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6","path":"docs/design/formats.md"}"#.as_slice()),
+        (b"read_pull_files", br#"{"number":11,"head":"1111111111111111111111111111111111111111111111111111111111111111","page":2}"#),
+    ] {
+        let _call = decoded(tool, input).expect("recorded oversized read");
+    }
+    let file = api::Answer::File {
+        head: [0xc6; 32],
+        path: b"docs/design/formats.md".as_slice().into(),
+        bytes: vec![b'x'; 12_870].into(),
+        truncated: false,
+    };
+    let files = api::Answer::PullFiles {
+        head: [0x11; 32],
+        files: Box::new([
+            api::File {
+                path: b"docs/design/formats.md".as_slice().into(),
+                before: Some(vec![b'a'; 6000].into()),
+                after: Some(vec![b'b'; 6000].into()),
+            },
+            api::File { path: b"close-out.md".as_slice().into(), before: None, after: Some(vec![b'c'; 6000].into()) },
+        ]),
+        more: true,
+    };
+    for (tool, value, size) in [(b"read_file".as_slice(), file, 12_962), (b"read_pull_files", files, 18_076)] {
+        let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
+        let whole = answer(&recorded);
+        assert_eq!(whole.text().len(), size);
+        let feedback = crate::answer_for_tool(&recorded, tool, 10_240);
+        assert!(feedback.text().len() <= 10_240, "rendered answer bypassed the host bound");
+        assert!(feedback.error());
+        let words = feedback.text();
+        let size_text = skein_lib::Decimal::of(u64::try_from(size).expect("fixture size"));
+        assert!(skein_lib::bytes::find(words, size_text.as_bytes()).is_some());
+        for required in ["10240", "read_file", "max_bytes", "overhead"] {
+            assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
+        }
+        if tool == b"read_pull_files" {
+            for required in [
+                "docs/design/formats.md",
+                "close-out.md",
+                "[omitted]",
+                "[absent]",
+                "More files",
+                "page",
+                "Advancing page alone cannot recover",
+                "base commit",
+                "11111111",
+            ] {
+                assert!(
+                    skein_lib::bytes::find(words, required.as_bytes()).is_some(),
+                    "pull #11 page 2: missing {required}: {words:?}"
+                );
+            }
+        }
+    }
+}
+
+fn fitting_file_and_pull_feedback() {
+    use skein_forge::api;
+    let input = br#"{"head":"c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6c6","path":"docs/design/formats.md","max_bytes":32}"#;
+    let _call = decoded(b"read_file", input).expect("explicit prefix read");
+    let small = api::Answer::File {
+        head: [0xc6; 32],
+        path: b"docs/design/formats.md".as_slice().into(),
+        bytes: vec![b'x'; 32].into(),
+        truncated: true,
+    };
+    let pull = api::Answer::PullFiles {
+        head: [0x11; 32],
+        files: Box::new([api::File {
+            path: b"close-out.md".as_slice().into(),
+            before: None,
+            after: Some(b"closed".as_slice().into()),
+        }]),
+        more: false,
+    };
+    for value in [small, pull] {
+        let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
+        let whole = answer(&recorded);
+        let bounded = crate::answer_bounded(&recorded, 1024);
+        assert!(!bounded.error());
+        assert_eq!(bounded.text(), whole.text());
+        if let engine::CallAnswer::ForgeRead(read) = &recorded
+            && let Ok(api::Answer::File { .. }) = read.as_ref()
+        {
+            assert!(bounded.text().ends_with(b"[file truncated]"));
+        }
+    }
+}
+
+fn file_and_pull_rendering_boundaries() {
+    use skein_forge::api;
+    for byte in [0, 255, b'x'] {
+        for value in [
+            api::Answer::File {
+                head: [1; 32],
+                path: vec![byte; 8].into(),
+                bytes: vec![byte; 64].into(),
+                truncated: true,
+            },
+            api::Answer::PullFiles {
+                head: [1; 32],
+                files: Box::new([api::File {
+                    path: vec![byte; 8].into(),
+                    before: Some(vec![byte; 64].into()),
+                    after: None,
+                }]),
+                more: true,
+            },
+            api::Answer::Directory {
+                head: [1; 32],
+                path: vec![byte; 64].into(),
+                entries: Box::new([]),
+                truncated: true,
+            },
+        ] {
+            let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
+            let whole = answer(&recorded);
+            let size = u32::try_from(whole.text().len()).unwrap();
+            assert_eq!(crate::answer_bounded(&recorded, size).text(), whole.text());
+            for cap in [0, 1, 32, size.checked_sub(1).expect("nonempty rendering")] {
+                let bounded = crate::answer_bounded(&recorded, cap);
+                assert!(bounded.error(), "metadata and escaping count toward the bound");
+                assert!(bounded.text().len() <= usize::try_from(cap).unwrap());
+            }
+        }
+    }
+    for tool in [b"read_file".as_slice(), b"read_pull_files"] {
+        let recorded = engine::CallAnswer::ForgeRead(Box::new(Err(api::Error::TooLarge)));
+        let feedback = crate::answer_for_tool(&recorded, tool, 1024);
+        let words = feedback.text();
+        assert!(feedback.error());
+        for required in ["1024", "size unknown", "read_file", "max_bytes"] {
+            assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
+        }
+    }
+}
+
+fn pull_inventory_limits() {
+    use skein_forge::api;
+    let mut files = skein_lib::List::with_capacity(40);
+    for n in 0_u32..40 {
+        files
+            .push(api::File {
+                path: format!("path-{n}-{}", "z".repeat(60)).into_bytes().into(),
+                before: Some(vec![0; 64].into()),
+                after: None,
+            })
+            .expect("fixture files fit");
+    }
+    let files = files.into_boxed();
+    for more in [false, true] {
+        let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(api::Answer::PullFiles {
+            head: [0x11; 32],
+            files: files.clone(),
+            more,
+        })));
+        let feedback = crate::answer_bounded(&recorded, 1024);
+        let words = feedback.text();
+        assert!(feedback.error());
+        assert!(feedback.text().len() <= 1024);
+        for required in ["path-0-", "before [omitted], after [absent]", "[changed paths omitted:"] {
+            assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
+        }
+        assert!(
+            skein_lib::bytes::find(
+                words,
+                if more { b"More files available on next page." } else { b"No more file pages." }
+            )
+            .is_some()
+        );
+    }
+    let file = engine::CallAnswer::ForgeRead(Box::new(Ok(api::Answer::File {
+        head: [1; 32],
+        path: b"f".as_slice().into(),
+        bytes: vec![0; 100_000].into(),
+        truncated: false,
+    })));
+    let feedback = crate::answer_bounded(&file, 1024);
+    assert!(feedback.error());
+    assert!(skein_lib::bytes::find(feedback.text(), b"400071 bytes").is_some());
+}
+
+#[test]
 fn change_decodes_branch_mine_with_questions() {
     for input in [
         br#"{"words":"a","branch":"mine","questions":"none"}"#.as_slice(),
@@ -2464,6 +2679,7 @@ fn task_reads_declare_read_effect_and_decode_continuations() {
 fn held_task_read() -> jig_domain_core::reads::run_task::TaskRead {
     jig_domain_core::reads::run_task::TaskRead {
         task: 23,
+        verdict_code: None,
         questions: Box::new([]),
         state: jig_domain_core::reads::run_task::TaskState::Held,
         spec_revision: 8,
@@ -2639,4 +2855,25 @@ fn task_reads_name_durable_answer_targets_and_answerers() {
     assert!(refused.error());
     assert!(skein_lib::bytes::find(refused.text(), b"Use read_task on the target task").is_some());
     assert!(skein_lib::bytes::find(refused.text(), b"form=answer").is_some());
+}
+
+#[test]
+fn verdict_reads_keep_the_code_when_reason_words_continue() {
+    const START: &[u8] = b"Result from 17:\n";
+    let mut read = held_task_read();
+    read.verdict_code = Some(2);
+    read.words.field = jig_domain_core::reads::TaskTextField::Result;
+    read.words.from = 17;
+    read.words.total = 497; // Fixture's 480 bytes after offset 17.
+    let answer = engine::CallAnswer::TaskRead(Box::new(Ok(read)));
+    let rendered = crate::answer_bounded(&answer, 256);
+    assert!(!rendered.error());
+    let text = rendered.text();
+    assert!(skein_lib::bytes::find(text, b"Verdict: 2").is_some());
+    let from = skein_lib::bytes::find(text, START).expect("reason header") + START.len();
+    let body = text.get(from..).expect("reason body");
+    let cut = skein_lib::bytes::find(body, b"\nnext: ").expect("reason continues");
+    let offset = body.get(cut + b"\nnext: ".len()..).expect("next offset");
+    let expected = skein_lib::Decimal::of(17 + u64::try_from(cut).expect("bounded reason"));
+    assert_eq!(offset, expected.as_bytes(), "metadata never advances the reason offset");
 }

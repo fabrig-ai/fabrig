@@ -3817,6 +3817,7 @@ fn read_only_role_stages_have_one_not_ready_terminal_and_empty_projects_need_no_
     let configured = limits();
     let mut child = tasks::Domain::new(
         &configured.tasks,
+        tasks::Kept { revisions: configured.settings.revisions, versions: configured.settings.versions },
         9312,
         1,
         Box::new([tasks::CharterModels { number: 1, revision: 1, models: Some(Box::new([0])) }]),

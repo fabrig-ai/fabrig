@@ -422,11 +422,22 @@ struct Demand {
 }
 
 /// The request, going down.
-#[derive(Debug)]
 struct Sending {
     /// The head, written, until room comes to send it whole.
     head: Option<Box<[u8]>>,
     upload: Upload,
+}
+
+// skein/docs/design/http.md, 2: a client's written head prints its length.
+impl core::fmt::Debug for Sending {
+    #[expect(clippy::manual_map, reason = "the Rust subset uses an explicit match rather than a closure")]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let head_len = match &self.head {
+            Some(head) => Some(head.len()),
+            None => None,
+        };
+        f.debug_struct("Sending").field("head_len", &head_len).field("upload", &self.upload).finish()
+    }
 }
 
 /// The request body, as the side above writes it.

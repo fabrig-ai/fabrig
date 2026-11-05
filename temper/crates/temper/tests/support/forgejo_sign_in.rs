@@ -180,7 +180,8 @@ fn run_owned(directory: &Path) -> io::Result<()> {
     let link = std::str::from_utf8(&link).expect("printed link");
     let secret = base64::decode(Alphabet::Url, link.split_once("secret=").expect("link secret").1.as_bytes(), 32)
         .expect("link encoding");
-    let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret }).expect("link record");
+    let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
+        .expect("link record");
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record size"));
     record.encode(&mut out).expect("link wire");
     let mut browser = Browser::default();

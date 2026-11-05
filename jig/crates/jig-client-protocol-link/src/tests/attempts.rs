@@ -210,3 +210,26 @@ fn template_overrides_keep_the_wire_ceiling_when_the_client_accepts_more_rows() 
         assert_eq!(limits.wire().policy_edit_templates_overrides, expected, "client rows {rows}");
     }
 }
+
+// The list classes stop at 32 and field text at 65,536
+// (jig/docs/design/client/domain/client.md, 14; skein/docs/design/codec.md, 4).
+const PAST_LIST_CLASS: u32 = 33;
+const PAST_TEXT_CLASS: u32 = 65_537;
+#[test]
+fn knobs_past_their_wire_class_ceilings_are_refused() {
+    let base = fixtures::limits();
+    let cases = [
+        jig_client_domain::Limits { rows: PAST_LIST_CLASS, ..*base.client() },
+        jig_client_domain::Limits { segments: PAST_LIST_CLASS, ..*base.client() },
+        jig_client_domain::Limits { authority: PAST_LIST_CLASS, ..*base.client() },
+        jig_client_domain::Limits {
+            text: PAST_TEXT_CLASS,
+            turn_text: PAST_TEXT_CLASS,
+            turn_bytes: PAST_TEXT_CLASS,
+            ..*base.client()
+        },
+    ];
+    for client in cases {
+        assert_eq!(Limits::new(client, base.exchanges()), Err(Unusable::Limits), "{client:?}");
+    }
+}

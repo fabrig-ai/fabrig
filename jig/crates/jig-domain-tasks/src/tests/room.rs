@@ -221,7 +221,7 @@ fn restore_refuses_nonprocedure_wrong_project_zero_and_duplicate_orders() {
             3 => row.room_wait.as_mut().unwrap().order = 1,
             _ => unreachable!(),
         }
-        h.domain = Domain::new(&h.env.limits, 91, 1, super::charters(), Box::new([0]));
+        h.domain = Domain::new(&h.env.limits, crate::tests::KEPT, 91, 1, super::charters(), Box::new([0]));
         let rows: Vec<_> = h.stored.values().filter(|row| row.key().live()).cloned().collect();
         for record in rows {
             h.send(Event::Restore { record });

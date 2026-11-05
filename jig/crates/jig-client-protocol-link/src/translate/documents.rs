@@ -9,34 +9,36 @@ use skein_lib::{List, Reader, Wall, bytes};
 mod accounts;
 #[path = "catalogue.rs"]
 mod catalogue;
-#[path = "documents_part0.rs"]
-mod part0;
 pub(crate) use accounts::*;
-pub(crate) use part0::*;
-#[path = "documents_part1.rs"]
-mod part1;
-pub(crate) use part1::*;
-#[path = "documents_part2.rs"]
-mod part2;
-pub(crate) use part2::*;
-#[path = "documents_part3.rs"]
-mod part3;
-pub(crate) use part3::*;
-#[path = "documents_part4.rs"]
-mod part4;
-pub(crate) use part4::*;
-#[path = "documents_part5.rs"]
-mod part5;
-pub(crate) use part5::*;
-#[path = "documents_part6.rs"]
-mod part6;
-pub(crate) use part6::*;
-#[path = "documents_part7.rs"]
-mod part7;
-pub(crate) use part7::*;
-#[path = "documents_part8.rs"]
-mod part8;
-pub(crate) use part8::*;
+
+mod authority;
+pub(crate) use authority::*;
+mod capacity;
+pub(crate) use capacity::*;
+mod chips;
+pub(crate) use chips::*;
+mod deployment;
+pub(crate) use deployment::*;
+mod frame;
+pub(crate) use frame::*;
+mod hosts;
+pub(crate) use hosts::*;
+mod lines;
+pub(crate) use lines::*;
+mod offered;
+pub(crate) use offered::*;
+mod project;
+pub(crate) use project::*;
+mod results;
+pub(crate) use results::*;
+mod runs;
+pub(crate) use runs::*;
+mod specification;
+pub(crate) use specification::*;
+mod task;
+pub(crate) use task::*;
+mod task_links;
+pub(crate) use task_links::*;
 
 fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
     match c::Text::new(bytes::copy_of(value), limits.client().text) {

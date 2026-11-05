@@ -23,7 +23,7 @@
     (`temper-service/src/family.rs`).
   - 7.1, 12: the findings topic and findings (`findings.md`).
   - 7.3: a hold parked until a landing.
-  - 8.1: a change's own bounds and gates: `change` takes parameters 1
+  - 8.1: per-change bounds and gates are not caller overrides: `change` takes parameters 1
     to 6, 9 to 12, 14 and 16, its bounds, the questions it takes among
     them, are the deployment's `change_policy`, and its gates its landing
     branch's rules' (`temper-engine-domain/src/route/forge_route.rs`,

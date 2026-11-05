@@ -605,29 +605,37 @@ fn entries(
         | Address::Welcome { .. } => (false, false, false),
     };
     action(b, Role::Link, &w.say(Word::RailHome, &[]), Act::Go { address: Address::Home { project } }, home, bindings);
-    let count = root.pages().me(root.client()).expect("rail has me").needs_total;
-    let name = if count == 0 {
+    let count = root.pages().needs().count(root.client(), project);
+    let name = if count.count == 0 {
         w.say(Word::NeedsYou, &[])
     } else {
-        w.say(Word::NeedsYouCount, &[skein_ui::phrases::Hole::Number(u64::from(count))])
+        w.say(
+            if count.cut { Word::NeedsYouCountCut } else { Word::NeedsYouCount },
+            &[skein_ui::phrases::Hole::Number(u64::from(count.count))],
+        )
     };
     crate::link(
         b,
         &name,
-        bindings.insert(Act::Go { address: Address::Inbox { filter: temper_client_domain::address::Filter::ALL } }),
+        bindings.insert(Act::Go {
+            address: Address::Inbox {
+                filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None },
+            },
+        }),
     );
     if inbox {
         b.state(skein_ui::State::Current);
     }
-    if count == 0 {
+    if count.count == 0 {
         b.text(Run::Plain, &name);
     } else {
-        let number = skein_lib::Decimal::of(u64::from(count));
-        let prefix = name.len().checked_sub(number.as_bytes().len()).expect("count is the phrase suffix");
+        let number = skein_lib::Decimal::of(u64::from(count.count));
+        let suffix = number.as_bytes().len().checked_add(usize::from(count.cut)).expect("count suffix fits");
+        let prefix = name.len().checked_sub(suffix).expect("count is the phrase suffix");
         b.text(Run::Plain, name.get(..prefix).expect("prefix fits"));
         b.open(Role::Text);
         b.style(crate::look::NAV_COUNT);
-        b.run(Run::Plain, number.as_bytes());
+        b.run(Run::Plain, name.get(prefix..).expect("count suffix fits"));
         b.close();
     }
     b.close();
@@ -913,4 +921,28 @@ fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Word
         builder.run(Run::Plain, &said);
         builder.close();
     }
+}
+
+/// The session's transient status and held answer's Undo (client/README.md, 3.5).
+pub(crate) fn toast(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings) {
+    use crate::words::Word;
+    use temper_client_domain::pages::needs::{self, Toasted};
+    let session = root.pages().needs();
+    let Some(toast) = session.toast() else { return };
+    let (said, undo) = match toast {
+        Toasted::Answered { object, label } => {
+            let label = crate::pages::ask::answered_label(w, label);
+            (w.say(Word::ToastAnswered, &[skein_ui::phrases::Hole::Name(label)]), Some(*object))
+        }
+        Toasted::Later => (w.say(Word::ToastLater, &[]), None),
+    };
+    b.open(Role::Status);
+    b.style(crate::look::TOAST);
+    b.text(Run::Plain, &said);
+    if let Some(object) = undo
+        && session.held(object)
+    {
+        action(b, Role::Button, &w.say(Word::ToastUndo, &[]), Act::Needs(needs::Act::Undo { object }), false, bindings);
+    }
+    b.close();
 }

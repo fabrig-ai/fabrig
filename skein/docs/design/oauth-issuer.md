@@ -134,7 +134,8 @@ impl Issuer {
     pub fn authorize(&self, query: &[u8]) -> Result<Authorization, Refusal>;
     pub fn redirect(&self, authorization: &Authorization, code: &Secret) -> Result<Box<[u8]>, Error>;
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// `Debug` prints `state_len` and `nonce_len`, never their bytes (oauth.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Authorization {
     pub client: Box<[u8]>,
     pub redirect_uri: Box<[u8]>,
@@ -439,10 +440,8 @@ pub fn valid(limits: &Limits) -> bool;
   whose `kid` names it anew; the key set would hold the old and the new
   while tokens signed by the old live, each named by its `kid`.
 - **Refresh tokens:** none; a client that needs one signs in again.
-- **An authorization's state and nonce in `Debug`:** section 4's
-  `Authorization` derives `Debug` over the client's state and nonce,
-  while oauth.md, 4 has every type carrying a state or a nonce omit its
-  bytes from `Debug`. Either that rule reaches the issuer, and
-  `Authorization` prints `state_len` and `nonce_len`, section 4's sketch
-  with it; or it is the client's, the issuer's state and nonce being
-  already in the address the person's browser shows.
+- **A refused redirect's location in `Debug`:** section 4's `Refusal::Back`
+  derives `Debug` over its `location`, which holds the client's state, while
+  oauth.md, 4 has every type carrying a state omit its bytes from `Debug`.
+  Either it prints `location_len`, as `Authorization` prints `state_len`; or
+  it stays, being the address the person's browser is sent to.

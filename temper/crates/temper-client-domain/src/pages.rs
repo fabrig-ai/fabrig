@@ -19,6 +19,7 @@ pub mod delegation;
 pub mod goals;
 pub mod home;
 pub mod inbox;
+pub mod needs;
 pub mod report;
 pub mod switcher;
 pub mod task;
@@ -32,6 +33,7 @@ pub(crate) enum PlaygroundChoice {
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "Home is public page state; navigation bookkeeping stays private")]
 pub struct Pages {
+    needs: needs::Session,
     address: Address,
     project: Option<u32>,
     watching: bool,
@@ -83,6 +85,7 @@ pub enum Act {
         project: u32,
     },
     Choice(choice::Act),
+    Needs(needs::Act),
     Switcher(switcher::Act),
     SignOut,
     Playground,
@@ -198,6 +201,7 @@ impl Pages {
     #[must_use]
     pub fn new() -> Self {
         Self {
+            needs: needs::Session::default(),
             address: Address::Inbox { filter: crate::address::Filter::ALL },
             project: None,
             watching: false,
@@ -312,6 +316,10 @@ impl Pages {
     #[must_use]
     pub const fn confirmation(&self) -> Option<&crate::acts::Confirm> {
         self.confirm.as_ref()
+    }
+    #[must_use]
+    pub const fn needs(&self) -> &needs::Session {
+        &self.needs
     }
     #[must_use]
     pub const fn inbox(&self) -> Option<&inbox::Inbox> {
@@ -468,6 +476,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             let me = pages.me(client);
             pages.switcher.act(me, pages.project, act, &mut pages.serial, out);
         }
+        Event::Act { act: Act::Needs(act) } => needs::act(pages, env, act, out),
         Event::Act { act: Act::Choice(act) } => choice::act(pages, client, act, out),
         Event::Act { act: Act::ChatWords { words } } => {
             if let Some(chats) = &mut pages.chats {
@@ -601,7 +610,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 // decides whether a cancelled read may be asked again.
                 task.link(client.link().state);
             }
-            link_changed(pages, link, out);
+            link_changed(pages, &env.limits, link, out);
         }
         Event::Told { told: event } => {
             if !told(pages, env, client, event, out) {
@@ -618,6 +627,27 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             None => false,
         };
     pages.accounts.configure(owner, &mut pages.next, out);
+    let showing = pages.watching
+        && pages.project.is_some()
+        && match pages.address {
+            Address::Welcome { .. } => false,
+            Address::Home { .. }
+            | Address::Changes { .. }
+            | Address::Goals { .. }
+            | Address::Inbox { .. }
+            | Address::Chats { .. }
+            | Address::NewChat
+            | Address::Chat { .. }
+            | Address::Task { .. }
+            | Address::Accounts
+            | Address::Forges
+            | Address::ConnectForge { .. }
+            | Address::ConnectModel { .. }
+            | Address::Settings { .. }
+            | Address::Configure { .. }
+            | Address::Adopt { .. } => true,
+        };
+    pages.needs.configure(showing, &env.limits, out);
     let me = pages.me(client);
     pages.has_goals.configure(me, pages.project, out);
     let project = conversation_project(pages);
@@ -666,7 +696,7 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
-    if pages.choice.told(&told) || crate::acts::told(pages, &told) {
+    if pages.needs.told(&told) || pages.choice.told(&told) || crate::acts::told(pages, &told) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
@@ -696,6 +726,9 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
     }
 }
 pub fn fire(pages: &mut Pages, env: &Env<Limits>, _client: &Client, out: &mut Queue<Request>) {
+    if needs::fire(pages, env, out) {
+        pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
+    }
     if let Some(chat) = &mut pages.chat {
         chat.fire(env.now, out);
     }
@@ -704,7 +737,7 @@ pub fn fire(pages: &mut Pages, env: &Env<Limits>, _client: &Client, out: &mut Qu
     }
 }
 #[must_use]
-pub const fn next_deadline(pages: &Pages) -> Option<Time> {
+pub fn next_deadline(pages: &Pages) -> Option<Time> {
     let task = match &pages.task {
         Some(task) => task.next_deadline(),
         None => None,
@@ -713,7 +746,7 @@ pub const fn next_deadline(pages: &Pages) -> Option<Time> {
         Some(chat) => chat.next_deadline(),
         None => None,
     };
-    activity::earliest(task, chat)
+    activity::earliest(activity::earliest(task, chat), pages.needs.next_deadline())
 }
 #[must_use]
 pub const fn shown(pages: &Pages) -> u64 {
@@ -752,6 +785,7 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 
 #[expect(clippy::too_many_lines, reason = "one navigation transition releases page reads and opens its destination")]
 fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<Request>) {
+    pages.needs.went(&pages.address, &address);
     pages.switcher.went(&address);
     if let (Address::Chats { .. } | Address::NewChat, Address::Chats { .. } | Address::NewChat, Some(page)) =
         (&pages.address, &address, &mut pages.chats)
@@ -979,7 +1013,10 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         return true;
     }
     if let Told::Changed { handle } | Told::Ended { handle, .. } = &told
-        && (*handle == accounts::handle() || *handle == me_handle() || Some(*handle) == pages.accounts.deployment)
+        && (*handle == needs::handle()
+            || *handle == accounts::handle()
+            || *handle == me_handle()
+            || Some(*handle) == pages.accounts.deployment)
     {
         return true;
     }
@@ -1086,6 +1123,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::SendAmendment
         | Act::AmendAgain
         | Act::Switcher(_)
+        | Act::Needs(_)
         | Act::Choice(_)
         | Act::MakeDefault
         | Act::AdoptFirst
@@ -1268,7 +1306,7 @@ fn awaits_first_read(thread: &jig_client::thread::Thread) -> bool {
         }
 }
 
-fn link_changed(pages: &mut Pages, link: Link, out: &mut Queue<Request>) {
+fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<Request>) {
     match link {
         Link::SignedOut | Link::OutOfDate => {
             pages.has_goals.leave(out);
@@ -1282,6 +1320,8 @@ fn link_changed(pages: &mut Pages, link: Link, out: &mut Queue<Request>) {
                 page.leave();
             }
             pages.accounts = accounts::Accounts::default();
+            pages.needs.configure(false, limits, out);
+            pages.needs = needs::Session::default();
             pages.choice = choice::Draft::default();
             pages.switcher = switcher::Switcher::default();
             pages.party = None;

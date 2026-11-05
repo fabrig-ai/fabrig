@@ -45,7 +45,7 @@ fn settings_without_jig_heads_wait_pending_at_deployment_owners() {
         "{out:?}"
     );
     let row = h.stored[&Key::PersonProposal(PROPOSAL)].clone();
-    h.domain = Domain::new(&LIMITS, 91, 1, super::charters(), Box::new([0]));
+    h.domain = Domain::new(&LIMITS, tests::KEPT, 91, 1, super::charters(), Box::new([0]));
     h.send(Event::Restore { record: row });
     h.send(Event::Check);
     h.send(Event::Restored);
@@ -71,7 +71,7 @@ fn settings_without_jig_heads_wait_pending_at_deployment_owners() {
 fn settings_heads_restore_without_a_task_or_funding() {
     let mut h = pending();
     let row = h.stored[&Key::PersonProposal(PROPOSAL)].clone();
-    h.domain = Domain::new(&LIMITS, 91, 1, super::charters(), Box::new([0]));
+    h.domain = Domain::new(&LIMITS, tests::KEPT, 91, 1, super::charters(), Box::new([0]));
     h.send(Event::Restore { record: row });
     h.send(Event::Check);
     h.send(Event::Restored);
@@ -164,7 +164,7 @@ fn settings_proposals_keep_the_one_pending_proposal_per_party_rule() {
 #[test]
 fn restore_keeps_pending_settings_without_repeating_party_admission() {
     let mut h = Harness::new();
-    h.domain = Domain::new(&LIMITS, 91, 1, super::charters(), Box::new([0]));
+    h.domain = Domain::new(&LIMITS, tests::KEPT, 91, 1, super::charters(), Box::new([0]));
     h.send(Event::Restore { record: Stored::PersonProposal(Box::new(proposal(1))) });
     let mut second = proposal(1);
     second.number += 1;
@@ -177,7 +177,7 @@ fn restore_keeps_pending_settings_without_repeating_party_admission() {
 
 fn restored_pending(checked: bool) -> Harness {
     let mut h = Harness::new();
-    h.domain = Domain::new(&LIMITS, 91, 1, super::charters(), Box::new([0]));
+    h.domain = Domain::new(&LIMITS, tests::KEPT, 91, 1, super::charters(), Box::new([0]));
     h.send(Event::Restore { record: Stored::PersonProposal(Box::new(proposal(1))) });
     if checked {
         h.send(Event::Check);
@@ -312,7 +312,7 @@ fn a_tasks_settings_proposal_waits_for_deployment_owners_and_its_outcome_wakes_i
 #[test]
 fn restore_retains_pending_settings_proposals_without_repeating_party_admission() {
     let mut h = Harness::new();
-    h.domain = Domain::new(&LIMITS, 91, 1, super::charters(), Box::new([0]));
+    h.domain = Domain::new(&LIMITS, tests::KEPT, 91, 1, super::charters(), Box::new([0]));
 
     h.send(Event::Restore { record: Stored::PersonProposal(Box::new(proposal(1))) });
     let mut second = proposal(1);

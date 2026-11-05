@@ -554,6 +554,7 @@ impl Core {
             tasks: {
                 let mut tasks = tasks::Domain::new(
                     &limits.tasks,
+                    tasks::Kept { revisions: limits.settings.revisions, versions: limits.settings.versions },
                     config.seed,
                     current.newest(),
                     charters::models(&current, &config.settings, limits),
@@ -575,7 +576,7 @@ impl Core {
                 config.grants,
             ),
             fleet: {
-                let mut fleet = fleet::Domain::new(&limits.fleet, fleet_needs, {
+                let mut fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, fleet_needs, {
                     let mut names = List::with_capacity(tasks::MODELS);
                     for model in &config.settings.models {
                         names.push(model.name.clone()).expect("catalogue bound");
