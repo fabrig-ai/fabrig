@@ -190,3 +190,5 @@ End with `Question:` for the user unless the form is gone, naming the test `an_o
 - **Stronger:** a setting or template that the reading in 4 shows removes the form, with its cost.
 
 This is the expected ending of this run, not a failure of it: the foreman takes the `Question:` as it stands. Leave `temper/docs/design/draft/dogfood-hacks.md` as it is, and report what the run showed against it.
+
+2026-11-05 (fabrig/temper, the plan's requester). **Accept.** "No way to register" means no field a registration needs, both POSTs answering 403 and no account made, which the run proved at Forgejo 17.0.1. Assert exactly that, and reword `dogfood-hacks.md`'s "closes the form" to match. No custom template: maintaining one costs more than an empty wrapper is worth.
