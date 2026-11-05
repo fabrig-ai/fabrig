@@ -1915,6 +1915,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   .temper-settings .temper-settings-lede { font-size: 15.5px; }
   .temper-settings-tabs { flex-wrap: wrap; }
   .temper-settings-setting { grid-template-columns: minmax(0, 1fr); }
+  .temper-settings [role=radiogroup]:has(> .temper-settings-setting) { grid-template-columns: minmax(0, 1fr); }
+  .temper-settings .temper-settings-primary { min-height: 44px; }
 }
 
 
@@ -2056,3 +2058,9 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 /* ==== ui: phone ==== */
+@media (max-width: 760px) {
+  /* The tabs occupy 63px; keep a pixel clear when scrolling a control. */
+  :root:has(#app > .temper-tabbar):not(:has(#app > .temper-session)) { scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .temper-main:where(:not(.temper-settings)) .temper-flow-primary { min-height: 44px; }
+  dialog > button:nth-last-child(2) { min-height: 44px; }
+}
