@@ -36,7 +36,7 @@ pub(crate) fn seg(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bi
     if chat.draft.is_none() {
         return;
     }
-    b.open(Role::Slot);
+    b.open(Role::Group);
     b.name(&words.say(Word::DraftGroup, &[]));
     b.style(look::SEG);
     let next = match chat.mode {

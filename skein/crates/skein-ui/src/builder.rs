@@ -636,6 +636,7 @@ fn acted_on(role: Role) -> bool {
         | Role::Disclosure
         | Role::Image
         | Role::Figure
+        | Role::Group
         | Role::Slot => false,
     }
 }
