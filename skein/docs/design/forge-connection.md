@@ -694,7 +694,10 @@ and the hint it holds until the owner has room).
 Each configured forge has one **entry** in the component: what its owner
 configured (3.1), its start (8.3), its own connection, and its dialect's
 state, whose variant holds the forge's own plan and exchange (8.1) and,
-for a GitHub forge, its installations and its puller. An entry is made when its forge is
+for a GitHub forge, its installations and its puller. The own exchange
+lasts as long as its connection is the forge's own: it goes where that
+connection stops being so, and when the component sheds what it holds
+(8.5). An entry is made when its forge is
 added and goes whole when it is removed. What the forges share (the
 connections, the calls, the tables, the owner's word) sits beside the
 entries, and a step on one forge is handed that forge's entry. A forge's
