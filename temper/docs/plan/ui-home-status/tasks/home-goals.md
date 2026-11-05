@@ -56,3 +56,7 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Ruling (rulings.md, 9): Home's Goals section shows when the Goals setting is on or the project has a goal.
