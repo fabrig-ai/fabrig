@@ -280,8 +280,11 @@ impl Harness {
     }
     pub fn connected(&mut self, forge: u16) {
         let owner = self.newest(forge);
-        self.peers.get_mut(&owner).expect("registered connect").connected = true;
-        self.event(skein_io::Event::Connected { owner });
+        let peer = self.peers.get_mut(&owner).expect("registered connect");
+        // A connect completes once (skein/docs/design/io.md's stream table); a step over a reused socket hears nothing.
+        if !core::mem::replace(&mut peer.connected, true) {
+            self.event(skein_io::Event::Connected { owner });
+        }
         self.drain();
     }
     pub fn refuse(&mut self, forge: u16) {

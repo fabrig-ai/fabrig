@@ -91,15 +91,13 @@ pub(crate) enum Use {
 }
 /// A connection's phases hold their exchange (skein/docs/design/forge-connection.md, 8.1).
 enum State {
-    // Raw overflow holds the exchange until finish; redirect draining survives its ending.
-    // A start answer can hold a deadline after Connection: close, until the component closes it.
-    Closed { closing: bool, ended: Option<Ended>, exchange: Option<Exchange>, draining: bool, until: Option<Time> },
+    // Redirect draining survives its ending.
+    Closed { closing: bool, ended: Option<Ended>, draining: bool },
     Connecting { until: Option<Time> },
     Handshaking { until: Option<Time> },
     Sending { exchange: Exchange, until: Option<Time> },
     Reading { exchange: Exchange, draining: bool, until: Option<Time> },
-    // A connected notice can leave the holder's exchange in Idle until its next write.
-    Idle { exchange: Option<Exchange>, draining: bool, until: Option<Time> },
+    Idle { draining: bool, until: Option<Time> },
 }
 struct Exchange {
     upload: Option<Upload>,
@@ -109,26 +107,24 @@ struct Exchange {
 }
 impl State {
     fn take(&mut self) -> Self {
-        core::mem::replace(self, Closed { closing: false, ended: None, exchange: None, draining: false, until: None })
+        core::mem::replace(self, Closed { closing: false, ended: None, draining: false })
     }
     fn exchange_mut(&mut self) -> Option<&mut Exchange> {
         match self {
             Sending { exchange, .. } | Reading { exchange, .. } => Some(exchange),
-            Closed { exchange, .. } | Idle { exchange, .. } => exchange.as_mut(),
-            Connecting { .. } | Handshaking { .. } => None,
+            Closed { .. } | Idle { .. } | Connecting { .. } | Handshaking { .. } => None,
         }
     }
     fn into_exchange(self) -> Option<Exchange> {
         match self {
             Sending { exchange, .. } | Reading { exchange, .. } => Some(exchange),
-            Closed { exchange, .. } | Idle { exchange, .. } => exchange,
-            Connecting { .. } | Handshaking { .. } => None,
+            Closed { .. } | Idle { .. } | Connecting { .. } | Handshaking { .. } => None,
         }
     }
     fn until(&self) -> Option<Time> {
         match self {
-            Closed { until, .. }
-            | Connecting { until }
+            Closed { .. } => None,
+            Connecting { until }
             | Handshaking { until }
             | Sending { until, .. }
             | Reading { until, .. }
@@ -137,7 +133,7 @@ impl State {
     }
     fn idle(self) -> Self {
         let until = self.until();
-        Idle { draining: self.draining(), exchange: self.into_exchange(), until }
+        Idle { draining: self.draining(), until }
     }
     fn end(self, ended: Option<Ended>, closing: bool) -> Self {
         let draining = self.draining();
@@ -145,7 +141,7 @@ impl State {
             Closed { ended: previous, closing: requested, .. } => (ended.or(previous), closing || requested),
             Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } | Idle { .. } => (ended, closing),
         };
-        Closed { closing, ended, exchange: None, draining, until: None }
+        Closed { closing, ended, draining }
     }
     fn draining(&self) -> bool {
         match self {
@@ -224,8 +220,8 @@ impl Connection {
     }
     pub(crate) fn rest(&mut self, until: Option<Time>) {
         match &mut self.state {
-            Closed { until: held, .. }
-            | Connecting { until: held }
+            Closed { .. } => {}
+            Connecting { until: held }
             | Handshaking { until: held }
             | Sending { until: held, .. }
             | Reading { until: held, .. }
@@ -423,7 +419,7 @@ impl Connection {
         let close = reuse == http::Reuse::Close || closes;
         let draining = self.draining();
         let until = Some(env.now.saturating_add(env.limits.idle));
-        self.state = if close { self.state.take().end(None, false) } else { Idle { exchange: None, draining, until } };
+        self.state = if close { self.state.take().end(None, false) } else { Idle { draining, until } };
     }
     fn json_demand(&mut self, env: &Env<Limits>, down: Down) {
         let Some(exchange) = self.state.exchange_mut() else { return };
@@ -539,13 +535,8 @@ impl Connection {
                                     unreachable!("raw body")
                                 }
                             };
-                            self.state = Closed {
-                                closing: self.closing(),
-                                ended: self.take_ended(),
-                                draining: self.draining(),
-                                exchange: self.state.take().into_exchange(),
-                                until: None,
-                            };
+                            self.state =
+                                Closed { closing: self.closing(), ended: self.take_ended(), draining: self.draining() };
                             return Moved::Finished {
                                 reuse: http::Reuse::Close,
                                 raw: Payload::Raw { bytes: grow.finish(), more: true },
@@ -672,7 +663,7 @@ impl Connection {
     }
     pub fn in_flight(&self) -> bool {
         match &self.state {
-            Closed { exchange, .. } | Idle { exchange, .. } => exchange.is_some(),
+            Closed { .. } | Idle { .. } => false,
             Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } => true,
         }
     }
@@ -701,8 +692,7 @@ impl Connection {
         let exchange = match &self.state {
             Closed { ended, .. } => return ended.is_some() || self.link.has_work(),
             Sending { exchange, .. } | Reading { exchange, .. } => Some(exchange),
-            Idle { exchange, .. } => exchange.as_ref(),
-            Connecting { .. } | Handshaking { .. } => None,
+            Idle { .. } | Connecting { .. } | Handshaking { .. } => None,
         };
         if let Some(exchange) = exchange
             && (exchange.json_next.is_some() || (exchange.json_body.read.is_some() && !exchange.json_body.below))
