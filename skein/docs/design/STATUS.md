@@ -22,8 +22,8 @@ print the bytes they hold, credentials among them on known paths
 (`lib.md`), as does a server's written head (`http.md`). The code departs
 in `skein-playground`'s manifest (`playground.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
-`forge-client.md`, `oauth-issuer.md`, `ui-text.md` and
-`browser.md` have no gap; `ui-web.md`'s page does not yet cover the display. The state machines of io's file store and
+`forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
+`browser.md` have no gap. The state machines of io's file store and
 private opening, forge-connection, Forgejo's plans, the fake forge's
 connection, oauth and its accounts, llm,
 llm-connection and lib's `RequestTable` depart from
