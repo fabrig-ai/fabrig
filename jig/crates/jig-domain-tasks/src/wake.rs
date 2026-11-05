@@ -41,17 +41,14 @@ pub(crate) fn category(kind: &MessageKind) -> u8 {
         MessageFamily::Hint(Hint::Timer { .. }) => 5,
         MessageFamily::Hint(Hint::News { .. }) | MessageFamily::Slot(Slot::PersonStalled) => 6,
         MessageFamily::Slot(
-            Slot::Amendment
-            | Slot::FinishRequested
-            | Slot::Met
-            | Slot::NothingAwaited
-            | Slot::EffectNotMade
+            Slot::EffectNotMade
             | Slot::SettingsDecision
             | Slot::ProposalDecision
             | Slot::QuestionAnswered
             | Slot::QuestionOwed
             | Slot::QuestionEnded,
         )
+        | MessageFamily::Separate(_)
         | MessageFamily::Virtual => 7,
     }
 }

@@ -150,6 +150,7 @@ pub enum MessageFamily {
     Spoken(Spoken),
     Hint(Hint),
     Slot(Slot),
+    Separate(Separate),
     Result,
     Virtual,
 }
@@ -173,10 +174,6 @@ pub enum Hint {
 /// Control messages entering through reserved inbox room (domain/tasks.md, 8.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Slot {
-    Amendment,
-    FinishRequested,
-    Met,
-    NothingAwaited,
     EffectNotMade,
     SettingsDecision,
     ProposalDecision,
@@ -184,6 +181,15 @@ pub enum Slot {
     QuestionOwed,
     QuestionEnded,
     PersonStalled,
+}
+
+/// Messages with separately priced inbox slots (jig/docs/design/domain/tasks.md, 5.7 and 8.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Separate {
+    Amendment,
+    FinishRequested,
+    Met,
+    NothingAwaited,
 }
 
 /// Terminal shape carried with a delegate's bounded message words.
@@ -235,25 +241,7 @@ impl Word {
     /// Whether this message asks an agent to finish (domain/hosts.md, section 9).
     #[must_use]
     pub fn finish_requested(&self) -> bool {
-        match self.kind.family() {
-            MessageFamily::Slot(Slot::FinishRequested) => true,
-            MessageFamily::Slot(
-                Slot::Amendment
-                | Slot::Met
-                | Slot::NothingAwaited
-                | Slot::EffectNotMade
-                | Slot::SettingsDecision
-                | Slot::ProposalDecision
-                | Slot::QuestionAnswered
-                | Slot::QuestionOwed
-                | Slot::QuestionEnded
-                | Slot::PersonStalled,
-            )
-            | MessageFamily::Spoken(_)
-            | MessageFamily::Hint(_)
-            | MessageFamily::Result
-            | MessageFamily::Virtual => false,
-        }
+        self.kind.family() == MessageFamily::Separate(Separate::FinishRequested)
     }
 
     /// Whole admitted payload, including the opaque state of an approval result.
@@ -2274,10 +2262,10 @@ impl MessageKind {
                 MessageFamily::Hint(Hint::News { subscription: *subscription, class: *class })
             }
             Self::PersonStalled { .. } => MessageFamily::Slot(Slot::PersonStalled),
-            Self::Amendment { .. } => MessageFamily::Slot(Slot::Amendment),
-            Self::FinishRequested { .. } => MessageFamily::Slot(Slot::FinishRequested),
-            Self::Met { .. } => MessageFamily::Slot(Slot::Met),
-            Self::NothingAwaited => MessageFamily::Slot(Slot::NothingAwaited),
+            Self::Amendment { .. } => MessageFamily::Separate(Separate::Amendment),
+            Self::FinishRequested { .. } => MessageFamily::Separate(Separate::FinishRequested),
+            Self::Met { .. } => MessageFamily::Separate(Separate::Met),
+            Self::NothingAwaited => MessageFamily::Separate(Separate::NothingAwaited),
             Self::Result(_) => MessageFamily::Result,
             Self::EffectNotMade { .. } => MessageFamily::Slot(Slot::EffectNotMade),
             Self::SettingsDecision { .. } => MessageFamily::Slot(Slot::SettingsDecision),

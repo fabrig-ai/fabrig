@@ -100,9 +100,11 @@ pub(crate) fn message(task: &mut TaskRecord, word: &Word, bound: u32, out: &mut 
         MessageFamily::Spoken(_) => {
             Line::Words { message: word.number, by: word.from, kind: word.kind.clone(), words: word.words.clone() }
         }
-        MessageFamily::Hint(_) | MessageFamily::Slot(_) | MessageFamily::Result | MessageFamily::Virtual => {
-            Line::Heard(word.clone())
-        }
+        MessageFamily::Hint(_)
+        | MessageFamily::Slot(_)
+        | MessageFamily::Separate(_)
+        | MessageFamily::Result
+        | MessageFamily::Virtual => Line::Heard(word.clone()),
     };
     append(task, word.at, line, out);
     crate::positions::message(task, word, bound);
