@@ -306,7 +306,7 @@ pub(super) fn read(
     if why.is_none()
         && let crate::ForgeRead::RevisionSetting { .. } = query
     {
-        revision_begin(domain, env, decision, reply, sign_in, query);
+        revision_begin(domain, env, decision, reply, sign_in, scope, query);
         return;
     }
     let delivery = match why {
@@ -365,6 +365,7 @@ fn revision_begin(
     decision: &mut crate::Decision,
     reply: skein_lib::ReplyTo,
     sign_in: u64,
+    scope: jig_domain_people::ApplicationScope,
     query: crate::ForgeRead,
 ) {
     let crate::ForgeRead::RevisionSetting { revision, .. } = query else { unreachable!("revision query") };
@@ -381,11 +382,25 @@ fn revision_begin(
         );
         return;
     }
-    domain.work.push(Work::Core(Event::Read {
-        reply,
-        sign_in,
-        read: jig_domain_core::reads::Read::Revision { number: revision },
-    }));
+    match scope {
+        jig_domain_people::ApplicationScope::Project(project) => {
+            let requests = jig_domain_core::reads::settings::revision_metadata(
+                &mut domain.core,
+                &super::environment_core(env),
+                reply,
+                sign_in,
+                project,
+                revision,
+            );
+            super::route_core_requests(domain, env, decision, requests);
+        }
+        jig_domain_people::ApplicationScope::Deployment => domain.work.push(Work::Core(Event::Read {
+            reply,
+            sign_in,
+            read: jig_domain_core::reads::Read::Revision { number: revision },
+        })),
+        jig_domain_people::ApplicationScope::Own => unreachable!("settings reads require a shared scope"),
+    }
 }
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "non-revision answers are forwarded as the core returned them")]
