@@ -202,6 +202,7 @@ pub(crate) struct Stages {
     file_submissions: Queue<kernel::Submit>,
     submissions: Queue<kernel::Submit>,
     completions: Queue<kernel::Complete>,
+    io_completions: Queue<kernel::Complete>,
     owners: Slab<Owner>,
     operations: Map<Token, Operation>,
     next_operation: u64,

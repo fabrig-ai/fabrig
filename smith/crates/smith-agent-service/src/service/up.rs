@@ -15,25 +15,14 @@ use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
 use smith_protocol_machine as machine;
 
-pub(super) fn io_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
-    if let Some(io) = face::io_mut(frame.as_deref_mut()) {
-        for _ in 0..service.limits.io.sockets {
-            if !io.is_ready() {
-                break;
-            }
-            io::resume(io, &service.io_env, &mut service.io_events, &mut service.io_submissions);
-        }
-    }
+pub(super) fn io_up(service: &mut Stages, frame: Option<&mut Frame>) {
     for _ in 0..service.completions.capacity() {
         let Some(complete) = service.completions.pop() else { break };
         let route = service.operations.remove(&complete.op).expect("one route per submitted operation");
         match route {
             Operation::Io(original) | Operation::Signals(original) => {
                 let complete = kernel::Complete { op: original, kind: complete.kind, result: complete.result };
-                let Some(frame) = frame.as_deref_mut() else {
-                    unreachable!("only framed IO issues native completions")
-                };
-                io::up(&mut frame.io, &service.io_env, complete, &mut service.io_events, &mut service.io_submissions);
+                service.io_completions.push(complete);
             }
             Operation::File(original) => {
                 let complete = kernel::Complete { op: original, kind: complete.kind, result: complete.result };
@@ -42,12 +31,14 @@ pub(super) fn io_up(service: &mut Stages, mut frame: Option<&mut Frame>) {
         }
     }
     if let Some(io) = face::io_mut(frame) {
-        for _ in 0..service.limits.io.sockets {
-            if !io.is_due(service.io_env.now) {
-                break;
-            }
-            io::fire(io, &service.io_env, &mut service.io_events, &mut service.io_submissions);
-        }
+        io::stage::up(
+            io,
+            &service.io_env,
+            &mut service.io_completions,
+            &mut service.io_events,
+            &mut service.io_submissions,
+            service.io_env.now,
+        );
     }
     if service.files.is_due(service.io_env.now) {
         file_layer::expire(&mut service.files, service.io_env.now, &mut service.file_submissions);
