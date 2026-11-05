@@ -401,8 +401,8 @@ mod tests {
 
     const ATTEMPT: Token = Token::new(7);
     const REQUEST_KEY: [u8; 16] = [3; 16];
-    const PROJECT: u32 = 1;
-    const TASK: u64 = 8;
+    use crate::PROJECT;
+    const OBSERVED_TASK: u64 = 8;
 
     fn encoded<T>(
         value: &T,
@@ -462,7 +462,9 @@ mod tests {
 
     #[test]
     fn both_ops_routes_exclude_top_level_seen() {
-        for through in [SeenThrough::Results { through: 1 }, SeenThrough::Conversation { task: TASK, through: 1 }] {
+        for through in
+            [SeenThrough::Results { through: 1 }, SeenThrough::Conversation { task: OBSERVED_TASK, through: 1 }]
+        {
             for request in requests(jig_client::Ask::Jig(Box::new(Ask::Seen { through }))) {
                 assert!(Ops::sent(&request).is_none(), "{request:?}");
             }
@@ -472,15 +474,15 @@ mod tests {
     #[test]
     fn both_ops_routes_keep_ordinary_no_card_requests() {
         for ask in [
-            Ask::Stop { project: PROJECT, task: TASK },
-            Ask::Take { project: PROJECT, task: TASK },
+            Ask::Stop { project: PROJECT, task: OBSERVED_TASK },
+            Ask::Take { project: PROJECT, task: OBSERVED_TASK },
             Ask::Compound {
                 project: PROJECT,
                 operations: jig_client_kit::test::list([
-                    Operation::Stop { project: PROJECT, task: TASK },
+                    Operation::Stop { project: PROJECT, task: OBSERVED_TASK },
                     Operation::Message {
                         project: PROJECT,
-                        task: TASK,
+                        task: OBSERVED_TASK,
                         words: Text::new(b"continue".as_slice().into(), 32).expect("fixture text"),
                     },
                 ]),

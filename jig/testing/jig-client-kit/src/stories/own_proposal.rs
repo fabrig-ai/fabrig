@@ -1,8 +1,7 @@
 //! One family page presents jig's first proposal itself.
 use super::*;
-const PARTY: u64 = 7;
+use crate::{PARTY, TASK};
 const ITEM: u64 = 1;
-const TASK: u64 = 9;
 /// The application page composes a proposal whose funding must be shown.
 #[must_use]
 pub fn world(seed: u64) -> World<Test, Scripted> {

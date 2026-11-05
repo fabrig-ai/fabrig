@@ -1,5 +1,5 @@
 //! Conversation actions and visible results (jig/docs/design/client/domain/testing.md, 4–6).
-use crate::{ClientId, Front, FrontFault, Test, Until, World, harness::Seed};
+use crate::{ClientId, Front, FrontFault, SIGNING_PARTY, Test, Until, World, harness::Seed};
 use jig_client_test_domain::Address;
 use jig_client_view::address::{Address as Page, TaskSection};
 use skein_fake_person::{Find, Step};
@@ -8,7 +8,6 @@ use skein_ui::Role;
 use skein_world::domain::Verdict;
 
 pub const WAIT: Duration = Duration::from_secs(2);
-pub const PARTY: u64 = 1;
 pub const CHAT: u64 = 1;
 const OTHER_MEMBER: u64 = 3;
 /// The profile's two sign-ins plus both seeded conversation sessions.
@@ -28,9 +27,9 @@ pub fn finish<F: Front<Test>>(world: &mut World<Test, F>) {
     assert!(outcome.judged.0 > 0);
 }
 pub fn ready<F: Front<Test>>(world: &mut World<Test, F>) -> ClientId {
-    world.seed(Seed::ChatProject { party: PARTY, project: 1 });
-    world.seed(Seed::Conversation { party: PARTY, project: 1, words: b"Hello".as_slice().into() });
-    let client = world.client(PARTY, Address::Jig(Page::Task { task: CHAT, section: TaskSection::Activity }));
+    world.seed(Seed::ChatProject { party: SIGNING_PARTY, project: 1 });
+    world.seed(Seed::Conversation { party: SIGNING_PARTY, project: 1, words: b"Hello".as_slice().into() });
+    let client = world.client(SIGNING_PARTY, Address::Jig(Page::Task { task: CHAT, section: TaskSection::Activity }));
     world.person(client, sign_in(vec![Step::See { find: Find::text(b"Hello"), within: WAIT }]));
     finish(world);
     client
@@ -137,15 +136,15 @@ pub fn the_conversations_section_lists_live_chats_by_last_activity<F: Front<Test
 }
 /// Another member's chat is not in this person's list.
 pub fn a_person_s_chats_are_their_own<F: Front<Test>>(world: &mut World<Test, F>) {
-    world.seed(Seed::ChatProject { party: PARTY, project: 1 });
-    world.seed(Seed::Conversation { party: PARTY, project: 1, words: b"Hello".as_slice().into() });
+    world.seed(Seed::ChatProject { party: SIGNING_PARTY, project: 1 });
+    world.seed(Seed::Conversation { party: SIGNING_PARTY, project: 1, words: b"Hello".as_slice().into() });
     world.seed(Seed::ChatProject { party: OTHER_MEMBER, project: 1 });
     world.seed(Seed::Conversation {
         party: OTHER_MEMBER,
         project: 1,
         words: b"Another member's chat".as_slice().into(),
     });
-    let client = world.client(PARTY, crate::stories::conversation());
+    let client = world.client(SIGNING_PARTY, crate::stories::conversation());
     world.person(client, sign_in(vec![Step::See { find: Find::named(Role::Link, b"Hello"), within: WAIT }]));
     finish(world);
     world.person(
@@ -219,8 +218,8 @@ pub fn an_engine_outside_the_client_s_versions_shows_out_of_date<F: Front<Test>>
     finish(world);
 }
 pub fn starting_a_chat_at_the_text_shell<F: Front<Test>>(world: &mut World<Test, F>) {
-    world.seed(Seed::ChatProject { party: PARTY, project: 1 });
-    let client = world.client(PARTY, crate::stories::conversation());
+    world.seed(Seed::ChatProject { party: SIGNING_PARTY, project: 1 });
+    let client = world.client(SIGNING_PARTY, crate::stories::conversation());
     world.at_text_shell(client);
     world.person(client, sign_in(vec![Step::See { find: Find::named(Role::TextArea, b"First words"), within: WAIT }]));
     finish(world);

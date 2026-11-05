@@ -194,12 +194,11 @@ pub fn receipts(fact: &Received) -> Vec<Receipt> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fixtures::{PROJECT, WIRE_TASK};
     use skein_lib::{Overflow, Writer};
 
     const ATTEMPT: Token = Token::new(7);
     const REQUEST_KEY: [u8; 16] = [3; 16];
-    const PROJECT: u32 = 1;
-    const TASK: u64 = 8;
 
     fn encoded<T>(value: &T, measure: fn(&T) -> u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
         let mut writer = Writer::new(skein_lib::length::usize_of(measure(value)));
@@ -227,7 +226,8 @@ mod tests {
 
     #[test]
     fn encoded_top_level_seen_has_no_retained_answer_observation() {
-        for through in [c::SeenThrough::Results { through: 1 }, c::SeenThrough::Conversation { task: TASK, through: 1 }]
+        for through in
+            [c::SeenThrough::Results { through: 1 }, c::SeenThrough::Conversation { task: WIRE_TASK, through: 1 }]
         {
             assert!(client_sent(&jig_request(&c::Ask::Seen { through })).is_none(), "{through:?}");
         }
@@ -238,18 +238,18 @@ mod tests {
         use jig_client_kit::test::list;
         let words = c::Text::new(b"continue".as_slice().into(), 32).expect("fixture text");
         let asks = [
-            (c::Ask::Stop { project: PROJECT, task: TASK }, None),
-            (c::Ask::Take { project: PROJECT, task: TASK }, None),
+            (c::Ask::Stop { project: PROJECT, task: WIRE_TASK }, None),
+            (c::Ask::Take { project: PROJECT, task: WIRE_TASK }, None),
             (
-                c::Ask::Message { project: PROJECT, task: TASK, words: words.clone() },
-                Some((TASK, b"continue".to_vec())),
+                c::Ask::Message { project: PROJECT, task: WIRE_TASK, words: words.clone() },
+                Some((WIRE_TASK, b"continue".to_vec())),
             ),
             (
                 c::Ask::Compound {
                     project: PROJECT,
                     operations: list([
-                        c::Operation::Stop { project: PROJECT, task: TASK },
-                        c::Operation::Message { project: PROJECT, task: TASK, words: words.clone() },
+                        c::Operation::Stop { project: PROJECT, task: WIRE_TASK },
+                        c::Operation::Message { project: PROJECT, task: WIRE_TASK, words: words.clone() },
                     ]),
                 },
                 None,
@@ -258,11 +258,11 @@ mod tests {
                 c::Ask::Compound {
                     project: PROJECT,
                     operations: list([
-                        c::Operation::Message { project: PROJECT, task: TASK, words },
-                        c::Operation::Stop { project: PROJECT, task: TASK },
+                        c::Operation::Message { project: PROJECT, task: WIRE_TASK, words },
+                        c::Operation::Stop { project: PROJECT, task: WIRE_TASK },
                     ]),
                 },
-                Some((TASK, b"continue".to_vec())),
+                Some((WIRE_TASK, b"continue".to_vec())),
             ),
         ];
         for (ask, words) in asks {
@@ -279,7 +279,7 @@ mod tests {
     fn encoded_family_requests_keep_their_card_and_revision() {
         let record = crate::family::request(&jig_client_test_domain::family::Ask::ChangeObject {
             project: PROJECT,
-            object: TASK,
+            object: WIRE_TASK,
             revision: c::Revision { value: 5 },
             value: 0,
         });
@@ -306,7 +306,7 @@ mod tests {
         let card = jig_client_kit::harness::CardKey::of(jig_client_test_view::family_key(
             &jig_client_test_domain::family::Subject {
                 scope: jig_client_test_domain::family::Scope::Project(PROJECT),
-                kind: jig_client_test_domain::family::Kind::Item(TASK),
+                kind: jig_client_test_domain::family::Kind::Item(WIRE_TASK),
             },
         ));
         assert_eq!(

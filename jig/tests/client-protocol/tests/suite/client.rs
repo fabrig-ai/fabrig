@@ -19,13 +19,13 @@ use jig_client::{
 };
 use jig_client_protocol_world::{
     client::{Referee, Story},
-    fixtures,
+    fixtures::{self, PROJECT as PROJECT_NUMBER},
 };
 use skein_lib::Duration;
 const ME: Handle = Handle { asker: Asker::JIG, number: 1 };
-const PROJECT: Handle = Handle { asker: Asker::JIG, number: 2 };
+const PROJECT_PAGE: Handle = Handle { asker: Asker::JIG, number: 2 };
 const INBOX: Handle = Handle { asker: Asker::JIG, number: 3 };
-const TASK: u64 = 9;
+const STOP_TASK: u64 = 9;
 #[test]
 fn a_client_signed_in_by_the_printed_link_sees_me_live() {
     let mut story = Story::new(fixtures::SEED);
@@ -43,9 +43,9 @@ fn a_client_reads_the_project_me_names_by_its_handle() {
         panic!("me");
     };
     let project = me.projects.as_slice().first().expect("owner's project").project;
-    story.read(PROJECT, Readable::Jig(contract::Read::Project { project }));
-    assert!(story.run_until(|s| !s.pages(PROJECT).is_empty(), Duration::from_secs(1)));
-    let pages = story.pages(PROJECT);
+    story.read(PROJECT_PAGE, Readable::Jig(contract::Read::Project { project }));
+    assert!(story.run_until(|s| !s.pages(PROJECT_PAGE).is_empty(), Duration::from_secs(1)));
+    let pages = story.pages(PROJECT_PAGE);
     let [Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Project(page)))] = pages.as_slice() else {
         panic!("one project page");
     };
@@ -90,14 +90,13 @@ fn each_delivery_the_client_took_reaches_the_core_as_taken() {
 #[test]
 fn a_document_older_than_one_told_is_caught() {
     let mut referee = Referee::default();
-    let subject = Watchable::Jig(contract::Subject::Task { task: TASK });
+    let subject = Watchable::Jig(contract::Subject::Task { task: STOP_TASK });
     assert_eq!(referee.document(subject.clone(), 2), Ok(()));
     assert_eq!(referee.document(subject, 1), Err("document revision moved backwards"));
 }
 
 const STOP: Key = Key { asker: Asker(1), number: 1 };
 const SECOND_STOP: Key = Key { asker: Asker(1), number: 2 };
-const PROJECT_NUMBER: u32 = 1;
 const WIRE_KEY: [u8; 16] = [19; 16];
 fn stop(task: u64) -> Ask {
     Ask::Jig(Box::new(contract::Ask::Stop { project: PROJECT_NUMBER, task }))
@@ -112,7 +111,7 @@ fn assert_one_refusal(story: &Story) {
 #[test]
 fn a_stop_is_answered_once_after_its_commit_is_durable() {
     let mut story = Story::live(fixtures::SEED);
-    story.send(STOP, stop(TASK));
+    story.send(STOP, stop(STOP_TASK));
     assert!(story.run_until(|s| !s.answered(STOP).is_empty(), Duration::from_secs(1)));
     assert_one_refusal(&story);
     assert!(story.told_at(STOP) >= story.durable_at(fixtures::FIRST_OWNER));
@@ -121,7 +120,7 @@ fn a_stop_is_answered_once_after_its_commit_is_durable() {
 fn a_stop_kept_across_a_reload_is_answered_once() {
     let mut story = Story::live(fixtures::SEED);
     story.cut_answer();
-    story.send(STOP, stop(TASK));
+    story.send(STOP, stop(STOP_TASK));
     assert!(story.run_until(|s| s.made(fixtures::FIRST_OWNER) == 1, Duration::from_secs(1)));
     assert_eq!(story.answered(STOP), vec![]);
     story.reload();
@@ -133,7 +132,7 @@ fn a_stop_kept_across_a_reload_is_answered_once() {
 fn a_stop_whose_record_is_refused_is_answered_not_kept_and_never_made() {
     let mut story = Story::live(fixtures::SEED);
     story.refuse_next_save();
-    story.send(STOP, stop(TASK));
+    story.send(STOP, stop(STOP_TASK));
     assert!(story.run_until(|s| !s.answered(STOP).is_empty(), Duration::from_secs(1)));
     assert_eq!(story.answered(STOP), vec![Outcome::NotKept]);
     assert_eq!(story.made(fixtures::FIRST_OWNER), 0);
@@ -142,7 +141,7 @@ fn a_stop_whose_record_is_refused_is_answered_not_kept_and_never_made() {
 fn the_engine_restarting_under_a_pending_stop_answers_it_once() {
     let mut story = Story::live(fixtures::SEED);
     story.cut_answer();
-    story.send(STOP, stop(TASK));
+    story.send(STOP, stop(STOP_TASK));
     assert!(story.run_until(|s| s.made(fixtures::FIRST_OWNER) == 1, Duration::from_secs(1)));
     assert_eq!(story.answered(STOP), vec![]);
     story.restart_engine(Duration::from_millis(10));
@@ -228,8 +227,8 @@ fn an_engine_outside_jig_s_version_leaves_the_client_out_of_date_sending_nothing
     story.serve_jig(8);
     assert!(story.run_until(|s| s.client.link().state == Link::OutOfDate, Duration::from_secs(1)));
     let exchanges = story.exchanges();
-    story.send(STOP, stop(TASK));
-    story.read(PROJECT, Readable::Jig(contract::Read::Project { project: PROJECT_NUMBER }));
+    story.send(STOP, stop(STOP_TASK));
+    story.read(PROJECT_PAGE, Readable::Jig(contract::Read::Project { project: PROJECT_NUMBER }));
     story.watch(INBOX, Watchable::Jig(contract::Subject::Inbox { window: 2 }));
     assert!(story.run_until(|_| true, Duration::from_secs(1)));
     assert_eq!(story.exchanges(), exchanges);
@@ -237,7 +236,7 @@ fn an_engine_outside_jig_s_version_leaves_the_client_out_of_date_sending_nothing
     assert_eq!(story.client.pending(STOP).expect("kept stop").progress, jig_client::Progress::Parked);
     assert_eq!(story.client.next_deadline(), None);
     assert_eq!(
-        story.pages(PROJECT),
+        story.pages(PROJECT_PAGE),
         vec![Readout::NotServed { family: None, served: Some(contract::VersionRange { first: 8, last: 8 }) }]
     );
 }
@@ -531,9 +530,9 @@ fn me_serves_a_template_merged_with_its_project_s_override() {
             .run_until(|s| me_template_budget(s, GOAL_TEMPLATE) == Some(contract::TemplateBudget::Amount(42)), ME_WAIT)
     );
     assert_eq!(me_template_budget(&story, CHAT_TEMPLATE), Some(contract::TemplateBudget::AsAllowed { cap: None }));
-    story.read(PROJECT, Readable::Jig(contract::Read::Project { project: PROJECT_NUMBER }));
-    assert!(story.run_until(|s| !s.pages(PROJECT).is_empty(), ME_WAIT));
-    let pages = story.pages(PROJECT);
+    story.read(PROJECT_PAGE, Readable::Jig(contract::Read::Project { project: PROJECT_NUMBER }));
+    assert!(story.run_until(|s| !s.pages(PROJECT_PAGE).is_empty(), ME_WAIT));
+    let pages = story.pages(PROJECT_PAGE);
     let [Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Project(project)))] = pages.as_slice() else {
         panic!("project page")
     };

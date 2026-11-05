@@ -86,7 +86,7 @@ fn finite_pool_carves_reserves_and_posts_to_its_original_period_atomically() {
     let reply = w.make(Party::Person(9), vec![second, third]);
     assert!(matches!(reply,Reply::Refused(problem) if problem.why==Refusal::Funding));
     assert_eq!(w.records, before);
-    w.claim(1, 1);
+    w.claim_task(1);
     assert_eq!(turn(&mut w, 1, 1, 1, None, 20), Reply::Turn(Accepted::New));
     w.open_period(2, 300);
     w.restart();
@@ -121,7 +121,7 @@ fn a_period_retires_once_its_last_reservation_closes() {
     w.open_period(2, 300);
     assert!(!ledger(&w, period).closed);
     assert!(!ledger(&w, pool).closed);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.terminal_cause(
         1,
         End::Finished { result: TaskResult::Report { words: Box::new([1]) }, cancel_delegates: false },
@@ -153,12 +153,12 @@ fn a_new_period_funds_new_work_while_the_old_one_settles() {
     w.make(Party::Person(9), vec![second]);
     assert!(!ledger(&w, old).closed);
     assert_eq!(ledger(&w, fresh).numbers.reserved, 100);
-    w.claim(1, 1);
+    w.claim_task(1);
     w.terminal(1, End::Finished { result: TaskResult::Report { words: Box::new([1]) }, cancel_delegates: false });
     w.settle(1);
     assert!(ledger(&w, old).closed);
     assert!(!ledger(&w, fresh).closed);
-    w.claim(2, 2);
+    w.claim_task(2);
     w.terminal(2, End::Finished { result: TaskResult::Report { words: Box::new([1]) }, cancel_delegates: false });
     w.settle(2);
     assert!(!ledger(&w, fresh).closed);
@@ -168,7 +168,7 @@ fn a_new_period_funds_new_work_while_the_old_one_settles() {
 fn priced_admissions_refuse_before_spending_and_adoption_carries_kept_turns() {
     let mut w = World::new(72, LIMITS);
     w.make(Party::Person(9), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     for (attempt, read, why) in [(2, None, Refusal::Attempt), (1, Some(999), Refusal::Read)] {
         let before = w.records.clone();
         assert!(matches!(turn(&mut w,1,attempt,1,read,20),Reply::Refused(problem) if problem.why==why));
@@ -193,7 +193,7 @@ fn priced_invalid_terminals_charge_but_live_delegate_refusals_do_not() {
     let mut w = World::new(73, LIMITS);
     w.make(Party::Person(9), vec![task(1, &[])]);
     w.make(Party::Task(1), vec![task(2, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     let before = w.records.clone();
     assert!(
         matches!(end(&mut w,1,1,End::Finished { result:TaskResult::Report { words:Box::new([1]) },cancel_delegates:false },20),Reply::Refused(problem) if problem.why==Refusal::LiveDelegates && problem.blocked_by.as_deref() == Some(&[2][..]))
@@ -225,7 +225,7 @@ fn priced_invalid_terminals_charge_but_live_delegate_refusals_do_not() {
 fn priced_turns_cannot_spend_beyond_the_claimed_allowance() {
     let mut w = World::new(75, LIMITS);
     w.make(Party::Person(9), vec![task(1, &[])]);
-    w.claim(1, 1);
+    w.claim_task(1);
     assert_eq!(w.record(1).run_reserved, 100);
     let before = w.records.clone();
     assert!(matches!(turn(&mut w,1,1,1,None,101),Reply::Refused(problem) if problem.why==Refusal::Funding));
@@ -278,7 +278,7 @@ fn oversized_terminal_does_not_charge_or_copy_and_sources_refuse_at_capacity() {
     ] {
         let mut w = World::new(77, LIMITS);
         w.make(Party::Person(9), vec![task(1, &[])]);
-        w.claim(1, 1);
+        w.claim_task(1);
         let before = w.records.clone();
         let answer = end(&mut w, 1, 1, End::Finished { result, cancel_delegates: false }, 2);
         assert!(matches!(answer, Reply::Refused(problem) if problem.why == Refusal::Contract));
@@ -308,7 +308,7 @@ fn independent_referee_detects_omitted_ledger_save_and_settlement_posting() {
     let mut judge = Accounting::default();
     judge.reset(&before);
     assert!(judge.committed(&bad, &[]).is_err());
-    w.claim(1, 1);
+    w.claim_task(1);
     w.terminal_cause(
         1,
         End::Finished { result: TaskResult::Report { words: Box::new([1]) }, cancel_delegates: false },
@@ -335,9 +335,9 @@ fn delegate_expense_follows_task_funding_chain_once() {
     child.authority.budget.spend = 40;
     w.make(Party::Task(1), vec![child]);
     assert_eq!(w.record(1).numbers.reserved, 40);
-    w.claim(1, 1);
+    w.claim_task(1);
     assert_eq!(w.record(1).numbers.reserved, 100, "parent's run reserves its remaining 60");
-    w.claim(2, 2);
+    w.claim_task(2);
     assert_eq!(turn(&mut w, 2, 2, 1, None, 8), Reply::Turn(Accepted::New));
     w.terminal_cause(
         2,
@@ -421,7 +421,7 @@ fn an_amendment_accepted_by_another_funder_funds_its_task_anew() {
     member.numbers.budget = 10;
     member.authority.budget.spend = 10;
     assert_eq!(world.make(Party::Person(9), vec![member]), Reply::Made(vec![1]));
-    world.claim(1, 1);
+    world.claim_task(1);
     assert_eq!(turn(&mut world, 1, 1, 1, None, 3), Reply::Turn(Accepted::New));
     accepted_amendment(&mut world, second, 15);
     assert_eq!(ledger(&world, first).numbers, Numbers { budget: 30, spent: 0, spent_below: 3, reserved: 0 });

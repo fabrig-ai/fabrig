@@ -1,6 +1,6 @@
 //! The world holds a decision to the application's own phrasing.
 use super::*;
-use crate::{Scripted, Test, stories, test::list};
+use crate::{PROJECT, Scripted, Test, stories, test::list};
 use jig_client::{
     Asker, Key,
     contract::{ActKind, Admission, Ask, DecideOn, Decision, Offered, ReadValue},
@@ -10,7 +10,6 @@ use jig_client_test_kit::check;
 use skein_ui::phrases::{Form, PluralClass, Segment};
 use skein_ui::{Builder, Role, Run};
 use skein_world::domain::Verdict;
-const PROJECT: u32 = 1;
 const CLIENT: ClientId = ClientId(0);
 const KEY: Key = Key { asker: Asker::JIG, number: 1 };
 const OVERRIDE: &[u8] = b"Review this refusal with care";

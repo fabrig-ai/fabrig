@@ -2,13 +2,16 @@
 
 use jig_domain_core as core;
 use jig_protocol_store::{Event, Limits, Request, TranscriptRead, Write, sizes};
-use jig_store_world::{World, root, world::Restored};
+use jig_store_world::{
+    World,
+    root::{self, LIVE as TASK},
+    world::Restored,
+};
 use skein_lib::Token;
 use std::collections::BTreeMap;
 
 const SEED: u64 = 0x0051_414d_3162;
 const READER: Token = Token::new(714);
-const TASK: u64 = root::LIVE;
 const ATTEMPT: u64 = 1;
 const PRIOR: &[u8] = b"durable before refusal";
 // store.md 8.1 declares transcript: bytes 33554432 in the current codec.
