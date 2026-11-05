@@ -29,6 +29,14 @@
     them, are the deployment's `change_policy`, and its gates its landing
     branch's rules' (`temper-engine-domain/src/route/forge_route.rs`,
     `start_change`); its page's line that a change takes no words.
+  - 8.1: a goal's issue can still reach its forge with an empty title. A spec
+    whose first line is blank or a lone full stop leaves no sentence
+    (`temper-engine-domain/src/route/forge_route.rs`, the projection's `title`;
+    `temper-engine-domain-forge-issues/src/text.rs`, `title`), and
+    `temper-engine-domain-forge/src/domain.rs`, `project_write`, writes it as it
+    is. The request `producer-failure` of 2026-11-05 has no empty title reach a
+    forge by any route; its plan's cut took the pull request's alone, an issue
+    making its own from a goal's spec. This is from reading: no story writes one.
   - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status.
@@ -52,6 +60,16 @@
     its pull, is unobserved: it is built (`temper-engine-domain-forge/src/brief.rs`,
     `brief_answer`), but those stories run a CI repair's pair alone and no test
     holds its words.
+  - 8.4: a released resolution or merge job that failed holds again, where the
+    section has a resolution asked afresh: `released_state`
+    (`temper-engine-domain-forge-change/src/domain.rs`) keeps `Resolving {
+    requested: true }`, the row keeps the failed status
+    (`temper-engine-domain-forge/src/domain.rs`, `change_standing`), and
+    `delegated` reads it, so no fresh task is made. A failed producer and a failed
+    repair take `requested: false`. This is from reading: no test or story
+    releases a failed resolution. The `producer-failure` plan, whose request asks
+    after a failure's shape and not its release, pins only its hold
+    (`failed_repairs_and_resolutions_do_not_take_a_pushed_head`).
   - 8.4: a green head ending a repair has no story for a repair waiting for an
     answer to its question (none asks from a repair), a repair finding nothing
     to do (`NoChange`, read as failed), or a task closing or held with its
@@ -193,16 +211,29 @@
     engine's domain world (`tests/engine/domain/tests/suite/forge_routes/brief_failure.rs`),
     where the core and the connector meet; the forge world
     (`tests/engine/forge/tests/suite/brief.rs`) tells a lone section's failure.
-- **Design departs:** 8.11 and jig's `domain/tasks.md`, 5.7, from the request
-  `producer-failure` of 2026-11-05, decided by its plan's cut, for the user to
-  see: the request recommends refusing an asker's `finish` at the call, with the
-  words `Your question is still open: call wait; the answer reaches this run.`
-  The run parks instead, as a done finish does: smith judges a `finish` with no
-  call to its host, and the tasks child decides at the answer's commit, the run
-  and its host knowing nothing of it (jig's `domain/engine.md`, 7.4). A refusal
-  at the call would need a new crossing from jig through the worker to smith, and
-  costs the run a turn that parking does not. So those words reach no run; the
-  stock coding charter says the same before it finishes.
+- **Design departs:** 8.4, 8.11 and jig's `domain/tasks.md`, 5.7, from the request
+  `producer-failure` of 2026-11-05, each decided by its plan's cut, for the user
+  to see:
+  - 8.11, and jig's 5.7: the request recommends refusing an asker's `finish` at
+    the call, with the words `Your question is still open: call wait; the answer
+    reaches this run.` The run parks instead, as a done finish does: smith judges
+    a `finish` with no call to its host, and the tasks child decides at the
+    answer's commit, the run and its host knowing nothing of it (jig's
+    `domain/engine.md`, 7.4). A refusal at the call would need a new crossing from
+    jig through the worker to smith, and costs the run a turn that parking does
+    not. So those words reach no run; the stock coding charter says the same
+    before it finishes, and a resumed run's transcript shows its earlier `finish`
+    as accepted, then its waking instruction and the answer.
+  - 8.11: the request has a question left by its asker's end say so to whoever
+    was waiting. One passed up says so at its answer, not at the end, because
+    saying it once at the end would need a stored mark and the request names no
+    store change. So a requester that never answers hears nothing of it.
+  - 8.4: the request has its failing test in the forge world. Its stories run in
+    the engine's domain world
+    (`tests/engine/domain/tests/suite/forge_routes/producer_failure.rs`), where the
+    core and the connector meet, with the policy's in
+    `temper-engine-domain-forge-change/src/tests.rs`; `tests/engine/forge` tells
+    none of it.
 - **Design departs:** 8.11, from the request `report-in-finish` of 2026-11-05,
   decided by its plan's cut, for the user to see: the call's refusal and the
   words at a step take a change's repair and resolution beside its producing
