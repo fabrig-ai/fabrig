@@ -3,7 +3,7 @@
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 3.5, A chat's document, Starting a goal from a chat's document;
-  4.6: `PersonFact`; 5.3: the rail's menu.
+  4.6: `PersonFact`.
 - **Departs:** 3.5, *The Chats page*: the document read stops at
   `limits.client.domain.rows` notes, so a chat beyond those notes has no
   "writes" line and is absent under Drafts. Goal chips cover only the newest

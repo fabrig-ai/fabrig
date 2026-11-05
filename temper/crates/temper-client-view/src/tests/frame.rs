@@ -1482,7 +1482,7 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
         (Role::Link, crate::look::BRAND),
         (Role::Disclosure, crate::look::PROJECTS),
         (Role::Slot, crate::look::RAIL_NAV),
-        (Role::Link, crate::look::RAIL_NEW),
+        (Role::Slot, crate::look::RAIL_NEW),
         (Role::Slot, crate::look::RAIL_FOOT),
     ] {
         assert_eq!(nodes[at].role, role);

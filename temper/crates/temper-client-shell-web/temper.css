@@ -1121,8 +1121,28 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-rail > .temper-rail-nav > a { display: flex; justify-content: space-between; padding: 7px 10px; border-radius: 6px; color: var(--gf-ink); }
 #app > .temper-rail > .temper-rail-nav > a:hover { background: #f0f0ee; }
 #app > .temper-rail > .temper-rail-nav > a[aria-current] { background: var(--gf-hover); font-weight: 500; }
-#app > .temper-rail > .temper-rail-new { padding: 9px 10px; border: 1px dashed #c9c9c3; border-radius: 8px; color: var(--gf-ink); }
+#app > .temper-rail > .temper-rail-new { position: relative; display: flex; padding: 0; border: 1px dashed #c9c9c3; border-radius: 8px; color: var(--gf-ink); }
 #app > .temper-rail > .temper-rail-new:hover { border-color: var(--gf-ink); }
+/* new-menu: "+ New chat" keeps its one press, and a button beside it opens a short menu of the ways to start work: Chat, Goal, and "All ways to start work". */
+#app > .temper-rail > .temper-rail-new > a { flex: 1; min-width: 0; padding: 9px 10px; border-radius: 7px 0 0 7px; }
+#app > .temper-rail > .temper-rail-new > :is(a, [aria-haspopup]):hover { background: #f0f0ee; }
+#app > .temper-rail > .temper-rail-new > [aria-haspopup] { flex: none; width: 36px; padding: 0; border: 0; border-left: 1px dashed #c9c9c3; border-radius: 0 7px 7px 0; background: none; font-size: 0; color: var(--gf-muted); }
+#app > .temper-rail > .temper-rail-new > [aria-haspopup]::before { content: '⌄'; font-size: 15px; line-height: 1; }
+#app > .temper-rail > .temper-rail-new > [aria-expanded=true] { background: var(--gf-hover); color: var(--gf-ink); }
+#app > .temper-rail:has(> .temper-rail-new > [aria-expanded=true]) { overflow: visible; }
+#app > .temper-rail > .temper-rail-new > [role=menu] { position: absolute; top: calc(100% + 6px); left: -1px; z-index: 30; width: 288px; display: flex; flex-direction: column; padding: 6px; border: 1px solid var(--gf-line); border-radius: 10px; background: var(--gf-surface); box-shadow: 0 12px 32px rgba(24, 24, 27, .12); }
+#app > .temper-rail > .temper-rail-new > [role=menu][hidden] { display: none; }
+#app > .temper-rail [role=menuitem] { position: relative; display: flex; flex-direction: column; padding: 8px 10px; border-radius: 6px; color: var(--gf-ink); cursor: pointer; }
+#app > .temper-rail [role=menuitem]:is(:hover, :focus) { background: var(--gf-hover); outline: 0; }
+#app > .temper-rail [role=menuitem] > span:first-child { font-weight: 500; }
+#app > .temper-rail [role=menuitem] > span + span { font-size: 12.5px; line-height: 1.5; color: var(--gf-muted); }
+#app > .temper-rail [role=menuitem].temper-rail-new-all { margin-top: 7px; font-size: 13.5px; color: var(--gf-muted); }
+#app > .temper-rail [role=menuitem].temper-rail-new-all > span:first-child { font-weight: 400; }
+#app > .temper-rail [role=menuitem].temper-rail-new-all::before { content: ''; position: absolute; top: -4px; left: 4px; right: 4px; border-top: 1px solid var(--gf-line); }
+@media (max-width: 760px) {
+  #app > .temper-rail > .temper-rail-new { display: none; }
+}
+
 #app > .temper-rail > .temper-rail-foot { margin-top: auto; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; color: var(--gf-muted); }
 #app > .temper-rail > .temper-rail-foot > :is(a, [role=status], [data-region=temper-link]) { padding: 6px 10px; border-radius: 6px; }
 #app > .temper-rail > .temper-rail-foot > a:hover { background: #f0f0ee; color: var(--gf-ink); }

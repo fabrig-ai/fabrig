@@ -12,13 +12,17 @@ First:
   [8] Chats
   [9] Changes (current)
   [10] + New chat
-  [11] Settings
+  More ways to start work:
+    [11] Chat
+      Ask a question or ask for a change.
+    [12] All ways to start work
+  [13] Settings
   * Pat
 First · landing
 1 queued · last landed just now. Each change is checked on top of main before it lands.
 Queue:
   ## Queue
-  - [12] Store: policy record · checking · checks started just now
+  - [14] Store: policy record · checking · checks started just now
 Landed recently:
   ## Landed recently
-  - [13] A landed change · 00:00
+  - [15] A landed change · 00:00

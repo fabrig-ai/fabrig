@@ -74,8 +74,13 @@ impl Sample {
     pub fn open_disclosure(&self) -> Option<&[u8]> {
         if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
     }
+    /// Opens the rail menu through the page part in the static print (client/browser.md, 7).
+    #[must_use]
+    pub fn open_menu(&self) -> Option<&[u8]> {
+        if self.name == "rail-new-menu" { Some(b"More ways to start work") } else { None }
+    }
 }
-pub const N: usize = 240;
+pub const N: usize = 241;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -452,6 +457,12 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "rail-new-menu",
+            world: Solo,
+            address: Address::Home { project: 1 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
+        },
         Sample { name: "repositories", world: Solo, address: Address::Repositories { project: 1 }, then: Shown },
         Sample { name: "repositories-none", world: Bare, address: Address::Repositories { project: 1 }, then: Shown },
         Sample { name: "forges-empty", world: Bare, address: Address::Forges, then: Shown },
