@@ -70,17 +70,8 @@ pub enum Part {
     ToolCall { id: Box<[u8]>, name: Box<[u8]>, input: Box<[u8]>, too_large: bool, bytes: u64, cut: bool },
     Opaque { bytes: Box<[u8]> },
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Output {
-    Part(Part),
-    TextDelta { index: u32, content_index: u32, text: Box<[u8]> },
-    ToolStart { index: u32, id: Box<[u8]>, name: Box<[u8]> },
-    ArgumentsDelta { index: u32, delta: Box<[u8]> },
-    ReasoningDelta { index: u32, summary_index: u32, text: Box<[u8]> },
-    Completed { stop: Stop, usage: Usage },
-    Failed { failure: Failure, detail: Box<[u8]> },
-    Progress,
-}
+/// Decoded events over this dialect's `Part` (skein/docs/design/llm.md, 2).
+pub type Output = crate::wire::Output<Part>;
 
 #[derive(Debug)]
 enum Active {
