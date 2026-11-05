@@ -17,6 +17,7 @@ files = [
   "temper/tests/engine/forge/tests/suite/main.rs",
   "temper/tests/engine/domain/tests/suite/forge_routes/repair_green.rs",
   "temper/tests/engine/domain/tests/suite/forge_routes.rs",
+  "temper/tests/engine/domain/src/tier_task_show.rs",
   "temper/docs/design/domain/forge.status.md",
 ]
 effort = "high"
@@ -127,3 +128,13 @@ Then: `cargo fmt`; `python3 -I -B scripts/old_forms.py` from `temper/`; `heavy c
 ## Report
 
 As the implementer's text says, and: what each story failed on before the rule, whether `writer_taken` or a question's asker needed the options above, and any test of a `Repair::Ci` whose meaning you changed, with why.
+
+## Answers
+
+2026-11-05. May the run fix `temper/tests/engine/domain/src/tier_task_show.rs`, whose empty model table fails the required task-show on a repair's document (`ModelEffortModel`, `Bound`), or defer those assertions?
+
+Fix it; the assertions stay. The file is added to `files`. The helper's `answer` passes `&[]` to `jig_protocol_engine_clients::translate::objects::document`, which cannot show any task naming a model, and a repair's task names model 0; a deployment's translator has its table.
+
+`world.root.models()` alone does not compile: it is `&[jig_domain_core::Model]`, and `document` takes `&[jig_protocol_engine_clients::Model]`. Map one to the other in the helper, field for field as `client_models` does in `temper/tests/engine/domain/tests/suite/root_routes/open_chat.rs`, `provider` and `description` `None`, and pass the result. Only this helper changes: no jig change, no change to `repair_cancel.rs`'s callers.
+
+Then the three stories' task-show assertions and their teardown run for the first time. A failure word or a missing `CI passed at head` in that output is this task's to find and fix in the rule or the cancel, not in the assertion; a change to what the assertion expects is a question.
