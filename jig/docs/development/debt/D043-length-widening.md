@@ -2,7 +2,7 @@
 
 - **Kind:** primitives
 - **Where:** `jig-domain-people`, `jig-domain-core`, `jig-client-protocol-link`, `jig-protocol-store`, and the other crates the measure finds
-- **Seen:** 2026-11-03 at `a6a8155d35`, while reconciling the four trees' backfills: skein's `skein/docs/development/debt/D002-index-and-length-widening.md` says jig calls `len_u64` nowhere (new here)
+- **Seen:** 2026-11-03 at `a6a8155d35`, while reconciling the four trees' backfills: skein's item on widening said jig calls `len_u64` nowhere (new here)
 - **Checked:** 2026-11-03 at `a6a8155d35`
 - **Value:** low (one spelling of an infallible widening, no refusal paths that cannot be taken)
 - **Size:** S
