@@ -3011,6 +3011,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         // the newest wake reserves the restart's entry and reads jig's current kept answer.
         pending.entry = entry;
         pending.heard.delegate = heard.delegate;
+        pending.heard.delegate_running = heard.delegate_running;
         pending.heard.lacking = heard.lacking;
         pending.heard.spend = heard.spend;
         pending.kept = kept;
@@ -3557,6 +3558,7 @@ fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one coherent snapshot records a green repair ending before stepping onward")]
 fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &mut Queue<Request>) {
     let Some(mut row) = titled_change(d, env, pending.task, out) else { return };
     let before = crate::panel::ready(&row);
@@ -3601,7 +3603,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
         accept_released_branch(d, env, &mut row, head, out);
     }
     let facts = change_facts(d, env, &row, pending, base_tip);
-    let heard = change_standing(d, &row, pending);
+    let mut heard = change_standing(d, &row, pending);
     if row.delegate_status != change::Status::Unknown {
         row.delegate = None;
     }
@@ -3612,6 +3614,12 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
         let decision = stepped.decision;
         match decision {
             change::Decision::None if advanced => {}
+            change::Decision::RepairEnded { head } => {
+                row.result.ci_passed(&head, env.limits.client.answer_bytes);
+                row.producer_failure = None;
+                row.delegate_status = change::Status::Unknown;
+                heard.delegate = change::Status::Unknown;
+            }
             change::Decision::Effect(effect) => {
                 emit_change_effect(d, env, &mut row, pending, prior, effect, out);
                 return;
@@ -3621,6 +3629,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
             | change::Decision::Wait { .. }
             | change::Decision::Delegate(_)
             | change::Decision::CancelGates { .. }
+            | change::Decision::CancelRepair { .. }
             | change::Decision::Ready
             | change::Decision::QueueRepair
             | change::Decision::NoChange
@@ -3644,7 +3653,13 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
                     out,
                     Request::ChangeDecision {
                         task: row.task,
-                        decision: crate::settle::cap(d, env, &row, &facts, decision),
+                        decision: repair_poll(
+                            env,
+                            &row,
+                            &facts,
+                            &heard,
+                            crate::settle::cap(d, env, &row, &facts, decision),
+                        ),
                         entry: None,
                         evidence: None,
                     },
@@ -3654,6 +3669,25 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
         }
     }
     emit(out, Request::Refused { task: row.task });
+}
+
+fn repair_poll(
+    env: &Env<Limits>,
+    row: &ChangeRow,
+    facts: &change::Facts,
+    heard: &change::Heard,
+    decision: change::Decision,
+) -> change::Decision {
+    if let change::State::Repairing { why: change::Repair::Ci | change::Repair::Semantic, .. } = row.change.state
+        && heard.delegate_running
+        && facts.branch == Some(facts.ci.head)
+        && facts.ci.status == change::Status::Passed
+        && let change::Decision::Wait { until: Some(until) } = decision
+    {
+        let poll = skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(env.limits.client.poll.as_nanos()));
+        return change::Decision::Wait { until: Some(until.min(poll)) };
+    }
+    decision
 }
 
 fn in_queue(state: &change::State) -> bool {

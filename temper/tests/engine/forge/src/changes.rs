@@ -88,6 +88,20 @@ pub fn change_step_task(
     released: bool,
     kept: bool,
 ) -> change::Decision {
+    change_step_task_running(world, task, entry, heard, gates, released, kept, false)
+}
+
+#[expect(clippy::too_many_arguments, reason = "the scripted step supplies task standing and forge gates")]
+pub fn change_step_task_running(
+    world: &mut World,
+    task: u64,
+    entry: u64,
+    heard: change::Status,
+    gates: Box<[change::GateReport]>,
+    released: bool,
+    kept: bool,
+    delegate_running: bool,
+) -> change::Decision {
     world.take_seen();
     world.event(top::Event::StepChange {
         merge_job: false,
@@ -98,6 +112,7 @@ pub fn change_step_task(
             lacking: None,
             spend: None,
             delegate: heard,
+            delegate_running,
             effect: change::EffectResult::None,
             released,
             cancelled: false,

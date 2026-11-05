@@ -71,6 +71,7 @@ mod landing;
 mod producer_failure;
 #[path = "forge_routes/repair_cancel.rs"]
 mod repair_cancel;
+mod repair_green;
 
 #[path = "forge_routes/result.rs"]
 mod result;
