@@ -878,3 +878,22 @@ fn specification_sources_stop_at_the_long_text_bound() {
         assert_eq!(source_read(&h.take()), None);
     }
 }
+
+#[test]
+fn the_line_reads_always() {
+    for words in [b"Asks: always".as_slice(), b"Goal\nAsks: always\nChat: T4", b"Goal\nAsks: always"] {
+        assert!(goal::always_asks(words));
+    }
+}
+#[test]
+fn no_line_follows_the_switch() {
+    for words in [b"".as_slice(), b"Goal\nDraft: away.md", b"Asks: away"] {
+        assert!(!goal::always_asks(words));
+    }
+}
+#[test]
+fn a_line_inside_a_sentence_doesnt_count() {
+    for words in [b"It says Asks: always".as_slice(), b" Asks: always", b"Asks: always later", b"Asks: always "] {
+        assert!(!goal::always_asks(words));
+    }
+}

@@ -620,11 +620,11 @@ pub const SETTINGS: Style = Style { owner: owner(), token: 230 };
 /// Native browser elements for the admin group, Model’s definition list and
 /// the welcome sheet's choices.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
+    (owner(), skein_ui::Role::Text, SETTINGS_DETAIL, "small"),
+    (owner(), skein_ui::Role::Region, SETTINGS_PROPOSAL, "article"),
     (owner(), skein_ui::Role::ChoiceGroup, SHEET_FIELDSET, "fieldset"),
     (owner(), skein_ui::Role::Heading { level: 3 }, SHEET_FIELDSET, "legend"),
     (owner(), skein_ui::Role::Text, SHEET_MUTED, "small"),
-    (owner(), skein_ui::Role::Text, SETTINGS_DETAIL, "small"),
-    (owner(), skein_ui::Role::Region, SETTINGS_PROPOSAL, "article"),
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
     (owner(), skein_ui::Role::List, WELCOME_NUMBERED, "ol"),
     (owner(), skein_ui::Role::Slot, WELCOME_SPIN, "span"),
@@ -1113,6 +1113,15 @@ pub const NAMES: Names<'static> = Names {
         b"temper-home-byline",
         b"temper-chat-goal",
         b"temper-rail-new-all",
+        b"temper-away",
+        b"temper-away-chip",
+        b"temper-away-track",
+        b"temper-decided",
+        b"temper-decision",
+        b"temper-decision-took",
+        b"temper-decision-why",
+        b"temper-decision-late",
+        b"temper-decision-overturned",
     ],
     regions: &[b"temper-link"],
 };
@@ -1262,6 +1271,18 @@ pub const HOME_BYLINE: Style = Style { owner: owner(), token: 435 };
 
 /// A chat starts a goal or links its start (client/README.md, 3.5).
 pub const CHAT_GOAL: Style = Style { owner: owner(), token: 436 };
+/// Away controls (temper/docs/design/client/README.md, 3.5).
+pub const AWAY: Style = Style { owner: owner(), token: 438 };
+pub const AWAY_CHIP: Style = Style { owner: owner(), token: 439 };
+pub const AWAY_TRACK: Style = Style { owner: owner(), token: 440 };
+
+/// Home’s decisions (temper/docs/design/client/README.md, 3.5, Away).
+pub const DECIDED: Style = Style { owner: owner(), token: 441 };
+pub const DECISION: Style = Style { owner: owner(), token: 442 };
+pub const DECISION_TOOK: Style = Style { owner: owner(), token: 443 };
+pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
+pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
+pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
 
 #[cfg(test)]
 mod tests {

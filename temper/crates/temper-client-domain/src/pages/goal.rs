@@ -262,6 +262,22 @@ pub fn draft_of(words: &[u8]) -> (Option<Box<[u8]>>, Option<u64>) {
     }
     (draft, chat)
 }
+/// Whether the goal's words hold the exact asking line (client/README.md, 5.8).
+#[must_use]
+pub fn always_asks(words: &[u8]) -> bool {
+    let mut start = 0;
+    for end in 0..=words.len() {
+        if end != words.len() && words.get(end) != Some(&b'\n') {
+            continue;
+        }
+        let line = words.get(start..end).expect("line boundaries are within the words");
+        if line == b"Asks: always" {
+            return true;
+        }
+        start = end.saturating_add(1);
+    }
+    false
+}
 /// A path's last segment.
 #[must_use]
 pub fn file_of(path: &[u8]) -> &[u8] {

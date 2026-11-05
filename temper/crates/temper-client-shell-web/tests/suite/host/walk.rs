@@ -29,6 +29,7 @@ impl Walk {
             now: Time::ZERO,
             wall: Wall::EPOCH,
             primary: Primary::Control,
+            zone_minutes: 0,
             ways: None,
             forges: Vec::new(),
             path: b"/accounts/connect".as_slice().into(),
@@ -54,6 +55,19 @@ impl Walk {
                 return asks;
             }
             let Duties { asked, writes, .. } = duties;
+            for ask in &asked {
+                if let Asked::Exchange { id, call, .. } = ask
+                    && call.path.as_ref() == b"/jig/v1/watch"
+                {
+                    let answer = w::OpenAnswer::Admitted;
+                    pending.push_back(Report::Heard(Heard::Answered {
+                        exchange: *id,
+                        status: 200,
+                        body: encoded(answer.measure(), |writer| answer.encode(writer)),
+                        headers: Vec::new(),
+                    }));
+                }
+            }
             let carried: Vec<_> = asked
                 .iter()
                 .filter_map(|ask| {

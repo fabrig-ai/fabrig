@@ -155,9 +155,11 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::StartDraft { .. }
         | Act::StartName { .. }
         | Act::StartWay { .. }
+        | Act::StartAsks { .. }
         | Act::StartCancel
         | Act::StartGoal
         | Act::Switcher(_)
+        | Act::Away(_)
         | Act::Needs(_)
         | Act::Choice(_)
         | Act::Accounts(_)

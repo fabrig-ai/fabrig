@@ -158,7 +158,9 @@ impl Case {
                         | w::Watch::Landing(_)
                         | w::Watch::Landings(_)
                         | w::Watch::Changes(_)
-                        | w::Watch::Status(_) => continue,
+                        | w::Watch::Status(_)
+                        | w::Watch::Away
+                        | w::Watch::Decided(_) => continue,
                     };
                     Up::FamilyDelivered {
                         watch,

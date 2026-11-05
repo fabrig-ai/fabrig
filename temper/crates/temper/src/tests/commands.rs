@@ -226,6 +226,11 @@ fn the_page_host_tools_is_what_the_declarations_render() {
     let mut out = skein_lib::Writer::new(measured.written());
     temper_engine_smith::reference(&mut out).expect("host-tools fits measured length");
     let rendered = String::from_utf8(out.finish().into_vec()).expect("reference UTF-8");
+    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+        let path = skein_scratch::paths::tree().join("docs/help/reference/host-tools.md");
+        std::fs::write(path, &rendered).expect("write host-tools reference");
+        return;
+    }
     assert_eq!(
         include_str!("../../../../docs/help/reference/host-tools.md"),
         rendered,

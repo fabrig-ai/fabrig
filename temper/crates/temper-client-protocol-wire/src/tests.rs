@@ -1538,3 +1538,171 @@ fn setup_first_choices_round_trip_in_requests_and_rows() {
         assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), Some(record));
     }
 }
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
+fn aways_round_trip_and_refuse_trailing_bytes() {
+    for bytes in [
+        include_bytes!("../golden/record_aways_smallest.bin").as_slice(),
+        include_bytes!("../golden/record_aways_full.bin").as_slice(),
+    ] {
+        let record = crate::decode_aways(bytes, &v1::CEILINGS).expect("aways golden");
+        assert_eq!(crate::aways(&record).as_ref(), bytes);
+        assert_eq!(crate::decode_aways(&fixtures::trailing(bytes), &v1::CEILINGS), None);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
+fn decisions_round_trip_and_refuse_trailing_bytes() {
+    for bytes in [
+        include_bytes!("../golden/record_decisions_smallest.bin").as_slice(),
+        include_bytes!("../golden/record_decisions_full.bin").as_slice(),
+    ] {
+        let record = crate::decode_decisions(bytes, &v1::CEILINGS).expect("decisions golden");
+        assert_eq!(crate::decisions(&record).as_ref(), bytes);
+        assert_eq!(crate::decode_decisions(&fixtures::trailing(bytes), &v1::CEILINGS), None);
+    }
+}
+
+#[test]
+fn away_requests_round_trip_and_validate_kinds() {
+    let limits = fixtures::limits();
+    for kinds in [0, 7, 15, 16, u8::MAX] {
+        for on in [false, true] {
+            for until in [None, Some(u64::MAX)] {
+                let value =
+                    v1::SetAway::new(&limits, v1::SetAwayParts { project: u32::MAX, on, until, kinds }).unwrap();
+                let request =
+                    v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::SetAway(value) }).unwrap();
+                let bytes = crate::requesting(&request);
+                if kinds > 15 {
+                    assert_eq!(crate::decode_requesting(&bytes, &limits), None);
+                } else {
+                    assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
+                    assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
+                }
+            }
+        }
+    }
+    let value = v1::Overturn::new(&limits, v1::OverturnParts { project: u32::MAX, number: u32::MAX }).unwrap();
+    let request = v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Overturn(value) }).unwrap();
+    let bytes = crate::requesting(&request);
+    assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
+    assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
+}
+
+#[test]
+fn away_watches_and_outcomes_round_trip() {
+    let limits = fixtures::limits();
+    for watch in [
+        v1::Watch::Away,
+        v1::Watch::Decided(v1::DecidedSubject::new(&limits, v1::DecidedSubjectParts { project: u32::MAX }).unwrap()),
+    ] {
+        let watch = v1::Watching::new(&limits, v1::WatchingParts { watch }).unwrap();
+        let bytes = crate::watching(&watch);
+        assert_eq!(crate::decode_watching(&bytes, &limits), Some(watch));
+        assert_eq!(crate::decode_watching(&fixtures::trailing(&bytes), &limits), None);
+    }
+    for outcome in [
+        v1::Outcome::Away,
+        v1::Outcome::Overturned,
+        v1::Outcome::OverturnRefused(
+            v1::OverturnRefused::new(&limits, v1::OverturnRefusedParts { reason: v1::OverturnRefusal::Already })
+                .unwrap(),
+        ),
+        v1::Outcome::OverturnRefused(
+            v1::OverturnRefused::new(&limits, v1::OverturnRefusedParts { reason: v1::OverturnRefusal::Unknown })
+                .unwrap(),
+        ),
+    ] {
+        let answer = v1::Answer::new(&limits, v1::AnswerParts { outcome }).unwrap();
+        assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&answer))), Ok(answer));
+    }
+}
+
+#[test]
+fn aways_rows_are_bounded_at_construction_and_decode() {
+    let limits = fixtures::limits();
+    let row = v1::AwayRow::new(
+        &limits,
+        v1::AwayRowParts {
+            project: u32::MAX,
+            since: u64::MAX,
+            until: Some(u64::MAX),
+            kinds: 15,
+            landed: u64::MAX,
+            off: Some(u64::MAX),
+        },
+    )
+    .unwrap();
+    for count in [0, v1::CEILINGS.aways_rows, v1::CEILINGS.aways_rows + 1] {
+        let mut rows = List::with_capacity(count);
+        let mut writer =
+            skein_lib::Writer::new(6 + usize::try_from(count).unwrap() * usize::try_from(row.measure()).unwrap());
+        writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
+        writer.put(&count.to_be_bytes()).unwrap();
+        for _ in 0..count {
+            rows.push(row.clone()).unwrap();
+            row.encode(&mut writer).unwrap();
+        }
+        let bytes = writer.finish();
+        let made = v1::Aways::new(&limits, v1::AwaysParts { rows });
+        if count > v1::CEILINGS.aways_rows {
+            assert_eq!(
+                made.unwrap_err(),
+                v1::Problem { path: v1::Path::AwaysRows, reason: skein_codec::Reason::Bound }
+            );
+            assert_eq!(crate::decode_aways(&bytes, &limits), None);
+        } else {
+            let record = made.unwrap();
+            assert_eq!(crate::aways(&record), bytes);
+            assert_eq!(crate::decode_aways(&bytes, &limits), Some(record));
+            assert_eq!(crate::decode_aways(&fixtures::trailing(&bytes), &limits), None);
+        }
+    }
+}
+
+#[test]
+fn decisions_rows_are_bounded_at_construction_and_decode() {
+    let limits = fixtures::limits();
+    let row = v1::Decision::new(
+        &limits,
+        v1::DecisionParts {
+            number: u32::MAX,
+            task: u64::MAX,
+            at: u64::MAX,
+            question: Box::new([b'q'; 400]),
+            took: Box::new([b't'; 120]),
+            why: Box::new([b'w'; 400]),
+            overturned: true,
+        },
+    )
+    .unwrap();
+    for count in [0, 64, 64 + 1] {
+        let mut rows = List::with_capacity(count);
+        let mut writer =
+            skein_lib::Writer::new(10 + usize::try_from(count).unwrap() * usize::try_from(row.measure()).unwrap());
+        writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
+        writer.put(&u32::MAX.to_be_bytes()).unwrap();
+        writer.put(&count.to_be_bytes()).unwrap();
+        for _ in 0..count {
+            rows.push(row.clone()).unwrap();
+            row.encode(&mut writer).unwrap();
+        }
+        let bytes = writer.finish();
+        let made = v1::Decisions::new(&limits, v1::DecisionsParts { project: u32::MAX, rows });
+        if count > 64 {
+            assert_eq!(
+                made.unwrap_err(),
+                v1::Problem { path: v1::Path::DecisionsRows, reason: skein_codec::Reason::Bound }
+            );
+            assert_eq!(crate::decode_decisions(&bytes, &limits), None);
+        } else {
+            let record = made.unwrap();
+            assert_eq!(crate::decisions(&record), bytes);
+            assert_eq!(crate::decode_decisions(&bytes, &limits), Some(record));
+            assert_eq!(crate::decode_decisions(&fixtures::trailing(&bytes), &limits), None);
+        }
+    }
+}

@@ -29,9 +29,9 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // The page handles plus the standing project-needs watch.
-                handles: 10,
-                watches: 10,
+                // The page handles, project-needs, session Away and Home decisions watches.
+                handles: 12,
+                watches: 12,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -316,7 +316,7 @@ pub(super) fn root_at_with_dismissals(
     forge_rows: Option<List<w::ForgeRow>>,
     dismissed: Option<&[u32]>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
-    let (root, me, page, tree, accounts, forges, _, _) = root_at_with_values(
+    let (root, me, page, tree, accounts, forges, _, _, _) = root_at_with_values(
         address,
         limits,
         project_name,
@@ -341,7 +341,7 @@ pub(super) fn root_at_with_dismissals_and_needs(
     forge_rows: Option<List<w::ForgeRow>>,
     dismissed: Option<&[u32]>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
-    let (root, me, page, tree, accounts, forges, _, needs) = root_at_with_values(
+    let (root, me, page, tree, accounts, forges, _, needs, _) = root_at_with_values(
         address,
         limits,
         project_name,
@@ -372,8 +372,8 @@ pub fn home_root(
     rows: List<w::ForgeRow>,
     dismissed: Option<&[u32]>,
     goals: bool,
-) -> (temper_client_domain::Domain, Token, Token, Token, Token) {
-    let (root, me, _, _, accounts, _, settings, needs) = root_at_with_values(
+) -> (temper_client_domain::Domain, Token, Token, Token, Token, Token) {
+    let (root, me, _, _, accounts, _, settings, needs, away) = root_at_with_values(
         temper_client_domain::Address::Settings { project: PROJECT },
         limits,
         b"Shop",
@@ -391,6 +391,7 @@ pub fn home_root(
         accounts.expect("accounts watch"),
         settings.expect("session settings watch"),
         needs.expect("standing needs watch"),
+        away.expect("away watch"),
     )
 }
 
@@ -411,6 +412,7 @@ pub(super) fn root_at_with_values(
 ) -> (
     temper_client_domain::Domain,
     Token,
+    Option<Token>,
     Option<Token>,
     Option<Token>,
     Option<Token>,
@@ -469,6 +471,7 @@ pub(super) fn root_at_with_values(
     let mut account_watch = None;
     let mut activity_read = None;
     let mut dismissed_watch = None;
+    let mut away_watch = None;
     for _ in 0..out.len() {
         let request = out.pop();
         if let Some(Request::Unlinked {
@@ -477,6 +480,13 @@ pub(super) fn root_at_with_values(
             && Some(subject.clone()) == forge::dismissed::watch(&limits.forge)
         {
             dismissed_watch = Some(*watch);
+        }
+        if let Some(Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        }) = request.as_ref()
+            && Some(subject.clone()) == forge::away::watch(&limits.forge)
+        {
+            away_watch = Some(*watch);
         }
         if let Some(read) = activity_token(request.as_ref()) {
             activity_read = Some(read);
@@ -543,6 +553,13 @@ pub(super) fn root_at_with_values(
             && Some(subject.clone()) == forge::dismissed::watch(&limits.forge)
         {
             dismissed_watch = Some(*watch);
+        }
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        } = &request
+            && Some(subject.clone()) == forge::away::watch(&limits.forge)
+        {
+            away_watch = Some(*watch);
         }
         out.push(request);
     }
@@ -696,7 +713,17 @@ pub(super) fn root_at_with_values(
             empty_session(&mut root, read.expect("playground read"), account_watch.expect("accounts watch"));
         }
     }
-    (root, watch.expect("me opened"), inbox_watch, tree_watch, account_watch, forges, settings_watch, needs_watch)
+    (
+        root,
+        watch.expect("me opened"),
+        inbox_watch,
+        tree_watch,
+        account_watch,
+        forges,
+        settings_watch,
+        needs_watch,
+        away_watch,
+    )
 }
 fn empty_session(root: &mut temper_client_domain::Domain, read: Token, watch: Token) {
     deliver_no_playground(root, read);
@@ -2011,4 +2038,98 @@ fn ways_bytes(ways: forge::ways::Ways) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
     value.encode(&mut writer).unwrap();
     writer.finish()
+}
+
+/// The party's Away watch and project frame, without an optimistic row.
+pub fn away_root(until: Option<Wall>, off: Option<Wall>) -> temper_client_domain::Domain {
+    away_frame(until, off).0
+}
+pub fn away_frame(until: Option<Wall>, off: Option<Wall>) -> (temper_client_domain::Domain, Token) {
+    let (mut root, me, _, _, _, _, _, _, watch) = root_at_with_values(
+        temper_client_domain::Address::Home { project: PROJECT },
+        &domain_limits(),
+        b"Shop",
+        None,
+        None,
+        None,
+        Some(&[]),
+        Some(forge::ways::Ways::STOCK),
+        false,
+        true,
+    );
+    let row = w::AwayRow::new(
+        &w::CEILINGS,
+        w::AwayRowParts {
+            project: PROJECT,
+            since: 0,
+            until: match until {
+                Some(wall) => Some(wall.as_nanos()),
+                None => None,
+            },
+            kinds: 7,
+            landed: 0,
+            off: match off {
+                Some(wall) => Some(wall.as_nanos()),
+                None => None,
+            },
+        },
+    )
+    .unwrap();
+    root_event(
+        &mut root,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch: watch.expect("Away watch"),
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::aways(
+                            &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) })
+                                .unwrap(),
+                        ),
+                    },
+                },
+            },
+        },
+    );
+    (root, me)
+}
+/// Send the switch's act through the domain and return its transport attempt.
+pub fn away_toggle(root: &mut temper_client_domain::Domain) -> Token {
+    root_event(
+        root,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyServed {
+                    family: wire::FORGE,
+                    versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
+                },
+            },
+        },
+    );
+    let mut out = Queue::uncapped();
+    temper_client_domain::step(
+        root,
+        &Env { now: Time::ZERO, wall: NOW, limits: domain_limits() },
+        temper_client_domain::Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Away(
+                temper_client_domain::pages::away::Act::Toggle { project: PROJECT },
+            )),
+        },
+        &mut out,
+    );
+    while let Some(request) = out.pop() {
+        if let temper_client_domain::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
+                },
+        } = request
+            && let w::Request::SetAway(_) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request()
+        {
+            return attempt;
+        }
+    }
+    panic!("Away request sent")
 }

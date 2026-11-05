@@ -414,7 +414,7 @@ fn world_in_layout(
                             let drafts =
                                 matches!(then, Then::Mode(_) | Then::DraftEmpty) || goals == Some("chats-drafts");
                             if setting.kind() == 7 && (goals.is_some() || drafts) {
-                                project_ways(&mut root, read, drafts, goals.is_some(), false, &mut out);
+                                project_ways(&mut root, read, drafts, goals.is_some(), false, false, &mut out);
                                 continue;
                             }
                             let bytes = settings.map(|name| settings_bytes(name, setting.kind()));
@@ -499,9 +499,37 @@ fn world_in_layout(
                             );
                             continue;
                         }
+                        w::Watch::Away => {
+                            if settings == Some("settings-away") {
+                                step(
+                                    &mut root,
+                                    Event::Client {
+                                        event: jig_client::Event::Up {
+                                            up: jig_client::Up::FamilyDelivered {
+                                                watch,
+                                                record: jig_client::Family {
+                                                    family: FORGE,
+                                                    version: wire::CLIENT_VERSION,
+                                                    bytes: wire::aways(
+                                                        &w::Aways::new(
+                                                            &w::CEILINGS,
+                                                            w::AwaysParts { rows: List::with_capacity(0) },
+                                                        )
+                                                        .expect("empty Away rows"),
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    &mut out,
+                                );
+                            }
+                            continue;
+                        }
                         w::Watch::Change(subject) => subject,
                         w::Watch::Landing(_)
                         | w::Watch::Landings(_)
+                        | w::Watch::Decided(_)
                         | w::Watch::Status(_)
                         | w::Watch::Changes(_)
                         | w::Watch::Dismissed => {
@@ -3875,7 +3903,10 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
 /// Sample clocks keep the mock’s dates and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
-        "home-morning" => Wall::from_nanos(1_792_483_440_000_000_000),
+        "home-morning" | "home-away" | "home-away-one" | "home-away-overturned" => {
+            Wall::from_nanos(1_792_483_440_000_000_000)
+        }
+        "rail-away-on" | "rail-away-off" => Wall::from_nanos(1_792_479_840_000_000_000),
         name if name.starts_with("goal-") => goal_wall(world, 0),
         "changes" | "changes-one" | "changes-empty" => offset(Reference, -173),
         "changes-landed-only" => offset(Reference, 2),
@@ -3942,7 +3973,7 @@ pub(super) fn changes_world(name: &str) -> Domain {
                     wire::decode_reading(&record.bytes, &v::CEILINGS).expect("gallery setting read").read()
                 {
                     assert_eq!(setting.kind(), 7);
-                    project_ways(&mut root, read, false, false, name != "changes-landed-only", &mut out);
+                    project_ways(&mut root, read, false, false, name != "changes-landed-only", false, &mut out);
                 }
             }
             Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
@@ -3978,17 +4009,19 @@ pub(super) fn changes_world(name: &str) -> Domain {
     assert!(limits.client.domain.reads >= 7, "the sample's shown rows fit");
     root
 }
+#[expect(clippy::fn_params_excessive_bools, reason = "the gallery supplies each independent project visibility bit")]
 pub(super) fn project_ways(
     root: &mut Domain,
     read: Token,
     drafts: bool,
     goals: bool,
     changes: bool,
+    away: bool,
     out: &mut Queue<Request>,
 ) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
     let ways =
-        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [drafts, goals, changes, false], way: 0 })
+        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [drafts, goals, changes, away], way: 0 })
             .expect("gallery project ways");
     let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
     ways.encode(&mut writer).expect("measured ways");
@@ -4570,4 +4603,247 @@ fn chat_activity() -> c::ActivityPage {
         rows.push(line).expect("two turns");
     }
     c::ActivityPage { rows, before: None, after: None, cut: false }
+}
+
+/// Away's watch supplies the row, while the request's answer supplies its toast (client/browser.md, 7.2).
+pub(super) fn away_record(on: bool) -> Box<[u8]> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let wall = sample_now(FirstRun { step: 7 }, "rail-away-on");
+    let until = temper_client_domain::forge::away::next_eight(wall, 0);
+    let row = w::AwayRow::new(
+        &w::CEILINGS,
+        w::AwayRowParts {
+            project: PROJECT,
+            since: wall.as_nanos(),
+            until: Some(until.as_nanos()),
+            kinds: 7,
+            landed: 0,
+            off: if on { None } else { Some(wall.as_nanos()) },
+        },
+    )
+    .expect("Away row");
+    wire::aways(
+        &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) }).expect("Away rows"),
+    )
+}
+pub(super) fn rail_away_toggle(root: &mut Domain, watch: Token, on: bool) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut out = Queue::uncapped();
+    temper_client_domain::step(
+        root,
+        &skein_lib::Env {
+            now: skein_lib::Time::ZERO,
+            wall: sample_now(FirstRun { step: 7 }, "rail-away-on"),
+            limits: limits(),
+        },
+        Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Away(
+                temper_client_domain::pages::away::Act::Toggle { project: PROJECT },
+            )),
+        },
+        &mut out,
+    );
+    let attempt = sample_attempt(root, &mut out);
+    sample_forge_answer(root, attempt, w::Outcome::Away, &mut out);
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: away_record(on),
+                    },
+                },
+            },
+        },
+        &mut out,
+    );
+}
+
+/// Away's hand-made Home deliveries (client/browser.md, 7.2).
+pub(super) fn home_away_record(name: &str) -> Box<[u8]> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let now = sample_now(FirstRun { step: 7 }, name).as_nanos();
+    let minute = 60_000_000_000;
+    let row = w::AwayRow::new(
+        &w::CEILINGS,
+        w::AwayRowParts {
+            project: PROJECT,
+            since: now - 534 * minute,
+            until: None,
+            kinds: 7,
+            landed: 0,
+            off: if name == "home-away-one" { Some(now - minute) } else { None },
+        },
+    )
+    .expect("Home away spell");
+    wire::aways(
+        &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) })
+            .expect("Home away rows"),
+    )
+}
+pub(super) fn home_away_status() -> temper_client_protocol_wire::v1::ProjectStatus {
+    use temper_client_protocol_wire::v1 as w;
+    let now = sample_now(FirstRun { step: 7 }, "home-away").as_nanos();
+    let lede = "first-run-projects stopped at 05:50 for funds, which always wait for you. welcome-stall landed its fix in temper serve.";
+    w::ProjectStatus::new(
+        &w::CEILINGS,
+        w::ProjectStatusParts {
+            project: PROJECT,
+            landed: 57,
+            seen: 0,
+            queued: 3,
+            red: false,
+            previous: None,
+            last_landed: Some(now - 6 * 60_000_000_000),
+            branch: b"main".as_slice().into(),
+            brief: Some(
+                w::StatusBrief::new(
+                    &w::CEILINGS,
+                    w::StatusBriefParts {
+                        sentence: b"57 changes landed.".as_slice().into(),
+                        lede: lede.as_bytes().into(),
+                        at: now - 9 * 60_000_000_000,
+                        landed: 57,
+                    },
+                )
+                .expect("Home away brief"),
+            ),
+        },
+    )
+    .expect("Home away status")
+}
+fn home_away_task(name: &str, task: u64) -> c::Task {
+    let mut document = base_task(
+        task,
+        match task {
+            101 => "welcome-stall",
+            103 => "first-run-projects",
+            _ => "forge-cards",
+        },
+    );
+    if name == "home-away-one" || (name == "home-away-overturned" && task == 101) {
+        document.chip.details.phase = c::ChipPhase::Ended;
+        document.chip.details.details.ended_at =
+            Some(Wall::from_nanos(sample_now(FirstRun { step: 7 }, name).as_nanos() - 292 * 60_000_000_000));
+        document.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(doc("Landed."))));
+    }
+    document
+}
+pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let now = sample_now(FirstRun { step: 7 }, name).as_nanos();
+    let mut rows = List::with_capacity(4);
+    for (number, task, minutes, question, took, why) in [
+        (
+            1,
+            101,
+            419,
+            "Fix in jig’s store or in temper serve?",
+            "In temper serve",
+            "jig’s fix changes a stored record, which always waits for you; serve’s fix doesn’t. The jig fix can follow.",
+        ),
+        (
+            2,
+            102,
+            324,
+            "Link the GitHub help page, or hide the link?",
+            "Link the GitHub page",
+            "The agent’s own recommendation; the welcome’s design names the link a placeholder.",
+        ),
+        (
+            3,
+            103,
+            144,
+            "The store task failed twice on size. Retry, or split it?",
+            "Split it in two",
+            "Splitting a failing task is allowed while you’re away.",
+        ),
+        (
+            4,
+            104,
+            109,
+            "The welcome card says “Run on this machine”. Keep it, or “Set up here”?",
+            "Keep “Run on this machine”",
+            "A wording choice inside the task’s spec.",
+        ),
+    ] {
+        if name == "home-away-one" && number != 1 {
+            continue;
+        }
+        rows.push(
+            w::Decision::new(
+                &w::CEILINGS,
+                w::DecisionParts {
+                    number,
+                    task,
+                    at: now - minutes * 60_000_000_000,
+                    question: question.as_bytes().into(),
+                    took: took.as_bytes().into(),
+                    why: why.as_bytes().into(),
+                    overturned: name == "home-away-overturned" && number == 2,
+                },
+            )
+            .expect("Home decision"),
+        )
+        .expect("four Home decisions");
+    }
+    wire::decisions(
+        &w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project: PROJECT, rows }).expect("Home decisions"),
+    )
+}
+
+fn home_away_step(root: &mut Domain, name: &str, event: Event, out: &mut Queue<Request>) {
+    temper_client_domain::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: sample_now(FirstRun { step: 7 }, name), limits: limits() },
+        event,
+        out,
+    );
+}
+/// Decision reads use the sample's wall so the shown rows remain within their day.
+pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str) {
+    use jig_client::{Down, Readable, Readout, Up};
+    let mut out = Queue::uncapped();
+    home_away_step(
+        root,
+        name,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: FORGE,
+                        version: temper_client_protocol_wire::CLIENT_VERSION,
+                        bytes: home_away_decisions(name),
+                    },
+                },
+            },
+        },
+        &mut out,
+    );
+    for _ in 0..64 {
+        let Some(request) = out.pop() else { break };
+        if let Some(Down::Read { read, what: Readable::Jig(c::Read::Task { task }) }) = crate::driver::down(request) {
+            home_away_step(
+                root,
+                name,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: Up::ReadDone {
+                            read,
+                            result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(home_away_task(
+                                name, task,
+                            ))))),
+                        },
+                    },
+                },
+                &mut out,
+            );
+        }
+    }
+    assert!(out.is_empty(), "Home decisions settle");
 }

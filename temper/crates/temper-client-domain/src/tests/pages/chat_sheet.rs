@@ -106,3 +106,20 @@ fn no_creating_or_empty_document_opens_no_sheet() {
         assert!(h.out.is_empty());
     }
 }
+
+#[test]
+fn a_snapshot_keeps_the_asking_choice() {
+    for always in [false, true] {
+        let mut h = with_document(start_goal::me(), BODY);
+        h.act(Act::StartAsks { always });
+        h.act(Act::StartGoal);
+        let (_, ask) = h.sent();
+        let c::Ask::Create { tasks, .. } = ask else { panic!("create from document") };
+        let spec = tasks.get(0).unwrap().spec.words.bytes();
+        if always {
+            assert_eq!(spec.strip_suffix(b"\nAsks: always").expect("the snapshot asks the person"), SNAPSHOT);
+        } else {
+            assert_eq!(spec, SNAPSHOT);
+        }
+    }
+}

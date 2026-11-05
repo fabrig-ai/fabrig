@@ -50,6 +50,12 @@ pub struct Answered {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Toasted {
+    AwayOn { project: u32, until: Option<Wall> },
+    AwayOff,
+    AwayRefused,
+    Overturned,
+    OverturnEnded,
+    OverturnAlready,
     Answered { object: ObjectKey, label: Label },
     Later,
     Paused,
@@ -489,6 +495,10 @@ fn undoable(session: &Session, object: ObjectKey, now: Time) -> Option<u32> {
     }
     None
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "the Needs acts share one exhaustive dispatch, including session toast variants"
+)]
 pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Request>) {
     match act {
         Act::Choose { object, words } => answer(pages, env, object, words, false),
@@ -554,7 +564,13 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
                             pages.needs.toast = None;
                         }
                     }
-                    Toasted::Later
+                    Toasted::AwayOn { .. }
+                    | Toasted::AwayOff
+                    | Toasted::AwayRefused
+                    | Toasted::Overturned
+                    | Toasted::OverturnEnded
+                    | Toasted::OverturnAlready
+                    | Toasted::Later
                     | Toasted::Paused
                     | Toasted::Resumed
                     | Toasted::Proposed { .. }

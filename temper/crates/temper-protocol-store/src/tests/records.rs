@@ -1833,3 +1833,76 @@ fn status_rows_round_trip_all_options_and_field_bounds() {
         }
     }
 }
+
+fn away_row(present: bool, party: u64, project: u32, at: u64) -> forge::Away {
+    forge::Away {
+        party,
+        project,
+        since: skein_lib::Wall::from_nanos(at),
+        until: present.then_some(skein_lib::Wall::from_nanos(at)),
+        kinds: 15,
+        landed: at,
+        off: None,
+    }
+}
+fn decided_row(count: usize, at: u64) -> forge::Decided {
+    let mut options: skein_lib::List<Box<[u8]>> = skein_lib::List::with_capacity(u32::try_from(count).unwrap());
+    for _ in 0..count {
+        options.push(Box::from([b'o'; forge::DECIDED_OPTION_BYTES])).unwrap();
+    }
+    forge::Decided {
+        project: u32::MAX,
+        number: u32::MAX,
+        party: at,
+        task: at,
+        at: skein_lib::Wall::from_nanos(at),
+        question: Box::from([b'q'; forge::DECIDED_QUESTION_BYTES]),
+        options: options.into_boxed(),
+        took: u8::try_from(count.checked_sub(1).unwrap()).unwrap(),
+        why: Box::from([b'w'; forge::DECIDED_WHY_BYTES]),
+        overturned: false,
+    }
+}
+#[test]
+fn away_and_decided_rows_round_trip_their_options_and_bounds() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for at in [0, 9, u64::MAX] {
+        for until in [false, true] {
+            for off in [None, Some(skein_lib::Wall::from_nanos(at))] {
+                let away = forge::Stored::Away(forge::Away { off, ..away_row(until, at, u32::MAX, at) });
+                for count in [2, 6] {
+                    for overturned in [false, true] {
+                        let decided = forge::Stored::Decided(forge::Decided { overturned, ..decided_row(count, at) });
+                        for row in [away.clone(), decided] {
+                            let bytes = records::encode(&row);
+                            let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+                            assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#[test]
+fn away_and_decided_rows_refuse_invalid_bits_options_and_keys() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for row in [
+        forge::Stored::Away(forge::Away { kinds: 16, ..away_row(false, 7, 1, 0) }),
+        forge::Stored::Decided(decided_row(1, 0)),
+        forge::Stored::Decided(forge::Decided { took: 2, ..decided_row(2, 0) }),
+    ] {
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Err(crate::Undecodable));
+    }
+    for (row, wrong) in [
+        (forge::Stored::Away(away_row(false, 7, 1, 0)), forge::Key::Away { party: 8, project: 1 }),
+        (forge::Stored::Decided(decided_row(2, 0)), forge::Key::Decided { project: u32::MAX, number: 1 }),
+    ] {
+        let bytes = records::encode(&row);
+        let key = crate::keys::encode(&wrong, u32::MAX).unwrap();
+        assert_eq!(records::row(&key, &bytes, &bounds), Err(crate::Undecodable));
+        for len in 0..bytes.len() {
+            assert_eq!(records::decode(&bytes[..len], &bounds), Err(crate::Undecodable));
+        }
+    }
+}

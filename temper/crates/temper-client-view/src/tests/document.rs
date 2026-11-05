@@ -97,7 +97,7 @@ fn activity_root(body: Option<&[u8]>, mode: Mode, activity: c::ActivityPage, sta
         || state == ProposalState::EndedDraftOffered
         || state == ProposalState::UnsendableDraftOffered;
     let ways = d::forge::ways::Ways { drafts, ..d::forge::ways::Ways::STOCK };
-    let (mut root, me_watch, watch, _, _, _, _, _) = f::root_at_with_values(
+    let (mut root, me_watch, watch, _, _, _, _, _, _) = f::root_at_with_values(
         d::Address::Chat { task: TASK },
         &limits,
         b"Shop",
