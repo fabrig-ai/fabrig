@@ -55,7 +55,9 @@ fn a_later_preparation_leaves_the_row_a_runner_declared() {
     let row = scratch.path().join("row");
     let configuration = scratch.path().join("runner/config.yaml");
     run(&scratch, &owned);
-    assert!(String::from_utf8(fs::read(&row).expect("registered row")).expect("arguments").contains("temper-host:host"));
+    assert!(
+        String::from_utf8(fs::read(&row).expect("registered row")).expect("arguments").contains("temper-host:host")
+    );
     fs::write(&row, b"temper-host").expect("runner declares its labels");
     run(&scratch, &owned);
     assert_eq!(fs::read(&row).expect("declared row"), b"temper-host", "later preparation keeps declared labels");
@@ -67,7 +69,9 @@ fn a_later_preparation_leaves_the_row_a_runner_declared() {
     assert!(text.contains("\n      uuid: \"kept-runner\"\n"));
     fs::remove_file(&configuration).expect("remove configuration");
     run(&scratch, &owned);
-    assert!(String::from_utf8(fs::read(&row).expect("registered row")).expect("arguments").contains("temper-host:host"));
+    assert!(
+        String::from_utf8(fs::read(&row).expect("registered row")).expect("arguments").contains("temper-host:host")
+    );
     let text = String::from_utf8(fs::read(&configuration).expect("configuration")).expect("YAML");
     assert!(text.contains("\n      uuid: \"kept-runner\"\n"));
     scratch.remove();
