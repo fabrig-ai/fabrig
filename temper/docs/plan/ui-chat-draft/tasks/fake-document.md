@@ -59,3 +59,7 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report, with the numbers `P`, `T` and `name`, and the test's wall time.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Yes: make the scoped skein change in this task: an unsuggested cued script may also answer the latest user request, counting turns from that request, with system-cue matching first. Update skein/docs/design/fake-llm.md, 2.4 with it. hearth doesn't use skein's fake LLM, so no heads-up is needed. Then finish the walk.
