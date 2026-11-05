@@ -2415,7 +2415,8 @@ that changes the stock changes nothing of them.
   (13.4): G's live delegates (80) with the operations and the inbox
   that follow them, a designer's report (the box's result bound, its
   agent's message), a family's
-  changes in one `change` call (160), the live changes, holds and tasks
+  changes in one `change` call (up to `tasks.batch`, 160, subject to
+  the requester's remaining lifetime task capacity), the live changes, holds and tasks
   the forge follows (128), a change's twelve tasks with four foremen
   (80), the executors and charters (16 and 12), and the agent's turns
   (800); so `limits.json` holds `tasks.tree_tasks` alone, and the
@@ -2431,8 +2432,16 @@ that changes the stock changes nothing of them.
   family's changes in `change` calls each within one call's payload,
   which its model's output bounds (13.8), a later call naming an
   earlier one's changes in `after` by the task numbers its answer gave,
-  and fewer changes to a call where a call is refused for its size. The
-  rules and policy 1 take the delegation the plan needs: 1,024 tasks,
+  and fewer changes to a call where a call is refused for its size.
+  A batch reserves one task per change and shares descendant capacity
+  within each member's policy cap (`../domain/forge.md`, 8.1); it does
+  not reserve every member's full policy allowance before sizing the
+  next. A task-capacity refusal gives the available and minimum required
+  counts and whether fewer changes per call can fit. Ending tasks or
+  restarting does not restore the lifetime count. The help's engine
+  limits table uses `small` (32 lifetime tasks); the box selects
+  `standard` (384), and named overrides replace the profile's values.
+  The rules and policy 1 take the delegation the plan needs: 1,024 tasks,
   as `tasks.tree_tasks`, 32 deep as the stock's. A limit the start's
   checks ask to move with these moves with them, sized, and
   `limits.json` holds it.
