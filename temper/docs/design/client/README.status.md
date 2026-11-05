@@ -4,6 +4,13 @@
 
 - **Not yet:** 3.5, A chat's document, Starting a goal from a chat's document;
   4.6: `PersonFact`.
+- **Departs:** 3.5, *The Chats page*: the document read stops at
+  `limits.client.domain.rows` notes, so a chat beyond those notes has no
+  "writes" line and is absent under Drafts. Goal chips cover only the newest
+  `rows` chats across the live and closed lists, with ties by the lower chat
+  number; a row past that window has no "started goal" line. The answer of
+  2026-11-05 to `ui-chat-draft/chats-drafts` keeps this one chips window,
+  without raising jig's bound.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
   is left no funding. Its roles' pools are as large as the project's period

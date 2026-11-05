@@ -582,10 +582,15 @@ pub(super) fn chat_line() -> TaskLine {
 }
 
 fn opened_chats() -> (crate::Domain, skein_lib::Token, skein_lib::Token) {
-    open_chat_rows(fixtures::chats::me(), crate::Address::Chats { filter: ChatsFilter::All })
+    let (root, watch, read, _) =
+        open_chat_rows(fixtures::chats::me(), crate::Address::Chats { filter: ChatsFilter::All });
+    (root, watch, read)
 }
 
-fn open_chat_rows(frame: Me, address: crate::Address) -> (crate::Domain, skein_lib::Token, skein_lib::Token) {
+fn open_chat_rows(
+    frame: Me,
+    address: crate::Address,
+) -> (crate::Domain, skein_lib::Token, skein_lib::Token, Option<skein_lib::Token>) {
     use crate::Place;
     let limits = fixtures::limits();
     let env = fixtures::env(&limits);
@@ -605,6 +610,7 @@ fn open_chat_rows(frame: Me, address: crate::Address) -> (crate::Domain, skein_l
     crate::step(&mut root, &env, crate::Event::Went { place: Place::Address(address) }, &mut out);
     let mut watch = None;
     let mut read = None;
+    let mut facts = None;
     while let Some(request) = out.pop() {
         if let crate::Request::Unlinked {
             request:
@@ -622,9 +628,15 @@ fn open_chat_rows(frame: Me, address: crate::Address) -> (crate::Domain, skein_l
         } = request
         {
             read = Some(token);
+        } else if let crate::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        } = request
+            && Some(subject) == crate::forge::dismissed::watch(&limits.forge)
+        {
+            facts = Some(watch);
         }
     }
-    (root, watch.expect("live watch"), read.expect("first closed page"))
+    (root, watch.expect("live watch"), read.expect("first closed page"), facts)
 }
 
 #[test]
@@ -788,7 +800,7 @@ fn settings_selects_the_newest_open_configuring_chat() {
         (fixtures::chats::me(), core::slice::from_ref(&newer), None),
     ] {
         for from_watch in [true, false] {
-            let (mut root, watch, read) =
+            let (mut root, watch, read, _) =
                 open_chat_rows(me.clone(), crate::Address::Settings { project: fixtures::PROJECT });
             let select = |root: &crate::Domain, project| {
                 root.pages().chats().expect("Settings holds chats").open_configuring(
@@ -1029,4 +1041,80 @@ fn document_reads_retry_transient_ends_and_clear_a_refusal() {
     }
     assert!(cancelled);
     assert!(closed > chats.goals.number);
+}
+
+#[test]
+fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
+    use jig_client::{Down, Up};
+    use skein_lib::Wall;
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    // Two live and two ended chats compete for the fixture's two-row window.
+    const CHATS: [(u64, u64, bool); 4] = [(10, 4, false), (20, 5, true), (30, 3, true), (40, 4, false)];
+    let limits = fixtures::limits();
+    let (mut root, watch, read, facts) =
+        open_chat_rows(fixtures::chats::me(), crate::Address::Chats { filter: ChatsFilter::All });
+    let mut live = List::with_capacity(2);
+    let mut closed = List::with_capacity(2);
+    let mut dismissed = List::with_capacity(4);
+    for (chat, at, ended) in CHATS {
+        let mut row = chat_line();
+        row.chip.task = chat;
+        row.last_activity = Wall::from_nanos(if ended { 99 } else { at });
+        row.ended_at = ended.then_some(Wall::from_nanos(at));
+        if ended {
+            closed.push(row).unwrap();
+        } else {
+            live.push(row).unwrap();
+        }
+        dismissed
+            .push(w::PersonFact::GoalFrom(
+                w::GoalFrom::new(
+                    &w::CEILINGS,
+                    w::GoalFromParts { project: fixtures::PROJECT, chat, goal: chat + 100, at: 1 },
+                )
+                .unwrap(),
+            ))
+            .unwrap();
+    }
+    let mut out = Queue::uncapped();
+    for up in [
+        Up::ReadDone {
+            read,
+            result: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                live: List::with_capacity(0),
+                live_after: None,
+                ended: EndedGroup::Rows { rows: closed, after: None, cut: false },
+            })))),
+        },
+        Up::Watched {
+            watch,
+            event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows: live, more: false }))),
+        },
+        Up::FamilyDelivered {
+            watch: facts.expect("person facts watch"),
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+            },
+        },
+    ] {
+        crate::step(&mut root, &fixtures::env(&limits), crate::Event::Client { event: Event::Up { up } }, &mut out);
+    }
+    let mut watched = None;
+    let mut count = 0_u32;
+    while let Some(request) = out.pop() {
+        if let crate::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Open { subject: Watchable::Jig(Subject::Chips { tasks }), .. },
+                },
+        } = request
+        {
+            count += 1;
+            watched = Some(tasks);
+        }
+    }
+    assert_eq!(count, 1, "one chips watch for both lists");
+    assert_eq!(watched.unwrap().as_slice(), [120, 110], "newest chat, then lower-numbered tie");
 }
