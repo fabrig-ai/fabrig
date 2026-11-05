@@ -8,6 +8,7 @@ pub struct Limits {
 }
 impl Limits {
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "the view envelope keeps each bounded page contribution in one derivation")]
     pub fn of(domain: &temper_client_domain::Limits, words: &Words) -> Option<Limits> {
         let receiving = &domain.client.domain;
         let text = words
