@@ -106,3 +106,15 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, Your report, with how many goldens moved and how you regenerated them.
+
+## Rebase (2026-11-05, step merge, foreman ui-goals/delegate-counts/foreman-1)
+
+regenerate Story A’s log after rebasing onto the updated integration branch.
+The conflict is in `temper/tests/playground/tests/fixtures/story-a.log`.
+Task commit `630edb1688` refreshes its hashes for delegate counts; integration commit `ecf06ea9ec` (“Name brief task scopes so runs can address notes”) refreshes overlapping hashes for brief text.
+Preserve both code changes and regenerate the fixture from the combined code; do not hand-merge hashes or keep either side’s log wholesale.
+`temper/docs/plan/ui-goals/notes/common.md` authorizes regenerating stale goldens and requires regeneration on catch-up.
+The writer is `temper/tests/playground/tests/suite/walk.rs`, enabled by `SKEIN_CODEGEN_WRITE`.
+Run `SKEIN_CODEGEN_WRITE=1 TEMPER_BUNDLE=none heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`.
+Then verify replay with `TEMPER_BUNDLE=none heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_kept_log_replays_natively)'`.
+Keep the resolution limited to the regenerated fixture.
