@@ -401,7 +401,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "forges-github-install",
-        heading: "Forges",
+        heading: "Where your code lives.",
         parts: &[Part::Named { role: Role::Button, name: "Install on GitHub" }],
     },
     Holds {
@@ -558,7 +558,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "forges-first-run-7",
-        heading: "Forges",
+        heading: "Where your code lives.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Your forges 1" },
             Part::Described {
@@ -680,14 +680,50 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "settings",
-        heading: "Settings for tally",
+        name: "repositories",
+        heading: "What tally works on.",
         parts: &[
-            Part::Named { role: Role::Link, name: "Configure temper" },
+            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Repositories · 1" },
+            Part::Named { role: Role::Text, name: "robin/tally" },
+            Part::Named { role: Role::Link, name: "Adopt a repository" },
+        ],
+    },
+    Holds {
+        name: "repositories-none",
+        heading: "What gallery works on.",
+        parts: &[
+            Part::Named { role: Role::Text, name: "No repository yet" },
+            Part::Text { text: "Chats in gallery talk and plan, but change no code until a repository is in." },
+            Part::Named { role: Role::Link, name: "Adopt a repository" },
+        ],
+    },
+    Holds {
+        name: "forges-in-settings",
+        heading: "Where your code lives.",
+        parts: &[
+            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges 1" },
+        ],
+    },
+    Holds {
+        name: "accounts-in-settings",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Text, name: "Signed in as Robin" },
+            Part::Named { role: Role::Button, name: "Sign out" },
+        ],
+    },
+    Holds {
+        name: "settings",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Text, name: "Configure temper" },
             Part::Named { role: Role::Link, name: "Forges" },
             Part::Named { role: Role::Link, name: "Accounts" },
-            Part::Named { role: Role::Link, name: "Adopt a repository" },
-            Part::Named { role: Role::Button, name: "Sign out" },
+            Part::Named { role: Role::Link, name: "Start" },
+            Part::Named { role: Role::Navigation, name: "Settings" },
         ],
     },
     Holds {
@@ -704,7 +740,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "accounts-solo",
-        heading: "Accounts",
+        heading: "What agents run on.",
         parts: &[
             Part::Named { role: Role::Heading { level: 3 }, name: "Claude" },
             Part::Named { role: Role::Item, name: "Claude Code login claude-robin · Ready" },
@@ -787,12 +823,12 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "accounts-reference",
-        heading: "Accounts",
+        heading: "What agents run on.",
         parts: &[Part::Named { role: Role::Heading { level: 3 }, name: "Claude" }],
     },
     Holds {
         name: "accounts-first-run-1",
-        heading: "Accounts",
+        heading: "What agents run on.",
         parts: &[Part::Named { role: Role::Disclosure, name: "Scripted model · the playground’s" }],
     },
     Holds {
@@ -1288,7 +1324,7 @@ fn gallery_chat_clocks_are_separate_leaves_under_the_speakers() {
 
 #[test]
 fn model_samples_link_the_mockup_state_that_draws_them() {
-    let rows = [
+    let mut rows = [
         ("connect-model-choose", Some("connect-model.html?world=reference&bare")),
         ("connect-model-key-details", Some("connect-model.html?world=reference&way=key&bare")),
         ("connect-model-program-details", Some("connect-model.html?world=reference&way=program&bare")),
@@ -1309,6 +1345,7 @@ fn model_samples_link_the_mockup_state_that_draws_them() {
         ),
         ("connect-model-key-lost", None),
     ];
+    rows.sort_by_key(|row| row.0);
     let models: Vec<_> =
         samples::samples().into_iter().filter(|sample| sample.name.starts_with("connect-model-")).collect();
     assert_eq!(models.len(), rows.len(), "every model sample has a row");

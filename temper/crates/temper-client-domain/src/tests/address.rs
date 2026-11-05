@@ -5,7 +5,7 @@ use crate::{
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 14] = [
+    let pages: [(Address, &[u8]); 15] = [
         (Address::Inbox { filter: Filter::ALL }, b"/"),
         (Address::Chats { filter: ChatsFilter::All, start: false }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
@@ -16,6 +16,7 @@ fn each_page_round_trips_through_its_path() {
         (Address::Settings { project: u32::MAX }, b"/projects/4294967295/settings"),
         (Address::Home { project: 3 }, b"/projects/3"),
         (Address::Settings { project: 3 }, b"/projects/3/settings"),
+        (Address::Repositories { project: 3 }, b"/projects/3/settings/repositories"),
         (Address::Adopt { project: 3 }, b"/projects/3/adopt"),
         (Address::Configure { project: 0 }, b"/projects/0/settings/configure"),
         (Address::Configure { project: u32::MAX }, b"/projects/4294967295/settings/configure"),
@@ -412,4 +413,9 @@ fn other_paths_read_as_before() {
     assert_eq!(parse(b"/publicx/projects/0123456789abcdef"), Place::Missing);
     assert_eq!(parse(b"/chats/7"), Place::Address(Address::Chat { task: 7 }));
     assert_eq!(parse(b"/"), Place::Address(Address::Inbox { filter: Filter::ALL }));
+}
+
+#[test]
+fn a_neighbour_of_repositories_is_missing() {
+    assert_eq!(parse(b"/projects/3/settings/other"), Place::Missing);
 }

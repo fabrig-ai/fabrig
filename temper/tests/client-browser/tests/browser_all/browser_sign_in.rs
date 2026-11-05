@@ -40,6 +40,7 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
         temper_client_browser_world::connected(),
         Step::Address(FIRST_CHAT_ADDRESS.into()),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Settings") }),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Accounts") }),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Sign out") }),
         see(tier.states().signed_out),
         Step::Person(PersonStep::Reload),

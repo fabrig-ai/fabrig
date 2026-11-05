@@ -1,4 +1,4 @@
-//! The promised names, in client/browser.md, 7.2's order.
+//! The promised names (client/browser.md, 7.2), sorted for the gallery index.
 use crate::driver::step;
 use jig_client::contract as c;
 use skein_lib::{Queue, Token};
@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 111;
+pub const N: usize = 115;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -72,7 +72,7 @@ fn task(task: u64) -> Address {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one table keeps every named gallery state in its promised order")]
 pub fn samples() -> [Sample; N] {
-    [
+    let mut samples = [
         Sample {
             name: "home-three-left",
             world: FirstRun { step: 7 },
@@ -206,6 +206,10 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chats-solo", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-solo-T10", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "repositories", world: Solo, address: Address::Repositories { project: 1 }, then: Shown },
+        Sample { name: "repositories-none", world: Bare, address: Address::Repositories { project: 1 }, then: Shown },
+        Sample { name: "forges-in-settings", world: Solo, address: Address::Forges, then: Shown },
+        Sample { name: "accounts-in-settings", world: Solo, address: Address::Accounts, then: Shown },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "task-solo-T3", world: Solo, address: task(3), then: Shown },
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
@@ -307,7 +311,9 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "task-solo-T9", world: Solo, address: task(9), then: Shown },
         Sample { name: "forges-github-install", world: FirstRun { step: 20 }, address: Address::Forges, then: Shown },
         owned_sample("forge-admin-details", 23, false),
-    ]
+    ];
+    samples.sort_by_key(|sample| sample.name);
+    samples
 }
 fn first_chat(name: &'static str, step: u8, task: u64) -> Sample {
     Sample { name, world: World::FirstRun { step }, address: Address::Chat { task }, then: Then::Shown }
@@ -404,6 +410,7 @@ fn special_mockup(name: &str) -> Option<String> {
     None
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one address table maps the gallery pages to their mockups")]
 pub fn mockup(sample: &Sample) -> Option<String> {
     if let Then::Paste(frame) = sample.then {
         return Some(format!(
@@ -461,7 +468,11 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Task { task, .. } => ("task", Some(task)),
         Address::ConnectForge { .. } => ("connect-forge", None),
         Address::Forges => ("forges", None),
-        Address::Home { .. } | Address::Settings { .. } | Address::Configure { .. } | Address::Adopt { .. } => {
+        Address::Home { .. }
+        | Address::Settings { .. }
+        | Address::Repositories { .. }
+        | Address::Configure { .. }
+        | Address::Adopt { .. } => {
             return None;
         }
     };
@@ -493,6 +504,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Repositories { .. }
         | Address::Configure { .. }
         | Address::Adopt { .. } => String::new(),
     };

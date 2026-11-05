@@ -432,7 +432,25 @@ fn forges(world: World) -> Box<[u8]> {
                     ended: None,
                     app: None,
                     web: None,
-                    repositories: List::with_capacity(0),
+                    repositories: if world == Solo {
+                        let mut repositories = List::with_capacity(1);
+                        repositories
+                            .push(
+                                w::Adoption::new(
+                                    &limits,
+                                    w::AdoptionParts {
+                                        owner: b"robin".as_slice().into(),
+                                        name: b"tally".as_slice().into(),
+                                        project: PROJECT,
+                                    },
+                                )
+                                .expect("solo's adopted repository"),
+                            )
+                            .expect("one repository");
+                        repositories
+                    } else {
+                        List::with_capacity(0)
+                    },
                     owned: None,
                     admin: false,
                     read_only: false,

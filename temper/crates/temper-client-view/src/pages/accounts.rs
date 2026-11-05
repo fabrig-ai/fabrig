@@ -326,16 +326,31 @@ fn refused(b: &mut Builder, w: &Words, refusal: c::AccountRefusal) {
     };
     run(b, w, word);
 }
-pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
+pub(crate) fn main(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    pages: &mut crate::frame::Bindings,
+    project: Option<u32>,
+    text_per_node: u32,
+) {
     b.open(Role::Main);
     b.style(crate::look::MAIN);
-    b.style(crate::look::PAGE);
+    if let Some(project) = project {
+        b.style(crate::look::SETTINGS);
+        super::settings::open(b, root, w, pages, project, super::settings::Tab::Accounts);
+    } else {
+        b.style(crate::look::PAGE);
+    }
     b.open(Role::Slot);
     b.style(crate::look::ACCOUNTS_PAGE);
-    b.open(Role::Slot);
-    b.style(crate::look::PAGEBAR);
-    text(b, w, Role::Heading { level: 1 }, W::Accounts);
-    b.close();
+    if project.is_none() {
+        b.open(Role::Slot);
+        b.style(crate::look::PAGEBAR);
+        text(b, w, Role::Heading { level: 1 }, W::Accounts);
+        b.close();
+    }
     // The heading's row, as the inbox's: the heading, its count, and the link to connect one.
     b.open(Role::Slot);
     b.style(crate::look::HEADING);
@@ -409,6 +424,10 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         b.close();
     }
     b.close();
+    if project.is_some() {
+        super::settings::sign_out(b, root, w, pages);
+        b.close();
+    }
     b.close();
 }
 fn signings_without_rows(

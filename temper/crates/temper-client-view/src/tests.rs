@@ -16,6 +16,7 @@ mod playground;
 mod playground_start;
 mod public;
 mod rail;
+mod settings;
 use jig_client::contract::{ApplicationPart, PartScope};
 use skein_ui::Role;
 

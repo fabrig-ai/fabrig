@@ -1,0 +1,26 @@
+== How work runs in demo. == Live
+demo:
+  [1] temper
+  demo:
+    [2] demo · playground/widget (pressed)
+    New project:
+      [3] New project: (empty) (enter sends)
+      [4] Create
+    [5] Settings for demo
+  [6] Home
+  [7] Needs you
+  [8] Chats
+  [9] + New chat
+  [10] Set up temper
+  [11] Settings (current)
+  * Pat
+demo · settings
+Everything the other pages do for this project comes from here, so each project, and each person, can work its own way.
+Settings:
+  [12] How work runs (current)
+  [13] Repositories
+  [14] Forges
+  [15] Accounts
+Configure temper
+Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept.
+[16] Start

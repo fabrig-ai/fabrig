@@ -87,7 +87,10 @@ pub fn deployment_account() -> Script {
         begin: Begin::LinkWithOpenAiKey,
         steps: Box::new([
             Step::Go { address: Address::Accounts },
-            Step::See { find: Find::exactly_named(Role::Heading { level: 1 }, b"Accounts"), within: START_WITHIN },
+            Step::See {
+                find: Find::exactly_named(Role::Heading { level: 1 }, b"What agents run on."),
+                within: START_WITHIN,
+            },
             Step::See {
                 find: Find::exactly_named(Role::Disclosure, b"OpenAI API key \xc2\xb7 held by the deployment"),
                 within: START_WITHIN,
@@ -844,6 +847,8 @@ pub fn adopt_and_change(_forgejo: &super::forgejo::Throwaway) -> Script {
         },
         Step::See { find: Find::exactly_named(Role::Link, b"Settings"), within: super::WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, b"Settings") },
+        Step::See { find: Find::exactly_named(Role::Link, b"Repositories"), within: super::WITHIN },
+        Step::Press { find: Find::exactly_named(Role::Link, b"Repositories") },
         Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within: super::WITHIN },
         Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
         Step::See { find: Find::named(Role::TextField, b"Owner"), within: super::WITHIN },

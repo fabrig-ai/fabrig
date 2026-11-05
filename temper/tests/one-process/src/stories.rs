@@ -47,6 +47,8 @@ pub(crate) fn person() -> Vec<Step<temper_client_domain::Address>> {
         },
         see(Find::exactly_named(Role::Link, b"Settings")),
         press(Role::Link, b"Settings"),
+        see(Find::exactly_named(Role::Link, b"Repositories")),
+        press(Role::Link, b"Repositories"),
         see(Find::named(Role::Link, b"Adopt a repository")),
         press(Role::Link, b"Adopt a repository"),
         see(Find::named(Role::TextField, b"Owner")),
