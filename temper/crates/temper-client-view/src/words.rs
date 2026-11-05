@@ -189,6 +189,18 @@ pub enum Word {
     HomeCopyAgain,
     HomeCopyOffer,
     HomeCopyAct,
+    HomeAddTitle,
+    HomeAddDetail,
+    HomeAddEmpty,
+    HomeAddCopy,
+    HomeAddOther,
+    HomeAddSheet,
+    HomeAddSheetLead,
+    HomeAddLegend,
+    HomeAddIt,
+    HomeMaking,
+    HomeAddRefused,
+
     HomeIn,
     HomeInDetail,
     HomeAdopting,
@@ -1018,7 +1030,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Needs count, toast, page and kinds add thirty-two phrases (3.5).
 // Ready’s counted copy lead adds one phrase (client/README.md, 3.5).
 // Home’s copies add nine phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1505;
+// Home’s repository sheet adds eleven phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1516;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1041,8 +1054,9 @@ const PHRASES: u32 = 1505;
 // Needs count, toast, page and kinds add sixty-two segments (3.5).
 // Ready’s counted copy lead adds two literals and a Number hole (3.5).
 // Home’s copies add twenty-five literal and hole segments (3.5).
-const SEGMENTS: u32 = 2620;
-const ALL: [Word; 909] = [
+// Home’s repository sheet adds 19 literal and hole segments (3.5).
+const SEGMENTS: u32 = 2639;
+const ALL: [Word; 920] = [
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -1218,6 +1232,17 @@ const ALL: [Word; 909] = [
     Word::HomeCopyAgain,
     Word::HomeCopyOffer,
     Word::HomeCopyAct,
+    Word::HomeAddTitle,
+    Word::HomeAddDetail,
+    Word::HomeAddEmpty,
+    Word::HomeAddCopy,
+    Word::HomeAddOther,
+    Word::HomeAddSheet,
+    Word::HomeAddSheetLead,
+    Word::HomeAddLegend,
+    Word::HomeAddIt,
+    Word::HomeMaking,
+    Word::HomeAddRefused,
     Word::HomeIn,
     Word::HomeInDetail,
     Word::HomeAdopting,
@@ -2133,6 +2158,18 @@ impl Word {
             Self::HomeCopyAgain => 3345,
             Self::HomeCopyOffer => 3346,
             Self::HomeCopyAct => 3347,
+            Self::HomeAddTitle => 3348,
+            Self::HomeAddDetail => 3349,
+            Self::HomeAddEmpty => 3350,
+            Self::HomeAddCopy => 3351,
+            Self::HomeAddOther => 3352,
+            Self::HomeAddSheet => 3353,
+            Self::HomeAddSheetLead => 3354,
+            Self::HomeAddLegend => 3355,
+            Self::HomeAddIt => 3356,
+            Self::HomeMaking => 3357,
+            Self::HomeAddRefused => 3358,
+
             Self::HomeIn => 3122,
             Self::HomeInDetail => 3123,
             Self::HomeAdopting => 3124,
@@ -2944,7 +2981,11 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     if word == Word::HomeCopiesIn && !last {
         return temper_client_protocol_wire::FIRST_COPIES.checked_mul(203).ok_or(Invalid::Overflow);
     }
-    if word == Word::HomeCopyOffer || word == Word::HomeCopyIn && !last || word == Word::HomeCopying {
+    if word == Word::HomeCopyOffer
+        || word == Word::HomeCopyIn && !last
+        || word == Word::HomeCopying
+        || word == Word::HomeMaking
+    {
         return Ok(joined.max(512));
     }
     // The phone link names the joined title, question and its colon (3.5).
@@ -3125,7 +3166,24 @@ impl Words {
             // Needs count, toast, page and kinds add 381 literal bytes (3.5).
             // Ready’s counted copy lead adds 96 literal bytes (3.5).
             // Home’s copy phrases add 254 literal bytes (client/README.md, 3.5).
-            text_bytes: 254 + 96 + 381 + 84 + 669 + 122 + 32768 + 288 + 149 + 401 + 11 + 76 + 476 + 659 + 367 + 468,
+            // Home’s repository sheet adds 289 literal bytes (client/README.md, 3.5).
+            text_bytes: 289
+                + 254
+                + 96
+                + 381
+                + 84
+                + 669
+                + 122
+                + 32768
+                + 288
+                + 149
+                + 401
+                + 11
+                + 76
+                + 476
+                + 659
+                + 367
+                + 468,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3388,6 +3446,17 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeCopyAgain => (&[b"Copy again"], &[]),
         Word::HomeCopyOffer => (&[b"Copy ", b""], &[Name]),
         Word::HomeCopyAct => (&[b"Copy"], &[]),
+        Word::HomeAddTitle => (&[b"Add a repository"], &[]),
+        Word::HomeAddDetail => (&[b"Your Forgejo has none yet. Until one is in, chats talk and plan but change no code."], &[]),
+        Word::HomeAddEmpty => (&[b"Make an empty one"], &[]),
+        Word::HomeAddCopy => (&[b"Copy a public one"], &[]),
+        Word::HomeAddOther => (&[b"Adopt another\xe2\x80\xa6"], &[]),
+        Word::HomeAddSheet => (&[b"Add a repository to ", b""], &[Name]),
+        Word::HomeAddSheetLead => (&[b"Made or copied on your Forgejo, then in this project at once."], &[]),
+        Word::HomeAddLegend => (&[b"A repository"], &[]),
+        Word::HomeAddIt => (&[b"Add it"], &[]),
+        Word::HomeMaking => (&[b"Making ", b"/", b"\xe2\x80\xa6"], &[Name, Name]),
+        Word::HomeAddRefused => (&[b"Could not add the repository: ", b""], &[Name]),
         Word::HomeIn => (&[b"", b"/", b" is in ", b""], &[Name, Name, Name]),
         Word::HomeInDetail => (&[b"temper can change its code now; checked changes land on main through temper's merge queue."], &[]),
         Word::HomeAdopting => (&[b"Adopting ", b"/", b" into ", b"\xe2\x80\xa6"], &[Name, Name, Name]),

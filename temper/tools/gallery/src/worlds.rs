@@ -3367,3 +3367,20 @@ pub(super) fn home_copies(
     }
     row
 }
+
+/// Home’s Add sheet is page state reached through its own button (client/README.md, 3.5).
+pub(super) fn home_add_sheet(root: &mut Domain, copies: bool) {
+    step(
+        root,
+        Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::AddOpen {
+                start: if copies {
+                    temper_client_domain::forge::forges::Start::Copies
+                } else {
+                    temper_client_domain::forge::forges::Start::Empty
+                },
+            }),
+        },
+        &mut Queue::uncapped(),
+    );
+}

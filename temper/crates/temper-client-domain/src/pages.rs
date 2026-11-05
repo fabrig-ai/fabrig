@@ -79,6 +79,18 @@ pub enum Act {
     },
     /// Ask the welcome intent’s copies left unasked after a restart.
     CopyOffered,
+    AddOpen {
+        start: crate::forge::forges::Start,
+    },
+    AddChoose {
+        start: crate::forge::forges::Start,
+    },
+    AddWrite {
+        field: home::AddField,
+        words: Box<[u8]>,
+    },
+    AddClose,
+    AddSubmit,
     /// Skip this project's To begin (client/README.md, 3.5).
     SkipToBegin,
     /// Ready's name field.
@@ -553,6 +565,46 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 adopt(pages, env, project, out);
             }
         }
+        Event::Act { act: Act::AddOpen { start } } => {
+            if start != crate::forge::forges::Start::Nothing
+                && let Address::Home { project } = pages.address
+            {
+                let rows = copy_rows(env, client);
+                if home::can_add(&rows, project)
+                    && let Some(home) = &mut pages.home
+                    && home.add.is_none()
+                    && !home.copying()
+                {
+                    home.add = Some(home::AddSheet::new(start));
+                }
+            }
+        }
+        Event::Act { act: Act::AddChoose { start } } => {
+            if start != crate::forge::forges::Start::Nothing
+                && let Some(home) = &mut pages.home
+                && let Some(sheet) = &mut home.add
+                && sheet.out.is_none()
+            {
+                sheet.start = start;
+                sheet.refused = None;
+            }
+        }
+        Event::Act { act: Act::AddWrite { field, words } } => {
+            if let Some(home) = &mut pages.home
+                && let Some(sheet) = &mut home.add
+            {
+                sheet.write(field, words, env.limits.forge);
+            }
+        }
+        Event::Act { act: Act::AddClose } => {
+            if let Some(home) = &mut pages.home
+                && let Some(sheet) = &home.add
+                && sheet.out.is_none()
+            {
+                home.add = None;
+            }
+        }
+        Event::Act { act: Act::AddSubmit } => add_submit(pages, env, client, out),
         Event::Act { act: Act::CopyAgain { org, name } } => copy_again(pages, env, client, &org, &name, out),
         Event::Act { act: Act::CopyOffered } => {
             if let Address::Home { project } = pages.address
@@ -1142,6 +1194,11 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::AdoptFirst
         | Act::CopyAgain { .. }
         | Act::CopyOffered
+        | Act::AddOpen { .. }
+        | Act::AddChoose { .. }
+        | Act::AddWrite { .. }
+        | Act::AddClose
+        | Act::AddSubmit
         | Act::DefaultName { .. }
         | Act::OpenProject { .. }
         | Act::Project { .. }
@@ -1536,6 +1593,37 @@ fn copy_rows(env: &Env<Limits>, client: &Client) -> crate::forge::forges::State 
         Some(_) | None => forges::State::Unknown,
     }
 }
+/// Home makes repositories into the project under its own keys (client/README.md, 3.5).
+fn add_submit(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Queue<Request>) {
+    use crate::forge;
+    let Address::Home { project } = pages.address else { return };
+    let Some(forge) = home::add_forge(&copy_rows(env, client), None) else { return };
+    let Some(home) = &mut pages.home else { return };
+    let Some(sheet) = &mut home.add else { return };
+    if sheet.out.is_some() {
+        return;
+    }
+    let requests = match sheet.requests(forge, project) {
+        Ok(requests) => requests,
+        Err(refused) => {
+            sheet.refused = Some(refused);
+            return;
+        }
+    };
+    sheet.refused = None;
+    for ask in &requests {
+        let Some(request) = forge::make_repository(ask, &env.limits.forge) else { return };
+        pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
+        let key = jig_client::Key { asker: Owner::Pages.asker(), number: pages.serial };
+        let number = skein_lib::Decimal::of(pages.serial);
+        let label = skein_lib::bytes::concat(&[b"home-add-", number.as_bytes()]);
+        let name = crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&label).expect("home add key fits"));
+        home.add.as_mut().expect("sheet is open").out = Some(key);
+        home.keep_copy(key);
+        out.push(Request::Client(jig_client::Event::Send { key, name: Some(name), request }));
+    }
+}
+
 /// Ready and Home ask copies under the same keys (client/README.md, 3.5).
 fn copy_all(
     pages: &mut Pages,

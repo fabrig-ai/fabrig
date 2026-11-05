@@ -459,22 +459,25 @@ fn sheet_alerts(b: &mut Builder, w: &Words, draft: &forge::forges::Draft) {
         text(b, w, Role::Alert, Word::WelcomeSheetBlank);
     }
     if let Some(refused) = &draft.copies_refused {
-        use forge::making::CopiesRefused;
-        let words = match refused {
-            CopiesRefused::NoAddress => w.say(Word::WelcomeCopiesNone, &[]),
-            CopiesRefused::TooMany => w.say(Word::WelcomeCopiesTooMany, &[]),
-            CopiesRefused::NotAnAddress(line) => {
-                let line = forge::words::lossy(line);
-                let bound = usize::try_from(w.name_bytes).expect("word bound fits usize");
-                let mut chunks = line.utf8_chunks();
-                let line = chunks.next().expect("refused line has words").valid();
-                let end = line.floor_char_boundary(line.len().min(bound));
-                let line = line.get(..end).expect("bounded character prefix");
-                w.say(Word::WelcomeCopiesNotAnAddress, &[Hole::Name(copy_of(line.as_bytes()))])
-            }
-        };
-        crate::cards::text(b, Role::Alert, &words);
+        copies_alert(b, w, refused);
     }
+}
+pub(crate) fn copies_alert(b: &mut Builder, w: &Words, refused: &forge::making::CopiesRefused) {
+    use forge::making::CopiesRefused;
+    let words = match refused {
+        CopiesRefused::NoAddress => w.say(Word::WelcomeCopiesNone, &[]),
+        CopiesRefused::TooMany => w.say(Word::WelcomeCopiesTooMany, &[]),
+        CopiesRefused::NotAnAddress(line) => {
+            let line = forge::words::lossy(line);
+            let bound = usize::try_from(w.name_bytes).expect("word bound fits usize");
+            let mut chunks = line.utf8_chunks();
+            let line = chunks.next().expect("refused line has words").valid();
+            let end = line.floor_char_boundary(line.len().min(bound));
+            let line = line.get(..end).expect("bounded character prefix");
+            w.say(Word::WelcomeCopiesNotAnAddress, &[Hole::Name(copy_of(line.as_bytes()))])
+        }
+    };
+    crate::cards::text(b, Role::Alert, &words);
 }
 pub(crate) fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
     flow::card(b, &w.say(Word::ForgeNotFinished, &[]));

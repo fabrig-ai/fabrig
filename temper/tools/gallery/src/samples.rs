@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 158;
+pub const N: usize = 161;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -160,6 +160,24 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "home-copy-offer",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-add-repository",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-add-repository-sheet",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-add-repository-copies",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -1563,6 +1581,9 @@ fn home_domain(name: &str) -> Domain {
             &mut out,
         );
     }
+    if matches!(name, "home-add-repository-sheet" | "home-add-repository-copies") {
+        crate::worlds::home_add_sheet(&mut root, name == "home-add-repository-copies");
+    }
     root
 }
 fn home_text(words: &str) -> c::DocumentText {
@@ -1655,7 +1676,7 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
             )
             .expect("one installation");
     }
-    let first = if github {
+    let first = if github || name.starts_with("home-add-repository") {
         None
     } else {
         Some(
@@ -1676,7 +1697,11 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
-                starts_with: w::StartsWith::Repository,
+                starts_with: if name.starts_with("home-add-repository") {
+                    w::StartsWith::Nothing
+                } else {
+                    w::StartsWith::Repository
+                },
                 host: b"forge.example:3000".as_slice().into(),
                 number: if github { 2 } else { 3 },
                 kind: if github { w::Kind::Github } else { w::Kind::Forgejo },

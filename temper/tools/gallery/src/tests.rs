@@ -384,6 +384,38 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-add-repository",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Make an empty one" },
+            Part::Named { role: Role::Button, name: "Copy a public one" },
+            Part::Named { role: Role::Link, name: "Adopt another…" },
+            Part::NoRole { role: Role::Dialog },
+        ],
+    },
+    Holds {
+        name: "home-add-repository-sheet",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Add a repository to Hello" },
+            Part::Named { role: Role::ChoiceGroup, name: "A repository" },
+            Part::Value { role: Role::TextField, name: "Organization", value: "work" },
+            Part::Value { role: Role::TextField, name: "Name", value: "hello" },
+            Part::Named { role: Role::Button, name: "Cancel" },
+            Part::Named { role: Role::Button, name: "Add it" },
+        ],
+    },
+    Holds {
+        name: "home-add-repository-copies",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Add a repository to Hello" },
+            Part::Value { role: Role::TextArea, name: "Their addresses, one per line", value: "" },
+            Part::Absent { role: Role::TextField, name: "Organization" },
+            Part::Named { role: Role::Button, name: "Add it" },
+        ],
+    },
+    Holds {
         name: "home-refused",
         heading: "Hello is ready.",
         parts: &[
