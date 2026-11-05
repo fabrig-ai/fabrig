@@ -39,17 +39,15 @@ impl Install {
 pub fn step(machine: &mut Install, event: Event, out: &mut Queue<Need>) {
     let phase = core::mem::replace(&mut machine.phase, Phase::Ended);
     let need = match phase {
-        Phase::Begin(inputs) => match event {
-            Event::Begin => {
+        Phase::Begin(inputs) => match event.begin() {
+            Ok(()) => {
                 machine.phase = Phase::Slug(inputs);
                 Need::Read(Item::AppSlug)
             }
-            Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                plan::stop(inputs.given.forge, Stage::App, b"slug", Why::Unexpected)
-            }
+            Err(why) => plan::stop(inputs.given.forge, Stage::App, b"slug", why),
         },
-        Phase::Slug(inputs) => match event {
-            Event::Read(read) => {
+        Phase::Slug(inputs) => match event.read() {
+            Ok(read) => {
                 let slug = match &read {
                     Some(value) => item::app_slug(value.expose(), inputs.given.limits.name_bytes),
                     None => None,
@@ -67,9 +65,7 @@ pub fn step(machine: &mut Install, event: Event, out: &mut Queue<Need>) {
                     None => plan::stop(inputs.given.forge, Stage::App, b"slug", Why::Missing),
                 }
             }
-            Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                plan::stop(inputs.given.forge, Stage::App, b"slug", Why::Unexpected)
-            }
+            Err(why) => plan::stop(inputs.given.forge, Stage::App, b"slug", why),
         },
         Phase::Ended => return,
     };

@@ -1,8 +1,9 @@
 //! The two token files are checked before the bot's id (forge-setup.md, 4.3).
 use super::{Reconcile, State};
 use crate::call::Auth;
+use crate::forgejo::{Reply, reply, unexpected};
 use crate::item::Item;
-use crate::plan::{Event, Need, Reply, Why};
+use crate::plan::{Event, Need, Why};
 use alloc::boxed::Box;
 use skein_forge::forgejo::{
     document::{Document, Row},
@@ -105,13 +106,13 @@ impl Tokens {
     }
     fn event(&mut self, machine: &mut Reconcile, event: Event) -> Result<Need, Why> {
         match self.phase {
-            Phase::Read => match event {
-                Event::Read(Some(secret)) => {
+            Phase::Read => match event.read() {
+                Ok(Some(secret)) => {
                     self.phase = Phase::Check;
                     Ok(Need::Send { request: Request::User.into(), auth: Auth::Token(secret) })
                 }
-                Event::Read(None) => Ok(self.remake(machine)),
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => Err(Why::Unexpected),
+                Ok(None) => Ok(self.remake(machine)),
+                Err(why) => Err(why),
             },
             Phase::Check => match super::account(event) {
                 Ok(user) => Ok(if user.id == self.id { self.next(machine) } else { self.remake(machine) }),
@@ -123,25 +124,16 @@ impl Tokens {
                     self.cap = Some(settings.max_response_items);
                     Ok(self.listing(machine))
                 }
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             Phase::Listing => self.rows(machine, reply(event)?),
             Phase::Delete => match reply(event)? {
                 Reply::Empty | Reply::Status(404) => Ok(self.create(machine)),
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             Phase::Create => match reply(event)? {
                 Reply::Document(Document::Token(token)) => {
@@ -149,31 +141,20 @@ impl Tokens {
                     self.phase = Phase::Written;
                     Ok(Need::Write { item: self.item, bytes: value })
                 }
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
-            Phase::Written => match event {
-                Event::Written => Ok(self.next(machine)),
-                Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Drawn(_) => Err(Why::Unexpected),
+            Phase::Written => match event.written() {
+                Ok(()) => Ok(self.next(machine)),
+                Err(why) => Err(why),
             },
         }
     }
     fn rows(&mut self, machine: &Reconcile, reply: Reply) -> Result<Need, Why> {
         let rows = match reply {
             Reply::Rows(rows) => rows,
-            other @ (Reply::Document(_)
-            | Reply::Empty
-            | Reply::Status(_)
-            | Reply::Down
-            | Reply::GithubDocument(_)
-            | Reply::GithubRows(_)
-            | Reply::Unsigned) => {
+            other @ (Reply::Document(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                 return Err(unexpected(other));
             }
         };
@@ -216,22 +197,6 @@ impl Tokens {
         } else {
             self.page = self.page.checked_add(1).ok_or(Why::Unexpected)?;
             Ok(self.listing(machine))
-        }
-    }
-}
-pub(crate) fn reply(event: Event) -> Result<Reply, Why> {
-    match event {
-        Event::Reply(reply) => Ok(reply),
-        Event::Begin | Event::Read(_) | Event::Written | Event::Drawn(_) => Err(Why::Unexpected),
-    }
-}
-pub(crate) fn unexpected(reply: Reply) -> Why {
-    match reply {
-        Reply::Status(status) => Why::Refused(status),
-        Reply::Down => Why::Down,
-        Reply::Unsigned => Why::KeyForm,
-        Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::GithubDocument(_) | Reply::GithubRows(_) => {
-            Why::Unexpected
         }
     }
 }

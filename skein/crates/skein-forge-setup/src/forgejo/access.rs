@@ -1,8 +1,8 @@
 //! One repository's access for the bot (forge-setup.md, 4.5, steps 2 to 4).
+use crate::forgejo::{Reply, reply, unexpected};
 use crate::{
     item::Item,
-    plan::{Event, Reply, Why},
-    reconcile::{reply, unexpected},
+    plan::{Event, Why},
 };
 use alloc::boxed::Box;
 use skein_forge::forgejo::{
@@ -19,7 +19,7 @@ pub(crate) struct Shared {
     pub secret: Option<Secret>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Eq, Debug)]
 enum Phase {
     Repository,
     Permission,
@@ -68,46 +68,43 @@ impl Access {
         Request::Permission { at: path, login: self.bot.clone() }
     }
     pub fn event(&mut self, shared: &mut Shared, event: Event) -> Result<Move, Fail> {
-        if let (Phase::Repository, Event::Reply(Reply::Status(404))) = (&self.phase, &event) {
-            return Err(Fail::Gone);
-        }
         match self.advance(shared, event) {
             Ok(movement) => Ok(movement),
+            Err(Why::Refused(404)) if self.phase == Phase::Repository => Err(Fail::Gone),
             Err(why) => Err(Fail::Why(why)),
         }
     }
     fn advance(&mut self, shared: &mut Shared, event: Event) -> Result<Move, Why> {
         match self.phase {
             Phase::Secret => {
-                return match event {
-                    Event::Read(Some(secret)) => {
+                return match event.read() {
+                    Ok(Some(secret)) => {
                         shared.secret = Some(secret);
                         Ok(self.settings(shared))
                     }
-                    Event::Read(None) => {
+                    Ok(None) => {
                         self.phase = Phase::Draw;
                         Ok(Move::Draw(32))
                     }
-                    Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => Err(Why::Unexpected),
+                    Err(why) => Err(why),
                 };
             }
             Phase::Draw => {
-                return match event {
-                    Event::Drawn(value) if value.len() == 32 => {
+                return match event.drawn() {
+                    Ok(value) if value.len() == 32 => {
                         let secret = crate::reconcile::hex(&value);
                         shared.secret = Some(secret.clone());
                         self.phase = Phase::Write;
                         Ok(Move::Write { item: Item::WebhookSecret, bytes: secret })
                     }
-                    Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                        Err(Why::Unexpected)
-                    }
+                    Ok(_) => Err(Why::Unexpected),
+                    Err(why) => Err(why),
                 };
             }
             Phase::Write => {
-                return match event {
-                    Event::Written => Ok(self.settings(shared)),
-                    Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Drawn(_) => Err(Why::Unexpected),
+                return match event.written() {
+                    Ok(()) => Ok(self.settings(shared)),
+                    Err(why) => Err(why),
                 };
             }
             Phase::Repository
@@ -132,14 +129,9 @@ impl Access {
                     self.phase = Phase::Permission;
                     Ok(Move::Send(Request::Permission { at, login: self.bot.clone() }))
                 }
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             Phase::Permission => match answer {
                 Reply::Document(Document::Permission(permission)) => match permission.permission {
@@ -153,60 +145,37 @@ impl Access {
                         }))
                     }
                 },
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             Phase::Add => match answer {
                 Reply::Empty => Ok(self.hook(shared)),
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             Phase::Settings => match answer {
                 Reply::Document(Document::ApiSettings(settings)) if settings.max_response_items > 0 => {
                     shared.cap = Some(settings.max_response_items);
                     Ok(self.listing(shared))
                 }
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             Phase::Listing => self.rows(shared, answer),
             Phase::Delete => match answer {
                 Reply::Empty | Reply::Status(404) => Ok(self.listing(shared)),
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             Phase::Save => match answer {
                 Reply::Document(Document::Hook(_)) => Ok(Move::Done),
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             Phase::Secret | Phase::Draw | Phase::Write => unreachable!("host effects handled before replies"),
         }
