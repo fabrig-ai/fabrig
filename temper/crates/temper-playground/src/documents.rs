@@ -23,7 +23,7 @@ pub const REPOSITORY: u32 = 2;
 /// Producer tools for the composition.
 pub const PRODUCER_TOOLS: u64 = 3;
 /// Document lines for the composition.
-pub const DOCUMENT_LINES: u32 = 4;
+pub const DOCUMENT_LINES: u32 = 5;
 /// Chat wait ms for the composition.
 pub const CHAT_WAIT_MS: u32 = 1000;
 /// Worker user for the composition.
@@ -164,11 +164,11 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     }
     edit(&mut value);
     for (name, count) in [
-        ("people.amendment_bytes", 1053),
+        ("people.amendment_bytes", 1061),
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
         ("tasks.dependencies", 2),
-        ("tasks.charters", 4),
+        ("tasks.charters", 5),
         ("notes.entries_per_scope", 2),
         ("notes.recalled", 2),
         ("people.holdings", 2),
