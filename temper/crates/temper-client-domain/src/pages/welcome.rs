@@ -18,6 +18,47 @@ impl Welcome {
         Self { decided: false }
     }
 }
+/// A step's facts: the address is current, and only another done step is ticked (3.5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StepMark {
+    pub current: bool,
+    pub ticked: bool,
+}
+/// Welcome, Forge, Model, Ready, in order (client/README.md, 3.5, Its steps).
+#[must_use]
+pub fn step_marks(at: crate::Step, forge_kept: bool, model_usable: bool) -> [StepMark; 4] {
+    let current: u8 = match at {
+        crate::Step::Welcome | crate::Step::WelcomeAsked => 0,
+        crate::Step::Forge { .. } => 1,
+        crate::Step::Model { .. } => 2,
+        crate::Step::Ready => 3,
+    };
+    [
+        StepMark { current: current == 0, ticked: current != 0 },
+        StepMark { current: current == 1, ticked: forge_kept && current != 1 },
+        StepMark { current: current == 2, ticked: model_usable && current != 2 },
+        StepMark { current: current == 3, ticked: false },
+    ]
+}
+/// A real forge is kept, even under way or cut short: what `decision` calls kept.
+#[must_use]
+pub fn forge_kept(root: &Domain) -> bool {
+    let rows = match root.forges() {
+        Forges::Rows(rows) => rows,
+        Forges::Unknown | Forges::Ended => return false,
+    };
+    for row in rows {
+        if row.mode != forges::Mode::Fake {
+            return true;
+        }
+    }
+    false
+}
+/// Where "Go on setting up" and Forge's and Model's "Continue" go: Ready with a usable model, else Model.
+#[must_use]
+pub fn go_on(root: &Domain) -> crate::Step {
+    if model_usable(root) == Some(true) { crate::Step::Ready } else { crate::Step::Model { way: None } }
+}
 /// The store's first-run state (temper/docs/design/client/README.md, 3.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FirstRun {

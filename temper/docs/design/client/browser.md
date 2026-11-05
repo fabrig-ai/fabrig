@@ -1157,6 +1157,7 @@ from the engine's own answers, is where the look is tuned.
 | `accounts-solo` | the solo world's accounts |
 | `chats-first-run-1` | the first run's first screen: the playground's start |
 | `welcome-first-run-0` | the first run's welcome: its two cards |
+| `welcome-go-on` | Welcome asked for with a real forge under way: Go on setting up, no playground |
 | `connect-forge-first-run-6` | the first run's `ConnectForge` at step 6: Forgejo here setting up, the box preparing |
 | `forges-first-run-7` | the first run's Forges at step 7: Forgejo here connected |
 | `welcome-forge-choose` | the welcome's Forge choices, before any forge is connected |

@@ -2,7 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, The welcome's frame: *Its frame*'s brand link to the welcome, *Its steps* as links ticked by their facts, *`/welcome?at=welcome`* and *The Welcome step*'s "Go on setting up": `pages/welcome.rs` draws `flow::steps`, and Ready's "4" is ticked when both are done. 3.5, The Forge step with a forge: `forge/connect.rs`'s `welcome` says one line and "View". 3.4, 5.5: the composer's
+- **Not yet:** 3.5, The Forge step with a forge: `forge/connect.rs`'s `welcome` says one line and "View". 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, and `Changes { project }`: no
@@ -33,9 +33,7 @@
   alone deciding;
   `temper-client-domain`'s `pages/welcome.rs` `decision` reads a
   refused `forges` watch as no forge, so a usable model opens Forge.
-  The playground offered on Forge's and Model's foot while a real
-  account alone is kept; `temper-client-view`'s `pages/welcome.rs`
-  `main` offers it only while the store is empty. FORGE in "FORGE · not
+  FORGE in "FORGE · not
   finished" as the forge's name; `forge/connect.rs` `unfinished` prints
   "FORGE" itself. "Go on" after a restart: the row's `app` is the forge
   domain's memory alone (`temper-engine-domain-forge`'s `domain.rs`

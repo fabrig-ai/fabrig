@@ -426,8 +426,8 @@ fn the_welcomes_ready_names_the_forge_and_the_model() {
     node(view.tree(), Role::Paragraph, "Forge Forgejo on this machine · connected as temper".as_bytes());
     let steps = view.tree().nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_STEP));
     for step in steps {
-        assert!(step.styles.as_slice().contains(&crate::look::FLOW_DONE));
-        assert!(!step.states.as_slice().contains(&State::Current));
+        let current = step.states.as_slice().contains(&State::Current);
+        assert_eq!(step.styles.as_slice().contains(&crate::look::FLOW_DONE), !current);
     }
     // The account by its kind and who it is; the model is chosen elsewhere
     // (choice's tests name each kind).

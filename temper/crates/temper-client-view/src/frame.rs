@@ -383,11 +383,12 @@ pub(crate) fn banner(
     let me = pages.me(root.client());
     builder.open(Role::Banner);
     builder.style(crate::look::BANNER);
-    crate::link(
-        builder,
-        &words.say(crate::words::Word::BrandChats, &[]),
-        bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } }),
-    );
+    let (brand, address) = if let Address::Welcome { .. } = pages.address() {
+        (crate::words::Word::Brand, Address::Welcome { step: temper_client_domain::Step::Welcome })
+    } else {
+        (crate::words::Word::BrandChats, Address::Chats { filter: ChatsFilter::All, start: false })
+    };
+    crate::link(builder, &words.say(brand, &[]), bindings.insert(Act::Go { address }));
     builder.style(crate::look::BRAND);
     builder.text(Run::Plain, &words.say(crate::words::Word::Brand, &[]));
     builder.close();
@@ -398,7 +399,7 @@ pub(crate) fn banner(
             && deployment.welcome
         {
             box_line(builder, words);
-            crate::pages::welcome::steps(builder, root, words, *step);
+            crate::pages::welcome::steps(builder, root, words, bindings, *step);
         }
         builder.close();
         return;

@@ -30,6 +30,7 @@ settings
 task-solo-T3
 accounts-solo
 welcome-first-run-0
+welcome-go-on
 chats-first-run-1
 connect-forge-first-run-6
 forges-first-run-7

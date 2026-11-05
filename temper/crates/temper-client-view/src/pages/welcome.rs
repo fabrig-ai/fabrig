@@ -58,7 +58,7 @@ fn control(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, act:
         b.name(&name);
         b.bind(binding);
     }
-    if word == Word::WelcomeSetup {
+    if word == Word::WelcomeSetup || word == Word::WelcomeGoOn {
         b.style(look::FLOW_PRIMARY);
     } else if word == Word::WelcomePlayground {
         b.style(look::FLOW_SECONDARY);
@@ -71,24 +71,37 @@ fn go(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, step: Ste
     control(b, w, bindings, word, Act::Go { address: Address::Welcome { step } });
 }
 /// The welcome's steps, in its frame's top bar (3.5).
-pub(crate) fn steps(b: &mut Builder, root: &Domain, w: &Words, current: Step) {
-    let welcome = w.say(Word::WelcomeStep, &[]);
-    let forge = w.say(Word::WelcomeForgeStep, &[]);
-    let model = w.say(Word::WelcomeModelStep, &[]);
-    let ready = w.say(Word::WelcomeReadyStep, &[]);
-    let current = match current {
-        Step::Welcome => 0,
-        Step::Forge { .. } => 1,
-        Step::Model { .. } => 2,
-        Step::Ready => {
-            if temper_client_domain::pages::welcome::model_usable(root) == Some(true) && connected(root) {
-                4
-            } else {
-                3
-            }
+pub(crate) fn steps(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, current: Step) {
+    use temper_client_domain::pages::welcome;
+    let marks = welcome::step_marks(current, welcome::forge_kept(root), welcome::model_usable(root) == Some(true));
+    let [welcome, forge, model, ready] = marks;
+    b.open(Role::List);
+    b.name(&w.say(Word::WelcomeSteps, &[]));
+    b.style(look::FLOW_STEPS);
+    for (word, step, mark) in [
+        (Word::WelcomeStep, Step::WelcomeAsked, welcome),
+        (Word::WelcomeForgeStep, Step::Forge { forge: None }, forge),
+        (Word::WelcomeModelStep, Step::Model { way: None }, model),
+        (Word::WelcomeReadyStep, Step::Ready, ready),
+    ] {
+        b.open(Role::Item);
+        b.style(look::FLOW_STEP);
+        if mark.current {
+            b.state(State::Current);
         }
-    };
-    crate::flow::steps(b, w, &[&welcome, &forge, &model, &ready], current);
+        if mark.ticked {
+            b.style(look::FLOW_DONE);
+        }
+        let name = w.say(word, &[]);
+        crate::link(b, &name, bindings.insert(Act::Go { address: Address::Welcome { step } }));
+        if mark.ticked && w.shell == crate::words::Shell::Terminal {
+            b.text(Run::Plain, "✓ ".as_bytes());
+        }
+        b.text(Run::Plain, &name);
+        b.close();
+        b.close();
+    }
+    b.close();
 }
 fn card(b: &mut Builder, w: &Words, title: Word) {
     b.open(Role::Region);
@@ -124,14 +137,12 @@ pub(crate) fn main(
         b.close();
         return;
     };
-    let playground = temper_client_domain::pages::welcome::decision(root)
-        == Some(temper_client_domain::pages::welcome::FirstRun::Empty);
+    let playground = temper_client_domain::pages::welcome::playground_offered(root) == Some(true);
     match step {
-        Step::Welcome => {
+        Step::Welcome | Step::WelcomeAsked => {
             text(b, w, Role::Heading { level: 1 }, Word::WelcomeTitle);
             if let Some(page) = root.pages().welcome()
                 && page.decided
-                && playground
             {
                 lead(b, w);
                 b.open(Role::Slot);
@@ -139,7 +150,11 @@ pub(crate) fn main(
                 card(b, w, Word::WelcomeSetup);
                 setup_description(b, w);
                 paragraph(b, w, Word::WelcomeSetupTime, look::WELCOME_MUTED);
-                go(b, w, bindings, Word::WelcomeSetup, Step::Forge { forge: None });
+                if temper_client_domain::pages::welcome::forge_kept(root) {
+                    go(b, w, bindings, Word::WelcomeGoOn, temper_client_domain::pages::welcome::go_on(root));
+                } else {
+                    go(b, w, bindings, Word::WelcomeSetup, Step::Forge { forge: None });
+                }
                 b.close();
                 if playground {
                     card(b, w, Word::WelcomePlayground);
@@ -181,7 +196,7 @@ pub(crate) fn main(
         let back = match step {
             Step::Model { way: Some(_) } | Step::Ready => Step::Model { way: None },
             Step::Forge { forge: Some(_) } | Step::Model { way: None } => Step::Forge { forge: None },
-            Step::Welcome | Step::Forge { forge: None } => Step::Welcome,
+            Step::Welcome | Step::WelcomeAsked | Step::Forge { forge: None } => Step::Welcome,
         };
         go(b, w, bindings, Word::WelcomeBack, back);
         if playground {
