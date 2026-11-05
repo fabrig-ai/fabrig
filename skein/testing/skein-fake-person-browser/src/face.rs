@@ -18,6 +18,12 @@ enum Input {
     Type { node: u64, value: Box<[u8]> },
 }
 
+struct Press {
+    find: Find,
+    remaining: u8,
+    searching: bool,
+}
+
 struct Choice {
     option: u64,
     selects: std::collections::VecDeque<u64>,
@@ -61,6 +67,8 @@ pub struct BrowserFace<'a> {
     answer: Option<Found>,
     seen: Vec<(Seen, Option<Role>)>,
     acting: Option<Token>,
+    last_find: Option<(NodeId, Find)>,
+    press: Option<Press>,
     expected_path: Option<Box<[u8]>>,
     failure: Option<String>,
     refusal: Option<Refusal>,
@@ -97,6 +105,8 @@ impl<'a> BrowserFace<'a> {
             answer: None,
             seen: Vec::new(),
             acting: None,
+            last_find: None,
+            press: None,
             expected_path: None,
             failure: None,
             refusal: None,
@@ -386,7 +396,9 @@ impl<'a> BrowserFace<'a> {
                 self.ask(search);
             } else {
                 let role = target_role(&search.find.target);
-                self.answer = Some(Found::Node(self.remember(seen, role)));
+                let node = self.remember(seen, role);
+                self.last_find = Some((node, search.find));
+                self.answer = Some(Found::Node(node));
             }
         } else if more > 0 {
             self.fail(format!(
@@ -410,61 +422,24 @@ impl<'a> BrowserFace<'a> {
                     self.warned = true;
                 }
             }
-            Event::Found { op, seen, more } => self.search_found(*op, seen, *more),
+            Event::Found { op, seen, more } => {
+                self.search_found(*op, seen, *more);
+                self.press_found();
+            }
             Event::Downloaded { name, path, .. } => {
                 self.downloads.push(Download { name: name.clone(), path: std::ffi::OsStr::from_bytes(path).into() });
             }
             Event::Done { op } => {
                 if self.acting == Some(*op) {
                     self.acting = None;
+                    self.press = None;
                     self.input_next();
                     self.choice_check();
                 }
             }
-            Event::Address { op, url } => {
-                if self.acting == Some(*op) {
-                    self.acting = None;
-                    self.read_address = Some(url.clone());
-                    if let Some(path) = self.expected_path.take()
-                        && url_path(url) != &*path
-                    {
-                        self.failure = Some(format!(
-                            "the page's address was {}, expected the path {}",
-                            String::from_utf8_lossy(url),
-                            String::from_utf8_lossy(&path)
-                        ));
-                    }
-                }
-            }
-            Event::Attribute { op, read } => {
-                if self.keep.as_ref().map(|keep| keep.op) == Some(*op) {
-                    match read {
-                        Read::NoElement => self.keep_failed("no element"),
-                        Read::NoAttribute => self.keep_failed("no attribute"),
-                        Read::Value(value) => {
-                            let Keeping { name, .. } = self.keep.take().expect("pending keep");
-                            self.kept = Some((name, value.clone()));
-                            self.keep_done = true;
-                        }
-                    }
-                }
-            }
-            Event::Refused { op, why } => {
-                if self.keep.as_ref().map(|keep| keep.op) == Some(*op) {
-                    self.keep_failed(&format!("browser refused read: {why:?}"));
-                }
-                if self.search.as_ref().map(|s| s.op) == Some(*op) {
-                    self.search = None;
-                    self.answer = Some(Found::Absent);
-                }
-                if self.acting == Some(*op) {
-                    self.acting = None;
-                    self.choice = None;
-                    self.input = None;
-                    self.refusal = Some(*why);
-                    self.failure = Some(format!("browser refused act: {why:?}"));
-                }
-            }
+            Event::Address { op, url } => self.address_reported(*op, url),
+            Event::Attribute { op, read } => self.attribute_reported(*op, read),
+            Event::Refused { op, why } => self.refused(*op, *why),
             Event::Trouble { page, text, .. } => {
                 if *page == self.page {
                     self.trouble.push(text.clone());
@@ -477,6 +452,34 @@ impl<'a> BrowserFace<'a> {
             | Event::Snapshot { .. }
             | Event::Screenshot { .. }
             | Event::Closed { .. } => {}
+        }
+    }
+    fn address_reported(&mut self, op: Token, url: &[u8]) {
+        if self.acting == Some(op) {
+            self.acting = None;
+            self.read_address = Some(url.into());
+            if let Some(path) = self.expected_path.take()
+                && url_path(url) != &*path
+            {
+                self.failure = Some(format!(
+                    "the page's address was {}, expected the path {}",
+                    String::from_utf8_lossy(url),
+                    String::from_utf8_lossy(&path)
+                ));
+            }
+        }
+    }
+    fn attribute_reported(&mut self, op: Token, read: &Read) {
+        if self.keep.as_ref().map(|keep| keep.op) == Some(op) {
+            match read {
+                Read::NoElement => self.keep_failed("no element"),
+                Read::NoAttribute => self.keep_failed("no attribute"),
+                Read::Value(value) => {
+                    let Keeping { name, .. } = self.keep.take().expect("pending keep");
+                    self.kept = Some((name, value.clone()));
+                    self.keep_done = true;
+                }
+            }
         }
     }
     /// Translate one person's operation, replacing a typed field's whole value.
@@ -504,53 +507,66 @@ impl<'a> BrowserFace<'a> {
                 Request::Go { page: self.page, op, to: Go::Reload }
             }
             Doing::Act { node, act } => {
-                let (seen, role) = self
-                    .seen
-                    .get(usize::try_from(node.0).expect("node fits"))
-                    .ok_or_else(|| format!("unknown node {}", node.0))?;
-                if *role == Some(Role::Option) && act == Act::Press {
-                    let option = seen.node;
-                    self.choice = Some(Choice {
-                        option,
-                        selects: std::collections::VecDeque::new(),
-                        select: None,
-                        name: seen.name.clone(),
-                        checking: false,
-                    });
-                    self.choice_query(b"combobox", None);
-                    return Ok(());
-                }
-                match act {
-                    Act::Press | Act::Toggle => Request::Press { page: self.page, op, node: seen.node, at: None },
-                    Act::Input { value } => {
-                        let keys = match seen.role.as_ref() {
-                            b"Date" => Some(crate::keys::date(&value)),
-                            b"InputTime" => Some(crate::keys::time(&value)),
-                            _ => None,
-                        };
-                        if let Some(keys) = keys {
-                            let text = keys.ok_or_else(|| {
-                                format!(
-                                    "field '{}' takes no value '{}'",
-                                    String::from_utf8_lossy(&seen.name),
-                                    String::from_utf8_lossy(&value)
-                                )
-                            })?;
-                            Request::Keys { page: self.page, op, node: seen.node, text }
-                        } else {
-                            self.input = Some(Input::Select { node: seen.node, value });
-                            Request::Type { page: self.page, op, node: seen.node, text: Box::new([]) }
-                        }
-                    }
-                    Act::Submit => Request::Key { page: self.page, op, key: Key::Enter, shift: false },
-                    Act::Drawing { .. } => return Err("a person cannot press a drawing mark".into()),
-                }
+                let Some(request) = self.act_request(op, node, act)? else { return Ok(()) };
+                request
             }
         };
         self.acting = Some(op);
         self.requests.push(request);
         Ok(())
     }
+    fn act_request(&mut self, op: Token, node: NodeId, act: Act) -> Result<Option<Request>, String> {
+        let (seen, role) = self
+            .seen
+            .get(usize::try_from(node.0).expect("node fits"))
+            .ok_or_else(|| format!("unknown node {}", node.0))?;
+        if *role == Some(Role::Option) && act == Act::Press {
+            let option = seen.node;
+            self.choice = Some(Choice {
+                option,
+                selects: std::collections::VecDeque::new(),
+                select: None,
+                name: seen.name.clone(),
+                checking: false,
+            });
+            self.choice_query(b"combobox", None);
+            return Ok(None);
+        }
+        let request = match act {
+            Act::Press | Act::Toggle => {
+                self.press = self.last_find.as_ref().filter(|(found, _)| *found == node).map(|(_, find)| Press {
+                    find: find.clone(),
+                    remaining: 3,
+                    searching: false,
+                });
+                Request::Press { page: self.page, op, node: seen.node, at: None }
+            }
+            Act::Input { value } => {
+                let keys = match seen.role.as_ref() {
+                    b"Date" => Some(crate::keys::date(&value)),
+                    b"InputTime" => Some(crate::keys::time(&value)),
+                    _ => None,
+                };
+                if let Some(keys) = keys {
+                    let text = keys.ok_or_else(|| {
+                        format!(
+                            "field '{}' takes no value '{}'",
+                            String::from_utf8_lossy(&seen.name),
+                            String::from_utf8_lossy(&value)
+                        )
+                    })?;
+                    Request::Keys { page: self.page, op, node: seen.node, text }
+                } else {
+                    self.input = Some(Input::Select { node: seen.node, value });
+                    Request::Type { page: self.page, op, node: seen.node, text: Box::new([]) }
+                }
+            }
+            Act::Submit => Request::Key { page: self.page, op, key: Key::Enter, shift: false },
+            Act::Drawing { .. } => return Err("a person cannot press a drawing mark".into()),
+        };
+        Ok(Some(request))
+    }
+
     fn input_next(&mut self) {
         match self.input.take() {
             Some(Input::Select { node, value }) => {
@@ -676,4 +692,67 @@ fn url_path(url: &[u8]) -> &[u8] {
     let rest =
         url.windows(3).position(|window| window == b"://").map_or(url, |at| url.get(at + 3..).unwrap_or_default());
     rest.iter().position(|byte| *byte == b'/').map_or(&[], |at| rest.get(at..).unwrap_or_default())
+}
+
+impl BrowserFace<'_> {
+    fn refused(&mut self, op: Token, why: Refusal) {
+        if self.keep.as_ref().map(|keep| keep.op) == Some(op) {
+            self.keep_failed(&format!("browser refused read: {why:?}"));
+        }
+        if self.search.as_ref().map(|s| s.op) == Some(op) {
+            self.search = None;
+            if self.press.as_ref().is_some_and(|press| press.searching) {
+                self.press = None;
+                self.refusal = Some(why);
+                self.fail(format!("browser refused act: {why:?}"));
+                return;
+            }
+            self.answer = Some(Found::Absent);
+        }
+        if self.acting != Some(op) {
+            return;
+        }
+        self.acting = None;
+        if why == Refusal::Gone && self.retry_press() {
+            return;
+        }
+        self.press = None;
+        self.choice = None;
+        self.input = None;
+        self.refusal = Some(why);
+        self.failure = Some(format!("browser refused act: {why:?}"));
+    }
+
+    fn retry_press(&mut self) -> bool {
+        let Some(press) = self.press.as_mut() else { return false };
+        let Some(remaining) = press.remaining.checked_sub(1) else { return false };
+        press.remaining = remaining;
+        press.searching = true;
+        let find = press.find.clone();
+        self.ask(Search { title: false, boxes: false, find, depth: 0, role: 0, within: None, op: Token::new(0) });
+        true
+    }
+
+    fn press_found(&mut self) {
+        let Some(press) = self.press.as_mut() else { return };
+        if !press.searching {
+            return;
+        }
+        let Some(answer) = self.answer.take() else { return };
+        match answer {
+            Found::Node(node) => {
+                press.searching = false;
+                let backend = self.seen.get(usize::try_from(node.0).expect("node fits")).expect("found node").0.node;
+                let op = self.token();
+                self.acting = Some(op);
+                self.requests.push(Request::Press { page: self.page, op, node: backend, at: None });
+            }
+            Found::Absent => {
+                self.press = None;
+                self.refusal = Some(Refusal::Gone);
+                self.fail("browser refused act: Gone (replacement missing)".into());
+            }
+            Found::Pending => {}
+        }
+    }
 }
