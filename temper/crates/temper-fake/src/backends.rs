@@ -68,12 +68,11 @@ pub struct Documents {
     pub forgejo: Box<[u8]>,
 }
 const OUTPUT: Limits = Limits { depth: 32, length: crate::DOCUMENT_BYTES };
-// Init-shaped temper: forge roots/program (5), sign-in (6),
-// model endpoint (2), program route (3), two charter alternatives (2), bundle
-// (1), worker argv/configuration (2), managed forge/provider limits (9). Each of the
-// forge, sign-in and endpoint may also remove all four stale TLS members.
-// The agent document needs only its endpoint (6), route (1) and adapter (1).
-const EDITS: u32 = 5 + 6 + 2 + 3 + 2 + 1 + 2 + 9 + 3 * 4;
+// Init-shaped temper: forge roots (1), sign-in (6), OpenAI endpoint (2),
+// Anthropic provider/endpoint/model replacements (3), bundle (1), worker (2),
+// capacity overrides (3). Sign-in and the OpenAI endpoint may remove four TLS members each.
+// The agent's OpenAI endpoint (6), Anthropic endpoint (1) and adapter (1) fit too.
+const EDITS: u32 = 1 + 6 + 2 + 3 + 1 + 2 + 3 + 2 * 4;
 // The Model step must see OpenAI, demo and Anthropic in one provider offer.
 const PROVIDER_LINES: u32 = 3;
 #[derive(Debug)]
@@ -326,22 +325,21 @@ fn program_endpoint(socket: &[u8], agent: bool) -> Result<Box<[u8]>, Refusal> {
 }
 
 fn program_route(d: &Document, llm: u32, socket: &[u8], edits: &mut Edits, p: &Path) -> Result<(), Refusal> {
-    let endpoints = member(d, llm, b"endpoints", p)?;
-    append(d, endpoints, &program_endpoint(socket, false)?, edits)?;
-    append(d, member(d, llm, b"models", p)?, &program_model(false)?, edits)?;
-    let providers = member(d, llm, b"providers", p)?;
-    // Init ships OpenAI and demo, leaving provider 2 for Claude's program way.
-    // Keep the public provider/model/source declaration in the ordinary schema.
-    append(
-        d,
-        providers,
-        &read::joined(&[
+    for (member_name, key, wanted, value) in [
+        (b"endpoints".as_slice(), b"name".as_slice(), b"anthropic".as_slice(), program_endpoint(socket, false)?),
+        (b"models", b"endpoint", b"anthropic", program_model(false)?),
+        (b"providers", b"name", b"anthropic", read::joined(&[
             br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","models":["#,
             &text(PROGRAM_MODEL.as_bytes())?,
             br#"],"sources":{"programs":["claude_code"]}}"#,
-        ]),
-        edits,
-    )
+        ])),
+    ] {
+        let target_path = p.member(member_name);
+        let list = member(d, llm, member_name, p)?;
+        let target = selected(d, list, key, wanted, false, &target_path)?;
+        edits.set(d, target, &value, &target_path)?;
+    }
+    Ok(())
 }
 
 /// Wire welcome peers and a program model in ordinary documents. The shell validates and rebases imported resources first.
@@ -403,7 +401,8 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     let mut agent_edits = Edits::new();
     let endpoints = member(&a, 0, b"endpoints", &root)?;
     endpoint(&a, endpoints, &llm, true, &mut agent_edits, &root.member(b"endpoints"))?;
-    append(&a, endpoints, &program_endpoint(&llm, true)?, &mut agent_edits)?;
+    let target = selected(&a, endpoints, b"name", b"anthropic", false, &root.member(b"endpoints"))?;
+    agent_edits.set(&a, target, &program_endpoint(&llm, true)?, &root.member(b"endpoints"))?;
     let programs = member(&a, 0, b"programs", &root)?;
     let adapter = read::joined(&[
         b"{\"path\":",

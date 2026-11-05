@@ -24,10 +24,12 @@ mod accounts_runtime;
 mod agent;
 pub mod box_command;
 pub mod bundle;
+pub mod claude_code;
 pub mod commands;
 pub mod ctl;
 pub mod fake;
 mod fake_backends;
+use fake_backends::json;
 pub mod forge;
 mod forge_sign_in;
 pub mod github_logs;
@@ -41,7 +43,7 @@ mod restart_fault;
 mod setup;
 mod worker_alone;
 pub use host::{Host, ending as service_ending};
-const CONFIG_BYTES: u32 = 1 << 20;
+use json::CONFIG_BYTES;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
@@ -199,7 +201,12 @@ pub fn run(command: Command) -> Result<u8, String> {
         Command::Box { directories, echo } => {
             box_command::run(&directories, echo).map_err(|why| prefixed("temper box", &why))?
         }
-        Command::Agent { configuration } => smith_agent_shell::run(&configuration, Box::new(std::io::stderr()))
+        Command::Agent { configuration } => agent::decoded(&configuration)
+            .inspect_err(|why| {
+                use std::io::Write;
+                drop(writeln!(std::io::stderr(), "smith: {why}"));
+            })
+            .and_then(|decoded| smith_agent_shell::run_decoded(decoded, Box::new(std::io::stderr())))
             .map_err(|why| prefixed("temper internal agent", &why))?,
         Command::ProgramLogin { directories, name } => {
             return program_login::run(&directories, &name)
@@ -462,12 +469,15 @@ fn prepare_with_limits(
     if let Some(agent) = &agent
         && let Some(program) = agent.programs.first()
     {
+        if agent::launcher(path(&program.directory)).as_deref() == Some(path(&program.path)) {
+            claude_code::place(path(&program.path).parent().expect("launcher parent"), path(&directories.cache))
+                .map_err(|why| format!("programs.claude_code: {why}"))?;
+        }
         // Source commands use the agent's explicit command environment.
-        let environment =
-            smith_agent_shell::config::read(path(&named.worker.as_ref().expect("local agent checked").agent))?
-                .service
-                .environment
-                .command_entries();
+        let environment = agent::configuration(path(&named.worker.as_ref().expect("local agent checked").agent))?
+            .service
+            .environment
+            .command_entries();
         let resources = service::program_sources::configured(program, environment)
             .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
         service.configure_program_sources(resources).map_err(|_| "worker refused program source resources")?;

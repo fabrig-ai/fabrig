@@ -15,6 +15,7 @@ pub struct Encoding {
     pub limits: wire::v1::Limits,
     pub endpoints: smith_protocol_channel::Endpoints,
     pub deployment: [u8; 16],
+    pub charter_bytes: u64,
 }
 
 /// A transcript tail as text alone. jig's tail copies the retained turns'
@@ -86,8 +87,7 @@ pub fn down(
             section.text = text_tail(&section.text);
         }
     }
-    let charter =
-        smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
+    let charter = fitted_charter(charter, encoding)?;
     let identity = jig_protocol_charter::run_identity(&encoding.deployment, assignment.task, assignment.conversation);
     let mut parts = List::with_capacity(1);
     let workspace = match items {
@@ -125,6 +125,36 @@ pub fn down(
         values: filled,
     })
 }
+// The wire's section framing is two u32 lengths; a decoded Section owns two
+// boxes, so its array cell covers that framing even when sections are omitted.
+fn fitted_charter(mut charter: smith_domain_run::Charter, encoding: &Encoding) -> Option<Box<[u8]>> {
+    let bound = encoding.charter_bytes;
+    if charter.owned_bytes()? <= bound {
+        let encoded =
+            smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
+        if skein_lib::len_u64(encoded.len()) <= bound {
+            return Some(encoded);
+        }
+    }
+    let brief = ::core::mem::replace(&mut charter.brief.sections, Box::new([]));
+    let fixed_owned = charter.owned_bytes()?;
+    let fixed_encoded =
+        smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
+    let fixed_encoded = skein_lib::len_u64(fixed_encoded.len());
+    if fixed_owned > bound || fixed_encoded > bound {
+        return None;
+    }
+    charter.brief.sections = brief;
+    let owned = bound.saturating_sub(fixed_encoded.saturating_sub(fixed_owned));
+    temper_engine_smith::fit_brief_bytes(&mut charter, owned);
+    let encoded =
+        smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
+    if skein_lib::len_u64(encoded.len()) > bound || charter.owned_bytes()? > bound {
+        return None;
+    }
+    Some(encoded)
+}
+
 fn messages(task: u64, words: &[tasks::Word]) -> Box<[host::StartMessage]> {
     let mut messages = List::with_capacity(u32::try_from(words.len()).expect("bounded messages"));
     for word in words {
@@ -178,6 +208,32 @@ fn answered(calls: &[core::Settled]) -> Box<[host::AnsweredCall]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn encoded_framing_fits_beside_the_fixed_charter() {
+        let settings = crate::tests::fixtures::engine();
+        let mut encoding = crate::tests::fixtures::encoding(&settings);
+        let assignment =
+            crate::tests::fixtures::assignment_with(crate::tests::fixtures::repository(7, b"acme", b"shop"));
+        let mut charter = temper_engine_smith::charter(&assignment);
+        charter.grants.host_tools = Box::new([]);
+        charter.models = Box::new([]);
+        charter.brief.sections = Box::new([smith_domain_run::Section {
+            title: b"Pull request".as_slice().into(),
+            text: Box::new([b'x'; 1024]),
+        }]);
+        let owned = charter.owned_bytes().unwrap();
+        let encoded =
+            smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
+        assert!(skein_lib::len_u64(encoded.len()) > owned);
+        encoding.charter_bytes = owned;
+        let fitted = fitted_charter(charter, &encoding).expect("wire overhead leaves room for a cut brief");
+        assert!(skein_lib::len_u64(fitted.len()) <= owned);
+        let decoded =
+            smith_protocol_channel::decode_charter(&fitted, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
+        assert!(decoded.owned_bytes().unwrap() <= owned);
+        assert!(decoded.brief.sections[0].text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
+    }
 
     #[test]
     fn a_run_identity_keeps_its_bytes() {

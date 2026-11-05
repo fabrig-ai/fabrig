@@ -1860,12 +1860,7 @@ pub(crate) fn workspace_repository(
         forge::items::Start::Merged { branch, heads } => ForgeStart::Merged { branch, heads },
     };
     Some(ForgeRepository {
-        save: match start {
-            ForgeStart::Merge { .. } => None,
-            ForgeStart::Base(_) | ForgeStart::Branch(_) | ForgeStart::Saved(_) | ForgeStart::Merged { .. } => {
-                if push.is_some() { Some(save) } else { None }
-            }
-        },
+        save: if push.is_some() { Some(save) } else { None },
         tag: forge::tag(item.provider.forge, item.provider.repository),
         provider: item.provider,
         name: item.name,

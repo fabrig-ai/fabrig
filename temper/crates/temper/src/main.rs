@@ -7,6 +7,11 @@ fn main() -> ExitCode {
     if env::args_os().next().as_deref().is_some_and(temper::fake::git::is_git) {
         return ExitCode::from(temper::fake::git::run(&skein_shell::arguments()));
     }
+    if let Some(program) = env::args_os().next()
+        && temper::claude_code::is_launcher(&program)
+    {
+        return ExitCode::from(temper::claude_code::run(&program, &skein_shell::arguments()));
+    }
     if env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new(smith_agent_shell::relay::FLAG)) {
         return smith_agent_shell::relay::main();
     }

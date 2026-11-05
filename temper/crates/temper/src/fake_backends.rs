@@ -1,6 +1,6 @@
 //! Retained isolated startup for `box --fake-backends` (configuration.md, 12.1).
 mod import;
-mod json;
+pub(crate) mod json;
 use crate::directories::{Directories, make_private, private_root};
 use import::Source;
 use json::Json;

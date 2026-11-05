@@ -186,16 +186,10 @@ pub fn decode(
         }
     }
     if name == b"deliver" && served.contains(&agent::Served::Deliver) {
-        let Some(value) = field(arguments, b"ticket") else {
+        let Some(change) = delivery(arguments) else {
             return invalid();
         };
-        return agent::Decoded::Served {
-            ask: run::Ask::Deliver {
-                change: run::outcome::Change {
-                    fields: Box::new([run::outcome::Field { name: b"ticket".as_slice().into(), value }]),
-                },
-            },
-        };
+        return agent::Decoded::Served { ask: run::Ask::Deliver { change } };
     }
     if name == b"finish" && served.contains(&agent::Served::Finish) {
         return finish(arguments)
@@ -275,6 +269,20 @@ fn job(arguments: &[u8]) -> agent::Decoded {
             }),
             stop: skein_lib::bytes::find(arguments, b"\"stop\":true").is_some(),
         },
+    }
+}
+
+fn delivery(arguments: &[u8]) -> Option<run::outcome::Change> {
+    if let Some(value) = field(arguments, b"ticket") {
+        return Some(run::outcome::Change {
+            fields: Box::new([run::outcome::Field { name: b"ticket".as_slice().into(), value }]),
+        });
+    }
+    match finish(arguments)? {
+        run::outcome::Declared::Change(change) => Some(change),
+        run::outcome::Declared::Report(_) | run::outcome::Declared::Failure(_) | run::outcome::Declared::Verdict(_) => {
+            None
+        }
     }
 }
 
