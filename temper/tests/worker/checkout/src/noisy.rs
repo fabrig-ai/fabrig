@@ -2,7 +2,7 @@
 //! that is unreachable, refuses or lacks what is asked, branches others
 //! advance, and clients that abort, release, save and push twice.
 
-use skein_lib::{Duration, Rng, Time};
+use skein_lib::{Duration, Rng};
 use temper_worker_domain_checkout::Limits;
 
 use crate::client::{Interrupt, Plan};
@@ -54,7 +54,7 @@ pub fn noisy(seed: u64) -> Settings {
 pub fn submit_noisily(world: &mut World, settings: &Settings, seed: u64) {
     let mut rng = Rng::new(seed.wrapping_add(2));
     for _ in 0..rng.between(3, 12) {
-        let at = Time::ZERO.saturating_add(Duration::from_millis(rng.between(0, 60_000)));
+        let at = world.now().saturating_add(Duration::from_millis(rng.between(0, 60_000)));
         let interrupt = if rng.chance(300) {
             let how = if rng.chance(500) { Interrupt::Abort } else { Interrupt::Release };
             Some((Duration::from_millis(rng.between(0, 6_000)), how))

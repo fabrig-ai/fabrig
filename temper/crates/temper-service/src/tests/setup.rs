@@ -1141,7 +1141,7 @@ fn local_stops_missing_busy_and_origin_mismatch_leave_the_other_forge_served() {
             kept_record(&mut store, 1, Item::AdminToken, b"");
         }
         let mut service = local_with_other(local_config(true, false), store);
-        // Hold root restore while setting the host's actual admission conditions.
+        // Hold root restore while setting the host's admission conditions.
         for _ in 0_u32..8 {
             crate::forge::records::advance(service.engine.as_mut().unwrap());
         }

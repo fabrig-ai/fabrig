@@ -2611,7 +2611,7 @@ pub(crate) fn change_batch(
         return Err(ChangeRefused::Refusal(tasks::Refusal::Batch));
     }
     let spend = change_batch_spend(context, count)?;
-    let rooms = change_task_rooms(env, context.tasks_left, changes, count)?;
+    let rooms = change_task_rooms(domain, env, context, changes, count)?;
     let mut batch = List::with_capacity(count);
     for (index, change) in changes.iter().enumerate() {
         let earlier = changes.get(..index).expect("earlier changes in this batch");
@@ -2629,11 +2629,13 @@ pub(crate) fn change_batch(
 
 /// Share descendants equally, redistributing room beyond a member's policy cap.
 fn change_task_rooms(
+    domain: &Domain,
     env: &Env<Limits>,
-    available: u32,
+    context: &tasks::DelegationContext,
     changes: &[crate::ChangeCall],
     count: u32,
 ) -> Result<Box<[u32]>, ChangeRefused> {
+    let available = context.tasks_left;
     if count == 1 && available == 0 {
         return Ok(Box::new([0]));
     }
@@ -2655,7 +2657,7 @@ fn change_task_rooms(
         let share = left.checked_div(active).expect("nonempty share").max(1);
         active = 0;
         for (room, change) in rooms.iter_mut().zip(changes) {
-            let cap = change_task_limit(env, change);
+            let cap = change_task_limit(env, change_questions(domain, context.project, change));
             let take = cap.saturating_sub(*room).min(share).min(left);
             *room = room.saturating_add(take);
             left = left.saturating_sub(take);
@@ -2667,13 +2669,18 @@ fn change_task_rooms(
     Ok(rooms)
 }
 
-fn change_task_limit(env: &Env<Limits>, change: &crate::ChangeCall) -> u32 {
-    let policy = env.limits.forge.change_policy;
-    if change.questions == Some(crate::ChangeQuestions::Foreman) {
-        policy.tasks.saturating_add(policy.questions)
-    } else {
-        policy.tasks
+fn change_questions(domain: &Domain, project: u32, change: &crate::ChangeCall) -> forge_change::Route {
+    match change.questions {
+        Some(crate::ChangeQuestions::None) => forge_change::Route::None,
+        Some(crate::ChangeQuestions::Foreman) => forge_change::Route::Foreman,
+        Some(crate::ChangeQuestions::Up) => forge_change::Route::Up,
+        None => domain.forge.project_questions(project),
     }
+}
+
+fn change_task_limit(env: &Env<Limits>, questions: forge_change::Route) -> u32 {
+    let policy = env.limits.forge.change_policy;
+    if questions == forge_change::Route::Foreman { policy.tasks.saturating_add(policy.questions) } else { policy.tasks }
 }
 
 fn change_task_refusal(available: u32, count: u32) -> ChangeRefused {
@@ -3032,7 +3039,8 @@ fn chat_change(
     if producer_charter != review_charter {
         kinds.push(tasks::AuthorityExecutor::Charter(review_charter)).expect("review kind");
     }
-    let foreman = change.questions == Some(crate::ChangeQuestions::Foreman);
+    let questions = change_questions(domain, repository.project, change);
+    let foreman = questions == forge_change::Route::Foreman;
     if foreman && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)) {
         kinds.push(tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)).expect("foreman kind");
     }
@@ -3047,7 +3055,7 @@ fn chat_change(
         kinds.push(tasks::AuthorityExecutor::Job(forge::MERGE_KIND)).expect("merge kind");
     }
     authority.delegation.kinds = kinds.into_boxed();
-    authority.delegation.tasks = change_task_limit(env, change).min(context.tasks_left.saturating_sub(1));
+    authority.delegation.tasks = change_task_limit(env, questions).min(context.tasks_left.saturating_sub(1));
     authority.delegation.depth = 2.min(authority.delegation.depth.saturating_sub(1));
     authority.budget.spend = spend;
     authority.notes = tasks::Scopes(0);
@@ -3083,10 +3091,10 @@ fn chat_change(
     {
         return Err(tasks::Refusal::Spec);
     }
-    let route = match change.questions {
-        Some(crate::ChangeQuestions::Foreman) => Some(1),
-        Some(crate::ChangeQuestions::Up) => Some(2),
-        None | Some(crate::ChangeQuestions::None) => None,
+    let route = match questions {
+        forge_change::Route::Foreman => Some(1),
+        forge_change::Route::Up => Some(2),
+        forge_change::Route::None => None,
     };
     if let Some(value) = route
         && parameters.push(tasks::Parameter::Number { name: 14, value }).is_err()

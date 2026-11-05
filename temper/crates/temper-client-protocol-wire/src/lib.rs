@@ -6,7 +6,15 @@ extern crate alloc;
 
 #[rustfmt::skip]
 #[path = "generated/v1.rs"]
+#[expect(clippy::similar_names, reason = "the schema names the ways fields away and way")]
 pub mod v1;
+
+/// Kinds with typed settings values at temper's entrances
+/// (temper/docs/design/protocol/configuration.md, 13.2).
+#[must_use]
+pub const fn settings_kind(kind: u32) -> bool {
+    kind == 1 || kind == 2 || kind == 3 || kind == 6 || kind == 7
+}
 
 /// The forge's visitor records (temper/docs/design/client/forge.md, 11.4).
 #[rustfmt::skip]

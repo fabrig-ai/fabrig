@@ -35,7 +35,7 @@ fn main_find(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> skein_ui::NodeId
 fn project_pages_draw_their_heading_in_both_shells() {
     for (address, heading) in [
         (Address::Home { project: f::PROJECT }, b"Shop".as_slice()),
-        (Address::Settings { project: f::PROJECT }, b"Settings for Shop".as_slice()),
+        (Address::Settings { project: f::PROJECT }, b"How work runs in Shop.".as_slice()),
     ] {
         let (root, _, _) = f::root_at(address, &f::domain_limits());
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
@@ -53,7 +53,11 @@ fn project_pages_draw_their_heading_in_both_shells() {
 
 #[test]
 fn unlisted_projects_explain_and_link_to_chats() {
-    for address in [Address::Home { project: UNKNOWN }, Address::Settings { project: UNKNOWN }] {
+    for address in [
+        Address::Home { project: UNKNOWN },
+        Address::Settings { project: UNKNOWN },
+        Address::Repositories { project: UNKNOWN },
+    ] {
         let (root, _, _) = f::root_at(address, &f::domain_limits());
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             let main = f::main_text(view.tree());
@@ -66,57 +70,6 @@ fn unlisted_projects_explain_and_link_to_chats() {
         }
         let view = f::page_view(&root);
         assert!(skein_lib::bytes::find(&printed(&view), b"Project 99 is not one of yours.").is_some());
-    }
-}
-
-fn settings_root() -> d::Domain {
-    f::root_at(Address::Settings { project: f::PROJECT }, &f::domain_limits()).0
-}
-
-#[test]
-fn settings_lists_links_then_sign_out_in_both_shells() {
-    let root = settings_root();
-    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let nodes = main_nodes(view.tree());
-        assert_eq!(nodes[0].styles.as_slice(), &[crate::look::MAIN, crate::look::SETTINGS]);
-        assert_eq!(crate::look::NAMES.style(crate::look::SETTINGS), Some(b"temper-settings".as_slice()));
-        let mut at = 1;
-        let mut list = None;
-        for expected in [Role::Heading { level: 1 }, Role::List, Role::Button] {
-            let node = &nodes[at];
-            assert_eq!(node.role, expected);
-            if expected == Role::List {
-                list = Some(subtree(view.tree(), node.id));
-            }
-            at += usize::try_from(node.size).unwrap();
-        }
-        assert_eq!(at, nodes.len());
-        let list = list.unwrap();
-        let mut at = 1;
-        for name in [b"Configure temper".as_slice(), b"Forges", b"Accounts", b"Adopt a repository"] {
-            assert_eq!(list[at].role, Role::Item);
-            assert_eq!(list[at + 1].role, Role::Link);
-            assert_eq!(list[at + 1].name.as_deref(), Some(name));
-            at += usize::try_from(list[at].size).unwrap();
-        }
-        assert_eq!(at, list.len());
-        for (name, address, href) in [
-            (
-                b"Configure temper".as_slice(),
-                Address::Configure { project: f::PROJECT },
-                b"/projects/1/settings/configure".as_slice(),
-            ),
-            (b"Forges".as_slice(), Address::Forges, b"/forges".as_slice()),
-            (b"Accounts", Address::Accounts, b"/accounts"),
-            (b"Adopt a repository", Address::Adopt { project: f::PROJECT }, b"/projects/1/adopt"),
-        ] {
-            let link = main_find(view.tree(), Role::Link, name);
-            assert!(!subtree(view.tree(), link)[0].states.as_slice().contains(&skein_ui::State::Current));
-            assert_eq!(crate::href(&mut view, link).as_deref(), Some(href));
-            assert_eq!(crate::act(&mut view, link, Act::Press), Some(d::Action::Pages(d::pages::Act::Go { address })));
-        }
-        let button = main_find(view.tree(), Role::Button, b"Sign out");
-        assert_eq!(crate::act(&mut view, button, Act::Press), Some(d::Action::Pages(d::pages::Act::SignOut)));
     }
 }
 
@@ -166,40 +119,6 @@ fn settings_links_carry_the_forge_and_account_marks_in_both_shells() {
         for expected in [forge_words, account_words] {
             assert!(skein_lib::bytes::find(&text, expected).is_some());
         }
-    }
-}
-
-#[test]
-fn settings_terminal_numbers_each_link_and_sign_out() {
-    let root = settings_root();
-    let mut view = f::page_view(&root);
-    for (role, name, action) in [
-        (
-            Role::Link,
-            b"Configure temper".as_slice(),
-            d::pages::Act::Go { address: Address::Configure { project: f::PROJECT } },
-        ),
-        (Role::Link, b"Forges".as_slice(), d::pages::Act::Go { address: Address::Forges }),
-        (Role::Link, b"Accounts", d::pages::Act::Go { address: Address::Accounts }),
-        (Role::Link, b"Adopt a repository", d::pages::Act::Go { address: Address::Adopt { project: f::PROJECT } }),
-        (Role::Button, b"Sign out", d::pages::Act::SignOut),
-    ] {
-        let control = main_find(view.tree(), role, name);
-        let (node, act) = f::terminal_command(view.tree(), &view.limits().tree, control, name, b"Settings for Shop");
-        assert_eq!(crate::act(&mut view, node, act), Some(d::Action::Pages(action)));
-    }
-}
-
-#[test]
-fn settings_lost_sign_out_alert_offers_sign_out_again() {
-    let mut root = settings_root();
-    f::root_event(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::SignOut) });
-    f::root_event(&mut root, d::Event::Client { event: jig_client::Event::SignOutLost });
-    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let _alert = main_find(view.tree(), Role::Alert, b"Sign out did not reach the engine.");
-        let button = main_find(view.tree(), Role::Button, b"Sign out");
-        assert_eq!(crate::act(&mut view, button, Act::Press), Some(d::Action::Pages(d::pages::Act::SignOut)));
-        assert!(skein_lib::bytes::find(&printed(&view), b"Sign out did not reach the engine.").is_some());
     }
 }
 
@@ -1901,7 +1820,7 @@ fn settings_configure_link_opens_the_delivered_configuring_chat_in_both_shells()
         c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })),
     );
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let link = main_find(view.tree(), Role::Link, b"Configure temper");
+        let link = main_find(view.tree(), Role::Link, b"Go on");
         assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/chats/9".as_slice()));
         assert_eq!(
             crate::act(&mut view, link, Act::Press),

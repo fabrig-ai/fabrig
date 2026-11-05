@@ -11,6 +11,39 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    SettingsBuildersTab,
+    SettingsBuildersHeading,
+    SettingsBuildersLede,
+    BuildersCount,
+    BuildersSlot,
+    BuildersSlots,
+    BuilderUnnamed,
+    BuilderConnected,
+    BuilderDraining,
+    BuilderNotConnected,
+    BuildersFacts,
+    BuildersNone,
+    BuildersNoRole,
+    BuildersCut,
+    SettingsKicker,
+    SettingsHowHeading,
+    SettingsHowLede,
+    SettingsRepositoriesHeading,
+    SettingsRepositoriesLede,
+    SettingsForgesHeading,
+    SettingsForgesLede,
+    SettingsAccountsHeading,
+    SettingsAccountsLede,
+    SettingsAccountsTab,
+    PathAddForge,
+    PathConnectAccount,
+    SettingsHowTab,
+    SettingsRepositoriesTab,
+    SettingsConfigureHelp,
+    SettingsRepositoriesCount,
+    SettingsNoneTag,
+    SettingsNoneBody,
+    SettingsSignedIn,
     GoalsWaySeparator,
     GoalsWayEnd,
     GoalsKicker,
@@ -347,7 +380,7 @@ pub enum Word {
     GitHubOpen,
     YourForgesTitle,
     YourForges,
-    ForgesDescription,
+    NoForgeTag,
     AddForge,
     NoForges,
     ForgeSummary,
@@ -620,7 +653,6 @@ pub enum Word {
     AskedByTask,
     AskedByDeployment,
     Deadline,
-    AccountLead,
     Priority,
     Folded,
     HeldBelow,
@@ -1051,6 +1083,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Welcome's resumed setup adds one literal phrase (client/README.md, 3.5).
 // Forge status adds two phrases and removes View (client/README.md, 3.5).
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
+// Settings adds seventeen phrases and thirty-three literal/hole segments (3.5).
 // Model’s panels and notes add fifteen phrases (client/README.md, 3.5).
 // Claude’s welcome panel and check add six literals (client/README.md, 3.5).
 // Ready adds its setup note and program/key details (client/README.md, 3.5).
@@ -1065,8 +1098,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Byline forms add six phrases (client/README.md, 5.5).
 // The chat working indicator adds one phrase and one segment (client/README.md, 3.5).
 // Delegation lines add seven literal phrases (client/README.md, 5.7).
-// Home's status, last-look words and byline add twelve phrases (3.5).
-const PHRASES: u32 = 1545;
+const PHRASES: u32 = 1578;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1096,9 +1128,41 @@ const PHRASES: u32 = 1545;
 // Goal rows, ways and page add sixty-three segments (client/README.md, 3.5).
 // Byline forms add twenty-eight segments (client/README.md, 5.5).
 // Delegation lines add seven literal segments (client/README.md, 5.7).
-// Home's status, last-look words and byline add twenty-six segments (3.5).
-const SEGMENTS: u32 = 2719;
-const ALL: [Word; 949] = [
+const SEGMENTS: u32 = 2780;
+const ALL: [Word; 981] = [
+    Word::SettingsBuildersTab,
+    Word::SettingsBuildersHeading,
+    Word::SettingsBuildersLede,
+    Word::BuildersCount,
+    Word::BuildersSlot,
+    Word::BuildersSlots,
+    Word::BuilderUnnamed,
+    Word::BuilderConnected,
+    Word::BuilderDraining,
+    Word::BuilderNotConnected,
+    Word::BuildersFacts,
+    Word::BuildersNone,
+    Word::BuildersNoRole,
+    Word::BuildersCut,
+    Word::SettingsKicker,
+    Word::SettingsHowHeading,
+    Word::SettingsHowLede,
+    Word::SettingsRepositoriesHeading,
+    Word::SettingsRepositoriesLede,
+    Word::SettingsForgesHeading,
+    Word::SettingsForgesLede,
+    Word::SettingsAccountsHeading,
+    Word::SettingsAccountsLede,
+    Word::SettingsAccountsTab,
+    Word::PathAddForge,
+    Word::PathConnectAccount,
+    Word::SettingsHowTab,
+    Word::SettingsRepositoriesTab,
+    Word::SettingsConfigureHelp,
+    Word::SettingsRepositoriesCount,
+    Word::SettingsNoneTag,
+    Word::SettingsNoneBody,
+    Word::SettingsSignedIn,
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -1426,7 +1490,7 @@ const ALL: [Word; 949] = [
     Word::GitHubOpen,
     Word::YourForgesTitle,
     Word::YourForges,
-    Word::ForgesDescription,
+    Word::NoForgeTag,
     Word::AddForge,
     Word::NoForges,
     Word::ForgeSummary,
@@ -1692,7 +1756,6 @@ const ALL: [Word; 949] = [
     Word::AskedByTask,
     Word::AskedByDeployment,
     Word::Deadline,
-    Word::AccountLead,
     Word::Priority,
     Word::Folded,
     Word::HeldBelow,
@@ -2053,6 +2116,39 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::SettingsBuildersTab => 3407,
+            Self::SettingsBuildersHeading => 3408,
+            Self::SettingsBuildersLede => 3409,
+            Self::BuildersCount => 3410,
+            Self::BuildersSlot => 3411,
+            Self::BuildersSlots => 3412,
+            Self::BuilderUnnamed => 3413,
+            Self::BuilderConnected => 3414,
+            Self::BuilderDraining => 3415,
+            Self::BuilderNotConnected => 3416,
+            Self::BuildersFacts => 3417,
+            Self::BuildersNone => 3418,
+            Self::BuildersNoRole => 3419,
+            Self::BuildersCut => 3420,
+            Self::SettingsKicker => 3388,
+            Self::SettingsHowHeading => 3389,
+            Self::SettingsHowLede => 3390,
+            Self::SettingsRepositoriesHeading => 3391,
+            Self::SettingsRepositoriesLede => 3392,
+            Self::SettingsForgesHeading => 3393,
+            Self::SettingsForgesLede => 3394,
+            Self::SettingsAccountsHeading => 3395,
+            Self::SettingsAccountsLede => 3396,
+            Self::SettingsAccountsTab => 3404,
+            Self::PathAddForge => 3405,
+            Self::PathConnectAccount => 3406,
+            Self::SettingsHowTab => 3397,
+            Self::SettingsRepositoriesTab => 3398,
+            Self::SettingsConfigureHelp => 3399,
+            Self::SettingsRepositoriesCount => 3400,
+            Self::SettingsNoneTag => 3401,
+            Self::SettingsNoneBody => 3402,
+            Self::SettingsSignedIn => 3403,
             Self::GoalsWaySeparator => 3285,
             Self::GoalsWayEnd => 3286,
             Self::GoalsKicker => 3271,
@@ -2252,18 +2348,18 @@ impl Word {
             Self::HomeChatDetail => 3132,
             Self::HomeNewChat => 3133,
             Self::HomeAdoptLink => 3141,
-            Self::HomeLooked => 3388,
-            Self::HomeLandedOne => 3389,
-            Self::HomeLandedMany => 3390,
-            Self::HomeByline => 3391,
-            Self::HomeLanding => 3392,
-            Self::HomeChatsSentence => 3393,
-            Self::LookedMinute => 3394,
-            Self::LookedMinutes => 3395,
-            Self::LookedHour => 3396,
-            Self::LookedHours => 3397,
-            Self::LookedDay => 3398,
-            Self::LookedDays => 3399,
+            Self::HomeLooked => 3421,
+            Self::HomeLandedOne => 3422,
+            Self::HomeLandedMany => 3423,
+            Self::HomeByline => 3424,
+            Self::HomeLanding => 3425,
+            Self::HomeChatsSentence => 3426,
+            Self::LookedMinute => 3427,
+            Self::LookedMinutes => 3428,
+            Self::LookedHour => 3429,
+            Self::LookedHours => 3430,
+            Self::LookedDay => 3431,
+            Self::LookedDays => 3432,
             Self::HomeDayTime => 3142,
             Self::HomeDone => 3143,
             Self::HomeNumber => 3144,
@@ -2335,7 +2431,7 @@ impl Word {
 
             Self::YourForgesTitle => 1819,
             Self::YourForges => 1800,
-            Self::ForgesDescription => 1801,
+            Self::NoForgeTag => 1801,
             Self::AddForge => 1802,
             Self::NoForges => 1803,
             Self::ForgeSummary => 1804,
@@ -2676,7 +2772,6 @@ impl Word {
             Self::AskedByTask => 169,
             Self::AskedByDeployment => 170,
             Self::Deadline => 171,
-            Self::AccountLead => 194,
             Self::Priority => 172,
             Self::Folded => 173,
             Self::HeldBelow => 174,
@@ -3275,6 +3370,7 @@ impl Words {
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
+            // Settings and Builders add 1154 literal bytes (3.5).
             // Forge status adds 76 literal bytes after removing View (3.5).
             // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
             // Model’s fifteen panel and note phrases add 659 literal bytes (3.5).
@@ -3287,8 +3383,8 @@ impl Words {
             // Home’s copy phrases add 254 literal bytes (client/README.md, 3.5).
             // Home’s repository sheet adds 289 literal bytes (client/README.md, 3.5).
             // Agent check refusal adds 53 literal bytes (5.13).
-            // Home's status, last-look words and byline add 310 literal bytes (3.5).
             text_bytes: 310
+                + 1154
                 + 157
                 + 141
                 + 419
@@ -3672,11 +3768,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ModelOnAccounts => (&[b"", b" is on the "], &[Name]),
 
         Word::YourForgesTitle => (&[b"Your forges"], &[]),
-        Word::YourForges => (&[b"Your forges ", b""], &[Number]),
-        Word::ForgesDescription => (&[b"Each forge temper is connected to, or setting up. Add one to bring its repositories to temper."], &[]),
+        Word::YourForges => (&[b"Your forges \xc2\xb7 ", b""], &[Number]),
+        Word::NoForgeTag => (&[b"No forge yet"], &[]),
         Word::AddForge => (&[b"+ Add a forge"], &[]),
         Word::NoForges => (&[b"No forge of yours yet."], &[]),
-        Word::ForgeSummary => (&[b"forge ", b" \xc2\xb7 ", b""], &[Number, Name]),
+        Word::ForgeSummary => (&[b"Forge ", b" \xc2\xb7 ", b""], &[Number, Name]),
         Word::GitHubUnknown => (&[b"It is not known whether the project was made."], &[]),
         Word::GitHubReadNoAccess => (&[b"GitHub refused temper's read of the App's repositories: the App may be suspended. See Forges."], &[]),
         Word::GitHubReadNotFound => (&[b"GitHub no longer has this installation: install the App again."], &[]),
@@ -4011,7 +4107,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AskedByTask => (&[b"Asked by task ", b""], &[Number]),
         Word::AskedByDeployment => (&[b"Asked by deployment of project ", b""], &[Number]),
         Word::Deadline => (&[b"Due ", b""], &[HoleKind::Date]),
-        Word::AccountLead => (&[b"The LLM accounts temper\xe2\x80\x99s agents run on for you. A task keeps its account: while the account is limited, the task waits for it."], &[]),
         Word::Priority => (&[b"priority ", b""], &[Number]),
         Word::Folded => (&[b"Folded: ", b" ", b""], &[Number, Name]),
         Word::HeldBelow => (&[b"Held below: ", b""], &[Number]),
@@ -4114,6 +4209,39 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DelegateMove => (&[b"Delegate ", b" will be moved to you"], &[Number]),
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
+        Word::SettingsBuildersTab => (&[b"Builders"], &[]),
+        Word::SettingsBuildersHeading => (&[b"Where agents work."], &[]),
+        Word::SettingsBuildersLede => (&[b"The machines temper\xe2\x80\x99s agents run on, each with its slots and how many are in use."], &[]),
+        Word::BuildersCount => (&[b"Builders \xc2\xb7 ", b""], &[Number]),
+        Word::BuildersSlot => (&[b"", b" slot \xc2\xb7 ", b" in use"], &[Number, Number]),
+        Word::BuildersSlots => (&[b"", b" slots \xc2\xb7 ", b" in use"], &[Number, Number]),
+        Word::BuilderUnnamed => (&[b"Builder ", b""], &[Number]),
+        Word::BuilderConnected => (&[b"Connected"], &[]),
+        Word::BuilderDraining => (&[b"Draining"], &[]),
+        Word::BuilderNotConnected => (&[b"Not connected"], &[]),
+        Word::BuildersFacts => (&[b"Each agent\xe2\x80\x99s role names which builders it runs on. Tell Configure temper to change it."], &[]),
+        Word::BuildersNone => (&[b"No builder is connected."], &[]),
+        Word::BuildersNoRole => (&[b"Builders are seen by the deployment\xe2\x80\x99s owners."], &[]),
+        Word::BuildersCut => (&[b"Some builder facts were omitted."], &[]),
+        Word::SettingsKicker => (&[b"", b" \xc2\xb7 settings"], &[Name]),
+        Word::SettingsHowHeading => (&[b"How work runs in ", b"."], &[Name]),
+        Word::SettingsHowLede => (&[b"Everything the other pages do for this project comes from here, so each project, and each person, can work its own way."], &[]),
+        Word::SettingsRepositoriesHeading => (&[b"What ", b" works on."], &[Name]),
+        Word::SettingsRepositoriesLede => (&[b"The repositories chats and goals in ", b" read and change."], &[Name]),
+        Word::SettingsForgesHeading => (&[b"Where your code lives."], &[]),
+        Word::SettingsForgesLede => (&[b"Each forge temper is connected to, or setting up. Add one to bring its repositories to temper."], &[]),
+        Word::SettingsAccountsHeading => (&[b"What agents run on."], &[]),
+        Word::SettingsAccountsLede => (&[b"The LLM accounts temper\xe2\x80\x99s agents run on for you. A task keeps its account: while the account is limited, the task waits for it."], &[]),
+        Word::SettingsAccountsTab => (&[b"Accounts"], &[]),
+        Word::PathAddForge => (&[b"Add a forge"], &[]),
+        Word::PathConnectAccount => (&[b"Connect an account"], &[]),
+        Word::SettingsHowTab => (&[b"How work runs"], &[]),
+        Word::SettingsRepositoriesTab => (&[b"Repositories"], &[]),
+        Word::SettingsConfigureHelp => (&[b"Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept."], &[]),
+        Word::SettingsRepositoriesCount => (&[b"Repositories \xc2\xb7 ", b""], &[Number]),
+        Word::SettingsNoneTag => (&[b"No repository yet"], &[]),
+        Word::SettingsNoneBody => (&[b"Chats in ", b" talk and plan, but change no code until a repository is in."], &[Name]),
+        Word::SettingsSignedIn => (&[b"Signed in as ", b""], &[Name]),
         Word::Goals => (&[b"Goals"], &[]),
         Word::ConfigureTitle => (&[b"Configure temper"], &[]),
         Word::ConfigureQuestion => (&[b"How should temper run ", b"?"], &[Name]),

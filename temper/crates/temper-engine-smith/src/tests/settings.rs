@@ -646,6 +646,49 @@ fn a_runs_proposal_carries_the_forges_charter_number() {
 }
 
 #[test]
+fn settings_proposals_carry_typed_project_questions() {
+    let call = decided(b"propose_settings", br#"{"against":1,"reason":"questions","items":[{"setting":{"kind":"project-questions","project":7},"set":"foreman"}]}"#).expect("questions proposal");
+    let engine::Tool::ProposeSettings { kinds, .. } = call.tool else { panic!("settings proposal") };
+    let value =
+        temper_engine_domain_forge::settings::Value::Questions(temper_engine_domain_forge_change::Route::Foreman);
+    let size = u32::try_from(crate::kinds::encode(&value).len()).expect("questions encoding");
+    assert_eq!(
+        kinds.as_ref(),
+        &[engine::KindValue {
+            kind: 6,
+            scope: 7,
+            number: 1,
+            value: temper_engine_domain_forge::settings::SizedValue { value, size }
+        }]
+    );
+}
+#[test]
+fn project_settings_reads_require_project_and_refuse_number() {
+    for (kind, number) in [("project-ways", 7), ("project-questions", 6)] {
+        let bytes = format!(r#"{{"setting":{{"kind":"{kind}","project":7}},"revision":2}}"#);
+        let call = decided(b"settings", bytes.as_bytes()).expect("project read");
+        assert_eq!(
+            call.tool,
+            engine::Tool::Settings {
+                read: SettingsRead::Setting {
+                    setting: s::Setting::Application { kind: number, scope: 7, number: 1 },
+                    revision: 2
+                },
+                from: 0
+            }
+        );
+        for (suffix, expected) in [
+            ("", Problem::Missing(b"project")),
+            (",\"project\":7,\"number\":1", Problem::Range(b"number")),
+            (",\"project\":0", Problem::Range(b"project")),
+        ] {
+            let bytes = format!(r#"{{"setting":{{"kind":"{kind}"{suffix}}}}}"#);
+            assert_eq!(decided(b"settings", bytes.as_bytes()).unwrap_err(), expected);
+        }
+    }
+}
+
+#[test]
 fn settings_pages_reserve_escaped_framing_within_the_allowance() {
     use settings_form::page::{Error, page_bounded};
     for text in ["\"".repeat(100), "\\".repeat(100), "\n".repeat(100), "\0".repeat(100), "λ".repeat(100)] {

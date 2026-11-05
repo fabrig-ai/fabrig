@@ -10,6 +10,8 @@ pub enum Kind {
     DeploymentRules,
     ProjectRules,
     Charters,
+    ProjectQuestions,
+    ProjectWays,
 }
 
 impl Kind {
@@ -19,6 +21,8 @@ impl Kind {
             Self::DeploymentRules => 1,
             Self::ProjectRules => 2,
             Self::Charters => 3,
+            Self::ProjectQuestions => 6,
+            Self::ProjectWays => 7,
         }
     }
 
@@ -28,6 +32,8 @@ impl Kind {
             1 => Some(Self::DeploymentRules),
             2 => Some(Self::ProjectRules),
             3 => Some(Self::Charters),
+            6 => Some(Self::ProjectQuestions),
+            7 => Some(Self::ProjectWays),
             _ => None,
         }
     }
@@ -57,10 +63,22 @@ pub struct RuleApproval {
     pub freshness: JudgeFreshness,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "each project way is an independent client visibility choice")]
+pub struct ProjectWays {
+    pub drafts: bool,
+    pub goals: bool,
+    pub changes: bool,
+    pub away: bool,
+    pub way: u32,
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Value {
     Rule(LandingRule),
     Charter(u32),
+    Questions(temper_engine_domain_forge_change::Route),
+    Ways(ProjectWays),
 }
 
 /// A value and the bytes of its encoding counted by jig, measured where it
@@ -169,6 +187,7 @@ pub enum Refusal {
     Charter,
     Value,
     Replaced,
+    Way,
 }
 
 impl Refusal {
@@ -184,6 +203,7 @@ impl Refusal {
             Self::Charter => b"a charter outside 1 to tasks.charters, or the forge's charter removed",
             Self::Value => b"a value of another kind",
             Self::Replaced => b"the replaced value is no longer kept",
+            Self::Way => b"a way that is not a template the project offers",
         }
     }
 }
@@ -199,12 +219,15 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let kind = Kind::of(item.kind).ok_or(Refusal::Kind)?;
     match kind {
         Kind::DeploymentRules | Kind::Charters if item.scope != 0 => return Err(Refusal::Scope),
-        Kind::ProjectRules if item.scope == 0 => return Err(Refusal::Scope),
-        Kind::DeploymentRules | Kind::ProjectRules | Kind::Charters => {}
+        Kind::ProjectRules | Kind::ProjectQuestions | Kind::ProjectWays if item.scope == 0 => {
+            return Err(Refusal::Scope);
+        }
+        Kind::DeploymentRules | Kind::ProjectRules | Kind::Charters | Kind::ProjectQuestions | Kind::ProjectWays => {}
     }
     let numbers = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
         Kind::Charters => 2,
+        Kind::ProjectQuestions | Kind::ProjectWays => 1,
     };
     if item.number == 0 || item.number > numbers {
         return Err(Refusal::Number);
@@ -212,14 +235,26 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let rule = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => match &item.value {
             Some(Value::Rule(rule)) => rule,
-            Some(Value::Charter(_)) => return Err(Refusal::Value),
+            Some(Value::Charter(_) | Value::Questions(_) | Value::Ways(_)) => return Err(Refusal::Value),
             None => return Ok(()),
         },
         Kind::Charters => {
             return match &item.value {
                 Some(Value::Charter(charter)) if *charter > 0 && *charter <= bounds.charters => Ok(()),
                 Some(Value::Charter(_)) | None => Err(Refusal::Charter),
-                Some(Value::Rule(_)) => Err(Refusal::Value),
+                Some(Value::Rule(_) | Value::Questions(_) | Value::Ways(_)) => Err(Refusal::Value),
+            };
+        }
+        Kind::ProjectQuestions => {
+            return match &item.value {
+                Some(Value::Questions(_)) | None => Ok(()),
+                Some(Value::Rule(_) | Value::Charter(_) | Value::Ways(_)) => Err(Refusal::Value),
+            };
+        }
+        Kind::ProjectWays => {
+            return match &item.value {
+                Some(Value::Ways(_)) | None => Ok(()),
+                Some(Value::Rule(_) | Value::Charter(_) | Value::Questions(_)) => Err(Refusal::Value),
             };
         }
     };
@@ -300,6 +335,6 @@ pub fn requires(held: &[Held], name: &[Box<[u8]>]) -> Requires {
 #[must_use]
 pub fn rows(l: &Limits) -> Option<u32> {
     let rules = l.judge_projects.checked_add(1)?.checked_mul(l.landing_rules)?;
-    let values = rules.checked_add(2)?;
+    let values = rules.checked_add(2)?.checked_add(l.judge_projects.checked_mul(2)?)?;
     values.checked_mul(2)?.checked_add(l.setting_proposals.checked_add(l.setting_history)?.checked_mul(values)?)
 }
