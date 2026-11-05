@@ -113,9 +113,9 @@ pub const PROJECTS_REPO: Style = Style { owner: owner(), token: 192 };
 /// The additional repository count.
 pub const PROJECTS_MORE: Style = Style { owner: owner(), token: 193 };
 /// Home's foot and Chats' explanation (client/README.md, 3.5).
-pub const HOME_FACTS: Style = Style { owner: owner(), token: 278 };
+pub const HOME_FACTS: Style = Style { owner: owner(), token: 299 };
 /// Home's status attribution (client/README.md, 3.5).
-pub const HOME_BYLINE: Style = Style { owner: owner(), token: 279 };
+pub const HOME_BYLINE: Style = Style { owner: owner(), token: 300 };
 /// Home's home (client/README.md, 3.5).
 pub const HOME: Style = Style { owner: owner(), token: 200 };
 /// Home's intro (client/README.md, 3.5).
@@ -920,3 +920,13 @@ pub const NEEDS_HOME: Style = Style { owner: owner(), token: 267 };
 
 /// Done’s intro (temper/docs/design/client/README.md, 3.5).
 pub const NEEDS_INTRO: Style = Style { owner: owner(), token: 268 };
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn homes_facts_and_byline_keep_their_own_style_names() {
+        use super::{HOME_BYLINE, HOME_FACTS, NAMES};
+        assert_eq!(NAMES.style(HOME_FACTS), Some(b"temper-home-facts".as_slice()));
+        assert_eq!(NAMES.style(HOME_BYLINE), Some(b"temper-home-byline".as_slice()));
+    }
+}
