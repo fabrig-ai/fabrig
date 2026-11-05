@@ -200,6 +200,10 @@ fn fill(
         return Err(NotOffered::Template);
     }
     let mut authority = creating.within.authority.whole().ok_or(NotOffered::Creating)?;
+    if !template.flags.conversation {
+        authority.notes = 0;
+        authority.note_resources = List::with_capacity(0);
+    }
     authority.delegation.depth = authority.delegation.depth.saturating_sub(template.shallower.saturating_sub(1));
     let budget = match template.budget {
         TemplateBudget::Amount(amount) => {

@@ -7,8 +7,10 @@ const SECOND: u64 = 2;
 const CHANNEL: Token = Token::new(7);
 const TASKS: u32 = 2; // FIRST and SECOND are the fixture's only live tasks.
 const DEFERRED: u32 = 1; // Only FIRST has its notes load refused.
-// The fixture's briefs read project and deployment indexes, one empty page each.
-const SCOPES: u32 = 2;
+// Each conversation reads its own goal, project and deployment indexes.
+const SCOPES: u32 = 3;
+// Two distinct conversation scopes and their shared project and deployment.
+const ALL_SCOPES: u32 = TASKS + 2;
 
 fn ready() -> (Core, Limits) {
     let (mut core, limits) = core();
@@ -151,14 +153,17 @@ fn a_busy_notes_operation_still_releases_its_waiting_brief() {
     let out = prepare(&mut core, &limits, SECOND);
     assert!(load(&out).is_none());
     assert_eq!(core.pending_note_briefs.get(&SECOND), Some(&crate::routing::NoteBrief::Operation));
-    let mut out = out;
-    for _ in 0..SCOPES {
-        out = empty_page(&mut core, &limits, owner);
+    let mut finished = List::with_capacity(TASKS);
+    for _ in 0..ALL_SCOPES {
+        let out = empty_page(&mut core, &limits, owner);
+        for task in &planned(&out) {
+            finished.push(*task).expect("fixture task count");
+        }
         if let Some(next) = load(&out) {
             owner = next;
         }
     }
-    assert_eq!(planned(&out).as_slice(), [FIRST, SECOND]);
+    assert_eq!(finished.as_slice(), [FIRST, SECOND]);
     assert!(core.pending_note_briefs.is_empty());
     assert!(core.due.is_empty());
 }
