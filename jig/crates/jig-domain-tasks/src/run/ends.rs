@@ -142,6 +142,18 @@ impl Kept {
                 End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => false,
             }
     }
+
+    /// A run's own finish (5.7): as `parks`, and kept by its own question a failure parks too.
+    pub(crate) fn run_parks(self, end: &End) -> bool {
+        self.parks(end) || (self.question.is_some() && finished(end))
+    }
+}
+
+fn finished(end: &End) -> bool {
+    match end {
+        End::Finished { .. } | End::FinishedWithFollowups { .. } => true,
+        End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => false,
+    }
 }
 
 fn done(result: &TaskResult) -> bool {
