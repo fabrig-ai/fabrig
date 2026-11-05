@@ -2,9 +2,9 @@
 
 2026-11-05. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.3: `Chats`' `?state=drafts`. 2.5: a
+- **Not yet:** 2.5: a
   chat's document, its sheet and `Ctrl+\`. 7.2: `chat-draft-*`, `chat-new-draft`,
-  `chat-start-goal*`, `chat-goal-linked`, `chats-drafts`, `configure-chat-document*`
+  `chat-start-goal*`, `chat-goal-linked`, `configure-chat-document*`
   and `rail-new-menu`.
 - **Not yet:** 7.2: `goal-sending` has one pending message and "Being sent",
   but no earlier accepted message or next words in the composer.
@@ -16,7 +16,7 @@
   opens nothing without both a draft and a chat; `start-goal-draft` and
   `start-goal-refused` draw the sheet by sending it both, which no page does.
   The rulings of 2026-11-05 on the request `ui-goal-page` send the entry to a
-  Drafts filter, which is not built (`README.status.md`, 3.5, *Goals*, 5.14).
+  Drafts filter (`README.status.md`, 3.5, *Goals*, 5.14).
 - **Not yet:** 7.1: a `home-*` state's title is its headline, then
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not

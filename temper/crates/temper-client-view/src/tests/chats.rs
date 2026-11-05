@@ -1228,3 +1228,332 @@ fn chats_keeps_its_list_without_playground_suggestions_or_composer() {
         }
     }
 }
+
+const DRAFT_GOAL: u64 = 42;
+const DRAFT_LEDE: &[u8] = b"A chat answers a question or changes the code, and can write a draft beside it. A draft becomes a goal for bigger work.";
+
+struct DraftsPage {
+    root: Domain,
+    out: Queue<Request>,
+    goal_watch: Option<Token>,
+    note_reads: u32,
+}
+impl DraftsPage {
+    #[expect(clippy::too_many_lines, reason = "the fixture answers Chats through the public client events")]
+    fn new(offered: bool, configuring: bool, linked: bool) -> Self {
+        use jig_client::{Down, Readable, Up, Watchable};
+        use temper_client_domain::{Address, Event};
+        use temper_client_protocol_wire::{self as wire, v1 as w};
+        let limits = fixtures::domain_limits();
+        let env = Env { now: Time::ZERO, wall: fixtures::NOW, limits };
+        let source = fixtures::chat::messaging_root();
+        let mut me = source.pages().me(source.client()).unwrap().clone();
+        if configuring {
+            me = fixtures::configuring_me(me);
+        }
+        let mut page = Self {
+            root: temper_client_domain::unlinked(&limits, fixtures::SEED),
+            out: Queue::uncapped(),
+            goal_watch: None,
+            note_reads: 0,
+        };
+        for event in [
+            Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
+            Event::Start {
+                address: Address::Chats { filter: ChatsFilter::All },
+                kept: List::with_capacity(0),
+                with: Some(jig_client::With::Transport),
+            },
+            Event::Client { event: jig_client::Event::Up { up: Up::Served { served: true, versions: None } } },
+        ] {
+            temper_client_domain::step(&mut page.root, &env, event, &mut page.out);
+        }
+        for _ in 0_u32..128 {
+            let Some(request) = page.out.pop() else { break };
+            let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
+            let up = match down {
+                Down::Open { watch, subject: Watchable::Jig(Subject::Me) } => {
+                    Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(me.clone()))) }
+                }
+                Down::Open { watch, subject: Watchable::Jig(Subject::Settings) } => Up::Watched {
+                    watch,
+                    event: WatchEvent::Delivered(Delivery::Settings(Box::new(SettingsDocument {
+                        newest: 0,
+                        settings: List::with_capacity(0),
+                        held: List::with_capacity(0),
+                        pending: List::with_capacity(0),
+                    }))),
+                },
+                Down::Open { watch, subject: Watchable::Jig(Subject::Tasks { .. }) } => {
+                    let mut rows = List::with_capacity(2);
+                    let mut chat = line();
+                    if configuring {
+                        chat.chip.executor = ChipExecutor::Agent { charter: 37 };
+                    }
+                    rows.push(chat).unwrap();
+                    rows.push(timed(7, 0, None)).unwrap();
+                    Up::Watched {
+                        watch,
+                        event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows, more: false }))),
+                    }
+                }
+                Down::Open { watch, subject: Watchable::Jig(Subject::Chips { tasks }) } => {
+                    assert_eq!(tasks.as_slice(), [DRAFT_GOAL], "one newest goal, rows only");
+                    assert!(page.goal_watch.is_none(), "one chips watch for the rows");
+                    page.goal_watch = Some(watch);
+                    let mut chip = line().chip;
+                    chip.task = DRAFT_GOAL;
+                    chip.title = DocumentText::complete(Text::new(b"Keep working".as_slice().into(), TEXT).unwrap());
+                    Up::Watched {
+                        watch,
+                        event: WatchEvent::Delivered(Delivery::Chips(List::from_boxed(Box::new([chip])))),
+                    }
+                }
+                Down::Open { watch, subject: Watchable::Family { record, .. } }
+                    if wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() == &w::Watch::Dismissed =>
+                {
+                    let mut dismissed = List::with_capacity(4);
+                    if linked {
+                        // Newer clock, then higher goal, win; another chat isn't watched.
+                        for (chat, goal, at) in [(TASK, 40, 1), (TASK, 41, 2), (TASK, DRAFT_GOAL, 2), (99, 43, 3)] {
+                            dismissed
+                                .push(w::PersonFact::GoalFrom(
+                                    w::GoalFrom::new(
+                                        &w::CEILINGS,
+                                        w::GoalFromParts { project: fixtures::PROJECT, chat, goal, at },
+                                    )
+                                    .unwrap(),
+                                ))
+                                .unwrap();
+                        }
+                    }
+                    Up::FamilyDelivered {
+                        watch,
+                        record: jig_client::Family {
+                            family: wire::FORGE,
+                            version: wire::CLIENT_VERSION,
+                            bytes: wire::dismissals(
+                                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap(),
+                            ),
+                        },
+                    }
+                }
+                Down::Read { read, what: Readable::Family { record, .. } } => {
+                    let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
+                    let w::Read::Setting(setting) = reading.read() else { continue };
+                    let value = if setting.kind() == 7 {
+                        let value = w::ProjectWays::new(
+                            &w::CEILINGS,
+                            w::ProjectWaysParts { skein_bools: [offered, false, false, false], way: 0 },
+                        )
+                        .unwrap();
+                        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
+                        value.encode(&mut writer).unwrap();
+                        Some(writer.finish())
+                    } else {
+                        None
+                    };
+                    Up::ReadDone {
+                        read,
+                        result: jig_client::Readout::Family {
+                            family: wire::FORGE,
+                            record: Some(wire::setting_answer(
+                                &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap(),
+                            )),
+                        },
+                    }
+                }
+                Down::Read { read, what: Readable::Jig(Read::Notes { scope, description, after }) } => {
+                    assert_eq!(scope, NoteScope::Tasks { project: fixtures::PROJECT });
+                    assert_eq!((description, after), (None, None));
+                    page.note_reads = page.note_reads.checked_add(1).unwrap();
+                    let mut rows = List::with_capacity(3);
+                    for task in [TASK, 8, 99] {
+                        rows.push(Note {
+                            number: 1,
+                            revision: Revision { value: 1 },
+                            scope: NoteScope::Task { project: fixtures::PROJECT, task },
+                            description: DocumentText::complete(
+                                Text::new(b"Away mode".as_slice().into(), TEXT).unwrap(),
+                            ),
+                            body: DocumentText::complete(Text::new(Box::default(), TEXT).unwrap()),
+                            writer: NoteAuthor::Task { task, attempt: 1 },
+                            tasks: List::with_capacity(0),
+                            changed: None,
+                            acts: List::with_capacity(0),
+                            cut: false,
+                        })
+                        .unwrap();
+                    }
+                    Up::ReadDone {
+                        read,
+                        result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Notes(Box::new(NotePage {
+                            rows,
+                            before: None,
+                            after: None,
+                            cut: false,
+                        })))),
+                    }
+                }
+                Down::Read { read, what: Readable::Jig(Read::Tasks { .. }) } => Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
+                        live: List::with_capacity(0),
+                        live_after: None,
+                        ended: EndedGroup::Rows {
+                            rows: List::from_boxed(Box::new([timed(8, 0, Some(0))])),
+                            after: None,
+                            cut: false,
+                        },
+                    })))),
+                },
+                Down::Save { .. }
+                | Down::Erase { .. }
+                | Down::Send { .. }
+                | Down::Open { .. }
+                | Down::Continue { .. }
+                | Down::Close { .. }
+                | Down::Read { .. } => continue,
+            };
+            temper_client_domain::step(
+                &mut page.root,
+                &env,
+                Event::Client { event: jig_client::Event::Up { up } },
+                &mut page.out,
+            );
+        }
+        assert!(page.out.is_empty(), "fixture settled");
+        page
+    }
+}
+
+#[test]
+fn drafts_keeps_rows_with_a_document() {
+    let mut page = DraftsPage::new(true, false, false);
+    assert_eq!(page.note_reads, 1);
+    filter(&mut page.root, ChatsFilter::Drafts);
+    for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+        assert_eq!(numbers(view.tree()).as_ref(), [8, TASK]);
+        let mut filters = List::with_capacity(4);
+        for node in view.tree().nodes() {
+            if node.role == Role::Button
+                && let Some(name) = node.name.as_deref()
+                && [b"All".as_slice(), b"Live", b"Drafts", b"Closed"].contains(&name)
+            {
+                filters.push(name).unwrap();
+            }
+        }
+        assert_eq!(filters.as_slice(), [b"All".as_slice(), b"Live", b"Drafts", b"Closed"]);
+    }
+}
+#[test]
+fn drafts_isnt_offered_with_no_tracked_template() {
+    let mut page = DraftsPage::new(false, false, false);
+    filter(&mut page.root, ChatsFilter::Drafts);
+    let view = fixtures::page_view(&page.root);
+    assert_eq!(numbers(view.tree()).as_ref(), [7, 8, TASK]);
+    assert!(fixtures::find(view.tree(), Role::Button, b"Drafts").is_none());
+    let all = fixtures::find(view.tree(), Role::Button, b"All").unwrap();
+    assert!(
+        view.tree().nodes()[index_of(view.tree().nodes(), all)].states.as_slice().contains(&skein_ui::State::Pressed)
+    );
+}
+#[test]
+fn a_row_says_what_it_writes() {
+    let page = DraftsPage::new(true, false, false);
+    for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+        assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"writes away-mode.md").is_some());
+    }
+}
+#[test]
+fn a_row_says_which_goal_it_started() {
+    let page = DraftsPage::new(true, false, true);
+    for mut view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+        let goal = fixtures::find(view.tree(), Role::Link, b"Keep working").unwrap();
+        assert_eq!(crate::href(&mut view, goal).as_deref(), Some(b"/tasks/42".as_slice()));
+        assert_eq!(
+            crate::act(&mut view, goal, skein_ui::Act::Press),
+            Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+                address: temper_client_domain::Address::Task { task: DRAFT_GOAL }
+            }))
+        );
+        let mut print = skein_ui_text::Print::new(&fixtures::tree_limits()).unwrap();
+        skein_ui_text::render(view.tree(), b"temper", None, &mut print);
+        assert!(skein_lib::bytes::find(print.text.as_slice(), b"started goal").is_some());
+        assert!(skein_lib::bytes::find(print.text.as_slice(), b"Keep working").is_some());
+    }
+}
+#[test]
+fn the_lede_grows_with_the_offer() {
+    for offered in [false, true] {
+        let page = DraftsPage::new(offered, false, false);
+        for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+            assert_eq!(fixtures::find(view.tree(), Role::Paragraph, DRAFT_LEDE).is_some(), offered);
+        }
+    }
+}
+#[test]
+fn a_configuring_chat_keeps_its_tag() {
+    let page = DraftsPage::new(true, true, false);
+    for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+        let mut found = false;
+        for (index, node) in view.tree().nodes().iter().enumerate() {
+            if node.styles.as_slice().contains(&crate::look::CHATS_TOP) {
+                let text = fixtures::node_text(view.tree(), index);
+                if skein_lib::bytes::find(&text, b"T9").is_some() {
+                    assert!(
+                        skein_lib::bytes::find(&text, "T9 · Configuring · writes away-mode.md".as_bytes()).is_some()
+                    );
+                    found = true;
+                }
+            }
+        }
+        assert!(found);
+    }
+}
+#[test]
+fn watches_the_goals_chips_and_closes_them() {
+    use temper_client_domain::{Address, Event, Place};
+    let mut page = DraftsPage::new(true, false, true);
+    let watch = page.goal_watch.unwrap();
+    temper_client_domain::step(
+        &mut page.root,
+        &Env { now: Time::ZERO, wall: fixtures::NOW, limits: fixtures::domain_limits() },
+        Event::Went { place: Place::Address(Address::NewChat { draft: false }) },
+        &mut page.out,
+    );
+    let mut closed = false;
+    while let Some(request) = page.out.pop() {
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Close { watch: ended } },
+        } = request
+        {
+            closed |= ended == watch;
+        }
+    }
+    assert!(closed);
+    temper_client_domain::step(
+        &mut page.root,
+        &Env { now: Time::ZERO, wall: fixtures::NOW, limits: fixtures::domain_limits() },
+        Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::Drafts }) },
+        &mut page.out,
+    );
+    assert!(page.root.pages().chats().unwrap().documents.is_empty());
+    let mut reopened = false;
+    while let Some(request) = page.out.pop() {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Read {
+                            what: jig_client::Readable::Jig(Read::Notes { scope: NoteScope::Tasks { project }, .. }),
+                            ..
+                        },
+                },
+        } = request
+        {
+            reopened |= project == fixtures::PROJECT;
+        }
+    }
+    assert!(reopened, "the next open reads a later document");
+}

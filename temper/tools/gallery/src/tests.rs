@@ -1674,6 +1674,16 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Link, name: "Adopt a repository" },
         ],
     },
+    Holds {
+        name: "chats-drafts",
+        heading: "Talk to an agent",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Drafts" },
+            Part::Text { text: "writes away-mode.md" },
+            Part::Named { role: Role::Link, name: "Away mode" },
+            Part::Chats { live: 1, closed: 1 },
+        ],
+    },
     Holds { name: "chats-live", heading: "Talk to an agent", parts: &[Part::Chats { live: SOLO_LIVE, closed: 0 }] },
     Holds { name: "chats-closed", heading: "Talk to an agent", parts: &[Part::Chats { live: 0, closed: SOLO_CLOSED }] },
     Holds {

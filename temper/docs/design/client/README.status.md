@@ -2,8 +2,8 @@
 
 2026-11-05. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, A chat's document, Starting a goal from a chat's document,
-  and the Chats page's Drafts; 4.6: `PersonFact`; 5.3: the rail's menu.
+- **Not yet:** 3.5, A chat's document, Starting a goal from a chat's document;
+  4.6: `PersonFact`; 5.3: the rail's menu.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
   is left no funding. Its roles' pools are as large as the project's period
@@ -50,9 +50,8 @@
   nothing. The rulings of 2026-11-05 on that request (the answers to its tasks
   `start-domain`, `start-sheet` and `goal-browser`) keep no typed draft path: the
   link goes to Chats' Drafts filter and the sheet opens from a chat, which
-  `ui-chat-draft` adds. That filter is not built (`ChatsFilter` holds All, Live
-  and Closed), so the link is neither the request's, which opens the sheet until
-  the filter has landed, nor the rulings'.
+  `ui-chat-draft` adds. The entry still goes to All, where the rulings name
+  Drafts.
 - **Design departs:** 5.8, from the request `ui-goal-page` of 2026-11-05, decided
   by its plan's cut and its proof. A goal's bar is `figure.bar` in the browser
   and `Role::Image` in the terminal, where the request has `div.bar` and
