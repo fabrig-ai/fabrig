@@ -272,22 +272,16 @@ fn delegate_cancel_cut_after_durability_stops_adopted_runs_then_closes_deepest()
 fn dependency_progress_survives_restore_without_loading_retained_ends() {
     let mut w = World::new(29, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[]), task(2, &[]), task(3, &[1, 2])]);
-    w.claim_task(1);
-    w.finish(1);
-    w.settle(1);
+    w.finish_task(1);
     assert_eq!(w.record(3).waiting_on.as_ref(), [2]);
     let before = w.records.clone();
     w.restart();
     assert_eq!(w.records, before);
     assert!(!w.activations.contains(&3));
-    w.claim_task(2);
-    w.finish(2);
-    w.settle(2);
+    w.finish_task(2);
     assert!(w.record(3).waiting_on.is_empty());
     w.restart();
-    w.claim_task(3);
-    w.finish(3);
-    w.settle(3);
+    w.finish_task(3);
     assert_eq!(w.results.len(), 3);
 }
 
@@ -414,9 +408,7 @@ fn missing_ended_stub_panics_with_record_and_target_after_load() {
     source.make(Party::Task(1), vec![task(2, &[]), task(3, &[])]);
     let reply_to = source.to();
     source.send(Event::Introduce { reply_to, by: 1, left: 2, right: 3 });
-    source.claim_task(2);
-    source.finish(2);
-    source.settle(2);
+    source.finish_task(2);
     assert!(source.record(3).references.contains(&2));
     assert!(source.records.remove(&Key::Stub(2)).is_some());
     load_and_link(source.records.values().cloned().collect(), &source.env);
@@ -781,9 +773,7 @@ fn retained_llm_choices_must_fit_the_configured_executor_models() {
 fn a_completed_dependency_loaded_for_amendment_restores_without_an_optional_stub() {
     let mut source = World::new(50, LIMITS);
     source.make(Party::Person(1), vec![task(1, &[]), task(2, &[])]);
-    source.claim_task(1);
-    source.finish(1);
-    source.settle(1);
+    source.finish_task(1);
     assert!(!source.records.contains_key(&Key::Stub(1)));
     let Some(Stored::Ended(ended)) = source.records.get(&Key::Ended(1)) else { panic!("ended dependency") };
     let place = jig_domain_tasks::DependencyPlace {

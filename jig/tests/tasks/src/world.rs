@@ -1250,6 +1250,13 @@ impl World {
         self.claim(task, attempt);
     }
 
+    /// Claim, finish and settle a task in its numbered attempt.
+    pub fn finish_task(&mut self, task: u64) {
+        self.claim_task(task);
+        self.finish(task);
+        self.settle(task);
+    }
+
     pub fn finish(&mut self, task: u64) {
         self.terminal(
             task,

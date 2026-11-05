@@ -68,7 +68,7 @@ fn delayed(pooled: bool, limits: &Limits) -> World {
 }
 
 fn finish_prerequisite(world: &mut World) {
-    finish_task(world, PREREQUISITE);
+    world.finish_task(PREREQUISITE);
 }
 
 fn named_circle(world: &World, number: u64) -> &Circle {
@@ -134,9 +134,7 @@ fn a_queue_circle_lifts_at_its_place_and_counts_its_bound_afresh() {
     assert!(world.record(LATER).hold_wait_since > Some(place));
     world.elapse(Duration::from_secs(5));
     assert_eq!(world.record(WAITER).phase, Phase::Waiting, "the old bound has passed");
-    world.claim_task(HOLDER);
-    world.finish(HOLDER);
-    world.settle(HOLDER);
+    world.finish_task(HOLDER);
     assert!(world.record(WAITER).holds_taken);
     assert!(!world.record(LATER).holds_taken);
 }
@@ -493,12 +491,6 @@ fn keeping_the_second_pool_holder_is_refused_naming_the_knot() {
         && problem.blocked_by.as_deref() == Some(&[DEPENDENT, ROOT, WAITER, HOLDER])));
 }
 
-fn finish_task(world: &mut World, number: u64) {
-    world.claim_task(number);
-    world.finish(number);
-    world.settle(number);
-}
-
 // Make the delegate before its parent takes the pool, so no hold is handed
 // down. It joins only after its parent has taken the second slot (6.4; 6.7).
 fn pool_delegate() -> World {
@@ -512,8 +504,8 @@ fn pool_delegate() -> World {
     world.make(Party::Task(ROOT), vec![pool_task(HOLDER, &[]), pool_task(OTHER_HOLDER, &[HOLDER_READY])]);
     introduce(&mut world, OTHER_HOLDER, DELEGATE_READY);
     world.make(Party::Task(OTHER_HOLDER), vec![pool_task(DEPENDENT, &[DELEGATE_READY])]);
-    finish_task(&mut world, HOLDER_READY);
-    finish_task(&mut world, DELEGATE_READY);
+    world.finish_task(HOLDER_READY);
+    world.finish_task(DELEGATE_READY);
     world
 }
 
@@ -790,8 +782,8 @@ fn a_hand_down_uses_the_resource_name_despite_a_different_declared_kind() {
     assert!(world.record(ROOT).holdings.is_empty());
     assert!(world.record(WAITER).holds_taken);
     assert_eq!(world.record(WAITER).phase, Phase::Active(Active::Due));
-    finish_task(&mut world, WAITER);
-    finish_task(&mut world, ROOT);
+    world.finish_task(WAITER);
+    world.finish_task(ROOT);
 }
 
 #[test]
@@ -806,10 +798,10 @@ fn a_compound_readding_an_indexed_dependency_frees_it_once() {
     assert_eq!(world.record(HOLDER).waiting_on.as_ref(), [ROOT]);
     cancel(&mut world, WAITER);
     world.settle(WAITER);
-    finish_task(&mut world, PREREQUISITE);
-    finish_task(&mut world, ROOT);
-    finish_task(&mut world, HOLDER);
-    finish_task(&mut world, DEPENDENT);
+    world.finish_task(PREREQUISITE);
+    world.finish_task(ROOT);
+    world.finish_task(HOLDER);
+    world.finish_task(DEPENDENT);
 }
 
 #[test]
@@ -848,5 +840,5 @@ fn retaining_a_failed_childs_hold_judges_its_roots_queued_delegate() {
     cancel(&mut world, WAITER);
     world.settle(WAITER);
     release(&mut world, ROOT);
-    finish_task(&mut world, ROOT);
+    world.finish_task(ROOT);
 }

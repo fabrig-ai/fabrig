@@ -361,12 +361,8 @@ fn recurring_lifetime_funding_exceeds_live_capacity_and_restores_before_retireme
     delegate.numbers.budget = 1;
     delegate.authority.budget.spend = 1;
     assert_eq!(world.make(Party::Task(10), vec![delegate]), Reply::Made(vec![16]));
-    world.claim_task(OCCURRENCE_DELEGATE);
-    world.finish(16);
-    world.settle(16);
-    world.claim_task(OCCURRENCE);
-    world.finish(10);
-    world.settle(10);
+    world.finish_task(OCCURRENCE_DELEGATE);
+    world.finish_task(OCCURRENCE);
     world.open_period(2, 100_000);
     batch(&mut world, 9, 2, 17);
     world.restart();

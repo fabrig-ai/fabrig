@@ -275,9 +275,7 @@ fn measure_full_delegate_tree_dependency_edges_and_cold_restored_claims_fit() {
     let mut w = jig_tasks_world::World::new(3, l);
     w.make(Party::Person(1), vec![task(10, &[])]);
     const RESTORED_TASK: u64 = 10;
-    w.claim_task(RESTORED_TASK);
-    w.finish(10);
-    w.settle(10);
+    w.finish_task(RESTORED_TASK);
     assert!(
         matches!(w.records.get(&tasks::Key::Ended(10)),Some(Stored::Ended(record)) if record.phase!=tasks::Phase::Active(Active::Due))
     );

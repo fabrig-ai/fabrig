@@ -252,9 +252,7 @@ fn an_inbox_filling_merges_news_refuses_words_and_still_takes_a_result() {
     assert!(
         matches!(task_words(&mut world, 2, 1, 4, MessageKind::Words), Reply::Refused(problem) if problem.why == Refusal::Busy)
     );
-    world.claim_task(2);
-    world.finish(2);
-    world.settle(2);
+    world.finish_task(2);
     assert_eq!(world.record(1).inbox.len(), 3);
     assert!(world.record(1).inbox.iter().any(|word| matches!(word.kind, MessageKind::Result(_))));
     world.restart();
@@ -448,9 +446,7 @@ fn a_procedures_step_takes_its_storm_and_a_later_result_steps_it_on_the_result_a
     assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
     world.restart();
     assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
-    world.claim_task(2);
-    world.finish(2);
-    world.settle(2);
+    world.finish_task(2);
     assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
     let inbox = &world.contexts[&1].inbox;
     assert_eq!(inbox.len(), 1);
@@ -476,9 +472,7 @@ fn a_result_arriving_after_a_procedures_offer_survives_its_step() {
     for number in 1..=3 {
         procedure_news(&mut world, number);
     }
-    world.claim_task(2);
-    world.finish(2);
-    world.settle(2);
+    world.finish_task(2);
     assert_eq!(world.record(1).inbox.len(), 2);
     assert_eq!(
         procedure_step(
@@ -656,9 +650,7 @@ fn a_connector_topic_subscription_ends_with_its_task() {
         task: 1,
         subscription: Subscription { number: 10, kind: SubscriptionKind::Topic { connector: 0, topic: 10 } },
     });
-    world.claim_task(1);
-    world.finish(1);
-    world.settle(1);
+    world.finish_task(1);
     assert_eq!(world.ended_topics, [(1, 10, 0)]);
     world.restart();
     assert_eq!(world.ended_topics, [(1, 10, 0)]);

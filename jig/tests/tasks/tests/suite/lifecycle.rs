@@ -219,9 +219,7 @@ fn a_plan_of_reports_a_choice_and_procedure_tasks_runs_in_dependency_order() {
     assert_eq!(w.make(Party::Person(1), vec![first, choice, procedure, last]), Reply::Made(vec![1, 2, 3, 4]));
     assert!(w.activations.contains(&1));
     assert!(!w.activations.contains(&2) && !w.activations.contains(&3) && !w.activations.contains(&4));
-    w.claim_task(1);
-    w.finish(1);
-    w.settle(1);
+    w.finish_task(1);
     assert!(w.activations.contains(&2) && !w.activations.contains(&3));
     w.claim_task(2);
     w.terminal(
@@ -247,9 +245,7 @@ fn a_plan_of_reports_a_choice_and_procedure_tasks_runs_in_dependency_order() {
     assert_eq!(w.replies[&key], Reply::Done);
     w.settle(3);
     assert!(w.activations.contains(&4));
-    w.claim_task(4);
-    w.finish(4);
-    w.settle(4);
+    w.finish_task(4);
     assert_eq!(w.results.len(), 4);
 }
 
@@ -391,9 +387,7 @@ fn dependency_order_negative_verdict_starts_but_failure_holds() {
             assert_eq!(w.record(2).phase, Phase::Held { was: Was::Waiting, why: Hold::Dependency(1), source: None });
         } else {
             w.restart();
-            w.claim_task(2);
-            w.finish(2);
-            w.settle(2);
+            w.finish_task(2);
         }
     }
 }
@@ -402,18 +396,14 @@ fn dependency_order_negative_verdict_starts_but_failure_holds() {
 fn ended_dependency_keeps_a_bounded_stub_until_its_last_live_reader_ends() {
     let mut w = World::new(103, LIMITS);
     w.make(Party::Person(1), vec![task(1, &[]), task(2, &[1])]);
-    w.claim_task(1);
-    w.finish(1);
-    w.settle(1);
+    w.finish_task(1);
     assert!(!w.records.contains_key(&Key::Live(1)));
     assert!(
         matches!(w.records.get(&Key::Stub(1)), Some(jig_domain_tasks::Stored::Stub(stub)) if stub.task == 1 && stub.result.raw() == 1)
     );
     w.restart();
     assert!(w.records.contains_key(&Key::Stub(1)));
-    w.claim_task(2);
-    w.finish(2);
-    w.settle(2);
+    w.finish_task(2);
     assert!(!w.records.contains_key(&Key::Stub(1)));
     assert!(w.records.contains_key(&Key::Ended(1)));
 }
@@ -425,16 +415,12 @@ fn ended_reference_survives_restart_as_a_stub_until_its_peer_ends() {
     w.make(Party::Task(1), vec![task(2, &[]), task(3, &[])]);
     let reply_to = w.to();
     w.send(Event::Introduce { reply_to, by: 1, left: 2, right: 3 });
-    w.claim_task(2);
-    w.finish(2);
-    w.settle(2);
+    w.finish_task(2);
     assert!(w.records.contains_key(&Key::Stub(2)));
     assert_eq!(w.record(3).references.as_ref(), [2]);
     w.restart();
     assert_eq!(w.record(3).references.as_ref(), [2]);
-    w.claim_task(3);
-    w.finish(3);
-    w.settle(3);
+    w.finish_task(3);
     assert!(!w.records.contains_key(&Key::Stub(2)));
 }
 

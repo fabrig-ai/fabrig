@@ -168,9 +168,7 @@ fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
     waiter.holdings = Box::new([holding.clone()]);
     world.make(Party::Task(DEPENDENCY), vec![task(PREREQUISITE, &[]), waiter]);
     keep(&mut world, false);
-    world.claim_task(PREREQUISITE);
-    world.finish(PREREQUISITE);
-    world.settle(PREREQUISITE);
+    world.finish_task(PREREQUISITE);
     let place = world.record(WAITER).hold_wait_since;
     let revision = world.record(WAITER).escalation.revision();
     world.send(Event::RoutedEscalation {
@@ -211,9 +209,7 @@ fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
     assert_eq!(world.record(WAITER).hold_wait_since, place);
     assert_eq!(world.record(WAITER).hold_bound_since, Some(world.env.wall));
     assert!(world.record(LATER).hold_wait_since > place);
-    world.claim_task(KEPT);
-    world.finish(KEPT);
-    world.settle(KEPT);
+    world.finish_task(KEPT);
     assert!(world.record(WAITER).holds_taken);
     assert!(!world.record(LATER).holds_taken);
 }
