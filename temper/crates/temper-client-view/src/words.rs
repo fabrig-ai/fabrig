@@ -11,6 +11,7 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    Goals,
     ConfigureAgent,
     ConfigureWays,
     ConfigureAlone,
@@ -845,7 +846,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Removing Connected removes seven phrases (client/README.md, 3.5).
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
-const PHRASES: u32 = 1346;
+const PHRASES: u32 = 1347;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -857,8 +858,9 @@ const PHRASES: u32 = 1346;
 // Removing Connected removes twenty-three literal and hole segments (3.5).
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
-const SEGMENTS: u32 = 2325;
-const ALL: [Word; 750] = [
+const SEGMENTS: u32 = 2326;
+const ALL: [Word; 751] = [
+    Word::Goals,
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -1614,6 +1616,7 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::Goals => 3189,
             Self::ConfigureAgent => 3181,
             Self::ConfigureWays => 3182,
             Self::ConfigureAlone => 3183,
@@ -2582,7 +2585,7 @@ impl Words {
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11,
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 5,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3203,6 +3206,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
         Word::StartChat => (&[b"Start a chat"], &[]),
+        Word::Goals => (&[b"Goals"], &[]),
         Word::ConfigureAgent => (&[b"temper\xe2\x80\x99s configuring agent. Describe how you work, in your own words or by pointing at a document. It proposes how temper will run that; nothing changes until you accept."], &[]),
         Word::ConfigureWays => (&[b"Ways to begin"], &[]),
         Word::ConfigureAlone => (&[b"I work alone on small changes: one chat per change, landed once CI passes."], &[]),
