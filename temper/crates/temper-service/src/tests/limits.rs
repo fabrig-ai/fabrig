@@ -187,7 +187,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
                 ..small.root.brief
             },
             journal: temper_engine_domain::JournalLimits {
-                transcript_bytes: 22_467_648,
+                transcript_bytes: 22_467_664,
                 result_bytes: 357_967,
                 ..small.root.journal
             },

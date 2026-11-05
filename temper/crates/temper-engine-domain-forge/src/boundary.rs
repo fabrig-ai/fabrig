@@ -53,7 +53,7 @@ pub enum BriefRead {
     /// The bytes the connector rendered, and bytes left out at its read bound.
     Got { bytes: Box<[u8]>, left: u64 },
     /// The pinned section could not be read.
-    Failed,
+    Failed(crate::BriefUnread),
 }
 
 /// A resource of one configured forge repository (domain/forge.md, section 2).
@@ -1550,6 +1550,7 @@ pub enum Event {
     PlanBrief {
         section: Token,
         source: BriefSource,
+        partner: Option<Token>,
     },
     /// Gather a planned section with the core's allotted budget.
     GatherPlanned {
@@ -2012,7 +2013,13 @@ pub enum Request {
     /// A held section has this rendered size, or its gather/cut failed.
     BriefSized {
         section: Token,
-        size: Option<u32>,
+        size: Result<u32, crate::BriefUnread>,
+    },
+    /// A section read failed, whether or not its paired brief goes on (domain/forge.md, 8.4).
+    BriefReadRefused {
+        section: Token,
+        stage: &'static str,
+        error: Option<skein_forge::api::Error>,
     },
     /// A held section transferred its rendered bytes to the root.
     BriefTaken {

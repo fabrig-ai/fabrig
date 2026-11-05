@@ -759,7 +759,7 @@ fn activation_observations_and_prior_closing_are_admitted_whole_with_their_alloc
         phase_since: Wall::EPOCH,
         attempt: Some(u64::MAX),
         placement: Some(Wall::EPOCH),
-        retry: Some(RetryNotice::Refused { count: u32::MAX }),
+        retry: Some(RetryNotice::Refused { count: u32::MAX, reason: None }),
         observation: Some(RunObservation {
             channel: Token::new(u64::MAX),
             work: RunWork::Tool { call: current_identity(b"call"), tool: text(b"tool") },
