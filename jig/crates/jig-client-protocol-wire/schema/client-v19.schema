@@ -44,7 +44,7 @@ record Served { owner: Owner first: u32 last: u32 }
 record NotServed { owner: Owner served: list 16 Served }
 record AnswersFull { held: u32, room_at: u64 }
 enum KeyedAnswer { not_served: NotServed, final_answer: Owned, busy, not_ready, signed_out, answers_full: AnswersFull }
-record LinkSignIn { secret: bytes 64 }
+record LinkSignIn { secret: secret 64 }
 record SignedIn { token: option secret 48 party: u64 expires: u64 }
 record SignInsFull { sign_ins: u32, earliest: u64, link_until: u64 }
 enum SignInAnswer { signed_in: SignedIn, refused, not_ready, busy, full: SignInsFull }
@@ -675,7 +675,8 @@ enum HostKind { worker, engine }
 record AgentShortfallModel { charter: u32 model: u32 }
 record AgentShortfallWindow { charter: u32 model: u32 }
 record AgentShortfallOutput { charter: u32 model: u32 }
-enum AgentShortfall { model: AgentShortfallModel, window: AgentShortfallWindow, output: AgentShortfallOutput, turns, spend, time, waiting, checks, message, inbox, unacknowledged }
+record AgentShortfallChecks { charter: u32 }
+enum AgentShortfall { model: AgentShortfallModel, window: AgentShortfallWindow, output: AgentShortfallOutput, turns, spend, time, waiting, checks: AgentShortfallChecks, message, inbox, unacknowledged }
 record HelloRefusalAgent { why: AgentShortfall }
 record HelloRefusalWorkers { limit: u32 }
 record HelloRefusalPosition { worker: u32 }

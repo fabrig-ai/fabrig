@@ -81,7 +81,10 @@ pub(in crate::codec) fn wire_agent_shortfall(
         c::AgentShortfall::Spend => w::AgentShortfall::Spend,
         c::AgentShortfall::Time => w::AgentShortfall::Time,
         c::AgentShortfall::Waiting => w::AgentShortfall::Waiting,
-        c::AgentShortfall::Checks => w::AgentShortfall::Checks,
+        c::AgentShortfall::Checks { charter } => w::AgentShortfall::Checks(w::AgentShortfallChecks::new(
+            limits,
+            w::AgentShortfallChecksParts { charter: *charter },
+        )?),
         c::AgentShortfall::Message => w::AgentShortfall::Message,
         c::AgentShortfall::Inbox => w::AgentShortfall::Inbox,
         c::AgentShortfall::Unacknowledged => w::AgentShortfall::Unacknowledged,

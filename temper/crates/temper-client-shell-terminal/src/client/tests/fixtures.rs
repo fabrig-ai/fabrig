@@ -30,7 +30,7 @@ pub(super) fn link_chat(stored: Option<skein_lib::Secret>) -> (NativeClient, ske
                     assert_eq!(credential, host.credential, "the link offers the directory bearer");
                     let link = w::LinkSignIn::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&record))
                         .expect("actual link exchange");
-                    assert_eq!(link.secret(), &[0; 32], "the printed fixture link owns the exchange");
+                    assert_eq!(link.secret().expose(), &[0; 32], "the printed fixture link owns the exchange");
                     assert!(signing.replace(exchange).is_none(), "one sign-in exchange");
                 }
                 jig_client::Message::Read(_) => {

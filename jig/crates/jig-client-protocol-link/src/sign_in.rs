@@ -29,10 +29,7 @@ impl Link {
                 self.signing_exchange(ExchangeKind::SignIn, Message::SignInService, Some(credential), None, out);
             }
             With::Link { secret, held } => {
-                let Ok(record) = w::LinkSignIn::new(
-                    self.limits.wire(),
-                    w::LinkSignInParts { secret: skein_lib::bytes::copy_of(secret.expose()) },
-                ) else {
+                let Ok(record) = w::LinkSignIn::new(self.limits.wire(), w::LinkSignInParts { secret }) else {
                     out.push(Request::Signing { signing: Signing::Refused });
                     return;
                 };
