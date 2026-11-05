@@ -4,7 +4,7 @@
 - **Where:** `hearth-service-builder/src/lib.rs`, `hearth-protocol-builder/src/lib.rs`, `hearth-protocol-config/src/json.rs`, `hearth-client-protocol-records/src/printer.rs`, `hearth-domain-builder/src/lib.rs`, `hearth-domain-render/src/lib.rs`, `hearth-domain-store/src/lib.rs`, `hearth-domain-tree/src/lib.rs`, `hearth-domain-build/src/lib.rs`, `tests/builder/tests/suite/bounds.rs`
 - **Seen:** 2026-11-04 at `66968a30ef`, in the request of plan hearth-workspace (its port table, and its rule that adopting the newer model in full is out of scope)
 - **Seen:** 2026-11-04 at `66968a30ef`, in `hearth/scripts/old-forms.txt` (`max_out`)
-- **Checked:** 2026-11-05 at `271316c8d0`
+- **Checked:** 2026-11-05 at `c5f7fb2992`
 - **Value:** high (hearth paces as the other trees do; `iterate` shrinks; new code stops copying the old form)
 - **Size:** L
 - **Status:** open
@@ -87,7 +87,7 @@ All in `hearth-service-builder/src/lib.rs`.
 | `io_up`, `io_down` | `file_told.room() < 1`, twice | A capacity between the root's own children. It never binds: the file layer takes one request at a time, so the queue holds at most one event. |
 | `io_up`, `io_down` | `file_submissions.room() < 2`, three times | A capacity, the kernel's edge, through the file layer's queue: an operation and its cancel. The one before `expire` reserves 2 for one cancel. |
 | `protocol_up` | `protocol_room`, before `protocol::fire` | Nothing: `fire` touches neither queue. |
-| `protocol_up`, `protocol_down` | `protocol_room`, three times | A capacity between the root's own children: `calls` and `asked`. |
+| `protocol_up`, `protocol_down` | `protocol_room`, four times | A capacity between the root's own children: `calls` and `asked`. |
 | `domain_stage` | `answers.room()`, three times | A capacity between the root's own children, with a real sink behind it, the client's output. This one does the work: it stops render outrunning a stuck client, at about 2 queued records at `queue` 3 and about 30 at 32. |
 | `io_within`, `protocol_within`, `within` | their calls | One entry point's outputs against its constant, which is a capacity, and they keep no queue. They aren't called around `fire`, the file layer, or the `file_told` pass. They go with the constants. |
 | `Service::new` | `limits.queue >= 3` | A capacity: the reservations fit. The largest `MAX_OUT` is 2, and nothing found explains 3. |
