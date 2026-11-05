@@ -190,31 +190,7 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Opti
     }
     let templates = Box::new([chat(result_bytes), goal(result_bytes), configuring(result_bytes)]);
     let mut policies = Map::with_capacity(1);
-    let mut role_authority = ceiling(ceiling_spend);
-    role_authority.budget.spend = chat_spend;
-    policies
-        .insert(
-            1,
-            ConfiguredPolicy {
-                policy: authority::Policy {
-                    escalation_role: Some(0),
-                    ceiling: ceiling(ceiling_spend),
-                    projections: grants(),
-                    period_spend: ceiling_spend,
-                    roles: Box::new([authority::Role {
-                        number: 0,
-                        authority: role_authority,
-                        period_spend: ceiling_spend,
-                        requests: authority::Requests(511),
-                        decides: authority::Proposals(31),
-                    }]),
-                    requirements: Box::default(),
-                },
-                permissions: Box::new([jig_domain_people::PermissionRole { connector: FORGE, permission: 1, role: 0 }]),
-                templates: Box::default(),
-            },
-        )
-        .expect("one stock policy");
+    policies.insert(1, project_policy(ceiling_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
         charters,
         templates,
@@ -228,6 +204,47 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Opti
             requirements: Box::default(),
         },
     })
+}
+
+fn project_policy(period_spend: u64, task_spend: u64) -> ConfiguredPolicy {
+    ConfiguredPolicy {
+        policy: authority::Policy {
+            escalation_role: Some(0),
+            ceiling: ceiling(period_spend),
+            projections: grants(),
+            period_spend,
+            roles: Box::new([
+                project_role(0, period_spend, task_spend, 511, 31),
+                project_role(1, period_spend, task_spend, 255, 31),
+                project_role(2, task_spend, task_spend, 185, 0),
+                project_role(3, 0, 0, 128, 0),
+            ]),
+            requirements: Box::default(),
+        },
+        permissions: Box::new([
+            jig_domain_people::PermissionRole { connector: FORGE, permission: 3, role: 1 },
+            jig_domain_people::PermissionRole { connector: FORGE, permission: 2, role: 2 },
+            jig_domain_people::PermissionRole { connector: FORGE, permission: 1, role: 3 },
+        ]),
+        templates: Box::default(),
+    }
+}
+
+fn project_role(number: u32, period_spend: u64, spend: u64, requests: u16, decides: u8) -> authority::Role {
+    let mut authority = ceiling(spend);
+    if spend == 0 {
+        authority.tools = authority::Tools(0);
+        authority.models = authority::Models::NONE;
+        authority.grants = Box::default();
+        authority.delegation = authority::Delegation { kinds: Box::default(), tasks: 0, depth: 0 };
+    }
+    authority::Role {
+        number,
+        authority,
+        period_spend,
+        requests: authority::Requests(requests),
+        decides: authority::Proposals(decides),
+    }
 }
 
 // Chat and configuring charter rows (temper/docs/design/protocol/configuration.md, 13.4).

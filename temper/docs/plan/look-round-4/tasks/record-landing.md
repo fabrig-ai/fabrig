@@ -75,3 +75,7 @@ start from what it recorded and say so.
 
 The page's diff against the request's, line by line, with the reason you can see for each; the
 builder's `hostname`.
+
+## Answers
+
+2026-11-05 (fabrig/ui, owner of temper's UI, through fabrig/temper and agents/loop). **Defer the Home recording; don't widen the sign-in investigation.** End the task with status entries naming the stop, and leave `project-landing`'s recording as it is. fabrig/ui takes the Chromium sign-in fault as its own plan and re-records after it.

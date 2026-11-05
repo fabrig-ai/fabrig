@@ -162,3 +162,97 @@ fn met_cannot_make_a_gate_verdict_for_another_head_ready() {
         "an approval for a different head cannot restore readiness: {decision:?}"
     );
 }
+
+fn landed_panel(world: &World, task: u64) -> forge::Panel {
+    let Some(forge::Document::Change(panel)) = world.document(5, task) else {
+        panic!("landed change retains its panel")
+    };
+    assert!(matches!(panel.step, forge::PanelStep::Landed { .. }));
+    panel
+}
+
+fn land_pending(world: &mut World, task: u64, branch: &[u8], path: &[u8]) -> [u8; 32] {
+    world.produce_file(branch, path, b"change");
+    let pull = world.open_pull(branch, b"main");
+    world.status(branch, skein_fake_forge_domain::api::Check::Pending);
+    let head = temper_engine_forge_world::translate::commit(world.branch(branch));
+    let mut change = changes::change_row();
+    change.task = task;
+    change.branch = branch.into();
+    change.pull = Some(pull);
+    change.change.task = task;
+    change.change.last_head = Some(head);
+    change.change.state = change::State::Queued { head, ready_since: FIRST_READY };
+    change.change.ready_since = Some(FIRST_READY);
+    change.change.owns_turn = true;
+    world.event(forge::Event::Change { row: change });
+    let decision = step(world, task, task, false);
+    assert!(matches!(decision, change::Decision::Effect(change::Effect::Merge { .. })), "{decision:?}");
+    assert!(
+        world
+            .stored()
+            .iter()
+            .any(|(_, record)| matches!(record, forge::Stored::Landed { task: landed, .. } if *landed == task))
+    );
+    let _decision = step(world, task, task + 100, false);
+    assert!(matches!(row(world, task).change.state, change::State::Landed { .. }));
+    assert_eq!(landed_panel(world, task).ci, change::Status::Pending, "landing retains its pending observation");
+    head
+}
+
+#[test]
+fn landed_change_without_required_ci_does_not_stay_pending() {
+    let mut world = World::new(810);
+    world.adopt();
+    world.landing_ci(b"main", false);
+    let mut heads = Vec::new();
+    for (task, branch, path) in
+        [(3, b"temper/3".as_slice(), b"three".as_slice()), (5, b"temper/5", b"five"), (10, b"temper/10", b"ten")]
+    {
+        let head = land_pending(&mut world, task, branch, path);
+        assert!(!heads.contains(&head), "each sighting has an independent head");
+        heads.push(head);
+        world.status(branch, skein_fake_forge_domain::api::Check::Passed);
+        world.run_for(301);
+        let skein_fake_forge_domain::api::Answer::Statuses(statuses) =
+            world.inspect(&skein_fake_forge_domain::api::Read::Statuses { commit: world.branch(branch) })
+        else {
+            panic!("forge statuses are readable")
+        };
+        assert_eq!(statuses.len(), 1);
+        assert_eq!(statuses[0].state, skein_fake_forge_domain::api::Check::Passed);
+        assert_eq!(temper_engine_forge_world::translate::commit(world.branch(branch)), head);
+        assert!(!landed_panel(&world, task).ci_required, "no-CI landing explicitly says CI is not required");
+    }
+    required_ci_control();
+    world.restart();
+    world.run_for(1);
+    for task in [3, 5, 10] {
+        assert!(!landed_panel(&world, task).ci_required);
+        assert_eq!(landed_panel(&world, task).ci, change::Status::Pending);
+    }
+}
+
+fn required_ci_control() {
+    let mut world = World::new(811);
+    world.adopt();
+    world.landing_ci(b"main", true);
+    world.produce_file(b"temper/11", b"control", b"change");
+    let pull = world.open_pull(b"temper/11", b"main");
+    world.status(b"temper/11", skein_fake_forge_domain::api::Check::Pending);
+    let head = temper_engine_forge_world::translate::commit(world.branch(b"temper/11"));
+    let mut control = changes::change_row();
+    control.task = 11;
+    control.branch = b"temper/11".as_slice().into();
+    control.pull = Some(pull);
+    control.change.task = 11;
+    control.change.last_head = Some(head);
+    control.change.state = change::State::Checking { head };
+    world.event(forge::Event::Change { row: control });
+    assert!(matches!(step(&mut world, 11, 211, false), change::Decision::Wait { .. }));
+    let Some(forge::Document::Change(panel)) = world.document(5, 11) else { panic!("control panel") };
+    assert!(panel.ci_required, "the required-CI rule still waits for the forge");
+    assert_eq!(panel.ci, change::Status::Pending);
+    world.status(b"temper/11", skein_fake_forge_domain::api::Check::Passed);
+    assert_eq!(step(&mut world, 11, 212, false), change::Decision::Ready);
+}

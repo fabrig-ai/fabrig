@@ -139,6 +139,11 @@ the repairing step naming GitHub's reason. Forgejo has no such queue.
 - **CI on its head:** the combined state and each context's, with a link
   to a failing job, and the failed step and the end of its log a repair
   was given, cut as the repair got it (`../domain/forge.md`, 8.4).
+  Where the repository or its effective landing rules do not ask for
+  CI, the panel says “CI not required”. A landed change retains the
+  last observation at its exact head, which may still be pending when
+  it landed without CI; that observation does not claim a current
+  forge verdict (`../domain/forge.md`, 8.8).
 - **Its gates** (`../domain/forge.md`, 8.3): each with its kind (a
   review by a lens, a person's approval, checks), blocking or advisory,
   who asked for it (the change, the project's landing rule, its plan),
@@ -1288,7 +1293,10 @@ made by the forge connector from what it keeps of the change
   - its hold, with the step it was held at;
   - the task its step runs (its producer, a repair, a resolution or a
     gate's review), at most one at a time;
-  - CI at its head;
+  - CI at its head and `ci_required`, whether the repository and its
+    effective landing rules ask for it. `ctl` text says `CI not required`
+    when false; JSON carries `ci_required` beside the observed `ci`
+    verdict, including a retained terminal verdict;
   - its gates (2.2), each with its number, its kind, whether it is
     blocking or advisory, and its verdict at the current head, a clean
     update's carry counted (`../domain/forge.md`, 8.3);

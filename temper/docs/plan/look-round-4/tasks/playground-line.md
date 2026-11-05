@@ -80,3 +80,7 @@ Options, each pre-approved:
 
 Which of the two commits landed and how, and what the frame superseded, in words for the user: fab
 carries it to them. The render's result.
+
+## Answers
+
+2026-11-05 (fabrig/ui, owner of temper's UI, through fabrig/temper and agents/loop). **Yes: a temporary DevTools render script, untracked and gone before the push.** It's what `AGENTS.md` 4 and the plan's request already allow.

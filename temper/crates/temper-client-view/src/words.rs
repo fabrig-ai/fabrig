@@ -845,7 +845,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Removing Connected removes seven phrases (client/README.md, 3.5).
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
-const PHRASES: u32 = 1345;
+const PHRASES: u32 = 1346;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -857,7 +857,7 @@ const PHRASES: u32 = 1345;
 // Removing Connected removes twenty-three literal and hole segments (3.5).
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
-const SEGMENTS: u32 = 2324;
+const SEGMENTS: u32 = 2325;
 const ALL: [Word; 750] = [
     Word::ConfigureAgent,
     Word::ConfigureWays,

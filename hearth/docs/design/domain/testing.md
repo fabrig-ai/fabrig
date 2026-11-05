@@ -15,11 +15,10 @@ M1 and grows with every milestone. What is open is in section 11.
 
 - **Efficiency is a rule of the tests too.** Every test runs as a regular
   user, and the gate needs Linux and git, nothing else. A world settles in
-  milliseconds; the focused suite takes 30 seconds (15 seconds before the
-  user's doubling of 10-22, provisional) and the fuzzy one 120 seconds (60
-  seconds before the user's doubling of 10-22, provisional). Each crate
-  lands with its world, and each tool's protocol machine with its fake and
-  its recordings.
+  milliseconds; the focused suite takes 30 CPU seconds and the fuzzy one
+  120 seconds (60 seconds before the user's doubling of 10-22, provisional).
+  Each crate lands with its world, and each tool's protocol machine with
+  its fake and its recordings.
 - **The domain runs whole on a fake machine** (section 3): files with
   owners, modes, extended attributes, inode numbers and change times;
   btrfs under the kernel's unprivileged rules; user namespaces and id
@@ -1471,8 +1470,9 @@ section 10.
   (skein/docs/foundation/programming-model.md, 6.3). The large render, a
   revision of 4,096 entries, 512 of them documents, declarations and
   templates, with 64 targets, runs through the builder at the shipped
-  limits under a ceiling of its own: it is the measure that the defaults
-  fit a modest machine (hearth/docs/design/domain/render.md, 8.4).
+  limits, in the fuzzy suite, under a ceiling of its own: it is the
+  measure that the defaults fit a modest machine
+  (hearth/docs/design/domain/render.md, 8.4).
 - **Replay:** a seed replays to the same trace, the same fake machine,
   whose state the fake digests itself, and the same digest of hearth's
   own state: a digest over the state types' derived `Hash`, which
@@ -1647,6 +1647,15 @@ VM tier its one real machine relies on.
   figure stands as an idle-machine figure
   (`skein/docs/foundation/testing-strategy.md`, 8.1). It depends on the
   user's ruling on the measurements.
+- **The focused suite's way to its figure** (9.1): whether repairs to the
+  slowest tests reach 30 CPU seconds, or the measurements go to the user
+  for a ruling (`skein/docs/foundation/testing-strategy.md`, 8.1). The
+  figure stands, and a run over it is recorded, never refused. It depends
+  on a measurement of the suite by test.
+- **The large render's cost:** about 12 CPU seconds, which is why the fuzzy
+  suite carries it (8.4). No run has isolated that cost: it followed the
+  work per target, not the listing, and whether it lies in the harness or
+  in hearth's crates is unknown. It depends on a run that isolates it.
 - **The conformance tier's budget and its runs** (5.5, 9.2):
   whether it takes a budget and a place after landing
   depends on the user, and on a runner holding its prerequisites (6.4).

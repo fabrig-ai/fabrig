@@ -429,6 +429,7 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
             step: panel_step(value.step, limits)?,
             hold: panel_hold(value.hold),
             runs: value.runs,
+            ci_required: value.ci_required,
             ci: match value.ci {
                 change::Status::Unknown => w::Ci::Unknown,
                 change::Status::Pending => w::Ci::Pending,

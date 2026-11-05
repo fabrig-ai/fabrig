@@ -26,9 +26,10 @@ as do operating, development machines, artifacts and reproducible builds
 `hearth/docs/design/domain/reproducible.md`). Tests have the worlds' suites,
 git, resolution and render conformance, and tool fakes, but lack the complete
 M2 fake machine, joined system world, real builds and boot test; conformance
-has no automatic runner. Tier profiles, memory tests, the fake machine's lint
-profile and shared suite timeouts depart from the design, and measured costs
-await the user (`hearth/docs/design/domain/testing.md`). The design departs
+has no automatic runner. Tier profiles, memory tests and shared suite
+timeouts depart from the design, the focused suite measures about 15 CPU s
+over its 30, and measured costs await the user
+(`hearth/docs/design/domain/testing.md`). The design departs
 from the draft in its three processes, subordinate ids, offline sandboxes,
 development loop, live changes and milestone split; pool placement still
 lags, and budgets, credentials, check policy and other decisions remain open

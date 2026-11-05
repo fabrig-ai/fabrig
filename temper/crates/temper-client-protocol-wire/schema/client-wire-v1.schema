@@ -159,7 +159,7 @@ enum ReviewRead { unread, incomplete, complete }
 record CountedReview { person: u64 head: fixed 32 }
 record UnmappedReview { account: u64 head: fixed 32 verdict: Verdict }
 record Approval { scope: u32 number: u32 role: u32 freshness: RuleFreshness required: u32 read: ReviewRead counted: list 256 CountedReview remaining: option u32 refused: bool }
-versioned record ChangePanel { task: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 head: option fixed 32 pull: option Pull step: Step hold: option Hold runs: option u64 ci: Ci gates: list 64 Gate approvals: list 8192 Approval unmapped_reviews: list 256 UnmappedReview repairs: Used resolutions: Used updates: Used way: Way in_landing: option u64 questions: Questions }
+versioned record ChangePanel { task: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 head: option fixed 32 pull: option Pull step: Step hold: option Hold runs: option u64 ci: Ci gates: list 64 Gate approvals: list 8192 Approval unmapped_reviews: list 256 UnmappedReview repairs: Used resolutions: Used updates: Used way: Way in_landing: option u64 questions: Questions ci_required: bool }
 
 # Its outcome (client/README.md, 4.6 and 4.7).
 record Kinds { read: bool push: bool open: bool land: bool review: bool status: bool comment: bool issue: bool branch: bool }

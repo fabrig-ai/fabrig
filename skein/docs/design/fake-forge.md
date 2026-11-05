@@ -828,6 +828,10 @@ relies on (forge.md, section 9). It makes its own admin user and tokens.
 - **Recorded live transcripts.** A live run's masked transcripts would serve
   the dialect's decoder tests. Default: the owner reviews them for leaks
   before committing them; the fake's own transcripts serve until then.
+- **A commit's spelling on Forgejo's layer.** `routes::object` and
+  `routes::commit` stand on the domain's `commit_bytes` and `commit_count`
+  (section 12), and stay on that layer for their readers across skein's
+  worlds, GitHub's among them, and temper. Default: they stay.
 - **The runner's start.** The conformance starts the runner (section 7).
   Whether a second user moves that start into the throwaway is open.
   Default: it stays in the conformance until a second user needs it.

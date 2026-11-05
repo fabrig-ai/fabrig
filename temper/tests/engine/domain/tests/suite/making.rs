@@ -219,8 +219,15 @@ fn made_into_a_project_is_adopted_by_the_connectors_act() {
     let roles = &d.store.rows[&engine::Key::Core(core::Key::People(people::Key::Roles(1)))];
     assert!(
         matches!(roles, engine::Record::Core(core::Record::People(people::Stored::Roles { holdings, .. }))
-        if holdings.iter().any(|holding| holding.role == people::Role::Maintainer)),
-        "adoption seeds forge collaborators"
+        if holdings.iter().any(|holding| holding.role == people::Role::Member)),
+        "adoption seeds the human write collaborator"
+    );
+    assert!(
+        !d.store.rows.values().any(|record| matches!(record,
+            engine::Record::Core(core::Record::People(people::Stored::Person { identity, .. }))
+            if identity.key.provider == 0 && identity.key.subject.as_ref() == 1_u64.to_be_bytes()
+        )),
+        "temper's writer is not seeded as a person"
     );
 }
 #[test]

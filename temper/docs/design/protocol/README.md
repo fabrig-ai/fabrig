@@ -925,12 +925,6 @@ Each document keeps its own; these cross them:
 - **Agents in the worker's process** (`smith-inline-agent`), with no
   containment, for one person's machine (jig's `protocol/service.md`,
   section 10). Default: agent processes, as `temper internal agent`.
-- **A restored secret of the wrong kind.** What that means is the
-  application's (jig's `protocol/service.md`, 11.1). jig's reference
-  stops its engine. temper raises `Corrupt` on an owner no route holds:
-  the accounts' component aborts and the engine runs on. Whether temper
-  stops too is for a small task of its own. Default: it runs on, until
-  that task.
 - **After standalone,** each designed where it is named, and needed only
   beyond one person's machine: webhooks from another host, over TLS
   (forge.md, section 5); hosts apart: TLS on the engine's listeners,
