@@ -1,0 +1,3 @@
+draft = "worker-many-slots"
+repo = "fabrig"
+sources = ["temper/docs/plan/worker-many-slots/inputs/request.md", "temper/docs/design/domain/worker.md", "AGENTS.md", "DESIGN.md"]
