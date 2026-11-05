@@ -82,7 +82,9 @@ fn an_unknown_done_is_ignored_and_an_unknown_refusal_returns_the_payload() {
         tasks::Request::Refused { reply_to: ReplyTo::new(token), problem: problem.clone() },
     );
     let Some(Request::Now(now)) = out.pop() else { panic!("payload refusal") };
-    let Now::RefusedPayload { request, problem: found } = *now else { panic!("unknown payload refused") };
+    let Now::Link(LinkNow::RefusedPayload { request, problem: found }) = *now else {
+        panic!("unknown payload refused")
+    };
     assert_eq!(request, token);
     assert_eq!(found, problem);
     assert!(out.is_empty());

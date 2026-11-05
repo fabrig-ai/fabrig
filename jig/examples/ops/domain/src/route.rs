@@ -1264,7 +1264,6 @@ pub(crate) fn connector_out(
         }
     }
 }
-#[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher translates this child boundary")]
 fn core_now(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -1272,14 +1271,10 @@ fn core_now(
     value: core::Now,
     work: &mut Queue<Work>,
 ) {
-    let value = match jig_domain_hub_link::now(value) {
-        Ok(event) => {
-            crate::link::route(domain, env, decision, event, false, work);
-            return;
-        }
-        Err(value) => value,
-    };
     match value {
+        core::Now::Link(value) => {
+            crate::link::route(domain, env, decision, jig_domain_hub_link::now(value), false, work);
+        }
         core::Now::Undelivered { message, .. } => drop(domain.hub_link.take_payload(message.words)),
         core::Now::Activate { context } => {
             work.push(Work::Core(core::Event::Activate { context, ready: domain.ready(), busy: false }));
@@ -1356,13 +1351,7 @@ fn core_now(
         core::Now::DropCall { call } => {
             crate::link::route(domain, env, decision, LinkEvent::DropCall { call }, false, work);
         }
-        other @ (core::Now::Relayed { .. }
-        | core::Now::DropPayload { .. }
-        | core::Now::TurnPayload { .. }
-        | core::Now::AnswerPayload { .. }
-        | core::Now::AcceptedTurn { .. }
-        | core::Now::RefusedPayload { .. }
-        | core::Now::Call { .. }
+        other @ (core::Now::Call { .. }
         | core::Now::EffectAnswer { .. }
         | core::Now::TaskRead { .. }
         | core::Now::SettingsAnswer { .. }

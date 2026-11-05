@@ -276,17 +276,34 @@ pub enum WatchRefusal {
     Busy,
 }
 
+/// The core's outputs that are the link's (domain/root.md, 5).
+#[derive(Debug)]
+pub enum LinkNow {
+    /// The host receives a read answer without waiting for a commit (domain/engine.md, 4.4).
+    Relayed { channel: Token, run: Token, attempt: Token, call: Box<[u8]>, answer: Token },
+    /// Forget a root-owned host payload that the fleet no longer needs.
+    DropPayload { payload: Token },
+    /// Read the root-owned turn payload before routing the charged turn.
+    TurnPayload { run: Token, attempt: Token, turn: u32, body: Token },
+    /// Read and translate the root-owned answer payload before the task terminal.
+    AnswerPayload { run: Token, attempt: Token, payload: Token },
+    /// Read the root-owned transcript after the task accepts its charge.
+    AcceptedTurn { payload: Token, task: u64, attempt: u64, turn: u32, accepted: tasks::Accepted },
+    /// Inspect a root-owned host payload after the task child refuses it.
+    RefusedPayload { request: Token, problem: tasks::Problem },
+}
+
 /// Core output that follows no mutation.
 #[derive(Debug)]
 pub enum Now {
+    /// The core's outputs for the link (domain/root.md, 5).
+    Link(LinkNow),
     /// A bounded task read has no durable call record (engine.md, 7.3).
     TaskRead { to: ReplyTo, key: CallKey, answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>> },
     /// A settings document leaves without a durable call record (engine.md, 7.3).
     SettingsAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::SettingsAnswer> },
     /// The root answers this host call with its own busy payload.
     CallBusy { to: ReplyTo },
-    /// The host receives a read answer without waiting for a commit (domain/engine.md, 4.4).
-    Relayed { channel: Token, run: Token, attempt: Token, call: Box<[u8]>, answer: Token },
     /// An effect wait or capacity refusal changed no durable state.
     EffectAnswer { to: ReplyTo, key: CallKey, part: CallPart },
     /// A settled answer exceeded its bounded record or no retained call owns it.
@@ -324,18 +341,8 @@ pub enum Now {
     NotesRefused { owner: Token, why: notes::Refusal },
     /// The notes child could not serve this named call yet; the host retries its name.
     NoteBusy { to: ReplyTo, key: CallKey },
-    /// Forget a root-owned host payload that the fleet no longer needs.
-    DropPayload { payload: Token },
     /// Forget the application's assignment for a run the host never started.
     DropAssignment { task: u64 },
-    /// Read the root-owned turn payload before routing the charged turn.
-    TurnPayload { run: Token, attempt: Token, turn: u32, body: Token },
-    /// Read and translate the root-owned answer payload before the task terminal.
-    AnswerPayload { run: Token, attempt: Token, payload: Token },
-    /// Read the root-owned transcript after the task accepts its charge.
-    AcceptedTurn { payload: Token, task: u64, attempt: u64, turn: u32, accepted: tasks::Accepted },
-    /// Inspect a root-owned host payload after the task child refuses it.
-    RefusedPayload { request: Token, problem: tasks::Problem },
     /// Ask the root for its current readiness before a due activation route.
     Activate { context: Box<tasks::RunContext> },
     /// Load the current transcript window in key order from its first turn.

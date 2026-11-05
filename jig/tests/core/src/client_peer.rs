@@ -143,7 +143,7 @@ impl ClientPeer {
     pub fn immediate(value: &core::Now) -> bool {
         match value {
             core::Now::SignInRefused { .. } | core::Now::WatchRefused { .. } | core::Now::RunText { .. } => true,
-            core::Now::Relayed { .. }
+            core::Now::Link(_)
             | core::Now::EffectAnswer { .. }
             | core::Now::TaskRead { .. }
             | core::Now::SettingsAnswer { .. }
@@ -158,12 +158,7 @@ impl ClientPeer {
             | core::Now::NotesRecalled { .. }
             | core::Now::NotesRefused { .. }
             | core::Now::NoteBusy { .. }
-            | core::Now::DropPayload { .. }
             | core::Now::DropAssignment { .. }
-            | core::Now::TurnPayload { .. }
-            | core::Now::AnswerPayload { .. }
-            | core::Now::AcceptedTurn { .. }
-            | core::Now::RefusedPayload { .. }
             | core::Now::Activate { .. }
             | core::Now::StartPreparation { .. }
             | core::Now::SeenConversation { .. }
