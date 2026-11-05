@@ -544,6 +544,15 @@ application's.
   root.
 - **`ops`'s fixed host answers.** `link.rs`'s `host_out` answers the job
   starts, preparation, stops and deliveries `ops` does not offer with
-  fixed refusals. They are its capability choices, not copies, and
-  weigh on a template. Default: they stay in `ops`; a smaller template
-  moves no capability choice into jig.
+  fixed refusals, `ToJob::refused` spelling a job's (hosts.md, 6.9). They
+  are its capability choices, not copies. Default: they stay in `ops`,
+  with a preparation's and a delivery's spelled there: a preparation's
+  has one caller, and a shared delivery's saves no line.
+- **`ops`'s delegates in the step.** `ops`'s root calls
+  `jig-ops-protocol-observability` in the step (`../examples.md`, 4),
+  where section 11 has it hand what it carries out. A hand-out would put
+  the connector's rows and the procedure step in two commits, and a crash
+  between them may re-offer a step the connector has recorded. Whether
+  that is wanted is the user's, with the order above
+  (`jig/docs/development/debt/D004-ops-root-jig-wiring.md`). Default: they
+  stay in the step.
