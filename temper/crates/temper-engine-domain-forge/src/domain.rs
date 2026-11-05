@@ -3630,6 +3630,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
             | change::Decision::Delegate(_)
             | change::Decision::CancelGates { .. }
             | change::Decision::CancelRepair { .. }
+            | change::Decision::EndHold
             | change::Decision::Ready
             | change::Decision::QueueRepair
             | change::Decision::NoChange

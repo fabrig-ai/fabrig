@@ -165,3 +165,92 @@ fn a_bare_authority_release_at_green_does_not_rehold_ci() {
         );
     }
 }
+
+fn authority() -> Hold {
+    Hold::Authority(crate::AuthorityHold {
+        recovery: crate::AuthorityRecovery { task: 7, spec: 0, hold: 1, tasks: 2 },
+        lack: crate::AuthorityLack::Tasks,
+        had: 2,
+        released: false,
+    })
+}
+
+#[test]
+fn green_ci_ends_only_its_own_hold_without_resetting_counters() {
+    for reason in [Repair::Ci, Repair::Semantic] {
+        for why in [Hold::Failed, Hold::Stalled, Hold::Repairs, authority()] {
+            let mut c = repairing(reason, true);
+            c.state = State::Held { was: Box::new(c.state), why };
+            c.resolutions = 2;
+            c.updates = 3;
+            let next = decide(&c, &facts(), &heard());
+            assert_eq!(next.decision, Decision::EndHold);
+            assert!(!matches!(next.change.state, State::Held { .. }));
+            assert_eq!((next.change.repairs, next.change.resolutions, next.change.updates), (1, 2, 3));
+            assert_eq!(next.change.since, at(1));
+            assert!(!next.change.owns_turn);
+            assert_eq!(next.change.released, None);
+        }
+    }
+    for was in [State::Checking { head: HEAD }, State::CancellingGates { head: HEAD }] {
+        for why in [Hold::Repairs, authority()] {
+            let c = change(State::Held { was: Box::new(was.clone()), why });
+            let next = decide(&c, &facts(), &heard());
+            assert_eq!(next.decision, Decision::EndHold);
+            assert_eq!(next.change.state, was);
+        }
+    }
+}
+
+#[test]
+fn green_ci_leaves_other_holds_and_reasons_held() {
+    for was in [
+        State::Repairing { requested: true, why: Repair::Gate(9) },
+        State::Repairing { requested: true, why: Repair::Landing { gate: 3 } },
+        State::Gating { head: HEAD, asked: Box::new([]) },
+    ] {
+        for why in [Hold::Failed, Hold::Stalled, Hold::Repairs, authority()] {
+            let c = change(State::Held { was: Box::new(was.clone()), why });
+            assert_eq!(decide(&c, &facts(), &heard()).change, c);
+        }
+    }
+    for why in [
+        Hold::BranchMoved,
+        Hold::BranchMissing,
+        Hold::Retargeted,
+        Hold::PullClosed,
+        Hold::Questions,
+        Hold::Rejected,
+        Hold::Resolutions,
+        Hold::Updates,
+    ] {
+        let c = change(State::Held { was: Box::new(repairing(Repair::Ci, true).state), why });
+        assert_eq!(decide(&c, &facts(), &heard()).change, c);
+    }
+    for was in [State::Checking { head: HEAD }, State::CancellingGates { head: HEAD }] {
+        for why in [Hold::Failed, Hold::Stalled] {
+            let c = change(State::Held { was: Box::new(was.clone()), why });
+            assert_eq!(decide(&c, &facts(), &heard()).change, c);
+        }
+    }
+}
+
+#[test]
+fn a_held_repair_needs_green_at_head_and_no_run_or_drift() {
+    let c = change(State::Held { was: Box::new(repairing(Repair::Ci, true).state), why: Hold::Failed });
+    for (ci, drift, writer, pull, running) in [
+        (Ci { head: BASE, status: Status::Passed }, None, false, Pull::Missing, false),
+        (Ci { head: HEAD, status: Status::Unknown }, None, false, Pull::Missing, false),
+        (Ci { head: HEAD, status: Status::Pending }, None, false, Pull::Missing, false),
+        (Ci { head: HEAD, status: Status::Failed }, None, false, Pull::Missing, false),
+        (Ci { head: HEAD, status: Status::Passed }, Some(Hold::BranchMoved), false, Pull::Missing, false),
+        (Ci { head: HEAD, status: Status::Passed }, None, true, Pull::Missing, false),
+        (Ci { head: HEAD, status: Status::Passed }, None, false, Pull::Closed, false),
+        (Ci { head: HEAD, status: Status::Passed }, None, false, Pull::Missing, true),
+    ] {
+        let f = Facts { ci, drift, writer_taken: writer, pull, ..facts() };
+        let next = decide(&c, &f, &Heard { delegate_running: running, ..heard() });
+        assert_eq!(next.decision, Decision::None);
+        assert_eq!(next.change, c);
+    }
+}

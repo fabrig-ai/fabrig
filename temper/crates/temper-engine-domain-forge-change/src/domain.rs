@@ -61,7 +61,19 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if let Some(why) = next.released.take() {
         return released_step(next, why, facts, standing);
     }
-    if let State::Held { .. } = change.state {
+    if let State::Held { was, why } = &change.state {
+        if held_on_ci(&change.state)
+            && green_head(facts).is_some()
+            && !standing.delegate_running
+            && facts.drift.is_none()
+            && !facts.writer_taken
+            && facts.pull != Pull::Closed
+        {
+            next.state = released_state(&next, was, *why, facts);
+            next.since = now;
+            next.owns_turn = false;
+            return Stepped { change: next, decision: Decision::EndHold };
+        }
         return Stepped { change: next, decision: Decision::None };
     }
     // A conflicting preparation cancels its producer before waiting for that
@@ -243,6 +255,33 @@ fn closed_pull_holds(state: &State) -> bool {
         | State::NoChange { .. }
         | State::Ended
         | State::Held { .. } => true,
+    }
+}
+
+/// A hold whose reason is CI failed at the head (temper/docs/design/domain/forge.md, 8.4).
+/// `was` `Repairing` with a CI reason: `Failed`, `Stalled`, `Repairs` or `Authority`.
+/// `was` `Checking` or `CancellingGates`: `Repairs` or `Authority`.
+/// Every other pair is false: `Gating`, drift, `Questions`, `Rejected`, `Resolutions`, `Updates`.
+#[must_use]
+pub fn held_on_ci(state: &State) -> bool {
+    let State::Held { was, why } = state else { return false };
+    match why {
+        Hold::Repairs | Hold::Authority(_) => ci_state(was),
+        Hold::Failed | Hold::Stalled => {
+            if let State::Repairing { why, .. } = was.as_ref() {
+                ci_reason(*why)
+            } else {
+                false
+            }
+        }
+        Hold::BranchMoved
+        | Hold::BranchMissing
+        | Hold::PullClosed
+        | Hold::Retargeted
+        | Hold::Resolutions
+        | Hold::Updates
+        | Hold::Rejected
+        | Hold::Questions => false,
     }
 }
 
