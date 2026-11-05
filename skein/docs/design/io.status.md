@@ -15,12 +15,7 @@
   cancellation and stop state in separate `Option`s and repeats
   `Failed { committed: false, residue: None, .. }` literals; no reason is
   recorded (the code's side is
-  `skein/docs/development/debt/D018-io-pipe-and-file-states.md`). 5:
-  `FileIo`'s lane tells no two `Io`s apart, which this section leaves to
-  the service, and `skein-ui-text/src/terminal.rs`'s `TAG` does it by
-  hand, at bit 62, not through `Token::tagged` (`lib.md`, 4); no reason is
-  recorded (the code's side is
-  `skein/docs/development/debt/D044-io-token-tags.md`). 2: `Io::new`
+  `skein/docs/development/debt/D018-io-pipe-and-file-states.md`). 2: `Io::new`
   asserts `skein_io::valid`, but `skein-fake-peers/src/face.rs`'s `valid`
   and `skein-oauth-accounts/src/limits.rs`'s `io_capacity_bound` rebuild
   part of it by hand, without the operation table's ceiling (5): from
