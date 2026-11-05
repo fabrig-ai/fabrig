@@ -52,3 +52,23 @@ walk = false
 id = "d008-left"
 text = """D008 asks that no `#[path]` remain in hearth, or that each says why. Three remain, in `hearth/tests/builder/tests/suite/memory.rs` and `hearth/tests/config/tests/suite/memory.rs`, which the request says to leave alone for hearth's memory migration, so `paths` removes the other 22 and leaves D008 open, narrowed to those three, measuring 3. (a) recommended: that stands, and they are paid after the migration, by it or by a later debt round. (b) hearth-memory-1 takes them now, which adds to its scope. Nothing waits on the answer."""
 parts = ["paths"]
+
+[[part]]
+id = "worlds"
+title = "the session and tools worlds stand on domains and fakes, held to the code by protocol worlds"
+mode = "direct"
+needs = []
+design = "smith/docs/design/testing.md, 2"
+
+[[part]]
+id = "words"
+title = "the local domain emits typed notices, and every word is the terminal's"
+mode = "direct"
+needs = []
+design = "smith/docs/design/domain/host.md, 8"
+
+[[slice]]
+id = 3
+story = "a change to a protocol's decoding breaks a protocol world, not a domain's, and a change of the person's words has one place to go"
+parts = ["worlds", "words"]
+walk = false
