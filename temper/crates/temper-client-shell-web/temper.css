@@ -1734,7 +1734,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app:has(> .temper-rail) .temper-sheet-link:hover { text-decoration-color: var(--gf-ink); }
 @keyframes typing { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
 @media (max-width: 760px) {
-  #app:has(> .temper-rail) .temper-goal { padding: 8px 20px 112px; }
+  #app:has(> .temper-rail) .temper-goal { padding: 8px 20px 112px; gap: 32px; }
   #app:has(> .temper-rail) .temper-goal-choices { flex-direction: column; align-items: stretch; }
   #app:has(> .temper-rail) .temper-goal-choices :is(.temper-goal-btn, button, summary) { min-height: 48px; font-size: 15.5px; }
   #app:has(> .temper-rail) .temper-goal-choices .temper-goal-btn.temper-goal-quiet { min-height: 44px; }
