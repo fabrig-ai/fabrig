@@ -12,9 +12,14 @@ fn codec_module(name: &str) -> bool {
     let Some((family, version)) = name.rsplit_once("_v") else {
         return false;
     };
-    ["crates/jig-protocol-store/schema", "crates/jig-client-view/schema", "crates/jig-client-protocol-wire/schema"]
-        .iter()
-        .any(|directory| super::tests::kit_root().join(directory).join(format!("{family}-v{version}.schema")).is_file())
+    [
+        "crates/jig-protocol-store/schema",
+        "crates/jig-client-view/schema",
+        "crates/jig-client-protocol-wire/schema",
+        "crates/jig-protocol-engine-clients/schema",
+    ]
+    .iter()
+    .any(|directory| super::tests::kit_root().join(directory).join(format!("{family}-v{version}.schema")).is_file())
 }
 
 fn forbidden_name(name: &str, codec: bool) -> bool {
@@ -290,10 +295,14 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
 #[test]
 fn versioned_codec_names_require_a_schema() {
     let path = Path::new("fixture/codecs.rs");
-    let source = "use crate::{public_v1, unknown_v1, public_v2};";
+    let source = "use crate::{public_v1, cursor_v1, unknown_v1, public_v2, cursor_v2};";
     assert_eq!(
         breaches(path, source),
-        ["fixture/codecs.rs:1: identifier unknown_v1", "fixture/codecs.rs:1: identifier public_v2"]
+        [
+            "fixture/codecs.rs:1: identifier unknown_v1",
+            "fixture/codecs.rs:1: identifier public_v2",
+            "fixture/codecs.rs:1: identifier cursor_v2",
+        ]
     );
 }
 
