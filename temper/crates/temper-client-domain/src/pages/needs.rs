@@ -50,6 +50,9 @@ pub struct Answered {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Toasted {
+    AwayOn { project: u32, until: Option<Wall> },
+    AwayOff,
+    AwayRefused,
     Answered { object: ObjectKey, label: Label },
     Later,
     Paused,
@@ -554,7 +557,10 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
                             pages.needs.toast = None;
                         }
                     }
-                    Toasted::Later
+                    Toasted::AwayOn { .. }
+                    | Toasted::AwayOff
+                    | Toasted::AwayRefused
+                    | Toasted::Later
                     | Toasted::Paused
                     | Toasted::Resumed
                     | Toasted::Proposed { .. }
