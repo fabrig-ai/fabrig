@@ -249,7 +249,8 @@ fn fixture_root(
         }
         (config, engine_limits)
     });
-    let mut front = Joint::with_engine(seed, &limits, Store::new(), [bootstrap, config], &engine_limits, 1);
+    let mut front =
+        Joint::with_engine(seed, &limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, 1);
     if forge_setup && !matches!(forge, WelcomeForge::Playground { .. }) {
         front.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
             forge: 1,

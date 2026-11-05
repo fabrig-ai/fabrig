@@ -78,8 +78,9 @@ pub fn domain_limits() -> Limits {
                 records: 2,
                 kept: 4,
                 projects: 4,
-                text: 64,
-                turn_text: 64,
+                // The linked world sends whole starters and cues, as both shipped shells do.
+                text: temper_client_protocol_wire::CUE_BYTES,
+                turn_text: temper_client_protocol_wire::CUE_BYTES,
                 rows: 4,
                 fields: 4,
                 segments: 9,
@@ -208,7 +209,7 @@ pub fn faults(seed: u64) -> Vec<(Time, FrontFault)> {
 /// A chat made and held by two failed real worker attempts.
 pub fn held_chat(front: &mut Joint) -> u64 {
     let driver = &mut front.engine;
-    driver.hello(Token::new(7));
+    hello_worker(driver);
     driver.settle();
     driver.sign_in();
     driver.settle();
@@ -1489,7 +1490,7 @@ pub fn person_task_tools(seed: u64) -> (Joint, crate::app::Root) {
     let forge = front.engine.forge.take();
     front.engine = Driver::configured(temper_engine_domain_world::store::Store::with_limits(&limits), configs, &limits);
     front.engine.forge = forge;
-    front.engine.hello(QUESTION_WORKER);
+    hello_worker(&mut front.engine);
     front.engine.settle();
     tools_on(front, seed)
 }
@@ -1530,4 +1531,13 @@ fn person_task_configuration(seed: u64) -> engine::Config {
     templates.push(goal);
     config.core.defaults.templates = templates.into_boxed_slice();
     config
+}
+
+fn hello_worker(driver: &mut Driver) {
+    let mut event = temper_engine_domain_world::protocol::hello_slots(QUESTION_WORKER, 1, Box::new([]));
+    if let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    {
+        hello.bounds.message_bytes = driver.env.limits.tasks.message_bytes;
+    }
+    driver.send(event);
 }

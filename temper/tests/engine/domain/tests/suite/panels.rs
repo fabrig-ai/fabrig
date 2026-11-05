@@ -189,3 +189,52 @@ fn a_project_landings_watch_delivers_its_list_after_the_commit_barrier() {
         assert!(list.landings.is_empty());
     }
 }
+
+#[test]
+fn a_project_changes_watch_delivers_its_document_after_the_commit_barrier() {
+    let mut driver = driver();
+    driver.send(root::Event::Forge(Box::new(forge::Event::Delegated {
+        task: CHANGE,
+        child: 73,
+        kind: temper_engine_domain_forge_change::Delegate::Produce,
+    })));
+    watch(&mut driver, 1, forge::changes_subject(1));
+    for _ in 0..8 {
+        driver.advance(false);
+    }
+    assert!(!driver.delivered.iter().any(|delivery| matches!(delivery, root::Delivery::ForgeDocument { .. })));
+    driver.settle();
+    let documents: Vec<_> = driver
+        .delivered
+        .iter()
+        .filter_map(|delivery| {
+            if let root::Delivery::ForgeDocument { watcher, document } = delivery {
+                assert_eq!(*watcher, WATCHER);
+                Some(document.as_ref())
+            } else {
+                None
+            }
+        })
+        .collect();
+    let [forge::Document::Changes(view)] = documents.as_slice() else {
+        panic!("one whole changes document: {documents:?}")
+    };
+    assert_eq!(view.project, 1);
+    assert_eq!(view.landing.as_ref(), b"main");
+    assert!(view.queues.is_empty());
+    assert!(view.landed.is_empty());
+}
+#[test]
+fn a_changes_subject_for_another_project_is_gone() {
+    let mut driver = driver();
+    watch(&mut driver, 1, forge::changes_subject(2));
+    driver.settle();
+    assert!(driver.delivered.iter().any(|delivery| matches!(delivery, root::Delivery::WatchEnded { watcher, why: jig_domain_views::End::Gone } if *watcher == WATCHER)));
+}
+#[test]
+fn a_changes_watch_without_a_project_role_is_refused() {
+    let mut driver = driver();
+    watch(&mut driver, 2, forge::changes_subject(2));
+    driver.settle();
+    assert!(driver.immediate.iter().any(|request| matches!(request, root::Request::Party(root::PartyRequest::WatchRefused { watcher, why: jig_domain_core::WatchRefusal::NotAllowed }) if *watcher == WATCHER)));
+}

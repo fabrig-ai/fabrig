@@ -23,6 +23,16 @@ pub const SETTINGS_PRIMARY: Style = Style { owner: owner(), token: 270 };
 pub const SETTINGS_SMALL: Style = Style { owner: owner(), token: 271 };
 pub const SETTINGS_DETAIL: Style = Style { owner: owner(), token: 272 };
 pub const SETTINGS_END: Style = Style { owner: owner(), token: 273 };
+/// Changes page parts (temper/docs/design/client/README.md, 3.5).
+pub const CHANGES: Style = Style { owner: owner(), token: 180 };
+/// Changes page parts (temper/docs/design/client/README.md, 3.5).
+pub const CHANGES_MORE: Style = Style { owner: owner(), token: 181 };
+/// Changes page parts (temper/docs/design/client/README.md, 3.5).
+pub const CHANGES_MONO: Style = Style { owner: owner(), token: 182 };
+/// Changes page parts (temper/docs/design/client/README.md, 3.5).
+pub const CHANGES_RUNNING: Style = Style { owner: owner(), token: 183 };
+/// Changes page parts (temper/docs/design/client/README.md, 3.5).
+pub const CHANGES_RED: Style = Style { owner: owner(), token: 184 };
 
 /// A configuring chat's status, spend and controls (client/README.md, 3.5).
 pub const SESSION_ACTIONS: Style = Style { owner: owner(), token: 246 };
@@ -692,11 +702,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-rail-new",
         b"temper-rail-foot",
         b"temper-tabbar",
-        b"temper-reserved-180",
-        b"temper-reserved-181",
-        b"temper-reserved-182",
-        b"temper-reserved-183",
-        b"temper-reserved-184",
+        b"temper-changes",
+        b"temper-changes-more",
+        b"temper-changes-mono",
+        b"temper-changes-running",
+        b"temper-changes-red",
         b"temper-reserved-185",
         b"temper-reserved-186",
         b"temper-reserved-187",

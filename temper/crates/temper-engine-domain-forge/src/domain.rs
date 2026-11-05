@@ -206,6 +206,7 @@ pub struct Domain {
     pub(crate) setting_stock: Option<Box<[crate::settings::Stock]>>,
     pub(crate) held_rules: crate::settings::HeldRules,
     pub(crate) held_charters: crate::ForgeCharters,
+    pub(crate) landing_logs: Map<skein_forge::api::Repository, crate::LandingLog>,
     pub(crate) verifications: Map<(skein_forge::api::Repository, skein_forge::api::Commit), crate::Verification>,
     /// Restored timers stay passive until the scripted fresh-read stage (domain/root.md, 9.1).
     restore_phase: RestorePhase,
@@ -666,6 +667,7 @@ impl Domain {
             held_rules: empty_rules(l),
             held_charters: crate::ForgeCharters { change: 0, review: 0 },
             verifications: Map::with_capacity(l.changes),
+            landing_logs: Map::with_capacity(l.repositories),
             restore_phase: RestorePhase::Cold,
             reconciliation: crate::reconcile::Reconciliation::new(l),
             restore_started: None,
@@ -1403,6 +1405,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
             None => {
                 if d.repositories.remove(&repository).is_some() {
+                    crate::landing_log::erased(d, repository, out);
                     emit(out, Request::Erase { key: Key::Repository(repository) });
                     emit(out, Request::MarkedForges);
                 }
@@ -1923,6 +1926,7 @@ fn outcome_facts(
         }
         skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Merged(commit), .. } => {
             let task = crate::landing::merged_owner(d, task, entry);
+            crate::landing_log::landed(d, env.wall, commit, task, out);
             if !d.releases.contains_key(&task) {
                 crate::verification::landed(d, commit, task, out);
                 if let Some(row) = d.changes.get_mut(&task)
@@ -3564,6 +3568,11 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
             | change::Decision::Hold(_)) => {
                 crate::landing::change_advanced(d, &row, &prior, decision, out);
                 d.changes.insert(row.task, row.clone()).expect("replaces change");
+                if landed_commit(&prior.state).is_none()
+                    && let Some(commit) = landed_commit(&row.change.state)
+                {
+                    crate::landing_log::landed(d, env.wall, commit, row.task, out);
+                }
                 if in_queue(&prior.state) && !in_queue(&row.change.state) {
                     wake_queue(d, &row);
                 }
@@ -5688,6 +5697,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Tier(row) => {
             d.tiers.insert((row.repository, row.tier.clone()), row).expect("restored tier within limits");
         }
+        Stored::LandingLog(row) => {
+            d.landing_logs.insert(row.repository, row).expect("restored log within limits");
+        }
         Stored::Verification(row) => {
             d.verifications.insert((row.repository, row.commit), row).expect("restored verification within limits");
         }
@@ -6013,6 +6025,7 @@ pub(crate) fn erase_removed_repositories(d: &mut Domain, forge: u16, out: &mut Q
     }
     for repository in erased.into_boxed() {
         d.repositories.remove(&repository);
+        crate::landing_log::erased(d, repository, out);
         emit(out, Request::Erase { key: Key::Repository(repository) });
         emit(out, Request::Erase { key: Key::Client(skein_forge_client::Key::Repository(repository)) });
     }
@@ -6070,10 +6083,17 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
 pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: ChangeRow) {
     retain_terminal_ci(d, &mut row);
     let task = row.task;
-    let tasks = match row.change.landing {
-        Some(landing) => Box::from([task, landing]),
-        None => Box::from([task]),
-    };
+    let mut tasks = List::with_capacity(crate::MARKED);
+    tasks.push(task).expect("own subject");
+    if let Some(landing) = row.change.landing {
+        tasks.push(landing).expect("member landing subject");
+    }
+    if (row.change.owns_turn || row.base_repair)
+        && let Some(subject) = crate::views::changes_mark(d, row.repository)
+    {
+        tasks.push(subject).expect("project changes subject");
+    }
+    let tasks = tasks.into_boxed();
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(row) });
     emit(out, Request::Marked { tasks });
 }
@@ -6114,6 +6134,9 @@ fn save_queue_change(
     tasks.push(row.task).expect("own subject");
     if let Some(landing) = row.change.landing {
         tasks.push(landing).expect("member landing subject");
+    }
+    if let Some(subject) = crate::views::changes_mark(d, row.repository) {
+        tasks.push(subject).expect("project changes subject");
     }
     let mut previous = None;
     while tasks.room() > 0 {
@@ -6353,6 +6376,13 @@ impl Domain {
                         }
                     {
                         return Key::Tier { repository: *repository, tier: tier.clone() };
+                    }
+                }
+            }
+            RecordKind::LandingLog => {
+                for (repository, _) in &self.landing_logs {
+                    if need.repository(*repository) {
+                        return Key::LandingLog { repository: *repository };
                     }
                 }
             }
