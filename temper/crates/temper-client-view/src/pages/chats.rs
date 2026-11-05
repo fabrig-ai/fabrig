@@ -438,3 +438,35 @@ pub(crate) fn status_words(
     };
     (token, name)
 }
+
+/// Working dots follow the bar's status and yield to provisional text (client/README.md, 3.5).
+pub(crate) fn working(root: &Domain, words: &Words, thread: &jig_client::thread::Thread) -> bool {
+    let Some(chat) = root.pages().chat() else { return false };
+    let Some(task) = chat.task(root.client()) else { return false };
+    let Some(me) = root.pages().me(root.client()) else { return false };
+    if task.result.is_some() {
+        return false;
+    }
+    let (token, _) = status_words(
+        &task.chip,
+        (&task.waits_on, Some(chat.waiting_delegates(root.client())), task.run_wait.as_ref()),
+        (task.project, task.requester),
+        Some(&task.wake),
+        me,
+        words,
+    );
+    if token != crate::look::STATUS_ACTIVE {
+        return false;
+    }
+    match thread.lines().into_boxed().last() {
+        Some(jig_client::thread::Line::Provisional { .. }) => false,
+        Some(
+            jig_client::thread::Line::Activity { .. }
+            | jig_client::thread::Line::Words { .. }
+            | jig_client::thread::Line::Turn { .. }
+            | jig_client::thread::Line::Undecoded { .. }
+            | jig_client::thread::Line::Left { .. },
+        )
+        | None => true,
+    }
+}

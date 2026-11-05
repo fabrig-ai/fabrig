@@ -8,6 +8,10 @@ pub struct Limits {
 }
 impl Limits {
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the view envelope keeps each bounded page contribution in one derivation"
+    )]
     pub fn of(domain: &temper_client_domain::Limits, words: &Words) -> Option<Limits> {
         let receiving = &domain.client.domain;
         let text = words
@@ -144,6 +148,8 @@ impl Limits {
             // Chats adds its intro (seven nodes), section head and repository tag
             // above the filters and empty words; rows retain borrowed lines and scalar keys.
             .checked_add(16)?
+            // A chat log holds its inner column and the working indicator with three dots.
+            .checked_add(5)?
             // Start a chat heading and its text outside the playground start (2), and
             // a failed playground start's alert, its text leaf and Try again (3).
             .checked_add(5)?

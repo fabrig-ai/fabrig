@@ -342,13 +342,18 @@ fn last_turn(view: &crate::View) -> &[skein_ui::Node] {
             continue;
         }
         let end = index.checked_add(usize::try_from(node.size).expect("log size")).expect("log end");
-        let mut child = index.checked_add(1).expect("first child");
-        let mut last = child;
+        let inner = index.checked_add(1).expect("inner column");
+        assert_eq!(nodes[inner].styles.as_slice(), [look::THREAD_INNER]);
+        let mut child = inner.checked_add(1).expect("first child");
+        let mut last = None;
         while child < end {
-            assert_eq!(nodes[child].role, Role::Region);
-            last = child;
-            child = child.checked_add(usize::try_from(nodes[child].size).expect("turn size")).expect("next turn");
+            if nodes[child].styles.as_slice().contains(&look::TURN) {
+                last = Some(child);
+            }
+            child = child.checked_add(usize::try_from(nodes[child].size).expect("child size")).expect("next child");
         }
+        let last = last.expect("last turn");
+        let end = last.checked_add(usize::try_from(nodes[last].size).expect("turn size")).expect("turn end");
         return &nodes[last..end];
     }
     panic!("conversation log absent");

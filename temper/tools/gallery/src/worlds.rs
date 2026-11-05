@@ -2544,6 +2544,7 @@ fn accounts(w: World, then: Then) -> c::Accounts {
                 end: c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { provider: 18 } },
             }),
             Then::Shown
+            | Then::Working
             | Then::Filled
             | Then::Refused
             | Then::SignedOut
@@ -2875,6 +2876,11 @@ fn activity_window(w: World, task: u64, before: Option<&c::Cursor>) -> c::Activi
 }
 fn shown_task(w: World, task: u64, then: Then) -> c::Task {
     let mut t = document(w, task);
+    if then == Then::Working {
+        let (phase, _) = owner(&mut t.chip);
+        *phase = c::ChipPhase::Active(c::RunStage::Due);
+        t.waits_on = c::WaitsOn::Nothing;
+    }
     if then == Then::Held || then == Then::Releasing {
         t.goal = Some(task);
         t.flags.conversation = false;
