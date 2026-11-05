@@ -213,6 +213,43 @@ fn the_agent_runs_as_temper_agent_with_no_credential_in_its_environment() {
 }
 
 #[test]
+fn a_dump_directory_reaches_the_agent_as_its_one_variable() {
+    let mut service = fixtures::system::one_process().service;
+    service.worker = Some(fixtures::started_worker().worker);
+    service.dump_llm(b"/request-dumps");
+    let worker = service.worker.as_mut().expect("one worker");
+    worker.link(fixtures::NOW, fixtures::chat_assignment());
+    let (_, launched) = fixtures::spawn(worker);
+    assert_eq!(launched.program.as_ref(), fixtures::TEMPER);
+    assert_eq!(
+        launched.args.as_ref(),
+        [Box::from(&b"internal"[..]), Box::from(&b"agent"[..]), Box::from(fixtures::AGENT_JSON)]
+    );
+    assert_eq!(launched.root, io::kernel::Fd::new(9));
+    assert_eq!(launched.env.as_ref(), [Box::from(b"TEMPER_DUMP_LLM=/request-dumps".as_slice())]);
+}
+
+#[test]
+fn a_dump_directory_on_an_engine_alone_does_nothing() {
+    let mut service = crate::startup::with_setup(
+        &fixtures::engine_alone_document(),
+        &jig_protocol_config::Directories::working(),
+        &fixtures::files(),
+        None,
+        &fixtures::seeds(),
+        None,
+        None,
+        fixtures::forge_runtime(),
+        None,
+        None,
+    )
+    .expect("an engine alone starts");
+    assert!(service.worker_domain().is_none());
+    service.dump_llm(b"/request-dumps");
+    assert!(service.worker_domain().is_none());
+}
+
+#[test]
 fn a_worker_s_secret_is_read_and_checked_at_its_path() {
     use jig_protocol_config::{Path, Problem, Segment, What};
     let empty = crate::settings::Files { entries: skein_lib::List::with_capacity(0) };

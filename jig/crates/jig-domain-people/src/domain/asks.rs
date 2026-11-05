@@ -1,17 +1,9 @@
 //! Request shape and payload validation (domain/people.md, 5.1).
-use crate::{ApplicationScope, Ask, AskFamily, LimitKind, Limits, Refusal, Seen};
+use crate::{Ask, LimitKind, Limits, Refusal, Seen};
 use alloc::boxed::Box;
 
 pub(super) fn project(ask: &Ask) -> u32 {
-    match ask.family() {
-        AskFamily::Project(project) | AskFamily::Application(ApplicationScope::Project(project)) => project,
-        AskFamily::Application(ApplicationScope::Own | ApplicationScope::Deployment)
-        | AskFamily::Restore
-        | AskFamily::Deployment
-        | AskFamily::Account
-        | AskFamily::Lift
-        | AskFamily::Seen => crate::DEPLOYMENT,
-    }
+    ask.family().named_project().unwrap_or(crate::DEPLOYMENT)
 }
 
 pub(super) fn valid_adoption(limits: &Limits, adoption: &crate::Adoption) -> bool {
@@ -295,8 +287,8 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
 #[cfg(test)]
 mod classifications {
     use super::*;
-    use crate::tests::{AskClass, LIMITS, ask_classes};
-    use crate::{Domain, Holding, Identity, IdentityKey, Outcome, RequestKey, Role};
+    use crate::tests::{LIMITS, ask_classes};
+    use crate::{ApplicationScope, AskFamily, Domain, Holding, Identity, IdentityKey, Outcome, RequestKey, Role};
     use skein_lib::{Env, List, Queue, Time, Wall};
 
     #[test]
@@ -304,16 +296,16 @@ mod classifications {
         for (ask, family) in ask_classes() {
             assert_eq!(ask.family(), family, "{ask:?}");
             let (scope, capacity, deletion, reserved) = match family {
-                AskClass::Project(project) | AskClass::Application(ApplicationScope::Project(project)) => {
+                AskFamily::Project(project) | AskFamily::Application(ApplicationScope::Project(project)) => {
                     (project, Some(project), Some(project), true)
                 }
-                AskClass::Restore | AskClass::Deployment | AskClass::Application(ApplicationScope::Deployment) => {
+                AskFamily::Restore | AskFamily::Deployment | AskFamily::Application(ApplicationScope::Deployment) => {
                     (crate::DEPLOYMENT, Some(crate::DEPLOYMENT), None, true)
                 }
-                AskClass::Application(ApplicationScope::Own) | AskClass::Account | AskClass::Lift => {
+                AskFamily::Application(ApplicationScope::Own) | AskFamily::Account | AskFamily::Lift => {
                     (0, None, None, true)
                 }
-                AskClass::Seen => (0, None, None, false),
+                AskFamily::Seen => (0, None, None, false),
             };
             assert_eq!(project(&ask), scope, "{ask:?}");
             assert_eq!(crate::capacity::project(&ask), capacity, "{ask:?}");

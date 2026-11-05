@@ -232,7 +232,7 @@ mod tests;
 mod classifications {
     use super::*;
     use crate::Reply;
-    use crate::tests::{OutcomeClass, outcome_classes};
+    use crate::tests::outcome_classes;
 
     #[test]
     fn outcome_classes_keep_status_retention_reply_and_capacity() {
@@ -241,15 +241,15 @@ mod classifications {
             assert_eq!(outcome.refusal(), refusal.as_ref(), "{outcome:?}");
             assert_eq!(outcome.act_status(), status, "{outcome:?}");
             let (kept, reply) = match family {
-                OutcomeClass::Again(why) => (false, Reply::Again(why)),
-                OutcomeClass::SignedOut => (false, Reply::SignedOut),
-                OutcomeClass::Compound
-                | OutcomeClass::Refused
-                | OutcomeClass::CompoundRefused
-                | OutcomeClass::ServiceMade(_)
-                | OutcomeClass::RolesSet(_)
-                | OutcomeClass::ProjectMade(_)
-                | OutcomeClass::Settled => (true, Reply::Outcome(outcome.clone())),
+                OutcomeFamily::Again(why) => (false, Reply::Again(why)),
+                OutcomeFamily::SignedOut => (false, Reply::SignedOut),
+                OutcomeFamily::Compound
+                | OutcomeFamily::Refused
+                | OutcomeFamily::CompoundRefused
+                | OutcomeFamily::ServiceMade(_)
+                | OutcomeFamily::RolesSet(_)
+                | OutcomeFamily::ProjectMade(_)
+                | OutcomeFamily::Settled => (true, Reply::Outcome(outcome.clone())),
             };
             assert_eq!(permanent(&outcome), kept, "{outcome:?}");
             assert_eq!(super::super::requests::outcome_reply(outcome.clone()), reply, "{outcome:?}");
@@ -260,15 +260,15 @@ mod classifications {
             };
             assert_eq!(crate::capacity::permanent(&outcome), capacity, "{outcome:?}");
             let made = match family {
-                OutcomeClass::ProjectMade(project) => Some(project),
-                OutcomeClass::Again(_)
-                | OutcomeClass::SignedOut
-                | OutcomeClass::Compound
-                | OutcomeClass::Refused
-                | OutcomeClass::CompoundRefused
-                | OutcomeClass::ServiceMade(_)
-                | OutcomeClass::RolesSet(_)
-                | OutcomeClass::Settled => None,
+                OutcomeFamily::ProjectMade(project) => Some(project),
+                OutcomeFamily::Again(_)
+                | OutcomeFamily::SignedOut
+                | OutcomeFamily::Compound
+                | OutcomeFamily::Refused
+                | OutcomeFamily::CompoundRefused
+                | OutcomeFamily::ServiceMade(_)
+                | OutcomeFamily::RolesSet(_)
+                | OutcomeFamily::Settled => None,
             };
             assert_eq!(super::super::deletion::made_project(&outcome), made, "{outcome:?}");
         }

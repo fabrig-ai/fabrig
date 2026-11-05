@@ -106,33 +106,7 @@ fn every_act_keeps_its_decision_admission() {
     );
     let no = Err(people::Refusal::NotOffered);
     let further = Err(people::Refusal::NoFurther);
-    for (act, decision, task, party, escalation, settings) in [
-        (Act::RemoveProject, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::Message, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::Answer, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::Take, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::HandBack, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::Accept, Some(Decision::Accept), Ok(()), Ok(()), no.clone(), Ok(())),
-        (Act::Reject, Some(Decision::Reject), Ok(()), Ok(()), no.clone(), Ok(())),
-        (Act::PassUp, Some(Decision::PassUp), Ok(()), further, Ok(()), Err(people::Refusal::NoFurther)),
-        (Act::Release, Some(Decision::Release), no.clone(), no.clone(), Ok(()), no.clone()),
-        (Act::LeaveHeld, Some(Decision::LeaveHeld), no.clone(), no.clone(), Ok(()), no.clone()),
-        (Act::Amend, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::Stop, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::Cancel, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::Move, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::Reorder, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::Seen, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::EditNote, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::DeleteNote, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::Adopt, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::ChangePolicy, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::Rename, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::SetRoles, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::MakeService, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::SetPool, None, no.clone(), no.clone(), no.clone(), no.clone()),
-        (Act::Withdraw, None, Err(people::Refusal::NotOffered), Ok(()), Err(people::Refusal::NotOffered), no.clone()),
-    ] {
+    let check = |act: Act, decision, task, party: Result<(), people::Refusal>, escalation, settings| {
         assert_eq!(act.decision(), decision, "{act:?}");
         assert_eq!(
             crate::acts::proposal(&core, &limits, 1, act, Proposer::Task(TASK), PROPOSAL, Wall::EPOCH),
@@ -155,5 +129,38 @@ fn every_act_keeps_its_decision_admission() {
             "party settings {act:?}"
         );
         assert_eq!(crate::acts::escalation(&core, &limits, 1, act, HELD), escalation, "{act:?}");
+    };
+    for act in [
+        Act::RemoveProject,
+        Act::Message,
+        Act::Answer,
+        Act::Take,
+        Act::HandBack,
+        Act::Amend,
+        Act::Stop,
+        Act::Cancel,
+        Act::Move,
+        Act::Reorder,
+        Act::Seen,
+        Act::EditNote,
+        Act::DeleteNote,
+        Act::Adopt,
+        Act::ChangePolicy,
+        Act::Rename,
+        Act::SetRoles,
+        Act::MakeService,
+        Act::SetPool,
+    ] {
+        check(act, None, no.clone(), no.clone(), no.clone(), no.clone());
+    }
+    for (act, decision, task, party, escalation, settings) in [
+        (Act::Accept, Some(Decision::Accept), Ok(()), Ok(()), no.clone(), Ok(())),
+        (Act::Reject, Some(Decision::Reject), Ok(()), Ok(()), no.clone(), Ok(())),
+        (Act::PassUp, Some(Decision::PassUp), Ok(()), further, Ok(()), Err(people::Refusal::NoFurther)),
+        (Act::Release, Some(Decision::Release), no.clone(), no.clone(), Ok(()), no.clone()),
+        (Act::LeaveHeld, Some(Decision::LeaveHeld), no.clone(), no.clone(), Ok(()), no.clone()),
+        (Act::Withdraw, None, Err(people::Refusal::NotOffered), Ok(()), Err(people::Refusal::NotOffered), no.clone()),
+    ] {
+        check(act, decision, task, party, escalation, settings);
     }
 }

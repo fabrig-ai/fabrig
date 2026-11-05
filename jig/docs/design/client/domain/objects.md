@@ -116,7 +116,7 @@ and its mandatory details together.
 | active, kept by its dependencies | kept until T7, T8 are done: each a chip, with its phase, and who added it and when ("kept until T7 is done, added by P at 10:42"); a run still live is shown as running is, and then that it parked (`../../domain/tasks.md`, 5.7) |
 | due, preparing, claimed | starting |
 | running | running: writing, or a tool (which, when its host names it), on its host's last report (`../../domain/hosts.md`, 6.5), and working otherwise; its attempt, for how long |
-| backing off | retrying at a time, and why: "host lost, try 2 of 3"; from a brief that failed, its reason too: "try 2 of 3: pull: the forge's answer did not match its read" (`../../domain/engine.md`, 9.1) |
+| backing off | retrying at a time, and why: "host lost, try 2 of 3"; from a brief that failed, its reason too, after the count: "try 2 of 3. Why: pull: the forge's answer did not match its read" (`../../domain/engine.md`, 9.1) |
 | active, a procedure | its connector's words, a part: "waiting for checkout to be healthy" |
 | active, a party | waiting for an answer from P, or from the person on call, since when |
 | closing | closing, and what it waits for: its delegates still closing, and each connector it waits on, by name: "closing: 2 delegates, and infrastructure's effects" |

@@ -11,6 +11,7 @@ use crate::redirect::{form_fields, issued_id, missing_scopes, resource_field, va
 use crate::{ClaimSelector, DecodeError, Failure, Json, Limits, OAuthError, RefreshState, SavedToken, TokenResponse};
 use crate::{classify, decode_error, decode_response, rotate};
 use alloc::boxed::Box;
+use core::mem;
 use skein_json::writer::Encoder;
 use skein_lib::{Duration, Queue, Secret, Time, Wall, bytes, usize_of};
 
@@ -183,14 +184,29 @@ pub enum Request {
     Failed { failure: Failure },
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+/// The exchange belongs to its lifecycle state (programming-model.md, 5.4).
 enum Phase {
     Idle,
-    AwaitRedirect,
-    AwaitKeys { id: u64, deadline: Time },
-    AwaitHttp { id: u64, deadline: Time },
-    Backoff { due: Time },
+    AwaitRedirect { exchange: Exchange },
+    AwaitKeys { exchange: Exchange, id: u64, deadline: Time },
+    AwaitHttp { exchange: Exchange, id: u64, deadline: Time },
+    Backoff { exchange: Exchange, due: Time },
     Done,
+}
+
+enum Awaits {
+    Redirect,
+    Keys { id: u64, deadline: Time },
+    Http { id: u64, deadline: Time },
+}
+impl Awaits {
+    fn hold(self, exchange: Exchange) -> Phase {
+        match self {
+            Awaits::Redirect => Phase::AwaitRedirect { exchange },
+            Awaits::Keys { id, deadline } => Phase::AwaitKeys { exchange, id, deadline },
+            Awaits::Http { id, deadline } => Phase::AwaitHttp { exchange, id, deadline },
+        }
+    }
 }
 
 struct SignInValues {
@@ -229,7 +245,6 @@ struct Exchange {
 pub struct Client {
     limits: ClientLimits,
     phase: Phase,
-    active: Option<Exchange>,
     next_id: u64,
 }
 
@@ -238,28 +253,36 @@ impl Client {
         if !client_valid(&limits) {
             return Err(Failure::Limit);
         }
-        Ok(Client { limits, phase: Phase::Idle, active: None, next_id: 1 })
+        Ok(Client { limits, phase: Phase::Idle, next_id: 1 })
     }
 
     #[must_use]
     pub fn is_done(&self) -> bool {
-        self.phase == Phase::Done
+        match &self.phase {
+            Phase::Done => true,
+            Phase::Idle
+            | Phase::AwaitRedirect { .. }
+            | Phase::AwaitKeys { .. }
+            | Phase::AwaitHttp { .. }
+            | Phase::Backoff { .. } => false,
+        }
     }
 
     /// The next time the caller must send `Tick`, or none while idle or done.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        match self.phase {
+        match &self.phase {
             Phase::Idle | Phase::Done => None,
-            Phase::AwaitRedirect => Some(self.active.as_ref()?.deadline),
-            Phase::AwaitHttp { deadline, .. } | Phase::AwaitKeys { deadline, .. } => Some(deadline),
-            Phase::Backoff { due } => Some(due),
+            Phase::AwaitRedirect { exchange } => Some(exchange.deadline),
+            Phase::AwaitHttp { deadline, .. } | Phase::AwaitKeys { deadline, .. } => Some(*deadline),
+            Phase::Backoff { due, .. } => Some(*due),
         }
     }
 
     pub fn step(&mut self, event: Event, out: &mut Queue<Request>) {
         assert!(out.is_empty(), "the caller dispatches an entrance's output before the next");
-        match event {
+        let phase = mem::replace(&mut self.phase, Phase::Done);
+        self.phase = match event {
             Event::SignIn {
                 registration,
                 key,
@@ -272,70 +295,96 @@ impl Client {
                 id_token,
                 subject,
                 now,
-            } => {
-                if self.phase != Phase::Idle {
-                    out.push(Request::Failed { failure: Failure::Limit });
-                    return;
+            } => match phase {
+                Phase::Idle => {
+                    let result = self.sign_in(
+                        registration,
+                        SignInValues {
+                            key,
+                            generation,
+                            state,
+                            verifier,
+                            nonce,
+                            port,
+                            issued_client_id,
+                            id_token,
+                            subject,
+                            now,
+                        },
+                    );
+                    Self::emit_start(result, out)
                 }
-                let result = self.sign_in(
-                    registration,
-                    SignInValues {
-                        key,
-                        generation,
-                        state,
-                        verifier,
-                        nonce,
-                        port,
-                        issued_client_id,
-                        id_token,
-                        subject,
-                        now,
-                    },
-                );
-                self.emit_start(result, out);
-            }
-            Event::Refresh { registration, prior, now } => {
-                if self.phase != Phase::Idle {
+                phase @ (Phase::AwaitKeys { .. }
+                | Phase::AwaitRedirect { .. }
+                | Phase::AwaitHttp { .. }
+                | Phase::Backoff { .. }
+                | Phase::Done) => {
                     out.push(Request::Failed { failure: Failure::Limit });
-                    return;
+                    phase
                 }
-                let result = self.refresh(registration, prior, now);
-                self.emit_start(result, out);
-            }
-            Event::Revoke { registration, prior, now } => {
-                if self.phase == Phase::Idle {
-                    self.revoke(registration, prior, now, out);
-                } else {
+            },
+            Event::Refresh { registration, prior, now } => match phase {
+                Phase::Idle => {
+                    let result = self.refresh(registration, prior, now);
+                    Self::emit_start(result, out)
+                }
+                phase @ (Phase::AwaitKeys { .. }
+                | Phase::AwaitRedirect { .. }
+                | Phase::AwaitHttp { .. }
+                | Phase::Backoff { .. }
+                | Phase::Done) => {
+                    out.push(Request::Failed { failure: Failure::Limit });
+                    phase
+                }
+            },
+            Event::Revoke { registration, prior, now } => match phase {
+                Phase::Idle => self.revoke(registration, prior, now, out),
+                phase @ (Phase::AwaitKeys { .. }
+                | Phase::AwaitRedirect { .. }
+                | Phase::AwaitHttp { .. }
+                | Phase::Backoff { .. }
+                | Phase::Done) => {
                     out.push(Request::Revoked { confirmed: false });
+                    phase
                 }
-            }
-            Event::Redirected { uri, state, code, error, client_id, now } => {
-                self.redirected(Redirect { uri, state, code, error, client_id }, now, out);
-            }
-            Event::Http(answer) => self.http(answer, out),
-            Event::Tick { now } => self.tick(now, out),
-            Event::Cancel => {
-                if self.phase != Phase::Idle && self.phase != Phase::Done {
-                    self.finish(Failure::Cancelled, out);
+            },
+            Event::Redirected { uri, state, code, error, client_id, now } => match phase {
+                Phase::AwaitRedirect { exchange } => {
+                    self.redirected(exchange, Redirect { uri, state, code, error, client_id }, now, out)
                 }
-            }
-            Event::Reset => {
-                if self.phase == Phase::Done {
-                    self.active = None;
-                    self.phase = Phase::Idle;
-                }
-            }
-        }
+                phase @ (Phase::Idle
+                | Phase::AwaitKeys { .. }
+                | Phase::AwaitHttp { .. }
+                | Phase::Backoff { .. }
+                | Phase::Done) => phase,
+            },
+            Event::Http(answer) => self.http(phase, answer, out),
+            Event::Tick { now } => self.tick(phase, now, out),
+            Event::Cancel => match phase {
+                Phase::AwaitKeys { .. }
+                | Phase::AwaitRedirect { .. }
+                | Phase::AwaitHttp { .. }
+                | Phase::Backoff { .. } => Self::finish(Failure::Cancelled, out),
+                phase @ (Phase::Idle | Phase::Done) => phase,
+            },
+            Event::Reset => match phase {
+                Phase::Done => Phase::Idle,
+                phase @ (Phase::Idle
+                | Phase::AwaitKeys { .. }
+                | Phase::AwaitRedirect { .. }
+                | Phase::AwaitHttp { .. }
+                | Phase::Backoff { .. }) => phase,
+            },
+        };
     }
 
-    fn emit_start(&mut self, result: Result<(Exchange, Request, Phase), Failure>, out: &mut Queue<Request>) {
+    fn emit_start(result: Result<(Exchange, Request, Awaits), Failure>, out: &mut Queue<Request>) -> Phase {
         match result {
-            Ok((exchange, request, phase)) => {
-                self.active = Some(exchange);
-                self.phase = phase;
+            Ok((exchange, request, awaits)) => {
                 out.push(request);
+                awaits.hold(exchange)
             }
-            Err(failure) => self.finish(failure, out),
+            Err(failure) => Self::finish(failure, out),
         }
     }
 
@@ -344,7 +393,7 @@ impl Client {
         mut registration: Registration,
         prior: RefreshState,
         now: Time,
-    ) -> Result<(Exchange, Request, Phase), Failure> {
+    ) -> Result<(Exchange, Request, Awaits), Failure> {
         validate_registration(&registration, &self.limits, false)?;
         if prior.refresh_token.is_empty() || prior.refresh_token.len() > usize_of(self.limits.document.token_bytes) {
             return Err(Failure::Limit);
@@ -379,19 +428,19 @@ impl Client {
     /// Whether `Redirected` would take this redirect at `now`; changes nothing (oauth.md, section 3).
     #[must_use = "the caller must judge admission before taking a redirect"]
     pub fn admits(&self, redirect: &Redirect, now: Time) -> Result<(), Inadmissible> {
-        match self.check_redirect(redirect, now) {
+        let exchange = match &self.phase {
+            Phase::AwaitRedirect { exchange } => exchange,
+            Phase::Idle | Phase::AwaitKeys { .. } | Phase::AwaitHttp { .. } | Phase::Backoff { .. } | Phase::Done => {
+                return Err(Inadmissible::NotWaiting);
+            }
+        };
+        match Self::check_redirect(exchange, redirect, now) {
             Ok(()) => Ok(()),
             Err((why, _failure)) => Err(why),
         }
     }
 
-    fn check_redirect(&self, redirect: &Redirect, now: Time) -> Result<(), (Inadmissible, Failure)> {
-        if self.phase != Phase::AwaitRedirect {
-            return Err((Inadmissible::NotWaiting, Failure::InvalidRedirect));
-        }
-        let Some(exchange) = &self.active else {
-            return Err((Inadmissible::NotWaiting, Failure::Malformed));
-        };
+    fn check_redirect(exchange: &Exchange, redirect: &Redirect, now: Time) -> Result<(), (Inadmissible, Failure)> {
         if now >= exchange.deadline {
             return Err((Inadmissible::NotWaiting, Failure::InvalidRedirect));
         }
@@ -412,101 +461,89 @@ impl Client {
         Ok(())
     }
 
-    fn redirected(&mut self, redirect: Redirect, now: Time, out: &mut Queue<Request>) {
-        if self.phase != Phase::AwaitRedirect {
-            return;
+    fn redirected(&mut self, mut exchange: Exchange, redirect: Redirect, now: Time, out: &mut Queue<Request>) -> Phase {
+        if let Err((_why, failure)) = Self::check_redirect(&exchange, &redirect, now) {
+            return Self::finish(failure, out);
         }
-        if let Err((_why, failure)) = self.check_redirect(&redirect, now) {
-            self.finish(failure, out);
-            return;
-        }
-        let mut exchange = self.active.take().expect("admitted redirect's exchange");
         if present(redirect.error.as_deref()).is_some() {
-            self.finish(Failure::Refused, out);
-            return;
+            return Self::finish(Failure::Refused, out);
         }
         let code = redirect.code.expect("admitted redirect's code");
         let client_id = redirect.client_id;
         if code.len() > usize_of(self.limits.code_bytes) {
-            self.finish(Failure::Limit, out);
-            return;
+            return Self::finish(Failure::Limit, out);
         }
         if issued_id(&exchange.registration) {
             let client_id = client_id.expect("admitted redirect's issued client id");
             if client_id.len() > usize_of(self.limits.document.issued_client_bytes) {
-                self.finish(Failure::Limit, out);
-                return;
+                return Self::finish(Failure::Limit, out);
             }
             exchange.registration.client_id = client_id;
         }
         match &mut exchange.grant {
             Grant::SignIn { code: slot, .. } => *slot = Some(code),
             Grant::Refresh { .. } | Grant::Revoke { .. } => {
-                self.finish(Failure::Malformed, out);
-                return;
+                return Self::finish(Failure::Malformed, out);
             }
         }
         match self.http_request(&mut exchange, now) {
             Ok((request, phase)) => {
-                self.phase = phase;
-                self.active = Some(exchange);
                 out.push(Request::Http(request));
+                phase.hold(exchange)
             }
-            Err(failure) => self.finish(failure, out),
+            Err(failure) => Self::finish(failure, out),
         }
     }
 
-    fn http(&mut self, answer: HttpResponse, out: &mut Queue<Request>) {
-        let (id, deadline) = match self.phase {
-            Phase::AwaitKeys { id, deadline } => {
+    fn http(&mut self, phase: Phase, answer: HttpResponse, out: &mut Queue<Request>) -> Phase {
+        match phase {
+            Phase::AwaitKeys { exchange, id, deadline } => {
                 if answer.id == id {
-                    self.keys_answer(answer, deadline, out);
+                    self.keys_answer(exchange, answer, deadline, out)
+                } else {
+                    Phase::AwaitKeys { exchange, id, deadline }
                 }
-                return;
             }
-            Phase::AwaitHttp { id, deadline } => (id, deadline),
-            Phase::Idle | Phase::AwaitRedirect | Phase::Backoff { .. } | Phase::Done => return,
-        };
-        if answer.id != id {
-            return;
+            Phase::AwaitHttp { exchange, id, deadline } => {
+                if answer.id == id {
+                    self.answer(exchange, answer, deadline, out)
+                } else {
+                    Phase::AwaitHttp { exchange, id, deadline }
+                }
+            }
+            phase @ (Phase::Idle | Phase::AwaitRedirect { .. } | Phase::Backoff { .. } | Phase::Done) => phase,
         }
-        let Some(exchange) = self.active.take() else {
-            self.finish(Failure::Malformed, out);
-            return;
-        };
+    }
+
+    fn answer(&mut self, exchange: Exchange, answer: HttpResponse, deadline: Time, out: &mut Queue<Request>) -> Phase {
         if exchange.revoking() {
-            self.revocation_answer(exchange, answer, deadline, out);
-            return;
+            return self.revocation_answer(exchange, answer, deadline, out);
         }
         if answer.now >= deadline || answer.now >= exchange.deadline {
-            self.finish(Failure::TimedOut, out);
-            return;
+            return Self::finish(Failure::TimedOut, out);
         }
         if answer.evidence == HttpEvidence::Unsent {
-            self.retry_or_fail(exchange, Failure::Unavailable, answer.now, answer.retry_after, true, out);
-            return;
+            return self.retry_or_fail(exchange, Failure::Unavailable, answer.now, answer.retry_after, true, out);
         }
         if answer.body.len() > usize_of(self.limits.document.document_bytes) {
-            self.finish(Failure::Limit, out);
-            return;
+            return Self::finish(Failure::Limit, out);
         }
         if (200..300).contains(&answer.status) {
             let response = match Json::from_bytes(&answer.body, &self.limits.document) {
                 Ok(value) => decode_response(&value, &self.limits.document),
                 Err(error) => Err(error),
             };
-            match response {
+            return match response {
                 Ok(tokens) => match self.record(&exchange, &tokens, answer.wall) {
                     Ok(record) => {
-                        self.phase = Phase::Done;
                         let missing = missing_scopes(&exchange.registration, &record);
                         out.push(Request::Tokens { record, missing });
+                        Phase::Done
                     }
-                    Err(failure) => self.finish(failure, out),
+                    Err(failure) => Self::finish(failure, out),
                 },
-                Err(error) => self.finish(admit(error), out),
-            }
-            return;
+                Err(error) => Self::finish(admit(error), out),
+            };
         }
         let error: Result<Option<OAuthError>, DecodeError> = if answer.body.is_empty() {
             Ok(None)
@@ -534,7 +571,7 @@ impl Client {
             Err(_) => Failure::Malformed,
         };
         let safe = answer.status == 429 && answer.evidence == HttpEvidence::Response;
-        self.retry_or_fail(exchange, failure, answer.now, answer.retry_after, safe, out);
+        self.retry_or_fail(exchange, failure, answer.now, answer.retry_after, safe, out)
     }
 
     fn record(&self, exchange: &Exchange, response: &TokenResponse, wall: Wall) -> Result<SavedToken, Failure> {
@@ -596,7 +633,7 @@ impl Client {
         retry_after: Duration,
         safe: bool,
         out: &mut Queue<Request>,
-    ) {
+    ) -> Phase {
         let transient = match failure {
             Failure::Unavailable | Failure::TimedOut | Failure::RateLimited { .. } => true,
             Failure::Refused
@@ -616,65 +653,64 @@ impl Client {
             if let Some(due) = now.checked_add(delay)
                 && due < exchange.deadline
             {
-                self.phase = Phase::Backoff { due };
-                self.active = Some(exchange);
-                return;
+                return Phase::Backoff { exchange, due };
             }
         }
         if exchange.revoking() {
-            self.revoked(false, out);
+            Self::revoked(false, out)
         } else {
-            self.finish(if exchange.fetch.is_some() { fetch::failure() } else { failure }, out);
+            Self::finish(if exchange.fetch.is_some() { fetch::failure() } else { failure }, out)
         }
     }
 
-    fn tick(&mut self, now: Time, out: &mut Queue<Request>) {
-        match self.phase {
-            Phase::AwaitRedirect => {
-                if let Some(value) = &self.active
-                    && now >= value.deadline
-                {
-                    self.finish(Failure::TimedOut, out);
+    fn tick(&mut self, phase: Phase, now: Time, out: &mut Queue<Request>) -> Phase {
+        match phase {
+            Phase::AwaitRedirect { exchange } => {
+                if now >= exchange.deadline {
+                    Self::finish(Failure::TimedOut, out)
+                } else {
+                    Phase::AwaitRedirect { exchange }
                 }
             }
-            Phase::AwaitKeys { deadline, .. } => {
+            Phase::AwaitKeys { exchange, id, deadline } => {
                 if now >= deadline {
-                    self.keys_timeout(now, out);
+                    self.retry_or_fail(exchange, Failure::TimedOut, now, Duration::ZERO, true, out)
+                } else {
+                    Phase::AwaitKeys { exchange, id, deadline }
                 }
             }
-            Phase::AwaitHttp { deadline, .. } => {
-                if now >= deadline {
-                    self.finish(Failure::TimedOut, out);
+            Phase::AwaitHttp { exchange, id, deadline } => {
+                if now < deadline {
+                    Phase::AwaitHttp { exchange, id, deadline }
+                } else if exchange.revoking() {
+                    Self::revoked(false, out)
+                } else {
+                    Self::finish(Failure::TimedOut, out)
                 }
             }
-            Phase::Backoff { due } => {
+            Phase::Backoff { mut exchange, due } => {
                 if now < due {
-                    return;
+                    return Phase::Backoff { exchange, due };
                 }
-                let Some(mut exchange) = self.active.take() else {
-                    self.finish(Failure::Malformed, out);
-                    return;
-                };
                 match self.http_request(&mut exchange, now) {
-                    Ok((request, phase)) => {
-                        self.phase = phase;
-                        self.active = Some(exchange);
+                    Ok((request, awaits)) => {
                         out.push(Request::Http(request));
+                        awaits.hold(exchange)
                     }
                     Err(failure) => {
                         if exchange.revoking() {
-                            self.revoked(false, out);
+                            Self::revoked(false, out)
                         } else {
-                            self.finish(if exchange.fetch.is_some() { fetch::failure() } else { failure }, out);
+                            Self::finish(if exchange.fetch.is_some() { fetch::failure() } else { failure }, out)
                         }
                     }
                 }
             }
-            Phase::Idle | Phase::Done => {}
+            phase @ (Phase::Idle | Phase::Done) => phase,
         }
     }
 
-    fn http_request(&mut self, exchange: &mut Exchange, now: Time) -> Result<(HttpRequest, Phase), Failure> {
+    fn http_request(&mut self, exchange: &mut Exchange, now: Time) -> Result<(HttpRequest, Awaits), Failure> {
         if now >= exchange.deadline || exchange.attempts >= self.limits.max_attempts {
             return Err(Failure::TimedOut);
         }
@@ -704,20 +740,12 @@ impl Client {
             body,
             deadline,
         };
-        Ok((request, Phase::AwaitHttp { id, deadline }))
+        Ok((request, Awaits::Http { id, deadline }))
     }
 
-    fn finish(&mut self, failure: Failure, out: &mut Queue<Request>) {
-        if failure != Failure::Cancelled
-            && let Some(exchange) = &self.active
-            && exchange.revoking()
-        {
-            self.revoked(false, out);
-            return;
-        }
-        self.active = None;
-        self.phase = Phase::Done;
+    fn finish(failure: Failure, out: &mut Queue<Request>) -> Phase {
         out.push(Request::Failed { failure });
+        Phase::Done
     }
 }
 
@@ -840,6 +868,23 @@ impl core::fmt::Debug for Request {
             }
             Request::Revoked { confirmed } => f.debug_struct("Revoked").field("confirmed", confirmed).finish(),
             Request::Failed { failure } => f.debug_struct("Failed").field("failure", failure).finish(),
+        }
+    }
+}
+
+impl core::fmt::Debug for Phase {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Phase::Idle => f.write_str("Idle"),
+            Phase::AwaitRedirect { .. } => f.write_str("AwaitRedirect"),
+            Phase::AwaitKeys { id, deadline, .. } => {
+                f.debug_struct("AwaitKeys").field("id", id).field("deadline", deadline).finish()
+            }
+            Phase::AwaitHttp { id, deadline, .. } => {
+                f.debug_struct("AwaitHttp").field("id", id).field("deadline", deadline).finish()
+            }
+            Phase::Backoff { due, .. } => f.debug_struct("Backoff").field("due", due).finish(),
+            Phase::Done => f.write_str("Done"),
         }
     }
 }

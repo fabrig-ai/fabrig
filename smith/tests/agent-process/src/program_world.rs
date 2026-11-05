@@ -76,6 +76,7 @@ struct RunOptions<'a> {
     cancel_with_child: bool,
     files: Option<Files>,
     activation: u64,
+    dumps: Option<&'a crate::world::DumpSettings>,
 }
 
 enum Proc {
@@ -211,7 +212,7 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
     let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("agent stderr").1;
     let (errors, capture) = crate::AgentErrors::pipe(fd);
     let pipe = |number| inherited.pipes.iter().find(|(child, _)| *child == number).expect("agent pipe").1;
-    let agent = smith_agent_shell::Agent::new(
+    let mut agent = smith_agent_shell::Agent::new(
         smith_agent_shell::config::Configuration {
             memory: configuration.limits.memory,
             service: configuration,
@@ -262,6 +263,7 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
         Box::new(errors),
     )
     .expect("program agent starts");
+    crate::world::dump_agent(&mut agent, spawn);
     Proc::Agent(Box::new(capture.host(agent)))
 }
 
@@ -641,7 +643,7 @@ fn run_scenario(
     host_programs(&mut world, case);
     spawn_parent(&mut world, root, case, charter, value, &options);
     let mut outcome = world.run();
-    let mut run = observe_run(&mut outcome, base, case);
+    let mut run = observe_run(&mut outcome, base, case, options.dumps.is_some());
     outcome.machine.files.close(base);
     assert_eq!(outcome.machine.files.open_handles(), 0, "fixture handles settle");
     run.files = Some(core::mem::replace(&mut outcome.machine.files, Files::new()));
@@ -747,6 +749,9 @@ fn spawn_parent(
             Box::new([serde_json::to_vec(&case).expect("case arguments").into()]),
             options.refresh.cloned(),
         );
+        if let Some(dumps) = options.dumps {
+            parent.dump_to(dumps);
+        }
         if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
             parent.peer = crate::host();
             parent.peer.play(tools_start(charter, value));
@@ -760,7 +765,12 @@ fn spawn_parent(
     });
 }
 
-fn observe_run(outcome: &mut skein_world::Outcome<Proc, Machine>, base: Opened, case: Case) -> Run {
+fn observe_run(
+    outcome: &mut skein_world::Outcome<Proc, Machine>,
+    base: Opened,
+    case: Case,
+    exact_arguments: bool,
+) -> Run {
     assert!(outcome.procs.iter().all(Host::is_empty), "every hosted process settles");
     let Proc::Parent(parent) = &outcome.procs[0] else { panic!("parent first") };
     let bytes = observation_bytes(&mut outcome.machine.files, base);
@@ -779,7 +789,11 @@ fn observe_run(outcome: &mut skein_world::Outcome<Proc, Machine>, base: Opened, 
         library_file: fixture_file(&mut outcome.machine.files, base, b"library/a"),
         frames: parent.peer.observed().to_vec(),
         errors: parent.errors.clone(),
-        invocations: redacted_invocations(&bytes),
+        invocations: if exact_arguments {
+            smith_fake_claude::observations(&bytes)
+        } else {
+            redacted_invocations(&bytes)
+        },
         seen: smith_fake_claude::seen(&bytes),
         received: smith_fake_claude::received(&bytes),
         exits: outcome.procs.iter().filter_map(Host::exit).collect(),
@@ -947,4 +961,17 @@ pub fn child_charter() -> Box<[u8]> {
             .push(smith_charter::Llm::new(&smith_charter::CEILINGS, child).expect("child model"))
             .expect("declared child");
     })
+}
+
+/// Runs a completed fake program with real private dump files.
+#[must_use]
+pub fn run_dumping(story: &Story, charter: &[u8], directory: std::path::PathBuf, bound: u64) -> Run {
+    let dumps = crate::world::DumpSettings { directory, bound };
+    run_scenario(
+        Case::Turns,
+        story,
+        charter,
+        &crate::program(b"source"),
+        RunOptions { login: Some(b"claude.ai"), dumps: Some(&dumps), ..RunOptions::default() },
+    )
 }
