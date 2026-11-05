@@ -963,6 +963,29 @@ fn landing_watches_round_trip_without_trailing_bytes() {
     }
 }
 
+#[test]
+#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
+fn changes_panel_round_trips() {
+    for bytes in [
+        include_bytes!("../golden/record_changes_panel_smallest.bin").as_slice(),
+        include_bytes!("../golden/record_changes_panel_full.bin").as_slice(),
+    ] {
+        let panel = crate::decode_changes_panel(bytes, &v1::CEILINGS).expect("changes golden");
+        assert_eq!(crate::changes_panel(&panel).as_ref(), bytes);
+        assert_eq!(crate::decode_changes_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
+    }
+}
+
+#[test]
+fn watching_changes_round_trips() {
+    let limits = fixtures::limits();
+    let subject = v1::ChangesSubject::new(&limits, v1::ChangesSubjectParts { project: 1 }).expect("project");
+    let watching = v1::Watching::new(&limits, v1::WatchingParts { watch: v1::Watch::Changes(subject) }).expect("watch");
+    let bytes = crate::watching(&watching);
+    assert_eq!(crate::decode_watching(&bytes, &limits), Some(watching));
+    assert_eq!(crate::decode_watching(&fixtures::trailing(&bytes), &limits), None);
+}
+
 fn kept(forge: u16) -> v1::Making {
     v1::Making::Kept(v1::Kept::new(&v1::CEILINGS, v1::KeptParts { forge }).unwrap())
 }

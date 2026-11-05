@@ -21,6 +21,7 @@ pub enum RestoreSet {
     Watches,
     LandingFlights,
     LandingMembers,
+    LandingsKept,
     LandingGates,
     LandingAsks,
     LandingEntries,
@@ -192,6 +193,25 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.tiers.capacity(),
             d.tiers.contains_key(&(row.repository, row.tier.clone())),
         ),
+        Stored::LandingLog(row) => {
+            field(K::LandingLog, RestoreSet::LandingsKept, count(row.landings.len()), u64::from(l.landings_kept))?;
+            for landing in &row.landings {
+                field(
+                    K::LandingLog,
+                    RestoreSet::LandingMembers,
+                    count(landing.changes.len()),
+                    u64::from(l.landing_members),
+                )?;
+                field(K::LandingLog, RestoreSet::NameBytes, count(landing.branch.len()), u64::from(l.name_bytes))?;
+            }
+            room(
+                K::LandingLog,
+                Rows(K::LandingLog),
+                d.landing_logs.len(),
+                d.landing_logs.capacity(),
+                d.landing_logs.contains_key(&row.repository),
+            )
+        }
         Stored::Verification(row) => room(
             K::Verification,
             Rows(K::Verification),

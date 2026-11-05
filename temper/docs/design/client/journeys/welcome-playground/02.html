@@ -4,7 +4,7 @@
 ><meta charset="utf-8"
 ><meta name="viewport" content="width=device-width, initial-scale=1"
 ><title
->Chats · temper</title
+>New chat · temper</title
 ><link rel="stylesheet" href="../skein-ui.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/temper.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/task-pages.css"
@@ -36,9 +36,9 @@
 ><button type="button" class="temper-project-rename"
 >Rename Demo</button
 ><form aria-label="New project" class="temper-project-new"
-><label for="skein-ui-label-114"
+><label for="skein-ui-label-127"
 >New project</label
-><input type="text" placeholder="+ New project" enterkeyhint="send" value="" id="skein-ui-label-114"
+><input type="text" placeholder="+ New project" enterkeyhint="send" value="" id="skein-ui-label-127"
 ><button type="button"
 >Create</button
 ></form
@@ -62,8 +62,12 @@
 ><span
 >Chats</span
 ></a
+><a aria-label="Changes" href="/projects/1/changes"
+><span
+>Changes</span
+></a
 ></div
-><a aria-label="New chat" class="temper-rail-new" href="/chats?at=start"
+><a aria-label="New chat" class="temper-rail-new" href="/chats/new"
 ><span
 >+ New chat</span
 ></a
@@ -88,44 +92,6 @@
 ></div
 ></div
 ></nav
-><main class="temper-main"
-><aside aria-label="Project" class="temper-sidebar"
-><div class="temper-chatbar"
-><div
-><p aria-label="New chat"
-><span
->New chat</span
-></p
-><div role="status" aria-label="Ready" class="temper-status-quiet"
-><span
->Ready</span
-></div
-></div
-></div
-><div class="temper-context"
-><p
-><span class="temper-repository"
->playground/widget</span
-></p
-></div
-><div class="temper-heading"
-><h1 aria-label="Chats"
-><span
->Chats</span
-></h1
-><div class="temper-filters"
-><button type="button" aria-pressed="true"
->All</button
-><button type="button"
->Live</button
-><button type="button"
->Closed</button
-></div
-></div
-><p aria-label="No chats yet." class="temper-empty"
-><span
->No chats yet.</span
-></p
 ><section aria-label="Playground" class="temper-accounts"
 ><p
 ><span
@@ -138,16 +104,67 @@
 ></a
 ></p
 ></section
-></aside
-><div class="temper-entry"
-><textarea aria-label="Start a chat" placeholder="Describe a change" enterkeyhint="send" class="temper-composer"
-></textarea
-><p class="temper-hint"
+><main class="temper-main temper-session"
+><div class="temper-session-top"
+><nav aria-label="Where" class="temper-crumbs"
+><a aria-label="Chats" class="temper-back" href="/chats"
 ><span
->enter to start · shift+enter for newline</span
+>Chats</span
+></a
+><div class="temper-trail"
+><a aria-label="Demo" href="/projects/1"
+><span
+>Demo</span
+></a
+><a aria-label="Chats" href="/chats"
+><span
+>Chats</span
+></a
+></div
+><h1 aria-label="New chat"
+><span
+>New chat</span
+></h1
+></nav
+><div class="temper-session-right"
+><p aria-label="the default model" class="temper-byline"
+><span
+>the default model</span
 ></p
+></div
+></div
+><section aria-label="Conversation" class="temper-convo"
+><div class="temper-thread"
+><div class="temper-starter"
+><div role="status" aria-label="Ready" class="temper-status-quiet"
+><span
+>Ready</span
+></div
+><div class="temper-context temper-meta-line"
+><p
+><span class="temper-repository"
+>playground/widget</span
+></p
+></div
+><p aria-label="Say what you want; the agent works in playground/widget." class="temper-meta-line"
+><span
+>Say what you want; the agent works in playground/widget.</span
+></p
+><ul aria-label="Suggested requests" class="temper-starters"
+><li
 ><button type="button"
->Start chat</button
+>Add CSV export to widget</button
+></li
+><li
+><button type="button"
+>Add a dark theme to widget</button
+></li
+><li
+><button type="button"
+>Fix widget's empty search state</button
+></li
+></ul
+></div
 ></div
 ><div class="temper-choice"
 ><p aria-label="Using the default model" class="temper-account-line"
@@ -171,18 +188,6 @@
 >gpt-6-luna</button
 ></li
 ><li class="temper-row"
-><p aria-label="Playground" class="temper-account-line"
-><span
->Playground</span
-></p
-><p aria-label="needs an account" class="temper-account-line"
-><span
->needs an account</span
-></p
-><button type="button"
->Scripted model</button
-></li
-><li class="temper-row"
 ><p aria-label="Anthropic" class="temper-account-line"
 ><span
 >Anthropic</span
@@ -194,27 +199,36 @@
 ><button type="button"
 >fake-claude</button
 ></li
+><li class="temper-row"
+><p aria-label="Playground" class="temper-account-line"
+><span
+>Playground</span
+></p
+><p aria-label="needs an account" class="temper-account-line"
+><span
+>needs an account</span
+></p
+><button type="button"
+>Scripted model</button
+></li
 ></ul
 ><button type="button"
 >Reset choice</button
 ></details
 ></div
-><div class="temper-invitation"
-><ul aria-label="Suggested requests"
-><li
-><button type="button"
->Add CSV export to widget</button
-></li
-><li
-><button type="button"
->Add a dark theme to widget</button
-></li
-><li
-><button type="button"
->Fix widget's empty search state</button
-></li
-></ul
+><form aria-label="What do you want done?" class="temper-session-foot"
+><div class="temper-session-composer"
+><textarea aria-label="What do you want done?" placeholder="What do you want done?" enterkeyhint="send"
+></textarea
+><button type="button" disabled=""
+>Send</button
 ></div
+><p aria-label="Enter sends · Shift+Enter for a new line" class="temper-session-hint"
+><span
+>Enter sends · Shift+Enter for a new line</span
+></p
+></form
+></section
 ></main
 ><nav aria-label="Sections" class="temper-tabbar"
 ><a aria-label="Home" href="/projects/1"
