@@ -69,16 +69,14 @@ in section 12.
 |---|---|---|---|---|---|---|
 | bare metal on EFI | the vendor's UEFI | NVMe; ESP | live, soft reboot, or `BootNext` | iTCO where the chipset has it (to verify per machine) | `x1-prod` | M3 |
 | Incus VM with its own disk | OVMF | a virtio disk; ESP | live, soft reboot, or `BootNext` | iTCO on q35 | the VM tier's machines (hearth/docs/design/domain/testing.md, section 7) | M3 |
-| IaaS VM on BIOS | the provider's BIOS | a virtio disk; FAT environment partition | live, soft reboot, or `next_entry` | none known | `rhi-prod`, `ion-prod` | M3b |
-| IaaS VM on EFI, NVRAM unreliable | the provider's UEFI | a virtio disk; ESP | open (9.4) | none known | vul | later |
-| container | none: the host's kernel | slots on the host's top level | live, or restart | the host's | `chat-prod` and `mail-prod` on `rhi-prod`; `mail-lab` in a lab pool | M5 |
+| IaaS VM on BIOS | the provider's BIOS | a virtio disk; FAT environment partition | live, soft reboot, or `next_entry` | none known | `east-prod`, `west-prod` | M3b |
+| IaaS VM on EFI, NVRAM unreliable | the provider's UEFI | a virtio disk; ESP | open (9.4) | none known | south | later |
+| container | none: the host's kernel | slots on the host's top level | live, or restart | the host's | `chat-prod` and `mail-prod` on `east-prod`; `mail-lab` in a lab pool | M5 |
 | VM with a virtiofs root | Incus direct kernel boot | slots on the pool host's top level | stop, repoint, start | the host's | the bash fleet's lab | later |
 
 ### 2.1 Bare metal on EFI
 
-The MVP's machine is `x1-prod`, a laptop with an NVMe disk. It runs os
-today, with direct EFI-stub entries labelled `a` and `b`, and already
-shows the facts apart: running slot `b`, `BootOrder` default `a`.
+The MVP's machine is `x1-prod`, a laptop with an NVMe disk.
 hearth installs it afresh on a wiped disk, as every machine (section 8):
 nothing of os's is kept. A person is at hand, so a hang no watchdog
 covers is recoverable; the machine is held to the same invariants as
@@ -106,10 +104,10 @@ bare metal.
 
 ### 2.3 IaaS VMs on BIOS [M3b]
 
-- **Two of three production VPSes are BIOS:** `rhi-prod` on ServeRhino
-  (primary MX, Forgejo, Matrix) and `ion-prod` on IONOS (backup MX, VPN
-  hub). No BIOS host has been provisioned by os's code, whose BIOS path
-  has three mismatches and keeps GRUB's environment on btrfs.
+- **Two of three production VPSes are BIOS:** `east-prod` on provider A
+  and `west-prod` on provider B. No BIOS host has been provisioned by
+  os's code, whose BIOS path has three mismatches and keeps GRUB's
+  environment on btrfs.
 - **Each provider has its own disk bus,** hence its own initramfs
   modules (7.2), and a serial console as its last recovery path, which
   needs a root password hash that is not locked: a secret applied to the
@@ -118,7 +116,7 @@ bare metal.
 
 ### 2.4 IaaS VMs on EFI with unreliable NVRAM [later]
 
-Vultr's firmware can discard its variables when a disk moves between
+Provider C's firmware can discard its variables when a disk moves between
 contexts; the bash fleet booted GRUB from the removable path
 (`\EFI\BOOT\BOOTX64.EFI`) with no slot entries. A trial in NVRAM is not
 reliable there; 9.4 gives the lean.
@@ -130,8 +128,6 @@ class subvolumes are subvolumes on its host's top level, prepared
 by the host's activator, and activating one restarts its nspawn unit
 (hearth/docs/design/domain/slots.md, section 12). Sections 4 to 7 and 9 do not apply to it; no
 fstab mounts anything of it (3.3), and it is never bootstrapped (8.4).
-The fleet runs three today, `carbon-forge`, `rhi-chat` and
-`vul-agent-control`, on carbon, rhi and vul.
 
 ### 2.6 VMs with a virtiofs root [later]
 
@@ -153,7 +149,7 @@ Placement is data of the environment (hearth/docs/design/protocol/format.md, 3.4
 |---|---|---|
 | `kind` | `metal`, `vm`, `container` [M5] | section 2; the initramfs's microcode (7.1) |
 | `firmware` | `efi`, `bios` | sections 4 and 5; checked against the machine record |
-| `hardware` | `7th-gen`, `incus`, `ionos`, `serverhino`, `vultr` | nothing directly: the `boot` task keys its modules and parameters, consoles among them, by it (hearth/docs/design/protocol/format.md, 5.4) |
+| `hardware` | `7th-gen`, `incus`, `provider-a`, `provider-b`, `provider-c` | nothing directly: the `boot` task keys its modules and parameters, consoles among them, by it (hearth/docs/design/protocol/format.md, 5.4) |
 | `on` | the host's target [M5] | hearth/docs/design/domain/slots.md, section 12 |
 | `mutable` | `true`, `false` | 3.3's `/` line `rw` and no seal at prepare, on a machine that accepts it (2.8; hearth/docs/design/domain/development.md, section 4) |
 
@@ -223,7 +219,7 @@ btrfs filesystem, UUID 0f3c9a6e-…, label hearth     top level: subvolid 5, mou
   another target's data, kept by its sender's retention, which no local
   policy may prune and no local restore lists.
 - **A host's containers [M5]** add the same names under their own
-  targets: on `rhi-prod`, `@chat-prod.a`, `@chat-prod.a.var`,
+  targets: on `east-prod`, `@chat-prod.a`, `@chat-prod.a.var`,
   `@chat-prod.b`, `@chat-prod.b.var`, and `@chat-prod.data` and the
   other classes its `data` entries use, beside the host's own
   (hearth/docs/design/domain/slots.md, 12.1), and their snapshots in the host's
@@ -590,13 +586,13 @@ fi
 set timeout=3
 
 search --no-floppy --fs-uuid --set=hearth_fs 0f3c9a6e-5b2d-4c1e-9a7f-2d8e6b1c4a90
-menuentry 'rhi-prod.a' --id rhi-prod.a {
+menuentry 'east-prod.a' --id east-prod.a {
     set root=${hearth_fs}
-    source /@rhi-prod.a/.hearth/grub.cfg
+    source /@east-prod.a/.hearth/grub.cfg
 }
-menuentry 'rhi-prod.b' --id rhi-prod.b {
+menuentry 'east-prod.b' --id east-prod.b {
     set root=${hearth_fs}
-    source /@rhi-prod.b/.hearth/grub.cfg
+    source /@east-prod.b/.hearth/grub.cfg
 }
 ```
 
@@ -628,9 +624,9 @@ Each slot carries its own `linux` and `initrd` lines, in
 (hearth/docs/design/domain/slots.md, 5.5) and sealed with the slot:
 
 ```
-# slot rhi-prod.b, written by hearth's activator at prepare (domain/machine.md, 5.4)
-linux /@rhi-prod.b/boot/vmlinuz-6.12.48+deb13-amd64 root=UUID=0f3c9a6e-5b2d-4c1e-9a7f-2d8e6b1c4a90 rootflags=subvol=@rhi-prod.b ro panic=10 console=tty0 console=ttyS0,115200n8 ${hearth_trial}
-initrd /@rhi-prod.b/boot/initrd.img-6.12.48+deb13-amd64
+# slot east-prod.b, written by hearth's activator at prepare (domain/machine.md, 5.4)
+linux /@east-prod.b/boot/vmlinuz-6.12.48+deb13-amd64 root=UUID=0f3c9a6e-5b2d-4c1e-9a7f-2d8e6b1c4a90 rootflags=subvol=@east-prod.b ro panic=10 console=tty0 console=ttyS0,115200n8 ${hearth_trial}
+initrd /@east-prod.b/boot/initrd.img-6.12.48+deb13-amd64
 ```
 
 - **Inside the slot,** so the command line changes with the slot it
@@ -641,13 +637,13 @@ initrd /@rhi-prod.b/boot/initrd.img-6.12.48+deb13-amd64
   rather than through Debian's `/vmlinuz` link, so GRUB never follows a
   link on btrfs.
 - **GRUB reads paths from the default subvolume,** the top level, which
-  is why `/@rhi-prod.b/` leads every path (3.1).
+  is why `/@east-prod.b/` leads every path (3.1).
 
 ### 5.5 The environment pair
 
 | Variable | Meaning | Written by |
 |---|---|---|
-| `default` | the default slot's entry, such as `rhi-prod.a` | the activator: bootstrap, bless, re-bless |
+| `default` | the default slot's entry, such as `east-prod.a` | the activator: bootstrap, bless, re-bless |
 | `previous` | the previous blessed slot, or empty | the activator: set at bless; cleared at re-bless and before that slot is prepared again |
 | `tries` | boots of the default left before `previous`: 3 to 0 | the activator: 3 at bless and at every start that meets the minimal criterion; GRUB counts it down |
 | `next_entry` | the slot on a one-shot trial, or empty | the activator at trial; GRUB clears it at boot |
@@ -656,8 +652,8 @@ initrd /@rhi-prod.b/boot/initrd.img-6.12.48+deb13-amd64
   then `env.1`, each with `grub-editenv` (`hearth-protocol-grub`):
 
   ```
-  /usr/bin/grub-editenv /run/hearth-activator/boot/hearth/env.0 set next_entry=rhi-prod.b
-  /usr/bin/grub-editenv /run/hearth-activator/boot/hearth/env.1 set next_entry=rhi-prod.b
+  /usr/bin/grub-editenv /run/hearth-activator/boot/hearth/env.0 set next_entry=east-prod.b
+  /usr/bin/grub-editenv /run/hearth-activator/boot/hearth/env.1 set next_entry=east-prod.b
   ```
 
   GRUB reads `env.0`, and `env.1` only if `env.0` is not a valid block.
@@ -774,9 +770,9 @@ INCLUDE_MODULES=btrfs,virtio_pci,virtio_scsi,sd_mod
 |---|---|---|---|---|
 | `7th-gen` | `x1-prod` | `btrfs,nvme` | `generic` | none |
 | `incus`, own disk | the VM tier | `btrfs,virtio_pci,virtio_scsi,sd_mod` (to verify, by M2's boot test) | `no` | `console=ttyS0,115200n8` |
-| `serverhino` | `rhi-prod` | `btrfs,scsi_mod,sd_mod,virtio_scsi,virtio_pci,virtio_mmio` | `no` | `console=tty0 console=ttyS0,115200n8` |
-| `ionos` | `ion-prod` | `btrfs,virtio_blk,virtio,virtio_pci,virtio_rng,scsi_mod`, and `vmw_pvscsi` (needed in 2022) | `no` | `console=tty0 console=ttyS0,115200n8` |
-| `vultr` [later] | vul | `btrfs,virtio_blk,virtio_pci` | `no` | `console=tty0 console=ttyS0,115200n8` |
+| `provider-a` | `east-prod` | `btrfs,scsi_mod,sd_mod,virtio_scsi,virtio_pci,virtio_mmio` | `no` | `console=tty0 console=ttyS0,115200n8` |
+| `provider-b` | `west-prod` | `btrfs,virtio_blk,virtio,virtio_pci,virtio_rng,scsi_mod`, and `vmw_pvscsi` (needed in 2022) | `no` | `console=tty0 console=ttyS0,115200n8` |
+| `provider-c` [later] | south | `btrfs,virtio_blk,virtio_pci` | `no` | `console=tty0 console=ttyS0,115200n8` |
 
 These are the bash fleet's lists, learned by trial and error; `virtio_blk`
 needs `virtio_pci` to work. They move from a template keyed by hardware
@@ -869,7 +865,7 @@ it refuses to start, naming every reason at once, unless:
   that release, which must read the records bootstrap writes
   (hearth/docs/design/domain/activator.md, 7.2);
 - the disk is a whole block device, none of it mounted, not the live
-  system's own, and blank unless `--wipe` is given (Vultr's volumes come
+  system's own, and blank unless `--wipe` is given (provider C's volumes come
   with an image installed, and `x1-prod`'s holds os);
 - the tools of 8.2 are present, `ssh-keygen` (`openssh-client`) among
   them, and what the builder needs: `newuidmap` and `newgidmap`
@@ -1003,7 +999,7 @@ disk and bootstraps the machine onto it.
 | reorders the options `BootOrder` lists by device order | OVMF, every boot | the default | the relative order of two entries on one disk is kept (to verify); the activator restores it at start | fact: order changed |
 | ignores `BootNext` | some vendors' firmware | the trial never runs | `BootNext` still set on the next boot: cleared, the slot stays prepared | fact: one-shot ignored |
 | drops entries not in `BootOrder` | some vendors' firmware | the trial's entry | made again before each trial; if it is gone by boot, as above | fact: entry missing |
-| discards all variables | Vultr | every entry, and the default | open (9.4) | fact: entries missing |
+| discards all variables | provider C | every entry, and the default | open (9.4) | fact: entries missing |
 | no boot manager | old OVMF without NVRAM | entries | none: such firmware is out of scope | |
 
 ### 9.1 OVMF
@@ -1125,9 +1121,9 @@ hearth/docs/design/domain/slots.md, section 4's, judged by booting the firmware 
 - **Secure Boot:** an enrolled key signing kernels or unified kernel
   images, or shim's chain; depends on which machines require it
   (README, section 9).
-- **Firmware that discards its variables (Vultr):** GRUB on the
+- **Firmware that discards its variables (provider C):** GRUB on the
   removable path with the environment pair on the ESP, or systemd-boot
-  with boot counting; depends on M3b and on vul's priority (README,
+  with boot counting; depends on M3b and on south's priority (README,
   section 9).
 - **OVMF's reorder:** whether it keeps the relative order of two entries
   on one disk (to verify), which decides how often the activator

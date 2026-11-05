@@ -78,29 +78,34 @@ const SETTINGS: &[(SchemaInput, &str)] = &[
             setting: b"adress",
             declared: &[b"address", b"endpoint", b"hub", b"port", b"public_key"],
         },
-        "hosts/ion/ion-prod.json:4:5: ion-prod: vpn: undeclared setting \"adress\"; vpn declares address, endpoint, hub, port, public_key\n",
+        "hosts/west/west-prod.json:4:5: west-prod: vpn: undeclared setting \"adress\"; vpn declares address, endpoint, hub, port, public_key\n",
     ),
     (
         SchemaInput::Undeclared { setting: b"greeting", declared: &[] },
-        "hosts/ion/ion-prod.json:4:5: ion-prod: vpn: undeclared setting \"greeting\"; vpn declares no settings\n",
+        "hosts/west/west-prod.json:4:5: west-prod: vpn: undeclared setting \"greeting\"; vpn declares no settings\n",
     ),
     (
         SchemaInput::Undeclared { setting: b"a\"\\\n\x1b", declared: &[] },
-        "hosts/ion/ion-prod.json:4:5: ion-prod: vpn: undeclared setting \"a\\\"\\\\\\n\\x1b\"; vpn declares no settings\n",
+        "hosts/west/west-prod.json:4:5: west-prod: vpn: undeclared setting \"a\\\"\\\\\\n\\x1b\"; vpn declares no settings\n",
     ),
     (
         SchemaInput::Missing(b"greeting"),
-        "hosts/ion/ion-prod.json:4:5: ion-prod: vpn: missing required setting greeting\n",
+        "hosts/west/west-prod.json:4:5: west-prod: vpn: missing required setting greeting\n",
     ),
-    (SchemaInput::Absent(b"wifi"), "hosts/ion/ion-prod.json:4:5: ion-prod: vpn: reads wifi, which this target lacks\n"),
+    (
+        SchemaInput::Absent(b"wifi"),
+        "hosts/west/west-prod.json:4:5: west-prod: vpn: reads wifi, which this target lacks\n",
+    ),
 ];
 #[test]
 fn target_schema_faults_print_their_setting_or_read() {
     for (row, &(input, expected)) in SETTINGS.iter().enumerate() {
         let mut error = fixtures::reference_error(input);
-        error.at =
-            Some(Place { path: copy_of(b"hosts/ion/ion-prod.json"), position: Some(Position { line: 4, column: 5 }) });
-        error.target = Some(copy_of(b"ion-prod"));
+        error.at = Some(Place {
+            path: copy_of(b"hosts/west/west-prod.json"),
+            position: Some(Position { line: 4, column: 5 }),
+        });
+        error.target = Some(copy_of(b"west-prod"));
         error.task = Some(copy_of(b"vpn"));
         let printed = fixtures::print_error(Form::Text, error);
         assert_eq!(printed.as_deref(), Ok(expected.as_bytes()), "row {row}");

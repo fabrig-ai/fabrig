@@ -307,9 +307,10 @@ default; the document is `temper.json` in the configuration directory
   is the engine setup host's plan (forge.md, 2.6). The box knows kinds,
   not forges: `fetch`, `prepare` and `run` read the forge's kind and
   setup entry from its group's file, `<data>/box/groups/FORGE`, which
-  `temper serve` writes as it asks for the group (setup.md, 7.1),
-  refusing a forge with none, and each reads and checks the whole
-  document as `temper serve` does (configuration.md, section 8):
+  `temper serve` writes as it asks for the group (setup.md, 7.1), a
+  forge with none taking the machine's `owned` part (setup.md, 7.4), and
+  each reads and checks the whole document as `temper serve` does
+  (configuration.md, section 8):
   - `temper forge prepare`: an owned forge's preparation, before its
     Forgejo runs; it ends when done (setup.md, 6.3);
   - `temper forge run`: checks the binary and the preparation, takes
