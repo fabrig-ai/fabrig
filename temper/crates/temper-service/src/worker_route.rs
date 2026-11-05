@@ -148,3 +148,33 @@ pub fn answer_parts(
     }
     parts.into_boxed()
 }
+
+/// Fit a prepared start within the receiving run and admitted charter bounds.
+/// Directories carry the resolved host paths that the agent will receive.
+#[must_use]
+pub fn fit_start(mut start: smith::Start, limits: &smith_domain_run::Limits, charter_bytes: u64) -> smith::Start {
+    let workspace = if start.directories.is_empty() {
+        None
+    } else {
+        let mut directories =
+            List::with_capacity(u32::try_from(start.directories.len()).expect("admitted directories"));
+        for directory in &start.directories {
+            directories
+                .push(smith_domain_run::Directory {
+                    name: directory.name.clone(),
+                    host: directory.host.clone(),
+                    root: directory.root,
+                    writable: directory.writable,
+                    git: directory.git,
+                    conflicts: directory.conflicts.clone(),
+                })
+                .expect("one entry per prepared directory");
+        }
+        Some(smith_domain_run::Workspace { directories: directories.into_boxed() })
+    };
+    let mut charter = start.charter.into_value();
+    temper_engine_smith::fit_brief(&mut charter, workspace.as_ref(), limits);
+    start.charter =
+        smith::Charter::new(charter, charter_bytes).expect("fitted charter within the admitted ownership bound");
+    start
+}

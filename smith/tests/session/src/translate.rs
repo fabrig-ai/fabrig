@@ -242,11 +242,14 @@ fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
         |start, field: &[u8]| document.member(start, field).ok_or_else(|| Problem::Missing { field: field.into() });
     let string = |start, field: &[u8]| {
         let token = document.token(member(start, field)?).expect("admitted member");
-        if token.kind != Kind::String {
-            return Err(Problem::WrongType { field: field.into() });
-        }
-        Ok(document.text(token).expect("admitted string"))
+        let text = document.text(token).filter(|_| token.kind == Kind::String);
+        text.ok_or_else(|| Problem::WrongType { field: field.into() })
     };
+    let fixture = "the finite fixture doesn't send this input";
+    for field in [b"offset".as_slice(), b"window", b"depth", b"glob", b"timeout_seconds", b"output_bytes"] {
+        assert!(document.member(0, field).is_none(), "{fixture}: tool option");
+    }
+    let kind = |at| document.token(at).expect("admitted token").kind;
     Ok(match name {
         b"read" => calls::read(string(0, b"path")?),
         b"list" => calls::list(string(0, b"path")?),
@@ -260,16 +263,17 @@ fn call(name: &[u8], arguments: &[u8]) -> Result<Call, agent::Problem> {
         b"edit" => {
             let path = string(0, b"path")?;
             let start = member(0, b"edits")?;
+            let end = document.value_end(start).expect("admitted value");
+            assert!(kind(start) == Kind::ArrayStart && start + 2 < end, "{fixture}: edits array");
             let mut edits = Vec::new();
-            let end = document.value_end(start).expect("admitted array");
-            for index in start + 1..end - 1 {
-                if document.token(index).expect("admitted token").kind == Kind::ObjectStart {
-                    let all = document
-                        .member(index, b"all")
-                        .and_then(|at| document.token(at))
-                        .is_some_and(|token| token.kind == Kind::True);
-                    edits.push((string(index, b"old")?, string(index, b"new")?, all));
-                }
+            let next = |&at: &u32| document.value_end(at);
+            for index in std::iter::successors(Some(start + 1), next).take_while(|&at| at < end - 1) {
+                let next = document.value_end(index).expect("admitted edit");
+                assert!(kind(index) == Kind::ObjectStart, "{fixture}: edit object");
+                assert!((index + 1..next - 1).all(|at| kind(at) != Kind::ObjectStart), "{fixture}: nested object");
+                let all = document.member(index, b"all").map(kind);
+                assert!(matches!(all, None | Some(Kind::True | Kind::False)), "{fixture}: boolean all");
+                edits.push((string(index, b"old")?, string(index, b"new")?, all == Some(Kind::True)));
             }
             calls::edits(path, &edits)
         }
@@ -344,30 +348,13 @@ fn path_feedback(outcome: &Outcome, namespace: &Namespace) -> Option<(Box<[u8]>,
     let mut text = prefix.to_vec();
     if let Some(directory) = directory {
         text.push(b'/');
-        feedback_text(&mut text, directory);
-        if !directory.is_empty() && !path.is_empty() {
-            text.push(b'/');
-        }
+        text.extend_from_slice(directory);
+        text.extend_from_slice(if directory.is_empty() || path.is_empty() { b"" } else { b"/" });
     }
-    feedback_text(&mut text, path);
+    text.extend_from_slice(path);
+    assert!(
+        std::str::from_utf8(&text).is_ok_and(|text| text.chars().all(|c| !c.is_control() || c == '\n' || c == '\t')),
+        "the finite fixture doesn't send a path that needs escaping"
+    );
     Some((text.into(), true))
-}
-
-fn feedback_text(output: &mut Vec<u8>, text: &[u8]) {
-    for chunk in text.utf8_chunks() {
-        for scalar in chunk.valid().chars() {
-            let mut buffer = [0; 4];
-            let bytes = scalar.encode_utf8(&mut buffer).as_bytes();
-            if scalar.is_control() && scalar != '\n' && scalar != '\t' {
-                for byte in bytes {
-                    output.extend_from_slice(format!("\\x{byte:02x}").as_bytes());
-                }
-            } else {
-                output.extend_from_slice(bytes);
-            }
-        }
-        for byte in chunk.invalid() {
-            output.extend_from_slice(format!("\\x{byte:02x}").as_bytes());
-        }
-    }
 }

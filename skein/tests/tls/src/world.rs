@@ -37,6 +37,8 @@ use std::collections::VecDeque;
 
 use skein_lib::stream::{Delimiter, Down, Fault, Read, Up};
 use skein_lib::{Env, Intake, Queue, Rng, Time};
+use skein_protocol_kit::below::delivers;
+use skein_protocol_kit::random::{draw, fault};
 use skein_tls::client::{self, Agreed, Client, Error, Event, Limits, Request, Version, Waiting};
 
 use crate::pki;
@@ -46,7 +48,6 @@ mod check;
 mod scenario;
 pub use check::check;
 pub use scenario::{Ending, Reads, Scenario, Settings, limits, pick, text};
-use scenario::{draw, fault};
 
 /// What a run came to, as the neighbours saw it.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -229,43 +230,6 @@ pub fn run(scenario: &Scenario, settings: &Settings, seed: u64) -> Run {
         }
     }
     panic!("seed {seed}: the world settles within {budget} iterations: {settings:?}");
-}
-
-/// Whether `bytes` hold what `read` asks for, from their start.
-fn meets(read: Read, bytes: &[u8]) -> bool {
-    match read {
-        Read::Nothing | Read::Arrived { .. } => !bytes.is_empty(),
-        Read::Fill(n) => bytes.len() >= usize::try_from(n).expect("fits a usize"),
-        Read::Scan { until, max } => {
-            let max = usize::try_from(max).expect("fits a usize");
-            let window = &bytes[..max.min(bytes.len())];
-            bytes.len() >= max || window.windows(until.as_bytes().len()).any(|found| found == until.as_bytes())
-        }
-        Read::Line { max } => {
-            let max = usize::try_from(max).expect("fits a usize");
-            bytes.len() >= max || bytes[..max.min(bytes.len())].iter().any(|&byte| byte == b'\r' || byte == b'\n')
-        }
-    }
-}
-
-/// Whether `bytes` meet `read` exactly, or with what has arrived.
-fn delivers(read: Read, bytes: &[u8]) -> bool {
-    match read {
-        Read::Nothing => false,
-        Read::Fill(n) => bytes.len() == usize::try_from(n).expect("fits a usize"),
-        Read::Arrived { max } => !bytes.is_empty() && bytes.len() <= usize::try_from(max).expect("fits a usize"),
-        Read::Scan { until, max } => {
-            let delimiter = until.as_bytes();
-            match bytes.windows(delimiter.len()).position(|window| window == delimiter) {
-                Some(at) => at + delimiter.len() == bytes.len(),
-                None => bytes.len() == usize::try_from(max).expect("fits a usize"),
-            }
-        }
-        Read::Line { max } => match bytes.iter().position(|&byte| byte == b'\r' || byte == b'\n') {
-            Some(at) => at + 1 == bytes.len(),
-            None => bytes.len() == usize::try_from(max).expect("fits a usize"),
-        },
-    }
 }
 
 impl<'a> World<'a> {

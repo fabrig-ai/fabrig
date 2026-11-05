@@ -158,14 +158,11 @@ pub(crate) fn named_proposal_accept(
             let before = crate::translate::tasks_authority(&current.authority);
             let stop_run = !authority::at_most(&before, &after, &core.authority.rules().implies);
             tasks::Event::Amend {
+                operation: tasks::Amend { task, message, stop_run, amendment: Box::new(amendment) },
                 places: Box::new([]),
                 funder: Some(tasks::Funder::Task(key.task)),
                 reply_to: ReplyTo::new(token),
                 by: tasks::Party::Task(key.task),
-                task,
-                message,
-                stop_run,
-                amendment,
             }
         }
         tasks::ProposalAction::Widen { task, authority } => {
@@ -173,33 +170,34 @@ pub(crate) fn named_proposal_accept(
                 return proposal_refused(core, ReplyTo::new(token), key, tasks::Refusal::Busy);
             };
             tasks::Event::Amend {
+                operation: tasks::Amend {
+                    task,
+                    message,
+                    stop_run: false,
+                    amendment: Box::new(tasks::Amendment {
+                        tracked: None,
+                        addressed: None,
+                        release: None,
+                        instructions: None,
+                        spec: None,
+                        wake: None,
+                        dependencies: None,
+                        authority: Some(authority),
+                        llm: None,
+                        reason: proposal.reason,
+                    }),
+                },
                 places: Box::new([]),
                 funder: Some(tasks::Funder::Task(key.task)),
                 reply_to: ReplyTo::new(token),
                 by: tasks::Party::Task(key.task),
-                task,
-                message,
-                stop_run: false,
-                amendment: tasks::Amendment {
-                    tracked: None,
-                    addressed: None,
-                    release: None,
-                    instructions: None,
-                    spec: None,
-                    wake: None,
-                    dependencies: None,
-                    authority: Some(authority),
-                    llm: None,
-                    reason: proposal.reason,
-                },
             }
         }
         tasks::ProposalAction::ReleasePlaced { task, .. } | tasks::ProposalAction::Release { task } => {
-            tasks::Event::Control {
+            tasks::Event::Release {
                 reply_to: ReplyTo::new(token),
                 by: tasks::Party::Task(key.task),
-                task,
-                control: tasks::Control::Release { again: None, message: None },
+                operation: tasks::Release { task, again: None, message: None },
             }
         }
     };
@@ -514,15 +512,17 @@ pub(crate) fn named_action(
             work.push(Work::Event(Event::Tasks(tasks::Event::Message {
                 reply_to: ReplyTo::new(token),
                 project,
-                task: target,
-                word: tasks::Word {
-                    number,
-                    from: tasks::Party::Task(key.task),
-                    kind,
-                    words,
-                    at: env.wall,
-                    hits: 1,
-                    eligible: false,
+                operation: tasks::Message {
+                    task: target,
+                    word: tasks::Word {
+                        number,
+                        from: tasks::Party::Task(key.task),
+                        kind,
+                        words,
+                        at: env.wall,
+                        hits: 1,
+                        eligible: false,
+                    },
                 },
             })));
         }
@@ -623,15 +623,14 @@ pub(crate) fn named_action(
             };
             assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
             let token = core.fly_call(token, RoutedCall::Control { key, target, revised: true });
-            work.push(Work::Event(Event::Tasks(tasks::Event::Control {
+            work.push(Work::Event(Event::Tasks(tasks::Event::Release {
                 reply_to: ReplyTo::new(token),
                 by: tasks::Party::Task(key.task),
-                task: target,
-                control: tasks::Control::Release { again, message },
+                operation: tasks::Release { task: target, again, message },
             })));
         }
-        NamedAction::Control { target, control } => {
-            return super::controls::control(core, work, ReplyTo::new(token), key, target, control);
+        NamedAction::Control { cancel } => {
+            return super::controls::control(core, work, ReplyTo::new(token), key, cancel);
         }
         NamedAction::Amend { keep_parameters, target, revision, amendment } => {
             return named_amend(
@@ -875,14 +874,11 @@ pub(crate) fn named_amend(
     assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
     let token = core.fly_call(token, RoutedCall::Control { key, target, revised: true });
     work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
+        operation: tasks::Amend { task: target, message, stop_run, amendment: Box::new(amendment) },
         places: evidence.places.into_boxed(),
         funder: None,
         reply_to: ReplyTo::new(token),
         by: tasks::Party::Task(key.task),
-        task: target,
-        message,
-        stop_run,
-        amendment,
     })));
     out
 }

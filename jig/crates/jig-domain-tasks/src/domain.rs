@@ -645,21 +645,17 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::WithdrawProposal { reply_to, proposer, proposal } => {
             crate::proposals::withdraw(domain, env, reply_to, proposer, proposal, out);
         }
-        Event::Control { reply_to, by, task, control } => {
-            crate::control::apply(domain, env, reply_to, by, task, control, out);
+        Event::Cancel { reply_to, by, operation } => {
+            crate::control::apply(domain, env, reply_to, by, crate::Operation::Cancel(operation), out);
         }
-        Event::Amend { reply_to, by, task, message, stop_run, amendment, funder, places } => {
-            crate::control::amend(
-                domain,
-                env,
-                reply_to,
-                by,
-                crate::control::Amend { number: task, message, stop_run, funder, amendment, places },
-                out,
-            );
+        Event::Release { reply_to, by, operation } => {
+            crate::control::apply(domain, env, reply_to, by, crate::Operation::Release(operation), out);
         }
-        Event::Move { reply_to, task, person, period, pool_budget, period_budget, reason } => {
-            crate::moving::apply(domain, env, reply_to, task, person, period, pool_budget, period_budget, &reason, out);
+        Event::Amend { reply_to, by, operation, funder, places } => {
+            crate::control::amend(domain, env, reply_to, by, operation, &places, funder, out);
+        }
+        Event::Move { reply_to, operation, person, period, pool_budget, period_budget } => {
+            crate::moving::apply(domain, env, reply_to, operation, person, period, pool_budget, period_budget, out);
         }
         Event::Subscribe { reply_to, task, subscription } => {
             crate::subscriptions::subscribe(domain, env, reply_to, task, subscription, false, out);
@@ -716,13 +712,13 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::MakeResultFollowups { reply_to, proposer, proposal, batch } => {
             make_result_followups(domain, env, reply_to, proposer, proposal, batch, out);
         }
-        Event::Message { reply_to, project, task, word, .. } => {
-            crate::inbox::message(domain, env, reply_to, project, task, word, false, out);
+        Event::Message { reply_to, project, operation } => {
+            crate::inbox::message(domain, env, reply_to, project, operation, false, out);
         }
         event @ Event::PersonQuestion { .. } => crate::questions::person_question(domain, env, event, out),
         event @ Event::PersonQuestionAnswer { .. } => crate::questions::person_answer(domain, env, event, out),
-        Event::AuthorizedMessage { reply_to, project, task, word } => {
-            crate::inbox::message(domain, env, reply_to, project, task, word, true, out);
+        Event::AuthorizedMessage { reply_to, project, operation } => {
+            crate::inbox::message(domain, env, reply_to, project, operation, true, out);
         }
         Event::DelegateResult { task, word } => {
             crate::inbox::delegate_result(domain, env, task, word, out);

@@ -9,46 +9,36 @@
 //! heard its stream fail, a reset, a connection that carried several calls,
 //! events with an id or a reconnection time, and each outcome at each end.
 
-use std::collections::BTreeMap;
-
 use skein_lib::Rng;
+use skein_protocol_kit::seen::Seen;
 use skein_protocol_world::scenario;
 use skein_protocol_world::world::{self, Run, Settings};
 
 const ROUNDS: u64 = 300;
 
-#[derive(Default)]
-struct Seen(BTreeMap<String, u32>);
-
-impl Seen {
-    fn note(&mut self, what: String) {
-        *self.0.entry(what).or_default() += 1;
+fn record(tally: &mut Seen, run: &Run) {
+    let fell = run.fell;
+    for (flag, what) in [
+        (fell.writer_held, "a writer held back by a slow reader"),
+        (fell.upload_held, "an upload held back by a slow consumer"),
+        (fell.calls > 1, "a connection that carried several calls"),
+        (fell.ids > 0, "an event's id or reconnection time checked"),
+        (fell.upload_stopped, "an upload stopped by a response first"),
+        (fell.writer_failed, "a writer that heard its stream fail"),
+        (fell.reset, "a reset"),
+    ] {
+        if flag {
+            tally.note(what.into());
+        }
     }
-
-    fn record(&mut self, run: &Run) {
-        let fell = run.fell;
-        for (flag, what) in [
-            (fell.writer_held, "a writer held back by a slow reader"),
-            (fell.upload_held, "an upload held back by a slow consumer"),
-            (fell.calls > 1, "a connection that carried several calls"),
-            (fell.ids > 0, "an event's id or reconnection time checked"),
-            (fell.upload_stopped, "an upload stopped by a response first"),
-            (fell.writer_failed, "a writer that heard its stream fail"),
-            (fell.reset, "a reset"),
-        ] {
-            if flag {
-                self.note(what.into());
-            }
-        }
-        for outcome in &run.client.outcomes {
-            self.note(format!("client {outcome:?}"));
-        }
-        if run.client.outcomes.len() < run.client.calls || run.client.calls == 0 {
-            self.note("client closed first".into());
-        }
-        for outcome in &run.server.outcomes {
-            self.note(format!("server {outcome:?}"));
-        }
+    for outcome in &run.client.outcomes {
+        tally.note(format!("client {outcome:?}"));
+    }
+    if run.client.outcomes.len() < run.client.calls || run.client.calls == 0 {
+        tally.note("client closed first".into());
+    }
+    for outcome in &run.server.outcomes {
+        tally.note(format!("server {outcome:?}"));
     }
 }
 
@@ -80,7 +70,7 @@ fn every_scenario_holds_whatever_the_caps_and_the_wire() {
             settings.reset = Some(rng.below(1_000));
         }
         let run = world::run(&scenario, &settings, seed);
-        tally.record(&run);
+        record(&mut tally, &run);
     }
     for what in [
         "a writer held back by a slow reader",

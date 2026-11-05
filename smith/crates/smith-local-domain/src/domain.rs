@@ -84,17 +84,6 @@ impl Domain {
         self.chat.request_load();
         self.config.chat.clone()
     }
-    /// The typed verdict for one told tool result.
-    #[must_use]
-    pub fn tool_verdict(result: &smith_domain::session::llm::Returned) -> crate::ToolVerdict {
-        crate::person::tool_verdict(result)
-    }
-
-    /// What an accepted or parked answer said.
-    #[must_use]
-    pub fn said(answer: &smith_host_domain::Answer) -> crate::Said {
-        crate::agent::said(answer)
-    }
 
     /// Validate local choices and build the agent with the configured endpoints.
     pub fn new(mut config: Config, limits: &Limits, seed: u64) -> Result<Domain, Invalid> {
