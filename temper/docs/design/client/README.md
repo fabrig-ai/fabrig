@@ -349,7 +349,7 @@ keeps (`../protocol/configuration.md`, section 2).
 
 | Address | Mockup | Shows | Watches and reads | Acts |
 |---|---|---|---|---|
-| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | start the configuring chat; adopt the first repository again, or open the adoption form; skip "To begin" |
+| `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | open `Configure`; adopt the first repository again, or open the adoption form; skip "To begin" |
 | `Settings { project }` | none | a project's settings: "Settings for PROJECT", "Configure temper", the links to `Forges`, `Accounts` and `Adopt { project }`, and "Sign out" (*Settings,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | sign out |
 | `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
 | `Inbox` (the root) | `inbox.html` | what needs the person, across projects, filtered by project, kind and goal (its root): proposals, questions, held tasks, person tasks; then updates (results, replies); "+ New chat", a link to the Chats page's start (`/chats?at=start`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | accept ("Accept"), reject with a reason, answer, release, leave held, take, hand back |
@@ -1207,7 +1207,7 @@ keeps (`../protocol/configuration.md`, section 2).
        the charter of template 3 as `me` lists it
        (`../protocol/configuration.md`, 13.4): a row names its label,
        which is a chat's, and no template. With no template 3 in `me`
-       the act starts the stock chat, and only a setting's change marks
+       the page it opens starts the stock chat, and only a setting's change marks
        the step done. A person who cannot read that document sees no
        change.
     2. The repository, in the first state that holds: adopted (a row's
@@ -1337,8 +1337,9 @@ keeps (`../protocol/configuration.md`, section 2).
   has the level-1 heading "Settings for PROJECT"; a list of links,
   "Configure temper", "Forges", "Accounts" and "Adopt a repository", each
   with the marks 5.3 gives it; then "Sign out". "Configure temper" opens
-  the person's configuring chat in the project, the newest one not closed,
-  on its conversation; with none, `Configure { project }`. So `Settings`
+  the person's configuring chat in the project, the newest one not closed
+  (the highest task number, not the latest activity), on its conversation;
+  with none, `Configure { project }`. So `Settings`
   reads the person's chats in the project as `Chats` does, and until they
   are delivered the link opens `Configure`. A project's Delete, when it is built, is here
   (section 10).
@@ -1417,8 +1418,9 @@ keeps (`../protocol/configuration.md`, section 2).
   whether or not the conversation scrolls, in every mode, the column
   shifted by half a scrollbar where the platform's scrollbars take room. On
   a phone
-  neither keeps a gutter and both stand 16 pixels in, the question at 26
-  pixels and the cards tighter. At 1366 by 680 the whole opening and the
+  neither keeps a gutter and both stand 16 pixels in, the conversation
+  scrolling with no scrollbar drawn, the question at 26 pixels and the
+  cards tighter. At 1366 by 680 the whole opening and the
   composer show with no scrolling.
 
   A starter or "Send" starts the chat, the words it sends the first
@@ -4838,7 +4840,8 @@ own tests:
   Home; "Skip" on Home reaching every client of the person, holding
   across a restart, and leaving another person's To begin and the
   person's other projects' as they were; the configuring chat started
-  from `Configure`, from template 3; a project with no
+  from `Configure`, from template 3, and `Settings`' "Configure temper"
+  then naming it; a project with no
   repository saying so on its chats page, with "Adopt a repository";
   with jig's faults (drops,
   the engine restarting, a double press, a reload with an adoption
