@@ -57,9 +57,10 @@ impl Play for Walk {
     }
 }
 
-/// Use the native person's exact expectations and words. Its typed navigation becomes
-/// a press of New chat: a document navigation would start a fresh worker.
+/// Choosing the playground opens `NewChat`. Later native moves press the rail's New chat:
+/// a document navigation would start a fresh worker.
 fn story_steps() -> Vec<Step> {
+    let mut first_new_chat = true;
     temper_playground_world::stories::a()
         .into_iter()
         .enumerate()
@@ -72,7 +73,11 @@ fn story_steps() -> Vec<Step> {
                         return None;
                     }
                     assert_eq!(path.as_ref(), b"/chats/new");
-                    PersonStep::Press { find: Find::exactly_named(Role::Link, b"+ New chat") }
+                    if first_new_chat {
+                        first_new_chat = false;
+                        return None;
+                    }
+                    PersonStep::Press { find: Find::exactly_named(Role::Link, b"New chat") }
                 }
                 PersonStep::Press { find } => PersonStep::Press { find },
                 PersonStep::Type { find, words } => PersonStep::Type { find, words },
