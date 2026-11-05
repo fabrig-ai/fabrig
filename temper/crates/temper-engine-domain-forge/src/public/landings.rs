@@ -134,30 +134,8 @@ impl Domain {
                     ready.push(*candidate).ok()?;
                 }
             }
-            let mut queue = Queue { repository: self.repository_address(row)?, ready, named: false };
-            // Selection uses the panels' comparator on the public candidates alone.
-            let mut ordered = List::with_capacity(limits.changes);
-            while !queue.ready.is_empty() {
-                let mut first = None;
-                for candidate in &queue.ready {
-                    first = match first {
-                        Some(current) if !crate::panel::queue_before(candidate, &current, repair, limits, ask.now) => {
-                            Some(current)
-                        }
-                        Some(_) | None => Some(*candidate),
-                    };
-                }
-                let first = first?;
-                ordered.push(first).ok()?;
-                let mut rest = List::with_capacity(limits.changes);
-                for candidate in &queue.ready {
-                    if candidate.task != first.task {
-                        rest.push(*candidate).ok()?;
-                    }
-                }
-                queue.ready = rest;
-            }
-            queue.ready = ordered;
+            let ready = super::order_ready(ready, repair, limits, ask.now)?;
+            let queue = Queue { repository: self.repository_address(row)?, ready, named: false };
             queues.push(queue).ok()?;
         }
         Some(queues)

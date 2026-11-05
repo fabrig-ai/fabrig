@@ -238,6 +238,10 @@ pub fn page(address: &temper_client_domain::Address, signed_out: bool) -> skein_
     temper_client_view::build(&mut view, &root, NOW, &mut Queue::with_capacity(tree_limits().patches));
     copy_tree(view.tree())
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "one fixture dispatch supplies each opened page and the changes family document"
+)]
 fn populate_page(
     root: &mut client::Domain,
     env: &skein_lib::Env<client::Limits>,
@@ -251,6 +255,86 @@ fn populate_page(
             break;
         };
         match request {
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } },
+                    },
+            } => {
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).expect("fixture family watch");
+                if let w::Watch::Changes(subject) = watching.watch() {
+                    let mut changes = skein_lib::List::with_capacity(1);
+                    changes
+                        .push(
+                            w::ChangesQueued::new(
+                                &w::CEILINGS,
+                                w::ChangesQueuedParts {
+                                    task: 9,
+                                    title: b"Store: policy record".as_slice().into(),
+                                    ready_since: 0,
+                                    checks_since: Some(0),
+                                },
+                            )
+                            .unwrap(),
+                        )
+                        .unwrap();
+                    let mut queues = skein_lib::List::with_capacity(1);
+                    queues
+                        .push(
+                            w::ChangesQueue::new(
+                                &w::CEILINGS,
+                                w::ChangesQueueParts {
+                                    repository: b"owner/repo".as_slice().into(),
+                                    branch: b"main".as_slice().into(),
+                                    red: false,
+                                    changes,
+                                },
+                            )
+                            .unwrap(),
+                        )
+                        .unwrap();
+                    let mut landed = skein_lib::List::with_capacity(1);
+                    landed
+                        .push(
+                            w::ChangesLanded::new(
+                                &w::CEILINGS,
+                                w::ChangesLandedParts { task: 10, title: b"A landed change".as_slice().into(), at: 0 },
+                            )
+                            .unwrap(),
+                        )
+                        .unwrap();
+                    let panel = w::ChangesPanel::new(
+                        &w::CEILINGS,
+                        w::ChangesPanelParts {
+                            project: subject.project(),
+                            landing: b"main".as_slice().into(),
+                            queues,
+                            more: 0,
+                            landed,
+                            landed_more: 0,
+                        },
+                    )
+                    .unwrap();
+                    client::step(
+                        root,
+                        env,
+                        Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::FamilyDelivered {
+                                    watch,
+                                    record: jig_client::Family {
+                                        family: wire::FORGE,
+                                        version: wire::CLIENT_VERSION,
+                                        bytes: wire::changes_panel(&panel),
+                                    },
+                                },
+                            },
+                        },
+                        out,
+                    );
+                }
+            }
             Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
@@ -849,3 +933,8 @@ pub mod chat;
 mod task;
 
 pub mod golden_cards;
+
+/// A Changes page supplied at the forge family boundary (client/README.md, 3.5).
+pub fn changes_page() -> skein_ui::Tree {
+    page(&client::Address::Changes { project: 1 }, false)
+}

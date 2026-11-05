@@ -1823,8 +1823,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
   (13.9).
 - **The configuring agent is a setting** like any other: template 3
   starts it, from `chat start --template 3` (`../client/tools.md`,
-  5.3) and, once the web client's pages land, from "Tell temper how
-  you work", and an owner may change or remove it as any template. Its runs read
+  5.3) and from the client's `Configure`, which "Tell temper how you
+  work" opens (`../client/README.md`, 3.5), and an owner may change or remove it as any template. Its runs read
   and propose settings; they never change one, since jig's `settings`
   family proposes and an owner accepts (jig's `domain/engine.md`, 17.6).
 - **Built at each start** by `temper-service`'s `stock` module, as
