@@ -4268,6 +4268,7 @@ version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
  "skein-fake-llm-domain",
+ "skein-json",
  "skein-lib",
  "skein-llm",
  "skein-llm-world",
@@ -4275,7 +4276,6 @@ dependencies = [
  "smith-domain",
  "smith-domain-session",
  "smith-domain-tools",
- "smith-protocol-llm",
  "smith-tools-world",
 ]
 
