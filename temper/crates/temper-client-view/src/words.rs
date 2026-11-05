@@ -11,7 +11,25 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
-    ConfigureAgent,
+    ConfigureTitle,
+    ConfigureQuestion,
+    ConfigureLede,
+    ConfigureSets,
+    ConfigureWorkTerm,
+    ConfigureWorkLine,
+    ConfigureModelsTerm,
+    ConfigureModelsLine,
+    ConfigureApprovalsTerm,
+    ConfigureApprovalsLine,
+    ConfigureNote,
+    ConfigureAloneTitle,
+    ConfigureAloneLine,
+    ConfigureDesignTitle,
+    ConfigureDesignLine,
+    ConfigureModelsTitle,
+    ConfigureModelsCardLine,
+    ConfigureModels,
+    ConfigureUnsureTitle,
     ConfigureWays,
     ConfigureAlone,
     ConfigureDesign,
@@ -868,7 +886,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring chat tag adds one literal phrase (3.5).
 // Needs count and toast add five phrases (client/README.md, 3.5).
 // Needs you adds sixteen phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1367;
+// The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
+const PHRASES: u32 = 1385;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -882,9 +901,28 @@ const PHRASES: u32 = 1367;
 // The configuring chat tag adds one literal segment (3.5).
 // Needs count and toast add eleven literal and hole segments (3.5).
 // Needs you adds thirty-four literal and hole segments (3.5).
-const SEGMENTS: u32 = 2370;
-const ALL: [Word; 771] = [
-    Word::ConfigureAgent,
+// The configuring opening adds twenty literal and hole segments (3.5).
+const SEGMENTS: u32 = 2390;
+const ALL: [Word; 789] = [
+    Word::ConfigureTitle,
+    Word::ConfigureQuestion,
+    Word::ConfigureLede,
+    Word::ConfigureSets,
+    Word::ConfigureWorkTerm,
+    Word::ConfigureWorkLine,
+    Word::ConfigureModelsTerm,
+    Word::ConfigureModelsLine,
+    Word::ConfigureApprovalsTerm,
+    Word::ConfigureApprovalsLine,
+    Word::ConfigureNote,
+    Word::ConfigureAloneTitle,
+    Word::ConfigureAloneLine,
+    Word::ConfigureDesignTitle,
+    Word::ConfigureDesignLine,
+    Word::ConfigureModelsTitle,
+    Word::ConfigureModelsCardLine,
+    Word::ConfigureModels,
+    Word::ConfigureUnsureTitle,
     Word::ConfigureWays,
     Word::ConfigureAlone,
     Word::ConfigureDesign,
@@ -1660,7 +1698,25 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
-            Self::ConfigureAgent => 3181,
+            Self::ConfigureTitle => 3189,
+            Self::ConfigureQuestion => 3190,
+            Self::ConfigureLede => 3191,
+            Self::ConfigureSets => 3192,
+            Self::ConfigureWorkTerm => 3193,
+            Self::ConfigureWorkLine => 3194,
+            Self::ConfigureModelsTerm => 3195,
+            Self::ConfigureModelsLine => 3196,
+            Self::ConfigureApprovalsTerm => 3197,
+            Self::ConfigureApprovalsLine => 3198,
+            Self::ConfigureNote => 3199,
+            Self::ConfigureAloneTitle => 3200,
+            Self::ConfigureAloneLine => 3201,
+            Self::ConfigureDesignTitle => 3202,
+            Self::ConfigureDesignLine => 3203,
+            Self::ConfigureModelsTitle => 3204,
+            Self::ConfigureModelsCardLine => 3205,
+            Self::ConfigureModels => 3206,
+            Self::ConfigureUnsureTitle => 3207,
             Self::ConfigureWays => 3182,
             Self::ConfigureAlone => 3183,
             Self::ConfigureDesign => 3184,
@@ -1669,22 +1725,22 @@ impl Word {
             Self::ConfigureWhere => 3187,
             Self::Configuring => 3188,
             Self::HomeOpen => 3165,
-            Self::NeedsLaterMeta => 3200,
-            Self::NeedsYourReply => 3201,
-            Self::NeedsPlaceholder => 3202,
-            Self::NeedsSendReply => 3203,
-            Self::NeedsProgress => 3204,
-            Self::NeedsProgressCut => 3205,
-            Self::NeedsSaw => 3206,
-            Self::NeedsRecommended => 3207,
-            Self::NeedsReply => 3208,
-            Self::NeedsLater => 3209,
-            Self::NeedsNext => 3210,
-            Self::NeedsLast => 3211,
-            Self::NeedsAnswered => 3212,
-            Self::NeedsDone => 3213,
-            Self::NeedsFunds => 3214,
-            Self::NeedsKindFunds => 3215,
+            Self::NeedsLaterMeta => 3216,
+            Self::NeedsYourReply => 3217,
+            Self::NeedsPlaceholder => 3218,
+            Self::NeedsSendReply => 3219,
+            Self::NeedsProgress => 3220,
+            Self::NeedsProgressCut => 3221,
+            Self::NeedsSaw => 3222,
+            Self::NeedsRecommended => 3223,
+            Self::NeedsReply => 3224,
+            Self::NeedsLater => 3225,
+            Self::NeedsNext => 3226,
+            Self::NeedsLast => 3227,
+            Self::NeedsAnswered => 3228,
+            Self::NeedsDone => 3229,
+            Self::NeedsFunds => 3230,
+            Self::NeedsKindFunds => 3231,
             Self::HomeNeedsNone => 3145,
             Self::HomeNeedsOne => 3146,
             Self::HomeNeedsMany => 3147,
@@ -2658,7 +2714,8 @@ impl Words {
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Needs count and toast add 87 literal bytes (3.5).
             // Needs you adds 225 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 87 + 225,
+            // The configuring opening adds 476 literal bytes (client/README.md, 3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 87 + 225 + 476,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -3301,12 +3358,30 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
         Word::StartChat => (&[b"Start a chat"], &[]),
-        Word::ConfigureAgent => (&[b"temper\xe2\x80\x99s configuring agent. Describe how you work, in your own words or by pointing at a document. It proposes how temper will run that; nothing changes until you accept."], &[]),
+        Word::ConfigureTitle => (&[b"Configure temper"], &[]),
+        Word::ConfigureQuestion => (&[b"How should temper run ", b"?"], &[Name]),
+        Word::ConfigureLede => (&[b"Tell it how you work, in your own words or by pointing at a document."], &[]),
+        Word::ConfigureSets => (&[b"What it sets"], &[]),
+        Word::ConfigureWorkTerm => (&[b"How work runs"], &[]),
+        Word::ConfigureWorkLine => (&[b"how chats and goals start, are checked and land"], &[]),
+        Word::ConfigureModelsTerm => (&[b"Models"], &[]),
+        Word::ConfigureModelsLine => (&[b"which plan or model each role runs on"], &[]),
+        Word::ConfigureApprovalsTerm => (&[b"Approvals"], &[]),
+        Word::ConfigureApprovalsLine => (&[b"what waits for you, and what lands on its own"], &[]),
+        Word::ConfigureNote => (&[b"It proposes the settings; nothing changes until you accept."], &[]),
+        Word::ConfigureAloneTitle => (&[b"Small changes, alone"], &[]),
+        Word::ConfigureAloneLine => (&[b"One chat per change, landed once CI passes."], &[]),
+        Word::ConfigureDesignTitle => (&[b"A design draft first"], &[]),
+        Word::ConfigureDesignLine => (&[b"Agents plan its tasks; they land together."], &[]),
+        Word::ConfigureModelsTitle => (&[b"Models by role"], &[]),
+        Word::ConfigureModelsCardLine => (&[b"Claude for reviews, my ChatGPT plan for the rest."], &[]),
+        Word::ConfigureModels => (&[b"Use Claude for reviews and my ChatGPT plan for everything else."], &[]),
+        Word::ConfigureUnsureTitle => (&[b"Not sure yet? Ask what temper can do."], &[]),
         Word::ConfigureWays => (&[b"Ways to begin"], &[]),
         Word::ConfigureAlone => (&[b"I work alone on small changes: one chat per change, landed once CI passes."], &[]),
         Word::ConfigureDesign => (&[b"I write a design draft first; agents plan its tasks and land them together once checked."], &[]),
         Word::ConfigureUnsure => (&[b"Not sure yet. What can temper do?"], &[]),
-        Word::ConfigureWords => (&[b"How do you work?"], &[]),
+        Word::ConfigureWords => (&[b"Describe how you work, or what to change"], &[]),
         Word::Configuring => (&[b"Configuring"], &[]),
         Word::ConfigureWhere => (&[b"Where"], &[]),
         Word::FirstChat => (&[b"Tell temper how you work"], &[]),

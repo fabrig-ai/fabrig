@@ -91,7 +91,7 @@ impl Hooked {
     fn down(&mut self, env: &Env<Limits>, request: http::Request) {
         http::down(
             &mut self.http,
-            &Env { now: env.now, wall: env.wall, limits: limits::hook_http(&env.limits) },
+            &env.with(limits::hook_http(&env.limits)),
             request,
             &mut self.events,
             &mut self.below,
@@ -101,7 +101,7 @@ impl Hooked {
         if self.closing == Closing::Open {
             http::up(
                 &mut self.http,
-                &Env { now: env.now, wall: env.wall, limits: limits::hook_http(&env.limits) },
+                &env.with(limits::hook_http(&env.limits)),
                 event,
                 &mut self.events,
                 &mut self.below,
@@ -111,7 +111,7 @@ impl Hooked {
     fn json_request(&mut self, env: &Env<Limits>, request: json::Request) {
         json::down(
             &mut self.json,
-            &Env { now: env.now, wall: env.wall, limits: limits::hook_documents(&env.limits).json },
+            &env.with(limits::hook_documents(&env.limits).json),
             request,
             &mut self.json_events,
             &mut self.json_down,
@@ -199,7 +199,7 @@ impl Hooked {
         if self.decoder.is_some() {
             json::up(
                 &mut self.json,
-                &Env { now: env.now, wall: env.wall, limits: limits::hook_documents(&env.limits).json },
+                &env.with(limits::hook_documents(&env.limits).json),
                 event,
                 &mut self.json_events,
                 &mut self.json_down,

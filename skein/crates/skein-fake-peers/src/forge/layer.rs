@@ -150,12 +150,12 @@ macro_rules! entry {
             match (server, service, &env.limits) {
                 (Server::Forgejo(server), Service::Forgejo(service), Limits::Forgejo(limits)) => {
                     let mut events=Queue::uncapped();
-                    forgejo::$forgejo(server, service, $($domain,)? &Env { now: env.now, wall: env.wall, limits: *limits }, $($arg,)* &mut events, below);
+                    forgejo::$forgejo(server, service, $($domain,)? &env.with(*limits), $($arg,)* &mut events, below);
                     translate_forgejo(&mut events,above);
                 },
                 (Server::Github(server), Service::Github(service), Limits::Github(limits)) => {
                     let mut events = Queue::uncapped();
-                    github::$github(server, service, $($domain,)? &Env { now: env.now, wall: env.wall, limits: *limits }, $($arg,)* &mut events, below);
+                    github::$github(server, service, $($domain,)? &env.with(*limits), $($arg,)* &mut events, below);
                     translate(&mut events, above);
                 }
                 (Server::Forgejo(_), Service::Forgejo(_) | Service::Github(_), Limits::Github(_))
@@ -183,27 +183,12 @@ pub(super) fn down(
     match (server, service, &env.limits) {
         (Server::Forgejo(server), Service::Forgejo(service), Limits::Forgejo(limits)) => {
             let mut events = Queue::uncapped();
-            forgejo::down(
-                server,
-                service,
-                &Env { now: env.now, wall: env.wall, limits: *limits },
-                reply,
-                &mut events,
-                below,
-            );
+            forgejo::down(server, service, &env.with(*limits), reply, &mut events, below);
             translate_forgejo(&mut events, above);
         }
         (Server::Github(server), Service::Github(service), Limits::Github(limits)) => {
             let mut events = Queue::uncapped();
-            github::down(
-                server,
-                service,
-                &Env { now: env.now, wall: env.wall, limits: *limits },
-                reply,
-                domain,
-                &mut events,
-                below,
-            );
+            github::down(server, service, &env.with(*limits), reply, domain, &mut events, below);
             translate(&mut events, above);
         }
         (Server::Forgejo(_), Service::Forgejo(_) | Service::Github(_), Limits::Github(_))
@@ -245,14 +230,7 @@ pub(super) fn admitted(
         unreachable!("GitHub admission")
     };
     let mut events = Queue::uncapped();
-    github::server::admitted(
-        server,
-        service,
-        &Env { now: env.now, wall: env.wall, limits },
-        result,
-        &mut events,
-        below,
-    );
+    github::server::admitted(server, service, &env.with(limits), result, &mut events, below);
     translate(&mut events, above);
 }
 

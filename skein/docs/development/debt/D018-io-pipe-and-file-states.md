@@ -30,5 +30,4 @@ and files.
 ## What pays it back
 
 One machine per task: the pipe and signals onto data-carrying states,
-then `FileIo` onto `Env`/`Limits` with a failure constructor. The
-operation-token question (D044) touches `FileIo` too.
+then `FileIo` onto `Env`/`Limits` with a failure constructor.

@@ -171,9 +171,9 @@ impl Hosted {
         let now = clock.now();
         let mut host = Self {
             component,
-            env: Env { now: now.now, wall: now.wall, limits },
+            env: now.with(limits),
             io: Io::new(&io_limits),
-            io_env: Env { now: now.now, wall: now.wall, limits: io_limits },
+            io_env: now.with(io_limits),
             above: Queue::with_capacity(256),
             below: Queue::with_capacity(256),
             events: Queue::with_capacity(256),

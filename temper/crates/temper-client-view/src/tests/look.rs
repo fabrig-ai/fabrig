@@ -434,3 +434,18 @@ fn account_rows_and_sign_ins_have_distinct_style_names() {
     assert_eq!(NAMES.style(SIGN_IN), Some(b"temper-sign-in".as_slice()));
     assert_ne!(ACCOUNT_ROW, SIGN_IN);
 }
+
+#[test]
+fn configuring_opening_and_needs_have_their_css_names() {
+    for (style, name) in [
+        (STARTER_LEDE, b"temper-starter-lede".as_slice()),
+        (STARTER_SETS, b"temper-starter-sets"),
+        (STARTER_NOTE, b"temper-starter-note"),
+        (STARTER_WAYS, b"temper-starter-ways"),
+        (STARTER_UNSURE, b"temper-starter-unsure"),
+        (TOAST, b"temper-toast"),
+        (NEEDS, b"temper-needs"),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
+}

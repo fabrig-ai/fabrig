@@ -13,6 +13,3 @@ skein-json.workspace = true
 
 [lints]
 workspace = true
-
-[dev-dependencies]
-skein-scratch.workspace = true

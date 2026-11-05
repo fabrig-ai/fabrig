@@ -397,7 +397,7 @@ pub fn down(
 }
 
 fn tokenizer_env(env: &Env<Limits>) -> Env<json::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.tokenizer }
+    env.with(env.limits.tokenizer)
 }
 
 fn stop_tokenizer(collector: &mut Collector, env: &Env<Limits>, below: &mut Queue<Down>) {

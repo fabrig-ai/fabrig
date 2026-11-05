@@ -52,8 +52,8 @@
   the fuzzy sweep's changes of landing rules
   (`tests/engine/forge`'s `suite::fuzzy::simulation` makes none); and
   the real loop's smoke of a gate added to a project's rule from the
-  client. 6.4: the client's How work runs, with its "Tell temper how
-  you work", a proposal's card and its review, in their step and view
+  client. 6.4: the client's How work runs, with its "Configure
+  temper", a proposal's card and its review, in their step and view
   tests and joined with the engine, since the pages are not built
   (`../client/README.status.md`); the joined world's configuring chat
   starts, proposes, is accepted, waits for an owner and goes stale
