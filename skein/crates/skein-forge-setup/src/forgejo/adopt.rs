@@ -73,25 +73,21 @@ impl Adopt {
     }
     fn advance(&mut self, state: State, event: Event) -> Need {
         match state {
-            State::Begin => match event {
-                Event::Begin => {
+            State::Begin => match event.begin() {
+                Ok(()) => {
                     self.state = State::AdminFile;
                     Need::Read(Item::AdminToken)
                 }
-                Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(Stage::Admin, Why::Unexpected)
-                }
+                Err(why) => self.stop(Stage::Admin, why),
             },
-            State::AdminFile => match event {
-                Event::Read(Some(token)) => {
+            State::AdminFile => match event.read() {
+                Ok(Some(token)) => {
                     self.admin = Some(token);
                     self.state = State::Admin;
                     self.send(Request::User)
                 }
-                Event::Read(None) => self.stop(Stage::Admin, Why::Missing),
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    self.stop(Stage::Admin, Why::Unexpected)
-                }
+                Ok(None) => self.stop(Stage::Admin, Why::Missing),
+                Err(why) => self.stop(Stage::Admin, why),
             },
             State::Admin => match reconcile::account(event) {
                 Ok(user) => {
@@ -127,7 +123,7 @@ impl Adopt {
 }
 /// Consumes one event and emits at most one need; terminal machines ignore later events.
 pub fn step(machine: &mut Adopt, event: Event, out: &mut Queue<Need>) {
-    let event = reconcile::normal(event);
+    let event = plan::normal(event);
     let state = core::mem::replace(&mut machine.state, State::Ended);
     match state {
         State::Ended => (),

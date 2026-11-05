@@ -1,12 +1,13 @@
 //! Makes or copies a repository, sharing org, access and file steps (skein/docs/design/forge-setup.md, 4.9 and 4.10).
+use crate::forgejo::{Reply, reply, unexpected};
 use crate::{
     call::Auth,
     forgejo::access::{Access, Fail, Move, Shared},
     given::{self, Given, Refused},
     host::File,
     item::Item,
-    plan::{self, Event, Need, Outcome, Reply, Stage, Why},
-    reconcile::{self, reply, unexpected},
+    plan::{self, Event, Need, Outcome, Stage, Why},
+    reconcile,
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -207,21 +208,21 @@ impl Create {
     }
     fn advance(&mut self, event: Event) -> Result<Need, Why> {
         match self.state {
-            State::Begin => match event {
-                Event::Begin => {
+            State::Begin => match event.begin() {
+                Ok(()) => {
                     self.state = State::AdminFile;
                     Ok(Need::Read(Item::AdminToken))
                 }
-                Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => Err(Why::Unexpected),
+                Err(why) => Err(why),
             },
-            State::AdminFile => match event {
-                Event::Read(Some(token)) => {
+            State::AdminFile => match event.read() {
+                Ok(Some(token)) => {
                     self.admin = Some(token);
                     self.state = State::Admin;
                     Ok(self.send(Request::User))
                 }
-                Event::Read(None) => Err(Why::Missing),
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => Err(Why::Unexpected),
+                Ok(None) => Err(Why::Missing),
+                Err(why) => Err(why),
             },
             State::Admin => {
                 let admin = reconcile::account(event)?;
@@ -232,13 +233,13 @@ impl Create {
                 self.state = State::Org;
                 Ok(self.send(Request::Org { name: self.at.owner.clone() }))
             }
-            State::CopyMark => match event {
-                Event::Read(Some(_)) => Ok(self.copy_branch(true)),
-                Event::Read(None) => Err(Why::Taken),
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => Err(Why::Unexpected),
+            State::CopyMark => match event.read() {
+                Ok(Some(_)) => Ok(self.copy_branch(true)),
+                Ok(None) => Err(Why::Taken),
+                Err(why) => Err(why),
             },
-            State::Mark => match event {
-                Event::Written => {
+            State::Mark => match event.written() {
+                Ok(()) => {
                     let from = match &self.source {
                         Source::Copy { from } => from.clone(),
                         Source::Empty => unreachable!("only a copy writes its mark"),
@@ -246,7 +247,7 @@ impl Create {
                     self.state = State::Migrate;
                     Ok(self.send(Request::Migrate { at: self.at.clone(), from }))
                 }
-                Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Drawn(_) => Err(Why::Unexpected),
+                Err(why) => Err(why),
             },
             State::Access => match self.access.event(&mut self.shared, event) {
                 Ok(Move::Send(request)) => Ok(self.send(request)),
@@ -282,25 +283,15 @@ impl Create {
                     self.state = State::MakeOrg;
                     Ok(self.send(Request::CreateOrg { person: owner, name: self.at.owner.clone() }))
                 }
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             State::MakeOrg => match answer {
                 Reply::Document(Document::Org(_)) => Ok(self.repository()),
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             State::Repository => match answer {
                 Reply::Document(Document::Repository(repository)) => {
@@ -324,14 +315,9 @@ impl Create {
                     }
                     Source::Copy { .. } => self.mark(),
                 }),
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             State::MakeRepository => match answer {
                 Reply::Document(Document::CreatedRepository(repository)) => {
@@ -339,14 +325,9 @@ impl Create {
                     Ok(self.access())
                 }
                 Reply::Status(409) => Ok(self.repository()),
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             State::Migrate | State::CopyBranch { .. } | State::Delete => self.copy_answer(answer),
             State::Branch | State::Raw | State::File => self.file_answer(answer),
@@ -377,14 +358,9 @@ impl Create {
                     Ok(self.copy_branch(false))
                 }
                 Reply::Status(409) => Err(Why::Taken),
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             State::CopyBranch { restart } => match answer {
                 Reply::Document(Document::Branch(_)) => Ok(self.access()),
@@ -396,24 +372,15 @@ impl Create {
                         Err(Why::Empty)
                     }
                 }
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             State::Delete => match answer {
                 Reply::Empty | Reply::Status(404) => Ok(self.mark()),
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             State::Begin
             | State::AdminFile
@@ -442,36 +409,22 @@ impl Create {
                         reference: branch.commit,
                     }))
                 }
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             State::Raw => match answer {
                 Reply::Empty => Ok(self.file_done()),
                 Reply::Status(404) => Ok(self.put_file()),
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             State::File => match answer {
                 Reply::Document(Document::CreatedFile { .. }) => Ok(self.file_done()),
-                other @ (Reply::Document(_)
-                | Reply::Rows(_)
-                | Reply::Empty
-                | Reply::Status(_)
-                | Reply::Down
-                | Reply::GithubDocument(_)
-                | Reply::GithubRows(_)
-                | Reply::Unsigned) => Err(unexpected(other)),
+                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                    Err(unexpected(other))
+                }
             },
             State::Begin
             | State::AdminFile
@@ -495,7 +448,7 @@ pub fn step(machine: &mut Create, event: Event, out: &mut Queue<Need>) {
     if let State::Ended = machine.state {
         return;
     }
-    let need = match machine.advance(reconcile::normal(event)) {
+    let need = match machine.advance(plan::normal(event)) {
         Ok(need) => need,
         Err(why) => machine.stop(why),
     };

@@ -2,10 +2,12 @@
 use super::{
     app,
     given::{self, Given, Refused},
+    reply,
 };
+use crate::github::Reply;
 use crate::{
     item::{self, Item},
-    plan::{self, Event, Need, Outcome, Reply, Stage, Why},
+    plan::{self, Event, Need, Outcome, Stage, Why},
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -70,39 +72,33 @@ impl Accept {
     }
     fn advance(&mut self, phase: Phase, event: Event) -> Need {
         match phase {
-            Phase::Begin => match event {
-                Event::Begin => {
+            Phase::Begin => match event.begin() {
+                Ok(()) => {
                     self.phase = Phase::Id;
                     Need::Read(Item::AppId)
                 }
-                Event::Read(_) | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    plan::stop(self.forge, Stage::App, b"id", Why::Unexpected)
-                }
+                Err(why) => plan::stop(self.forge, Stage::App, b"id", why),
             },
-            Phase::Id => match event {
-                Event::Read(read) => match app::id_of(read) {
+            Phase::Id => match event.read() {
+                Ok(read) => match app::id_of(read) {
                     Some(id) => {
                         self.phase = Phase::Key(id);
                         Need::Read(Item::AppKey)
                     }
                     None => plan::stop(self.forge, Stage::App, b"id", Why::Missing),
                 },
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    plan::stop(self.forge, Stage::App, b"id", Why::Unexpected)
-                }
+                Err(why) => plan::stop(self.forge, Stage::App, b"id", why),
             },
-            Phase::Key(id) => match event {
-                Event::Read(Some(key)) if item::app_key(key.expose(), self.key_bytes).is_some() => {
+            Phase::Key(id) => match event.read() {
+                Ok(Some(key)) if item::app_key(key.expose(), self.key_bytes).is_some() => {
                     self.phase = Phase::Accepted(app::Kept::new(id, key));
                     Need::Read(Item::Accepted)
                 }
-                Event::Read(_) => plan::stop(self.forge, Stage::App, b"key", Why::Missing),
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => {
-                    plan::stop(self.forge, Stage::App, b"key", Why::Unexpected)
-                }
+                Ok(_) => plan::stop(self.forge, Stage::App, b"key", Why::Missing),
+                Err(why) => plan::stop(self.forge, Stage::App, b"key", why),
             },
-            Phase::Accepted(app) => match event {
-                Event::Read(read) => {
+            Phase::Accepted(app) => match event.read() {
+                Ok(read) => {
                     let ids = match read {
                         Some(value) => item::accepted(value.expose(), self.installations),
                         None => Some(Box::<[u64]>::default()),
@@ -116,33 +112,24 @@ impl Accept {
                         auth: app.auth(),
                     }
                 }
-                Event::Begin | Event::Reply(_) | Event::Written | Event::Drawn(_) => self.stop(Why::Unexpected),
+                Err(why) => self.stop(why),
             },
-            Phase::Installation(ids) => match event {
-                Event::Reply(Reply::GithubDocument(Document::Installation(installation)))
+            Phase::Installation(ids) => match reply(event) {
+                Ok(Reply::Document(Document::Installation(installation)))
                     if installation.id == self.installation.get() =>
                 {
                     self.verified(&ids)
                 }
-                Event::Reply(Reply::Status(404)) => self.stop(Why::Missing),
-                Event::Reply(Reply::Status(status)) => self.stop(Why::Refused(status)),
-                Event::Reply(Reply::Unsigned) => plan::stop(self.forge, Stage::App, b"key", Why::KeyForm),
-                Event::Reply(Reply::Down) => self.stop(Why::Down),
-                Event::Reply(
-                    Reply::Document(_)
-                    | Reply::Rows(_)
-                    | Reply::Empty
-                    | Reply::GithubDocument(_)
-                    | Reply::GithubRows(_),
-                )
-                | Event::Begin
-                | Event::Read(_)
-                | Event::Written
-                | Event::Drawn(_) => self.stop(Why::Unexpected),
+                Ok(Reply::Status(404)) => self.stop(Why::Missing),
+                Ok(Reply::Status(status)) => self.stop(Why::Refused(status)),
+                Ok(Reply::Unsigned) => plan::stop(self.forge, Stage::App, b"key", Why::KeyForm),
+                Ok(Reply::Down) => self.stop(Why::Down),
+                Ok(Reply::Empty | Reply::Document(_) | Reply::Rows(_)) => self.stop(Why::Unexpected),
+                Err(why) => self.stop(why),
             },
-            Phase::Written => match event {
-                Event::Written => Need::Done(Outcome::Nothing),
-                Event::Begin | Event::Read(_) | Event::Reply(_) | Event::Drawn(_) => self.stop(Why::Unexpected),
+            Phase::Written => match event.written() {
+                Ok(()) => Need::Done(Outcome::Nothing),
+                Err(why) => self.stop(why),
             },
             Phase::Ended => unreachable!("ended acceptance is not advanced"),
         }
