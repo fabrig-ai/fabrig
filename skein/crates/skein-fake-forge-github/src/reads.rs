@@ -10,7 +10,7 @@ use skein_fake_forge_domain::{
     api::{self as a, Answer, Error, Op},
 };
 use skein_forge::{api, github::document as d};
-use skein_lib::{usize_of, len_u64, List, ReplyTo, Wall, bytes};
+use skein_lib::{List, ReplyTo, Wall, bytes, len_u64, usize_of};
 
 mod checks;
 mod issues;

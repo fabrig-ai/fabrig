@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as fake, api as a};
 use skein_forge::github::request::Method;
 use skein_json::Token;
-use skein_lib::{usize_of, List, ReplyTo, bytes};
+use skein_lib::{List, ReplyTo, bytes, usize_of};
 
 const PULL_REQUEST_FIELDS: u32 = 1 | 2 | 4 | 8 | 16;
 const STATUS_CONTEXTS: u32 = 32;

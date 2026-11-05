@@ -7,7 +7,7 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use rustls::{ServerConfig, ServerConnection};
 use skein_io as io;
 use skein_lib::stream::{Down, Fault, OutputDown, OutputOutcome, OutputUp, Read, Up};
-use skein_lib::{usize_of, Intake, Queue, Token};
+use skein_lib::{Intake, Queue, Token, usize_of};
 
 use super::Transport;
 use crate::Limits;
@@ -162,10 +162,7 @@ impl Wire {
                 self.room = room;
             }
             Down::Send(bytes) => {
-                assert!(
-                    bytes.len() <= usize_of(self.granted),
-                    "plaintext within granted room"
-                );
+                assert!(bytes.len() <= usize_of(self.granted), "plaintext within granted room");
                 self.granted = 0;
                 if self.tls.as_mut().expect("TLS face").writer().write_all(&bytes).is_err() {
                     self.fail(above, requests);

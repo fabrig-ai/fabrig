@@ -6,7 +6,7 @@ use crate::{
     store::Repository,
 };
 use alloc::boxed::Box;
-use skein_lib::{usize_of, List, Map, bytes::copy_of, sha256::Sha256};
+use skein_lib::{List, Map, bytes::copy_of, sha256::Sha256, usize_of};
 
 // A prefix is a file's ordered position and the byte after a directory slash.
 // A zero length names the root, including when the tree has no files.

@@ -6,7 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as domain, api as a};
 use skein_forge::github::request::Method;
-use skein_lib::{usize_of, Decimal, Queue, ReplyTo, Rng, Secret, Wall, Writer, bytes, sha256::Hmac};
+use skein_lib::{Decimal, Queue, ReplyTo, Rng, Secret, Wall, Writer, bytes, sha256::Hmac, usize_of};
 
 const LIFE: u64 = 600_000_000_000;
 // u32 repository, u64 job/expiry, u32 attempt, separators and 64 hex digits.

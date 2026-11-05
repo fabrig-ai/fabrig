@@ -6,7 +6,7 @@ use skein_forge::forgejo::{
     request::{HookSpec, Page},
     server::Answer,
 };
-use skein_lib::{usize_of, List, Secret};
+use skein_lib::{List, Secret, usize_of};
 /// A hook's private subscription, including the secret never sent in a reply.
 #[derive(Debug)]
 pub struct Subscription {

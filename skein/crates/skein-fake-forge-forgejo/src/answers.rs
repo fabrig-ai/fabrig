@@ -3,7 +3,7 @@ use crate::{Config, routes, setup::Store};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api as a;
 use skein_forge::forgejo::{document as d, id::ObjectFormat, request::Request, server::Answer};
-use skein_lib::{usize_of, Decimal, List, Wall, Writer, bytes};
+use skein_lib::{Decimal, List, Wall, Writer, bytes, usize_of};
 
 #[must_use]
 pub fn state(state: a::State) -> d::IssueState {
@@ -180,19 +180,13 @@ pub(crate) fn repository_document(
         html_url: html.finish(),
     }))
 }
-#[expect(clippy::too_many_lines, reason = "exhaustive request selection includes protocol-only setup variants")]
 fn pull_answer(config: &Config, setup: &Store, request: &Request, value: &a::Pull) -> Result<Answer, a::Error> {
     match request {
         Request::Reviews { page, .. } => {
             let (page, limit) = routes::page(config, *page);
             let skip = u64::from(page.saturating_sub(1)).saturating_mul(u64::from(limit));
             let mut out = List::with_capacity(limit);
-            for value in value
-                .reviews
-                .iter()
-                .skip(usize::try_from(skip).unwrap_or(usize::MAX))
-                .take(usize_of(limit))
-            {
+            for value in value.reviews.iter().skip(usize::try_from(skip).unwrap_or(usize::MAX)).take(usize_of(limit)) {
                 out.push(review(config, setup, value)).expect("page cap");
             }
             Ok(Answer::Reviews(out.into_boxed()))

@@ -7,7 +7,7 @@ use skein_forge::forgejo::{
     request::{Page, Request},
     server,
 };
-use skein_lib::{usize_of, Decimal, List, Writer, bytes};
+use skein_lib::{Decimal, List, Writer, bytes, usize_of};
 #[derive(PartialEq, Eq, Debug)]
 pub enum Select {
     Document,
@@ -761,11 +761,7 @@ fn branches(
     let (page, limit) = routes::page(config, page);
     let skip = u64::from(page.saturating_sub(1)).saturating_mul(u64::from(limit));
     let mut out = List::with_capacity(limit);
-    for branch in branches
-        .iter()
-        .skip(usize::try_from(skip).unwrap_or(usize::MAX))
-        .take(usize_of(limit))
-    {
+    for branch in branches.iter().skip(usize::try_from(skip).unwrap_or(usize::MAX)).take(usize_of(limit)) {
         out.push(answers::branch(config, request, &branch.branch, branch.commit)).expect("page cap");
     }
     Ok(server::Answer::Branches(out.into_boxed()))

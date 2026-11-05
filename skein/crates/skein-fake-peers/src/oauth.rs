@@ -11,7 +11,7 @@ use skein_fake_oauth as issuer;
 use skein_http::{Header, server as http};
 use skein_io::{self as io, kernel};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{usize_of, Decimal, Duration, Env, List, Queue, Time, Token, Wall, bytes};
+use skein_lib::{Decimal, Duration, Env, List, Queue, Time, Token, Wall, bytes, usize_of};
 use skein_oauth::HttpRequest;
 use skein_shell::Host;
 
@@ -206,10 +206,7 @@ impl Peer {
     }
 
     fn reserve_observation(&self, payload_bytes: u64) {
-        assert!(
-            self.observations.len() < usize_of(self.face.limits.observations),
-            "world observation count cap"
-        );
+        assert!(self.observations.len() < usize_of(self.face.limits.observations), "world observation count cap");
         assert!(
             self.observed_bytes
                 .checked_add(payload_bytes)

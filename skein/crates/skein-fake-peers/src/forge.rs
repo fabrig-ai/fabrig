@@ -6,7 +6,7 @@ use skein_fake_forge_domain::{self as domain, api};
 use skein_fake_forge_forgejo as forgejo;
 use skein_io::{self as io, kernel};
 use skein_lib::stream::{Down, Up};
-use skein_lib::{usize_of, Env, Queue, ReplyTo, Time, Token, Wall};
+use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall, usize_of};
 use skein_shell::Host;
 
 use crate::face::{Face, LISTENER};
@@ -355,9 +355,7 @@ impl Peer {
             io::Event::Accepted { owner, socket, .. } => {
                 assert!(owner == LISTENER || owner == BLOB_LISTENER);
                 let blob = owner == BLOB_LISTENER;
-                if self.face.stopping
-                    || self.connections.len() == usize_of(self.face.limits.connections)
-                {
+                if self.face.stopping || self.connections.len() == usize_of(self.face.limits.connections) {
                     self.face.requests.push(io::Request::Reject { socket });
                     return;
                 }

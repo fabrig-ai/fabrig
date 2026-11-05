@@ -9,9 +9,10 @@ use crate::{
     store::Repository,
 };
 use alloc::boxed::Box;
-use skein_lib::{usize_of, 
+use skein_lib::{
     Env, Id, List,
     bytes::{copy_of, find},
+    usize_of,
 };
 
 pub(crate) fn fits(

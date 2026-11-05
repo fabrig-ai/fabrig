@@ -1,9 +1,10 @@
 //! One connection's core (skein/docs/design/fake-forge.md, 12).
 use alloc::boxed::Box;
 use skein_http::{Header, server as http};
-use skein_lib::{usize_of, 
+use skein_lib::{
     Env, Queue, bytes,
     stream::{Down, Read, Up},
+    usize_of,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

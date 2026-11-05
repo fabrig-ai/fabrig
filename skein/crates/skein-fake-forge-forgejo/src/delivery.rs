@@ -7,7 +7,7 @@ use skein_fake_forge_domain::{
     api::{Change, Check},
 };
 use skein_forge::forgejo::{delivery, document::Body, request::ReviewEvent, server};
-use skein_lib::{len_u64, Decimal, List, Secret, Writer, bytes, sha256::Hmac};
+use skein_lib::{Decimal, List, Secret, Writer, bytes, len_u64, sha256::Hmac};
 /// One forge's destination and signing secret; no secret crosses into its domain.
 #[derive(Debug)]
 pub struct Endpoint {

@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{Branches, Limits, Observation, Operation, api as a, promises::Recorded};
 use skein_json::{Token, tokenizer as json};
-use skein_lib::{usize_of, List, Time, base64, bytes::copy_of};
+use skein_lib::{List, Time, base64, bytes::copy_of, usize_of};
 
 /// A refused member, and its observation variant when the tag is known.
 #[derive(Clone, PartialEq, Eq, Debug)]

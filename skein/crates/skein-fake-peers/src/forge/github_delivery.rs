@@ -3,9 +3,10 @@ use super::{Delivery, Observation, Peer, layer};
 use skein_fake_forge_github::{self as github, delivery::Post};
 use skein_http::{Header, Method, client};
 use skein_io as io;
-use skein_lib::{usize_of, len_u64, 
-    Duration, Env, Queue, Time, Token, Wall, bytes,
+use skein_lib::{
+    Duration, Env, Queue, Time, Token, Wall, bytes, len_u64,
     stream::{Down, Read, Up},
+    usize_of,
 };
 use std::net::SocketAddr;
 
@@ -202,8 +203,7 @@ impl Peer {
                         continue;
                     }
                     let post = outbound.post.as_ref().expect("active post");
-                    let count =
-                        (post.body.len() - outbound.sent).min(usize_of(env.limits.send));
+                    let count = (post.body.len() - outbound.sent).min(usize_of(env.limits.send));
                     let chunk = bytes::copy_of(&post.body[outbound.sent..outbound.sent + count]);
                     outbound.sent += count;
                     client::down(

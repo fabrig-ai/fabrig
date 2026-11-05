@@ -6,7 +6,7 @@ use skein_fake_forge_domain::{self as domain, api};
 use skein_fake_forge_http::git::{self, Call, Name};
 use skein_http::{Method, server as http};
 use skein_json::tokenizer as json;
-use skein_lib::{usize_of, Env, Queue, ReplyTo, bytes, stream::Down};
+use skein_lib::{Env, Queue, ReplyTo, bytes, stream::Down, usize_of};
 
 pub(super) fn entrance(
     server: &mut Server,

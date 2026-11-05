@@ -10,7 +10,7 @@ use skein_fake_llm_domain::{self as domain, api};
 use skein_fake_llm_protocol::provider;
 use skein_io::{self as io, kernel};
 use skein_lib::stream::{Down, Up};
-use skein_lib::{usize_of, len_u64, Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token, Wall, len_u64, usize_of};
 use skein_llm::Credential;
 use skein_shell::Host;
 
@@ -129,9 +129,7 @@ impl Peer {
         for accepted in &self.credentials {
             bytes = bytes.checked_add(accepted.value.len()).ok_or(Error::Limits)?;
         }
-        if index == provider::MAX_CREDENTIALS
-            || bytes > usize_of(self.protocol_limits.http.head)
-        {
+        if index == provider::MAX_CREDENTIALS || bytes > usize_of(self.protocol_limits.http.head) {
             return Err(Error::Limits);
         }
         self.credentials.push(credential);
@@ -216,9 +214,7 @@ impl Peer {
             }
             io::Event::Accepted { owner, socket, .. } => {
                 assert_eq!(owner, LISTENER, "one listener accepts");
-                if self.face.stopping
-                    || self.connections.len() == usize_of(self.face.limits.connections)
-                {
+                if self.face.stopping || self.connections.len() == usize_of(self.face.limits.connections) {
                     self.face.requests.push(io::Request::Reject { socket });
                     return;
                 }
@@ -512,9 +508,9 @@ fn query_bytes(query: &api::Query) -> Option<u64> {
         bytes = bytes.checked_add(len_u64(marks.len().checked_mul(size_of::<api::Mark>())?))?;
     }
     for tool in &query.tools {
-        bytes = bytes.checked_add(
-            len_u64(tool.name.len().checked_add(tool.description.len())?.checked_add(tool.parameters.len())?),
-        )?;
+        bytes = bytes.checked_add(len_u64(
+            tool.name.len().checked_add(tool.description.len())?.checked_add(tool.parameters.len())?,
+        ))?;
     }
     for message in &query.messages {
         bytes = bytes.checked_add(len_u64(message.parts.len().checked_mul(size_of::<api::Part>())?))?;

@@ -10,7 +10,7 @@ use crate::pulls;
 use crate::store::Repository;
 use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
-use skein_lib::{usize_of, Id, List, Map};
+use skein_lib::{Id, List, Map, usize_of};
 
 pub(crate) fn changed(
     domain: &Domain,

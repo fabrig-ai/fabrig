@@ -3,9 +3,10 @@ use super::{Delivery, Observation, Peer};
 use skein_fake_forge_domain as domain;
 use skein_fake_forge_forgejo::delivery::Post;
 use skein_io as io;
-use skein_lib::{usize_of, 
+use skein_lib::{
     Token, bytes,
     stream::{Down, Read, Up},
+    usize_of,
 };
 
 pub(super) struct Outbound {

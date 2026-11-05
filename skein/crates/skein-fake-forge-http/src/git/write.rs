@@ -3,7 +3,7 @@ use super::{Answer, Call, Object, Parents};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api;
 use skein_json::writer::{self, Encoder};
-use skein_lib::{usize_of, Writer, base64};
+use skein_lib::{Writer, base64, usize_of};
 
 pub(super) fn finish(measure: Encoder, limits: &Limits) -> Result<Encoder, writer::Refusal> {
     let length = measure.measured()?;

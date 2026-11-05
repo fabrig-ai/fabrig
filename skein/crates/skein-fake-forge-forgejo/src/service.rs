@@ -2,7 +2,7 @@
 use crate::{Config, Limits, Tally};
 use alloc::boxed::Box;
 use skein_fake_forge_domain as domain;
-use skein_lib::{usize_of, Id, List, ReplyTo, Rng, Slab, Token};
+use skein_lib::{Id, List, ReplyTo, Rng, Slab, Token, usize_of};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Error {
     Limits,

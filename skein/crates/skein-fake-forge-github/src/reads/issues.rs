@@ -5,7 +5,7 @@ use crate::{
 };
 use skein_fake_forge_domain::api as a;
 use skein_forge::{api, github::document as d, text::Body as Text};
-use skein_lib::{len_u64, List, Wall};
+use skein_lib::{List, Wall, len_u64};
 
 fn issue(row: a::Summary) -> d::Issue {
     d::Issue {

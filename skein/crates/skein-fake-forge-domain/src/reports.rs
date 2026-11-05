@@ -6,7 +6,7 @@ use crate::{
     store::Repository,
 };
 use alloc::boxed::Box;
-use skein_lib::{usize_of, List, bytes::copy_of};
+use skein_lib::{List, bytes::copy_of, usize_of};
 
 type Ids = Box<[Box<[u8]>]>;
 

@@ -7,7 +7,7 @@ use alloc::boxed::Box;
 use core::cmp::Reverse;
 use skein_fake_forge_domain::{self as domain, api};
 use skein_json::writer::Encoder;
-use skein_lib::{usize_of, List, Set};
+use skein_lib::{List, Set, usize_of};
 
 pub fn answer(hosted: &mut Hosted<'_>, call: Call, limits: &Limits, cap: u32) -> Result<Box<[u8]>, api::Error> {
     let answer = match call {

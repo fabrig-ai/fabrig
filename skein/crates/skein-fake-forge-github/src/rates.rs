@@ -7,7 +7,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_fake_forge_domain as domain;
-use skein_lib::{usize_of, Decimal, Duration, Env, ReplyTo, Wall, bytes};
+use skein_lib::{Decimal, Duration, Env, ReplyTo, Wall, bytes, usize_of};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Heads {
     pub expires: Option<Wall>,

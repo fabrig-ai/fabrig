@@ -3,7 +3,7 @@ use super::{Answer, Call, Decoder, Name, Object, Parents};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api;
 use skein_json::{Compact, Document, Kind, Token, document, tokenizer};
-use skein_lib::{usize_of, List, Time, base64, bytes};
+use skein_lib::{List, Time, base64, bytes, usize_of};
 
 pub(super) fn collect(decoder: &mut Decoder, event: &tokenizer::Event) -> Result<Option<Document>, ()> {
     if decoder.over {

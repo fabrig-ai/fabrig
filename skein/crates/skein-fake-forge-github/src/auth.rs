@@ -15,7 +15,7 @@ use skein_fake_forge_domain::{
     self as fake,
     api::{Answer, Error, Op, Permission, Read},
 };
-use skein_lib::{usize_of, List, ReplyTo, Wall};
+use skein_lib::{List, ReplyTo, Wall, usize_of};
 
 /// A resolved credential, valid while the owner completes this request.
 #[derive(Clone, Copy, Debug)]
@@ -199,10 +199,7 @@ pub(crate) fn check(config: &crate::Config, limits: &crate::Limits) -> Result<()
                 person = true;
             }
         }
-        if secret.expose().is_empty()
-            || secret.expose().len() > usize_of(limits.github.string_bytes)
-            || !person
-        {
+        if secret.expose().is_empty() || secret.expose().len() > usize_of(limits.github.string_bytes) || !person {
             return Err(crate::Problem::Config);
         }
         for (prior, _, _) in config.tokens.iter().take(at) {

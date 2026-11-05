@@ -6,7 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 use skein_forge::github::{self, delivery::Delivery, log, request, server};
-use skein_lib::{usize_of, Decimal, Duration, List, Rng, Secret, Wall, Writer, bytes};
+use skein_lib::{Decimal, Duration, List, Rng, Secret, Wall, Writer, bytes, usize_of};
 
 /// A scenario's loopback destination; the App's advertised hook URL need not resolve.
 #[derive(Debug)]
