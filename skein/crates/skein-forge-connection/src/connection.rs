@@ -327,11 +327,7 @@ impl Connection {
         self.state = match self.link.connected(&self.link_env(env)) {
             Start::Handshaking => Handshaking { until: self.deadline },
             Start::Ready => state.idle(self.deadline),
-            Start::Closing => {
-                let draining = state.draining();
-                let exchange = state.into_exchange();
-                Closed { closing: false, ended: None, draining, exchange, until: self.deadline }
-            }
+            Start::Closing => state,
         };
         self.follow();
     }
