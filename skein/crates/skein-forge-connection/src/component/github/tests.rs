@@ -330,3 +330,6 @@ fn failed_later_page_preserves_committed_table() {
     assert!(io.is_empty());
     assert!(component.test_github().rows.get(&1).expect("row").api.as_ref().expect("preserved").expose() == token);
 }
+
+#[path = "../../tests/github_events.rs"]
+mod events;

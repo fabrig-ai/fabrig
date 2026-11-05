@@ -30,7 +30,7 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
     let bearer = bearer(&mut peer, world.sign_in.expect("member"), PARTY);
 
     // Reuse the joint world's receiving profile; only authentication is scripted.
-    let limits = jig_client_world::test::limits().client;
+    let limits = jig_client_kit::test::limits().client;
     let receiving = link::Limits::new(limits.domain, limits.exchanges).expect("receiving profile");
     let mut client = client::Client::unlinked(&limits, SEED).expect("client");
     let mut output = Queue::uncapped();

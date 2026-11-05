@@ -58,3 +58,9 @@ Acceptance:
 ## Report
 
 The common note's items; each reader's lines before and after; any harness left, and why; fuzzy's time before and after. A refactor under the worlds' own tests: no new rule to break by hand.
+
+## Answers
+
+### 2026-11-05: Should connection-residue repair the inherited `crate::hand` references in `skein/testing/skein-forge-kit/src/github.rs`, or may forge-sockets edit that file? (debt-24/forge-sockets-1, foreman debt-24/forge-sockets/foreman-1)
+
+Neither: this answer repairs them on its branch, and your run's start merges the trunk that holds it. They were a meeting of `forge-kit` and `hand-seeded`, `files_service` moving to the kit with `hand` left in the world. `files_service` now reads the kit's `fixtures::limits()`, which equals `hand::limits()` field for field, with `body_bytes` 1042, `BODY_ROOM`; no value moves. `github.rs` stays outside this task's files. A compile failure past those three references, which name resolution may have hidden, is a new question if the run can't fix it inside its files.

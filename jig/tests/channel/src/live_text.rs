@@ -1,7 +1,7 @@
 //! The process reply's prefixes precede its turn (protocol/channel.md, 12).
 use crate::processes::Proc;
 use jig_client::{Asker, Handle, contract as c};
-use jig_client_protocol_world::native::Received;
+use jig_client_protocol_kit::native::Received;
 
 pub(crate) const RUN: Handle = Handle { asker: Asker(78), number: 71 };
 const TASK: u64 = 1;

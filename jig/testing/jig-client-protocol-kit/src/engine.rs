@@ -1,5 +1,5 @@
 //! The joint world's real core under the engine clients component.
-use jig_client_world::{
+use jig_client_kit::{
     harness::Observed,
     joint::{engine::Driver, truth::Truth},
 };
@@ -401,7 +401,7 @@ impl Engine {
         self.driver.world.store.rows.values().filter(|record| matches!(record, root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task))) if task.label == label)).count()
     }
 }
-pub use jig_client_world::joint::engine::{held_event, now_event};
+pub use jig_client_kit::joint::engine::{held_event, now_event};
 
 #[must_use]
 pub fn watcher(event: &core::Event) -> Option<Token> {

@@ -8,7 +8,7 @@ use jig_channel_world::{
     fixtures as channel,
     world::store::{Capture, Store},
 };
-use jig_client_protocol_world::native::NativeClient;
+use jig_client_protocol_kit::native::NativeClient;
 use skein_io::kernel::{Complete, Submit};
 use skein_lib::{List, Queue, Time, Wall};
 use skein_shell::{Delegate, Host};

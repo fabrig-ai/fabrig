@@ -193,6 +193,16 @@
     engine's domain world (`tests/engine/domain/tests/suite/forge_routes/brief_failure.rs`),
     where the core and the connector meet; the forge world
     (`tests/engine/forge/tests/suite/brief.rs`) tells a lone section's failure.
+- **Design departs:** 8.11 and jig's `domain/tasks.md`, 5.7, from the request
+  `producer-failure` of 2026-11-05, decided by its plan's cut, for the user to
+  see: the request recommends refusing an asker's `finish` at the call, with the
+  words `Your question is still open: call wait; the answer reaches this run.`
+  The run parks instead, as a done finish does: smith judges a `finish` with no
+  call to its host, and the tasks child decides at the answer's commit, the run
+  and its host knowing nothing of it (jig's `domain/engine.md`, 7.4). A refusal
+  at the call would need a new crossing from jig through the worker to smith, and
+  costs the run a turn that parking does not. So those words reach no run; the
+  stock coding charter says the same before it finishes.
 - **Design departs:** 8.11, from the request `report-in-finish` of 2026-11-05,
   decided by its plan's cut, for the user to see: the call's refusal and the
   words at a step take a change's repair and resolution beside its producing

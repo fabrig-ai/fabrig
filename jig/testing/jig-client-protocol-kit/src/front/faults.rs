@@ -53,7 +53,7 @@ impl Protocol {
         while self.engine.out.pop().is_some() {}
         let mut settings = fixtures::settings(self.engine.limits.core.documents.rows);
         if self.versions {
-            settings.served = jig_client_world::test::list([
+            settings.served = jig_client_kit::test::list([
                 jig_protocol_engine_clients::Served { family: None, first: u32::MAX, last: u32::MAX },
                 jig_protocol_engine_clients::Served { family: Some(1), first: 2, last: 2 },
             ]);

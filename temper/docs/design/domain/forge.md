@@ -1410,11 +1410,14 @@ branch. Its parameters:
   by the forge's. The producing task's successful result supplies the pull's
   explicit title, retained with that result and copied into the change before
   opening. A visible pushed branch waits for this metadata; it alone cannot
-  open the pull. This wait keeps the producing phase's stall deadline.
+  open the pull. This wait keeps the producing phase's stall deadline. A
+  failed producer supplies none, and holds whatever it pushed (8.4).
   The title is fitted to 256 UTF-8 bytes, preserving punctuation
   and marking a cut with “…”; it is never interpreted as sentences. A handed-in
   branch supplies its title as bytes parameter 10. A missing or empty title on
-  that path uses “Update repository”, never context from the brief. The body
+  that path uses “Update repository”, never context from the brief. An empty
+  title reaches no forge by any path: a pull request opened with none takes
+  that same default. The body
   holds the supplied body or the words whole, fitted to the forge client's
   operation bound and marked when cut. The complete production brief stays in
   the task spec, separately from the title and body. A goal's issue title uses
@@ -1961,18 +1964,24 @@ delegate's terminal wakes it to offer the landed result.
   count again from it (not from the deployment's, ending a hold at a green
   head, above), its stall is counted from it, and the change decides
   afresh. A producer that fails for good holds the change at
-  producing, the hold carrying its words whole within the hold's bytes,
+  producing, whatever it delivered first: its pushed work stays on its
+  branch, no pull request opens, and the hold carries its words whole
+  within the hold's bytes,
   so its requester hears why (its notice fitted to the requester's
   message bytes on its own, marked when cut) and its person decides:
   cancel it, or release it if the producer was wrong; a chat holds no
-  decision of its own here. At producing, with no head pushed
-  (its producer failed for good), deciding afresh makes a fresh producer, one more of its
-  tasks, holding by the rule above when its authority no longer covers
-  one. A repair that fails for good holds at its attempted count; this
-  is a delegate failure, not repair exhaustion. Released at a head CI has
-  not passed at (a green head ends it, above), it asks for a fresh repair
-  with the same reason and current forge facts, under its current
-  authority, counted against the reset repair allowance. The
+  decision of its own here. At producing (its producer failed for good),
+  deciding afresh makes a fresh producer, one more of its tasks, whatever
+  the last one pushed, holding by the rule above when its authority no
+  longer covers one. With a head pushed, its workspace starts from that
+  branch, and only its success gives the pull request its title (8.1). A
+  repair or a resolution that fails holds the same way, whatever it pushed
+  first: its head is not taken as the change's. A repair that fails for good
+  holds at its attempted count; this is a delegate failure, not repair
+  exhaustion. Released at a head CI has not passed at (a green head ends
+  its CI repair, above), it asks for a fresh repair with the same reason
+  and current forge facts, under its current authority, counted against
+  the reset repair allowance. The
   replacement's result supersedes the failed delegate's, including
   after a restart; a pending replacement is not asked twice.
   A delegate a person cancels holds at the same count and is released
@@ -2308,7 +2317,8 @@ section 9): the foreman and the requester decide, and the change relays
   foreman's reasons beneath it (*Passed up,* below), as words. An
   agent that asked is kept by its own question (jig's
   `domain/tasks.md`, 5.7): its run parks, no try spent, until the
-  change answers, and the change's wait for it is no stall (8.4). Its
+  change answers, a `finish` before then parking it too, whatever its
+  form, and the change's wait for it is no stall (8.4). Its
   reviews and its foremen are delegated without the Message family, as
   under `none`.
 - **Taken at its step.** Each step takes the questions its own agents
@@ -2331,7 +2341,8 @@ section 9): the foreman and the requester decide, and the change relays
   from such an agent found in the change's inbox at a step receive those
   same words, as words, in place of the fallback feedback.
   A question of theirs past the open-queue ceiling keeps the fallback
-  feedback (below). The stock coding charter tells its run the same
+  feedback (below). The stock coding charter tells its run the same, and
+  to call `wait` after asking, never `finish`
   (`../protocol/configuration.md`, 13.4).
 - **Bounded.** It counts the questions it takes, each as its turn comes,
   from its making or its last release, against its bound,
@@ -2402,11 +2413,20 @@ section 9): the foreman and the requester decide, and the change relays
   and relayed at the first step at which none is pending, the
   dependency having ended done or been amended away; a requester that
   adds a dependency as it answers so makes the work wait for it.
-- **An asker that ends first** ends its questions: a foreman still
+- **An asker that ends first** (cancelled, or its run failing for good:
+  its own `finish` parks it) ends its questions: a foreman still
   running for one is cancelled, and an answer to a question passed up
   for it is taken and dropped, the change's history naming it. The
   change's own question stays until its requester answers it or it
-  ends with the change.
+  ends with the change. No question goes silently: the change tells its
+  requester, in words and once, `Task A ended with its question N open;
+  it reached no one: LINE`, where it had not been asked of the requester
+  (taken, or with a foreman), and `Task A ended; your answer to its
+  question N goes no further: LINE`, at the step that takes or holds
+  the answer to one that had. LINE is the question's first line, as its
+  record keeps it. These words share the step's `tasks.batch`, and a
+  question with no room for them stays on the record until a step has
+  (below).
 - **On its record and its panel.** Its open questions, in the order
   taken, each with its asker and number, its words whole and their
   first line, and where it stands (taken; with foreman task F; asked of the

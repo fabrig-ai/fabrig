@@ -1,8 +1,8 @@
 //! The test application's native client over simulated or real io.
+use jig_client_kit::{App, Test};
 use jig_client_shell_native::{Settings, Shell};
 use jig_client_test_domain::{self as client, Request};
 use jig_client_view::address::{Address, TaskSection};
-use jig_client_world::{App, Test};
 use skein_fake_person::{Doing, Find, Next, Person, Step, TreeFace};
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_lib::{Duration, Env, Queue, Time, Wall};
@@ -122,11 +122,11 @@ impl NativeClient {
     pub fn new(settings: Settings, root: Fd, user: u32, seed: u64, script: Script) -> Self {
         let mut shell = Shell::new(settings);
         shell.adopt(root, user, seed);
-        let mut limits = jig_client_world::test::limits();
+        let mut limits = jig_client_kit::test::limits();
         limits.client.domain.text = 512;
         limits.client.domain.turn_text = 512;
         limits.client.domain.turn_bytes = 512;
-        let (root, view) = jig_client_world::test::linked_with(&limits, seed);
+        let (root, view) = jig_client_kit::test::linked_with(&limits, seed);
         let patches = Queue::with_capacity(Test::patch_limit(&view));
         let complete = Queue::with_capacity(shell.operations() + 10);
         Self {
@@ -142,7 +142,7 @@ impl NativeClient {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
             patches,
-            address: jig_client_world::stories::conversation(),
+            address: jig_client_kit::stories::conversation(),
             started: false,
             person_done: false,
             hold_after_script: false,
@@ -238,12 +238,12 @@ impl NativeClient {
             match request {
                 Request::Save { record } => {
                     self.shell.down(jig_client::Request::Save {
-                        records: jig_client_world::test::list([crate::front::persistence::encode_one(record)]),
+                        records: jig_client_kit::test::list([crate::front::persistence::encode_one(record)]),
                     });
                 }
                 Request::Erase { key } => {
                     self.shell.down(jig_client::Request::Erase {
-                        records: jig_client_world::test::list([crate::front::persistence::erased(key)]),
+                        records: jig_client_kit::test::list([crate::front::persistence::erased(key)]),
                     });
                 }
                 Request::Show { address, .. } => {

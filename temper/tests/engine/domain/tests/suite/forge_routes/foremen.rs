@@ -1,5 +1,5 @@
 //! Each question gets a read-only foreman (temper/docs/design/domain/forge.md, 8.11).
-use super::questions::{call, make_change, next_producer, plan_world, replies, row, wait_answer};
+use super::questions::{call, finish_producing, make_change, next_producer, plan_world, replies, row, wait_answer};
 use super::*;
 use temper_engine_domain_forge_change::Stands;
 
@@ -207,25 +207,83 @@ fn foremen_count_against_the_bound_and_the_changes_tasks() {
 
 #[test]
 fn an_ended_asker_cancels_its_foreman() {
-    let (mut world, _, change, producer) = foreman_world();
-    let (_, foreman) = ask(&mut world, &producer, change);
-    super::reviews::finish_review(
+    let (mut world, requester, change, producer) = foreman_world();
+    let (number, foreman) = ask(&mut world, &producer, change);
+    call(
         &mut world,
-        &producer,
-        tasks::TaskResult::Failure { reason: b"the asker ended".as_slice().into() },
+        &requester,
+        94,
+        engine::Tool::Cancel { target: producer.task, reason: b"stop the asker".as_slice().into() },
     );
+    park_after_turn(&mut world, &producer, None, 0);
     for _ in 0..TICKS {
         world.tick();
-        if row(&world, change).questions.open.is_empty() && world.store.pending.is_empty() {
+        if matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }) && world.store.pending.is_empty() {
             break;
         }
     }
+    let revision = live_task(&world, change).revisions.hold;
+    call(&mut world, &requester, 95, engine::Tool::Release { target: change, revision, again: None });
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    assert!(world.call_errors.is_empty(), "requester may cancel its descendant: {:?}", world.call_errors);
     assert!(row(&world, change).questions.open.is_empty());
     assert!(
         matches!(live_task(&world, foreman.task).phase, tasks::Phase::Closing(_) | tasks::Phase::Ended(_)),
         "foreman phase: {:?}",
         live_task(&world, foreman.task).phase
     );
+    let expected = format!(
+        "Task {} ended with its question {number} open; it reached no one: Which behavior should hold?",
+        producer.task
+    );
+    let words: Vec<_> = replies(&world, requester.task, change)
+        .into_iter()
+        .filter(|word| word.kind == tasks::MessageKind::Words && word.words.as_ref() == expected.as_bytes())
+        .collect();
+    assert_eq!(words.len(), 1, "requester hears the ended question once");
+    world.restart(true, true);
+    world.until(Until::Ready);
+    assert_eq!(
+        replies(&world, requester.task, change)
+            .into_iter()
+            .filter(|word| word.kind == tasks::MessageKind::Words && word.words.as_ref() == expected.as_bytes())
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn a_producers_finish_waits_for_its_foremans_answer() {
+    let (mut world, requester, change, producer) = foreman_world();
+    let (number, foreman) = ask(&mut world, &producer, change);
+    super::reviews::finish_review(
+        &mut world,
+        &producer,
+        tasks::TaskResult::Failure { reason: b"need a decision".as_slice().into() },
+    );
+    world.until(Until::Ready);
+    assert_eq!(live_task(&world, producer.task).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert!(matches!(live_task(&world, foreman.task).phase, tasks::Phase::Active(tasks::Active::Running { .. })));
+    assert_eq!(row(&world, change).questions.open[0].stands, Stands::Foreman { task: Some(foreman.task) });
+    assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
+    verdict(&mut world, &foreman, 1, ANSWER);
+    wait_answer(&mut world, producer.task, change);
+    world.until(Until::Ready);
+    let resumed = next_producer(&mut world, change);
+    assert_eq!(resumed.task, producer.task);
+    assert!(resumed.attempt > producer.attempt);
+    assert!(
+        resumed
+            .messages
+            .iter()
+            .any(|word| word.kind == tasks::MessageKind::Answer { question: number } && word.words.as_ref() == ANSWER)
+    );
+    assert!(replies(&world, requester.task, change).is_empty());
+    finish_producing(&mut world, change, &resumed);
+    assert!(row(&world, change).change.last_head.is_some(), "the resumed producer's change goes on");
+    assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
 }
 
 #[test]
@@ -378,4 +436,85 @@ fn queued_questions_get_distinct_foremen_in_order() {
     wait_answer(&mut world, producer.task, change);
     assert_eq!(replies(&world, producer.task, change).len(), 2);
     assert_eq!(replies(&world, producer.task, change)[1].kind, tasks::MessageKind::Answer { question: second });
+}
+
+#[test]
+fn a_restart_reports_each_ended_question_once_after_message_room_returns() {
+    let (mut world, requester, change, producer) = foreman_world();
+    let (first, _) = ask(&mut world, &producer, change);
+    let line = "é".repeat(60);
+    let second = world.restore_delegate_question(producer.task, line.as_bytes());
+    for _ in 0..TICKS {
+        world.tick();
+        if row(&world, change).questions.open.len() == 2 && world.store.pending.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(row(&world, change).questions.open.len(), 2);
+    assert_eq!(world.env.limits.tasks.batch, 1);
+    call(
+        &mut world,
+        &requester,
+        94,
+        engine::Tool::Cancel { target: producer.task, reason: b"stop the asker".as_slice().into() },
+    );
+    park_after_turn(&mut world, &producer, None, 0);
+    for _ in 0..TICKS {
+        world.tick();
+        if matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }) && world.store.pending.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(row(&world, change).questions.open.len(), 2, "the hold account spends the message room");
+    let revision = live_task(&world, change).revisions.hold;
+    let event = world.protocol.call(
+        Token::new(7),
+        requester.task,
+        requester.attempt,
+        95,
+        engine::Call {
+            completion: live_task(&world, requester.task).turn + 1,
+            position: 1,
+            tool: engine::Tool::Release { target: change, revision, again: None },
+        },
+    );
+    world.send(event);
+    for _ in 0..TICKS {
+        world.tick();
+        if row(&world, change).questions.open.len() == 1 && row(&world, change).questions.open[0].number == second {
+            break;
+        }
+    }
+    assert_eq!(row(&world, change).questions.open.len(), 1, "the first notice spends the batch's only message");
+    assert_eq!(row(&world, change).questions.open[0].number, second);
+    assert_eq!(row(&world, change).questions.open[0].stands, Stands::Taken);
+    world.restart(true, true);
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    assert!(row(&world, change).questions.open.is_empty());
+    let first_words = format!(
+        "Task {} ended with its question {first} open; it reached no one: Which behavior should hold?",
+        producer.task
+    );
+    let prefix = format!("Task {} ended with its question {second} open; it reached no one: ", producer.task);
+    let bound = usize::try_from(world.env.limits.tasks.message_bytes).expect("message bound");
+    let kept = (bound - prefix.len() - "…".len()) / "é".len();
+    let second_words = format!("{prefix}{}…", "é".repeat(kept));
+    let words = replies(&world, requester.task, change);
+    assert_eq!(
+        words
+            .iter()
+            .filter(|word| word.kind == tasks::MessageKind::Words && word.words.as_ref() == first_words.as_bytes())
+            .count(),
+        1
+    );
+    assert_eq!(
+        words
+            .iter()
+            .filter(|word| word.kind == tasks::MessageKind::Words && word.words.as_ref() == second_words.as_bytes())
+            .count(),
+        1
+    );
+    assert!(second_words.len() <= bound);
 }

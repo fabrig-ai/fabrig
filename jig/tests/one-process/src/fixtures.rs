@@ -111,7 +111,7 @@ pub(crate) fn client_settings() -> jig_client_shell_native::Settings {
     jig_client_shell_native::Settings {
         engine: skein_io::Addr::Ip((std::net::Ipv4Addr::LOCALHOST, 7100).into()),
         directory: b"private".as_slice().into(),
-        limits: jig_client_protocol_world::fixtures::connections_limits(),
+        limits: jig_client_protocol_kit::fixtures::connections_limits(),
         io: skein_io::Limits {
             sockets: 32,
             names: 1,

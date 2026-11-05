@@ -499,3 +499,100 @@ fn a_failed_producer_holds_notifies_and_restarts_on_release() {
         world.close();
     }
 }
+
+const PUSHED_FAILURE: &[u8] = b"out of turns after pushing partial work";
+
+fn pushed_failure() -> (World, engine::Assignment, u64, u64) {
+    let (mut world, _, first, task) = producing_goal();
+    let branch = change_row(&world, task).branch.clone();
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"partial", b"keep this work", 1)
+        .expect("producer pushes partial work");
+    // Read the pushed branch before the terminal result reaches the connector.
+    refresh(&mut world, task);
+    for _ in 0..20 {
+        world.tick();
+    }
+    let reads = pending_reads(&mut world, task);
+    finish_failed_producer(&mut world, &first, task, PUSHED_FAILURE);
+    answer_reads(&mut world, reads);
+    refresh(&mut world, task);
+    assert_production_hold(&mut world, task, PUSHED_FAILURE);
+    (world, first, task, head)
+}
+
+#[test]
+fn a_producer_that_delivers_then_fails_holds_at_producing() {
+    let (mut world, _, task, head) = pushed_failure();
+    let row = change_row(&world, task);
+    assert!(row.pull.is_none());
+    assert!(row.title.is_empty());
+    let branch = row.branch.clone();
+    assert_eq!(world.external(1, raw::Op::Read(raw::Read::Branch { branch })), raw::Answer::Commit(head));
+    assert!(!world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::OpenPull { .. })));
+    world.close();
+}
+
+#[test]
+fn a_released_failed_producer_with_a_head_makes_a_fresh_one() {
+    let (mut world, first, task, _) = pushed_failure();
+    resume_production(&mut world, task, first.task, PUSHED_FAILURE);
+    for _ in 0..STEPS {
+        world.tick();
+        if world
+            .assigned
+            .iter()
+            .any(|run| run.task != first.task && live_task(&world, run.task).requester == tasks::Party::Task(task))
+        {
+            break;
+        }
+    }
+    let fresh = world
+        .assigned
+        .iter()
+        .find(|run| run.task != first.task && live_task(&world, run.task).requester == tasks::Party::Task(task))
+        .expect("fresh producer assigned")
+        .clone();
+    let branch = change_row(&world, task).branch.clone();
+    assert_eq!(fresh.workspace.repositories[0].start, engine::ForgeStart::Branch(branch.clone()));
+    assert_eq!(live_task(&world, task).made, 3, "change and exactly two producers");
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"finished", b"complete", 1)
+        .expect("replacement pushes atop partial work");
+    let title = b"Finish the partial update";
+    let event = world.protocol.answer(
+        CHANNEL,
+        fresh.task,
+        fresh.attempt,
+        5,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Change {
+                title: tasks::ChangeTitle::new(title.as_slice().into()),
+                connector: 0,
+                kind: 2,
+                resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+                words: b"finished".as_slice().into(),
+            },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    world.send(event);
+    for _ in 0..STEPS {
+        world.tick();
+        if change_row(&world, task).pull.is_some() {
+            break;
+        }
+    }
+    assert!(change_row(&world, task).pull.is_some(), "replacement opens the pull");
+    let opened: Vec<_> = world
+        .writes
+        .iter()
+        .filter_map(|write| match write {
+            skein_forge::api::Write::OpenPull { title, .. } => Some(title.as_ref()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(opened, [title.as_slice()]);
+    assert_eq!(live_task(&world, task).made, 3);
+    world.close();
+}

@@ -1,1 +1,14 @@
-//! The client's harness, fronts and shared stories (jig/docs/design/domain/testing.md, 7).
+//! Client domain world and reusable shell harness (client/domain/testing.md, 4).
+#![forbid(unsafe_code)]
+pub mod harness;
+pub mod joint;
+pub mod model;
+pub mod random;
+pub mod scripted;
+pub mod stories;
+pub mod test;
+pub use harness::{App, ClientId, Fault, Front, FrontFault, Outcome, Settings, Until, World};
+pub use scripted::Scripted;
+pub use test::Test;
+
+pub mod observe;

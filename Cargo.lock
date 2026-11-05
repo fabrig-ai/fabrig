@@ -148,6 +148,7 @@ version = "0.0.0"
 dependencies = [
  "serde_json",
  "skein-scratch",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -784,7 +785,7 @@ name = "jig-channel-world"
 version = "0.0.0"
 dependencies = [
  "jig-client",
- "jig-client-protocol-world",
+ "jig-client-protocol-kit",
  "jig-client-test-records",
  "jig-domain-accounts",
  "jig-domain-core",
@@ -884,6 +885,41 @@ dependencies = [
 [[package]]
 name = "jig-client-kit"
 version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-domain",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-scripted-engine",
+ "jig-client-test-domain",
+ "jig-client-test-kit",
+ "jig-client-test-protocol-wire",
+ "jig-client-test-view",
+ "jig-client-view",
+ "jig-core-kit",
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-domain-views",
+ "jig-fake-parties",
+ "jig-fake-workers",
+ "jig-protocol-engine-clients",
+ "jig-protocol-transcript",
+ "jig-test-connector",
+ "jig-test-domain",
+ "jig-test-profile",
+ "sha2",
+ "skein-fake-person",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-text",
+ "skein-world",
+ "smith-transcript",
+]
 
 [[package]]
 name = "jig-client-protocol-http"
@@ -898,6 +934,45 @@ dependencies = [
 [[package]]
 name = "jig-client-protocol-kit"
 version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-domain",
+ "jig-client-kit",
+ "jig-client-protocol-http",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-shell-native",
+ "jig-client-test-domain",
+ "jig-client-test-protocol-wire",
+ "jig-client-test-view",
+ "jig-client-view",
+ "jig-core-kit",
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-fake-parties",
+ "jig-fake-workers",
+ "jig-protocol-config",
+ "jig-protocol-engine-clients",
+ "jig-protocol-engine-clients-http",
+ "jig-test-connector",
+ "jig-test-domain",
+ "jig-test-profile",
+ "jig-test-service",
+ "skein-fake-machine",
+ "skein-fake-person",
+ "skein-http",
+ "skein-io",
+ "skein-lib",
+ "skein-shell",
+ "skein-sim",
+ "skein-ui",
+ "skein-ui-text",
+ "skein-world",
+ "smith-transcript",
+]
 
 [[package]]
 name = "jig-client-protocol-link"
@@ -927,31 +1002,21 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-domain",
+ "jig-client-kit",
  "jig-client-protocol-http",
+ "jig-client-protocol-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
- "jig-client-shell-native",
  "jig-client-test-domain",
- "jig-client-test-protocol-wire",
- "jig-client-test-view",
  "jig-client-view",
- "jig-client-world",
- "jig-core-kit",
- "jig-domain-accounts",
- "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-people",
  "jig-domain-tasks",
- "jig-domain-views",
- "jig-engine-clients-world",
- "jig-fake-parties",
- "jig-fake-workers",
- "jig-protocol-config",
+ "jig-engine-clients-kit",
  "jig-protocol-engine-clients",
  "jig-protocol-engine-clients-http",
  "jig-test-connector",
  "jig-test-domain",
- "jig-test-profile",
  "jig-test-service",
  "skein-fake-machine",
  "skein-fake-person",
@@ -961,9 +1026,7 @@ dependencies = [
  "skein-shell",
  "skein-sim",
  "skein-ui",
- "skein-ui-text",
  "skein-world",
- "smith-transcript",
 ]
 
 [[package]]
@@ -1127,6 +1190,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-domain",
+ "jig-client-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-scripted-engine",
@@ -1134,25 +1198,10 @@ dependencies = [
  "jig-client-test-kit",
  "jig-client-test-protocol-wire",
  "jig-client-test-records",
- "jig-client-test-view",
  "jig-client-view",
- "jig-core-kit",
- "jig-domain-accounts",
- "jig-domain-authority",
- "jig-domain-core",
- "jig-domain-fleet",
- "jig-domain-notes",
  "jig-domain-people",
- "jig-domain-tasks",
- "jig-domain-views",
- "jig-fake-parties",
- "jig-fake-workers",
- "jig-protocol-engine-clients",
  "jig-protocol-transcript",
- "jig-test-connector",
- "jig-test-domain",
  "jig-test-profile",
- "sha2",
  "skein-fake-person",
  "skein-lib",
  "skein-scratch",
@@ -1183,12 +1232,12 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-domain",
+ "jig-client-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-scripted-engine",
  "jig-client-test-domain",
  "jig-client-test-records",
- "jig-client-world",
  "jig-conformance",
  "jig-core-kit",
  "jig-domain-accounts",
@@ -1198,7 +1247,7 @@ dependencies = [
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
- "jig-engine-clients-world",
+ "jig-engine-clients-kit",
  "jig-fake-parties",
  "jig-fake-workers",
  "jig-protocol-engine-clients",
@@ -1392,17 +1441,8 @@ dependencies = [
 [[package]]
 name = "jig-engine-clients-kit"
 version = "0.0.0"
-
-[[package]]
-name = "jig-engine-clients-world"
-version = "0.0.0"
 dependencies = [
- "jig-client",
- "jig-client-protocol-link",
  "jig-client-protocol-wire",
- "jig-client-test-records",
- "jig-client-world",
- "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
@@ -1413,12 +1453,35 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-engine-clients",
  "jig-protocol-engine-clients-http",
+ "jig-test-service",
+ "skein-http",
+ "skein-io",
+ "skein-lib",
+ "skein-world",
+]
+
+[[package]]
+name = "jig-engine-clients-world"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-kit",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-test-records",
+ "jig-core-kit",
+ "jig-domain-core",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-engine-clients-kit",
+ "jig-protocol-config",
+ "jig-protocol-engine-clients",
+ "jig-protocol-engine-clients-http",
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-service",
  "serde_json",
  "skein-http",
- "skein-io",
  "skein-lib",
  "skein-oauth-issuer",
  "skein-scratch",
@@ -1497,7 +1560,7 @@ dependencies = [
  "jig-channel-world",
  "jig-client",
  "jig-client-domain",
- "jig-client-protocol-world",
+ "jig-client-protocol-kit",
  "jig-client-shell-native",
  "jig-conformance",
  "jig-domain-accounts",
@@ -1645,14 +1708,14 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-domain",
+ "jig-client-kit",
+ "jig-client-protocol-kit",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
- "jig-client-protocol-world",
  "jig-client-scripted-engine",
  "jig-client-shell-native",
  "jig-client-test-domain",
  "jig-client-view",
- "jig-client-world",
  "jig-conformance",
  "jig-core-kit",
  "jig-domain-accounts",
@@ -1993,8 +2056,8 @@ version = "0.0.0"
 dependencies = [
  "jig-channel-world",
  "jig-client",
+ "jig-client-protocol-kit",
  "jig-client-protocol-link",
- "jig-client-protocol-world",
  "jig-client-shell-native",
  "jig-client-test-records",
  "jig-domain-accounts",
@@ -3041,7 +3104,6 @@ dependencies = [
 name = "skein-forge-connection"
 version = "0.0.0"
 dependencies = [
- "skein-fake-forge-domain",
  "skein-fake-forge-github",
  "skein-forge",
  "skein-heap",

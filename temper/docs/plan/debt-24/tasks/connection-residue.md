@@ -3,7 +3,7 @@ id = "connection-residue"
 part = "connection-worlds"
 kind = "feature"
 needs = ["hand-seeded"]
-files = ["skein/crates/skein-forge-connection/src/tests.rs", "skein/crates/skein-forge-connection/src/tests/**", "skein/crates/skein-forge-connection/src/component/tests.rs", "skein/crates/skein-forge-connection/src/connection/**/tests.rs", "skein/crates/skein-forge-connection/Cargo.toml", "skein/tests/forge/machine/src/hand.rs", "Cargo.lock"]
+files = ["skein/crates/skein-forge-connection/src/tests.rs", "skein/crates/skein-forge-connection/src/tests/**", "skein/crates/skein-forge-connection/src/component/tests.rs", "skein/crates/skein-forge-connection/src/component/github/tests.rs", "skein/crates/skein-forge-connection/src/connection/**/tests.rs", "skein/crates/skein-forge-connection/Cargo.toml", "skein/tests/forge/machine/src/hand.rs", "Cargo.lock"]
 effort = "high"
 minutes = 30
 +++
@@ -56,3 +56,11 @@ The goal says: “`Harness` leaves the crate, and what stays feeds step function
 The next run converts the ten within the allowed files, preserves assertions, performs the required mutation checks, removes unused helpers and dependencies, and completes the specified checks, counts, commit and push.
 The explicit stop condition remains: a test “that can't feed events without a socket's bytes” requires asking, naming it. The report identifies no such test.
 Extending the seam and moving the eight renewal tests is not authorized by this answer.
+
+### 2026-11-05: Should the owning task repair `crate::hand` in `skein/testing/skein-forge-kit/src/github.rs` first, or may this task repair that file? (debt-24/connection-residue-2, foreman debt-24/connection-residue/foreman-2)
+
+Neither: it's repaired already, and this task doesn't touch that file. `9741ae1b81` and `50fc5d966c` are in the trunk, and `files_service` reads `crate::fixtures::limits()`, with no `crate::hand` left; your run's start merges the trunk in. A compile failure in the kit past those three references, which name resolution may have hidden, is a new question if the run can't fix it inside its files.
+
+Keep `621e9ce965` and finish what its report leaves: the crate's run after the cleanup, `heavy cargo nextest run -p skein-forge-connection --lib`, and `heavy cargo nextest run -p skein-forge-machine-world` with all its test binaries, no `--lib`; the two-package clippy; and the hand-breaking of the thirteen converted tests, naming what was broken and what failed.
+
+`src/component/github/tests.rs` joins this task's files, for the `events` module declaration that reaches the private completion transitions; nothing else in it changes. `skein/docs/development/debt/D030-forge-connection-harness-tests.md` and the status entries stay as they are: they're `connection-close`'s.

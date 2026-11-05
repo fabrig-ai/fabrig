@@ -1,6 +1,6 @@
 //! The same people's actions and expected outcomes as the joint stories.
 use crate::{Protocol, fixtures};
-use jig_client_world::{ClientId, Settings, Test, Until, World, stories};
+use jig_client_kit::{ClientId, Settings, Test, Until, World, stories};
 use skein_fake_person::{Find, Step};
 use skein_lib::{Duration, Time};
 use skein_ui::Role;
@@ -90,6 +90,6 @@ pub fn two_clients(seed: u64) -> (Story, ClientId) {
     (world, client)
 }
 
-pub fn transient_request(seed: u64, fault: &jig_client_world::FrontFault) {
+pub fn transient_request(seed: u64, fault: &jig_client_kit::FrontFault) {
     crate::client::transient_request(seed, fault);
 }
