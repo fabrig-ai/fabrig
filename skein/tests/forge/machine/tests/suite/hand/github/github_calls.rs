@@ -1,12 +1,12 @@
 //! Ordinary calls use only their owner's accepted installation.
-use super::fixtures::{self as f, FORGE, Harness, REPO};
-use crate::{
-    Request,
-    installations::{Clock, Tokens},
-};
-use alloc::boxed::Box;
 use skein_forge::api::{self, Answer, Error, Op, Read, Write};
+use skein_forge_connection::{
+    Request,
+    seam::{Clock, Tokens},
+};
+use skein_forge_machine_world::hand::{self as f, FORGE, Harness, REPO};
 use skein_lib::{Duration, Secret, Time};
+use std::boxed::Box;
 
 fn branch() -> Op {
     Op::Read(Read::Branch { branch: Box::from(b"main".as_slice()) })
@@ -24,6 +24,7 @@ fn begin(h: &mut Harness, op: Op) {
     h.run(Duration::ZERO);
     h.connected(FORGE);
 }
+#[expect(clippy::needless_pass_by_value, reason = "the scripted scenario consumes its expected answer")]
 fn answered(h: &mut Harness, cost: u32, result: Result<Answer, Error>) {
     h.run(Duration::ZERO);
     let answer = h.answered(1).expect("one terminal");
@@ -154,7 +155,7 @@ fn missing_repository_succeeds_on_its_recent_installation() {
     h.answer(FORGE, &f::ok(f::GITHUB_BRANCH));
     answered(&mut h, 2, Ok(Answer::Commit([0; 32])));
     let bytes = h.all_request_bytes(FORGE);
-    assert!(super::github_start::contains(&bytes, b"Bearer artificial-full-one\r\n"));
+    assert!(f::contains(&bytes, b"Bearer artificial-full-one\r\n"));
     assert_eq!(h.request_lines(FORGE).len(), 2);
 }
 #[test]
@@ -589,10 +590,7 @@ fn every_landed_write_runs_once_with_full_installation_authorization() {
         let answer = h.answered(1).expect(label);
         assert_eq!(answer.result, Ok(expected), "{label}");
         assert_eq!(answer.cost, 1, "{label}");
-        assert!(super::github_start::contains(
-            &h.all_request_bytes(FORGE),
-            b"Authorization: Bearer artificial-full-one\r\n"
-        ));
+        assert!(f::contains(&h.all_request_bytes(FORGE), b"Authorization: Bearer artificial-full-one\r\n"));
     }
 }
 #[test]
@@ -756,7 +754,8 @@ fn mixed_dialects_keep_independent_repository_and_user_rows() {
     let mut forgejo = f::settings().forges.into_boxed().into_iter().next().expect("forge");
     forgejo.number = f::OTHER_FORGE;
     settings.forges.push(forgejo).expect("two forges");
-    let mut component = crate::Component::new(settings, &f::limits(), &f::shared()).expect("mixed settings");
+    let mut component =
+        skein_forge_connection::Component::new(settings, &f::limits(), &f::shared()).expect("mixed settings");
     component.forgejo_tables().keep_repository(REPO, f::specimen());
     component.forgejo_tables().keep_user(FORGE, 9, Box::from(b"forgejo".as_slice()));
     let mut h = known();
@@ -781,14 +780,13 @@ fn close_during_a_normal_multistep_call_has_no_terminal() {
     assert!(h.answered(1).is_none());
 }
 #[test]
-#[expect(clippy::disallowed_macros, reason = "inspect Secret redaction in an ordinary call's state")]
 fn ordinary_calls_keep_full_values_out_of_debug_and_request_lines() {
     let mut h = known();
     begin(&mut h, branch());
     let debug = std::format!("{:?} {:?}", h.component, h.up);
-    assert!(!super::github_start::contains(debug.as_bytes(), b"artificial-full-one"));
+    assert!(!f::contains(debug.as_bytes(), b"artificial-full-one"));
     for line in h.request_lines(FORGE).into_boxed() {
-        assert!(!super::github_start::contains(&line, b"artificial-full-one"));
+        assert!(!f::contains(&line, b"artificial-full-one"));
     }
     h.answer(FORGE, &f::ok(f::GITHUB_BRANCH));
     answered(&mut h, 1, Ok(Answer::Commit([0; 32])));
