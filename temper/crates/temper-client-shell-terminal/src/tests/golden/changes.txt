@@ -1,0 +1,24 @@
+== One change is on the way to main. == Live
+First:
+  [1] temper
+  First:
+    [2] First (pressed)
+    New project:
+      [3] New project: (empty) (enter sends)
+      [4] Create
+    [5] Settings for First
+  [6] Home
+  [7] Needs you
+  [8] Chats
+  [9] Changes (current)
+  [10] + New chat
+  [11] Settings
+  * Pat
+First · landing
+1 queued · last landed just now. Each change is checked on top of main before it lands.
+Queue:
+  ## Queue
+  - [12] Store: policy record · checking · checks started just now
+Landed recently:
+  ## Landed recently
+  - [13] A landed change · 00:00

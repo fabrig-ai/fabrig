@@ -4,6 +4,7 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 use alloc::boxed::Box;
+pub use temper_engine_domain::RunRefusalDiagnostic;
 pub mod diagnostics;
 pub mod forge;
 pub mod forges;
@@ -151,6 +152,8 @@ pub struct SetupStep {
 pub enum Note {
     /// A failed answer accepted by the hub, for stderr only (domain/worker.md, 4.3).
     RunFailed(temper_engine_domain::RunDiagnostic),
+    /// A refused assignment accepted by the hub, for stderr only (domain/worker.md, 4.3).
+    RunRefused(RunRefusalDiagnostic),
     /// A forge read refusal with its task, tool, layer and authority findings.
     ReadRefused {
         task: u64,

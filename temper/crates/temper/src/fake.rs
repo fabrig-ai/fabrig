@@ -508,6 +508,7 @@ fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_sh
         git_calls: forge::observations::GitCalls::new(),
         installations: forge::observations::Installations::new(temper_fake::ENTRIES, 128),
         llm_cursor: 0,
+        rejected: 0,
         buffer,
         stopped: false,
         peer_submissions: 0,
@@ -602,6 +603,7 @@ struct Host {
     git_calls: forge::observations::GitCalls,
     installations: forge::observations::Installations,
     llm_cursor: usize,
+    rejected: u64,
     stopped: bool,
     peer_submissions: u32,
     checkpoint: bool,
@@ -688,6 +690,16 @@ impl Host {
         if full {
             self.fail("observations", &"the LLM record is full; the stream has ended");
         }
+    }
+    /// A line for each connection the issuer turned away since the last drain:
+    /// the issuer keeps no records, and this is what its log shows.
+    fn rejections(&mut self) {
+        let Peer::Oauth(peer) = &self.peer else { return };
+        let rejected = peer.rejected();
+        for _ in self.rejected..rejected {
+            eprintln!("{}: rejected a connection at the cap of {}", self.command, oauth::CONNECTIONS);
+        }
+        self.rejected = rejected;
     }
     fn observations(&mut self) {
         if matches!(self.peer, Peer::Llm(_)) {
@@ -875,6 +887,7 @@ impl skein_shell::Host for Host {
             }
         }
         self.observations();
+        self.rejections();
         if self.failed {
             self.suppress_sends();
         }
