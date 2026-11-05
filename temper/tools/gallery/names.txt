@@ -2,6 +2,11 @@ changes
 changes-empty
 changes-one
 changes-landed-only
+home-computed
+home-last-looked-none
+home-landing-none
+home-landing-red
+home-chats-sentence
 home-three-left
 home-two-left
 home-accounts-claude

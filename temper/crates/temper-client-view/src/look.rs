@@ -110,6 +110,10 @@ pub const PROJECTS_ACTS: Style = Style { owner: owner(), token: 191 };
 pub const PROJECTS_REPO: Style = Style { owner: owner(), token: 192 };
 /// The additional repository count.
 pub const PROJECTS_MORE: Style = Style { owner: owner(), token: 193 };
+/// Home's foot and Chats' explanation (client/README.md, 3.5).
+pub const HOME_FACTS: Style = Style { owner: owner(), token: 278 };
+/// Home's status attribution (client/README.md, 3.5).
+pub const HOME_BYLINE: Style = Style { owner: owner(), token: 279 };
 /// Home's home (client/README.md, 3.5).
 pub const HOME: Style = Style { owner: owner(), token: 200 };
 /// Home's intro (client/README.md, 3.5).
@@ -828,6 +832,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-goals-state-paused",
         b"temper-goals-state-landed",
         b"temper-goals-state-stopped",
+        b"temper-home-facts",
+        b"temper-home-byline",
     ],
     regions: &[b"temper-link"],
 };
