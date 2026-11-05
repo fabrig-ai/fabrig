@@ -6,8 +6,8 @@ pub(super) enum Event {
     Closed,
 }
 use skein_fake_forge_domain as domain;
-use skein_fake_forge_github as github;
 use skein_fake_forge_forgejo as forgejo;
+use skein_fake_forge_github as github;
 use skein_lib::{
     Env, Queue, Token,
     stream::{Down, Up},
