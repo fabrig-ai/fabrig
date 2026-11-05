@@ -3349,6 +3349,7 @@ dependencies = [
  "skein-json",
  "skein-json-world",
  "skein-lib",
+ "skein-protocol-kit",
  "skein-world",
 ]
 
