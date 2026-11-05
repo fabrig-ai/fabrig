@@ -21,9 +21,17 @@ use skein_lib::{
 #[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "the bounded connection holds its streaming decoder inline")]
 enum State {
-    Head { until: Time, held: Hint },
+    Head {
+        until: Time,
+        held: Hint,
+    },
     Body(Body),
-    Answering { until: Time, hint: Hint, next: NextOwed },
+    Answering {
+        until: Time,
+        held: Hint,
+        /// The hint is offered before the close is sent.
+        next: Option<http::Reuse>,
+    },
     Closing(Closing),
 }
 #[derive(Debug)]
@@ -31,13 +39,6 @@ enum Closing {
     Pending { until: Time },
     Sent,
     Aborted,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum NextOwed {
-    Awaited,
-    Keep,
-    /// The hint is offered before the close is sent.
-    Close,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum HintState {
@@ -139,7 +140,7 @@ impl Hooked {
     pub fn stream(&mut self, env: &Env<Limits>, event: Up) {
         let open = match self.state {
             State::Head { .. } | State::Body(_) => true,
-            State::Answering { next, .. } => next != NextOwed::Close,
+            State::Answering { next, .. } => next != Some(http::Reuse::Close),
             State::Closing(_) => false,
         };
         if open {
@@ -158,6 +159,12 @@ impl Hooked {
     fn respond(&mut self, env: &Env<Limits>, status: u16) {
         let response = http::Response { status, headers: Box::new([]), body: http::Body::None, close: status != 204 };
         self.down(env, http::Request::Respond(response));
+    }
+    fn refuse(&mut self, env: &Env<Limits>, status: u16, until: Time, held: Hint) -> State {
+        // Respond before Discard: a refusal never demands any body bytes.
+        self.respond(env, status);
+        self.down(env, http::Request::Discard);
+        State::Answering { until, held, next: None }
     }
     fn call(
         &mut self,
@@ -179,22 +186,15 @@ impl Hooked {
                 break;
             }
         }
-        let signature = signature(call.header(delivery::SIGNATURE_HEADER));
-        let status = if secret.is_none() {
-            Some(404)
-        } else if call.method != Method::Post {
-            Some(405)
-        } else if signature.is_none() {
-            Some(403)
-        } else {
-            None
+        let Some(secret) = secret else {
+            return self.refuse(env, 404, until, held);
         };
-        if let Some(status) = status {
-            // Respond before Discard: a refusal never demands any body bytes.
-            self.respond(env, status);
-            self.down(env, http::Request::Discard);
-            return State::Answering { until, hint: held, next: NextOwed::Awaited };
+        if call.method != Method::Post {
+            return self.refuse(env, 405, until, held);
         }
+        let Some(signature) = signature(call.header(delivery::SIGNATURE_HEADER)) else {
+            return self.refuse(env, 403, until, held);
+        };
         let decoder = match call.header(delivery::EVENT_HEADER) {
             Some(event) => decode::decoder(event, &limits::hook_documents(&env.limits)),
             None => None,
@@ -209,8 +209,8 @@ impl Hooked {
             until,
             held,
             forge: forge.expect("configured forge"),
-            mac: Hmac::new(secret.expect("configured secret").expose()),
-            signature: signature.expect("signed head"),
+            mac: Hmac::new(secret.expose()),
+            signature,
             decoder,
             decoded: None,
             malformed: false,
@@ -254,13 +254,11 @@ impl Hooked {
             };
         }
         self.respond(env, status);
-        State::Answering { until: body.until, hint: body.held, next: NextOwed::Awaited }
+        State::Answering { until: body.until, held: body.held, next: None }
     }
     fn held(&mut self) -> Option<&mut Hint> {
         match &mut self.state {
-            State::Head { held, .. } | State::Body(Body { held, .. }) | State::Answering { hint: held, .. } => {
-                Some(held)
-            }
+            State::Head { held, .. } | State::Body(Body { held, .. }) | State::Answering { held, .. } => Some(held),
             State::Closing(_) => None,
         }
     }
@@ -269,7 +267,6 @@ impl Hooked {
             held.value = Some(hint);
             held.offer = HintState::Refused;
         }
-        self.follow();
     }
     pub fn offer(&mut self) {
         if let Some(held) = self.held()
@@ -277,14 +274,13 @@ impl Hooked {
         {
             held.offer = HintState::Ready;
         }
-        self.follow();
     }
     pub fn pending(&self) -> bool {
         let (hint, work) = match &self.state {
             State::Head { held, .. } => (held, false),
             State::Body(body) => (&body.held, body.ended && body.decoder.is_none()),
-            State::Answering { hint, next, .. } => {
-                (hint, *next == NextOwed::Close || *next == NextOwed::Keep && hint.value.is_none())
+            State::Answering { held, next, .. } => {
+                (held, *next == Some(http::Reuse::Close) || *next == Some(http::Reuse::Keep) && held.value.is_none())
             }
             State::Closing(_) => return !self.sent(),
         };
@@ -327,7 +323,6 @@ impl Hooked {
                 if configured {
                     up.push(Event::Hint(Hinted { connection: owner, hint }));
                 }
-                self.follow();
                 continue;
             }
             let state = core::mem::replace(&mut self.state, State::Closing(Closing::Aborted));
@@ -372,11 +367,11 @@ impl Hooked {
                     progress = advanced;
                     state
                 }
-                State::Answering { until, hint, next: NextOwed::Keep } if hint.value.is_none() => {
+                State::Answering { until, held, next: Some(http::Reuse::Keep) } if held.value.is_none() => {
                     self.down(env, http::Request::Next);
-                    State::Head { until, held: hint }
+                    State::Head { until, held }
                 }
-                State::Answering { next: NextOwed::Close, .. } => {
+                State::Answering { next: Some(http::Reuse::Close), .. } => {
                     io.push(skein_io::Request::Close { entity: self.socket });
                     State::Closing(Closing::Sent)
                 }
@@ -416,19 +411,14 @@ impl Hooked {
                 },
             },
             http::Event::Done(reuse) => {
-                let hint = match state {
-                    State::Head { held, .. } | State::Body(Body { held, .. }) | State::Answering { hint: held, .. } => {
-                        held
-                    }
+                let held = match state {
+                    State::Head { held, .. } | State::Body(Body { held, .. }) | State::Answering { held, .. } => held,
                     State::Closing(_) => unreachable!("Done precedes closing"),
                 };
                 State::Answering {
                     until: env.now.saturating_add(env.limits.hook_deadline),
-                    hint: Hint { offer: HintState::Ready, ..hint },
-                    next: match reuse {
-                        http::Reuse::Keep => NextOwed::Keep,
-                        http::Reuse::Close => NextOwed::Close,
-                    },
+                    held: Hint { offer: HintState::Ready, ..held },
+                    next: Some(reuse),
                 }
             }
             http::Event::Closed => state,
