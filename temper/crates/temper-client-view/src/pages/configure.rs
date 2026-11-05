@@ -149,6 +149,10 @@ pub(crate) fn byline(b: &mut Builder, root: &Domain, w: &Words, project: u32) {
         (None, None) => Box::default(),
     };
     if !line.is_empty() {
+        let line = match root.pages().chat() {
+            Some(chat) => w.say(Word::BylineTask, &[Hole::Number(chat.task), Hole::Name(line)]),
+            None => line,
+        };
         text(b, Role::Paragraph, &line, Some(look::BYLINE));
     }
 }

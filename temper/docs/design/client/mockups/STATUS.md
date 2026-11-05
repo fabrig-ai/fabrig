@@ -126,8 +126,21 @@ Where the client does otherwise:
   words. A proposal review's "Change
   something" awaits the client's proposal view
   (`../README.status.md`, 3.5 and 5.13). The configuring chat is docked
-  beside nothing, the user's decision (`../README.md`, 5.13). No draft act or model
-  chooser is drawn on this page.
+  beside nothing, the user's decision (`../README.md`, 5.13).
+  With a document it shares every chat's Chat, Split and Draft controls and
+  Markdown pane, and has "Start over" in place of "Start goal…". Split
+  folds the rail to a 56 px strip; "Show the rail" opens it over the page.
+  On a phone Split displays as Draft and only Chat and Draft are shown.
+  The document's path line says not proposed, waiting for an owner, or
+  accepted, from the proposal's state. The newest changed section is tinted;
+  Show focuses and flashes it. The request `configure-chat-draft`'s drawing
+  and figure wait on `skein/docs/design/draft/diagrams.md`, whose decision
+  remains the user's. Its hand-made `configure-chat/02.html` through
+  `04.html` and README are request sources and are not committed prints
+  (`../journeys.md`, 7).
+  Ordinary chats share this pane, add an empty draft, and open the shared
+  Start goal sheet; Chats' Drafts filter lists their documents. The sheet's
+  Budget and agreed-way gaps stay in `../README.status.md`, 3.5.
   The mockups are not edited.
 - **The welcome's greenfield pass** (the client README's 3.5 and 5.6;
   `../browser.md`, 2.5, The welcome's look; the user, 2026-11-04): the
