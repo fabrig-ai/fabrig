@@ -251,15 +251,16 @@ fn a_malformed_write_answer_is_timeout() {
     h.run(Duration::ZERO);
     let answered = h.answered(1).expect("malformed creation answered");
     assert_eq!((answered.cost, &answered.result), (1, &Err(Error::Timeout)));
+    assert!(h.peers.is_empty(), "untrusted stream closed");
 }
 #[test]
 fn write_refusals_read_only_known_entire_messages() {
     let rows = [
-        ("known", br#"{"message":"[Title]: Required"}"#.as_slice(), Error::Empty),
-        ("unknown", br#"{"message":"other words"}"#.as_slice(), Error::Refused),
-        ("not JSON", b"arbitrary".as_slice(), Error::Refused),
+        ("known", br#"{"message":"[Title]: Required"}"#.as_slice(), Error::Empty, true),
+        ("unknown", br#"{"message":"other words"}"#.as_slice(), Error::Refused, true),
+        ("not JSON", b"arbitrary".as_slice(), Error::Refused, false),
     ];
-    for (name, body, expected) in rows {
+    for (name, body, expected, kept) in rows {
         let mut h = fixtures::known();
         h.call(
             1,
@@ -270,6 +271,7 @@ fn write_refusals_read_only_known_entire_messages() {
         h.run(Duration::ZERO);
         let answered = h.answered(1).expect("refusal answered");
         assert_eq!((answered.cost, &answered.result), (1, &Err(expected)), "{name}");
+        assert_eq!(!h.peers.is_empty(), kept, "{name}");
     }
 }
 type CreationRow = (&'static str, Write, &'static [u8], u16, &'static [u8], Answer);
