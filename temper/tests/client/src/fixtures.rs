@@ -825,7 +825,7 @@ fn make_goal_named(
 }
 #[must_use]
 pub fn task_page(task: u64) -> temper_client_domain::Address {
-    temper_client_domain::Address::Task { task, filter: temper_client_domain::PlanFilter::All }
+    temper_client_domain::Address::Task { task }
 }
 #[must_use]
 pub fn plan_item(task: u64, status: &[u8]) -> skein_fake_person::Find {

@@ -685,7 +685,7 @@ fn task_pages(mut task: c::Task) -> (Pages, jig_client::Client) {
         &mut pages,
         &env,
         &fixture.client,
-        pages::Event::Went { address: crate::Address::Task { task: f::TASK, filter: crate::PlanFilter::All } },
+        pages::Event::Went { address: crate::Address::Task { task: f::TASK } },
         &mut out,
     );
     let handle = pages.task().expect("task page").document;
@@ -1295,45 +1295,6 @@ fn a_goals_tree_and_document_changes_reread_one_page_at_a_time() {
     assert!(!page.ended.as_ref().unwrap().reading);
     assert!(fixture.out.is_empty());
 }
-#[test]
-fn plan_filter_moves_keep_the_ended_page_and_drafts_without_reading_again() {
-    use crate::PlanFilter as Filter;
-    let (mut pages, client) = amend_pages(true);
-    let env = fixtures::env(&fixtures::limits());
-    let mut out = Queue::with_capacity(OUTPUTS);
-    let handle = pages.task().unwrap().ended.as_ref().unwrap().handle;
-    let closed = ended_page(false);
-    pages::step(
-        &mut pages,
-        &env,
-        &client,
-        pages::Event::Told {
-            told: Told::Page {
-                handle,
-                page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(closed.clone())))),
-            },
-        },
-        &mut out,
-    );
-    assert!(out.is_empty());
-    page_act(&mut pages, &client, Act::Amend);
-    page_act(&mut pages, &client, Act::AmendWords { words: Box::from(WORDS) });
-    let document = pages.task().unwrap().document;
-    for filter in [Filter::Live, Filter::All] {
-        let address = crate::Address::Task { task: f::TASK, filter };
-        let mut chosen = page_act(&mut pages, &client, Act::PlanFilter { filter });
-        assert_eq!(chosen.pop(), Some(Request::Show { address: address.clone() }));
-        assert!(chosen.is_empty());
-        pages::step(&mut pages, &env, &client, pages::Event::Went { address }, &mut out);
-        let page = pages.task().unwrap();
-        assert_eq!(page.filter, filter);
-        assert_eq!(page.document, document);
-        assert_eq!(page.ended.as_ref().unwrap().page.as_deref(), Some(&closed));
-        assert_eq!(page.amending.as_ref().unwrap().words.as_ref(), WORDS);
-        assert!(out.is_empty(), "the ended delegates stay read under either filter");
-    }
-}
-
 #[test]
 fn an_agents_task_busy_activity_read_is_asked_again() {
     // The task announces the fourth activity before its first activity page.

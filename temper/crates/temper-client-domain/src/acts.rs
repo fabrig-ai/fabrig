@@ -148,7 +148,6 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::MoreGoals
         | Act::GoalsFilter { .. }
         | Act::ChatFilter { .. }
-        | Act::PlanFilter { .. }
         | Act::ClosedChats => unreachable!("chat acts routed to chats"),
         Act::OpenStart { .. }
         | Act::StartDraft { .. }

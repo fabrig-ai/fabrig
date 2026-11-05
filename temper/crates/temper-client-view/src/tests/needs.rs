@@ -189,9 +189,7 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
     let title = f::find(view.tree(), Role::Link, b"welcome-stall").unwrap();
     assert_eq!(
         crate::act(&mut view, title, Act::Press),
-        Some(d::Action::Pages(pages::Act::Go {
-            address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All }
-        }))
+        Some(d::Action::Pages(pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } }))
     );
     assert_eq!(styled(&view, look::ASK_SAW).role, Role::Disclosure);
     assert_eq!(styled(&view, look::ASK_SAW).name.as_deref(), Some(b"What the agent saw".as_slice()));
@@ -339,9 +337,7 @@ fn answered_lines_have_links_labels_and_undo_only_during_hold() {
         let title = f::find(view.tree(), Role::Link, b"welcome-stall").unwrap();
         assert_eq!(
             crate::act(&mut view, title, Act::Press),
-            Some(d::Action::Pages(pages::Act::Go {
-                address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All }
-            }))
+            Some(d::Action::Pages(pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } }))
         );
         assert!(main(&view).iter().any(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Undo")));
         assert_eq!(press(&mut view, b"Undo"), expected(needs::Act::Undo { object: object(1) }));
@@ -737,9 +733,7 @@ fn held_parts_release_leave_held_and_missing_hold() {
         }
         assert_eq!(
             press(&mut view, b"Open"),
-            d::Action::Pages(pages::Act::Go {
-                address: Address::Task { task: f::INBOX_TASK, filter: d::PlanFilter::All }
-            })
+            d::Action::Pages(pages::Act::Go { address: Address::Task { task: f::INBOX_TASK } })
         );
     }
 }

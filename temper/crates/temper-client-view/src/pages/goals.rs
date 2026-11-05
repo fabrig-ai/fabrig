@@ -9,7 +9,7 @@ use jig_client::contract as c;
 use skein_lib::List;
 use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::{
-    Address, Domain, GoalsFilter, PlanFilter,
+    Address, Domain, GoalsFilter,
     pages::{
         Act,
         goals::{self, State},
@@ -283,11 +283,7 @@ pub(crate) fn row(
     };
     let title = line.chip.title.bytes();
     let name = crate::accounts::words::join(&[title, &words.say(Word::ToolSeparator, &[]), &count, &status]);
-    crate::link(
-        b,
-        &name,
-        bindings.insert(Act::Go { address: Address::Task { task: line.chip.task, filter: PlanFilter::All } }),
-    );
+    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: line.chip.task } }));
     b.style(look::GOALS_ROW);
     match state {
         State::Landed | State::Stopped | State::Failed => b.style(look::GOALS_ROW_ENDED),

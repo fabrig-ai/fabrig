@@ -5,7 +5,7 @@ use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_shell::Host;
 use temper_client_domain::Address;
-use temper_client_domain::{ChatsFilter, PlanFilter};
+use temper_client_domain::ChatsFilter;
 use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
 /// Resolve the process story's Reply and task title together on one Item.
 /// Other semantic queries and interaction checks retain `TreeFace`'s contract.
@@ -251,7 +251,7 @@ pub fn demo_change() -> Script {
             Step::See { find: Find::text("CI passed. Landed · merge commit ".as_bytes()).within(card()), within: START_WITHIN },
             Step::Gone { find: Find::exactly_named(Role::Status, b"Applied"), within: START_WITHIN },
             // The owner's chat log holds the result's words alone, not its ending.
-            Step::Go { address: Address::Task { task: CHANGE, filter: PlanFilter::All } },
+            Step::Go { address: Address::Task { task: CHANGE } },
             Step::See {
                 find: Find::exactly_named(Role::Heading { level: 1 }, b"Export widget's table as CSV").within(details()),
                 within: START_WITHIN,

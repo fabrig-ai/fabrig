@@ -3,7 +3,7 @@ use crate::driver::step;
 use jig_client::contract as c;
 use skein_lib::{Queue, Token};
 use temper_client_domain::{Action, Address, Domain, Event, Request, address::Filter, pages::Act};
-use temper_client_domain::{ChatsFilter, GoalsFilter, PlanFilter};
+use temper_client_domain::{ChatsFilter, GoalsFilter};
 
 use Then::{
     AccountRefused, Closing, Declined, Filled, Held, KeyReady, OutOfDate, Refused, Rejecting, Releasing, Renewed,
@@ -77,7 +77,7 @@ const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
 fn task(task: u64) -> Address {
-    Address::Task { task, filter: PlanFilter::All }
+    Address::Task { task }
 }
 
 #[must_use]

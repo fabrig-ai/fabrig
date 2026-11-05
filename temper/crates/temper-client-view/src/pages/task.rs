@@ -9,7 +9,7 @@ use jig_client::{Latest, contract as c};
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::{
-    Address, Domain, PlanFilter,
+    Address, Domain,
     pages::{
         Act,
         delegation::{self, State as ResultState},
@@ -493,7 +493,7 @@ fn chip(b: &mut Builder, chip: &c::Chip, words: &Words, bindings: &mut Bindings)
 }
 pub(crate) fn task_link(b: &mut Builder, task: u64, words: &Words, bindings: &mut Bindings) {
     let name = words.say(Word::Task, &[Hole::Number(task)]);
-    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task, filter: PlanFilter::All } }));
+    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task } }));
     b.text(Run::Plain, &name);
     b.close();
 }

@@ -10,7 +10,7 @@ use jig_client::{Latest, contract as c};
 use skein_lib::{List, Map, Wall, bytes::copy_of};
 use skein_ui::{Builder, Role, Run, State as UiState, phrases::Hole};
 use temper_client_domain::{
-    Address, Domain, PlanFilter,
+    Address, Domain,
     pages::{
         Act, delegation,
         goal::{self, Counts, Fallback},
@@ -554,11 +554,7 @@ impl<'a> Delegates<'a> {
             b.style(look::GOAL_LINE_RUNNING);
         }
         let title = row.chip.title.bytes();
-        crate::link(
-            b,
-            title,
-            bindings.insert(Act::Go { address: Address::Task { task: row.chip.task, filter: PlanFilter::All } }),
-        );
+        crate::link(b, title, bindings.insert(Act::Go { address: Address::Task { task: row.chip.task } }));
         b.text(Run::Plain, title);
         b.close();
         let said = match row.line {

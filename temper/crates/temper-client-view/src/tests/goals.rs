@@ -9,7 +9,7 @@ use jig_client::contract as c;
 use skein_lib::{List, Queue, Wall};
 use skein_ui::{Builder, Role, Style, Tree};
 use temper_client_domain::{
-    Address, GoalsFilter, PlanFilter,
+    Address, GoalsFilter,
     pages::{goals::State, report::Report},
 };
 
@@ -98,7 +98,7 @@ fn a_row_is_one_link_to_its_task() {
     assert_eq!(
         bindings.decode(binding.token, skein_ui::Act::Press),
         Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
-            address: Address::Task { task: line().chip.task, filter: PlanFilter::All }
+            address: Address::Task { task: line().chip.task }
         }))
     );
     // Text roles map to spans in the browser: top(title, count(state)), then line.
@@ -216,7 +216,7 @@ fn a_row_reads_in_the_terminal() {
         assert_eq!(
             bindings.decode(binding.token, act),
             Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
-                address: Address::Task { task: line.chip.task, filter: PlanFilter::All }
+                address: Address::Task { task: line.chip.task }
             }))
         );
     }

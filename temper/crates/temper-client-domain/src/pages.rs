@@ -1,6 +1,6 @@
 //! temper's pages own their handles and navigation (client/README.md, 3.1).
+use crate::ChatsFilter;
 use crate::{Address, Limits, owner::Owner};
-use crate::{ChatsFilter, PlanFilter};
 use alloc::boxed::Box;
 use jig_client::{
     Client, Handle, Latest, Link, Told, Watchable,
@@ -159,9 +159,6 @@ pub enum Act {
     },
     ChatFilter {
         filter: ChatsFilter,
-    },
-    PlanFilter {
-        filter: PlanFilter,
     },
     Filter {
         filter: crate::address::Filter,
@@ -552,7 +549,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act { act: Act::ClosedChats } => closed_chats(pages, out),
         Event::Act { act: Act::ChatFilter { filter } } => chat_filter(pages, filter, out),
-        Event::Act { act: Act::PlanFilter { filter } } => plan_filter(pages, filter, out),
         Event::Act { act: Act::Filter { filter } } => out.push(Request::Show { address: Address::Inbox { filter } }),
         Event::Act { act: act @ (Act::MessageWords { .. } | Act::Send | Act::Older) } => {
             if let Some(chat) = &mut pages.chat {
@@ -826,12 +822,6 @@ fn chat_filter(pages: &Pages, filter: ChatsFilter, out: &mut Queue<Request>) {
     }
 }
 
-fn plan_filter(pages: &Pages, filter: PlanFilter, out: &mut Queue<Request>) {
-    if let Some(task) = &pages.task {
-        out.push(Request::Show { address: Address::Task { task: task.number, filter } });
-    }
-}
-
 fn conversation_project(pages: &Pages) -> Option<u32> {
     address_project(&pages.address).or(pages.project)
 }
@@ -869,11 +859,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         pages.address = address;
         return;
     }
-    if let (Address::Task { task: current, .. }, Address::Task { task, filter }, Some(page)) =
-        (&pages.address, &address, &mut pages.task)
+    if let (Address::Task { task: current }, Address::Task { task }, Some(_)) = (&pages.address, &address, &pages.task)
         && current == task
     {
-        page.filter = *filter;
         pages.address = address;
         return;
     }
@@ -933,10 +921,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             page.filter = filter;
             pages.goals = Some(page);
         }
-        if let Address::Task { task, filter } = address {
-            let mut page = task::Task::new(task, pages.next, &env.limits, out);
-            page.filter = filter;
-            pages.task = Some(page);
+        if let Address::Task { task } = address {
+            pages.task = Some(task::Task::new(task, pages.next, &env.limits, out));
         }
         if let Address::Chat { task } = address {
             pages.chat = Some(chat::Chat::new(task, pages.next, &env.limits, out));
@@ -1034,7 +1020,7 @@ fn open_result(pages: &mut Pages, task: u64, through: u64, out: &mut Queue<Reque
             })),
         }));
     }
-    out.push(Request::Show { address: Address::Task { task, filter: PlanFilter::All } });
+    out.push(Request::Show { address: Address::Task { task } });
 }
 
 fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
@@ -1167,7 +1153,6 @@ fn task_told(
     handled
 }
 
-#[expect(clippy::too_many_lines, reason = "confirmation dispatch lists every page act, including start goal")]
 fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act, out: &mut Queue<Request>) {
     if let Act::Confirm = act
         && let Some(page) = &mut pages.task
@@ -1264,7 +1249,6 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::GoalsFilter { .. }
         | Act::MoreGoals
         | Act::ChatFilter { .. }
-        | Act::PlanFilter { .. }
         | Act::ClosedChats
         | Act::Filter { .. }
         | Act::OpenResult { .. }

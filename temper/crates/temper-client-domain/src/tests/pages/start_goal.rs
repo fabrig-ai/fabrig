@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::{
-    Address, PlanFilter,
+    Address,
     pages::{
         self, Act, Event, Pages, Request,
         needs::Toasted,
@@ -119,7 +119,7 @@ fn create_sends_and_goes_to_its_goal() {
     assert!(h.pages.start().is_some());
     h.answer(key, done(c::DocumentOutcome::Created { first: GOAL, last: GOAL, given: None }));
     assert!(h.pages.start().is_none());
-    assert_eq!(h.out.pop(), Some(Request::Show { address: Address::Task { task: GOAL, filter: PlanFilter::All } }));
+    assert_eq!(h.out.pop(), Some(Request::Show { address: Address::Task { task: GOAL } }));
     let mut chosen = self::me();
     let member = chosen.projects.get_mut(0).unwrap();
     member.templates.get_mut(0).unwrap().executor = c::TemplateExecutor::Chosen;

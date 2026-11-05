@@ -237,7 +237,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   | `NewChat` | `/chats/new` |
   | `Accounts` | `/accounts` |
   | `Chat { task }` | `/chats/<task>` |
-  | `Task { task, filter }` | `/tasks/<task>`, and its plan's filter's query |
+  | `Task { task }` | `/tasks/<task>` |
   | `Adopt { project }` | `/projects/<project>/adopt` |
   | `Welcome { step }` | `/welcome`, and its step's query |
   | `Forges` | `/forges` |

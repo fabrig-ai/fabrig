@@ -897,10 +897,6 @@ pub enum Word {
     ItsTasksNoneYet,
     ItsTasksNone,
     ItsTasksMoreEnded,
-    AllPlan,
-    LivePlan,
-    PlanCounts,
-    PlanMoreCounts,
     ReadingTask,
     TaskUnknown,
     TaskNotAllowed,
@@ -1036,7 +1032,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The goal header, report, side and acts add their phrases (client/README.md, 5.8 and 5.11).
 // The goal composer adds two phrases (client/README.md, 5.11).
 // The start sheet uses eight phrases (client/README.md, 5.14).
-const PHRASES: u32 = 1521;
+const PHRASES: u32 = 1517;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -1058,8 +1054,8 @@ const PHRASES: u32 = 1521;
 // The goal header and report use forty literal and hole segments; its side uses fifty-two (5.8).
 // The goal composer adds four literal and hole segments (client/README.md, 5.11).
 // The start sheet uses twelve literal and hole segments (5.14).
-const SEGMENTS: u32 = 2663;
-const ALL: [Word; 925] = [
+const SEGMENTS: u32 = 2651;
+const ALL: [Word; 921] = [
     Word::StartGoalTitle,
     Word::StartGoalFrom,
     Word::StartGoalLead,
@@ -1920,10 +1916,6 @@ const ALL: [Word; 925] = [
     Word::ItsTasksNoneYet,
     Word::ItsTasksNone,
     Word::ItsTasksMoreEnded,
-    Word::AllPlan,
-    Word::LivePlan,
-    Word::PlanCounts,
-    Word::PlanMoreCounts,
     Word::ReadingTask,
     Word::TaskUnknown,
     Word::TaskNotAllowed,
@@ -2920,10 +2912,6 @@ impl Word {
             Self::ItsTasksNoneYet => 1251,
             Self::ItsTasksNone => 1252,
             Self::ItsTasksMoreEnded => 1253,
-            Self::AllPlan => 1254,
-            Self::LivePlan => 1255,
-            Self::PlanCounts => 1256,
-            Self::PlanMoreCounts => 1257,
             Self::ReadingTask => 2012,
             Self::TaskUnknown => 2013,
             Self::TaskNotAllowed => 2014,
@@ -3824,7 +3812,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PullRequestOpened => (&[b"Pull request opened"], &[]),
         Word::CiPassed => (&[b"CI passed"], &[]),
         Word::GoalResult => (&[b"Result"], &[]),
-        Word::AllChats | Word::AllPlan => (&[b"All"], &[]),
+        Word::AllChats => (&[b"All"], &[]),
         Word::Count => (&[b"", b""], &[Number]),
         Word::BudgetDeadlineDate => (&[b"", b""], &[HoleKind::Date]),
         Word::BudgetDeadlineMoment => (&[b"", b" UTC"], &[HoleKind::Moment]),
@@ -4080,9 +4068,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NoLiveTasks => (&[b"No live tasks."], &[]),
         Word::ItsTasksNoneYet => (&[b"None yet."], &[]),
         Word::ItsTasksNone => (&[b"None."], &[]),
-        Word::LivePlan => (&[b"Live only"], &[]),
-        Word::PlanCounts => (&[b"Its delegates: ", b" live, ", b" ended."], &[Number, Number]),
-        Word::PlanMoreCounts => (&[b"Its delegates: ", b" live, more than ", b" ended."], &[Number, Number]),
         Word::ItsTasksMoreEnded => (&[b"More of its ended tasks are not shown."], &[]),
         Word::MessageOnceRuns => (&[b"Messages reach it once it runs."], &[]),
         Word::InboxNeedsEmpty => (&[b"Nothing needs you."], &[]),

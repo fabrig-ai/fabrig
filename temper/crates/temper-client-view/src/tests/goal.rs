@@ -11,7 +11,7 @@ use crate::{
 use jig_client::{Down, Event as ClientEvent, Readable, Readout, UnlinkedRequest, Up, Watchable, contract as c};
 use skein_lib::{Env, List, Queue, Time, Wall};
 use skein_ui::{Builder, Role, Run, Style, Tree};
-use temper_client_domain::{Address, Domain, Event, PlanFilter, Request, pages::Act};
+use temper_client_domain::{Address, Domain, Event, Request, pages::Act};
 
 const TASK: u64 = 9;
 const DONE: u32 = 6;
@@ -88,7 +88,7 @@ impl Side {
 fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: bool, side: Side) -> Domain {
     let limits = fixtures::domain_limits();
     let (mut root, _, watch, tree_watch, _, _, inbox_watch) = fixtures::root_at_with_dismissals_and_needs(
-        Address::Task { task: TASK, filter: PlanFilter::All },
+        Address::Task { task: TASK },
         &limits,
         b"Shop",
         None,
@@ -616,8 +616,7 @@ fn a_report_less_end_draws_its_result_or_reason() {
 }
 #[test]
 fn an_unread_document_draws_as_a_task_read() {
-    let (root, _, _) =
-        fixtures::root_at(Address::Task { task: TASK, filter: PlanFilter::All }, &fixtures::domain_limits());
+    let (root, _, _) = fixtures::root_at(Address::Task { task: TASK }, &fixtures::domain_limits());
     for words in [fixtures::browser_words(), fixtures::words()] {
         let tree = draw(&root, &words).0;
         assert_eq!(fixtures::text(&tree).as_ref(), b"Reading task 9\xe2\x80\xa6");
@@ -729,9 +728,7 @@ fn tasks_merge_the_trees_rows_and_the_ended_page_by_number() {
                 let task = numbers.next().unwrap();
                 assert_eq!(
                     bindings.decode(node.binding.unwrap().token, skein_ui::Act::Press),
-                    Some(temper_client_domain::Action::Pages(Act::Go {
-                        address: Address::Task { task, filter: PlanFilter::All }
-                    }))
+                    Some(temper_client_domain::Action::Pages(Act::Go { address: Address::Task { task } }))
                 );
             }
         }
