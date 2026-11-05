@@ -415,6 +415,7 @@ impl Task {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::Switcher(_)
+            | Act::Needs(_)
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)
@@ -521,6 +522,7 @@ impl Task {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::Switcher(_)
+            | Act::Needs(_)
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)

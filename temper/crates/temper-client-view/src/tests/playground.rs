@@ -130,9 +130,9 @@ fn a_chats_banner_precedes_main_and_its_chatbar_in_every_project() {
 fn the_playground_account_always_names_default_whatever_the_model_or_project() {
     use jig_client::contract as c;
     for (row, project, model, requested, expected) in [
-        ("default", f::PROJECT, true, false, "Using Scripted model · Default"),
-        ("requested", f::PROJECT, true, true, "Using Scripted model · Default"),
-        ("another project", f::SECOND_PROJECT, true, false, "Using Scripted model · Default"),
+        ("default", f::PROJECT, true, false, "Scripted model · Default"),
+        ("requested", f::PROJECT, true, true, "Scripted model · Default"),
+        ("another project", f::SECOND_PROJECT, true, false, "Scripted model · Default"),
     ] {
         let choice = if requested {
             Some(c::LlmChoice {
@@ -144,13 +144,10 @@ fn the_playground_account_always_names_default_whatever_the_model_or_project() {
             None
         };
         let root = f::playground_choice_root(Address::Chat { task: 1 }, project, model, choice);
-        let view = f::page_view(&root);
-        assert!(skein_lib::bytes::find(&f::text(view.tree()), expected.as_bytes()).is_some(), "{row}");
+        assert_eq!(super::choice::using_text(&root), expected, "{row}");
     }
     let root = f::playground_root(Address::NewChat, f::PROJECT, true);
-    assert!(
-        f::find(f::page_view(&root).tree(), Role::Paragraph, "Using Scripted model · Default".as_bytes()).is_some()
-    );
+    assert!(super::choice::using_text(&root) == "Scripted model · Default");
 }
 
 #[test]
@@ -219,23 +216,21 @@ fn pending_words_without_a_party_are_named_you() {
 fn a_real_account_keeps_the_playgrounds_scripted_model() {
     let root = f::playground_kept_root();
     assert!(root.forge().playground().is_some());
-    let view = f::page_view(&root);
-    assert!(f::find(view.tree(), Role::Paragraph, "Using Scripted model · Default".as_bytes()).is_some());
+    assert!(super::choice::using_text(&root) == "Scripted model · Default");
 }
 
 #[test]
 fn the_hidden_deployment_playground_account_needs_only_its_public_provider() {
     use jig_client::contract::Readiness;
     for (ready, payer, expected) in [
-        (Some(Readiness::Usable), 73, "Using Scripted model · Default"),
-        (Some(Readiness::Unknown), 73, "Using Scripted model · Default"),
-        (None, 73, "Using Scripted model · Default"),
+        (Some(Readiness::Usable), 73, "Scripted model · Default"),
+        (Some(Readiness::Unknown), 73, "Scripted model · Default"),
+        (None, 73, "Scripted model · Default"),
         (Some(Readiness::Unavailable), 73, "Scripted model · needs an account"),
-        (Some(Readiness::Usable), 74, "Using Scripted model · Default"),
+        (Some(Readiness::Usable), 74, "Scripted model · Default"),
     ] {
         let root = f::hidden_playground_root(ready, payer);
-        let view = f::page_view(&root);
-        assert!(f::find(view.tree(), Role::Paragraph, expected.as_bytes()).is_some());
+        assert!(super::choice::using_text(&root).ends_with(expected));
     }
 }
 

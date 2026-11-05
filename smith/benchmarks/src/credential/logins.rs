@@ -1,9 +1,10 @@
 //! Harness login layout and existence-only admission (benchmarks.md, section 10).
 //! The developer creates these paths; the harness never writes them.
 
+use crate::{Fault, FaultKind, credential};
 use std::path::Path;
 
-use crate::isolate::{Setup, SetupStep};
+use crate::isolate::SetupStep;
 
 /// Shared account declarations for the attempt layer and documented setup.
 pub const ACCOUNTS: &str = include_str!("../../agents/smith/accounts.toml");
@@ -14,68 +15,77 @@ fn present(path: &Path, directory: bool) -> bool {
 }
 
 /// Require only the selected smith account's setup, without opening its record.
-pub fn smith(directory: &Path, account: &str) -> Result<(), Setup> {
+pub fn smith(directory: &Path, account: &str) -> Result<(), Fault> {
     let required = match account {
         "chatgpt" => vec![("config/smith/config.toml", false), ("host-id", false), ("tokens/chatgpt", false)],
         "claude" => vec![("config/smith/config.toml", false), ("programs/claude", true)],
         "anthropic-key" => return key(std::env::var_os("ANTHROPIC_API_KEY").is_some_and(|value| !value.is_empty())),
-        _ => return Err(Setup { step: SetupStep::Credentials, reason: "unknown harness account".into() }),
+        _ => {
+            return Err(Fault {
+                kind: FaultKind::Setup(SetupStep::Credentials),
+                detail: "unknown harness account".into(),
+            });
+        }
     };
     if required.iter().all(|(path, directory_kind)| present(&directory.join(path), *directory_kind)) {
         return Ok(());
     }
-    Err(Setup {
-        step: SetupStep::Credentials,
-        reason: format!(
+    Err(Fault {
+        kind: FaultKind::Setup(SetupStep::Credentials),
+        detail: format!(
             "no smith login for the harness: run `XDG_CONFIG_HOME={} smith login {account}`",
             directory.join("config").display()
         ),
     })
 }
 
-fn key(present: bool) -> Result<(), Setup> {
+fn key(present: bool) -> Result<(), Fault> {
     if present {
         Ok(())
     } else {
-        Err(Setup { step: SetupStep::Credentials, reason: "`ANTHROPIC_API_KEY` is not set".into() })
+        Err(Fault { kind: FaultKind::Setup(SetupStep::Credentials), detail: "`ANTHROPIC_API_KEY` is not set".into() })
     }
 }
 
 /// Require the harness's Codex record before reading its access fields.
-pub fn codex(directory: &Path) -> Result<(), Setup> {
+pub fn codex(directory: &Path) -> Result<(), Fault> {
     if present(&directory.join("auth.json"), false) {
         return Ok(());
     }
-    Err(Setup {
-        step: SetupStep::Credentials,
-        reason: format!("no Codex login for the harness: run `CODEX_HOME={} codex login`", directory.display()),
+    Err(Fault {
+        kind: FaultKind::Setup(SetupStep::Credentials),
+        detail: format!("no Codex login for the harness: run `CODEX_HOME={} codex login`", directory.display()),
     })
 }
 
 /// Hold one program login until its process tree settles, including across suites.
-pub fn serial(guard: &crate::guard::Guard, directory: &Path) -> Result<std::fs::File, Setup> {
+pub fn serial(guard: &crate::guard::Guard, directory: &Path) -> Result<std::fs::File, Fault> {
+    serial_lock(guard, directory).map_err(Fault::at(SetupStep::Credentials))
+}
+
+fn serial_lock(guard: &crate::guard::Guard, directory: &Path) -> Result<std::fs::File, Fault> {
     use std::os::unix::fs::OpenOptionsExt;
-    let lock = (|| {
-        let state = directory.parent().and_then(Path::parent).ok_or("program login needs its harness state parent")?;
-        let parent = state.join("locks");
-        crate::run::private_parent(guard, &parent)?;
-        let path = guard.write_path(&parent.join("claude.lock"))?;
-        let file = std::fs::OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .read(true)
-            .write(true)
-            .mode(0o600)
-            .open(path)
-            .map_err(|_| "cannot open the Claude login's serial lock")?;
-        file.lock().map_err(|_| "cannot acquire the Claude login's serial lock")?;
-        Ok::<_, String>(file)
-    })();
-    lock.map_err(|reason| Setup { step: SetupStep::Credentials, reason })
+    let state = directory
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| credential("program login needs its harness state parent"))?;
+    let parent = state.join("locks");
+    crate::run::private_parent(guard, &parent)?;
+    let path = guard.write_path(&parent.join("claude.lock"))?;
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .mode(0o600)
+        .open(path)
+        .map_err(|_| credential("cannot open the Claude login's serial lock"))?;
+    file.lock().map_err(|_| credential("cannot acquire the Claude login's serial lock"))?;
+    Ok::<_, Fault>(file)
 }
 
 /// Find Claude Code on the exact attempt PATH, without running it during admission.
-pub fn claude(environment: &[(std::ffi::OsString, std::ffi::OsString)], working: &Path) -> Result<(), Setup> {
+pub fn claude(environment: &[(std::ffi::OsString, std::ffi::OsString)], working: &Path) -> Result<(), Fault> {
     use std::os::unix::fs::PermissionsExt;
     let path = environment.iter().find(|(name, _)| name == "PATH").map(|(_, path)| path);
     if path.is_some_and(|path| {
@@ -87,9 +97,9 @@ pub fn claude(environment: &[(std::ffi::OsString, std::ffi::OsString)], working:
     }) {
         return Ok(());
     }
-    Err(Setup {
-        step: SetupStep::Credentials,
-        reason: "Claude Code is missing: install `claude` on the attempt's PATH".into(),
+    Err(Fault {
+        kind: FaultKind::Setup(SetupStep::Credentials),
+        detail: "Claude Code is missing: install `claude` on the attempt's PATH".into(),
     })
 }
 
@@ -100,9 +110,9 @@ mod tests {
 
     #[test]
     fn missing_tools_name_their_setup() {
-        assert_eq!(key(false).expect_err("missing key").reason, "`ANTHROPIC_API_KEY` is not set");
+        assert_eq!(key(false).expect_err("missing key").detail, "`ANTHROPIC_API_KEY` is not set");
         assert_eq!(
-            claude(&[], Path::new("/synthetic")).expect_err("missing Claude").reason,
+            claude(&[], Path::new("/synthetic")).expect_err("missing Claude").detail,
             "Claude Code is missing: install `claude` on the attempt's PATH"
         );
     }
@@ -155,7 +165,7 @@ mod tests {
                 std::fs::remove_file(&path).expect("missing file");
             }
             assert_eq!(
-                smith(&directory, account).expect_err(missing).reason,
+                smith(&directory, account).expect_err(missing).detail,
                 format!(
                     "no smith login for the harness: run `XDG_CONFIG_HOME={} smith login {account}`",
                     directory.join("config").display()
@@ -164,7 +174,7 @@ mod tests {
         }
         let directory = root.join("codex");
         assert_eq!(
-            codex(&directory).expect_err("missing Codex").reason,
+            codex(&directory).expect_err("missing Codex").detail,
             format!("no Codex login for the harness: run `CODEX_HOME={} codex login`", directory.display())
         );
     }

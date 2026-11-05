@@ -1289,7 +1289,6 @@ fn a_host_resumes_from_its_last_window_turn_alone() {
     );
 }
 
-#[path = "stories/limits.rs"]
 mod limits;
 
 fn account_fault_record(fault: smith_domain::run::Fault) -> smith_channel::Answer {

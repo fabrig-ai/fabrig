@@ -1,7 +1,6 @@
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
-#[path = "../common/mod.rs"]
 pub mod common;
 
 mod budget_visibility;

@@ -776,6 +776,7 @@ impl Chat {
             Act::Send => self.send(env, client, Sending::Message, serial, out),
             Act::Stop => self.send(env, client, Sending::Stop, serial, out),
             Act::Switcher(_)
+            | Act::Needs(_)
             | Act::Choice(_)
             | Act::Accounts(_)
             | Act::ConnectModel(_)

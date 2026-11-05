@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 use skein_lib::Rng;
 
-use crate::Measure;
+use crate::{Bound, Fault, Input, Measure, bound, input, refuse_if};
 
 /// A repository comparison's range claim (benchmarks.md, sections 3.1 and 9).
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -21,7 +21,7 @@ pub enum LargeEffect {
     Unclaimed { reason: String },
 }
 
-fn observed_range(measures: &[Measure<f64>]) -> Result<Interval, String> {
+fn observed_range(measures: &[Measure<f64>]) -> Result<Interval, Fault> {
     let mut values = Vec::new();
     let mut reasons = Vec::new();
     for measure in measures {
@@ -32,7 +32,7 @@ fn observed_range(measures: &[Measure<f64>]) -> Result<Interval, String> {
         }
     }
     if !reasons.is_empty() {
-        return Err(reasons.join("; "));
+        return Err(input(reasons.join("; ")));
     }
     validate(&values)?;
     Ok(Interval {
@@ -113,15 +113,15 @@ pub struct Comparison {
     pub resamples: u32,
 }
 
-fn validate(values: &[f64]) -> Result<(), String> {
+fn validate(values: &[f64]) -> Result<(), Fault> {
     if values.is_empty() || values.iter().any(|value| !value.is_finite() || *value < 0.0) {
-        return Err("statistics need nonempty finite nonnegative measurements".into());
+        return Err(input("statistics need nonempty finite nonnegative measurements"));
     }
     Ok(())
 }
 
 /// Return the median of every supplied observation, regardless of its end.
-pub fn median(values: &[f64]) -> Result<f64, String> {
+pub fn median(values: &[f64]) -> Result<f64, Fault> {
     validate(values)?;
     let mut values = values.to_vec();
     Ok(sample_median(&mut values))
@@ -135,35 +135,27 @@ fn sample_median(values: &mut [f64]) -> f64 {
 }
 
 /// Compute sample standard deviation divided by the arithmetic mean.
-pub fn coefficient_of_variation(values: &[f64]) -> Result<f64, String> {
+pub fn coefficient_of_variation(values: &[f64]) -> Result<f64, Fault> {
     validate(values)?;
-    if values.len() < 2 {
-        return Err("CV needs at least two observations".into());
-    }
-    let count = f64::from(u32::try_from(values.len()).map_err(|_| "too many CV observations")?);
+    refuse_if(values.len() < 2, Input, "CV needs at least two observations")?;
+    let count = f64::from(u32::try_from(values.len()).map_err(|_| bound("too many CV observations"))?);
     let scale = values.iter().copied().fold(0.0, f64::max);
-    if scale == 0.0 {
-        return Err("CV is unavailable for a zero mean".into());
-    }
+    refuse_if(scale == 0.0, Input, "CV is unavailable for a zero mean")?;
     let mean = values.iter().map(|value| value / scale).sum::<f64>() / count;
     // Scale before squaring to avoid overflow on valid large measurements.
     let variance = values.iter().map(|value| ((value / scale) / mean - 1.0).powi(2)).sum::<f64>() / (count - 1.0);
     let cv = variance.sqrt();
-    if !cv.is_finite() {
-        return Err("CV exceeded finite precision".into());
-    }
+    refuse_if(!cv.is_finite(), Bound, "CV exceeded finite precision")?;
     Ok(cv)
 }
 
 /// The relative effect resolvable with this variation and attempts per arm.
-pub fn minimum_detectable_effect(cv: f64, attempts: u32) -> Result<f64, String> {
+pub fn minimum_detectable_effect(cv: f64, attempts: u32) -> Result<f64, Fault> {
     if !cv.is_finite() || cv < 0.0 || attempts == 0 {
-        return Err("minimum detectable effect needs finite CV and positive n".into());
+        return Err(input("minimum detectable effect needs finite CV and positive n"));
     }
     let effect = 2.8 * cv * (2.0 / f64::from(attempts)).sqrt();
-    if !effect.is_finite() {
-        return Err("minimum detectable effect exceeded finite precision".into());
-    }
+    refuse_if(!effect.is_finite(), Bound, "minimum detectable effect exceeded finite precision")?;
     Ok(effect)
 }
 
@@ -237,14 +229,14 @@ fn pooled_solved(strata: &[Stratum], random: &mut Rng, resample: bool) -> f64 {
 }
 
 /// Resample each fixture and arm separately, preserving value/pass pairing.
-pub(crate) fn bootstrap_per_solved(strata: &[Stratum], seed: u64, resamples: u32) -> Result<(f64, (f64, f64)), String> {
+pub(crate) fn bootstrap_per_solved(strata: &[Stratum], seed: u64, resamples: u32) -> Result<(f64, (f64, f64)), Fault> {
     if strata.is_empty()
         || resamples < 1000
         || strata.iter().any(|stratum| {
             stratum.reference.iter().chain(&stratum.candidate).any(|(value, _)| !value.is_finite() || *value < 0.0)
         })
     {
-        return Err("per-solved bootstrap needs finite nonnegative strata and 1000 resamples".into());
+        return Err(input("per-solved bootstrap needs finite nonnegative strata and 1000 resamples"));
     }
     let mut random = Rng::new(seed);
     let ratio = pooled_solved(strata, &mut random, false);
@@ -268,15 +260,13 @@ pub(crate) fn bootstrap_per_solved(strata: &[Stratum], seed: u64, resamples: u32
 
 /// Bootstrap the ratio of medians; at least five complete observations per arm.
 /// Detection needs both an interval excluding one and an effect above the MDE.
-pub fn bootstrap_ratio(reference: &[f64], candidate: &[f64], seed: u64, resamples: u32) -> Result<Comparison, String> {
+pub fn bootstrap_ratio(reference: &[f64], candidate: &[f64], seed: u64, resamples: u32) -> Result<Comparison, Fault> {
     validate(reference)?;
     validate(candidate)?;
     if reference.len() < 5 || candidate.len() < 5 || resamples < 1000 {
-        return Err("comparison needs at least five attempts per arm and 1000 resamples".into());
+        return Err(input("comparison needs at least five attempts per arm and 1000 resamples"));
     }
-    if reference.contains(&0.0) {
-        return Err("reference zero can make a bootstrap ratio undefined".into());
-    }
+    refuse_if(reference.contains(&0.0), Input, "reference zero can make a bootstrap ratio undefined")?;
     let ratio = median(candidate)? / median(reference)?;
     // Constant arms make every percentile draw the same ratio.
     if reference.iter().all(|value| value.to_bits() == reference[0].to_bits())
@@ -302,7 +292,7 @@ pub fn bootstrap_ratio(reference: &[f64], candidate: &[f64], seed: u64, resample
         ratios.push(sample_median(&mut candidate_sample) / sample_median(&mut reference_sample));
     }
     if !ratio.is_finite() || ratios.iter().any(|ratio| !ratio.is_finite()) {
-        return Err("ratio exceeded finite precision".into());
+        return Err(bound("ratio exceeded finite precision"));
     }
     ratios.sort_by(f64::total_cmp);
     let lower = usize::try_from(u64::from(resamples) * 25 / 1000).expect("percentile fits usize");
@@ -310,7 +300,7 @@ pub fn bootstrap_ratio(reference: &[f64], candidate: &[f64], seed: u64, resample
         usize::try_from(u64::from(resamples) * 975 / 1000).expect("percentile fits usize").min(ratios.len() - 1);
     let interval = Interval { lower: ratios[lower], upper: ratios[upper] };
     let attempts =
-        u32::try_from(reference.len().min(candidate.len())).map_err(|_| "too many comparison observations")?;
+        u32::try_from(reference.len().min(candidate.len())).map_err(|_| bound("too many comparison observations"))?;
     let cv = coefficient_of_variation(reference)?.max(coefficient_of_variation(candidate)?);
     let effect = minimum_detectable_effect(cv, attempts)?;
     Ok(Comparison {
@@ -341,9 +331,9 @@ fn binomial_cdf(n: u32, maximum: u32, probability: f64) -> f64 {
 
 /// The equal-tailed 95% Clopper–Pearson interval, by binomial-tail inversion.
 /// Empty counts have no rate; the computational bound refuses corrupt counts.
-pub fn pass_interval(passed: u32, total: u32) -> Result<Interval, String> {
+pub fn pass_interval(passed: u32, total: u32) -> Result<Interval, Fault> {
     if total == 0 || passed > total || total > 1_000_000 {
-        return Err("pass interval needs 0 <= passed <= total <= 1000000, with positive total".into());
+        return Err(input("pass interval needs 0 <= passed <= total <= 1000000, with positive total"));
     }
     let mut lower = 0.0;
     let mut upper = 1.0;
@@ -377,9 +367,9 @@ pub fn pass_interval(passed: u32, total: u32) -> Result<Interval, String> {
 }
 
 /// Draw distinct audit indices, always including check/grader disagreements.
-pub fn audit_sample(attempts: usize, count: usize, disagreements: &[usize], seed: u64) -> Result<Vec<usize>, String> {
+pub fn audit_sample(attempts: usize, count: usize, disagreements: &[usize], seed: u64) -> Result<Vec<usize>, Fault> {
     if disagreements.iter().any(|index| *index >= attempts) {
-        return Err("audit disagreement index is outside the attempts".into());
+        return Err(bound("audit disagreement index is outside the attempts"));
     }
     let mut indices: Vec<usize> = (0..attempts).collect();
     shuffle(&mut indices, &mut Rng::new(seed));

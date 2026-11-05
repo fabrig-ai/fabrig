@@ -2748,6 +2748,101 @@ fn a_control_changes_procedure_keeps_its_producer_review_and_llm_parameter() {
     assert_eq!(same[0].authority.delegation.kinds.as_ref(), &[tasks::AuthorityExecutor::Charter(4)]);
 }
 
+fn change_family(questions: &[Option<crate::ChangeQuestions>]) -> Box<[crate::ChangeCall]> {
+    let count = u32::try_from(questions.len()).unwrap();
+    let mut changes = skein_lib::List::with_capacity(count);
+    for question in questions {
+        changes
+            .push(crate::ChangeCall {
+                questions: question.clone(),
+                ..crate::ChangeCall::words(b"Family member".as_slice().into(), None)
+            })
+            .unwrap();
+    }
+    changes.into_boxed()
+}
+
+#[test]
+fn four_foreman_changes_share_the_call_task_room() {
+    use crate::ChangeQuestions::Foreman;
+    for tasks_left in [383, 372, 8] {
+        let (domain, mut env, mut context) = change_choice_world();
+        env.limits.forge.change_policy.tasks = 80;
+        env.limits.forge.change_policy.questions = 80;
+        context.tasks_left = tasks_left;
+        context.authority.delegation.tasks = 384;
+        let changes = change_family(&[Some(Foreman), Some(Foreman), Some(Foreman), Some(Foreman)]);
+        let batch = match super::change_batch(&domain, &env, 1, &context, &changes) {
+            Ok(batch) => batch,
+            Err(super::ChangeRefused::Refusal(why)) => panic!("{tasks_left} tasks left: {why:?}"),
+            Err(super::ChangeRefused::Words(words)) => panic!("{tasks_left} tasks left: {words:?}"),
+        };
+        assert_eq!(batch.len(), 4);
+        let (mut total, mut smallest, mut largest) = (4_u32, u32::MAX, 0_u32);
+        for member in &batch {
+            let allowance = member.authority.delegation.tasks;
+            assert!((1..=160).contains(&allowance));
+            total = total.checked_add(allowance).unwrap();
+            smallest = smallest.min(allowance);
+            largest = largest.max(allowance);
+        }
+        assert_eq!(total, tasks_left);
+        assert!(largest - smallest <= 1);
+    }
+}
+
+#[test]
+fn mixed_change_routes_share_room_within_each_policy_cap() {
+    use crate::ChangeQuestions::{Foreman, Up};
+    for (routes, tasks_left, expected) in [
+        ([Some(Up), Some(Foreman)], 200, [80, 118]),
+        ([Some(Foreman), Some(Up)], 200, [118, 80]),
+        ([None, Some(Foreman)], 400, [80, 160]),
+        ([Some(Up), Some(Foreman)], 4, [1, 1]),
+    ] {
+        let (domain, mut env, mut context) = change_choice_world();
+        env.limits.forge.change_policy.tasks = 80;
+        env.limits.forge.change_policy.questions = 80;
+        context.tasks_left = tasks_left;
+        context.authority.delegation.tasks = tasks_left;
+        let changes = change_family(&routes);
+        let batch = match super::change_batch(&domain, &env, 1, &context, &changes) {
+            Ok(batch) => batch,
+            Err(super::ChangeRefused::Refusal(why)) => panic!("{tasks_left} tasks left: {why:?}"),
+            Err(super::ChangeRefused::Words(words)) => panic!("{tasks_left} tasks left: {words:?}"),
+        };
+        assert_eq!(batch.len(), expected.len());
+        for (member, allowance) in batch.iter().zip(expected) {
+            assert_eq!(member.authority.delegation.tasks, allowance);
+        }
+    }
+}
+
+#[test]
+fn insufficient_change_room_names_capacity_and_whether_smaller_calls_help() {
+    for (available, figure) in [(0, "available 0 tasks"), (1, "available 1 tasks"), (7, "available 7 tasks")] {
+        let (domain, env, mut context) = change_choice_world();
+        context.tasks_left = available;
+        let changes = change_family(&[None, None, None, None]);
+        let Err(super::ChangeRefused::Words(words)) = super::change_batch(&domain, &env, 1, &context, &changes) else {
+            panic!("insufficient batch must be refused before constructing delegates")
+        };
+        let advice = if available >= 2 {
+            "Fewer changes per call can fit; ended tasks still count against lifetime authority."
+        } else {
+            "Fewer changes per call cannot help: even one change needs two tasks of lifetime authority."
+        };
+        assert!(words.starts_with(b"change batch: task tree limit;"));
+        assert!(skein_lib::bytes::find(&words, figure.as_bytes()).is_some(), "{words:?}");
+        assert!(
+            skein_lib::bytes::find(&words, b"required 8 (one change task and at least one descendant per member)")
+                .is_some(),
+            "{words:?}"
+        );
+        assert!(words.ends_with(advice.as_bytes()), "{words:?}");
+    }
+}
+
 #[test]
 fn a_changes_delegation_uses_its_task_limit_and_leaves_room_for_foremen() {
     use crate::ChangeQuestions;
@@ -3239,7 +3334,14 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
         ),
     ] {
         let (mut domain, env) = two_forges();
-        domain.core.tasks = tasks::Domain::new(&env.limits.tasks, 7, 0, Box::new([]), Box::new([]));
+        domain.core.tasks = tasks::Domain::new(
+            &env.limits.tasks,
+            tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
+            7,
+            0,
+            Box::new([]),
+            Box::new([]),
+        );
         let mut row = template.clone();
         row.number = 7;
         row.dependencies = Box::new([8]);

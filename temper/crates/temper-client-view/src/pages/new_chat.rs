@@ -36,7 +36,7 @@ pub(crate) fn main(
         && root.pages().me(root.client()).is_some()
         && super::project_name(root.pages().me(root.client()), project).is_none()
     {
-        super::home::main(b, root, w, bindings, project, times);
+        super::home::main(b, root, w, bindings, project, times, 0);
         return;
     }
     b.open(Role::Main);
@@ -52,7 +52,7 @@ pub(crate) fn main(
         super::session::Heading::Words(&w.say(Word::NewChat, &[])),
     );
     super::session::right(b);
-    text(b, &crate::choice::new_chat_model(root, w), look::BYLINE);
+    crate::choice::byline(b, root, None, w, bindings);
     b.close();
     b.close();
     b.open(Role::Region);
@@ -101,7 +101,7 @@ pub(crate) fn main(
         b.close();
     }
     b.close();
-    crate::choice::composer(b, root, None, w, bindings, times);
+    crate::choice::above_composer(b, root, None, w, bindings, times);
     composer(b, root, w, bindings, text_limit);
     b.close();
     b.close();

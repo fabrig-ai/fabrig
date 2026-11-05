@@ -33,7 +33,14 @@ pub(crate) fn card(b: &mut Builder, root: &Domain, card: &Card, words: &Words, b
     let Some(page) = &card.page else { return };
     crate::cards::proposal_reason(b, page);
     facts(b, page, words, rows);
+    let conversation = root.pages().chat().is_some() && words.shell == crate::words::Shell::Browser;
+    if conversation {
+        b.open(Role::Slot);
+    }
     controls(b, root, card, words, bindings);
+    if conversation {
+        b.close();
+    }
 }
 pub(crate) fn facts(b: &mut Builder, page: &ReadValue, words: &Words, rows: u32) {
     facts_at(b, page, words, rows, crate::cards::Place::Chat);
@@ -65,24 +72,17 @@ pub(crate) fn controls(b: &mut Builder, root: &Domain, card: &Card, words: &Word
     }
 }
 pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings) {
+    controls_at(b, root, card, words, bindings, false);
+}
+
+/// Browser card acts share the terminal's admissions, reasons and outcomes (client/README.md, 3.5).
+pub(crate) fn needs_controls(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings) {
+    controls_at(b, root, card, words, bindings, true);
+}
+fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings, needs: bool) {
     let Some(page) = &card.page else { return };
     if let Some(outcome) = &card.outcome {
-        match outcome {
-            Outcome::Answered(Answered::Jig(Answer::Done(outcome))) => words.outcome(b, outcome),
-            Outcome::Answered(Answered::Jig(Answer::Refused { refusal, .. })) => {
-                words.refusal(b, refusal, 0);
-                if let jig_client::contract::Refusal::Moved { .. } = refusal {
-                    words.card_text(b, P::LookAgain, &[]);
-                }
-            }
-            Outcome::Full { held, room_at } => crate::cards::answers_full(b, words, *held, *room_at),
-            Outcome::NotKept | Outcome::Held => words.status(b, P::RequestNotKept, &[]),
-            Outcome::Unknown => words.status(b, P::Unknown, &[]),
-            Outcome::Limit => words.status(b, P::RequestsInFlight, &[]),
-            Outcome::Unconfirmed => words.status(b, P::RequestUnconfirmed, &[]),
-            Outcome::Answered(Answered::Family(_)) => {}
-            Outcome::Unsent | Outcome::Lost => unreachable!("temper's requests carry no value"),
-        }
+        outcome_words(b, words, outcome);
         return;
     }
     if let Some(progress) = acts::pending(card, root.client()) {
@@ -92,6 +92,7 @@ pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: 
     if card.key.is_some() {
         return;
     }
+    let mut first = true;
     for (act, word) in ACTIONS {
         if root.pages().task().is_some() && act != ActKind::Release {
             continue;
@@ -101,12 +102,24 @@ pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: 
             Admission::Allowed | Admission::Bounded { .. } => {
                 let rejecting = act == ActKind::Reject && proposal_object(card.object);
                 let answering = act == ActKind::Answer;
-                if rejecting || answering {
+                let disclosure = rejecting || answering || (needs && act == ActKind::LeaveHeld);
+                if disclosure {
                     b.open(Role::Disclosure);
-                    b.name(&words.say(if answering { Word::AnswerInWords } else { Word::Reject }, &[]));
+                    b.name(&words.say(
+                        if answering {
+                            Word::AnswerInWords
+                        } else if needs && act == ActKind::LeaveHeld {
+                            Word::LeaveHeld
+                        } else if needs {
+                            Word::RejectProposal
+                        } else {
+                            Word::Reject
+                        },
+                        &[],
+                    ));
                     if let Some(open) = root.pages().confirmation()
                         && open.object == card.object
-                        && open.act == ActKind::Reject
+                        && open.act == act
                     {
                         b.state(skein_ui::State::Expanded);
                     }
@@ -124,14 +137,24 @@ pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: 
                     b.bind(bindings.insert(Act::CardWords { object: card.object, words: Box::default() }));
                     b.close();
                 }
-                button(
-                    b,
-                    bindings,
-                    words,
-                    if rejecting { Word::RejectProposal } else { word },
-                    Act::Decide { object: card.object, revision: acts::revision(page), act },
-                );
-                if rejecting || answering {
+                let word = if needs && act == ActKind::Release {
+                    Word::NeedsRelease
+                } else if rejecting {
+                    Word::RejectProposal
+                } else {
+                    word
+                };
+                b.open(Role::Button);
+                b.name(&words.say(word, &[]));
+                b.bind(bindings.insert(Act::Decide { object: card.object, revision: acts::revision(page), act }));
+                if (needs && (act == ActKind::Accept || act == ActKind::Release))
+                    || (root.pages().chat().is_some() && first)
+                {
+                    b.style(crate::look::RECOMMENDED);
+                }
+                first = false;
+                b.close();
+                if disclosure {
                     b.close();
                 }
             }
@@ -305,5 +328,25 @@ fn proposal_object(object: jig_client::contract::ObjectKey) -> bool {
         | ObjectKey::PersonTask(_)
         | ObjectKey::Result(_)
         | ObjectKey::Note { .. } => false,
+    }
+}
+
+/// An answer returned to a card (temper/docs/design/client/README.md, 3.5).
+pub(crate) fn outcome_words(b: &mut Builder, words: &Words, outcome: &Outcome) {
+    match outcome {
+        Outcome::Answered(Answered::Jig(Answer::Done(outcome))) => words.outcome(b, outcome),
+        Outcome::Answered(Answered::Jig(Answer::Refused { refusal, .. })) => {
+            words.refusal(b, refusal, 0);
+            if let jig_client::contract::Refusal::Moved { .. } = refusal {
+                words.card_text(b, P::LookAgain, &[]);
+            }
+        }
+        Outcome::Full { held, room_at } => crate::cards::answers_full(b, words, *held, *room_at),
+        Outcome::NotKept | Outcome::Held => words.status(b, P::RequestNotKept, &[]),
+        Outcome::Unknown => words.status(b, P::Unknown, &[]),
+        Outcome::Limit => words.status(b, P::RequestsInFlight, &[]),
+        Outcome::Unconfirmed => words.status(b, P::RequestUnconfirmed, &[]),
+        Outcome::Answered(Answered::Family(_)) => {}
+        Outcome::Unsent | Outcome::Lost => unreachable!("temper's requests carry no value"),
     }
 }

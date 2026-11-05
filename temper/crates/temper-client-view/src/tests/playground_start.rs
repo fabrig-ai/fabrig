@@ -136,7 +136,7 @@ fn a_chats_context_is_first_in_the_thread_only_in_the_playground_project() {
         let mut chatbar = None;
         let mut context = None;
         for (index, node) in view.tree().nodes().iter().enumerate() {
-            if node.styles.as_slice().contains(&crate::look::THREAD) {
+            if node.styles.as_slice().contains(&crate::look::THREAD_INNER) {
                 chatbar = Some(index);
             }
             if node.styles.as_slice().contains(&crate::look::CONTEXT) {

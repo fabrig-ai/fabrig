@@ -3,7 +3,7 @@ use super::{name, text};
 use crate::{
     frame::Bindings,
     look,
-    words::{Word, Words},
+    words::{Shell, Word, Words},
 };
 use jig_client::contract as c;
 use skein_ui::{Builder, Role, Run, phrases::Hole};
@@ -32,13 +32,24 @@ pub(crate) fn card(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mu
         Kind::Approval => Word::DelegationApproval,
     };
     text(b, Role::Paragraph, &words.say(kind, &[Hole::Number(facts.task)]));
-    status(b, facts.state, words);
+    if words.shell == Shell::Terminal {
+        status(b, facts.state, words);
+    }
     b.close();
+    if words.shell == Shell::Browser {
+        line_kind(b, facts, words);
+    }
     b.open(Role::Heading { level: 3 });
     b.style(look::TITLE);
+    if facts.goal {
+        b.style(look::TOOL_FILE);
+    }
     b.name(facts.title);
     b.text(Run::Plain, facts.title);
     b.close();
+    if words.shell == Shell::Browser {
+        status(b, facts.state, words);
+    }
     if let Some(said) = facts.said {
         self::said(b, said, words);
     }
@@ -67,11 +78,30 @@ pub(crate) fn card(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mu
         bindings.insert(Act::Go { address: Address::Task { task: facts.task, filter: PlanFilter::All } }),
     );
     b.open(Role::Text);
-    b.run(Run::Plain, &name);
-    b.run(Run::Plain, " ↗".as_bytes());
+    match words.shell {
+        Shell::Browser => words.text(b, Word::DelegationOpen, &[]),
+        Shell::Terminal => {
+            b.run(Run::Plain, &name);
+            b.run(Run::Plain, " ↗".as_bytes());
+        }
+    }
     b.close();
     b.close();
     b.close();
+}
+fn line_kind(b: &mut Builder, facts: delegation::Facts<'_>, words: &Words) {
+    let word = if facts.goal {
+        Word::DelegationLineGoal
+    } else {
+        match facts.kind {
+            Kind::Change => Word::DelegationLineChange,
+            Kind::Report => Word::DelegationLineReport,
+            Kind::Verdict => Word::DelegationLineVerdict,
+            Kind::Job => Word::DelegationLineJob,
+            Kind::Approval => Word::DelegationLineApproval,
+        }
+    };
+    text(b, Role::Paragraph, &words.say(word, &[]));
 }
 pub(crate) fn status(b: &mut Builder, state: State, words: &Words) {
     let (phase, token) = match state {

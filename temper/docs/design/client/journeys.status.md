@@ -3,8 +3,7 @@
 2026-11-05. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 - **Not yet:** 9: `chat-draft`, not yet recorded.
-- **Not yet:** 9: `welcome-playground`'s kept recording ends on the chats
-  page, not `NewChat`, until it is walked anew. 9: `project-landing` has no
+- **Not yet:** 9: `project-landing` has no
   Home recording: its kept recording starts at `/welcome`, holds no act and prints Welcome. The
   fresh walk in Chromium reaches Home, on a driver that is not kept; the
   journey is still to be walked again and recorded by temper's UI owner

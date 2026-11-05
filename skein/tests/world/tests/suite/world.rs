@@ -256,3 +256,26 @@ fn referee_allocations_leave_the_process_peak_unchanged() {
     }
     assert_eq!(peaks[0], peaks[1], "neither referee act nor observe belongs to the process");
 }
+
+struct IdleJudge(bool);
+
+impl skein_world::Referee<Script> for IdleJudge {
+    fn observe(&mut self, _now: skein_lib::Time, _procs: &[Script]) {}
+
+    fn idle(&mut self, _now: skein_lib::Time, _procs: &[Script], settled: bool) {
+        self.0 = settled;
+    }
+
+    fn passed(&self) -> bool {
+        self.0
+    }
+}
+
+#[test]
+fn a_referee_that_passes_only_at_idle_ends_the_world() {
+    let mut world = World::new(SEED, Config::calm(), IdleJudge(false), Memory::Checked);
+    world.spawn(|| Script::new(skein_lib::Time::ZERO, &[]));
+    let outcome = world.run();
+    assert_eq!(outcome.end, skein_lib::Time::ZERO);
+    assert_eq!(outcome.iterations, 1, "idle lets the referee pass before the clock moves");
+}
