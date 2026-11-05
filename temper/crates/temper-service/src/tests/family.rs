@@ -1463,7 +1463,10 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                             assert_eq!(source, 7, "{name}");
                             path
                         }
-                        root::Application::Dismiss { .. } | root::Application::Looked { .. } => {
+                        root::Application::Dismiss { .. }
+                        | root::Application::Looked { .. }
+                        | root::Application::SetAway { .. }
+                        | root::Application::Overturn { .. } => {
                             panic!("return or install")
                         }
                         root::Application::Forge(ask) => {
@@ -3098,4 +3101,210 @@ fn repeated(byte: u8, count: u32) -> Box<[u8]> {
         bytes.push(byte).unwrap();
     }
     bytes.into_boxed()
+}
+
+fn away_family(exchange: kit::ToApplication) -> root::Event {
+    family::to_root(
+        &jig_protocol_config::Directories::working(),
+        exchange,
+        &fixtures::forge_table(&[]),
+        None,
+        family::Deployment { welcome: false, owned: false },
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap()
+}
+fn away_request(request: w::Request) -> root::Application {
+    let requesting = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+    let root::Event::Party(root::PartyInput::Application { scope, reply_to, sign_in, key, digest, carried, request }) =
+        away_family(exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting)))
+    else {
+        panic!("a typed application")
+    };
+    assert_eq!(scope, people::ApplicationScope::Project(7));
+    assert_eq!(reply_to, REPLY);
+    assert_eq!(sign_in, 3);
+    assert_eq!(key, REQUEST_KEY);
+    assert_eq!(digest, [7; 32]);
+    assert_eq!(carried, None);
+    request
+}
+fn away_wall(nanos: Option<u64>) -> Option<skein_lib::Wall> {
+    match nanos {
+        Some(nanos) => Some(skein_lib::Wall::from_nanos(nanos)),
+        None => None,
+    }
+}
+fn away_answer(answer: Option<root::ApplicationAnswer>) -> w::Outcome {
+    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
+    w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome
+}
+#[test]
+fn set_away_reads_as_the_forges_event() {
+    const PROJECT: u32 = 9; // Deliberately differs from the envelope's project 7.
+    for (on, until, kinds) in [(true, Some(123), 15), (false, None, 0)] {
+        assert_eq!(
+            away_request(w::Request::SetAway(
+                w::SetAway::new(&w::CEILINGS, w::SetAwayParts { project: PROJECT, on, until, kinds },).unwrap()
+            )),
+            root::Application::SetAway { project: PROJECT, on, until: away_wall(until), kinds }
+        );
+    }
+    for (answer, expected) in [
+        (Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)), w::Outcome::Away),
+        (
+            Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::TooLarge)),
+            w::Outcome::ForgeRefused(
+                w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).unwrap(),
+            ),
+        ),
+        (None, w::Outcome::Unknown),
+    ] {
+        assert_eq!(away_answer(answer), expected);
+    }
+}
+#[test]
+fn overturn_reads_as_the_forges_event() {
+    const PROJECT: u32 = 9;
+    const NUMBER: u32 = 12;
+    assert_eq!(
+        away_request(w::Request::Overturn(
+            w::Overturn::new(&w::CEILINGS, w::OverturnParts { project: PROJECT, number: NUMBER },).unwrap()
+        )),
+        root::Application::Overturn { project: PROJECT, number: NUMBER }
+    );
+    for (answer, expected) in [
+        (Some(root::ApplicationAnswer::Overturn(forge::OverturnAnswer::Overturned)), w::Outcome::Overturned),
+        (
+            Some(root::ApplicationAnswer::Overturn(forge::OverturnAnswer::Already)),
+            w::Outcome::OverturnRefused(
+                w::OverturnRefused::new(&w::CEILINGS, w::OverturnRefusedParts { reason: w::OverturnRefusal::Already })
+                    .unwrap(),
+            ),
+        ),
+        (
+            Some(root::ApplicationAnswer::Overturn(forge::OverturnAnswer::Unknown)),
+            w::Outcome::OverturnRefused(
+                w::OverturnRefused::new(&w::CEILINGS, w::OverturnRefusedParts { reason: w::OverturnRefusal::Unknown })
+                    .unwrap(),
+            ),
+        ),
+        (None, w::Outcome::Unknown),
+    ] {
+        assert_eq!(away_answer(answer), expected);
+    }
+}
+#[test]
+fn away_and_decided_subjects_are_scoped() {
+    const PROJECT: u32 = 9;
+    for (watch, scope, subject) in [
+        (w::Watch::Away, people::ApplicationScope::Own, forge::AWAY_SUBJECT),
+        (
+            w::Watch::Decided(
+                w::DecidedSubject::new(&w::CEILINGS, w::DecidedSubjectParts { project: PROJECT }).unwrap(),
+            ),
+            people::ApplicationScope::Project(PROJECT),
+            forge::decided_subject(PROJECT),
+        ),
+    ] {
+        let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch }).unwrap();
+        let root::Event::Party(root::PartyInput::Watch { watcher, sign_in, subject: got, window }) =
+            away_family(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)))
+        else {
+            panic!("an application watch")
+        };
+        assert_eq!(watcher, WATCHER);
+        assert_eq!(sign_in, 3);
+        assert_eq!(
+            got,
+            jig_domain_core::documents::Watched::Application {
+                scope,
+                connector: wire::FORGE,
+                subject: Token::new(subject),
+            }
+        );
+        assert_eq!(window, jig_domain_core::documents::Window { rows: 2, after: None });
+    }
+}
+#[test]
+fn their_documents_encode() {
+    const PROJECT: u32 = 9;
+    const PARTY: u64 = 3;
+    for (until, off) in [(None, None), (Some(22), Some(33))] {
+        let row = forge::Away {
+            party: PARTY,
+            project: PROJECT,
+            since: skein_lib::Wall::from_nanos(11),
+            until: away_wall(until),
+            kinds: 15,
+            landed: 4,
+            off: away_wall(off),
+        };
+        let bytes = family::document(
+            forge::Document::Aways(forge::AwaysView { rows: Box::new([row]) }),
+            &fixtures::forge_table(&[]),
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let got = wire::decode_aways(&bytes, &w::CEILINGS).unwrap().into_parts();
+        assert_eq!(
+            got.rows.as_slice(),
+            &[w::AwayRow::new(
+                &w::CEILINGS,
+                w::AwayRowParts { project: PROJECT, since: 11, until, kinds: 15, landed: 4, off }
+            )
+            .unwrap()]
+        );
+    }
+    for overturned in [false, true] {
+        let row = forge::DecisionView {
+            number: 12,
+            task: 51,
+            at: skein_lib::Wall::from_nanos(44),
+            question: b"Which?".as_slice().into(),
+            took: b"First".as_slice().into(),
+            why: b"Fits".as_slice().into(),
+            overturned,
+        };
+        let bytes = family::document(
+            forge::Document::Decisions(forge::DecisionsView { project: PROJECT, rows: Box::new([row]) }),
+            &fixtures::forge_table(&[]),
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let got = wire::decode_decisions(&bytes, &w::CEILINGS).unwrap().into_parts();
+        assert_eq!(got.project, PROJECT);
+        assert_eq!(
+            got.rows.as_slice(),
+            &[w::Decision::new(
+                &w::CEILINGS,
+                w::DecisionParts {
+                    number: 12,
+                    task: 51,
+                    at: 44,
+                    question: b"Which?".as_slice().into(),
+                    took: b"First".as_slice().into(),
+                    why: b"Fits".as_slice().into(),
+                    overturned,
+                }
+            )
+            .unwrap()]
+        );
+    }
+    let forges = fixtures::forge_table(&[]);
+    let bytes =
+        family::document(forge::Document::Aways(forge::AwaysView { rows: Box::new([]) }), &forges, &w::CEILINGS)
+            .unwrap();
+    assert!(wire::decode_aways(&bytes, &w::CEILINGS).unwrap().rows().is_empty());
+    let bytes = family::document(
+        forge::Document::Decisions(forge::DecisionsView { project: PROJECT, rows: Box::new([]) }),
+        &forges,
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let got = wire::decode_decisions(&bytes, &w::CEILINGS).unwrap();
+    assert_eq!(got.project(), PROJECT);
+    assert!(got.rows().is_empty());
 }

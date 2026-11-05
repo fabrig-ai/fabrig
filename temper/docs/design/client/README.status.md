@@ -15,7 +15,7 @@
   route accepted by `ui-goal-page`'s `goal-browser` answer of 2026-11-05;
   `ui-chat-draft` owns its draft-to-goal continuation. On the fake box's
   stock project, Chats offers no Drafts filter or draft-start control.
-- **Not yet:** 3.5, *Away*, whole, and its requests and subjects in 4.6 and section 8: `ui-away`'s tasks build them. 3.5, *Home on any project*: the stock owner pool may
+- **Not yet:** 3.5, *Away*: its client domain and view. 3.5, *Home on any project*: the stock owner pool may
   reserve the whole project period, leaving no funding for the status
   agent (`temper-service`'s `stock.rs`, `project_policy`;
   `jig-domain-core`'s `connector_repair_authority`). Returning then keeps
