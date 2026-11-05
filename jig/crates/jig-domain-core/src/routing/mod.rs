@@ -545,10 +545,14 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         }
         Event::RunCall { run, attempt, call } => view::routes::run_call(core, env, run, attempt, call),
         Event::RunInput { run, attempt, turn, retry, offset, id, tool, input } => {
-            view::routes::run_input(core, env, run, attempt, turn, retry, offset, id, tool, input)
+            let written =
+                view::routes::Written { run, turn: views::TurnName { attempt: attempt.raw(), turn, retry }, offset };
+            view::routes::run_input(core, env, written, id, tool, input)
         }
         Event::RunText { run, attempt, turn, retry, offset, text, call } => {
-            view::routes::run_text(core, env, run, attempt, turn, retry, offset, text, call)
+            let written =
+                view::routes::Written { run, turn: views::TurnName { attempt: attempt.raw(), turn, retry }, offset };
+            view::routes::run_text(core, env, written, text, call)
         }
         Event::Tasks(event) => {
             let mut out = route_tasks(core, env, work, event);
@@ -559,9 +563,14 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             route_start_recurring(core, work, project, authority, template)
         }
         Event::BriefAssembled { task, failure } => brief_assembled(core, work, task, failure),
-        Event::WorkspacePrepared { task, attempt, writes, holds, credentials, workspace } => {
-            workspace_prepared(core, env, work, task, attempt, writes, holds, credentials, workspace)
-        }
+        Event::WorkspacePrepared { task, attempt, writes, holds, credentials, workspace } => workspace_prepared(
+            core,
+            env,
+            work,
+            task,
+            attempt,
+            run::preparation::Prepared { writes, holds, credentials, workspace },
+        ),
         Event::ClaimPrepared { task, attempt, budget, writes } => {
             route_claim_prepared(core, env, work, task, attempt, budget, writes)
         }
@@ -581,7 +590,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             out
         }
         Event::TurnPayload { run, attempt, turn, body, read, cumulative, refused } => {
-            route_turn_payload(core, work, run, attempt, turn, body, read, refused, cumulative)
+            route_turn_payload(core, work, run, attempt, crate::TurnProof { turn, cumulative, read }, body, refused)
         }
         Event::AnswerPayload { run, attempt, payload, cumulative, end, saved, invalid_saved, read, refused } => {
             route_answer_payload(
@@ -590,17 +599,21 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
                 work,
                 run,
                 attempt,
-                payload,
-                cumulative,
-                end,
-                saved,
-                invalid_saved,
-                read,
-                &refused,
+                run::payloads::Answer { payload, cumulative, end, saved, invalid_saved, read, refused },
             )
         }
         Event::AcceptedTurn { task, attempt, turn, accepted, cumulative, read, transcript, opens_window } => {
-            route_accepted_turn(core, env, task, attempt, turn, accepted, cumulative, read, transcript, opens_window)
+            let record = crate::TurnRecord {
+                task,
+                attempt,
+                turn,
+                spent: cumulative,
+                read,
+                transcript,
+                opens_window,
+                at: env.wall,
+            };
+            route_accepted_turn(core, env, accepted, record)
         }
         Event::RefusedPayload { request, problem, payload } => {
             route_refused_payload(core, work, request, problem, payload)

@@ -4,21 +4,26 @@ use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Queue, ReplyTo, Token};
 
-#[expect(clippy::too_many_arguments, reason = "the route retains its event fields")]
+pub(crate) struct Answer {
+    pub payload: Token,
+    pub cumulative: u64,
+    pub end: tasks::End,
+    pub saved: Option<Box<[tasks::SavedResource]>>,
+    pub invalid_saved: bool,
+    pub read: Option<u64>,
+    pub refused: Box<[u64]>,
+}
+
 pub(crate) fn route_answer_payload(
     core: &mut Core,
     limits: &tasks::Limits,
     work: &mut Queue<Work>,
     run: Token,
     attempt: Token,
-    payload: Token,
-    cumulative: u64,
-    end: tasks::End,
-    saved: Option<Box<[tasks::SavedResource]>>,
-    invalid_saved: bool,
-    read: Option<u64>,
-    refused: &[u64],
+    answer: Answer,
 ) -> Queue<Request> {
+    let Answer { payload, cumulative, end, saved, invalid_saved, read, refused } = answer;
+    let refused = refused.as_ref();
     if !core.current_proof(run.raw(), attempt.raw()) {
         let mut out = Queue::uncapped();
         out.push(Request::Now(Box::new(crate::Now::Link(crate::LinkNow::DropPayload { payload }))));
@@ -117,18 +122,16 @@ fn past_batch_bytes(limits: &tasks::Limits, end: &tasks::End) -> bool {
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains its event fields")]
 pub(crate) fn route_turn_payload(
     core: &mut Core,
     work: &mut Queue<Work>,
     run: Token,
     attempt: Token,
-    turn: u32,
+    turn: crate::TurnProof,
     body: Token,
-    read: Option<u64>,
     refused: Box<[u64]>,
-    cumulative: u64,
 ) -> Queue<Request> {
+    let crate::TurnProof { turn, cumulative, read } = turn;
     assert!(core.current_proof(run.raw(), attempt.raw()), "current turn has reserved proof");
     let proof = core.proofs.get(&run.raw()).expect("current proof");
     let offered = proof.offered;
