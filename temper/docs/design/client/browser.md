@@ -1141,6 +1141,8 @@ from the engine's own answers, is where the look is tuned.
 | `configure-typing` | words entered; Send enabled |
 | `configure-sending` | the configuring start out; starters and Send disabled, words kept |
 | `configure-refused` | the start refused; jig's words below the composer, the words kept |
+| `configure-chat` | the solo world’s T10 as a configuring chat, conversation and proposal in the Settings layout |
+| `configure-chats-tag` | the solo world’s chats with T10 tagged Configuring beside ordinary chats |
 | `chats-solo` | the solo world's chats |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's inbox: a proposal, a question |

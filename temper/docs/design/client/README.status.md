@@ -22,8 +22,6 @@
   chat-row reader: the list gives the chat's state, not what its
   delegates landed. It needs one read per row; Home uses the supplied
   chat state, including "closed", until that reader is built.
-  3.5, A configuring chat: a configuring chat draws as any chat, with no
-  tag in `Chats`.
   3.5, 4.8, 5.1, 5.6: the playground's line shows on every page while
   it runs (`temper-client-view`'s `root.rs`).
   4.4: Home's GitHub step's repository picker and reached count, and

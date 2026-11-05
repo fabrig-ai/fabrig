@@ -343,6 +343,13 @@ pub(crate) fn row(
     b.style(crate::look::META);
     if let Some(me) = root.pages().me(root.client()) {
         status(b, &line.chip, (&line.waits_on, None, None), (line.project, line.requester), None, me, words);
+        if temper_client_domain::pages::chats::configuring(me, line.project, &line.chip.executor) {
+            b.open(Role::Paragraph);
+            b.style(crate::look::CONFIGURING_TAG);
+            b.name(&words.say(Word::Configuring, &[]));
+            words.text(b, Word::Configuring, &[]);
+            b.close();
+        }
     }
     // Keep the number's link in a container: a paragraph is flattened to text
     // by the terminal, hiding the command promised by client/README.md, 3.5.
