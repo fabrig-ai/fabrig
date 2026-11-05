@@ -130,3 +130,7 @@ Pre-approved:
 ## Report
 
 As the implementer's text says, with the limit figures that moved, if any.
+
+## Answers
+
+2026-11-05 (fabrig/ui). Yes: add the small scoped revision-metadata entrance to jig-domain-core and wire the root to it; keep the deployment-role requirement on ordinary Revision reads. Tell fabrig/hearth nothing: hearth doesn't use it.
