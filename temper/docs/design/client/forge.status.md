@@ -24,7 +24,12 @@
   forge, which `temper-client-domain`'s `forge/listed.rs` `rows` counts.
   6.2: a drift hold's card, what changed, by whom and when.
   7: a goal's issue, landings as news, findings on a project's page. 9:
-  the reads of the forge's other parts.
+  the reads of the forge's other parts. 5.4: a managed Forgejo set up
+  failed offers no Connect in the form: `temper-client-domain/src/forge/connect.rs`,
+  `offered` and `disconnected`, leave that state out and show its
+  `setting_up` step, which says it is connecting, and `forge/admin.rs`,
+  `send_target`, sends nothing on it, so `temper ctl`'s `forge connect
+  forgejo-admin`, which the engine admits, is the way back.
 - **Departs:** 5.4: `ConnectForge`'s `?forge=elsewhere` draws A Forgejo
   elsewhere's Details, the configuration's entries for a forge and a
   restart (`forge/connect.rs` `elsewhere`); Your Forgejo's card has the
