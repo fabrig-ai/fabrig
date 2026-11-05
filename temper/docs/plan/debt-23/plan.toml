@@ -1,3 +1,22 @@
 draft = "debt-23"
 repo = "fabrig"
 sources = ["temper/docs/plan/debt-23/inputs/request.md", "temper/docs/plan/debt-23/inputs/debt21-review.md", "skein/docs/development/debt/D023-llm-client-states.md", "jig/docs/development/debt/D016-positional-payloads.md", "hearth/docs/development/debt/D006-lifecycles-in-flags.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "spot-review"
+title = "debt-21's spot review: connect keeps a close, the deadline follows the state, Secret fields derive Debug, and the slack goes"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-connection.md, 8.1"
+
+[[slice]]
+id = 1
+story = "connect keeps a close, with its pin failing first; each finding is done or skipped with a reason, and net lines fall"
+parts = ["spot-review"]
+walk = false
