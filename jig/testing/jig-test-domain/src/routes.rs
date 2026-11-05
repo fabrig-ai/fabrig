@@ -435,7 +435,8 @@ fn route_now(
             )));
         }
         core::Now::CompleteBrief { brief, order } => {
-            work.push(Work::Core(domain.hub_link.complete_brief(brief, order)));
+            domain.hub_link.keep_brief(brief.raw(), order);
+            work.push(Work::Core(core::Event::BriefAssembled { task: brief.raw(), ready: true }));
         }
         core::Now::WorkspaceRequest { task, attempt, context } => {
             prepare_workspace(domain, env, work, task, attempt, &context);
