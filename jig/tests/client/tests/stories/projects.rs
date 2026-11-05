@@ -2,7 +2,7 @@
 use jig_client::{Asker, Event, Key, contract as c};
 use jig_client_scripted_engine::Change;
 use jig_client_test_domain::store::Record;
-use jig_client_world::{PARTY, PROJECT, ClientId, FrontFault, Scripted, Test, Until, World, stories};
+use jig_client_world::{ClientId, FrontFault, PARTY, PROJECT, Scripted, Test, Until, World, stories};
 use skein_lib::{Duration, Time, Wall};
 type ProjectWorld = World<Test, Scripted>;
 const POLICY: u32 = 1;

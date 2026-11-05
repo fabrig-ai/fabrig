@@ -1,5 +1,5 @@
 //! Person stories shared by all fronts (jig/docs/design/client/domain/testing.md, 4–5).
-use crate::{PROJECT, SIGNING_PARTY, Front, Test, Until, World, harness::Seed};
+use crate::{Front, PROJECT, SIGNING_PARTY, Test, Until, World, harness::Seed};
 use skein_fake_person::{Find, Step};
 use skein_lib::Duration;
 use skein_ui::Role;

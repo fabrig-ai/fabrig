@@ -3,7 +3,7 @@ use super::{
     b_conversations::{WAIT, finish, sign_in},
     b_seed::{Facts, inbox_source, install},
 };
-use crate::{PROJECT, SIGNING_PARTY, Front, Scripted, Test, World, harness::Seed, joint::engine::Driver};
+use crate::{Front, PROJECT, SIGNING_PARTY, Scripted, Test, World, harness::Seed, joint::engine::Driver};
 use jig_client_domain::contract as c;
 use jig_client_scripted_engine::Change;
 use jig_fake_workers::{Call, Script};

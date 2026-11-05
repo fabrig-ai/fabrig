@@ -1,5 +1,5 @@
 use jig_client::{Client, Event, Link, UnlinkedRequest};
-use jig_client_world::{SIGNING_PARTY, Front, Test, harness::ClientId, joint::Joint};
+use jig_client_world::{Front, SIGNING_PARTY, Test, harness::ClientId, joint::Joint};
 use skein_lib::{Duration, List, Queue, Time, Wall};
 const CLIENT: ClientId = ClientId(0);
 const NOW: Time = Time::ZERO;

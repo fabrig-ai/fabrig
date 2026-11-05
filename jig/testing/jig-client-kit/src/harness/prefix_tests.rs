@@ -1,7 +1,7 @@
 //! Rendered inbox navigation through the shell's codec
 //! (jig/docs/design/client/domain/testing.md, 4).
 use super::{ClientId, Until, World};
-use crate::{PROJECT, PARTY, TASK, Scripted, Test, stories, test::list};
+use crate::{PARTY, PROJECT, Scripted, TASK, Test, stories, test::list};
 use jig_client::contract::{InboxGroup, InboxReadGroup, ObjectKey, Read, ReadValue};
 use jig_client_scripted_engine::{Change, Rows, Source};
 use jig_client_test_domain::Action;

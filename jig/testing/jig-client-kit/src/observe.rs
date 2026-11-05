@@ -568,7 +568,8 @@ mod tests {
     }
     #[test]
     fn top_level_seen_has_no_retained_answer_observation() {
-        for through in [c::SeenThrough::Results { through: 1 }, c::SeenThrough::Conversation { task: OBSERVED_TASK, through: 1 }]
+        for through in
+            [c::SeenThrough::Results { through: 1 }, c::SeenThrough::Conversation { task: OBSERVED_TASK, through: 1 }]
         {
             assert!(
                 super::sent(&send(jig_client::Ask::Jig(Box::new(c::Ask::Seen { through })))).is_none(),

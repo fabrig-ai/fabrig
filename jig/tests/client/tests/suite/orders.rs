@@ -4,7 +4,7 @@
 mod world;
 
 use jig_client::{Asker, Event, Handle, Key, Link, Readout, Told, contract as c};
-use jig_client_world::{test, PROJECT, TASK};
+use jig_client_world::{PROJECT, TASK, test};
 use skein_lib::{Time, Wall};
 use world::{Command, Edge, Mode, World};
 

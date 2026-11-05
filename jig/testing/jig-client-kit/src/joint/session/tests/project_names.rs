@@ -166,19 +166,35 @@ fn a_make_through_the_public_api_is_answered_and_in_me() {
 fn a_rename_through_the_public_api_reaches_me() {
     let (mut session, mut client, now, wall) = projects();
     assert_eq!(
-        ask(&mut session, &mut client, now, wall, 1, client::Ask::Rename { project: NAMED_PROJECT, name: name(b"Tally") }),
+        ask(
+            &mut session,
+            &mut client,
+            now,
+            wall,
+            1,
+            client::Ask::Rename { project: NAMED_PROJECT, name: name(b"Tally") }
+        ),
         client::Answer::Done(client::Outcome::Document(client::DocumentOutcome::Renamed { project: NAMED_PROJECT }))
     );
     let client::ReadValue::Me(me) = read(&mut session, &mut client, now, wall, ME, client::Read::Me) else {
         panic!("me")
     };
-    assert_eq!(me.projects.iter().find(|row| row.project == NAMED_PROJECT).expect("renamed project").name.bytes(), b"Tally");
+    assert_eq!(
+        me.projects.iter().find(|row| row.project == NAMED_PROJECT).expect("renamed project").name.bytes(),
+        b"Tally"
+    );
 }
 #[test]
 fn name_taken_reaches_the_client_with_its_own_refusal() {
     let (mut session, mut client, now, wall) = projects();
-    let _answer =
-        ask(&mut session, &mut client, now, wall, 1, client::Ask::Rename { project: NAMED_PROJECT, name: name(b"Tally") });
+    let _answer = ask(
+        &mut session,
+        &mut client,
+        now,
+        wall,
+        1,
+        client::Ask::Rename { project: NAMED_PROJECT, name: name(b"Tally") },
+    );
     assert_eq!(
         ask(&mut session, &mut client, now, wall, 2, client::Ask::MakeProject { name: name(b"tally"), policy: 1 }),
         client::Answer::Refused { refusal: client::Refusal::NameTaken, at: None }

@@ -1,5 +1,5 @@
 //! Conversation actions and visible results (jig/docs/design/client/domain/testing.md, 4–6).
-use crate::{SIGNING_PARTY, ClientId, Front, FrontFault, Test, Until, World, harness::Seed};
+use crate::{ClientId, Front, FrontFault, SIGNING_PARTY, Test, Until, World, harness::Seed};
 use jig_client_test_domain::Address;
 use jig_client_view::address::{Address as Page, TaskSection};
 use skein_fake_person::{Find, Step};
