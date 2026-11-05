@@ -18,7 +18,7 @@ pub struct RootParts<'a> {
 
 /// Assemble the hub's hand-over, refusing unsupported sections or exceeded bounds.
 #[must_use]
-pub fn hosted(assignment: &jig_domain_hub_link::Assignment, parts: RootParts<'_>) -> Option<host::Assignment> {
+pub fn hosted(assignment: &core::Assignment, parts: RootParts<'_>) -> Option<host::Assignment> {
     let mut sections = List::with_capacity(u32::try_from(assignment.brief.len()).ok()?);
     for placed in &assignment.brief {
         let section = match placed {

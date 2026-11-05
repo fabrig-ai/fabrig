@@ -619,11 +619,11 @@ fn assignment_keeps_brief_order_tools_mode_and_resume_policy() {
     }
 }
 
-fn hosted_fixture() -> jig_domain_hub_link::Assignment {
+fn hosted_fixture() -> jig_domain_core::Assignment {
     use jig_domain_core as core;
     use jig_domain_tasks as tasks;
     use skein_lib::Wall;
-    jig_domain_hub_link::Assignment {
+    jig_domain_core::Assignment {
         live: core::LiveAsk { text: true, reasoning: false, input: true },
         brief: Box::new([]),
         conversation: 3,
@@ -731,7 +731,8 @@ fn hosted_keeps_sections_messages_and_settled_calls_in_order() {
             deployment: &[3; 16],
             limits: &wire::CEILINGS,
         },
-    ).expect("hosted assignment");
+    )
+    .expect("hosted assignment");
     let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&result.assignment.charter)).unwrap();
     assert_eq!(decoded.brief().len(), 19);
     for ((_, title), pair) in titles.iter().zip(decoded.brief().as_slice().chunks_exact(2)) {
@@ -814,14 +815,16 @@ fn hosted_refuses_a_connector_section_without_its_bytes() {
         token: skein_lib::Token::new(3),
         size: 4,
     }]);
-    assert!(crate::hosted(
-        &value,
-        crate::RootParts {
-            tools: Box::new([]),
-            endpoints: &[EndpointName { number: 1, dialect: 3, name: b"primary".as_slice().into() }],
-            deployment: &[3; 16],
-            limits: &wire::CEILINGS,
-        },
-    ).is_none());
+    assert!(
+        crate::hosted(
+            &value,
+            crate::RootParts {
+                tools: Box::new([]),
+                endpoints: &[EndpointName { number: 1, dialect: 3, name: b"primary".as_slice().into() }],
+                deployment: &[3; 16],
+                limits: &wire::CEILINGS,
+            },
+        )
+        .is_none()
+    );
 }
-
