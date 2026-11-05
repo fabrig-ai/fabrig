@@ -711,3 +711,23 @@ fn an_ending_chat_refreshes_the_first_closed_page_and_remains_listed() {
     );
     assert!(out.is_empty());
 }
+
+#[test]
+fn a_suggestion_replaces_new_chat_with_its_conversation() {
+    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat);
+    page.pages.suggest(&fixtures::env(&fixtures::limits()), page.root.client(), b"My suggestion", &mut page.out);
+    let task = page.task();
+    assert_eq!(task.spec.words.bytes(), b"My suggestion");
+    let key = page.pages.chats().expect("chats").start.expect("pending suggestion");
+    let mut tasks = List::with_capacity(CREATED_TASKS);
+    tasks.push(fixtures::acts::TASK).unwrap();
+    page.event(crate::pages::Event::Told {
+        told: Told::Answered {
+            key,
+            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
+                what: Made::Tasks { tasks },
+            }))),
+        },
+    });
+    assert_eq!(page.out.pop(), Some(Request::Replace { address: crate::Address::Chat { task: fixtures::acts::TASK } }));
+}

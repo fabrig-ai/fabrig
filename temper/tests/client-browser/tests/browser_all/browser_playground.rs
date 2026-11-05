@@ -58,7 +58,7 @@ impl Play for Walk {
 }
 
 /// Use the native person's exact expectations and words. Its typed navigation becomes
-/// a press of Chats: a document navigation would start a fresh worker.
+/// a press of New chat: a document navigation would start a fresh worker.
 fn story_steps() -> Vec<Step> {
     temper_playground_world::stories::a()
         .into_iter()
@@ -71,8 +71,8 @@ fn story_steps() -> Vec<Step> {
                         assert_eq!(path.as_ref(), b"/welcome");
                         return None;
                     }
-                    assert_eq!(path.as_ref(), b"/chats");
-                    PersonStep::Press { find: Find::exactly_named(Role::Link, b"Chats") }
+                    assert_eq!(path.as_ref(), b"/chats/new");
+                    PersonStep::Press { find: Find::exactly_named(Role::Link, b"+ New chat") }
                 }
                 PersonStep::Press { find } => PersonStep::Press { find },
                 PersonStep::Type { find, words } => PersonStep::Type { find, words },

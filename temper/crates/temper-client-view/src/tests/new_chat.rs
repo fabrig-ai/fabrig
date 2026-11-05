@@ -64,7 +64,7 @@ fn session_parts_follow_the_requested_order_in_both_shells() {
                     (Role::Form, vec![look::SESSION_FOOT]),
                 ],
             ),
-            (look::THREAD, vec![(Role::Paragraph, vec![look::META_LINE])]),
+            (look::THREAD, vec![(Role::Slot, vec![look::STARTER])]),
             (
                 look::SESSION_FOOT,
                 vec![(Role::Slot, vec![look::SESSION_COMPOSER]), (Role::Paragraph, vec![look::SESSION_HINT])],

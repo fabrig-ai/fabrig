@@ -419,7 +419,7 @@ fn chats_have_one_list_or_the_empty_sentence() {
 }
 
 #[test]
-fn an_empty_playground_start_has_suggestions_and_chats() {
+fn playground_chats_show_the_list_without_the_start() {
     let root = fixtures::playground_root(
         temper_client_domain::Address::Chats { filter: ChatsFilter::All },
         fixtures::PROJECT,
@@ -438,6 +438,10 @@ fn an_empty_playground_start_has_suggestions_and_chats() {
         }
     }
     assert_eq!(heading, Some(b"Chats".as_slice()));
+    assert!(fixtures::find(view.tree(), Role::List, b"Suggested requests").is_none());
+    assert!(fixtures::find(view.tree(), Role::Status, b"Ready").is_none());
+    assert!(fixtures::find(view.tree(), Role::Text, b"acme/shop").is_none());
+    assert!(fixtures::find(view.tree(), Role::Button, b"Try again").is_none());
 }
 
 #[test]
@@ -736,7 +740,7 @@ fn the_chats_page_opens_with_its_pane_and_draws_its_list() {
     assert_eq!(nodes[pane].role, Role::Complementary);
     assert_eq!(nodes[pane].name.as_deref(), Some(b"Project".as_slice()));
     assert_eq!(nodes[pane].styles.as_slice(), [crate::look::SIDEBAR]);
-    assert_eq!(nodes[pane + 1].styles.as_slice(), [crate::look::CHATBAR]);
+    assert_eq!(nodes[pane + 1].styles.as_slice(), [crate::look::CONTEXT]);
     let playground = fixtures::page_view(&fixtures::playground_root(
         temper_client_domain::Address::Chats { filter: ChatsFilter::All },
         fixtures::PROJECT,
@@ -1179,7 +1183,7 @@ fn configuring_rows_tag_the_chip_executor_in_meta_with_fixed_words_in_both_shell
 }
 
 #[test]
-fn chats_keeps_its_list_and_playground_suggestions_without_a_composer() {
+fn chats_keeps_its_list_without_playground_suggestions_or_composer() {
     use crate::look;
     use temper_client_domain::Address;
     for root in fixtures::pair(
@@ -1198,10 +1202,7 @@ fn chats_keeps_its_list_and_playground_suggestions_without_a_composer() {
                     assert!(node.role != Role::Button || node.name.as_deref() != Some(name));
                 }
             }
-            assert_eq!(
-                fixtures::find(tree, Role::List, b"Suggested requests").is_some(),
-                root.forge().playground().is_some(),
-            );
+            assert!(fixtures::find(tree, Role::List, b"Suggested requests").is_none());
         }
     }
 }

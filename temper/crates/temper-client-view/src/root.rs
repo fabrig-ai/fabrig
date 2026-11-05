@@ -163,7 +163,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         }
     }
     match root.pages().address() {
-        temper_client_domain::Address::Chats { .. } | temper_client_domain::Address::NewChat => {}
+        temper_client_domain::Address::Chats { .. } | temper_client_domain::Address::NewChat => {
+            crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
+        }
         temper_client_domain::Address::Welcome { .. }
         | temper_client_domain::Address::ConnectModel { .. }
         | temper_client_domain::Address::Accounts
@@ -176,7 +178,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::Settings { .. }
         | temper_client_domain::Address::Configure { .. }
         | temper_client_domain::Address::Adopt { .. } => {
-            // Outside the chats pane the line shows only while the
+            // Outside Chats and NewChat the line shows only while the
             // playground is leaving; while it runs, the frame's "Set up
             // temper" is the way out (temper/docs/design/client/README.md, 5.1).
             if root.forge().leaving() {

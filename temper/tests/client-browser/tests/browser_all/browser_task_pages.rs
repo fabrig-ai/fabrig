@@ -24,13 +24,13 @@ fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
     let mut steps = vec![
         see(Find::exactly_named(Role::Button, b"Try the playground")),
         press(Find::exactly_named(Role::Button, b"Try the playground")),
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: b"/chats/new".as_slice().into() }),
         // The box starts the demo's group only when asked: wait for its start to be answered.
         see(Find::exactly_named(Role::Status, b"Ready")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
         see(tier.states().live),
         temper_client_browser_world::connected(),
-        see(heading(1, b"Chats")),
+        see(heading(1, b"New chat")),
         see(Find::exactly_named(Role::Button, b"Add CSV export to widget")),
         press(Find::exactly_named(Role::Button, b"Add CSV export to widget")),
         // The card settles at its call once the turn's words show (client/README.md, 5.7).
