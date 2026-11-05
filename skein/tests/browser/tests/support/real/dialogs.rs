@@ -85,7 +85,7 @@ impl Rig {
                 assert_eq!(self.dialog.phase, Phase::Close);
                 self.close_browser();
             }
-            Event::Trouble { page, trouble: Trouble::Dialog, text } => {
+            Event::Trouble { page, trouble: Trouble::Dialog, text, .. } => {
                 assert_eq!(page, PAGE);
                 assert!(matches!(self.dialog.phase, Phase::Ask | Phase::Answer));
                 assert_eq!(text.as_ref(), b"confirm: Delete it?");
