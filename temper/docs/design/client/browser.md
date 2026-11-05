@@ -1119,6 +1119,10 @@ from the engine's own answers, is where the look is tuned.
 
 | Name | The state |
 |---|---|
+| `changes` | a hand-made `ChangesPanel` delivery: three queued and four landed |
+| `changes-empty` | a hand-made `ChangesPanel` delivery: nothing queued and nothing landed |
+| `changes-one` | a hand-made `ChangesPanel` delivery: one queued and four landed |
+| `changes-landed-only` | a hand-made `ChangesPanel` delivery, the mock's `hello`: nothing queued, something landed |
 | `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |
 | `home-two-left` | hand-made Home deliveries: repository adopted; configuring and first chat left |
 | `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |

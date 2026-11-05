@@ -6,7 +6,8 @@
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
   `Board { project }` with its reordering, no address in
-  `temper-client-domain`'s `address.rs`. 5.3: the banner's "Board" and "Changes". 3.5, 5.13, 10:
+  `temper-client-domain`'s `address.rs`. 5.3: the banner's "Board" and "Changes", on a page that is no project's:
+  the request of 2026-11-05 asked for the rail, and its mock has no banner. 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
   with their tests, and with them How work runs' "Configure temper" entry and
   a review's "Change something"; ctl supplies the review groups and running-work effect
@@ -61,3 +62,11 @@
   the welcome's Ready. The code records no reason; it lets a person make
   the project Ready would offer before Ready, the case of the draft's open question
   (`../draft/first-run-projects.status.md`).
+  3.5, 4.6, Changes: the queue's first says "checking" at whichever step of
+  its turn, and "checks started" gives when that step began
+  (`temper-engine-domain-forge`'s `views/changes.rs`, `Change.since`), where
+  the request of 2026-11-05 has when its checks began: nothing keeps that time.
+  4.6: `changes_view` reads every `ChangeRow`'s repository with `?`, and no
+  step erases a closed change's row (`../domain/after-landing.status.md`), so
+  once a forge's removal erases a repository with a closed change, no project
+  has the document; seen by reading, no test holds it and no reason is recorded.
