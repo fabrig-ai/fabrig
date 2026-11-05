@@ -933,43 +933,8 @@ fn read_usage(tokens: Option<(&Document, json::Span)>) -> Usage {
     }
     Usage { input, cache_read, cache_write, output: json::reported_unsigned(tokens, b"output_tokens"), reasoning }
 }
-pub fn decode_error(value: &Json, limits: &Limits) -> Result<ProviderError, DecodeError> {
-    let tokens = value.view();
-    let error = match json::optional_at(tokens, json::field(tokens, b"error")?)? {
-        Some(value) => value,
-        None => tokens,
-    };
-    read_error(error, limits)
-}
-fn read_error(tokens: (&Document, json::Span), limits: &Limits) -> Result<ProviderError, DecodeError> {
-    let kind = match json::optional_at(tokens, json::field(tokens, b"code")?)? {
-        Some(value) => {
-            if json::kind(value, 0) == Some(Kind::Null) && json::len(value) == 1 {
-                json::text(json::value_at(tokens, json::required(tokens, b"type")?)?)?
-            } else {
-                json::text(value)?
-            }
-        }
-        None => json::text(json::value_at(tokens, json::required(tokens, b"type")?)?)?,
-    };
-    let message = common::clipped(
-        json::text_ref(json::value_at(tokens, json::required(tokens, b"message")?)?)?,
-        limits.detail_bytes,
-    );
-    let resets_in_seconds = match json::optional_at(tokens, json::field(tokens, b"resets_in_seconds")?)? {
-        Some(value) => Some(json::unsigned(value)?),
-        None => None,
-    };
-    let resets_at = match json::optional_at(tokens, json::field(tokens, b"resets_at")?)? {
-        Some(value) => Some(json::unsigned(value)?),
-        None => None,
-    };
-    let param = match request::optional_text(tokens, b"param")? {
-        Some(param) => param,
-        None => Box::new([]),
-    };
-    Ok(ProviderError { param, kind, message, resets_in_seconds, resets_at })
-}
+pub use crate::wire::decode_error;
+use crate::wire::read_error;
 pub fn encode_error(error: &ProviderError, limits: &Limits) -> Result<Box<[u8]>, DecodeError> {
     encode_event(&Event::Failed { error: error.clone() }, limits)
 }

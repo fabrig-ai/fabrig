@@ -1,4 +1,4 @@
-use crate::DocumentError as DecodeError;
+use super::DecodeError;
 use alloc::boxed::Box;
 use skein_json::writer;
 use skein_lib::{List, bytes};
