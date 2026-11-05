@@ -38,95 +38,27 @@ enum Whose {
 }
 #[derive(Debug)]
 enum State {
-    New {
-        read: api::Read,
-    },
-    Resolving {
-        read: api::Read,
-    },
+    New { read: api::Read },
+    Resolving { read: api::Read },
     Locating,
     Settings,
     Delegated(Box<Delegate>),
-    Items {
-        rows: List<api::Summary>,
-        now: Time,
-        size: u64,
-        limit: u32,
-    },
-    Reviews {
-        format: ObjectFormat,
-        rows: List<api::Review>,
-        size: u64,
-        limit: u32,
-    },
-    Remarks {
-        rows: List<api::Remark>,
-        more: bool,
-        page: u32,
-        limit: u32,
-        size: u64,
-    },
-    Issue {
-        row: Repository,
-        after: u64,
-    },
-    Comments {
-        item: api::Summary,
-        rows: List<api::Comment>,
-        more: bool,
-        size: u64,
-        after: u64,
-    },
-    Pull {
-        row: Repository,
-    },
-    PullFor {
-        row: Repository,
-        head: Box<[u8]>,
-        base: Box<[u8]>,
-    },
-    Pulls {
-        row: Repository,
-        head: Box<[u8]>,
-        base: Box<[u8]>,
-        pull: Box<d::PullRequest>,
-        found: bool,
-        page: u32,
-        limit: u32,
-    },
-    Status {
-        row: Repository,
-        pull: Box<d::PullRequest>,
-        actions: Box<super::actions::Plan>,
-    },
-    Branch {
-        format: ObjectFormat,
-    },
-    ProtectionBranch {
-        row: Repository,
-    },
+    Items { rows: List<api::Summary>, now: Time, size: u64 },
+    Reviews { format: ObjectFormat, rows: List<api::Review>, size: u64 },
+    Remarks { rows: List<api::Remark>, more: bool, page: u32, size: u64 },
+    Issue { row: Repository, after: u64 },
+    Comments { item: api::Summary, rows: List<api::Comment>, more: bool, size: u64, after: u64 },
+    Pull { row: Repository },
+    PullFor { row: Repository, head: Box<[u8]>, base: Box<[u8]> },
+    Pulls { row: Repository, head: Box<[u8]>, base: Box<[u8]>, pull: Box<d::PullRequest>, found: bool, page: u32 },
+    Status { row: Repository, pull: Box<d::PullRequest>, actions: Box<super::actions::Plan> },
+    Branch { format: ObjectFormat },
+    ProtectionBranch { row: Repository },
     Protection,
-    Branches {
-        prefix: Box<[u8]>,
-        rows: List<Box<[u8]>>,
-        size: u64,
-        missing: bool,
-    },
-    Collaborators {
-        row: Repository,
-        rows: List<api::Collaborator>,
-        size: u64,
-        limit: u32,
-    },
-    Permission {
-        row: Repository,
-        whose: Whose,
-    },
-    Searching {
-        row: Repository,
-        user: u64,
-        whose: Whose,
-    },
+    Branches { prefix: Box<[u8]>, rows: List<Box<[u8]>>, size: u64, missing: bool },
+    Collaborators { row: Repository, rows: List<api::Collaborator>, size: u64 },
+    Permission { row: Repository, whose: Whose },
+    Searching { row: Repository, user: u64, whose: Whose },
     Ended,
 }
 #[derive(Debug)]
@@ -200,7 +132,6 @@ impl Plan {
         self.count = 0;
         Step::send(request)
     }
-    #[expect(clippy::too_many_lines, reason = "the initial exchange dispatch names every read")]
     fn initial(
         &mut self,
         read: api::Read,
@@ -242,12 +173,7 @@ impl Plan {
                     None => None,
                 };
                 (
-                    State::Items {
-                        rows: List::with_capacity(bounds.page_size),
-                        now: Time::ZERO,
-                        size: 0,
-                        limit: bounds.page_size,
-                    },
+                    State::Items { rows: List::with_capacity(bounds.page_size), now: Time::ZERO, size: 0 },
                     Request::Issues {
                         at,
                         state: Some(r::StateFilter::All),
@@ -264,22 +190,11 @@ impl Plan {
                 (State::PullFor { row, head: head.clone(), base: base.clone() }, Request::PullFor { at, head, base })
             }
             api::Read::Reviews { number, page } => (
-                State::Reviews {
-                    format: row.object_format,
-                    rows: List::with_capacity(bounds.page_size),
-                    size: 0,
-                    limit: bounds.page_size,
-                },
+                State::Reviews { format: row.object_format, rows: List::with_capacity(bounds.page_size), size: 0 },
                 Request::Reviews { at, number, page: r::Page { page: Some(page), ..page_at } },
             ),
             api::Read::Remarks { number, review, page } => (
-                State::Remarks {
-                    rows: List::with_capacity(bounds.page_size),
-                    more: false,
-                    page,
-                    limit: bounds.page_size,
-                    size: 0,
-                },
+                State::Remarks { rows: List::with_capacity(bounds.page_size), more: false, page, size: 0 },
                 Request::ReviewComments { at, number, review },
             ),
             api::Read::Branch { branch: name } => {
@@ -302,12 +217,7 @@ impl Plan {
                 )
             }
             api::Read::Collaborators { page } => (
-                State::Collaborators {
-                    row,
-                    rows: List::with_capacity(bounds.page_size),
-                    size: 0,
-                    limit: bounds.page_size,
-                },
+                State::Collaborators { row, rows: List::with_capacity(bounds.page_size), size: 0 },
                 Request::Collaborators { at, page: r::Page { page: Some(page), ..page_at } },
             ),
             api::Read::Permission { user } => return Ok(self.permission(row, user, Whose::One, tables)),
@@ -554,10 +464,10 @@ impl Plan {
                     rows.push(review).expect("room checked");
                 }
             }
-            State::Remarks { rows, more, page, limit, size } => match value {
+            State::Remarks { rows, more, page, size } => match value {
                 Some(d::Row::ReviewComment(remark)) => {
-                    let skip = page.saturating_sub(1).checked_mul(*limit).ok_or(api::Error::TooLarge)?;
-                    if self.count > skip.saturating_add(*limit) {
+                    let skip = page.saturating_sub(1).checked_mul(bounds.page_size).ok_or(api::Error::TooLarge)?;
+                    if self.count > skip.saturating_add(bounds.page_size) {
                         *more = true;
                         self.cut = true;
                     } else if self.count > skip {

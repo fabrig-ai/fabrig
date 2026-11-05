@@ -114,7 +114,11 @@ impl Plan {
                     self.directory(head, path, max, bounds)
                 } else {
                     let step = Step::Send(Exchange {
-                        request: r::Request::Raw { at: self.row.at(), path: path.clone(), reference: self.row.id(head) },
+                        request: r::Request::Raw {
+                            at: self.row.at(),
+                            path: path.clone(),
+                            reference: self.row.id(head),
+                        },
                         range: Some(crate::forgejo::plans::plan::Range::Head(max)),
                     });
                     (State::File { head, path, max, missing }, step)
@@ -409,7 +413,8 @@ impl Plan {
     }
     fn directory(&self, head: api::Commit, path: Box<[u8]>, max: u32, bounds: Bounds) -> (State, Step) {
         let listing = Box::new(crate::directory::Listing::new(max.min(self.raw_room(bounds.answer_bytes))));
-        let step = Step::send(r::Request::Contents { at: self.row.at(), path: path.clone(), reference: self.row.id(head) });
+        let step =
+            Step::send(r::Request::Contents { at: self.row.at(), path: path.clone(), reference: self.row.id(head) });
         (State::Directory { head, path, listing }, step)
     }
     fn next_side(&self, sides: Sides, bounds: Bounds) -> Result<(State, Step), api::Error> {

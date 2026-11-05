@@ -1,6 +1,10 @@
 //! Repository paths and user logins, evicted by least recent use (forge.md, 4.2).
 use crate::api;
-use crate::forgejo::{document::MergeStyle, id::{ObjectFormat, ObjectId}, request::Repo};
+use crate::forgejo::{
+    document::MergeStyle,
+    id::{ObjectFormat, ObjectId},
+    request::Repo,
+};
 use crate::users::Users;
 use alloc::boxed::Box;
 use skein_lib::Lru;

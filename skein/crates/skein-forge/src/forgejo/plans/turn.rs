@@ -89,7 +89,12 @@ impl Plan {
             Heard::Head { status, fields } => {
                 if status != 200 {
                     return Err(super::failure::refused(
-                        super::failure::Asked::Leaf, status, None, fields.retry_after, repository, tables,
+                        super::failure::Asked::Leaf,
+                        status,
+                        None,
+                        fields.retry_after,
+                        repository,
+                        tables,
                     ));
                 }
                 Ok(None)

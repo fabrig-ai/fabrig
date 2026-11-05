@@ -1,7 +1,6 @@
 //! Terminal documents and the next exchange of a JSON read (skein/docs/design/forge.md, 5.2).
 use super::{
-    Bounds, Plan, Request, Roster, State, Step, Tables, Whose, api, bytes, d, keep_document, reading, size,
-    terminal,
+    Bounds, Plan, Request, Roster, State, Step, Tables, Whose, api, bytes, d, keep_document, reading, size, terminal,
 };
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -103,31 +102,17 @@ impl Plan {
                     at: row.at(),
                     page: super::r::Page { page: Some(1), limit: Some(bounds.page_size) },
                 });
-                return Ok((
-                    State::Pulls {
-                        row,
-                        head,
-                        base,
-                        pull: Box::new(pull),
-                        found: false,
-                        page: 1,
-                        limit: bounds.page_size,
-                    },
-                    Some(step),
-                ));
+                return Ok((State::Pulls { row, head, base, pull: Box::new(pull), found: false, page: 1 }, Some(step)));
             }
-            State::Pulls { row, head, base, pull, found, page, limit } => {
+            State::Pulls { row, head, base, pull, found, page } => {
                 let skipped = listed(document)?;
-                if !found && self.count.saturating_add(skipped) >= limit {
+                if !found && self.count.saturating_add(skipped) >= bounds.page_size {
                     let page = page.checked_add(1).ok_or(api::Error::TooLarge)?;
                     let step = self.send(Request::Pulls {
                         at: row.at(),
                         page: super::r::Page { page: Some(page), limit: Some(bounds.page_size) },
                     });
-                    return Ok((
-                        State::Pulls { row, head, base, pull, found, page, limit: bounds.page_size },
-                        Some(step),
-                    ));
+                    return Ok((State::Pulls { row, head, base, pull, found, page }, Some(step)));
                 }
                 return Self::pull_status(row, *pull, bounds);
             }
@@ -182,18 +167,22 @@ impl Plan {
                 let step = self.send(Request::Permission { at: row.at(), login: bytes::copy_of(login) });
                 return Ok((State::Permission { row, whose }, Some(step)));
             }
-            State::Collaborators { row, rows, limit, .. } => {
+            State::Collaborators { row, rows, .. } => {
                 listed(document)?;
-                return Ok(self.next_permission(row, Roster { rows, position: 0, more: self.count >= limit }, tables));
+                return Ok(self.next_permission(
+                    row,
+                    Roster { rows, position: 0, more: self.count >= bounds.page_size },
+                    tables,
+                ));
             }
-            State::Items { rows, now, limit, .. } => api::Answer::Items {
+            State::Items { rows, now, .. } => api::Answer::Items {
                 items: rows.into_boxed(),
-                more: self.count.saturating_add(listed(document)?) >= limit,
+                more: self.count.saturating_add(listed(document)?) >= bounds.page_size,
                 now,
             },
-            State::Reviews { rows, limit, .. } => api::Answer::Reviews {
+            State::Reviews { rows, .. } => api::Answer::Reviews {
                 reviews: rows.into_boxed(),
-                more: self.count.saturating_add(listed(document)?) >= limit,
+                more: self.count.saturating_add(listed(document)?) >= bounds.page_size,
             },
             State::Remarks { rows, more, .. } => {
                 listed(document)?;
