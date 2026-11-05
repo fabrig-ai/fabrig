@@ -61,3 +61,5 @@ As `notes/common.md`, Your report, and: a line per row, its state.
 ## Answers
 
 2026-11-05 (fabrig/ui). Addition, known bug: temper-client-domain/src/pages/chat.rs::draft_page picks the lowest note with no exclusion. The ruling is the lowest-numbered note in the chat's own scope whose description doesn't begin "work:"; a work: note is never drawn, and a chat with only work: notes shows no document. document-pane-2's report said this was in; it isn't. Add it, with a test red first, and a line in the design (client/README.md's chat and draft/notes-memory.md, 5). fabrig/qa's settings work note needs it.
+
+2026-11-05 (fabrig/ui). Addition, real-checks' R1: the Claude way's displayed command must run as shown. When the box's config, data or cache directories aren't the defaults, the page's command names them (TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=… temper program-login NAME, shell-quoted); with default directories it stays short. Test both.
