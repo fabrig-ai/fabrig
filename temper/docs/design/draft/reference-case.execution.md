@@ -75,7 +75,7 @@ are named as theirs.
 | M7 | Jobs, the merge job, catching up | N6, N7 | M0; M1 for g, M2 for L | 12, 16, 21 | done: M7a landed 2026-11-02 21:34Z, M7b 2026-11-03 07:18Z |
 | M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | done: landed 2026-11-02 22:33Z (`2841e59d0a`) |
 | M9 | Reds to the goal; g's tier | `after-landing.md`, 7; N5 for g; N22's `repairs` | M2, M8 | 20, 26, 27 | done: landed 2026-11-03 08:28Z (`677e405ca1`) |
-| M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | done 2026-11-03 (`4c739315c4`) |
+| M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | built: landed 2026-11-03 (`4c739315c4`); its walk, rung C, has not passed |
 
 N9 and N17 are the drafts' Later; N11 is accepted and asks no work.
 Each entry's Design names the documents and sections its designers
