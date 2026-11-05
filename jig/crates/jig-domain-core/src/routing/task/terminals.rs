@@ -2,7 +2,8 @@
 //! (jig/docs/design/domain/engine.md, 4.4).
 
 use crate::{
-    Ask, CallPart, Core, CoreRecord, Held, Key, Limits, Now, PersonTaskRoute, Record, Request, SentRoute, Write,
+    Ask, CallPart, Core, CoreRecord, Held, Key, Limits, LinkNow, Now, PersonTaskRoute, Record, Request, SentRoute,
+    Write,
     routing::{
         children::append_people,
         flight::{Flight, Internal},
@@ -138,7 +139,7 @@ pub(crate) fn acknowledged(core: &mut Core, reply_to: ReplyTo, task: u64, attemp
     let token = reply_to.into_token();
     match core.land_task(token) {
         Some(Flight::Internal(Internal::Acknowledge)) => {}
-        Some(_) | None => out.push(Request::Now(Box::new(Now::DropPayload { payload: token }))),
+        Some(_) | None => out.push(Request::Now(Box::new(Now::Link(LinkNow::DropPayload { payload: token })))),
     }
     if let Some(proof) = core.proofs.get(&task) {
         if let Some(terminal) = &proof.terminal {
@@ -160,11 +161,11 @@ pub(crate) fn turn_acknowledged(
     accepted: tasks::Accepted,
     out: &mut Queue<Request>,
 ) {
-    out.push(Request::Now(Box::new(Now::AcceptedTurn {
+    out.push(Request::Now(Box::new(Now::Link(LinkNow::AcceptedTurn {
         payload: reply_to.into_token(),
         task,
         attempt,
         turn,
         accepted,
-    })));
+    }))));
 }
