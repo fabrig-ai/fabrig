@@ -1,6 +1,6 @@
 # Uses of the old forms (skein/docs/foundation/programming-model.md, 6.3): each count may only fall.
 # Lower them with `python3 -I -B scripts/old_forms.py --write`; a count rises only with a `# Raised:` line saying who and why.
 max_out 84
-worst_case 76
+worst_case 67
 comment:actual 2
 comment:genuine 0
