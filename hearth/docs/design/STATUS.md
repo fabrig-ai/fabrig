@@ -1,6 +1,6 @@
 # Status
 
-2026-11-04. Where hearth's code lags or departs from its design, and its design from its
+2026-11-05. Where hearth's code lags or departs from its design, and its design from its
 draft, from the status files below. M1 has render and diff in-process, canonical
 encoding and a store without layers; M2 has build keys, planning and ordered
 stage, run, seal and discard, with scripted steps and a fake helper
@@ -12,8 +12,8 @@ Tool versions and rebuild times are missing, and the resolution reply, layer
 peak formulas, reconciled-base retention and mmdebstrap hooks have unsettled
 departures in those documents. The store reports unreadable or invalid layer
 records as strays and refuses a second staging request. The activator, steward
-and their link, remaining crates and support are absent; printed errors and
-task data keep citations without the repository-root prefix
+and their link, remaining crates and support are absent; printed errors,
+task data and lint reasons keep citations without the repository-root prefix
 (`hearth/docs/design/README.md`). Machine layout, boot and bootstrap, slots
 and live changes, the privilege boundary, the persistent steward and the wire
 remain unbuilt (`hearth/docs/design/domain/machine.md`,
@@ -26,9 +26,9 @@ as do operating, development machines, artifacts and reproducible builds
 `hearth/docs/design/domain/reproducible.md`). Tests have the worlds' suites,
 git, resolution and render conformance, and tool fakes, but lack the complete
 M2 fake machine, joined system world, real builds and boot test; conformance
-has no automatic runner. Tier profiles, memory tests, the fake machine's lint
-profile and shared suite timeouts depart from the design, and measured costs
-await the user (`hearth/docs/design/domain/testing.md`). The design departs
+has no automatic runner. Tier profiles, memory tests and shared suite
+timeouts depart from the design, and measured costs await the user
+(`hearth/docs/design/domain/testing.md`). The design departs
 from the draft in its three processes, subordinate ids, offline sandboxes,
 development loop, live changes and milestone split; pool placement still
 lags, and budgets, credentials, check policy and other decisions remain open
