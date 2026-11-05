@@ -14,6 +14,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 const HERE: u16 = 3;
 fn row(number: u16, kind: Kind, mode: Mode, connection: C, offer: Offer) -> Row {
     Row {
+        starts_with: forges::StartsWith::Repository,
         makings: Box::new([]),
         host: b"git.example:3000".as_slice().into(),
         number,
@@ -481,6 +482,7 @@ fn deliver_first_record(
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                starts_with: w::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
                 number: HERE,
@@ -551,7 +553,10 @@ fn a_set_up_carries_the_repository_name_regardless_of_the_current_project() {
             up(&mut root, Up::Watched { watch: me, event: c::WatchEvent::Delivered(c::Delivery::Me(frame)) });
         }
         let (_, _, w::Request::SetUp(value)) = sent(setup(&mut root)) else { panic!("setup") };
-        assert_eq!((value.org(), value.repository()), (b"work".as_slice(), b"hello".as_slice()));
+        assert_eq!(
+            (empty_setup(value.first()).org(), empty_setup(value.first()).repository()),
+            (b"work".as_slice(), b"hello".as_slice())
+        );
     }
 }
 #[test]
@@ -561,9 +566,15 @@ fn a_set_up_sends_the_fields_the_person_gave() {
     write_setup(&mut root, forges::SetupField::Repository, b"widget");
     write_setup(&mut root, forges::SetupField::Repository, b"app");
     let (_, _, w::Request::SetUp(value)) = sent(setup(&mut root)) else { panic!("setup") };
-    assert_eq!((value.org(), value.repository()), (b"team".as_slice(), b"app".as_slice()));
+    assert_eq!(
+        (empty_setup(value.first()).org(), empty_setup(value.first()).repository()),
+        (b"team".as_slice(), b"app".as_slice())
+    );
     let last = root.forge().set_up().unwrap();
-    assert_eq!((&*last.org, &*last.repository), (b"team".as_slice(), b"app".as_slice()));
+    assert_eq!(
+        (empty_setup(&last.first).org(), empty_setup(&last.first).repository()),
+        (b"team".as_slice(), b"app".as_slice())
+    );
 }
 #[test]
 fn an_empty_field_is_required_and_sends_nothing() {
@@ -684,8 +695,11 @@ fn set_up_again_on_another_client_uses_the_rows_fields() {
     .unwrap();
     deliver_first_record(&mut root, watch, w::Connection::Connecting, value);
     let (_, _, w::Request::SetUp(value)) = sent(setup(&mut root)) else { panic!("setup") };
-    assert_eq!((value.org(), value.repository()), (b"playground".as_slice(), b"widget".as_slice()));
-    assert!(value.playground());
+    assert_eq!(
+        (empty_setup(value.first()).org(), empty_setup(value.first()).repository()),
+        (b"playground".as_slice(), b"widget".as_slice())
+    );
+    assert!(empty_setup(value.first()).playground());
 }
 #[test]
 fn signing_out_forgets_the_setup_intent() {
@@ -737,6 +751,7 @@ fn deliver_picker(root: &mut crate::Domain, watch: Token, changed: bool) -> Queu
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                starts_with: w::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
                 number: 2,
@@ -842,9 +857,19 @@ fn at_once_sends_fixed_names_without_reading_or_marking_the_form() {
     };
     let w::Making::Kept(kept) = value.forge() else { panic!("kept forge") };
     assert_eq!(kept.forge(), HERE);
-    assert_eq!((value.org(), value.repository(), value.playground()), (b"work".as_slice(), b"hello".as_slice(), false));
+    assert_eq!(
+        (
+            empty_setup(value.first()).org(),
+            empty_setup(value.first()).repository(),
+            empty_setup(value.first()).playground()
+        ),
+        (b"work".as_slice(), b"hello".as_slice(), false)
+    );
     let last = root.forge().set_up().unwrap();
-    assert_eq!((&*last.org, &*last.repository, last.playground), (b"work".as_slice(), b"hello".as_slice(), false));
+    assert_eq!(
+        (empty_setup(&last.first).org(), empty_setup(&last.first).repository(), empty_setup(&last.first).playground()),
+        (b"work".as_slice(), b"hello".as_slice(), false)
+    );
     let after = root.forge().setup_form();
     assert_eq!((after.fields.clone(), after.written, after.checked), before);
     assert!(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE }).is_empty());
@@ -901,7 +926,10 @@ fn choosing_owned_sends_set_up_new_owned() {
     let w::Request::SetUp(request) = request else { panic!("set up") };
     let w::Making::New(new) = request.forge() else { panic!("new") };
     assert_eq!(*new.forge(), w::ForgeAsk::Owned);
-    assert_eq!((request.org(), request.repository()), (b"work".as_slice(), b"hello".as_slice()));
+    assert_eq!(
+        (empty_setup(request.first()).org(), empty_setup(request.first()).repository()),
+        (b"work".as_slice(), b"hello".as_slice())
+    );
 }
 #[test]
 fn the_sheets_run_sets_up_owned_with_an_empty_repository_as_written() {
@@ -914,7 +942,11 @@ fn the_sheets_run_sets_up_owned_with_an_empty_repository_as_written() {
     let w::Making::New(new) = request.forge() else { panic!("new") };
     assert_eq!(*new.forge(), w::ForgeAsk::Owned);
     assert_eq!(
-        (request.org(), request.repository(), request.playground()),
+        (
+            empty_setup(request.first()).org(),
+            empty_setup(request.first()).repository(),
+            empty_setup(request.first()).playground()
+        ),
         (b"mine".as_slice(), b"first".as_slice(), false)
     );
     assert!(!root.forge().setup_form().not_yet);
@@ -936,7 +968,10 @@ fn the_sheets_copies_and_nothing_are_not_made_yet() {
         assert!(!root.forge().setup_form().not_yet);
         let (_, _, request) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::RunOwned)));
         let w::Request::SetUp(request) = request else { panic!("set up") };
-        assert_eq!((request.org(), request.repository()), (b"work".as_slice(), b"hello".as_slice()));
+        assert_eq!(
+            (empty_setup(request.first()).org(), empty_setup(request.first()).repository()),
+            (b"work".as_slice(), b"hello".as_slice())
+        );
     }
 }
 #[test]
@@ -1072,6 +1107,7 @@ fn go_on_uses_a_kept_github_and_its_recorded_app_way() {
             w::ForgeRow::new(
                 &w::CEILINGS,
                 w::ForgeRowParts {
+                    starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
                     number: 9,
@@ -1252,4 +1288,49 @@ fn forge_status_keeps_recovery_installation_and_admin_details_separate() {
     admin.admin = true;
     admin.ended_stop = Some(forges::AdminStop::NotAdmin);
     assert!(!connect::status_shown(&admin, None));
+}
+
+fn empty_setup(first: &w::SetUpFirst) -> &w::FirstEmpty {
+    let w::SetUpFirst::Empty(first) = first else { panic!("empty setup fixture") };
+    first
+}
+
+#[test]
+fn set_up_again_keeps_copies_or_nothing_from_the_row_and_last_ask() {
+    let mut copies = List::with_capacity(1);
+    copies.push(Box::from(b"https://source.example/owner/repo".as_slice())).unwrap();
+    let copies = w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses: copies }).unwrap();
+    for (starts_with, expected) in [
+        (w::StartsWith::Nothing, w::SetUpFirst::Nothing),
+        (w::StartsWith::Copies(copies.clone()), w::SetUpFirst::Copies(copies)),
+    ] {
+        let (mut root, _, watch) = opened(true);
+        let mut parts = super::forges::wire_connection_row(
+            HERE,
+            w::Kind::Forgejo,
+            w::Mode::Owned,
+            w::Connection::SetUpFailed(
+                w::SetUpFailed::new(&w::CEILINGS, w::SetUpFailedParts { why: b"retry".as_slice().into(), at: None })
+                    .unwrap(),
+            ),
+            w::Offer::Offered,
+            None,
+        )
+        .into_parts();
+        parts.starts_with = starts_with;
+        let mut forges = List::with_capacity(1);
+        forges.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+        let record = client::Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).unwrap()),
+        };
+        up(&mut root, Up::FamilyDelivered { watch, record });
+        for _attempt in 0_u32..2 {
+            let (attempt, _, w::Request::SetUp(request)) = sent(setup(&mut root)) else { panic!("setup retry") };
+            assert_eq!(request.first(), &expected);
+            assert_eq!(root.forge().set_up().unwrap().first, expected);
+            reply(&mut root, attempt, w::Outcome::SettingUp);
+        }
+    }
 }

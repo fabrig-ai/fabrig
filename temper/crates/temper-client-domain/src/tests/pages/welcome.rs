@@ -109,6 +109,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
                 w::ForgeRow::new(
                     &limits,
                     w::ForgeRowParts {
+                        starts_with: w::StartsWith::Repository,
                         makings: List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
                         number,
@@ -518,6 +519,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
+                        starts_with: w::StartsWith::Repository,
                         makings: List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
                         number: 3,
