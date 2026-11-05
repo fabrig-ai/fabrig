@@ -1422,6 +1422,13 @@ may change with them.
 
 ### 6.4 Bounded
 
+A verdict result in `task show` names `verdict CODE` with its reason.
+`task activity` likewise names the verdict code in heard and notified results,
+including when the reason is empty. A numbered person-task answer reaches its
+requester with that code in both starting-run and live-message text. The host's
+`read_task` result names `Verdict: CODE` separately from the reason's byte window;
+its `from` and `next` offsets count reason bytes alone.
+
 - **Every result has a ceiling,** in rows and bytes: a list's page, the
   activity lines `task show` adds, a conversation's page, a turn's part. A
   text cut prints how much was left and the call that reads the rest.

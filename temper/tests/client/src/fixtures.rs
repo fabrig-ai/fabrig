@@ -1479,6 +1479,7 @@ pub fn person_task_tools(seed: u64) -> (Joint, crate::app::Root) {
     limits.tasks.executor_kinds = PERSON_KINDS;
     limits.documents.executors = PERSON_KINDS;
     limits.templates = PERSON_TEMPLATES;
+    limits.tasks.contract_choices = 2; // Two choices may admit the same reason.
     limits.tasks.tasks = PERSON_TASKS;
     limits.tasks.project_tasks = PERSON_TASKS;
     limits.tasks.tree_tasks = PERSON_TASKS;

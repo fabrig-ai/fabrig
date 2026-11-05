@@ -51,13 +51,34 @@ pub enum Error {
     Claims,
     Sign,
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Authorization {
     pub client: Box<[u8]>,
     pub redirect_uri: Box<[u8]>,
     pub state: Option<Box<[u8]>>,
     pub nonce: Option<Box<[u8]>>,
     pub challenge: [u8; 43],
+}
+// skein/docs/design/oauth.md, 4: state and nonce bytes stay out of Debug.
+impl core::fmt::Debug for Authorization {
+    #[expect(clippy::manual_map, reason = "explicit matches keep closures out of step code")]
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let state_len = match &self.state {
+            Some(state) => Some(state.len()),
+            None => None,
+        };
+        let nonce_len = match &self.nonce {
+            Some(nonce) => Some(nonce.len()),
+            None => None,
+        };
+        f.debug_struct("Authorization")
+            .field("client", &self.client)
+            .field("redirect_uri", &self.redirect_uri)
+            .field("state_len", &state_len)
+            .field("nonce_len", &nonce_len)
+            .field("challenge", &self.challenge)
+            .finish()
+    }
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {

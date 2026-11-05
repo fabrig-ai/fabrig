@@ -72,7 +72,7 @@ fn owner(row: &c::ActivityLine, out: &mut Text) {
             out.number(*question);
             out.put(b" in your inbox");
         }
-        c::Activity::Heard(word) | c::Activity::Notified { word, .. } => out.words(word.words.bytes()),
+        c::Activity::Heard(word) | c::Activity::Notified { word, .. } => message_words(&word.kind, &word.words, out),
         c::Activity::RunBegan { attempt, .. } => {
             out.put(b"run ");
             out.number(*attempt);
@@ -97,6 +97,15 @@ fn owner(row: &c::ActivityLine, out: &mut Text) {
     }
     out.put(b"\n");
 }
+fn message_words(kind: &c::MessageKind, words: &c::Text, out: &mut Text) {
+    if let c::MessageKind::Result(c::WordResult::Verdict { code, .. }) = kind {
+        out.put(b"verdict ");
+        out.number(u64::from(*code));
+        out.put(b" \xc2\xb7 ");
+    }
+    out.words(words.bytes());
+}
+
 pub(super) fn chat(thread: &Thread, call: &Call, limits: &Limits, out: &mut Text) {
     for entry in thread.lines().into_boxed() {
         match entry {
