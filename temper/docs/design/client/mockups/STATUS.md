@@ -104,11 +104,11 @@ Where the client does otherwise:
   without that stand-in is unreached (`../README.md`, 5.3). Home's
   GitHub picker and reached count and the model account's email wait
   as `../README.status.md`, 3.5 and 4.4, records. The gallery draws
-  Home's states. The model lede keeps the shared account-kind words,
-  "your Claude subscription" and "your OpenAI API key"; its shorter
-  wording and Accounts link belong to `more-accounts`
-  (`temper/docs/plan/look-round-4/tasks/more-accounts.md`;
-  `../README.status.md`, 3.5). The recorded project landing still prints Welcome
+  Home's states, including Claude alone, both plans and an API key.
+  While To begin shows, the shorter lede names the first usable account
+  (a key as "an API key") and the connected forge; the Accounts link
+  names what the person does not hold yet (`../README.md`, 3.5).
+  The recorded project landing still prints Welcome
   until `record-landing` walks it again and records Home
   (`../journeys.status.md`, 9).
   The mockups are not edited.

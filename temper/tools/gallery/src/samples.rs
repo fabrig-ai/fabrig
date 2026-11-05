@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 102;
+pub const N: usize = 105;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -81,6 +81,24 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "home-two-left",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-accounts-claude",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-accounts-both",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-accounts-key",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -779,7 +797,10 @@ fn home_domain(name: &str) -> Domain {
         _ => 0,
     };
     me.needs = c::Needs { questions: me.needs_total, proposals: 0, escalations: 0, person_tasks: 0 };
-    let accounts = temper_client_domain::pages::accounts::document(source.client()).expect("sample accounts").clone();
+    let accounts = home_accounts(
+        name,
+        temper_client_domain::pages::accounts::document(source.client()).expect("sample accounts").clone(),
+    );
     let (chats, _) = crate::worlds::world(Solo, CHATS, Shown);
     let Some(Latest::Jig(c::Delivery::Tasks(chat_rows))) =
         chats.client().document(chats.pages().chats().expect("chats").live).expect("chats watch").latest
@@ -805,6 +826,9 @@ fn home_domain(name: &str) -> Domain {
         || matches!(
             name,
             "home-two-left"
+                | "home-accounts-claude"
+                | "home-accounts-both"
+                | "home-accounts-key"
                 | "home-one-left"
                 | "home-ready"
                 | "home-after-skip"
@@ -1190,4 +1214,29 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
     )
     .expect("one forge");
     rows
+}
+
+// Home account variants keep the first-run world's documents and vary its held sources.
+fn home_accounts(name: &str, mut accounts: c::Accounts) -> c::Accounts {
+    if !matches!(name, "home-accounts-claude" | "home-accounts-both" | "home-accounts-key") {
+        return accounts;
+    }
+    let mut row = accounts.accounts.get(0).expect("first-run account").clone();
+    if name == "home-accounts-key" {
+        row.plan = false;
+        row.sources.get_mut(0).expect("first-run source").kind = c::AccountKind::Key;
+    } else {
+        row.provider = Some(2);
+        row.provider_name = Some(home_text("anthropic"));
+        row.sources.get_mut(0).expect("first-run source").kind = c::AccountKind::Program;
+    }
+    let mut rows = skein_lib::List::with_capacity(2);
+    if name == "home-accounts-both" {
+        rows.push(accounts.accounts.get(0).expect("ChatGPT account").clone()).expect("ChatGPT row");
+        row.number = row.number.checked_add(1).expect("second account");
+        row.sources.get_mut(0).expect("Claude source").number = 2;
+    }
+    rows.push(row).expect("account variant");
+    accounts.accounts = rows;
+    accounts
 }
