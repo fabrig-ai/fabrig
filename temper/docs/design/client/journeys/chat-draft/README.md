@@ -17,16 +17,13 @@ Chat, choose Split and mark it, then Draft and mark it.
 
 Press "Start goal…", mark the one sheet with its default `away-mode`
 name and Task by task way, then press "Start goal". The fake goal, T2,
-finishes with its local report. Mark its page and save the recording
-with Alt+Shift+S. The first replay proves all 20 prints against the
-live pages.
-
-The required return through the goal's Draft button is blocked: the
-goal page offers no Draft button. The second document turn also leaves
-the displayed body at its first revision: "A running goal" is absent
-in Split and Draft despite the successful edit line. The goal-start
-request carries that old body, with its draft and chat provenance.
-These steps are recorded as observed; the return is not recorded.
+finishes with its local report. Mark its page, press its "Draft" link
+back to T1, mark the returned chat, and save the recording with
+Alt+Shift+S. The first replay proves all 22 prints against the live
+pages. Split and Draft show the second revision's "A running goal"
+section, and the goal-create request carries that revision, followed
+by its draft and chat provenance. The goal's Draft link is read from
+those provenance lines, beyond its shortened specification preview.
 
 - `01.html`: How work runs with drafts Off, marked.
 - `02.html`: the same page before toggling "Chats can write drafts".
@@ -46,8 +43,10 @@ These steps are recorded as observed; the return is not recorded.
 - `16.html`: the same Draft before pressing "Start goal…".
 - `17.html`: the Start goal sheet, marked.
 - `18.html`: the same sheet before pressing "Start goal".
-- `19.html`: the settled goal page, marked; no Draft button appears.
-- `20.html`: the same goal page at the recording's end.
+- `19.html`: the settled goal page, marked, with its Draft return link.
+- `20.html`: the same goal page before pressing Draft.
+- `21.html`: the returned chat T1, opened in Chat, marked.
+- `22.html`: the same chat at the recording's end.
 
 The walk used a throwaway Chromium CDP driver, accepting JavaScript
 dialogs and using `Emulation.setDeviceMetricsOverride` for 420-pixel
