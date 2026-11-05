@@ -21,6 +21,22 @@ pub enum Word {
     Configuring,
 
     HomeOpen,
+    NeedsLaterMeta,
+    NeedsYourReply,
+    NeedsPlaceholder,
+    NeedsSendReply,
+    NeedsProgress,
+    NeedsProgressCut,
+    NeedsSaw,
+    NeedsRecommended,
+    NeedsReply,
+    NeedsLater,
+    NeedsNext,
+    NeedsLast,
+    NeedsAnswered,
+    NeedsDone,
+    NeedsFunds,
+    NeedsKindFunds,
     HomeNeedsNone,
     HomeNeedsOne,
     HomeNeedsMany,
@@ -821,7 +837,7 @@ pub enum Word {
 // The owned row's Runs and first-password lines add two words and three phrases.
 // A failed setup's step adds five phrases.
 // A task document's reading line and eight lasting read ends (client/README.md, 3.5).
-// The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
+// The paste of a sign-in's address adds sixteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds three literal phrases and segments.
 // Eighteen playground, removal and forge choice literals.
@@ -851,7 +867,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
 // Needs count and toast add five phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1351;
+// Needs you adds sixteen phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1367;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -864,8 +881,9 @@ const PHRASES: u32 = 1351;
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
 // Needs count and toast add eleven literal and hole segments (3.5).
-const SEGMENTS: u32 = 2336;
-const ALL: [Word; 755] = [
+// Needs you adds thirty-four literal and hole segments (3.5).
+const SEGMENTS: u32 = 2370;
+const ALL: [Word; 771] = [
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -875,6 +893,22 @@ const ALL: [Word; 755] = [
     Word::ConfigureWhere,
     Word::Configuring,
     Word::HomeOpen,
+    Word::NeedsLaterMeta,
+    Word::NeedsYourReply,
+    Word::NeedsPlaceholder,
+    Word::NeedsSendReply,
+    Word::NeedsProgress,
+    Word::NeedsProgressCut,
+    Word::NeedsSaw,
+    Word::NeedsRecommended,
+    Word::NeedsReply,
+    Word::NeedsLater,
+    Word::NeedsNext,
+    Word::NeedsLast,
+    Word::NeedsAnswered,
+    Word::NeedsDone,
+    Word::NeedsFunds,
+    Word::NeedsKindFunds,
     Word::HomeNeedsNone,
     Word::HomeNeedsOne,
     Word::HomeNeedsMany,
@@ -1635,6 +1669,22 @@ impl Word {
             Self::ConfigureWhere => 3187,
             Self::Configuring => 3188,
             Self::HomeOpen => 3165,
+            Self::NeedsLaterMeta => 3200,
+            Self::NeedsYourReply => 3201,
+            Self::NeedsPlaceholder => 3202,
+            Self::NeedsSendReply => 3203,
+            Self::NeedsProgress => 3204,
+            Self::NeedsProgressCut => 3205,
+            Self::NeedsSaw => 3206,
+            Self::NeedsRecommended => 3207,
+            Self::NeedsReply => 3208,
+            Self::NeedsLater => 3209,
+            Self::NeedsNext => 3210,
+            Self::NeedsLast => 3211,
+            Self::NeedsAnswered => 3212,
+            Self::NeedsDone => 3213,
+            Self::NeedsFunds => 3214,
+            Self::NeedsKindFunds => 3215,
             Self::HomeNeedsNone => 3145,
             Self::HomeNeedsOne => 3146,
             Self::HomeNeedsMany => 3147,
@@ -2607,7 +2657,8 @@ impl Words {
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Needs count and toast add 87 literal bytes (3.5).
-            text_bytes: 32768 + 288 + 149 + 401 + 11 + 87,
+            // Needs you adds 225 literal bytes (3.5).
+            text_bytes: 32768 + 288 + 149 + 401 + 11 + 87 + 225,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
@@ -2697,6 +2748,22 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicJob => (&[b"a job"], &[]),
         Word::PublicReading => (&[b"Reading\xe2\x80\xa6"], &[]),
         Word::HomeOpen => (&[b"Open"], &[]),
+        Word::NeedsLaterMeta => (&[b" \xc2\xb7 later"], &[]),
+        Word::NeedsYourReply => (&[b"Your reply"], &[]),
+        Word::NeedsPlaceholder => (&[b"Your words go to ", b"\xe2\x80\x99s agent"], &[Name]),
+        Word::NeedsSendReply => (&[b"Send reply"], &[]),
+        Word::NeedsProgress => (&[b"", b" of ", b""], &[Number, Number]),
+        Word::NeedsProgressCut => (&[b"", b" of ", b"+"], &[Number, Number]),
+        Word::NeedsSaw => (&[b"What the agent saw"], &[]),
+        Word::NeedsRecommended => (&[b"recommended"], &[]),
+        Word::NeedsReply => (&[b"Reply\xe2\x80\xa6"], &[]),
+        Word::NeedsLater => (&[b"Later"], &[]),
+        Word::NeedsNext => (&[b"Next: ", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::NeedsLast => (&[b"The last one"], &[]),
+        Word::NeedsAnswered => (&[b"Answered"], &[]),
+        Word::NeedsKindFunds => (&[b"funds"], &[]),
+        Word::NeedsFunds => (&[b"$", b" of $", b" used"], &[Number, Number]),
+        Word::NeedsDone => (&[b"Every question is answered. Work carries on; Home tells you what changed."], &[]),
         Word::HomeNeedsNone => (&[b"Nothing needs you."], &[]),
         Word::HomeNeedsOne => (&[b"One thing needs you."], &[]),
         Word::HomeNeedsMany => (&[b"", b" things need you."], &[Number]),

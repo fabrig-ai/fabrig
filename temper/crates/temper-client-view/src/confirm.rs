@@ -67,22 +67,7 @@ pub(crate) fn controls(b: &mut Builder, root: &Domain, card: &Card, words: &Word
 pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings) {
     let Some(page) = &card.page else { return };
     if let Some(outcome) = &card.outcome {
-        match outcome {
-            Outcome::Answered(Answered::Jig(Answer::Done(outcome))) => words.outcome(b, outcome),
-            Outcome::Answered(Answered::Jig(Answer::Refused { refusal, .. })) => {
-                words.refusal(b, refusal, 0);
-                if let jig_client::contract::Refusal::Moved { .. } = refusal {
-                    words.card_text(b, P::LookAgain, &[]);
-                }
-            }
-            Outcome::Full { held, room_at } => crate::cards::answers_full(b, words, *held, *room_at),
-            Outcome::NotKept | Outcome::Held => words.status(b, P::RequestNotKept, &[]),
-            Outcome::Unknown => words.status(b, P::Unknown, &[]),
-            Outcome::Limit => words.status(b, P::RequestsInFlight, &[]),
-            Outcome::Unconfirmed => words.status(b, P::RequestUnconfirmed, &[]),
-            Outcome::Answered(Answered::Family(_)) => {}
-            Outcome::Unsent | Outcome::Lost => unreachable!("temper's requests carry no value"),
-        }
+        outcome_words(b, words, outcome);
         return;
     }
     if let Some(progress) = acts::pending(card, root.client()) {
@@ -305,5 +290,25 @@ fn proposal_object(object: jig_client::contract::ObjectKey) -> bool {
         | ObjectKey::PersonTask(_)
         | ObjectKey::Result(_)
         | ObjectKey::Note { .. } => false,
+    }
+}
+
+/// An answer returned to a card (temper/docs/design/client/README.md, 3.5).
+pub(crate) fn outcome_words(b: &mut Builder, words: &Words, outcome: &Outcome) {
+    match outcome {
+        Outcome::Answered(Answered::Jig(Answer::Done(outcome))) => words.outcome(b, outcome),
+        Outcome::Answered(Answered::Jig(Answer::Refused { refusal, .. })) => {
+            words.refusal(b, refusal, 0);
+            if let jig_client::contract::Refusal::Moved { .. } = refusal {
+                words.card_text(b, P::LookAgain, &[]);
+            }
+        }
+        Outcome::Full { held, room_at } => crate::cards::answers_full(b, words, *held, *room_at),
+        Outcome::NotKept | Outcome::Held => words.status(b, P::RequestNotKept, &[]),
+        Outcome::Unknown => words.status(b, P::Unknown, &[]),
+        Outcome::Limit => words.status(b, P::RequestsInFlight, &[]),
+        Outcome::Unconfirmed => words.status(b, P::RequestUnconfirmed, &[]),
+        Outcome::Answered(Answered::Family(_)) => {}
+        Outcome::Unsent | Outcome::Lost => unreachable!("temper's requests carry no value"),
     }
 }

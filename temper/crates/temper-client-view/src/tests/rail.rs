@@ -245,7 +245,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
             me.needs_total = count;
             f::deliver_me(&mut root, watch, me);
             deliver_count(&mut root, inbox, count, cut);
-            for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            for (browser, mut view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
                 assert_eq!(skein_ui::outline::check(view.tree()), None, "{address:?}");
                 assert!(!view.tree().nodes().iter().any(|n| n.role == Role::Banner));
                 let rail = styled(view.tree(), look::RAIL);
@@ -330,7 +330,11 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     }
                 }
                 if let Address::Inbox { .. } = address {
-                    assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Inbox").is_some());
+                    if browser {
+                        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Inbox").is_none());
+                    } else {
+                        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Inbox").is_some());
+                    }
                 }
                 assert_eq!(
                     f::find(view.tree(), Role::Button, b"Sign out").is_some(),
