@@ -61,7 +61,7 @@ fn the_owned_example_offers_openai_keys_and_chatgpts_sign_in() {
         json!([{
             "name": "openai", "number": 1_u32, "signed_in_plan": true,
             "manage_usage": "https://chatgpt.com/settings/usage",
-            "models": ["gpt-6-luna"], "sources": {"keys": true, "sign_in": {
+            "models": ["gpt-6.1-sol"], "sources": {"keys": true, "sign_in": {
                 "issuer": "https://auth.openai.com", "client": "dynamic_agent_client", "name_hint": "temper",
                 "authorization": "https://auth.openai.com/api/accounts/authorize",
                 "token": "https://auth.openai.com/api/accounts/oauth/token",
@@ -152,11 +152,13 @@ fn the_default_is_the_owned_example_so_edited() {
         expected["application"]["limits"]["overrides"]["forge.repositories"] = json!(3_u32);
         expected["application"]["limits"]["overrides"]["forge.output"] = json!(82_u32);
         expected["application"]["welcome"] = json!(true);
+        let mut openai = owned["engine"]["llm"]["providers"][0].clone();
+        openai["models"] = json!(["gpt-6.1-sol", "gpt-6-luna"]);
         for (path, value) in [
             (
                 "/engine/llm/providers",
                 json!([
-                    owned["engine"]["llm"]["providers"][0],
+                    openai,
                     anthropic("providers"),
                     {"name": "demo", "number": 3_u64, "signed_in_plan": false,
                      "models": ["demo"], "sources": {"keys": true}}
@@ -172,7 +174,15 @@ fn the_default_is_the_owned_example_so_edited() {
                      "transport": "plaintext", "headers": parse(b"[]"), "connect_ms": 10_000_u64, "handshake_ms": 10_000_u64}
                 ]),
             ),
-            ("/engine/llm/models", json!([owned["engine"]["llm"]["models"][0], anthropic("models"), demo_model()])),
+            (
+                "/engine/llm/models",
+                json!([
+                    owned["engine"]["llm"]["models"][0],
+                    luna(&owned["engine"]["llm"]["models"][0]),
+                    anthropic("models"),
+                    demo_model()
+                ]),
+            ),
             (
                 "/application/machine",
                 json!({
@@ -218,6 +228,7 @@ fn the_default_is_the_owned_example_so_edited() {
             assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
         }
         expected["engine"]["llm"]["models"][0]["prices"]["unit"] = json!(1000_u64);
+        expected["engine"]["llm"]["models"][1]["prices"]["unit"] = json!(1000_u64);
         assert_eq!(actual, expected, "{row}");
     }
 }
@@ -435,6 +446,8 @@ fn the_agent_configuration_is_the_owned_examples_but_its_programs() {
             json!([owned["endpoints"][0], anthropic_agent(), demo_agent(facts.ports.llm.get())]),
         );
         expected["endpoints"][0]["models"][0]["prices"]["unit"] = json!(1000_u64);
+        let sol = expected["endpoints"][0]["models"][0].clone();
+        expected["endpoints"][0]["models"] = json!([sol, luna(&sol)]);
         assert_eq!(parse(content(&answered, b"agent.json")), expected, "{row}");
     }
 }
@@ -616,6 +629,12 @@ fn the_bare_document_is_the_box_less_its_parts() {
     }
 }
 
+/// OpenAI's second model: the first's declaration under luna's name.
+fn luna(sol: &Value) -> Value {
+    let mut luna = sol.clone();
+    luna["name"] = json!("gpt-6-luna");
+    luna
+}
 fn anthropic(member: &str) -> Value {
     match member {
         "providers" => {
@@ -643,8 +662,9 @@ fn every_deployment_offers_claude_found_or_fetched() {
         for files in [boxed.files.as_ref(), bare.as_ref()] {
             let document = parse(file_bytes(files, b"temper.json"));
             let agent = parse(file_bytes(files, b"agent.json"));
-            for member in ["providers", "endpoints", "models"] {
-                assert_eq!(document["engine"]["llm"][member][1], anthropic(member), "{row}: {member}");
+            // OpenAI declares two models, gpt-6.1-sol then gpt-6-luna.
+            for (member, at) in [("providers", 1), ("endpoints", 1), ("models", 2)] {
+                assert_eq!(document["engine"]["llm"][member][at], anthropic(member), "{row}: {member}");
             }
             assert_eq!(agent["endpoints"][1], anthropic_agent(), "{row}");
             assert_eq!(

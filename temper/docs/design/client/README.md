@@ -2164,7 +2164,7 @@ keeps (`../protocol/configuration.md`, section 2).
     followed by "/", then the level-1 heading "Configure
     temper", the page's title too; on a phone "‹", a link named "Settings", alone before the
     heading. At its right on a wide page, the line of what the chat's
-    runs use, "ChatGPT plan · gpt-6-luna", the first usable account's
+    runs use, "ChatGPT plan · gpt-6.1-sol", the first usable account's
     kind, as Ready's model line chooses it, and the first model `me`
     serves for the project.
   - *The conversation,* a region named "Conversation", its opening a
@@ -3733,7 +3733,7 @@ The words for each offered source are:
     kind, so name no account. Another payer's work, or a cut document or
     account, names no account.
     In a byline the line's "Using " and its "Manage usage" are left out, so
-    that it reads account, " · ", model, "ChatGPT plan · gpt-6-luna"; "Manage
+    that it reads account, " · ", model, "ChatGPT plan · gpt-6.1-sol"; "Manage
     usage" is the chooser's. The source words the line, with the provider and plan words above from
     `me`: "Using your OpenAI API key · MODEL" for a key; "Using ChatGPT
     plan · MODEL · Manage usage" for a signed-in plan, the last an
