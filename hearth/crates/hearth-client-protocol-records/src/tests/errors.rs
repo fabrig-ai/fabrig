@@ -503,9 +503,9 @@ fn each_composition_error_prints_its_json_fields() {
 }
 mod validation;
 const ON_LINES: &[(crate::errors::Host, &[u8], &[u8])] = &[
-    (crate::errors::Host::Unknown, b"stoa-1-lab: placement's on names rhi-lab, no discovered target\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"rhi-lab\",\"host\":\"unknown\"},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
-    (crate::errors::Host::Container, b"stoa-1-lab: placement's on names rhi-lab, a container\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"rhi-lab\",\"host\":\"container\"},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
-    (crate::errors::Host::Unplaced, b"stoa-1-lab: placement's on names rhi-lab, a target with no placement\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"rhi-lab\",\"host\":\"unplaced\"},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
+    (crate::errors::Host::Unknown, b"stoa-1-lab: placement's on names east-lab, no discovered target\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"east-lab\",\"host\":\"unknown\"},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
+    (crate::errors::Host::Container, b"stoa-1-lab: placement's on names east-lab, a container\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"east-lab\",\"host\":\"container\"},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
+    (crate::errors::Host::Unplaced, b"stoa-1-lab: placement's on names east-lab, a target with no placement\n", b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"east-lab\",\"host\":\"unplaced\"},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n"),
 ];
 #[test]
 fn an_on_error_prints_its_text() {
@@ -528,13 +528,13 @@ fn an_on_elsewhere_error_prints_its_text() {
     let error = fixtures::composition_on(crate::errors::Host::Elsewhere { environment: Box::from(b"lab".as_slice()) });
     assert_eq!(
         print(&Record::Error(error)).as_deref(),
-        Ok(b"stoa-1-lab: placement's on names rhi-lab, a target of lab\n".as_slice())
+        Ok(b"stoa-1-lab: placement's on names east-lab, a target of lab\n".as_slice())
     );
 }
 #[test]
 fn an_on_elsewhere_error_prints_its_json_fields() {
     let error = fixtures::composition_on(crate::errors::Host::Elsewhere { environment: Box::from(b"lab".as_slice()) });
-    assert_eq!(form::print(Form::JsonLines, &Record::Error(error), Some(Type::Error), &limits::SHIPPED).as_deref(), Ok(b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"rhi-lab\",\"host\":{\"kind\":\"elsewhere\",\"environment\":\"lab\"}},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n".as_slice()));
+    assert_eq!(form::print(Form::JsonLines, &Record::Error(error), Some(Type::Error), &limits::SHIPPED).as_deref(), Ok(b"{\"record\":\"error\",\"kind\":\"composition\",\"composition\":{\"kind\":\"on\",\"on\":\"east-lab\",\"host\":{\"kind\":\"elsewhere\",\"environment\":\"lab\"}},\"class\":\"configuration\",\"target\":\"stoa-1-lab\"}\n".as_slice()));
 }
 #[test]
 fn a_missing_task_error_names_its_task_in_text() {
