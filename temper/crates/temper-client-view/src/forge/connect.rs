@@ -66,6 +66,7 @@ pub(crate) fn name(w: &Words, row: &Row, root: &Domain) -> Box<[u8]> {
 pub(crate) fn personal(root: &Domain) -> Option<&Row> {
     connect::personal(root.forges(), connect::playground(root.forge()))
 }
+#[expect(clippy::too_many_arguments, reason = "the flow path takes its project beside the forge bindings")]
 pub(crate) fn main(
     b: &mut Builder,
     root: &Domain,
@@ -73,11 +74,21 @@ pub(crate) fn main(
     bindings: &mut Bindings,
     forge: &mut ForgeBindings,
     choice: Option<Choice>,
+    project: Option<u32>,
     sign_in: &crate::forge_sign_in::Forges,
 ) {
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::CONNECT_FORGE);
+    crate::pages::settings::path(
+        b,
+        root,
+        w,
+        bindings,
+        project,
+        crate::pages::settings::FlowTab::Forges,
+        Word::PathAddForge,
+    );
     text(b, w, Role::Heading { level: 1 }, Word::WelcomeForgeTitle);
     let shown = if choice.is_none() {
         match connect::unfinished(connect::records(root.forges()), connect::playground(root.forge())) {
@@ -500,7 +511,12 @@ pub(crate) fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &m
                 },
             ),
             connect::UnfinishedAct::StartOver => {
-                (Word::ForgeStartOver, forge::forges::Act::StartOver { forge: row.number })
+                let end = if let Address::Welcome { .. } = root.pages().address() {
+                    forge::forges::StartOverEnd::Welcome
+                } else {
+                    forge::forges::StartOverEnd::Forges
+                };
+                (Word::ForgeStartOver, forge::forges::Act::StartOver { forge: row.number, end })
             }
         };
         let name = w.say(word, &[]);
@@ -975,7 +991,7 @@ pub(crate) fn ready_card(
             }
         }
     }
-    app_line(b, w, row);
+    app_line(b, w, row, false);
     adopt(b, root, w, bindings);
     super::forges::open_link(b, w, row, sign_in, Some(look::FLOW_QUIET));
     b.open(Role::Slot);
@@ -1222,9 +1238,12 @@ pub(crate) fn first_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
         flow::subtitle(b, &w.say(Word::SetupInto, &[Hole::Name(forge::words::full_name(org, repository))]));
     }
 }
-pub(crate) fn app_line(b: &mut Builder, w: &Words, row: &Row) {
+pub(crate) fn app_line(b: &mut Builder, w: &Words, row: &Row, setting: bool) {
     if let Some(slug) = forge::forges::slug(row) {
         b.open(Role::Slot);
+        if setting {
+            b.style(look::SETTINGS_SETTING);
+        }
         text(b, w, Role::Term, Word::ForgeAppLabel);
         b.open(Role::Description);
         crate::cards::text(b, Role::Slot, &forge::words::app_head(slug, row.installations.is_empty()));

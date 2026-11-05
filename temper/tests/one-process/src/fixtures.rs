@@ -41,7 +41,7 @@ pub(crate) const CI_SILENT: u32 = 0;
 pub(crate) const CI_PASSES: u32 = 1000;
 pub(crate) const CI_RERUNS: u32 = 0;
 pub(crate) const MOVING_USER: u64 = 2;
-pub(crate) const ADOPTION_FORM_START: usize = 5;
+pub(crate) const ADOPTION_FORM_START: usize = 7;
 pub(crate) const ADOPTION_FORM_STEPS: usize = 7;
 pub(crate) const ADOPTION_REPLY_STEP: usize = 7;
 #[must_use]
