@@ -31,9 +31,9 @@ them. The current settings are the defaults with the stored changes over
 them: a setting no change names follows its default. The settings live
 in the store, never in the configuration document.
 
-The stock has five charters, numbered 1, 2, 3, 4 and 6, and three
+The stock has six charters, numbered 1, 2, 3, 4, 6 and 9, and three
 templates: 1 for a chat, 2 for a goal and 3 for the configuring chat.
-Its rules offer those five charter executors and procedure executors
+Its rules offer those six charter executors and procedure executors
 2, 3 and 4.
 
 A setting's value is whole: a JSON value, as `settings show` prints
@@ -126,6 +126,6 @@ For the configuration members that need a restart, read `temper help configurati
   a change to them needs a restart. Its limits must hold the stock's
   settings: a start refuses one that does not, and another model or a
   release with new stock can move what they need.
-- The stock needs room for at least five charters, three templates and
-  eight executor kinds: its five charters and three procedures. These
+- The stock needs room for at least six charters, three templates and
+  nine executor kinds: its six charters and three procedures. These
   are floors; a deployment's own settings may need more.

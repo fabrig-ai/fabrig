@@ -27,10 +27,11 @@ the task reads its charter, whole:
   how long it waits idle, and the timeout of its calls to temper's
   tools.
 
-The stock offers five charters: 1 for chats, 2 for coding, 3 for the
-configuring agent, 4 for reviews and 6 for foremen. The configuring
+The stock offers six charters: 1 for chats, 2 for coding, 3 for the
+configuring agent, 4 for reviews, 6 for foremen and 9 for the status agent. The configuring
 agent turns how a person describes their work into a proposal of
-settings (`temper help chat`).
+settings (`temper help chat`). The status agent writes the few lines at the top
+of a project's Home from the facts in its task, with no tools.
 
 The forge's procedures run a change's agent work under three charters,
 which the change keeps from its making to its end: its producing and
