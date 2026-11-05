@@ -183,7 +183,7 @@ pub(crate) fn seeded_config(
     owned: bool,
     config: skein_fake_forge_forgejo::Config,
 ) -> (Service, skein_fake_forge_forgejo::Limits) {
-    let limits = skein_forge_machine_world::fixtures::fake_limits();
+    let limits = skein_forge_kit::fixtures::fake_limits();
     let mut service = Service::new(config, &limits, seed).expect("world service");
     let admin = service.setup_mut().account(b"kit-admin", true, b"");
     service.setup_mut().token(

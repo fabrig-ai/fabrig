@@ -82,7 +82,7 @@ pub fn converged(seed: u64) -> crate::HostWorld {
 #[must_use]
 pub fn write_routes(world: &crate::HostWorld, since: usize) -> Vec<skein_fake_forge_forgejo::Route> {
     use skein_forge::forgejo::{client, request::Method};
-    let limits = skein_forge_machine_world::fixtures::fake_limits();
+    let limits = skein_forge_kit::fixtures::fake_limits();
     let mut routes = Vec::new();
     for request in &world.requests()[since..] {
         let encoded = client::encode(request, &limits.documents).expect("world request");
@@ -214,8 +214,8 @@ pub fn host_limits() -> skein_forge_setup::host::Limits {
         body_bytes: 16384,
         inner: 32,
         target_bytes: 4096,
-        tls: skein_forge_machine_world::fixtures::limits().tls,
-        io: skein_forge_machine_world::fixtures::shared().io,
+        tls: skein_forge_kit::fixtures::limits().tls,
+        io: skein_forge_kit::fixtures::shared().io,
     }
 }
 #[must_use]
@@ -660,7 +660,7 @@ pub mod github_stories {
     }
     pub fn closed(world: &mut HostWorld) {
         let diagnostics = format!("{:?} {:?} {:?}", world.heard(), world.needs(), world.github_requests());
-        let key = skein_forge_machine_world::github::app_key();
+        let key = skein_forge_kit::github::app_key();
         let pem = skein_fake_forge_github::keys::pem(key).expect("fixture PEM");
         for secret in [key, pem.as_ref(), b"ghs_", b"eyJ"] {
             assert!(!diagnostics.as_bytes().windows(secret.len()).any(|part| part == secret));
@@ -730,7 +730,7 @@ pub mod copy_stories {
     }
     #[must_use]
     pub fn repository_domain() -> (domain::Domain, domain::Config) {
-        let mut config = skein_forge_machine_world::fixtures::fake_config();
+        let mut config = skein_forge_kit::fixtures::fake_config();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
         config.limits.repositories = 4;

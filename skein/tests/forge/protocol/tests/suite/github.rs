@@ -76,7 +76,7 @@ fn github_listings_follow_another_partys_changes_across_pages() {
 #[test]
 fn github_delivery_log_reaches_owner_before_client_polling() {
     use skein_forge_client::{Event, Resource, Watch, What};
-    use skein_forge_machine_world::joint::REPO;
+    use skein_forge_kit::joint::REPO;
     use skein_lib::Token;
 
     // Baseline after the fake's 2.2-second visibility delay.
@@ -115,7 +115,7 @@ fn github_delivery_log_reaches_owner_before_client_polling() {
 #[test]
 fn github_watched_absent_branch_resolves_repository_once() {
     use skein_forge_client::{Event, Resource, Watch, What};
-    use skein_forge_machine_world::joint::REPO;
+    use skein_forge_kit::joint::REPO;
     use skein_lib::Token;
 
     let mut world = World::github(71, 0);
