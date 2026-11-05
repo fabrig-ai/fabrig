@@ -14,7 +14,9 @@ use temper_client_domain::{
 /// Enter and Send share the model, playground and in-flight start readiness.
 pub(crate) fn ready_to_start(root: &Domain) -> bool {
     let Some(chats) = root.pages().chats() else { return false };
-    crate::choice::can_send(root)
+    let Some(me) = root.pages().me(root.client()) else { return false };
+    root.pages().choice().valid(me)
+        && crate::choice::can_send(root)
         && chats.start.is_none()
         && !root.forge().playground_starting()
         && root.forge().playground_failure().is_none()

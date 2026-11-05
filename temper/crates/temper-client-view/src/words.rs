@@ -490,9 +490,7 @@ pub enum Word {
     CancelDelegate,
     TakeDelegate,
     Older,
-    StartChat,
     FirstChat,
-    Start,
     YourChats,
     AllChats,
     NoChats,
@@ -513,7 +511,6 @@ pub enum Word {
     ProposalInbox,
     RejectProposal,
     ChatDelegates,
-    ChatHint,
     ChatSendHint,
     ConnectForge,
     ChatTitle,
@@ -529,7 +526,6 @@ pub enum Word {
     NewChatNoRepository,
     NewChatWords,
     ProjectPane,
-    DescribeChange,
     NewChatLink,
     Ready,
     Playground,
@@ -849,7 +845,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Configure adds seven literal phrases (client/README.md, 3.5).
 // The configuring chat tag adds one literal phrase (3.5).
 // New chat adds three phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1349;
+const PHRASES: u32 = 1345;
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
 // Four literals and the counted entry's two literals and Number hole add seven segments.
@@ -862,8 +858,8 @@ const PHRASES: u32 = 1349;
 // Configure adds seven literal segments (client/README.md, 3.5).
 // The configuring chat tag adds one literal segment (3.5).
 // New chat adds nine literal and hole segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 2334;
-const ALL: [Word; 753] = [
+const SEGMENTS: u32 = 2330;
+const ALL: [Word; 749] = [
     Word::ConfigureAgent,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -1329,9 +1325,7 @@ const ALL: [Word; 753] = [
     Word::CancelDelegate,
     Word::TakeDelegate,
     Word::Older,
-    Word::StartChat,
     Word::FirstChat,
-    Word::Start,
     Word::YourChats,
     Word::AllChats,
     Word::NoChats,
@@ -1352,7 +1346,6 @@ const ALL: [Word; 753] = [
     Word::ProposalInbox,
     Word::RejectProposal,
     Word::ChatDelegates,
-    Word::ChatHint,
     Word::ChatSendHint,
     Word::ConnectForge,
     Word::ChatTitle,
@@ -1368,7 +1361,6 @@ const ALL: [Word; 753] = [
     Word::NewChatNoRepository,
     Word::NewChatWords,
     Word::ProjectPane,
-    Word::DescribeChange,
     Word::NewChatLink,
     Word::Ready,
     Word::Playground,
@@ -2116,9 +2108,7 @@ impl Word {
             Self::Send => 147,
             Self::Stop => 148,
             Self::Older => 149,
-            Self::StartChat => 138,
             Self::FirstChat => 2183,
-            Self::Start => 139,
             Self::YourChats => 347,
             Self::AllChats => 348,
             Self::NoChats => 349,
@@ -2139,7 +2129,6 @@ impl Word {
             Self::ProposalInbox => 1404,
             Self::RejectProposal => 1405,
             Self::ChatDelegates => 145,
-            Self::ChatHint => 185,
             Self::ChatSendHint => 186,
             Self::ConnectForge => 275,
             Self::ChatTitle => 276,
@@ -2155,7 +2144,6 @@ impl Word {
             Self::NewChatNoRepository => 3201,
             Self::NewChatWords => 3202,
             Self::ProjectPane => 2192,
-            Self::DescribeChange => 2193,
             Self::WelcomeContinue => 2194,
             Self::WelcomeModelPlan => 2195,
             Self::WelcomeModelSubscription => 2196,
@@ -3213,7 +3201,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DelegateMove => (&[b"Delegate ", b" will be moved to you"], &[Number]),
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
-        Word::StartChat => (&[b"Start a chat"], &[]),
         Word::ConfigureAgent => (&[b"temper\xe2\x80\x99s configuring agent. Describe how you work, in your own words or by pointing at a document. It proposes how temper will run that; nothing changes until you accept."], &[]),
         Word::ConfigureWays => (&[b"Ways to begin"], &[]),
         Word::ConfigureAlone => (&[b"I work alone on small changes: one chat per change, landed once CI passes."], &[]),
@@ -3223,7 +3210,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Configuring => (&[b"Configuring"], &[]),
         Word::ConfigureWhere => (&[b"Where"], &[]),
         Word::FirstChat => (&[b"Tell temper how you work"], &[]),
-        Word::Start => (&[b"Start chat"], &[]),
         Word::YourChats => (&[b"Your chats"], &[]),
         Word::NoChats => (&[b"No chats yet."], &[]),
         Word::NoLiveChats => (&[b"No live chats."], &[]),
@@ -3257,7 +3243,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SignedProjectOwner => (&[b"Signed in as the project\xe2\x80\x99s owner"], &[]),
         Word::SignedName => (&[b"Signed in as ", b""], &[Name]),
         Word::ProjectPane => (&[b"Project"], &[]),
-        Word::DescribeChange => (&[b"Describe a change"], &[]),
         Word::NewChat => (&[b"New chat"], &[]),
         Word::NewChatIn => (&[b"Say what you want; the agent works in ", b"/", b"."], &[Name, Name]),
         Word::NewChatNoRepository => (&[b"Say what you want. ", b" has no repository yet, so the agent can talk and plan but not change code."], &[Name]),
@@ -3274,7 +3259,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PlaygroundNotConnected => (&[b"The playground did not start: Playground forge did not connect."], &[]),
         Word::PlaygroundTryAgain => (&[b"Try again"], &[]),
         Word::SuggestedRequests => (&[b"Suggested requests"], &[]),
-        Word::ChatHint => (&[b"enter to start \xc2\xb7 shift+enter for newline"], &[]),
         Word::Accept => (&[b"Accept"], &[]),
         Word::RejectProposal => (&[b"Reject"], &[]),
         Word::Reject => (&[b"Reject with reason"], &[]),

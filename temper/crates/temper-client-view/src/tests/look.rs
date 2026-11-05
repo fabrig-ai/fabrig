@@ -196,10 +196,8 @@ fn each_pages_main_carries_the_main_token() {
 }
 #[test]
 fn the_composers_carry_the_composer_token() {
-    for root in fixtures::pair(fixtures::chats_root(), fixtures::chat::messaging_root()) {
-        let view = fixtures::page_view(&root);
-        assert_eq!(fixtures::styles(view.tree(), Role::TextArea).as_ref(), [Box::from([COMPOSER])]);
-    }
+    let view = fixtures::page_view(&fixtures::chat::messaging_root());
+    assert_eq!(fixtures::styles(view.tree(), Role::TextArea).as_ref(), [Box::from([COMPOSER])]);
 }
 
 #[test]
@@ -210,10 +208,8 @@ fn the_chat_structure_tokens_stay_on_their_roles() {
         (LIVE, Role::Status),
         (ROWS, Role::List),
         (ROW, Role::Item),
-        (ENTRY, Role::Slot),
         (RAIL_FOOT, Role::Slot),
         (TIME, Role::Paragraph),
-        (HINT, Role::Paragraph),
     ] {
         let mut found = false;
         for node in view.tree().nodes() {
@@ -389,7 +385,9 @@ fn the_task_tokens_stay_on_their_roles() {
 #[test]
 fn the_choice_token_stays_on_the_composer_slot() {
     let mut roots = skein_lib::List::with_capacity(3);
-    roots.push(fixtures::chats_root()).expect("chats");
+    roots
+        .push(fixtures::playground_root(temper_client_domain::Address::NewChat, fixtures::PROJECT, true))
+        .expect("new chat");
     roots.push(fixtures::chat::messaging_root()).expect("chat");
     roots.push(fixtures::task::root(jig_client::contract::ChipExecutor::Agent { charter: 1 }, Some(1))).expect("task");
     for root in &roots {

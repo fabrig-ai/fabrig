@@ -711,8 +711,9 @@ fn the_offline_rail_keeps_its_choices() {
 fn the_qa_controls_keep_their_accessible_names_with_the_menu_closed() {
     for (root, controls) in [
         (
-            Box::new(fixtures::chats_root()),
-            &[(Role::Link, b"Chats".as_slice()), (Role::TextArea, b"Start a chat"), (Role::Button, b"Start chat")][..],
+            Box::new(fixtures::playground_root(temper_client_domain::Address::NewChat, fixtures::PROJECT, true)),
+            &[(Role::Link, b"Chats".as_slice()), (Role::TextArea, b"What do you want done?"), (Role::Button, b"Send")]
+                [..],
         ),
         (
             Box::new(fixtures::chat::messaging_root()),
