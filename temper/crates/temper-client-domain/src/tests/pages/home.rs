@@ -22,8 +22,8 @@ const ONE: u32 = 1;
 const NEED_GROUPS: u32 = 4;
 const INBOX_CARDS: u32 = 5;
 const INBOX_QUERIES: usize = 2;
-// Settings, two chats handles, entries and two inbox queries.
-const HOME_HANDLES: u32 = 6;
+// Two chats handles, entries and two inbox queries.
+const HOME_HANDLES: u32 = 5;
 // The ordered repository fixture holds three adoptions on its lower forge.
 const REPOSITORIES: u32 = 3;
 // Home has three independently completed steps (client/README.md, 3.5).
@@ -68,9 +68,9 @@ fn fixture_with_me(frame: c::Me) -> Fixture {
     let out = deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
     let dismissed = opened(&out, &forge::dismissed::watch(&f::limits().forge).unwrap()).unwrap();
     let forges = opened(&out, &forge::forges::watch(&f::limits().forge).unwrap()).unwrap();
+    let settings = opened(&out, &Watchable::Jig(c::Subject::Settings)).unwrap();
     let standing = opened(&out, &Watchable::Jig(c::Subject::Inbox { window: f::limits().client.domain.rows }));
     let out = go(&mut root, f::PROJECT);
-    let settings = opened(&out, &Watchable::Jig(c::Subject::Settings)).unwrap();
     let inbox = opened(&out, &Watchable::Jig(c::Subject::Inbox { window: root.pages().inbox().unwrap().window }))
         .or(standing)
         .unwrap();
@@ -260,12 +260,13 @@ fn refused_and_ended_settings_are_not_configured() {
     }
 }
 #[test]
-fn home_owns_and_releases_its_settings_and_chat_reads() {
+fn home_shares_settings_and_releases_its_chat_reads() {
     let mut f = fixture();
     up(&mut f.root, Up::Watched { watch: f.settings, event: c::WatchEvent::Opened });
     let settings = f.root.pages().home().unwrap().settings;
     let chats = f.root.pages().chats().unwrap();
-    let handles = [settings, chats.live, chats.closed];
+    assert_eq!(settings, f.root.forge().settings_handle());
+    let handles = [chats.live, chats.closed];
     assert_eq!(chats.filter, crate::ChatsFilter::All);
     let repeat = go(&mut f.root, f::PROJECT);
     assert!(opened(&repeat, &Watchable::Jig(c::Subject::Settings)).is_none());
@@ -275,7 +276,7 @@ fn home_owns_and_releases_its_settings_and_chat_reads() {
     }
     assert!(f.root.pages().home().is_none());
     let chats = f.root.pages().chats().expect("Settings holds its own chats");
-    assert_ne!(chats.live, handles[1]);
+    assert_ne!(chats.live, handles[0]);
     assert!(f.root.client().document(chats.live).is_some());
     let mut closed = false;
     for request in &out {
@@ -285,7 +286,8 @@ fn home_owns_and_releases_its_settings_and_chat_reads() {
             closed |= *watch == f.settings;
         }
     }
-    assert!(closed, "Home closes its settings watch");
+    assert!(!closed, "the session keeps its settings watch");
+    assert!(f.root.client().document(settings).is_some());
 }
 #[test]
 fn unknown_and_ended_forges_never_invent_a_repository() {
@@ -536,9 +538,9 @@ fn home_reads_its_projects_needs_and_releases_them() {
         assert_eq!(inbox.filter, crate::address::Filter { project: Some(f::PROJECT), kind: None, goal: None });
         let settings = f.root.pages().home().unwrap().settings;
         let chats = f.root.pages().chats().unwrap();
-        assert_eq!(chats.live.number, settings.number + 1);
-        assert_eq!(chats.closed.number, settings.number + 2);
-        assert_eq!(inbox.entries.number, settings.number + 3);
+        assert_eq!(chats.live.asker, crate::owner::Owner::Pages.asker());
+        assert_eq!(chats.closed.number, chats.live.number + 1);
+        assert_eq!(inbox.entries.number, chats.live.number + 2);
         up(&mut f.root, Up::Watched { watch: f.inbox, event: c::WatchEvent::Opened });
         let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
         let reads = inbox_reads(&out);
@@ -550,13 +552,13 @@ fn home_reads_its_projects_needs_and_releases_them() {
         let inbox = f.root.pages().inbox().unwrap();
         let chats = f.root.pages().chats().unwrap();
         let mut handles = List::with_capacity(inbox.cards.len().checked_add(HOME_HANDLES).unwrap());
-        for handle in [settings, chats.live, chats.closed, inbox.entries, inbox.queries[0], inbox.queries[1]] {
+        for handle in [chats.live, chats.closed, inbox.entries, inbox.queries[0], inbox.queries[1]] {
             handles.push(handle).unwrap();
         }
         for card in &inbox.cards {
             handles.push(card.handle).unwrap();
         }
-        let mut last = settings.number;
+        let mut last = 0;
         for handle in &handles {
             last = last.max(handle.number);
         }
@@ -578,7 +580,8 @@ fn home_reads_its_projects_needs_and_releases_them() {
         assert!(!closed, "the standing count keeps the shared inbox watch open");
         assert!(f.root.client().document(pages::needs::handle()).is_some());
         go(&mut f.root, f::PROJECT);
-        assert!(f.root.pages().home().unwrap().settings.number > last, "no handle is reused");
+        assert_eq!(f.root.pages().home().unwrap().settings, settings, "settings is the session handle");
+        assert!(f.root.pages().chats().unwrap().live.number > last, "no page handle is reused");
     }
 }
 #[test]

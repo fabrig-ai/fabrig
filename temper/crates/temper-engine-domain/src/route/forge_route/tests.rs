@@ -2793,18 +2793,24 @@ fn four_foreman_changes_share_the_call_task_room() {
 
 #[test]
 fn mixed_change_routes_share_room_within_each_policy_cap() {
-    use crate::ChangeQuestions::{Foreman, Up};
-    for (routes, tasks_left, expected) in [
-        ([Some(Up), Some(Foreman)], 200, [80, 118]),
-        ([Some(Foreman), Some(Up)], 200, [118, 80]),
-        ([None, Some(Foreman)], 400, [80, 160]),
-        ([Some(Up), Some(Foreman)], 4, [1, 1]),
+    use crate::ChangeQuestions::{Foreman, None as NoQuestions, Up};
+    use temper_engine_domain_forge_change::Route;
+    for (project_route, routes, tasks_left, expected) in [
+        (Route::None, [Some(Up), Some(Foreman)], 200, [80, 118]),
+        (Route::None, [Some(Foreman), Some(Up)], 200, [118, 80]),
+        (Route::None, [None, Some(Foreman)], 400, [80, 160]),
+        (Route::None, [Some(Up), Some(Foreman)], 4, [1, 1]),
+        (Route::Foreman, [None, Some(Up)], 200, [118, 80]),
+        (Route::Foreman, [None, Some(Up)], 400, [160, 80]),
+        (Route::Foreman, [Some(NoQuestions), None], 400, [80, 160]),
+        (Route::Foreman, [None, None], 400, [160, 160]),
     ] {
-        let (domain, mut env, mut context) = change_choice_world();
+        let (mut domain, mut env, mut context) = change_choice_world();
         env.limits.forge.change_policy.tasks = 80;
         env.limits.forge.change_policy.questions = 80;
         context.tasks_left = tasks_left;
         context.authority.delegation.tasks = tasks_left;
+        set_project_questions(&mut domain, &env, project_route);
         let changes = change_family(&routes);
         let batch = match super::change_batch(&domain, &env, 1, &context, &changes) {
             Ok(batch) => batch,
