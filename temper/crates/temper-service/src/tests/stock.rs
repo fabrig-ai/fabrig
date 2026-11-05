@@ -41,6 +41,7 @@ fn single_model() -> Box<[u8]> {
     let mut document = generated();
     for (path, first) in [
         (b"engine.llm.providers".as_slice(), b"engine.llm.providers[0]".as_slice()),
+        (b"engine.llm.providers[0].models", b"engine.llm.providers[0].models[0]"),
         (b"engine.llm.endpoints", b"engine.llm.endpoints[0]"),
         (b"engine.llm.models", b"engine.llm.models[0]"),
     ] {
@@ -353,7 +354,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         (b"core.templates", 3, Setting::Template(1), "the stock offers 3 templates"),
         (b"documents.text_bytes", 11, Setting::Template(3), "the stock's template 3 needs 11 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
-        (b"core.settings.alternatives", 2, Setting::Charter(1), "the stock's charter 1 needs 2 alternatives"),
+        (b"core.settings.alternatives", 3, Setting::Charter(1), "the stock's charter 1 needs 3 alternatives"),
         (b"core.settings.permissions", 3, Setting::Policy(1), "the stock's policy 1 needs 3 permissions"),
     ];
     // Every positive scalar bound reached by jig's whole-set check is at its
@@ -665,8 +666,8 @@ fn the_goal_and_chat_report_only_the_checks_named_in_the_result() {
 #[test]
 fn each_charter_offers_every_configured_model() {
     for (document, names) in [
-        (single_model(), [b"gpt-6-luna".as_slice()].as_slice()),
-        (generated(), [b"gpt-6-luna".as_slice(), b"claude-opus-5-5", b"demo"].as_slice()),
+        (single_model(), [b"gpt-6.1-sol".as_slice()].as_slice()),
+        (generated(), [b"gpt-6.1-sol".as_slice(), b"gpt-6-luna", b"claude-opus-5-5", b"demo"].as_slice()),
     ] {
         let engine = engine(&document);
         let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
