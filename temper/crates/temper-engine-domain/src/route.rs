@@ -10,6 +10,7 @@ pub(crate) mod host_route;
 mod making;
 pub(crate) mod playground;
 pub use host_route::{HostDelivery, HostRequest, RepositoryIdentity};
+mod decided;
 mod goal;
 mod kinds;
 pub(crate) mod landing;

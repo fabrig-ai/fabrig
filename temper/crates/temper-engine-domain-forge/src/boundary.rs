@@ -1059,6 +1059,7 @@ pub struct NamedCall {
 /// The connector's part of a named answer; core decisions remain outside it.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallPayload {
+    Decided { took: Option<Box<[u8]>> },
     Effect { entry: u64, deadline: skein_lib::Wall, outcome: Option<skein_forge_client::Outcome> },
     Refused(skein_forge::api::Error),
     Read(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),

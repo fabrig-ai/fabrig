@@ -126,7 +126,7 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
     assert_eq!(charter.brief.sections[0].title.as_ref(), b"Task");
     assert_eq!(charter.brief.sections[0].text.as_ref(), b"Say hello");
     assert_eq!(charter.budget.spend, 40);
-    assert_eq!(charter.grants.host_tools.len(), 36);
+    assert_eq!(charter.grants.host_tools.len(), 37);
     assert_eq!(grants[0].name.generation, 2);
     assert!(transcript.is_none());
 }
@@ -145,9 +145,9 @@ fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
 
 #[test]
 fn settings_tools_are_offered_only_with_the_runs_settings_family() {
-    // The registry offers 37 declarations with message and without settings; settings adds two.
-    const WITHOUT_SETTINGS: usize = 37;
-    const WITH_SETTINGS: usize = 39;
+    // The registry offers 38 declarations with message and without settings; settings adds two.
+    const WITHOUT_SETTINGS: usize = 38;
+    const WITH_SETTINGS: usize = 40;
     let settings = jig_domain_core::ToolFamilies::JIG.settings;
     let authority = 1 | jig_domain_core::ToolFamilies::JIG.message.0;
     for (charter, authority, allowed, count) in [
@@ -225,7 +225,7 @@ fn message_is_offered_only_with_the_runs_message_family() {
             assert_eq!(offered.next(), None, "{role}: no additional tools");
             assert_eq!(
                 charter.grants.host_tools.len(),
-                36 + usize::from(message) + 2 * usize::from(settings) + usize::from(authority & families.read.0 != 0)
+                37 + usize::from(message) + 2 * usize::from(settings) + usize::from(authority & families.read.0 != 0)
             );
         }
     }
@@ -432,6 +432,7 @@ fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
         (b"effect_forge", br#"{"repository":{"forge":1,"repository":2},"resource":{"kind":"repository"},"write":{"kind":"close","number":3}}"#, br#"{"repository":{"forge":1,"repository":2},"resource":{},"write":{"kind":"close","number":3}}"#),
         (b"subscribe_forge", br#"{"topic":{"repository":{"forge":1,"repository":2},"kind":"pull","number":3}}"#, br#"{"topic":{}}"#),
         (b"change", br#"{"words":"edit README"}"#, br#"{"words":""}"#),
+        (b"decided", br#"{"question":"Q","options":["A","B"],"took":0,"why":"W","kind":"retry"}"#, br"{}"),
         (b"goal", br#"{"words":"plan"}"#, br"{}"),
         (b"delegate", br#"{"batch":[]}"#, br#"{"batch":{}}"#),
         (b"amend", br#"{"target":3,"revision":1,"amendment":{"reason":"x"}}"#, br#"{"target":3,"amendment":{}}"#),
@@ -2926,3 +2927,6 @@ fn file_prefixes_fit_escaping_metadata_and_report_every_cut() {
         assert!(skein_lib::bytes::find(bounded.text(), required).is_some());
     }
 }
+
+#[path = "tests/decided.rs"]
+mod decided_tool;
