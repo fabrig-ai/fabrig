@@ -73,3 +73,55 @@ id = 4
 story = "both dialects' tables stand on lib's Lru"
 parts = ["lru"]
 walk = false
+
+[[part]]
+id = "http-header"
+title = "one reading of a head for both skein-http machines and skein-llm (skein D008)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/http.md, 2"
+
+[[slice]]
+id = 5
+story = "skein-http reads a head one way, and skein-llm stands on its predicates"
+parts = ["http-header"]
+walk = false
+
+[[part]]
+id = "channel-states"
+title = "the channel machine's lifecycle is states that hold their data (skein D019)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/channel.md, 8.3"
+
+[[slice]]
+id = 6
+story = "the channel machine has no flags, and goes closed in one place"
+parts = ["channel-states"]
+walk = false
+
+[[part]]
+id = "crate-tests-move"
+title = "no crate keeps a tests/ directory (skein D026)"
+mode = "direct"
+needs = ["codec-once"]
+design = "skein/docs/design/testing.md, 6"
+
+[[slice]]
+id = 7
+story = "what drives skein's crates from outside lives under skein/tests"
+parts = ["crate-tests-move"]
+walk = false
+
+[[part]]
+id = "cursor-schema"
+title = "the owner cursor is a schema's record, with goldens (jig D027)"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/client.md, 6"
+
+[[slice]]
+id = 8
+story = "a cursor's bytes are checked like every other byte format jig sends"
+parts = ["cursor-schema"]
+walk = false

@@ -108,7 +108,12 @@ intake and output caps; `sse::largest_demand` against the client's
 `Limits::chunk`; the tokenizer's against the server's `Limits::read`,
 and `writer::largest_room` against its `Limits::send`. The method and the version a start line names
 (`Method`, `Version`) and a field (`Header`) are the crate's, both sides
-the same.
+the same. So is the reading of a head: `skein_http::header` parses a field
+line and reads `Content-Length`, `Transfer-Encoding` and persistence for
+both machines, each of which keeps its own policy for what it reads
+(3.2, 5.2). A side that writes fields of its own checks and measures them
+with the module's public predicates (`is_tchar`, `is_token`, `is_field_byte`,
+`trim`, `field_len`) and `client::request_head_len`.
 
 The crate builds for `wasm32-unknown-unknown` too (lib.md, section 2), so
 a client compiled to WebAssembly stacks the same machines: the
