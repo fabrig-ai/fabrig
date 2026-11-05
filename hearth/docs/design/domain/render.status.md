@@ -13,4 +13,4 @@
   matching `Inst` triples to `Packages` stanzas in the domain. The code
   follows 5.3: the protocol layer sends `Inst` and `Stanza` events, then
   `Resolved` with the indices, tool versions and costs; the domain
-  assembles the closure.
+  assembles the closure. Section 10 keeps the question.

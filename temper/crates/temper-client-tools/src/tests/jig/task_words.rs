@@ -722,10 +722,10 @@ fn core_cut_task_words_offer_reads_and_preserve_the_failure_suffix() {
         let mut whole = skein_lib::Writer::new(words.len());
         for (offset, from) in [("0", 0), ("127", 127)] {
             let page = f::source_chunk(&core, &limits, &row, field, from);
-            let answer = f::read_answer(
-                &["task", "text", "1", "--field", name, "--from", offset],
-                c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page.clone()))),
-            );
+            let (mut root, call) = f::read_call(&["task", "text", "1", "--field", name, "--from", offset]);
+            root.limits.tools.part = u32::try_from(page.text.bytes().len()).unwrap();
+            root.serve(call, c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page.clone()))));
+            let answer = root.answer(call).unwrap();
             assert_eq!(answer.status, 0);
             assert!(skein_lib::bytes::is_utf8(&answer.stdout));
             assert!(skein_lib::bytes::find(&answer.stdout, page.text.bytes()).is_some());
@@ -955,6 +955,7 @@ fn report_chunks(
         };
         assert_eq!(*requested, from);
         let page = f::source_chunk(core, limits, row, jig_domain_core::reads::TaskTextField::Result, from);
+        root.limits.tools.part = u32::try_from(page.text.bytes().len()).unwrap();
         root.serve(call, c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page.clone()))));
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, 0);
