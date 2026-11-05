@@ -1,4 +1,4 @@
-//! The forge machine world's machine, peers, pipes and joint world, its GitHub face, and one io harness, Sockets, for the forge worlds (skein/docs/design/testing.md, 6).
+//! The forge machine world's machine, peers, pipes and joint world, and its GitHub face (skein/docs/design/testing.md, 6).
 pub mod client;
 pub mod fake_github;
 pub mod fixtures;

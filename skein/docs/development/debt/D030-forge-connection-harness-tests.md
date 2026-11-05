@@ -8,7 +8,7 @@
 - **Value:** medium
 - **Size:** M
 - **Status:** open
-- **Paid when:** forge-connection's crate tests feed its step functions events (`skein/docs/foundation/testing-strategy.md`, 2.1), and what drives the whole component over scripted HTTP lives in the machine world, with one io harness for the forge worlds.
+- **Paid when:** forge-connection's crate tests feed its step functions events (`skein/docs/foundation/testing-strategy.md`, 2.1), and what drives the whole component over scripted HTTP lives in the machine world.
 - **Measure:** `rg -l 'Harness' skein/crates/skein-forge-connection/src/tests | wc -l`: 19 at base
 
 ## What
@@ -30,5 +30,5 @@ focused suite.
 ## What pays it back
 
 Move the `Harness` tests into the machine world as scenarios, keeping
-true step tests in the crate, and give the forge worlds one io harness.
+true step tests in the crate.
 The moved tests use the fake's own server.
