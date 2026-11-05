@@ -229,6 +229,34 @@ fn a_person_answers_a_delegated_choice_and_wakes_its_goal() {
     numbered_question();
 }
 
+#[test]
+fn a_reason_past_its_choice_names_the_bound() {
+    let (mut ctl, goal) = start_goal(b"Ask me a colour");
+    let child = delegate(&mut ctl, goal, 28);
+    let number = child.to_string();
+    ctl.text(&[b"task", b"take", number.as_bytes(), b"--key", b"take-colour"]);
+    let revision = ctl.front.engine.task(child).expect("person task").revisions.person.to_string();
+    let reason = vec![b'x'; usize::try_from(RESULT_WORDS).expect("reason bound") + 1];
+    let refused =
+        ctl.call(&[b"task", b"answer", number.as_bytes(), b"--rev", revision.as_bytes(), b"1", &reason], None);
+    assert_eq!(refused.status, 2);
+    assert_eq!(
+        refused.stderr.as_ref(),
+        format!("task answer: Limit reached: task {child}'s reason for choice 1 is at most 128 bytes\n").as_bytes()
+    );
+    assert!(ctl.front.engine.task(child).expect("refused task stays live").person_answer.is_none());
+    let reason = &reason[..usize::try_from(RESULT_WORDS).expect("reason bound")];
+    ctl.text(&[b"task", b"answer", number.as_bytes(), b"--rev", revision.as_bytes(), b"1", reason]);
+    let stored =
+        ctl.front.engine.store.rows.get(&engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(child))));
+    let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) = stored else {
+        panic!("completed person task: {stored:?}");
+    };
+    assert!(
+        matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Verdict { code: BLUE, words, .. })) if words.as_ref() == reason)
+    );
+}
+
 fn result_projections(ctl: &mut Ctl, goal: u64, child: u64) {
     let assignment = ctl.front.assignments.last().expect("goal resumed");
     let word = assignment.messages.iter().find(|word| word.from == tasks::Party::Task(child)).expect("result wake");
