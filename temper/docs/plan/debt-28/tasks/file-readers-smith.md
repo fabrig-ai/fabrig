@@ -48,3 +48,7 @@ The recipe. No new test: the note's move changes no behaviour.
 ## Report
 
 As your text says, with the search's reading and the net lines.
+
+## Answers
+
+2026-11-06. How do the recipe's `file_layer::Limits` literals pass the old-forms ratchet (`full_limits` 116 against 104)? By the targeted exemption, already on the trunk with this answer: the shared `full_limits` (`tools/old_forms/old_forms.py`) skips a literal spelled `file_layer::Limits`, because `skein/docs/design/io.md`, 5, makes that literal the new form. No baseline moves, and no constructor is added. Keep your literals spelled `file_layer::Limits`, never a local `Limits` import. Merge the trunk, see `(cd smith && python3 -I -B scripts/old_forms.py)` pass at 104, then run the focused tests your report left pending for the packages that depend on what you changed, and finish.
