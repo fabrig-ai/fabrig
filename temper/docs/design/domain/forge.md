@@ -2566,7 +2566,9 @@ early, by these rules:
   work, starts instead from a merge in progress: that start, with the landing branch's tip as the
   base merged into it (`worker.md`, 4.1 and section 5). A conflict is
   left in its checkout for it to settle; its first push commits the
-  merge. One with nothing pushed or saved starts from the landing
+  merge. A tip that start already contains is no merge, so a resume with
+  nothing new adds no commit, and the head its run reported stays the
+  change's. One with nothing pushed or saved starts from the landing
   branch's tip, which now holds its dependencies' work. So a producer
   going on after an answer that added a dependency, or after an
   amendment naming a revision of the design that landed into the
