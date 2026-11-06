@@ -3100,7 +3100,7 @@ for its kind, its user's login and its installations. Its nodes:
 | not installed | "temper's App is not installed on OWNER.", with "Install on another account" (`forge.md`, 5.5) |
 | not granted | "OWNER/NAME is not granted to temper's App.", linked to the installation's page on GitHub (`forge.md`, 5.5) |
 | not found | "No repository OWNER/NAME on forge F that temper's forge user can see." |
-| no access | "temper's forge user may not read OWNER/NAME on forge F."; `temper ctl` adds "A managed or owned forge gives that access by its site admin's token, which needs write:repository: the server's log names the step." |
+| no access | "temper's forge user may not read OWNER/NAME on forge F."; `temper ctl` adds "Forgejo collaborator reads can require repository admin even when temper's forge user already has write. A repository administrator must grant temper's forge user admin; then run repository adopt again with a new key, preserving its options, and verify the human's required project role with project show. If setup could not grant access on a managed or owned Forgejo, its site admin's token needs write:repository. Check the setup failure in the server's log." |
 | refused | "The forge connector refused it: another project writes OWNER/NAME, the project has a home already, or branches under PREFIX are not this deployment's." |
 | in flight | "OWNER/NAME is being adopted already; try again when that ends." |
 | too large | "A field is past the forge's bounds, or the forge's repositories are full." |
