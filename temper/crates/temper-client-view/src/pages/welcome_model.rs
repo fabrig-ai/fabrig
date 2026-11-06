@@ -174,7 +174,13 @@ fn program(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, w
     }
     panel(b);
     text(b, root, w, Role::Paragraph, Word::WelcomeClaudeBody);
-    model::command(b, w, &page.program_name(root.client()), page.program_environment(), true);
+    super::welcome_copy::block(
+        b,
+        root,
+        w,
+        bindings,
+        &model::command_words(w, &page.program_name(root.client()), page.program_environment()),
+    );
     b.open(Role::Paragraph);
     b.style(look::FLOW_MUTED);
     w.text(b, Word::WelcomeClaudeNote, &[]);
