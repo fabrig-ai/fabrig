@@ -249,6 +249,7 @@ Design documents:
 - [`domain/landing.md`](domain/landing.status.md)
 - [`domain/after-landing.md`](domain/after-landing.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
+- [`domain/trial.md`](domain/trial.status.md)
 - [`domain/worker.md`](domain/worker.status.md)
 - [`domain/agent.md`](domain/agent.status.md)
 - [`domain/testing.md`](domain/testing.status.md)
