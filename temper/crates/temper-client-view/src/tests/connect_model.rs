@@ -216,6 +216,7 @@ pub(super) fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::Copy { .. }
             | d::Request::Fact { .. } => None,
         })
         .expect("flow sends one request")
@@ -871,7 +872,7 @@ fn the_connected_model_offers_continue_as_a_terminal_command() {
     );
 }
 
-pub(super) const ENVIRONMENT: &[u8] = b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache'";
+pub(super) const ENVIRONMENT: &[u8] = b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper";
 pub(super) fn answer_environment(root: &mut d::Domain, words: &[u8]) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let address = root.pages().address().clone();
@@ -1022,6 +1023,31 @@ fn ended_sign_ins_remove_the_note_on_both_pages() {
     }
 }
 
+#[test]
+fn both_model_pages_use_the_binary_word_the_box_answers() {
+    for welcome in [false, true] {
+        let (mut root, _) = flow_fixture(d::WayKind::Program);
+        if welcome {
+            fixtures::root_event(
+                &mut root,
+                d::Event::Went {
+                    place: d::Place::Address(d::Address::Welcome {
+                        step: d::Step::Model {
+                            way: Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::Program, source: None }),
+                        },
+                    }),
+                },
+            );
+        }
+        for (answer, expected) in [
+            (b"~/bin/temper".as_slice(), b"~/bin/temper program-login claude-pat".as_slice()),
+            (b"", b"temper program-login claude-pat"),
+        ] {
+            answer_environment(&mut root, answer);
+            assert_eq!(command_line(&root), expected, "welcome: {welcome}");
+        }
+    }
+}
 fn opened(out: &skein_lib::Queue<d::Request>, subject: &c::Subject) -> skein_lib::Token {
     out.iter()
         .find_map(|request| match request {
@@ -1037,6 +1063,7 @@ fn opened(out: &skein_lib::Queue<d::Request>, subject: &c::Subject) -> skein_lib
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::Copy { .. }
             | d::Request::Fact { .. } => None,
         })
         .unwrap()
@@ -1103,6 +1130,7 @@ pub(super) fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::Copy { .. }
             | d::Request::Fact { .. } => None,
         })
         .expect("live link reads deployment");
@@ -1180,7 +1208,7 @@ fn the_program_command_renders_its_full_wire_bound() {
 }
 
 #[test]
-fn the_program_environment_prefixes_the_standalone_command_on_both_model_pages() {
+fn the_program_environment_replaces_the_standalone_command_on_both_model_pages() {
     let way = Some(d::ModelWay { source: None, provider: PROVIDER, kind: d::WayKind::Program });
     let line = b"'/box/bin/temper' program-login --config '/box/config' --data '/box/data' --cache '/box/cache'";
     for address in [d::Address::ConnectModel { way }, d::Address::Welcome { step: d::Step::Model { way } }] {
@@ -1189,7 +1217,12 @@ fn the_program_environment_prefixes_the_standalone_command_on_both_model_pages()
         document.usable = false;
         document.settled = true;
         super::accounts::deliver(&mut root, watch, document);
-        answer_environment(&mut root, ENVIRONMENT);
-        assert_eq!(command_line(&root), [ENVIRONMENT, b" ", line, b" claude-pat"].concat());
+        for (environment, expected) in [
+            (ENVIRONMENT, [ENVIRONMENT, b" program-login claude-pat"].concat()),
+            (b"".as_slice(), b"temper program-login claude-pat".to_vec()),
+        ] {
+            answer_environment(&mut root, environment);
+            assert_eq!(command_line(&root), expected);
+        }
     }
 }
