@@ -1382,7 +1382,7 @@ keeps (`../protocol/configuration.md`, section 2).
     model among them; with neither provider's plan offered, the
     step shows Choose's cards as `ConnectModel` does. Entering from a deployment
     chooser resets the holder to the person's own. Inside a way, the
-    foot's "‹ Back" and a quiet "All ways", after the primary, return to
+    foot's "‹ Back" returns to
     Model Choose; on Choose the foot's returns to Forge. Standalone
     `ConnectModel` keeps its holder controls, "‹ All ways", its cards and
     its Ready. An account added there is the accounts page's too; a
@@ -1400,7 +1400,7 @@ keeps (`../protocol/configuration.md`, section 2).
     - *Key,* "An OpenAI API key": "From OpenAI’s platform, under API keys.
       What temper’s agents use is billed to the key’s organization."; the
       field "Key, pasted once", the panel's width; "Add key", disabled
-      until typed; "All ways"; and "Nothing checks a key when it is added:
+      until typed; and "Nothing checks a key when it is added:
       a wrong one shows once OpenAI refuses a run." Once it is added and a
       model usable, the step moves on to Ready, its address replacing the
       step's; refused, the page stays with the refusal's words.
@@ -1413,7 +1413,7 @@ keeps (`../protocol/configuration.md`, section 2).
       `program_environment` (4.6) where it has any; the muted "It makes that
       environment, then Claude Code asks you to sign in to your
       subscription there. temper never reads its login."; the primary "I’ve
-      signed in"; "All ways". "I’ve signed in" sends `DeclareProgram` under
+      signed in". "I’ve signed in" sends `DeclareProgram` under
       NAME unless an account of the person's has that source, then the
       accounts page's `CheckProgram { source }`, as `temper ctl account
       verify` does, and the step moves on to Ready at once, its address
@@ -1433,7 +1433,7 @@ keeps (`../protocol/configuration.md`, section 2).
       button.
     - *A plan's sign-in,* its way at its address with none asked, or one
       ended with no model usable, "Signing in to PLAN": `ConnectModel`'s card
-      for the way, or its ending's words and acts, in the panel; "All ways".
+      for the way, or its ending's words and acts, in the panel.
 
     *The sign-in under way* is a note in the card's place: a spinner,
     "Waiting for ChatGPT’s sign-in, in the new tab", the muted "Sign in and
@@ -2996,7 +2996,7 @@ for its kind, its user's login and its installations. Its nodes:
   `Request`, as `Reading` names a read: `adopt`, `Adopt`, `set_up`,
   `SetUp`, `connect`, `Connect`, `install`, `Install`, `reachable`,
   `Reachable`, `accept`, `Accept`, `remove_forge`, `RemoveForge`,
-  `make_repository`, `MakeRepository`,
+  `make_repository`, `MakeRepository`, `dismiss_making`, `DismissMaking`,
   `dismiss`, `Dismiss`, `looked`, `Looked`,
   `start_playground` and `end_playground`, the last two with no fields
   (below). Each is answered by the family's one record,
@@ -3066,6 +3066,12 @@ for its kind, its user's login and its installations. Its nodes:
   `name_bytes`; or *unknown*, its
   outcome no longer held (section 8), the same unknown as an
   adoption's. A refusal at admission is jig's answer, as for `Adopt`.
+- **`DismissMaking`:** of the project the failed row's `into` names, or of
+  the deployment with none (section 8): the forge's number (u16), the org
+  and the name, bounded as `MakeRepository`'s. It erases a failed row
+  (`../domain/forge.md`, 4.5), freeing its place in `forge.makings`, and is
+  answered *kept*; with no row at the name, so that a request sent again
+  joins, *kept* too; with a row that is not failed, refused as `not_failed`.
 - **`MakeRepository`:** of the project `into` names, or of the deployment
   with none (section 8): the forge's number (u16); the org and the name
   (byte strings, bounded as `Adopt`'s owner and name); `from`, `MakeFrom`:
@@ -6566,9 +6572,9 @@ own tests:
 - **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
   sections 7, 9 and 10): the forges' rows carry `makings`, `temper ctl
   forge list` says them, and Home's second step says a project's while To
-  begin shows (3.5, *Home*). The sheet "Add repositories" and a failed row's
-  dismissal wait for their look. Default: with To begin skipped, or on any
-  other page, no line says a row, and a failed row stays until asked again.
+  begin shows (3.5, *Home*), and Settings' Repositories says each of the
+  project's, with a failed one's "Copy again" and "Dismiss" (3.5, *Settings*).
+  Default: with To begin skipped, on any other page, no line says a row.
 - **A copy Home's sheet asked, once in** (3.5, *Home*): the request `ui-welcome`
   of 2026-11-05 has it ticked, then "Chats can change its code now…". Its
   making row is erased with its adoption, and the rows' intent names the set

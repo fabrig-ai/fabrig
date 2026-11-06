@@ -681,6 +681,10 @@ public address, adopted into a project when `into` names one
   row is not failed is answered *kept*, as the first, and changes
   nothing. One for a failed row replaces it, keeping `copying` when it
   copies from the same address.
+- **A failed row is dismissed** by `DismissMaking` (`../client/README.md`,
+  4.6): erased, its place in `forge.makings` free. No row at the name is
+  answered *kept*; a row not failed is refused, `NotFailed`, and goes on.
+  Admitted as `MakeRepository` is, from the row's `into`.
 - **Its state** moves one way: `Waiting`, `Making`, `Made { id, branch }`,
   `Adopting { id, branch }`, then erased; or `Failed { step, reason,
   words }`, the step `Admin`, `Org`, `Repository`, `File` or `Adoption`,
@@ -3256,10 +3260,6 @@ whole.
   Default: it holds, and is measured after landing.
 - **What lands on a goal's branch and then on main** (5.6) counts twice,
   each a change landed. Default: so, said here and in the design of Home.
-- **A failed row, dismissed** (4.5; `../draft/repository-copies.md`,
-  5.2): no request dismisses one yet; that comes with the sheet that
-  shows it. Default: asking for the name again replaces it, and failed
-  rows count against `forge.makings`.
 - **What a refused copy leaves** (4.5; skein's `forge-setup.md`,
   section 9): Forgejo keeps an empty repository at the name of a source
   it could not clone, and only the same address asked again takes it

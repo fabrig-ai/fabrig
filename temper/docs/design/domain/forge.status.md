@@ -3,6 +3,7 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
+  - 4.5: `DismissMaking`: no request erases a failed row (look-round-13's `dismiss-making`).
   - 8.2, step 3: a head already behind taking its base first stands on the fake
     forge's stories alone
     (`tests/engine/domain/tests/suite/forge_routes/update_first.rs`). The request

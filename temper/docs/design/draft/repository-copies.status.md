@@ -3,7 +3,6 @@
 2026-11-05. Where the design lags or departs from [repository-copies.md](repository-copies.md).
 
 - **Design lags:**
-  - 5.2: `../client/README.md`, 4.6: no request dismisses a failed row: it waits for the sheet that shows it (section 9); until then, asking for the name again replaces it, and failed rows count against `forge.makings`.
   - 6, 8: skein's `forge-setup.status.md`, 8: which workflow directory Actions reads when both are there is `unchecked`, so "a fact the conformance records" does not hold yet and the starter's place in a copy stands on no run; the facts a copy relies on were recorded at Forgejo 17.0.0, and the pin is 17.0.1.
   - 6: skein's `fake-forge.status.md`, 4: the fake does not answer a missing or private source "as Forgejo does": it leaves no repository, where Forgejo leaves an empty one.
   - 9: `../client/README.md`, 4.4: no sheet, "Add repositories", with its three sources, its "More" or its "Adopt it": outside Home's second step, whose sheet of its own is below, the adoption form is the one way to add a repository.
