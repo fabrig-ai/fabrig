@@ -112,6 +112,7 @@ fn a_long_reply_is_answered() {
         vec![
             type_words(b"Your reply", &edited),
             Step::Press { find: Find::named(Role::Button, b"Send reply") },
+            Step::Pause { span: temper_client_domain::pages::needs::HOLD },
             Step::Go { address: f::task_page(asker) },
             see(&edited),
         ],
