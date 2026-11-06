@@ -170,10 +170,6 @@ pub struct Connection {
     raw_cap: u32,
     json_limits: tokenizer::Limits,
 }
-#[cfg_attr(
-    feature = "seam",
-    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
-)]
 impl Connection {
     #[cfg(test)]
     pub fn new(forge: &Forge, l: &Limits, shared: Shared, deadline: Time) -> Self {
