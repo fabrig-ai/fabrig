@@ -1,7 +1,7 @@
 //! Live pieces through the existing scripted agent and engine peers (hosts.md, 6.5 and 11).
 use jig_domain_host::{FromAgent, LinkUp, LiveAsk, LiveKind, Phase, Piece};
 use jig_host_world::turn_world::World;
-use skein_lib::Token;
+use skein_lib::{Token, length::len_u64};
 
 const TEXT: LiveAsk = LiveAsk { text: true, ..LiveAsk::NONE };
 
@@ -94,7 +94,7 @@ fn an_unasked_kind_and_turn_zero_are_fenced() {
         (TEXT, vec![LiveKind::Reasoning, input]),
     ] {
         let mut world = world(2, 16, live);
-        let count = u64::try_from(kinds.len()).expect("tiny case");
+        let count = len_u64(kinds.len());
         for kind in kinds {
             world.piece(Piece { kind, ..text(1, 1, 0, b"unasked") });
         }

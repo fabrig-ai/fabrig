@@ -3,7 +3,7 @@ use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{List, Reader, Wall, Writer, bytes};
+use skein_lib::{List, Reader, Wall, Writer, bytes, length::len_u64};
 pub fn wire_setting_number(value: &c::SettingNumber, limits: &w::Limits) -> Result<w::SettingNumber, w::Problem> {
     w::SettingNumber::new(limits, w::SettingNumberParts { number: value.number })
 }
@@ -855,7 +855,7 @@ fn wire_owner_part(value: &c::Part, limits: &w::Limits) -> Result<w::Part, w::Pr
 
 // Count the bounded pieces before reserving the actual rows; an empty change allocates no rows.
 fn item_count(values: &[u8], limits: &Limits) -> Result<u32, w::Problem> {
-    if u64::try_from(values.len()).expect("piece bytes fit u64") > limits.client().document_bytes {
+    if len_u64(values.len()) > limits.client().document_bytes {
         return Err(super::too_large());
     }
     let mut reader = Reader::new(values);

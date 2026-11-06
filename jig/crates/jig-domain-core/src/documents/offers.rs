@@ -12,7 +12,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::List;
+use skein_lib::{List, length::len_u64};
 
 const MAX_ACTS: u32 = 23;
 
@@ -273,7 +273,7 @@ pub(super) fn heap_bound(limits: &DocumentLimits) -> Option<u64> {
 fn path_heap(value: &List<Box<[u8]>>, last: &super::PatternEnd) -> Option<u64> {
     let mut bytes = List::<Box<[u8]>>::price(value.len().checked_add(value.room())?)?;
     for segment in value {
-        bytes = bytes.checked_add(u64::try_from(segment.len()).ok()?)?;
+        bytes = bytes.checked_add(len_u64(segment.len()))?;
     }
     let terminal = match last {
         super::PatternEnd::Exact(value) | super::PatternEnd::Open(value) => value.len(),

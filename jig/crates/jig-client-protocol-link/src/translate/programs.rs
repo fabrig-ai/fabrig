@@ -5,9 +5,9 @@ use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{List, Reader, bytes};
+use skein_lib::{List, Reader, bytes, length::len_u64};
 fn copy(value: &[u8], room: &mut u64) -> Result<Box<[u8]>, w::Problem> {
-    charge(room, u64::try_from(value.len()).ok())?;
+    charge(room, Some(len_u64(value.len())))?;
     Ok(bytes::copy_of(value))
 }
 fn failure(value: &w::ProgramFailure) -> c::ProgramFailure {

@@ -3,6 +3,7 @@ use super::{Answer, Why};
 use crate::{Core, Limits};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
+use skein_lib::length::len_u64;
 
 /// Which source words a task text read retrieves.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -67,8 +68,8 @@ pub(crate) fn chunk(task: u64, field: TaskTextField, source: &[u8], from: u64, m
     if bytes.is_empty() && !rest.is_empty() {
         return Err(Why::Busy);
     }
-    let total = u64::try_from(source.len()).expect("source length fits");
-    let end = from.checked_add(u64::try_from(bytes.len()).expect("chunk length fits")).expect("source bound");
+    let total = len_u64(source.len());
+    let end = from.checked_add(len_u64(bytes.len())).expect("source bound");
     let next = if end < total { Some(end) } else { None };
     Ok(TaskText { task, field, from, total, next, bytes })
 }

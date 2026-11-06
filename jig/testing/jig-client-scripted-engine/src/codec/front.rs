@@ -2,7 +2,7 @@
 use super::{c, encoded, values, w};
 use crate::{Bounds, Invalid};
 use jig_client_protocol_link::{Limits, translate};
-use skein_lib::{Duration, Reader};
+use skein_lib::{Duration, Reader, length::len_u64};
 
 pub(super) fn limits(bounds: &Bounds) -> Result<Limits, Invalid> {
     let retry = Duration::from_secs(1);
@@ -121,7 +121,7 @@ pub(crate) fn ask(value: &c::Ask, bounds: &Bounds) -> Result<(), Invalid> {
     let limits = limits(bounds)?;
     let record = translate::asks::ask(value, limits.wire()).map_err(|_| Invalid::Payload)?;
     let bytes = encoded(&record, w::Ask::measure, w::Ask::encode).map_err(|_| Invalid::Payload)?;
-    if u64::try_from(bytes.len()).map_err(|_| Invalid::Payload)? > bounds.document_bytes {
+    if len_u64(bytes.len()) > bounds.document_bytes {
         return Err(Invalid::Payload);
     }
     w::Ask::decode(limits.wire(), &mut Reader::new(&bytes)).map_err(|_| Invalid::Payload)?;
