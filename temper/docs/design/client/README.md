@@ -882,27 +882,22 @@ keeps (`../protocol/configuration.md`, section 2).
     Ready, or the ending's words and acts (5.5, A sign-in). The
     terminal prints the address and opens no browser (6.5). temper
     detects no browser elsewhere (section 11, A browser on another
-    machine): the person says so, below.
+    machine): the page offers the paste to everyone, below.
+  - *While it waits,* a sign-in under way that the page draws is a note
+    in the way's card's place, the same as the welcome's and drawn by
+    the same function (*The welcome*, its Model step, *The sign-in
+    under way*).
   - *From another computer,* for a browser not on the engine's
     machine, whose provider sends it to a loopback address where
-    nothing answers. The sign-in's card on Choose offers, beside its
-    button, "This browser isn't on temper's computer ›", which sends
-    the same sign-in with no departure (no `Return`, no
-    `Request::Leave`) and keeps the page at Signing in: once answered,
-    it draws "Open ChatGPT's sign-in ›", the sign-in's address as an
-    external link, a tab of its own (the person's own click, which no
-    browser blocks as a pop-up), and *The paste* (below) under it. A
-    sign-in under way that the page draws offers the paste too, folded
-    under "Signed in, but the page couldn't be reached?"; unfolded,
-    with "Go forward to that page, or find it in your history, and
-    copy its address." first, at a departed sign-in's address come
-    back to by hand, not by the listener's return, while it still
-    waits. The tunnel still works, and needs neither.
+    nothing answers. No entry says so: that person takes the same page,
+    and *The paste* (below), folded under the note as "Signed in, but
+    the page couldn’t be reached?". The tunnel still works, and needs
+    neither.
   - *The paste:* "When ChatGPT is done, its tab shows a page that
-    can't be reached. Copy that page's whole address from the address
+    can’t be reached. Copy that page’s whole address from the address
     bar, come back here, and paste it. If a page opens instead, such
-    as another program's sign-in, close that program's sign-in and
-    start again." A field, "Address of the page that couldn't be
+    as another program’s sign-in, close that program’s sign-in and
+    start again." A field, "Address of the page that couldn’t be
     reached", and "Finish connecting", which sends jig's `FinishSignIn`
     for the sign-in's source, carrying the address, its surrounding
     spaces and line breaks trimmed, as its value (jig's
@@ -1228,15 +1223,14 @@ keeps (`../protocol/configuration.md`, section 2).
     (the user, 2026-11-04: a key is added from the accounts page):
     "ChatGPT", for the `openai` provider, "Your ChatGPT plan: sign in,
     and temper’s agents use its included usage.", the muted "Sign in,
-    in this tab · about a minute", and "Continue with ChatGPT", the
+    in a new tab · about a minute", and "Continue with ChatGPT", the
     default, the step's one primary act; and "Claude", for `anthropic`,
     "Your Claude subscription, through Claude Code on this machine, with
     a config of its own, apart from your own Claude Code.", the muted
     "One command in a terminal, on this machine", and the secondary link "Use your Claude subscription".
     A provider offering neither its sign-in nor its program has no
     card. No other provider's ways are on the welcome, the box's fake
-    model among them, and no card offers "This browser isn't on
-    temper's computer ›"; with neither provider's plan offered, the
+    model among them; with neither provider's plan offered, the
     step shows Choose's cards as `ConnectModel` does. Entering from a deployment
     chooser resets the holder to the person's own. Inside a way, the
     foot's "‹ Back" and a quiet "All ways", after the primary, return to
@@ -1258,14 +1252,7 @@ keeps (`../protocol/configuration.md`, section 2).
       field "Key, pasted once", the panel's width; "Add key", disabled
       until typed; "All ways"; and "Nothing checks a key when it is added:
       a wrong one shows once OpenAI refuses a run."
-    - *Paste,* a sign-in `elsewhere`, "Signing in to ChatGPT from another
-      computer": a numbered list, "Open ChatGPT’s sign-in › and approve
-      temper.", its first words the sign-in's link, "When ChatGPT is done,
-      its tab shows a page that can’t be reached. Copy that page’s whole
-      address from the address bar." and "Paste it here."; the field
-      "Address of the page that couldn’t be reached", a secret's entry;
-      "Finish connecting", disabled until typed; "All ways". Its refusals
-      and endings keep their words (5.5, A sign-in), in the panel.
+    - *A held sign-in,* including `elsewhere`, takes *The sign-in under way*, below.
     - *Claude,* "Your Claude subscription": "temper sets Claude Code up on
       this machine in an environment of its own: its settings, sessions
       and sign-in stay apart from your own Claude Code. In a terminal
@@ -1286,15 +1273,19 @@ keeps (`../protocol/configuration.md`, section 2).
     - *A plan's sign-in,* its way at its address with none asked, or one
       ended with no model usable, "Signing in to PLAN": `ConnectModel`'s card
       for the way, or its ending's words and acts, in the panel; "All ways".
-      The card's "This browser isn't on temper's computer ›" is how the
-      welcome reaches the paste, its Choose offering none.
 
-    *The sign-in under way,* its tab not gone yet, is a note in the card's
-    place: a spinner, "ChatGPT’s sign-in, in this tab", the muted "You sign
-    in and approve temper; ChatGPT sends this tab back to temper’s listener
-    on this machine, and on to Ready.", and under it the disclosure
-    "Signed in, but the page couldn't be reached?". *Finishing a paste* is
-    the same note, a spinner and "Finishing your sign-in…". A sign-in's
+    *The sign-in under way* is a note in the card's place: a spinner,
+    "Waiting for ChatGPT’s sign-in, in the new tab", the muted "Sign in and
+    approve temper there. This page moves on by itself.", once the address
+    is known "Open it again ›", the address as an underlined external link,
+    a tab of its own, and under the note the disclosure "Signed in, but the
+    page couldn’t be reached?", small and muted, holding *The paste*, its
+    field the note's width. A browser that refuses the new tab reads
+    "ChatGPT’s sign-in", no "in the new tab", with "Open ChatGPT’s sign-in ›"
+    as the primary button in the link's place, the person's own click. The
+    terminal reads "ChatGPT’s sign-in" too, and draws no link: it prints the
+    address (6.5). `ConnectModel` draws the same note, link and disclosure.
+    *Finishing a paste* is the same note, a spinner and "Finishing your sign-in…". A sign-in's
     other endings (declined, held, refused, the port taken) keep their
     words and acts, drawn as `ConnectModel`'s are (5.5, A sign-in). After
     the choices and before the foot, once a forge is acted on, a region
@@ -3662,8 +3653,7 @@ The words for each offered source are:
   Choose, each way is a card: a plan's sign-in, the plan's name,
   "Your ChatGPT plan. Sign in with your ChatGPT account, and temper’s
   agents use your plan’s included usage." and "In a browser · about a
-  minute", and, beside its button, "This browser isn't on temper's
-  computer ›" (3.5, `ConnectModel`, From another computer); a key, "An OpenAI API key", "A
+  minute"; a key, "An OpenAI API key", "A
   key from OpenAI’s platform. What temper’s agents use is billed to the
   key’s organization." and "Pasted here · at once"; then the way's
   button.
@@ -6193,8 +6183,8 @@ own tests:
   reaches the engine on loopback; a browser elsewhere lands on its own
   error page, and its person finishes by pasting that page's address
   (3.5, `ConnectModel`, From another computer), or through a tunnel
-  (the walk `box`, its account step). The person says which (with the
-  user, 2026-10-23). Candidates for telling by
+  (the walk `box`, its account step). Nothing asks which: the page
+  offers the paste to everyone (the user, 2026-11-06). Candidates for telling by
   itself: before the browser leaves, the page asks the listener for a
   one-time code the engine gave it for this sign-in, and only a browser
   that gets it goes on in its own tab, the others in a tab of their own
