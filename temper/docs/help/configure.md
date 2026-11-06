@@ -125,6 +125,8 @@ project and deployment; notes also need scope bits. Existing tasks do not gain
 widened authority automatically; moving revisions only changes charters.
 Instead, amend or allot their authority explicitly, or start anew.
 
+For the reference process's settings, see `temper/docs/examples/reference/README.md`.
+
 ## 3. Apply it, or propose it
 
 Deployment owners decide deployment items; project owners, their policy and

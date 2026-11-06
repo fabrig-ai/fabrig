@@ -202,6 +202,7 @@ fn configure_help_says_how_authority_widens_and_holds_no_recipe_of_the_reference
         "saved whole current `project-policy` settings item",
         "Existing tasks do not gain widened authority automatically",
         "amend or allot their authority explicitly",
+        "`temper/docs/examples/reference/README.md`",
     ] {
         assert!(text.contains(instruction), "configure help must explain: {instruction}");
     }
