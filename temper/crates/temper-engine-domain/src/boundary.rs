@@ -571,7 +571,7 @@ pub enum TryAnswer {
     NotTheirs,
 }
 /// A person's trials document (temper/docs/design/domain/trial.md, 6).
-pub const TRIALS_SUBJECT: u64 = (1 << 62) | (1 << 36);
+pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 
 /// Forge reads through party authorization (temper/docs/design/client/README.md, 4.6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1050,6 +1050,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         delivery @ (Delivery::PlaygroundNote { .. }
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
+        | Delivery::Trials { .. }
         | Delivery::Panel { .. }
         | Delivery::Application { .. }
         | Delivery::Public { .. }
