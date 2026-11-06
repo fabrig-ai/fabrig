@@ -22,7 +22,10 @@ pub enum ProgramCheck {
     NotYet,
 }
 #[derive(Debug)]
-#[expect(clippy::partial_pub_fields, reason = "request state is public; the environment has a read-only accessor")]
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "request state is public; the tab refusal and environment have read-only accessors"
+)]
 pub struct ConnectModel {
     pub holder: c::AskAccountHolder,
     pub check: ProgramCheck,
@@ -32,7 +35,7 @@ pub struct ConnectModel {
     pub request: Request,
     /// Whether the scripted model was serving when this connection was sent.
     pub playground: bool,
-    pub elsewhere: bool,
+    pub(crate) tab_refused: bool,
     program_environment: Option<Box<[u8]>>,
     environment_read: Option<Handle>,
     environment_asked: bool,
@@ -42,7 +45,6 @@ pub enum Act {
     Holder { holder: c::AskAccountHolder },
     SignIn { name: RequestKey, way: Way },
     SignedIn { name: RequestKey, way: Way },
-    SignInElsewhere { name: RequestKey, way: Way },
     Finish { name: RequestKey },
     ProgramName { value: Box<[u8]> },
     Submit { name: RequestKey },
@@ -207,9 +209,10 @@ impl ConnectModel {
         }
     }
 
+    /// Whether the shell refused this sign-in's tab (temper/docs/design/client/README.md, 3.5).
     #[must_use]
-    pub const fn elsewhere(&self) -> bool {
-        self.elsewhere
+    pub const fn tab_refused(&self) -> bool {
+        self.tab_refused || self.request.kept_refused()
     }
     pub(crate) fn changing_way(&mut self, current: &Address, next: &Address) {
         if let Address::ConnectModel { .. } = current
@@ -236,13 +239,16 @@ impl ConnectModel {
             } else {
                 None
             };
-            if next != Some(*old) {
+            let same_way = match next {
+                Some(next) => next.provider == old.provider && next.kind == old.kind,
+                None => false,
+            };
+            if !same_way {
                 self.leave_way();
             }
         }
     }
     fn leave_way(&mut self) {
-        self.elsewhere = false;
         self.request.clear_key();
     }
     pub(crate) fn leave(&mut self) {
@@ -282,16 +288,6 @@ impl ConnectModel {
         if self.request.paste.out() {
             return;
         }
-        let elsewhere = match &act {
-            Act::SignInElsewhere { .. } => true,
-            Act::SignIn { .. }
-            | Act::SignedIn { .. }
-            | Act::Holder { .. }
-            | Act::ProgramName { .. }
-            | Act::Submit { .. }
-            | Act::Finish { .. }
-            | Act::Cancel => false,
-        };
         let Some(me) = accounts::current_me(client) else { return };
         match act {
             Act::Holder { holder } => {
@@ -312,14 +308,18 @@ impl ConnectModel {
                 }
             }
             Act::Finish { name } => self.request.finish(client, name, serial, out),
-            Act::Cancel => self.request.cancel(),
-            Act::SignIn { name, way } | Act::SignInElsewhere { name, way } => {
+            Act::Cancel => {
+                self.tab_refused = false;
+                self.request.cancel();
+            }
+            Act::SignIn { name, way } => {
                 if model_way(way).kind != WayKind::SignIn
                     || !accounts::ways(&me.providers, playground, self.holder).as_slice().contains(&way)
                 {
                     return;
                 }
-                self.elsewhere = elsewhere;
+                self.tab_refused = false;
+                out.push(Output::OpenTab { provider: way.provider() });
                 self.request.send(
                     name,
                     c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: way.provider() },
@@ -544,7 +544,7 @@ impl Default for ConnectModel {
             program: None,
             request: Request::default(),
             playground: false,
-            elsewhere: false,
+            tab_refused: false,
             program_environment: None,
             environment_read: None,
             environment_asked: false,

@@ -29,7 +29,7 @@ fn check_return(story: Story, returns: usize, response: &http::Response, receive
         assert!(response.header(b"referrer-policy").is_none());
     }
     assert_eq!(response.header(b"content-type"), Some(b"text/plain; charset=utf-8".as_slice()));
-    assert_eq!(received, b"Sign-in received. You may close this page.\n");
+    assert_eq!(received, b"Sign-in received. You can close this tab.\n");
 }
 
 fn callback_url(story: Story, redirect: &[u8]) -> Vec<u8> {

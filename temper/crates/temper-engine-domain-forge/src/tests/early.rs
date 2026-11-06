@@ -122,7 +122,7 @@ fn an_early_changes_next_producer_merges_the_landing_tip_into_branch_or_saved_wo
                     base: fixtures::BASE,
                 }
             );
-            assert_eq!(item.landing, None);
+            assert_eq!(item.landing, Some(b"main".as_slice().into()));
         }
     }
 }
@@ -140,7 +140,7 @@ fn a_goal_branch_changes_next_producer_merges_the_landing_tip_into_branch_or_sav
                 base: fixtures::BASE,
             }
         );
-        assert_eq!(item.landing, None);
+        assert_eq!(item.landing, Some(b"temper/7/g7".as_slice().into()));
     }
 }
 

@@ -17,15 +17,25 @@ pub enum Report {
     Copied { token: u32, written: root::copy::Written },
     Start,
     Due,
+    TabRefused,
     Act { node: NodeId, act: Act },
     Place { path: Box<[u8]> },
     Heard(Heard),
     Carried { reports: Vec<skein_ui_web::transport::Carried>, writes: u32 },
 }
 
+/// A sign-in's tab, carried before the transport (client/browser.md, 2.1).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TabAct {
+    Open { words: Box<[u8]> },
+    Point { to: Box<[u8]> },
+    Close,
+}
+
 /// What the host asks after one report.
 #[derive(Debug, Default)]
 pub struct Duties {
+    pub tab: Vec<TabAct>,
     pub copy: Option<(u32, Box<[u8]>)>,
     pub asked: Vec<Asked>,
     pub writes: u32,
@@ -65,7 +75,7 @@ impl Host {
         let client = limits::client();
         assert!(limits::valid(&client), "web capacities are checked");
         let (bounds, words) = limits::view(&client).expect("web view capacities are checked");
-        let mut root = root::new_departing(&client, seed);
+        let mut root = root::new(&client, seed);
         root.set_zone_minutes(zone_minutes);
         Self {
             root,
@@ -94,7 +104,11 @@ impl Host {
             return;
         }
         let mut kept = List::with_capacity(u32::try_from(records.len()).expect("bounded store"));
+        let mut sign_in = None;
         for record in records {
+            if record.key.as_ref() == records::SIGN_IN_KEY {
+                sign_in = records::decode_sign_in(&record.value);
+            }
             if let Some(record) = records::decode(record) {
                 kept.push(record).expect("counted store");
             }
@@ -106,6 +120,9 @@ impl Host {
             None => jig_client::With::Transport,
         };
         self.event(Event::Start { address: self.address.clone(), kept, with: Some(with) });
+        if let Some(records::SignIn { source, address, refused }) = sign_in {
+            self.event(Event::SignInKept { source, address, refused });
+        }
         if !matches!(place, Place::Address(_)) {
             self.event(Event::Went { place });
         }
@@ -139,13 +156,15 @@ impl Host {
             Report::Copied { token, written } => self.event(Event::Copied { token, written }),
             Report::Start => {}
             Report::Due => self.due(),
+            Report::TabRefused => self.event(Event::TabRefused),
             Report::Act { node, act } => self.act(node, act),
             Report::Place { path } => self.went(&path),
             Report::Heard(heard) => self.heard(heard),
             Report::Carried { reports, writes } => self.carried(reports, writes),
         }
-        let (asked, writes) = self.duties();
+        let (asked, writes, tab) = self.duties();
         Duties {
+            tab,
             asked,
             writes,
             copy: self.copy.take(),
@@ -238,11 +257,25 @@ impl Host {
     pub fn requests(&mut self) -> Vec<Asked> {
         self.duties().0
     }
-    fn duties(&mut self) -> (Vec<Asked>, u32) {
+    fn duties(&mut self) -> (Vec<Asked>, u32, Vec<TabAct>) {
+        let mut tab = Vec::new();
         let mut asked = Vec::new();
         let mut writes = 0_u32;
         while let Some(request) = self.out.pop() {
             match request {
+                Request::Tab { tab: request } => tab.push(match request {
+                    root::Tab::Open { provider } => {
+                        TabAct::Open { words: view::opening_tab(&self.view, &self.root, provider) }
+                    }
+                    root::Tab::Point { to } => TabAct::Point { to },
+                    root::Tab::Close => TabAct::Close,
+                }),
+                Request::KeepSignIn { source, address, refused } => {
+                    asked.push(Asked::Save {
+                        key: records::SIGN_IN_KEY.into(),
+                        value: records::encode_sign_in(&records::SignIn { source, address, refused }),
+                    });
+                }
                 Request::Copy { token, words } => self.copy = Some((token, words)),
                 Request::Client { request } => {
                     if matches!(request, jig_client::Request::Save { .. } | jig_client::Request::Erase { .. }) {
@@ -272,7 +305,7 @@ impl Host {
             }
         }
         root::take(&mut self.root, &self.env, &mut self.out);
-        (asked, writes)
+        (asked, writes, tab)
     }
     #[expect(
         clippy::wildcard_enum_match_arm,
@@ -368,5 +401,42 @@ mod zone_tests {
             let host = Host::new(11, Time::ZERO, Wall::EPOCH, zone, view::sign_in::Ways::NONE);
             assert_eq!(host.root.zone_minutes(), zone);
         }
+    }
+}
+
+#[cfg(test)]
+mod tab_tests {
+    use super::*;
+
+    #[test]
+    fn tab_requests_keep_their_order_and_do_not_depart() {
+        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let to = b"https://issuer.example/sign-in".as_slice();
+        for tab in [root::Tab::Open { provider: 17 }, root::Tab::Point { to: to.into() }, root::Tab::Close] {
+            host.out.push(Request::Tab { tab });
+        }
+        let duties = host.report(Report::Start);
+        assert_eq!(
+            duties.tab,
+            vec![
+                TabAct::Open { words: "Opening ’s sign-in…".as_bytes().into() },
+                TabAct::Point { to: to.into() },
+                TabAct::Close,
+            ]
+        );
+        assert!(duties.asked.is_empty());
+        assert!(!duties.departs());
+    }
+
+    #[test]
+    fn a_tab_refusal_has_no_duty_yet() {
+        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let duties = host.report(Report::TabRefused);
+        assert!(duties.tab.is_empty());
+        assert!(duties.asked.is_empty());
+        assert_eq!(duties.writes, 0);
+        assert!(duties.navigate.is_none());
+        assert!(duties.replace.is_none());
+        assert!(duties.show.is_none());
     }
 }

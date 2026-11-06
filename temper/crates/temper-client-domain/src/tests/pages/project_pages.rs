@@ -128,7 +128,7 @@ fn switching_projects_keeps_home_settings_configure_or_chats() {
         while let Some(request) = f.out.pop() {
             match request {
                 Request::Show { address } => requested = Some(address),
-                Request::Client(_) | Request::Replace { .. } => {}
+                Request::Client(_) | Request::Replace { .. } | Request::OpenTab { .. } => {}
             }
         }
         assert_eq!(requested, shown);

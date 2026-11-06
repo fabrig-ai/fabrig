@@ -122,3 +122,6 @@ fn back_and_forward_move_between_the_list_and_a_note() {
 
 #[path = "support/live_tree.rs"]
 mod live_tree;
+
+#[path = "support/tab.rs"]
+mod tab;
