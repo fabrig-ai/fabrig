@@ -85,3 +85,15 @@ Acceptance:
 ## Report
 
 As your text says, and: **the route you proved, and how**; whether the ignored test's refusal was real; the rule each new test bit on and the failure seen; anything under `## Left`.
+
+## Rebase (2026-11-06, step merge, foreman ui-proposal-card/card-states/foreman-1)
+
+preserve the card-state tests while adding the retained proposal fields from integration
+The merge conflicts in `temper/crates/temper-client-view/src/tests/cards.rs`.
+Integration commit `566a54948c` (`Carry proposal card facts through the client wire and contract`), merged by `d79403f88e`, adds `ProposalHistory.reason` and `RetainedActionSettings.projects` to the old `replaced_and_accepted_say_so` fixture.
+This branch replaces that fixture with `decided_settings` and `an_accepted_card_keeps_its_state_line`.
+Keep both new helpers/tests and all restored, rejected, withdrawn, and replacement assertions.
+In both new `ProposalHistory` initializers, add integration’s complete `"review"` reason fixture; in both nested `RetainedActionSettings` initializers, add `projects: List::with_capacity(0)`.
+Do not restore the superseded `replaced_and_accepted_say_so` test.
+`temper/tools/gallery/src/worlds.rs` merged automatically; preserve its combined changes: `proposal.reason`, retained `projects`, and the branch’s rejected/withdrawn state selection.
+After resolving, format and run the focused card tests and relevant view/gallery checks through heavy. Compile slow-tier stories without running them.
