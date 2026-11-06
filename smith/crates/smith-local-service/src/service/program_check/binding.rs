@@ -50,7 +50,7 @@ impl Service {
             // Cancelled waiters drain before routing new requests. The active check
             // may still be stale and settling, so all N accounts can be waiting.
             waiting: Queue::uncapped(),
-            next_owner: 1_u64 << 60,
+            next_owner: 0,
             active: None,
             interrupted: 0,
         });
