@@ -2,7 +2,7 @@
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
-use skein_lib::{List, Queue, Reader, Token};
+use skein_lib::{Env, List, Queue, Reader, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,10 +65,83 @@ pub struct Trials {
     task: Option<Task>,
     pending: Option<Pending>,
     wait: Option<c::TaskRunWait>,
+    seen: Option<List<u32>>,
 }
 impl Trials {
     pub(crate) fn new() -> Self {
-        Self { rows: Box::new([]), watch: Watch::Unknown, task: None, pending: None, wait: None }
+        Self { rows: Box::new([]), watch: Watch::Unknown, task: None, pending: None, wait: None, seen: None }
+    }
+}
+
+/// Told after the pages (temper/docs/design/domain/trial.md, 6).
+/// Reads the accounts document; the page holds no state of it.
+pub(crate) fn look(root: &mut crate::Domain, env: &Env<crate::Limits>, out: &mut Queue<crate::Request>) {
+    let Some(document) = crate::pages::accounts::document(&root.client) else { return };
+    let mut usable = List::with_capacity(document.accounts.len());
+    for account in &document.accounts {
+        for source in &account.sources {
+            if source.usable {
+                usable.push(account.number).expect("one usable entry per account");
+                break;
+            }
+        }
+    }
+    let seen = root.forge.trials.seen.replace(usable);
+    let Some(seen) = seen else { return };
+    match root.pages.address() {
+        crate::Address::Welcome { step: crate::Step::Model { .. } | crate::Step::Ready }
+        | crate::Address::ConnectModel { .. } => {}
+        crate::Address::Welcome {
+            step: crate::Step::Welcome | crate::Step::WelcomeAsked | crate::Step::Forge { .. },
+        }
+        | crate::Address::Inbox { .. }
+        | crate::Address::Chats { .. }
+        | crate::Address::NewChat { .. }
+        | crate::Address::Accounts
+        | crate::Address::Forges
+        | crate::Address::ConnectForge { .. }
+        | crate::Address::Chat { .. }
+        | crate::Address::Task { .. }
+        | crate::Address::Home { .. }
+        | crate::Address::Goals { .. }
+        | crate::Address::Changes { .. }
+        | crate::Address::Settings { .. }
+        | crate::Address::Repositories { .. }
+        | crate::Address::Builders { .. }
+        | crate::Address::Configure { .. }
+        | crate::Address::Adopt { .. } => return,
+    }
+    let mut accounts = List::with_capacity(document.accounts.len());
+    for account in &document.accounts {
+        if seen.as_slice().contains(&account.number) {
+            continue;
+        }
+        if let Some(provider) = root.forge.playground_provider()
+            && account.provider == Some(provider)
+        {
+            continue;
+        }
+        let mut has_row = false;
+        for row in &root.forge.trials.rows {
+            has_row |= row.account == account.number;
+        }
+        if has_row {
+            continue;
+        }
+        for source in &account.sources {
+            if source.usable {
+                accounts.push(account.number).expect("one new entry per account");
+                break;
+            }
+        }
+    }
+    for account in &accounts {
+        crate::route::forge(
+            root,
+            env,
+            super::Event::Act { act: super::Act::TryAccount { account: *account, again: false } },
+            out,
+        );
     }
 }
 impl Side {

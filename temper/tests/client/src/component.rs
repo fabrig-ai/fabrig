@@ -176,6 +176,14 @@ impl Composition {
                         .expect("forge document"),
                 }))
             }
+            root::PartyRequest::Deliver(root::Delivery::Trials { watcher, rows }) => {
+                Some(Event::Application(clients::FromApplication::Delivery {
+                    watcher,
+                    family: temper_client_protocol_wire::FORGE,
+                    record: temper_service::family::trials(rows, &temper_client_protocol_wire::v1::CEILINGS)
+                        .expect("trial document"),
+                }))
+            }
             root::PartyRequest::Deliver(root::Delivery::ForgeDocument { watcher, document }) => {
                 Some(Event::Application(clients::FromApplication::Delivery {
                     watcher,
