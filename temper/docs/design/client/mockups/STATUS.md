@@ -289,8 +289,8 @@ Where the client's recorded picks stand against the drawing:
   project, the invitation in the playground's start.
 - **Accept**, not “Accept goal”. The chatbar carries status and own
   spend, “N spent · of B”, and no model, template, charter, host or
-  budget mode; the composer's line names the next run. Its chooser
-  stays behind the folded “Change model”.
+  budget mode; the picker under the composer names the next run's model
+  and effort (`../README.md`, 3.5, *The work's account and model*).
 - **Closed** for every ended chat's bar and list row, with no clock in
   the bar. A requester-closed chat ends its conversation with "Closed
   at CLOCK" between two hairlines (`../README.md`, 3.6). The conversation's

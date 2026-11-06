@@ -2,6 +2,8 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, *The work's account and model*, 5.5: the picker at the composer. A new chat, a chat and Configure temper
+  still draw the byline and "Change model" in the bar, with "Reset choice", "Apply to next run" and "needs an account".
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
   request `ui-pause-close`.
@@ -143,7 +145,7 @@
   that plan's cut took no new word for it.
 - **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
-  Pause or Resume, and Close, and offers Change model only with supplied choices;
+  Pause or Resume, and Close, and offers the picker only with supplied choices;
   a goal uses supplied budget units, not dollars, and offers neither the
   mock's budget field nor its earlier reports. Settings adds Configure
   temper and keeps unsupported status, funds and notification controls
