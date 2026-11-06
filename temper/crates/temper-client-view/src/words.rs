@@ -957,10 +957,10 @@ pub enum Word {
     DelegateMove,
     CancelInstead,
     TakeInstead,
-    Older,
     Latest,
     LoadingEarlier,
     LoadingEarlierName,
+    LoadingEarlierFailed,
     FirstChat,
     ChatsKicker,
     ChatsHeadlineIn,
@@ -1370,7 +1370,7 @@ const PHRASES: u32 = 1823;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 const SEGMENTS: u32 = 3150;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 44837;
+const ENGLISH_BYTES: u32 = 44862;
 const ALL: [Word; 1230] = [
     Word::CloseTitle,
     Word::CloseChat,
@@ -2294,10 +2294,10 @@ const ALL: [Word; 1230] = [
     Word::DelegateMove,
     Word::CancelInstead,
     Word::TakeInstead,
-    Word::Older,
     Word::Latest,
     Word::LoadingEarlier,
     Word::LoadingEarlierName,
+    Word::LoadingEarlierFailed,
     Word::FirstChat,
     Word::ChatsKicker,
     Word::ChatsHeadlineIn,
@@ -3562,10 +3562,10 @@ impl Word {
             Self::MessagePlaceholder => 1077,
             Self::Send => 147,
             Self::Stop => 148,
-            Self::Older => 149,
             Self::Latest => 152,
             Self::LoadingEarlier => 3783,
             Self::LoadingEarlierName => 3784,
+            Self::LoadingEarlierFailed => 3789,
             Self::FirstChat => 2183,
             Self::ChatsKicker => 3246,
             Self::ChatsHeadlineIn => 3247,
@@ -5128,10 +5128,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DelegateCancel => (&[b" ", b" is cancelled."], &[Name]),
         Word::DelegateMove => (&[b" ", b" moves to you."], &[Name]),
         Word::Stop => (&[b"Stop"], &[]),
-        Word::Older => (&[b"Older"], &[]),
         Word::Latest => (&[b"Latest"], &[]),
         Word::LoadingEarlier => (&[b"Loading earlier messages\xe2\x80\xa6"], &[]),
         Word::LoadingEarlierName => (&[b"Loading earlier messages"], &[]),
+        Word::LoadingEarlierFailed => (&[b"Couldn't load earlier messages"], &[]),
         Word::AwaySettingsTitle => (&[b"While you\xe2\x80\x99re away, agents may decide"], &[]),
         Word::AwayKinds => (&[b"Kinds of decision"], &[]),
         Word::AwayKindsLine => (&[b"Each shows afterwards as decided for you, with Overturn."], &[]),

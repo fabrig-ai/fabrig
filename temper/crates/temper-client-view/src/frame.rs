@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Token};
 use skein_ui::{Binding, Builder, Region, Role, Run};
-use temper_client_domain::{Address, Domain, pages::Act};
+use temper_client_domain::{Address, Domain, pages::Act as PageAct};
 use temper_client_domain::{ChatsFilter, GoalsFilter, pages::switcher};
 #[must_use]
 pub const fn owner() -> skein_ui::Owner {
@@ -11,6 +11,11 @@ pub const fn owner() -> skein_ui::Owner {
 #[must_use]
 pub fn link_region() -> Region {
     Region { owner: owner(), number: 0 }
+}
+#[derive(Debug)]
+enum Act {
+    Page(PageAct),
+    Reading,
 }
 #[derive(Debug)]
 pub(crate) struct Bindings {
@@ -29,7 +34,13 @@ impl Bindings {
     pub(crate) fn block_submissions(&mut self) {
         self.submissions = false;
     }
-    pub(crate) fn insert(&mut self, act: Act) -> Binding {
+    pub(crate) fn insert(&mut self, act: PageAct) -> Binding {
+        self.meaning(Act::Page(act))
+    }
+    pub(crate) fn reading(&mut self) -> Binding {
+        self.meaning(Act::Reading)
+    }
+    fn meaning(&mut self, act: Act) -> Binding {
         self.next = self.next.checked_add(1).expect("pages binding tokens fit");
         let token = Token::new(self.next);
         self.entries.push((token, act)).expect("pages bindings fit");
@@ -38,56 +49,81 @@ impl Bindings {
     pub fn decode(&self, token: Token, act: skein_ui::Act) -> Option<temper_client_domain::Action> {
         for (key, meaning) in &self.entries {
             if *key == token {
+                let meaning = match meaning {
+                    Act::Reading => {
+                        return match act {
+                            skein_ui::Act::Near { edge } => Some(temper_client_domain::Action::Pages(match edge {
+                                skein_ui::LogEdge::Head => PageAct::Older,
+                                skein_ui::LogEdge::Foot => PageAct::Newer,
+                            })),
+                            skein_ui::Act::Press
+                            | skein_ui::Act::Input { .. }
+                            | skein_ui::Act::Submit
+                            | skein_ui::Act::Toggle
+                            | skein_ui::Act::Drawing { .. } => None,
+                        };
+                    }
+                    Act::Page(meaning) => meaning,
+                };
                 if !self.submissions
-                    && let (Act::StartChat | Act::Send, skein_ui::Act::Press)
-                    | (Act::ChatWords { .. } | Act::MessageWords { .. }, skein_ui::Act::Submit) = (meaning, &act)
+                    && let (PageAct::StartChat | PageAct::Send, skein_ui::Act::Press)
+                    | (PageAct::ChatWords { .. } | PageAct::MessageWords { .. }, skein_ui::Act::Submit) =
+                        (meaning, &act)
                 {
                     return None;
                 }
                 let meaning = match (meaning, act) {
-                    (Act::Filter { filter }, skein_ui::Act::Input { value }) => {
+                    (PageAct::Filter { filter }, skein_ui::Act::Input { value }) => {
                         let mut filter = *filter;
                         filter.goal = if value.is_empty() { None } else { Some(skein_ui::number(&value)?) };
-                        Act::Filter { filter }
+                        PageAct::Filter { filter }
                     }
-                    (Act::StartWay { template }, skein_ui::Act::Toggle) => Act::StartWay { template: *template },
-                    (Act::StartAsks { always }, skein_ui::Act::Toggle) => Act::StartAsks { always: *always },
-                    (Act::StartName { .. }, skein_ui::Act::Input { value }) => Act::StartName { words: value },
-                    (Act::AmendWords { .. }, skein_ui::Act::Input { value }) => Act::AmendWords { words: value },
-                    (Act::AmendPriority { .. }, skein_ui::Act::Input { value }) => {
-                        Act::AmendPriority { priority: u32::try_from(skein_ui::number(&value)?).ok()? }
+                    (PageAct::StartWay { template }, skein_ui::Act::Toggle) => {
+                        PageAct::StartWay { template: *template }
                     }
-                    (Act::AmendTracked, skein_ui::Act::Toggle) => Act::AmendTracked,
+                    (PageAct::StartAsks { always }, skein_ui::Act::Toggle) => PageAct::StartAsks { always: *always },
+                    (PageAct::StartName { .. }, skein_ui::Act::Input { value }) => PageAct::StartName { words: value },
+                    (PageAct::AmendWords { .. }, skein_ui::Act::Input { value }) => {
+                        PageAct::AmendWords { words: value }
+                    }
+                    (PageAct::AmendPriority { .. }, skein_ui::Act::Input { value }) => {
+                        PageAct::AmendPriority { priority: u32::try_from(skein_ui::number(&value)?).ok()? }
+                    }
+                    (PageAct::AmendTracked, skein_ui::Act::Toggle) => PageAct::AmendTracked,
                     (
-                        Act::Away(choice @ temper_client_domain::pages::away::Act::Kinds { .. }),
+                        PageAct::Away(choice @ temper_client_domain::pages::away::Act::Kinds { .. }),
                         skein_ui::Act::Toggle,
-                    ) => Act::Away(*choice),
-                    (Act::ChatWords { .. }, skein_ui::Act::Input { value }) => Act::ChatWords { words: value },
-                    (Act::MessageWords { .. }, skein_ui::Act::Input { value }) => Act::MessageWords { words: value },
-                    (Act::CardWords { object, .. }, skein_ui::Act::Input { value }) => {
-                        Act::CardWords { object: *object, words: value }
+                    ) => PageAct::Away(*choice),
+                    (PageAct::ChatWords { .. }, skein_ui::Act::Input { value }) => PageAct::ChatWords { words: value },
+                    (PageAct::MessageWords { .. }, skein_ui::Act::Input { value }) => {
+                        PageAct::MessageWords { words: value }
                     }
-                    (Act::Switcher(switcher::Act::RenameWords { .. }), skein_ui::Act::Input { value }) => {
-                        Act::Switcher(switcher::Act::RenameWords { words: value })
+                    (PageAct::CardWords { object, .. }, skein_ui::Act::Input { value }) => {
+                        PageAct::CardWords { object: *object, words: value }
                     }
-                    (Act::Switcher(switcher::Act::NewWords { .. }), skein_ui::Act::Input { value }) => {
-                        Act::Switcher(switcher::Act::NewWords { words: value })
+                    (PageAct::Switcher(switcher::Act::RenameWords { .. }), skein_ui::Act::Input { value }) => {
+                        PageAct::Switcher(switcher::Act::RenameWords { words: value })
                     }
-                    (Act::Switcher(switcher::Act::RenameWords { .. }), skein_ui::Act::Submit) => {
-                        Act::Switcher(switcher::Act::Save)
+                    (PageAct::Switcher(switcher::Act::NewWords { .. }), skein_ui::Act::Input { value }) => {
+                        PageAct::Switcher(switcher::Act::NewWords { words: value })
                     }
-                    (Act::Switcher(switcher::Act::NewWords { .. }), skein_ui::Act::Submit) => {
-                        Act::Switcher(switcher::Act::Create)
+                    (PageAct::Switcher(switcher::Act::RenameWords { .. }), skein_ui::Act::Submit) => {
+                        PageAct::Switcher(switcher::Act::Save)
                     }
-                    (Act::AddChoose { start }, skein_ui::Act::Toggle) => Act::AddChoose { start: *start },
-                    (Act::AddWrite { field, .. }, skein_ui::Act::Input { value }) => {
-                        Act::AddWrite { field: *field, words: value }
+                    (PageAct::Switcher(switcher::Act::NewWords { .. }), skein_ui::Act::Submit) => {
+                        PageAct::Switcher(switcher::Act::Create)
                     }
-                    (Act::AddWrite { .. }, skein_ui::Act::Submit) => Act::AddSubmit,
-                    (Act::DefaultName { .. }, skein_ui::Act::Input { value }) => Act::DefaultName { words: value },
-                    (Act::DefaultName { .. }, skein_ui::Act::Submit) => Act::MakeDefault,
-                    (Act::ChatWords { .. }, skein_ui::Act::Submit) => Act::StartChat,
-                    (Act::MessageWords { .. }, skein_ui::Act::Submit) => Act::Send,
+                    (PageAct::AddChoose { start }, skein_ui::Act::Toggle) => PageAct::AddChoose { start: *start },
+                    (PageAct::AddWrite { field, .. }, skein_ui::Act::Input { value }) => {
+                        PageAct::AddWrite { field: *field, words: value }
+                    }
+                    (PageAct::AddWrite { .. }, skein_ui::Act::Submit) => PageAct::AddSubmit,
+                    (PageAct::DefaultName { .. }, skein_ui::Act::Input { value }) => {
+                        PageAct::DefaultName { words: value }
+                    }
+                    (PageAct::DefaultName { .. }, skein_ui::Act::Submit) => PageAct::MakeDefault,
+                    (PageAct::ChatWords { .. }, skein_ui::Act::Submit) => PageAct::StartChat,
+                    (PageAct::MessageWords { .. }, skein_ui::Act::Submit) => PageAct::Send,
                     (meaning, skein_ui::Act::Press) => meaning.clone(),
                     _ => return None,
                 };
@@ -106,7 +142,7 @@ fn text(builder: &mut Builder, role: Role, words: &[u8], style: Option<skein_ui:
     builder.text(Run::Plain, words);
     builder.close();
 }
-fn action(builder: &mut Builder, role: Role, words: &[u8], act: Act, current: bool, bindings: &mut Bindings) {
+fn action(builder: &mut Builder, role: Role, words: &[u8], act: PageAct, current: bool, bindings: &mut Bindings) {
     if role == Role::Link {
         crate::link(builder, words, bindings.insert(act));
         builder.text(Run::Plain, words);
@@ -198,13 +234,13 @@ pub(crate) fn switcher(
                     if selected {
                         builder.state(skein_ui::State::Pressed);
                     }
-                    builder.bind(bindings.insert(Act::Project { project: row.project }));
+                    builder.bind(bindings.insert(PageAct::Project { project: row.project }));
                     builder.close();
                     if selected && place == Place::Banner && row.role == jig_client::contract::HeldRole::Owner {
                         builder.open(Role::Button);
                         builder.style(crate::look::PROJECT_RENAME);
                         builder.name(&words.say(crate::words::Word::Rename, &[]));
-                        builder.bind(bindings.insert(Act::Switcher(switcher::Act::Rename)));
+                        builder.bind(bindings.insert(PageAct::Switcher(switcher::Act::Rename)));
                         builder.close();
                     }
                 }
@@ -222,7 +258,7 @@ pub(crate) fn switcher(
                     builder.open(Role::Button);
                     builder.style(crate::look::PROJECT_RENAME);
                     builder.name(&words.say(crate::words::Word::RenameProject, &[skein_ui::phrases::Hole::Name(name)]));
-                    builder.bind(bindings.insert(Act::Switcher(switcher::Act::Rename)));
+                    builder.bind(bindings.insert(PageAct::Switcher(switcher::Act::Rename)));
                     builder.close();
                 }
             }
@@ -232,7 +268,7 @@ pub(crate) fn switcher(
             if let Some(project) = project {
                 let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
                 let label = words.say(crate::words::Word::SettingsFor, &[skein_ui::phrases::Hole::Name(name)]);
-                crate::link(builder, &label, bindings.insert(Act::Go { address: Address::Settings { project } }));
+                crate::link(builder, &label, bindings.insert(PageAct::Go { address: Address::Settings { project } }));
                 builder.text(Run::Plain, &label);
                 builder.close();
             }
@@ -304,7 +340,7 @@ fn rename_form(b: &mut Builder, root: &Domain, words: &crate::words::Words, proj
     if pending {
         b.state(skein_ui::State::Disabled);
     }
-    b.bind(bindings.insert(Act::Switcher(switcher::Act::RenameWords { words: Box::default() })));
+    b.bind(bindings.insert(PageAct::Switcher(switcher::Act::RenameWords { words: Box::default() })));
     b.close();
     switcher_refusal(b, words, switcher, switcher::Form::Rename);
     switcher_button(b, words, Word::Save, switcher::Act::Save, pending, bindings);
@@ -313,7 +349,7 @@ fn rename_form(b: &mut Builder, root: &Domain, words: &crate::words::Words, proj
     if switcher.pending() == Some(switcher::Form::Rename) {
         b.state(skein_ui::State::Disabled);
     }
-    b.bind(bindings.insert(Act::Switcher(switcher::Act::Cancel)));
+    b.bind(bindings.insert(PageAct::Switcher(switcher::Act::Cancel)));
     b.shortcut(skein_ui::Shortcut::ESCAPE);
     b.close();
     b.close();
@@ -333,7 +369,7 @@ fn new_project_form(b: &mut Builder, root: &Domain, words: &crate::words::Words,
     if pending {
         b.state(skein_ui::State::Disabled);
     }
-    b.bind(bindings.insert(Act::Switcher(switcher::Act::NewWords { words: Box::default() })));
+    b.bind(bindings.insert(PageAct::Switcher(switcher::Act::NewWords { words: Box::default() })));
     b.close();
     switcher_refusal(b, words, switcher, switcher::Form::New);
     switcher_button(b, words, Word::CreateProject, switcher::Act::Create, pending, bindings);
@@ -352,7 +388,7 @@ fn switcher_button(
     if pending {
         b.state(skein_ui::State::Disabled);
     }
-    b.bind(bindings.insert(Act::Switcher(act)));
+    b.bind(bindings.insert(PageAct::Switcher(act)));
     b.close();
 }
 fn switcher_refusal(b: &mut Builder, words: &crate::words::Words, switcher: &switcher::Switcher, form: switcher::Form) {
@@ -398,7 +434,7 @@ pub(crate) fn banner(
     } else {
         (crate::words::Word::BrandChats, Address::Chats { filter: ChatsFilter::All })
     };
-    crate::link(builder, &words.say(brand, &[]), bindings.insert(Act::Go { address }));
+    crate::link(builder, &words.say(brand, &[]), bindings.insert(PageAct::Go { address }));
     builder.style(crate::look::BRAND);
     builder.text(Run::Plain, &words.say(crate::words::Word::Brand, &[]));
     builder.close();
@@ -462,7 +498,7 @@ pub(crate) fn banner(
         text(builder, Role::Alert, &words.say(crate::words::Word::SignOutLost, &[]), None);
     }
     if me.is_some() || root.client().link().sign_out_lost {
-        action(builder, Role::Button, &words.say(crate::words::Word::SignOut, &[]), Act::SignOut, false, bindings);
+        action(builder, Role::Button, &words.say(crate::words::Word::SignOut, &[]), PageAct::SignOut, false, bindings);
     }
     builder.close();
     builder.close();
@@ -511,7 +547,7 @@ pub(crate) fn rail(
     b.style(crate::look::RAIL);
     let name = crate::pages::project_name(root.pages().me(root.client()), project).expect("open project has a name");
     b.name(&name);
-    crate::link(b, &w.say(Word::BrandHome, &[]), bindings.insert(Act::Go { address: Address::Home { project } }));
+    crate::link(b, &w.say(Word::BrandHome, &[]), bindings.insert(PageAct::Go { address: Address::Home { project } }));
     b.style(crate::look::BRAND);
     w.text(b, Word::Brand, &[]);
     b.close();
@@ -536,7 +572,11 @@ pub(crate) fn rail(
     b.close();
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NEW);
-    crate::link(b, &w.say(Word::NewChat, &[]), bindings.insert(Act::Go { address: Address::NewChat { draft: false } }));
+    crate::link(
+        b,
+        &w.say(Word::NewChat, &[]),
+        bindings.insert(PageAct::Go { address: Address::NewChat { draft: false } }),
+    );
     w.text(b, Word::NewChatLink, &[]);
     b.close();
     b.open(Role::Menu);
@@ -551,13 +591,13 @@ pub(crate) fn rail(
         b.open(Role::MenuItem);
         b.name(&w.say(name, &[]));
         b.description(&w.say(description, &[]));
-        b.bind(bindings.insert(Act::Go { address: Address::NewChat { draft } }));
+        b.bind(bindings.insert(PageAct::Go { address: Address::NewChat { draft } }));
         b.close();
     }
     b.open(Role::MenuItem);
     b.style(crate::look::RAIL_NEW_ALL);
     b.name(&w.say(Word::RailNewAll, &[]));
-    b.bind(bindings.insert(Act::Go { address: Address::Settings { project } }));
+    b.bind(bindings.insert(PageAct::Go { address: Address::Settings { project } }));
     b.close();
     b.close();
     b.close();
@@ -610,9 +650,10 @@ fn person(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mu
             b.style(crate::look::RAIL_PERSON);
             b.open(Role::Menu);
             b.name(me.party.name.bytes());
-            for (word, act) in
-                [(Word::SettingsAccountsTab, Act::Go { address: Address::Accounts }), (Word::SignOut, Act::SignOut)]
-            {
+            for (word, act) in [
+                (Word::SettingsAccountsTab, PageAct::Go { address: Address::Accounts }),
+                (Word::SignOut, PageAct::SignOut),
+            ] {
                 b.open(Role::MenuItem);
                 b.name(&w.say(word, &[]));
                 b.bind(bindings.insert(act));
@@ -658,7 +699,7 @@ fn away(
     b.open(Role::Button);
     b.style(style);
     b.name(&said);
-    b.bind(bindings.insert(Act::Away(temper_client_domain::pages::away::Act::Toggle { project })));
+    b.bind(bindings.insert(PageAct::Away(temper_client_domain::pages::away::Act::Toggle { project })));
     if on {
         b.state(skein_ui::State::Pressed);
     }
@@ -749,7 +790,14 @@ fn entries(
 ) {
     use crate::words::Word;
     let Shown { home, inbox, chats, changes } = shown;
-    action(b, Role::Link, &w.say(Word::RailHome, &[]), Act::Go { address: Address::Home { project } }, home, bindings);
+    action(
+        b,
+        Role::Link,
+        &w.say(Word::RailHome, &[]),
+        PageAct::Go { address: Address::Home { project } },
+        home,
+        bindings,
+    );
     let count = root.pages().needs().count(root.client(), project);
     let name = if count.count == 0 {
         w.say(Word::NeedsYou, &[])
@@ -762,7 +810,7 @@ fn entries(
     crate::link(
         b,
         &name,
-        bindings.insert(Act::Go {
+        bindings.insert(PageAct::Go {
             address: Address::Inbox {
                 filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None },
             },
@@ -789,7 +837,7 @@ fn entries(
             b,
             Role::Link,
             &w.say(Word::Goals, &[]),
-            Act::Go { address: Address::Goals { project, filter: GoalsFilter::All } },
+            PageAct::Go { address: Address::Goals { project, filter: GoalsFilter::All } },
             goals_current(root),
             bindings,
         );
@@ -798,7 +846,7 @@ fn entries(
         b,
         Role::Link,
         &w.say(Word::Chats, &[]),
-        Act::Go { address: Address::Chats { filter: ChatsFilter::All } },
+        PageAct::Go { address: Address::Chats { filter: ChatsFilter::All } },
         chats,
         bindings,
     );
@@ -807,7 +855,7 @@ fn entries(
             b,
             Role::Link,
             &w.say(Word::Changes, &[]),
-            Act::Go { address: Address::Changes { project } },
+            PageAct::Go { address: Address::Changes { project } },
             root.pages().address() == &(Address::Changes { project }),
             bindings,
         );
@@ -816,7 +864,7 @@ fn entries(
 
 fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings, project: u32) {
     let name = w.say(crate::words::Word::RailSettings, &[]);
-    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Settings { project } }));
+    crate::link(b, &name, bindings.insert(PageAct::Go { address: Address::Settings { project } }));
     b.text(Run::Plain, &name);
     let current = match root.pages().address() {
         Address::Settings { .. }
@@ -885,7 +933,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
     crate::link(
         builder,
         &name,
-        bindings.insert(Act::Go { address: Address::Inbox { filter: temper_client_domain::address::Filter::ALL } }),
+        bindings.insert(PageAct::Go { address: Address::Inbox { filter: temper_client_domain::address::Filter::ALL } }),
     );
     if inbox_current {
         builder.state(skein_ui::State::Current);
@@ -906,7 +954,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         builder,
         Role::Link,
         &words.say(crate::words::Word::Chats, &[]),
-        Act::Go { address: Address::Chats { filter: ChatsFilter::All } },
+        PageAct::Go { address: Address::Chats { filter: ChatsFilter::All } },
         match root.pages().address() {
             Address::Chats { .. } | Address::NewChat { .. } | Address::Chat { .. } => true,
             Address::ConnectForge { .. }
@@ -932,7 +980,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             builder,
             Role::Link,
             &words.say(crate::words::Word::Adoption, &[]),
-            Act::Go { address: Address::Adopt { project } },
+            PageAct::Go { address: Address::Adopt { project } },
             adopt_current,
             bindings,
         );
@@ -975,7 +1023,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
     crate::link(
         builder,
         &words.say(crate::words::Word::ForgesTitle, &[]),
-        bindings.insert(Act::Go { address: Address::Forges }),
+        bindings.insert(PageAct::Go { address: Address::Forges }),
     );
     let current = match root.pages().address() {
         Address::Forges | Address::ConnectForge { .. } => true,
@@ -1012,7 +1060,7 @@ pub(crate) fn accounts_link(
     bindings: &mut Bindings,
 ) {
     let name = crate::accounts::words::say(words, crate::accounts::words::Word::Accounts, &[]);
-    crate::link(builder, &name, bindings.insert(Act::Go { address: Address::Accounts }));
+    crate::link(builder, &name, bindings.insert(PageAct::Go { address: Address::Accounts }));
     builder.text(Run::Plain, &name);
     if match root.pages().address() {
         Address::Accounts | Address::ConnectModel { .. } => true,
@@ -1134,7 +1182,14 @@ pub(crate) fn toast(
                 ..
             })) = outcome
             {
-                action(b, Role::Button, &w.say(Word::LookAgain, &[]), Act::Needs(needs::Act::Dismiss), false, bindings);
+                action(
+                    b,
+                    Role::Button,
+                    &w.say(Word::LookAgain, &[]),
+                    PageAct::Needs(needs::Act::Dismiss),
+                    false,
+                    bindings,
+                );
             }
         }
         Toasted::AwayOn { .. }
@@ -1153,7 +1208,7 @@ pub(crate) fn toast(
             b,
             Role::Button,
             &w.say(Word::AwayLimits, &[]),
-            Act::Away(temper_client_domain::pages::away::Act::Limits { project: *project }),
+            PageAct::Away(temper_client_domain::pages::away::Act::Limits { project: *project }),
             false,
             bindings,
         );
@@ -1161,7 +1216,14 @@ pub(crate) fn toast(
     if let Some(object) = undo
         && session.held(object)
     {
-        action(b, Role::Button, &w.say(Word::ToastUndo, &[]), Act::Needs(needs::Act::Undo { object }), false, bindings);
+        action(
+            b,
+            Role::Button,
+            &w.say(Word::ToastUndo, &[]),
+            PageAct::Needs(needs::Act::Undo { object }),
+            false,
+            bindings,
+        );
     }
     b.close();
 }

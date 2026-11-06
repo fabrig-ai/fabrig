@@ -67,13 +67,7 @@ pub(crate) fn main(
             run_heading(b, run, words);
         }
         super::task::controls(b, &task.chip, root, words, bindings, rows);
-        super::chat::older(
-            b,
-            &page.thread,
-            !page.thread.lines.edges.reaches(jig_client::thread::window::End::After),
-            words,
-            bindings,
-        );
+        super::chat::older(b, &page.thread, words);
         super::chat::conversation(
             b,
             &page.thread,
