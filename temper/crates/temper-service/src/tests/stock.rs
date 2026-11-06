@@ -12,6 +12,7 @@ pub(super) fn generated() -> Box<[u8]> {
     use core::num::NonZeroU16;
     let answer = temper_init::files(
         &temper_init::Facts {
+            sign_in: false,
             binary: b"/bin/temper",
             git: Some(b"/bin/git"),
             claude: None,

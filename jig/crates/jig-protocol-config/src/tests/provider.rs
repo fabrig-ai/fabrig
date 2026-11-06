@@ -54,7 +54,7 @@ fn provider_is_optional_and_its_private_paths_are_data_paths() {
     let engine = crate::engine(&document, 0, &dirs, crate::Defaults::Document).unwrap();
     let provider = engine.clients.provider.unwrap();
     assert_eq!(provider.key.as_ref(), b"/data/secrets/provider.pem");
-    assert_eq!(provider.clients[0].secret.as_ref(), b"/data/secrets/app");
+    assert_eq!(provider.clients[0].secret.as_deref(), Some(b"/data/secrets/app".as_slice()));
     assert_eq!(provider.addresses.as_ref(), &[3]);
 }
 #[test]
@@ -140,9 +140,8 @@ fn provider_redirects_require_https_or_loopback_http_with_a_port_and_no_fragment
     }
 }
 #[test]
-fn address_providers_must_be_of_kind_application_and_paths_must_be_data_paths() {
-    for value in [br#""addresses":[0]"#.as_slice(), br#""addresses":[1]"#, br#""addresses":[2]"#, br#""addresses":[4]"#]
-    {
+fn address_providers_must_be_application_or_link_and_paths_must_be_data_paths() {
+    for value in [br#""addresses":[0]"#.as_slice(), br#""addresses":[2]"#, br#""addresses":[4]"#] {
         refuses(
             br#""addresses":[3]"#,
             value,
@@ -327,7 +326,10 @@ fn issuer_member_paths(pem: &[u8], scratch: &std::path::Path) {
     let secret = Secret::new(fs::read(file).expect("client secret").into_boxed_slice());
     let mut engine = fixtures::engine(&bytes()).unwrap();
     let provider = engine.clients.provider.as_mut().expect("configured provider");
-    let files = [(provider.key.clone(), Secret::new(Box::from(pem))), (provider.clients[0].secret.clone(), secret)];
+    let files = [
+        (provider.key.clone(), Secret::new(Box::from(pem))),
+        (provider.clients[0].secret.clone().expect("confidential client"), secret),
+    ];
     let limits = crate::profile(crate::Profile::Small).clients;
     let issuer = provider_issuer(provider, &files, issuer_urls(), &limits).expect("issuer built from private bytes");
     assert!(issuer.discovery().starts_with(b"{\"issuer\":\"https://app.example.com\""));
@@ -339,15 +341,42 @@ fn issuer_member_paths(pem: &[u8], scratch: &std::path::Path) {
         provider_issuer(provider, &files[..1], issuer_urls(), &limits).unwrap_err(),
         Problem { path: client_path().member(b"secret"), what: What::Unreadable }
     );
-    let empty =
-        [(provider.key.clone(), files[0].1.clone()), (provider.clients[0].secret.clone(), Secret::new(Box::new([])))];
+    let empty = [
+        (provider.key.clone(), files[0].1.clone()),
+        (provider.clients[0].secret.clone().expect("confidential client"), Secret::new(Box::new([]))),
+    ];
     assert_eq!(
         provider_issuer(provider, &empty, issuer_urls(), &limits).unwrap_err(),
         Problem { path: client_path().member(b"secret"), what: What::Bound }
     );
+    provider.clients[0].secret = None;
+    let public =
+        provider_issuer(provider, &files[..1], issuer_urls(), &limits).expect("public issuer needs no secret file");
+    let request = public.token_request(None, Some(b"application/x-www-form-urlencoded"), b"grant_type=authorization_code&client_id=app&code=code&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk").expect("public client passed through");
+    assert_eq!(request.client.as_ref(), b"app");
     provider.clients[0].redirect_uri = Box::from(b"https://app.example.com:0/callback".as_slice());
     assert_eq!(
         provider_issuer(provider, &files, issuer_urls(), &limits).unwrap_err(),
         Problem { path: client_path().member(b"redirect_uri"), what: What::Form }
+    );
+}
+
+#[test]
+fn public_secret_is_required_nullable_and_has_no_file() {
+    let bytes = fixtures::with(&bytes(), br#""secret":"secrets/app""#, br#""secret":null"#);
+    let engine = fixtures::engine(&bytes).expect("public provider client");
+    assert!(engine.clients.provider.as_ref().expect("provider").clients[0].secret.is_none());
+    for file in crate::files(&engine) {
+        assert_ne!(file.at, client_path().member(b"secret"));
+    }
+    refuses(b"\"secret\":\"secrets/app\",", b"", client_path().member(b"secret"), What::Missing);
+}
+
+#[test]
+fn addresses_accept_the_link_provider() {
+    let document = fixtures::with(&bytes(), br#""addresses":[3]"#, br#""addresses":[1,3]"#);
+    assert_eq!(
+        fixtures::engine(&document).expect("link and application").clients.provider.unwrap().addresses.as_ref(),
+        &[1, 3]
     );
 }

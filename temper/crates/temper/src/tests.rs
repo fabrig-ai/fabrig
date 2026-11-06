@@ -47,6 +47,7 @@ fn directory_commands_take_flags_after_their_command_words() {
         (vec!["forge", "remove", "1"], true),
         (vec!["forge", "run", "1", "runner"], true),
         (vec!["forge", "sign-in", "1"], true),
+        (vec!["forge", "source", "1"], true),
         (vec!["unknown"], false),
     ] {
         let mut words: Vec<Box<[u8]>> = words.iter().map(|v| Box::from(v.as_bytes())).collect();

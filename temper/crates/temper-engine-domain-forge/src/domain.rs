@@ -6516,7 +6516,9 @@ fn failed_at(held: &crate::Connection, failed: Option<crate::FailedStep>) -> Opt
     match held {
         crate::Connection::SettingUp { step: Some(crate::SetUpStep::Fetch) } => Some(crate::FailedStep::Fetch),
         crate::Connection::SettingUp { step: Some(crate::SetUpStep::Prepare) } => Some(crate::FailedStep::Prepare),
-        crate::Connection::SettingUp { step: Some(crate::SetUpStep::Run) } => Some(crate::FailedStep::Run),
+        crate::Connection::SettingUp { step: Some(crate::SetUpStep::Run | crate::SetUpStep::Source) } => {
+            Some(crate::FailedStep::Run)
+        }
         crate::Connection::Connecting => Some(crate::FailedStep::Connect),
         crate::Connection::SetUpFailed { .. } => failed,
         crate::Connection::NotConnected

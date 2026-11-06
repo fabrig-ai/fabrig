@@ -886,6 +886,7 @@ fn encode_rows(rows: &[Row], digest: Option<Digest>, out: &mut Encoder) {
                         Step::Fetch => b"fetch",
                         Step::Prepare => b"prepare",
                         Step::Run => b"run",
+                        Step::Source => b"source",
                     });
                 }
             }
