@@ -1110,6 +1110,14 @@ pub static FIELDS: [Field; 196] = [
         line: b"A person in this role.",
     },
     Field {
+        shape: Shape::Delegate,
+        name: b"job",
+        value: Value::Integer(Width::U32),
+        list: None,
+        null: false,
+        line: b"This job: 3 is the project's merge job.",
+    },
+    Field {
         shape: Shape::Resource,
         name: b"connector",
         value: Value::Integer(Width::U16),
