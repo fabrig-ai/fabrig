@@ -461,8 +461,8 @@ fn box_terminal_line(line: &str) -> bool {
     line.is_empty()
         || [
             "Open this link in a browser on this machine.",
-            "It signs you in as this temper's owner, once and for a short while.",
-            "Opened again once spent, it prints a fresh one here.",
+            "It signs you in as this temper's owner, once, within 2 hours.",
+            "Opened after that, it prints a fresh one here.",
         ]
         .contains(&line)
         || words.starts_with("box: ")

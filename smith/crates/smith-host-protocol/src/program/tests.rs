@@ -118,3 +118,105 @@ fn cancellation_answers_only_after_resources_settle() {
     source.cancel(&mut below);
     assert!(below.is_empty());
 }
+
+fn inspection() -> (SourceInspection, Queue<skein_io::file::Request>) {
+    let mut requests = Queue::uncapped();
+    let inspection = SourceInspection::new(
+        Token::new(1),
+        kernel::Fd::new(3),
+        b"programs".as_slice().into(),
+        SourceName::new(b"work").expect("source name"),
+        1000,
+        Time::from_nanos(100),
+        &mut requests,
+    );
+    let Some(skein_io::file::Request::OpenDirectory { no_follow: true, name, .. }) = requests.pop() else {
+        panic!("inspection opens without following links");
+    };
+    assert_eq!(name.as_ref(), b"programs");
+    (inspection, requests)
+}
+
+fn inspection_failed(inspection: &mut SourceInspection, reason: FailureReason) {
+    let Some(Err(ProgramCheck::Failed(failure))) = inspection.answer() else { panic!("inspection refuses") };
+    assert_eq!(failure.reason, reason);
+    assert!(!failure.detail.is_empty());
+    assert_eq!(inspection.answer(), None, "one inspection answer");
+    inspection.fire(Time::from_nanos(100));
+    assert_eq!(inspection.answer(), None, "a settled inspection stays settled");
+}
+
+#[test]
+fn inspection_refuses_unsafe_metadata_and_open_errors_without_spawning() {
+    use skein_io::file::{Event, Request};
+    let owner = Token::new(1);
+    let private = kernel::Stat { kind: kernel::Kind::Directory, size: 0, mode: 0o700, owner: 1000, links: 1 };
+    for stat in [
+        kernel::Stat { owner: 1001, ..private },
+        kernel::Stat { kind: kernel::Kind::File, ..private },
+        kernel::Stat { kind: kernel::Kind::Symlink, ..private },
+        kernel::Stat { kind: kernel::Kind::Other, ..private },
+        kernel::Stat { mode: 0o710, ..private },
+        kernel::Stat { mode: 0o701, ..private },
+    ] {
+        let (mut inspection, mut requests) = inspection();
+        inspection.from_file(Event::Opened { owner, file: Token::new(2), len: 0 }, &mut requests);
+        let Some(Request::Stat { .. }) = requests.pop() else { panic!("opened directory is stated") };
+        inspection.from_file(Event::Stated { owner, stat }, &mut requests);
+        assert_eq!(inspection.answer(), None, "refusal waits for close");
+        let Some(Request::Close { .. }) = requests.pop() else { panic!("opened directory is closed") };
+        inspection.from_file(Event::Closed { owner }, &mut requests);
+        inspection_failed(&mut inspection, FailureReason::Unreadable);
+        assert!(requests.is_empty(), "unsafe programs directory never opens the source");
+    }
+    for error in [kernel::Error::NotADirectory, kernel::Error::Permission, kernel::Error::Other(5)] {
+        let (mut inspection, mut requests) = inspection();
+        inspection.from_file(Event::Failed { owner, error, committed: false, residue: None }, &mut requests);
+        inspection_failed(&mut inspection, FailureReason::Unreadable);
+        assert!(requests.is_empty());
+    }
+}
+
+#[test]
+fn inspection_deadline_waits_for_each_open_stat_or_close_to_settle() {
+    use skein_io::file::{Event, Request};
+    let owner = Token::new(1);
+    for phase in 0_u8..3 {
+        let (mut inspection, mut requests) = inspection();
+        if phase > 0 {
+            inspection.from_file(Event::Opened { owner, file: Token::new(2), len: 0 }, &mut requests);
+            let Some(Request::Stat { .. }) = requests.pop() else { panic!("opened directory is stated") };
+        }
+        if phase > 1 {
+            inspection.from_file(
+                Event::Stated {
+                    owner,
+                    stat: kernel::Stat { kind: kernel::Kind::Directory, size: 0, mode: 0o700, owner: 1000, links: 1 },
+                },
+                &mut requests,
+            );
+            let Some(Request::Close { .. }) = requests.pop() else { panic!("opened directory is closed") };
+        }
+        inspection.fire(Time::from_nanos(99));
+        assert_eq!(inspection.next_deadline(), Some(Time::from_nanos(100)));
+        inspection.fire(Time::from_nanos(100));
+        assert_eq!(inspection.next_deadline(), None);
+        assert_eq!(inspection.answer(), None, "deadline waits for the file terminal");
+        if phase == 0 {
+            inspection.from_file(Event::Opened { owner, file: Token::new(2), len: 0 }, &mut requests);
+            let Some(Request::Close { .. }) = requests.pop() else { panic!("opened directory is closed") };
+        } else if phase == 1 {
+            inspection.from_file(
+                Event::Stated {
+                    owner,
+                    stat: kernel::Stat { kind: kernel::Kind::Directory, size: 0, mode: 0o755, owner: 1000, links: 1 },
+                },
+                &mut requests,
+            );
+            let Some(Request::Close { .. }) = requests.pop() else { panic!("opened directory is closed") };
+        }
+        inspection.from_file(Event::Closed { owner }, &mut requests);
+        inspection_failed(&mut inspection, FailureReason::Deadline);
+        assert!(requests.is_empty(), "deadline never opens the source");
+    }
+}

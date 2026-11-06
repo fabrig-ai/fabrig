@@ -1630,8 +1630,8 @@ temper box
 
   http://127.0.0.1:8367/jig/v1/sign-in/link?secret=...
 
-  It signs you in as this temper's owner, once and for a short while.
-  Opened again once spent, it prints a fresh one here.
+  It signs you in as this temper's owner, once, within 2 hours.
+  Opened after that, it prints a fresh one here.
   ```
 
   The box draws the link's secret as jig's sign-in component draws one
@@ -1876,10 +1876,11 @@ into the effective sandbox. Box startup performs no build or fetch.
 
 A sandbox init writes takes the kernel's ports, a bind of port 0 for each
 of its five, never the 8367 to 8371 a person's box prefers (8.2). So a
-fake box leaves those to the box a person starts after it, and two fake
-boxes, either of them restarted, never meet on a port. They are written
-fixed and held as init's are, and the printed link names them. An
-init-shaped source's listeners stay its own.
+fake box leaves those to the box a person starts after it, and no two fake
+boxes ask for one port. They are written fixed and held as init's are, and
+the printed link names them. A stopped box holds none, so a port the kernel
+hands on meanwhile refuses its restart, naming the port. An init-shaped
+source's listeners stay its own.
 
 After the sign-in block (7.2), before any supervised peer starts, the box
 prints the effective directories, the fakes' origins and the files a walk

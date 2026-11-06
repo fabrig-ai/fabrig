@@ -648,6 +648,10 @@ Each adds without changing what sections 3 to 5, 15, 17 and 18 settle.
 - **jig's own drawing kinds:** a chart every application shares, drawn
   by jig's `draw` (section 17). A kind moves into jig, as jig's, when a
   second application draws the same.
+- **A held conversation's wait:** a conversations row says a held task's
+  status and, when it awaits nothing else, `Nothing awaited` beside it,
+  since `WaitsOn` names no hold. `held` (client.md, section 19) is the word
+  for it, once a row reads its chip.
 
 ## 17. Scenes
 

@@ -6,7 +6,7 @@ use jig_client_shell_web::{adapter, sign_in};
 use skein_ui::{Act, NodeId};
 #[cfg(target_arch = "wasm32")]
 use skein_ui_web::{
-    fetch, history,
+    clipboard, fetch, history,
     inbox::Inbox,
     page::{Page, web::Dom},
     platform,
@@ -33,6 +33,7 @@ enum Report {
     Act(NodeId, Act),
     Fetch(fetch::Report),
     Carried(Vec<transport::Carried>, u32),
+    Copied(clipboard::Report),
     Place(Box<[u8]>),
     Frame(playground::Control),
     World(platform::worker::Heard),
@@ -47,6 +48,7 @@ struct Shell<P: ShellPlatform> {
     dom: Dom,
     platform: P,
     store: Store,
+    clipboard: clipboard::web::Clipboard<Report>,
     history: Rc<history::web::History>,
     timer: P::Timer,
     title: title::web::Title,
@@ -159,6 +161,7 @@ fn start_signed_in() {
         dom,
         platform,
         store,
+        clipboard: clipboard::web::Clipboard::new(Rc::clone(&inbox), Report::Copied),
         history,
         timer,
         title: title::web::Title::default(),
@@ -241,12 +244,24 @@ impl<P: ShellPlatform> Shell<P> {
             Report::Act(node, act) => host::Report::Act { node, act },
             Report::Place(path) => host::Report::Place { path },
             Report::Fetch(report) => host::Report::Heard(adapter::fetched(report)),
+            Report::Copied(report) => host::Report::Copied {
+                token: report.token,
+                written: match report.outcome {
+                    clipboard::Outcome::Done => temper_client_domain::copy::Written::Done,
+                    clipboard::Outcome::Refused => temper_client_domain::copy::Written::Refused,
+                    clipboard::Outcome::Failed => temper_client_domain::copy::Written::Failed,
+                },
+            },
             Report::Carried(reports, writes) => host::Report::Carried { reports, writes },
         }
         .into()
     }
     /// Carries one report's requests, navigation, store writes and stream read; returns whether a new page shows.
     fn carry(&mut self, inbox: &Inbox<Report>, duties: host::Duties, read_on: bool) -> bool {
+        // Keep the person's gesture (skein/docs/design/ui-web.md, section 11).
+        if let Some((token, words)) = &duties.copy {
+            self.clipboard.write(*token, words);
+        }
         #[cfg(feature = "record")]
         if duties.departs() {
             self.save_recording(true);

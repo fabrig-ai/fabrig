@@ -551,13 +551,15 @@ pub(crate) fn auth(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     );
     Proc::Auth(Box::new((smith_fake_claude::hosted(b"claude").make)(spawn, inherited)))
 }
-pub(crate) fn worker_programs(root: kernel::Fd) -> Proc {
-    worker_programs_with(root, false)
+pub(crate) fn worker_programs(inherited: &skein_world::Inherited) -> Proc {
+    worker_programs_with(inherited, false)
 }
-pub(crate) fn worker_program_runs(root: kernel::Fd) -> Proc {
-    worker_programs_with(root, true)
+pub(crate) fn worker_program_runs(inherited: &skein_world::Inherited) -> Proc {
+    worker_programs_with(inherited, true)
 }
-fn worker_programs_with(root: kernel::Fd, runs: bool) -> Proc {
+fn worker_programs_with(inherited: &skein_world::Inherited, runs: bool) -> Proc {
+    let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
+    let parent = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"parent").expect("programs parent").1;
     let document = String::from_utf8(fixtures::WORKER_DOCUMENT.to_vec()).expect("fixture JSON");
     let document = if runs {
         document.replace("agent-program", "program-agent")
@@ -573,6 +575,7 @@ fn worker_programs_with(root: kernel::Fd, runs: bool) -> Proc {
         document.as_bytes(),
     );
     let Proc::Worker(host) = &mut worker else { unreachable!("worker factory") };
+    host.service.adopt_signals(inherited.signal).expect("worker signal source");
     host.service
         .configure_program_sources(
             0,
@@ -591,6 +594,8 @@ fn worker_programs_with(root: kernel::Fd, runs: bool) -> Proc {
                     Box::from(b"CLAUDE_CODE_OAUTH_TOKEN=fixture-only".as_slice()),
                 ]),
                 jig_test_service::program_sources::PATH_BYTES,
+                1000,
+                Some(parent),
             )
             .expect("private bounded source resources"),
         )
