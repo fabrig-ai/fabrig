@@ -12,6 +12,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_domain_host as hub;
+use jig_domain_link::SourceName;
 use jig_protocol_accounts::table::{Scheme, Table, Value};
 use jig_protocol_config::{Problems, What};
 use jig_protocol_worker_link as link;
@@ -565,7 +566,7 @@ impl Worker {
     fn start_source(
         &mut self,
         owner: Token,
-        name: jig_domain_host::SourceName,
+        name: SourceName,
         operation: jig_domain_host::sources::Operation,
         deadline: Time,
     ) {
@@ -1066,6 +1067,8 @@ fn worker_root(limits: &root::Limits) -> root::Domain {
 
 #[cfg(test)]
 mod merge_tests {
+    use jig_domain_link::{JobBound, JobKind};
+
     /// temper/docs/design/domain/worker.md, 4.4.
     #[test]
     fn the_production_worker_declares_the_merge_kind() {
@@ -1077,12 +1080,7 @@ mod merge_tests {
         };
         assert_eq!(
             hello.jobs.as_ref(),
-            [jig_domain_host::JobBound {
-                kind: jig_domain_host::JobKind(3),
-                spec: 4_096,
-                result: 512,
-                deadline: skein_lib::Duration::from_secs(600),
-            }]
+            [JobBound { kind: JobKind(3), spec: 4_096, result: 512, deadline: skein_lib::Duration::from_secs(600) }]
         );
     }
 

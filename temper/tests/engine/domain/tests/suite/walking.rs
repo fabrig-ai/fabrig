@@ -1,4 +1,5 @@
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Form, Scheme};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use temper_engine_domain as engine;
@@ -190,8 +191,8 @@ fn walking_referee_rejects_duplicate_sign_in_and_chat_replies() {
 
 #[test]
 fn walking_referee_rejects_wrong_task_or_uncommitted_or_duplicate_assignment() {
-    use jig_domain_accounts::Grant;
     use jig_domain_brief as brief;
+    use jig_domain_link::Grant;
     use skein_lib::Duration;
     use temper_engine_domain::Assignment;
     use temper_engine_domain::{BriefBody as Body, BriefKind as Kind, BriefSection as Section};
@@ -241,7 +242,7 @@ fn walking_referee_rejects_wrong_task_or_uncommitted_or_duplicate_assignment() {
         answered: Box::new([]),
         settled: Box::new([]),
         grants: Box::new([Grant {
-            form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(3600),

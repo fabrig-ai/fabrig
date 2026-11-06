@@ -5,6 +5,7 @@
 use crate::{Peers, Temper, send};
 use jig_conformance::{Harness, referee as r};
 use jig_domain_host as host;
+use jig_domain_link::Phase;
 use jig_domain_tasks as tasks;
 use jig_fake_workers as workers;
 use skein_lib::{Duration, Time, Token};
@@ -57,7 +58,7 @@ pub(crate) fn worker_event(peers: &mut Peers, up: workers::Up) -> engine::Event 
             let hosting = hosting
                 .into_iter()
                 .map(|(task, attempt, answered)| {
-                    protocol::hosting(task, attempt, if answered { host::Phase::Answered } else { host::Phase::Active })
+                    protocol::hosting(task, attempt, if answered { Phase::Answered } else { Phase::Active })
                 })
                 .collect();
             protocol::hello_slots(Token::new(channel), slots, hosting)

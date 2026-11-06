@@ -16,6 +16,7 @@ const RESTARTED: &[Fact] = &[
 
 impl Judge {
     pub(super) fn client_closed(&self, client: &Client, issuer: &peer::Peer) {
+        let client = super::owner(client);
         assert_eq!(client.facts.last(), Some(&Fact::Closed));
         if self.private_failure {
             assert!(client.facts.iter().any(|fact| matches!(fact, Fact::Failed(accounts::Failure::Unloaded { .. }))));

@@ -5,6 +5,7 @@ use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Hello, Hosting, Phase};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -74,11 +75,7 @@ fn reconnect(world: &mut World, seed: u64) {
         .values()
         .filter_map(|row| match row {
             root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))) if proof.terminal.is_none() => {
-                Some(fleet::Hosting {
-                    run: Token::new(proof.task),
-                    attempt: Token::new(proof.attempt),
-                    phase: fleet::Phase::Active,
-                })
+                Some(Hosting { run: Token::new(proof.task), attempt: Token::new(proof.attempt), phase: Phase::Active })
             }
             root::Record::Core(_) | root::Record::Connector { .. } => None,
         })
@@ -89,7 +86,7 @@ fn reconnect(world: &mut World, seed: u64) {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),

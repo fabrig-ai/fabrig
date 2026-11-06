@@ -24,8 +24,8 @@
 
 use super::{kqueue, last_errno, retry, signals};
 use crate::posix::process::{action, cpu, cstring};
-pub(crate) use crate::posix::process::{block_sigpipe, map_error, signal_number};
-use skein_io::kernel::{Done, Error, Exit, Fd, Resources, Signal, Spawn, Target, Usage, Way};
+pub(crate) use crate::posix::process::{block_sigpipe, map_error, signal_number, usage};
+use skein_io::kernel::{Done, Error, Exit, Fd, Resources, Signal, Spawn, Target, Way};
 use std::{
     collections::BTreeMap,
     ffi::{CStr, CString},
@@ -60,9 +60,6 @@ fn fd(raw: i32) -> Result<OwnedFd, i32> {
     }
 }
 
-pub(crate) fn open_termination_signals() -> Result<Fd, i32> {
-    signals::open_termination_signals()
-}
 pub(crate) fn open_signals(watch: crate::Watch) -> Result<Fd, i32> {
     signals::open_signals(watch)
 }
@@ -251,12 +248,7 @@ fn spawn_prepared(command: &mut Spawn, terminal: Option<&CString>) -> Result<Don
     result
 }
 
-/// Reads the process and its reaped children at one submission (kernel.md, section 6.3).
-pub(crate) fn usage() -> Result<Usage, Error> {
-    Ok(Usage { own: resources(libc::RUSAGE_SELF)?, children: resources(libc::RUSAGE_CHILDREN)? })
-}
-
-fn resources(who: i32) -> Result<Resources, Error> {
+pub(crate) fn resources(who: i32) -> Result<Resources, Error> {
     // SAFETY: rusage is a C output record initialized before its fields are read.
     let mut value: libc::rusage = unsafe { std::mem::zeroed() };
     // SAFETY: value is writable for the duration of this synchronous call.

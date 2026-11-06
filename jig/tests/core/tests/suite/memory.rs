@@ -2,6 +2,7 @@ use jig_core_world::world::Setup;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Form, Scheme};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Time, Wall};
@@ -37,7 +38,7 @@ fn core_children_routes_and_an_in_flight_decision_stay_under_the_scenario_ceilin
     for event in [
         core::Event::Fleet(fleet::Event::Loaded),
         core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(60),

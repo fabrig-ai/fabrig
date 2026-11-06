@@ -14,6 +14,7 @@
 //! before each entry point returns.
 
 use alloc::boxed::Box;
+use jig_domain_link::{Hosting, Phase};
 
 use jig_domain_host as host;
 use skein_lib::{Env, Id, Map, Queue, Slab, Time, Token};
@@ -101,7 +102,7 @@ impl Domain {
     /// Unanswered hosted attempts, read once by a world's completion referee.
     /// Answered attempts awaiting acknowledgement are parked, not live work.
     #[must_use]
-    pub fn hosting(&self) -> skein_lib::List<host::Hosting> {
+    pub fn hosting(&self) -> skein_lib::List<Hosting> {
         let mut owners = skein_lib::Set::with_capacity(self.host.hosted());
         for (owner, _) in &self.preparing {
             owners.insert(*owner).expect("one owner per hosted slot");
@@ -122,7 +123,7 @@ impl Domain {
         let mut seen = skein_lib::Set::with_capacity(self.host.unanswered());
         for owner in &owners {
             if let Some(hosting) = self.host.hosting(*owner)
-                && hosting.phase != host::Phase::Answered
+                && hosting.phase != Phase::Answered
             {
                 seen.insert((hosting.run, hosting.attempt)).expect("one identity per unanswered attempt");
                 runs.push(hosting).expect("one record per unanswered attempt");
@@ -159,7 +160,7 @@ impl Domain {
                     && !seen.contains(&(*run, *attempt))
                 {
                     seen.insert((*run, *attempt)).expect("one identity per unanswered attempt");
-                    runs.push(host::Hosting { run: *run, attempt: *attempt, phase: host::Phase::Ending })
+                    runs.push(Hosting { run: *run, attempt: *attempt, phase: Phase::Ending })
                         .expect("one record per unanswered attempt");
                 }
             }

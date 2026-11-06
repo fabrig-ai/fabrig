@@ -2,6 +2,7 @@
 //! (temper/docs/design/domain/agent.md, 4.3.1; temper/docs/design/domain/forge.md, 8.1 and 8.9).
 use super::goal_branch::goal_request;
 use super::*;
+use jig_domain_link::ModelBound;
 
 const CHANNEL: Token = Token::new(7);
 const GOAL_REQUEST: u8 = 92;
@@ -46,7 +47,7 @@ fn goal(allow_producer: bool) -> (World, engine::Assignment) {
     };
     hello.bounds.models = models()
         .iter()
-        .map(|model| host::ModelBound { name: model.name.clone(), window: model.window, output: model.output })
+        .map(|model| ModelBound { name: model.name.clone(), window: model.window, output: model.output })
         .collect();
     world.send(event);
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };

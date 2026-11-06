@@ -2,16 +2,19 @@
 //!
 //! # The `unsafe`, and why it is sound
 //!
-//! Shutdown takes only integers. Poll borrows one initialized, exclusive
-//! pollfd until return, retains no pointer and takes no descriptor ownership.
+//! Shutdown, close and fcntl take only integers; close relinquishes descriptor
+//! ownership once. Geteuid takes no arguments and has no preconditions.
+//! Poll borrows one initialized, exclusive pollfd until return, retains no
+//! pointer and takes no descriptor ownership.
 
-#![expect(unsafe_code, reason = "POSIX calls retain no borrowed storage (shell.md, 7.5)")]
+#![expect(unsafe_code, reason = "POSIX calls take integers or borrow storage only until return (shell.md, 7.5)")]
 
 pub(crate) mod files;
 pub(crate) mod group;
 pub(crate) mod process;
 pub(crate) mod terminal;
 
+use crate::system::last_errno;
 use skein_io::kernel::Fd;
 use std::ptr;
 
@@ -26,7 +29,36 @@ pub(crate) fn retry<T>(mut call: impl FnMut() -> Result<T, i32>) -> Result<T, i3
 }
 
 pub(crate) fn status(result: i32) -> Result<(), i32> {
-    if result < 0 { Err(crate::system::last_errno()) } else { Ok(()) }
+    if result < 0 { Err(last_errno()) } else { Ok(()) }
+}
+
+/// The status flags of what is open on `fd` (`F_GETFL`), or the error
+/// number.
+pub(crate) fn status_flags(fd: i32) -> Result<i32, i32> {
+    // SAFETY: integers only.
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+    if flags < 0 { Err(last_errno()) } else { Ok(flags) }
+}
+
+pub(crate) fn nonblocking(fd: Fd) -> Result<(), i32> {
+    let flags = retry(|| status_flags(fd.raw()))?;
+    retry(|| {
+        // SAFETY: fcntl takes integers and fd is the backend's own description.
+        status(unsafe { libc::fcntl(fd.raw(), libc::F_SETFL, flags | libc::O_NONBLOCK) })
+    })
+}
+
+pub(crate) fn close(fd: Fd) -> Result<(), i32> {
+    // Never retry: a retry could close a reused descriptor.
+    // SAFETY: close takes only the descriptor, whose ownership io relinquishes.
+    status(unsafe { libc::close(fd.raw()) })
+}
+
+/// The process effective user, read once by startup for io's private files (shell.md, section 6).
+#[must_use]
+pub fn effective_user() -> u32 {
+    // SAFETY: geteuid takes no pointers and has no preconditions.
+    unsafe { libc::geteuid() }
 }
 
 /// An `EINTR` is returned, not retried (shell.md, 7.4).
@@ -52,7 +84,7 @@ pub fn wait_readable(fd: Fd, bound: skein_lib::Duration) -> Result<bool, i32> {
         // poll returns. The call retains no pointer and takes no ownership of fd.
         let result = unsafe { libc::poll(ptr::from_mut(&mut watched), 1, millis) };
         if result < 0 {
-            let errno = crate::system::last_errno();
+            let errno = last_errno();
             if errno == libc::EINTR && clock.now().now < deadline {
                 continue;
             }

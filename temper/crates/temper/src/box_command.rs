@@ -1,7 +1,7 @@
 //! The box's steps and kind slots (temper/docs/design/protocol/setup.md, 7.1).
 use skein_io::kernel::{Exit, Fd};
 use skein_shell::{Clock, Config, Host, Kernel};
-use std::os::unix::ffi::OsStrExt;
+use std::{fmt::Write, os::unix::ffi::OsStrExt};
 use temper_box::host::{Echo, Service, Settings};
 
 /// How the box's stdout takes a sign-in link (temper/docs/design/protocol/setup.md, 7.2).
@@ -254,8 +254,12 @@ pub fn configuration(directories: &super::Directories) -> Result<Configuration, 
     };
     let mut held = Vec::new();
     let first_run = if empty {
-        held = super::init::core(directories)?.listeners;
-        Some(format!("First run: wrote the configuration, {}\n", directories.document().display()).into_bytes().into())
+        let written = super::init::core(directories)?;
+        held = written.listeners;
+        let mut opening =
+            written.no_sign_in.map_or_else(String::new, |why| format!("First run: no sign-in through temper: {why}\n"));
+        writeln!(opening, "First run: wrote the configuration, {}", directories.document().display()).expect("string");
+        Some(opening.into_bytes().into())
     } else {
         None
     };
@@ -328,7 +332,10 @@ pub fn configuration_steps(
         let mut always = first.into_vec();
         always.extend(steps.always);
         for group in &mut steps.asked {
-            group.before = u32::try_from(always.len().saturating_sub(1)).expect("bounded first steps");
+            group.before = group
+                .before
+                .checked_add(u32::try_from(always.len().saturating_sub(1)).expect("bounded first steps"))
+                .expect("bounded insertion");
         }
         steps.always = always.into_boxed_slice();
         if machine.owned.is_some() {

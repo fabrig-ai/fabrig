@@ -1,8 +1,8 @@
 //! Root assignments as the hub's records, with application items beside them.
 use alloc::boxed::Box;
-use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
+use jig_domain_link::Grant;
 use jig_domain_tasks as tasks;
 use jig_protocol_engine_workers as kit;
 use skein_lib::{List, Time, Token, Writer};
@@ -169,7 +169,7 @@ fn messages(task: u64, words: &[tasks::Word]) -> Box<[host::StartMessage]> {
     }
     messages.into_boxed()
 }
-fn grants(grants: &[accounts::Grant]) -> Box<[host::Grant]> {
+fn grants(grants: &[Grant]) -> Box<[Grant]> {
     Box::from(grants)
 }
 fn answered(calls: &[core::Settled]) -> Box<[host::AnsweredCall]> {

@@ -49,7 +49,7 @@ pub fn until_hosting(stand: &mut SystemStand) {
     }
     panic!("the worker's hello reaches the engine");
 }
-pub fn hello(service: &Service) -> Option<(skein_lib::Token, &jig_domain_host::Hello)> {
+pub fn hello(service: &Service) -> Option<(skein_lib::Token, &jig_domain_link::Hello)> {
     for event in &service.engine.as_ref().expect("engine").events {
         if let temper_engine_domain::Event::Worker(temper_engine_domain::WorkerInput::Link {
             channel,

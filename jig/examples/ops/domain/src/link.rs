@@ -5,6 +5,7 @@ use crate::{Domain, Limits, Output, Released, Write};
 use alloc::boxed::Box;
 use jig_domain_host as host;
 use jig_domain_hub_link as link;
+use jig_domain_link::Hosting;
 use skein_lib::{Decision, Env, Queue, Token};
 
 // The engine's hub connects directly to the fleet at construction and is never lost
@@ -185,7 +186,7 @@ pub(crate) fn agent_content(
     }
 }
 
-fn piece(hosting: host::Hosting, turn: u32, retry: u32, offset: u32, bytes: Box<[u8]>) -> link::Event {
+fn piece(hosting: Hosting, turn: u32, retry: u32, offset: u32, bytes: Box<[u8]>) -> link::Event {
     link::Event::Up {
         channel: ENGINE,
         value: host::LinkUp::Piece {

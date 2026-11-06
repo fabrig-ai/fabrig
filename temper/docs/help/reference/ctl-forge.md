@@ -38,7 +38,7 @@ project's home, landing on main, with CI. Past the wait, it prints
 the forges and `not met: timeout` (exit 3): wait with forge list
 --until made:FORGE, then read it. `refused: not under the box` (exit
 2): the deployment is no box; start temper with `temper box` to set
-one up.
+one up. Not offered: only one owned forge is offered; use forge list, project make NAME --key KEY, then repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY.
 ```
 
 ## forge connect

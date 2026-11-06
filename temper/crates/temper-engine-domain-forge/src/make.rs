@@ -8,12 +8,11 @@ use alloc::boxed::Box;
 use jig_domain_core::Carried;
 use skein_lib::{Duration, Env, Queue, Token};
 
+/// The bot identity reserved from person sign-in (protocol/sign-in.md, 9.9).
+pub const BOT_LOGIN: &[u8] = b"temper";
+pub const BOT_EMAIL: &[u8] = b"temper@temper.invalid";
 pub(crate) fn bot() -> Bot {
-    Bot {
-        login: Box::from(b"temper".as_slice()),
-        name: Box::from(b"temper".as_slice()),
-        email: Box::from(b"temper@temper.invalid".as_slice()),
-    }
+    Bot { login: Box::from(BOT_LOGIN), name: Box::from(b"temper".as_slice()), email: Box::from(BOT_EMAIL) }
 }
 
 pub(crate) fn restore_first(d: &mut Domain, record: &ForgeRecord) {

@@ -5,7 +5,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use jig_domain_fleet::{self as fleet, Answer, Domain, Event, Hello, Hosting, Limits, Phase, Request};
+use jig_domain_fleet::{self as fleet, Answer, Domain, Event, Limits, Request};
+use jig_domain_link::{Hello, Hosting, Phase};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Rng, Time, Token, Wall};
 use skein_world::domain::{Expectations, Judge, Referee};
 

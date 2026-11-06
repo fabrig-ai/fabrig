@@ -102,7 +102,7 @@ impl World {
                 key: Box::from(b"provider.pem".as_slice()),
                 clients: Box::new([ProviderClient {
                     id: Box::from(b"app".as_slice()),
-                    secret: Box::from(b"client.secret".as_slice()),
+                    secret: Some(Box::from(b"client.secret".as_slice())),
                     redirect_uri: REDIRECT.as_bytes().into(),
                 }]),
                 addresses: settings.addresses.clone(),
@@ -111,7 +111,7 @@ impl World {
                 &configuration,
                 &[
                     (configuration.key.clone(), keys().pem.clone()),
-                    (configuration.clients[0].secret.clone(), keys().secret.clone()),
+                    (configuration.clients[0].secret.clone().expect("confidential client"), keys().secret.clone()),
                 ],
                 urls(),
                 &limits,

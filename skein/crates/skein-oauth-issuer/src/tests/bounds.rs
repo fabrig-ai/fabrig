@@ -11,7 +11,7 @@ fn settings_bounds_accept_the_limit_and_refuse_one_byte_past() {
             3 => settings.userinfo_endpoint.len(),
             4 => settings.jwks_uri.len(),
             5 => settings.clients.get(0).expect("client").id.len(),
-            6 => settings.clients.get(0).expect("client").secret.len(),
+            6 => settings.clients.get(0).expect("client").secret.as_ref().expect("confidential client").len(),
             7 => settings.clients.get(0).expect("client").redirect_uri.len(),
             _ => unreachable!("field"),
         };
@@ -24,7 +24,7 @@ fn settings_bounds_accept_the_limit_and_refuse_one_byte_past() {
         settings.jwks_uri = boxed(b"https://k");
         let client = settings.clients.get_mut(0).expect("client");
         client.id = boxed(b"c");
-        client.secret = secret(b"s");
+        client.secret = Some(secret(b"s"));
         client.redirect_uri = boxed(b"https://r");
         let cap = u32::try_from(len).expect("length");
         if field <= 4 || field == 7 {
@@ -40,7 +40,7 @@ fn settings_bounds_accept_the_limit_and_refuse_one_byte_past() {
             3 => settings.userinfo_endpoint = boxed(&[b"https://".as_slice(), &value[8..]].concat()),
             4 => settings.jwks_uri = boxed(&[b"https://".as_slice(), &value[8..]].concat()),
             5 => settings.clients.get_mut(0).expect("client").id = boxed(&value),
-            6 => settings.clients.get_mut(0).expect("client").secret = secret(&value),
+            6 => settings.clients.get_mut(0).expect("client").secret = Some(secret(&value)),
             7 => {
                 settings.clients.get_mut(0).expect("client").redirect_uri =
                     boxed(&[b"https://".as_slice(), &value[8..]].concat());
@@ -65,7 +65,7 @@ fn settings_bounds_accept_the_limit_and_refuse_one_byte_past() {
             }
             6 => {
                 let c = past.clients.get_mut(0).expect("client");
-                c.secret = secret(&[c.secret.expose(), b"x"].concat());
+                c.secret = Some(secret(&[c.secret.as_ref().expect("confidential client").expose(), b"x"].concat()));
             }
             7 => {
                 let c = past.clients.get_mut(0).expect("client");
@@ -82,7 +82,7 @@ fn settings_bounds_accept_the_limit_and_refuse_one_byte_past() {
     let mut settings = settings();
     settings
         .clients
-        .push(Client { id: boxed(b"other"), secret: secret(b"s"), redirect_uri: boxed(REDIRECT) })
+        .push(Client { id: boxed(b"other"), secret: Some(secret(b"s")), redirect_uri: boxed(REDIRECT) })
         .expect("second");
     assert_eq!(Issuer::new(settings, limits).expect_err("past client count"), Error::Limits);
 }
@@ -200,12 +200,12 @@ fn every_bound_at_once_stays_within_the_heap_ceiling() {
     let span = Span::start();
     let mut settings = settings();
     settings.clients.get_mut(0).expect("client").id = boxed(&[b'c'; 64]);
-    settings.clients.get_mut(0).expect("client").secret = secret(&[b's'; 64]);
+    settings.clients.get_mut(0).expect("client").secret = Some(secret(&[b's'; 64]));
     settings
         .clients
         .push(Client {
             id: boxed(&[b'd'; 64]),
-            secret: secret(&[b's'; 64]),
+            secret: Some(secret(&[b's'; 64])),
             redirect_uri: boxed(&[b"https://r/".as_slice(), &[b'x'; 246]].concat()),
         })
         .expect("client");
@@ -256,7 +256,7 @@ fn valid_authentication_headers_reach_the_request_limit_and_stop_past_it() {
         let mut limits = limits();
         limits.request_bytes = u32::try_from(cap).expect("header length");
         let mut config = settings();
-        config.clients.get_mut(0).expect("client").secret = secret(&[b's'; 64]);
+        config.clients.get_mut(0).expect("client").secret = Some(secret(&[b's'; 64]));
         let issuer = Issuer::new(config, limits).expect("issuer");
         let request = issuer.token_request(Some(&header), Some(b"application/x-www-form-urlencoded"), &body);
         if cap == header.len() {

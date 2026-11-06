@@ -1,12 +1,8 @@
-pub fn bounds() -> jig_domain_fleet::Bounds {
+pub fn bounds() -> Bounds {
     use skein_lib::Duration;
-    jig_domain_fleet::Bounds {
+    Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([jig_domain_fleet::ModelBound {
-            name: Box::from(&b"scripted"[..]),
-            window: 8192,
-            output: 1024,
-        }]),
+        models: Box::new([ModelBound { name: Box::from(&b"scripted"[..]), window: 8192, output: 1024 }]),
         turns: u32::MAX,
         spend: u64::MAX,
         time: Duration::from_secs(3600),
@@ -52,6 +48,7 @@ pub(crate) fn make_batch_at(
 }
 
 use super::*;
+use jig_domain_link::{Bounds, ModelBound};
 
 pub(crate) fn query_fixture() -> (Core, Limits) {
     let (mut core, mut limits) = tree_core();

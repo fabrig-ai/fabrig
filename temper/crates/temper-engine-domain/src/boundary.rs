@@ -8,6 +8,7 @@ use jig_domain_core as core;
 use jig_domain_core::{Delegate, ProcedureStep, RunCharter};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::Grant;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_domain_views as views;
@@ -50,7 +51,7 @@ pub struct Assignment {
     pub answered: Box<[crate::CallRecord]>,
     pub settled: Box<[jig_domain_core::Settled]>,
     /// Secret-free account and application credential grants; token bytes stay in the protocol.
-    pub grants: Box<[accounts::Grant]>,
+    pub grants: Box<[Grant]>,
 }
 
 /// One root-owned section in a worker assignment (jig's domain/engine.md, section 9).
@@ -446,7 +447,7 @@ pub enum StoreInput {
 pub enum Link {
     Hello {
         worker: u32,
-        hello: host::Hello,
+        hello: jig_domain_link::Hello,
     },
     /// One hub record; temper's parts ride beside an answer and are empty otherwise.
     Up {

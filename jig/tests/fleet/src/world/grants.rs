@@ -1,11 +1,12 @@
 //! Observe grants addressed by the fleet after its worker's hello.
-use super::{Down, Message, World, fleet};
+use super::{Down, Message, World};
+use jig_domain_link::Grant;
 use skein_lib::Token;
 
 impl World {
     /// The latest grant the parent routed to a worker's current channel.
     #[must_use]
-    pub fn received_grant(&self) -> Option<(Token, Token, Token, fleet::Grant)> {
+    pub fn received_grant(&self) -> Option<(Token, Token, Token, Grant)> {
         self.last_grant
     }
 
@@ -21,7 +22,7 @@ impl World {
         self.down(channel, Message::Assign { run: run.raw(), attempt: attempt.raw() });
     }
 
-    pub(super) fn record_grant(&mut self, channel: Token, run: Token, attempt: Token, grant: fleet::Grant) {
+    pub(super) fn record_grant(&mut self, channel: Token, run: Token, attempt: Token, grant: Grant) {
         assert!(self.channels.contains_key(&channel.raw()), "grant names a worker's channel");
         self.last_grant = Some((channel, run, attempt, grant));
         self.grants_sent = self.grants_sent.checked_add(1).expect("bounded world events");

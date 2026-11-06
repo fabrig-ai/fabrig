@@ -1,4 +1,5 @@
 use crate::tests::*;
+use jig_domain_link::{Form, Scheme};
 
 fn window_core(resume_bytes: u32) -> Core {
     let mut config = config(1);
@@ -224,7 +225,7 @@ fn assert_closed_prepares(tail_bytes: u32, body: &[u8], expected_tail: &[u8]) {
         &mut core.accounts,
         &env,
         accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(60),
