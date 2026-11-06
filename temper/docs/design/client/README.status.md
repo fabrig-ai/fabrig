@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *its calls*, its name, *while it runs* and *opened*: the table words `read_docs` and `settings` alone, a live call's cut input has no argument, a text argument isn't cut to its first line, and the terminal writes no "…".
 - **Not yet:** 3.5, *its calls*, its description: a run of one turn has no time.
 - **Not yet:** 5.9, *The conversation*: an agent's page has no running run and no "Latest".
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits* and

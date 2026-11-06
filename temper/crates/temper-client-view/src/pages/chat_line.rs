@@ -1,7 +1,7 @@
 //! A run of calls and its rows (temper/docs/design/client/README.md, 3.5).
 use crate::{
     look,
-    words::{Word, Words},
+    words::{Shell, Word, Words},
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -59,10 +59,7 @@ impl<'a> Run<'a> {
             if self.calls.len() == 1 { alone(call.source, words) } else { phrases(self.calls.as_slice(), words) }
         } else {
             let current = current.expect("nonempty run or current call");
-            capitalized(
-                under_way(current, words),
-                current.tool.bytes() == b"read_docs" || current.tool.bytes() == b"settings",
-            )
+            under_way(current, words, true)
         };
         let mut failed = 0_u64;
         for call in &self.calls {
@@ -72,7 +69,14 @@ impl<'a> Run<'a> {
         }
         let description = if running {
             match current {
-                Some(call) => Some(under_way(call, words)),
+                Some(call) => {
+                    let description = under_way(call, words, false);
+                    Some(if words.shell == Shell::Terminal {
+                        joined(&[&description, "…".as_bytes()])
+                    } else {
+                        description
+                    })
+                }
                 None => None,
             }
         } else {
@@ -142,21 +146,17 @@ fn phrases(calls: &[Call<'_>], words: &Words) -> Box<[u8]> {
         if earlier {
             continue;
         }
+        let table = tool_words(tool, &call.touched);
         let mut count = 0_u64;
-        let mut docs = 0_u64;
         for (index, other) in calls.iter().enumerate() {
             if other.source.tool.bytes() != tool {
                 continue;
             }
-            count = count.checked_add(1).expect("window calls");
             let mut repeated = false;
-            if tool == b"read_docs"
-                && let Touched::Doc { topic, .. } = &other.touched
-            {
+            if let Some(table) = &table {
                 for previous in calls.get(..index).expect("earlier calls") {
                     if previous.source.tool.bytes() == tool
-                        && let Touched::Doc { topic: seen, .. } = &previous.touched
-                        && seen == topic
+                        && same_argument(table.count, &previous.touched, &other.touched)
                     {
                         repeated = true;
                         break;
@@ -164,23 +164,11 @@ fn phrases(calls: &[Call<'_>], words: &Words) -> Box<[u8]> {
                 }
             }
             if !repeated {
-                docs = docs.checked_add(1).expect("window docs");
+                count = count.checked_add(1).expect("window calls");
             }
         }
-        let part = if tool == b"read_docs" {
-            words.say(if docs == 1 { Word::WorkReadDoc } else { Word::WorkReadDocs }, &[Hole::Number(docs)])
-        } else if tool == b"settings" {
-            if count == 1 {
-                words.say(Word::WorkCheckedSettings, &[])
-            } else {
-                words.say(Word::WorkCheckedSettingsCount, &[Hole::Number(count)])
-            }
-        } else if count == 1 {
-            skein_lib::bytes::copy_of(tool)
-        } else {
-            words.say(Word::WorkRepeated, &[crate::cards::name(&cut(tool, 256)), Hole::Number(count)])
-        };
-        let part = capitalized(part, parts.is_empty() && (tool == b"settings" || tool == b"read_docs"));
+        let part = counted(tool, table.as_ref(), count, words);
+        let part = capitalized(part, parts.is_empty() && table.is_some());
         let extra = if parts.is_empty() { 0 } else { 2 };
         let next =
             length.checked_add(extra).expect("bounded separators").checked_add(part.len()).expect("bounded phrase");
@@ -199,36 +187,126 @@ fn phrases(calls: &[Call<'_>], words: &Words) -> Box<[u8]> {
     }
     out.finish()
 }
+#[derive(Clone, Copy)]
+enum Count {
+    Calls,
+    Arguments,
+    Docs,
+}
+struct ToolWords {
+    count: Count,
+    one: Word,
+    numbered: bool,
+    many: Word,
+    alone: Word,
+    present: Word,
+}
+fn tool_words(tool: &[u8], touched: &Touched) -> Option<ToolWords> {
+    use Word::{
+        WorkChecked, WorkCheckedSettings, WorkCheckedSettingsCount, WorkChecking, WorkEditedArgument, WorkEditedFile,
+        WorkEditedFiles, WorkEditing, WorkListedArgument, WorkListedFolder, WorkListedFolders, WorkListing,
+        WorkRanArgument, WorkRanCommand, WorkRanCommands, WorkReadArgument, WorkReadDoc, WorkReadDocs, WorkReadFile,
+        WorkReadFiles, WorkReadPage, WorkReading, WorkRemovedArgument, WorkRemovedFile, WorkRemovedFiles, WorkRemoving,
+        WorkRunning, WorkSearched, WorkSearchedArgument, WorkSearchedFiles, WorkSearchedFilesCount, WorkSearching,
+        WorkSearchingFiles, WorkWriting, WorkWroteArgument, WorkWroteFile, WorkWroteFiles,
+    };
+    let (count, one, many, alone, present) = match tool {
+        b"read" | b"Read" => (Count::Arguments, WorkReadFile, WorkReadFiles, WorkReadArgument, WorkReading),
+        b"list" | b"Glob" => (Count::Arguments, WorkListedFolder, WorkListedFolders, WorkListedArgument, WorkListing),
+        b"write" | b"Write" => (Count::Arguments, WorkWroteFile, WorkWroteFiles, WorkWroteArgument, WorkWriting),
+        b"edit" | b"Edit" => (Count::Arguments, WorkEditedFile, WorkEditedFiles, WorkEditedArgument, WorkEditing),
+        b"remove" => (Count::Arguments, WorkRemovedFile, WorkRemovedFiles, WorkRemovedArgument, WorkRemoving),
+        b"search" | b"Grep" => {
+            (Count::Calls, WorkSearchedFiles, WorkSearchedFilesCount, WorkSearchedArgument, WorkSearchingFiles)
+        }
+        b"shell" | b"Bash" => (Count::Calls, WorkRanCommand, WorkRanCommands, WorkRanArgument, WorkRunning),
+        b"read_docs" => match touched {
+            Touched::Search { .. } => (Count::Docs, WorkReadDoc, WorkReadDocs, WorkSearched, WorkSearching),
+            Touched::Doc { .. }
+            | Touched::Inventory
+            | Touched::Setting { .. }
+            | Touched::SettingHistory
+            | Touched::Other { .. } => (Count::Docs, WorkReadDoc, WorkReadDocs, WorkReadPage, WorkReading),
+        },
+        b"settings" => (Count::Calls, WorkCheckedSettings, WorkCheckedSettingsCount, WorkChecked, WorkChecking),
+        _ => return None,
+    };
+    Some(ToolWords {
+        count,
+        one,
+        many,
+        alone,
+        present,
+        numbered: one != WorkCheckedSettings && one != WorkSearchedFiles,
+    })
+}
+fn same_argument(count: Count, previous: &Touched, other: &Touched) -> bool {
+    match (distinct_argument(count, previous), distinct_argument(count, other)) {
+        (Some(previous), Some(other)) => previous == other,
+        (Some(_) | None, None) | (None, Some(_)) => false,
+    }
+}
+fn distinct_argument(count: Count, touched: &Touched) -> Option<&[u8]> {
+    match count {
+        Count::Calls => None,
+        Count::Arguments => match touched {
+            Touched::Other { argument } => argument.as_deref(),
+            Touched::Doc { .. }
+            | Touched::Search { .. }
+            | Touched::Inventory
+            | Touched::Setting { .. }
+            | Touched::SettingHistory => None,
+        },
+        Count::Docs => match touched {
+            Touched::Doc { topic, .. } => Some(topic),
+            Touched::Search { .. }
+            | Touched::Inventory
+            | Touched::Setting { .. }
+            | Touched::SettingHistory
+            | Touched::Other { .. } => None,
+        },
+    }
+}
+fn counted(tool: &[u8], table: Option<&ToolWords>, count: u64, words: &Words) -> Box<[u8]> {
+    match table {
+        Some(table) => {
+            let word = if count == 1 { table.one } else { table.many };
+            if count == 1 && !table.numbered { words.say(word, &[]) } else { words.say(word, &[Hole::Number(count)]) }
+        }
+        None if count == 1 => skein_lib::bytes::copy_of(tool),
+        None => words.say(Word::WorkRepeated, &[crate::cards::name(&cut(tool, 256)), Hole::Number(count)]),
+    }
+}
 fn alone(call: &c::Call, words: &Words) -> Box<[u8]> {
     let touched = calls::touched(call.tool.bytes(), call.input.bytes());
-    let phrase = match &touched {
-        Touched::Doc { topic, .. } if call.tool.bytes() == b"read_docs" => {
-            words.say(Word::WorkReadPage, &[crate::cards::name(topic)])
-        }
-        Touched::Search { words: search } => words.say(Word::WorkSearched, &[crate::cards::name(search)]),
-        Touched::Inventory | Touched::Setting { .. } | Touched::SettingHistory => {
-            words.say(Word::WorkChecked, &[Hole::Name(argument(&touched, words))])
-        }
-        Touched::Doc { .. } | Touched::Other { .. } => {
-            if call.tool.bytes() == b"read_docs" {
-                words.say(Word::WorkReadDoc, &[Hole::Number(1)])
-            } else {
-                return skein_lib::bytes::copy_of(call.tool.bytes());
-            }
-        }
+    let Some(table) = tool_words(call.tool.bytes(), &touched) else {
+        return skein_lib::bytes::copy_of(call.tool.bytes());
+    };
+    let argument = match &touched {
+        Touched::Doc { topic, .. } => topic.clone(),
+        Touched::Search { .. }
+        | Touched::Inventory
+        | Touched::Setting { .. }
+        | Touched::SettingHistory
+        | Touched::Other { .. } => argument(&touched, words),
+    };
+    let phrase = if argument.is_empty() {
+        counted(call.tool.bytes(), Some(&table), 1, words)
+    } else {
+        words.say(table.alone, &[Hole::Name(argument)])
     };
     capitalized(phrase, true)
 }
-fn under_way(call: &c::CurrentCall, words: &Words) -> Box<[u8]> {
+fn under_way(call: &c::CurrentCall, words: &Words, capitalize: bool) -> Box<[u8]> {
     let touched = calls::touched(call.tool.bytes(), call.input.bytes());
-    let word = if call.tool.bytes() == b"read_docs" {
-        if let Touched::Search { .. } = touched { Word::WorkSearching } else { Word::WorkReading }
-    } else if call.tool.bytes() == b"settings" {
-        Word::WorkChecking
-    } else {
+    let Some(table) = tool_words(call.tool.bytes(), &touched) else {
         return skein_lib::bytes::copy_of(call.tool.bytes());
     };
-    words.say(word, &[Hole::Name(argument(&touched, words))])
+    let argument = argument(&touched, words);
+    if argument.is_empty() {
+        return skein_lib::bytes::copy_of(call.tool.bytes());
+    }
+    capitalized(words.say(table.present, &[Hole::Name(argument)]), capitalize)
 }
 fn time(first: Wall, last: Wall, words: &Words) -> Option<Box<[u8]>> {
     let seconds = last.as_nanos().checked_sub(first.as_nanos())?.checked_div(1_000_000_000)?;
@@ -291,11 +369,11 @@ fn row(b: &mut Builder, tool: &[u8], touched: &Touched, outcome: Option<&[u8]>, 
     }
     b.text(TextRun::Code, &tool);
     if !argument.is_empty() {
-        let argument = if words.shell == crate::words::Shell::Terminal { joined(&[b" ", &argument]) } else { argument };
+        let argument = if words.shell == Shell::Terminal { joined(&[b" ", &argument]) } else { argument };
         b.text(TextRun::Plain, &argument);
     }
     if let Some(outcome) = outcome {
-        let outcome = if words.shell == crate::words::Shell::Terminal { joined(&[b": ", &outcome]) } else { outcome };
+        let outcome = if words.shell == Shell::Terminal { joined(&[b": ", &outcome]) } else { outcome };
         b.open(Role::Text);
         b.style(look::WORK_OUT);
         b.run(TextRun::Plain, &outcome);

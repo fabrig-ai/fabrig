@@ -1954,7 +1954,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Button, name: "Accept" },
             Part::Named { role: Role::Heading { level: 2 }, name: "JSON output for tally report" },
-            Part::Named { role: Role::Disclosure, name: "read ×2" },
+            Part::Named { role: Role::Disclosure, name: "Read 2 files" },
         ],
     },
     Holds {
@@ -2481,8 +2481,8 @@ const HOLDS: [Holds; samples::N] = [
         heading: "T9 · Produce T8's branch",
         parts: &[
             Part::Named { role: Role::Log, name: "Conversation" },
-            Part::Named { role: Role::Disclosure, name: "read ×4, shell" },
-            Part::Named { role: Role::Disclosure, name: "edit ×3, shell ×2" },
+            Part::Named { role: Role::Disclosure, name: "Read 4 files, ran 1 command" },
+            Part::Named { role: Role::Disclosure, name: "Edited 3 files, ran 2 commands" },
             Part::Named { role: Role::Paragraph, name: "Errors carry their line now" },
         ],
     },
