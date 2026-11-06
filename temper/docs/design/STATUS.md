@@ -167,7 +167,9 @@ and on `ConnectModel`, where a paste finishing also keeps the note's waiting wor
 (`client/README.md`). The rename's form asks the focus beside an
 open reply, where a tree holds one request, seen by reading (`client/README.md`),
 and no test measures a long chat's document against its window, where the user's
-answer of 2026-11-06 asks one (`client/browser.md`). A document
+answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
+numbers in a chat's card, whose items the sheet makes flex, and a document page's
+takes the browser's margins (`client/browser.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
