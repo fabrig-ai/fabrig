@@ -244,6 +244,7 @@ fn a_refused_answer_is_offered_once_per_offer() {
         world.deliveries().iter().map(|answer| answer.call).collect::<Vec<_>>(),
         [Token::new(FIRST), Token::new(COMPETING), Token::new(FIRST)]
     );
+    assert_eq!(world.deliveries().first(), world.deliveries().last(), "the same answer is offered again");
     assert!(world.close());
 }
 

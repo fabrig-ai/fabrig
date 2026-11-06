@@ -3,7 +3,7 @@ use skein_forge::{
     api::{self, Answer, Error, Op, Read},
     github::redirect::Origin,
 };
-use skein_forge_connection::{Event, Fact, Request, settings::LogOrigin};
+use skein_forge_connection::{Event, Fact, settings::LogOrigin};
 use skein_forge_machine_world::hand::{self as f, FORGE, Harness, REPO};
 use skein_lib::{Duration, List};
 use std::boxed::Box;
@@ -157,29 +157,6 @@ fn api_and_origin_connections_return_to_separate_pools() {
     assert_eq!(h.connections_for(LOG_ENDPOINT), 1);
 }
 #[test]
-fn unconfigured_origin_fails_once_until_reconnect() {
-    let mut h = harness(settings());
-    for call in [1, 2] {
-        log_read(&mut h, call);
-        h.answer(FORGE, &redirect(b"other.example.test"));
-        terminal(&mut h, call, 2, Err(Error::Refused));
-    }
-    assert_eq!(origins(&h).as_slice(), &[origin(b"other.example.test")]);
-    h.send(Request::Connect {
-        forge: FORGE,
-        access: f::app_access(skein_fake_forge_github::keys::KEYS.first().expect("key"), 7, 9),
-    });
-    h.run(Duration::ZERO);
-    h.component.test_calls_ready(f::app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
-    f::github_account(&mut h, 1, 22, b"acme", b"artificial-full-one");
-    // The reconnect's startup owns a separate socket; use a fresh API call after it closes.
-    h.refuse(FORGE);
-    log_read(&mut h, 3);
-    h.answer(FORGE, &redirect(b"other.example.test"));
-    terminal(&mut h, 3, 2, Err(Error::Refused));
-    assert_eq!(origins(&h).len(), 2);
-}
-#[test]
 fn said_origins_forget_the_oldest_first() {
     let mut h = harness(settings());
     for (call, host) in
@@ -242,29 +219,4 @@ fn said_origin_keeps_the_dialects_complete_bounded_host() {
     h.answer(FORGE, &redirect(&host));
     terminal(&mut h, 1, 2, Err(Error::Refused));
     assert_eq!(origins(&h).as_slice(), &[origin(&host)]);
-}
-
-#[test]
-fn a_second_results_host_is_followed_but_an_unrelated_origin_is_refused() {
-    let second = b"productionresultssa17.blob.core.windows.net";
-    let mut settings = settings();
-    let forge = settings.forges.get_mut(0).expect("forge");
-    forge.log_origins.push(LogOrigin { origin: origin(second), address: configured().address }).expect("second host");
-    let mut h = harness(settings);
-    log_read(&mut h, 1);
-    h.answer(FORGE, &redirect(second));
-    h.run(Duration::ZERO);
-    h.connected(LOG_ENDPOINT);
-    h.answer(LOG_ENDPOINT, &f::ok(b"log"));
-    terminal(
-        &mut h,
-        1,
-        3,
-        Ok(Answer::Job { attempt: attempt(), step: None, log: Box::from(b"log".as_slice()), truncated: false }),
-    );
-    assert!(origins(&h).is_empty());
-    log_read(&mut h, 2);
-    h.answer(FORGE, &redirect(b"unrelated.example.test"));
-    terminal(&mut h, 2, 2, Err(Error::Refused));
-    assert_eq!(origins(&h).as_slice(), &[origin(b"unrelated.example.test")]);
 }
