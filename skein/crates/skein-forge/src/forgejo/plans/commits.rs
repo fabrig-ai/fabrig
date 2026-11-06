@@ -7,11 +7,7 @@ use super::{
 };
 use crate::{
     api,
-    forgejo::{
-        document as d,
-        id::ObjectId,
-        request::{Repo, Request},
-    },
+    forgejo::{document as d, request::Request},
 };
 use skein_lib::{List, len_u64, usize_of};
 
@@ -46,11 +42,10 @@ impl Plan {
         Ok(Self { row, before, after, skip, commits: List::with_capacity(capacity), held: 0 })
     }
     pub(super) fn begin(&mut self) -> Step {
-        let at = Repo { owner: self.row.owner.clone(), name: self.row.name.clone() };
         Step::send(Request::Commits {
-            at,
-            before: ObjectId { bytes: self.before, format: self.row.object_format },
-            after: ObjectId { bytes: self.after, format: self.row.object_format },
+            at: self.row.at(),
+            before: self.row.id(self.before),
+            after: self.row.id(self.after),
         })
     }
     pub(super) fn heard(
@@ -63,13 +58,14 @@ impl Plan {
         match heard {
             Heard::Head { status, fields } => {
                 if status != 200 {
-                    let failure =
-                        super::failure::classify(super::failure::Asked::Leaf, status, None, fields.retry_after);
-                    match failure.drop {
-                        super::failure::Drop::Nothing => {}
-                        super::failure::Drop::Path | super::failure::Drop::Row => tables.drop_repository(repository),
-                    }
-                    return Err(failure.error);
+                    return Err(super::failure::refused(
+                        super::failure::Asked::Leaf,
+                        status,
+                        None,
+                        fields.retry_after,
+                        repository,
+                        tables,
+                    ));
                 }
                 Ok(None)
             }
