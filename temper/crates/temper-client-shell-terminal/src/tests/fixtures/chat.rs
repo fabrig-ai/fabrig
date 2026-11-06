@@ -49,8 +49,14 @@ pub fn settings() -> skein_ui::Tree {
 pub fn first_run() -> skein_ui::Tree {
     first_run_page(client::Address::NewChat { draft: false }, true)
 }
-#[expect(clippy::too_many_lines, reason = "one fixture answers the chat's documents and the session's demo and forges")]
 fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
+    first_run_sheet(address, landed, false)
+}
+pub fn closing_page() -> skein_ui::Tree {
+    first_run_sheet(client::Address::Chat { task: 1 }, false, true)
+}
+#[expect(clippy::too_many_lines, reason = "the fixture pumps one first-run page and optionally opens its confirmation")]
+fn first_run_sheet(address: client::Address, landed: bool, closing: bool) -> skein_ui::Tree {
     use jig_client::contract as c;
     use skein_lib::{Env, List, Queue, Time, Wall};
     use temper_client_domain::{Event, Request};
@@ -102,7 +108,35 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
                         pending: List::with_capacity(0),
                     }))),
                     c::Subject::Me => Some(c::Delivery::Me(Box::new(demo_me()))),
-                    c::Subject::Task { task } => Some(c::Delivery::Task(Box::new(delegation_task(task, landed)))),
+                    c::Subject::Task { task } => {
+                        let mut document = delegation_task(task, landed);
+                        if closing && task == 1 {
+                            document.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
+                            document.acts = List::with_capacity(1);
+                            document
+                                .acts
+                                .push(c::Offered {
+                                    act: c::ActKind::Cancel,
+                                    admission: c::Admission::Allowed,
+                                    effect: Some(c::Effect::Cancel(c::Impact {
+                                        tasks: c::ImpactCounts {
+                                            waiting: 1,
+                                            running: 0,
+                                            held: 0,
+                                            closing: 0,
+                                            ended: 0,
+                                            done: 0,
+                                            failed: 0,
+                                            cancelled: 0,
+                                        },
+                                        live_runs: 1,
+                                        proposals: 2,
+                                    })),
+                                })
+                                .expect("cancel");
+                        }
+                        Some(c::Delivery::Task(Box::new(document)))
+                    }
                     c::Subject::Accounts if landed => Some(c::Delivery::Accounts(Box::new(demo_accounts()))),
                     c::Subject::Deployment
                     | c::Subject::Tree { .. }
@@ -208,6 +242,14 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
         }
     }
     assert!(out.is_empty(), "first run fixture settles");
+    if closing {
+        client::step(
+            &mut root,
+            &env,
+            Event::Act { action: client::Action::Pages(client::pages::Act::Close) },
+            &mut out,
+        );
+    }
     let mut view =
         temper_client_view::View::new(&temper_client_view::Limits { tree: tree_limits() }, &limits, page_words(), 1);
     temper_client_view::build(&mut view, &root, super::NOW, &mut Queue::with_capacity(tree_limits().patches));

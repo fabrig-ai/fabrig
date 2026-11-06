@@ -648,7 +648,8 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   link's opening, authentication, liveness, relays and grants run as
   between hosts, in plaintext, with no TLS.
 - **A client on loopback,** over TCP to the clients' listener: `temper
-  open`, signing in by the link `temper serve` prints at start.
+  open`, signing in by the link `temper serve` prints at start, or
+  `temper box` before it starts serve (`setup.md`, 7.2).
 - **Agents and git as child processes,** each in a process group of its
   own, which a stop signals whole (jig's `protocol/README.md`, section
   10); contained process trees are for hosts apart (section 14).

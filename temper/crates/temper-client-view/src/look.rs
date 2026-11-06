@@ -1139,6 +1139,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-thread-loading",
         b"temper-rail-person",
         b"temper-settings-sign-out",
+        b"temper-confirm",
+        b"temper-confirm-fates",
+        b"temper-confirm-acts",
+        b"temper-confirm-do",
+        b"temper-confirm-choices",
     ],
     regions: &[b"temper-link"],
 };
@@ -1328,6 +1333,16 @@ pub const THREAD_LOADING: Style = Style { owner: owner(), token: 460 };
 pub const RAIL_PERSON: Style = Style { owner: owner(), token: 461 };
 /// The Accounts tab's sign-out row (client/README.md, 3.5).
 pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 462 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM: Style = Style { owner: owner(), token: 463 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM_FATES: Style = Style { owner: owner(), token: 464 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM_ACTS: Style = Style { owner: owner(), token: 465 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM_DO: Style = Style { owner: owner(), token: 466 };
+/// An uncertain release's choices (client/README.md, 3.6, The sheet).
+pub const CONFIRM_CHOICES: Style = Style { owner: owner(), token: 467 };
 
 #[cfg(test)]
 mod tests {

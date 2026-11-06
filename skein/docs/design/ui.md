@@ -632,10 +632,10 @@ nodes by a bounded reader of skein-ui's own:
     that form always does: `3.14`, `3 apples`, `3) three`, `1.` alone,
     `007. x`, a number of ten digits. One of that form does within a
     paragraph, whose wrapped sentence may start with a year, unless its
-    number is `1` or the next of the last numbered list the reader closed:
-    that ends the paragraph and starts a list. Nothing else reads a
-    number's sense, so a line alone that says `2026. A year.` is a list
-    from 2026, and shows as written;
+    number is `1` or the next of the last numbered list that anything but
+    an item closed: that ends the paragraph and starts a list. Nothing
+    else reads a number's sense, so a line alone that says `2026. A year.`
+    is a list from 2026, and shows as written;
 - **tables,** GFM's pipe tables, at the top level, where a paragraph
   stands:
   - *what makes one:* a header line, one the reader would otherwise read

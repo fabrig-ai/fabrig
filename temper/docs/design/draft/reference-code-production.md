@@ -470,6 +470,7 @@ What the reference sets, as settings (jig's `domain/engine.md`, section
 | the forge's charters (kind 3) | 1, the change's: the coding agent's; 2, the reviews': unused; 3, the foreman's |
 | each change's LLM choices | a coding producer, repairs and resolutions: gpt-6.1-sol at the spec's effort, on smith's direct backend with an OpenAI account's key (N20); a designer: section 4's choice; a foreman: gpt-6.1-sol, medium |
 | the project's policy and rules | tool families with notes; delegation to the coordinator's, the designer's, the coding agent's, the foreman's and the triage's charters, the change procedure, the merge job (job 3) and role 0, for person tasks; 1,024 tasks for the plan (N21), at the stock's depth; in the rules, policy 1 and the project's own policy alike |
+| the project's ways | the way a goal starts by: the goal template for drafts; drafts, Goals, Changes and Away all shown |
 | the landing rule for goal branches | pattern `… branch temper`, open; no CI, not up to date |
 | the landing rule for main | CI passed, up to date, enforced |
 | the repository's merge style | a merge commit |

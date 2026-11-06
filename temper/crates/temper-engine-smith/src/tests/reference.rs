@@ -111,6 +111,24 @@ A read.
     assert_eq!(fixture(schema, HostEffect::Read).as_ref(), [HEAD, expected].concat());
 }
 
+/// A program run lists these tools over MCP, whose API requires an object root with alternatives
+/// beneath a property: smith refuses the whole inventory otherwise, and the run fails at its start.
+#[test]
+fn every_schema_root_is_an_object_with_no_alternatives() {
+    for spec in &SPECS {
+        let tool = core::str::from_utf8(spec.name).expect("tool name UTF-8");
+        let Value::Object(members) = json::parse(spec.schema).expect("declared schema") else {
+            panic!("{tool}: schema root is not an object");
+        };
+        for (key, _) in &members {
+            assert!(
+                ![b"oneOf".as_slice(), b"allOf", b"anyOf"].contains(&key.as_ref()),
+                "{tool}: a root alternative, which smith refuses",
+            );
+        }
+    }
+}
+
 #[test]
 fn every_description_is_within_its_bound() {
     for spec in &SPECS {

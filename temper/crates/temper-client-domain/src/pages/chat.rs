@@ -874,10 +874,10 @@ impl Chat {
             }
         }
     }
-    pub(crate) fn close(&mut self, serial: &mut u64, out: &mut Queue<Request>) {
-        let Some(ask) = self.closing.take() else { return };
+    pub(crate) fn close(&mut self, serial: &mut u64, out: &mut Queue<Request>) -> Option<Key> {
+        let ask = self.closing.clone()?;
         if self.sending(Sending::Close) {
-            return;
+            return None;
         }
         *serial = serial.checked_add(1).expect("chat keys fit");
         let key = Key { asker: Owner::Pages.asker(), number: *serial };
@@ -889,6 +889,7 @@ impl Chat {
             name: None,
             request: jig_client::Ask::Jig(Box::new(ask)),
         }));
+        Some(key)
     }
     fn watch_run(&mut self, task: &c::Task, out: &mut Queue<Request>) {
         if let c::ChipPhaseFacts {

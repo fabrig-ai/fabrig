@@ -280,14 +280,14 @@ fn owner_words_thread() -> Thread {
 fn the_close_confirmation_names_each_live_delegates_fate() {
     let tree = closing(Some(CLOSE_GRACE));
     let text = fixtures::text(&tree);
-    assert!(skein_lib::bytes::find(&text, b"Delegate 12 will be cancelled").is_some());
-    assert!(skein_lib::bytes::find(&text, b"Delegate 13 will be moved to you").is_some());
+    assert!(skein_lib::bytes::find(&text, b"T12 is cancelled.").is_some());
+    assert!(skein_lib::bytes::find(&text, b"T13 moves to you.").is_some());
 }
 #[test]
 fn the_close_confirmation_offers_each_live_delegates_choice() {
     let tree = closing(Some(CLOSE_GRACE));
-    assert!(fixtures::find(&tree, Role::Button, b"Cancel delegate 12").is_some());
-    assert!(fixtures::find(&tree, Role::Button, b"Take delegate 13").is_some());
+    assert!(fixtures::find(&tree, Role::Button, b"Take it instead").is_some());
+    assert!(fixtures::find(&tree, Role::Button, b"Cancel it instead").is_some());
 }
 #[test]
 fn the_close_confirmation_says_how_the_chat_ends() {
@@ -295,24 +295,24 @@ fn the_close_confirmation_says_how_the_chat_ends() {
     use skein_lib::Duration;
     let grace = Some(Duration::from_secs(30));
     for (name, stage, delegate, grace, expected) in [
-        ("at rest", S::Idle, false, grace, "Close chat now"),
-        ("at rest with delegate", S::Idle, true, grace, "Close chat now"),
-        ("preparing", S::Preparing, false, grace, "Close chat now"),
+        ("at rest", S::Idle, false, grace, "You can still read it, but it can’t be reopened."),
+        ("at rest with delegate", S::Idle, true, grace, "You can still read it, but it can’t be reopened."),
+        ("preparing", S::Preparing, false, grace, "You can still read it, but it can’t be reopened."),
         (
             "claimed",
             S::Claimed { attempt: ATTEMPT },
             false,
             grace,
-            "Close chat: allow 30 seconds to finish, then cancel",
+            "The run under way gets 30 seconds to finish, then stops.",
         ),
         (
             "running",
             S::Running { attempt: ATTEMPT },
             false,
             grace,
-            "Close chat: allow 30 seconds to finish, then cancel",
+            "The run under way gets 30 seconds to finish, then stops.",
         ),
-        ("running without grace", S::Running { attempt: ATTEMPT }, false, None, "Close chat now"),
+        ("running without grace", S::Running { attempt: ATTEMPT }, false, None, "The run under way stops now."),
     ] {
         let source = chat_root();
         let mut me = source.pages().me(source.client()).unwrap().clone();
@@ -341,15 +341,17 @@ fn the_close_confirmation_says_how_the_chat_ends() {
         );
         let view = fixtures::page_view(&root);
         let text = fixtures::text(view.tree());
-        if expected == "Close chat now" {
+        if expected == "You can still read it, but it can’t be reopened." {
             assert!(skein_lib::bytes::find(&text, b"Close chat: allow").is_none(), "{name}");
         }
         let mut expected_text = List::with_capacity(3);
-        if delegate {
-            expected_text.push(b"Delegate 7 will be cancelled".as_slice()).unwrap();
+        expected_text.push("You can still read it, but it can’t be reopened.".as_bytes()).unwrap();
+        if expected != "You can still read it, but it can’t be reopened." {
+            expected_text.push(expected.as_bytes()).unwrap();
         }
-        expected_text.push(expected.as_bytes()).unwrap();
-        expected_text.push(b"A closed chat can't be reopened.".as_slice()).unwrap();
+        if delegate {
+            expected_text.push(b"T7 is cancelled.".as_slice()).unwrap();
+        }
         let mut remaining = text.as_ref();
         for line in &expected_text {
             let Some(at) = skein_lib::bytes::find(remaining, line) else { panic!("{name}: missing {line:?}") };
@@ -404,7 +406,7 @@ fn pressing_close_opens_the_chat_confirmation() {
     );
     assert!(root.pages().confirmation().is_some(), "Close prepared the compound request");
     let mut view = fixtures::view();
-    assert!(fixtures::find(fixtures::build(&mut view, &root), Role::Dialog, b"Close").is_some());
+    assert!(fixtures::find(fixtures::build(&mut view, &root), Role::Dialog, b"Close this chat?").is_some());
 }
 
 #[test]
@@ -418,14 +420,8 @@ fn the_close_confirmation_says_the_cancellations_facts() {
     );
     let mut view = fixtures::view();
     let said = fixtures::text(fixtures::build(&mut view, &root));
-    let dangerous =
-        fixtures::words().say_word(jig_client::words::Word::Decision(jig_client::words::DecisionWord::Dangerous), &[]);
-    assert!(skein_lib::bytes::find(&said, &dangerous).is_some(), "irreversible cancellation");
-    let impact = fixtures::words().say_word(
-        jig_client::words::Word::Decision(jig_client::words::DecisionWord::TasksRunning),
-        &[skein_ui::phrases::Hole::Number(1)],
-    );
-    assert!(skein_lib::bytes::find(&said, &impact).is_some(), "supplied running-task impact");
+    assert!(skein_lib::bytes::find(&said, b"1 task below it is cancelled.").is_some());
+    assert!(skein_lib::bytes::find(&said, b"Dangerous action").is_none());
 }
 
 #[test]
@@ -461,7 +457,7 @@ fn rejecting_in_the_chat_shows_the_reason_in_its_confirmation() {
     let root = rejecting_chat();
     let mut view = fixtures::view();
     let tree = fixtures::build(&mut view, &root);
-    assert!(fixtures::find(tree, Role::Dialog, b"Reject with reason").is_some());
+    assert!(fixtures::find(tree, Role::Dialog, b"Reject this proposal?").is_some());
 }
 #[test]
 fn a_chat_rejection_confirmation_keeps_the_persons_reason() {
@@ -1471,7 +1467,7 @@ fn a_chats_end_line_says_who_ended_it() {
             cancelled_by(c::Requester::Person(PARTY)),
             cancelled_document(c::Actor::Party(PARTY)),
             Some(fixtures::NOW),
-            "Closed 00:00",
+            "Closed at 00:00",
         ),
         (
             "requester without clock",
@@ -1494,7 +1490,13 @@ fn a_chats_end_line_says_who_ended_it() {
             Some(fixtures::NOW),
             "Cancelled 00:00 · No longer needed",
         ),
-        ("report", c::ChipEnding::Done(report), reported, Some(fixtures::NOW), "Closed 00:00 · its report, “A report”"),
+        (
+            "report",
+            c::ChipEnding::Done(report),
+            reported,
+            Some(fixtures::NOW),
+            "Closed at 00:00 · its report, “A report”",
+        ),
         (
             "failure",
             c::ChipEnding::Failed(c::DocumentText::complete(text(b"Checks failed"))),
@@ -1533,7 +1535,7 @@ fn a_chats_end_and_its_phase_keep_the_supplied_clock() {
     for (ending, expected) in [
         (
             c::ChipEnding::Done(c::ResultValue::Report(c::DocumentText::complete(text(b"A report")))),
-            "Closed 00:00 · its report, “A report”",
+            "Closed at 00:00 · its report, “A report”",
         ),
         (c::ChipEnding::Failed(c::DocumentText::complete(text(b"Checks failed"))), "Failed 00:00 · Checks failed"),
         (
@@ -1548,7 +1550,7 @@ fn a_chats_end_and_its_phase_keep_the_supplied_clock() {
     ] {
         let view = result_view_at(c::TaskResult::Ending(Box::new(ending)), Some(fixtures::NOW));
         assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), expected.as_bytes()).is_some());
-        assert!(fixtures::find(view.tree(), Role::Status, b"Closed 00:00").is_some());
+        assert!(fixtures::find(view.tree(), Role::Status, b"Closed").is_some());
         assert_eq!(view.next_change(), Some(Wall::from_nanos(86_400_000_000_000)));
     }
 }
@@ -2658,4 +2660,72 @@ fn no_line_is_drawn_for_lines_left() {
     let drawn = answer_tree(&thread, &fixtures::words(), true);
     assert_eq!(drawn.nodes().len(), 1, "only the empty log, no region for omitted lines");
     assert_eq!(drawn.nodes()[0].role, Role::Log);
+}
+
+#[test]
+fn a_closed_chat_ends_on_one_line() {
+    use temper_client_domain::{Action, Address, Event, pages::Act};
+    let mut rows = List::with_capacity(1);
+    rows.push(crate::tests::documents::line(1, Wall::EPOCH, c::Activity::Decided { revision: 1 })).unwrap();
+    let activity = c::ActivityPage { rows, before: None, after: None, cut: false };
+    let (mut root, _, watch, _, _) = fixtures::root_at_with_activity(
+        Address::Chat { task: TASK },
+        &fixtures::domain_limits(),
+        b"Shop",
+        None,
+        Some(activity),
+        None,
+    );
+    let source = messaging_root();
+    let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
+    task.activity = 1;
+    task.requester = c::Requester::Person(PARTY);
+    let watch = watch.unwrap();
+    deliver_chat(&mut root, watch, c::Delivery::Task(Box::new(task.clone())));
+    fixtures::root_event(&mut root, Event::Act { action: Action::Pages(Act::Close) });
+    let mut out = skein_lib::Queue::uncapped();
+    chat_event(&mut root, Event::Act { action: Action::Pages(Act::Confirm) }, &mut out);
+    let mut attempt = None;
+    for request in &out {
+        if let temper_client_domain::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: sent, .. } },
+        } = request
+        {
+            attempt = Some(*sent);
+        }
+    }
+    let attempt = attempt.expect("close sent");
+    fixtures::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    why: None,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                        c::DocumentOutcome::Amended { task: TASK },
+                    )))),
+                },
+            },
+        },
+    );
+    let at = Wall::from_nanos(75_900_000_000_000); // 21:05 UTC on the fixture's epoch day.
+    task.result = Some(c::TaskResult::Ending(Box::new(cancelled_by(task.requester))));
+    task.chip.details.details.ended_at = Some(at);
+    deliver_chat(&mut root, watch, c::Delivery::Task(Box::new(task)));
+    let view = fixtures::page_view(&root);
+    let tree = view.tree();
+    assert!(fixtures::find(tree, Role::Paragraph, b"Closed at 21:05").is_some());
+    assert!(fixtures::find(tree, Role::Status, b"Closed").is_some());
+    let mut ends = 0_u32;
+    for node in tree.nodes() {
+        if node.styles.as_slice().contains(&crate::look::ENDED) {
+            ends = ends.saturating_add(1);
+        }
+    }
+    assert_eq!(ends, 1);
+    let text = fixtures::text(tree);
+    assert!(skein_lib::bytes::find(&text, b"Applied").is_none());
+    assert!(skein_lib::bytes::find(&text, b"Decision made").is_none());
 }
