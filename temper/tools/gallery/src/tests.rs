@@ -3511,3 +3511,28 @@ fn agent_work_runs_its_line_and_reads_away_from_the_end() {
     assert!(html.contains("data-log-away"));
     assert!(html.contains("temper-latest"));
 }
+
+#[test]
+fn a_settings_cards_later_reply_follows_it() {
+    for (name, expected) in [
+        ("configure-chat-accepted", &["Card 1", "Reply"][..]),
+        ("configure-chat-replaced", &["Card 1", "Reply", "Card 2", "Reply"][..]),
+    ] {
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).unwrap();
+        let view = view(&sample);
+        let mut order = Vec::new();
+        for node in view.tree().nodes() {
+            if let Some(key) = node.key
+                && key.owner == temper_client_view::frame::owner()
+                && key.kind == 1
+                && key.a == 10
+            {
+                order.push(if key.b == 1 { "Card 1" } else { "Card 2" });
+            }
+            if node.text.iter().any(|run| run.text.as_ref() == b"Tell me what you would change.") {
+                order.push("Reply");
+            }
+        }
+        assert_eq!(order, expected, "{name}");
+    }
+}
