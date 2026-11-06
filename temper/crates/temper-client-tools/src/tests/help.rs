@@ -593,3 +593,15 @@ fn task_answer_help_says_a_person_task_may_ask_for_less() {
     let help = fixtures::help(Some(jig::rows::ANSWER_AT));
     assert!(skein_lib::bytes::find(&help, b"a person task may ask for less").is_some());
 }
+
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "the help test collapses whitespace to check the key rule's words"
+)]
+fn ctl_help_says_what_a_key_is() {
+    let page = temper_docs::find(b"ctl").expect("ctl page");
+    let text: String = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(text.contains("A key is 1 to 64 lower-case letters, digits or hyphens."));
+}
