@@ -82,8 +82,18 @@ The contract is domain/host.md's.
   (channel.md, section 6), and refuses one whose form is not its grant's,
   so no domain of the host's holds a credential (domain/host.md, section
   7).
-- **Checking a program source.** When its host asks, the half runs the
-  program's status in the source's environment, with the host's
+- **Checking a program source.** Before running the program, the half
+  inspects the programs directory and then its named source directory,
+  opening without following links, stating ownership and mode, and
+  closing each descriptor. A missing level answers not signed in without
+  spawning or making anything. Each existing level must be a directory
+  of the effective user's own with no group or other bits. Any other
+  open, stat or close outcome fails as unreadable with detail; nothing
+  is chmodded. The shell opens the programs directory's parent, following
+  links there, so linked parents are accepted. Inspection shares the
+  host's check deadline and answers deadline on expiry, after its file
+  resources settle. Once both levels are private, the half runs the
+  program's status in the source's environment, with that same
   deadline, and answers usable, not signed in, signed in otherwise
   (naming how) or failed (programs.md, section 3). It is no record of
   the channel's: a host asks when it chooses, before it places a run on

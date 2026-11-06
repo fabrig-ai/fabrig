@@ -63,6 +63,7 @@ fn named_control(
     let model = match &meaning {
         Meaning::Model(_) => true,
         Meaning::Try { .. }
+        | Meaning::Copy { .. }
         | Meaning::Action(_)
         | Meaning::Go(_)
         | Meaning::Key

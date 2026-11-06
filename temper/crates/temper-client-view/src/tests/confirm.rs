@@ -405,9 +405,36 @@ fn each_confirmation_has_its_title_and_acts() {
         }
         assert_eq!(buttons.len(), TWO_ACTS);
         assert_eq!(buttons.get(0).unwrap().name.as_deref(), Some(keep));
+        assert_eq!(buttons.get(0).unwrap().shortcut, Some(skein_ui::Shortcut::ESCAPE));
         assert_eq!(buttons.get(1).unwrap().name.as_deref(), Some(does));
+        assert_eq!(buttons.get(1).unwrap().shortcut, None);
         assert!(buttons.get(1).unwrap().styles.as_slice().contains(&crate::look::CONFIRM_DO));
     }
+}
+#[test]
+fn escape_cancels_a_confirmation_without_sending_its_action() {
+    let mut root = close_root(c::RunStage::Idle, 0, 0, false);
+    let mut view = fixtures::browser_page_view(&root);
+    let keep = fixtures::find(view.tree(), Role::Button, b"Keep it").expect("keep act");
+    let mut shortcut = None;
+    for node in view.tree().nodes() {
+        if node.id == keep {
+            shortcut = node.shortcut;
+        }
+    }
+    assert_eq!(shortcut, Some(skein_ui::Shortcut::ESCAPE));
+    let action = crate::act(&mut view, keep, skein_ui::Act::Press).expect("Escape's act");
+    assert_eq!(action, Action::Pages(Act::Cancel));
+    let mut out = skein_lib::Queue::uncapped();
+    temper_client_domain::step(
+        &mut root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits: fixtures::domain_limits() },
+        Event::Act { action },
+        &mut out,
+    );
+    assert!(root.pages().confirmation().is_none());
+    assert!(out.is_empty(), "cancelling a sheet sends no request");
+    assert!(root.pages().chat().unwrap().task(root.client()).is_some());
 }
 #[test]
 fn uncertain_release_choices_have_their_own_styled_group() {

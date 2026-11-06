@@ -276,6 +276,7 @@ fn the_welcomes_host_check_precedes_the_trial() {
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::Copy { .. }
             | d::Request::Fact { .. } => None,
         })
         .unwrap();

@@ -51,7 +51,7 @@ A party is who acts in a deployment, a person or a service, numbered, with a rol
   lists as a member signs in as a party of their own.
 - **Signed in:** `temper box` prints the first owner's sign-in link on
   its stdout; `temper serve` prints one when run alone. A link signs in
-  once, within a short while. A spent or expired link, given again,
+  once, within 2 hours. A spent or expired link, given again,
   makes the deployment print a fresh one; the box passes on each fresh
   link alone on the terminal: a blank line, then the link.
 - **Signed out:** `sign-out` ends the sign-in in `DIR` (temper help

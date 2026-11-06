@@ -1630,8 +1630,8 @@ temper box
 
   http://127.0.0.1:8367/jig/v1/sign-in/link?secret=...
 
-  It signs you in as this temper's owner, once and for a short while.
-  Opened again once spent, it prints a fresh one here.
+  It signs you in as this temper's owner, once, within 2 hours.
+  Opened after that, it prints a fresh one here.
   ```
 
   The box draws the link's secret as jig's sign-in component draws one

@@ -15,6 +15,8 @@ fn the_looks_names_pass_skeins_check() {
     for (token, name) in [
         (CHAT_GOAL, b"temper-chat-goal".as_slice()),
         (WRITING_END, b"temper-writing-end"),
+        (WELCOME_COPY, b"temper-welcome-copy"),
+        (WELCOME_CMD_BOX, b"temper-welcome-cmd-box"),
         (CONFIRM, b"temper-confirm"),
         (CONFIRM_FATES, b"temper-confirm-fates"),
         (CONFIRM_ACTS, b"temper-confirm-acts"),

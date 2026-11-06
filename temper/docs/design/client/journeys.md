@@ -154,8 +154,8 @@ comment, no blank.
 | `secret` | the printed link's secret | when the address held one |
 | `stored` | a small-store record's key and value | one per record read at start |
 | `turn` | now and wall | each turn's clocks |
-| `start`, `due`, `place`, `heard`, `carried`, `act` | the report | each report, in its turn's order |
-| `exchange`, `open`, `close`, `save`, `erase`, `writes`, `navigate`, `replace`, `show` | what the host asked | after its report, in order |
+| `start`, `due`, `place`, `heard`, `carried`, `act`, `copied` | the report | each report, in its turn's order |
+| `exchange`, `open`, `close`, `save`, `erase`, `writes`, `navigate`, `replace`, `show`, `copy` | what the host asked | after its report, in order |
 | `deadline` | nanoseconds, or `none` | each turn's end |
 | `mark` | the live page's html | before its act, or at the key, in a turn of its own (`turn`, `mark`, `deadline`) |
 | `end` | the live page's html | the last line |
@@ -164,11 +164,13 @@ comment, no blank.
   `heard failed EXCHANGE`, `heard opened`, `heard refused STATUS`,
   `heard piece BYTES`, `heard ended`; `carried WRITES`, then one line
   per carried report, `written KEY`, `unwritten KEY` or `lost
-  EXCHANGE`; `act ACT [VALUE] EVENT NAME` (3.3).
+  EXCHANGE`; `act ACT [VALUE] EVENT NAME` (3.3); `copied TOKEN
+  done|refused|failed`.
 - **The asks:** `exchange ID BOUND METHOD PATH BODY`, then its headers
   as `NAME VALUE` pairs on the same line; `open PIECE PATH` and its
   headers; `close`; `save KEY VALUE`; `erase KEY`; `writes N`, when not
-  zero; `navigate TO`; `replace TO`; `show PATH push|replace`.
+  zero; `navigate TO`; `replace TO`; `show PATH push|replace`; `copy
+  TOKEN WORDS`, whose words a redaction replaces as it does a `navigate`'s.
 - **A committed recording's marks hold no html:** `add` drops it once
   the first replay has proved itself (4.3).
 

@@ -2501,7 +2501,8 @@ carries it.
 
 - *a setting no obligation asks for:* an item of the accepted revision
   whose setting binds to no role and is no obligation's subject, of a
-  kind the golden does not name as free;
+  kind the golden does not name as free, and no landing rule removed,
+  since the stock's on every branch must go or be replaced;
 - *a rule made structure without the person's choice*
   (`../draft/configuring.md`, section 2), as far as settings show it: a
   landing rule's gate or approval, or a charter's family the golden

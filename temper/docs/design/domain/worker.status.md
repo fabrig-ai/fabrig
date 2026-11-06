@@ -16,6 +16,12 @@ Section 4.3's failed and refused answer diagnostics reach serve's stderr and the
   (`temper-worker-domain-checkout/src/hold.rs`, `PrepareStep::Create`).
   5, 9: git's invocations in contained process trees;
   `temper-worker-protocol-git` runs them as plain child processes.
+  5: a base with heads merged in has no real run on record: `temper-fake-git`
+  holds a two-head start's commands and the `merge-in-progress` transcript git's
+  refusal of a second merge, and the request `parallel-faults` of 2026-11-06 has
+  its proof in a rerun of its replay, which no record shows. It asks whether this
+  is the fault of `landing-fixes`' early start, which can't be said: nothing in
+  the repository has that name.
   6: a standalone start past the process's `limits::SOCKETS`, 256, by reading
   21 slots on the owned example with workspaces and operations as many, is
   refused `engine.limits.io.sockets: 258 bytes, past its bound of 256`, naming a

@@ -34,3 +34,12 @@ in 61.222 seconds. Its playground bundle setup took 120.398 seconds; the
 CPU-accounted run's warm setup took 14.861 seconds. Setup is outside the tests'
 time. The first run measured the same download and memory, and a longest
 slice of 117.900 ms.
+
+## The compressor, 2026-11-06
+
+The test now compresses each file with the machine's `gzip` at its default
+level, with no name or timestamp, not `skein_http::gzip::encode`. That encoder
+took 4.85 CPU seconds of the story in the dev profile, and compression here is a
+tool, not the code under test; the machine's took 1.046. Figures from the two
+don't compare: the same 29 files, 21,241,423 B raw, read 6,882,055 B by `gzip`
+1.13 and 7,593,581 B by the encoder, each under the 8 MB bar.
