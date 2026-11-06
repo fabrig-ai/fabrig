@@ -56,6 +56,72 @@ pub fn parse_copies(text: &[u8]) -> Result<List<Box<[u8]>>, CopiesRefused> {
     Ok(addresses)
 }
 
+/// Each address keeps its own repair (temper/docs/design/client/README.md, 4.4).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Line {
+    To { address: Box<[u8]>, org: Box<[u8]>, name: Box<[u8]> },
+    Bad { raw: Box<[u8]> },
+    NotAHost { raw: Box<[u8]>, line: Box<[u8]> },
+    Taken { raw: Box<[u8]>, org: Box<[u8]>, name: Box<[u8]> },
+}
+
+/// Parse independently so a bad address cannot hide the other lines.
+#[must_use]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "the contract takes a name predicate and trims person-entered lines as parse_copies does"
+)]
+pub fn lines(text: &[u8], has: &dyn Fn(&[u8], &[u8]) -> bool) -> List<Line> {
+    let mut result = List::with_capacity(u32::try_from(text.len()).expect("bounded field length"));
+    let Ok(text) = core::str::from_utf8(text) else {
+        result.push(Line::Bad { raw: bytes::copy_of(text) }).expect("nonempty invalid UTF-8");
+        return result;
+    };
+    for raw in text.split('\n') {
+        let raw = raw.trim();
+        if raw.is_empty() {
+            continue;
+        }
+        result.push(line(raw, has)).expect("no more lines than bytes");
+    }
+    result
+}
+#[expect(clippy::disallowed_types, reason = "the sheet contract supplies its target-name predicate")]
+fn line(raw: &str, has: &dyn Fn(&[u8], &[u8]) -> bool) -> Line {
+    let text = raw.strip_prefix("https://").unwrap_or(raw);
+    let text = text.strip_prefix("http://").unwrap_or(text).trim_end_matches('/');
+    let text = text.strip_suffix(".git").unwrap_or(text);
+    let mut parts = text.split('/');
+    let first = parts.next().unwrap_or("");
+    let second = parts.next().unwrap_or("");
+    let third = parts.next();
+    let (host, org, name) = match third {
+        Some(name) => (first, second, name),
+        None => ("github.com", first, second),
+    };
+    let raw = raw.as_bytes();
+    if org.is_empty() || name.is_empty() || parts.next().is_some() {
+        return Line::Bad { raw: bytes::copy_of(raw) };
+    }
+    if !host.contains('.') {
+        return Line::NotAHost {
+            raw: bytes::copy_of(raw),
+            line: bytes::concat(&[b"github.com/", org.as_bytes(), b"/", name.as_bytes()]),
+        };
+    }
+    let address = bytes::concat(&[host.as_bytes(), b"/", org.as_bytes(), b"/", name.as_bytes()]);
+    let Ok(source) = source::parse(&address) else {
+        return Line::Bad { raw: bytes::copy_of(raw) };
+    };
+    let address = source::address(&source);
+    if address.len() > source::ADDRESS_BYTES {
+        return Line::Bad { raw: bytes::copy_of(raw) };
+    }
+    let (org, name) = copy_target(&source);
+    if has(&org, &name) { Line::Taken { raw: bytes::copy_of(raw), org, name } } else { Line::To { address, org, name } }
+}
+
 /// The copies of the real forge numbered lowest whose intent names them (client/README.md, 3.5).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Copies {

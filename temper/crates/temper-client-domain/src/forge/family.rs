@@ -50,6 +50,14 @@ pub fn make_repository(request: &w::MakeRepository, limits: &w::Limits) -> Optio
         w::Requesting::new(limits, w::RequestingParts { request: w::Request::MakeRepository(request.clone()) }).ok()?;
     Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
 }
+/// Read one picker page (temper/docs/design/client/forge.md, 5.1).
+#[must_use]
+pub fn reachable(forge: u16, installation: Option<u64>, page: u32, limits: &w::Limits) -> Option<jig_client::Family> {
+    let request = w::Reachable::new(limits, w::ReachableParts { forge, installation, page }).ok()?;
+    let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::Reachable(request) }).ok()?;
+    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
+}
+
 /// Dismiss a failed making by name (temper/docs/design/client/README.md, 4.6).
 #[must_use]
 pub fn dismiss_making(
