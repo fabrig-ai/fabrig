@@ -105,6 +105,7 @@ fn a_task_activity_renders_the_native_whole_pending_proposal_with_its_supplied_f
     let k = key(Proposer::Task(8));
     let (mut d, _, out) = opened(&[k]);
     let native = Proposal {
+        projects: skein_lib::List::with_capacity(0),
         key: k,
         project: 4,
         reason: DocumentText::complete(text(b"native whole shared reason")),

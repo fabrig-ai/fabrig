@@ -48,6 +48,9 @@ pub enum Word {
     ChatWrites,
     DraftName,
     DraftGroup,
+    ReferenceGroup,
+    ReferencePath,
+    ReferenceUnchanged,
     DraftChat,
     DraftSplit,
     DraftDraft,
@@ -71,6 +74,8 @@ pub enum Word {
     DraftAccepted,
     DraftDecided,
     SettingsProposalTitle,
+    SettingsProposalTitleAll,
+    SettingsProposalDeploymentOwners,
     SettingsProposalDrafts,
     SettingsProposalGoals,
     SettingsProposalChanges,
@@ -352,6 +357,18 @@ pub enum Word {
     ConfigureUnsure,
     ConfigureWords,
     ConfigureWhere,
+    ConfigureOwn,
+    ConfigureOwnTitle,
+    ConfigureOwnSteps,
+    ConfigureOwnDraft,
+    ConfigureOwnCut,
+    ConfigureOwnAgents,
+    ConfigureOwnBranch,
+    ConfigureOwnMain,
+    ConfigureOwnSee,
+    ConfigureOwnStart,
+    ConfigureOwnSends,
+
     Configuring,
 
     HomeOpen,
@@ -458,6 +475,8 @@ pub enum Word {
     HomeAdoptLink,
     HomeLooked,
     HomeLandedOne,
+    HomeLandedLast,
+    HomeLandedNow,
     HomeLandedMany,
     HomeByline,
     HomeLanding,
@@ -1323,9 +1342,10 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
 // The rail menu adds six literal phrases (client/README.md, 5.3).
+// Last landing adds two phrases (client/README.md, 3.5).
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
-const PHRASES: u32 = 1806;
+const PHRASES: u32 = 1824;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1346,11 +1366,13 @@ const PHRASES: u32 = 1806;
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
 // The rail menu adds six literal segments (client/README.md, 5.3).
+// Last landing adds four segments (client/README.md, 3.5).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3131;
-const TEXT_BYTES: u32 = 44366;
-const ALL: [Word; 1213] = [
+const SEGMENTS: u32 = 3153;
+// Literal bytes across every English phrase, at the larger shell vocabulary.
+const ENGLISH_BYTES: u32 = 44860;
+const ALL: [Word; 1231] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1387,6 +1409,9 @@ const ALL: [Word; 1213] = [
     Word::ChatWrites,
     Word::DraftName,
     Word::DraftGroup,
+    Word::ReferenceGroup,
+    Word::ReferencePath,
+    Word::ReferenceUnchanged,
     Word::DraftChat,
     Word::DraftSplit,
     Word::DraftDraft,
@@ -1409,6 +1434,8 @@ const ALL: [Word; 1213] = [
     Word::DraftAccepted,
     Word::DraftDecided,
     Word::SettingsProposalTitle,
+    Word::SettingsProposalTitleAll,
+    Word::SettingsProposalDeploymentOwners,
     Word::SettingsProposalDrafts,
     Word::SettingsProposalGoals,
     Word::SettingsProposalChanges,
@@ -1684,6 +1711,17 @@ const ALL: [Word; 1213] = [
     Word::ConfigureUnsure,
     Word::ConfigureWords,
     Word::ConfigureWhere,
+    Word::ConfigureOwn,
+    Word::ConfigureOwnTitle,
+    Word::ConfigureOwnSteps,
+    Word::ConfigureOwnDraft,
+    Word::ConfigureOwnCut,
+    Word::ConfigureOwnAgents,
+    Word::ConfigureOwnBranch,
+    Word::ConfigureOwnMain,
+    Word::ConfigureOwnSee,
+    Word::ConfigureOwnStart,
+    Word::ConfigureOwnSends,
     Word::Configuring,
     Word::HomeOpen,
     Word::NeedsLaterMeta,
@@ -1788,6 +1826,8 @@ const ALL: [Word; 1213] = [
     Word::HomeAdoptLink,
     Word::HomeLooked,
     Word::HomeLandedOne,
+    Word::HomeLandedLast,
+    Word::HomeLandedNow,
     Word::HomeLandedMany,
     Word::HomeByline,
     Word::HomeLanding,
@@ -2569,29 +2609,29 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
-            Self::CloseTitle => 3700,
-            Self::CloseChat => 3701,
-            Self::KeepIt => 3702,
-            Self::KeepGoing => 3703,
-            Self::KeepHeld => 3704,
-            Self::NotYet => 3705,
-            Self::WhatClosingDoes => 3706,
-            Self::WhatCancellingDoes => 3707,
-            Self::StartOverTitle => 3708,
-            Self::StopGoal => 3709,
-            Self::CancelTaskTitle => 3710,
-            Self::CancelTask => 3711,
-            Self::StopTaskTitle => 3712,
-            Self::StopTask => 3713,
-            Self::AcceptTitle => 3714,
-            Self::RejectTitle => 3715,
-            Self::ReleaseTitle => 3716,
-            Self::TasksBelowOne => 3717,
-            Self::ProposalWithdrawn => 3718,
-            Self::EffectsWithdrawn => 3719,
-            Self::DelegateNumber => 3720,
-            Self::TasksBelow => 3721,
-            Self::ProposalsWithdrawn => 3722,
+            Self::CloseTitle => 3741,
+            Self::CloseChat => 3742,
+            Self::KeepIt => 3743,
+            Self::KeepGoing => 3744,
+            Self::KeepHeld => 3745,
+            Self::NotYet => 3746,
+            Self::WhatClosingDoes => 3747,
+            Self::WhatCancellingDoes => 3748,
+            Self::StartOverTitle => 3749,
+            Self::StopGoal => 3750,
+            Self::CancelTaskTitle => 3751,
+            Self::CancelTask => 3752,
+            Self::StopTaskTitle => 3753,
+            Self::StopTask => 3754,
+            Self::AcceptTitle => 3755,
+            Self::RejectTitle => 3756,
+            Self::ReleaseTitle => 3757,
+            Self::TasksBelowOne => 3758,
+            Self::ProposalWithdrawn => 3759,
+            Self::EffectsWithdrawn => 3760,
+            Self::DelegateNumber => 3761,
+            Self::TasksBelow => 3762,
+            Self::ProposalsWithdrawn => 3763,
 
             Self::DraftsChats => 3628,
             Self::ChatsDraftLede => 3629,
@@ -2668,6 +2708,8 @@ impl Word {
             Self::GoalRisk => 3585,
             Self::GoalSeparator => 3586,
             Self::SettingsProposalTitle => 3416,
+            Self::SettingsProposalTitleAll => 3785,
+            Self::SettingsProposalDeploymentOwners => 3786,
             Self::SettingsProposalDrafts => 3417,
             Self::SettingsProposalGoals => 3418,
             Self::SettingsProposalChanges => 3419,
@@ -2876,6 +2918,18 @@ impl Word {
             Self::ConfigureUnsure => 3185,
             Self::ConfigureWords => 3186,
             Self::ConfigureWhere => 3187,
+            Self::ConfigureOwn => 3687,
+            Self::ConfigureOwnTitle => 3688,
+            Self::ConfigureOwnSteps => 3689,
+            Self::ConfigureOwnDraft => 3690,
+            Self::ConfigureOwnCut => 3691,
+            Self::ConfigureOwnAgents => 3692,
+            Self::ConfigureOwnBranch => 3693,
+            Self::ConfigureOwnMain => 3694,
+            Self::ConfigureOwnSee => 3695,
+            Self::ConfigureOwnStart => 3696,
+            Self::ConfigureOwnSends => 3697,
+
             Self::Configuring => 3188,
             Self::HomeOpen => 3165,
             Self::NeedsLaterMeta => 3305,
@@ -2980,6 +3034,8 @@ impl Word {
             Self::HomeNewChat => 3133,
             Self::HomeAdoptLink => 3141,
             Self::HomeLooked => 3621,
+            Self::HomeLandedLast => 3787,
+            Self::HomeLandedNow => 3788,
             Self::HomeLandedOne => 3622,
             Self::HomeLandedMany => 3623,
             Self::HomeByline => 3624,
@@ -3447,25 +3503,25 @@ impl Word {
             Self::CloseRunNow => 160,
             Self::DelegateCancel => 155,
             Self::DelegateMove => 156,
-            Self::WorkReadDocs => 3739,
-            Self::WorkReadDoc => 3740,
-            Self::WorkReadPage => 3741,
-            Self::WorkSearched => 3742,
-            Self::WorkCheckedSettings => 3743,
-            Self::WorkCheckedSettingsCount => 3744,
-            Self::WorkChecked => 3745,
-            Self::WorkReading => 3746,
-            Self::WorkSearching => 3747,
-            Self::WorkChecking => 3748,
-            Self::WorkInventory => 3749,
-            Self::WorkHistory => 3750,
-            Self::WorkFromLine => 3751,
-            Self::WorkFailedCount => 3752,
-            Self::WorkFailedOut => 3753,
-            Self::WorkSeconds => 3754,
-            Self::WorkMinutes => 3755,
-            Self::WorkNumber => 3757,
-            Self::WorkRepeated => 3756,
+            Self::WorkReadDocs => 3764,
+            Self::WorkReadDoc => 3765,
+            Self::WorkReadPage => 3766,
+            Self::WorkSearched => 3767,
+            Self::WorkCheckedSettings => 3768,
+            Self::WorkCheckedSettingsCount => 3769,
+            Self::WorkChecked => 3770,
+            Self::WorkReading => 3771,
+            Self::WorkSearching => 3772,
+            Self::WorkChecking => 3773,
+            Self::WorkInventory => 3774,
+            Self::WorkHistory => 3775,
+            Self::WorkFromLine => 3776,
+            Self::WorkFailedCount => 3777,
+            Self::WorkFailedOut => 3778,
+            Self::WorkSeconds => 3779,
+            Self::WorkMinutes => 3780,
+            Self::WorkNumber => 3781,
+            Self::WorkRepeated => 3782,
             Self::ToolSeparator => 1041,
             Self::PlusDraft => 3680,
             Self::DraftEmpty => 3681,
@@ -3474,6 +3530,9 @@ impl Word {
             Self::ChatWrites => 3684,
             Self::DraftName => 3685,
             Self::DraftGroup => 3600,
+            Self::ReferenceGroup => 3698,
+            Self::ReferencePath => 3699,
+            Self::ReferenceUnchanged => 3700,
             Self::DraftChat => 3601,
             Self::DraftSplit => 3602,
             Self::DraftDraft => 3603,
@@ -3507,8 +3566,8 @@ impl Word {
             Self::Stop => 148,
             Self::Older => 149,
             Self::Latest => 152,
-            Self::LoadingEarlier => 3758,
-            Self::LoadingEarlierName => 3759,
+            Self::LoadingEarlier => 3783,
+            Self::LoadingEarlierName => 3784,
             Self::FirstChat => 2183,
             Self::ChatsKicker => 3246,
             Self::ChatsHeadlineIn => 3247,
@@ -3739,9 +3798,9 @@ impl Word {
             Self::WelcomePasteFinish => 3371,
             Self::WelcomeAllWays => 3372,
             Self::WelcomeAwayTitle => 3373,
-            Self::WelcomeAwayOwn => 3687,
-            Self::WelcomeAwayAgain => 3688,
-            Self::WelcomeTabOpening => 3760,
+            Self::WelcomeAwayOwn => 3739,
+            Self::WelcomeAwayAgain => 3740,
+            Self::WelcomeTabOpening => 3789,
             Self::WelcomeAwayBody => 3374,
             Self::WelcomeFinishing => 3375,
             Self::WelcomeClaudeTitle => 3376,
@@ -3837,8 +3896,14 @@ fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
 fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(2).ok_or(Invalid::Overflow)
 }
+// Thirty-two 64-byte project names, each with room for the five-byte conjunction
+// (client/README.md, 5.13).
+const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    if word == Word::SettingsProposalTitle {
+        return Ok(SETTINGS_PROJECT_NAMES_BYTES);
+    }
     // A work argument admits 256 bytes plus a from-line suffix and its number (3.5).
     if kind == HoleKind::Name
         && [
@@ -4033,26 +4098,34 @@ fn english_language(
 
 #[cfg(test)]
 pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 3] {
-    let (shapes, language) = english_language(1, 256, Shell::Browser, 513).expect("bounded English");
-    let mut segments = 0_u64;
-    let mut text = 0_u64;
-    for phrase in &language.phrases {
-        for form in &phrase.forms {
-            segments = segments.checked_add(skein_lib::len_u64(form.segments.len())).expect("bounded English");
-            for segment in &form.segments {
-                match segment {
-                    Segment::Text(bytes) => {
-                        text = text.checked_add(skein_lib::len_u64(bytes.len())).expect("bounded English");
+    let mut most_phrases = 0_u64;
+    let mut most_segments = 0_u64;
+    let mut most_text = 0_u64;
+    for shell in [Shell::Browser, Shell::Terminal] {
+        let (shapes, language) = english_language(1, 256, shell, 513).expect("bounded English");
+        let mut segments = 0_u64;
+        let mut text = 0_u64;
+        for phrase in &language.phrases {
+            for form in &phrase.forms {
+                segments = segments.checked_add(skein_lib::len_u64(form.segments.len())).expect("bounded English");
+                for segment in &form.segments {
+                    match segment {
+                        Segment::Text(bytes) => {
+                            text = text.checked_add(skein_lib::len_u64(bytes.len())).expect("bounded English");
+                        }
+                        Segment::Hole { .. } => {}
                     }
-                    Segment::Hole { .. } => {}
                 }
             }
         }
+        most_phrases = most_phrases.max(u64::from(shapes.len()));
+        most_segments = most_segments.max(segments);
+        most_text = most_text.max(text);
     }
     [
-        ("const PHRASES: u32 = ", u64::from(PHRASES), u64::from(shapes.len())),
-        ("const SEGMENTS: u32 = ", u64::from(SEGMENTS), segments),
-        ("const TEXT_BYTES: u32 = ", u64::from(TEXT_BYTES), text),
+        ("const PHRASES: u32 = ", u64::from(PHRASES), most_phrases),
+        ("const SEGMENTS: u32 = ", u64::from(SEGMENTS), most_segments),
+        ("const ENGLISH_BYTES: u32 = ", u64::from(ENGLISH_BYTES), most_text),
     ]
 }
 
@@ -4090,14 +4163,13 @@ impl Words {
             holes: 4,
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
-            // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
-            // Settings and the chat document include their literal bytes (client/README.md, 3.5, 5.13).
-            text_bytes: TEXT_BYTES,
+            text_bytes: ENGLISH_BYTES,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
+                .max(SETTINGS_PROJECT_NAMES_BYTES)
                 .max(temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow)?)
                 .max(temper_client_protocol_wire::FIRST_COPIES.checked_mul(203).ok_or(Invalid::Overflow)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
@@ -4494,6 +4566,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeNewChat => (&[b"New chat"], &[]),
         Word::HomeAdoptLink => (&[b"Adopt"], &[]),
         Word::HomeLooked => (&[b"", b" \xc2\xb7 you last looked ", b" ago"], &[Name, Name]),
+        Word::HomeLandedLast => (&[b"The last change landed ", b" ago."], &[Name]),
+        Word::HomeLandedNow => (&[b"The last change landed just now."], &[]),
         Word::HomeLandedOne => (&[b"One change landed since you last looked."], &[]),
         Word::HomeLandedMany => (&[b"", b" changes landed since you last looked."], &[Number]),
         Word::HomeByline => (&[b"Written by the status agent at ", b""], &[Name]),
@@ -4920,6 +4994,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatWrites => (&[b"A chat that writes ", b". Say what it should hold."], &[Name]),
         Word::DraftName => (&[b"a draft"], &[]),
         Word::DraftGroup => (&[b"The draft"], &[]),
+        Word::ReferenceGroup => (&[b"How temper builds temper, beside the chat"], &[]),
+        Word::ReferencePath => (&[b"temper\xe2\x80\x99s own way \xc2\xb7 a reference"], &[]),
+        Word::ReferenceUnchanged => (&[b"changes nothing"], &[]),
         Word::DraftChat => (&[b"Chat"], &[]),
         Word::DraftSplit => (&[b"Split"], &[]),
         Word::DraftDraft => (&[b"Draft"], &[]),
@@ -5081,6 +5158,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsAway => (&[b"Away switch"], &[]),
         Word::SettingsAwayLine => (&[b"Lets agents decide within limits while you\xe2\x80\x99re away."], &[]),
         Word::SettingsProposalTitle => (&[b"How temper will run ", b""], &[Name]),
+        Word::SettingsProposalTitleAll => (&[b"How temper will run your projects"], &[]),
+        Word::SettingsProposalDeploymentOwners => (&[b"Owners of this deployment"], &[]),
         Word::SettingsProposalDrafts => (&[b"Drafts: ", b""], &[Name]),
         Word::SettingsProposalGoals => (&[b"Goals: ", b""], &[Name]),
         Word::SettingsProposalChanges => (&[b"Changes page: ", b""], &[Name]),
@@ -5193,6 +5272,18 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ConfigureWords => (&[b"Describe how you work, or what to change"], &[]),
         Word::Configuring => (&[b"Configuring"], &[]),
         Word::ConfigureWhere => (&[b"Where"], &[]),
+        Word::ConfigureOwn => (&[b"temper\xe2\x80\x99s own way"], &[]),
+        Word::ConfigureOwnTitle => (&[b"At scale, as temper builds itself"], &[]),
+        Word::ConfigureOwnSteps => (&[b"Its steps: designers cut a draft into parts, coding agents make them in parallel, the goal lands whole"], &[]),
+        Word::ConfigureOwnDraft => (&[b"Draft"], &[]),
+        Word::ConfigureOwnCut => (&[b"The cut"], &[]),
+        Word::ConfigureOwnAgents => (&[b"Coding agents"], &[]),
+        Word::ConfigureOwnBranch => (&[b"Goal\xe2\x80\x99s branch"], &[]),
+        Word::ConfigureOwnMain => (&[b"main"], &[]),
+        Word::ConfigureOwnSee => (&[b"See how it works"], &[]),
+        Word::ConfigureOwnStart => (&[b"Start from it"], &[]),
+        Word::ConfigureOwnSends => (&[b"Set ", b" up the way temper builds itself, sized for this machine."], &[Name]),
+
         Word::FirstChat => (&[b"Tell temper how you work"], &[]),
         Word::ChatsKicker => (&[b"", b" \xc2\xb7 chats"], &[Name]),
         Word::ChatsHeadlineIn => (&[b"Talk to an agent about ", b"/", b"."], &[Name, Name]),

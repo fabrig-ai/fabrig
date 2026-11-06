@@ -114,6 +114,7 @@ pub struct FundingOffer {
 /// A pending proposal. Acts and a store-loaded routing trail are supplied later.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Proposal {
+    pub projects: List<u32>,
     pub acts: List<crate::acts::Offered>,
     pub proposer: Proposer,
     pub number: u64,
@@ -608,7 +609,15 @@ pub(super) fn proposal(
         };
         offers.push(funding(core, source, needed)).expect("one widening source");
     }
+    let projects = match u32::try_from(number) {
+        Ok(number) => match core.settings_proposals.get(&(proposer, number)) {
+            Some(proposal) => proposal.projects(),
+            None => List::with_capacity(0),
+        },
+        Err(_) => List::with_capacity(0),
+    };
     Ok(Proposal {
+        projects,
         acts: super::offers::subject(core, limits, party, &super::Subject::Proposal { proposer, number }, decision)?,
         proposer,
         number,
