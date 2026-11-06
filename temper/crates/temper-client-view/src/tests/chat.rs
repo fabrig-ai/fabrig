@@ -2605,3 +2605,120 @@ fn a_note_turn_draws_no_cut_words() {
     assert!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_none());
     assert!(fixtures::find(&tree, Role::Button, b"Show").is_some());
 }
+
+#[test]
+fn whole_turn_limits_fit_the_shells_receiving_values() {
+    let domain = whole_turn_shell_limits();
+    for shell in [crate::words::Shell::Browser, crate::words::Shell::Terminal] {
+        let words = crate::words::Words::english(fixtures::FORGE, domain.client.domain.text, shell).unwrap();
+        let limits = crate::Limits::of(&domain, &words).expect("whole shell turns have representable bounds");
+        assert!(crate::valid(&limits, &domain, &words));
+    }
+}
+
+fn whole_turn_shell_limits() -> temper_client_domain::Limits {
+    let mut domain = fixtures::domain_limits();
+    let receiving = &mut domain.client.domain;
+    receiving.text = 512;
+    receiving.turn_text = 131_072;
+    receiving.long_text = 131_072;
+    receiving.rows = 16;
+    receiving.reads = 32;
+    receiving.delegates = 80;
+    receiving.turn_bytes = 1_048_576;
+    receiving.document_bytes = 1_048_576;
+    receiving.requests.bytes = 16_777_216;
+    receiving.ask_bytes = 4_194_304;
+    domain
+}
+
+fn full_turn_window(domain: &temper_client_domain::Limits, input: &[u8], count: u32) -> c::ActivityPage {
+    use fixtures::first_run as run;
+    let mut rows = List::with_capacity(count);
+    let text = c::Text::new(input.into(), domain.client.domain.turn_text).unwrap();
+    for position in 1..=count {
+        rows.push(run::turn(
+            u64::from(position),
+            ATTEMPT,
+            position,
+            &[run::message(c::Speaker::Assistant, &[c::Block::Text(text.clone())])],
+            domain.client.domain.turn_text,
+        ))
+        .unwrap();
+    }
+    c::ActivityPage { rows, before: None, after: None, cut: false }
+}
+
+#[test]
+fn a_full_window_of_dense_turn_markdown_fits_the_derived_bound() {
+    const TURN_BYTES: u32 = 8192;
+    let mut domain = fixtures::domain_limits();
+    domain.client.domain.turn_text = TURN_BYTES;
+    domain.client.domain.turn_bytes = 1_048_576;
+    domain.client.domain.document_bytes = 1_048_576;
+    let words = fixtures::words();
+    let bounds = crate::Limits::of(&domain, &words).unwrap();
+    // Short list items and quotes make many nodes; links duplicate their labels
+    // and retain targets, stressing the reader's text price as well.
+    for pattern in [b"- x\n".as_slice(), b"> x\n", b"[x](https://x) "] {
+        let length = usize::try_from(TURN_BYTES).unwrap();
+        let input = repeated_markdown(pattern, length);
+        let mut thread = Thread::new(TASK, &temper_client_domain::pages::chat::thread_limits(&domain));
+        thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+        thread.page(full_turn_window(&domain, &input, temper_client_domain::pages::chat::LINES));
+        assert_eq!(thread.lines().len(), temper_client_domain::pages::chat::LINES);
+        let mut b = skein_ui::Builder::new(&bounds.tree);
+        crate::pages::chat::conversation(
+            &mut b,
+            &thread,
+            &words,
+            (domain.client.domain.rows, domain.client.domain.text),
+            crate::pages::chat::Speakers { person: None, requester: false },
+            crate::pages::chat::Drawn::Chat { request: None, delegations: None },
+            &mut crate::frame::Bindings::new(bounds.tree.bindings),
+        );
+        let tree = b.finish();
+        assert!(tree.len() <= bounds.tree.nodes);
+        let mut bytes = 0_u32;
+        for node in tree.nodes() {
+            bytes = bytes.checked_add(node.text_bytes()).unwrap();
+        }
+        assert!(bytes <= bounds.tree.text_bytes);
+    }
+}
+
+#[test]
+fn a_whole_markdown_turn_builds_and_prints_at_the_shells_limits() {
+    let domain = whole_turn_shell_limits();
+    let input = b"Ordinary **Markdown** words.\n\n";
+    let length = usize::try_from(domain.client.domain.turn_text).unwrap();
+    let text = repeated_markdown(input, length);
+    let activity = full_turn_window(&domain, &text, 1);
+    let (mut root, _, watch, _, _, _) = fixtures::root_at_with_forges(
+        temper_client_domain::Address::Chat { task: TASK },
+        &domain,
+        b"Shop",
+        None,
+        Some(activity),
+        None,
+    );
+    deliver_chat(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(configuring_task())));
+    for shell in [crate::words::Shell::Browser, crate::words::Shell::Terminal] {
+        let words = crate::words::Words::english(fixtures::FORGE, domain.client.domain.text, shell).unwrap();
+        let bounds = crate::Limits::of(&domain, &words).unwrap();
+        let mut view = crate::View::new(&bounds, &domain, words, fixtures::FORGE);
+        let tree = fixtures::build(&mut view, &root);
+        let mut print = skein_ui_text::Print::new(&bounds.tree).expect("shell print bounds");
+        skein_ui_text::render(tree, b"temper", None, &mut print);
+        assert!(skein_lib::bytes::find(print.text.as_slice(), b"Ordinary Markdown words.").is_some());
+        assert!(print.text.len() > 100_000);
+    }
+}
+
+fn repeated_markdown(pattern: &[u8], length: usize) -> Box<[u8]> {
+    let mut input = skein_lib::bytes::zeroed(length);
+    for (at, byte) in input.iter_mut().enumerate() {
+        *byte = *pattern.get(at.checked_rem(pattern.len()).unwrap()).unwrap();
+    }
+    input
+}
