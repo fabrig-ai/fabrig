@@ -3117,13 +3117,14 @@ for its kind, its user's login and its installations. Its nodes:
   bound, and a deployment whose workers are elsewhere send none: the pages
   then print the placeholders the tools do, `temper program-login --config
   CONFIG --data DATA --cache CACHE NAME`, "On each host, with its
-  directories:".
+  directories:", or, on a page holding `program_environment`'s answer, those
+  words and `temper program-login NAME` under the same line.
 - **The program's environment, `program_environment`:** of the deployment's
   scope, with no fields and no subject: what `temper program-login` needs set
   to act on this deployment. It is the party's read, and only the deployment's
   owner has it, at any time, since the welcome's Model step shows them the command
-  during set up and Connect a model after it; anyone else's is refused, and sees
-  the plain command. Its answer is the record
+  during set up and Connect a model after it; anyone else's is refused, and their
+  page prints the command without its words. Its answer is the record
   `ProgramEnvironmentAnswer`: `environment` (bytes), empty when each of the
   three directories (`../protocol/configuration.md`, 12) is the one the command
   finds by itself in the environment the engine started in, and otherwise
@@ -3132,7 +3133,7 @@ for its kind, its user's login and its installations. Its nodes:
   that the client holds no path as a fact, quotes nothing and decides no
   default; it is a read of its own, separate from `DeploymentAnswer`.
   A page asks when its address names a program's way, the only place that
-  draws the command with these words; Accounts' stays plain (section 11). On the
+  draws the command with these words; Accounts' has none of them (section 11). On the
   wire it is `Reading`'s `program_environment`.
 - **A change's panel, the subject `change`** (`forge.md`, 9.2): of a
   project's scope, its window unused, naming the change task's number
@@ -3970,7 +3971,8 @@ The words for each offered source are:
   on an agent's task's page, says in the person's words why its run can't
   start, from the task's `run_wait`, and offers the act where there is one:
   - *No account for it:* "No account can run MODEL yet.", MODEL the task's
-    main, and "Connect a model", to `ConnectModel` with no way chosen.
+    main, or "No account serving this work" where its document names none, and
+    "Connect a model", to `ConnectModel` with no way chosen.
   - *An account's login on no host:* "ACCOUNT's login isn't signed in on a
     host that can run this.", the command (below) where the accounts
     document names the source, and a link to `Accounts`.
@@ -3998,8 +4000,9 @@ The words for each offered source are:
     its template's), then " · EFFORT" where the choice names an effort.
     Where the template names none, it is the supplied
     `resolved_default` beside that template in `me` (jig's
-    `client/domain/contract.md`, 5.1), using Create's resolver, charter
-    order, effective authority and current receiving-party payer.
+    `client/domain/contract.md`, 5.1), what a run's check would take for a
+    task keeping no account, under the effective authority and current
+    receiving-party payer.
     The composer never infers a default from the project catalogue's
     order, including a clipped catalogue. With no preview it uses
     "Using the default model". The preview is an observation, not a
@@ -4184,8 +4187,8 @@ repository, and the cues the playground's, copied in from its read:
   Scripted model · Default" (5.5). The scripted model's provider serves
   one model, so the line names no other. In the playground's project,
   the one that allows it, a new chat's line is the scripted model's; a
-  chat the scripted model ran keeps its line after it, since jig
-  records the model at Create (`../protocol/setup.md`, 8.3).
+  chat the scripted model ran keeps its line after it, since it keeps
+  its account (jig's `domain/accounts.md`, 4.3; `../protocol/setup.md`, 8.3).
 - **Its names:** the phrasebook names the playground's provider and
   model "Scripted model" and its forge "Playground forge", from the
   read's numbers, whatever names the records hold
@@ -6332,9 +6335,10 @@ own tests:
   one read per row. Default: the chat's state as `Chats` words it,
   "closed · 1 h".
 - **What a configuring chat's runs use, on its top bar** (the same
-  request): the request says the configuring role's first model. A
-  template's `llm` may be its charter's default, which no client is given.
-  Default: the first model `me` serves for the project.
+  request): the request says the configuring role's first model. On a chat
+  the bar reads the task's `llm`, what its next run takes; with no chat yet, no
+  client is given what template 3's would take. Default: the first model `me`
+  serves for the project whose LLM provider is usable for the person.
 - **How a project lands, on To begin's second step**
   (`../draft/to-begin.md`, 3): its line names how the project lands, by
   temper's merge queue or by its landing turn, and no client is given a
@@ -6746,19 +6750,21 @@ own tests:
   list an offered owned row from the machine at a first run, which
   changes what `forges` answers and what a first run's store reads as.
 
-- **A command on Accounts, and for anyone but the owner** (3.5, 4.6): Accounts'
-  "On each host, run: temper program-login NAME" names many hosts, each with
-  its own directories, and a person who isn't the owner gets no paths. Both
-  stay plain, and on a box with custom directories they don't run as shown.
-  Default: so, until a deployment says otherwise.
+- **A command for anyone but the owner** (3.5, 4.6): `program_login` goes to any
+  party signed in, its paths with it, so a person who isn't the owner reads on
+  Accounts the directories `program_environment` refuses them. Default: so, what's
+  printed working when pasted, until a deployment says otherwise.
 - **This deployment's directories under "each host"** (4.6, 5.5): Connect a model's
-  Ready says "Run this on each host temper’s agents run on" over the command with
-  `program_environment`'s words, which are this deployment's directories, and
-  another host's may differ. Default: so, a box being one host.
-- **The owner's command before its read answers** (4.6): while
-  `program_environment` is unanswered, or if its read fails, the owner's page draws
-  the plain command and says nothing, and on a box with custom directories that
-  command refuses. Default: so.
+  Ready says "Run this on each host temper’s agents run on" over "On this machine,
+  run:" and the command, whose paths are this machine's, and another host's may
+  differ. Default: so, a box being one host.
+- **The command before its read answers** (4.6): while `program_environment` is
+  unanswered, or if its read fails, a page with no `program_login` draws the
+  placeholders and says nothing. Default: so.
+- **A wait said twice** (3.5, 5.5): on a chat's page the bar and the wait's own
+  line both say "Waiting for an account", and with no usable account "No model yet
+  · Connect a model" stands beside the wait's "Connect a model". Default: so, until
+  a walk reads them.
 - **A directory that isn't UTF-8** (4.6): `program_environment` carries its
   bytes as they are, and the page draws text. Default: the command isn't
   drawn as it would run; the flags `../../help/box.md`, section 5, shows

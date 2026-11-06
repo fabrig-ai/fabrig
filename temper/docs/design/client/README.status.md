@@ -138,10 +138,8 @@
   (`#app:has(> .temper-session) > .temper-accounts`), where the section draws
   them there, because the request `ui-phone` of 2026-11-05 has those pages whole
   at `100dvh`, which a banner above them would cut. With no usable account "No
-  model yet · Connect a model" still stands above the composer, but for a
-  configuring chat (`temper-client-view`'s `pages/chat.rs`, `main`), where nothing
-  then says why Send stays grey; and no line says there that the playground is
-  running or leaving. Seen by reading; no test holds it.
+  model yet · Connect a model" still stands above the composer; no line says there
+  that the playground is running or leaving. Seen by reading; no test holds it.
 - **Departs:** 3.6, *Closed ends on one line*: a requester-closed chat hides
   every "Decision made" activity line, where the section and the request
   `close-chat` of 2026-11-06 hide the closing's alone, because `Activity::Decided`
@@ -283,6 +281,19 @@
   where the request has its title alone, and the row has none. A goal's counts
   search at most 8 pages for its own line and are then what the page holds, where
   the request has them true past one page (section 11, *A goal's own line*).
+- **Not yet:** 3.5, 4.6, 5.5: the walk the request `first-usable-model` of
+  2026-11-06 asks: none on record has a real box with one account, unedited, start
+  a chat that answers, or a box with no usable account say why it waits. A real
+  `temper program-login` needs a person's sign-in, so such a walk starts from a login
+  already signed in, or a key, and pastes the printed command only as far as the
+  program's prompt. No test runs that command through `temper program-login`:
+  `temper`'s `program_login/tests.rs` runs it by `sh -c` against a stub, so that it
+  reaches the sign-in for that box's `programs/NAME` is seen by reading.
+- **Design departs:** 5.5, *A run's wait*, from the request `first-usable-model` of
+  2026-11-06, decided by its plan's cut: a Chats row says "Starting" for a chat
+  that can't start, where the request has a run that isn't about to start say why,
+  because a row holds no run wait and its query carries no run's check per row
+  (jig's `client/domain/client.md`, 19.1). The chat's own page says why.
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. Until it
