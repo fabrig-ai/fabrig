@@ -675,7 +675,15 @@ fn no_account_offers_nothing_and_an_unnamed_chat_names_no_model() {
     let task = world.create(1, None);
     world.worker();
     let document = world.document(task);
-    assert_eq!(document.llm, None);
+    assert_eq!(document.llm, None, "no account offers a model in the task document");
+    let row = world.driver.task(task).expect("live chat");
+    let fallback = world
+        .driver
+        .root
+        .tasks()
+        .default_llm_at(1, row.settings.task, row.authority.models)
+        .expect("the charter keeps its first model for run policy");
+    assert_eq!(world.models.get(usize::from(fallback.main.model)).expect("charter model").name.as_ref(), CLAUDE);
     assert_eq!(
         document.run_wait,
         Some(core::documents::TaskRunWait::Account {

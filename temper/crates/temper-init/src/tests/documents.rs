@@ -1,7 +1,7 @@
 use super::fixtures::{self, DIRECTORIES, cases, content, parse, text};
 use crate::{files, template};
 use serde_json::{Value, json};
-use skein_lib::bytes;
+use skein_lib::{List, bytes};
 
 fn set(value: &mut Value, path: &str, replacement: Value) {
     *value.pointer_mut(path).expect("the member exists in the owned example") = replacement;
@@ -176,8 +176,8 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
             ),
             ("/engine/llm/models", {
                 let mut models = stock_models();
-                models.push(demo_model());
-                json!(models)
+                models.push(demo_model()).expect("seven stock models and demo fit");
+                json!(models.as_slice())
             }),
             (
                 "/application/machine",
@@ -622,45 +622,46 @@ fn the_bare_document_is_the_box_less_its_parts() {
 }
 
 // configuration.md, 13.4: the seven declarations, including their document order.
-fn stock_models() -> Vec<Value> {
-    [
-        ("claude-opus-5-5", "Opus 5.5", "anthropic", "high", 4_000, 20_000),
+fn stock_models() -> List<Value> {
+    let mut models = List::with_capacity(8);
+    for (name, shown, endpoint, effort, input, output) in [
+        ("claude-opus-5-5", "Opus 5.5", "anthropic", "high", 4_000_u32, 20_000_u32),
         ("claude-sonnet-5-5", "Sonnet 5.5", "anthropic", "high", 2_000, 10_000),
         ("claude-fable-5-1", "Fable 5.1", "anthropic", "high", 10_000, 50_000),
         ("gpt-6.1-sol", "GPT-6.1 Sol", "openai", "high", 2_000, 10_000),
         ("gpt-6-astra", "GPT-6 Astra", "openai", "high", 10_000, 50_000),
         ("gpt-6.1-terra", "GPT-6.1 Terra", "openai", "medium", 1_000, 5_000),
         ("gpt-6-luna", "GPT-6 Luna", "openai", "medium", 100, 500),
-    ]
-    .into_iter()
-    .map(|(name, shown, endpoint, effort, input, output)| {
+    ] {
         let efforts = if name == "gpt-6.1-terra" || name == "gpt-6-luna" {
             json!(["none", "low", "medium", "high", "xhigh", "max"])
         } else {
             json!(["low", "medium", "high", "xhigh", "max"])
         };
-        json!({"name": name, "shown": shown, "endpoint": endpoint, "window": 1_048_576,
-            "output": 8_192, "efforts": efforts, "effort": effort,
-            "prices": {"input": input, "cached": input, "output": output, "unit": 1_000_000}})
-    })
-    .collect()
+        models
+            .push(json!({"name": name, "shown": shown, "endpoint": endpoint, "window": 1_048_576_u32,
+                "output": 8_192_u32, "efforts": efforts, "effort": effort,
+                "prices": {"input": input, "cached": input, "output": output, "unit": 1_000_000_u32}}))
+            .expect("seven stock models fit");
+    }
+    models
 }
 
-fn agent_models(endpoint: &str) -> Vec<Value> {
-    stock_models()
-        .into_iter()
-        .filter(|model| model["endpoint"] == endpoint)
-        .map(|mut model| {
+fn agent_models(endpoint: &str) -> Box<[Value]> {
+    let mut models = List::with_capacity(7);
+    for mut model in stock_models().into_boxed() {
+        if model["endpoint"] == endpoint {
             let object = model.as_object_mut().unwrap();
             for member in ["endpoint", "shown", "effort"] {
                 object.remove(member);
             }
-            model["reasoning_item"] = json!(65_536);
-            model["head"] = json!(60_000);
-            model["idle"] = json!(30_000);
-            model
-        })
-        .collect()
+            model["reasoning_item"] = json!(65_536_u32);
+            model["head"] = json!(60_000_u32);
+            model["idle"] = json!(30_000_u32);
+            models.push(model).expect("one endpoint's stock models fit");
+        }
+    }
+    models.into_boxed()
 }
 fn anthropic(member: &str) -> Value {
     match member {
@@ -698,7 +699,11 @@ fn every_deployment_offers_claude_found_or_fetched() {
             for (member, at) in [("providers", 1), ("endpoints", 1)] {
                 assert_eq!(document["engine"]["llm"][member][at], anthropic(member), "{row}: {member}");
             }
-            assert_eq!(document["engine"]["llm"]["models"].as_array().unwrap()[..3], stock_models()[..3], "{row}");
+            assert_eq!(
+                document["engine"]["llm"]["models"].as_array().unwrap()[..3],
+                stock_models().as_slice()[..3],
+                "{row}"
+            );
             assert_eq!(agent["endpoints"][1], anthropic_agent(), "{row}");
             assert_eq!(
                 agent["programs"]["claude_code"],
