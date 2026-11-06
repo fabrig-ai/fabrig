@@ -458,32 +458,68 @@ keeps (`../protocol/configuration.md`, section 2).
     `skein-ui`'s reader (skein's `ui.md`, section 10): paragraphs, lists,
     quotes, code, and tables at the top level. A browser draws a table
     as the mockups' (`md-table`), and leaves out a header row whose
-    cells are all empty, as they do. A text cut at the bound ends in "…"
-    where it was cut, and nothing else says so;
-  - *the turn being written,* while a run writes it: the same words under
-    "Temper", from jig's thread's provisional line, whole from their start
-    up to `long_text` (5.4), read by `skein-ui`'s `read_growing` (skein's
-    `ui.md`, section 10): a block a blank line has closed stays on the
-    page as it was, only the last changes as words arrive, and no marker
-    shows being written. A small block, "▍", stands after the last word.
-    The committed turn draws the same blocks in the same place, and only
-    the block goes. Before its first word the turn draws nothing, and the
-    three dots stand (below);
-  - *its calls,* after its message's text: each delegation as its
-    task's card (5.7), then the message's other calls in one
-    disclosure (skein's `ui.md`, its disclosure), named by its count,
-    "1 tool call" or "N tool calls", and described by their tools'
-    names in order, a name called again given once with "×N", joined by
-    " · " ("read ×2", "read · edit"). A browser shows it folded to its
-    summary, the name and then its description in a lighter tone, as
-    the mockups' two tones, until the person opens it; the terminal
-    prints the description on its own line under the name (skein's
-    `ui-text.md`),
-    while the terminal and the fake person find its content whole: each
-    of those calls in order, as a work line, its tool's name and its
-    outcome where the call has one, as an agent's task's page draws a
-    call (5.9). A call that a card stands for is neither counted, named
-    nor listed;
+    cells are all empty, as they do. A provider's opaque block, a turn's
+    reasoning, is not drawn, and nothing stands in its place. A
+    conversation says nothing of what was cut: no notice, at a text's end,
+    a turn's or a window's;
+  - *the words being written,* the turn being written, under "Temper",
+    whole from its start up to `long_text` (5.4), read by `skein-ui`'s
+    `read_growing` (skein's `ui.md`, section 10): a block a blank line
+    has closed stays on the page as it was, only the last changes as
+    words arrive, and no marker shows being written. A small block,
+    "▍", in `temper-writing-end`, stands after the last word. The
+    committed turn draws the same blocks in the same place, and only
+    the block goes. Before its first word the turn draws nothing, and
+    the three dots stand (below);
+  - *its calls,* where they fall among the agent's texts: each
+    delegation as its task's card (5.7), a document's write as its tool
+    line (*A chat's document*, *The tool line*), and every other call in *a run*: every
+    call between two of the agent's texts, across the turns that made
+    them, drawn once as one line. A text, a person's words, a card, a
+    document's write or any other drawn line ends a run; a line the chat
+    hides does not. A call that a card stands for is neither counted,
+    named nor listed. The line is one disclosure (skein's `ui.md`, its
+    disclosure), `temper-work-run`, in a turn of its own:
+    - *its name,* one phrase a tool, in the order first called, joined
+      by ", ", the first capitalised unless it is a tool's own name:
+      "Read 7 docs, checked settings 3×", "read_file ×2". The phrases are
+      the view's table, one function (`pages/chat_line.rs`), tool by tool,
+      starting from the tools a chat calls most. A tool in it counts what
+      it touched, not its calls: `read_docs` is "read N docs", its distinct
+      topics, each search one, a call whose input can't be read one
+      ("read 1 doc"); `settings` is "checked settings N×", once "checked
+      settings". Any other tool is its name, counted: "read_file ×2", once
+      "read_file". A run of one call alone says what it touched: "Read the
+      page hold", "Searched the docs for WORDS", "Checked template 2";
+      any other tool still its name;
+    - *its description,* faint: the time the run took, then nothing else.
+      "29 s", under a minute in whole seconds, then "4 min": from the
+      first turn of the run to its last, as the committed turns say. A
+      run of one turn, or under a second, has no time and no description;
+    - *a failed call* adds "1 failed" ("N failed") before the time in the
+      description, "1 failed · 29 s", the description then in the signal's
+      colour, `temper-work-failed`, and read after the name with a comma
+      the stylesheet draws;
+    - *while it runs:* the conversation's last run, while the chat's
+      status is active (`chats::working`), has `temper-work-running` and no
+      time. It counts what has ended, and its description is the call
+      under way, from the run's `call` (jig's `RunState`), the phrase's
+      present form in faint words: "checking template 2", "reading index",
+      any other tool its name; the stylesheet adds the "…". With no call
+      under way, no description. A call under way with none ended is the
+      line alone, its name the present form capitalised;
+    - *opened,* `temper-work-calls`, a row a call in order, the call under
+      way last: a paragraph named "TOOL ARGUMENT: OUTCOME", the tool in
+      code, the argument in a few words (`read_docs`: "index", "change,
+      from 1438", a search's words; `settings`: "the inventory", "charter
+      1", "history"; any other tool: its input's first text or number
+      member, "task 3"; nothing where the input can't be read), and, in
+      `temper-work-out`, its outcome's first line, a failed call's
+      "failed: LINE" in the signal's colour. Never a result's body. A row
+      is cut at 160 bytes, and a name at 256 at a phrase's end, with "…".
+    A browser shows it folded until the person opens it. The terminal
+    prints the name, then its description after a colon, and its rows
+    under it, as text; the fake person finds them whole;
   - *the person's words,* the thread's words and each words line a
     person sent (jig's `OwnerActivity::Words`, by a person), under
     "You" or the party's name, a paragraph for each line, with "Being
@@ -529,24 +565,43 @@ keeps (`../protocol/configuration.md`, section 2).
     the bubble. The day's line is hidden; a marker is `.meta-line`.
   - *A delegate's words* look like `.turn-agent`, with "TN" kept visible,
     12 px and faint, above them.
-  - *A call's line,* `.turn-tool`, opens with the pen icon. The disclosure
-    of other calls keeps its name and description ("2 tool calls",
-    "read ×2") as one line: pen, name muted, description faint; open, its
-    work lines are indented 24 px. A delegated change and a goal are one
-    line each (5.7).
+  - *A call's line,* `.turn-tool`, opens with the document's icon where it
+    is a run's and the pen where it is a write's. A run's line is muted, its
+    description faint, with a "›" that turns when it opens; open, its rows
+    are indented 24 px, a row wraps at a phone's width, the tool 12 px mono,
+    the argument muted, the outcome faint. A delegated change and a goal are
+    one line each (5.7).
   - *While it works:* three dots, `.typing`, at the end of the log, named
     "Writing", while the chat's status is Starting, Writing, Working or a
-    tool's and the window's last line is not provisional text holding a
-    word. The terminal prints nothing new for it. *The turn being written*
-    looks like `.turn-agent`, its name hidden as a committed turn's, its
-    "▍" faint and in the line of the last word; the terminal prints the "▍"
-    as it prints a status.
+    tool's, the window's last line is not provisional text holding a word, and no run is
+    running at the conversation's end. The terminal
+    prints nothing new for it. *The words being written* look like
+    `.turn-agent`, their name hidden as a committed turn's, their "▍"
+    faint and in the line of the last word; the terminal prints the "▍"
+    as it prints a status. A numbered list's `ol` is 22 px in, its
+    markers faint.
   - *A card in the conversation* (a proposal, a held task, a question's
     answer) is `.proposal`: white, radius 12, its shadow, 20 px 22 px; a
     kind's title in `.proposal-title`; `.proposal-split` and
     `.proposal-state`; its first button `.btn.primary.small`, the rest
     `.btn.quiet.small`.
-  - *"Older"* is a `.btn.quiet.small`, centred, at the head. *Its end* has
+  - *Reading back:* "Latest", `temper-latest`, a browser's alone: a small
+    pill, centred 12 px over the pane's foot, its " ↓" the stylesheet's, on
+    a button *to log end* (skein's `ui.md`, 3.2) beside the log, shown while
+    the log is away from its end (`data-log-away`, skein's `ui-web.md`, 7).
+    Pressed, the view returns to the end and it goes. Where the window has
+    let the newest lines go it is bound too, and a press reads the page
+    after (jig's `Thread::newer`). New words while reading back don't move
+    the view, and it stays.
+  - *"Loading earlier messages…",* `temper-thread-loading`, faint and
+    centred at the head of a chat's conversation or an agent's, a status
+    named "Loading earlier messages", only while an older read is out, in
+    place of "Older". Nothing once the chat's start is shown.
+  - *"Older"* is a `.btn.quiet.small`, centred, at the head while an older
+    page remains and the window has filled. It is replaced by the loading
+    status while that read is out; the agent's page uses the same head,
+    with "Older" whenever an older page remains. An agent's page has no
+    Latest pill. *Its end* has
     `.meta-line`'s look, and an ended chat has no composer.
 - **A new chat** (the greenfield mock's `chat.html?id=new`): `NewChat`,
   at `/chats/new`, for the open project. The domain's `Chats` state holds
@@ -608,8 +663,8 @@ keeps (`../protocol/configuration.md`, section 2).
   - *The tool line:* a `note` call whose answer parses (`../domain/agent.md`,
     8.3) is a `.turn-tool` in the conversation: the pen, "Wrote" for a first
     write, else "Edited"; `.file` NAME; a `.turn-tool` detail, "64 lines" or "+18
-    −6"; "Show", a button. It isn't counted in the "N tool calls" disclosure; a
-    failed one stays in the disclosure. The domain parses the words, as
+    −6"; "Show", a button. It isn't counted in a run, and ends one; a failed one is a call of its
+    run. The domain parses the words, as
     `delegation::results` does. "Show" moves to Split (on a phone, Draft) unless
     already in Split or Draft, and moves the focus to the section holding that
     call's `first`, which brings it into view and flashes it (`.doc-sec.flash`,
@@ -3670,8 +3725,8 @@ A chat's window holds 16 lines (the domain's chat page), and the page
 reads the page before its oldest while an older one remains and the
 window has room for a page, `rows` lines, so a conversation of a dozen
 lines shows whole, with no "Older". Past that, "Older" reads the page
-before, and the lines the window lets go are said ("Earlier lines omitted N", jig's
-`Left`). The engine's pages keep their own rows (its
+before, and the lines the window lets go are not said (jig's `Left` draws
+nothing). The engine's pages keep their own rows (its
 `documents.rows`, at most the client's). Committed turns on both the chat
 and agent task pages are priced by `turn_text`; cards and other fields
 retain `text`.
@@ -4400,14 +4455,11 @@ acts on it as its document offers (5.11).
 - **The conversation,** from the task's bounded thread (jig-client's
   `thread`), read as the chat's page reads it, is drawn as work, not as
   a chat's (3.5): its latest window; committed turns, the agent's
-  "Temper"; a message's calls folded as a chat's (3.5), in one
-  disclosure after its text, named and described as the chat's and
-  listing each call as a work line, a `delegate` call's too, since a
-  delegation's card is the chat's (5.7); each result as a work line, its
-  first line alone, where its message has it; "Run N began" and
-  "Run N ended"; the lines omitted before the window; and a live run's
-  provisional text, as the chat's provisional turn. A turn's opaque
-  blocks are not drawn, as in a chat.
+  "Temper" over its texts; its calls in runs, as a chat's (3.5), one
+  line a run with no running state, a `delegate` call's a row too, since a
+  delegation's card is the chat's (5.7), and a run's results its rows'
+  outcomes, a message that holds only those drawing no "Completed"; "Run N began" and
+  "Run N ended"; and a live run's words being written, as the chat's.
 - **Its result,** once it has ended: a region "Result" after the
   conversation, its state and its words as a goal's "Result" says them
   (5.8), from the same function (`pages::delegation::facts`):
@@ -6367,8 +6419,8 @@ own tests:
   Default: as printed; a terminal shell that says every time as its
   moment, with no wake, is the candidate.
 - **An agent's conversation drawn as a chat's** (5.9): the agent's
-  page folds a message's calls as a chat does, and keeps each result
-  and the run markers as work lines, which a chat hides (3.5).
+  page draws runs as a chat does, and keeps the run markers
+  as work lines, which a chat hides (3.5).
   Default: as work; the chat's drawing is the candidate, the task
   pages'.
 - **Which person messages are the person's** (3.5): jig's turns keep no
@@ -6436,11 +6488,8 @@ own tests:
     document's `cut` does not say which list was cut; a cut of its own
     on the dependencies, as a plan row's, is the candidate (a jig
     change);
-  - a message's calls: folded as a chat's, in the disclosure named
-    "N tool calls" and described by their names (3.5), each call a work
-    line inside it;
-    its results stay work lines where their message has them, which
-    the mockup doesn't draw;
+  - its calls: runs as a chat's, one line a run (3.5), a row a call,
+    a result its row's outcome, which the mockup doesn't draw;
   - its plan: drawn while its tree holds a delegate or a held card,
     where the mockup draws none;
   - its acts are 5.11's.

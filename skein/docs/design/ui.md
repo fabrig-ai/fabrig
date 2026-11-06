@@ -184,6 +184,7 @@ fake person. What waits is in section 18, and what is open in section
 | completed | an item done: a step of a sequence finished, an entry of a checklist met |
 | continues | a log whose last entry is not its list's last: a shell does not follow it, and counts the person away from the list's end |
 | folds away | a disclosure a shell folds on a press outside it or on Escape, as a panel |
+| to log end | a button a shell answers, pressed, by taking the page's logs to their ends; its press still reaches its owner where bound |
 
 There is no provisional state: no accessibility API has one. A node
 whose content is provisional says so in words (a status), and its look
@@ -1005,6 +1006,7 @@ The page part keeps the full mapping (ui-web.md, section 6); in brief:
 | completed | the page part's word, last in the item, hidden from sight and read (ui-web.md, section 6) |
 | continues, an end request | nothing of their own: the page part reads them (ui-web.md, section 7) |
 | folds away | `data-folds-away` on the `<details>`, read by the page part (ui-web.md, section 7) |
+| to log end | `data-to-log-end` on the `<button>`, read by the page part (ui-web.md, section 7) |
 | a name, a description, a level | `aria-label`; `aria-describedby`; `<h1>` to `<h6>`, deeper `aria-level` |
 | a placeholder | `placeholder` |
 | an entry kind | `type`: `text`, `number`, `email`, `tel`, `url`, `date`, `time`, `password` |

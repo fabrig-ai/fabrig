@@ -20,6 +20,8 @@ use std::{cell::RefCell, rc::Rc};
 mod folds_fixture;
 mod grow;
 #[cfg(debug_assertions)]
+mod log_fixture;
+#[cfg(debug_assertions)]
 mod reading_fixture;
 #[cfg(debug_assertions)]
 mod tree;
@@ -79,6 +81,11 @@ pub fn start() {
     #[cfg(debug_assertions)]
     if path == "/test/folds-away" {
         folds_fixture::start(mount, facts.primary);
+        return;
+    }
+    #[cfg(debug_assertions)]
+    if path == "/test/log-end" {
+        log_fixture::start(&mount, facts.primary);
         return;
     }
     #[cfg(debug_assertions)]

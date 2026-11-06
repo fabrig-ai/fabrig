@@ -152,6 +152,8 @@ pub enum State {
     FoldsAway,
     /// The log's last entry is not its list's last.
     Continues,
+    /// A button takes the page's logs to their ends before its press reaches its owner where bound.
+    ToLogEnd,
 }
 
 /// A token from an owner's closed style set.
