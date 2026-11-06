@@ -607,12 +607,16 @@ served is held, kept and unsent, for its owner's version (client.md,
     what waits for them, counted exactly (questions, proposals,
     escalations, person tasks), and their updates unread, counted up to
     a limit; their read position over results; each project's merged
-    templates (3.6), each with `resolved_default: Option<LlmChoice>`
-    beside its configured LLM intent. The preview takes what a run's check
-    would for a task keeping no account (`../../domain/accounts.md`, 4.3),
-    under the effective creating authority and current receiving-party
-    payer (`../../domain/engine.md`, 11.1). An explicit
-    choice previews itself; an omitted choice with no eligible model
+    templates (3.6), and for each with one a `resolved_default: LlmChoice`
+    beside them (`defaults`, by the template's number), separate from its
+    configured LLM intent. The preview is what a run's check of a task
+    given none and keeping no account would take now
+    (`../../domain/accounts.md`, 4.3): the first model in charter order with
+    an account usable now, at its default
+    effort, under the effective creating authority and the current receiving
+    party as payer (`../../domain/engine.md`, 11.1), so that it is one of
+    the project's offer (below) where that authority's models are. An
+    explicit choice previews itself; an omitted choice with no usable model
     or an executor still *chosen* gives `None`. It grants and reserves
     nothing. Shapes retain configured intent, never the preview, and
     a clipped catalogue gives no order from which to guess it. Relevant
@@ -620,13 +624,22 @@ served is held, kept and unsent, for its owner's version (client.md,
     invalidate it (7.2). The document also gives what they may create
     in each project, as the bounds a draft is compared with (5.3);
     their role in the deployment, if
-    any; the models they may choose in each project, as the brief's
-    catalogue gives them (`../../domain/engine.md`, section 9): each
-    with its LLM provider, window and output, the efforts it takes, its
-    prices (amounts per `unit` tokens in the deployment's spend unit;
-    cache writes are priced at input when no separate price is given)
-    and its optional description as configured, so that a task's LLM
-    choice (3.2) is drafted from it; the most bytes a key may have,
+    any; the **offer** in each project, what they can pick there now, one
+    list that every client draws from and works nothing out, so that a page
+    can't show what it leaves out: the models of the brief's catalogue
+    (`../../domain/engine.md`, section 9), in configuration's order, that
+    their authority there allows and an account can run, an account of the
+    model's provider being usable now and serving them
+    (`../../domain/accounts.md`, 4.3). A provider with no such account gives
+    no model, whatever configuration declares of it. Each model has its LLM
+    provider, window and output, the efforts it takes, low to high, the
+    default among them that a task given none takes (`effort`), its prices
+    (amounts per `unit` tokens in the deployment's spend unit; cache writes
+    are priced at input when no separate price is given), its optional
+    description and shown name as configured, the accounts that can run it
+    for them, the one a run would take first first, and whether a picker
+    shows it (`picker`), so that a task's LLM choice (3.2) is drafted from
+    it; the most bytes a key may have,
     which bounds a request carrying one (3.1), and the most a pasted
     sign-in address may have, the driver's redirect bound; the most bytes
     a party's words may have (a task's spec, a message, an answer) and an
@@ -636,9 +649,11 @@ served is held, kept and unsent, for its owner's version (client.md,
   - *a task:* its header, overview, budget and authority; its fields
     (3.2): tracked and priority, label, flags, when it was made
     (`made`, its record's `created_at`), last activity, and what it
-    waits on; the LLM choice its next run takes, what it was given or,
-    given none, what its check would take now (`../../domain/accounts.md`,
-    4.3), with the creator's optional account preference,
+    waits on; the LLM choice its next run takes, what it was given or, given
+    none, what its check would take now (`../../domain/accounts.md`, 4.3),
+    and none for a task given none that no account serving its payer can
+    run, so that a client names no model it wasn't given, with the creator's
+    optional account preference,
     the separate account kept by the last successful claim, and its next-run
     account/source wait with the source's typed state and optional wall reset
     (unknown stays unknown), or a credential or host wait. `Task.run_wait`
@@ -1136,6 +1151,11 @@ party reads is therefore never lost by a crash.
   position needs more joins than any read allows, as too linked, naming
   the bound (`../../protocol/store.md`, 7.3), so a client never reads
   the same position again in vain.
+- **An answer that cannot be encoded** within the client wire's bounds is
+  answered malformed. At the client, an answer that cannot be decoded within its
+  receiving bounds ends any jig read malformed, with the link's undecodable fact
+  (client.md, section 16). A lost exchange remains unreachable; decoding failure
+  alone never asks for another attempt.
 - **A question's answer** is read with the question, by whoever may read
   the question: a delegate is in its requester's project, and the
   answer's words are those of the task the question was put to
@@ -1336,10 +1356,11 @@ new `me` watch, including after restart.
   too; a party's entries, role or pool touched mark their inbox and
   their `me`; a project's name or policy changed marks the `me` of every
   party with a role in it; an account's source, state, order or uses
-  touched, a program's login reported on a host, or a sign-in or a check
-  begun or ended, marks the `accounts` of the parties it concerns and
-  the `deployment`'s, and the affected parties' `me` when template
-  default eligibility changes. Membership and effective-executor changes
+  touched, a program's login reported on a host, a host connecting or
+  leaving, or a sign-in or a check begun or ended, marks the `accounts` of
+  the parties it concerns and the `deployment`'s, and their `me`, whose
+  offer and previews read the same facts. Membership and effective-executor
+  changes
   also invalidate affected `resolved_default` previews (5.1). Matching a
   task against the open queries is bounded by the watches the engine
   allows, each a fixed set of keys. A connector marks its own subjects,
@@ -1573,6 +1594,11 @@ designs (`../../protocol/client.md`):
 
 ## 11. Open questions
 
+- **Historical public boards** (section 12): ended goals across a restart
+  or from before publication need the source index in
+  `../../domain/people.md`, section 12. Default: the current public records,
+  projected from that document's memory-only index (13.9); no history is
+  reconstructed by the client contract.
 - **Bundling parts:** whether a jig read's answer should carry the
   application's parts it names, put together by the engine's root, to
   save a client the second round trip.
@@ -1582,11 +1608,11 @@ designs (`../../protocol/client.md`):
   (`../../domain/people.md`, section 12).
 - **Search** over tasks, results, notes and transcripts, which the engine
   has only over notes' descriptions.
-- **A document past its bounds:** what a read or a watch is answered
-  when the engine cannot make its document within the client's bounds:
-  bounds derived so that it cannot happen, as a path's segments are, or
-  an answer of its own. Until it is settled, a watch's is refused as
-  unknown and a delivery's ends its watch (7.2).
+- **A document past its bounds:** a read whose answer cannot be encoded or
+  decoded ends malformed (section 6). Whether the engine instead derives bounds
+  so it cannot happen, as a path's segments are, or takes a client's bounds to
+  page within them. A watch's opening is refused as unknown and an oversized
+  delivery ends its watch (7.2); a watch's answer of its own remains open.
 - **A compound's project on the wire** (3.4): each of its operations names a
   project on the client wire, and the clients' protocol layer refuses one other
   than the compound's before the ask goes further. Whether people refuses it,
@@ -1618,10 +1644,13 @@ number: a project and a task are named by their public identifiers
   when cut; `parent: Option<PublicId>`, none for a
   public goal; `goal: bool` and `priority: Option<u32>`, a goal's;
   `executor: PublicExecutor`, its kind alone: agent, procedure,
-  person or job (5.7); `phase: PublicPhase`, jig's phases (5.1) as unit variants, and
+  person or job (5.7); `phase: PublicPhase`, jig's phases (5.1) as unit
+  variants, an ended task's saying how it ended, `done`, `failed` or
+  `cancelled`, and
   `hold: Option<PublicHold>`, a held task's hold's kind as a unit
   variant; `made`, `changed`, `active: Option`, `ended: Option`, each a
-  time to the second; `spent` and `budget` in the deployment's unit;
+  time to the second; `spent: Option<u64>` in the deployment's unit, a
+  goal's, none for a task; no budget;
   `delegates: PublicCounts`, its public delegates counted by phase
   class.
 - **Schema ceilings:** projects 4,096; live and ended goals 256 each;
@@ -1645,9 +1674,9 @@ number: a project and a task are named by their public identifiers
   | a task's `PublicId`, `parent`, `lineage` | the task's and its ancestors' numbers, up to its public goal | the same; `parent` none at the public goal |
   | `goal`, `priority` | whether the task is tracked, and its priority | as is |
   | `executor` | the executor's kind | the kind alone, never who or which |
-  | `phase`, `hold` | the task's phase; a held task's hold's kind | the kind alone, never its reason |
+  | `phase`, `hold` | the task's phase and, ended, its ending; a held task's hold's kind | the kind alone, never its reason |
   | `made`, `changed`, `active`, `ended` | the task's times (`../../domain/tasks.md`, section 3) | to the second |
-  | `spent`, `budget` | the task's spend and budget | as is |
+  | `spent` | a goal's spend, with what its delegates spent | as is; none for a task |
   | `delegates`, a folded count | the public index's public tasks | counted after filtering (`../../domain/people.md`, 13.7) |
   | `max-age` | `clients.public.max_age` | as is |
   | `PublicApplication`'s `tasks` | the numbers the connector listed | the component's permutation |
@@ -1655,7 +1684,7 @@ number: a project and a task are named by their public identifiers
 - **Nothing else crosses:** no spec beyond its first line, instructions,
   inputs, result, words, question or answer, turn, note, reason, label's
   meaning, proposal, escalation, name of a charter, procedure, role or
-  party, account or resource.
+  party, account or resource, a task's spend or any budget.
 - **A schema of their own:** jig's public records are a schema apart
   in `jig-client-protocol-wire`, `public-v1.schema`, versioned apart
   from its other records, naming only one another and scalars, never a

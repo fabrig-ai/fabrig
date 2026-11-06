@@ -1532,6 +1532,7 @@ reads it, and whatever is Linux's may be degraded there.
   |---|---|
   | `crates/temper/src/tests.rs`: `id_login_agrees_with_the_effective_users_passwd_entry` | Linux supplies the effective user's passwd entry to compare with macOS's command lookup |
   | `crates/temper/tests/process.rs`: `a_story_box_and_its_steps_die_when_the_test_process_is_killed` | a parent-death signal is Linux's |
+  | `crates/temper/tests/suite/box_listeners.rs`: `a_killed_box_takes_its_steps_with_it` | a parent-death signal is Linux's |
   | `crates/temper/tests/suite/startup.rs`: `parent_guard_observes_its_recorded_process_after_reaping` and `observing_parent_descendants_leaves_cleanup_with_their_world`; `crates/temper/tests/suite/box_listeners.rs`: `stop`'s check that no process outlived the box | `parent::Guard`'s retained identities and its observation are Linux's |
   | `crates/temper/tests/suite/startup.rs`: `forge_parent_listener_helper`, `forge_run_ignores_its_childs_term_relays_the_listener_and_dies_with_its_status` and `killing_forge_run_alone_kills_its_forgejo_child` | `forge run` stays Forgejo's parent on Linux alone (`../protocol/setup.md`, 6.4) |
   | `crates/temper/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `crates/temper/tests/support/forgejo_elsewhere.rs` | the capture witness uses Linux's abstract Unix sockets |
@@ -2757,6 +2758,20 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **A default box's combined browser and terminal proof** (2.6;
+  `../protocol/setup.md`, 7.1, 7.2 and 13.4): one 1440-pixel walk with the
+  default runner and separate configuration, data and cache directories,
+  signing in by one click on a fresh start, after a restart and after a
+  moved temper port, then closing its pseudo-terminal and checking that
+  its processes and ports are free for another start. A runner-disabled
+  browser walk and separate lifetime tests do not replace this sequence.
+
+- **The process tier's concurrency proof.** Three tests at a time (2.6)
+  are proved by the next after-landing run on main, per the request
+  `process-threads` of 2026-11-06, in place of `test-speed`'s three whole
+  runs and a loaded one. Only focused and fuzzy run within the plan.
+  The 360 CPU s budget and the profile's 25-minute timeout stand; a red
+  after landing is repaired under 2.6's rule, without raising either.
 - **jig's referee tests, repeated.** `tests/engine/domain/tests/suite/referee.rs`
   keeps tests of jig's referees that jig's own suites hold:
   `authority_referee_rejects_a_person_without_a_grant` observes what

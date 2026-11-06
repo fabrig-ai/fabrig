@@ -396,6 +396,10 @@ fn home_documents_with_status(
     member
         .models
         .push(c::MeModel {
+            effort: None,
+            shown: None,
+            accounts: List::with_capacity(0),
+            picker: true,
             name: c::Text::new(b"gpt-6-luna".as_slice().into(), 32).unwrap(),
             provider: Some(17),
             description: None,

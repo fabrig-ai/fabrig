@@ -2,6 +2,9 @@
 
 2026-11-06. Where skein's code lags or departs from [io.md](io.md).
 
+Section 7 has no known gap in the requested hangup event or its distinct
+`ServiceSignal::Hangup` name.
+
 - **Not yet:** 5: a tree's metadata, the filesystem's status and sync, and
   btrfs's subvolumes (`StatEntry` to `SubvolumePath`). 6, 6.2 to 6.4:
   cgroups and contained trees.

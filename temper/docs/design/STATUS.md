@@ -54,7 +54,13 @@ CI or tiers' workflows, and no walk applies the case's project file
 user's request of 2026-11-03 but for a message, a report, a person's
 spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
-with has not passed (`protocol/setup.md`). `temper init`'s documents hold
+with has not passed (`protocol/setup.md`). The box's hour-long Forgejo
+session, source-address refresh, refused public/sign-in pair, empty
+repository-name handling and Linux lifetime wrapper are built. The
+combined default-runner, restart, moved-port and terminal-hangup walk
+has no outcome in the supplied inventory, and the real-box sign-in
+story awaits its after-landing run (`protocol/setup.md`,
+`protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
@@ -97,7 +103,12 @@ alone, and many of ctl's tools (`client/README.md`,
 browser, whose story A walks in the browser tier but not yet by hand
 (`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). The browser tier holds 17 tests, five past its cap, its CPU
+(`release.md`). Public pages use a plain column, a goal's spend alone, distinct
+endings and seven-digit commits; public records carry no forge addresses.
+Public history before publication, across a restart and from a stock queue
+is deferred, and the public geometry story's runtime check awaits the
+browser tier after landing (`client/browser.md`, `client/forge.md`).
+The browser tier holds 17 tests, five past its cap, its CPU
 measured within its budget on the 12 without the call line's and the welcome's
 sign-in's, at 83.069911 of its 85 on a run of 13 with one red, a public project's
 `temper ctl` visibility command past its deadline, its cause not found, and at
@@ -228,11 +239,15 @@ Configure, departing from the request `configure-temper-own-way` in its referenc
 words and look (`client/README.md`), but no journey records its acts and no
 render has checked its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
 the line departs from the request `chat-work` in a failed call's colour, and the end
-mark is a glyph that does not blink (`client/README.md`); on a walk a long chat's
-first earlier read did not end in 40 seconds, its cause unknown, and no walk on record has
-read one by its log's edges (`client/README.md`). The words being written draw an
-empty message in the dots' place until they hold a word, their "▍" falls below a closed
-fence, a last block still open changes as it commits, and no browser test draws them
+mark is a glyph that does not blink (`client/README.md`). The long-message
+read's decoder and retry chain is repaired and covered through the real engine;
+no manual proof on record checks it in both shells. Edits past 131,072 bytes
+keep a prefix and overflow count, losing the rest on a new drawing, where the
+`long-words` request keeps every typed word (`client/README.md`, 5.4 and 5.15).
+The words being written draw an empty message in the dots' place until they hold a word, their "▍" falls below a closed
+fence, and a last block still open changes as it commits. A committed call or card
+before the first text replaces that text's nodes; the paragraph render proof at
+1440 and 420 px does not cover these Markdown and block-order cases
 (`client/README.md`). A run of calls is one line on a chat's page and an agent's, its
 verbs and time for the user to read on a real chat (`draft/chat-reading.md`), but no test
 takes its call under way from the engine or draws it running in a browser or a real
@@ -263,9 +278,8 @@ where it is. The browser tier runs Chromium alone, with
 `overflow-anchor: none` as the nearest run to Safari; Firefox and Safari
 themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**). A read
 that failed at the head is not tried again on a move back within its reach (`client/README.md`).
-The process tier's three tests at a time have no whole run on record until the next
-after-landing run, and most of the `test-speed` plan's whole runs read over its CPU
-budget (`domain/testing.md`). The
+The process tier's three tests at a time await a passing whole run after landing,
+and its CPU-budget overages remain (`domain/testing.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither

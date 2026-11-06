@@ -2,6 +2,11 @@
 
 2026-11-06. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
+Sections 9.2 and 9.9 have no known implementation gap in refreshing a
+listed box source before Forgejo starts or refusing `owned.public` beside
+`owned.sign_in`. The combined default-box proof remains as recorded in
+`setup.status.md`, 7.1, 7.2 and 13.4.
+
 - **Not yet:** 2.4: public reading's deployment: no proxy configuration caches `/jig/v1/public/` by deployment, `Host` and path, keeps no stale copy, or limits an address, and no deployment sets jig's public limits.
   2.5: the proxy's own rules are played against scripted upstreams, not
   temper's service (`temper/tests/one-process/src/public/checks.rs`):

@@ -850,6 +850,11 @@ impl<A: App, F: Front<A>> World<A, F> {
     pub fn run(&mut self, until: Until) -> Outcome {
         let mut iterations = 0;
         for _ in 0..self.settings.iterations {
+            if let Until::Steps(count) = until
+                && iterations >= count
+            {
+                break;
+            }
             if let Some(meter) = &self.meter {
                 meter.start();
             }
@@ -890,7 +895,7 @@ impl<A: App, F: Front<A>> World<A, F> {
                         && self.referee.verdict() == Verdict::Passed
                 }
                 Until::Time(at) => self.now >= at,
-                Until::Steps(count) => iterations >= count,
+                Until::Steps(_) => false,
             };
             self.check_heap();
             if stop {

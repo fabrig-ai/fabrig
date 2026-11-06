@@ -256,6 +256,8 @@ fn a_stored_project_policy_at_the_byte_bound_is_admitted() {
 fn stock_config() -> engine::Config {
     let mut config = walking::config(SEED);
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         models: walking::models(),
         descriptions: Box::new([None]),
@@ -304,6 +306,8 @@ fn set_policy_tools(policy: &mut authority::Policy, tools: authority::Tools) {
 fn an_owner_of_a_deployment_with_no_project_makes_one_from_policy_1() {
     let mut driver = deployment_without_projects();
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         models: walking::models(),
         descriptions: Box::new([None]),

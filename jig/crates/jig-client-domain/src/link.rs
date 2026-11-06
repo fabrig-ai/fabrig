@@ -10,6 +10,16 @@ impl Domain {
     pub fn streams_full(&self) -> Option<crate::StreamsFull> {
         self.streams_full
     }
+    /// A watch held was last answered busy, with no answer since (client.md, 8.2).
+    #[must_use]
+    pub fn watches_full(&self) -> bool {
+        for (_, watch) in &self.watches {
+            if watch.busy && !watch.closing {
+                return true;
+            }
+        }
+        false
+    }
     #[must_use]
     pub fn party(&self) -> Option<u64> {
         for (_, watch) in &self.watches {

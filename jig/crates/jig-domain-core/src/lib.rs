@@ -56,6 +56,7 @@ pub use crate::{
         amendments::TaskAmendDenied,
         policy::{grants_to_authority, snapshot as policy_snapshot},
     },
+    documents::Offered,
     effects::{
         EffectKey, EffectOrigin, EffectPurpose,
         projections::{
@@ -92,7 +93,7 @@ pub use crate::{
         state::{
             EFFORT_BYTES, EFFORTS, GoalRoute, MODEL_DESCRIPTION_BYTES, MODEL_NAME_BYTES, Model, PendingRelay,
             PersonProposalRoute, PersonTaskRoute, RestoringProof, RoutedCall, RunAdmission, RunCharter, RunPolicy,
-            Transcript, reserve_floor,
+            Transcript, most_costly, reserve_floor,
         },
         transcript_text::{TranscriptRow, TranscriptText},
     },

@@ -79,8 +79,6 @@ impl Domain {
             l,
             w::PublicChangeParts {
                 task: names.name(row.task)?,
-                repository: self.repository_address(row)?,
-                pull: self.public_pull(row),
                 head: row.change.last_head,
                 step: step.kind,
                 repair: step.repair,

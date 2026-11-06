@@ -35,6 +35,12 @@ pub struct ProviderOffer {
     /// Whole optional public HTTPS manage target, at most 2,048 bytes.
     pub manage_usage: Option<Box<[u8]>>,
 }
+/// One model of the party's offer (jig/docs/design/domain/engine.md, 11.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Offered {
+    pub model: u8,
+    pub accounts: List<u32>,
+}
 /// Availability is an observation, never a run reservation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Readiness {
@@ -159,6 +165,82 @@ fn readiness(core: &Core, payer: tasks::Payer, provider: u32) -> (Readiness, boo
 }
 
 impl Core {
+    /// The offer for `payer` in `project`, in configuration's order
+    /// (jig/docs/design/domain/engine.md, 11.1).
+    #[must_use]
+    pub fn offer(&self, payer: tasks::Payer, project: u32, models: tasks::Models) -> List<Offered> {
+        let coverage = self.account_coverage(payer, Some(project));
+        let mut offered = List::with_capacity(tasks::MODELS);
+        for (at, model) in self.settings.models.iter().enumerate() {
+            let index = u8::try_from(at).expect("configured models bounded");
+            if models.bits() & 1_u64.checked_shl(u32::from(index)).expect("model bit") == 0 {
+                continue;
+            }
+            let accounts = self.offered_accounts(payer, coverage.as_slice(), model);
+            if !accounts.is_empty() {
+                offered.push(Offered { model: index, accounts }).expect("configured models bounded");
+            }
+        }
+        offered
+    }
+
+    fn offered_accounts(
+        &self,
+        payer: tasks::Payer,
+        coverage: &[accounts::Coverage],
+        model: &crate::Model,
+    ) -> List<u32> {
+        let mut result = List::with_capacity(self.accounts.accounts());
+        let Some(provider) = self.provider(model) else { return result };
+        let payer = crate::runs::coverage::payer(payer);
+        let candidates = self.accounts.candidates(payer, provider, model.program.as_deref(), None, None, coverage);
+        let hosts = self.fleet.host_views();
+        let mut facts = List::with_capacity(self.host_fact_capacity());
+        for account in &candidates {
+            if model.program.is_none() {
+                match self.accounts.select(payer, provider, None, Some(*account), None, coverage, &[], self.run_now) {
+                    accounts::Selection::Chosen { .. } => {
+                        result.push(*account).expect("candidate accounts bounded");
+                    }
+                    accounts::Selection::Wait { .. } | accounts::Selection::NoAccount => {}
+                }
+                continue;
+            }
+            for host in &hosts {
+                if !host.connected
+                    || host.draining
+                    || host.slots == 0
+                    || host.kind != fleet::HostKind::Worker
+                    || self.fleet.awaiting_logins(host.channel)
+                {
+                    continue;
+                }
+                let placement = fleet::PlacementConstraint { channel: host.channel, kind: host.kind };
+                if !self.fleet.supports(placement, &[crate::settings::fleet_needs::model(model)]) {
+                    continue;
+                }
+                self.host_facts(placement, self.host_rule(placement), &mut facts);
+                match self.accounts.select(
+                    payer,
+                    provider,
+                    model.program.as_deref(),
+                    Some(*account),
+                    None,
+                    coverage,
+                    facts.as_slice(),
+                    self.run_now,
+                ) {
+                    accounts::Selection::Chosen { .. } => {
+                        result.push(*account).expect("candidate accounts bounded");
+                        break;
+                    }
+                    accounts::Selection::Wait { .. } | accounts::Selection::NoAccount => {}
+                }
+            }
+        }
+        result
+    }
+
     /// Whether `model` has an account usable for `payer`, on a connected host
     /// (jig/docs/design/domain/accounts.md, 4.3).
     pub(crate) fn model_readiness(

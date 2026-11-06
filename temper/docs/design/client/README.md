@@ -392,10 +392,10 @@ keeps (`../protocol/configuration.md`, section 2).
   (`temper-session`; *The configuring chat's page,* below). The rail stays
   on every chat: the user's choice in `configure-chat-in-settings`, which
   supersedes the mock's rail-less chat. On a phone, at 760 px or less, rail
-  and tab bar go. A chat differs from a configuring chat only in its path
-  and its chooser: a chat's path is "PROJECT / Chats /", "‹" on a phone a
+  and tab bar go. A chat differs from a configuring chat only in its path: a
+  chat's path is "PROJECT / Chats /", "‹" on a phone a
   link to `Chats`; a configuring chat's is still through `Settings`, the
-  rail current on Settings, and it has no chooser.
+  rail current on Settings.
 - **A chat's bar** holds its path, its level-1 heading "TN · TITLE", the
   chat's task number and its title (a chat's first message), of which a
   browser shows the title, and at its right, in this order:
@@ -406,8 +406,7 @@ keeps (`../protocol/configuration.md`, section 2).
      is a panel under the bar, 320 px wide, closing on a press outside it
      or Escape (skein's `ui.md`, 3.2, *folds away*). On a phone the byline
      goes, and the disclosure's name, "Change model", shows instead, so
-     that the choice stays reachable. A configuring chat's byline is a
-     line with nothing behind it.
+     that the choice stays reachable. A configuring chat's byline is a chat's.
   2. *Its status,* quiet: 12 px, faint, in lower case by the look alone.
      It is the colour of `.state-needs` while it waits for the person.
      A run that can't start says so ("Waiting for an account"), that colour
@@ -2398,10 +2397,11 @@ keeps (`../protocol/configuration.md`, section 2).
     temper", the page's title too; on a phone "‹", a link named "Settings", alone before the
     heading. At its right on a wide page, the line of what the chat's
     runs use, "ChatGPT plan · gpt-6.1-sol", in the composer's line's words
-    (5.5): on a configuring chat, what its next run takes, as any chat's
-    byline; with no chat yet, what a new chat's would, the first model `me`
-    serves for the project whose LLM provider is usable for the person,
-    with that provider's first usable account. It never sets one LLM
+    (5.5), with the chooser behind it (*The work's account and model,*
+    below): on a configuring chat, what its next run takes, as any chat's
+    byline; with no chat yet, what one would, template 3's `resolved_default`
+    in `me` (5.5), and a choice made here is the chat's when it starts. It
+    never sets one LLM
     provider's account beside another's model; with no usable account it
     says what the composer's line says then.
   - *The conversation,* a region named "Conversation", its opening a
@@ -2424,6 +2424,12 @@ keeps (`../protocol/configuration.md`, section 2).
     | "Small changes, alone" | "One chat per change, landed once CI passes." | "I work alone on small changes: one chat per change, landed once CI passes." |
     | "A design draft first" | "Agents plan its tasks; they land together." | "I write a design draft first; agents plan its tasks and land them together once checked." |
     | "Models by role" | "Claude for reviews, my ChatGPT plan for the rest." | "Use Claude for reviews and my ChatGPT plan for everything else." |
+
+    "Models by role" goes with a single account: it stands only while the
+    offer in `me` names two accounts or more, and its line and its words name
+    the first two, "A for reviews, B for the rest." and "Use A for reviews and
+    B for everything else.", each as the accounts page names its kind ("Claude",
+    "my ChatGPT plan", "my OpenAI API key"), so that it names only what is connected.
 
     A fourth starter, a button drawn as a link, "Not sure yet? Ask what
     temper can do.", which sends "Not sure yet. What can temper do?",
@@ -2448,8 +2454,9 @@ keeps (`../protocol/configuration.md`, section 2).
     pixels in from the composer's edge; "Send", the send arrow on ink in a rounded
     square, grey while disabled, which it is while the text is empty;
     under it the chat page's hint, "Enter sends · Shift+Enter for a
-    new line". It has no composer's line and no chooser: the configuring
-    role's models are a setting (5.13), which this chat can change. On a
+    new line". Its chooser is behind its line, as a chat's: a choice there is this
+    chat's alone, and the configuring role's models stay a setting (5.13),
+    which this chat can change. On a
     phone the frame's top bar and tab bar go, so that the composer keeps
     the foot, and with them the model's line and the composer's hint,
     as the configure-chat look request draws it.
@@ -2517,23 +2524,29 @@ keeps (`../protocol/configuration.md`, section 2).
   heading the chat's number and title as a chat's is, then its line of
   what its runs use, its status, its spend, Pause or Resume, and Close; the
   conversation as a chat's in place of the starters; the composer of
-  this layout, its text area "Message" as a chat's, with no composer's
-  line and no chooser, and none on an ended chat; "Settings" is the
+  this layout, its text area "Message" as a chat's, and none on an ended chat; "Settings" is the
   rail's current entry. Its address stays `/chats/<task>`. A chat from
   template 1 is any chat.
 - **The work's account and model.** A chat's bar names the
   account and model its next run takes in one line, its byline, the
-  composer's line's words (5.5), and behind it offers the models `me`
-  serves for the project (jig's `client/domain/contract.md`, 5.3), each
-  with its efforts, and "needs an account" beside an LLM provider no
-  usable account of the person's work serves; a choice is the task's
+  composer's line's words (5.5), and behind it offers the project's offer in `me` (jig's
+  `client/domain/contract.md`, 5.1), those `picker` shows, by LLM provider,
+  each with its efforts, pressing one taking its default effort. It draws
+  from the offer and works nothing out, so that no page shows what the offer
+  leaves out. A provider with no model there is one line and no model, the
+  stock's included: its name and "Connect a plan or key ›", a link to
+  `ConnectModel` with no way chosen; or, where the person holds an account
+  of it that has stopped being usable, its name and that account's own fix
+  as the accounts page words it ("Sign in again ›"), a link to `Accounts`.
+  The playground's provider has a line only while the playground runs. A
+  choice is the task's
   LLM choice, from the chat's next run (jig's `domain/tasks.md`, section
   3). The offer is the chooser, a disclosure named "Change model"
   (skein's `ui.md`, its disclosure) and described by the byline: a browser
   shows it folded to its description until the person opens it, its name
   instead on a phone, while the terminal and the fake
-  person find its content whole. In it, in order: each model's LLM
-  provider, its readiness and its button, the chosen model's efforts,
+  person find its content whole. In it, in order: each LLM provider's line
+  and its models' buttons, the chosen model's efforts,
   "Reset choice", and, on a task's page while the draft differs
   from its choice, "Next run if applied: MODEL" (or "…: engine
   default") and "Apply to next run"; then a plan's "Manage usage". A request in flight and its
@@ -3981,9 +3994,10 @@ and an agent's message, question or answer and a result, up to
 `tasks.message_bytes` and `tasks.result_bytes` (10,660 on it). Each draws whole in
 the browser and the terminal, never cut (jig's `client/domain/client.md`, section
 16). The window's bytes do not move: a line weighs what it holds within
-`document_bytes`, so a window holds at least eight lines at `long_text`, and fewer
-lines the longer they are. The view's window already prices those bytes, at two
-nodes and two bytes of text a byte. A person's words waiting to be read total at
+`document_bytes`, including `LINE_ROOM` for each line and its parts, so a window
+holds fewer lines the longer they are. The view prices the bytes at Markdown's
+maximum nodes and text, plus ten structural nodes per `LINE_ROOM`, with room for
+their names and text. A person's words waiting to be read total at
 most `document_bytes` too (jig's `client/domain/client.md`, section 10), and the
 view prices them so. A line past `long_text`, or a page of lines past
 `document_bytes`, has its page refused and its read ended (5.15): no box `temper
@@ -4145,9 +4159,11 @@ The words for each offered source are:
 - **A run's wait,** above any chat's composer, a configuring chat's too, and
   on an agent's task's page, says in the person's words why its run can't
   start, from the task's `run_wait`, and offers the act where there is one:
-  - *No account for it:* "No account can run MODEL yet.", MODEL the task's
-    main, or "No account serving this work" where its document names none, and
-    "Connect a model", to `ConnectModel` with no way chosen.
+  - *No account for it:* a task given a model, "No account can run MODEL
+    yet.", MODEL that model; a task given none, whose `llm` is then none
+    (jig's `client/domain/contract.md`, 5.1), "No account can run this chat
+    yet.", naming no model it wasn't given; each with "Connect a model", to
+    `ConnectModel` with no way chosen.
   - *An account's login on no host:* "ACCOUNT's login isn't signed in on a
     host that can run this.", the command (below) where the accounts
     document names the source, and a link to `Accounts`.
@@ -4173,11 +4189,11 @@ The words for each offered source are:
   today's behavior. Otherwise:
   - *MODEL* is the draft's model (a task's LLM choice; a new chat's,
     its template's), then " · EFFORT" where the choice names an effort.
-    Where the template names none, it is the supplied
-    `resolved_default` beside that template in `me` (jig's
-    `client/domain/contract.md`, 5.1), what a run's check would take for a
-    task keeping no account, under the effective authority and current
-    receiving-party payer.
+    Where the template names none, it is the supplied `resolved_default` of
+    that template in `me` (jig's
+    `client/domain/contract.md`, 5.1), what a run's check would take now for
+    a task keeping no account, in charter order, under the effective
+    authority and the current receiving party as payer.
     The composer never infers a default from the project catalogue's
     order, including a clipped catalogue. With no preview it uses
     "Using the default model". The preview is an observation, not a
@@ -4228,6 +4244,9 @@ The words for each offered source are:
     Otherwise, when no account is named, `Usable` or `Unknown`
     readiness reads "Using MODEL", and `Unavailable` reads "MODEL ·
     needs an account", subject to the expiry and playground rules above.
+    A model a task or its draft holds that the offer leaves out reads
+    "MODEL · needs an account" too: the offer gives no provider for it, and
+    what a task holds stays its own.
 - **Each state,** with its acts:
 
   | State | Words | Acts |
@@ -5535,7 +5554,8 @@ measures it (skein's `ui-web.md`, section 7).
   failed with no line to show, says the same at the head. An answer the client
   cannot decode is such a failure (jig's `client/domain/client.md`, section 16): it
   asks nothing again until the person moves, or a new line is committed, and the
-  page's other lines and acts go on. Only a lost exchange is asked again by itself.
+  page's other lines and acts go on. Lost exchanges and busy reads keep their
+  transient retries.
 - **"Latest":** the view returns to the window's foot. On a chat where the
   window let the end go, a press reads the end again (`Thread::latest`),
   which replaces the window. A person sending on a chat does the same
@@ -6476,6 +6496,12 @@ own tests:
 
 ## 11. Open questions
 
+- **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
+  signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),
+  while `temper open`'s refusals, the terminal's link instructions and the
+  command's help still name `temper serve`. A person may have run `temper box`.
+  Default: those words stay until a wording change covers the terminal and
+  command help; the request `ui-qa-small` names the browser paragraph alone.
 - **A line past `long_text`** (5.4): `standard` with no override takes a message of
   262,144 bytes (`../protocol/configuration.md`, 13.8), past `long_text`, and a page
   of its `documents.rows` lines can pass `document_bytes`. Its read ends and says so
@@ -6486,6 +6512,11 @@ own tests:
   `tasks.spec_bytes`, 131,072, and its composer stops at `words_bytes`, 8,192, which
   jig's `client/domain/contract.md`, 5.1 gives for a spec, a message and an answer
   alike. Default: one bound for every composer.
+- **An edit past `long_text`** (5.4): the client keeps its prefix and a count of
+  the characters beyond it; the browser keeps the whole value only while that
+  field stays mounted and its value count stays unchanged. Keeping the whole
+  edit across a new drawing, or in the terminal, needs room beyond that bound.
+  Default: the bounded prefix and count, with Send disabled while any lies beyond.
 - **A fresh configuring chat from its composer** (3.5, *The configuring chat's
   page*): a command ("/clear") once the composer takes commands. Default: "Start
   over" in its bar.
@@ -6582,11 +6613,6 @@ own tests:
   gives a chat's state, not what its delegates landed, so saying it takes
   one read per row. Default: the chat's state as `Chats` words it,
   "closed · 1 h".
-- **What a configuring chat's runs use, on its top bar** (the same
-  request): the request says the configuring role's first model. On a chat
-  the bar reads the task's `llm`, what its next run takes; with no chat yet, no
-  client is given what template 3's would take. Default: the first model `me`
-  serves for the project whose LLM provider is usable for the person.
 - **How a project lands, on To begin's second step**
   (`../draft/to-begin.md`, 3): its line names how the project lands, by
   temper's merge queue or by its landing turn, and no client is given a
@@ -6597,7 +6623,10 @@ own tests:
   `../draft/chat-reading.md`, 3): a page following it from its start shows it whole
   up to `long_text`. One opened later shows the end the engine retains, 65,536
   bytes, until the turn commits, since one delivery stops at the same bound (jig's
-  `client/domain/client.md`, section 18). Default: as it stands.
+  `client/domain/client.md`, section 18). A gap between suffix snapshots keeps
+  the held prefix incomplete until a full-origin snapshot or commitment, even
+  below `long_text`; recovering the missing provisional bytes needs a read
+  the thread does not ask for. Default: keep the prefix and its reading position.
 - **A turn too large for a page** (5.4; `../draft/chat-reading.md`, 4): a turn past
   `document_bytes` on the wire, 1,048,576 bytes, reads as too large, with no calls'
   names (jig's `client/domain/client.md`, section 18). Default: its line says so,
@@ -6833,6 +6862,12 @@ own tests:
   the position staying put when lines load above is for the user to read on a
   real chat. Default: the browser tier runs Chromium, including with
   `overflow-anchor: none`; Firefox and Safari themselves are read, not run.
+- **A turn with a call before its first text** (3.5, 5.15;
+  `../draft/chat-reading.md`, 3): keeping that text's nodes through commitment
+  needs its key independent of the preceding call or card's place. Default:
+  keep the current block keys until this ordering is reproduced; the
+  `ui-pgup` request uses a render driver at 1440 and 420 px for its proof,
+  with no new browser story, since the tier is at its budget.
 - **An agent's page going to its end** (5.15; `../draft/chat-reading.md`, 5): its
   log has no end request, so a person sending from far back stays where they read,
   and Latest reaches the end a page at a time. A chat's `to_end` and

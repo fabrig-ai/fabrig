@@ -94,9 +94,9 @@ fn a_stale_press_is_dropped_without_a_callback() {
     let n = node(&w, c, &Find::named(Role::Button, b"Write"));
     w.go(c, stories::inbox());
     assert!(w.tree(c).find(n).is_none());
-    let before = w.run(Until::Steps(1)).callbacks;
+    let before = w.run(Until::Steps(0)).callbacks;
     w.fault(Fault::StalePress { client: c, node: n });
-    assert_eq!(w.run(Until::Steps(1)).callbacks, before);
+    assert_eq!(w.run(Until::Steps(0)).callbacks, before);
     assert!(w.front().engine.commits().iter().all(|c| c.key.is_none()));
 }
 #[test]

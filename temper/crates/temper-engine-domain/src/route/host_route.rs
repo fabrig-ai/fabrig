@@ -56,6 +56,15 @@ pub struct ProjectPerson {
     /// The person this chat's task was requested by.
     pub you: bool,
 }
+/// One model of the offer, for an authorized inventory (temper/docs/design/domain/agent.md, 8.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct OfferedModel {
+    pub name: Box<[u8]>,
+    pub provider: Box<[u8]>,
+    pub efforts: Box<[Box<[u8]>]>,
+    pub effort: Option<Box<[u8]>>,
+}
+
 /// An owned forge's person, the login made for whoever runs the box.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ForgePerson {
@@ -75,6 +84,7 @@ pub enum HostDelivery {
         repositories: Box<[RepositoryIdentity]>,
         people: Box<[ProjectPerson]>,
         forge_people: Box<[ForgePerson]>,
+        offer: Box<[OfferedModel]>,
         application: Option<temper_engine_domain_forge::settings::SizedValue>,
         from: u32,
         requested: Option<u64>,
@@ -645,6 +655,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
         repositories: settings_repositories(domain, flight, &answer),
         people: settings_people(domain, flight, &answer),
         forge_people: settings_forge_people(domain, flight, &answer),
+        offer: settings_offer(domain, flight, &answer),
         application,
         answer,
         from,
@@ -729,6 +740,39 @@ fn settings_people(domain: &Domain, flight: &Flight, answer: &jig_domain_core::S
             .expect("at most one person per holding");
     }
     people.into_boxed()
+}
+
+/// The task's payer and model authority bound an authorized inventory's offer.
+fn settings_offer(domain: &Domain, flight: &Flight, answer: &jig_domain_core::SettingsAnswer) -> Box<[OfferedModel]> {
+    use jig_domain_core::SettingsAnswer;
+    match answer {
+        SettingsAnswer::Inventory(_) => {}
+        SettingsAnswer::Setting(_)
+        | SettingsAnswer::Revision(_)
+        | SettingsAnswer::Revisions(_)
+        | SettingsAnswer::Unknown => return Box::new([]),
+    }
+    let Some(payer) = domain.core.tasks.payer(flight.task) else { return Box::new([]) };
+    let Some(context) = domain.core.tasks.delegation(flight.task) else { return Box::new([]) };
+    let offered = domain.core.offer(payer, context.project, context.authority.models);
+    let mut offer = List::with_capacity(offered.len());
+    for row in &offered {
+        let model = domain.core.settings.models.get(usize::from(row.model)).expect("offered configured model");
+        let provider = domain.core.settings.llm_providers.serving(&model.name).expect("offered model provider");
+        let effort = match model.default_effort() {
+            Some(effort) => Some(skein_lib::bytes::copy_of(effort)),
+            None => None,
+        };
+        offer
+            .push(OfferedModel {
+                name: model.name.clone(),
+                provider: provider.name.clone(),
+                efforts: model.efforts.clone(),
+                effort,
+            })
+            .expect("one row per offered model");
+    }
+    offer.into_boxed()
 }
 
 /// Owned forge logins are named once per readable host in the caller's project.

@@ -770,7 +770,8 @@ the host tests (section 14).
   has `data-log-away`, for a stylesheet, until it is back at its end. A
   press of a button with the state *to log end* (ui.md, 3.2) takes every
   log of the page to its end, keeping it there, before the press goes on
-  to its owner, where the button is bound.
+  to its owner, where the button is bound. A pointer's press on it leaves
+  the focus where it was: the person is reading, and may be writing too.
 - **Going to another page** (a new entry a step shows): after the turn's
   patches, its disclosures folded (above), the reference starts the
   page at its top, the focus on its
@@ -813,7 +814,17 @@ the host tests (section 14).
     anywhere on the page, the focus in a field or on nothing among it, their
     default prevented. A menu or a dialog open, a component holding the
     focus, or no such log leaves them to the platform. Home and End stay the
-    platform's, which takes them while the focus is on the log.
+    platform's, which takes them while the focus is on the log. Such a scroll
+    is a person's at once: the page part measures the log in the same apply,
+    since the platform's scroll event waits for its next frame and a
+    delivery can come first. So a PageUp has stopped the following before
+    that delivery, and a PageDown that reaches the end has started it.
+  - *Wheel:* an unmodified, cancelable vertical wheel over a log with room
+    to scroll moves and measures it in the same event, before a delivery can
+    miss its reaching the end. Pixel deltas are pixels, line deltas use the
+    log's computed line height, and page deltas use its screen. A component,
+    a nested scrolling pane or field, modified or horizontal input, and an
+    event already prevented keep their platform handling.
 - **The title,** as the reference sets it: the main's first level-1
   heading's text, then ` · ` and the application's name; the name alone
   when there is none. `<html lang>` is the phrasebook's language.
@@ -1415,6 +1426,11 @@ the application that needs it.
   then (14.3).
 - **Parts for other effects** (a share sheet): an application's own code
   until a second application writes the same.
+- **Focus after a keyboard press to a log's end** (section 7): the pointer
+  keeps the focus, but a button reached by Tab and pressed may disappear
+  once the end is shown, leaving the focus on the body. Returning it to a
+  field needs an owner or a focus target. Default: the platform's handling,
+  until an application asks for the keyboard path too.
 - **A view's say in a fold or a selection:** a view has no way to fold a
   disclosure, which is the page part's (section 7), nor to select a
   field's words as it takes the focus. Each waits for an application that

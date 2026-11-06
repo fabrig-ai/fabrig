@@ -28,6 +28,13 @@ pub struct Boxed {
 }
 impl Boxed {
     pub fn start(case: &str, path: Option<&str>) -> Self {
+        let mut command = Command::new(skein_scratch::paths::binary("temper"));
+        if let Some(path) = path {
+            command.env("PATH", path);
+        }
+        Self::with_command(case, command)
+    }
+    pub fn with_command(case: &str, mut command: Command) -> Self {
         let scratch = support::Scratch::startup(case);
         let stderr = fs::OpenOptions::new()
             .write(true)
@@ -35,10 +42,6 @@ impl Boxed {
             .mode(0o600)
             .open(scratch.path().join("stderr"))
             .expect("private stderr capture");
-        let mut command = Command::new(skein_scratch::paths::binary("temper"));
-        if let Some(path) = path {
-            command.env("PATH", path);
-        }
         let mut child = command
             .arg("box")
             .arg("--config")
