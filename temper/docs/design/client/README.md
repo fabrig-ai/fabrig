@@ -401,8 +401,8 @@ keeps (`../protocol/configuration.md`, section 2).
      line with nothing behind it.
   2. *Its status,* quiet: 12 px, faint, in lower case by the look alone.
      It is the colour of `.state-needs` while it waits for the person.
-     Every ended chat says "Closed", with its end's clock when supplied
-     ("Closed 21:19").
+     Every ended chat says "Closed", with no time: its end's line has the time
+     (3.6, *Closed ends on one line*).
   3. *Stop and Close,* while allowed, each quiet and small. The mock has
      neither; they are the only way to stop or end a chat.
   4. *Its own spend,* "N spent · of B", in the view and hidden in the
@@ -496,13 +496,13 @@ keeps (`../protocol/configuration.md`, section 2).
     its task's card where the call that made it is not in the window
     (5.7), drawn on the agent's side, never under "You";
   - *its end,* once the chat has ended, after the conversation: one
-    line, "Closed" and the time it ended ("Closed 21:05", 5.12's
+    line, "Closed at" and the time it ended ("Closed at 21:05", 5.12's
     clock), the status's word (3.5's chats), then, for a report,
     " · its report, “REPORT”", the
     report's words whole; a failed chat's line is "Failed", its time
     and its reason ("Failed 21:05 · REASON"); a chat cancelled by the
-    party that requested it was closed, and its line is "Closed" and its
-    time ("Closed 21:05"), with no reason; one cancelled by anyone else
+    party that requested it was closed, and its line is "Closed at" and its
+    time ("Closed at 21:05"), with no reason; one cancelled by anyone else
     is "Cancelled", its time and its reason ("Cancelled 21:05 ·
     REASON"). Who closed it is the ending's `by` against the chat's
     requester, both in its document, never the reason's words. The
@@ -610,8 +610,9 @@ keeps (`../protocol/configuration.md`, section 2).
     "+ Draft". `.btn.primary.small` "Start goal…" once the document has a section,
     on a chat of a project with a home repository with no goal linked; with a
     linked goal, a link `.btn.small` "Goal TITLE →" to `Task { task }`. Not on a
-    configuring chat, which has "Start over": it asks "Start a new configuring
-    chat? This one stays in Chats." through `crate::confirm`, closes the chat with
+    configuring chat, which has "Start over": it asks "Start over?", "A new
+    configuring chat starts. This one stays in Chats." through `crate::confirm`
+    (3.6, *The sheet*), closes the chat with
     the chat's own close, which stays in Chats, Closed, its conversation and
     document kept, and opens `Configure { project }`. The composer's hint gains
     " · Ctrl+\ switches the draft" while a document shows.
@@ -2277,14 +2278,8 @@ keeps (`../protocol/configuration.md`, section 2).
   facts, as `jig-client`'s `facts` reads them): what accepting grants
   and costs and the pool after it, what cancelling ends, what releasing
   does (jig's `client/domain/objects.md`, section 1; jig's
-  `client/domain/contract.md`, 5.4). Closing a chat says what becomes
-  of each live delegate ("Delegate N will be cancelled" or "Delegate N
-  will be moved to you", with "Cancel delegate N" and "Take delegate N"
-  to choose), then how the chat ends: "Close chat: allow N seconds to
-  finish, then cancel", the template's grace, while a run of it is
-  live, and "Close chat now" while none is, since a chat at rest closes
-  at once (jig's `domain/tasks.md`, 5.8); then "A closed chat can't be
-  reopened.". Removing a forge says what goes and what stays on the
+  `client/domain/contract.md`, 5.4). Closing a chat says only what closing
+  changes (*The sheet,* below). Removing a forge says what goes and what stays on the
   forge (`forge.md`, 5.4); deleting a project asks for the project's
   name, and sends nothing until it is typed whole (3.5). On an agent's
   task's page, stopping is confirmed too, since it holds the task until it is
@@ -2294,6 +2289,55 @@ keeps (`../protocol/configuration.md`, section 2).
   as proposable (jig's `client/domain/contract.md`, 5.3), the card says
   so, and to whom; where it offers it as refused, the card says why and
   sends nothing.
+- **The sheet.** Every confirmation of `confirm.rs` is one sheet, from the
+  look request `close-chat`: the mock's `dialog.sheet`, narrower. It asks in a
+  sentence, says only what will change, and names its acts: what keeps things
+  as they are first, then the act itself, primary. There is no "Confirm" and no
+  "Dangerous action": the sheet is how temper marks an act that can't be undone
+  (jig's `client/domain/client.md`, 19).
+
+  | Confirms | Title | Says | Keeps | Does |
+  |---|---|---|---|---|
+  | closing a chat | "Close this chat?" | "You can still read it, but it can’t be reopened.", and what it changes | "Keep it" | "Close chat" |
+  | "Start over" | "Start over?" | "A new configuring chat starts. This one stays in Chats.", and what it changes | "Keep going" | "Start over" |
+  | a goal's Stop | "Stop this goal?" | "What landed on its branch stays there." | "Keep going" | "Stop goal" |
+  | a task's Cancel | "Cancel this task?" | what it changes | "Keep it" | "Cancel task" |
+  | an agent's task's Stop | "Stop this task?" | "Its run stops, and the task is held until it is released." | "Keep going" | "Stop task" |
+  | accepting a proposal | "Accept this proposal?" | its facts | "Not yet" | "Accept" |
+  | rejecting a proposal | "Reject this proposal?" | its facts and reason | "Keep it" | "Reject" |
+  | releasing a task | "Release this task?" | what releasing does; an uncertain effect's two choices | "Keep it held" | "Release" |
+
+  - *What it changes,* under a hairline, each line present only where it holds,
+    and no count at zero:
+    the run, while one of this task's is live: "The run under way gets N seconds
+    to finish, then stops.", the template's grace, or "The run under way stops
+    now." with none (a chat at rest closes at once, jig's `domain/tasks.md`,
+    5.8); each live delegate, by its number and title and its fate, "T4 Fix the
+    parser is cancelled." or "T5 Review the parser moves to you.", with the other
+    fate as "Take it instead" or "Cancel it instead"; the tasks below it that are
+    not delegates, "N tasks below it are cancelled.", the document's waiting,
+    running, held and closing counts summed, less the delegates listed; "N
+    proposals are withdrawn."; and, while any of those holds, "Changes not yet
+    begun are withdrawn. Those under way settle.". A chat at rest with nothing
+    below it has no hairline and no such line: closing it changes nothing an
+    effect is in flight for, and the connector's panel names one that is (jig's
+    `client/domain/objects.md`, 11). What closing doesn't change (completed,
+    failed and cancelled tasks) is not said.
+  - *It stays until it is answered.* The press sends the ask and the sheet stays,
+    saying the ask's progress above its acts. Answered done, it goes. Any other
+    outcome leaves it open, saying why above its acts, where a press sends again;
+    a press that sends nothing closes it. "Keep it" closes it at any time, and an
+    ask in flight goes on, its outcome on the page as before. While the sheet is
+    open, the outcome and progress of its own ask are the sheet's alone.
+  - *A press stays under the finger* (`browser.md`, *A press a render can lose*):
+    the acts are a group of their own, keyed, and each delegate's row keyed by its
+    task, so a line arriving above them, or the page updating behind, keeps each
+    button's element.
+  - *The terminal* prints the same lines as text, and the acts by their names.
+- **Closed ends on one line.** A chat its requester closed ends on one quiet line,
+  "Closed at 21:05" (*The Chats page,* its ended line), between two hairlines; its
+  bar's status says "Closed", with no time. "Applied" isn't said once it is
+  closed, nor "Decision made" for the closing itself: that line says it.
 - **It names what the person saw.** Each deciding act names the
   revision of the document the card showed; when the engine refuses it
   as moved, the card asks the person to look again (jig's
@@ -4543,8 +4587,9 @@ Its rules on a goal's page:
   revision, at once, no confirmation. A subtree hold's root released lifts it
   whole. Its toast: "Resumed." A goal held for any other cause has no Resume:
   its band has the need.
-- **Stop** opens the confirmation (`confirm.rs`, `Role::Dialog`): "Stop TITLE?",
-  then "What landed on its branch stays there.", "Confirm", "Cancel". It sends
+- **Stop** opens the confirmation (`confirm.rs`, `Role::Dialog`, 3.6, *The sheet*):
+  "Stop this goal?", then "What landed on its branch stays there.", "Keep going",
+  "Stop goal". It sends
   `Ask::Cancel` with the reason "Stopped from its page". A goal branch nothing
   landed from stays (`../domain/forge.md`, 11.1), so the sentence holds. The
   acts stay drawn behind the dialog.
@@ -4588,8 +4633,9 @@ Its rules on an agent's task's page:
   temper's "Messages reach it once it runs." (any other refusal: its supplied
   words, in the same look, since why Message isn't offered is no outcome), and
   its model choice line alone.
-- **Stop,** confirmed (3.6): a dialog "Stop" saying "Its run stops, and the task
-  is held until it is released.", then "Confirm" and "Cancel". It is sent as
+- **Stop,** confirmed (3.6, *The sheet*): "Stop this task?" saying "Its run stops,
+  and the task is held until it is released.", then "Keep going" and "Stop task".
+  It is sent as
   `Ask::Stop`. The engine holds the task, stopped by the person, so Release is
   offered next, its effect said as 3.6 says ("The next run resumes its
   conversation; tries count again from zero").
