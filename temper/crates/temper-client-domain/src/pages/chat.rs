@@ -11,8 +11,6 @@ use jig_client::{
     thread::{Thread, window::End},
 };
 use skein_lib::{Env, List, Queue, Time, Wall};
-/// The view's line allowance (client/README.md, 5.4).
-pub const LINES: u32 = 16;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sending {
     Message,

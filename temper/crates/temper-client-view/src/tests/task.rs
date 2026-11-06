@@ -1562,7 +1562,7 @@ fn tree_delivery() -> c::Delivery {
     delivery
 }
 #[test]
-fn an_agents_older_button_reads_before_the_full_window() {
+fn an_agents_log_reads_at_its_head_and_foot() {
     let mut task = f::delegate();
     task.activity = 2;
     let mut page = f::activity(true);
@@ -1578,8 +1578,15 @@ fn an_agents_older_button_reads_before_the_full_window() {
     page.before = Some(c::Cursor::new(Box::from(*b"older"), 32).expect("cursor"));
     let mut root = f::agent_root_with_page(task, Some(f::tree()), page);
     let mut view = fixtures::page_view(&root);
-    let id = fixtures::find(view.tree(), Role::Button, b"Older").expect("older");
-    let action = crate::act(&mut view, id, skein_ui::Act::Press).expect("older action");
+    assert!(fixtures::find(view.tree(), Role::Button, b"Older").is_none());
+    let id = fixtures::find(view.tree(), Role::Log, b"Conversation").expect("log");
+    assert_eq!(view.tree().find(id).unwrap().end_request, None);
+    assert_eq!(
+        crate::act(&mut view, id, skein_ui::Act::Near { edge: skein_ui::LogEdge::Foot }),
+        Some(Action::Pages(Act::Newer))
+    );
+    let action =
+        crate::act(&mut view, id, skein_ui::Act::Near { edge: skein_ui::LogEdge::Head }).expect("older action");
     assert_eq!(action, Action::Pages(Act::Older));
     fixtures::root_event(&mut root, Event::Act { action });
     match root.pages().task().expect("page").thread.reading {
