@@ -492,7 +492,7 @@ pub(crate) fn settings(
                     words,
                     bindings,
                     Word::SettingsProposalChange,
-                    temper_client_domain::pages::Act::FocusComposer,
+                    temper_client_domain::pages::Act::ChangeProposal { proposal: proposal.key },
                     false,
                     false,
                 );

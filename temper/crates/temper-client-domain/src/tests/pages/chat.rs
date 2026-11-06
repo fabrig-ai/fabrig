@@ -65,6 +65,48 @@ fn every_send_asks_for_the_composer() {
 }
 
 #[test]
+fn change_something_focuses_the_composer_and_remembers_its_proposal() {
+    let mut f = f::opened();
+    assert_eq!(f.chat.change_asked, None);
+    for count in [1, 2] {
+        f.chat.act(
+            &fixtures::env(&fixtures::limits()),
+            &f.client,
+            Act::ChangeProposal { proposal: PROPOSAL },
+            &mut { SERIAL },
+            &mut f.out,
+        );
+        assert_eq!(f.chat.composer_focus, count);
+        assert_eq!(f.chat.change_asked, Some(PROPOSAL));
+        assert!(fixtures::acts::sent(&mut f.out).is_empty());
+    }
+}
+#[test]
+fn a_sent_message_ends_the_change_asked() {
+    let mut f = draft_ready();
+    f.chat.change_asked = Some(PROPOSAL);
+    f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::Send, &mut { SERIAL }, &mut f.out);
+    assert!(fixtures::acts::sent(&mut f.out).is_empty());
+    assert_eq!(f.chat.change_asked, Some(PROPOSAL), "empty Send keeps the request");
+    f.chat.words = b"Wait three seconds instead".as_slice().into();
+    f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::Send, &mut { SERIAL }, &mut f.out);
+    assert_eq!(fixtures::acts::sent(&mut f.out).len(), 1);
+    assert_eq!(f.chat.change_asked, None, "a message went out");
+}
+#[test]
+fn a_decision_ends_the_change_asked() {
+    let mut f = f::opened();
+    proposals(&mut f, &[PROPOSAL, DELEGATE_PROPOSAL]);
+    f.chat.change_asked = Some(PROPOSAL);
+    proposals(&mut f, &[PROPOSAL, DELEGATE_PROPOSAL]);
+    assert_eq!(f.chat.change_asked, Some(PROPOSAL), "a refresh keeps the request");
+    proposals(&mut f, &[PROPOSAL]);
+    assert_eq!(f.chat.change_asked, Some(PROPOSAL), "another proposal's decision keeps the request");
+    proposals(&mut f, &[]);
+    assert_eq!(f.chat.change_asked, None, "the task document reports the proposal decided");
+}
+
+#[test]
 fn a_live_run_is_watched_and_dropped_when_it_ends() {
     let mut f = f::opened();
     let run = f.chat.run.expect("live run watched");

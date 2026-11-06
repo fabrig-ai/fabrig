@@ -56,6 +56,8 @@ pub struct Chat {
     rows: u32,
     pub words: Box<[u8]>,
     pub composer_focus: u64,
+    /// The proposal "Change something" was pressed on, until something is sent or it is decided (client/README.md, 5.13).
+    pub change_asked: Option<c::ProposalKey>,
     pub settings_proposals: List<c::Proposal>,
     pub pending: List<(Key, Sending)>,
     pub outcome: Option<jig_client::Outcome>,
@@ -118,6 +120,7 @@ impl Chat {
             rows: limits.client.domain.rows,
             words: Box::default(),
             composer_focus: 0,
+            change_asked: None,
             settings_proposals: List::with_capacity(limits.client.domain.reads),
             pending: List::with_capacity(5),
             outcome: None,
@@ -770,6 +773,11 @@ impl Chat {
         false
     }
     fn proposals(&mut self, task: &c::Task, out: &mut Queue<Request>) {
+        if let Some(proposal) = self.change_asked
+            && !task.proposals.as_slice().contains(&proposal)
+        {
+            self.change_asked = None;
+        }
         self.departures.clear();
         for card in &self.cards {
             let c::ObjectKey::Proposal(key) = card.object else { continue };
@@ -932,7 +940,10 @@ impl Chat {
         out: &mut Queue<Request>,
     ) {
         match act {
-            Act::FocusComposer => self.composer_focus = self.composer_focus.checked_add(1).expect("focus count fits"),
+            Act::ChangeProposal { proposal } => {
+                self.change_asked = Some(proposal);
+                self.composer_focus = self.composer_focus.checked_add(1).expect("focus count fits");
+            }
             Act::MessageWords { words } => {
                 if words.len() <= usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("text bound fits") {
                     self.words = words;
@@ -1117,6 +1128,7 @@ impl Chat {
             if supplied.is_none() {
                 self.words = Box::default();
             }
+            self.change_asked = None;
         }
         self.pending.push((key, kind)).expect("one request per chat act fits");
         self.outcome = None;
