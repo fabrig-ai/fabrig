@@ -1079,6 +1079,10 @@ and changes no code above io:
 - **Listening, on macOS** (6.6): whether anything reads it another way,
   such as `TCP_CONNECTION_INFO`'s state. Default: no; only a parent's
   mistake reaches it, and that shows at the first accept.
+- **A service that names `keeper`** (7.5): the fence is a public module's name,
+  and no check refuses a service that names it; `temper`'s `fake` module, a test
+  peer in a shipping crate, does name it. Whether a gate step holds the fence.
+  Default: no; a service has no use for the module.
 
 ## 11. Not built yet
 

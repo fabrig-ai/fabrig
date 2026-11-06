@@ -36,7 +36,7 @@ fn world() -> crate::Service {
         .files
         .insert(
             b"boot.js".as_slice().into(),
-            crate::clients::bundle::File { kind: b"text/javascript", bytes: FILE_BYTES.into() },
+            crate::clients::bundle::File { kind: b"text/javascript", bytes: FILE_BYTES.into(), gzip: None },
         )
         .unwrap();
     service.adopt_bundle(bundle);

@@ -1,7 +1,7 @@
 //! Bundle routing (jig/docs/design/protocol/service.md, 7 and 11.4; skein/docs/design/ui-web.md, 4.4).
 use super::{Limits, Routed, Server};
 use alloc::boxed::Box;
-pub use bundle::{File, kind};
+pub use bundle::{File, compressed_of, kind};
 use jig_protocol_engine_clients_http::bundle::{self, field, target};
 use skein_http::{Method, server as http};
 use skein_lib::{List, Map, Queue, Token, bytes, stream::Up};
@@ -9,6 +9,7 @@ use skein_lib::{List, Map, Queue, Token, bytes, stream::Up};
 pub enum Answer {
     Mount,
     File,
+    Gzip,
     Page,
     NotModified,
     Root,
@@ -35,6 +36,7 @@ impl Bundle {
     fn content(&self, reply: &Reply) -> &[u8] {
         match reply.answer {
             Answer::File | Answer::Root => &self.file(&reply.path).expect("routed file").bytes,
+            Answer::Gzip => self.file(&reply.path).expect("routed file").gzip.as_deref().expect("routed form"),
             Answer::Page => &self.page,
             Answer::Mount | Answer::NotModified | Answer::NotFound | Answer::NotAllowed => b"",
         }
@@ -50,7 +52,8 @@ pub(super) fn route(bundle: Option<&Bundle>, call: &http::Call) -> Answer {
     let Some(bundle) = bundle else { return Answer::NotFound };
     let path = target(call);
     if path.starts_with(b"/bundle/") {
-        return if bundle.file(path).is_some() { Answer::File } else { Answer::NotFound };
+        let Some(file) = bundle.file(path) else { return Answer::NotFound };
+        return if file.gzip.is_some() && call.accepts_gzip() { Answer::Gzip } else { Answer::File };
     }
     if path == b"/robots.txt" && bundle.file(path).is_none() {
         return Answer::NotFound;
@@ -90,19 +93,27 @@ impl Pages {
     ) {
         let bundle = self.bundle.as_ref();
         let reply = Reply { answer, path: bytes::copy_of(target(head)), offset: 0 };
-        let mut headers = List::with_capacity(3);
+        let mut headers = List::with_capacity(4);
         let mut length = 0;
         let status = match answer {
-            Answer::Page | Answer::File | Answer::Root => {
+            Answer::Page | Answer::Gzip | Answer::File | Answer::Root => {
                 let bundle = bundle.expect("routed bundle");
                 let kind = match answer {
-                    Answer::File | Answer::Root => bundle.file(&reply.path).expect("routed file").kind,
+                    Answer::Gzip | Answer::File | Answer::Root => bundle.file(&reply.path).expect("routed file").kind,
                     Answer::Page => b"text/html; charset=utf-8",
                     Answer::Mount | Answer::NotModified | Answer::NotFound | Answer::NotAllowed => {
                         unreachable!("content answer")
                     }
                 };
                 field(&mut headers, b"Content-Type", kind);
+                if answer == Answer::Gzip {
+                    field(&mut headers, b"Content-Encoding", b"gzip");
+                }
+                if (answer == Answer::Gzip || answer == Answer::File)
+                    && bundle.file(&reply.path).expect("routed file").gzip.is_some()
+                {
+                    field(&mut headers, b"Vary", b"Accept-Encoding");
+                }
                 length = bundle.content(&reply).len();
                 200
             }
@@ -112,7 +123,9 @@ impl Pages {
             Answer::Mount => unreachable!("mount answers itself"),
         };
         match answer {
-            Answer::File => field(&mut headers, b"Cache-Control", b"public, max-age=31536000, immutable"),
+            Answer::Gzip | Answer::File => {
+                field(&mut headers, b"Cache-Control", b"public, max-age=31536000, immutable");
+            }
             Answer::Page | Answer::Root | Answer::NotModified => {
                 field(&mut headers, b"Cache-Control", b"no-cache");
                 field(&mut headers, b"ETag", &bundle.expect("revalidated bundle").etag);
