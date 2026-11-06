@@ -20,6 +20,8 @@ keeps it; publication is not a cutoff on a handed change's commit.
   samples (starting, answering, answered, stopped-starting, stopped-answering,
   waiting, waited, plan and key) are not in the gallery. Its Ready samples
   cover the host's check alone; the view's tests draw the trial states.
+  The model-check plan's close added the catalogue rows in section 7.2,
+  but not their sample fixtures or names. `home-try-stopped` is present.
 - **Not yet:** 8.4: the browser kit returns the first content quad of each text
   node, so the public geometry story cannot check every wrapped fragment.
   Its result needs a browser testing interface decision before it can retain those

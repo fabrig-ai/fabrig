@@ -25,12 +25,6 @@ Unlisted sections, including public documents (12), have no known gap.
   cancelled endings' `reason`, and a decided ending's `party` and `how`
   with `None`, so a client always reads them empty. Either the engine
   fills them or a client wire version drops them; no reason is recorded.
-  3.4: `jig-protocol-engine-clients/src/translate/operations.rs` answers an
-  operation of another project `Malformed::ProjectMismatch` itself, where this
-  section has people admit a compound, because people's `Operation` holds no
-  project, and the `debt-28` plan of 2026-11-06 found the move past the size its
-  request allows (section 11; the code's side is
-  `jig/docs/development/debt/D026-engine-clients-project-mismatch.md`).
 - **Not yet:** 5.3: `me` represents a refused creating offer by absence,
   without carrying its refusal reason, including an authority-limit
   refusal when an executor list exceeds `documents.lines`.

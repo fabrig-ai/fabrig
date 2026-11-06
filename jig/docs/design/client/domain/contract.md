@@ -725,7 +725,10 @@ served is held, kept and unsent, for its owner's version (client.md,
     within the document's bound or with its size (`../../domain/engine.md`,
     17.2);
   - *an activity line:* one of a task's words, run boundaries, turns,
-    results heard, news heard, decisions, in commit order; a turn as its
+    results heard, news heard, decisions, in commit order; a line of a change
+    to a proposal of the task's names that proposal's number and says whether
+    the change was its making, so a client can tell when a proposal was
+    made and a decision from the making; a turn as its
     bytes, within the page's byte bound, which the client's link
     decodes, with no read of its own, into the client's turn or into a
     turn that does not decode, with why (client.md, section 10): a turn

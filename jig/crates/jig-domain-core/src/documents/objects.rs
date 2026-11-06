@@ -198,6 +198,7 @@ pub struct HistoryLine {
 /// Proposal facts retained with a history row, including its recipient or decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProposalHistory {
+    pub reason: Text,
     pub action: RetainedAction,
     pub number: u64,
     pub proposer: u64,
@@ -215,7 +216,7 @@ pub enum ProposalHistoryState {
 /// only its requested fields because no before snapshot is retained there.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum RetainedAction {
-    Settings { against: u32, items: List<crate::reads::RevisionItemHead>, made: Option<u32> },
+    Settings { against: u32, items: List<crate::reads::RevisionItemHead>, made: Option<u32>, projects: List<u32> },
     Batch(List<ProposedTask>),
     Effect { part: Part, authority: AuthorityLine, attempt: u64, completion: u32, position: u32, purpose: u64 },
     ProcedureEffect { part: Part, authority: AuthorityLine, step: u64, purpose: u64 },
@@ -390,7 +391,7 @@ fn action(
     value: &tasks::ProposalAction,
 ) -> Result<ProposalAction, Missing> {
     Ok(match value {
-        tasks::ProposalAction::Settings { against, items } => ProposalAction::Settings {
+        tasks::ProposalAction::Settings { against, items, .. } => ProposalAction::Settings {
             against: *against,
             items: super::settings_review::settings_heads(items),
             review: None,
@@ -840,6 +841,14 @@ pub fn history_from_row(limits: &Limits, row: &tasks::History) -> Result<History
         },
         proposal: match &row.proposal {
             Some(value) => Some(ProposalHistory {
+                reason: super::small::text(
+                    &value.reason,
+                    if let tasks::ProposalAction::Settings { .. } = value.action {
+                        limits.people.words
+                    } else {
+                        limits.documents.text_bytes
+                    },
+                ),
                 action: history_action(limits, value)?,
                 number: value.number,
                 proposer: value.proposer,
@@ -887,7 +896,14 @@ pub(super) fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
 /// Convert an immutable retained action, without borrowing its ended target.
 pub fn retained_action(limits: &Limits, number: u64, value: &tasks::ProposalAction) -> Result<RetainedAction, Missing> {
     Ok(match value {
-        tasks::ProposalAction::Settings { against, items } => RetainedAction::Settings {
+        tasks::ProposalAction::Settings { against, items, projects } => RetainedAction::Settings {
+            projects: {
+                let mut kept = List::with_capacity(crate::settings::PROPOSAL_PROJECTS);
+                for project in projects {
+                    kept.push(*project).or(Err(Missing::TooLarge))?;
+                }
+                kept
+            },
             against: *against,
             items: super::settings_review::settings_heads(items),
             made: None,
