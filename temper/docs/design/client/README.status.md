@@ -155,8 +155,6 @@
   alone. A task's Cancel and an agent's task's Stop are drawn at each width by their
   gallery states, the walk of the request `ui-walk-3` of 2026-11-06 having tried the
   fake box for them first, and no walk on record presses them.
-- **Not yet:** 3.5, *temper's own way, beside the page*: the pane still draws the stock page's section 6,
-  its figures as terms and descriptions, and the page still holds them.
 - **Not yet:** 3.5, *temper's own way, beside the page*: no journey records "See how it works"
   or "Start from it", and no test presses them on a box: the view's tests and the gallery's
   `configure-reference` and `configure-reference-draft` alone draw them. The walk of the request

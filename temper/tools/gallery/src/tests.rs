@@ -1754,7 +1754,9 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
             Part::Pressed { name: "Split" },
             Part::Named { role: Role::Region, name: "How temper builds temper" },
-            Part::Text { text: "Figures to come." },
+            Part::Text {
+                text: "Each row is a setting, unless it says otherwise. Tell the chat what to keep, and what to change.",
+            },
         ],
     },
     Holds {
@@ -1764,7 +1766,9 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
             Part::Pressed { name: "Draft" },
             Part::Named { role: Role::Region, name: "How temper builds temper" },
-            Part::Text { text: "Figures to come." },
+            Part::Text {
+                text: "Each row is a setting, unless it says otherwise. Tell the chat what to keep, and what to change.",
+            },
         ],
     },
     Holds {
