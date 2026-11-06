@@ -823,6 +823,7 @@ open (`domain/README.md`, section 5), and the client's on its own
 | `jig-client-shell-web` | jig's browser parts, over skein's `skein-ui-web`, each usable alone: the client's adapter over skein's fetch, the printed link's sign-in, jig's look | `protocol/browser.md`, section 2 and 5.1 |
 | `jig-client-test-shell-web` | jig's test application's browser shell, written to be copied | `protocol/browser.md`, 3.1 |
 | `jig-client-test-domain`, `jig-client-test-view`, `jig-client-test-kit`, `jig-client-test-records`, `jig-client-test-protocol-wire` | the client's test kits | `client/domain/testing.md` |
+| `jig-client-kit`, `jig-client-protocol-kit` | what the client's worlds share: the harness, fronts and stories; the protocol client | `domain/testing.md`, section 7 |
 | `jig-client-scripted-engine` | the engine as the client's worlds play it | `client/domain/testing.md`, section 4 |
 | `jig-client-fake-person-browser` | jig's stories for a browser shell and its attack stories, on skein's face and harness | `protocol/browser.md`, section 15 |
 | `jig-client-world`, `jig-client-protocol-world`, `jig-client-wire-world`, `jig-client-browser-world` | the client's worlds: through its surface; through bytes; its wire's records; the browser tier | `client/domain/testing.md`, section 4; `protocol/client.md`, section 14; `protocol/browser.md`, section 15 |

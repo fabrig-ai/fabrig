@@ -1,6 +1,6 @@
 # Status
 
-2026-11-05. Where skein's code lags or departs from its design, and its
+2026-11-06. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. The kernel's
 records of a tree's metadata, the filesystem's status and btrfs's
 subvolumes, and cgroups with contained spawn, are not built, nor their
@@ -33,7 +33,9 @@ connection, oauth and its accounts, llm,
 llm-connection and lib's `RequestTable` depart from
 `../foundation/programming-model.md`, 5.4, and the fakes share their
 product's types against `../foundation/testing-strategy.md`, 4
-(`fake-forge.md`, `fake-llm.md`); single departures stand in
+(`fake-forge.md`, `fake-llm.md`); Forgejo's plans keep `Some(_) | None` arms
+against `../foundation/programming-model.md`, 10.3, which awaits the user
+(`forge.md`); single departures stand in
 `channel.md`, `fake-forge.md`, `forge.md`, `forge-connection.md`, `io.md`,
 `json.md`, `kv.md`, `lib.md`, `link.md`, `llm.md`, `shell.md`,
 `testing.md` and `ui.md`. The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no

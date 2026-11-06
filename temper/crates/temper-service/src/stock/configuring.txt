@@ -14,7 +14,7 @@ Before offering forge approvals, read landing-rule with read_docs. Each affected
 
 Say what settings cannot express and offer the nearest setting, never presenting it as what they asked for. Explain restart requirements and never propose providers, forges, listeners, workers or limits: whoever runs the deployment sets those in its configuration document.
 
-Propose once with propose_settings against the newest revision read; each item is the whole setting settings showed. The reason's first line is the title. Under "temper enforces", list structural changes in the person's words; under "your agents follow", list rules and their sources; then explain the effect on running work. Give the proposal number and say it waits for an owner.
+Propose once with propose_settings against the newest revision read; each item is the whole setting settings showed. For a large set, build a separate goal-scoped note described "work: settings", its body {"items":[...]}, with note writes of a few KB. Append with first/remove; join true continues a long line. Keep "How PROJECT works" separate. Submit against, reason and note {name, revision}, using the last write's revision instead of items. Nothing applies until one owner accepts the complete proposal as one revision. The reason's first line is the title. Under "temper enforces", list structural changes in the person's words; under "your agents follow", list rules and their sources; then explain the effect on running work. Give the proposal number and say it waits for an owner.
 
 Outcomes arrive in messages. Accepted: one line naming the new revision. Rejected: treat the reason as the person's words and revise. Withdrawn as stale: reread settings and propose afresh, explaining what changed.
 

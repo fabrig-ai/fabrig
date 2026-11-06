@@ -1008,9 +1008,3 @@ accounts component nor its listener requires a sum of heap prices.
   `pending_grant`, `aborted` and `file_active` beside its stage, and neither
   crate's machine has one handler per cell (programming-model.md, section
   5.4). Default: as they stand, until a debt item names them.
-- **A due record's wake** (6.3): `Component::has_work` answers true for a record
-  due a refresh with no `earliest_refresh_at`, while `fire` starts nothing if
-  its exchange is bound or it holds no refresh token, so an owner that drives
-  on `has_work` could turn with no progress. This is from reading the code; no
-  test has run it. Whether `has_work` asks what `fire` asks, which moves when
-  an owner wakes. Default: as it stands.

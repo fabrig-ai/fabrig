@@ -342,7 +342,7 @@ admission (llm.md, section 4.8), and the caller still bounds local output.
 
 ## 5. Outside stories and bounds
 
-`skein-llm-world::World::prepared` adopts one freshly prepared Client and
+`skein-llm-kit::World::prepared` adopts one freshly prepared Client and
 caller-owned literal HTTP/SSE response bytes. The caller supplies the same
 limits used at preparation. Adoption has no stream entrance, send, read or
 terminal effect and constructs no second Client. `World::new` prepares once
@@ -355,7 +355,7 @@ observations, queues and intakes remain separate owned storage. Its stories
 expect literal bytes, never the peer's response encoder's output, and
 establish no live provider admission.
 
-`skein-llm-world::fake::Exchange` connects the actual shared Client to the
+`skein-llm-kit::fake::Exchange` connects the actual shared Client to the
 independent byte peer and real script domain. It records requests and
 their heads, queries, response bytes and actual terminals. Its transport uses bounded intakes and
 checks every read/room/send; it owns no provider parser. Its stories
