@@ -164,6 +164,7 @@ fn project(
                 None => None,
             },
             models: super::llm::models(value.models, models, limits)?,
+            defaults: List::with_capacity(0),
         },
     )
 }

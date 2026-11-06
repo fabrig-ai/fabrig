@@ -205,6 +205,8 @@ fn choice(model: &[u8], effort: Option<&[u8]>) -> LlmChoice {
 #[test]
 fn a_template_s_llm_choice_is_copied_into_the_create() {
     let mut me = me();
+    shape_project(&mut me).defaults =
+        List::from_boxed(Box::new([MeDefault { template: CHAT, choice: choice(b"preview", Some(b"low")) }]));
     shape_project(&mut me).templates.get_mut(0).unwrap().llm = Some(choice(b"careful", Some(b"high")));
     let task = shape_task(chat(&me, PROJECT, words()).unwrap());
     assert_eq!(task.llm, Some(choice(b"careful", Some(b"high"))));
@@ -452,4 +454,24 @@ fn set_agreed_goal_from_asks() {
         assert!(task.spec.asks, "budget={budget}");
         assert_eq!(task.spec.words, words());
     }
+}
+
+#[test]
+fn resolved_defaults_belong_to_the_project_and_template() {
+    let mut me = me();
+    assert_eq!(resolved_default(&me, PROJECT, CHAT), None);
+    shape_project(&mut me).defaults = List::from_boxed(Box::new([
+        MeDefault { template: GOAL, choice: choice(b"goal", None) },
+        MeDefault { template: CHAT, choice: choice(b"chat", Some(b"high")) },
+    ]));
+    let mut other = shape_project(&mut me).clone();
+    other.project = PROJECT + 1;
+    other.defaults.get_mut(1).unwrap().choice = choice(b"other", None);
+    let first = shape_project(&mut me).clone();
+    me.projects = List::from_boxed(Box::new([other, first]));
+    assert_eq!(resolved_default(&me, PROJECT, CHAT), Some(&choice(b"chat", Some(b"high"))));
+    assert_eq!(resolved_default(&me, PROJECT, GOAL), Some(&choice(b"goal", None)));
+    assert_eq!(resolved_default(&me, PROJECT + 1, CHAT), Some(&choice(b"other", None)));
+    assert_eq!(resolved_default(&me, PROJECT + 2, CHAT), None);
+    assert_eq!(resolved_default(&me, PROJECT, 99), None);
 }

@@ -105,6 +105,10 @@ pub(super) fn line_models(task_page: bool) -> List<c::MeModel> {
     let mut models = List::with_capacity(3);
     models
         .push(c::MeModel {
+            effort: None,
+            shown: None,
+            accounts: List::with_capacity(0),
+            picker: true,
             prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
             description: None,
             name: c::Text::new(Box::from(if task_page { b"chosen".as_slice() } else { b"gpt-6-luna" }), 32).unwrap(),
@@ -116,6 +120,10 @@ pub(super) fn line_models(task_page: bool) -> List<c::MeModel> {
         .unwrap();
     models
         .push(c::MeModel {
+            effort: None,
+            shown: None,
+            accounts: List::with_capacity(0),
+            picker: true,
             prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
             description: None,
             name: c::Text::new(Box::from(*b"second"), 32).unwrap(),
@@ -473,6 +481,10 @@ fn catalogue(name: &[u8], efforts: &[&[u8]]) -> d::Domain {
     let mut models = List::with_capacity(1);
     models
         .push(c::MeModel {
+            effort: declared.get(0).cloned(),
+            shown: None,
+            accounts: List::with_capacity(0),
+            picker: true,
             prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
             description: None,
             name: c::Text::new(Box::from(name), NAME_BYTES).unwrap(),
@@ -569,6 +581,10 @@ fn only_the_selected_duplicate_model_shows_its_efforts() {
         efforts.push(c::Text::new(Box::from(effort), EFFORT_BYTES).unwrap()).unwrap();
         models
             .push(c::MeModel {
+                effort: efforts.get(0).cloned(),
+                shown: None,
+                accounts: List::with_capacity(0),
+                picker: true,
                 prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
                 description: None,
                 name: c::Text::new(Box::from(*b"shared"), NAME_BYTES).unwrap(),

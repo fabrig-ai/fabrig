@@ -62,6 +62,20 @@ pub fn template(me: &Me, project: u32, number: u32) -> Option<&Template> {
     }
     None
 }
+/// The project's preview for a template (jig/docs/design/protocol/client.md, 3).
+#[must_use]
+pub fn resolved_default(me: &Me, project: u32, template: u32) -> Option<&LlmChoice> {
+    for membership in &me.projects {
+        if membership.project == project {
+            for default in &membership.defaults {
+                if default.template == template {
+                    return Some(&default.choice);
+                }
+            }
+        }
+    }
+    None
+}
 fn creating(me: &Me, project: u32) -> Result<&Creating, NotOffered> {
     for membership in &me.projects {
         if membership.project == project {

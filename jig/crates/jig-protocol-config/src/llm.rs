@@ -16,6 +16,10 @@ pub struct Llm {
     pub models: Box<[Model]>,
     /// Optional descriptions, one per model in the same order (configuration.md, 3).
     pub descriptions: Box<[Option<Box<[u8]>>]>,
+    /// Optional names for showing, one per model (configuration.md, 3).
+    pub shown: Box<[Option<Box<[u8]>>]>,
+    /// Whether pickers show each model, in the same order (configuration.md, 3).
+    pub pickers: Box<[bool]>,
     /// Every model belongs to one numbered provider (configuration.md, 3).
     pub providers: Box<[Provider]>,
 }
@@ -72,6 +76,8 @@ pub(crate) fn parse(
     }
     let mut models = List::<Model>::with_capacity(document.len());
     let mut descriptions = List::with_capacity(document.len());
+    let mut shown = List::with_capacity(document.len());
+    let mut pickers = List::with_capacity(document.len());
     if let Some(items) = check::list(&mut object, document, b"models", MODELS, path, problems) {
         for (index, at) in items.iter().enumerate() {
             let path = path.member(b"models").child(Segment::Index(u32::try_from(index).expect("list bounded by u32")));
@@ -84,6 +90,8 @@ pub(crate) fn parse(
                 }
                 models.push(value.model).expect("input count bounded");
                 descriptions.push(value.description).expect("one description per model");
+                shown.push(value.shown).expect("one shown name per model");
+                pickers.push(value.picker).expect("one picker flag per model");
             }
         }
     }
@@ -94,6 +102,8 @@ pub(crate) fn parse(
         endpoints: endpoints.into_boxed(),
         models: models.into_boxed(),
         descriptions: descriptions.into_boxed(),
+        shown: shown.into_boxed(),
+        pickers: pickers.into_boxed(),
         providers: providers.into_boxed(),
     })
 }
@@ -237,6 +247,8 @@ fn headers(object: &mut read::Object, document: &Document, path: &Path, problems
 struct ParsedModel {
     model: Model,
     description: Option<Box<[u8]>>,
+    shown: Option<Box<[u8]>>,
+    picker: bool,
 }
 fn model(
     document: &Document,
@@ -287,6 +299,21 @@ fn model(
             Err(what) => problems.push(path.member(b"description"), what),
         }
     }
+    let mut shown = None;
+    if let Some(at) = object.member(document, b"shown") {
+        match read::text(document, at, 256) {
+            Ok(value) if value.is_empty() => problems.push(path.member(b"shown"), What::Form),
+            Ok(value) => shown = Some(value),
+            Err(what) => problems.push(path.member(b"shown"), what),
+        }
+    }
+    let mut picker = true;
+    if let Some(at) = object.member(document, b"picker") {
+        match read::boolean(document, at) {
+            Ok(value) => picker = value,
+            Err(what) => problems.push(path.member(b"picker"), what),
+        }
+    }
     object.finish(document, path, problems);
     let mut found = None;
     if let Some(name) = endpoint {
@@ -310,7 +337,7 @@ fn model(
     model.output = output?;
     model.efforts = efforts?;
     model.effort = effort;
-    Some(ParsedModel { model, description })
+    Some(ParsedModel { model, description, shown, picker })
 }
 /// The efforts a model takes, by name in order, none when absent (configuration.md, 3).
 fn model_efforts(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Box<[Box<[u8]>]>> {

@@ -16,5 +16,8 @@ jig-protocol-transcript.workspace = true
 workspace = true
 
 [dev-dependencies]
+jig-protocol-engine-clients.workspace = true
+jig-domain-authority.workspace = true
+jig-domain-tasks.workspace = true
 jig-client-test-records = {path = "../../testing/jig-client-test-records"}
 smith-transcript.workspace = true

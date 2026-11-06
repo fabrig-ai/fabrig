@@ -86,6 +86,7 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
     Ok(engine::Tool::Settings { read, from })
 }
 
+#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 fn models(values: &[engine::Model]) -> Box<[protocol::Model]> {
     let mut models = List::with_capacity(u32::try_from(values.len()).expect("configured models"));
     for value in values {
@@ -96,6 +97,12 @@ fn models(values: &[engine::Model]) -> Box<[protocol::Model]> {
                 window: value.window,
                 output: value.output,
                 efforts: value.efforts.clone(),
+                effort: match value.default_effort() {
+                    Some(effort) => Some(skein_lib::bytes::copy_of(effort)),
+                    None => None,
+                },
+                shown: None,
+                picker: true,
                 prices: protocol::Prices {
                     input: value.input_price,
                     cached: value.cached_price,

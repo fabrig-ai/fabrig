@@ -118,6 +118,8 @@ Shape: `model`. Paths: `engine.llm.models[]`. A model, its context bounds, effor
 - `effort`: text, 32 bytes; optional; init leaves it out. Names the effort a task given no choice takes, the first of the efforts when absent.
 - `prices`: prices; required; init writes object. Gives input, cached input and output prices in spend units.
 - `description`: text, 1 to 512 bytes; optional; init leaves it out. Describes what the model is good at for the brief's catalogue.
+- `shown`: text, 1 to 256 bytes; optional; init leaves it out. Gives the model's name for showing.
+- `picker`: true or false; optional; init leaves it out. Says whether a picker shows the model, true when absent.
 
 ## engine.llm.models[].prices
 

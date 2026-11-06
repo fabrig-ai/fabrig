@@ -65,6 +65,7 @@ mod tests {
         let mut projects = List::with_capacity(2);
         projects
             .push(MeProject {
+                defaults: List::with_capacity(0),
                 public: None,
                 project: 1,
                 name: DocumentText::complete(

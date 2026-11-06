@@ -36,6 +36,7 @@ pub fn frame(party: u64) -> Me {
             name: DocumentText::complete(text(b"Pat")),
         },
         projects: list([MeProject {
+            defaults: skein_lib::List::with_capacity(0),
             public: None,
             models: skein_lib::List::with_capacity(0),
             templates: conversations::templates(),
