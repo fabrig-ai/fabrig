@@ -554,6 +554,7 @@ fn the_meaning_check_catches_a_field_from_the_wrong_source() {
 fn forbidden_sources_never_reach_the_bytes() {
     let mut d = setup();
     let public = handed();
+    install_log(&mut d, Box::new([logged(MERGE, 100, &[QUEUED])]));
     let row = d.changes.get_mut(&CHANGE).expect("change");
     row.producer_failure = Some(Box::from(MARKERS[4]));
     row.questions.open = Box::new([c::Open {
@@ -583,14 +584,17 @@ fn forbidden_sources_never_reach_the_bytes() {
             },
         )
         .expect("verification");
-    for (kind, task) in
-        [(w::PUBLIC_CHANGE, Some(CHANGE)), (w::PUBLIC_LANDINGS, None), (w::PUBLIC_LANDING, Some(SECOND))]
-    {
+    for (kind, task) in [
+        (w::PUBLIC_CHANGE, Some(CHANGE)),
+        (w::PUBLIC_LANDINGS, None),
+        (w::PUBLIC_LANDING, Some(SECOND)),
+        (w::PUBLIC_LANDING, Some(QUEUED)),
+    ] {
         let m = made(&d, kind, task, &public);
         for marker in MARKERS {
             assert!(skein_lib::bytes::find(&m.record, marker).is_none(), "{kind}: {marker:?}");
         }
-        for task in [GOAL, CHANGE, SECOND, QUEUED, LANDING] {
+        for task in [GOAL, CHANGE, SECOND, QUEUED, LANDING, LOGGED_PULL] {
             assert!(skein_lib::bytes::find(&m.record, &task.to_be_bytes()).is_none(), "{kind}: big-endian task");
             assert!(skein_lib::bytes::find(&m.record, &task.to_le_bytes()).is_none(), "{kind}: internal task");
             let decimal = skein_lib::Decimal::of(task);
@@ -706,13 +710,14 @@ fn the_largest_answers_fit_their_declared_bounds() {
 fn the_newest_landing_and_a_pin_only_member_obey_the_same_filter() {
     let mut d = setup();
     let public = handed();
+    install_log(&mut d, Box::new([logged(MERGE, 100, &[CHANGE])]));
     let mut newer = d.landing.rows.get(&LANDING).expect("landing").clone();
     newer.landing.task = LANDING.checked_add(1).expect("newer");
     newer.landing.members.get_mut(1).expect("member").change = 0;
     d.landing.rows.insert(newer.landing.task, newer).expect("newer room");
     assert!(!change(&d, &public).in_landing());
     assert!(d.public(&ask(w::PUBLIC_LANDING, Some(CHANGE), &public), &LIMITS).is_none());
-    assert_eq!(landings(&d, &public).landings().len(), 1);
+    assert_eq!(landings(&d, &public).landings().len(), 2);
 }
 
 fn maximal_proofs(d: &mut Domain) {
@@ -817,4 +822,164 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
     d.landing.rows.get_mut(&private).expect("private row").landing.members = Box::new([member(0)]);
     let public = public.into_boxed();
     (d, limits, public)
+}
+
+// Logged words and pull numbers remain private, independently of the change row.
+const LOGGED_PULL: u64 = 0x7351_2034_5678_9ABC;
+fn logged(commit: [u8; 32], at: u64, tasks: &[u64]) -> LoggedLanding {
+    let mut changes = List::with_capacity(u32::try_from(tasks.len()).expect("fixture changes"));
+    for task in tasks {
+        changes
+            .push(LoggedChange { task: *task, pull: Some(LOGGED_PULL), title: Box::from(MARKERS[1]) })
+            .expect("logged change");
+    }
+    LoggedLanding { commit, branch: Box::from(MARKERS[0]), at: Wall::from_nanos(at), changes: changes.into_boxed() }
+}
+fn install_log(d: &mut Domain, landings: Box<[LoggedLanding]>) {
+    d.landing_logs.insert(REPO, LandingLog { repository: REPO, landings }).expect("log");
+}
+fn queue_history() -> Domain {
+    let mut d = setup();
+    d.landing.rows.remove(&LANDING);
+    for task in [CHANGE, SECOND, QUEUED] {
+        d.changes.get_mut(&task).expect("change").change.state = c::State::Cleared { merge: MERGE };
+    }
+    d
+}
+fn ended_public() -> [PublicTask; 2] {
+    [PublicTask { task: CHANGE, goal: None }, PublicTask { task: SECOND, goal: None }]
+}
+fn expected_merge_line(members: List<u16>, commit: [u8; 32]) -> w::PublicLandingLine {
+    w::PublicLandingLine::new(
+        &w::CEILINGS,
+        w::PublicLandingLineParts { members, phase: w::PublicLandingPhase::Landed, landed: list([commit]) },
+    )
+    .expect("merge line")
+}
+fn expected_merge(tasks: &[u16]) -> w::PublicLanding {
+    let mut members = List::with_capacity(u32::try_from(tasks.len()).expect("fixture members"));
+    for task in tasks {
+        members
+            .push(
+                w::PublicMember::new(
+                    &w::CEILINGS,
+                    w::PublicMemberParts {
+                        task: *task,
+                        base: None,
+                        candidate: None,
+                        landed: Some(MERGE),
+                        gates: list([]),
+                    },
+                )
+                .expect("merge member"),
+            )
+            .expect("member room");
+    }
+    w::PublicLanding::new(
+        &w::CEILINGS,
+        w::PublicLandingParts {
+            phase: w::PublicLandingPhase::Landed,
+            hold: None,
+            preparation: 0,
+            members,
+            stale_proofs: 0,
+            holds_turn: false,
+        },
+    )
+    .expect("merge landing")
+}
+#[test]
+fn a_queue_merge_is_a_landed_line_newest_first() {
+    let mut d = queue_history();
+    let public = ended_public();
+    install_log(&mut d, Box::new([logged(MERGE, 50, &[CHANGE]), logged(HEAD, 100, &[SECOND])]));
+    let made = made(&d, w::PUBLIC_LANDINGS, None, &public);
+    assert_eq!(made.tasks.as_ref(), &[SECOND, CHANGE]);
+    let expected = w::PublicLandings::new(
+        &w::CEILINGS,
+        w::PublicLandingsParts {
+            turn: None,
+            landings: list([expected_merge_line(list([0]), HEAD), expected_merge_line(list([1]), MERGE)]),
+            queues: list([]),
+        },
+    )
+    .expect("queue history");
+    assert_eq!(landings(&d, &public), expected);
+}
+#[test]
+fn a_queue_merge_reads_as_its_landing() {
+    let public = ended_public();
+    for (tasks, places) in [(&[CHANGE][..], &[0][..]), (&[CHANGE, SECOND][..], &[0, 1][..])] {
+        let mut d = queue_history();
+        install_log(&mut d, Box::new([logged(MERGE, 100, tasks)]));
+        for task in tasks {
+            let made = made(&d, w::PUBLIC_LANDING, Some(*task), &public);
+            assert_eq!(made.tasks.as_ref(), tasks);
+            let record = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("merge");
+            assert_eq!(record, expected_merge(places));
+        }
+        assert_eq!(landings(&d, &public).landings(), &list([expected_merge_line(list_from(places), MERGE)]));
+        assert!(!change(&d, &public).in_landing());
+    }
+}
+fn list_from(items: &[u16]) -> List<u16> {
+    let mut list = List::with_capacity(u32::try_from(items.len()).expect("fixture list"));
+    for item in items {
+        list.push(*item).expect("fixture room");
+    }
+    list
+}
+#[test]
+fn a_logged_landing_not_wholly_public_is_absent_and_unknown() {
+    let other = skein_forge::api::Repository { forge: REPO.forge, repository: 3 };
+    let public = ended_public();
+    for (handed, repository, way, tasks) in [
+        (&public[..1], REPO, c::Way::Queue, &[CHANGE, SECOND][..]),
+        (&public[..], other, c::Way::Queue, &[CHANGE, SECOND][..]),
+        (&public[..], REPO, c::Way::Turn, &[CHANGE, SECOND][..]),
+        (&public[..], REPO, c::Way::Queue, &[][..]),
+    ] {
+        let mut d = queue_history();
+        let mut foreign = adopted();
+        foreign.project = 6;
+        foreign.provider = other;
+        d.repositories.insert(other, foreign).expect("other project");
+        let row = d.changes.get_mut(&SECOND).expect("second");
+        row.repository = repository;
+        row.change.way = way;
+        install_log(&mut d, Box::new([logged(MERGE, 100, tasks)]));
+        let made = made(&d, w::PUBLIC_LANDINGS, None, handed);
+        assert!(made.tasks.is_empty(), "{handed:?} {repository:?} {way:?} {tasks:?}");
+        assert!(landings(&d, handed).landings().is_empty());
+        for task in [CHANGE, SECOND] {
+            assert!(d.public(&ask(w::PUBLIC_LANDING, Some(task), handed), &LIMITS).is_none());
+        }
+    }
+}
+#[test]
+fn landings_by_turn_stand_before_queue_merges_within_the_bound() {
+    // One turn landing leaves 63 places in the public panel's 64-line bound.
+    let limits = Limits { landings_kept: 65, ..LIMITS };
+    let mut d = setup_with_limits(&limits);
+    let mut logs = List::with_capacity(limits.landings_kept);
+    for at in 0..65_u8 {
+        logs.push(logged([at; 32], u64::from(at), &[QUEUED])).expect("log room");
+    }
+    install_log(&mut d, logs.into_boxed());
+    let mut public = handed();
+    public[3].goal = None;
+    let made = d.public(&ask(w::PUBLIC_LANDINGS, None, &public), &limits).expect("bounded history");
+    assert_eq!(made.tasks.as_ref(), &[CHANGE, SECOND, QUEUED]);
+    let mut expected = List::with_capacity(w::CEILINGS.public_landings_landings);
+    expected.push(expected_landings().landings().get(0).expect("turn line").clone()).expect("turn room");
+    for at in (2..65_u8).rev() {
+        expected.push(expected_merge_line(list([2]), [at; 32])).expect("merge room");
+    }
+    let expected = w::PublicLandings::new(
+        &w::CEILINGS,
+        w::PublicLandingsParts { turn: Some(0), landings: expected, queues: list([]) },
+    )
+    .expect("bounded landings");
+    let record = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("history");
+    assert_eq!(record, expected);
 }

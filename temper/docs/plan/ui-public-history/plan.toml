@@ -1,0 +1,29 @@
+draft = "ui-public-history"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-public-history/inputs/request.md", "temper/docs/design/client/browser.status.md", "temper/crates/temper-client-view/src/public/lines.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+# Two tasks at most, by the request. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "queue-merges"
+title = "A stock queue's merges are lines of the forge's public landings, and answer its landing"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/forge.md, 11.2"
+
+[[part]]
+id = "board-words"
+title = "The board says what it doesn't hold, and its empty words say what's shown"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 8.3"
+
+[[slice]]
+id = 1
+story = "A stranger reads a stock queue's merges under Landings, in a landing's form, and the board says what it doesn't hold"
+parts = ["queue-merges", "board-words"]
+walk = false
