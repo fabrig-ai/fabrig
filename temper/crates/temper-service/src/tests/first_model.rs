@@ -14,6 +14,7 @@ use temper_engine_domain::{self as engine, Delivery, Event, PartyInput};
 use temper_engine_domain_world::{direct::Driver, protocol, store::Store};
 
 const OPENAI: &[u8] = b"gpt-6.1-sol";
+const ASTRA: &[u8] = b"gpt-6-astra";
 const CLAUDE: &[u8] = b"claude-opus-5-5";
 const CHANNEL: Token = Token::new(7);
 const LOGIN: &[u8] = b"personal";
@@ -27,6 +28,7 @@ enum OneAccount {
 
 struct StockBox {
     driver: Driver,
+    config: engine::Config,
     models: Box<[core::Model]>,
     templates: Box<[core::Template]>,
     providers: jig_domain_accounts::Providers,
@@ -37,8 +39,8 @@ fn stock_box(account: OneAccount) -> StockBox {
     let document = stock::generated();
     assert_eq!(
         fixtures::value(&document, b"engine.llm.models[0].name").as_ref(),
-        br#""gpt-6.1-sol""#,
-        "init must put gpt-6.1-sol first: a reordered fixture hides first-usable selection"
+        br#""claude-opus-5-5""#,
+        "init must put claude-opus-5-5 first: a reordered fixture hides first-usable selection"
     );
     let parsed = stock::engine(&document);
     let application_bytes = fixtures::value(&document, b"application");
@@ -74,29 +76,20 @@ fn stock_box(account: OneAccount) -> StockBox {
         under_box: false,
         playground: None,
     };
-    let identity = config.core.owners.first().expect("init owner").identity.clone();
     let models = config.core.settings.models.clone();
     let templates = config.core.defaults.templates.clone();
     let providers = config.core.settings.llm_providers.clone();
+    let restart = temper_engine_domain_world::oracle::config::copy(&config);
     let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
     driver.period_sent = true;
-    driver.settle();
-    driver.send(Event::Party(PartyInput::SignedIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(900)),
-        identity: people::Identity {
-            key: identity,
-            login: b"owner".as_slice().into(),
-            name: b"Owner".as_slice().into(),
-        },
-    }));
     driver.settle();
     let login = match account {
         OneAccount::Claude => Some(host::LoginState::Usable),
         OneAccount::Declared => Some(host::LoginState::NotSignedIn),
         OneAccount::ChatGpt | OneAccount::None => None,
     };
-    let mut world = StockBox { driver, models, templates, providers, login };
+    let mut world = StockBox { driver, config: restart, models, templates, providers, login };
+    world.sign_in();
     world.ask(1, people::Ask::MakeProject { name: "Work".into(), policy: 1 });
     match account {
         OneAccount::Claude | OneAccount::Declared => {
@@ -135,6 +128,19 @@ fn stock_box(account: OneAccount) -> StockBox {
 }
 
 impl StockBox {
+    fn sign_in(&mut self) {
+        self.driver.send(Event::Party(PartyInput::SignedIn {
+            held: None,
+            reply_to: ReplyTo::new(Token::new(900)),
+            identity: people::Identity {
+                key: self.config.core.owners[0].identity.clone(),
+                login: b"owner".as_slice().into(),
+                name: b"Owner".as_slice().into(),
+            },
+        }));
+        self.pump();
+    }
+
     /// The shared world's worker reports no logins. Replace each queued whole
     /// inventory with this box's declaration before the root receives it.
     /// Waiting account tasks stay due, so drain inputs rather than requiring quiescence.
@@ -374,6 +380,7 @@ impl StockBox {
         let assignment = self.driver.last_assignment();
         assert_eq!(assignment.task, task);
         assert_eq!(assignment.run.policy.model.name.as_ref(), model, "claim's main");
+        assert_eq!(assignment.run.policy.model.default_effort().unwrap(), b"high");
         // Complete this activation before the world's cold-restart oracle.
         let end = match assignment.run.ended_by {
             tasks::EndedBy::Requester => tasks::End::Parked,
@@ -510,7 +517,7 @@ fn no_account_keeps_the_charters_first_model_and_names_an_empty_wait() {
     let task = world.create(1, None);
     world.worker();
     let document = world.document(task);
-    assert_eq!(world.main(&document), OPENAI);
+    assert_eq!(world.main(&document), CLAUDE);
     assert_eq!(
         document.run_wait,
         Some(core::documents::TaskRunWait::Account {
@@ -519,4 +526,50 @@ fn no_account_keeps_the_charters_first_model_and_names_an_empty_wait() {
             why: core::documents::TaskWaitWhy::Empty,
         })
     );
+}
+
+#[test]
+fn chatgpt_alone_runs_the_stock_configuring_chat() {
+    let mut world = stock_box(OneAccount::ChatGpt);
+    let task = world.create(3, None);
+    let document = world.document(task);
+    assert_eq!(world.main(&document), ASTRA, "configuring Task before claim");
+    world.worker();
+    world.assert_claim(task, ASTRA);
+}
+
+#[test]
+fn a_stored_charter_keeps_its_value_across_stock_changes() {
+    use core::settings::{Changed, Record, Setting, Value};
+    let mut world = stock_box(OneAccount::Claude);
+    let mut stored = world.config.core.defaults.charters[0].clone();
+    stored.policy.instructions = b"The stored charter's instructions.".as_slice().into();
+    world.driver.store.seed(
+        Box::new([engine::Record::Core(core::Record::Core(core::CoreRecord::Settings(Record::Changed {
+            setting: Setting::Charter(1),
+            changed: Changed { revision: 1, value: Some(Value::Charter(Box::new(stored.clone()))) },
+        })))]),
+        Box::new([]),
+    );
+    let mut changed = temper_engine_domain_world::oracle::config::copy(&world.config);
+    changed.core.defaults.charters[0].policy.instructions = b"The new stock's instructions.".as_slice().into();
+    changed.core.defaults.charters[1].policy.instructions = b"The new coding stock's instructions.".as_slice().into();
+    world.driver.reopen(changed);
+    world.driver.settle();
+    for row in world.driver.store.rows.values() {
+        if let engine::Record::Core(core::Record::Core(core::CoreRecord::Settings(Record::Revision {
+            revision, ..
+        }))) = row
+        {
+            assert!(
+                !revision.items.iter().any(|item| item.setting == Setting::Charter(1)),
+                "a stock release skips the stored charter"
+            );
+        }
+    }
+    world.sign_in();
+    let task = world.create(1, None);
+    world.worker();
+    let assignment = world.assert_claim(task, CLAUDE);
+    assert_eq!(assignment.run.policy.instructions, stored.policy.instructions);
 }
