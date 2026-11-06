@@ -1298,7 +1298,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 }
 #app > :is(.temper-session, .temper-agent-page) .temper-model > summary > span { margin-right: 6px; font-size: 12.5px; }
 #app > :is(.temper-session, .temper-agent-page) .temper-model-fixed { padding: 3px 8px; font-size: 12.5px; line-height: 1.5; color: var(--gf-muted); }
-#app > :is(.temper-session, .temper-agent-page) button.temper-model-all { width: 100%; border: 0; border-radius: 0; background: transparent; text-align: left; }
+#app > :is(.temper-session, .temper-agent-page) button.temper-model-all { width: 100%; border: 0; border-top: 1px solid var(--gf-line); border-radius: 0; font-size: 13px; line-height: 1.6; background: transparent; text-align: left; }
 #app > .temper-agent-page .temper-model-menu { position: static; }
 
 /* A message's effect stays visible where keyboard instructions are hidden. */

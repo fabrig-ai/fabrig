@@ -1770,9 +1770,7 @@ fn the_inactive_playground_has_no_connect_line() {
     me.providers = List::from_boxed(Box::new([provider_offer(17, b"First provider"), provider_offer(3, b"demo")]));
     delivered(&mut root, watch, c::Delivery::Me(Box::new(me)));
     let view = fixtures::page_view(&root);
-    assert!(chooser_nodes(&view).iter().all(|node| {
-        node.text.iter().all(|run| run.text.as_ref() != b"demo")
-    }));
+    assert!(chooser_nodes(&view).iter().all(|node| { node.text.iter().all(|run| run.text.as_ref() != b"demo") }));
 }
 #[test]
 fn a_choice_outside_the_offer_names_its_missing_account() {

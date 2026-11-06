@@ -90,7 +90,7 @@ pub(super) fn frame(me: &mut c::Me, name: &str) {
         .get(0)
         .expect("model sample")
         .clone();
-    member.models = List::with_capacity(7);
+    member.models = List::with_capacity(8);
     for (model, shown, provider, picker) in [
         ("claude-opus-5-5", "Opus 5.5", 17, true),
         ("claude-sonnet-5-5", "Sonnet 5.5", 17, true),
@@ -98,12 +98,13 @@ pub(super) fn frame(me: &mut c::Me, name: &str) {
         ("gpt-6.1-sol", "GPT-6.1 Sol", 18, true),
         ("gpt-6-astra", "GPT-6 Astra", 18, true),
         ("gpt-6.1-terra", "GPT-6.1 Terra", 18, true),
+        ("gpt-6-luna", "GPT-6 Luna", 18, true),
         ("claude-haiku-5-5", "Haiku 5.5", 17, false),
     ] {
         if provider == 18 && !both(name) {
             continue;
         }
-        if !picker && name != "chat-model-all" {
+        if !picker && !matches!(name, "chat-model-both" | "chat-model-all") {
             continue;
         }
         let mut row = sample.clone();
