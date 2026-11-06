@@ -110,14 +110,33 @@ pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, M
             Some(record) => Some(super::project_note::ledger(record)),
             None => None,
         };
+        let models =
+            core.authority.models(role.project, role.role.number()).unwrap_or(jig_domain_authority::Models::NONE);
+        let allowed = tasks::Models::from_parts(models.bits(), models.is_all());
+        let payer = tasks::Payer::Party(party);
+        let offer = core.offer(payer, role.project, allowed);
         let merged = core.project_templates(role.project);
+        let mut defaults = List::with_capacity(limits.templates);
         let mut templates = List::with_capacity(limits.templates);
         for template in merged {
+            let preview = match template.executor {
+                people::TemplateExecutor::Chosen => None,
+                people::TemplateExecutor::Charter(charter) => match &template.llm {
+                    Some(choice) => Some(choice.clone()),
+                    None => core.preview_llm(charter, core.current.newest(), allowed, payer, role.project),
+                },
+            };
+            if let Some(mut choice) = preview {
+                choice.account = None;
+                defaults.push((template.number, choice)).expect("one preview per template");
+            }
             templates.push(template).expect("configured template bound");
         }
         projects
             .push(FrameProjectRole {
                 public: core.public_project(role.project),
+                offer,
+                defaults,
                 templates,
                 project: role.project,
                 role: role.role,
@@ -135,10 +154,7 @@ pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, M
                         unreachable!("creating is bounded or refused")
                     }
                 },
-                models: match core.authority.models(role.project, role.role.number()) {
-                    Some(models) => models,
-                    None => jig_domain_authority::Models::NONE,
-                },
+                models,
             })
             .expect("bounded project list");
     }

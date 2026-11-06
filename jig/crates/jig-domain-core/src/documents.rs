@@ -44,7 +44,7 @@ mod task_wait;
 use jig_domain_people::ApplicationScope;
 
 pub use accounts::{AccountLine, Accounts, LastEnd, SignInLine, SourceLine};
-pub use catalogue::{PayerReadiness, ProviderOffer, Readiness};
+pub use catalogue::{Offered, PayerReadiness, ProviderOffer, Readiness};
 pub use chip_phase::{ChipDetails, ChipObservation, ChipWork};
 pub use deployment::{
     Account, AccountState, Capacity, Deployment, DocumentClock, HelloRefusalLine, Host, HostRun, ProjectCapacity,
@@ -263,7 +263,12 @@ impl Subject {
     #[must_use]
     pub fn touched_by(&self, touch: Touch) -> bool {
         match self {
-            Self::Frame { party } => touch == Touch::Party(*party) || touch == Touch::Frames,
+            Self::Frame { party: owner } => match touch {
+                Touch::Party(party) => party == *owner,
+                Touch::Frames => true,
+                Touch::Accounts(party) => party.is_none() || party == Some(*owner),
+                Touch::Settings | Touch::Deployment => false,
+            },
             Self::Inbox { party } => touch == Touch::Party(*party),
             Self::Settings => touch == Touch::Settings,
             Self::Deployment => touch == Touch::Deployment,
@@ -407,6 +412,10 @@ pub struct FrameProjectRole {
     pub models: jig_domain_authority::Models,
     /// Configured templates with this project's policy overrides applied.
     pub templates: List<crate::Template>,
+    /// Current usable models and accounts (domain/engine.md, 11.1).
+    pub offer: List<Offered>,
+    /// Effective templates' current previews, without account reservations.
+    pub defaults: List<(u32, tasks::LlmChoice)>,
     /// Whether the project is public (jig/docs/design/domain/people.md, 13.2).
     pub public: bool,
 }
@@ -620,7 +629,16 @@ pub fn document_with_context_bound(limits: &Limits, kinds: &[crate::settings::Ki
         .checked_add(settings_review::document_bound(limits)?)?
         .checked_add(u64::from(limits.people.words))?
         .checked_add(inbox_selection_bound(limits.documents.rows, limits.tasks.depth)?)?
-        .checked_add(u64::from(limits.documents.lines).checked_mul(crate::settings::templates::list_bound(limits)?)?)
+        .checked_add(u64::from(limits.documents.lines).checked_mul(crate::settings::templates::list_bound(limits)?)?)?
+        .checked_add(u64::from(limits.documents.lines).checked_mul(frame_offer_bound(limits)?)?)
+}
+
+fn frame_offer_bound(limits: &Limits) -> Option<u64> {
+    let offers = List::<Offered>::price(tasks::MODELS)?
+        .checked_add(u64::from(tasks::MODELS).checked_mul(List::<u32>::price(limits.accounts.accounts)?)?)?;
+    let defaults = List::<(u32, tasks::LlmChoice)>::price(limits.templates)?
+        .checked_add(u64::from(limits.templates).checked_mul(List::<tasks::ModelEffort>::price(tasks::MODELS)?)?)?;
+    offers.checked_add(defaults)
 }
 
 /// Join volatile live observations to a loaded owner row. The reader checks

@@ -411,7 +411,7 @@ fn model_shown_and_picker_reach_the_client_catalogue() {
         assert_eq!(model.picker, picker);
         assert_eq!(model.effort.as_deref(), effort);
         let wire = jig_protocol_engine_clients::translate::llm::models(
-            jig_domain_authority::Models::ALL,
+            &[jig_domain_core::Offered { model: 0, accounts: skein_lib::List::with_capacity(0) }],
             &models,
             &jig_client_protocol_wire::v19::CEILINGS,
         )

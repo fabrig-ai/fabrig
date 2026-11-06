@@ -55,6 +55,7 @@ pub use crate::{
         amendments::TaskAmendDenied,
         policy::{grants_to_authority, snapshot as policy_snapshot},
     },
+    documents::Offered,
     effects::{
         EffectKey, EffectOrigin, EffectPurpose,
         projections::{

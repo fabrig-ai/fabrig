@@ -21,6 +21,7 @@ files = [
   "temper/docs/help/account.md",
   "temper/docs/help/reference/configuration-engine.md",
   "jig/crates/jig-domain-core/src/tests/runs/reserve.rs",
+  "jig/crates/jig-domain-core/src/tests.rs",
 ]
 effort = "high"
 minutes = 200
@@ -67,6 +68,7 @@ Acceptance:
   `account.md`'s line may change as the note says, keeping their bounds; the reference by its tool.
 - May change `jig/crates/jig-domain-core/src/lib.rs`, the one line exporting `most_costly`.
 - May change `jig/crates/jig-domain-core/src/tests/runs/reserve.rs`, its two `run::most_costly` calls to `most_costly`.
+- May change `jig/crates/jig-domain-core/src/tests.rs`, removing its one line `runs::state as run,`.
 - `temper/crates/temper-fake/src/**` is another draft's too (`ui-walk-3/fix-flow`): small hunks.
 - Removes `temper/docs/design/protocol/configuration.status.md`'s **Not yet** 13.4, 13.8 about the seven models, and
   `temper/docs/design/protocol/setup.status.md`'s **Not yet** 8.3.
@@ -111,3 +113,13 @@ export. Should the closing clippy show the same lint on another call of `most_co
 same edit holds there; anything else in jig is a new question. Then finish what the first run's report leaves unobserved:
 the closing clippy, the focused checks and dependents, `heavy cargo check -p temper --tests`, the three process tests and
 the walks.
+
+2026-11-06. May this task remove the `runs::state as run,` import in `jig/crates/jig-domain-core/src/tests.rs`, which the
+two approved removals leave unused?
+
+Yes. Remove that one line, line 29: `reserve.rs`'s two calls were its last uses, and `-D warnings` refuses it unused. It
+is the same export's consequence, in a test module. No lint exception. The same holds without a new question for any
+further `unused_imports` or `unused_qualifications` the closing clippy reports in `jig-domain-core`'s tests from that
+export, each edit the removal of a name alone, and named in your report. An expectation, a test's body otherwise, or
+production code in jig other than the one export line stays a new question. Then finish the outstanding checks the last
+answer lists, with `startup::turn_bounds`'s T.

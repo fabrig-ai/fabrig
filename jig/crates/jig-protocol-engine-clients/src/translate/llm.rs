@@ -146,13 +146,17 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
     true
 }
 
-/// The models `allowed` names, in configuration's order, as `me` shows them.
-pub fn models(allowed: Models, models: &[Model], limits: &w::Limits) -> Result<List<w::MeModel>, w::Problem> {
-    let mut rows = List::with_capacity(u32::try_from(models.len()).expect("checked models"));
-    for (at, model) in models.iter().enumerate() {
-        if allowed.bits() & (1_u64.checked_shl(u32::try_from(at).expect("bounded model index")).unwrap_or(0)) == 0 {
-            continue;
-        }
+/// The core's offer, retaining configuration order and each model's candidate accounts.
+pub fn models(
+    offer: &[jig_domain_core::Offered],
+    models: &[Model],
+    limits: &w::Limits,
+) -> Result<List<w::MeModel>, w::Problem> {
+    let mut rows = List::with_capacity(u32::try_from(offer.len()).expect("checked models"));
+    for offered in offer {
+        let model = models
+            .get(usize::from(offered.model))
+            .ok_or(w::Problem { path: w::Path::MeModelName, reason: skein_codec::Reason::Bound })?;
         let mut efforts = List::with_capacity(u32::try_from(model.efforts.len()).expect("checked efforts"));
         for effort in &model.efforts {
             efforts.push(bytes::copy_of(effort)).expect("same capacity");
@@ -167,7 +171,7 @@ pub fn models(allowed: Models, models: &[Model], limits: &w::Limits) -> Result<L
                 efforts,
                 effort: model.effort.clone(),
                 shown: model.shown.clone(),
-                accounts: List::with_capacity(0),
+                accounts: offered.accounts.clone(),
                 picker: model.picker,
                 prices: w::MePrices::new(
                     limits,
