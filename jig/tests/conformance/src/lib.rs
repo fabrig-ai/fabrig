@@ -192,7 +192,7 @@ pub enum Delivery {
 }
 
 /// The outside correlation state of the application's scripted peers.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Neighbours {
     pub peers: Peers,
     observer: Observer,
@@ -201,7 +201,7 @@ pub struct Neighbours {
     pub answers: u64,
     pub acts: Vec<people::Outcome>,
     pub drained: Vec<u64>,
-    pub busy_events: Vec<std::rc::Rc<root::Event>>,
+    pub busy_events: Vec<String>,
     pub start_phases: Vec<core::start::Phase>,
     pub calls: Vec<core::CallPart>,
     pub hold_writes: bool,
@@ -566,7 +566,7 @@ impl Application for Testing {
                 }
                 Delivery::Start { phase, census } => peers.start(store, phase, census),
                 Delivery::Busy(event) => {
-                    peers.busy_events.push(std::rc::Rc::new(*event));
+                    peers.busy_events.push(format!("{event:?}"));
                     Vec::new()
                 }
                 Delivery::Now(_) => Vec::new(),

@@ -1276,6 +1276,7 @@ dependencies = [
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store",
+ "jig-test-store-files",
  "jig-test-system",
  "sha2",
  "skein-lib",
