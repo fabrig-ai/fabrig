@@ -15,18 +15,17 @@ use temper_client_domain::{
 
 const TITLE: &[u8] = b"How temper builds temper";
 const GROUP: &[u8] = b"How temper builds temper, beside the chat";
-const SECTION_HEADINGS: [&str; 6] = [
+const SECTION_HEADINGS: [&str; 5] = [
     "1. In one picture",
     "2. A pipeline that keeps growing",
     "3. In parallel, kept together",
     "4. Landing many",
     "5. temper itself, and yours",
-    "6. In numbers",
 ];
 // The stock page has seven settings rows and its header.
 const TABLE_ROWS: usize = 8;
-// Sections 5 and 6 each end in a closing note.
-const MUTED_NOTES: usize = 2;
+// Section 5 ends in a closing note.
+const MUTED_NOTES: usize = 1;
 const SUMMARY: &str = "How fabrig builds temper, with temper: one way among many. Start from it, from something smaller, or from your own words.";
 
 fn root() -> d::Domain {
@@ -128,7 +127,6 @@ fn opening_draws_the_stock_reference_in_both_shells() {
                 Role::Slot,
                 Role::Slot,
                 Role::Slot,
-                Role::Slot,
                 Role::Slot
             ]
         );
@@ -159,24 +157,10 @@ fn opening_draws_the_stock_reference_in_both_shells() {
         let tables = subtree(tree, pane(tree)).iter().filter(|n| n.role == Role::Table).collect::<Vec<_>>();
         assert_eq!(tables.len(), 1);
         assert_eq!(children(subtree(tree, tables[0])).len(), TABLE_ROWS);
-        let figures = styled(tree, look::DOC_FIGURES);
-        assert_eq!(figures.len(), 1);
-        let pairs = children(subtree(tree, figures[0]));
-        let terms = ["Merges", "Agent runs", "Workers"];
-        assert_eq!(pairs.len(), terms.len());
-        for (pair, term) in pairs.iter().zip(terms) {
-            let parts = children(subtree(tree, pair));
-            assert_eq!(parts.iter().map(|n| n.role).collect::<Vec<_>>(), [Role::Term, Role::Description]);
-            assert_eq!(text(tree, parts[0]), term.as_bytes());
-            assert_eq!(text(tree, parts[1]), "—".as_bytes());
-        }
         assert_eq!(
             styled(tree, look::DOC_MUTED).iter().map(|n| text(tree, n)).collect::<Vec<_>>(),
-            [
-                b"Each row is a setting, unless it says otherwise. Tell the chat what to keep, and what to change."
-                    .to_vec(),
-                b"Figures to come.".to_vec()
-            ]
+            [b"Each row is a setting, unless it says otherwise. Tell the chat what to keep, and what to change."
+                .to_vec()]
         );
     }
 }
@@ -252,8 +236,7 @@ fn terminal_prints_reference_after_composer_in_section_order() {
         SECTION_HEADINGS[2],
         SECTION_HEADINGS[3],
         SECTION_HEADINGS[4],
-        SECTION_HEADINGS[5],
-        "Figures to come.",
+        "Each row is a setting, unless it says otherwise.",
     ] {
         let at = rest.find(words).unwrap_or_else(|| panic!("missing or out of order {words}: {printed}"));
         rest = &rest[at + words.len()..];
@@ -283,20 +266,13 @@ fn reference_keeps_send_and_starter_acts() {
 }
 
 #[test]
-fn incomplete_figure_sections_are_read_whole() {
-    for (bytes, numbers, kept) in [
-        ("## 5. Settings\n\n| Name | Value |\n|---|---|\n| Plans | Yours |\n", false, "Yours"),
-        ("## 6. In numbers\n\n- Merges: —\n", true, "Merges: "),
-        ("## 6. In numbers\n\nFigures to come.\n", true, "Figures to come."),
-        ("## 6. In numbers\n\n- Merges\n\nFigures to come.\n", true, "Figures to come."),
-    ] {
-        let mut builder = skein_ui::Builder::new(&f::tree_limits());
-        builder.open(Role::Page);
-        crate::pages::reference::closing(&mut builder, bytes.as_bytes(), numbers);
-        builder.close();
-        let tree = builder.finish();
-        assert!(styled(&tree, look::DOC_FIGURES).is_empty(), "{bytes}");
-        assert!(styled(&tree, look::DOC_MUTED).is_empty(), "{bytes}");
-        assert!(text(&tree, &tree.nodes()[0]).windows(kept.len()).any(|part| part == kept.as_bytes()), "{bytes}");
-    }
+fn a_closing_section_without_a_note_is_read_whole() {
+    let bytes = "## 5. Settings\n\n| Name | Value |\n|---|---|\n| Plans | Yours |\n";
+    let mut builder = skein_ui::Builder::new(&f::tree_limits());
+    builder.open(Role::Page);
+    crate::pages::reference::closing(&mut builder, bytes.as_bytes());
+    builder.close();
+    let tree = builder.finish();
+    assert!(styled(&tree, look::DOC_MUTED).is_empty());
+    assert!(text(&tree, &tree.nodes()[0]).windows(b"Yours".len()).any(|part| part == b"Yours"));
 }

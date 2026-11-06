@@ -16,3 +16,9 @@
   `(visit, url)` pair of `Option`s, with a `url.expect`, which the `debt-26`
   request's leftovers name: by reading, taking it from `Grant::SignIn` on the
   path with no fetch needs a new `unreachable!`, which that plan's task ruled out.
+  6.8: `skein/tests/oauth-accounts`'s world keeps two owners, each with its own
+  `Process`, and branches on `story ==` 80 times, against
+  `skein/docs/foundation/testing-strategy.md`, 10, because the `debt-28` request
+  of 2026-11-06 names that item and has one bigger than its size stop and ask,
+  and its plan found this one 8 to 11 hours (the code's side is
+  `skein/docs/development/debt/D048-oauth-accounts-world-copies.md`).

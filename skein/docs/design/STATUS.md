@@ -27,17 +27,18 @@ to keep its rendered body (`llm.md`, `llm-connection.md`), and a world the
 fake LLM peer to keep what it read (`fake-llm.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
 `forge-client.md`, `oauth-issuer.md`, `browser.md` and `ui-text.md` have
-no gap. The state machines of io's file store and
-private opening, forge-connection, Forgejo's plans, the fake forge's
-connection, oauth and its accounts, llm,
-llm-connection and lib's `RequestTable` depart from
-`../foundation/programming-model.md`, 5.4, and the fakes share their
+no gap. The state machines of forge-connection, Forgejo's plans, the fake forge's
+connection, oauth and its accounts, llm and
+llm-connection depart from
+`../foundation/programming-model.md`, 5.4; io's file store and private opening
+and lib's `RequestTable` hold their states in enums, but keep some cells outside
+its small handlers (`io.md`, `lib.md`); and the fakes share their
 product's types against `../foundation/testing-strategy.md`, 4
 (`fake-forge.md`, `fake-llm.md`); Forgejo's plans end a match over a decoded
 kind in `_` against `../foundation/programming-model.md`, 10.3, for the user's
 later review (`forge.md`); single departures stand in
 `channel.md`, `fake-forge.md`, `forge.md`, `forge-connection.md`, `io.md`,
-`json.md`, `kv.md`, `lib.md`, `link.md`, `llm.md`, `shell.md`,
+`json.md`, `kv.md`, `lib.md`, `link.md`, `llm.md`, `oauth.md`, `shell.md`,
 `testing.md`, `ui.md` and `ui-web.md`. The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
