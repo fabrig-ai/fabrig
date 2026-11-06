@@ -184,3 +184,11 @@ fn chromium_lists_a_pressed_tab_and_its_cut_opener_but_blocks_an_unpressed_openi
     rig.run();
     assert!(rig.root_closed && rig.exited && rig.child_closed);
 }
+
+#[test]
+fn chromium_finds_and_presses_the_page_beside_its_loading_tab() {
+    let profile = Profile::fresh();
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::TabBeside);
+    rig.beside_page();
+    rig.run();
+}
