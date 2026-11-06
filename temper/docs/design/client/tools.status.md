@@ -1,6 +1,6 @@
 # tools: status
 
-2026-11-05. Remaining gaps between temper's code and [tools.md](tools.md).
+2026-11-06. Remaining gaps between temper's code and [tools.md](tools.md).
 Unlisted sections have no known gap.
 
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's

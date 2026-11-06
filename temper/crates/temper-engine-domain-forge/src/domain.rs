@@ -2819,6 +2819,34 @@ fn unasked(row: &mut ChangeRow, kind: change::Delegate) -> change::State {
     }
 }
 
+// A result ends a stall held at its delegate's wait (domain/forge.md, 8.4).
+fn delegate_wait(state: &change::State) -> bool {
+    match state {
+        change::State::Producing { requested }
+        | change::State::Repairing { requested, .. }
+        | change::State::Resolving { requested, .. } => *requested,
+        change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::Gating { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Updating { .. }
+        | change::State::Landing { .. }
+        | change::State::Landed { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended
+        | change::State::Held { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. } => false,
+    }
+}
+
 #[expect(clippy::too_many_arguments, reason = "one child's terminal carries its status, failure standing and words")]
 fn delegate_result(
     d: &mut Domain,
@@ -2836,6 +2864,24 @@ fn delegate_result(
     let Some((expected, kind)) = row.delegate else { return };
     if expected != child {
         return;
+    }
+    let mut ended = false;
+    if let change::State::Held { was, why: change::Hold::Stalled } = &row.change.state
+        && delegate_wait(was)
+    {
+        row.change.state = (**was).clone();
+        row.change.owns_turn = false;
+        ended = true;
+    }
+    let agent = match kind {
+        change::Delegate::Gate { .. } => false,
+        change::Delegate::Produce
+        | change::Delegate::Repair(_)
+        | change::Delegate::Resolve { .. }
+        | change::Delegate::Merge { .. } => true,
+    };
+    if agent {
+        row.change.since = env.wall;
     }
     // Keep the merge's identity through the fresh branch read, including after restart.
     match kind {
@@ -2867,10 +2913,13 @@ fn delegate_result(
         row.producer_failure = cancelled_delegate_words(kind, child, words);
     }
     let saved = row.clone();
-    if kind == change::Delegate::Produce && status == change::Status::Failed {
+    save_change(d, out, saved);
+    if ended {
+        emit(out, Request::ChangeDecision { task, decision: change::Decision::EndHold, entry: None, evidence: None });
+    }
+    if agent {
         d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     }
-    save_change(d, out, saved);
 }
 
 /// A delegate's cancellation account (temper/docs/design/domain/forge.md, 8.4).
@@ -2921,7 +2970,34 @@ fn producer_result(row: &mut ChangeRow, no_change: bool, failed: bool, words: &[
         row.change.state = change::State::NoChange { words: words.into() };
         row.change.owns_turn = false;
     }
-    row.producer_failure = if failed && !words.is_empty() {
+    let held_producing = match &row.change.state {
+        change::State::Held { was, .. } => {
+            **was == (change::State::Producing { requested: true })
+                || **was == (change::State::Producing { requested: false })
+        }
+        change::State::Producing { .. }
+        | change::State::Repairing { .. }
+        | change::State::Resolving { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::Gating { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Updating { .. }
+        | change::State::Landing { .. }
+        | change::State::Landed { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. } => false,
+    };
+    row.producer_failure = if (failed || (no_change && held_producing)) && !words.is_empty() {
         Some(crate::text::fit(
             words,
             usize::try_from(jig_domain_tasks::HOLD_ACCOUNT_BYTES).expect("bounded hold account"),
@@ -3043,6 +3119,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pending.entry = entry;
         pending.heard.delegate = heard.delegate;
         pending.heard.delegate_running = heard.delegate_running;
+        pending.heard.delegate_live = heard.delegate_live;
         pending.heard.lacking = heard.lacking;
         pending.heard.spend = heard.spend;
         pending.kept = kept;
@@ -3530,7 +3607,13 @@ fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
     }
 }
 
-fn titled_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) -> Option<ChangeRow> {
+fn titled_change(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    pending: &PendingStep,
+    out: &mut Queue<Request>,
+) -> Option<ChangeRow> {
+    let task = pending.task;
     let mut row = d.changes.get(&task)?.clone();
     let producing = match row.delegate {
         Some((_, kind)) => kind == change::Delegate::Produce,
@@ -3555,6 +3638,11 @@ fn titled_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<R
                 },
             );
             return None;
+        }
+        if pending.heard.delegate_live {
+            row.change.since = env.wall;
+            d.changes.insert(task, row.clone()).expect("replaces change");
+            save_change(d, out, row.clone());
         }
         let until = skein_lib::Wall::from_nanos(
             row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
@@ -3591,7 +3679,7 @@ fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change
 
 #[expect(clippy::too_many_lines, reason = "one coherent snapshot records a green repair ending before stepping onward")]
 fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &mut Queue<Request>) {
-    let Some(mut row) = titled_change(d, env, pending.task, out) else { return };
+    let Some(mut row) = titled_change(d, env, pending, out) else { return };
     let before = crate::panel::ready(&row);
     let prior = row.change.clone();
     let Some(base_tip) = pending.base_tip else {

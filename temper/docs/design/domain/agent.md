@@ -761,6 +761,15 @@ merge, with both parents. Its outcomes, in smith's terms (smith's
 | a conflicted file still holds a marker | refused, naming the file |
 | refused by the forge, unreachable, timed out, broken, too large, missing the repository, a branch or a commit | failed, with the reason and the last 512 bytes of git's diagnostic output |
 
+What it delivers is the tree, not the run's history: a checkout is detached
+(worker.md, section 5), and the worker commits on its own record of the head,
+never on HEAD (`../protocol/git.md`, 4.7). So a run's own commits, resets and
+rebases keep their files and lose their history, and a saved tree that is
+delivered unchanged lands the save's commit, the delivery's title and body
+unused (worker.md, section 5). The head delivered names what is on the branch,
+and the coding charter's words say so (`../protocol/configuration.md`, 13.4's
+charter 2 row), since a run can't otherwise tell.
+
 A push that lands is the result, even if the run was winding down. The
 answer carries what the run left on the forge (worker.md, 4.2), and the
 forge's change procedure goes on from it (forge.md, section 8).

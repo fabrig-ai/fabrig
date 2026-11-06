@@ -220,6 +220,10 @@ enum PrepareStep {
         repository: u32,
         head: u32,
     },
+    CheckOutHead {
+        repository: u32,
+        head: u32,
+    },
 }
 
 /// A push or a save under way.
@@ -768,7 +772,8 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
         | PrepareStep::CheckOutMerge { .. }
         | PrepareStep::Merge { .. }
         | PrepareStep::CompareHead { .. }
-        | PrepareStep::CommitHead { .. }) => prepared_merge(holding, merge, done, limits),
+        | PrepareStep::CommitHead { .. }
+        | PrepareStep::CheckOutHead { .. }) => prepared_merge(holding, merge, done, limits),
     }
 }
 
@@ -849,7 +854,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
         PrepareStep::CommitHead { repository, head } => match done {
             Done::Committed { commit } => {
                 tips_mut(holding, repository).head = commit;
-                next_head(holding, repository, head, last)
+                Next::Step(PrepareStep::CheckOutHead { repository, head })
             }
             Done::Conflicted { .. } => {
                 Next::Failed(Failure::Conflicted { repository, head: merged_head(holding, repository, head) })
@@ -863,6 +868,19 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Looked { .. }
             | Done::IsAncestor { .. }
             | Done::Merged => unreachable!("explicit merge commit has its own terminals"),
+        },
+        PrepareStep::CheckOutHead { repository, head } => match done {
+            Done::Succeeded => next_head(holding, repository, head, last),
+            Done::Failed { .. } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
+            Done::Fetched { .. }
+            | Done::Committed { .. }
+            | Done::Unchanged
+            | Done::Exists
+            | Done::Rejected
+            | Done::Looked { .. }
+            | Done::IsAncestor { .. }
+            | Done::Merged
+            | Done::Conflicted { .. } => unreachable!("io ends a checkout with its own terminals"),
         },
         PrepareStep::Look { .. }
         | PrepareStep::Make
@@ -1098,6 +1116,11 @@ fn prepare_step(
             Op::Merge { at: place(workspace, nth(holding, repository)), theirs }
         }
         PrepareStep::CommitHead { repository, head } => commit_head(holding, workspace, repository, head),
+        PrepareStep::CheckOutHead { repository, .. } => Op::CheckOut {
+            at: place(workspace, nth(holding, repository)),
+            commit: tips(holding, repository).head,
+            clean: true,
+        },
     };
     io(id, op, env, out);
     State::Preparing { step, asked: Asked::Nothing }
