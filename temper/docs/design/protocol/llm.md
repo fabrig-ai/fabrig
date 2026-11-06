@@ -246,3 +246,18 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
 - **Agents in the worker's process,** `smith-inline-agent`, for one
   person's machine, with no containment and no process per run (jig's
   `protocol/service.md`, section 6). Default: agent processes.
+- **A run's idle bound** (smith's `protocol/limits.md`, 2.1 and 7): the request
+  `parallel-faults` of 2026-11-06 saw 19 runs fail `timed out during response
+  idle (HTTP 200)` in 73 minutes, on two tasks with requests of 456 to 801 KB,
+  where a run at 823 KB worked, and reading doesn't settle why. The bound is per
+  model in a deployment's `agent.json`: `temper init`'s template has 30 s and
+  smith's local presets 120 s and 300 s, so a raise in `smith/` might not reach a
+  deployment. It arms at the response's head and only an event carrying output
+  re-arms it, so a 200 with no event, a stream of pings and a stall partway read
+  alike. About 230 s a run fits four tries at 30 s and not at 120 s, by arithmetic
+  alone, and says nothing of the run at 823 KB. What settles it: that deployment's
+  `idle`, and a rerun with `trace` set, comparing each attempt's
+  `response.completed` on those tasks and that run: `duration_ms` less
+  `first_byte_ms` near `idle` says nothing re-armed it, and `largest_gap_ms` how
+  quiet a stream ran. A new figure, the user's, then comes from those gaps and a
+  sourced figure for a comparable client. Default: the figures as they stand.
