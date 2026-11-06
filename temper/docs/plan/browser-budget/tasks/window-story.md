@@ -71,3 +71,13 @@ The before-and-after medians with their load, the messages and reply size you ch
 ## Answers
 
 2026-11-06 (temper/ui). Neither at first: make the window smaller. 128 KB was only my example. Set document_bytes to 64 KiB in the tier and scale the replies to match, so the history still passes the bound by at least two windows' worth at both ends: about 192 KiB of distinct replies, which fits the fake's 262,144-byte joint limit with its wrappers and also costs less CPU, the point of this plan. Keep the replies distinct. Each reply stays well under the window, so no turn reads as too large. Leave temper-fake alone. Only if 64 KiB hits another bound, such as a minimum on document_bytes or a line's room, extend SCRIPT_BYTES to 512 KiB in this task, say why in the report, and keep 128 KB.
+
+## Rebase (2026-11-06, step merge, foreman browser-budget/window-story/foreman-1)
+
+resolve browser.status.md by keeping incoming public-history status and deleting only the tier-window gap
+The merge conflicts only in `temper/docs/design/client/browser.status.md`.
+Task commit `d8c8d7ff9027` deletes the two-line `**Not yet:** 4.3, *The tier's window*` entry.
+Integration commit `9ad66bd18383` adds the adjacent `**Not yet:** 8.3` public-history entry, causing the overlapping hunk.
+Rebase onto the landing target; preserve its public-history entry and all unrelated status text, while retaining the task's two-line deletion.
+If the target includes main commit `c68899a3ad6e`, preserve its expanded public-history paragraph, 8.3 departure and revised 8.4 entry instead of restoring their older wording.
+No source change is needed for this refusal.
