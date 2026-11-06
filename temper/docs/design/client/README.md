@@ -5580,8 +5580,7 @@ the page asks again after a transient end, as in 3.5. The client's joint
 world, `tests/client`, starts its clients so, with no shell
 (`fixtures::task_page`), and proves the root's part:
 in rung B2's story (section 10) a fresh client started at a delegate's address
-draws its heading and its "Task brief", as the browser tier's task
-pages story does at `/tasks/3` (section 10).
+draws its heading and its "Task brief".
 
 ## 7. Signing in and the small store
 

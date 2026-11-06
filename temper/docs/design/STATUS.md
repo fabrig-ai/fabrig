@@ -78,11 +78,12 @@ cannot script, How work runs' controls for a person with a project's role
 alone, and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
-and whose download is past its bar (`playground.md`), upgrades'
+(`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). The browser tier's CPU against its budget awaits the
-user, and no test shows a head waiting for room ended by the stall
-deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
+(`release.md`). The browser tier holds 13 tests, one past its cap, its CPU
+measured within its budget on the 12 without the call line's alone, a closed
+chat's wait is located but not split, and no test shows a head waiting for room
+ended by the stall deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
 pages draw their own worlds, not the mock's scenario (`client/browser.md`).
 Forges kept in the store, a forge's removal and the
