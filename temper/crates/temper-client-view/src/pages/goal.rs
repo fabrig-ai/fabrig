@@ -225,9 +225,9 @@ impl Page<'_> {
         }
         super::task::act(b, self.task, c::ActKind::Amend, Word::Amend, Act::Amend, words, bindings);
         if self.state == State::Paused {
-            super::task::act(b, self.task, c::ActKind::Release, Word::GoalResume, Act::Resume, words, bindings);
+            super::task::act(b, self.task, c::ActKind::Release, Word::Resume, Act::Resume, words, bindings);
         } else {
-            super::task::act(b, self.task, c::ActKind::Stop, Word::GoalPause, Act::Pause, words, bindings);
+            super::task::act(b, self.task, c::ActKind::Stop, Word::Pause, Act::Pause, words, bindings);
         }
         super::task::act(b, self.task, c::ActKind::Cancel, Word::Stop, Act::Close, words, bindings);
     }
