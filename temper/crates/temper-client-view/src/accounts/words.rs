@@ -28,6 +28,7 @@ pub(crate) enum Word {
     PlanLimited,
     SignedOutPlan,
     Command,
+    ProgramLogin,
     PlanRuns,
     KeyAdded,
     KeyTitle,
@@ -448,6 +449,7 @@ const NAMED: &[(Word, &[u8], &[u8])] = &[
     (Word::KeyAdded, "Added your ".as_bytes(), " API key".as_bytes()),
     (Word::PlanRuns, "temper’s agents now run on your ".as_bytes(), " plan.".as_bytes()),
     (Word::Command, "temper program-login ".as_bytes(), "".as_bytes()),
+    (Word::ProgramLogin, b"program-login ", b""),
     (Word::PasteInstructions, b"When ", " is done, its tab shows a page that can’t be reached. Copy that page’s whole address from the address bar, come back here, and paste it. If a page opens instead, such as another program’s sign-in, close that program’s sign-in and start again.".as_bytes()),
     (Word::PasteTooMany, b"That's too many addresses from other sign-ins. Continue with ", b" to start again."),
 ];
