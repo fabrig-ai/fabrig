@@ -1201,7 +1201,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-claude-checking",
         heading: "Your Claude subscription",
         parts: &[
-            Part::Named { role: Role::Status, name: "Checking Claude Code’s sign-in on this machine…" },
+            Part::Named { role: Role::Status, name: "Trying your Claude subscription" },
             Part::Absent { role: Role::Button, name: "I’ve signed in" },
         ],
     },
@@ -1209,12 +1209,15 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-claude-not-yet",
         heading: "Your Claude subscription",
         parts: &[
-            Part::Text { text: "temper program-login claude-pat" },
+            Part::Named { role: Role::Alert, name: "Claude didn’t answer" },
             Part::Named {
-                role: Role::Alert,
-                name: "Claude Code isn’t signed in here yet. Run the command above, then press I’ve signed in.",
+                role: Role::Paragraph,
+                name: "Claude Code isn’t signed in here yet. Sign in again, then try again.",
             },
-            Part::Named { role: Role::Button, name: "I’ve signed in" },
+            Part::Named { role: Role::Button, name: "Try again" },
+            Part::Named { role: Role::Button, name: "Sign in again" },
+            Part::Named { role: Role::Link, name: "Continue anyway" },
+            Part::Absent { role: Role::Button, name: "I’ve signed in" },
         ],
     },
     Holds {

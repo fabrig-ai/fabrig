@@ -1323,12 +1323,13 @@ keeps (`../protocol/configuration.md`, section 2).
       signed in"; "All ways". "I’ve signed in" sends `DeclareProgram` under
       NAME unless an account of the person's has that source, then the
       accounts page's `CheckProgram { source }`, as `temper ctl account
-      verify` does. While either is out, in the panel's place, a spinner
-      and "Checking Claude Code’s sign-in on this machine…". Once a model
-      is usable, the step moves on to Ready, its address replacing the
-      step's. Answered with the source not usable, the page stays with the
-      alert "Claude Code isn’t signed in here yet. Run the command above,
-      then press I’ve signed in.", and a second press checks again.
+      verify` does. While either is out, in the panel's place, *The try*
+      (below), its first step under way, with no "one short message". Once a
+      model is usable, the step moves on to Ready, its address replacing the
+      step's. Answered with the source not usable, the page stays with *The
+      try* stopped at its first step, its why "Claude Code isn’t signed in
+      here yet. Sign in again, then try again.": "Try again" checks again,
+      and "Sign in again" brings the panel back.
     - *A plan's sign-in,* its way at its address with none asked, or one
       ended with no model usable, "Signing in to PLAN": `ConnectModel`'s card
       for the way, or its ending's words and acts, in the panel; "All ways".
@@ -1388,6 +1389,37 @@ keeps (`../protocol/configuration.md`, section 2).
     ticked one keeps "Each step". *The seam:* the Model step's
     state, acts and Choose are `ConnectModel`'s; the step's frame, heading,
     lead, ways' pages, notes, set up line and foot the welcome's.
+    *The try,* an account tried once it is usable, one short task through
+    the path a chat takes (`../draft/model-check.md`), is one status box,
+    Forge's status box in its look, drawn by one function: on the welcome in
+    the panel's place, under the way's heading, or in the place of *A model
+    usable*'s status; on `ConnectModel` in the way's card's place. Its steps
+    are the list Forge's has, "Each step" its name, each with its state in
+    words: for a Claude subscription "Signed in to your subscription",
+    "Claude Code starts on this machine", "Claude answers"; for a plan's
+    sign-in "Signed in to your PLAN plan", or for a key "Key added", ticked at
+    once, a direct account having no program to start, then "PLAN answers",
+    "ChatGPT answers". ACCOUNT below is "Claude subscription", "ChatGPT plan",
+    "OpenAI API key", in Ready's Model line's words.
+    - *Running:* a spinner, "Trying your ACCOUNT", strong, the muted "one short
+      message" once a message goes, and the list, the step under way marked.
+    - *Answered:* the box green, "✓ ACCOUNT", strong, the muted "answered in N
+      s", the list folded under "Each step"; then "Continue", as *A model
+      usable* has it, or on `ConnectModel` its made account's primary. It
+      does not move on by itself.
+    - *Stopped:* the box on the signal's pale, the alert "WHO didn’t answer",
+      WHO the PLAN, in the signal's colour; the list, the step that
+      stopped "✕" and in that colour, those before it ticked; why, in the
+      person's terms, a paragraph, `temper-welcome-check-why`. Then "Try
+      again", primary; the act that answers the reason, outlined ("Sign in
+      again"), or, with none, "All ways"; then "Continue anyway", quiet, to
+      Ready, or on `ConnectModel` to its made account's primary's address.
+
+    At a phone's width the muted words go under the title. The terminal
+    has the same lines as text, with no spinner: "Trying your ACCOUNT · one
+    short message", "✓ ACCOUNT · answered in N s", "WHO didn’t answer". Ready's
+    Model line, after a try that stopped: its usual line, then, muted, "didn’t
+    answer when tried".
     *Ready* is headed "Almost ready", with "Your first project can be
     created once your forge and model are ready.", until a real forge
     is connected and a model usable, then "Ready", with "Everything is
@@ -6131,13 +6163,6 @@ own tests:
   forms, with a space and an apostrophe and no download, then the shown command run
   as it stands on a fresh real box, the pinned fetch with it. Default: the short
   command.
-- **The rename the mock draws** (5.3; that request): the answer of 2026-11-06 to
-  that plan's task `fix-look`, the user's word, has the open project's row itself
-  become the form, a name's field filling the row, at least 34 pixels high, and a
-  primary small "Save", with "Rename NAME" gone from the menu's acts while it is
-  open: Enter saves, Escape cancels, an empty name keeps the old one, and there is
-  no visible "Cancel". Save or Escape gives the focus back to what opened the form,
-  or to the menu's summary, never main. Default: 5.3's form and its "Cancel".
 - **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; that
   request): the pinned Claude Code fetch and a real browser's Sign out ran by hand,
   on fresh loopback deployments, and no test keeps them. Not shown: a provider's
@@ -6145,6 +6170,12 @@ own tests:
   with a project or an account on it; the small engine profile whole, whose client
   limits alone ran; another platform's build, a failed or corrupt download, two
   fetches at once; a copy from a public host. Default: none, until a plan walks them.
+- **The rename's opening and closing, as the mock draws them** (5.3; the request
+  `ui-rename-focus` of 2026-11-06): the mock selects the name as the form opens,
+  folds the menu as it closes and says "Renamed" in a toast. A view can neither
+  select a field's words nor fold a disclosure (skein's `ui-web.md`, 15), and that
+  request names none of the three. Default: the name unselected, the menu open with
+  the focus on its summary, and no toast.
 
 - **Pages the mockups do not show:** a project's page with its
   resources, findings, notes and settings (policy, people and roles,

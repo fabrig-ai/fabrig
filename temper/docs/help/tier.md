@@ -136,7 +136,7 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   one job at a time, delaying CI and landings. Use
   2 for one single-job tier plus CI, or 3 for two such tiers plus CI.
   Count jobs in multi-job workflows and other repositories too.
-  Stop the real-backend box with Ctrl-C or SIGTERM; wait for `Stopped`.
+  Stop the real-backend box with Ctrl-C or SIGTERM; wait for it to exit.
   Edit only that setting in `CONFIG/temper.json`, then restart
   `temper box --config CONFIG --data DATA --cache CACHE` with the same
   directories. Prepared runners keep their registration and secrets.

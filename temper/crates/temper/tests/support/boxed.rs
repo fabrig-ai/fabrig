@@ -20,7 +20,27 @@ use std::{
 /// (domain/testing.md 6.1). Keep a duration under test separate from this horizon.
 pub const BOX_DEADLINE: Duration = Duration::from_secs(240);
 
-/// What the referee does after the link arrives.
+/// The box's own log of this run, empty before its first line (protocol/setup.md, 7.2).
+#[must_use]
+pub fn box_log(data: &Path) -> String {
+    match std::fs::read_to_string(data.join("box/logs/box.log")) {
+        Ok(log) => log,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(error) => panic!("box log: {error}"),
+    }
+}
+
+/// Serve has listened on the clients' listener this run: the moment the first link used to print (protocol/setup.md, 7.2).
+#[must_use]
+pub fn serve_listening(data: &Path) -> bool {
+    match std::fs::read_to_string(data.join("box/logs/serve.log")) {
+        Ok(log) => log.contains("listening clients "),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+        Err(error) => panic!("serve log: {error}"),
+    }
+}
+
+/// What the referee does after the link arrives and serve listens.
 #[derive(Clone, Copy, Debug)]
 pub enum Plan {
     /// Probe Forgejo and ask the box to stop.
@@ -42,11 +62,13 @@ pub struct Outcome {
 }
 #[derive(Clone, Copy)]
 enum Phase {
+    AwaitingServe,
     Linked,
     Killed { engine: u32, forgejo: u32 },
     Stopping,
 }
 struct Judge {
+    data: Option<PathBuf>,
     plan: Plan,
     forgejo: Option<SocketAddr>,
     forgejo_at_link: Rc<Cell<Option<u16>>>,
@@ -64,6 +86,13 @@ impl Judge {
     fn advance(&mut self, binary: &mut Binary, address: SocketAddr) {
         let pids = &binary.tree_status().live_pids;
         match self.phase {
+            Phase::AwaitingServe => {
+                // Plain serve prints its own link once listening; a box prints before it starts.
+                if self.data.as_deref().is_none_or(serve_listening) {
+                    self.phase = Phase::Linked;
+                    self.advance(binary, address);
+                }
+            }
             Phase::Linked => {
                 self.forgejo_at_link.set(self.forgejo.and_then(|address| status(address, "/api/v1/version")));
                 match self.plan {
@@ -120,10 +149,10 @@ impl Referee<Process> for Judge {
         let engine = printed_link(&stdout.bytes)
             .and_then(|link| std::str::from_utf8(link).ok()?.strip_prefix("http://")?.split('/').next()?.parse().ok());
         let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
-        if let Some(engine) = engine
-            && now >= self.next_probe
-        {
-            self.advance(binary, engine);
+        if now >= self.next_probe {
+            if let Some(engine) = engine {
+                self.advance(binary, engine);
+            }
             self.next_probe = now.saturating_add(Duration::from_millis(200));
         }
         let left = binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
@@ -142,7 +171,7 @@ impl Referee<Process> for Judge {
         }
     }
     fn next_deadline(&self) -> Option<Time> {
-        if self.cleanup || self.settled { None } else { self.deadline.until() }
+        if self.cleanup || self.settled { None } else { self.deadline.until().map(|until| until.min(self.next_probe)) }
     }
     fn passed(&self) -> bool {
         self.settled
@@ -183,6 +212,10 @@ pub fn run(directory: &Path, forgejo: Option<SocketAddr>, plan: Plan, deadline: 
 /// Drives the same box referee with an isolation wrapper around the shipped binary.
 #[must_use]
 pub fn run_command(command: Command, forgejo: Option<SocketAddr>, plan: Plan, deadline: Duration) -> Outcome {
+    let data = command.arguments.iter().any(|arg| arg == "box").then(|| {
+        let pair = command.arguments.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
+        PathBuf::from(&pair[1])
+    });
     let clock = Clock::new();
     let mut binary =
         Binary::start_with_tree(dying_with_test(command), Mode::Pipes, 262_144, Expectation::Supervise, false)
@@ -199,6 +232,7 @@ pub fn run_command(command: Command, forgejo: Option<SocketAddr>, plan: Plan, de
         None
     };
     let mut world = real::World::new(Judge {
+        data,
         plan,
         forgejo,
         forgejo_at_link: forgejo_at_link.clone(),
@@ -206,7 +240,7 @@ pub fn run_command(command: Command, forgejo: Option<SocketAddr>, plan: Plan, de
         engine_served: engine_served.clone(),
         temper_program: std::fs::canonicalize(skein_scratch::paths::binary("temper")).expect("temper path"),
         forgejo_program,
-        phase: Phase::Linked,
+        phase: Phase::AwaitingServe,
         next_probe: Time::ZERO,
         cleanup: false,
         deadline: Patience::watching(
@@ -408,7 +442,8 @@ pub fn run_story_with_box<T>(
 ) -> StoryOutcome<T> {
     let StoryPlan { script, kill } = plan;
     let data = flags.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
-    let logs = Path::new(&data[1]).join("box/logs");
+    let data = PathBuf::from(&data[1]);
+    let logs = data.join("box/logs");
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
         dying_with_test(Command {
@@ -444,7 +479,9 @@ pub fn run_story_with_box<T>(
         deadline: action_deadline("the box person's settlement", deadline, &binary),
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
-    world.spawn_with_fds(fds, || Process::Person(Box::new(super::person::Person::new(root, input, output, script))));
+    world.spawn_with_fds(fds, || {
+        Process::Person(Box::new(super::person::Person::new(root, input, output, script).with_serve_data(&data)))
+    });
     let ended = world.run(&clock, deadline);
     assert!(ended.procs.iter().all(Host::is_empty), "all real io settles");
     let Process::Binary(binary) = &ended.procs[0] else { panic!("binary") };
@@ -472,6 +509,7 @@ pub struct CtlOutcome<T> {
     pub visits: Vec<Vec<super::sign_in_browser::Hop>>,
 }
 struct CtlJudge<'a, F, T> {
+    data: PathBuf,
     resuming_playground: Option<[PathBuf; 2]>,
     fail_on_panic: Option<()>,
     expected_exits: Vec<(usize, u8)>,
@@ -585,7 +623,7 @@ fn restart_engine(
 }
 impl<F, T> CtlJudge<'_, F, T> {
     fn resume_playground(&mut self, binary: &Binary) {
-        if skein_lib::bytes::find(binary.stderr(), b"Starting serve\n").is_some()
+        if find(&binary.tree_status().live_pids, &skein_scratch::paths::binary("temper"), b"serve").is_some()
             && let Some([config, client]) = self.resuming_playground.take()
         {
             let parent = super::playground::interrupt_reset(binary, &config, &client);
@@ -665,7 +703,9 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         // Keep driving it even when the held peer has no io or timer ready
         // (domain/testing.md, 2.6, the scripts' process cadence).
         self.next_release = calls.llm_release().map(|_| now.saturating_add(Duration::from_millis(20)));
-        if printed_link(calls.stdout()).is_some()
+        if self.on_link.is_some()
+            && printed_link(calls.stdout()).is_some()
+            && serve_listening(&self.data)
             && let Some(on_link) = self.on_link.take()
         {
             on_link();
@@ -936,6 +976,7 @@ fn resuming_playground(model: &CtlModel) -> Option<[PathBuf; 2]> {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "Keeps the box, ctl and peers wired together.")]
 fn run_ctl_peers<T>(
     directory: &Path,
     flags: Vec<String>,
@@ -945,6 +986,10 @@ fn run_ctl_peers<T>(
     check: impl FnOnce(&Binary) -> T,
     peers: CtlPeers,
 ) -> (CtlOutcome<T>, Option<super::forge_land::Seen>) {
+    let fake_backends = flags.iter().any(|flag| flag == "--fake-backends");
+    let pair = flags.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
+    let data = PathBuf::from(&pair[1]);
+    let data = if fake_backends { data.join("box/fake-backends/data") } else { data };
     let resuming_playground = resuming_playground(&peers.model);
     let account_probe = matches!(&peers.model, CtlModel::Account(_));
     let cut = match &peers.model {
@@ -964,7 +1009,6 @@ fn run_ctl_peers<T>(
     let tab = steps.iter().any(|step| matches!(step, super::ctl::Step::Visit));
     assert!(!tab || face.is_none(), "box-owned peers or an independent face");
     let clock = Clock::new();
-    let fake_backends = flags.iter().any(|flag| flag == "--fake-backends");
     let mut binary = Binary::start_with_tree(
         dying_with_test(Command {
             program: skein_scratch::paths::binary("temper"),
@@ -992,6 +1036,7 @@ fn run_ctl_peers<T>(
     let visits = Cell::new(Vec::new());
     let follow_reply = reply.is_some();
     let mut world = real::World::new(CtlJudge {
+        data: data.clone(),
         resuming_playground,
         fail_on_panic,
         expected_exits: peers.expected_exits,
@@ -1016,7 +1061,8 @@ fn run_ctl_peers<T>(
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(fds, || {
-        let mut calls = super::ctl::Calls::new(root, steps, Some(&streams), None).with_box_stderr();
+        let mut calls =
+            super::ctl::Calls::new(root, steps, Some(&streams), None).with_serve_data(&data).with_box_stderr();
         if follow_reply {
             calls.hold();
         }
@@ -1117,6 +1163,8 @@ pub fn run_ctl_with_cut(
     }
     fn check(_: &Binary) {}
     let clock = Clock::new();
+    let pair = flags.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
+    let data = PathBuf::from(&pair[1]);
     let mut binary = cut_binary(directory, flags);
     let streams = binary.take_streams().expect("box pipes");
     let mut fds = streams.descriptors();
@@ -1127,6 +1175,7 @@ pub fn run_ctl_with_cut(
     let killed = Cell::new(false);
     let mut world = real::World::new(CutJudge {
         inner: CtlJudge {
+            data: data.clone(),
             fail_on_panic: Some(()),
             expected_exits: Vec::new(),
             release_answers: None,
@@ -1155,7 +1204,9 @@ pub fn run_ctl_with_cut(
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(fds, || {
-        Process::Calls(Box::new(super::ctl::Calls::new(root, steps, Some(&streams), None).with_box_stderr()))
+        Process::Calls(Box::new(
+            super::ctl::Calls::new(root, steps, Some(&streams), None).with_serve_data(&data).with_box_stderr(),
+        ))
     });
     let ended = world.run(&clock, BOX_DEADLINE);
     assert!(ended.procs.iter().all(Host::is_empty), "the killed box's tree and ctl settle");
