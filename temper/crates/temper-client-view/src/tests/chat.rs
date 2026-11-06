@@ -3781,3 +3781,165 @@ fn a_refused_resume_says_why() {
         assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"not offered").is_some());
     }
 }
+
+// client/README.md, 5.4: all five composers share the message bound.
+fn bounded_composers() -> Box<[temper_client_domain::Domain]> {
+    use temper_client_domain::{
+        Action, Address, Event,
+        pages::{Act, needs},
+    };
+    let mut agent = fixtures::task::document();
+    agent.chip.task = TASK;
+    agent.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+    agent.priority = None;
+    agent.acts = List::uncapped();
+    agent.acts.push(c::Offered { act: c::ActKind::Message, admission: c::Admission::Allowed, effect: None }).unwrap();
+    let agent_root = fixtures::task::supplied_root(agent.clone(), false);
+    agent.priority = Some(1);
+    let goal_root = fixtures::task::supplied_root(agent, false);
+    let object = c::ObjectKey::Question { task: fixtures::INBOX_TASK, message: fixtures::INBOX_QUESTION };
+    let mut acts = List::uncapped();
+    acts.push(c::Offered { act: c::ActKind::Answer, admission: c::Admission::Allowed, effect: None }).unwrap();
+    let mut reply = fixtures::reply_composer((
+        c::Read::Question { task: fixtures::INBOX_TASK, message: fixtures::INBOX_QUESTION },
+        c::ReadValue::Question(Box::new(c::Question {
+            task: fixtures::task::document().chip,
+            from: None,
+            message: fixtures::INBOX_QUESTION,
+            words: fixtures::task::document_words(b"Which path?"),
+            since: Wall::EPOCH,
+            acts,
+            ending: None,
+        })),
+    ));
+    fixtures::root_event(
+        &mut reply,
+        Event::Act { action: Action::Pages(Act::Needs(needs::Act::OpenReply { object })) },
+    );
+    assert!(reply.pages().needs().replying(object), "reply opened: {:?}", reply.pages().inbox());
+    let mut roots = List::with_capacity(5);
+    roots.push(messaging_root()).expect("five composers");
+    roots
+        .push(fixtures::root_at(Address::NewChat { draft: false }, &fixtures::domain_limits()).0)
+        .expect("five composers");
+    roots.push(agent_root).expect("five composers");
+    roots.push(goal_root).expect("five composers");
+    roots.push(reply).expect("five composers");
+    roots.into_boxed()
+}
+fn composer_limits() -> temper_client_domain::Limits {
+    let mut limits = fixtures::domain_limits();
+    limits.client.domain.long_text = 20_000;
+    limits
+}
+fn composer_view(root: &temper_client_domain::Domain, browser: bool) -> crate::View {
+    let words = if browser { fixtures::browser_words() } else { fixtures::words() };
+    let limits = crate::Limits::of(&composer_limits(), &words).unwrap();
+    let mut view = crate::View::new(&limits, &composer_limits(), words, fixtures::FORGE);
+    fixtures::build(&mut view, root);
+    view
+}
+fn composer_node(tree: &skein_ui::Tree, role: Role) -> &skein_ui::Node {
+    for node in tree.nodes() {
+        if node.role == role
+            && (role != Role::Button
+                || node.name.as_deref() == Some(b"Send")
+                || node.name.as_deref() == Some(b"Send reply"))
+        {
+            return node;
+        }
+    }
+    panic!("composer control {role:?} is absent");
+}
+fn composer_words(bytes: usize) -> Box<[u8]> {
+    let mut words = skein_lib::bytes::zeroed(bytes);
+    words.fill(b'x');
+    words
+}
+fn composer_edit(root: &mut temper_client_domain::Domain, view: &mut crate::View, words: &[u8]) {
+    let area = composer_node(view.tree(), Role::TextArea).id;
+    let action = crate::act(view, area, skein_ui::Act::Input { value: words.into() }).unwrap();
+    temper_client_domain::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits: composer_limits() },
+        temper_client_domain::Event::Act { action },
+        &mut skein_lib::Queue::uncapped(),
+    );
+}
+#[test]
+fn past_the_bound_send_is_disabled_and_a_line_says_how_far() {
+    for (index, mut root) in bounded_composers().into_iter().enumerate() {
+        for (excess, line) in [
+            (1, "That's 1 character over what one message holds."),
+            (3200, "That's 3,200 characters over what one message holds."),
+        ] {
+            for browser in [false, true] {
+                let mut view = composer_view(&root, browser);
+                let bound = usize::try_from(root.pages().me(root.client()).unwrap().words_bytes).unwrap();
+                let words = composer_words(bound + excess);
+                composer_edit(&mut root, &mut view, &words);
+                fixtures::build(&mut view, &root);
+                let status = fixtures::find(view.tree(), Role::Status, line.as_bytes());
+                assert!(status.is_some(), "composer {index}: {line}");
+                assert!(view.tree().find(status.unwrap()).unwrap().styles.is_empty());
+                let area = composer_node(view.tree(), Role::TextArea);
+                assert_eq!(area.value.as_ref().unwrap().text.as_ref(), words.as_ref());
+                assert!(!area.states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
+                let send = composer_node(view.tree(), Role::Button);
+                assert!(send.states.as_slice().contains(&skein_ui::State::Disabled), "composer {index}");
+                let area = area.id;
+                let send = send.id;
+                assert_eq!(crate::act(&mut view, area, skein_ui::Act::Submit), None);
+                assert_eq!(crate::act(&mut view, send, skein_ui::Act::Press), None);
+            }
+        }
+    }
+}
+#[test]
+fn within_the_bound_nothing_changes() {
+    for (index, mut root) in bounded_composers().into_iter().enumerate() {
+        let mut view = composer_view(&root, true);
+        composer_edit(&mut root, &mut view, b"x");
+        fixtures::build(&mut view, &root);
+        let before = composer_node(view.tree(), Role::TextArea).value.as_ref().unwrap().written;
+        let area_states = composer_node(view.tree(), Role::TextArea).states.clone();
+        let send_states = composer_node(view.tree(), Role::Button).states.clone();
+        let bound = usize::try_from(root.pages().me(root.client()).unwrap().words_bytes).unwrap();
+        composer_edit(&mut root, &mut view, &composer_words(bound));
+        fixtures::build(&mut view, &root);
+        let area = composer_node(view.tree(), Role::TextArea);
+        assert_eq!(area.states, area_states);
+        assert_eq!(composer_node(view.tree(), Role::Button).states, send_states);
+        if index == 0 {
+            assert_eq!(area.value.as_ref().unwrap().written, before);
+        }
+        assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"over what one message holds").is_none());
+    }
+}
+#[test]
+fn no_me_no_line() {
+    let limits = composer_limits();
+    let mut root = temper_client_domain::unlinked(&limits, 1);
+    fixtures::root_event(
+        &mut root,
+        temper_client_domain::Event::Client { event: jig_client::Event::StartUnlinked { kept: List::uncapped() } },
+    );
+    fixtures::root_event(
+        &mut root,
+        temper_client_domain::Event::Start {
+            address: temper_client_domain::Address::NewChat { draft: false },
+            kept: List::uncapped(),
+            with: Some(jig_client::With::Transport),
+        },
+    );
+    fixtures::root_event(
+        &mut root,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+        },
+    );
+    let view = composer_view(&root, true);
+    assert!(composer_node(view.tree(), Role::TextArea).value.is_some());
+    assert!(root.pages().me(root.client()).is_none());
+    assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"over what one message holds").is_none());
+}
