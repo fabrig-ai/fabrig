@@ -485,7 +485,11 @@ fn offer(core: &mut Core, proposer: Proposer, number: u32) -> Box<[Request]> {
                 number: u64::from(number),
                 proposer: by,
                 project: 0,
-                action: tasks::ProposalAction::Settings { against: core.current.newest(), items: Box::default() },
+                action: tasks::ProposalAction::Settings {
+                    projects: Box::default(),
+                    against: core.current.newest(),
+                    items: Box::default(),
+                },
                 reason: Box::default(),
                 as_holder: false,
                 state: tasks::ProposalState::Pending {

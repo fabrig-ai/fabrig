@@ -2,6 +2,11 @@
 
 2026-11-06. Where temper's code lags or departs from [configuration.md](configuration.md).
 
+Section 13.4 has no known gap in charter 10: the stock trial has one
+working turn, no tools or resume, and charter 1's model choices. Its
+projectless task and the client's remaining trial gaps are
+`../domain/trial.status.md`.
+
 Section 7 has no known gap in the stream-derived watch rooms, refused
 watch-room overrides or the domain stories and heap ceilings.
 

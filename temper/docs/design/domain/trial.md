@@ -54,7 +54,9 @@ One row per account, the newest trial's:
 - **A row is the account's, not a page's:** leaving a page stops nothing. It lives until its account is removed,
   another trial replaces it, or the engine restarts.
 - **Nothing of it is stored,** its task's row aside (5). Formats change nothing.
-- **Its room:** the deployment's accounts (`Limits::rows`); a row past it is refused, the oldest ended going first.
+- **Its room:** `Limits::rows`, the least of the deployment's account limit, the wire's 64 rows and the number of
+  rows that fit one delivery's room (`temper-engine-domain`'s `room::trial_rows`); a row past it is refused, the
+  oldest ended going first.
 
 ### 3.2 What moves it
 
@@ -180,7 +182,8 @@ sign-in or a program's; otherwise "All ways" on the welcome and nothing on an ac
 ## 7. What it stops
 
 Nothing of the account: a source's own state is the host's check's (jig's `domain/accounts.md`, 3.4). Ready's
-heading and act read the host's check alone (`../client/README.md`, 3.5, *Ready*). A failed trial is a line in
+heading and act count an account just declared as usable until its host's check says otherwise
+(`../client/README.md`, 3.5, *Ready*); the trial changes neither. A failed trial is a line in
 the pane, on the account's row and on Home, and "Try again".
 
 ## 8. Later

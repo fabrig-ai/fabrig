@@ -410,6 +410,7 @@ pub fn wire_owner_retained_action_settings(
     w::RetainedActionSettings::new(
         limits,
         w::RetainedActionSettingsParts {
+            projects: value.projects.clone(),
             against: value.against,
             items: encode_heads(&value.items, limits, limits.retained_action_settings_items)?,
             made: value.made,

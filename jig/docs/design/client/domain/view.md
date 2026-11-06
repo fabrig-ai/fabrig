@@ -645,6 +645,11 @@ skein's (skein's `ui-text.md`, section 7). What is jig's:
 
 Each adds without changing what sections 3 to 5, 15, 17 and 18 settle.
 
+- **The view's parameter and length cleanup** (section 4): removing unused
+  `_limits`, `_env` and `_out` parameters and using skein-lib's `len_u64`
+  at the four remaining sites waits until the UI work releases this crate.
+  The open items are `jig/docs/development/debt/D041-unused-parameters.md`
+  and `jig/docs/development/debt/D043-length-widening.md`.
 - **jig's own drawing kinds:** a chart every application shares, drawn
   by jig's `draw` (section 17). A kind moves into jig, as jig's, when a
   second application draws the same.
