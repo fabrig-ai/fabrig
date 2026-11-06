@@ -122,7 +122,7 @@ fn chosen_executor_needs_a_charter() {
     refused(
         goal_me(),
         &["goal", "start", "--project", "shop", "work", "--key", "missing"],
-        b"template 2 lets its creator choose the executor; name it: --charter CHARTER\n",
+        b"template 2 needs: --charter CHARTER; --budget AMOUNT or --as-allowed; --deadline TIME; help goal start\n",
     );
 }
 
@@ -169,8 +169,8 @@ fn a_goal_without_a_proposal_recipient_keeps_the_refusal() {
 #[test]
 fn given_values_are_required_before_sending() {
     for (extra, expected) in [
-        (&[][..], b"this template needs --budget AMOUNT or --as-allowed\n".as_slice()),
-        (&["--budget", "80"][..], b"this template needs --deadline TIME\n".as_slice()),
+        (&[][..], b"template 4 needs: --budget AMOUNT or --as-allowed; --deadline TIME; help goal start\n".as_slice()),
+        (&["--budget", "80"][..], b"template 4 needs: --deadline TIME; help goal start\n".as_slice()),
     ] {
         let argv =
             f::extended(&["goal", "start", "--project", "shop", "--template", "4", "work", "--key", "given"], extra);

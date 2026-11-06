@@ -88,6 +88,9 @@ temper runs software work for people: agents take tasks on the repositories of a
 - temper help configure: the settings changed while the deployment
   runs: applied or proposed, running work moved, a value restored.
 
+- temper help open-public-reading: configure anonymous admission and the public
+  index, restart, open a project and read its pages.
+
 ## The recipes
 
 - temper help weekly-budget: a project's spend capped each week, and
