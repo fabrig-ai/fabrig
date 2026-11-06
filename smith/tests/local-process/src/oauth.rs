@@ -110,7 +110,7 @@ impl Browser {
             Up::Bytes(bytes) => {
                 if self.body {
                     self.seen = bytes.as_ref() == b"Redirect received\n"
-                        || bytes.as_ref() == b"Sign-in received. You may close this page.\n";
+                        || bytes.as_ref() == b"Sign-in received. You can close this tab.\n";
                     self.close();
                 } else {
                     if bytes.starts_with(b"HTTP/1.1 302") {
