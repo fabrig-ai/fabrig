@@ -467,6 +467,42 @@ fn a_new_attempt_clears_every_provisional_turn() {
     assert!(thread.lines().is_empty());
 }
 
+fn ended_live_thread() -> Thread {
+    let mut thread = model();
+    thread.run(&run(), Some(&provisional(TURN, b"first")));
+    thread.run(&RunState { attempt: None, ..run() }, None);
+    thread
+}
+
+#[test]
+fn a_runs_end_keeps_its_live_turn_until_its_committed_page() {
+    let mut thread = ended_live_thread();
+    assert_eq!(
+        thread.lines().as_slice(),
+        &[Line::Provisional { name: provisional(TURN, b"").turn, text: b"first", cut: false }]
+    );
+    let turn = empty_turn();
+    commit(&mut thread, TurnRead::Decoded(turn.clone()));
+    assert_eq!(
+        thread.lines().as_slice(),
+        &[Line::Turn { name: TurnName { attempt: ATTEMPT, number: TURN }, turn: &turn, at: TURN_AT }]
+    );
+}
+
+#[test]
+fn end_run_takes_a_turn_lost_with_its_host() {
+    let mut thread = ended_live_thread();
+    thread.end_run();
+    assert!(thread.lines().is_empty());
+}
+
+#[test]
+fn a_new_attempt_after_a_runs_end_clears_the_lost_turn() {
+    let mut thread = ended_live_thread();
+    thread.run(&RunState { attempt: Some(ATTEMPT + 1), ..run() }, None);
+    assert!(thread.lines().is_empty());
+}
+
 #[test]
 fn a_turn_that_does_not_decode_stays_a_line_saying_why() {
     let mut thread = model();
