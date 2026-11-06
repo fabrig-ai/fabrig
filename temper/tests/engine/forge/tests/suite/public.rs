@@ -114,3 +114,36 @@ fn a_task_jig_did_not_hand_is_never_named() {
     assert!(world.public(landings::PROJECT, w::PUBLIC_CHANGE, Some(SECOND), &public).is_none(), "seed {SEED}");
     assert!(!made.tasks.contains(&LANDING), "seed {SEED}");
 }
+
+#[test]
+fn a_queue_merge_read_through_a_real_merge() {
+    let world = public::queue_merge();
+    let public = [top::PublicTask { task: CHANGE, goal: None }];
+    let change = public::change(&world);
+    assert_eq!(change.step(), &w::PublicStep::Landed, "seed {SEED}");
+    assert_eq!(change.way(), &w::PublicWay::Queue, "seed {SEED}");
+    assert!(!change.in_landing(), "seed {SEED}");
+    let commit = change.merge().expect("queue merge");
+    let made = public::answer(&world, w::PUBLIC_LANDINGS, None, &public);
+    assert_eq!(made.tasks.as_ref(), &[CHANGE], "seed {SEED}");
+    let lines = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("landings");
+    assert_eq!(lines.turn(), &None, "seed {SEED}");
+    assert_eq!(lines.landings().len(), 1, "seed {SEED}");
+    let line = lines.landings().get(0).expect("queue line");
+    assert_eq!(line.phase(), &w::PublicLandingPhase::Landed, "seed {SEED}");
+    assert_eq!(line.members().as_slice(), &[0], "seed {SEED}");
+    assert_eq!(line.landed().as_slice(), &[commit], "seed {SEED}");
+    let made = public::answer(&world, w::PUBLIC_LANDING, Some(CHANGE), &public);
+    assert_eq!(made.tasks.as_ref(), &[CHANGE], "seed {SEED}");
+    let landing = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("landing");
+    assert_eq!(landing.phase(), &w::PublicLandingPhase::Landed, "seed {SEED}");
+    assert_eq!(landing.members().len(), 1, "seed {SEED}");
+    let member = landing.members().get(0).expect("queue member");
+    assert_eq!(member.task(), 0, "seed {SEED}");
+    assert_eq!(member.landed(), &Some(commit), "seed {SEED}");
+    let made = public::answer(&world, w::PUBLIC_LANDINGS, None, &[]);
+    assert!(made.tasks.is_empty(), "seed {SEED}");
+    let lines = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("private history");
+    assert!(lines.landings().is_empty(), "seed {SEED}");
+    assert!(world.public(landings::PROJECT, w::PUBLIC_LANDING, Some(CHANGE), &[]).is_none(), "seed {SEED}");
+}
