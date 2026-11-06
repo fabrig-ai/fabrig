@@ -1217,7 +1217,9 @@ and the project's name. Their records, and each field's source, are
   own, private by default, no text, and every task it names one of
   those it was handed, named through the read's list of tasks
   (`../protocol/client.md`, section 19), which the core checks again
-  before it answers (13.10).
+  before it answers (13.10). What a connector kept of a task past its
+  end, such as temper's landed commit (temper's `client/forge.md`, 11.2),
+  it gives only while that task is handed; keeping it makes nothing public.
 
 ### 13.4 Who sees what
 
@@ -1377,7 +1379,9 @@ One rule, the same for every field, list, count and connector:
   are those that ended while it kept the project, frozen as they ended;
   the store keeps no index of a project's ended goals to load from
   (`../protocol/store.md`, 7.4), so a start, or a project made public,
-  begins with none. Loading them is open (section 12).
+  begins with none. Loading them is open (section 12). A page drawing a
+  board says what this leaves out, so that its empty lists are not read
+  as no work (temper's `client/browser.md`, 8.3).
 - **Bounded per read:** a board examines at most its goals' bound times
   its lines' bound, a card its lineage's depth and its delegates'
   bound; each answer's bytes are known from those bounds, which its
