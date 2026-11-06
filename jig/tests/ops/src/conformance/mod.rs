@@ -14,7 +14,7 @@ mod store;
 mod systems;
 
 use jig_conformance::referee as r;
-use jig_conformance::{Application, Clock, Input, Output};
+use jig_conformance::{Application, Clock, Input, Output, core::peers};
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -465,7 +465,7 @@ impl Application for Ops {
             }
             root::Output::Switch => vec![Input::Event(root::Event::Store(root::Store::Switched))],
             root::Output::Load { phase, range } => {
-                if let Some(position) = jig_conformance::core::peers::restart_position(phase, 2) {
+                if let Some(position) = peers::restart_position(phase, 2) {
                     peers.observed.push(r::Observed::RestartStage { position });
                 }
                 let rows: Vec<_> = if range == root::Range::Core {
@@ -671,7 +671,7 @@ impl Application for Ops {
                 vec![Input::Event(root::Event::ResultRead { payload, end: crate::protocol::result(&outcome) })]
             }
             root::Output::Now(core::Now::Account(accounts::Request::Component(request))) => {
-                jig_conformance::core::peers::account(request, Duration::from_secs(7200))
+                peers::account(request, Duration::from_secs(7200))
                     .into_iter()
                     .map(|event| Input::Event(root::Event::Core(event)))
                     .collect()
@@ -708,15 +708,11 @@ impl Application for Ops {
                 Vec::new()
             }
             root::Output::Core(core::Held::NotesLoad { owner, .. }) => {
-                vec![Input::Event(root::Event::Core(jig_conformance::core::peers::notes_loaded(
-                    owner,
-                    List::with_capacity(0),
-                    false,
-                )))]
+                vec![Input::Event(root::Event::Core(peers::notes_loaded(owner, List::with_capacity(0), false)))]
             }
             root::Output::CoreLoad(core::Now::StartPreparation { task, from, .. }) => {
                 let records = observations::core_store(store).rows;
-                let rows = match jig_conformance::core::peers::transcript(&records, task, from) {
+                let rows = match peers::transcript(&records, task, from) {
                     Ok(rows) => rows,
                     Err(event) => return vec![Input::Event(root::Event::Core(*event))],
                 };
@@ -791,14 +787,11 @@ impl Application for Ops {
                     next: None,
                 })));
             }
-            events.push(Input::Event(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                accounts::FromComponent::Granted {
-                    form: accounts::Form::Credential(accounts::Scheme::Bearer),
-                    account: 1,
-                    generation: 1,
-                    valid: Duration::from_secs(7200),
-                },
-            )))));
+            events.extend(
+                peers::account(accounts::ToComponent::Want { account: 1 }, Duration::from_secs(7200))
+                    .into_iter()
+                    .map(|event| Input::Event(root::Event::Core(event))),
+            );
         }
         if ready && let Some(up) = peers.party.tick(Time::from_nanos(clock.now)) {
             match up {
