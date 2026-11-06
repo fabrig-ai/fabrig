@@ -9,17 +9,18 @@ A plan's sign-in moves to a new tab, and temper's page stays and waits (`temper/
   - `web-tab`: the three `Platform` methods and the web half.
   - `kit-tabs`: the browser kit reads a person's other tabs.
   - `web-tab-story`: Chromium runs it through the press's own path. Needs both.
+  - `kit-behind-tab`: a page answers the kit with a tab open beside it. Needs `kit-tabs`.
 - `tab-root`: temper's root, host and view (draft, 2, 3, 5).
   - `tab-surface`: the shapes, the shell's carrying, the recording's lines. Needs `web-tab`.
   - `sign-in-holds`: the press asks, the answer points or closes, the departure goes. Needs `tab-surface`.
   - After `sign-in-holds`: `moves-on` (the welcome moves on to Ready), `view-tab` (the refused note), `row-tab` (the accounts row), `journey-goes-on` (a recording goes on through a sign-in), `elsewhere-goes` (`Act::SignInElsewhere` goes).
   - `reload-link`: a reload keeps the address and the refusal. Needs `sign-in-holds`, `view-tab`, `row-tab`.
-- `tab-browser`: `browser-story`, the temper tier's run on Chromium. Needs `sign-in-holds`, `moves-on`, `view-tab`, `kit-tabs`.
+- `tab-browser`: `browser-story`, the temper tier's run on Chromium. Needs `sign-in-holds`, `moves-on`, `view-tab`, `kit-tabs`, `kit-behind-tab`.
 - `return-goes`: the family's `Return` leaves the wire, service and engine (draft, 5). Needs all of `tab-root`.
 
 ## Critical path
 
-`web-tab`, `tab-surface`, `sign-in-holds`, `moves-on`, `browser-story`. `return-goes` ends it, and waits for the rest of `tab-root`.
+`web-tab`, `tab-surface`, `sign-in-holds`, `moves-on`, `browser-story`. `kit-behind-tab` is what `browser-story` waits for now. `return-goes` ends it, and waits for the rest of `tab-root`.
 
 ## Every path that signs in
 
