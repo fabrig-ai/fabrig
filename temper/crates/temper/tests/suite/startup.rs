@@ -499,6 +499,7 @@ fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
     let diagnostic = String::from_utf8_lossy(&ended.stderr);
     let link = support::printed_link(&ended.stdout).unwrap_or_else(|| panic!("serve's link: {diagnostic}"));
     assert!(skein_lib::bytes::find(link, b"/jig/v1/sign-in/link?secret=").is_some(), "{diagnostic}");
+    assert!(support::boxed::serve_listening(scratch.path()), "serve listens: {diagnostic}");
     assert!(!diagnostic.contains("application.setup"), "{diagnostic}");
     assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)), "{diagnostic}");
     assert_eq!(ended.left, Some(Vec::new()), "no process outlived the box: {diagnostic}");
@@ -2189,8 +2190,18 @@ fn a_fresh_box_offers_chatgpt_and_claude_with_no_claude_on_path() {
     let scratch = support::Scratch::startup("box-both-models");
     let clock = skein_shell::Clock::new();
     let began = clock.now().now;
-    // run_box starts the shipped box with an empty environment. Its own init writes both documents.
-    let seen = support::run_box(scratch.path(), support::person::welcome_model_offers(), support::boxed::BOX_DEADLINE);
+    // The shipped box has an empty environment. Its own init writes both documents.
+    let seen = support::boxed::run_story(
+        scratch.path(),
+        support::configuration::flags(scratch.path())
+            .into_iter()
+            .map(|flag| flag.into_string().expect("flag"))
+            .collect(),
+        scratch.path(),
+        support::person::welcome_model_offers(),
+        support::boxed::BOX_DEADLINE,
+        || (),
+    );
     eprintln!("fresh box Model step: {} ms", clock.now().now.as_nanos().saturating_sub(began.as_nanos()) / 1_000_000);
     assert!(seen.finished, "{}", String::from_utf8_lossy(&seen.stderr));
     let agent: serde_json::Value =
@@ -2365,4 +2376,27 @@ fn serve_and_a_worker_alone_place_links_only_for_a_fetched_program() {
             scratch.remove();
         }
     }
+}
+
+#[test]
+fn serve_listening_requires_the_clients_listener_in_this_runs_log() {
+    let scratch = support::Scratch::startup("serve-listening");
+    assert!(!support::boxed::serve_listening(scratch.path()), "an absent log is not listening");
+    fs::create_dir_all(scratch.path().join("box/logs")).expect("logs");
+    let log = scratch.path().join("box/logs/serve.log");
+    fs::write(&log, b"listening workers 127.0.0.1:9000\n").expect("workers listen");
+    assert!(!support::boxed::serve_listening(scratch.path()), "another listener is not clients");
+    fs::write(&log, b"2026-11-06T00:00:00Z listening clients 127.0.0.1:8367\n").expect("clients listen");
+    assert!(support::boxed::serve_listening(scratch.path()), "clients have listened");
+    scratch.remove();
+}
+
+#[test]
+fn ctl_link_sign_in_waits_for_serve_before_starting_its_bound() {
+    support::ctl::serve_gate_tests::link_sign_in_waits_for_serve_before_starting_its_bound();
+}
+
+#[test]
+fn native_sign_in_keeps_its_start_bound_until_serve_listens() {
+    support::person::serve_gate_tests::native_sign_in_keeps_its_start_bound_until_serve_listens();
 }

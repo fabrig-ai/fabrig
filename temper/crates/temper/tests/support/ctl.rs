@@ -399,6 +399,7 @@ enum BoxStderr {
     Captured,
 }
 pub struct Calls {
+    serve_data: Option<PathBuf>,
     root: Option<Fd>,
     client: Box<[u8]>,
     output: Option<Fd>,
@@ -435,6 +436,12 @@ pub struct Calls {
     submit: Queue<Submit>,
 }
 impl Calls {
+    /// A box's first link precedes serve; defer link sign-in until its listener is up.
+    #[must_use]
+    pub fn with_serve_data(mut self, data: &Path) -> Self {
+        self.serve_data = Some(data.into());
+        self
+    }
     /// Calls against an already running engine, with its printed link on sign-in's stdin.
     #[must_use]
     pub fn linked(link: &str, client: &Path) -> Self {
@@ -566,6 +573,7 @@ impl Calls {
     }
     pub(super) fn new(root: Fd, steps: Vec<Step>, streams: Option<&Streams>, forgejo: Option<u32>) -> Self {
         let mut calls = Self {
+            serve_data: None,
             root: Some(root),
             client: b"client".as_slice().into(),
             output: None,
@@ -885,17 +893,23 @@ impl Calls {
         self.action = Some(Action::TaskExists(call.clone(), task));
         self.start(call, false);
     }
+    #[expect(clippy::too_many_lines, reason = "Keeps ctl's step dispatch together.")]
     fn advance(&mut self, now: Time) {
         // A box that exits before printing its link must be diagnosed by
         // its referee, rather than panicking while constructing sign-in stdin.
-        if matches!(self.steps.front(), Some(Step::Run(Call { stdin: Stdin::Link, .. })))
-            && super::printed_link(&self.link).is_none()
+        if matches!(
+            self.steps.front(),
+            Some(Step::Run(Call { stdin: Stdin::Link, .. }) | Step::Start(Call { stdin: Stdin::Link, .. }))
+        ) && (super::printed_link(&self.link).is_none()
+            || self.serve_data.as_deref().is_some_and(|data| !super::boxed::serve_listening(data)))
         {
+            self.retry = Some(now.saturating_add(PACE));
             return;
         }
         if self.waiting(now) {
             return;
         }
+        self.retry = None;
         if let Some(Action::Until(call, _) | Action::TaskExists(call, _)) = &self.action {
             self.start(call.clone(), false);
             self.retry = None;
@@ -1477,5 +1491,30 @@ pub mod read_condition_tests {
         calls.wall = Wall::from_nanos(40);
         calls.finish(Time::from_nanos(3));
         assert_eq!(calls.observed_at(), &[Some(Wall::from_nanos(20)), Some(Wall::from_nanos(40))]);
+    }
+}
+
+#[cfg(test)]
+pub mod serve_gate_tests {
+    use super::*;
+
+    pub fn link_sign_in_waits_for_serve_before_starting_its_bound() {
+        let scratch = super::super::Scratch::new("ctl-serve-gate");
+        let mut calls =
+            Calls::new(Fd::new(0), vec![Step::Run(Call::sign_in())], None, None).with_serve_data(scratch.path());
+        calls.link = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fixture\n".to_vec();
+        calls.within = Some(WITHIN);
+        calls.advance(Time::ZERO);
+        assert!(calls.child.is_none(), "an early link starts no sign-in");
+        assert!(calls.deadline.is_none(), "serve startup spends none of the sign-in bound");
+        assert!(calls.next_policy_deadline().is_some(), "the log is checked again without pipe output");
+        std::fs::create_dir_all(scratch.path().join("box/logs")).expect("logs");
+        std::fs::write(scratch.path().join("box/logs/serve.log"), b"listening clients 127.0.0.1:8367\n")
+            .expect("listening");
+        calls.advance(Time::from_nanos(PACE.as_nanos()));
+        assert!(calls.child.is_some(), "listening admits sign-in");
+        assert!(calls.deadline.is_some(), "sign-in owns its full bound");
+        assert!(calls.retry.is_none(), "listening clears the log poll");
+        scratch.remove();
     }
 }
