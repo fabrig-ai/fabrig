@@ -4,6 +4,7 @@
 //! (`jig-protocol-worker-agents`, `route`). And the typed values
 //! a scripted agent says, with the charter and transcript an engine gives.
 
+use jig_domain_link::CountKind;
 use skein_lib::{Duration, List, Reader, Token, Writer};
 use smith_domain_session::{llm, record};
 use smith_protocol_channel::{Endpoint, Endpoints};
@@ -264,16 +265,16 @@ pub fn activity(body: &[u8]) -> Option<host::AgentActivity> {
         return None;
     }
     let kind = match fact.kind() {
-        smith_channel::FactKind::Admitted => host::CountKind::Admitted,
-        smith_channel::FactKind::Ended => host::CountKind::Ended,
-        smith_channel::FactKind::LlmStarted => host::CountKind::LlmStarted,
-        smith_channel::FactKind::LlmRetried => host::CountKind::LlmRetried,
-        smith_channel::FactKind::LlmFinished => host::CountKind::LlmFinished,
-        smith_channel::FactKind::ToolStarted => host::CountKind::ToolStarted,
-        smith_channel::FactKind::ToolFinished => host::CountKind::ToolFinished,
-        smith_channel::FactKind::CheckStarted => host::CountKind::CheckStarted,
-        smith_channel::FactKind::CheckFinished => host::CountKind::CheckFinished,
-        smith_channel::FactKind::TextArrived => host::CountKind::TextArrived,
+        smith_channel::FactKind::Admitted => CountKind::Admitted,
+        smith_channel::FactKind::Ended => CountKind::Ended,
+        smith_channel::FactKind::LlmStarted => CountKind::LlmStarted,
+        smith_channel::FactKind::LlmRetried => CountKind::LlmRetried,
+        smith_channel::FactKind::LlmFinished => CountKind::LlmFinished,
+        smith_channel::FactKind::ToolStarted => CountKind::ToolStarted,
+        smith_channel::FactKind::ToolFinished => CountKind::ToolFinished,
+        smith_channel::FactKind::CheckStarted => CountKind::CheckStarted,
+        smith_channel::FactKind::CheckFinished => CountKind::CheckFinished,
+        smith_channel::FactKind::TextArrived => CountKind::TextArrived,
     };
     Some(host::AgentActivity::Count { kind, elapsed: fact.elapsed(), count: fact.count() })
 }
@@ -298,14 +299,16 @@ pub fn report(text: &[u8]) -> agent::RunResult {
     agent::RunResult::Accepted { outcome: agent::Declared::new(declared, u64::MAX).expect("a bounded result") }
 }
 
-fn smith_grant(value: host::Grant) -> Option<agent::Grant> {
+fn smith_grant(value: jig_domain_link::Grant) -> Option<agent::Grant> {
     let form = match value.form {
-        host::Form::Credential(host::Scheme::Bearer) => agent::Form::Credential(agent::Scheme::Bearer),
-        host::Form::Credential(host::Scheme::Key) => agent::Form::Credential(agent::Scheme::Key),
-        host::Form::Program(name) => {
+        jig_domain_link::Form::Credential(jig_domain_link::Scheme::Bearer) => {
+            agent::Form::Credential(agent::Scheme::Bearer)
+        }
+        jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key) => agent::Form::Credential(agent::Scheme::Key),
+        jig_domain_link::Form::Program(name) => {
             agent::Form::Program(agent::SourceName::new(name.as_bytes()).expect("same source name grammar"))
         }
-        host::Form::Application => return None,
+        jig_domain_link::Form::Application => return None,
     };
     Some(agent::Grant { account: value.account, generation: value.generation, valid: value.valid, form })
 }

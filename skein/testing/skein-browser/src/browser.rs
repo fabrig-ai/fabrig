@@ -94,6 +94,7 @@ enum OpKind {
     Press { node: u64, point: Option<Point>, at: Option<(i64, i64)>, hit: Option<u64> },
     Type { text: Box<[u8]>, entry: Entry },
     Key { key: Key, shift: bool },
+    Viewport,
     Address,
     Tabs,
     Attribute { selector: Box<[u8]>, name: Box<[u8]>, until: Time },
@@ -161,6 +162,7 @@ enum Step {
     KeyDown,
     KeyUp,
     Character { offset: usize, down: bool },
+    Viewport,
     Address,
     Tabs,
     AttributeRoot,
@@ -696,6 +698,17 @@ impl Browser {
                     )
                 {
                     self.finish_refused(op, Refusal::Limit);
+                }
+            }
+            Request::Viewport { page, op, width, height } => {
+                if self.admit_op(env, page, op, OpKind::Viewport) {
+                    self.issue_step(
+                        env,
+                        op,
+                        b"Emulation.setDeviceMetricsOverride",
+                        &Params::Viewport { width: u64::from(width), height: u64::from(height), mobile: false },
+                        Step::Viewport,
+                    );
                 }
             }
             Request::Address { page, op } => {
@@ -1302,6 +1315,7 @@ pub fn fire(browser: &mut Browser, env: &Env<Limits>, now: Time, above: &mut Que
                         | OpKind::Key { .. }
                         | OpKind::Attribute { .. }
                         | OpKind::Tabs
+                        | OpKind::Viewport
                         | OpKind::Address
                         | OpKind::Snapshot
                         | OpKind::Screenshot,
@@ -1623,6 +1637,7 @@ impl Browser {
                     | OpKind::Key { .. }
                     | OpKind::Attribute { .. }
                     | OpKind::Tabs
+                    | OpKind::Viewport
                     | OpKind::Address
                     | OpKind::Snapshot
                     | OpKind::Screenshot => {}
@@ -2139,7 +2154,7 @@ impl Browser {
             }
             Step::MouseMove => self.mouse(env, token, Step::MouseDown),
             Step::MouseDown => self.mouse(env, token, Step::MouseUp),
-            Step::MouseUp | Step::Insert | Step::KeyUp => self.finish_done(token),
+            Step::Viewport | Step::MouseUp | Step::Insert | Step::KeyUp => self.finish_done(token),
             Step::TypeNode { node } => {
                 let name = match result.get(b"node") {
                     Some(node) => field_text(node, b"nodeName"),
@@ -2327,6 +2342,7 @@ impl Browser {
             | Step::AttributeSelector
             | Step::AttributeValue
             | Step::Tabs
+            | Step::Viewport
             | Step::Address
             | Step::Snapshot
             | Step::Screenshot => unreachable!("only mouse steps reach mouse"),
@@ -2361,6 +2377,7 @@ fn waits_for_document(kind: &OpKind) -> bool {
         | OpKind::Type { .. }
         | OpKind::Key { .. }
         | OpKind::Tabs
+        | OpKind::Viewport
         | OpKind::Address
         | OpKind::Snapshot
         | OpKind::Screenshot => false,

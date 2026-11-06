@@ -2,28 +2,28 @@
 use super::{pieces, w};
 use alloc::boxed::Box;
 use jig_domain_core::documents as d;
-use jig_domain_fleet as fleet;
+use jig_domain_link::{LoginState, SignOutResult, SourceFailure};
 use skein_lib::{List, Writer};
-fn failure(value: fleet::SourceFailure) -> w::ProgramFailure {
+fn failure(value: SourceFailure) -> w::ProgramFailure {
     match value {
-        fleet::SourceFailure::Missing => w::ProgramFailure::Missing,
-        fleet::SourceFailure::Deadline => w::ProgramFailure::Deadline,
-        fleet::SourceFailure::Unreadable => w::ProgramFailure::Unreadable,
-        fleet::SourceFailure::Exited => w::ProgramFailure::Exited,
-        fleet::SourceFailure::Unconfigured => w::ProgramFailure::Unconfigured,
-        fleet::SourceFailure::Unknown => w::ProgramFailure::Unknown,
-        fleet::SourceFailure::Closed => w::ProgramFailure::Closed,
+        SourceFailure::Missing => w::ProgramFailure::Missing,
+        SourceFailure::Deadline => w::ProgramFailure::Deadline,
+        SourceFailure::Unreadable => w::ProgramFailure::Unreadable,
+        SourceFailure::Exited => w::ProgramFailure::Exited,
+        SourceFailure::Unconfigured => w::ProgramFailure::Unconfigured,
+        SourceFailure::Unknown => w::ProgramFailure::Unknown,
+        SourceFailure::Closed => w::ProgramFailure::Closed,
     }
 }
-fn state(value: &fleet::LoginState, limits: &w::Limits) -> Result<w::ProgramState, w::Problem> {
+fn state(value: &LoginState, limits: &w::Limits) -> Result<w::ProgramState, w::Problem> {
     Ok(match value {
-        fleet::LoginState::Usable => w::ProgramState::Usable,
-        fleet::LoginState::NotSignedIn => w::ProgramState::NotSignedIn,
-        fleet::LoginState::SignedInOtherwise(method) => w::ProgramState::SignedInOtherwise(w::ProgramOtherwise::new(
+        LoginState::Usable => w::ProgramState::Usable,
+        LoginState::NotSignedIn => w::ProgramState::NotSignedIn,
+        LoginState::SignedInOtherwise(method) => w::ProgramState::SignedInOtherwise(w::ProgramOtherwise::new(
             limits,
             w::ProgramOtherwiseParts { method: skein_lib::bytes::copy_of(method.as_bytes()) },
         )?),
-        fleet::LoginState::Failed { reason, detail } => w::ProgramState::Failed(w::ProgramFailed::new(
+        LoginState::Failed { reason, detail } => w::ProgramState::Failed(w::ProgramFailed::new(
             limits,
             w::ProgramFailedParts { reason: failure(*reason), detail: detail.clone() },
         )?),
@@ -35,10 +35,11 @@ pub fn login(value: &d::ProgramLogin, limits: &w::Limits) -> Result<w::ProgramLo
         None => None,
     };
     let sign_out = match &value.sign_out {
-        Some(fleet::SignOutResult::SignedOut) => Some(w::ProgramSignOut::SignedOut),
-        Some(fleet::SignOutResult::Failed { reason, detail }) => Some(w::ProgramSignOut::Failed(
-            w::ProgramFailed::new(limits, w::ProgramFailedParts { reason: failure(*reason), detail: detail.clone() })?,
-        )),
+        Some(SignOutResult::SignedOut) => Some(w::ProgramSignOut::SignedOut),
+        Some(SignOutResult::Failed { reason, detail }) => Some(w::ProgramSignOut::Failed(w::ProgramFailed::new(
+            limits,
+            w::ProgramFailedParts { reason: failure(*reason), detail: detail.clone() },
+        )?)),
         None => None,
     };
     w::ProgramLogin::new(

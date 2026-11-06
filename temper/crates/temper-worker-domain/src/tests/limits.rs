@@ -2,6 +2,7 @@
 
 use super::fixtures::limits;
 use crate::{Limits, agent, host, valid};
+use jig_domain_link::Bounds;
 
 #[test]
 fn the_fixture_limits_fit() {
@@ -25,21 +26,21 @@ fn a_smith_window_of_turns_larger_than_the_hubs_bytes_does_not_fit() {
 #[test]
 fn a_hello_promising_a_larger_inbox_than_the_hub_takes_does_not_fit() {
     let fixture = limits();
-    let limits = Limits { bounds: host::Bounds { inbox: 3, ..fixture.bounds }, ..limits() };
+    let limits = Limits { bounds: Bounds { inbox: 3, ..fixture.bounds }, ..limits() };
     assert!(!valid(&limits));
 }
 
 #[test]
 fn a_hello_promising_larger_messages_than_the_hub_takes_does_not_fit() {
     let fixture = limits();
-    let limits = Limits { bounds: host::Bounds { message_bytes: 97, ..fixture.bounds }, ..limits() };
+    let limits = Limits { bounds: Bounds { message_bytes: 97, ..fixture.bounds }, ..limits() };
     assert!(!valid(&limits));
 }
 
 #[test]
 fn a_hello_promising_more_unacknowledged_turns_than_smith_sends_does_not_fit() {
     let fixture = limits();
-    let limits = Limits { bounds: host::Bounds { unacknowledged: 3, ..fixture.bounds }, ..limits() };
+    let limits = Limits { bounds: Bounds { unacknowledged: 3, ..fixture.bounds }, ..limits() };
     assert!(!valid(&limits));
 }
 

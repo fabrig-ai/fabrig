@@ -548,6 +548,7 @@ fn the_headline_counts_every_row_in_every_form() {
             ([page_line(RUNNING_TASK, State::Running)].as_slice(), true, "More than 1 goal, 1 under way."),
         ] {
             page.live(live, more);
+            page.ended(&[], false);
             let (tree, _) = page.tree(&words);
             assert_eq!(styled_text(&tree, look::GOALS_HEADLINE).as_ref(), expected.as_bytes());
         }
@@ -679,6 +680,7 @@ fn each_filter_shows_its_states() {
 fn a_filter_no_goal_matches_says_none() {
     let mut page = Page::new();
     page.live(&[], false);
+    page.ended(&[], false);
     for filter in [GoalsFilter::All, GoalsFilter::Needs, GoalsFilter::Live, GoalsFilter::Ended] {
         page.filter(filter);
         for words in [fixtures::words(), fixtures::browser_words()] {
@@ -791,5 +793,36 @@ fn none_with_none() {
     for words in [fixtures::words(), fixtures::browser_words()] {
         let (tree, _) = page.tree(&words);
         assert!(fixtures::find(&tree, Role::Link, b"Start one from a draft").is_none());
+    }
+}
+
+#[test]
+fn an_unanswered_goals_page_claims_no_empty() {
+    let mut page = Page::new();
+    page.live(&[], false);
+    for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+        let main = fixtures::main_text(view.tree());
+        for name in [b"No goals yet.".as_slice(), b"None."] {
+            assert!(skein_lib::bytes::find(&main, name).is_none());
+        }
+        for node in view.tree().nodes() {
+            assert_ne!(node.role, Role::Heading { level: 1 });
+        }
+    }
+}
+#[test]
+fn a_lost_ended_read_keeps_the_ended_rows() {
+    let mut page = Page::new();
+    let ended = page_line(RUNNING_TASK, State::Closed);
+    page.live(&[], false);
+    page.ended(core::slice::from_ref(&ended), false);
+    page.live(&[], false);
+    let read = page.read(true);
+    page.up(jig_client::Up::ReadDone {
+        read,
+        result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)),
+    });
+    for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+        assert!(skein_lib::bytes::find(&fixtures::main_text(view.tree()), ended.chip.title.bytes()).is_some());
     }
 }

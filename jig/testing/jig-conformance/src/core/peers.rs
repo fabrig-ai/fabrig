@@ -2,6 +2,7 @@
 //! (`jig/docs/design/domain/testing.md`, 5).
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
+use jig_domain_link::{Form, Scheme};
 use jig_domain_notes as notes;
 use jig_protocol_tools as tools;
 use skein_lib::{Duration, List, Token};
@@ -11,12 +12,9 @@ use std::collections::BTreeMap;
 #[must_use]
 pub fn account(request: accounts::ToComponent, valid: Duration) -> Option<core::Event> {
     let answer = match request {
-        accounts::ToComponent::Want { account } => accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
-            account,
-            generation: 1,
-            valid,
-        },
+        accounts::ToComponent::Want { account } => {
+            accounts::FromComponent::Granted { form: Form::Credential(Scheme::Bearer), account, generation: 1, valid }
+        }
         accounts::ToComponent::Close => accounts::FromComponent::Closed,
         accounts::ToComponent::Rejected { .. } | accounts::ToComponent::Release { .. } => return None,
     };

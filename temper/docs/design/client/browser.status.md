@@ -2,6 +2,9 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
+- **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
+  is compiled. Its runtime red and green await the browser tier after landing;
+  the incompatible plan-row placement is the repair's red-first source evidence.
 - **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:

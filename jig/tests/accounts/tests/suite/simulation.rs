@@ -1,8 +1,8 @@
 use jig_accounts_world::{ANALYST, World};
 use jig_domain_accounts::{
-    Event, Failure, Form, FromComponent, Grant, Held, Kind, Place, Request, Scheme, State, Stored, ToComponent, Turned,
-    Unread,
+    Event, Failure, FromComponent, Held, Kind, Place, Request, State, Stored, ToComponent, Turned, Unread,
 };
+use jig_domain_link::{Form, Grant, Scheme};
 use skein_lib::{Duration, Time, Wall};
 fn granted() -> World {
     let mut world = World::wanting(&[ANALYST]);

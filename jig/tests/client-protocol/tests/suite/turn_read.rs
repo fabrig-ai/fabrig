@@ -220,3 +220,43 @@ fn a_page_beside_a_line_reads_both_ways_through_the_engine() {
     let recovered = window.get(2..).expect("recovered tail").iter().rev().cloned().collect::<Vec<_>>();
     assert_eq!(recovered, tail.rows.into_boxed().into_vec());
 }
+
+#[test]
+fn a_message_past_text_reads_back_whole_through_the_engine() {
+    // The fixture's people.words is 64; a 33-byte message passes its client's text of 32.
+    let mut client = fixtures::domain_limits();
+    client.text = 32;
+    client.long_text = 128;
+    let core = fixtures::owner_limits();
+    let words = vec![b'w'; 33].into_boxed_slice();
+    assert!(words.len() > usize::try_from(client.text).expect("text fits"));
+    assert!(words.len() <= usize::try_from(client.long_text).expect("long_text fits"));
+    assert!(words.len() <= usize::try_from(core.core.people.words).expect("people.words fits"));
+    let mut story = Story::reading_chat_with(fixtures::SEED, Box::from(fixtures::TURN_BYTES), client, core);
+    let task = story.running_task();
+    story.send(
+        WORDS,
+        Ask::Jig(Box::new(c::Ask::Message {
+            project: PROJECT,
+            task,
+            words: c::Text::new(words.clone(), 128).expect("whole words"),
+        })),
+    );
+    assert!(story.run_until(|s| !s.answered(WORDS).is_empty(), WAIT));
+    assert!(
+        story.answered(WORDS).iter().any(|answer| matches!(
+            answer,
+            jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(_)))
+        ))
+    );
+    let page = activity_page(&mut story, ACTIVITY, c::Read::Activity { task, before: None });
+    let read = page
+        .rows
+        .iter()
+        .find_map(|row| match &row.source.line {
+            c::Activity::Words { words, by: c::Requester::Person(_), .. } => Some(words),
+            _ => None,
+        })
+        .expect("person's activity line");
+    assert_eq!(read.bytes(), words.as_ref());
+}

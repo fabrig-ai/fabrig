@@ -15,7 +15,7 @@ impl Store {
     }
     pub(super) fn create_account(&mut self, login: &[u8], full_name: &[u8], limits: &Limits) -> Reply {
         if self.find(login).is_some() {
-            let message = super::joined(&[b"user already exists [name: ", login, b"]"]);
+            let message = super::concat(&[b"user already exists [name: ", login, b"]"]);
             return refusal(422, &message, limits);
         }
         if self.accounts.room() == 0 {

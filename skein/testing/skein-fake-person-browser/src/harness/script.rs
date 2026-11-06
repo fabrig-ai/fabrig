@@ -20,6 +20,11 @@ pub struct TabSeen {
 }
 
 pub enum Step {
+    /// Set the page viewport in CSS pixels before the next action.
+    Viewport {
+        width: u32,
+        height: u32,
+    },
     Tabs {
         tabs: Box<[TabSeen]>,
         within: Duration,
@@ -308,6 +313,10 @@ impl Play for Script {
             return Next::Done;
         };
         match step {
+            Step::Viewport { width, height } => {
+                face.viewport(width, height);
+                self.at += 1;
+            }
             Step::Key(key) | Step::KeyWithShift(key) => {
                 face.key(key, matches!(step, Step::KeyWithShift(_)));
                 self.at += 1;

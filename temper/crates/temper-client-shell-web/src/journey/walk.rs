@@ -28,6 +28,9 @@ pub fn walk(recording: &[u8]) -> Result<Vec<Step>, Unwalkable> {
     for (at, line) in lines.iter().enumerate() {
         let step = number(steps.len());
         if let Line::Act { act, event, .. } = line {
+            if matches!(act, Act::Near { .. }) {
+                continue;
+            }
             if matches!(act, Act::Drawing { .. }) {
                 return Err(Unwalkable::Drawing { step });
             }

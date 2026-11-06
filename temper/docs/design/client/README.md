@@ -342,6 +342,15 @@ a committed reply always arrives without a further delivery to prompt it
 (jig's `client/domain/client.md`: a read is one attempt, and its caller
 asks again).
 
+No page claims empty until its read has answered. "Nothing needs you.",
+"No chats yet.", "None.", "No updates." and "No goals yet." stand only on a
+list whose read has answered with its value. A read that ends without one
+(busy, unreachable, refused, past a bound) is no answer, and neither is a
+watch that has delivered nothing, whether it is opening or Behind. While a
+read hasn't answered, on first load or after the link comes back, a page
+keeps what it last knew, rows and words alike, through every refresh; with
+nothing known, a section draws its title with no line under it.
+
 Each page has an address, and watches what it shows while it is open;
 leaving it closes its handles. Its mockup designs what temper does not
 draw yet: its look, its parts and their order, its words and where its
@@ -840,7 +849,8 @@ keeps (`../protocol/configuration.md`, section 2).
     ended line whose retention is Kept "Closed. Its transcript is kept."
     stay in the view and are hidden in the browser; no other line claims
     that its transcript stays.
-  - *With no line to show,* `.empty`, "None.", under every filter.
+  - *With no line to show,* once its reads have answered, `.empty`, "None.",
+    under every filter.
   - *"More closed chats",* under "All" or "Closed" while an older page of
     ended chats remains, a `.btn.quiet.small` under the rows, reads it, in
     place of the last.
@@ -856,7 +866,8 @@ keeps (`../protocol/configuration.md`, section 2).
   new", or "0"; "2+" and "2+ new" where the inbox's document says its
   list was cut (jig's `more`, an owner inbox's next page, a filtered
   page's `cut`), so that a count never says less than there is; with
-  none, "Nothing needs you." or "No updates.". Its first heading's
+  none, once that section's read has answered, "Nothing needs you." or "No
+  updates.", and no count before it. Its first heading's
   row holds "+ New chat", a link to `NewChat` (`/chats/new`, its text area
   focused: no act of its own), then
   its filters as folded menus, in order: projects (only with two or more),
@@ -1829,7 +1840,7 @@ keeps (`../protocol/configuration.md`, section 2).
       below): "Nothing needs you.", "One thing needs you.", "Two things
       need you." and so on in number words to "Nine", digits after,
       "N+ things need you." where the read is cut, the
-      project's name until its needs are delivered. With N as `landed`
+      project's name until its needs have answered. With N as `landed`
       less `seen`, and a brief new to the person where its `landed` is above
       `seen` or its `at` is after `previous`, the landed sentence is a new
       brief's `sentence`; else "One change landed since you last looked." or
@@ -1850,8 +1861,8 @@ keeps (`../protocol/configuration.md`, section 2).
     reads them filtered by the project. Its head is the level-2 heading
     "Needs you", "Needs you · N" in the signal colour while something
     does, and, at its right on a wide page while more than one does,
-    "Answer in a row", to that filtered *Needs you*. Empty: "Nothing needs
-    you. Work carries on, and this page tells you what changed when you
+    "Answer in a row", to that filtered *Needs you*. Empty, once its read has
+    answered: "Nothing needs you. Work carries on, and this page tells you what changed when you
     come back."
     - *Answered lines,* under the head: what was answered in the last 2
       minutes (*What the client keeps,* below): the mock's `.answered`,
@@ -1881,7 +1892,8 @@ keeps (`../protocol/configuration.md`, section 2).
     at most five, live by last activity and then ended, each a link to
     its `Chat`: its title, then at the right its state and age,
     "waiting on you · 4 min", "closed · 1 h", any other state as `Chats`
-    words it, the age as 5.12's span. Empty: "No chats yet." With no goal
+    words it, the age as 5.12's span. Empty, once its reads have answered:
+    "No chats yet." With no goal
     in the project (`Domain::has_goals`), once the chats are delivered,
     after its rows, in the foot's face: "A chat suits one change. For
     bigger work, a chat can write a draft beside it and start a goal from
@@ -1920,8 +1932,9 @@ keeps (`../protocol/configuration.md`, section 2).
   stays as it is. Its unfiltered address, `/`, works across projects,
   the project's name before the owner on the mono line. One card is
   shown of the open ones (*What the client keeps,* below): the one a Home
-  row asked for, else the first; until the inbox is delivered, the column
-  is empty, so that "Nothing needs you." never flashes.
+  row asked for, else the first; until the inbox has answered, the column
+  is empty, so that "Nothing needs you." never flashes, and what it said
+  stands through each refresh after that.
   - *The column,* as the mock's `.col.narrow.flow`: 600 wide, centred,
     gap 32.
   - *Its head,* `.flow-head`: `.dots`, a figure named "2 of 3", a pip per
@@ -2021,7 +2034,9 @@ keeps (`../protocol/configuration.md`, section 2).
     answer wasn't sent. Press it again.": an answer never goes unsent with
     nothing shown.
   - *The toast,* one at a time, 4.5 seconds, with one optional act; drawn
-    with the status role at the end of the frame, in the mock's `.toast`:
+    with the status role at the end of the frame, in a region named "Notices"
+    (skein's `docs/design/ui.md`, 14: a page's child is a landmark) that has
+    no look of its own, in the mock's `.toast`:
     fixed, centred, bottom 28 (88 on a phone), an ink ground.
   - *The rail's count:* one standing `inbox` watch while a project's
     frame shows, the rail being what reads it, so that a client on no
@@ -2275,14 +2290,16 @@ keeps (`../protocol/configuration.md`, section 2).
   - **Its intro:** "fabrig · goals", the project's name then the word in
     lower case; the level-1 heading: "5 goals, 3 under way.", the first number
     every row and the second those live and those needing the person; "1 goal,
-    1 under way." in the singular; "No goals yet." with none; "More than N
+    1 under way." in the singular; "No goals yet." with none, once its reads
+    have answered, and no heading before; "More than N
     goals, M under way." while rows remain unread. Then "A goal turns a draft
     into landed work, its own way: W.", W the project's ways in order, lower
     case, joined by ", " (*Ways,* below).
   - **Its filters:** "All", "Needs you", "Under way", "Ended", the chosen one
     pressed; at the section head's right, the `.link` "Start one from a draft",
     opening 5.14's sheet with no draft, while the project has a tracked
-    template. Under them, the rows, or "None."; "Needs you" is state needs,
+    template. Under them, the rows, or, once its reads have answered, "None.";
+    "Needs you" is state needs,
     "Under way" running, planning and paused, "Ended" landed, closed and
     failed.
   - **"More goals",** a quiet button after the rows while the ended page has
@@ -3621,8 +3638,8 @@ client removes no account and closes no chat of its own.
   of temper's words with no heading:
   - *signed out:* in the shell's words, which the view takes at
     construction: the terminal's "Signed out." (6.6); the browser's
-    "Signed out. To sign in, open a sign-in link `temper serve`
-    printed." (`browser.md`, 2.4);
+    "Signed out. To sign in, open a sign-in link temper printed."
+    (`browser.md`, 2.4);
   - *signed out, with a way of signing in:* in the browser alone, in
     place of the paragraph, the sign-in page: temper's mark, the
     heading "Sign in", and a link for each way the view was given at
@@ -3941,6 +3958,39 @@ and reserves for each print only what that page's tree may print
 A note's body and a task's words are `long_text`, 131,072 on each of temper's
 clients, past a field's `text` (jig's `client/domain/client.md`, section 14), and
 a chat's document's section is read within the view's `text_bytes`, which prices one.
+
+A line of a conversation holds words the store took, and they are `long_text` too:
+a person's message or reply, up to `people.words` (8,192 on `temper init`'s box),
+and an agent's message, question or answer and a result, up to
+`tasks.message_bytes` and `tasks.result_bytes` (10,660 on it). Each draws whole in
+the browser and the terminal, never cut (jig's `client/domain/client.md`, section
+16). The window's bytes do not move: a line weighs what it holds within
+`document_bytes`, so a window holds at least eight lines at `long_text`, and fewer
+lines the longer they are. The view's window already prices those bytes, at two
+nodes and two bytes of text a byte. A person's words waiting to be read total at
+most `document_bytes` too (jig's `client/domain/client.md`, section 10), and the
+view prices them so. A line past `long_text`, or a page of lines past
+`document_bytes`, has its page refused and its read ended (5.15): no box `temper
+init` makes reaches one (section 11).
+
+A composer, a chat's message, a new chat's first words, an agent's or a goal's
+message or a question's reply, takes what a person types or pastes up to what one
+message holds: `Me`'s `words_bytes`, the engine's `people.words`, within `long_text`
+(jig's `client/domain/contract.md`, 5.1). Past that nothing is cut, dropped or kept
+stale: the words stay as typed, Send is disabled, Enter makes a new line, and a line
+under the composer says how far over they are, counting the characters past the
+bound: "That's 3,200 characters over what one message holds." The client holds an
+edit's first `long_text` bytes and counts the characters past them in that line. A
+browser's field keeps them, since a field's value is written only when its owner's
+count moves (skein's `ui.md`, 3.4), and a composer drawn anew shows what the
+client holds. A suggestion's words and a choice's stay within `CUE_BYTES`, as a
+cue's and a button's. The view prices one composer's value at `long_text`.
+
+A chat's first message reads back whole. Past the engine's `documents.text_bytes`
+(512 on `temper init`'s box) its spec comes marked cut, and the chat's page reads
+the rest through `TaskText`, as a goal's page does (5.8), drawing what it has, ending
+in `…`, until it has it all or the read ended. The view prices that line at
+`long_text`.
 
 temper's client takes every document within the bounds the engine's
 configuration gives its documents. A path's segments have a bound of
@@ -5465,7 +5515,11 @@ measures it (skein's `ui-web.md`, section 7).
   which the page part then leaves alone until the person moves. At the head:
   "Loading earlier messages…" while an earlier page is out, "Couldn't load
   earlier messages" in the same look after one failed, and nothing once the
-  chat's start is shown. A read at the foot says nothing.
+  chat's start is shown. A read at the foot says nothing, but a chat's first read,
+  failed with no line to show, says the same at the head. An answer the client
+  cannot decode is such a failure (jig's `client/domain/client.md`, section 16): it
+  asks nothing again until the person moves, or a new line is committed, and the
+  page's other lines and acts go on. Only a lost exchange is asked again by itself.
 - **"Latest":** the view returns to the window's foot. On a chat where the
   window let the end go, a press reads the end again (`Thread::latest`),
   which replaces the window. A person sending on a chat does the same
@@ -6406,6 +6460,16 @@ own tests:
 
 ## 11. Open questions
 
+- **A line past `long_text`** (5.4): `standard` with no override takes a message of
+  262,144 bytes (`../protocol/configuration.md`, 13.8), past `long_text`, and a page
+  of its `documents.rows` lines can pass `document_bytes`. Its read ends and says so
+  (5.15), where a line would otherwise draw whole. Only a deployment with larger
+  models reaches it. Default: so; or `long_text` and `document_bytes` grow with such
+  a profile, or the engine stops a page at a client's bound.
+- **A new chat's first words** (5.4): the engine takes a task's spec up to
+  `tasks.spec_bytes`, 131,072, and its composer stops at `words_bytes`, 8,192, which
+  jig's `client/domain/contract.md`, 5.1 gives for a spec, a message and an answer
+  alike. Default: one bound for every composer.
 - **A fresh configuring chat from its composer** (3.5, *The configuring chat's
   page*): a command ("/clear") once the composer takes commands. Default: "Start
   over" in its bar.
