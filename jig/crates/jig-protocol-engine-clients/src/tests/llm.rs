@@ -87,7 +87,7 @@ fn a_template_s_and_a_task_s_choice_are_named_by_configuration() {
     let record = translate::owner::frame(&frame, &models, &w::CEILINGS).unwrap();
     let first = project(&record, 0);
     let preview = first.defaults().get(0).unwrap();
-    assert_eq!(*preview.template(), 3);
+    assert_eq!(preview.template(), 3);
     assert_named(preview.choice());
     let bytes = skein_codec::piece::split(&mut Reader::new(first.templates())).unwrap().unwrap();
     let template = w::Template::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();

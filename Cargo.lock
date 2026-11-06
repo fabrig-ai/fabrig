@@ -1000,6 +1000,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-test-records",
  "jig-domain-authority",
+ "jig-domain-core",
  "jig-domain-tasks",
  "jig-protocol-engine-clients",
  "jig-protocol-transcript",

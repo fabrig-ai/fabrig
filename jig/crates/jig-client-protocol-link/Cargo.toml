@@ -16,6 +16,7 @@ jig-protocol-transcript.workspace = true
 workspace = true
 
 [dev-dependencies]
+jig-domain-core.workspace = true
 jig-protocol-engine-clients.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-tasks.workspace = true
