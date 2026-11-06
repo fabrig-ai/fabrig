@@ -47,6 +47,8 @@ pub enum Word {
     DraftAccepted,
     DraftDecided,
     SettingsProposalTitle,
+    SettingsProposalTitleAll,
+    SettingsProposalDeploymentOwners,
     SettingsProposalDrafts,
     SettingsProposalGoals,
     SettingsProposalChanges,
@@ -1272,7 +1274,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
 // The rail menu adds six literal phrases (client/README.md, 5.3).
 // Last landing adds two phrases (client/README.md, 3.5).
-const PHRASES: u32 = 1761;
+const PHRASES: u32 = 1763;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1294,8 +1296,8 @@ const PHRASES: u32 = 1761;
 // The agent check refusal names its charter, adding two segments.
 // The rail menu adds six literal segments (client/README.md, 5.3).
 // Last landing adds four segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3059;
-const ALL: [Word; 1162] = [
+const SEGMENTS: u32 = 3061;
+const ALL: [Word; 1164] = [
     Word::DraftsChats,
     Word::ChatsDraftLede,
     Word::ChatRowWrites,
@@ -1331,6 +1333,8 @@ const ALL: [Word; 1162] = [
     Word::DraftAccepted,
     Word::DraftDecided,
     Word::SettingsProposalTitle,
+    Word::SettingsProposalTitleAll,
+    Word::SettingsProposalDeploymentOwners,
     Word::SettingsProposalDrafts,
     Word::SettingsProposalGoals,
     Word::SettingsProposalChanges,
@@ -2538,6 +2542,8 @@ impl Word {
             Self::GoalRisk => 3585,
             Self::GoalSeparator => 3586,
             Self::SettingsProposalTitle => 3416,
+            Self::SettingsProposalTitleAll => 3689,
+            Self::SettingsProposalDeploymentOwners => 3690,
             Self::SettingsProposalDrafts => 3417,
             Self::SettingsProposalGoals => 3418,
             Self::SettingsProposalChanges => 3419,
@@ -3679,7 +3685,13 @@ fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
 fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(2).ok_or(Invalid::Overflow)
 }
+// Thirty-two 64-byte project names, each with room for the five-byte conjunction
+// (client/README.md, 5.13).
+const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    if word == Word::SettingsProposalTitle {
+        return Ok(SETTINGS_PROJECT_NAMES_BYTES);
+    }
     // The toast wraps the outgoing choice or the reply label (3.5).
     if word == Word::ToastAnswered {
         return temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow);
@@ -3920,6 +3932,7 @@ impl Words {
                 .max(byline_bytes(joined)?)
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
+                .max(SETTINGS_PROJECT_NAMES_BYTES)
                 .max(temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow)?)
                 .max(temper_client_protocol_wire::FIRST_COPIES.checked_mul(203).ok_or(Invalid::Overflow)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
@@ -4851,6 +4864,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsAway => (&[b"Away switch"], &[]),
         Word::SettingsAwayLine => (&[b"Lets agents decide within limits while you\xe2\x80\x99re away."], &[]),
         Word::SettingsProposalTitle => (&[b"How temper will run ", b""], &[Name]),
+        Word::SettingsProposalTitleAll => (&[b"How temper will run your projects"], &[]),
+        Word::SettingsProposalDeploymentOwners => (&[b"Owners of this deployment"], &[]),
         Word::SettingsProposalDrafts => (&[b"Drafts: ", b""], &[Name]),
         Word::SettingsProposalGoals => (&[b"Goals: ", b""], &[Name]),
         Word::SettingsProposalChanges => (&[b"Changes page: ", b""], &[Name]),

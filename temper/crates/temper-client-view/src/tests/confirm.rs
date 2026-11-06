@@ -30,6 +30,7 @@ pub(super) fn root(act: ActKind, admission: Admission) -> temper_client_domain::
         })
         .expect("one funding source");
     let page = c::Proposal {
+        projects: List::with_capacity(0),
         key: PROPOSAL,
         project: fixtures::PROJECT,
         reason: c::DocumentText::complete(text(b"Make a goal")),

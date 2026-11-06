@@ -83,6 +83,7 @@ pub fn handle() -> Handle {
 #[derive(Debug)]
 pub struct Session {
     watching: bool,
+    settings: List<contract::Proposal>,
     answered: List<Answered>,
     later: List<ObjectKey>,
     refused: List<(ObjectKey, Outcome)>,
@@ -94,6 +95,7 @@ impl Default for Session {
     fn default() -> Self {
         Self {
             watching: false,
+            settings: List::with_capacity(CAPACITY),
             answered: List::with_capacity(CAPACITY),
             later: List::with_capacity(CAPACITY),
             refused: List::with_capacity(CAPACITY),
@@ -128,7 +130,7 @@ impl Session {
         let Some(Latest::Jig(contract::Delivery::Inbox(inbox))) = document.latest else { return Count::default() };
         let mut count = 0_u32;
         for row in &inbox.needs {
-            if row.project == Some(project) && self.line(row.card_key()).is_none() {
+            if row.shows_in(project) && self.line(row.card_key()).is_none() {
                 count = count.checked_add(1).expect("inbox rows fit");
             }
         }
@@ -252,6 +254,64 @@ impl Session {
         }
         if self.reply == Some(object) {
             self.reply = None;
+        }
+    }
+    /// Keep the original settings card through a visit to Needs you (client/README.md, 5.13).
+    pub(super) fn remember_settings(&mut self, told: &Told) {
+        let Told::Page {
+            page: jig_client::Readout::Jig(contract::ReadResult::Value(ReadValue::Proposal(proposal))),
+            ..
+        } = told
+        else {
+            return;
+        };
+        let contract::ProposalAction::Settings(_) = &proposal.action else { return };
+        for saved in &self.settings {
+            if saved.key == proposal.key {
+                return;
+            }
+        }
+        if self.settings.room() == 0 {
+            for index in 1..self.settings.len() {
+                let previous = index.checked_sub(1).expect("index starts at one");
+                let next = self.settings.get(index).expect("saved settings").clone();
+                *self.settings.get_mut(previous).expect("previous settings") = next;
+            }
+            self.settings.truncate(self.settings.len().checked_sub(1).expect("saved settings"));
+        }
+        self.settings.push((**proposal).clone()).expect("room for settings card");
+    }
+    pub(super) fn restore_settings(&self, chat: &mut super::chat::Chat, out: &mut Queue<Request>) {
+        for proposal in &self.settings {
+            if proposal.key.proposer != contract::Proposer::Task(chat.task)
+                || chat.cards.room() == 0
+                || chat.settings_proposals.room() == 0
+            {
+                continue;
+            }
+            let mut snapshot = proposal.clone();
+            snapshot.acts.clear();
+            chat.settings_proposals.push(snapshot).expect("room for original settings");
+            let handle = Handle { asker: Owner::Pages.asker(), number: chat.next };
+            chat.next = chat.next.checked_add(1).expect("chat handles fit");
+            chat.cards
+                .push(Card {
+                    object: ObjectKey::Proposal(proposal.key),
+                    group: contract::InboxGroup::Proposals,
+                    project: Some(proposal.project),
+                    position: None,
+                    unread: None,
+                    handle,
+                    page: None,
+                    words: None,
+                    key: None,
+                    outcome: None,
+                })
+                .expect("room for settings card");
+            out.push(Request::Client(jig_client::Event::Read {
+                handle,
+                read: jig_client::Readable::Jig(contract::Read::Proposal { proposal: proposal.key }),
+            }));
         }
     }
     pub(super) fn told(&mut self, told: &Told) -> bool {

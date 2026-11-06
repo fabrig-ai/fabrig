@@ -1678,6 +1678,22 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "configure-chat-proposal-deployment",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run your projects" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-proposal-two-projects",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally and 2" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
         name: "configure-chat-proposal",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[

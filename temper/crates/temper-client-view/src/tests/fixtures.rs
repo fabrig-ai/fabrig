@@ -1288,6 +1288,7 @@ pub mod chat {
         let page = match document {
             Some(page) => page,
             None => c::ReadValue::Proposal(Box::new(c::Proposal {
+                projects: List::with_capacity(0),
                 key: PROPOSAL,
                 project: fixtures::PROJECT,
                 reason: c::DocumentText::complete(c::Text::new(Box::from(*b"Make a goal"), TEXT).expect("reason")),

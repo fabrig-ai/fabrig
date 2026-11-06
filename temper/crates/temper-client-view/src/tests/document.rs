@@ -285,6 +285,7 @@ fn proposal_answer(state: ProposalState, departed: bool) -> c::ReadResult {
         }
     } else {
         c::ReadResult::Value(c::ReadValue::Proposal(Box::new(c::Proposal {
+            projects: List::with_capacity(0),
             key: PROPOSAL,
             project: 1,
             reason: c::DocumentText::complete(c::Text::new(Box::from(b"Work this way".as_slice()), 512).unwrap()),
