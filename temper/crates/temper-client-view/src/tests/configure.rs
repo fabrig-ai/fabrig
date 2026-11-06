@@ -423,51 +423,29 @@ fn unlisted_project_says_what_home_says_in_both_shells() {
 }
 
 #[test]
-fn byline_joins_only_the_first_usable_account_and_project_model() {
-    for (account, model, expected) in [
-        (false, false, None),
-        (true, false, Some("ChatGPT plan")),
-        (false, true, Some("first model")),
-        (true, true, Some("ChatGPT plan · first model")),
+fn byline_uses_the_projects_first_ready_provider_and_its_account() {
+    use c::Readiness::{Unavailable, Unknown, Usable};
+    for (ready, accounts, models, expected) in [
+        (
+            [Usable, Unavailable],
+            [true, false],
+            true,
+            Some("your Claude subscription, through Claude Code · claude-opus-5-5"),
+        ),
+        ([Usable, Usable], [true, true], true, Some("ChatGPT plan · gpt-6.1-sol")),
+        ([Unavailable, Usable], [true, true], true, Some("ChatGPT plan · gpt-6.1-sol")),
+        ([Unknown, Usable], [true, true], true, Some("ChatGPT plan · gpt-6.1-sol")),
+        ([Unavailable, Unavailable], [false, false], true, Some("Using the default model")),
+        ([Unknown, Unknown], [true, true], true, Some("Using the default model")),
+        ([Usable, Usable], [true, true], false, None),
+        ([Unavailable, Unavailable], [false, false], false, None),
     ] {
-        let (mut root, me_watch, _, _, accounts) =
-            f::root_at_full(Address::Configure { project: f::PROJECT }, &f::domain_limits(), b"Shop");
-        let mut me = root.pages().me(root.client()).unwrap().clone();
-        let sample = self::root();
-        let source = sample.pages().me(sample.client()).unwrap().projects.get(0).unwrap().models.get(0).unwrap();
-        for (project, names) in [
-            (f::PROJECT, if model { &["first model", "later model"][..] } else { &[][..] }),
-            (f::SECOND_PROJECT, &["other project"][..]),
-        ] {
-            let member = me.projects.iter_mut().find(|m| m.project == project).unwrap();
-            member.models = skein_lib::List::with_capacity(u32::try_from(names.len()).unwrap());
-            for name in names {
-                let mut offered = source.clone();
-                offered.name = c::Text::new(name.as_bytes().into(), 32).unwrap();
-                member.models.push(offered).unwrap();
-            }
-        }
-        f::deliver_me(&mut root, me_watch, me);
-        let mut doc = super::accounts::document(0);
-        if account {
-            let mut unusable = super::accounts::card_document(b"anthropic", b"", c::AccountKind::Program)
-                .accounts
-                .get(0)
-                .unwrap()
-                .clone();
-            unusable.sources.get_mut(0).unwrap().usable = false;
-            let usable =
-                super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn).accounts.get(0).unwrap().clone();
-            doc.accounts = skein_lib::List::with_capacity(3);
-            doc.accounts.push(unusable.clone()).unwrap();
-            doc.accounts.push(usable).unwrap();
-            unusable.sources.get_mut(0).unwrap().usable = true;
-            doc.accounts.push(unusable).unwrap();
-        }
-        super::accounts::deliver(&mut root, accounts.unwrap(), doc);
+        let (root, _) =
+            super::choice::provider_byline_root(Address::Configure { project: f::PROJECT }, ready, accounts, models);
+        assert_eq!(root.pages().choice().project(), None);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             let line = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&look::BYLINE));
-            assert_eq!(line.and_then(|n| n.name.as_deref()), expected.map(str::as_bytes));
+            assert_eq!(line.and_then(|n| n.name.as_deref()), expected.map(str::as_bytes), "{ready:?}, {accounts:?}");
         }
     }
 }
