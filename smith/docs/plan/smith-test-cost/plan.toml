@@ -1,0 +1,22 @@
+draft = "smith-test-cost"
+repo = "fabrig"
+sources = ["smith/docs/plan/smith-test-cost/inputs/request.md", "smith/benchmarks/src/isolate.rs", "smith/benchmarks/src/passive.rs", "smith/benchmarks/tests/suite/pipeline.rs", "smith/benchmarks/tests/suite/runner.rs", "smith/benchmarks/tests/suite/probe_command.rs", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "scope-input"
+title = "The directory the bench's scope gate lists is an input of the attempt: /tmp for a real run, a test's own scratch in the tests"
+mode = "direct"
+needs = []
+design = "smith/docs/design/benchmarks.md, 10"
+
+[[slice]]
+id = 1
+story = "An attempt lists the shared temporary directory its request names, every real run naming /tmp and every offline test its own scratch, so no test's cost depends on what else the machine has run"
+parts = ["scope-input"]
+walk = false
