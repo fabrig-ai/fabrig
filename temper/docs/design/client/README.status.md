@@ -2,14 +2,26 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits*: the
-  card's line and the note say a new tab, and nothing opens one: a press still sends a `Return` and the
-  page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. The view has no fact of a tab refused:
+- **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits* and
+  *From another computer*: the card's line and the note say a new tab, and nothing opens one: a press still
+  sends a `Return` and the page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. So the note shows
+  for a moment before the tab goes, and again on a page come back while the sign-in waits, and a browser on
+  another computer presses, leaves, comes back by hand and finds the note's folded paste. The view has no fact of a tab refused:
   `sign_in_wait::tab_refused` is false, the one function that draft feeds. The new tab's two lines, its closing on
   a refusal at the press, and a reload's same page are that draft's. A page come back holds no address, so
   it draws no "Open it again". `Act::SignInElsewhere` and `ConnectModel::elsewhere` stay in the domain with no
   entry in the view, the paste's tests and gallery states reaching the page through them, until that draft
   makes every sign-in hold its page.
+- **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request
+  `sign-in-new-tab` of 2026-11-06, by its plan's cut and its account. The terminal draws the note's plain title,
+  its muted line and "Open the sign-in page" above the folded paste, where the request has the terminal as today:
+  one function draws the page for both shells. `ConnectModel`'s disclosure takes auto side margins, where the
+  request's rule has none, so that it keeps its note's edges under that page's width. The note's "‹ Back" goes to
+  Choose, where the request's page, made by hand from Choose's, goes to Forge.
+- **Departs:** 3.5, `ConnectModel`, *The paste*: a paste answered *finishing* keeps the note's "Waiting for
+  ChatGPT’s sign-in, in the new tab" and its link, and reads "Finishing your sign-in…" in the disclosure, where the
+  welcome's note reads those words alone (*Finishing a paste*): `temper-client-view`'s `pages/connect_model.rs`,
+  `body`, draws `sign_in_wait::waiting` while the sign-in runs, whatever its paste. No reason is recorded.
 - **Design departs:** 3.5, *Starting a goal from a chat's document*, and 5.14, from
   the request `ui-chat-draft` of 2026-11-05, decided by the answers that day to its
   tasks `goal-sheet-state` and `goal-sheet`: one sheet, `ui-goal-page`'s, where the
@@ -76,6 +88,10 @@
   configuring chat (`temper-client-view`'s `pages/chat.rs`, `main`), where nothing
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
+- **Departs:** 3.6, *Closed ends on one line*: a requester-closed chat hides
+  every "Decision made" activity line, because `Activity::Decided` carries only
+  a revision and cannot identify the closing decision. This keeps the quiet end
+  line, at the cost of hiding earlier decision markers too.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
   the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
@@ -401,6 +417,17 @@
   button of a menu with "Accounts" and "Sign out", where the mock draws the
   person's name as plain text, and a browser over 760 px signs out there rather
   than on the `Accounts` tab. `greenfield/README.md` notes it.
+- **Design departs:** 3.5, *Sign out*, and 5.3, from the request `ui-owner-menu` of
+  2026-11-06, decided by its plan's cut. A press outside that took the focus to
+  another control leaves it there, where the request returns the focus to the row:
+  the row would take back what that press landed on. A project-less `Accounts` page
+  keeps its "Sign out" in the banner, where the request keeps it at the tab's foot:
+  that page has no such row (5.1). Over 760 px the tab's whole row leaves, "Signed in
+  as NAME" and the login with "Sign out", where the request moves "Sign out" alone:
+  one form holds them, and the sheet hides it, since the view knows no width (section
+  11, *The person's login over 760 px*). The rail's "+ New chat" menu closes on a
+  press outside too, which the request doesn't name: skein's page part gives it to
+  every menu.
 - **Design departs:** 3.5, *Settings*, 5.3 and 5.13, from the request `ui-settings`
   of 2026-11-05, decided by its plan's cut. "Sign out did not reach the engine."
   stands on the rail's foot as well as the `Accounts` tab, where the request moves
@@ -414,8 +441,9 @@
 - **Design departs:** 3.5, *The welcome* and *Home*, from the request `ui-welcome`
   of 2026-11-05, decided by its plan's cut. A plan's way at its address, with no
   sign-in asked, keeps its card in the panel, where the request draws a way's page
-  for the key, the paste and Claude alone: that card is how the welcome reaches
-  the paste. A repository Home's sheet asked leaves the step's lines once in and
+  for the key, the paste and Claude alone: the request `sign-in-new-tab` took the
+  paste's page and the card's way to it, the reason that cut gave, and no plan has
+  weighed the card since. A repository Home's sheet asked leaves the step's lines once in and
   reads as any in the project, "ORG/NAME is in PROJECT" and "Chats can change its
   code now.", where the request has each copy ticked and then "Chats can change its
   code now…": section 11 holds it. The sheet alerts past 16 addresses, where the request

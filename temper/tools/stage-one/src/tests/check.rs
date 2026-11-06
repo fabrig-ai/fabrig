@@ -13,8 +13,8 @@ use crate::golden::{self, Edit, Item, ObligationKind, SettingsFile};
 const FORGE: &str = "forge.box:3000";
 const REPOSITORY: &str = "people/kit";
 const PROJECT: u32 = 7;
-// The reference has 67 settings and 13 box obligations.
-const OBLIGATIONS: usize = 85;
+// The reference has 73 settings and 13 box obligations.
+const OBLIGATIONS: usize = 86;
 
 fn box_placeholders(value: &mut Value) {
     match value {
@@ -69,6 +69,10 @@ pub(crate) fn profile_evidence(dir: &Path, edit: fn(&mut Vec<Item>)) {
         (
             json!({"kind":"project-policy", "project":PROJECT}),
             include_bytes!("fixtures/profile/project-policy.json").as_slice(),
+        ),
+        (
+            json!({"kind":"project-ways", "project":PROJECT}),
+            br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":4}"#.as_slice(),
         ),
     ] {
         let value: Value = serde_json::from_slice(bytes).expect("authority fixture");
@@ -211,7 +215,7 @@ fn a_value_changed_is_wrong() {
     assert!(!report.passed());
     assert_eq!(outcome(&report, "goal-rule.ci"), &Outcome::Wrong { found: json!(true), expected: json!(false) });
     assert!(report.text().contains("goal-rule.ci  wrong: found true, expected false\n"));
-    assert!(report.text().ends_with("failed: 1 of 85\n"));
+    assert!(report.text().ends_with("failed: 1 of 86\n"));
     assert_eq!(report.json()["verdicts"][61]["outcome"], json!({"kind":"wrong","found":true,"expected":false}));
 }
 #[test]
@@ -382,6 +386,34 @@ fn judged_text_must_be_a_nonempty_string() {
         let report = report(&evidence);
         assert_eq!(outcome(&report, "coordinator.instructions"), &Outcome::Missing);
     }
+}
+#[test]
+fn a_way_must_be_the_goal_template_for_drafts() {
+    let report = report(&proposed(|items| {
+        for item in items {
+            if item.setting.kind == "project-ways" {
+                let Edit::Set(value) = &mut item.edit else { panic!("ways") };
+                value["way"] = json!(2);
+            }
+        }
+    }));
+    assert_eq!(outcome(&report, "project.way"), &Outcome::Wrong { found: json!(2), expected: json!(4) });
+}
+#[test]
+fn a_projects_questions_are_free_and_a_project_with_no_ways_is_missing() {
+    let report = report(&proposed(|items| {
+        items.retain(|item| item.setting.kind != "project-ways");
+        let setting = golden::decode_settings(
+            &serde_json::to_vec(
+                &json!({"items":[{"setting":{"kind":"project-questions","project":PROJECT},"set":"foreman"}]}),
+            )
+            .expect("JSON"),
+        )
+        .expect("item");
+        items.extend(setting.items);
+    }));
+    assert!(report.extras.is_empty(), "{}", report.text());
+    assert_eq!(outcome(&report, "project.way"), &Outcome::Missing);
 }
 #[test]
 fn a_documents_heading_is_free_unless_the_golden_asks_it_whole() {

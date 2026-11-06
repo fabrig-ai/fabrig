@@ -1140,6 +1140,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-paste",
         b"temper-rail-person",
         b"temper-settings-sign-out",
+        b"temper-confirm",
+        b"temper-confirm-fates",
+        b"temper-confirm-acts",
+        b"temper-confirm-do",
+        b"temper-confirm-choices",
     ],
     regions: &[b"temper-link"],
 };
@@ -1320,6 +1325,16 @@ pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 457 };
 pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 458 };
 pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 459 };
 
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM: Style = Style { owner: owner(), token: 464 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM_FATES: Style = Style { owner: owner(), token: 465 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM_ACTS: Style = Style { owner: owner(), token: 466 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM_DO: Style = Style { owner: owner(), token: 467 };
+/// An uncertain release's choices (client/README.md, 3.6, The sheet).
+pub const CONFIRM_CHOICES: Style = Style { owner: owner(), token: 468 };
 /// The browser's person menu (client/README.md, 5.3).
 pub const RAIL_PERSON: Style = Style { owner: owner(), token: 462 };
 /// The Accounts tab's sign-out row (client/README.md, 3.5).

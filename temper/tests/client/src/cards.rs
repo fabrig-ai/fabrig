@@ -36,7 +36,9 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
     // A dependency line's items are links keyed by their task, not cards (client/README.md, 5.8).
     let mut links_end = 0;
     for (index, node) in tree.nodes().iter().enumerate() {
-        if node.styles.as_slice().contains(&temper_client_view::look::DEPENDENCIES) {
+        if node.styles.as_slice().contains(&temper_client_view::look::DEPENDENCIES)
+            || node.styles.as_slice().contains(&temper_client_view::look::CONFIRM_FATES)
+        {
             links_end = index.checked_add(usize::try_from(node.size).expect("link subtree fits")).expect("tree fits");
         }
         // The editor is the task's visible decision, named by its number, as
@@ -79,4 +81,20 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
         seen.push(Seen::Card { key, state, revision });
     }
     seen
+}
+
+/// Temper's sheets replace jig's danger and per-phase cancellation text (client/README.md, 3.6).
+/// The view's confirmation tests hold their titles, active counts, fates and retry rules.
+pub fn decision(ask: &jig_client::contract::Ask) -> Option<&jig_client::contract::Ask> {
+    use jig_client::contract::{Ask, DecideOn, Decision, Operation};
+    let sheet = match ask {
+        Ask::Cancel { .. } | Ask::Decide { on: DecideOn::Proposal { decision: Decision::Rejected { .. }, .. }, .. } => {
+            true
+        }
+        Ask::Compound { operations, .. } => {
+            operations.iter().any(|operation| matches!(operation, Operation::Cancel { .. }))
+        }
+        _ => false,
+    };
+    if sheet { None } else { Some(ask) }
 }
