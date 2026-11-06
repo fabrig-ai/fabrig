@@ -177,6 +177,7 @@ fn document_proposal() -> c::ReadValue {
         c::Proposal {
             key,
             project: fixtures::PROJECT,
+            projects: List::from_boxed(Box::new([fixtures::PROJECT])),
             reason: c::DocumentText::complete(fixtures::first_run::text(b"It touches sign-in.")),
             action: c::ProposalAction::Batch(List::with_capacity(0)),
             as_holder: true,

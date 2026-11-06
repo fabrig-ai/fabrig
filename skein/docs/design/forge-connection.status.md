@@ -15,10 +15,16 @@
   a reading found that safe.
   8.1: which deadline runs is the `until` a state holds, which
   `Connection::deadline` reads, where the section has it a function of the
-  phase set in one place: a holder passes it to `exchange.start` as it takes a connection,
-  and six `until` calls in `component.rs` and `component/` set it as one leaves, because a
-  connection knows no holder's deadline, and the request of 2026-11-05 decided
-  how the deadline is read, not who sets it.
+  phase set in one place: a holder passes it to `exchange.start` as it takes a
+  connection, and six `until` calls in `component.rs` and `component/` set it,
+  five as one leaves and one as a forge's start goes on to its settings read,
+  because a connection knows no holder's deadline, and the request of 2026-11-05
+  decided how the deadline is read, not who sets it.
+  8.1: the `debt-25` request of 2026-11-06 has its spot review's net lines fall,
+  but they stand 12 above that plan's start, production 18 up and tests 6 down:
+  this section's written-out cells and deadlines add 37 to production, and
+  jig's six named tuples 43, against the 18 its review reckoned; no reason is
+  recorded.
   8.1: a connection that has connected reaches Idle rather than Sending,
   an answered exchange goes through Idle before the next Sending, and a
   Closed connection is retired and a new one opened, where the table has
