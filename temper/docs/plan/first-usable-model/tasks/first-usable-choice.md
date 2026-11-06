@@ -144,3 +144,15 @@ report, under `## Left`, for `stock-one-account`.
 ## Report
 
 As the implementer's text says; the options you took; whether any temper test's expected model moved.
+
+## Answers
+
+2026-11-06. **Question:** extend scope to the two shared task fixtures and two settings stories, or revise or split the required reader checks?
+
+**Answer:** extend the scope; the reader checks stay as this spec lists them, and the run resumes on its pushed branch. `jig/docs/design/domain/tasks.md`, section 3, and acceptance 10 settle the behaviour, so the rule stands and the fixtures that break it change. No expected result changes. May also change, fixtures only:
+
+- `jig/crates/jig-domain-tasks/src/tests/revisions.rs` and `jig/testing/jig-tasks-kit/src/world.rs`, `authority()`: `Models::All` in place of `Models::Named(0)`, so an ordinary agent task has a model it may use. A test that needs no model allowed, or a parent narrower than its child, sets that itself. `check_llm`, `may` and the incompatible count stay as pushed.
+- `jig/tests/core/tests/suite/settings.rs`, `live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted`: each Create names its choice, `member.llm = Some(..)` of the charter's model at revision 1, as `charters.rs` does and as the story's name says. It still ends `moved: 0, stayed: 2`.
+- `jig/tests/core/tests/suite/settings_proposal_edges.rs`, `held_versions_past_the_limit_keep_the_pending_set_across_restart`: the live holder names its choice by an amendment, before `task_before` and `policy_before` are read (it is for the next run, so the run in flight keeps its policy). Its asserts stay, `moved: 0, stayed: 1` and `Refusal::Full` included.
+
+The same repair, an agent fixture with no allowed model or one that relied on a recorded default, is allowed in another jig reader's test or kit if the rest of the reader run shows one; name each in your report. Anything that would change an expected result, or a failure of any other cause, is a `Question:`, naming the test. A temper story that fails only because a chat's model differs stays under `## Left` for `stock-one-account`, as step 5 says. Run the checks your report lists as unobserved, the `temper-service` check and tests and the temper worlds among them.
