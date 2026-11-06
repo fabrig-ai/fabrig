@@ -1,0 +1,38 @@
+draft = "ui-proposal-card"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-proposal-card/inputs/request.md", "temper/crates/temper-client-view/src/cards/proposal.rs", "temper/tests/client/tests/suite/configuring_chat.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# A settings proposal's card in a chat, as a real model makes it. See plan.md; parts join with each push.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "card-reason"
+title = "A proposal's reason reads as Markdown in its card and its question line"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[part]]
+id = "composer-reveal"
+title = "A focus request brings its node into view, in skein"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 7"
+
+[[part]]
+id = "card-change"
+title = "\"Change something\" focuses the composer and asks what should change"
+mode = "direct"
+needs = ["card-reason"]
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[slice]]
+id = 1
+story = "A real model's Markdown reason reads as it does on the sheet, and \"Change something\" visibly asks in the composer until something is sent or the proposal is decided"
+parts = ["card-reason", "composer-reveal", "card-change"]
+walk = false
