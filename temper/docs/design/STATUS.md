@@ -14,7 +14,10 @@ findings, whole (`domain/findings.md`, with their families in
 worker runs temper's merge kind, and the merge job settles a
 change's conflict before a resolution and produces a catch-up into a
 goal's branch; a goal's landing whose update conflicts takes it, but
-no story runs that (`domain/forge.md`). The prepare and key kinds
+no story runs that (`domain/forge.md`). Lost updates and prepares recover
+in the worlds, with a reason at their retry bound; the three-thread
+real-process restart proof awaits its after-landing trial
+(`domain/forge.md`, `domain/landing.md`). The prepare and key kinds
 are not built, so the turn's tooling and the `Rewrite` delivery lag
 (`domain/worker.md`, `protocol/tooling.md`, `domain/landing.md`,
 `protocol/git.md`). The landing rules and the forge's charters are

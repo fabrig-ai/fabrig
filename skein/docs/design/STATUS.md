@@ -26,8 +26,11 @@ in `skein-playground`'s manifest (`playground.md`). An owner may ask a call
 to keep its rendered body (`llm.md`, `llm-connection.md`), and a world the
 fake LLM peer to keep what it read (`fake-llm.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
-`forge-client.md`, `oauth-issuer.md` and `ui-text.md` have
-no gap. The viewport story awaits its runtime check after landing (`browser.md`).
+`oauth-issuer.md` and `ui-text.md` have no gap. Updates recover for both
+styles in the worlds; a merge update already holding its base and a
+rebase overtaking a later push still lack real-Forgejo conformance
+(`forge-client.md`, `forge.md`). The viewport story awaits its runtime
+check after landing (`browser.md`).
 The state machines of forge-connection, Forgejo's plans, the fake forge's
 connection, oauth and its accounts, llm and
 llm-connection depart from

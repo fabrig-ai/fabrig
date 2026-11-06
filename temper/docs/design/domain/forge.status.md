@@ -3,6 +3,13 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
+  - 10, 18: no supplied result shows the three-thread real-process trial
+    passing after update recovery. Both styles' lost answers, retries,
+    exhausted counts, release and late-copy holds have world stories;
+    the real-Forgejo restart trial remains the after-landing proof.
+    The fake reads a rebase copy's head at landing, so the dropped-push
+    story uses an explicit branch rewrite and does not establish the
+    real forge's concurrent-push behaviour (skein's `forge.md`, section 9).
   - 8.2, step 3: a head already behind taking its base first stands on the fake
     forge's stories alone
     (`tests/engine/domain/tests/suite/forge_routes/update_first.rs`). The request
