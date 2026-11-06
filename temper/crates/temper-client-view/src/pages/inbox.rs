@@ -76,12 +76,19 @@ pub(crate) fn main(
             }
         }
         let limited = *inbox.cut.get(usize::from(updates)).expect("two sections");
-        b.open(Role::Paragraph);
-        b.style(look::SUBTLE_COUNT);
-        let said = count_words(words, count, limited, updates && count != 0);
-        b.name(&said);
-        b.text(Run::Plain, &said);
-        b.close();
+        let answered = inbox.answered(if updates {
+            jig_client::contract::InboxReadGroup::Updates
+        } else {
+            jig_client::contract::InboxReadGroup::Needs
+        });
+        if answered || count != 0 {
+            b.open(Role::Paragraph);
+            b.style(look::SUBTLE_COUNT);
+            let said = count_words(words, count, limited, updates && count != 0);
+            b.name(&said);
+            b.text(Run::Plain, &said);
+            b.close();
+        }
         if heading == Word::NeedsYou {
             filters(b, root, inbox.filter, words, bindings);
         }
@@ -105,7 +112,7 @@ pub(crate) fn main(
         }
         if opened {
             b.close();
-        } else {
+        } else if answered {
             b.open(Role::Paragraph);
             b.style(look::EMPTY);
             let said = words.say(if updates { Word::InboxUpdatesEmpty } else { Word::InboxNeedsEmpty }, &[]);
