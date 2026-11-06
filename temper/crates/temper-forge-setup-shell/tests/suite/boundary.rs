@@ -8,6 +8,10 @@ fn forbidden(source: &str) -> bool {
 fn forbidden_at(path: &Path, source: &str) -> bool {
     let source = if path.ends_with("temper/src/main.rs") {
         source.replace("std::process::ExitCode", "ExitCode").replace("process::ExitCode", "ExitCode")
+    } else if path.ends_with("temper/src/lib.rs") {
+        // Serve reads the first link's secret from stdin (protocol/setup.md, 7.1).
+        // Its stdin guard is not a file lock; file locks and process operations stay guarded.
+        source.replace("std::io::stdin().lock()", "BoxLinkInput")
     } else if path.ends_with("temper/src/program_login.rs") {
         // Terminal sign-in execs smith's command (protocol/credentials.md, 3).
         // Other process types and every lock operation retain the same guard.
@@ -58,6 +62,20 @@ fn process_and_file_locks_stay_in_their_declared_modules() {
         if source.is_dir() {
             scan(&source);
         }
+    }
+}
+#[test]
+fn serve_stdin_guard_does_not_exempt_file_locks_or_processes() {
+    let path = Path::new("temper/src/lib.rs");
+    for (source, expected) in [
+        ("std::io::stdin().lock()", false),
+        ("file.lock()", true),
+        ("file.try_lock()", true),
+        ("std::process::Command", true),
+        ("std::io::stdin().lock(); file.lock()", true),
+        ("std::io::stdin().lock(); std::process::Command", true),
+    ] {
+        assert_eq!(forbidden_at(path, source), expected, "{source}");
     }
 }
 #[test]

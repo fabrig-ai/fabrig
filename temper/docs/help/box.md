@@ -31,7 +31,7 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
   for one single-job tier plus CI, or 3 for two such tiers plus CI.
   Count concurrent jobs in multi-job workflows and other repositories
   too (temper help tier). Stop real backends with Ctrl-C or SIGTERM;
-  wait for `Stopped`. Edit this setting in `CONFIG/temper.json`, keep
+  wait for it to exit. Edit this setting in `CONFIG/temper.json`, keep
   other settings, then restart (step 2) with the same `CONFIG`,
   `DATA` and `CACHE`, keeping runners'
   registration and secrets.
@@ -112,15 +112,29 @@ Fake backends:
 temper box --fake-backends --bundle BUNDLE --config CONFIG --data DATA --cache CACHE
 ```
 
-Keep running; log output. The sign-in link follows
-`Open this link in a browser on this machine.`
+Keep running. Logs: `DATA/box/logs/box.log` and each step's log beside it.
 
-Expect: real, `Logs: DATA/box/logs/`. Fake,
+Expect:
+
+```text
+Open this link in a browser on this machine.
+
+http://127.0.0.1:8367/jig/v1/sign-in/link?secret=...
+
+It signs you in as this temper's owner, once and for a short while.
+Opened again once spent, it prints a fresh one here.
+```
+
+The link alone is on stdout; the other lines are on stderr. Fake backends
+follow the block with
 `box: effective configuration DATA/box/fake-backends/config`, then
 `box: model key FILE` and `box: GitHub own App id 1, key file FILE`
 (read later).
 
-If not: `missing or nonexecutable adapter`: build `fake-claude` beside
+If not: a link opened once the box has given up gets no answer, and the
+terminal has said why. Mend what it said and run `temper box` again, for
+a new link. A taken port refuses before any link is printed.
+`missing or nonexecutable adapter`: build `fake-claude` beside
 `temper`. `not in current init shape`: changed `CONFIG`; use empty
 directories. `retained documents must be private files`:
 `chmod 600` the effective document. Refusals name the reason or restart;
@@ -144,7 +158,8 @@ Policy 1 sizes future projects; `project-policy` immediately resizes the
 open period and parties' pools (temper help configure). After setup:
 `project show PROJECT`; funding: temper help weekly-budget.
 
-If not: refused (exit 1). Use the link after `A fresh sign-in link:`.
+If not: refused (exit 1). Use the fresh link printed alone on the terminal:
+a blank line, then the link.
 
 ## 4. Set up Forgejo on this machine
 
@@ -164,7 +179,7 @@ Add `--project PROJECT` to choose an existing project.
 `--playground` without `--project` creates `widget`:
 `project: 1 · widget` on a new box.
 
-`temper box`'s terminal (stderr):
+`DATA/box/logs/box.log`:
 
 ```text
 HH:MM:SSZ Forge FORGE (Forgejo): starting
@@ -293,7 +308,8 @@ temper ctl DIR account export ACCOUNT FILE
 `ACCOUNT`: the `sign_in`, `granted` account; `FILE`: absent.
 Then stop with `SIGINT` (Ctrl-C) or `SIGTERM`.
 
-Expect: `moved out: account ACCOUNT to FILE`; the last line ends `Stopped`.
+Expect: `moved out: account ACCOUNT to FILE`; the last line of
+`DATA/box/logs/box.log` ends `Stopped`.
 
 If not: `account export: not signed in` (exit 2): add a key.
 `temper ctl: the engine holds its N answers of the last day; room again

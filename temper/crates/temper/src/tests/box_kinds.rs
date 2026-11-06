@@ -2,6 +2,98 @@
 use crate::forge::remove_directory;
 use std::fs;
 
+fn first_link_named() -> temper_service::startup::Named {
+    let directory = std::path::Path::new("/fixture");
+    let directories = super::configuration::directories(directory);
+    let mut document = super::configuration::check_document(directory);
+    document["engine"]["clients"]["link"] = true.into();
+    document["application"]["clients"]["listener"] = serde_json::json!({"socket":"127.0.0.1:8367"});
+    document["application"]["clients"]["public"] = "https://temper.example.invalid:8443".into();
+    temper_service::startup::named(&serde_json::to_vec(&document).expect("fixture document"), &directories.jig())
+        .expect("checked first-link settings")
+}
+
+fn first_link_steps() -> temper_forge_setup::Steps {
+    temper_forge_setup::Steps { always: Box::new([]), asked: Box::new([]) }
+}
+
+#[test]
+fn first_link_draws_a_secret_and_uses_serves_url() {
+    let mut named = first_link_named();
+    for public in [named.public.take(), None] {
+        named.public = public;
+        let link = crate::box_command::first_link(&named, &first_link_steps()).expect("draw link").expect("link");
+        assert_eq!(link.secret.expose().len(), temper_service::clients::LINK_SECRET_BYTES);
+        let address = crate::address(&named.clients).expect("clients address");
+        assert!(
+            link.url == temper_service::clients::first_link_url(address, named.public.as_ref(), &link.secret),
+            "the box uses serve's URL"
+        );
+        let next = crate::box_command::first_link(&named, &first_link_steps()).expect("draw again").expect("link");
+        assert!(link.secret.expose() != next.secret.expose(), "each start draws a fresh secret");
+    }
+}
+
+#[test]
+fn first_link_draws_none_when_disabled() {
+    let mut named = first_link_named();
+    named.link = false;
+    assert!(crate::box_command::first_link(&named, &first_link_steps()).expect("disabled link").is_none());
+}
+
+#[test]
+fn first_link_draws_none_at_port_zero() {
+    let mut named = first_link_named();
+    named.clients = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 0).into()));
+    assert!(crate::box_command::first_link(&named, &first_link_steps()).expect("port zero").is_none());
+}
+
+#[test]
+fn first_link_draws_none_with_an_always_link_step() {
+    let mut steps = first_link_steps();
+    steps.always = Box::new([temper_forge_setup::Step::new(
+        b"handoff".as_slice().into(),
+        Box::new([]),
+        temper_forge_setup::Kind::Link,
+    )]);
+    assert!(crate::box_command::first_link(&first_link_named(), &steps).expect("link step").is_none());
+}
+
+#[test]
+fn first_link_draws_none_with_an_asked_link_step() {
+    use temper_forge_setup::{Group, Kind, Stage, Step};
+    let mut steps = first_link_steps();
+    steps.asked = Box::new([Group {
+        kind: None,
+        remover: None,
+        forge: 1,
+        label: b"forge".as_slice().into(),
+        recorded: false,
+        before: 0,
+        steps: Box::new([(Stage::Run, Step::new(b"handoff".as_slice().into(), Box::new([]), Kind::Link))]),
+    }]);
+    assert!(crate::box_command::first_link(&first_link_named(), &steps).expect("asked link step").is_none());
+}
+
+#[test]
+fn first_link_accepts_4096_bytes_and_refuses_one_more() {
+    let mut named = first_link_named();
+    let steps = first_link_steps();
+    let link = crate::box_command::first_link(&named, &steps).expect("draw link").expect("link");
+    let public = named.public.as_mut().expect("public fixture");
+    // Extend the checked origin to exercise the URL bound independently of the origin parser's bound.
+    let authority_bytes = public.name.len() + 4096 - link.url.len();
+    public.name = vec![b'a'; authority_bytes].into_boxed_slice();
+    let link = crate::box_command::first_link(&named, &steps).expect("at bound").expect("link");
+    assert_eq!(link.url.len(), 4096);
+    let public = named.public.as_mut().expect("public fixture");
+    public.name = vec![b'a'; authority_bytes + 1].into_boxed_slice();
+    assert_eq!(
+        crate::box_command::first_link(&named, &steps).expect_err("past URL bound"),
+        "serve: sign-in link too long"
+    );
+}
+
 #[test]
 fn a_held_descriptor_is_refused_as_held() {
     use std::os::fd::AsRawFd;

@@ -1176,22 +1176,32 @@ pub enum Word {
     WelcomeKeyBody,
     WelcomeKeyField,
     WelcomeKeyFacts,
-    WelcomePasteTitle,
     WelcomePasteOpen,
-    WelcomePasteOpenRest,
-    WelcomePasteCopy,
-    WelcomePasteHere,
     WelcomePasteField,
     WelcomePasteFinish,
     WelcomeAllWays,
     WelcomeAwayTitle,
+    WelcomeAwayOwn,
+    WelcomeAwayAgain,
     WelcomeAwayBody,
     WelcomeFinishing,
     WelcomeClaudeTitle,
     WelcomeClaudeBody,
     WelcomeClaudeNote,
     WelcomeClaudeSignedIn,
-    WelcomeClaudeChecking,
+    WelcomeTrying,
+    WelcomeTryShort,
+    WelcomeTryAnswered,
+    WelcomeTryNoAnswer,
+    WelcomeTrySubscription,
+    WelcomeTryPlan,
+    WelcomeTryKey,
+    WelcomeTryStarts,
+    WelcomeTryAnswers,
+    WelcomeTryAgain,
+    WelcomeSignInAgain,
+    WelcomeContinueAnyway,
+    WelcomeTryFailed,
     WelcomeClaudeNotYet,
 
     WelcomeForgeStillSettingUp,
@@ -1288,7 +1298,9 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
 // The rail menu adds six literal phrases (client/README.md, 5.3).
-const PHRASES: u32 = 1774;
+// The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
+// The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
+const PHRASES: u32 = 1781;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1309,8 +1321,11 @@ const PHRASES: u32 = 1774;
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
 // The rail menu adds six literal segments (client/README.md, 5.3).
-const SEGMENTS: u32 = 3093;
-const ALL: [Word; 1179] = [
+// The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
+// The try adds twenty-three segments and removes one host-check segment (3.5).
+const SEGMENTS: u32 = 3104;
+const TEXT_BYTES: u32 = 43576;
+const ALL: [Word; 1189] = [
     Word::DraftsChats,
     Word::ChatsDraftLede,
     Word::ChatRowWrites,
@@ -2446,22 +2461,32 @@ const ALL: [Word; 1179] = [
     Word::WelcomeKeyBody,
     Word::WelcomeKeyField,
     Word::WelcomeKeyFacts,
-    Word::WelcomePasteTitle,
     Word::WelcomePasteOpen,
-    Word::WelcomePasteOpenRest,
-    Word::WelcomePasteCopy,
-    Word::WelcomePasteHere,
     Word::WelcomePasteField,
     Word::WelcomePasteFinish,
     Word::WelcomeAllWays,
     Word::WelcomeAwayTitle,
+    Word::WelcomeAwayOwn,
+    Word::WelcomeAwayAgain,
     Word::WelcomeAwayBody,
     Word::WelcomeFinishing,
     Word::WelcomeClaudeTitle,
     Word::WelcomeClaudeBody,
     Word::WelcomeClaudeNote,
     Word::WelcomeClaudeSignedIn,
-    Word::WelcomeClaudeChecking,
+    Word::WelcomeTrying,
+    Word::WelcomeTryShort,
+    Word::WelcomeTryAnswered,
+    Word::WelcomeTryNoAnswer,
+    Word::WelcomeTrySubscription,
+    Word::WelcomeTryPlan,
+    Word::WelcomeTryKey,
+    Word::WelcomeTryStarts,
+    Word::WelcomeTryAnswers,
+    Word::WelcomeTryAgain,
+    Word::WelcomeSignInAgain,
+    Word::WelcomeContinueAnyway,
+    Word::WelcomeTryFailed,
     Word::WelcomeClaudeNotYet,
     Word::WelcomeForgeStillSettingUp,
     Word::WelcomeProgramAccount,
@@ -3349,25 +3374,25 @@ impl Word {
             Self::CloseNow => 160,
             Self::DelegateCancel => 155,
             Self::DelegateMove => 156,
-            Self::WorkReadDocs => 3687,
-            Self::WorkReadDoc => 3688,
-            Self::WorkReadPage => 3689,
-            Self::WorkSearched => 3690,
-            Self::WorkCheckedSettings => 3691,
-            Self::WorkCheckedSettingsCount => 3692,
-            Self::WorkChecked => 3693,
-            Self::WorkReading => 3694,
-            Self::WorkSearching => 3695,
-            Self::WorkChecking => 3696,
-            Self::WorkInventory => 3697,
-            Self::WorkHistory => 3698,
-            Self::WorkFromLine => 3699,
-            Self::WorkFailedCount => 3700,
-            Self::WorkFailedOut => 3701,
-            Self::WorkSeconds => 3702,
-            Self::WorkMinutes => 3703,
-            Self::WorkNumber => 3705,
-            Self::WorkRepeated => 3704,
+            Self::WorkReadDocs => 3739,
+            Self::WorkReadDoc => 3740,
+            Self::WorkReadPage => 3741,
+            Self::WorkSearched => 3742,
+            Self::WorkCheckedSettings => 3743,
+            Self::WorkCheckedSettingsCount => 3744,
+            Self::WorkChecked => 3745,
+            Self::WorkReading => 3746,
+            Self::WorkSearching => 3747,
+            Self::WorkChecking => 3748,
+            Self::WorkInventory => 3749,
+            Self::WorkHistory => 3750,
+            Self::WorkFromLine => 3751,
+            Self::WorkFailedCount => 3752,
+            Self::WorkFailedOut => 3753,
+            Self::WorkSeconds => 3754,
+            Self::WorkMinutes => 3755,
+            Self::WorkNumber => 3757,
+            Self::WorkRepeated => 3756,
             Self::ToolSeparator => 1041,
             Self::PlusDraft => 3680,
             Self::DraftEmpty => 3681,
@@ -3409,8 +3434,8 @@ impl Word {
             Self::Stop => 148,
             Self::Older => 149,
             Self::Latest => 152,
-            Self::LoadingEarlier => 3706,
-            Self::LoadingEarlierName => 3707,
+            Self::LoadingEarlier => 3758,
+            Self::LoadingEarlierName => 3759,
             Self::FirstChat => 2183,
             Self::ChatsKicker => 3246,
             Self::ChatsHeadlineIn => 3247,
@@ -3636,22 +3661,32 @@ impl Word {
             Self::WelcomeKeyBody => 3362,
             Self::WelcomeKeyField => 3363,
             Self::WelcomeKeyFacts => 3364,
-            Self::WelcomePasteTitle => 3365,
             Self::WelcomePasteOpen => 3366,
-            Self::WelcomePasteOpenRest => 3367,
-            Self::WelcomePasteCopy => 3368,
-            Self::WelcomePasteHere => 3369,
             Self::WelcomePasteField => 3370,
             Self::WelcomePasteFinish => 3371,
             Self::WelcomeAllWays => 3372,
             Self::WelcomeAwayTitle => 3373,
+            Self::WelcomeAwayOwn => 3687,
+            Self::WelcomeAwayAgain => 3688,
             Self::WelcomeAwayBody => 3374,
             Self::WelcomeFinishing => 3375,
             Self::WelcomeClaudeTitle => 3376,
             Self::WelcomeClaudeBody => 3377,
             Self::WelcomeClaudeNote => 3378,
             Self::WelcomeClaudeSignedIn => 3379,
-            Self::WelcomeClaudeChecking => 3380,
+            Self::WelcomeTrying => 3726,
+            Self::WelcomeTryShort => 3727,
+            Self::WelcomeTryAnswered => 3728,
+            Self::WelcomeTryNoAnswer => 3729,
+            Self::WelcomeTrySubscription => 3730,
+            Self::WelcomeTryPlan => 3731,
+            Self::WelcomeTryKey => 3732,
+            Self::WelcomeTryStarts => 3733,
+            Self::WelcomeTryAnswers => 3734,
+            Self::WelcomeTryAgain => 3735,
+            Self::WelcomeSignInAgain => 3736,
+            Self::WelcomeContinueAnyway => 3737,
+            Self::WelcomeTryFailed => 3738,
             Self::WelcomeClaudeNotYet => 3381,
             Self::WelcomeForgeStillSettingUp => 3382,
             Self::WelcomeProgramAccount => 3383,
@@ -3923,17 +3958,27 @@ fn english_language(
 }
 
 #[cfg(test)]
-pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 2] {
+pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 3] {
     let (shapes, language) = english_language(1, 256, Shell::Browser, 513).expect("bounded English");
     let mut segments = 0_u64;
+    let mut text = 0_u64;
     for phrase in &language.phrases {
         for form in &phrase.forms {
             segments = segments.checked_add(skein_lib::len_u64(form.segments.len())).expect("bounded English");
+            for segment in &form.segments {
+                match segment {
+                    Segment::Text(bytes) => {
+                        text = text.checked_add(skein_lib::len_u64(bytes.len())).expect("bounded English");
+                    }
+                    Segment::Hole { .. } => {}
+                }
+            }
         }
     }
     [
         ("const PHRASES: u32 = ", u64::from(PHRASES), u64::from(shapes.len())),
         ("const SEGMENTS: u32 = ", u64::from(SEGMENTS), segments),
+        ("const TEXT_BYTES: u32 = ", u64::from(TEXT_BYTES), text),
     ]
 }
 
@@ -3973,7 +4018,7 @@ impl Words {
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Settings and the chat document include their literal bytes (client/README.md, 3.5, 5.13).
-            text_bytes: 43848,
+            text_bytes: TEXT_BYTES,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -4200,27 +4245,37 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBoxName => (&[b"temper box"], &[]),
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
         Word::WelcomeBoxServer => (&[b"Run temper on a server \xe2\x86\x97"], &[]),
-        Word::WelcomeModelSignInTime => (&[b"Sign in, in this tab \xc2\xb7 about a minute"], &[]),
+        Word::WelcomeModelSignInTime => (&[b"Sign in, in a new tab \xc2\xb7 about a minute"], &[]),
         Word::WelcomeKeyTitle => (&[b"An OpenAI API key"], &[]),
         Word::WelcomeKeyBody => (&[b"From OpenAI\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[]),
         Word::WelcomeKeyField => (&[b"Key, pasted once"], &[]),
         Word::WelcomeKeyFacts => (&[b"Nothing checks a key when it is added: a wrong one shows once OpenAI refuses a run."], &[]),
-        Word::WelcomePasteTitle => (&[b"Signing in to ", b" from another computer"], &[Name]),
         Word::WelcomePasteOpen => (&[b"Open ", b"\xe2\x80\x99s sign-in \xe2\x80\xba"], &[Name]),
-        Word::WelcomePasteOpenRest => (&[b" and approve temper."], &[]),
-        Word::WelcomePasteCopy => (&[b"When ", b" is done, its tab shows a page that can\xe2\x80\x99t be reached. Copy that page\xe2\x80\x99s whole address from the address bar."], &[Name]),
-        Word::WelcomePasteHere => (&[b"Paste it here."], &[]),
         Word::WelcomePasteField => (&[b"Address of the page that couldn\xe2\x80\x99t be reached"], &[]),
         Word::WelcomePasteFinish => (&[b"Finish connecting"], &[]),
         Word::WelcomeAllWays => (&[b"All ways"], &[]),
-        Word::WelcomeAwayTitle => (&[b"", b"\xe2\x80\x99s sign-in, in this tab"], &[Name]),
-        Word::WelcomeAwayBody => (&[b"You sign in and approve temper; ", b" sends this tab back to temper\xe2\x80\x99s listener on this machine, and on to Ready."], &[Name]),
+        Word::WelcomeAwayTitle => (&[b"Waiting for ", b"\xe2\x80\x99s sign-in, in the new tab"], &[Name]),
+        Word::WelcomeAwayOwn => (&[b"", b"\xe2\x80\x99s sign-in"], &[Name]),
+        Word::WelcomeAwayAgain => (&[b"Open it again \xe2\x80\xba"], &[]),
+        Word::WelcomeAwayBody => (&[b"Sign in and approve temper there. This page moves on by itself."], &[]),
         Word::WelcomeClaudeTitle => (&[b"Your Claude subscription"], &[]),
         Word::WelcomeClaudeBody => (&[b"temper sets Claude Code up on this machine in an environment of its own: its settings, sessions and sign-in stay apart from your own Claude Code. In a terminal here:"], &[]),
         Word::WelcomeClaudeNote => (&[b"It makes that environment, then Claude Code asks you to sign in to your subscription there. temper never reads its login."], &[]),
         Word::WelcomeClaudeSignedIn => (&[b"I\xe2\x80\x99ve signed in"], &[]),
-        Word::WelcomeClaudeChecking => (&[b"Checking Claude Code\xe2\x80\x99s sign-in on this machine\xe2\x80\xa6"], &[]),
-        Word::WelcomeClaudeNotYet => (&[b"Claude Code isn\xe2\x80\x99t signed in here yet. Run the command above, then press I\xe2\x80\x99ve signed in."], &[]),
+        Word::WelcomeTrying => (&[b"Trying your ", b""], &[Name]),
+        Word::WelcomeTryShort => (&[b"one short message"], &[]),
+        Word::WelcomeTryAnswered => (&[b"answered in ", b" s"], &[Number]),
+        Word::WelcomeTryNoAnswer => (&[b"", b" didn\xe2\x80\x99t answer"], &[Name]),
+        Word::WelcomeTrySubscription => (&[b"Signed in to your subscription"], &[]),
+        Word::WelcomeTryPlan => (&[b"Signed in to your ", b" plan"], &[Name]),
+        Word::WelcomeTryKey => (&[b"Key added"], &[]),
+        Word::WelcomeTryStarts => (&[b"Claude Code starts on this machine"], &[]),
+        Word::WelcomeTryAnswers => (&[b"", b" answers"], &[Name]),
+        Word::WelcomeTryAgain => (&[b"Try again"], &[]),
+        Word::WelcomeSignInAgain => (&[b"Sign in again"], &[]),
+        Word::WelcomeContinueAnyway => (&[b"Continue anyway"], &[]),
+        Word::WelcomeTryFailed => (&[b"didn\xe2\x80\x99t answer when tried"], &[]),
+        Word::WelcomeClaudeNotYet => (&[b"Claude Code isn\xe2\x80\x99t signed in here yet. Sign in again, then try again."], &[]),
         Word::WelcomeFinishing => (&[b"Finishing your sign-in\xe2\x80\xa6"], &[]),
         Word::WelcomeModelProgramTime => (&[b"One command in a terminal, on this machine"], &[]),
         Word::WelcomeForgeStillSettingUp => (&[b"Forgejo is still setting up; this page moves on by itself."], &[]),
