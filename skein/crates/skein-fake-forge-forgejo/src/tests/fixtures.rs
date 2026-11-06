@@ -1,6 +1,7 @@
 use crate::{Config, Faults, Limits, Repository};
 use alloc::boxed::Box;
 use skein_forge::forgejo::request::Repo;
+use skein_json::tokenizer;
 use skein_lib::{List, Secret, bytes};
 pub const FIXTURE_SECRET: &[u8] = b"fixture-hook-secret";
 pub fn hooked_config() -> Config {
@@ -52,7 +53,7 @@ pub fn limits() -> Limits {
             send: 1024,
         },
         documents: skein_forge::forgejo::limits::Limits {
-            json: skein_json::tokenizer::Limits { chunk: 1024, string: 16384, number: 32, depth: 16, length: 65536 },
+            json: tokenizer::Limits { chunk: 1024, string: 16384, number: 32, depth: 16, length: 65536 },
             writer: skein_json::writer::Limits { depth: 16, length: 65536 },
             string_bytes: 512,
             body_bytes: 16384,
@@ -486,9 +487,9 @@ impl Harness {
         let limits = &self.env.limits.documents;
         let mut decoder = client::decoder(request, limits).expect("document decoder");
         let body = self.body();
-        let mut feed = skein_json::tokenizer::Feed::new(&body, &limits.json);
+        let mut feed = tokenizer::Feed::new(&body, &limits.json);
         let mut rows = List::with_capacity(limits.inner);
-        let mut demand = client::first(&decoder);
+        let mut demand = tokenizer::Request::Next;
         loop {
             let event = feed.answer(demand);
             match client::step(&mut decoder, limits, &event) {
@@ -567,8 +568,8 @@ pub fn deliver(
 ) -> Result<skein_forge::forgejo::delivery::Delivery, skein_forge::forgejo::decode::Malformed> {
     use skein_forge::forgejo::client::delivery::{self, Step};
     let mut decoder = delivery::decoder(header, limits).expect("known delivery");
-    let mut feed = skein_json::tokenizer::Feed::new(body, &limits.json);
-    let mut demand = delivery::first(&decoder);
+    let mut feed = tokenizer::Feed::new(body, &limits.json);
+    let mut demand = tokenizer::Request::Next;
     loop {
         let event = feed.answer(demand);
         match delivery::step(&mut decoder, limits, &event) {

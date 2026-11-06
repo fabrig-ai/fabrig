@@ -12,6 +12,7 @@ use skein_forge::forgejo::{
     document::{Document, Row},
     request::{Repo, Request},
 };
+use skein_json::tokenizer;
 use skein_lib::bytes::concat;
 use skein_lib::{Duration, Secret, Time, Token};
 
@@ -78,8 +79,8 @@ fn clone(h: &mut Harness, repository: &[u8]) {
 fn decoded_clone(h: &Harness) -> git::Answer {
     let mut decoder = git::client::decoder(git::Name::Clone, h.status(), Time::ZERO, &h.env.limits.git());
     let body = h.body();
-    let mut feed = skein_json::tokenizer::Feed::new(&body, &h.env.limits.documents.json);
-    let mut demand = git::client::first(&decoder);
+    let mut feed = tokenizer::Feed::new(&body, &h.env.limits.documents.json);
+    let mut demand = tokenizer::Request::Next;
     loop {
         let event = feed.answer(demand);
         match git::client::step(&mut decoder, &h.env.limits.git(), &event) {
