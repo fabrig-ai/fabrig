@@ -22,8 +22,6 @@
   follows 5.3: the protocol layer sends `Inst` and `Stanza` events, then
   `Resolved` with the indices, tool versions and costs; the domain
   assembles the closure. Section 10 keeps the question.
-- **Not yet:** 8.5: the tests of the printer's orders, and the queues
-  beside it uncapped.
 - **Departs:** 8.5: the store step's order has no named predicate, because
   the service round comes later (`hearth/docs/development/debt/D001-room-checks-and-max-out.md`).
   `hearth-protocol-builder`'s `up` reads `!above.is_empty()`, of the whole
