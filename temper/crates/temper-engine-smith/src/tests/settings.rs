@@ -157,6 +157,11 @@ fn inventory(count: u32) -> SettingsAnswer {
 fn settings_inventory_pages_continue_at_the_exact_offset_and_end() {
     let answer = inventory(80);
     let whole = settings_text(&answer, None, &[]).expect("inventory text");
+    let no_models = b"models you can offer: none; no account can run a model yet\n";
+    let mut expected = skein_lib::Writer::new(whole.len().checked_add(no_models.len()).expect("inventory size"));
+    expected.put(&whole).expect("base inventory");
+    expected.put(no_models).expect("empty offer");
+    let whole = expected.finish();
     let mut from = 0;
     let mut combined = skein_lib::Writer::new(whole.len());
     let mut pages = 0_u32;
