@@ -512,8 +512,8 @@ fn account_and_deployment_help_explain_offering_another_model() {
     for example in examples {
         let json = example.split("```").next().expect("JSON fence");
         let model: serde_json::Value = serde_json::from_str(json).expect("model declaration JSON");
-        assert_eq!(model["name"], "gpt-6-astra");
-        assert_eq!(model["efforts"], serde_json::json!(["high", "medium", "low"]));
+        assert_eq!(model["name"], "claude-haiku-5-5");
+        assert_eq!(model["efforts"], serde_json::json!(["low", "medium", "high"]));
     }
     let guidance = deployment
         .split("## Acting on it\n")
@@ -532,7 +532,7 @@ fn account_and_deployment_help_explain_offering_another_model() {
         "`engine.llm.providers[].models`",
         "`CONFIG/agent.json`",
         "`endpoints[].models`",
-        "gpt-6-astra",
+        "claude-haiku-5-5",
         "efforts",
         "high",
         "medium",
@@ -552,7 +552,7 @@ fn account_and_deployment_help_explain_offering_another_model() {
     ] {
         assert!(guidance.contains(required), "deployment help missing {required}: {guidance}");
     }
-    for words in [vec!["help", "--search", "gpt-6-astra"], vec!["help", "--search", "model", "restart"]] {
+    for words in [vec!["help", "--search", "claude-haiku-5-5"], vec!["help", "--search", "model", "restart"]] {
         let hits = help::answer(&configured(&words)).expect("model configuration search");
         assert!(hits.lines().any(|line| line.starts_with("deployment: Acting on it: ")), "{hits}");
     }

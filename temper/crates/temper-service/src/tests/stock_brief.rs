@@ -89,9 +89,9 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
 
     for (number, open, non_brief, remaining) in [
-        (1, false, 42_108, 358_027),
-        (1, true, 40_018, 360_117),
-        (2, false, 35_363, 364_772),
+        (1, false, 42_177, 357_958),
+        (1, true, 40_087, 360_048),
+        (2, false, 35_432, 364_703),
         (3, false, 42_077, 358_058),
         (4, false, 32_636, 367_499),
         (6, false, 33_467, 366_668),
@@ -154,8 +154,8 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     const FRAMING: u32 = 64 * (16 + 7);
     // Task words and contract, then the task identity and requester.
     const TASK_PARTS: u32 = 2;
-    // Four model declarations leave this margin beyond the framed brief.
-    const MARGIN: u32 = 285;
+    // Eight model declarations leave this margin beyond the framed brief.
+    const MARGIN: u32 = 216;
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
@@ -163,7 +163,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(1, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 358_027);
+    assert_eq!(room, 357_958);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));

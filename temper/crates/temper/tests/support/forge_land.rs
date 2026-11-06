@@ -1332,15 +1332,17 @@ pub fn program_verification(login: &std::path::Path, accounts: &serde_json::Valu
     .collect())
 }
 
-/// Select the live Claude model, replacing init's `OpenAI` and Anthropic routes
-/// while keeping demo and init's other fields. Inspect no login entry.
-/// Every stock charter's main model is the first configured: a live story runs on the cheapest.
-pub fn cheapest_model_first(path: &std::path::Path, name: &str) {
+/// Keep the live `OpenAI` model and demo, so stock's named first choices cannot supersede it.
+pub fn retain_live_model(path: &std::path::Path, name: &str) {
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(path).expect("deployment")).expect("JSON");
-    let models = value["engine"]["llm"]["models"].as_array_mut().expect("engine models");
-    let at = models.iter().position(|model| model["name"] == name).expect("init declares the live model");
-    let model = models.remove(at);
-    models.insert(0, model);
+    value["engine"]["llm"]["models"]
+        .as_array_mut()
+        .expect("engine models")
+        .retain(|model| model["name"] == name || model["name"] == "demo");
+    for table in ["providers", "endpoints"] {
+        value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
+    }
+    value["engine"]["llm"]["providers"][0]["models"] = serde_json::json!([name]);
     fs::write(path, serde_json::to_vec(&value).expect("deployment JSON")).expect("deployment");
 }
 
@@ -1366,6 +1368,9 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     endpoint["server_name"] = "api.anthropic.com".into();
     let mut agent_model = endpoint["models"][0].clone();
     agent_model["name"] = model.name().into();
+    for member in ["efforts", "effort"] {
+        agent_model.as_object_mut().expect("agent model").remove(member);
+    }
     endpoint["models"] = serde_json::json!([agent_model]);
     let mut declared = value["engine"]["llm"]["models"]
         .as_array()
@@ -1375,6 +1380,9 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
         .expect("init OpenAI model")
         .clone();
     declared["name"] = model.name().into();
+    for member in ["efforts", "effort", "shown"] {
+        declared.as_object_mut().expect("engine model").remove(member);
+    }
     declared["endpoint"] = "claude".into();
     let mut route = value["engine"]["llm"]["endpoints"]
         .as_array()

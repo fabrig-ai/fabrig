@@ -1,9 +1,14 @@
-//! The shipped init template's default model, used only by scripted workers.
+//! The shipped init template's Sol model, used only by scripted workers.
 pub fn box_model() -> temper_engine_domain::Model {
     let document: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../../crates/temper-init/template/temper.json"))
             .expect("init document");
-    let model = &document["engine"]["llm"]["models"][0];
+    let model = document["engine"]["llm"]["models"]
+        .as_array()
+        .expect("models")
+        .iter()
+        .find(|model| model["name"] == "gpt-6.1-sol")
+        .expect("init Sol");
     let mut value = temper_engine_domain_world::walking::models()[0].clone();
     value.dialect = u32::try_from(document["engine"]["llm"]["endpoints"][0]["dialect"].as_u64().expect("dialect"))
         .expect("bounded dialect");

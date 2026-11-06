@@ -562,6 +562,7 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
             Edit::Set(Value::Charter(mut charter)) => {
                 // Scripted turns use the fake worker's model and no checkout document reads.
                 charter.policy.model = model.clone();
+                charter.spend = defaults.charters[0].spend;
                 if charter.policy.waiting == skein_lib::Duration::ZERO {
                     charter.policy.waiting = defaults.charters[0].policy.waiting;
                 }
