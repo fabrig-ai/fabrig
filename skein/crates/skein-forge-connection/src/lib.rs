@@ -10,6 +10,9 @@ mod app;
 pub mod boundary;
 pub mod component;
 mod connection;
+/// What the crate's tests and the machine world's `hand` both read (forge-connection.md, 10).
+#[cfg(any(test, feature = "seam"))]
+pub mod fixtures;
 pub mod grow;
 pub mod hooks;
 mod installations;

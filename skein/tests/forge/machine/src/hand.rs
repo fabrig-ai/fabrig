@@ -1,9 +1,10 @@
 //! Hand-steered component exchanges (skein/docs/design/forge-connection.md, 10).
 use skein_forge::api;
-use skein_forge_connection::{Answered, Component, Event, Limits, Settings, Shared, settings::Kind, start::Start};
-pub use skein_forge_kit::fixtures::{
-    BODY_ROOM, FORGE, OP_BYTES, REPO, TOKEN, USER_AGENT, WORD, WRITER, limits, settings, shared,
+pub use skein_forge_connection::fixtures::{
+    BODY_ROOM, BRANCH, BRANCH_HEAD, FORGE, OP_BYTES, OTHER_FORGE, REPO, TOKEN, TOKEN_BOUND, USER_AGENT, WORD, WRITER,
+    app_access, filled, github_settings, header, limits, ok, response, response_with_fields, settings, shared, user_ok,
 };
+use skein_forge_connection::{Answered, Component, Event, Limits, Settings, Shared, settings::Kind, start::Start};
 use skein_lib::{Duration, Env, List, Queue, Secret, Time, Wall};
 use std::boxed::Box;
 
@@ -386,34 +387,6 @@ impl Harness {
     }
 }
 #[must_use]
-pub fn ok(body: &[u8]) -> Box<[u8]> {
-    response(200, body)
-}
-#[must_use]
-pub fn response(code: u16, body: &[u8]) -> Box<[u8]> {
-    response_with_fields(code, body, b"")
-}
-#[must_use]
-pub fn response_with_fields(code: u16, body: &[u8], fields: &[u8]) -> Box<[u8]> {
-    let decimal = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
-    let mut out = skein_lib::Writer::new(
-        body.len()
-            .saturating_add(fields.len())
-            .saturating_add(b"HTTP/1.1 200 OK\r\nContent-Length: ".len())
-            .saturating_add(decimal.as_bytes().len())
-            .saturating_add(b"\r\nDate: Wed, 01 Jan 2020 00:00:00 GMT\r\n\r\n".len()),
-    );
-    out.put(b"HTTP/1.1 ").expect("head fits");
-    out.put(skein_lib::Decimal::of(u64::from(code)).as_bytes()).expect("code fits");
-    out.put(b" OK\r\n").expect("head fits");
-    out.put(fields).expect("fields fit");
-    out.put(b"Content-Length: ").expect("head fits");
-    out.put(decimal.as_bytes()).expect("length fits");
-    out.put(b"\r\nDate: Wed, 01 Jan 2020 00:00:00 GMT\r\n\r\n").expect("date fits");
-    out.put(body).expect("body fits");
-    out.finish()
-}
-#[must_use]
 pub fn status(code: u16) -> Box<[u8]> {
     let decimal = skein_lib::Decimal::of(u64::from(code));
     let mut out = skein_lib::Writer::new(
@@ -426,10 +399,6 @@ pub fn status(code: u16) -> Box<[u8]> {
     out.put(skein_lib::Decimal::of(u64::from(code)).as_bytes()).expect("code fits");
     out.put(b" Refused\r\nContent-Length: 0\r\n\r\n").expect("head fits");
     out.finish()
-}
-#[must_use]
-pub fn user_ok() -> Box<[u8]> {
-    ok(b"{\"id\":2,\"login\":\"writer\"}")
 }
 #[must_use]
 pub fn settings_ok() -> Box<[u8]> {
@@ -453,16 +422,6 @@ pub fn known() -> Harness {
     h
 }
 
-#[must_use]
-pub fn filled(length: usize, byte: u8) -> Box<[u8]> {
-    let mut out = skein_lib::Writer::new(length);
-    for _ in 0..length {
-        out.put(&[byte]).expect("measured fill");
-    }
-    out.finish()
-}
-
-pub const OTHER_FORGE: u16 = 2;
 pub const OTHER_REPO: api::Repository = api::Repository { forge: OTHER_FORGE, repository: 1 };
 pub const BRANCH_BODY: &[u8] = br#"{"name":"main","commit":{"id":"0000000000000000000000000000000000000000"},"effective_branch_protection_name":""}"#;
 #[must_use]

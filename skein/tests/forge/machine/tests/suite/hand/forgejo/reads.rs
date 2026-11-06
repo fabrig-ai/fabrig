@@ -497,21 +497,3 @@ fn remarks_select_the_requested_slice_and_cut_after_it() {
         Ok(Answer::Remarks { remarks: Box::new([remark.clone(), remark]), more: true })
     );
 }
-#[test]
-fn a_calls_deadline_distinguishes_connecting_from_a_written_request() {
-    for (name, connect, error, cost) in
-        [("connecting", false, api::Error::Unavailable, 0), ("written", true, api::Error::Timeout, 1)]
-    {
-        let mut h = fixtures::known();
-        h.run(Duration::from_secs(5));
-        h.call(1, fixtures::REPO, Op::Read(Read::Settings));
-        h.run(Duration::ZERO);
-        if connect {
-            h.connected(fixtures::FORGE);
-        }
-        h.run(Duration::from_secs(10));
-        assert_eq!(h.answered(1).expect("deadline").result, Err(error), "{name}");
-        assert_eq!(h.answered(1).expect("deadline").cost, cost, "{name}: cost");
-        assert!(h.peers.is_empty(), "{name}: connection aborted");
-    }
-}

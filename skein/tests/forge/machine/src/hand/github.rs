@@ -1,55 +1,17 @@
-use super::{FORGE, Harness, ok, response, settings, shared};
+use super::{FORGE, Harness, app_access, github_settings, ok, response, shared};
 use skein_forge::{api, github::document};
 use skein_forge_connection::{
-    Event, Settings,
+    Event,
     seam::{Clock, Read, Row, Tokens},
-    settings::Kind,
 };
 use skein_lib::{Duration, Secret, Time, Wall};
 use std::boxed::Box;
-
-/// The literal value of the sole named header on the HTTP wire.
-#[must_use]
-pub fn header<'a>(sent: &'a [u8], name: &[u8]) -> &'a [u8] {
-    let mut found = None;
-    let mut rest = sent;
-    while let Some(end) = skein_lib::bytes::find(rest, b"\r\n") {
-        let line = rest.get(..end).expect("line end in request");
-        if let Some(value) = line.strip_prefix(name) {
-            assert!(found.is_none(), "header occurs once");
-            found = Some(value);
-        }
-        rest = rest.get(end.checked_add(2).expect("line end fits")..).expect("next line");
-    }
-    found.expect("header sent")
-}
-
-pub const TOKEN_BOUND: usize = 64;
-
-#[must_use]
-pub fn app_access(key: &[u8], id: u64, user: u64) -> skein_forge_connection::Access {
-    skein_forge_connection::Access {
-        credential: skein_forge::credential::Credential::App { id, key: Secret::new(Box::from(key)) },
-        user,
-        webhook_secret: None,
-    }
-}
-
-#[must_use]
-pub fn github_settings() -> Settings {
-    let mut settings = settings();
-    let forge = settings.forges.get_mut(0).expect("forge");
-    forge.kind = Kind::GitHub;
-    forge.access = Some(app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
-    settings
-}
 
 pub const GITHUB_REPOSITORY: &[u8] = br#"{"id":1,"owner":{"id":22,"login":"acme","type":"Organization"},"name":"widgets","default_branch":"main","html_url":"https://github.com/acme/widgets","allow_merge_commit":true,"allow_squash_merge":true,"allow_rebase_merge":false}"#;
 pub const GITHUB_BRANCH: &[u8] = br#"{"name":"main","commit":{"sha":"0000000000000000000000000000000000000000"}}"#;
 
 // GitHub dialect fixtures: issue/comment, pull, combined status, check runs and GraphQL.
 pub const GITHUB_ISSUE: &[u8] = br#"{"number":7,"state":"open","user":{"id":9},"updated_at":"2026-10-20T08:00:00Z","title":"widgets","labels":[],"body":"description"}"#;
-pub const GITHUB_COMMENTS: &[u8] = br#"[{"id":8,"user":{"id":9},"created_at":"2026-10-20T08:00:00Z","updated_at":"2026-10-20T08:00:00Z","body":"hello"}]"#;
 pub const GITHUB_PULL: &[u8] = br#"{"number":7,"state":"open","merged":false,"merge_commit_sha":null,"mergeable":true,"head":{"ref":"feature","sha":"0000000000000000000000000000000000000000"},"base":{"ref":"main","sha":"1111111111111111111111111111111111111111"},"requested_reviewers":[]}"#;
 pub const GITHUB_COMBINED: &[u8] = br#"{"state":"pending","total_count":0,"statuses":[]}"#;
 pub const GITHUB_RUNS: &[u8] = br#"{"check_runs":[]}"#;
