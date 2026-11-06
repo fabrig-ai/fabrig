@@ -1156,7 +1156,9 @@ fn deployment_read_and_answer_round_trip() {
     let bytes = crate::reading(&read);
     assert_eq!(crate::decode_reading(&bytes, &limits), Some(read));
     for (welcome, owned) in [(false, false), (false, true), (true, false), (true, true)] {
-        let answer = v1::DeploymentAnswer::new(&limits, v1::DeploymentAnswerParts { welcome, owned }).unwrap();
+        let answer =
+            v1::DeploymentAnswer::new(&limits, v1::DeploymentAnswerParts { welcome, owned, program_login: None })
+                .unwrap();
         let bytes = crate::deployment_answer(&answer);
         assert_eq!(crate::decode_deployment_answer(&bytes, &limits), Some(answer));
         assert_eq!(crate::decode_deployment_answer(&fixtures::trailing(&bytes), &limits), None);

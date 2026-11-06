@@ -74,7 +74,7 @@ impl Words {
                 }
             }
             ChatStatus::Held(reason) => self.hold_category(b, *reason),
-            ChatStatus::Closing => self.text(b, P::Word(Word::status(status)), &[]),
+            ChatStatus::RunWaiting(_) | ChatStatus::Closing => self.text(b, P::Word(Word::status(status)), &[]),
             ChatStatus::Ended { at } => {
                 self.text(b, P::Word(Word::status(status)), &[]);
                 self.wall(b, *at);

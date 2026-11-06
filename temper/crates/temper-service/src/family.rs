@@ -22,10 +22,11 @@ const _: () = {
 };
 
 /// The start's deployment facts (temper/docs/design/client/README.md, 4.6).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Deployment {
     pub welcome: bool,
     pub owned: bool,
+    pub program_login: Option<Box<[u8]>>,
 }
 
 /// Decode the keyed request, preserving its admission envelope and supplied digest.
@@ -35,7 +36,7 @@ pub fn to_root(
     exchange: kit::ToApplication,
     forges: &crate::forges::Forges,
     demo: Option<&crate::settings::Demo>,
-    deployment: Deployment,
+    deployment: &Deployment,
     playground: Option<&forge::Playground>,
     limits: &w::Limits,
 ) -> Result<root::Event, Box<kit::Event>> {
@@ -1689,12 +1690,16 @@ fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
     }
 }
 
-fn deployment_answer(deployment: Deployment, limits: &w::Limits) -> Box<[u8]> {
+fn deployment_answer(deployment: &Deployment, limits: &w::Limits) -> Box<[u8]> {
     let answer = w::DeploymentAnswer::new(
         limits,
-        w::DeploymentAnswerParts { welcome: deployment.welcome, owned: deployment.owned },
+        w::DeploymentAnswerParts {
+            welcome: deployment.welcome,
+            owned: deployment.owned,
+            program_login: deployment.program_login.clone(),
+        },
     )
-    .expect("deployment booleans fit the wire");
+    .expect("checked deployment facts fit the wire");
     wire::deployment_answer(&answer)
 }
 

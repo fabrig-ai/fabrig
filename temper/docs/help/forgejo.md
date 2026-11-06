@@ -25,7 +25,8 @@ Connect a deployment to a Forgejo it does not run, as its site admin, so that te
   IP address of temper's `application.webhooks.listener`; restart that
   Forgejo after. Its default refuses loopback, and temper can't change
   it. Without it no hook delivers: temper finds each change by polling,
-  later, and nothing fails. A Forgejo elsewhere has no hook, and polls.
+  later, and nothing fails. A Forgejo on another host has no hook, and
+  polls.
 - `FORGE`: the forge's number, which temper gives it at its connect
   and step 2 prints, kept for good.
 - `ORG`: the organization of the first repository temper makes.

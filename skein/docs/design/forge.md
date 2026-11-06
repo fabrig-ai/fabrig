@@ -1637,8 +1637,8 @@ the suites (testing.md, section 6).
   Default: as they stand, until a debt item names them. The `if let`s
   `forgejo/client` and `forgejo/server` keep on their own enums go with `D015`
   of `skein/docs/development/debt/`.
-- **A document kind no plan names** (4.2): a plan's arm reads `Some(_) | None`
-  over a decoded document, where programming-model.md, section 10.3 has no `_`
-  on an own enum, so a new `d::Document` kind goes silent there. One option: a
-  rule here that the exchange's decoder picks the kind, and `_` under a named
-  `#[expect]`. The user's to decide. Default: as they stand.
+- **A document kind no plan names** (4.2): the exchange's decoder picks the kind,
+  so a plan's match over a decoded document ends in `_` under a named `#[expect]`,
+  where programming-model.md, section 10.3 has no `_` on an own enum, and a new
+  `d::Document` kind goes silent there. Decided under the user's standing word,
+  for the user's later review (`forge.status.md`). Default: so.

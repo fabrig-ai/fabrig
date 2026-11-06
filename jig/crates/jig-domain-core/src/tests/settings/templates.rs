@@ -367,7 +367,8 @@ fn startup_refuses_requester_templates_without_conversation_or_a_named_executor(
             crate::settings::check(&current, &config.settings, &config.connectors, &limits()),
             Err(crate::settings::Failure {
                 setting: crate::settings::Setting::Template(1),
-                fault: crate::settings::Fault::Shape
+                fault: crate::settings::Fault::Shape,
+                detail: None
             })
         );
     }

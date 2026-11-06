@@ -158,13 +158,18 @@
     connector task takes the project's whole ceiling as its authority and can't
     narrow it, and an agent reading change titles should not hold merge
     authority. So a project whose policy's delegation doesn't name charter 9 has
-    no brief, and a period its people's pools reserve whole has none either
-    (`../client/README.status.md`, 3.5).
+    no brief, and a period its people's pools reserve whole has none either,
+    which a stock project's room holds off (`../protocol/configuration.md`, 13.4).
   - 5.7: a run's task is kept, where the request has it forgotten once read,
     because jig forgets a result only for a person's request (section 20).
   - 5.7: a live goal's "landed and total changes" are its delegates done and
     total, because the forge keeps no count a goal, and "failures the forge holds
     since" are what each tier holds now, because it keeps no times on them.
+- **Design departs:** 5.7, from the request `ui-walk-large` of 2026-11-06, decided by its
+  plan's cut: the room that request has a stock project keep for its brief is no
+  brief's own, so a member's first spend or the forge's repairs can take it and the
+  brief falls back to the computed sentence, because a shared project's owners can
+  fund their period (section 20).
 - **Design departs:** 5.8, 5.9, from the request `ui-away` of 2026-11-05, each
   decided by its plan's cut, for the user to see:
   - 5.8: `Away` keeps `off` in place of the request's `on`: "23:10 to 08:03" needs
