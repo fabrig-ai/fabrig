@@ -2017,7 +2017,9 @@ keeps (`../protocol/configuration.md`, section 2).
     answer wasn't sent. Press it again.": an answer never goes unsent with
     nothing shown.
   - *The toast,* one at a time, 4.5 seconds, with one optional act; drawn
-    with the status role at the end of the frame, in the mock's `.toast`:
+    with the status role at the end of the frame, in a region named "Notices"
+    (skein's `docs/design/ui.md`, 14: a page's child is a landmark) that has
+    no look of its own, in the mock's `.toast`:
     fixed, centred, bottom 28 (88 on a phone), an ink ground.
   - *The rail's count:* one standing `inbox` watch while a project's
     frame shows, the rail being what reads it, so that a client on no
