@@ -117,6 +117,7 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"forge.tiers.test_id_bytes" => {
             limits.forge.tiers.test_id_bytes = u32::try_from(value).or(Err(Refused::Range))?;
         }
+        b"forge.sitting_ms" => limits.forge.sitting = duration(value)?,
         b"forge.queue_window_ms" => limits.forge.queue_window = duration(value)?,
         b"forge.client.pending" => limits.forge.client.pending = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.client.calls" => limits.forge.client.calls = u32::try_from(value).or(Err(Refused::Range))?,
@@ -319,7 +320,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 166] = [
+pub static NAMES: [Name; 167] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -721,6 +722,12 @@ pub static NAMES: [Name; 166] = [
         unit: Unit::Bytes,
         line: "Bounds a failing test's identifier in a tier's report.",
         value: |limits| u64::from(limits.forge.tiers.test_id_bytes),
+    },
+    Name {
+        name: "forge.sitting_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the gap between a person's sittings on Home.",
+        value: |limits| limits.forge.sitting.as_millis(),
     },
     Name {
         name: "forge.queue_window_ms",

@@ -21,6 +21,7 @@ pub(crate) mod inbox;
 pub(crate) mod model_check;
 pub(crate) mod needs;
 pub(crate) mod new_chat;
+pub(crate) mod reference;
 pub(crate) mod session;
 pub(crate) mod settings;
 mod sign_in_wait;

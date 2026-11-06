@@ -105,6 +105,7 @@ pub const LIMITS: d::Limits = d::Limits {
         clean_heads: 8,
     },
     queue_window: Duration::from_secs(30),
+    sitting: temper_engine_domain_forge::SITTING,
 };
 
 fn repository(provider: Repository, prefix: &[u8], review: bool) -> d::Stored {

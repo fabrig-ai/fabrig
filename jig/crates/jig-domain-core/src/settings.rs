@@ -106,6 +106,47 @@ pub struct Item {
     pub setting: Setting,
     pub edit: Edit,
 }
+/// Projects named by a proposal's items (jig/docs/design/domain/engine.md, 17.6).
+pub const PROPOSAL_PROJECTS: u32 = 32;
+#[must_use]
+pub fn touched_projects(items: &[Item]) -> List<u32> {
+    proposal_projects(items, &[])
+}
+fn proposal_projects(items: &[Item], applications: &[application::Recorded]) -> List<u32> {
+    let mut projects = skein_lib::Set::with_capacity(PROPOSAL_PROJECTS);
+    for item in items {
+        let project = match item.setting {
+            Setting::Application { scope: 0, .. }
+            | Setting::Charter(_)
+            | Setting::Template(_)
+            | Setting::Policy(_)
+            | Setting::Rules => continue,
+            Setting::Application { scope, .. } => scope,
+            Setting::ProjectPolicy { project } => project,
+        };
+        include_project(&mut projects, project);
+    }
+    for item in applications {
+        if item.scope != 0 {
+            include_project(&mut projects, item.scope);
+        }
+    }
+    let mut result = List::with_capacity(PROPOSAL_PROJECTS);
+    for project in &projects {
+        result.push(*project).expect("bounded touched projects");
+    }
+    result
+}
+fn include_project(projects: &mut skein_lib::Set<u32>, project: u32) {
+    if let Err(project) = projects.insert(project) {
+        let last = *projects.last().expect("full project set");
+        if project < last {
+            assert!(projects.remove(&last), "greatest project is held");
+            projects.insert(project).expect("removed greatest project");
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Change {
     pub against: u32,
@@ -190,6 +231,12 @@ pub struct Proposal {
     pub against: u32,
     pub items: Box<[Item]>,
     pub applications: Box<[application::Recorded]>,
+}
+impl Proposal {
+    /// Project scopes survive application values being kept by their connector (17.5–17.6).
+    pub(crate) fn projects(&self) -> List<u32> {
+        proposal_projects(&self.items, &self.applications)
+    }
 }
 
 /// Only defaults and changes own current values. Revision history stays in the store.

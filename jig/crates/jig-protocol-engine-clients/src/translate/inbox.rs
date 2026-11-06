@@ -57,6 +57,7 @@ pub fn entry(value: &d::InboxEntry, limits: &w::Limits) -> Result<w::InboxEntry,
     w::InboxEntry::new(
         limits,
         w::InboxEntryParts {
+            projects: value.projects.clone(),
             reply: match &value.reply {
                 Some(item) => Some(super::queries::line(item, limits)?),
                 None => None,

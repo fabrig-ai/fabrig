@@ -33,6 +33,7 @@ pub fn offered(act: ActKind, admission: Admission) -> List<Offered> {
 }
 pub fn proposal(act: ActKind, admission: Admission) -> ReadValue {
     ReadValue::Proposal(Box::new(Proposal {
+        projects: List::with_capacity(0),
         key: PROPOSAL,
         project: PROJECT,
         reason: DocumentText::complete(text(b"Make a goal")),

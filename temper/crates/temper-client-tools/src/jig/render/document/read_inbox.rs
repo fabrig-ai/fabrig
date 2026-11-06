@@ -59,6 +59,12 @@ pub(super) fn encode_owner_inbox_entry(
         }
         None => out.null(),
     }
+    out.key(b"projects");
+    out.array_start();
+    for project in &value.projects {
+        out.unsigned(u64::from(*project));
+    }
+    out.array_end();
     out.key(b"object");
     encode_owner_inbox_object(&value.object, out, budget);
     out.key(b"activity");

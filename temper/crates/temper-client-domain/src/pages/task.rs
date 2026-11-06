@@ -457,6 +457,7 @@ impl Task {
             | Act::ConnectModel(_)
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::ShowReference
             | Act::Starter { .. }
             | Act::SkipToBegin
             | Act::RetryPlayground
@@ -588,6 +589,7 @@ impl Task {
             | Act::ConnectModel(_)
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::ShowReference
             | Act::Starter { .. }
             | Act::SkipToBegin
             | Act::RetryPlayground

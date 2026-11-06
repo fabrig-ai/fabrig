@@ -76,8 +76,12 @@ configure-chat-accepted
 configure-chat-document
 configure-chat-document-split
 configure-chat-proposal
+configure-chat-proposal-deployment
+configure-chat-proposal-two-projects
 configure-chat-replaced
 configure-chats-tag
+configure-reference
+configure-reference-draft
 configure-refused
 configure-sending
 configure-typing
@@ -159,6 +163,7 @@ home-copying
 home-github
 home-landing-none
 home-landing-red
+home-last-landed
 home-last-looked-none
 home-morning
 home-morning-card

@@ -25,11 +25,11 @@ fn status_world(allowed: bool, funded: bool) -> World {
         *charter = walking::charter();
         charter.number = number;
     }
-    // Leave period spend outside the person's pool for deployment-started agent work.
-    if funded {
-        for role in &mut defaults.policies.get_mut(&1).expect("stock project policy").policy.roles {
-            role.period_spend = role.period_spend.min(1000);
-        }
+    if !funded {
+        let policy = &mut defaults.policies.get_mut(&1).expect("stock project policy").policy;
+        policy.period_spend = policy.roles[0].period_spend;
+        // This world's calendar opens its period from the rules' spend.
+        defaults.rules.period_spend = policy.period_spend;
     }
     // The reference's policy may withhold this charter; the procedure still gets made.
     if !allowed {
@@ -108,6 +108,11 @@ fn ready(allowed: bool) -> World {
     ready_with(allowed, true)
 }
 fn ready_with(allowed: bool, funded: bool) -> World {
+    let (mut world, requester) = opened_chat(allowed, funded);
+    land_and_look(&mut world, &requester);
+    world
+}
+fn opened_chat(allowed: bool, funded: bool) -> (World, engine::Assignment) {
     let mut world = status_world(allowed, funded);
     world.adopt_with_checks(false, Box::new([1]));
     let mut hello_event = protocol::hello_slots(CHANNEL, 3, Box::new([]));
@@ -127,15 +132,18 @@ fn ready_with(allowed: bool, funded: bool) -> World {
     batch[0].tracked = Some(3);
     batch[0].label = 2;
     let requester = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
-    let change = super::questions::make_change(&mut world, &requester, 93, engine::ChangeQuestions::None);
-    let producer = super::questions::next_producer(&mut world, change);
-    let branch = super::questions::row(&world, change).branch.clone();
+    (world, requester)
+}
+fn land_and_look(world: &mut World, requester: &engine::Assignment) {
+    let change = super::questions::make_change(world, requester, 93, engine::ChangeQuestions::None);
+    let producer = super::questions::next_producer(world, change);
+    let branch = super::questions::row(world, change).branch.clone();
     assert!(world.assigned.iter().all(|run| run.charter != 9), "the first look never spends");
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"widget fixed", 1)
         .expect("producer pushed");
     answer(
-        &mut world,
+        world,
         &producer,
         tasks::TaskResult::Change {
             title: tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
@@ -159,9 +167,9 @@ fn ready_with(allowed: bool, funded: bool) -> World {
             link: Box::new([]),
         }),
     );
-    let reviewer = super::reviews::next_assignment(&mut world, 2);
+    let reviewer = super::reviews::next_assignment(world, 2);
     answer(
-        &mut world,
+        world,
         &reviewer,
         tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
     );
@@ -173,9 +181,8 @@ fn ready_with(allowed: bool, funded: bool) -> World {
             break;
         }
     }
-    assert_eq!(facts(&world).landed, 1);
-    next_sitting(&mut world, 171);
-    world
+    assert_eq!(facts(world).landed, 1);
+    next_sitting(world, 171);
 }
 fn run(world: &World) -> engine::Assignment {
     world
@@ -228,6 +235,31 @@ fn assert_brief(world: &mut World) {
         world.oracle_document(world.signed_in.expect("owner session"), PROJECT, forge_top::status_subject(PROJECT));
     let Some(forge_top::Document::Status(status)) = document else { panic!("status document") };
     assert_eq!(status.brief, Some(expected));
+}
+#[test]
+fn a_stock_project_with_its_owners_pool_open_writes_its_brief() {
+    // The walking model takes K's 256-unit floor: a chat is 24K.
+    const CHAT_SPEND: u64 = 24 * 256;
+    const POOL_SPEND: u64 = 80 * CHAT_SPEND;
+    let (mut world, requester) = opened_chat(true, true);
+    let period = tasks::Funder::Period { project: PROJECT, period: 1 };
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ledger(ledger)))) =
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ledger(period))))
+    else {
+        panic!("open period's funding")
+    };
+    let numbers = ledger.numbers;
+    land_and_look(&mut world, &requester);
+    let agent = run(&world);
+    finish(&mut world, &agent);
+    assert_brief(&mut world);
+    assert_eq!(numbers.reserved, POOL_SPEND, "the owner's open pool reserves eighty chats");
+    assert_eq!(
+        numbers.budget - numbers.reserved - numbers.spent - numbers.spent_below,
+        CHAT_SPEND,
+        "one chat remains outside the pool"
+    );
+    world.close();
 }
 #[test]
 fn a_look_after_a_landing_runs_the_agent_and_saves_its_brief() {
@@ -333,6 +365,9 @@ fn no_unreserved_spend_refuses_the_run_without_a_task() {
     let mut world = ready_with(true, false);
     assert_eq!(facts(&world).running, None);
     assert_eq!(facts(&world).brief, None);
+    assert!(world.store.rows.values().all(|record| !matches!(record,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
+        if matches!(row.executor, tasks::Executor::Person(_)))));
     assert!(world.store.rows.values().all(|record| !matches!(record,
         Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row)))
         if row.executor == (tasks::Executor::Procedure { connector: 1, code: 5 }))));

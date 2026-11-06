@@ -294,7 +294,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 5551);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 5661);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -863,8 +863,8 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
         let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
         assert_eq!(stock.rules.maximum_run_spend, k, "{row}");
-        for (charter, (turns, seconds)) in
-            stock.charters.iter().zip([(64, 3600), (800, 28_800), (64, 3600), (800, 28_800), (800, 28_800), (4, 300)])
+        for (charter, turns, seconds) in
+            [(&stock.charters[0], 64, 3600), (&stock.charters[1], 800, 28_800), (&stock.charters[5], 4, 300)]
         {
             assert_eq!(charter.policy.turns, turns, "{row}: charter {}", charter.number);
             assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(seconds), "{row}");
@@ -878,12 +878,15 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
         assert_eq!(policy.roles[0].authority.budget.spend, 24 * k, "{row}");
         for spend in [
             stock.rules.ceiling.budget.spend,
-            stock.rules.period_spend,
             policy.ceiling.budget.spend,
-            policy.period_spend,
             policy.roles[0].period_spend,
+            policy.roles[1].period_spend,
         ] {
             assert_eq!(spend, 80 * 24 * k, "{row}");
+        }
+        assert_eq!(policy.roles[2].period_spend, 24 * k, "{row}");
+        for spend in [stock.rules.period_spend, policy.period_spend] {
+            assert_eq!(spend, 81 * 24 * k, "{row}");
         }
     }
 }
@@ -929,10 +932,9 @@ fn the_stock_funds_eighty_chats_in_one_period() {
         let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
         let policy = &stock.policies.get(&1).expect("policy 1").policy;
         let chat = policy.roles[0].authority.budget.spend;
-        for period in [policy.period_spend, policy.roles[0].period_spend, stock.rules.period_spend] {
-            assert!(80 * chat <= period, "{row}: eighty open chats fit the period");
-            assert!(81 * chat > period, "{row}: an eighty-first open chat exceeds the period");
-        }
+        let pool = policy.roles[0].period_spend;
+        assert!(80 * chat <= pool, "{row}: eighty open chats fit the pool");
+        assert!(81 * chat > pool, "{row}: an eighty-first open chat exceeds the pool");
     }
 }
 
@@ -1194,10 +1196,9 @@ fn the_stock_pool_funds_eighty_chats_at_once() {
     assert_eq!(stock.templates[0].budget, jig_domain_people::TemplateBudget::AsAllowed { cap: None });
     let chat_spend = policy.roles[0].authority.budget.spend;
     assert_eq!(chat_spend, 24 * 4228);
-    for spend in [stock.rules.period_spend, policy.period_spend, policy.roles[0].period_spend] {
-        assert!(spend >= 80 * chat_spend);
-        assert!(spend < 81 * chat_spend);
-    }
+    let pool = policy.roles[0].period_spend;
+    assert!(pool >= 80 * chat_spend);
+    assert!(pool < 81 * chat_spend);
 }
 
 #[test]
@@ -1242,6 +1243,21 @@ fn configuring_txt_tells_it_how_project_works() {
     assert!(words.contains("Use note:"));
     assert!(words.contains("Change nothing yourself."));
     assert_document_rule(words);
+}
+
+#[test]
+fn configuring_txt_starts_from_temper_own_way() {
+    let words = include_str!("../stock/configuring.txt");
+    assert_eq!(
+        words.rsplit("\n\n").nth(1).expect("the penultimate paragraph gives temper's own way"),
+        concat!(
+            "To set a project up as temper builds itself, first read_docs, topic how-temper-builds-temper. ",
+            "Size settings for this deployment's worker slots and account models. ",
+            "Say what it cannot do yet and leave it out. ",
+            "In \"How PROJECT works\", keep temper's own values in a column beside the project's, each difference a sentence the person can change.",
+        )
+    );
+    assert!(temper_docs::find(b"how-temper-builds-temper").is_some());
 }
 
 #[test]
