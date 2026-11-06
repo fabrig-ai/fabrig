@@ -70,3 +70,9 @@ Acceptance:
 ## Report
 
 Each rule you broke by hand and its failure; the figures that moved; whether you took the early-start option; and any reader you had to change.
+
+## Answers
+
+2026-11-06. **Regenerate `temper/tests/playground/tests/fixtures/story-a.log` here, or have its owner refresh it first?** Neither: leave it, and list it under `## Left`. The run's acceptance is met, and the log is outside this task. The schema's growth is the request's item 3, and the log's format doesn't change, so nothing is stopped by `notes/common.md`'s rule on goldens, and this answer and your report tell its owner. The trunk's end check and its repair take the visit once the merges meet, regenerating with its generator (`SKEIN_CODEGEN_WRITE` on `story_a_walks_from_the_welcome_to_the_csv_change_landed`), never by hand.
+
+What's left for this task: the pushed commit stands. The fail-fast stop left the figures this spec gives you unobserved, and `goal-start` runs `temper-service`. So run `heavy cargo nextest run -p temper-service --lib -E 'test(/^tests::stock::brief::/)'` (the file compiles as that module; check the count). If it fails on a room figure the schema's 88 bytes moved, change that figure only, with what's derived from it at `temper-service/src/limits.rs`, near line 397 (the comment and `brief_bytes`, which is charter 3's room less 1,473), and `temper/docs/design/domain/agent.md`, 4.3 ("at least 361 bytes") if that one moved, then commit and push. `limits.rs` is named here for those two alone. Say in the report which figures moved. Don't rerun the wider suites or chase other replay failures: name them under `## Left` as unobserved.
