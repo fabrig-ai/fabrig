@@ -20,7 +20,11 @@ pub fn bundle() -> crate::server::Bundle {
     files
         .insert(
             Box::from(b"boot.js".as_slice()),
-            crate::server::File { kind: b"text/javascript", bytes: Box::from(b"boot();".as_slice()) },
+            crate::server::File {
+                kind: b"text/javascript",
+                bytes: Box::from(b"boot();".as_slice()),
+                gzip: Some(Box::from(b"compressed boot".as_slice())),
+            },
         )
         .expect("boot file");
     files
@@ -29,6 +33,7 @@ pub fn bundle() -> crate::server::Bundle {
             crate::server::File {
                 kind: b"text/plain; charset=utf-8",
                 bytes: Box::from(b"User-agent: *\nDisallow: /\n".as_slice()),
+                gzip: None,
             },
         )
         .expect("root file");
