@@ -74,3 +74,11 @@ Options, each decided:
 ## Report
 
 Landed or not, by the rule, with each arm's medians and load and each query count; the rules you broke to see the tests bite, if it landed; and your implementation and check minutes apart.
+
+## Answers
+
+2026-11-06 (temper/ui). Q: resume after `window-story` repairs the long story's script admission, or widen this task to repair that fixture? A: resume after `window-story`; this task doesn't widen, and `browser_pages.rs`, `temper-fake` and the bundle's window stay out of it. The blocker is `window-story`'s own, its answer settles it (a 64 KiB window, about 192 KiB of replies, inside the fake's joint bound), and its second run is carrying that out; measuring any other fixture would measure stories that aren't the ones landing.
+
+fab may start this run before `window-story` merges, on what it has pushed. So, before any build or measurement, `git fetch origin` and merge `origin/browser-budget/window-story`, then read `temper/docs/plan/browser-budget/figures/window-story.md`: the repair is in when its after arm shows passing runs of all four stories, in place of `unobserved: joint script bound blocks after arm` (or when that branch is an ancestor of `origin/browser-budget/integration`). If it isn't in, fetch again every five minutes for up to thirty, building and measuring nothing. If it's still not in, stop with `Question: window-story's repair isn't pushed; resume after it`, changing nothing. Don't run the long story to find out.
+
+Once it's in, take all 24 comparison runs on that base, and merge again before pushing; if the merge changes `browser_pages.rs`, the tier's bundle or `face.rs`, measure again. In `figures/find-backoff.md`, keep the failed `A/1` row of `7485300d7b` as a run of the old base, counted in no median, and replace the rest of what's written there with the comparison and the decision by the rule above. The thresholds, the patch's figures and the *Steps* stay as they are.
