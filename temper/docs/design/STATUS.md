@@ -384,6 +384,7 @@ Drafts:
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
 - [`draft/github.md`](draft/github.status.md)
+- [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
