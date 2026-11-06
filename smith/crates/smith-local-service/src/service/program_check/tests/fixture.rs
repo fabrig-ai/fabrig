@@ -27,7 +27,7 @@ impl Fixture {
                 root_closed: false,
                 detail_bytes: 1024,
                 duration: Duration::from_secs(300),
-                next_owner: 1 << 60,
+                next_owner: 0,
                 active: None,
                 interrupted: 0,
             },
@@ -59,7 +59,7 @@ impl Fixture {
         assert_eq!(reason, expected_reason);
     }
     pub(super) fn finish(&mut self, output: &[u8], code: u8) {
-        let owner = Token::new(self.checks.next_owner.checked_sub(1).unwrap());
+        let owner = Token::tagged(PROGRAM_TAG, self.checks.next_owner.checked_sub(1).unwrap()).unwrap();
         self.checks.receive(io::Event::Stream { owner: OUT, up: stream::Up::Bytes(output.into()) }, &mut self.below);
         self.checks.receive(io::Event::Exited { owner, exit: kernel::Exit::Code(code) }, &mut self.below);
         self.checks.receive(io::Event::Closed { owner }, &mut self.below);

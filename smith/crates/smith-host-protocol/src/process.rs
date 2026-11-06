@@ -14,6 +14,7 @@ use smith_host_domain::channel;
 use crate::{Component, Error, Limits, Received, Values};
 
 const STDERR_READ: u32 = 4096;
+const IO_TAG: u8 = 8;
 
 #[cfg(test)]
 mod tests;
@@ -79,11 +80,10 @@ impl Process {
         detail_bytes: u32,
         endpoints: smith_protocol_translate::Endpoints,
     ) -> Result<Process, Error> {
-        assert!(agent.raw() < (1_u64 << 63_u32), "domain owner fits the process-owner namespace");
         Ok(Process {
             channel: Component::new(limits, StreamMode::Two, endpoints)?,
             agent,
-            io_owner: Token::new(agent.raw() | (1_u64 << 63_u32)),
+            io_owner: Token::tagged(IO_TAG, agent.raw()).expect("domain owner fits the process-owner namespace"),
             state: State::Idle,
             deadline: Time::ZERO,
             child: None,
