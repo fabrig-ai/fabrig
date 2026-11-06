@@ -2324,3 +2324,70 @@ fn the_widest_link_is_whole_on_a_terminal_and_one_byte_more_is_refused() {
         stop_first_link(&mut harness);
     }
 }
+
+fn source_steps() -> temper_forge_setup::Steps {
+    let mut steps = grouped_steps();
+    let mut group = List::with_capacity(u32::try_from(steps.asked[0].steps.len().checked_add(1).unwrap()).unwrap());
+    for step in &steps.asked[0].steps {
+        group.push(step.clone()).unwrap();
+    }
+    group.push((temper_forge_setup::Stage::Source, once(b"source 3", &[b"never"]).ending_ignored())).unwrap();
+    steps.asked[0].steps = group.into_boxed();
+    steps
+}
+#[test]
+fn source_outcomes_precede_started_are_replayed_and_failures_are_logged_once() {
+    for line in [b"source added\n".as_slice(), b"source failed discovery unavailable\n"] {
+        let mut h = Harness::grouped(source_steps(), &[], true);
+        h.run_until_idle();
+        h.ask(b"start 3\n");
+        h.run_until_idle();
+        let child = h.child_index(b"source 3");
+        h.write_stdout(child, line);
+        finish_child(&mut h, b"source 3", 0);
+        let outcome = crate::pipe::source(3, &temper_forge_setup::sign_in::Source::read(line).unwrap());
+        let ending = crate::lines::joined(&[&outcome, b"started 3\n"]);
+        assert!(h.reply_bytes().ends_with(&ending));
+        assert!(!Harness::contains(&h.reply_bytes(), b"failed 3"));
+        h.ask(b"start 3\n");
+        h.run_until_idle();
+        assert!(h.reply_bytes().ends_with(&crate::lines::joined(&[&ending, &ending])));
+        let count = bytes::count(&h.log(), b"no sign-in through temper:", u32::MAX);
+        assert_eq!(count, u32::from(line.starts_with(b"source failed")));
+        assert_eq!(h.spawn_times(b"source 3").len(), 1);
+        stop_fetch_box(&mut h);
+    }
+}
+#[test]
+fn a_silent_source_ending_gets_the_boxs_failure_line_and_still_starts() {
+    for exit in [Exit::Code(0), Exit::Code(7), Exit::Signal(9)] {
+        let mut h = Harness::grouped(source_steps(), &[], true);
+        h.run_until_idle();
+        h.ask(b"start 3\n");
+        h.run_until_idle();
+        let pid = h.hosted.get(h.child_index(b"source 3")).unwrap().pid;
+        h.sim.finish_service(pid, exit);
+        h.run_until_idle();
+        assert!(Harness::contains(&h.reply_bytes(), b"source 3 failed source "));
+        assert!(h.reply_bytes().ends_with(b"started 3\n"));
+        assert_eq!(bytes::count(&h.log(), b"no sign-in through temper:", u32::MAX), 1);
+        assert_eq!(h.spawn_times(b"source 3").len(), 1);
+        stop_fetch_box(&mut h);
+    }
+}
+
+#[test]
+fn a_source_that_never_started_has_a_logged_outcome_and_never_fails_the_group() {
+    let mut h = Harness::grouped(source_steps(), &[], true);
+    h.run_until_idle();
+    h.hold_spawn = Some(b"source 3".as_slice().into());
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    assert!(h.held_spawn.is_some());
+    h.fail_spawn();
+    h.run_until_idle();
+    assert!(h.reply_bytes().ends_with(b"source 3 failed source did not start\nstarted 3\n"));
+    assert_eq!(bytes::count(&h.log(), b"no sign-in through temper:", u32::MAX), 1);
+    assert_eq!(h.spawn_times(b"source 3").len(), 1);
+    stop_fetch_box(&mut h);
+}

@@ -249,7 +249,11 @@ fn members(
             read::finish(object, document, &path, problems);
             if let (Some(address), Some(login)) = (address, login) {
                 read::form(self::address(&address), path.member(b"address"), problems);
-                read::form(self::login(&login), path.member(b"login"), problems);
+                read::form(
+                    self::login(&login) && !login.eq_ignore_ascii_case(b"temper"),
+                    path.member(b"login"),
+                    problems,
+                );
                 let identity_bytes =
                     skein_lib::len_u64(address.len()).saturating_add(skein_lib::len_u64(login.len()).saturating_mul(2));
                 for (limit, bound) in [

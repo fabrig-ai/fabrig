@@ -120,8 +120,13 @@ enum Role {
     Remover,
 }
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "ending policy is independent of the step's readiness, wait and withdrawal state"
+)]
 pub(crate) struct State {
     kind: Kind,
+    ignore_ending: bool,
     role: Role,
     ready: bool,
     waiting: bool,
@@ -205,6 +210,7 @@ impl Machine {
             states
                 .push(State {
                     kind: step.step.kind(),
+                    ignore_ending: step.step.ignores_ending(),
                     role: match step.asked {
                         Some(asked) => {
                             if asked.remover {
@@ -452,7 +458,7 @@ impl Machine {
                 self.remove_failed(forge, Why::RemoveNotStarted, orders);
             }
             Input::Exited { exit, .. } => {
-                state.phase = Phase::Closing { next: None, success: exit == Exit::Code(0) };
+                state.phase = Phase::Closing { next: None, success: state.ignore_ending || exit == Exit::Code(0) };
                 state.why = Some(Why::RemoveExited { exit });
                 orders.push(Order::Close { step });
             }
@@ -599,6 +605,7 @@ impl Machine {
                     self.ended_start(now, step, orders);
                 } else {
                     if self.outcome.is_none()
+                        && !self.states.get(step).expect("step").ignore_ending
                         && let Some(group) = self.starting_group(step)
                     {
                         self.states.get_mut(step).expect("step").phase = Phase::Stopped;
@@ -617,7 +624,7 @@ impl Machine {
                             | Phase::Grace { .. }
                             | Phase::Stopped => return,
                         };
-                        state.phase = Phase::Closing { next, success: false };
+                        state.phase = Phase::Closing { next, success: state.ignore_ending };
                         state.why = Some(Why::NotStarted { step });
                     }
                     self.closed(now, step, orders);
@@ -625,6 +632,7 @@ impl Machine {
             }
             Input::Exited { step, exit } => {
                 if self.outcome.is_none()
+                    && !self.states.get(step).expect("step").ignore_ending
                     && let Some(group) = self.starting_group(step)
                     && (self.states.get(step).expect("step").kind == Kind::Long || exit != Exit::Code(0))
                 {
@@ -804,12 +812,12 @@ impl Machine {
         match state.phase {
             Phase::Starting { next } | Phase::Live { next } => {
                 state.why = Some(Why::Exited { step, exit });
-                state.phase = Phase::Closing { next, success: exit == Exit::Code(0) };
+                state.phase = Phase::Closing { next, success: state.ignore_ending || exit == Exit::Code(0) };
                 orders.push(Order::Close { step });
             }
             Phase::Grace { .. } => {
                 state.why = Some(Why::Exited { step, exit });
-                state.phase = Phase::Closing { next: None, success: exit == Exit::Code(0) };
+                state.phase = Phase::Closing { next: None, success: state.ignore_ending || exit == Exit::Code(0) };
                 orders.push(Order::Close { step });
             }
             Phase::Dormant | Phase::Waiting { .. } | Phase::Closing { .. } | Phase::Backoff { .. } | Phase::Stopped => {

@@ -15,6 +15,7 @@ fn init_document() -> Box<[u8]> {
     // setup.md, 8.2: fixed starting ports and deterministic facts for the reference rendering.
     let ports = [8367, 8368, 8369, 8370, 8371].map(|port| NonZeroU16::new(port).expect("fixed nonzero port"));
     let facts = temper_init::Facts {
+        sign_in: true,
         binary: b"/opt/temper/bin/temper",
         git: Some(b"/usr/bin/git"),
         claude: Some(b"/usr/bin/claude"),

@@ -164,6 +164,7 @@ pub(crate) struct Written {
     pub paths: Vec<PathBuf>,
     pub listeners: Vec<(Fd, NonZeroU16)>,
     pub missing_git: bool,
+    pub no_sign_in: Option<String>,
     pub person: temper_init::Person,
     pub login: Option<Box<[u8]>>,
 }
@@ -235,6 +236,18 @@ fn write_deployment(
         let binary = binary.as_os_str().as_bytes();
         let git = git.as_ref().map(|path| path.as_os_str().as_bytes());
         let claude = claude.as_ref().map(|path| path.as_os_str().as_bytes());
+        directories.open(skein_shell::effective_user())?;
+        let no_sign_in = if boxed {
+            let key = path(&directories.data).join("provider.key");
+            let result = if !key.exists() && find(environment, b"openssl").is_none() {
+                Err("openssl is not on PATH".into())
+            } else {
+                crate::forge_sign_in::make_missing(&key, true)
+            };
+            result.err()
+        } else {
+            None
+        };
         let (files, person, login) = if boxed {
             let demo_key = skein_shell::crypto_seed().map_err(|errno| format!("random demo key: errno {errno}"))?;
             let login = crate::login(skein_shell::effective_user()).ok();
@@ -244,6 +257,7 @@ fn write_deployment(
                     git,
                     claude,
                     login: login.as_deref(),
+                    sign_in: no_sign_in.is_none(),
                     ports: temper_init::Ports {
                         clients: listeners[0].1,
                         owned: listeners[1].1,
@@ -297,10 +311,12 @@ fn write_deployment(
             result.map_err(|why| format!("{}: {why}", destination.display()))?;
             paths.push(destination);
         }
-        Ok((paths, git.is_none(), person, login))
+        Ok((paths, git.is_none(), person, login, no_sign_in))
     })();
     match result {
-        Ok((paths, missing_git, person, login)) => Ok(Written { paths, listeners, missing_git, person, login }),
+        Ok((paths, missing_git, person, login, no_sign_in)) => {
+            Ok(Written { paths, listeners, missing_git, no_sign_in, person, login })
+        }
         Err(why) => {
             for (fd, _) in listeners {
                 io.close(fd);
@@ -324,6 +340,9 @@ pub(crate) fn run(directories: &Directories, boxed: bool) -> Result<u8, String> 
     }
     if crate::bundle::OWN.is_none() {
         eprintln!("init: this temper has no browser (built with TEMPER_BUNDLE=none): the browser is not served");
+    }
+    if let Some(why) = &written.no_sign_in {
+        eprintln!("init: no sign-in through temper: {why}");
     }
     if written.missing_git {
         eprintln!("init: no git on PATH: a real forge's repositories need git 2.41 or later, set as workers[].git");

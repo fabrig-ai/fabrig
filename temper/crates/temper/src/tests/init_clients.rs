@@ -5,6 +5,7 @@ use core::num::NonZeroU16;
 fn every_client_receives_the_text_inits_documents_allow() {
     let port = NonZeroU16::new(8367).expect("nonzero fixture port");
     let facts = temper_init::Facts {
+        sign_in: false,
         binary: b"/opt/temper/bin/temper",
         git: Some(b"/usr/bin/git"),
         claude: None,
