@@ -2757,6 +2757,12 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **The process tier's concurrency proof.** Three tests at a time (2.6)
+  are proved by the next after-landing run on main, per the request
+  `process-threads` of 2026-11-06, in place of `test-speed`'s three whole
+  runs and a loaded one. Only focused and fuzzy run within the plan.
+  The 360 CPU s budget and the profile's 25-minute timeout stand; a red
+  after landing is repaired under 2.6's rule, without raising either.
 - **jig's referee tests, repeated.** `tests/engine/domain/tests/suite/referee.rs`
   keeps tests of jig's referees that jig's own suites hold:
   `authority_referee_rejects_a_person_without_a_grant` observes what
