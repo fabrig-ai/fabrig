@@ -100,7 +100,11 @@ impl Host {
             return;
         }
         let mut kept = List::with_capacity(u32::try_from(records.len()).expect("bounded store"));
+        let mut sign_in = None;
         for record in records {
+            if record.key.as_ref() == records::SIGN_IN_KEY {
+                sign_in = records::decode_sign_in(&record.value);
+            }
             if let Some(record) = records::decode(record) {
                 kept.push(record).expect("counted store");
             }
@@ -112,6 +116,9 @@ impl Host {
             None => jig_client::With::Transport,
         };
         self.event(Event::Start { address: self.address.clone(), kept, with: Some(with) });
+        if let Some(records::SignIn { source, address, refused }) = sign_in {
+            self.event(Event::SignInKept { source, address, refused });
+        }
         if !matches!(place, Place::Address(_)) {
             self.event(Event::Went { place });
         }
@@ -257,6 +264,12 @@ impl Host {
                     root::Tab::Point { to } => TabAct::Point { to },
                     root::Tab::Close => TabAct::Close,
                 }),
+                Request::KeepSignIn { source, address, refused } => {
+                    asked.push(Asked::Save {
+                        key: records::SIGN_IN_KEY.into(),
+                        value: records::encode_sign_in(&records::SignIn { source, address, refused }),
+                    });
+                }
                 Request::Client { request } => {
                     if matches!(request, jig_client::Request::Save { .. } | jig_client::Request::Erase { .. }) {
                         writes = writes.checked_add(1).expect("bounded client write batches");

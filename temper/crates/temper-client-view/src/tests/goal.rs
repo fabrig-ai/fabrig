@@ -190,6 +190,7 @@ fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note>, n
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Fact { .. } => None,
         };
@@ -277,6 +278,13 @@ fn read_value(
                 cut: false,
             })))
         }
+        c::Read::Inbox { .. } => Some(c::ReadValue::Inbox(Box::new(c::InboxPage {
+            rows: List::uncapped(),
+            before: None,
+            after: None,
+            selection: None,
+            cut: false,
+        }))),
         c::Read::Tasks { .. } => Some(c::ReadValue::Tasks(Box::new(side.ended.clone()))),
         c::Read::Settings
         | c::Read::Setting(_)
@@ -293,7 +301,6 @@ fn read_value(
         | c::Read::Result { .. }
         | c::Read::Ended { .. }
         | c::Read::History { .. }
-        | c::Read::Inbox { .. }
         | c::Read::Spend { .. }
         | c::Read::Project { .. }
         | c::Read::Deployment => None,

@@ -4,7 +4,6 @@
 
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *The sign-in's tab*,
   *Its end*, *A reload while it waits* and *From another computer*; 7, *A sign-in's address in the small store*; 10:
-  A page reloaded holds no address, so it draws no "Open it again".
 - **Not yet:** 4.6, 8: the family still carries `return`, `Return`, answered `returning`, the root sends it, and the
   engine gives the return, until `../draft/sign-in-new-tab.md`, 5 is built.
 - **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request
@@ -179,12 +178,6 @@
   card and its count. No live walk shows that card: the gallery's
   `configure-chat-proposal` draws it in a chat, and `needs-proposal` is a goal's.
   Section 11 holds the decision.
-- **Not yet:** 3.5, *Claude*, 5.5: the command is the same words whatever the box's
-  directories (`temper-client-view`'s `pages/connect_model.rs`, `command`), so on a
-  box given its own it refuses, where the answer of 2026-11-05 to the `ui-final-walk`
-  task `fix-flow` has it run as shown. The pinned fetch has run by hand only with the
-  three directories exported, to Claude Code's first sign-in prompt. Section 11
-  holds it, because it needs a fact no client is given.
 - **Not yet:** 3.5, *What the client keeps*, its held send: once, on a fake box at
   1440, a choice pressed just after Undo left the card, the count and the engine's
   question as they were after six seconds, and a repeat on a fresh box and the walk

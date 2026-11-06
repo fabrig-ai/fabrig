@@ -2,7 +2,7 @@
 id = "browser-story"
 part = "tab-browser"
 kind = "feature"
-needs = ["sign-in-holds", "moves-on", "view-tab", "kit-tabs"]
+needs = ["sign-in-holds", "moves-on", "view-tab", "kit-tabs", "kit-behind-tab"]
 files = ["temper/tests/client-browser/tests/browser_all/browser_accounts.rs", "temper/tests/client-browser/src/lib.rs"]
 effort = "high"
 minutes = 50
@@ -40,3 +40,9 @@ Acceptance, as `temper/docs/design/client/browser.md`, 4.2, *`ConnectModel`'s si
 ## Report
 
 As the implementer's text asks. Say plainly what ran on Chromium, its version, and that Firefox and Safari were read and not run. Give the tier's wall time.
+
+## Answers
+
+2026-11-06. Should a separate skein task take the Chromium queries that fail once the sign-in tab has opened, or this task? A separate one, `kit-behind-tab`, which this task now needs. `kit-tabs` and `web-tab-story` met the same fault and went round it, so it is skein's, reproduced in skein (`AGENTS.md`, 5), and this task's acceptance can't hold without it: a story must see "Signed in to Test provider" on the page that stayed.
+
+Take the partial stories on from commit `6eae35ee87` on `sign-in-new-tab/browser-story`, changing no expectation for them. What stays outstanding is the task's: the standalone story passing, the welcome's story run, the two-tab break seen failing, the tier's wall time, and the status line. If they still fail with `kit-behind-tab` landed, stop and ask again, with the log.

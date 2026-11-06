@@ -306,7 +306,7 @@ to the next command, never a closure waiting on a reply:
 | a person | a browser context created; with a downloads directory, its downloads allowed there under the browser's own names, with their events (`Browser.setDownloadBehavior`, `allowAndName`, `eventsEnabled`), else denied |
 | opening a page | create a target in the person's context, attach to it, enable the domains it reports on, set the viewport, navigate; `Opened` once the load event fires |
 | go | navigate, reload, or move through the history; the page's `beforeunload` prompt, if it opens meanwhile, accepted, and `Warned`; `Done` once the navigation commits: the load event for a new document, the same-document event for one that stays |
-| find | the accessibility nodes matching the role and the name, under the scope or the page's current document, either asked by its object in that document (below): exactly, both asked of CDP; by words, the role's nodes asked without a name, their names compared in the kit; at most `Limits::matches` kept, the rest counted in `more`; their properties; their boxes, if asked |
+| find | the page brought to the front (`Page.bringToFront`); the accessibility nodes matching the role and the name, under the scope or the page's current document, either asked by its object in that document (below): exactly, both asked of CDP; by words, the role's nodes asked without a name, their names compared in the kit; at most `Limits::matches` kept, the rest counted in `more`; their properties; their boxes, if asked |
 | await | a find, again every `Limits::poll`, until the expectation holds (`Met`) or `within` passes (`Missed`) |
 | press | the node scrolled into view, its named point with it; its box's centre, or the named point in the box; layout metrics turn the viewport point into document coordinates for the hit test; refused `Hidden` without a box or with a point outside it, `Disabled` if its accessibility node says so, `Covered` unless the hit test at that point lands on the node or inside it; then the mouse moved, pressed and released at the viewport point |
 | type | text with CR/LF first describes its node; for a single-line `input`, CR and LF are removed as on a person’s paste (CDP’s `Input.insertText` would change them to spaces). Text areas and editable content keep their line endings. Then the node is focused and the text inserted |
@@ -317,8 +317,21 @@ to the next command, never a closure waiting on a reply:
 | address | the page's navigation history (`Page.getNavigationHistory`); its current entry's URL, `Address` |
 | tabs | the browser's targets (`Target.getTargets`), those of type `page` in the page's person's context that no `Page` request opened, in the reply's order; each one's URL, title and `canAccessOpener`, within `Limits::matches`, the rest counted; `Tabs`. No script runs in them, and the kit attaches to none: what a person's tab strip and address bar show, and the browser's own word on the opener |
 | attribute | the current document's root (`DOM.getDocument`, its root alone); the first element under it the selector finds (`DOM.querySelector`), `NoElement` if none; its attributes (`DOM.getAttributes`), the named one's value, or `NoAttribute`; refused `Protocol` for a selector Chromium cannot parse, and `Limit` for a value past `Limits::text`, which is never cut, since a test uses it whole |
-| snapshot | the accessibility tree under the document, as indented lines of role, name, value and states, cut at `Limits::snapshot` |
-| screenshot | the viewport as PNG, under `Limits::screenshot` |
+| snapshot | the page brought to the front; the accessibility tree under the document, as indented lines of role, name, value and states, cut at `Limits::snapshot` |
+| screenshot | the page brought to the front; the viewport as PNG, under `Limits::screenshot` |
+
+- **A look brings its page to the front,** as a person chooses a tab
+  before looking: each find (each poll of an await), snapshot and
+  screenshot sends `Page.bringToFront` on that page's session and waits
+  for its answer before reading. A page already in front takes the same
+  step, with no extra polling. Its other tabs keep loading; the kit
+  attaches to none of them.
+  - A story's page counts as hidden while Chromium reports it hidden:
+    after another tab takes the front, until this page is brought back.
+    Looking brings it back and makes it visible to its own
+    `visibilitychange` listener (ui-web.md, section 10). A story about a
+    hidden page leaves it without these looks for the hidden interval;
+    listing tabs and reading attributes do not bring it to the front.
 
 - **A find by words reads each name whole,** as the reply carries it,
   before a kept name is cut to `Limits::text`. Its reply holds every node

@@ -212,6 +212,7 @@ pub(super) fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Fact { .. } => None,
         })
@@ -861,6 +862,82 @@ fn the_connected_model_offers_continue_as_a_terminal_command() {
     );
 }
 
+pub(super) const ENVIRONMENT: &[u8] = b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache'";
+pub(super) fn answer_environment(root: &mut d::Domain, words: &[u8]) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let address = root.pages().address().clone();
+    fixtures::root_event(root, d::Event::Went { place: d::Place::Address(d::Address::Accounts) });
+    let limits = fixtures::limits();
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits };
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(root, &env, d::Event::Went { place: d::Place::Address(address) }, &mut out);
+    let read = out
+        .iter()
+        .find_map(|request| {
+            if let d::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                    },
+            } = request
+                && wire::decode_reading(&record.bytes, &w::CEILINGS)
+                    .is_some_and(|reading| *reading.read() == w::Read::ProgramEnvironment)
+            {
+                Some(*read)
+            } else {
+                None
+            }
+        })
+        .expect("program page reads its environment");
+    let answer =
+        w::ProgramEnvironmentAnswer::new(&w::CEILINGS, w::ProgramEnvironmentAnswerParts { environment: words.into() })
+            .unwrap();
+    fixtures::root_event(
+        root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: wire::FORGE,
+                        record: Some(wire::program_environment_answer(&answer)),
+                    },
+                },
+            },
+        },
+    );
+}
+pub(super) fn command_line(root: &d::Domain) -> Vec<u8> {
+    let view = fixtures::page_view(root);
+    let nodes = view.tree().nodes();
+    let position = nodes.iter().position(|node| node.role == Role::Code).expect("command code");
+    let code = nodes.get(position).unwrap();
+    let runs: Vec<_> = nodes
+        .iter()
+        .skip(position)
+        .take(usize::try_from(code.size).unwrap())
+        .flat_map(|node| node.text.iter())
+        .collect();
+    assert_eq!(runs.len(), 1, "the command is one plain run");
+    assert_eq!(runs[0].run, skein_ui::Run::Plain);
+    runs[0].text.to_vec()
+}
+
+#[test]
+fn the_command_stays_short_without_words() {
+    let (root, _) = flow_fixture(d::WayKind::Program);
+    assert_eq!(command_line(&root), b"temper program-login claude-pat");
+}
+#[test]
+fn the_command_takes_the_words_first() {
+    let (mut root, _) = flow_fixture(d::WayKind::Program);
+    answer_environment(&mut root, ENVIRONMENT);
+    assert_eq!(
+        command_line(&root),
+        b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper program-login claude-pat"
+    );
+}
+
 #[test]
 fn both_waiting_pages_reject_an_unsafe_address() {
     for welcome in [false, true] {
@@ -929,6 +1006,78 @@ fn ended_sign_ins_remove_the_note_on_both_pages() {
                 assert!(text.contains(message), "{text}");
                 assert!(!text.contains("Go forward to that page"));
             }
+        }
+    }
+}
+
+#[test]
+fn a_reloaded_source_reads_only_its_kept_address_and_refusal() {
+    for welcome in [false, true] {
+        for (source, refused) in [(43, false), (43, true), (44, true)] {
+            let way = Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::SignIn, source: Some(43) });
+            let address = if welcome {
+                d::Address::Welcome { step: d::Step::Model { way } }
+            } else {
+                d::Address::ConnectModel { way }
+            };
+            let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
+            fixtures::root_event(&mut root, d::Event::Went { place: d::Place::Address(address) });
+            let mut view = fixtures::browser_page_view(&root);
+            fixtures::root_event(
+                &mut root,
+                d::Event::SignInKept {
+                    source,
+                    address: Box::from(b"https://issuer.example/visit".as_slice()),
+                    refused,
+                },
+            );
+            for delivered in [false, true] {
+                if delivered {
+                    let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn);
+                    doc.usable = false;
+                    doc.accounts.clear();
+                    doc.signing.get_mut(0).unwrap().source = 43;
+                    super::accounts::deliver(&mut root, watch, doc);
+                }
+                let page = root.pages().connect_model().unwrap();
+                assert_eq!(
+                    page.request.sign_in_address(root.client()),
+                    (source == 43).then_some(b"https://issuer.example/visit".as_slice())
+                );
+                assert_eq!(page.tab_refused(), source == 43 && refused);
+                let tree = fixtures::build(&mut view, &root);
+                assert!(fixtures::find(tree, Role::Button, b"Continue with ChatGPT").is_none());
+                let name =
+                    if source == 43 && refused { "Open ChatGPT’s sign-in ›".as_bytes() } else { b"Open it again" };
+                let link = fixtures::find(tree, Role::Link, name);
+                assert_eq!(link.is_some(), source == 43);
+                if let Some(link) = link {
+                    let node = tree.nodes().iter().find(|node| node.id == link).unwrap();
+                    assert_eq!(node.external.as_deref(), Some(b"https://issuer.example/visit".as_slice()));
+                    assert!(node.styles.as_slice().contains(&if refused {
+                        crate::look::FLOW_PRIMARY
+                    } else {
+                        crate::look::WELCOME_AGAIN
+                    }));
+                    let title =
+                        if refused { "ChatGPT’s sign-in" } else { "Waiting for ChatGPT’s sign-in, in the new tab" };
+                    assert!(fixtures::find(tree, Role::Status, title.as_bytes()).is_some());
+                }
+            }
+            let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn);
+            doc.usable = false;
+            doc.accounts.clear();
+            doc.signing.clear();
+            super::accounts::deliver(&mut root, watch, doc);
+            fixtures::build(&mut view, &root);
+            assert!(fixtures::find(view.tree(), Role::Button, b"Continue with ChatGPT").is_some());
+            assert!(
+                !view
+                    .tree()
+                    .nodes()
+                    .iter()
+                    .any(|node| node.external.as_deref() == Some(b"https://issuer.example/visit"))
+            );
         }
     }
 }

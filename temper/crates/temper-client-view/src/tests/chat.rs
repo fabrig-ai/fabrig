@@ -1085,6 +1085,7 @@ fn history() -> (temper_client_domain::Domain, skein_lib::Queue<temper_client_do
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Fact { .. } => {}
         }
