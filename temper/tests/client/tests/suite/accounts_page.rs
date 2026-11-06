@@ -48,6 +48,7 @@ fn signed_in() -> (Joint, Root, u32) {
         declined: false,
     }));
     accounts::settle(&mut front, &mut root);
+    accounts::answer_trial(&mut front, &mut root);
     go(&mut front, &mut root, Address::Accounts);
     (front, root, source)
 }

@@ -68,6 +68,7 @@ fn the_banner_key_way_opens_details_and_ready_removes_the_banner() {
     press(&mut front, &mut root, Role::Button, b"Add key", skein_ui::Act::Press);
     accounts::kept(&mut front);
     accounts::settle(&mut front, &mut root);
+    accounts::answer_trial(&mut front, &mut root);
     assert!(text(&root).contains("Added your Scripted API key"));
     assert!(!format!("{:?}", root.person().pages()).contains("test-private-key"));
     press(&mut front, &mut root, Role::Link, b"Start a chat", skein_ui::Act::Press);
@@ -202,6 +203,7 @@ fn a_fresh_page_at_the_return_address_follows_the_watch_to_ready_without_departi
         declined: false,
     }));
     accounts::settle(&mut front, &mut root);
+    accounts::answer_trial(&mut front, &mut root);
     assert!(text(&root).contains("Signed in to ChatGPT as alice@example.com"));
     assert_eq!(
         root.person()
@@ -250,6 +252,7 @@ fn a_welcome_sign_in_come_back_at_ready_reads_it_under_way_then_its_account() {
         declined: false,
     }));
     accounts::settle(&mut front, &mut root);
+    accounts::answer_trial(&mut front, &mut root);
     assert!(view(&root).tree().nodes().iter().any(|node| node.role == Role::Paragraph
         && node.name.as_deref() == Some("ChatGPT plan · alice@example.com".as_bytes())));
     assert!(!text(&root).contains("Connect a model"));
