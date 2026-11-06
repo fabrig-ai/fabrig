@@ -61,3 +61,64 @@ id = 2
 story = "a window bounded by size lets lines go and reads them back at either end through the real store, and a browser and a terminal each say when a log's edge is near"
 parts = ["activity-later", "thread", "page-part", "text-shell"]
 walk = false
+
+[[part]]
+id = "page-busy"
+title = "A log no longer busy says again that its edge is near"
+mode = "direct"
+needs = ["page-part"]
+design = "skein/docs/design/ui-web.md, 7"
+
+[[part]]
+id = "view-bounds"
+title = "The page's bounds are priced from the window's bytes"
+mode = "direct"
+needs = ["thread"]
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[part]]
+id = "domain"
+title = "A chat's page reads both ways, and a person sent to the end gets there"
+mode = "direct"
+needs = ["thread"]
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[part]]
+id = "page"
+title = "The conversation's log reads by itself, and Older goes"
+mode = "direct"
+needs = ["domain", "view-bounds", "text-shell", "log-acts"]
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[slice]]
+id = 3
+story = "a chat's log reads earlier and later lines by itself, with no Older, in temper's domain and view"
+parts = ["page-busy", "view-bounds", "domain", "page"]
+walk = false
+
+[[part]]
+id = "worlds"
+title = "The user's journey runs through the real engine and store"
+mode = "direct"
+needs = ["page", "activity-later"]
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[part]]
+id = "browser"
+title = "A long chat is read by scrolling in a real browser"
+mode = "direct"
+needs = ["page", "page-part", "page-busy", "activity-later"]
+design = "skein/docs/design/ui-web.md, 7"
+
+[[part]]
+id = "close"
+title = "Design agrees with what's built, and the journeys that moved are named"
+mode = "direct"
+needs = ["worlds", "browser"]
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[slice]]
+id = 4
+story = "after enough reading back the end of a long chat comes back, in a client world and a real browser, and the design says so"
+parts = ["worlds", "browser", "close"]
+walk = false

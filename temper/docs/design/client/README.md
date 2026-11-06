@@ -5091,6 +5091,46 @@ can open it. `draft` is the draft's path in the repository
   line is drawn from the fact `GoalFrom` (3.5).
 - **The look:** `browser.md`, 2.5, *A goal's look*.
 
+### 5.15 Reading a conversation
+
+A chat's conversation and an agent's task's (5.9) are read by scrolling
+(`../draft/chat-reading.md`, section 5). jig's thread holds the window
+(jig's `client/domain/client.md`, section 10), and skein's page part
+measures it (skein's `ui-web.md`, section 7).
+
+- **The log is bound** while an earlier page remains or the window has let
+  its newest lines go, its act decoding to `Older` at its head and `Newer` at
+  its foot. Nothing else asks for lines: there is no "Older" button. So
+  earlier lines load when the head comes within one and a half screens,
+  whatever brought it there, and the same rule opens a chat: a long one opens
+  with at least a screen and a half, a short one whole.
+- **The window** fills `document_bytes`, with no count of lines: its `lines`
+  is what its bytes hold (`thread_limits`). The page's bounds are priced from
+  its bytes (5.4). Reading earlier past them lets the newest whole lines go,
+  and reading later the earliest; they come back when scrolled to, and nothing
+  says how many left.
+- **While a window has let its newest go** the log *continues* (skein's
+  `ui.md`, 3.2), so it isn't followed and "Latest" shows, even at its foot.
+  New words and a run's live text wait: they show when the end is back.
+- **Each line's outer node is keyed,** a turn by its name, a run of calls by
+  its first turn's, a person's words by their message, an activity line by its
+  position. So a page read in above is an insert, nothing already drawn is
+  rewritten, and the page part can keep the words where they are.
+- **While a read is out** the log is *busy*, and so it stays after a failure,
+  which the page part then leaves alone until the person moves. At the head:
+  "Loading earlier messages…" while an earlier page is out, "Couldn't load
+  earlier messages" in the same look after one failed, and nothing once the
+  chat's start is shown. A read at the foot says nothing.
+- **"Latest":** the view returns to the end, and where the window let it go a
+  press reads the end again (`Thread::latest`), which replaces the window. A
+  person sending does the same through the log's end request, which `Chat`
+  counts. An agent's page has no pill, and its end request never moves.
+- **The terminal:** the log is bound and continues as in a browser, with no
+  measures: `up` reads earlier and `down` later (skein's `ui-text.md`, section
+  6), and each prints the whole window again. It opens with one page. The line
+  under its log's name says how; there is no pill, and sending reads the end
+  again.
+
 ## 6. The terminal shell
 
 ### 6.1 `temper open DIRECTORY LINK_OR_ADDRESS`
