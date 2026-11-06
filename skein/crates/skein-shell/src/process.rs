@@ -51,7 +51,7 @@ fn parent_death_exec_is_unsupported() {
 /// Opens the service's termination signal source for io
 /// to adopt before the loop starts (shell.md, section 6; io.md, section 7).
 pub fn open_termination_signals() -> Result<Fd, i32> {
-    system::process::open_termination_signals()
+    system::process::open_signals(crate::Watch::Termination)
 }
 
 /// Makes a hosted spawn's real pipes and identity placeholder, without exec.
@@ -169,7 +169,7 @@ pub fn open_child_pidfd(pid: u32, parent: u32) -> Result<Fd, Error> {
     }
     #[cfg(not(target_os = "linux"))]
     {
-        let _unused = (pid, parent);
+        let _: (u32, u32) = (pid, parent);
         Err(unsupported())
     }
 }

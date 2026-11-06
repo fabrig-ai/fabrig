@@ -1,6 +1,7 @@
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
+use jig_domain_link::Hello;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -213,7 +214,7 @@ fn a_delegate_waits_for_a_host_declaring_its_charters_model() {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 1,
         channel: Token::new(8),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds,
             stop_bound: skein_lib::Duration::from_millis(100),
@@ -259,7 +260,7 @@ fn rejoin(world: &mut World) {
     world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
         worker: 0,
         channel: skein_lib::Token::new(7),
-        hello: jig_domain_fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
@@ -397,7 +398,7 @@ fn worker_with_affinity(world: &mut World, task: u64) {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(8),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),

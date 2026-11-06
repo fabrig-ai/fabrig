@@ -231,10 +231,6 @@ pub fn decoder(request: &Request, limits: &Limits) -> Option<Decoder> {
     };
     Some(Decoder { walk: Walk::new(kind, limits), state })
 }
-#[must_use]
-pub fn first(_decoder: &Decoder) -> tokenizer::Request {
-    tokenizer::Request::Next
-}
 /// Decodes error JSON. A malformed body yields no document and no message;
 /// the caller reads its status alone, including for an empty or non-JSON body.
 #[must_use]

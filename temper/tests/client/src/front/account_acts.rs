@@ -6,6 +6,7 @@ use crate::{
 };
 use jig_client_kit::harness::{App, ClientId, Duty, Front, FrontFault};
 use jig_domain_accounts as a;
+use jig_domain_link::{Form, Scheme, SourceName};
 use skein_lib::{Duration, Env, Queue, Wall};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{store::Store, walking};
@@ -94,7 +95,8 @@ pub fn empty_program_fixture(seed: u64) -> (Joint, Root) {
 }
 /// Supply the configured worker's observation of the explicit check it received.
 pub fn program_checked(front: &mut Joint, root: &mut Root, usable: bool) {
-    use jig_domain_host::{LinkUp, Login, LoginState};
+    use jig_domain_host::LinkUp;
+    use jig_domain_link::{Login, LoginState};
     let pending =
         root.person().pages().connect_model().expect("model page").request.pending.as_ref().expect("check request");
     let jig_client::contract::Ask::AccountChange {
@@ -112,7 +114,7 @@ pub fn program_checked(front: &mut Joint, root: &mut Root, usable: bool) {
         .find(|s| s.number == source)
         .and_then(|s| s.name.as_deref())
         .expect("declared login name");
-    let name = jig_domain_host::SourceName::new(name).expect("valid declaration");
+    let name = SourceName::new(name).expect("valid declaration");
     let channel = fixtures::QUESTION_WORKER;
     front.engine.send(temper_engine_domain_world::protocol::up(
         channel,
@@ -493,7 +495,7 @@ pub fn kept(front: &mut Joint) -> u32 {
         account: source,
         generation: 1,
         valid: Duration::from_secs(3600),
-        form: a::Form::Credential(a::Scheme::Bearer),
+        form: Form::Credential(Scheme::Bearer),
     })));
     front.engine.settle();
     source

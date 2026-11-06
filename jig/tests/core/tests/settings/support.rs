@@ -7,6 +7,7 @@ use jig_core_world::peers;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core::{self as core, documents, reads, settings};
+use jig_domain_link::Hello;
 use jig_domain_people as people;
 use jig_test_domain as root;
 use skein_lib::{Duration, ReplyTo, Token};
@@ -420,7 +421,7 @@ pub(super) fn settings_run_with_limits(
     world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
-        hello: jig_domain_fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),

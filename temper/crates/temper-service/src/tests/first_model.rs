@@ -10,6 +10,7 @@ use jig_client_protocol_wire::v19 as wire;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
+use jig_domain_link::{Bounds, Login, LoginState, ModelBound, PROGRAM_ENDPOINTS, SourceName};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, List, Reader, ReplyTo, Token, Writer};
@@ -39,7 +40,7 @@ struct StockBox {
     providers: jig_domain_accounts::Providers,
     client_models: Box<[jig_protocol_engine_clients::Model]>,
     client_limits: jig_protocol_engine_clients::Limits,
-    login: Option<host::LoginState>,
+    login: Option<LoginState>,
 }
 
 fn stock_box(account: OneAccount) -> StockBox {
@@ -94,8 +95,8 @@ fn stock_box(account: OneAccount) -> StockBox {
     driver.period_sent = true;
     driver.settle();
     let login = match account {
-        OneAccount::Claude => Some(host::LoginState::Usable),
-        OneAccount::Declared => Some(host::LoginState::NotSignedIn),
+        OneAccount::Claude => Some(LoginState::Usable),
+        OneAccount::Declared => Some(LoginState::NotSignedIn),
         OneAccount::ChatGpt | OneAccount::None => None,
     };
     let mut world = StockBox {
@@ -174,10 +175,9 @@ impl StockBox {
                 }) = event
                 {
                     *logins = match &self.login {
-                        Some(state) => Box::new([host::Login {
-                            name: host::SourceName::new(LOGIN).unwrap(),
-                            state: state.clone(),
-                        }]),
+                        Some(state) => {
+                            Box::new([Login { name: SourceName::new(LOGIN).unwrap(), state: state.clone() }])
+                        }
                         None => Box::new([]),
                     };
                 }
@@ -490,18 +490,18 @@ impl StockBox {
         else {
             panic!("hello")
         };
-        let mut endpoints = List::with_capacity(host::PROGRAM_ENDPOINTS);
+        let mut endpoints = List::with_capacity(PROGRAM_ENDPOINTS);
         for model in &self.models {
             if model.program.is_some() && !endpoints.as_slice().contains(&model.endpoint) {
                 endpoints.push(model.endpoint).expect("configured program endpoints");
             }
         }
-        hello.bounds = host::Bounds {
+        hello.bounds = Bounds {
             program_endpoints: endpoints.into_boxed(),
             models: self
                 .models
                 .iter()
-                .map(|model| host::ModelBound { name: model.name.clone(), window: model.window, output: model.output })
+                .map(|model| ModelBound { name: model.name.clone(), window: model.window, output: model.output })
                 .collect(),
             turns: 800,
             spend: u64::MAX,
@@ -756,14 +756,11 @@ fn a_lapsed_login_withdraws_its_offer_and_marks_me_but_keeps_the_tasks_model() {
     world.driver.send(Event::Party(PartyInput::Delivered { watcher: ME_WATCH }));
     world.pump();
     let before_lapse = world.driver.delivered.len();
-    world.login = Some(host::LoginState::NotSignedIn);
+    world.login = Some(LoginState::NotSignedIn);
     world.driver.send(protocol::up(
         CHANNEL,
         host::LinkUp::Logins {
-            logins: Box::new([host::Login {
-                name: host::SourceName::new(LOGIN).unwrap(),
-                state: host::LoginState::NotSignedIn,
-            }]),
+            logins: Box::new([Login { name: SourceName::new(LOGIN).unwrap(), state: LoginState::NotSignedIn }]),
         },
         engine::Parts::none(),
     ));

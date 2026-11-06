@@ -28,6 +28,7 @@ skein-io.workspace = true
 skein-heap.workspace = true
 
 [dev-dependencies]
+jig-domain-link.workspace = true
 jig-protocol-config.workspace = true
 skein-codegen.workspace = true
 skein-scratch.workspace = true

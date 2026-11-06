@@ -3,6 +3,7 @@
 
 use alloc::boxed::Box;
 use jig_domain_host as host;
+use jig_domain_link::JobKind;
 use skein_lib::{Decimal, Duration, Env, Queue, Token, Writer};
 
 use crate::workspace::{self, Write};
@@ -11,7 +12,7 @@ use crate::{Domain, Limits, Request, route, tooling, wire};
 /// The engine identity keeps the decoded spec through workspace preparation.
 #[derive(Debug)]
 pub(crate) struct Spec {
-    kind: host::JobKind,
+    kind: JobKind,
     value: Option<Result<wire::JobSpec, wire::Undecodable>>,
 }
 
@@ -72,7 +73,7 @@ pub(crate) fn run(
     domain: &mut Domain,
     env: &Env<Limits>,
     owner: Token,
-    kind: host::JobKind,
+    kind: JobKind,
     deadline: Duration,
     workspace: Option<Token>,
 ) {

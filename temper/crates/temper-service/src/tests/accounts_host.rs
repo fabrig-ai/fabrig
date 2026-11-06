@@ -9,6 +9,7 @@ use super::*;
 use crate::tests::fixtures;
 use alloc::boxed::Box;
 use jig_domain_accounts as domain;
+use jig_domain_link::Form;
 use jig_protocol_accounts::table;
 use jig_protocol_config as config;
 use skein_fake_oauth as fake;
@@ -666,7 +667,7 @@ fn has_llm_key_grant(heard: &List<domain::FromComponent>, wanted: u64) -> bool {
         if let domain::FromComponent::Granted {
             account: 7,
             generation,
-            form: domain::Form::Credential(domain::Scheme::Key),
+            form: Form::Credential(jig_domain_link::Scheme::Key),
             ..
         } = event
             && *generation == wanted
@@ -784,7 +785,7 @@ fn dynamic_sources_use_provider_templates_and_restore_their_kept_records() {
         if let domain::FromComponent::Granted {
             account: 9001,
             generation,
-            form: domain::Form::Credential(domain::Scheme::Bearer),
+            form: Form::Credential(jig_domain_link::Scheme::Bearer),
             ..
         } = event
         {
@@ -856,7 +857,7 @@ fn a_restored_sign_ins_metadata_leaves_its_grant_a_bearer() {
     let mut granted = false;
     for event in &heard {
         if let domain::FromComponent::Granted { account: SOURCE, form, .. } = event {
-            assert_eq!(*form, domain::Form::Credential(domain::Scheme::Bearer));
+            assert_eq!(*form, Form::Credential(jig_domain_link::Scheme::Bearer));
             granted = true;
         }
     }

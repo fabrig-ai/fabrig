@@ -1,5 +1,6 @@
 use crate::{Request, tests::fixtures, translate};
 use jig_domain_host as host;
+use jig_domain_link::{CountKind, Form, Grant, Hello, PROGRAM_ENDPOINTS, Scheme, SourceName};
 use jig_protocol_worker_wire::{self as wire, Part};
 use skein_lib::{List, Queue, Reader, Time, Token};
 fn translated(kind: u16, bytes: &[u8], limits: &wire::v9::Limits) -> (host::LinkDown, Box<[Part]>, Queue<Request>) {
@@ -23,7 +24,7 @@ fn assigned() -> (host::Assignment, Box<[Part]>, Queue<Request>) {
 fn body(frame: &skein_channel::Frame) -> Reader<'_> {
     Reader::new(frame.bytes().get(8..).expect("body after header"))
 }
-fn granted(value: wire::GrantValue) -> (host::Grant, crate::GrantValue) {
+fn granted(value: wire::GrantValue) -> (Grant, crate::GrantValue) {
     let record = wire::Granted::new(
         &fixtures::codec(),
         wire::GrantedParts { task: 7, attempt: 2, grant: fixtures::grant_record(value) },
@@ -43,11 +44,11 @@ fn granted(value: wire::GrantValue) -> (host::Grant, crate::GrantValue) {
 #[test]
 fn a_granted_credential_hands_its_scheme_and_token_out_and_the_hub_hears_the_account() {
     for (scheme, expected, form) in [
-        (wire::Scheme::Bearer, crate::Scheme::Bearer, host::Scheme::Bearer),
-        (wire::Scheme::Key, crate::Scheme::Key, host::Scheme::Key),
+        (wire::Scheme::Bearer, crate::Scheme::Bearer, Scheme::Bearer),
+        (wire::Scheme::Key, crate::Scheme::Key, Scheme::Key),
     ] {
         let (grant, value) = granted(fixtures::credential_value(scheme));
-        assert_eq!(grant.form, host::Form::Credential(form));
+        assert_eq!(grant.form, Form::Credential(form));
         let crate::GrantValue::Credential { scheme, token } = value else { panic!("credential: {value:?}") };
         assert_eq!((scheme, token.expose()), (expected, fixtures::TOKEN_ONE));
     }
@@ -55,7 +56,7 @@ fn a_granted_credential_hands_its_scheme_and_token_out_and_the_hub_hears_the_acc
 #[test]
 fn a_granted_application_secret_names_the_application_table() {
     let (grant, value) = granted(fixtures::application_value());
-    assert_eq!(grant.form, host::Form::Application);
+    assert_eq!(grant.form, Form::Application);
     let crate::GrantValue::Application { secret } = value else { panic!("application: {value:?}") };
     assert_eq!(secret.expose(), fixtures::TOKEN_ONE);
 }
@@ -81,7 +82,7 @@ fn activity_becomes_a_fact_record() {
         run: Token::new(7),
         attempt: Token::new(2),
         activity: host::AgentActivity::Count {
-            kind: host::CountKind::LlmFinished,
+            kind: CountKind::LlmFinished,
             elapsed: skein_lib::Duration::from_secs(1),
             count: 2,
         },
@@ -290,7 +291,7 @@ fn the_worker_link_derives_the_program_form() {
     let bytes = program_granted(b"claude");
     let (down, _, values) = translated(0x0187, &bytes, &fixtures::codec());
     let host::LinkDown::Grant { grant, .. } = down else { panic!("grant") };
-    assert_eq!(grant.form, host::Form::Program(host::SourceName::new(b"claude").expect("source name")));
+    assert_eq!(grant.form, Form::Program(SourceName::new(b"claude").expect("source name")));
     assert!(values.is_empty(), "a program name needs no table entry");
 }
 #[test]
@@ -329,10 +330,7 @@ fn program_assignment(name: &[u8]) -> Box<[u8]> {
 fn an_assignment_keeps_a_program_name_without_a_table_value() {
     let (down, _, values) = translated(0x0180, &program_assignment(b"claude"), &fixtures::codec());
     let host::LinkDown::Assign { assignment } = down else { panic!("assignment") };
-    assert_eq!(
-        assignment.assignment.grants[0].form,
-        host::Form::Program(host::SourceName::new(b"claude").expect("source name"))
-    );
+    assert_eq!(assignment.assignment.grants[0].form, Form::Program(SourceName::new(b"claude").expect("source name")));
     assert!(values.is_empty());
 }
 #[test]
@@ -380,10 +378,10 @@ fn a_refused_later_program_grant_leaves_no_value_queued() {
 
 #[test]
 fn the_hosts_endpoint_cap_is_the_worker_wires_ceiling() {
-    assert_eq!(host::PROGRAM_ENDPOINTS, wire::v9::CEILINGS.bounds_program_endpoints);
+    assert_eq!(PROGRAM_ENDPOINTS, wire::v9::CEILINGS.bounds_program_endpoints);
 }
 
-fn hello_with_program_endpoints(count: u32) -> host::Hello {
+fn hello_with_program_endpoints(count: u32) -> Hello {
     let mut hello = fixtures::hello();
     let mut endpoints = List::with_capacity(count);
     for endpoint in 0..count {

@@ -1,4 +1,5 @@
 use jig_domain_host as host;
+use jig_domain_link::{Form, JobBound, JobKind};
 use jig_protocol_worker_link::{Event, Request};
 use jig_protocol_worker_wire as wire;
 use jig_worker_link_world::{World, fixtures};
@@ -54,8 +55,8 @@ fn a_hello_carries_its_job_kinds() {
         world.run();
         let mut hello = fixtures::hello();
         hello.jobs = (0..count)
-            .map(|kind| host::JobBound {
-                kind: host::JobKind(kind),
+            .map(|kind| JobBound {
+                kind: JobKind(kind),
                 spec: kind + 3,
                 result: kind + 4,
                 deadline: Duration::from_nanos(u64::from(kind) + 7),
@@ -86,7 +87,7 @@ fn a_job_record_reaches_the_hub_as_an_assign_job() {
     let Request::Down { down: host::LinkDown::AssignJob { job }, parts } = &world.root()[1] else { panic!("job") };
     assert_eq!(
         (job.run, job.attempt, job.kind, job.deadline),
-        (Token::new(8), Token::new(3), host::JobKind(42), Duration::from_secs(4))
+        (Token::new(8), Token::new(3), JobKind(42), Duration::from_secs(4))
     );
     assert_eq!(job.spec.as_ref(), [0, 255, 127]);
     let workspace = job.workspace.as_ref().expect("workspace");
@@ -94,7 +95,7 @@ fn a_job_record_reaches_the_hub_as_an_assign_job() {
     assert_eq!(parts.len(), 1);
     assert_eq!(parts[0].token, workspace.items);
     assert_eq!(parts[0].bytes.as_ref(), b"items");
-    assert_eq!(job.grants.as_ref(), [fixtures::grant(host::Form::Application)]);
+    assert_eq!(job.grants.as_ref(), [fixtures::grant(Form::Application)]);
     let Request::Value { value: jig_protocol_worker_link::GrantValue::Application { secret }, .. } = &world.values()[0]
     else {
         panic!("application value")

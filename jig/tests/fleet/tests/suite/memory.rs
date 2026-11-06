@@ -1,6 +1,7 @@
 //! Saturated fleet lifecycle, refusals and exact ownership observations.
 
-use jig_domain_fleet::{Answer, Domain, Event, Hello, Hosting, Limits, Phase, Request, fire, resume, step};
+use jig_domain_fleet::{Answer, Domain, Event, Limits, Request, fire, resume, step};
+use jig_domain_link::{Bounds, Hello, Hosting, PROGRAM_ENDPOINTS, Phase};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 
@@ -97,7 +98,7 @@ impl Measured {
     /// A hello on `channel`, holding as many keys as a worker may, of the
     /// most bytes, and hosting `hosting`.
     fn hello(&mut self, channel: Token, hosting: Vec<Hosting>) -> Vec<Request> {
-        self.hello_with_endpoints(channel, hosting, jig_domain_fleet::PROGRAM_ENDPOINTS)
+        self.hello_with_endpoints(channel, hosting, PROGRAM_ENDPOINTS)
     }
 
     fn hello_with_endpoints(&mut self, channel: Token, hosting: Vec<Hosting>, endpoints: u32) -> Vec<Request> {
@@ -422,12 +423,11 @@ fn two_standing_refusals_with_no_history_retain_no_additional_heap() {
     // Duplicate endpoints warm the facts and output queues without a standing refusal.
     world.step(hello(
         Token::new(3),
-        jig_domain_fleet::Bounds { program_endpoints: Box::new([0, 0]), ..jig_fleet_world::fixtures::bounds() },
+        Bounds { program_endpoints: Box::new([0, 0]), ..jig_fleet_world::fixtures::bounds() },
     ));
     let before = world.meter.held();
     for channel in [Token::new(0), Token::new(1), Token::new(2)] {
-        world
-            .step(hello(channel, jig_domain_fleet::Bounds { message_bytes: 9, ..jig_fleet_world::fixtures::bounds() }));
+        world.step(hello(channel, Bounds { message_bytes: 9, ..jig_fleet_world::fixtures::bounds() }));
     }
     assert_eq!(world.meter.held(), before, "standing refusals retain no heap beyond the warmed queues");
     assert!(world.domain.standing_refusal(jig_domain_fleet::Kinds::Engine).is_some());

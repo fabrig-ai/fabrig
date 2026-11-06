@@ -1,6 +1,7 @@
 //! Configured deployment connector references are supplied independently of their
 //! owners' values (`client/domain/pages.md`, 7; `client/domain/root.md`, 6).
 use crate::{documents::Deployment, tests::*};
+use jig_domain_link::{Hello, Login, LoginState, ModelBound, SourceFailure, SourceName};
 
 fn source(connectors: &[u16], lines: u32) -> (Core, Limits) {
     let mut limits = limits();
@@ -140,7 +141,7 @@ fn deployment_complete_connector_registry_does_not_hide_original_refusal_history
             fleet::Event::Hello {
                 worker: 0,
                 channel: Token::new(channel),
-                hello: fleet::Hello {
+                hello: Hello {
                     jobs: Box::default(),
                     bounds: fixtures::bounds(),
                     stop_bound: limits.fleet.grace,
@@ -186,7 +187,7 @@ fn the_deployment_document_shows_the_last_fill_and_the_mark() {
 fn a_refused_hello_shows_its_agent_shortfall() {
     let (mut core, limits) = source(&[1], 2);
     let mut bounds = fixtures::bounds();
-    bounds.models = Box::new([fleet::ModelBound { name: b"scripted".as_slice().into(), window: 8191, output: 1024 }]);
+    bounds.models = Box::new([ModelBound { name: b"scripted".as_slice().into(), window: 8191, output: 1024 }]);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
     let mut out = Queue::uncapped();
     fleet::step(
@@ -195,7 +196,7 @@ fn a_refused_hello_shows_its_agent_shortfall() {
         fleet::Event::Hello {
             worker: 0,
             channel: Token::new(9),
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds,
                 slots: 1,
@@ -294,7 +295,7 @@ fn program_facts() -> (Core, Env<Limits>) {
         Event::Fleet(fleet::Event::Hello {
             channel: Token::new(17),
             worker: 0,
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 slots: 1,
@@ -306,13 +307,13 @@ fn program_facts() -> (Core, Env<Limits>) {
     ));
     (core, env)
 }
-fn program_inventory(core: &mut Core, env: &Env<Limits>, state: fleet::LoginState) {
+fn program_inventory(core: &mut Core, env: &Env<Limits>, state: LoginState) {
     drop(step(
         core,
         env,
         Event::Fleet(fleet::Event::Logins {
             channel: Token::new(17),
-            logins: Box::new([fleet::Login { name: fleet::SourceName::new(b"personal").expect("source"), state }]),
+            logins: Box::new([Login { name: SourceName::new(b"personal").expect("source"), state }]),
         }),
     ));
 }
@@ -326,16 +327,16 @@ fn lost_host_facts_keep_the_configured_name() {
 #[test]
 fn deployment_reports_the_current_program_inventory() {
     let (mut core, env) = program_facts();
-    program_inventory(&mut core, &env, fleet::LoginState::Usable);
+    program_inventory(&mut core, &env, LoginState::Usable);
     let value = deployment(&core, &env.limits);
     let host = value.hosts.get(0).expect("worker");
     assert!(!host.awaiting_logins);
-    assert_eq!(host.programs.get(0).expect("source").state, Some(fleet::LoginState::Usable));
+    assert_eq!(host.programs.get(0).expect("source").state, Some(LoginState::Usable));
 }
 #[test]
 fn an_accounts_watch_includes_its_holders_host_facts() {
     let (mut core, env) = program_facts();
-    program_inventory(&mut core, &env, fleet::LoginState::Usable);
+    program_inventory(&mut core, &env, LoginState::Usable);
     let Document::Accounts(value) =
         make(&core, &env.limits, 1, &Subject::Accounts { party: 1 }, &window(), env.wall).expect("own accounts")
     else {
@@ -343,12 +344,12 @@ fn an_accounts_watch_includes_its_holders_host_facts() {
     };
     let host = value.program_hosts.get(0).expect("holder's host");
     assert_eq!(host.name.as_ref(), b"alpha");
-    assert_eq!(host.programs.get(0).expect("source").state, Some(fleet::LoginState::Usable));
+    assert_eq!(host.programs.get(0).expect("source").state, Some(LoginState::Usable));
 }
 #[test]
 fn an_accounts_watch_excludes_other_holders_programs() {
     let (mut core, env) = program_facts();
-    program_inventory(&mut core, &env, fleet::LoginState::Usable);
+    program_inventory(&mut core, &env, LoginState::Usable);
     let Document::Accounts(value) =
         make(&core, &env.limits, 2, &Subject::Accounts { party: 2 }, &window(), env.wall).expect("own accounts")
     else {
@@ -371,24 +372,18 @@ fn program_diagnostics_report_their_cut() {
     program_inventory(
         &mut core,
         &env,
-        fleet::LoginState::Failed {
-            reason: fleet::SourceFailure::Exited,
-            detail: b"failure details".as_slice().into(),
-        },
+        LoginState::Failed { reason: SourceFailure::Exited, detail: b"failure details".as_slice().into() },
     );
     let value = deployment(&core, &env.limits);
     let row = value.hosts.get(0).expect("worker").programs.get(0).expect("source");
     assert!(row.cut);
-    assert_eq!(
-        row.state,
-        Some(fleet::LoginState::Failed { reason: fleet::SourceFailure::Exited, detail: b"fai".as_slice().into() })
-    );
+    assert_eq!(row.state, Some(LoginState::Failed { reason: SourceFailure::Exited, detail: b"fai".as_slice().into() }));
 }
 
 #[test]
 fn a_host_names_the_person_whose_logins_it_keeps() {
     let (mut core, env) = program_facts();
-    program_inventory(&mut core, &env, fleet::LoginState::Usable);
+    program_inventory(&mut core, &env, LoginState::Usable);
     let value = deployment(&core, &env.limits);
     assert_eq!(value.hosts.get(0).expect("worker").rule, HostRule::Person(1));
 }
@@ -403,14 +398,14 @@ fn a_hellos_reason_reaches_the_held_refusal() {
         figures: Some(fleet::Figures { required: 8192, offered: 8191 }),
     });
     let mut bounds = fixtures::bounds();
-    bounds.models = Box::new([fleet::ModelBound { name: b"scripted".as_slice().into(), window: 8191, output: 1024 }]);
+    bounds.models = Box::new([ModelBound { name: b"scripted".as_slice().into(), window: 8191, output: 1024 }]);
     let mut out = step(
         &mut core,
         &env,
         Event::Fleet(fleet::Event::Hello {
             worker: 0,
             channel,
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds,
                 slots: 1,

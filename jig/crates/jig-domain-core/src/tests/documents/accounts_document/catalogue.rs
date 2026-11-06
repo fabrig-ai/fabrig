@@ -3,6 +3,7 @@ use crate::{
     documents::{PayerReadiness, Readiness},
     tests::documents::accounts_document::*,
 };
+use jig_domain_link::{Hello, Login, LoginState, SourceName};
 
 fn serving() -> (Core, Env<Limits>) {
     serving_records(own_records())
@@ -25,7 +26,7 @@ fn hosted_records(records: Vec<accounts::Stored>, granted: bool) -> (Core, Env<L
         fleet::Event::Hello {
             worker: 0,
             channel: Token::new(77),
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
@@ -36,12 +37,8 @@ fn hosted_records(records: Vec<accounts::Stored>, granted: bool) -> (Core, Env<L
         },
         &mut out,
     );
-    let logins = core
-        .fleet
-        .program_names()
-        .iter()
-        .map(|name| fleet::Login { name: *name, state: fleet::LoginState::NotSignedIn })
-        .collect();
+    let logins =
+        core.fleet.program_names().iter().map(|name| Login { name: *name, state: LoginState::NotSignedIn }).collect();
     fleet::step(&mut core.fleet, &host_env, fleet::Event::Logins { channel: Token::new(77), logins }, &mut out);
     (core, env)
 }
@@ -169,7 +166,7 @@ fn a_pending_inventory_keeps_readiness_unknown() {
         &mut core,
         &env,
         Event::Fleet(fleet::Event::Sources {
-            sources: Box::new([fleet::SourceName::new(b"program").expect("bounded fixture name")]),
+            sources: Box::new([SourceName::new(b"program").expect("bounded fixture name")]),
         }),
     ));
     assert_eq!(own(&core, &env, ALICE).readiness, Readiness::Unknown);
@@ -273,10 +270,7 @@ fn usable_requires_a_current_program_login() {
         &mut core,
         &env,
         Event::Fleet(fleet::Event::Sources {
-            sources: Box::new([
-                fleet::SourceName::new(b"personal").unwrap(),
-                fleet::SourceName::new(b"pending").unwrap(),
-            ]),
+            sources: Box::new([SourceName::new(b"personal").unwrap(), SourceName::new(b"pending").unwrap()]),
         }),
     ));
     assert_usable(&core, false);
@@ -287,14 +281,8 @@ fn usable_requires_a_current_program_login() {
             Event::Fleet(fleet::Event::Logins {
                 channel: host.channel,
                 logins: Box::new([
-                    fleet::Login {
-                        name: fleet::SourceName::new(b"personal").unwrap(),
-                        state: fleet::LoginState::Usable,
-                    },
-                    fleet::Login {
-                        name: fleet::SourceName::new(b"pending").unwrap(),
-                        state: fleet::LoginState::NotSignedIn,
-                    },
+                    Login { name: SourceName::new(b"personal").unwrap(), state: LoginState::Usable },
+                    Login { name: SourceName::new(b"pending").unwrap(), state: LoginState::NotSignedIn },
                 ]),
             }),
         ));

@@ -1,6 +1,7 @@
 //! A run woken by a word that never enters its inbox, a held delegate's escalation,
 //! prepares as current (domain/engine.md, 7).
 use crate::tests::*;
+use jig_domain_link::{Form, Scheme};
 
 const REQUESTER: u64 = 1;
 const HELD: u64 = 3;
@@ -16,7 +17,7 @@ fn a_held_delegates_escalation_prepares_its_requesters_next_run() {
         &mut core,
         &limits,
         Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(60),
