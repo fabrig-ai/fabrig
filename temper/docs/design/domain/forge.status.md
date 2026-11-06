@@ -3,6 +3,11 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
+  - 8.2, step 3, and 10: a head already behind waits for CI there and takes its
+    base at its turn (`temper-engine-domain-forge-change/src/domain.rs`, `checking`).
+  - 8.11, *Which target*: the coding charter names no target, an authority
+    refusal ends with a bare `; `, and a refused `message` does not say where a
+    run's requester is (`temper-engine-smith/src/answers.rs`, `authority_findings`).
   - 8.9: a refusal's "adopt the repository again" has no story from the browser. The engine takes an adopted repository's adoption (`readopt`, `temper/tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`), and by reading alone the form sends one (`../client/README.md`, 4.4); it opens at its defaults, so the person types the repository, its role, prefix and landing branch again.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
