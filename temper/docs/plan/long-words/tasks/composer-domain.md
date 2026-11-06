@@ -76,3 +76,16 @@ Not this task: any view code but the test above: Send's state, the line and its 
 ## Report
 
 As the implementer's text asks, with each test that pinned the old bound and what it pins now, and what a person's send does at the engine's own refusal, `Limit::Words`, if you met one.
+
+## Rebase (2026-11-06, step merge, foreman long-words/composer-domain/foreman-1)
+
+preserve paused-chat resume behavior alongside composer bounds and regenerate Story A after rebase.
+- Resolve `temper/crates/temper-client-domain/src/pages/chat.rs` against main’s `7bd001e7c0` (“Resume a person's paused chat together with new words”).
+- Retain `Sending::Resume`, its action dispatch, five pending slots, `paused`, and the compound Message-then-Release request at the held revision.
+- Apply this branch’s `Me.words_bytes` check and fallible `c::Text::new(..., long_text)` when constructing message words, before either ordinary or compound sending.
+- Keep main’s separate message words passed to `Thread::sending`, including compound sends. On refusal, retain composer words and `beyond`, set `Outcome::Limit` and `outcome_kind`, and enqueue nothing. Clear words and `beyond` only after admission.
+- In `temper/crates/temper-client-domain/src/tests/pages/chat.rs`, retain both appended test groups: main’s pause/resume tests and this branch’s composer tests. Keep the exhaustive `Sending::Resume` arm and shared `Request::OpenTab` update.
+- Verify a paused chat also sends a kilobyte whole, rejects words past the bound without releasing, and reports thread admission refusal while keeping its words.
+- Regenerate `temper/tests/playground/tests/fixtures/story-a.log`; do not splice hashes or choose one recording wholesale. The conflicting histories include main’s configuring-instructions refresh `189d163c56` and this branch’s expanded-Me refresh `58ab2c977c` (integration counterpart `9a6357e03a`).
+- Generate from the combined code with `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`.
+- Verify `walk::story_a_kept_log_replays_natively` by name through heavy, then run the spec’s required focused checks. Report the regeneration command and resulting fixture changes.
