@@ -44,6 +44,12 @@
   `systemd-container`'s nested subvolume. 9.3: build, fetch and layer costs
   checked against that machine's counts and the real tier. 10: these M2
   additions; the builder's domain tests use scripted layer operations.
+- **Not yet:** 9.1: the fake machine's `call` and the tree world's filesystem
+  scan all their nodes (`hearth/testing/hearth-fake-machine/src/linux/ledger.rs`,
+  `hearth/tests/tree/src/fs.rs`). `hearth/testing/hearth-test-repository/src/lib.rs`
+  makes a scratch repository with `git add` and `git commit`. Worlds repeat per seed
+  what a seed doesn't change, as `rendered_keys` does in
+  `hearth/tests/builder/tests/suite/domain.rs`.
 - **Departs:** 5.5, 9.2: the `conformance` profile is `conformance-hearth` and
   also runs `recorded_*`, and there is no `measure` profile, because the
   root's tier profiles are `<tier>-<tree>` (`tools/tiers/design.md`, 1).
@@ -57,8 +63,7 @@
   the figure the budget reads, with test builds unoptimized, as
   `skein/docs/foundation/testing-strategy.md`, 8 has them. That record's last figure
   with builds unoptimized is 31.7 CPU s over 2189 tests, at 08:56 UTC on 2026-11-06,
-  before scratch repositories' git setup saved about 3% of a builder's figure. The
-  repairs of 11 aren't made. Fuzzy reads 78.6 CPU s on the same record, the large
+  before scratch repositories' git setup saved about 3% of a builder's figure. Fuzzy reads 78.6 CPU s on the same record, the large
   render about 15 of it. The fuzzy budget's basis and the render world's selection on
   every change await the user's ruling (11). The causes of suite-cost
   variation, the suite's CPU by function, and how much of the large render's

@@ -20,3 +20,57 @@ id = 1
 story = "where the focused suite's CPU goes is known, by function, in hearth's code, in skein's, in the harness and in process startup"
 parts = ["profile"]
 walk = false
+
+[[part]]
+id = "builder"
+title = "The fake machine's call costs what it touches, and the builder world computes once what its seed doesn't change"
+mode = "direct"
+needs = ["profile"]
+design = "hearth/docs/design/domain/testing.md, 9.1"
+
+[[part]]
+id = "tree"
+title = "The tree world's filesystem looks up what it scans, its checker computes nothing twice, and a path's checks use the library's search"
+mode = "direct"
+needs = ["profile"]
+design = "hearth/docs/design/domain/testing.md, 9.1"
+
+[[part]]
+id = "real-git"
+title = "A scratch repository is written, and real git runs for the code under test alone"
+mode = "direct"
+needs = ["profile"]
+design = "hearth/docs/design/domain/testing.md, 9.1"
+
+[[part]]
+id = "render"
+title = "A render finds a document without classifying them all, and the render world's harness repeats nothing"
+mode = "direct"
+needs = ["profile"]
+design = "hearth/docs/design/domain/testing.md, 9.1"
+
+[[slice]]
+id = 2
+story = "each family's cost the profile shows is repaired where it is, and each later repair stops once the aim is met"
+parts = ["builder", "tree", "real-git", "render"]
+walk = false
+
+[[part]]
+id = "last-round"
+title = "If the aim isn't met, the largest of what's left is repaired, across every family"
+mode = "direct"
+needs = ["builder", "tree", "real-git", "render"]
+design = "hearth/docs/design/domain/testing.md, 9.1"
+
+[[part]]
+id = "close"
+title = "Before and after stand on one machine, and the status says the result"
+mode = "direct"
+needs = ["last-round"]
+design = "hearth/docs/design/domain/testing.md, 11"
+
+[[slice]]
+id = 3
+story = "the aim is met or what's left is stated with its measurements for the user, and the status says so"
+parts = ["last-round", "close"]
+walk = false
