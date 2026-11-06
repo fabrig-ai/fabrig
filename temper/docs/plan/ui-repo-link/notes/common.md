@@ -16,3 +16,4 @@ Beside the request:
 - **Failing tests first,** at the lowest tier that holds the rule.
 - **Budgets and timeouts are the user's** (`skein/docs/foundation/testing-strategy.md`, 8.1).
 - **The design is written:** each task's `## Inputs` names its sections. A task never edits them, but for dropping the **Not yet** entry it closes in the status file beside them (this departs from the implementer's text), and a line the code taught it, named in its report.
+- **The process tier's profile:** the default profile filters out the `process` binary, so a process-tier story runs as `heavy cargo nextest run --profile process-temper -p temper -E 'test(=NAME)'`. A spec's command that omits the profile selects nothing (nextest exits 4), and this line corrects it.

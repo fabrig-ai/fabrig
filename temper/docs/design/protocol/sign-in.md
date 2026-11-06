@@ -56,7 +56,8 @@ deployment: every name here is an example, temper at
   with `sub` the identity, `<provider>:<address>`, which outlives the
   store (9.4).
 - **The source is added on Forgejo's host by a printed command** (9.5;
-  `setup.md`, 6.8), for a managed Forgejo and an owned one alike.
+  `setup.md`, 6.8), for a managed Forgejo and `temper serve`'s owned one
+  alike. A box's owned Forgejo sets all of this up by itself (9.9).
 - **No single sign-out** (9.6): the signed-out page says that Forgejo
   keeps its own sign-in.
 
@@ -103,7 +104,9 @@ browsers use (`configuration.md`, section 3). With one:
   `owners` whose identity is Google's provider, with that member's login
   as login and name; there must be one, or the start is refused, naming
   `engine.owners`. With `sign_in` `null`, the first owner of the link's
-  provider, `owner` and `Owner`, as before.
+  provider, `owner` and `Owner`, as before; on a box whose
+  `machine.owned.sign_in` is set, `machine.owned.person.login` and `Owner`, so
+  that the login is the person's on Forgejo too (9.9).
 
 ### 2.4 Public reading
 
@@ -520,7 +523,8 @@ the issuer at start, and draws the authorization's page.
   signed in.
 - **The first time,** Forgejo makes the member's account, named by
   their login (9.4); an account already there by that name or address
-  is linked once, by its password.
+  is linked once, by its password. On a box, the person's account is linked
+  with no password (9.9).
 
 ### 9.2 The routes
 
@@ -636,7 +640,7 @@ by the client, not by a route:
   - `ACCOUNT_LINKING = login`, Forgejo's default: an account that
     already exists with that name or address is linked once, by its
     password. Not `auto`, which links by a matching name or address
-    alone;
+    alone, but on a box's owned Forgejo (9.9);
   - `[service] ALLOW_ONLY_EXTERNAL_REGISTRATION = true`, beside
     `DISABLE_REGISTRATION`, so that no one registers on Forgejo's own
     form and the temper source registers its members. `ENABLE_INTERNAL_SIGNIN
@@ -655,8 +659,9 @@ forgejo admin auth add-oauth --name temper --provider openidConnect \
   --auto-discover-url https://temper.example.com/.well-known/openid-configuration
 ```
 
-`temper forge sign-in` prints it, for a managed Forgejo and an owned one
-alike (`setup.md`, 6.8). The name `temper` is the callback's path
+`temper forge sign-in` prints it, for a managed Forgejo and `temper serve`'s
+owned one alike (`setup.md`, 6.8); a box runs its own (9.9), with no secret.
+The name `temper` is the callback's path
 segment, so it is fixed. `add-oauth` fetches the discovery document at
 once and adds no source when it does not answer, so temper serves
 before it runs.
@@ -699,7 +704,9 @@ section 3), and temper's `application.sign_in.forges`:
   section 3): each `{"forge", "client"}`, `forge` a forge's number, as
   the Forges page and `temper forge` name it, `client` one of the
   provider's clients. Each forge and each client at most once, and each
-  client one of the provider's, or the start is refused at its path.
+  client one of the provider's, or the start is refused at its path. A
+  member whose login, folded, is the bot's (`temper`) refuses the start at
+  its path, whatever the forges: temper never signs a person in as the bot.
 - **Checked once the forge is known.** A forge is a record in temper's
   store, made at runtime (`forge.md`, 2.1), so the start cannot check
   it, and an entry refuses no start, whichever forges are kept. Once
@@ -727,6 +734,10 @@ section 3), and temper's `application.sign_in.forges`:
 
 ### 9.8 Testing
 
+- **A box's owned Forgejo** (9.9): the step tests of its claims, its refused
+  logins, its address's encoding and the issuer's refusals; the box world, its
+  source step failing with the box running and the set-up done; the process
+  tier, its one click on a real Forgejo against temper's own issuer.
 - **The sign-in world** (section 8) gains the provider: Google's
   sign-in, then the page's `Authorize`, the token by Basic and by the
   body, and the userinfo, with the same `sub` and `preferred_username`;
@@ -758,8 +769,128 @@ section 3), and temper's `application.sign_in.forges`:
   site and present on the page's own exchanges, so the `Authorize` place
   answers *go*.
 
+### 9.9 A box's owned Forgejo
+
+A box's person presses a repository's link and lands on its page, signed in
+(`../client/forge.md`, 5.4, *A repository's link*). A box has no provider
+without this, and nobody to run a printed command, so its owned Forgejo sets
+itself up, with no command for the person. A managed Forgejo and `temper
+serve`'s owned one stay as 9.4 to 9.7 say. This is an authentication change, so
+its reasons are kept here.
+
+**What the box's configuration holds,** as `temper init --box` writes it
+(`setup.md`, 8.2):
+
+```
+"engine": {"owners": [{"provider": 1, "subject": "ada@localhost"}],
+           "providers": [{"number": 1, "kind": "link"}, ...],
+           "clients": {"provider": {
+             "key": "provider.key",
+             "clients": [{"id": "forgejo", "secret": null,
+                          "redirect_uri": "http://127.0.0.1:8370/user/oauth2/temper/callback"}],
+             "addresses": [1]}}},
+"application": {"sign_in": null,
+                "machine": {"owned": {"listen": ..., "person": {"login": "ada", "email": "ada@localhost"},
+                                      "sign_in": "forgejo", ...}}}
+```
+
+- **`application.sign_in` stays `null`:** it holds Google's sign-in and its
+  members, and a box has neither. `sign_in.forges` names a forge by its number,
+  which is known only once the forge is made (9.7), so a box's entry names a
+  kind instead: **`machine.owned.sign_in`,** a client of the provider, or `null`.
+  It is the entry for the kept forge of mode owned, under 9.7's check, whatever
+  its number. A client it names that the provider lacks refuses the start at its
+  path.
+- **The redirect is known at init,** since the owned `listen` socket is written
+  there: 9.7's check holds it against the forge's browser origin as ever.
+
+**The claims** (9.4), which Forgejo's `auto` needs both of:
+
+- **`preferred_username` is `machine.owned.person.login`.** The printed link's
+  login on such a box is that login (2.3), so the party's login is the Forgejo
+  account's. Its name stays `Owner`. With `machine.owned.sign_in` `null`, nothing
+  of this applies and the login stays `owner`.
+- **`email` is `machine.owned.person.email`:** the owner's subject is that
+  address and provider 1 is in `addresses`. `sub` is `1:ada@localhost`, which
+  outlives the store as 9.4 wants.
+
+**`ACCOUNT_LINKING = auto`, on a box's owned Forgejo alone.** Measured on a
+throwaway Forgejo 17.0.1, with a stand-in provider, against a site-admin account
+with a password, as the set-up makes:
+
+| Setting and claims | Where it lands |
+|---|---|
+| `login` | Link account, asking for the password: what breaks one click |
+| `auto`, the name matching, the address differing | the repository, signed in, three redirects, no second account |
+| `auto`, no `email` claim | Link account, asking for the password |
+| a second visit in one browser | through the provider again, every click passing `/oauth/authorize` |
+
+So every press passes "Continuing to Forgejo…" (9.3), which replaces its address
+as soon as jig answers, with nothing to hold it longer. `auto` links by the name,
+then by the address, with no password. That is safe here because temper made every
+account on this Forgejo and one person holds the machine. `login` stays for a
+managed Forgejo, whose accounts are not temper's, and for `temper serve`'s owned
+one, until the same reasoning has been checked for several members.
+
+**What a name match could take,** and how a box rules each out:
+
+| Forgejo holds | Its name | How a box rules it out |
+|---|---|---|
+| the person's own account, a site admin | `machine.owned.person.login` | the one it is meant to take: the same person, who holds the machine and may read its password |
+| temper's bot | `temper` | a person so named refuses the start (below); **temper never signs a person in as the bot** |
+| the set-up's admin | `temper-admin`, `temper-admin@example.invalid` | refused likewise, the name and the address |
+| the first repository's organization: `auto` looks in the table that holds users and organizations alike | `work` | refused likewise; any other organization's name can't be the person's, since the person's account is made first and a name is taken once |
+| an account by the person's address, if the name finds none | `ada@localhost` | the bot's address (`temper@temper.invalid`) as the person's refuses the start; the address is otherwise the person's alone |
+
+- **Refused, at the start, at its path:** `machine.owned.person.login`, folded,
+  being `temper`, `temper-admin` or `work`, or its `email`, folded, being the bot's
+  or the set-up's admin's, when `machine.owned.sign_in` is not `null`. `temper init --box` already falls back
+  from these logins; a hand-written document is refused. A login reaches jig only
+  from these or from `sign_in.members` (9.7), so a start-time refusal is whole.
+- **Nobody else signs in:** a box has no member and no Google; the printed link
+  alone signs anyone in, always its owner, so the link provider's one owner is the
+  one person who can reach `/oauth/authorize` signed in. An agent or a coding run
+  is refused *not a person* (jig's `protocol/client.md`, section 18).
+
+**The provider's key:** an RSA key of 3072 bits, as 9.7 says, made at the first run
+by `temper init --box`, before the document is written, in `provider.key` in the data
+directory, 0600 and the service's user's, under `temper forge sign-in`'s rule
+(`setup.md`, 6.8): `openssl genpkey`, since skein has no key generation (ring signs
+and does not generate); a key already there is left as it is. With no `openssl`, or if it fails, the document has
+`clients.provider` and `machine.owned.sign_in` `null`, the box goes on and the links
+stay plain, and `box.log` says so.
+
+**The client is public** (skein's `oauth-issuer.md`, section 2): `secret` `null`.
+`add-oauth` takes `--secret` only as an argument, which a command line shows to other
+local users, and a fixed value is no secret. So the box's client has none, and
+`add-oauth` is given none. S256 and the exact redirect stand in for it. The clients'
+other rules are skein's, per client, so no other client is weakened.
+
+**The source's step:** the last of the owned group's, after Forgejo answers
+(`setup.md`, 7.1): `temper forge source`, which adds the source unless Forgejo lists
+it, by `add-oauth --name temper --provider openidConnect --key forgejo
+--auto-discover-url ISSUER/.well-known/openid-configuration` with `--work-path` and
+`--config`. temper is serving by then, since it asked for the group.
+
+- **It never fails the set-up.** Any ending of the step leaves the set-up succeeding:
+  one line in `box.log`, the forge's page fact saying so, and the links plain. Never a
+  welcome failure (`setup.md`, 7.2).
+- **Until the step says the source is there, the entry does not serve:** 9.7's
+  "does not serve" with the reason, so no address leads to a route Forgejo lacks.
+  Then the metas are made anew as 9.7 says, and "Open Forgejo ↗" and the repository's
+  link appear on a box too.
+- **The page's other fact:** while a box's owned forge is kept and its entry can't serve
+  for want of a key or a source, one `<meta name="temper-forge-sign-in-off"
+  content="NUMBER">`; the Forges row says so (`../client/forge.md`, 5.4).
+
+Forgejo's own login with the password keeps working: `ENABLE_INTERNAL_SIGNIN` stays
+as it is. `temper ctl` and a coding run's credentials are untouched: they are the
+bot's and the person's tokens, and neither passes this provider.
+
 ## 10. Open questions
 
+- **`temper serve`'s owned Forgejo signing in with no command** (9.9). Default: its
+  printed command, until `auto`'s reasoning has been checked for several members.
 - **A deployment's own sign-in page.** Default: stock. Later, perhaps a
   name and a line in the configuration, or a template of the owner's.
 - **Members at runtime:** an owner's invitation and roles from the
