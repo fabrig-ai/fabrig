@@ -69,7 +69,9 @@ pub struct Frame {
     pub full_link: Option<(u32, Wall, Wall)>,
     pub streams_full: Option<(w::StreamBound, u32)>,
     pub link_posts: Vec<Box<[u8]>>,
-    hold_stores: Option<()>,
+    pub hold_stores: Option<()>,
+    pub hold_connect: bool,
+    pub quiet: Vec<&'static [u8]>,
     store: Option<Box<[u8]>>,
     offers: Option<()>,
     answer_kept: Option<()>,
@@ -176,6 +178,8 @@ impl Frame {
             streams_full: None,
             link_posts: Vec::new(),
             hold_stores: None,
+            hold_connect: false,
+            quiet: Vec::new(),
             store: None,
             offers: None,
             answer_kept: None,
@@ -317,6 +321,10 @@ impl Frame {
             self.probe_reply();
             let mut answered = false;
             while let Some(mut submit) = self.host.submissions().pop() {
+                if self.hold_connect && matches!(submit.kind, Op::Connect { .. }) {
+                    self.held.push(submit);
+                    continue;
+                }
                 if self.hold_record_create
                     && matches!(&submit.kind, Op::Open { path, how: OpenHow::CreateNoFollow { .. }, .. } if path.as_ref() == b"record")
                 {
@@ -602,7 +610,7 @@ impl Frame {
         }
         let path = head.split_whitespace().nth(1).expect("request path").as_bytes().to_vec();
         self.requests.push(path.clone().into_boxed_slice());
-        if self.stopping.is_some() {
+        if self.stopping.is_some() || self.quiet.contains(&path.as_slice()) {
             return;
         }
         socket.answered = true;
