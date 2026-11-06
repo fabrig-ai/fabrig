@@ -203,6 +203,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         activity: 0,
         due_reason: tasks::Why::Made,
         narrowing: false,
+        llm_changed: false,
         result_position: 0,
         last_reply: 0,
         replies: Box::new([]),
