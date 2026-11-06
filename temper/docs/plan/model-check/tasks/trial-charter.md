@@ -184,3 +184,12 @@ On a merge conflict in either log, record again; never merge one by hand.
 The checks: `-p temper-playground --lib`, all of it, the eight cancelled tests among them; then the rest of the first
 answer's list, `-p temper --test suite -E 'test(startup)'` and `settings.rs`'s for the engine's domain, which that run
 didn't reach. List `real-loop` and `client-browser` under `## Left` as that answer says.
+
+## Rebase (2026-11-06, step merge, foreman model-check/trial-charter/foreman-3)
+
+resolve trial.status.md by preserving both completed-work removals
+The merge conflicts in `temper/docs/design/domain/trial.status.md`.
+Integration commit `b95773f27f` removes “no child”; this branch removes “no charter 10” from the same line.
+Resolve by retaining both removals:
+`- **Not yet:** 2 to 7, whole: no root's part, no wire, no client's.`
+Keep the heading and date unchanged. No code change is needed for this conflict.
