@@ -208,6 +208,10 @@ fn composer(
         crate::choice::composer(b, root, Some(task), words, bindings, times);
         return;
     };
+    let over = match root.pages().me(root.client()) {
+        Some(me) => temper_client_domain::pages::composer::over(&page.words, page.beyond, me.words_bytes),
+        None => 0,
+    };
     b.open(Role::Slot);
     b.style(look::COMPOSER_AREA);
     match admission {
@@ -224,7 +228,11 @@ fn composer(
             if page.composer_focus != 0 && root.pages().switcher().renaming().is_none() {
                 b.focus(page.composer_focus);
             }
-            b.state(State::SubmitsOnEnter);
+            if over == 0 {
+                b.state(State::SubmitsOnEnter);
+            } else {
+                bindings.block_submissions();
+            }
             b.style(look::COMPOSER);
             b.value(&page.words, temper_client_domain::pages::shown(root.pages()));
             b.bind(bindings.insert(Act::MessageWords { words: Box::default() }));
@@ -235,8 +243,12 @@ fn composer(
             b.close();
             b.open(Role::Button);
             b.name(&words.say(Word::Send, &[]));
+            if over != 0 {
+                b.state(State::Disabled);
+            }
             b.bind(bindings.insert(Act::Send));
             b.close();
+            super::session::over(b, words, over);
             b.close();
         }
         // Why Message isn't offered is a note, as the steer note is, not an outcome (5.11).

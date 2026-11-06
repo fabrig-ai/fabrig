@@ -3,6 +3,7 @@
 2026-11-06. Where jig's code lags or departs from [contract.md](contract.md).
 Unlisted sections have no known gap.
 
+- **Not yet:** 5.1: `me` says no bound on an amendment's.
 - **Departs:** 4: answers give typed lacking facts, how an object ended,
   and who decided it and how; the client wire carries these fields, but
   `jig-protocol-engine-clients/src/translate/refusals.rs`, `lack` and
