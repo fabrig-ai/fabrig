@@ -1262,7 +1262,9 @@ Not in the tier, each in the lowest world that shows it:
 - **Public history** (8.3): ended goals from before publication or across
   a restart need jig's source index (`jig/docs/design/domain/people.md`,
   section 12). Default: goals ended while the public index kept the
-  project, and the board's line says what it leaves out; a merge past the
+  project, and the board's line says what it leaves out. A merge from
+  before publication can show while its change is handed from a live
+  goal's tree; publication is not a commit-time cutoff. A merge past the
   forge's log is `forge.md`, section 10's.
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
@@ -1790,8 +1792,9 @@ never streaming (`../draft/first-release.md`, 5.3).
 - **Words never touch:** where a line holds several, a visible separator
   or space stands between them in the page's text, not only in its
   layout.
-- **Never** a person's name, any words but a title, or anything the
-  records do not carry: the view reads only the public records.
+- **Public data comes only from the public records:** their text is titles
+  and the project's name, never a person's name. The view adds the page's
+  own words specified above.
 
 ### 8.4 Its tests
 
