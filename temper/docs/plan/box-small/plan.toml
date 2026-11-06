@@ -1,0 +1,35 @@
+draft = "box-small"
+repo = "fabrig"
+sources = ["temper/docs/plan/box-small/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# Three small things from a real box's walk; see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "printed-words"
+title = "The command on the page names the binary that's running, with ~/ and no needless quotes"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[slice]]
+id = 1
+story = "A box run from a checkout, an old temper first on PATH, prints a command that runs this binary"
+parts = ["printed-words"]
+walk = false
+
+[[part]]
+id = "link-hours"
+title = "A sign-in link lives 2 hours, and the box's message says so"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/client.md, 8"
+
+[[slice]]
+id = 3
+story = "The box's footer says within 2 hours, and the profile holds it to that"
+parts = ["link-hours"]
+walk = false
