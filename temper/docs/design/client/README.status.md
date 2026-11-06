@@ -88,6 +88,10 @@
   configuring chat (`temper-client-view`'s `pages/chat.rs`, `main`), where nothing
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
+- **Departs:** 3.6, *Closed ends on one line*: a requester-closed chat hides
+  every "Decision made" activity line, because `Activity::Decided` carries only
+  a revision and cannot identify the closing decision. This keeps the quiet end
+  line, at the cost of hiding earlier decision markers too.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
   the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
