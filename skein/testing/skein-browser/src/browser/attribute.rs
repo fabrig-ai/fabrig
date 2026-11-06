@@ -51,6 +51,9 @@ impl Browser {
             Step::AttributeValue => self.attribute_value(env, token, result),
             Step::History
             | Step::Go
+            | Step::FrontFind
+            | Step::FrontSnapshot
+            | Step::FrontScreenshot
             | Step::Query
             | Step::Box
             | Step::Scroll

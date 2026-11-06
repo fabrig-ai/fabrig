@@ -826,3 +826,5 @@ fn a_press_refused_for_another_reason_fails_without_repeating() {
 }
 
 mod tabs;
+
+mod foreground;
