@@ -606,7 +606,6 @@ fn a_refused_close_stays_in_its_sheet_until_kept() {
 #[test]
 fn a_chat_pauses_resumes_and_a_message_resumes_it() {
     let mut world = fixtures::world(fixtures::SEED);
-    world.front().reply_in_pieces(&[b"Working"]);
     let task = fixtures::chat(world.front(), b"Hello");
     let person = world.client(fixtures::PARTY, fixtures::chat_page(task));
     let see = |find| Step::See { find, within: fixtures::WITHIN };
@@ -629,6 +628,15 @@ fn a_chat_pauses_resumes_and_a_message_resumes_it() {
             see(button(b"Pause")),
             Step::Press { find: button(b"Pause") },
             see(paused()),
+        ],
+    );
+    let result = world.run(Until::Done);
+    assert_eq!(result.verdict, Verdict::Passed, "{result:?}");
+    // The message starts a new attempt; Pause has cancelled both earlier runs.
+    world.front().reply_in_pieces(&[b"Working"]);
+    world.person(
+        person,
+        vec![
             Step::Type { find: Find::named(Role::TextArea, b"Message"), words: b"And then?".as_slice().into() },
             Step::Press { find: button(b"Send") },
             gone(paused()),
