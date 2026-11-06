@@ -805,7 +805,8 @@ binaries; and decides by
     meet the restarted forge run's on the box's socket and its database
     (`crates/temper/tests/suite/startup.rs`,
     `killing_forge_run_alone_kills_its_forgejo_child`).
-    Forgejo's graceful stop is forge run's forwarded Terminate. A
+    Forgejo's graceful stop is forge run's forwarded Terminate. The box
+    names Terminate for each of its steps (7.1). A
     failure, the parent changed or the program missing, prints `temper
     internal forge-child: WHY` and exits 1.
   - **Its shutdowns:** one that io names as Forgejo's (skein's `io.md`,
@@ -1364,6 +1365,15 @@ temper box
                                       its listeners from fd 3, then its pipe to the box (below)
 ```
 
+- **A step's start.** On Linux the box spawns each step through `temper
+  internal forge-child --parent BOX --signal terminate -- temper ARGS`, BOX
+  its own process id (6.4). That process execs the step, keeping its
+  descriptors, its environment and its process group, so nothing else of
+  this section sees the difference. A box that ends in any way, killed
+  among them, leaves each step a `SIGTERM`, which it takes as on any stop.
+  **On macOS** there is no parent-death signal (6.4): the box spawns each
+  step directly, so a box killed outright leaves them running, and its
+  next start refuses on the ports they hold.
 - **An empty configuration directory,** absent or with no entry, is
   written first by `temper init --box` (8.2), in the box's own process, before
   the document is read; the box says so in its own log, `First run:
@@ -1556,7 +1566,8 @@ temper box
   window, so it starts again from `box.backoff_ms` once a step has run a
   window without exiting. Its stop treats a step still starting as the box's
   stop does.
-- **Stops** at a first termination signal: the long steps in reverse
+- **Stops** at a first termination signal, `SIGINT`, `SIGTERM` or a closed
+  terminal's `SIGHUP`: the long steps in reverse
   order, each by a signal, `box.grace_ms`, a second signal, which turns
   `temper serve`'s drain into an abort (README.md, section 4),
   `box.grace_ms` again, then a close. The machine knows a step only as
@@ -1787,6 +1798,13 @@ temper box
   - **A line it cannot read,** or one from a step of no asked forge, is
     named on its stderr, `box: fetch: unknown line`, and goes no
     further.
+- **A closed terminal's hangup** never counts as a second signal: a
+  terminal's closing reaches the box from the kernel and again from the
+  person's shell, so a `SIGHUP` while the box already stops does nothing,
+  and the stop keeps its order. A `SIGHUP` already ignored when the box
+  starts stays ignored (skein's `shell.md`, 6.3), so `nohup temper box`
+  outlives its terminal. The box exits 1 if a write finds that terminal
+  gone, as for any terminal that fails.
 - **A failure's tail:** under each terminal line of a step's failure,
   a long step's exit, a group's `failed` or a give up, the box writes
   the last `box.tail_lines` lines it logged for that step since its last
@@ -1799,7 +1817,7 @@ temper box
   clears it for Forgejo (6.4).
 - **Its children** are skein-io's (skein's `io.md`, section 6), each in a
   process group of its own; closing one kills its group, so nothing the
-  box started outlives its stop.
+  box started outlives its stop, nor, on Linux, its death (7.1).
 
 ### 7.3 What it names
 
@@ -3505,6 +3523,14 @@ relies on.
   its late child stopped, or closed at once after a second termination,
   never readied, continued, recorded or restarted, and its late failure
   ending it as a stop's.
+- **The box's lifetime:** in skein-shell, a `SIGHUP` read as `Hangup` when
+  the service asks, and left alone when ignored at the start. In
+  temper-box, a spawn's arguments with and without the box's id; a hangup
+  starting the stop's order; a hangup during a stop closing nothing; a
+  second termination after a hangup closing them. On the shipped binary,
+  in `crates/temper/tests/suite/box_listeners.rs`: a hangup stopping a box,
+  nothing left, its log's last line `Stopped`; a box started ignoring
+  hangups running on; and, on Linux, a box killed taking its steps with it.
 - **The fetch's machine** (6.6), in temper-forge-setup, given its URLs
   and digests: each pin's URL and digest for each architecture, and
   another architecture refused; another status or a redirect refused;
