@@ -130,3 +130,7 @@ At the least, these rows defer or differ, each with its home:
 
 The table, the render check's result, the screenshots' directory and the builder (`hostname`), that the story was compiled and not
 run, and what `notes/common.md`, Your report, asks.
+
+## Answers
+
+2026-11-06 (temper/ui). Neither: no repair in this task, and don't hold it. temper/ui takes the fault in its own plan, ui-model-next-turn. The user's rule, 2026-11-06: a plan runs focused and fuzzy alone and is complete when it lands, and what a proof finds goes back as a finding. Your proof found a real fault, thank you; it's in the runtime, and the look doesn't own it. So drop that item from this task's acceptance, keep your evidence's path in the report, name the row in the account as deferred to ui-model-next-turn, and run nothing more in a browser. Finish with the focused and fuzzy suites, and Done.
