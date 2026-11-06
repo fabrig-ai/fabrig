@@ -19,6 +19,11 @@ shown: the configuring agent's words, a document built in parts and a receipt's 
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
 Section 4.3 has no gap in file, pull-file and compare fitting to the checked
 local receiving-agent allowance, size feedback, recovery and settled-call replay.
+Sections 4.3, 4.4 and 6 have no known implementation gap in the compare's
+forge-size refusal, the 3,584-byte change body and stock report instructions,
+or the SHA-1 and SHA-256 widths in receipts and CI cancel reasons. Step tests
+hold the refusal and its bounds, the report's contract and result fitting,
+and the receipt's width and branch room. Real-model proof remains below.
 Section 7 has no known gap in fresh preparation from unusable history or in
 retaining an unidentified startup fault through cleanup. The joined service
 regression uses scripted peers and valid saved history at 470,054 bytes;
@@ -29,7 +34,23 @@ Section 8.1 has no gap in discovery of project repository identities for
 charter documents.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks.
-- **Not yet:** 6: a receipt's words are held by tests alone (`a_landed_receipt_says_pushed_at_which_head_on_which_branch`, `temper-worker-domain/src/tests/entrance.rs`): no real run has read them, so whether a run that finds its checkout detached still takes a good delivery for a failure is unobserved. The request `landing-fixes` of 2026-11-06 has its proof in the next landing plan on a real deployment, and no record shows one.
+- **Not yet:** 4.3, 4.4, 6: no supplied real-model landing proves the
+  corrected receipt's words, a refused compare's recovery, or the producer
+  and foreman following the report instructions, including listing cuts
+  under Left rather than asking. The request for `landing-fixes-3` of
+  2026-11-06 records real receipts with padded heads, a compare retried with
+  an invented id and a report that did not fit the earlier bound. Its plan
+  leaves the corrected words' proof to temper/qa's next real landing
+  (`walk = false`); the supplied inventory gives no outcome. Tests alone
+  do not show whether a run still takes a detached checkout for a failure.
+- **Design departs:** 4.4, from the request for `landing-fixes-3` of
+  2026-11-06, item 1, decided by its plan's cut: a report past 3,584 bytes
+  is shortened, with file or test references and the cuts named under Left,
+  where the request asks for nothing lost. The body leaves room for title
+  and framing within smith's and the hub's fixed 4,096-byte outcome;
+  a larger outcome needs smith, jig and temper together. Section 10 keeps
+  that larger report open. The stock's instructions alone decide what a
+  model cuts and lists; no tool checks that list.
 - **Design departs:** 6, from the request `parallel-faults` of 2026-11-06, item 4, decided by its plan's cut: a run's local commits still don't reach its next run, and a fold on a saved start is still lost, where the request reports both as faults, because a delivery commits the tree on the worker's own record of the head (`../protocol/git.md`, 4.7), and its receipt names what it pushed. That a run's words name no commit off the branch is asked by the coding charter alone, since those names come from its own transcript or summary, not the host's resume words: nothing refuses such a word, and no walk on record has run a real model on the sentence.
 - **Not yet:** 8.1: the configuring agent's words have phrase assertions and scripted context coverage (`configuring_txt_speaks_the_persons_terms`, `configuring_txt_says_nothing_has_changed_in_one_place`, `configuring_txt_says_who_does_what_in_the_persons_words`, `configuring_txt_says_how_a_pending_proposal_goes`, `temper-service/src/tests/stock.rs`): no walk on record has run a real model on them as they stand, so it is unobserved whether it answers in the person's terms, keeps back the `temper ctl` of the pages it reads, which still speak it, starts who approves from the person, says that nothing has changed only in its one place, says each step of adding a person and whose it is, and says how a proposal that waits goes. That the stock's words, not a tool, make a run repeat that nothing has changed is by reading, not reproduced on a model: `no_answer_a_configuring_run_hears_says_nothing_changed` (`temper/tests/engine/domain/tests/suite/configuring.rs`) holds only that no tool's answer says it. With little room in charter 3 (`the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds`, `temper-service/src/tests/stock_brief.rs`), the words leave what a `note` write's arguments mean to `note`'s schema and a project's ways' values to `settings-fields`, and whether a run manages on those is unobserved too. The request `configuring-words-2` of 2026-11-06 has a walk follow its landing, and no record shows one. The repository-name and proposal-Accept sentences have phrase assertions (`configuring_txt_names_a_repository_by_its_name`, `configuring_txt_says_a_proposal_waits_for_an_accept_without_its_key`, in the same stock tests), but no real-model walk on record shows a run keeping addresses and ports out of instructions and reasons, or telling the person that the proposal waits in this chat for their Accept, an owner's where needed, without its key. The tool still answers with the proposal's key for ctl; the person's wording is the stock's instruction to the model (`temper-engine-smith/src/answers.rs`, `proposed`).
 - **Not yet:** 8.1, *Its tools*: no story that runs has an owner reject a chat's proposal under Needs you, where the agent sends a person. `an_owner_rejects_a_chats_pending_proposal_under_needs_you` (`temper/tests/client/tests/suite/configuring_chat.rs`) is ignored, its reason a running choice sent with a rejection, which jig refuses. By reading, that reason no longer holds: the client sends none (`temper-client-domain/src/acts.rs`, `send`; `settings_rejection_sends_its_reason_without_a_running_choice`), and `a_configuring_chat_rejects_its_own_proposal` (`temper/tests/client/tests/suite/chat_accept.rs`) has the same ask reach the chat from the chat's card. No record shows the story run with its `ignore` lifted. `temper help proposal`, *Limits*, still says this press fails and to reject with `temper ctl`, where the agent reads that page with `read_docs` and its words tell it never to relay a command.
