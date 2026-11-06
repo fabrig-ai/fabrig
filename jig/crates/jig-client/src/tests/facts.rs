@@ -1,7 +1,7 @@
 use super::fixtures::*;
 use crate::{
     contract::*,
-    facts::{self, ChatStatus},
+    facts::{self, ChatStatus, RunWaitKind},
 };
 
 struct Row {
@@ -357,5 +357,64 @@ fn refusal_status_only_replaces_an_unplaced_starting_chat() {
             _ => (row.expected)(),
         };
         assert_eq!(facts::chat_status(&chip, &row.wait, Some(&wait), PROJECT, &me), expected, "{}", row.name);
+    }
+}
+
+#[test]
+fn run_wait_status_only_replaces_an_unplaced_starting_chat() {
+    let me = me();
+    for (wait, kind) in [
+        (TaskRunWait::Account { account: None, source: None, why: TaskWaitWhy::Empty }, RunWaitKind::Account),
+        (TaskRunWait::Credential, RunWaitKind::Credential),
+        (TaskRunWait::Host, RunWaitKind::Host),
+    ] {
+        for row in &rows() {
+            let chip = facts_chip(row.phase.clone(), row.work.clone());
+            let expected = match (&row.phase, &row.wait) {
+                (ChipPhase::Active(RunStage::Due | RunStage::Preparing), WaitsOn::Nothing) => {
+                    ChatStatus::RunWaiting(kind)
+                }
+                _ => (row.expected)(),
+            };
+            assert_eq!(
+                facts::chat_status(&chip, &row.wait, Some(&wait), PROJECT, &me),
+                expected,
+                "{} / {wait:?}",
+                row.name
+            );
+        }
+    }
+}
+
+#[test]
+fn account_wait_status_distinguishes_progress_from_blocked_starts() {
+    let me = me();
+    let waiting = ChatStatus::RunWaiting(RunWaitKind::Account);
+    let reasons = [
+        (TaskWaitWhy::Refreshing, ChatStatus::Starting),
+        (TaskWaitWhy::Source(TaskSourceState::Asking), ChatStatus::Starting),
+        (TaskWaitWhy::Source(TaskSourceState::Granted), ChatStatus::Starting),
+        (TaskWaitWhy::Host, waiting.clone()),
+        (TaskWaitWhy::Empty, waiting.clone()),
+        (TaskWaitWhy::Invalid(AccountWhy::Unknown), waiting.clone()),
+        (TaskWaitWhy::Source(TaskSourceState::Later { until: None }), waiting.clone()),
+        (TaskWaitWhy::Source(TaskSourceState::Limited { until: Some(RETRY_AT) }), waiting.clone()),
+        (TaskWaitWhy::Source(TaskSourceState::Refused), waiting.clone()),
+        (TaskWaitWhy::Source(TaskSourceState::NeedsSignIn), waiting.clone()),
+        (TaskWaitWhy::Source(TaskSourceState::Misconfigured), waiting.clone()),
+        (
+            TaskWaitWhy::Source(TaskSourceState::Unloaded { at: AccountPlace::File, why: AccountUnread::Unreadable }),
+            waiting.clone(),
+        ),
+        (TaskWaitWhy::Source(TaskSourceState::Cancelled), waiting.clone()),
+        (TaskWaitWhy::Source(TaskSourceState::Closing), waiting.clone()),
+        (TaskWaitWhy::Source(TaskSourceState::Moving), waiting),
+    ];
+    for (why, expected) in reasons {
+        for stage in [RunStage::Due, RunStage::Preparing] {
+            let chip = facts_chip(ChipPhase::Active(stage), None);
+            let wait = TaskRunWait::Account { account: None, source: None, why };
+            assert_eq!(facts::chat_status(&chip, &NOTHING, Some(&wait), PROJECT, &me), expected, "{stage:?} / {why:?}");
+        }
     }
 }
