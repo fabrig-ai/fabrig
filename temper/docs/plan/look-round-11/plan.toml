@@ -3,3 +3,29 @@ repo = "fabrig"
 sources = ["temper/docs/plan/look-round-11/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/model-catalogue.md", "temper/docs/design/draft/model-catalogue.status.md", "temper/crates/temper-client-view/src/pages/session.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# One request, two tasks in a chain: the second proves what the first lands. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "picker"
+title = "The model and effort at the composer on every chat, what it replaces removed"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "proof"
+title = "model-picker's reprints, browser story, render check, screenshots and account"
+mode = "direct"
+needs = ["picker"]
+design = "temper/docs/design/draft/look-requests.md, 4"
+
+[[slice]]
+id = 1
+story = "A person picks a model and effort under the composer on a new chat, Configure temper and a started chat, one press applying it, seeing no model of a provider with no account, proved by rendering and accounted for"
+parts = ["picker", "proof"]
+walk = false
