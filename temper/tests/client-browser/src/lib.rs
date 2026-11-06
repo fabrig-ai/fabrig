@@ -99,7 +99,6 @@ pub fn start_playground_chat(words: &[u8]) -> Vec<Step> {
     vec![
         see(Find::exactly_named(Role::Button, b"Try the playground")),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Try the playground") }),
-        Step::Person(PersonStep::Go { address: b"/chats/new".as_slice().into() }),
         see(Find::exactly_named(Role::Region, b"Playground")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
         see(Find::exactly_named(Role::Status, b"Ready")),
