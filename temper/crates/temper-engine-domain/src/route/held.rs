@@ -105,7 +105,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::Cancel { channel, run, attempt } => {
             emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::Cancel { run, attempt } });
         }
-        core::Held::Refuse { channel, .. } => emit(decision, &env.limits, Delivery::Refuse { channel }),
+        core::Held::Refuse { channel, hello } => emit(decision, &env.limits, Delivery::Refuse { channel, hello }),
         core::Held::TurnBusy { channel, run, attempt, turn } => {
             emit(decision, &env.limits, Delivery::TurnBusy { channel, task: run.raw(), attempt: attempt.raw(), turn });
         }
