@@ -1332,7 +1332,7 @@ pub fn program_verification(login: &std::path::Path, accounts: &serde_json::Valu
     .collect())
 }
 
-/// Keep the live OpenAI model and demo, so stock's named first choices cannot supersede it.
+/// Keep the live `OpenAI` model and demo, so stock's named first choices cannot supersede it.
 pub fn retain_live_model(path: &std::path::Path, name: &str) {
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(path).expect("deployment")).expect("JSON");
     value["engine"]["llm"]["models"]

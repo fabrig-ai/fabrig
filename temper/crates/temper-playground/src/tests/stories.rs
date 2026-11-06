@@ -259,7 +259,14 @@ fn story_as_scripts_are_the_templates() {
         let templates = template["application"]["demo"]["llm"][scripts].as_array().expect("template scripts");
         for script in story[scripts].as_array().expect("story scripts") {
             let matching = templates.iter().find(|candidate| candidate["cue"] == script["cue"]).expect("template cue");
-            assert_eq!(script, matching, "{scripts}");
+            let mut expected = matching.clone();
+            if scripts == "asked" && script["cue"] == "Add CSV export to widget" {
+                // The standalone story prices its delegate with its own model.
+                expected["turns"][0]["lines"][1]["arguments"]["batch"][0]["authority"]["budget"]["spend"] =
+                    json!(21_140_u64);
+                expected["turns"][0]["tokens"] = json!(269_u32);
+            }
+            assert_eq!(script, &expected, "{scripts}");
         }
     }
     assert_eq!(

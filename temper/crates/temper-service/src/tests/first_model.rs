@@ -517,7 +517,15 @@ fn no_account_keeps_the_charters_first_model_and_names_an_empty_wait() {
     let task = world.create(1, None);
     world.worker();
     let document = world.document(task);
-    assert_eq!(world.main(&document), CLAUDE);
+    assert_eq!(document.llm, None, "no account offers a model in the task document");
+    let row = world.driver.task(task).expect("live chat");
+    let fallback = world
+        .driver
+        .root
+        .tasks()
+        .default_llm_at(1, row.settings.task, row.authority.models)
+        .expect("the charter keeps its first model for run policy");
+    assert_eq!(world.models[usize::from(fallback.main.model)].name.as_ref(), CLAUDE);
     assert_eq!(
         document.run_wait,
         Some(core::documents::TaskRunWait::Account {
