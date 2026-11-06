@@ -140,6 +140,14 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 - **The pipeline:** keeps each call's rendered brief as a plain file beside its report. What a CLI then sends on the wire isn't kept there.
 - **A real design:** a question: what a deployment's operators may read of a run's prompts.
 
+### 2.14 A goal's result reaches `main` by hand
+
+- **What:** a goal runs on the development deployment, against its forge's copy of this repository, and lands there with CI green. Then whoever drives it takes the diff from that copy's base to its landed main, leaving out the copy's workflow files (2.9) and the plan's own directory, applies it to this repository's current `main` as one commit naming the plan and its pull request, and gives that to the pipeline's merge queue, whose gate has the last word. Nothing in temper changes: it's a procedure outside this repository.
+- **Why:** the user's next step towards moving our development to temper: real work done by temper, while `main` keeps one writer and the pipeline's slow tiers go on watching after each landing.
+- **Cost and risk:** a second gate on work already checked, one commit where temper's history held several, and someone's hands on each landing. A refusal, or a red after landing, gets a repair from neither side: whoever carried it over answers for it. The copy drifts from `main` by what the pipeline lands meanwhile, so the diff can conflict when it's applied.
+- **The pipeline:** its trunks land through the same queue directly, their commits kept.
+- **A real design:** temper landing on this repository's `main` itself, with 2.9's CI as the gate, once new plans start in temper by default. This entry goes then.
+
 ## 3. Left out, with its gap
 
 For the user to weigh; each can become an entry.

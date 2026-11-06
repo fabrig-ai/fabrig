@@ -33,6 +33,7 @@ pub(crate) struct Engine {
     pub(crate) end: Option<End>,
     pub(crate) listening: Queue<crate::Note>,
     pub(crate) notes: Queue<crate::Note>,
+    pub(crate) last_hello_refusal: Option<Box<[u8]>>,
     pub(crate) first_periods: List<(u32, u64)>,
     pub(crate) drain: Option<stop::Drain>,
     pub(crate) blocked: bool,
@@ -162,6 +163,7 @@ impl Engine {
             end: None,
             listening: Queue::with_capacity(3),
             notes,
+            last_hello_refusal: None,
             first_periods,
             drain: None,
             blocked: false,
@@ -186,7 +188,8 @@ impl Engine {
         self.clients.commit_room()
     }
     fn release_pending(&self) -> bool {
-        self.end.is_none() && (self.ready || self.settled_revision != Some(self.domain.revision()))
+        self.end.is_none()
+            && (!self.requests.is_empty() || self.ready || self.settled_revision != Some(self.domain.revision()))
     }
     pub(crate) fn start_runtime(&self) -> bool {
         use jig_domain_core::start::Phase;
@@ -502,6 +505,9 @@ fn clients_pass(engine: &mut Engine) {
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
 }
 pub(crate) fn release(engine: &mut Engine) {
+    if engine.end.is_none() && engine.room() && !dispatch(engine) {
+        return;
+    }
     // Clocks are inputs too: Resume can observe a due timer even when normal
     // input admission is blocked. Recompute wall-to-monotonic mapping now.
     if !engine.release_pending() {
@@ -555,23 +561,8 @@ pub(crate) fn release(engine: &mut Engine) {
         } else {
             empty = 0;
         }
-        for _ in 0..engine.requests.len() {
-            let request = engine.requests.pop().expect("root outputs");
-            #[cfg(test)]
-            if let Some(trace) = &mut engine.release_trace {
-                trace.dispatched(&request);
-            }
-            route::request(engine, request);
-            // A scripted neighbour keeps the real root productive across release cycles.
-            #[cfg(test)]
-            if let Some(trace) = &mut engine.release_trace
-                && let Some(input) = trace.inputs.pop()
-            {
-                engine.step(input);
-            }
-            if engine.end.is_some() {
-                break;
-            }
+        if !dispatch(engine) {
+            break;
         }
         if empty == 2 {
             engine.ready = false;
@@ -586,6 +577,32 @@ pub(crate) fn release(engine: &mut Engine) {
         engine.settled_revision = Some(engine.domain.revision());
     }
     stop::advance(engine);
+}
+
+/// A full diagnostic sink leaves the batch ahead of the next release (protocol/README.md, 15.3).
+fn dispatch(engine: &mut Engine) -> bool {
+    for _ in 0..engine.requests.len() {
+        if engine.notes.room() == 0 {
+            return false;
+        }
+        let request = engine.requests.pop().expect("root outputs");
+        #[cfg(test)]
+        if let Some(trace) = &mut engine.release_trace {
+            trace.dispatched(&request);
+        }
+        route::request(engine, request);
+        // A scripted neighbour keeps the real root productive across release cycles.
+        #[cfg(test)]
+        if let Some(trace) = &mut engine.release_trace
+            && let Some(input) = trace.inputs.pop()
+        {
+            engine.step(input);
+        }
+        if engine.end.is_some() {
+            break;
+        }
+    }
+    true
 }
 
 pub(crate) fn answer(engine: &mut Engine) {
