@@ -1,4 +1,4 @@
-use super::script;
+use super::{PROJECT, REQUESTER_SIGN_IN, script};
 use crate::{Change, Engine, Invalid, Up};
 use jig_client_domain::contract::*;
 use skein_lib::{Time, Token, Wall};
@@ -11,7 +11,7 @@ fn person_public_read_preserves_whole_optional_results_and_original_object_ident
             Time::ZERO,
             Wall::EPOCH,
             Change::Object {
-                project: 1,
+                project: PROJECT,
                 key: ObjectKey::PersonTask(8),
                 value: ReadValue::PersonTask(Box::new(value.clone())),
             },
@@ -19,7 +19,7 @@ fn person_public_read_preserves_whole_optional_results_and_original_object_ident
         .expect("whole owner document admitted");
     assert!(engine.poll(Time::from_nanos(100_000_000)).is_empty());
     engine
-        .read(Time::from_nanos(100_000_000), 11, Token::new(97), Read::PersonTask { task: 8 })
+        .read(Time::from_nanos(100_000_000), REQUESTER_SIGN_IN, Token::new(97), Read::PersonTask { task: 8 })
         .expect("original read admitted");
     let up = engine.poll(Time::from_nanos(100_000_000));
     assert!(up.iter().any(|up| matches!(up,Up::Read {terminal:ReadResult::Value(ReadValue::PersonTask(document)),..} if document.as_ref()==&value)));
@@ -29,7 +29,7 @@ fn person_public_read_preserves_whole_optional_results_and_original_object_ident
                 Time::from_nanos(100_000_000),
                 Wall::EPOCH,
                 Change::Object {
-                    project: 1,
+                    project: PROJECT,
                     key: ObjectKey::PersonTask(9),
                     value: ReadValue::PersonTask(Box::new(value))
                 }
@@ -66,7 +66,7 @@ fn person_public_read_preserves_reserved_offers_and_nested_result_admissions_abo
             Time::ZERO,
             Wall::EPOCH,
             Change::Object {
-                project: 1,
+                project: PROJECT,
                 key: ObjectKey::PersonTask(8),
                 value: ReadValue::PersonTask(Box::new(value.clone())),
             },
@@ -74,7 +74,7 @@ fn person_public_read_preserves_reserved_offers_and_nested_result_admissions_abo
         .expect("whole owner offers fit independently of rows");
     let _ = engine.poll(Time::from_nanos(100_000_000));
     engine
-        .read(Time::from_nanos(100_000_000), 11, Token::new(97), Read::PersonTask { task: 8 })
+        .read(Time::from_nanos(100_000_000), REQUESTER_SIGN_IN, Token::new(97), Read::PersonTask { task: 8 })
         .expect("original read fits");
     let up = engine.poll(Time::from_nanos(100_000_000));
     let supplied = up
