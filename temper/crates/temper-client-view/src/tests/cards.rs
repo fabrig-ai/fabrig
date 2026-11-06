@@ -684,8 +684,9 @@ fn change_something_focuses_the_composer() {
         for count in [1, 2] {
             let mut view = fixtures::page_view(&root);
             let button = fixtures::find(view.tree(), Role::Button, b"Change something").unwrap();
-            let event = crate::act_event(&mut view, button, skein_ui::Act::Press).unwrap();
-            let out = settings_drive(&mut root, event);
+            let action = crate::act(&mut view, button, skein_ui::Act::Press).unwrap();
+            assert_eq!(action, Action::Pages(Act::ChangeProposal { proposal: SETTINGS_KEY }));
+            let out = settings_drive(&mut root, Event::Act { action });
             for request in &out {
                 if let d::Request::Unlinked {
                     request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { .. } },

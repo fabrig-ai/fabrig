@@ -763,6 +763,46 @@ fn the_message_composer_keeps_its_name_and_has_a_numbered_placeholder() {
 }
 
 #[test]
+fn the_composer_asks_what_should_change_until_it_is_answered() {
+    use temper_client_domain::{Action, Address, Event, pages::Act};
+    let check = |root: &temper_client_domain::Domain, expected: &[u8]| {
+        for view in [fixtures::page_view(root), fixtures::browser_page_view(root)] {
+            let id = fixtures::find(view.tree(), Role::TextArea, b"Message").expect("composer");
+            let composer = view.tree().find(id).unwrap();
+            assert_eq!(composer.placeholder.as_deref(), Some(expected));
+        }
+    };
+    for send in [true, false] {
+        let source = messaging_root();
+        let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
+        task.proposals = List::with_capacity(1);
+        task.proposals.push(fixtures::chat::PROPOSAL).unwrap();
+        let (mut root, _, watch) = fixtures::root_at(Address::Chat { task: TASK }, &fixtures::domain_limits());
+        let watch = watch.unwrap();
+        deliver_chat(&mut root, watch, c::Delivery::Task(Box::new(task.clone())));
+        check(&root, b"Reply to T9");
+        fixtures::root_event(
+            &mut root,
+            Event::Act { action: Action::Pages(Act::ChangeProposal { proposal: fixtures::chat::PROPOSAL }) },
+        );
+        check(&root, b"What should change?");
+        if send {
+            fixtures::root_event(
+                &mut root,
+                Event::Act {
+                    action: Action::Pages(Act::MessageWords { words: b"Wait three seconds instead".as_slice().into() }),
+                },
+            );
+            fixtures::root_event(&mut root, Event::Act { action: Action::Pages(Act::Send) });
+        } else {
+            task.proposals.clear();
+            deliver_chat(&mut root, watch, c::Delivery::Task(Box::new(task)));
+        }
+        check(&root, b"Reply to T9");
+    }
+}
+
+#[test]
 fn enter_in_the_message_composer_sends() {
     let mut view = fixtures::page_view(&messaging_root());
     let composer = fixtures::find(view.tree(), Role::TextArea, b"Message").expect("composer");

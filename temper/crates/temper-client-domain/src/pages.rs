@@ -163,7 +163,9 @@ pub enum Act {
     Suggest {
         cue: u8,
     },
-    FocusComposer,
+    ChangeProposal {
+        proposal: jig_client::contract::ProposalKey,
+    },
     MessageWords {
         words: Box<[u8]>,
     },
@@ -648,7 +650,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act {
-            act: act @ (Act::FocusComposer | Act::MessageWords { .. } | Act::Send | Act::Older | Act::Latest),
+            act: act @ (Act::ChangeProposal { .. } | Act::MessageWords { .. } | Act::Send | Act::Older | Act::Latest),
         } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
@@ -1603,7 +1605,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Suggest { .. }
         | Act::Mode { .. }
         | Act::ShowSection { .. }
-        | Act::FocusComposer
+        | Act::ChangeProposal { .. }
         | Act::MessageWords { .. }
         | Act::AddDraft
         | Act::Send
