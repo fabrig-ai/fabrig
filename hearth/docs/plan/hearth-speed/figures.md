@@ -266,3 +266,134 @@ saving. The profile's unavailable function shares remain unknown. No
 additional repair or floor reduction was attempted; no tests, assertions,
 cases, seeds, counts, goldens, cuts or recorded digests changed. The queue's
 post-landing figure remains unknown until its own check runs.
+
+## After
+
+Base: `483dfed6aa8639dc7df93a4e381c6ae2458c4468`.
+Merged starting tip: `f0f5205efa52d5b1bd86def4e8de693b2c1a4e99`.
+Machine: `debian-32gb-hel1-14` (`hostname` through heavy).
+Date: 2026-11-06 UTC; preparation, builds and measurements between
+09:42:31 and 09:44:52 (`date -u`). This is the same machine named in
+“Before”, but both sides are freshly measured in this sitting; the earlier
+figures are not reused or mixed into the comparison.
+
+The method is `hearth/docs/plan/hearth-speed/notes/common.md`, “The method”,
+and `tools/tiers/design.md`, 7, 7.3 and 10.2. The same short untracked driver,
+`.figures-after.py`, builds the static wrapper once through
+`heavy cc -std=c11 -O2 -static -Wall -Wextra -Werror` from
+`tools/tiers/cpu-wrapper.c`, loads `tools/tiers/cpu.py` with `runpy.run_path`,
+and calls `prepare`, `execute` and `summary`. Every run gets a fresh collector
+directory. The base is measured detached in this slot, then the branch is
+restored for the tip. `cargo metadata --no-deps --format-version 1` selects
+all 34 hearth workspace packages on both sides. Each profile is built first
+with `heavy cargo nextest run --no-run` and the same package list. Runs use
+`NEXTEST_DOUBLE_SPAWN=0`, `TEMPER_BUNDLE=none`, no filter and no concurrency
+override:
+
+```text
+heavy cargo nextest run --profile default -p <each of the 34 packages> <prepare arguments>
+```
+
+The driver applies the existing 30 CPU s focused budget to its summaries;
+no budget is changed. CPU sums user and system time for each test and its
+waited/reaped descendants, excluding compilation, nextest, listing and
+wrapper CPU. Wall spans the first test start through final wrapper
+settlement. Collector directories are kept until their results are retained
+in the report, then removed with the driver before pushing.
+
+| Revision | Run | User s | System s | CPU s | Wall s | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Base | 1 | 31.002794 | 6.262923 | 37.265717 | 6.397633 | 2,189 |
+| Base | 2 | 31.001750 | 6.359833 | 37.361583 | 6.198249 | 2,189 |
+| Tip | 1 | 25.126222 | 5.994211 | 31.120433 | 5.150105 | 2,189 |
+| Tip | 2 | 24.864173 | 5.990865 | 30.855038 | 5.031813 | 2,189 |
+
+All 2,189 tests pass in each run, with 2,189 attempts and no retries,
+failures, starvation, unobserved attempts, leaked descendants or incomplete
+records. All four CPU verdicts are red: the base exceeds 30 by 7.265717
+and 7.361583 s; the tip by 1.120433 and 0.855038 s. The lower figures are
+base run 1 and tip run 2. The second base run is 0.26% higher; the first
+tip run is 0.86% higher than the second.
+
+### By family, before beside after
+
+The families use the same binary identities as “Before”. Savings compare
+base run 1 with tip run 2, rather than taking per-family minima.
+
+| Family | Base tests | Tip tests | Base 1 CPU s | Tip 2 CPU s | Saving CPU s | Base 2 CPU s | Tip 1 CPU s |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Builder suite | 106 | 106 | 10.835944 | 10.454081 | 0.381863 | 10.749880 | 10.541573 |
+| Tree suite | 54 | 54 | 8.979376 | 3.933565 | 5.045811 | 8.849086 | 3.834674 |
+| Real git | 183 | 183 | 7.588665 | 6.576753 | 1.011912 | 7.680511 | 6.778643 |
+| Render suite | 109 | 109 | 3.477956 | 3.534250 | -0.056294 | 3.593300 | 3.480247 |
+| All the rest | 1,737 | 1,737 | 6.383776 | 6.356389 | 0.027387 | 6.488806 | 6.485296 |
+| Total | 2,189 | 2,189 | 37.265717 | 30.855038 | 6.410679 | 37.361583 | 31.120433 |
+
+Comparing the full `(binary_id, test_name)` inventories finds no additions
+or removals. Other plans contribute zero additional selected hearth tests
+and zero additional-test CPU cost in this comparison. No test, assertion,
+case, seed or count changes in this task.
+
+### Fuzzy at the tip
+
+The same driver calls `prepare(DIR, "fuzzy", WRAPPER)` once at the tip,
+following a fuzzy `--no-run` build of the same 34 packages. All 60 selected
+tests pass, with 60 attempts, no retries, failures, starvation, unobserved
+attempts, leaked descendants or incomplete records.
+
+| User s | System s | CPU s | Execution wall s | Tests |
+| ---: | ---: | ---: | ---: | ---: |
+| 71.453106 | 0.365827 | 71.818933 | 13.390022 | 60 |
+
+The large render,
+`hearth-builder-world::suite fuzzy::memory::a_large_render_holds_no_more_than_its_ceiling`,
+is included at 13.338879 CPU s and 13.386571 wall s. Its harness versus
+production CPU split remains unknown: these are whole-test measurements,
+not function samples. The budget file has no fuzzy CPU entry; its basis
+remains an open question, and this run changes neither it nor the profile.
+
+### What each commit saved
+
+From `git log --no-merges --reverse` between the base and merged tip. These
+are the commits' own measured comparisons, not additional measurements at
+each intermediate commit in this sitting. Their machines and baselines
+differ, so the rows must not be summed. Documentation-only commits claim
+no execution saving.
+
+| Commit | Change | Recorded comparison and saving |
+| --- | --- | --- |
+| `2c94fa7b85` | Plan options | No execution change; no measured saving. |
+| `d60f7f4d23` | First tasks and method | No execution change; no measured saving. |
+| `4444a0498c` | Remaining tasks | No execution change; no measured saving. |
+| `0a4dafa2f6` | Baseline figures | 33.028310 / 34.146002 CPU s at base on `debian-32gb-hel1-14`; no execution change or saving. |
+| `3cb03ebd3d` | Four tree development-profile overrides, level 1 | On `debian-32gb-hel1-14`, base 34.500778 / 35.348129 to 29.582570 / 29.959766 CPU s: lower-to-lower saving 4.918208 s (14.26%). |
+| `f3b51f81e9` | Skip unused scratch Git setup | On `debian-32gb-hel1-11`, base 37.354596 / 38.739672 to 37.022981 / 36.172593 CPU s: observed saving 1.182003 s (3.16%); real-git saving 0.395596 s (5.30%). Suite variation prevents attributing the entire saving to the edit. |
+| `868591acde` | Builder-domain development override, level 1 | On `debian-32gb-hel1-14`, tree group 29.582570 / 29.959766 to 28.789301 / 29.080778 CPU s: marginal saving 0.793269 s; combined profile saving against its base 5.711477 s (83.4454% remaining). |
+| `4317a6223f` | Record the met aim; stop repeats work | On `debian-32gb-hel1-11`, base 34.423521 / 34.881393 to combined start 26.934412 / 27.157056 CPU s: existing repairs save 7.489109 s (78.244210% remaining). This documentation commit adds no saving. |
+
+The profile commits also record clean-build costs for all 34 packages with
+`RUSTC_WRAPPER=`: base 14.966206 wall / 93.622159 CPU s, tree group
+12.539314 wall / 108.412674 CPU s, final 13.071926 wall / 109.162399 CPU s.
+The added build CPU is 15.540240 s (16.60%) in total, of which 0.749725 s
+is the builder override. This task does not remeasure clean builds or
+full-gate incremental build and clippy costs.
+
+### Answer
+
+The lower tip figure is **82.797382%** of the same-machine lower base
+figure: **30.855038 / 37.265717**, saving **6.410679 CPU s (17.202618%)**.
+The **85% aim is met**: its 31.675859 CPU s target is 0.820821 s above
+the measured tip. Stop at that aim; no further optimization is attempted.
+
+The method's figure is **not under 30 CPU s**: it remains **0.855038 s
+over**, and both tip runs have red CPU verdicts despite all tests passing.
+The most costly family now is the builder suite at 10.454081 CPU s
+(33.88% of the lower tip run), followed by real git at 6.576753 s.
+The three most costly focused tests are builder-domain changed-config
+(0.823167 s), failing-step (0.805679 s) and failing-helper (0.785955 s).
+The remaining 30.855038 s is observed work, not an established available
+saving; function shares and causes of run-to-run variation remain unknown.
+
+The figure that counts is the queue's record after landing; it is unknown
+for this revision and out of this task's reach, since this task runs
+nothing after landing.
