@@ -18,6 +18,7 @@ skein-ui.workspace = true
 skein-lib.workspace = true
 skein-ui-web.workspace = true
 wasm-bindgen.workspace = true
+js-sys.workspace = true
 web-sys = { workspace = true, features = ["Window", "Document", "Location", "HtmlElement", "HtmlLinkElement", "StyleSheet", "CssStyleSheet", "HtmlTextAreaElement", "InputEvent", "Event"] }
 
 [lints.rust] # binary: tools/lints/design.md, 2.2

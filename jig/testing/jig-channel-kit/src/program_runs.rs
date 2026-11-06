@@ -17,8 +17,8 @@ use std::{cell::RefCell, rc::Rc};
 
 const SETTLE: Duration = Duration::from_secs(45);
 
-fn worker_open(root: kernel::Fd) -> Proc {
-    let mut worker = processes::worker_program_runs(root);
+fn worker_open(inherited: &Inherited) -> Proc {
+    let mut worker = processes::worker_program_runs(inherited);
     let Proc::Worker(host) = &mut worker else { unreachable!("worker factory") };
     // Release this channel when the first inbox message is durable, before any placement.
     host.relay.until = Some(Time::ZERO.saturating_add(SETTLE));
@@ -534,20 +534,8 @@ fn party(case: Case) -> jig_fake_parties::Party {
 #[must_use]
 pub fn run(case: Case, story: &smith_fake_claude::Story) -> Run {
     let mut files = skein_fake_machine::Machine::new();
-    let mut items = vec![
-        Item::directory(b"state"),
-        Item::directory(b"private"),
-        Item::directory(b"private/home"),
-        Item::directory(b"private/programs"),
-        Item::directory(b"private/programs/alice"),
-    ];
-    for item in &mut items {
-        item.mode = 0o700;
-    }
-    items.push(Item::file(b"private/programs/alice/fake-claude.story", &story.encode()).mode(0o600));
-    items.push(Item::file(b"private/programs/alice/fake-claude.login", b"claude.ai").mode(0o600));
+    let items = login_files(story);
     let base = files.lay(&items);
-    let worker = files.open(base, b".", How::Directory).expect("worker root");
     let client = files.open(base, b".", How::Directory).expect("client root");
     let shared = Rc::new(RefCell::new(Run::default()));
     let judge = Judge {
@@ -594,8 +582,11 @@ pub fn run(case: Case, story: &smith_fake_claude::Story) -> Run {
         vec![StartupRoot { name: b"state".as_slice().into(), path: b"state".as_slice().into() }],
         if case == Case::Open { engine_open } else { engine },
     );
-    world.spawn_root(
-        skein_sim::Handle::new(worker.raw()),
+    world.spawn_restartable(
+        vec![
+            StartupRoot { name: b"worker".as_slice().into(), path: b".".as_slice().into() },
+            StartupRoot { name: b"parent".as_slice().into(), path: b"private".as_slice().into() },
+        ],
         if case == Case::Open { worker_open } else { processes::worker_program_runs },
     );
     world.spawn_root(skein_sim::Handle::new(client.raw()), |root| {
@@ -632,4 +623,20 @@ pub fn run(case: Case, story: &smith_fake_claude::Story) -> Run {
     run.seen = smith_fake_claude::seen(&bytes);
     run.received = smith_fake_claude::received(&bytes);
     run
+}
+
+fn login_files(story: &smith_fake_claude::Story) -> Vec<Item> {
+    let mut items = vec![
+        Item::directory(b"state"),
+        Item::directory(b"private"),
+        Item::directory(b"private/home"),
+        Item::directory(b"private/programs"),
+        Item::directory(b"private/programs/alice"),
+    ];
+    for item in &mut items {
+        item.mode = 0o700;
+    }
+    items.push(Item::file(b"private/programs/alice/fake-claude.story", &story.encode()).mode(0o600));
+    items.push(Item::file(b"private/programs/alice/fake-claude.login", b"claude.ai").mode(0o600));
+    items
 }

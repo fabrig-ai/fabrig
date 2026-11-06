@@ -1421,7 +1421,7 @@ branch. Its parameters:
   by the forge's. The producing task's successful result supplies the pull's
   explicit title, retained with that result and copied into the change before
   opening. A visible pushed branch waits for this metadata; it alone cannot
-  open the pull. This wait keeps the producing phase's stall deadline. A
+  open the pull. This wait counts the stall as the producing phase does (8.4). A
   failed producer supplies none, and holds whatever it pushed (8.4).
   The title is fitted to 256 UTF-8 bytes, preserving punctuation
   and marking a cut with “…”; it is never interpreted as sentences. A handed-in
