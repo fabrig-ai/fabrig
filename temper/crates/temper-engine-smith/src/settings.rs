@@ -284,7 +284,7 @@ pub fn settings_answer_bounded(
     application: Option<&temper_engine_domain_forge::settings::SizedValue>,
     max_bytes: u32,
 ) -> run::HostAnswer {
-    settings_repository_answer(answer, from, requested, models, application, &[], &[], &[], max_bytes)
+    settings_repository_answer(answer, from, requested, models, application, &[], &[], &[], &[], max_bytes)
 }
 
 /// Render an authorized inventory's repository and people context within the
@@ -300,6 +300,7 @@ pub fn settings_repository_answer(
     repositories: &[engine::RepositoryIdentity],
     people: &[engine::ProjectPerson],
     forge_people: &[engine::ForgePerson],
+    offer: &[engine::OfferedModel],
     max_bytes: u32,
 ) -> run::HostAnswer {
     let maximum = skein_lib::usize_of(max_bytes).min(run::HostAnswer::CAPACITY);
@@ -312,6 +313,7 @@ pub fn settings_repository_answer(
         repositories,
         people,
         forge_people,
+        offer,
         u32::try_from(maximum).expect("host bound"),
     );
     match result {
@@ -334,6 +336,7 @@ fn settings_page(
     repositories: &[engine::RepositoryIdentity],
     people: &[engine::ProjectPerson],
     forge_people: &[engine::ForgePerson],
+    offer: &[engine::OfferedModel],
     maximum: u32,
 ) -> Result<run::HostAnswer, &'static [u8]> {
     let enriched;
@@ -348,7 +351,7 @@ fn settings_page(
     match settings_text(answer, requested, models) {
         Ok(text) => {
             match settings_form::page::page_bounded(
-                &repository_text(answer, text, repositories, people, forge_people),
+                &repository_text(answer, text, repositories, people, forge_people, offer),
                 from,
                 maximum,
             ) {
@@ -376,12 +379,13 @@ fn repository_text(
     repositories: &[engine::RepositoryIdentity],
     people: &[engine::ProjectPerson],
     forge_people: &[engine::ForgePerson],
+    offer: &[engine::OfferedModel],
 ) -> Box<[u8]> {
     if let SettingsAnswer::Inventory(_) = answer {
         let mut measure = settings_form::Text::measure();
-        repository_rows(&mut measure, &text, repositories, people, forge_people);
+        repository_rows(&mut measure, &text, repositories, people, forge_people, offer);
         let mut out = settings_form::Text::writing_exact(measure);
-        repository_rows(&mut out, &text, repositories, people, forge_people);
+        repository_rows(&mut out, &text, repositories, people, forge_people, offer);
         out.finish()
     } else {
         text
@@ -394,6 +398,7 @@ fn repository_rows(
     repositories: &[engine::RepositoryIdentity],
     people: &[engine::ProjectPerson],
     forge_people: &[engine::ForgePerson],
+    offer: &[engine::OfferedModel],
 ) {
     out.put(text);
     if !repositories.is_empty() {
@@ -421,6 +426,33 @@ fn repository_rows(
         out.put(b" configured owned-forge account ");
         out.put(&person.login);
         out.put(b"; project membership unverified by this row\n");
+    }
+    if offer.is_empty() {
+        out.put(b"models you can offer: none; no account can run a model yet\n");
+    } else {
+        out.put(b"models you can offer:\n");
+    }
+    for model in offer {
+        out.put(b"  ");
+        out.put(&model.name);
+        out.put(b": ");
+        out.put(&model.provider);
+        out.put(b"; efforts ");
+        let mut separator = b"".as_slice();
+        for effort in &model.efforts {
+            out.put(separator);
+            out.put(effort);
+            separator = b", ";
+        }
+        if model.efforts.is_empty() {
+            out.put(b"none");
+        }
+        out.put(b"; default ");
+        match &model.effort {
+            Some(effort) => out.put(effort),
+            None => out.put(b"none"),
+        }
+        out.put(b"\n");
     }
 }
 

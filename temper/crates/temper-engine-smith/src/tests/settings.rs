@@ -157,6 +157,11 @@ fn inventory(count: u32) -> SettingsAnswer {
 fn settings_inventory_pages_continue_at_the_exact_offset_and_end() {
     let answer = inventory(80);
     let whole = settings_text(&answer, None, &[]).expect("inventory text");
+    let no_models = b"models you can offer: none; no account can run a model yet\n";
+    let mut expected = skein_lib::Writer::new(whole.len().checked_add(no_models.len()).expect("inventory size"));
+    expected.put(&whole).expect("base inventory");
+    expected.put(no_models).expect("empty offer");
+    let whole = expected.finish();
     let mut from = 0;
     let mut combined = skein_lib::Writer::new(whole.len());
     let mut pages = 0_u32;
@@ -719,6 +724,10 @@ fn settings_pages_reserve_escaped_framing_within_the_allowance() {
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the test reconstructs rendered UTF-8 pages")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the fixtures and reconstruction exercise one bounded inventory pagination path"
+)]
 fn inventory_people_forms_share_repository_pagination() {
     let repositories = [engine::RepositoryIdentity {
         host: b"forge.example:3847".as_slice().into(),
@@ -761,16 +770,33 @@ fn inventory_people_forms_share_repository_pagination() {
     ];
     let forge_people =
         [engine::ForgePerson { host: b"127.0.0.1:3000".as_slice().into(), login: b"ada".as_slice().into() }];
+    let offer = [engine::OfferedModel {
+        name: b"claude-opus-5-5".as_slice().into(),
+        provider: b"anthropic".as_slice().into(),
+        efforts: Box::new([b"low".as_slice().into(), b"high".as_slice().into()]),
+        effort: Some(b"high".as_slice().into()),
+    }];
     let answer = inventory(0);
-    let (empty, _) = crate::settings_repository_answer(&answer, 0, None, &[], None, &[], &[], &[], 8192).into_parts();
+    let (empty, _) =
+        crate::settings_repository_answer(&answer, 0, None, &[], None, &[], &[], &[], &[], 8192).into_parts();
     let empty = core::str::from_utf8(&empty).expect("empty inventory UTF-8");
     assert!(!empty.contains("project people:") && !empty.contains("forge people:"));
-    let (whole, error) =
-        crate::settings_repository_answer(&answer, 0, None, &[], None, &repositories, &people, &forge_people, 8192)
-            .into_parts();
+    let (whole, error) = crate::settings_repository_answer(
+        &answer,
+        0,
+        None,
+        &[],
+        None,
+        &repositories,
+        &people,
+        &forge_people,
+        &offer,
+        8192,
+    )
+    .into_parts();
     assert!(!error);
     let expected = whole.strip_suffix(b"end\n").expect("terminal marker");
-    assert!(expected.ends_with(b"project repositories:\n  forge forge.example:3847 repository org/repo\nproject people:\n  person 1 owner: role 0, requester, forge identity unknown: cannot count for approvals\n  person 4 ada: role 1, forge user 3\n  person 5: role 2, forge user 7\n  person 6: role 2, forge user 2, temper's own forge writer: never counts as a person\nforge people:\n  forge 127.0.0.1:3000 configured owned-forge account ada; project membership unverified by this row\n"), "{}", core::str::from_utf8(expected).expect("inventory UTF-8"));
+    assert!(expected.ends_with(b"project repositories:\n  forge forge.example:3847 repository org/repo\nproject people:\n  person 1 owner: role 0, requester, forge identity unknown: cannot count for approvals\n  person 4 ada: role 1, forge user 3\n  person 5: role 2, forge user 7\n  person 6: role 2, forge user 2, temper's own forge writer: never counts as a person\nforge people:\n  forge 127.0.0.1:3000 configured owned-forge account ada; project membership unverified by this row\nmodels you can offer:\n  claude-opus-5-5: anthropic; efforts low, high; default high\n"), "{}", core::str::from_utf8(expected).expect("inventory UTF-8"));
     let mut combined = skein_lib::Writer::new(expected.len());
     let mut from = 0;
     let mut pages = 0_u32;
@@ -784,6 +810,7 @@ fn inventory_people_forms_share_repository_pagination() {
             &repositories,
             &people,
             &forge_people,
+            &offer,
             256,
         )
         .into_parts();
@@ -812,6 +839,7 @@ fn inventory_people_forms_share_repository_pagination() {
         &repositories,
         &people,
         &forge_people,
+        &offer,
         256,
     )
     .into_parts();

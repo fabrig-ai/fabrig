@@ -862,6 +862,7 @@ impl World {
                     repositories,
                     people,
                     forge_people,
+                    offer,
                     application,
                     from,
                     requested,
@@ -875,6 +876,7 @@ impl World {
                         &repositories,
                         &people,
                         &forge_people,
+                        &offer,
                         self.env.limits.call_answer_bytes.saturating_sub(8),
                     )
                     .into_parts();
