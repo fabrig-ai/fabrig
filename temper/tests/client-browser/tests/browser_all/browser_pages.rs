@@ -354,15 +354,22 @@ fn reading_chat(tier: &Tier, messages: u32) -> (Script, Vec<Step>) {
     (ctl, steps)
 }
 fn reading_tier(anchoring: bool, messages: u32) -> Tier {
-    // Thirty paragraphs span the two position measurements; ten keep a middle reply to a screen.
+    // The last reply makes opening read the preceding one. An evicting window needs room at both read margins.
     const POSITION_PARAGRAPHS: u32 = 30;
     const MIDDLE_PARAGRAPHS: u32 = 10;
+    const WINDOW_PARAGRAPHS: u32 = 40;
     let code_words = if anchoring { READING_CODE_WORDS } else { UNANCHORED_CODE_WORDS };
     let cues: Vec<_> = (1..=messages).map(|number| format!("Reading paragraph {number:02}.")).collect();
     let replies: Vec<_> = (1..=messages)
         .zip(&cues)
         .map(|(number, cue)| {
-            let paragraphs = if number >= messages - 1 { POSITION_PARAGRAPHS } else { MIDDLE_PARAGRAPHS };
+            let paragraphs = if anchoring && number < messages {
+                WINDOW_PARAGRAPHS
+            } else if number >= messages - 1 {
+                POSITION_PARAGRAPHS
+            } else {
+                MIDDLE_PARAGRAPHS
+            };
             let reply = reading_reply(code_words, paragraphs);
             (cue.as_str(), format!("{reply}\n\nEnd of reply {number}."))
         })
@@ -429,7 +436,7 @@ fn reading_position(anchoring: bool) {
         Step::Focused(composer()),
     ]);
     if anchoring {
-        read_to_start(&mut steps, messages - 2);
+        read_to_start(&tier, &mut steps, messages - 2);
         steps.extend([gone(reply_end(messages)), see(Find::exactly_named(Role::Button, b"Latest"))]);
         // Hold the later read while PageDown reaches the retained window's foot.
         steps.extend(serve_signal(&tier, "-STOP"));
@@ -444,10 +451,10 @@ fn reading_position(anchoring: bool) {
             Step::Focused(composer()),
             see(Find::exactly_named(Role::Button, b"Latest")),
         ]);
-        read_to_end(&mut steps, messages);
+        read_to_end(&tier, &mut steps, messages);
         steps.push(gone(paragraph(&reading_words(1))));
         // Read the dropped head again, dropping the newest reply before Latest restores it.
-        read_to_start(&mut steps, messages);
+        read_to_start(&tier, &mut steps, messages - 1);
         steps.extend([
             see(paragraph(&reading_words(1))),
             gone(reply_end(messages)),
@@ -475,23 +482,31 @@ fn reading_position(anchoring: bool) {
         in_log(&harness, "latest-end");
     }
 }
-fn read_to_start(steps: &mut Vec<Step>, from: u32) {
-    // Reach the held head, then wait for the next numbered message before scrolling again.
+fn read_to_start(tier: &Tier, steps: &mut Vec<Step>, from: u32) {
+    // Hold each read until the keys reach the retained head, then await the next message.
     steps.push(see(paragraph(&reading_words(from))));
-    for number in (1..from).rev() {
-        let keys = if number == READING_MESSAGES - 1 { 6 } else { 2 };
-        for _ in 0..keys {
-            steps.push(Step::Key(Key::PageUp));
-        }
-        steps.push(see(paragraph(&reading_words(number))));
+    for number in (2..from).rev() {
+        read_earlier(tier, steps, paragraph(&reading_words(number)));
     }
+    // The first reply and the first message cross separate activity pages.
+    read_earlier(tier, steps, reply_end(1));
+    read_earlier(tier, steps, paragraph(&reading_words(1)));
 }
-fn read_to_end(steps: &mut Vec<Step>, messages: u32) {
-    for number in 3..=messages {
-        let keys = if number >= messages - 1 { 6 } else { 2 };
-        for _ in 0..keys {
+fn read_earlier(tier: &Tier, steps: &mut Vec<Step>, next: Find) {
+    steps.extend(serve_signal(tier, "-STOP"));
+    for _ in 0..4 {
+        steps.push(Step::Key(Key::PageUp));
+    }
+    steps.extend(serve_signal(tier, "-CONT"));
+    steps.push(see(next));
+}
+fn read_to_end(tier: &Tier, steps: &mut Vec<Step>, messages: u32) {
+    for number in 4..=messages {
+        steps.extend(serve_signal(tier, "-STOP"));
+        for _ in 0..4 {
             steps.push(Step::Key(Key::PageDown));
         }
+        steps.extend(serve_signal(tier, "-CONT"));
         steps.push(see(reply_end(number)));
     }
 }
