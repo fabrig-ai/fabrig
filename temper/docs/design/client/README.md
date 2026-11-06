@@ -342,6 +342,15 @@ a committed reply always arrives without a further delivery to prompt it
 (jig's `client/domain/client.md`: a read is one attempt, and its caller
 asks again).
 
+No page claims empty until its read has answered. "Nothing needs you.",
+"No chats yet.", "None.", "No updates." and "No goals yet." stand only on a
+list whose read has answered with its value. A read that ends without one
+(busy, unreachable, refused, past a bound) is no answer, and neither is a
+watch that has delivered nothing, whether it is opening or Behind. While a
+read hasn't answered, on first load or after the link comes back, a page
+keeps what it last knew, rows and words alike, through every refresh; with
+nothing known, a section draws its title with no line under it.
+
 Each page has an address, and watches what it shows while it is open;
 leaving it closes its handles. Its mockup designs what temper does not
 draw yet: its look, its parts and their order, its words and where its
@@ -840,7 +849,8 @@ keeps (`../protocol/configuration.md`, section 2).
     ended line whose retention is Kept "Closed. Its transcript is kept."
     stay in the view and are hidden in the browser; no other line claims
     that its transcript stays.
-  - *With no line to show,* `.empty`, "None.", under every filter.
+  - *With no line to show,* once its reads have answered, `.empty`, "None.",
+    under every filter.
   - *"More closed chats",* under "All" or "Closed" while an older page of
     ended chats remains, a `.btn.quiet.small` under the rows, reads it, in
     place of the last.
@@ -856,7 +866,8 @@ keeps (`../protocol/configuration.md`, section 2).
   new", or "0"; "2+" and "2+ new" where the inbox's document says its
   list was cut (jig's `more`, an owner inbox's next page, a filtered
   page's `cut`), so that a count never says less than there is; with
-  none, "Nothing needs you." or "No updates.". Its first heading's
+  none, once that section's read has answered, "Nothing needs you." or "No
+  updates.", and no count before it. Its first heading's
   row holds "+ New chat", a link to `NewChat` (`/chats/new`, its text area
   focused: no act of its own), then
   its filters as folded menus, in order: projects (only with two or more),
@@ -1829,7 +1840,7 @@ keeps (`../protocol/configuration.md`, section 2).
       below): "Nothing needs you.", "One thing needs you.", "Two things
       need you." and so on in number words to "Nine", digits after,
       "N+ things need you." where the read is cut, the
-      project's name until its needs are delivered. With N as `landed`
+      project's name until its needs have answered. With N as `landed`
       less `seen`, and a brief new to the person where its `landed` is above
       `seen` or its `at` is after `previous`, the landed sentence is a new
       brief's `sentence`; else "One change landed since you last looked." or
@@ -1850,8 +1861,8 @@ keeps (`../protocol/configuration.md`, section 2).
     reads them filtered by the project. Its head is the level-2 heading
     "Needs you", "Needs you · N" in the signal colour while something
     does, and, at its right on a wide page while more than one does,
-    "Answer in a row", to that filtered *Needs you*. Empty: "Nothing needs
-    you. Work carries on, and this page tells you what changed when you
+    "Answer in a row", to that filtered *Needs you*. Empty, once its read has
+    answered: "Nothing needs you. Work carries on, and this page tells you what changed when you
     come back."
     - *Answered lines,* under the head: what was answered in the last 2
       minutes (*What the client keeps,* below): the mock's `.answered`,
@@ -1881,7 +1892,8 @@ keeps (`../protocol/configuration.md`, section 2).
     at most five, live by last activity and then ended, each a link to
     its `Chat`: its title, then at the right its state and age,
     "waiting on you · 4 min", "closed · 1 h", any other state as `Chats`
-    words it, the age as 5.12's span. Empty: "No chats yet." With no goal
+    words it, the age as 5.12's span. Empty, once its reads have answered:
+    "No chats yet." With no goal
     in the project (`Domain::has_goals`), once the chats are delivered,
     after its rows, in the foot's face: "A chat suits one change. For
     bigger work, a chat can write a draft beside it and start a goal from
@@ -1920,8 +1932,9 @@ keeps (`../protocol/configuration.md`, section 2).
   stays as it is. Its unfiltered address, `/`, works across projects,
   the project's name before the owner on the mono line. One card is
   shown of the open ones (*What the client keeps,* below): the one a Home
-  row asked for, else the first; until the inbox is delivered, the column
-  is empty, so that "Nothing needs you." never flashes.
+  row asked for, else the first; until the inbox has answered, the column
+  is empty, so that "Nothing needs you." never flashes, and what it said
+  stands through each refresh after that.
   - *The column,* as the mock's `.col.narrow.flow`: 600 wide, centred,
     gap 32.
   - *Its head,* `.flow-head`: `.dots`, a figure named "2 of 3", a pip per
@@ -2272,14 +2285,16 @@ keeps (`../protocol/configuration.md`, section 2).
   - **Its intro:** "fabrig · goals", the project's name then the word in
     lower case; the level-1 heading: "5 goals, 3 under way.", the first number
     every row and the second those live and those needing the person; "1 goal,
-    1 under way." in the singular; "No goals yet." with none; "More than N
+    1 under way." in the singular; "No goals yet." with none, once its reads
+    have answered, and no heading before; "More than N
     goals, M under way." while rows remain unread. Then "A goal turns a draft
     into landed work, its own way: W.", W the project's ways in order, lower
     case, joined by ", " (*Ways,* below).
   - **Its filters:** "All", "Needs you", "Under way", "Ended", the chosen one
     pressed; at the section head's right, the `.link` "Start one from a draft",
     opening 5.14's sheet with no draft, while the project has a tracked
-    template. Under them, the rows, or "None."; "Needs you" is state needs,
+    template. Under them, the rows, or, once its reads have answered, "None.";
+    "Needs you" is state needs,
     "Under way" running, planning and paused, "Ended" landed, closed and
     failed.
   - **"More goals",** a quiet button after the rows while the ended page has
@@ -3618,8 +3633,8 @@ client removes no account and closes no chat of its own.
   of temper's words with no heading:
   - *signed out:* in the shell's words, which the view takes at
     construction: the terminal's "Signed out." (6.6); the browser's
-    "Signed out. To sign in, open a sign-in link `temper serve`
-    printed." (`browser.md`, 2.4);
+    "Signed out. To sign in, open a sign-in link temper printed."
+    (`browser.md`, 2.4);
   - *signed out, with a way of signing in:* in the browser alone, in
     place of the paragraph, the sign-in page: temper's mark, the
     heading "Sign in", and a link for each way the view was given at

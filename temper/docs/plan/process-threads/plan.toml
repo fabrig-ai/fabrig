@@ -1,0 +1,22 @@
+draft = "process-threads"
+repo = "fabrig"
+sources = ["temper/docs/plan/process-threads/inputs/request.md", ".config/nextest.toml", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+# One task, as the request sizes it: the reading is in plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "threads"
+title = "process-temper runs three tests at a time, and the walks that share the sign-in callback stay apart"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[slice]]
+id = 1
+story = "the process tier's stories share a machine three at a time, proven by the next after-landing run"
+parts = ["threads"]
+walk = false
