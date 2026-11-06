@@ -1,12 +1,12 @@
 use super::fixtures;
 use crate::clients::bundle::{Answer, route};
 use skein_http::Method;
-use skein_lib::Writer;
+use skein_lib::{List, Writer};
 
 const ETAG: Fields = &[(b"If-None-Match", b"\"0011223344556677\"")];
 type Fields = &'static [(&'static [u8], &'static [u8])];
 type Row = (bool, Method, &'static [u8], Fields, Answer);
-const ROUTES: [Row; 13] = [
+const ROUTES: [Row; 17] = [
     (false, Method::Get, b"/", &[], Answer::NoBundle),
     (false, Method::Get, b"/jig/v1/sign-in/link?secret=AAAA", &[], Answer::NoBundle),
     (false, Method::Get, b"/bundle/x", &[], Answer::NotFound),
@@ -14,6 +14,10 @@ const ROUTES: [Row; 13] = [
     (false, Method::Post, b"/", &[], Answer::NotFound),
     (true, Method::Post, b"/bundle/0123456789abcdef/boot.js", &[], Answer::NotAllowed),
     (true, Method::Get, b"/bundle/0123456789abcdef/boot.js", &[], Answer::File),
+    (true, Method::Get, b"/bundle/0123456789abcdef/boot.js", &[(b"Accept-Encoding", b"gzip")], Answer::Gzip),
+    (true, Method::Get, b"/bundle/0123456789abcdef/boot.js", &[(b"Accept-Encoding", b"gzip;q=0")], Answer::File),
+    (true, Method::Get, b"/bundle/0123456789abcdef/module.wasm", &[(b"Accept-Encoding", b"gzip")], Answer::File),
+    (true, Method::Get, b"/bundle/0123456789abcdef/boot.js.gz", &[], Answer::NotFound),
     (true, Method::Get, b"/bundle/fedcba9876543210/boot.js", &[], Answer::NotFound),
     (true, Method::Get, b"/bundle/0123456789abcdef/missing.js", &[], Answer::NotFound),
     (true, Method::Get, b"/robots.txt", &[], Answer::Root),
@@ -147,4 +151,41 @@ fn without_a_bundle_the_root_and_printed_link_serve_temper_with_the_page_policy(
         }
         assert_eq!(service.engine.as_ref().unwrap().clients.early.len(), 0);
     }
+}
+
+#[test]
+fn a_client_asking_gets_the_compressed_answer() {
+    const FIELDS: [&[u8]; 4] = [b"content-type", b"content-encoding", b"vary", b"cache-control"];
+    let (_, peer, status, headers) = get(b"/bundle/0123456789abcdef/boot.js", b"Accept-Encoding: gzip\r\n");
+    assert_eq!(status, 200);
+    assert_eq!(fixtures::bundle::body(&peer), b"compressed boot");
+    assert_eq!(fixtures::header(&headers, b"content-type"), Some(b"text/javascript".as_slice()));
+    assert_eq!(fixtures::header(&headers, b"content-encoding"), Some(b"gzip".as_slice()));
+    assert_eq!(fixtures::header(&headers, b"vary"), Some(b"Accept-Encoding".as_slice()));
+    assert_eq!(fixtures::header(&headers, b"cache-control"), Some(b"public, max-age=31536000, immutable".as_slice()));
+    for (name, value) in fixtures::bundle::POLICY {
+        assert_eq!(fixtures::header(&headers, name), Some(value));
+    }
+    let mut names = List::with_capacity(u32::try_from(FIELDS.len()).expect("bundle fields"));
+    for field in &headers {
+        if FIELDS.contains(&field.name.as_ref()) {
+            names.push(field.name.as_ref()).expect("four bundle fields");
+        }
+    }
+    assert_eq!(names.into_boxed().as_ref(), FIELDS);
+}
+#[test]
+fn a_client_not_asking_gets_the_plain_one() {
+    let (_, peer, status, headers) = get(b"/bundle/0123456789abcdef/boot.js", b"");
+    assert_eq!(status, 200);
+    assert_eq!(fixtures::bundle::body(&peer), b"boot();");
+    assert_eq!(fixtures::header(&headers, b"vary"), Some(b"Accept-Encoding".as_slice()));
+    assert_eq!(fixtures::header(&headers, b"content-encoding"), None);
+}
+#[test]
+fn a_file_with_no_form_says_neither_field() {
+    let (_, _, status, headers) = get(b"/bundle/0123456789abcdef/module.wasm", b"Accept-Encoding: gzip\r\n");
+    assert_eq!(status, 200);
+    assert_eq!(fixtures::header(&headers, b"vary"), None);
+    assert_eq!(fixtures::header(&headers, b"content-encoding"), None);
 }
