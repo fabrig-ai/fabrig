@@ -5,6 +5,7 @@ use skein_fake_person::{Next, Person};
 use skein_lib::{Duration, Time};
 use std::collections::VecDeque;
 mod growth;
+mod keep_box;
 
 pub enum Step {
     Run(super::Command),
@@ -16,6 +17,10 @@ pub enum Step {
     Keep {
         selector: Box<[u8]>,
         attribute: Option<Box<[u8]>>,
+        name: Box<[u8]>,
+    },
+    KeepBox {
+        find: skein_fake_person::Find,
         name: Box<[u8]>,
     },
     StopServer,
@@ -78,6 +83,7 @@ pub struct Script {
     commanding: bool,
     focused: Option<skein_fake_person::Find>,
     growth: Option<growth::Growth>,
+    keep_box: Option<keep_box::KeepBox>,
     press: Option<(skein_fake_person::Find, skein_browser::boundary::Point)>,
     awaited: Option<(Time, Awaited)>,
     request: Option<super::Asked>,
@@ -98,6 +104,7 @@ impl Script {
             focused: None,
             press: None,
             growth: None,
+            keep_box: None,
             text: None,
             awaited: None,
             request: None,
@@ -221,6 +228,14 @@ impl Play for Script {
         if self.await_step(face, now) {
             return Next::Wait { until: None };
         }
+        if let Some(keeping) = self.keep_box.take() {
+            if keeping.next(face) {
+                self.at += 1;
+            } else {
+                self.keep_box = Some(keeping);
+            }
+            return Next::Wait { until: None };
+        }
         if let Some(next) = self.grow(face, now) {
             return next;
         }
@@ -279,6 +294,7 @@ impl Play for Script {
                 face.keep(selector, attribute, name);
                 self.keeping = true;
             }
+            Step::KeepBox { find, name } => self.keep_box = Some(keep_box::KeepBox::new(find, name)),
             Step::Address(path) => {
                 face.read_address(&path);
                 self.at += 1;
