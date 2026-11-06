@@ -136,3 +136,16 @@ The next run finishes that source survey, retaining the reported passing `heavy 
 Report the observed CSV failure and all unobserved tests accurately; do not rerun them.
 The duplicate-link path at `temper/crates/temper/tests/process.rs:577` remains outside this task’s repair scope.
 The governing Answer says: “we run optimistically, and repair if after-landing flags.”
+
+## Rebase (2026-11-06, step merge, foreman model-catalogue-1/stock-seven/foreman-4)
+
+rebase the four conflicts, preserving seven-model stock alongside updated idle bounds, brief wording and status.
+The merge failed on four content conflicts; resolve each by combining the task’s changes with the landing target’s changes.
+- `temper/crates/temper-init/src/tests/documents.rs`: retain `stock_models`, `agent_models` and the expanded catalogue assertions. Incorporate idle presets from `d6dd165929` and `43e556233e`: `agent_models` must assign OpenAI 300,000 ms and Anthropic 120,000 ms.
+- Inspect the auto-merged `temper/crates/temper-init/template/{agent,bare-agent}.json`: apply those presets to every model of each provider, including newly added rows; retain demo’s bound.
+- `temper/crates/temper/tests/suite/forge_land.rs`, `a_claude_configuration_replaces_openai_and_keeps_the_demo`: keep stock-seven’s prices (2,000 input/cached, 10,000 output, unit 1,000,000) and take `2141c26092`’s idle 300,000. `configure_live_model` copies the OpenAI agent model before renaming it Claude.
+- `temper/crates/temper-service/src/tests/stock_brief.rs`: preserve wording changes from `189d163c56` and requester guidance from `2361aeef21`, together with the eight-model fixture. Recalculate the combined non-brief/remaining figures, room assertion and `MARGIN`; neither side’s complete table represents the combined code.
+- `temper/docs/design/protocol/setup.status.md`: take the target’s current status, including `103267b8e8`’s terminal coverage update and removal of the superseded bare-URL departure; remove only stock-seven’s obsolete “Not yet: 8.3” model entry.
+Verify the affected document and stock-brief tests through heavy, using focused checks; retain both catalogue and wording assertions in the auto-merged service stock tests.
+Compile temper’s test targets with `heavy cargo check -p temper --tests`.
+Follow the final Answers: run no process tests, walks or after-landing tiers; leave the duplicate-sign-in-link failure outside this repair’s scope and report unobserved coverage accurately.
