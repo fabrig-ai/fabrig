@@ -81,3 +81,7 @@ of any code you fixed. Citations. Push.
 ## Report
 
 As the implementer's text asks: each story's bite and the walk's time.
+
+## Answers
+
+2026-11-06 (temper/forge). **The user's rule, 2026-11-06: a plan's execution only ever runs the focused and fuzzy suites.** No after-landing tier runs during a plan: we run optimistically, and repair if after-landing flags. A new story in a slow tier is written and compiled, not run. `a_trial_runs_through_the_worker_and_the_fake_model`, in `walk/model_check.rs`, is written and compiled, not run: `heavy cargo nextest list --profile process-temper -p temper --test process` shows it. The client world's stories are your proof, and run as usual. The option on a walk over its tier's budget goes. Your report names the walk as unrun.
