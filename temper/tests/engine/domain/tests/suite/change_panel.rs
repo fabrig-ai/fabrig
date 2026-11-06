@@ -273,6 +273,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         entry: 990,
         heard: change::Heard {
             delegate_running: false,
+            delegate_live: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -310,6 +311,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         entry: 991,
         heard: change::Heard {
             delegate_running: false,
+            delegate_live: false,
             start_conflict: None,
             lacking: None,
             spend: None,
