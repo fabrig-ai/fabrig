@@ -1,0 +1,3 @@
+draft = "ui-qa-small"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-qa-small/inputs/request.md", "temper/crates/temper-service/src/stock/configuring.txt", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
