@@ -86,8 +86,9 @@ alone, and many of ctl's tools (`client/README.md`,
 browser, whose story A walks in the browser tier but not yet by hand
 (`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). The browser tier holds 13 tests, one past its cap, its CPU
-measured within its budget on the 12 without the call line's alone, a closed
+(`release.md`). The browser tier holds 14 tests, two past its cap, its CPU
+measured within its budget on the 12 without the call line's and the welcome's
+sign-in's alone, a closed
 chat's wait is located but not split, and no test shows a head waiting for room
 ended by the stall deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
@@ -183,8 +184,9 @@ binary that runs it and has a Copy, but no browser test presses the Copy; a `TEM
 differs (`client/README.md`) and a link clickable on a terminal (`protocol/setup.md`) wait on `box-small-2`; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request
-`model-check-pane` in its list's words, and a sign-in that ends on its way's page stops at
-*A model usable*, where that request goes on to Ready (`client/README.md`). A plan's sign-in draws the waiting page of the request
+`model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
+moves on by itself, but only Chromium has run that, against a fake issuer, and no test has a slow sign-in move on after a
+hidden tab, or a paste's end on the welcome. It draws the waiting page of the request
 `sign-in-new-tab`; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
 (`client/README.md`). The rail's person's menu departs from the request
@@ -222,7 +224,9 @@ answer as it stood (`domain/agent.md`). A journey's `add` redacts, proves
 and scans before it writes, but no real box's recording has been through it, the
 two welcome journeys keep their fake boxes' link secrets until next added, nothing
 refuses `again` on a real journey, and the refusal's process tests watch two
-directories, not every path (`client/journeys.md`). The process tier runs one test
+directories, not every path; no run on record has `again` walk `project-landing`'s
+setup through a sign-in's new tab, and its words still say the page returns
+(`client/journeys.md`). The process tier runs one test
 at a time where its design has three, its one trial at three having failed twice on
 causes not found, and most of the `test-speed` plan's whole runs read over its CPU
 budget (`domain/testing.md`). The

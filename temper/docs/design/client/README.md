@@ -2060,7 +2060,7 @@ keeps (`../protocol/configuration.md`, section 2).
     them; and "Builders", to `Builders { project }`, at
     `/projects/<project>/settings/builders`.
   - *`Forges` and `Accounts`* keep their addresses and paths, so that a
-    sign-in's return, To begin's links and their tests hold. Whenever the
+    connect's `back`, To begin's links and their tests hold. Whenever the
     page has a project, as the rail does (5.3), they draw inside this frame,
     with no level-1 heading of their own and no page bar; their rows follow
     the tabs. With no project they take the same column, sections and rows
