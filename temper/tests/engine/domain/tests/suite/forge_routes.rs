@@ -3711,3 +3711,6 @@ fn assert_named_call_writer_oracle(world: &World) {
 
 #[path = "forge_routes/decided.rs"]
 mod decided;
+
+#[path = "forge_routes/live_delegate.rs"]
+mod live_delegate;
