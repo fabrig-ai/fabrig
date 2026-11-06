@@ -248,6 +248,7 @@ Drafts:
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
+- [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
