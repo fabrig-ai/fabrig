@@ -35,6 +35,16 @@ fn line(
     running: bool,
     seconds: u64,
 ) -> Tree {
+    line_with_words(calls, summaries, current, running, seconds, &fixtures::browser_words())
+}
+fn line_with_words(
+    calls: &[c::Call],
+    summaries: &[(u64, c::Text)],
+    current: Option<&c::CurrentCall>,
+    running: bool,
+    seconds: u64,
+    words: &crate::words::Words,
+) -> Tree {
     let mut b = Builder::new(&fixtures::tree_limits());
     let mut run = Run::with_capacity(CALLS);
     for (at, call) in calls.iter().enumerate() {
@@ -43,12 +53,13 @@ fn line(
             Wall::from_nanos(
                 u64::try_from(at).unwrap().checked_mul(seconds).unwrap().checked_mul(1_000_000_000).unwrap(),
             ),
+            None,
         );
     }
     for (call, summary) in summaries {
         run.result(*call, summary);
     }
-    run.flush(&mut b, current, running, &fixtures::words());
+    run.flush(&mut b, current, running, words);
     b.finish()
 }
 fn disclosure(tree: &Tree) -> &skein_ui::Node {
@@ -60,12 +71,28 @@ fn disclosure(tree: &Tree) -> &skein_ui::Node {
     panic!("run disclosure")
 }
 fn thread(messages: &[(&[c::Message], u64)]) -> Thread {
+    thread_after(messages, None)
+}
+fn thread_after(messages: &[(&[c::Message], u64)], before: Option<(c::Activity, u64)>) -> Thread {
     let mut thread = Thread::new(1, &jig_client::thread::Limits { lines: CALLS, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(CALLS);
+    if let Some((line, seconds)) = before {
+        rows.push(c::DecodedActivityLine {
+            source: Box::new(c::ActivityLine {
+                task: 1,
+                position: 1,
+                at: Wall::from_nanos(seconds.checked_mul(1_000_000_000).unwrap()),
+                line,
+            }),
+            decoded: None,
+        })
+        .unwrap();
+    }
     for (at, (messages, seconds)) in messages.iter().enumerate() {
+        let position = rows.len().checked_add(1).unwrap();
         let at = u32::try_from(at.checked_add(1).unwrap()).unwrap();
-        let mut turn = f::turn(u64::from(at), 1, at, messages, TEXT);
+        let mut turn = f::turn(u64::from(position), 1, at, messages, TEXT);
         turn.source.at = Wall::from_nanos(seconds.checked_mul(1_000_000_000).unwrap());
         if let Some(decoded) = &mut turn.decoded {
             decoded.at = turn.source.at;
@@ -103,7 +130,7 @@ fn a_run_spans_turns_and_ends_at_a_text() {
         }
     }
     assert_eq!(lines.len(), 2);
-    assert_eq!(lines.get(0).unwrap().name.as_deref(), Some("read ×2".as_bytes()));
+    assert_eq!(lines.get(0).unwrap().name.as_deref(), Some("Read 2 files".as_bytes()));
     assert_eq!(lines.get(0).unwrap().description.as_deref(), Some(b"29 s".as_slice()));
     let mut turns = 0_usize;
     for node in tree.nodes() {
@@ -142,7 +169,7 @@ fn one_call_alone_says_what_it_touched() {
     }
 }
 #[test]
-fn a_tool_with_no_words_is_its_name_counted() {
+fn a_tool_outside_the_table_is_its_name() {
     assert_eq!(
         disclosure(&line(
             &[call(1, b"read_file", b"{}", None), call(2, b"read_file", b"{}", None)],
@@ -175,10 +202,94 @@ fn a_failed_call_is_said_on_the_line_and_its_row() {
     let tree = line(&[failed], &[], None, false, 0);
     assert!(fixtures::find(&tree, Role::Paragraph, b"read_file: failed: ").is_some());
 }
+fn call_messages() -> [c::Message; 1] {
+    [f::message(c::Speaker::Assistant, &[f::call(1, b"read", b"{}", None)])]
+}
+fn answer_messages() -> [c::Message; 1] {
+    [f::message(c::Speaker::Assistant, &[c::Block::Text(f::text(b"answer"))])]
+}
+fn chat_tree(source: &Thread) -> Tree {
+    conversation(source, Drawn::Chat { request: None, delegations: None })
+}
 #[test]
-fn a_run_of_one_turn_has_no_time() {
-    let tree = line(&[call(1, b"read", b"{}", None), call(2, b"read", b"{}", None)], &[], None, false, 0);
-    assert_eq!(disclosure(&tree).description, None);
+fn a_run_of_one_turn_measures_from_the_line_before() {
+    let tree = chat_tree(&thread(&[(&answer_messages(), 12), (&call_messages(), 41)]));
+    assert_eq!(disclosure(&tree).description.as_deref(), Some(b"29 s".as_slice()));
+}
+#[test]
+fn a_run_after_words_measures_from_them() {
+    let source = thread_after(
+        &[(&call_messages(), 41)],
+        Some((
+            c::Activity::Words {
+                message: 1,
+                by: c::Requester::Person(1),
+                kind: c::MessageKind::Words,
+                words: f::text(b"please read"),
+            },
+            12,
+        )),
+    );
+    assert_eq!(disclosure(&chat_tree(&source)).description.as_deref(), Some(b"29 s".as_slice()));
+}
+#[test]
+fn a_hidden_line_says_when_a_run_began() {
+    let mut source = thread(&[(&answer_messages(), 12), (&call_messages(), 3641)]);
+    let mut rows = List::with_capacity(CALLS);
+    let mut last = source.lines.rows.get(0).unwrap().clone();
+    last.source.position = 3;
+    rows.push(last).unwrap();
+    rows.push(c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
+            task: 1,
+            position: 2,
+            at: Wall::from_nanos(3_612_000_000_000),
+            line: c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false },
+        }),
+        decoded: None,
+    })
+    .unwrap();
+    rows.push(source.lines.rows.get(1).unwrap().clone()).unwrap();
+    source.lines.rows = rows;
+    assert_eq!(disclosure(&chat_tree(&source)).description.as_deref(), Some(b"29 s".as_slice()));
+}
+#[test]
+fn a_run_across_turns_measures_from_the_line_before_its_first() {
+    let calls = call_messages();
+    let tree = chat_tree(&thread(&[(&answer_messages(), 5), (&calls, 10), (&calls, 20), (&calls, 30)]));
+    assert_eq!(disclosure(&tree).description.as_deref(), Some(b"25 s".as_slice()));
+}
+#[test]
+fn a_run_at_the_windows_head_has_no_line_to_measure_from() {
+    let calls = call_messages();
+    assert_eq!(disclosure(&chat_tree(&thread(&[(&calls, 10)]))).description, None);
+    assert_eq!(
+        disclosure(&chat_tree(&thread(&[(&calls, 10), (&calls, 20)]))).description.as_deref(),
+        Some(b"10 s".as_slice())
+    );
+}
+#[test]
+fn a_turns_second_run_has_no_time() {
+    let split = [f::message(
+        c::Speaker::Assistant,
+        &[f::call(1, b"read", b"{}", None), c::Block::Text(f::text(b"answer")), f::call(2, b"wait", b"{}", None)],
+    )];
+    let tree = chat_tree(&thread(&[(&answer_messages(), 12), (&split, 41)]));
+    let mut descriptions = List::with_capacity(CALLS);
+    for node in tree.nodes() {
+        if node.role == Role::Disclosure {
+            descriptions.push(node.description.as_deref()).unwrap();
+        }
+    }
+    assert_eq!(descriptions.as_slice(), [Some(b"29 s".as_slice()), None]);
+}
+#[test]
+fn a_run_under_a_second_has_no_time() {
+    let mut source = thread(&[(&answer_messages(), 12), (&call_messages(), 12)]);
+    let last = source.lines.rows.get_mut(0).unwrap();
+    last.source.at = Wall::from_nanos(12_500_000_000);
+    last.decoded.as_mut().unwrap().at = last.source.at;
+    assert_eq!(disclosure(&chat_tree(&source)).description, None);
 }
 #[test]
 fn a_running_run_says_the_call_under_way_and_takes_the_dots() {
@@ -189,7 +300,11 @@ fn a_running_run_says_the_call_under_way_and_takes_the_dots() {
     task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Due);
     let root = super::chat::configuring_task_root(task, true, 1);
     let messages = [f::message(c::Speaker::Assistant, &[f::call(1, b"read", b"{}", None)])];
-    let tree = conversation(&thread(&[(&messages, 0)]), Drawn::ChatPage { request: None, root: &root });
+    let tree = conversation(
+        &thread(&[(&answer_messages(), 12), (&messages, 41)]),
+        Drawn::ChatPage { request: None, root: &root },
+    );
+    assert_eq!(disclosure(&tree).description, None);
     assert!(disclosure(&tree).styles.as_slice().contains(&look::WORK_RUNNING));
     for node in tree.nodes() {
         assert!(!node.styles.as_slice().contains(&look::TYPING));
@@ -202,9 +317,10 @@ fn a_call_under_way_with_none_ended_is_a_line() {
     assert!(fixtures::find(&tree, Role::Paragraph, b"settings template 2").is_some());
 }
 #[test]
-fn a_row_never_holds_a_results_body() {
+fn a_table_tools_row_holds_no_results_body() {
     let tree = line(&[call(1, b"read", b"{}", Some(b"summary\nsecret body"))], &[], None, false, 0);
     assert!(fixtures::find(&tree, Role::Paragraph, b"read: summary").is_some());
+    assert_eq!(disclosure(&tree).name.as_deref(), Some(b"Read 1 file".as_slice()));
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"secret body").is_none());
 }
 #[test]
@@ -253,16 +369,22 @@ fn a_card_and_a_write_are_not_counted_and_end_a_run() {
             names.push(node.name.as_deref().unwrap()).unwrap();
         }
     }
-    assert_eq!(names.as_slice(), &[b"read".as_slice(), b"wait", b"read"]);
+    assert_eq!(names.as_slice(), &[b"Read 1 file".as_slice(), b"wait", b"Read 1 file"]);
     assert!(fixtures::find(&tree, Role::Button, b"Show").is_some());
 }
 #[test]
 fn the_terminal_prints_the_name_description_and_rows() {
-    let tree =
-        line(&[call(1, b"read", b"{}", Some(b"first")), call(2, b"read", b"{}", Some(b"last"))], &[], None, false, 29);
+    let tree = line_with_words(
+        &[call(1, b"read", b"{}", Some(b"first")), call(2, b"read", b"{}", Some(b"last"))],
+        &[],
+        None,
+        false,
+        29,
+        &fixtures::words(),
+    );
     let mut print = skein_ui_text::Print::new(&fixtures::tree_limits()).unwrap();
     skein_ui_text::render(&tree, b"temper", None, &mut print);
-    assert!(skein_lib::bytes::find(print.text.as_slice(), "read ×2: 29 s".as_bytes()).is_some());
+    assert!(skein_lib::bytes::find(print.text.as_slice(), "Read 2 files: 29 s".as_bytes()).is_some());
     assert!(skein_lib::bytes::find(print.text.as_slice(), b"`read`: first").is_some());
     assert!(skein_lib::bytes::find(print.text.as_slice(), b"`read`: last").is_some());
 }
@@ -318,5 +440,152 @@ fn a_hidden_line_keeps_the_run_together() {
         .unwrap();
     source.page(c::ActivityPage { rows, before: None, after: None, cut: false });
     let tree = conversation(&source, Drawn::Chat { request: None, delegations: None });
-    assert_eq!(disclosure(&tree).name.as_deref(), Some("read ×2".as_bytes()));
+    assert_eq!(disclosure(&tree).name.as_deref(), Some("Read 2 files".as_bytes()));
+}
+
+fn live(tool: &[u8], input: &[u8]) -> c::CurrentCall {
+    let mut call = current();
+    call.tool = f::text(tool);
+    call.input = f::text(input);
+    call
+}
+#[test]
+fn file_tools_count_what_they_touched() {
+    for (tool, expected) in [
+        ("read", "Read 3 files"),
+        ("Read", "Read 3 files"),
+        ("list", "Listed 3 folders"),
+        ("Glob", "Listed 3 folders"),
+        ("write", "Wrote 3 files"),
+        ("Write", "Wrote 3 files"),
+        ("edit", "Edited 3 files"),
+        ("Edit", "Edited 3 files"),
+        ("remove", "Removed 3 files"),
+        ("search", "Searched the files 5×"),
+        ("Grep", "Searched the files 5×"),
+        ("shell", "Ran 5 commands"),
+        ("Bash", "Ran 5 commands"),
+    ] {
+        let tree = line(
+            &[
+                call(1, tool.as_bytes(), br#"{"path":"same"}"#, None),
+                call(2, tool.as_bytes(), br#"{"path":"same"}"#, None),
+                call(3, tool.as_bytes(), br#"{"path":"same"}"#, None),
+                call(4, tool.as_bytes(), b"{}", None),
+                call(5, tool.as_bytes(), b"bad", None),
+            ],
+            &[],
+            None,
+            false,
+            0,
+        );
+        assert_eq!(disclosure(&tree).name.as_deref(), Some(expected.as_bytes()), "{tool}");
+    }
+    let tree = line(&[call(1, b"read", b"{}", None), call(2, b"shell", b"{}", None)], &[], None, false, 0);
+    assert_eq!(disclosure(&tree).name.as_deref(), Some(b"Read 1 file, ran 1 command".as_slice()));
+}
+#[test]
+fn one_call_alone_says_its_argument() {
+    for (tool, expected, counted) in [
+        ("read", "Read arg", "Read 1 file"),
+        ("Read", "Read arg", "Read 1 file"),
+        ("list", "Listed arg", "Listed 1 folder"),
+        ("Glob", "Listed arg", "Listed 1 folder"),
+        ("write", "Wrote arg", "Wrote 1 file"),
+        ("Write", "Wrote arg", "Wrote 1 file"),
+        ("edit", "Edited arg", "Edited 1 file"),
+        ("Edit", "Edited arg", "Edited 1 file"),
+        ("remove", "Removed arg", "Removed 1 file"),
+        ("search", "Searched for arg", "Searched the files"),
+        ("Grep", "Searched for arg", "Searched the files"),
+        ("shell", "Ran arg", "Ran 1 command"),
+        ("Bash", "Ran arg", "Ran 1 command"),
+    ] {
+        for (input, name) in [(br#"{"text":"arg"}"#.as_slice(), expected), (b"bad", counted)] {
+            assert_eq!(
+                disclosure(&line(&[call(1, tool.as_bytes(), input, None)], &[], None, false, 0)).name.as_deref(),
+                Some(name.as_bytes()),
+                "{tool}"
+            );
+        }
+    }
+}
+#[test]
+fn a_call_under_way_says_its_present_form() {
+    for (tool, expected) in [
+        ("read", "reading arg"),
+        ("Read", "reading arg"),
+        ("list", "listing arg"),
+        ("Glob", "listing arg"),
+        ("write", "writing arg"),
+        ("Write", "writing arg"),
+        ("edit", "editing arg"),
+        ("Edit", "editing arg"),
+        ("remove", "removing arg"),
+        ("search", "searching for arg"),
+        ("Grep", "searching for arg"),
+        ("shell", "running arg"),
+        ("Bash", "running arg"),
+    ] {
+        let tree = line(&[], &[], Some(&live(tool.as_bytes(), br#"{"text":"arg"}"#)), true, 0);
+        assert_eq!(disclosure(&tree).description.as_deref(), Some(expected.as_bytes()), "{tool}");
+    }
+    let tree = line(&[], &[], Some(&live(b"read", br#"{"path":"arg"}"#)), true, 0);
+    assert_eq!(disclosure(&tree).name.as_deref(), Some(b"Reading arg".as_slice()));
+}
+#[test]
+fn an_unreadable_call_under_way_is_its_name() {
+    for tool in [
+        "read_docs",
+        "settings",
+        "read",
+        "Read",
+        "list",
+        "Glob",
+        "write",
+        "Write",
+        "edit",
+        "Edit",
+        "remove",
+        "search",
+        "Grep",
+        "shell",
+        "Bash",
+        "read_file",
+    ] {
+        let tree = line(&[], &[], Some(&live(tool.as_bytes(), b"bad")), true, 0);
+        assert_eq!(disclosure(&tree).description.as_deref(), Some(tool.as_bytes()));
+        assert_eq!(disclosure(&tree).name.as_deref(), Some(tool.as_bytes()));
+    }
+}
+#[test]
+fn a_cut_input_says_its_first_member() {
+    let mut current = live(b"write", br#"{"path":"src/a.rs","content":"aaaa"#);
+    current.cut = true;
+    let tree = line(&[], &[], Some(&current), true, 0);
+    assert_eq!(disclosure(&tree).description.as_deref(), Some(b"writing src/a.rs".as_slice()));
+    assert!(fixtures::find(&tree, Role::Paragraph, b"write src/a.rs").is_some());
+}
+#[test]
+fn a_command_is_its_first_line() {
+    let input = br#"{"command":"cargo test\necho body"}"#;
+    let tree = line(&[call(1, b"shell", input, None)], &[], Some(&live(b"shell", input)), true, 0);
+    assert_eq!(disclosure(&tree).name.as_deref(), Some(b"Ran cargo test".as_slice()));
+    assert_eq!(disclosure(&tree).description.as_deref(), Some(b"running cargo test".as_slice()));
+    assert!(fixtures::find(&tree, Role::Paragraph, b"shell cargo test").is_some());
+    assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"echo body").is_none());
+}
+#[test]
+fn the_terminal_writes_the_ellipsis() {
+    let tree = line_with_words(
+        &[call(1, b"read", b"{}", None), call(2, b"read", b"{}", None)],
+        &[],
+        Some(&live(b"read", br#"{"path":"src/main.rs"}"#)),
+        true,
+        0,
+        &fixtures::words(),
+    );
+    let mut print = skein_ui_text::Print::new(&fixtures::tree_limits()).unwrap();
+    skein_ui_text::render(&tree, b"temper", None, &mut print);
+    assert!(skein_lib::bytes::find(print.text.as_slice(), "Read 2 files: reading src/main.rs…".as_bytes()).is_some());
 }

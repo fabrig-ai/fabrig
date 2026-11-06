@@ -184,6 +184,17 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
     private(&path, &serde_json::to_vec(&agent).expect("demo agent JSON"));
 }
 
+/// Replace the turns of exactly one request offered by the demo.
+pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) {
+    let path = directory.join("temper.json");
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON");
+    let scripts = value["application"]["demo"]["llm"]["asked"].as_array_mut().expect("asked scripts");
+    let script = scripts.iter_mut().find(|script| script["cue"] == cue).expect("offered demo request");
+    script["turns"] = turns;
+    private(&path, &serde_json::to_vec(&value).expect("scripted demo JSON"));
+}
+
 /// Public reading's demo alone (temper/docs/design/protocol/sign-in.md, 2.4;
 /// jig/docs/design/domain/people.md, 13.7). Its two-second freshness is the walk's subject.
 pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
