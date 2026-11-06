@@ -382,6 +382,20 @@ fn a_watch_refused_leaves_no_wait() {
 }
 
 #[test]
+fn a_timed_out_trial_keeps_its_last_wait_after_task_ends() {
+    let (mut root, watch, _) = opened();
+    let out = deliver(&mut root, watch, &[running(ACCOUNT, TASK)]);
+    let watched = opening(&out, Watchable::Jig(c::Subject::Task { task: TASK })).expect("trial task");
+    task(&mut root, watched, TASK, Some(WAIT));
+    task(&mut root, watched, TASK, None);
+    up(&mut root, Up::WatchEnded { watch: watched, end: c::WatchEnd::SubjectEnded });
+    deliver(&mut root, watch, &[ended()]);
+    assert_eq!(root.forge().trial_wait(), Some(&WAIT), "the timed-out row keeps the reason seen before cancellation");
+    again(&mut root, ACCOUNT);
+    assert_eq!(root.forge().trial_wait(), None, "a new try forgets the previous wait");
+}
+
+#[test]
 fn an_ended_watch_stays_ended() {
     for end in [c::WatchEnd::NotAllowed, c::WatchEnd::SubjectEnded] {
         let (mut root, watch, frame) = opened();
