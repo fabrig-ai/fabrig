@@ -1429,9 +1429,9 @@ the application that needs it.
 - **The loader's other states in a test:** the browser tier holds its
   hand-over and a module not found. The estimate, the 8 s note, a stall, a
   drop and `data-starting` need an answer held or cut part-way, which the
-  example's server doesn't do; `temper/docs/plan/bundle-loading/figures.md`,
-  **Render check**, walked them once behind a proxy of its own. They wait for
-  a change of the loader that breaks one unseen.
+  example's server doesn't do; the `bundle-loading` plan's proof walked them
+  once behind a proxy of its own (its figures on the render check, at
+  `668f7cd3e5`). They wait for a change of the loader that breaks one unseen.
 - **Graphics beyond a scene** (a canvas of hundreds of thousands of
   points, three dimensions, video) are a component of the application's
   (6.1), never a part of skein's.

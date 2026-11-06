@@ -17,8 +17,8 @@
   empty bar with no line, and `#boot-note` empties at 15 s. The draft that asks the
   loader has a stall say it is waiting
   (`temper/docs/design/draft/bundle-loading.status.md`). No reason is recorded; seen by
-  reading, and no test stalls an answer: the proof
-  (`temper/docs/plan/bundle-loading/figures.md`, **Render check**) paused one part-way.
+  reading, and no test stalls an answer: the proof (the `bundle-loading` plan's figures
+  on its render check, at `668f7cd3e5`) paused one part-way.
 - **Departs:** 4.2: `Cargo.toml` builds `flate2`, `miniz_oxide`, `crc32fast` and
   `adler2` at `opt-level` 3 in development, as it does the bundler, because the tiers
   and the build scripts run the dev bundler. `../foundation/testing-strategy.md`, 8 lets
@@ -30,4 +30,4 @@
   `browser_stories`'s `a_placeholder_gives_way_to_the_client` and
   `a_module_not_found_says_so_and_offers_to_try_again` passing there: the plan that wrote
   them ran focused and fuzzy alone, the tier waiting for its run after landing
-  (`temper/docs/plan/bundle-loading/figures.md`, **Browser tier**).
+  (the `bundle-loading` plan's figures on the browser tier, at `668f7cd3e5`).

@@ -101,13 +101,13 @@
   The `bundle-loading` plan's run of 13 tests, one fewer than the tier holds, with the
   placeholder on every page but the playground's, took 83.069911 CPU s with one red, against 61.048855 with
   none before it, and no figure splits the page's cost from the machine's load
-  (`temper/docs/plan/bundle-loading/figures.md`, **Browser tier**). The red is
+  (that plan's figures on the browser tier, at `668f7cd3e5`). The red is
   `browser_public`'s `a_visitor_reads_a_public_project_and_loses_it_when_made_private`:
   `temper ctl`'s `project amend --visibility public` outlasts its ten-second deadline
   with the page at Ready and the placeholder gone, in that run and alone. Focused tests
   of the bundle's answers, the mapping's room and ctl's wait for its `Me` pass and don't
   reproduce it; the listener's eight connections, which a page's parallel files share,
-  are a hypothesis, no cause observed (same file, **Focused diagnosis of the ctl wait**).
+  are a hypothesis, no cause observed (the same figures, on the ctl wait).
   Its repair waits on the tier's run after landing (the user, 2026-11-06), and no later
   run is recorded here.
 - **Not yet:** 4.6: the request `browser-trim` has a person's page slower to settle as

@@ -28,9 +28,11 @@ client's first node in 5,093.7–5,100.9 ms, against 1,476–1,496 ms,
 15,192–15,280 ms and 15,097.9–15,180.5 ms before. The dev native server
 starts listening in 781.2 ms with 63,380 KiB `VmHWM`, a loaded observation
 during the release build; before, 370.4 ms and 61,860 KiB. Sizes are byte
-counts of the bundler's output; timings, received bytes, screenshots and
-memory use the same driver and method in
-`temper/docs/plan/bundle-loading/figures.md`, **Method** and **After**.
+counts of the bundler's output and `gzip -9 -c`'s. Timings come from a fresh
+Chromium's paint entries and a mutation observer on `#app`, under CDP's network
+emulation at 250,000 bytes/s each way with no added latency; received bytes from
+CDP's encoded lengths; memory from the process's `/proc/PID/status`. The plan's
+figures hold the method, its driver and the results, at `668f7cd3e5`.
 temper's browser tier, whose tests load this page but for the playground's,
 reads 83.069911 of its 85 CPU s over 13 tests with one red, against 61.048855
 over 13 with none before (`../client/browser.status.md`, 4.3); skein's has no figure
