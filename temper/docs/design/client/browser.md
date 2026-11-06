@@ -105,9 +105,12 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   - `host`: the client host: temper's client root and view, and the
     view's patch queue, reserved at start at the view's limit on
     patches and drained each turn (skein's `ui-web.md`, 5.2); the root's
-    `Leave`, a sign-in's departure (`README.md`, 3.5, The tab's
-    departure), as skein's transport's navigation away, in the turn
-    that asked it (skein's `ui-web.md`, section 10); jig's
+    `Leave`, a forge's or an authorization's departure, as skein's
+    transport's navigation away, in the turn that asked it (skein's
+    `ui-web.md`, section 10); the root's `Tab`, a sign-in's tab
+    (`README.md`, 3.5, `ConnectModel`, The sign-in's tab), as skein's
+    platform's, the opening before the turn's transport, and a refusal
+    given back as a report of that turn; jig's
     mapping under `/jig` and its stream; the root's requests to jig's
     adapter (`jig-client-shell-web`'s `adapter`) and skein's transport,
     and their reports back to the root; and the wake, skein's timer
@@ -119,7 +122,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   - `journey`: a recording's records and file, its recorder and its
     replay (`journeys.md`, sections 3 and 4); the recorder's keys and
     save are in `lib`, under the `record` feature alone;
-  - `records`: the small store's records, `jig-client`'s alone; from the
+  - `records`: the small store's records, `jig-client`'s and a sign-in's
+    address (`README.md`, section 7); from the
     adoption form, a pending adoption is among them, a kept
     request whose request `temper-client-protocol-wire` encodes
     (`README.md`, 4.6);
@@ -145,8 +149,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   a pending adoption is among them, a kept request
   (`README.md`, 4.6). Each load of the page is a client of its own, with
   its own stream (jig's `protocol/browser.md`, section 10). The root can
-  step the client several times in one turn (a sign-in's answer saves its
-  `Return` and erases the answered request): each write the client asks
+  step the client several times in one turn: each write the client asks
   for (`Save`, `Erase`) is answered once, after the turn's whole storage
   has finished, and every one is refused if any write was refused.
 - **What the terminal says in lines of its own** (`README.md`, 3.4 and
@@ -321,8 +324,9 @@ replay says the same clocks (`README.md`, 5.12).
   another name, is dropped, and the address replaced with the printed
   one. It reads a number and a kind, not the configured providers: a
   way they do not offer shows Choose. A sign-in's way may add its
-  sign-in's source, `&source=S`, S a source's number in decimal, the
-  address a sign-in returns to (`README.md`, 3.5, The tab's departure):
+  sign-in's source, `&source=S`, S a source's number in decimal, once the
+  sign-in is answered, its history entry replaced (`README.md`, 3.5,
+  `ConnectModel`, A reload while it waits):
   `/accounts/connect?provider=1&way=sign-in&source=7`. A source on
   another way, or one that doesn't read as a number, is dropped as
   above.
@@ -924,10 +928,10 @@ behaviour brings its story with it: `ConnectModel`'s sign-in, its tab
 sent to the provider's address and back to the page it left
 (`README.md`, 3.5).
 
-**`ConnectModel`'s sign-in, the round trip.** What only a browser
-shows: the page's own tab leaving for the provider's address, the
-provider's redirect followed to the engine's listener, its `303` back
-to the page, and the page come back, a new client, drawing the end.
+**`ConnectModel`'s sign-in, in a new tab.** What only a browser shows:
+a press opening a tab within its gesture, the answer pointing it, the
+provider's redirect followed to the engine's listener in that tab, and
+the page, which stayed, drawing the end.
 - **Against:** `temper serve` with its OpenAI provider's issuer, its
   authorization, token and key addresses, skein's fake issuer
   (`skein_fake_peers::oauth::Peer`), hosted on loopback in the
@@ -936,16 +940,22 @@ to the page, and the page come back, a new client, drawing the end.
   varies). The fake has no TLS, so the tier's bundle is built with
   skein-ui-web's `loopback-navigation` (4.3).
 - **The story:** a person on `ConnectModel`'s Choose presses "Continue
-  with ChatGPT"; the browser follows the issuer's redirect and the
-  listener's `303` alone, and the address reads
-  `/accounts/connect?provider=1&way=sign-in&source=S`; the page shows
-  Ready ("Signed in to ChatGPT"); the fake has taken one authorization
-  and one code exchange. A reload then shows Ready again and the issuer
-  has taken no second authorization: the departure is once.
-- **Not here:** the departure's order, `Return` before `Leave`, its
-  refusal and the terminal's root without one are the client world's
-  (`tests/client`); the path's check, the engine's; the `303`, its
-  absence and a return for no sign-in, skein's listener tier.
+  with ChatGPT"; one more tab opens (skein's `ui-web.md`, 14.2, Its tabs),
+  which can't reach its opener by the time it's at the listener, its
+  address the listener's; the page's own address reads
+  `/accounts/connect?provider=1&way=sign-in&source=S`, in place of the
+  entry it had; the page shows Ready ("Signed in to ChatGPT"); the fake
+  has taken one authorization and one code exchange. A reload then shows
+  Ready again and the issuer has taken no second authorization: the tab
+  is pointed once.
+- **The welcome's Model step:** the same press holds the welcome, and it
+  moves on to Ready by itself, `/welcome?at=ready`.
+- **Run on Chromium alone,** the tier's one browser. Firefox and Safari
+  are read: a press reaches `window.open` within its event's listener
+  (skein's `ui-web.md`, 14.3).
+- **Not here:** the tab's order, the press's before the answer, a refusal,
+  and the terminal's root are the client world's (`tests/client`) and the
+  host's; a tab refused by the browser and the pop-up rule, skein's tier.
 
 **`ConnectForge`'s App of your own, the pasted key,** has no story
 here. Its field is a text field of the secret kind, which skein's page

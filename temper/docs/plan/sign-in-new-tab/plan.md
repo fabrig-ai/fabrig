@@ -9,13 +9,15 @@ A plan's sign-in moves to a new tab, and temper's page stays and waits (`temper/
 
 ## To come
 
-- temper's root, host and view: the press opens, the answer points or closes, the page holds, the departure goes (draft, 2, 3, 5).
-- The recorder and replay keep the tab (draft, 5; `temper/docs/design/client/journeys.md`, 3.1 and 4.2).
+- `tab-root`: `tab-surface` is released. `sign-in-holds` makes the root ask and the departure go, then the view's refusal and the reload's link; their readers are being surveyed.
+- The browser tier's story, and the wire's `Return` where nothing else sends it.
 
 ## Critical path
 
-`web-tab`, then temper's host and root, then the removal of the departure.
+`web-tab`, `tab-surface`, `sign-in-holds`, then the browser tier's story.
 
 ## Overlaps
 
-Being surveyed. `listener-words` overlaps no other draft's files.
+- `temper/docs/design/client/journeys.md` and `journeys.status.md`: the drafts `real-journeys` (`journeys-close`) and `first-usable-model` (`printed-command`) change them too.
+- `temper-client-shell-web/src/journey/line.rs`, `replay.rs`: the draft `real-journeys` has `fields.rs`, `scan.rs` and `redact.rs` beside them, not yet landed. Whichever lands second takes the new lines' arms; `tab-surface` pre-approves them.
+- `temper-client-view/src/words.rs`, `pages/connect_model.rs` and `temper-client-domain/src/route.rs`: fabrig/ui's `temper-client-*` work and `first-usable-model` have priority, so these hunks stay small.
