@@ -38,8 +38,6 @@
   exercises render and diff with real git, rather than builds on btrfs.
   6.6: the built root booting in QEMU; the `real/boot.rs` module checks the
   rendered boot part, not a boot.
-- **Not yet:** 8.4, 8.5: a client that stops reading: its scenario and its
-  ceiling.
 - **Not yet:** 8.1: the M2 store, build and system worlds on the complete fake
   machine. 8.3, 8.5: the build sandbox, sealed-layer and crash checks against
   that machine, including a cut between walk and record and
