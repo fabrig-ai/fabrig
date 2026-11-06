@@ -2,7 +2,7 @@
 use crate::{Kept, SecretOwner, routes::Route};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{CryptoRng, Map, Secret, Time, Token, Writer};
+use skein_lib::{CryptoRng, Map, Secret, Time, Token, Writer, length::len_u64};
 #[derive(Debug)]
 pub(crate) struct Link {
     pub secret: Secret,
@@ -79,7 +79,7 @@ pub(crate) fn digest(bytes: &[u8]) -> Secret {
 pub(crate) fn carrying(record: &[u8], value: &Secret) -> [u8; 32] {
     let mut hash = skein_lib::sha256::Sha256::new();
     for part in [record, value.expose()] {
-        hash.update(&u64::try_from(part.len()).expect("usize fits u64").to_be_bytes());
+        hash.update(&len_u64(part.len()).to_be_bytes());
         hash.update(part);
     }
     hash.finish()

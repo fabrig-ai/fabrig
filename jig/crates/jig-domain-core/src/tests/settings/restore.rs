@@ -254,7 +254,7 @@ fn a_restore_past_the_whole_set_is_refused_too_large() {
         outcome(&output),
         people::Outcome::Refused(people::Refusal::NotWellFormed {
             at: 0,
-            why: people::Malformed::Settings { setting: s::Setting::Charter(3), fault: s::Fault::Count }
+            why: people::Malformed::Settings { setting: s::Setting::Charter(3), fault: s::Fault::Count, detail: None }
         })
     );
 }
@@ -486,7 +486,8 @@ fn two_project_policies_are_too_large_before_deleted_projects_are_left_out() {
             at: 0,
             why: people::Malformed::Settings {
                 setting: s::Setting::ProjectPolicy { project: 2 },
-                fault: s::Fault::Count
+                fault: s::Fault::Count,
+                detail: None
             }
         })
     );
@@ -511,7 +512,8 @@ fn deleted_application_items_count_before_they_are_left_out() {
             at: 0,
             why: people::Malformed::Settings {
                 setting: s::Setting::Application { kind: 2, scope: 2, number: 3 },
-                fault: s::Fault::Count
+                fault: s::Fault::Count,
+                detail: None
             }
         })
     );
@@ -597,7 +599,8 @@ fn application_sizes_and_charter_counts_are_checked_before_the_proposal_is_kept(
                 at: 0,
                 why: people::Malformed::Settings {
                     setting: s::Setting::Application { kind: 1, scope: 0, number: 1 },
-                    fault: s::Fault::Shape
+                    fault: s::Fault::Shape,
+                    detail: None
                 }
             })
         );
@@ -706,7 +709,8 @@ fn deleted_application_scopes_share_the_kinds_whole_set_bound() {
             at: 0,
             why: people::Malformed::Settings {
                 setting: s::Setting::Application { kind: 2, scope: 3, number: 1 },
-                fault: s::Fault::Count
+                fault: s::Fault::Count,
+                detail: None
             }
         })
     );

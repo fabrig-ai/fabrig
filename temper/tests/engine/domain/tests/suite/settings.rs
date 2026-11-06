@@ -203,7 +203,11 @@ fn a_stored_settings_policy_one_byte_over_the_new_bound_refuses_by_setting_and_s
         Some(engine::StartStop::Core {
             phase: Some(core::start::Phase::LoadCore),
             failure: core::start::Failure::Settings {
-                failure: s::Failure { setting: s::Setting::Policy(POLICY_NUMBER), fault: s::Fault::Shape },
+                failure: s::Failure {
+                    setting: s::Setting::Policy(POLICY_NUMBER),
+                    fault: s::Fault::Shape,
+                    detail: None
+                },
                 changed: true,
             }
         })
@@ -575,7 +579,7 @@ fn a_stored_change_that_no_longer_checks_refuses_the_start() {
         Some(engine::StartStop::Core {
             phase: Some(core::start::Phase::LoadCore),
             failure: core::start::Failure::Settings {
-                failure: s::Failure { setting: s::Setting::Template(1), fault: s::Fault::Grace },
+                failure: s::Failure { setting: s::Setting::Template(1), fault: s::Fault::Grace, detail: None },
                 changed: true
             }
         })

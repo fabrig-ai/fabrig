@@ -3,13 +3,14 @@
 
 use crate::boundary::{Invalid, RunAssignment};
 use crate::limits::Limits;
+use skein_lib::length::len_u64;
 
 /// Whether `assignment` fits `limits`, and what about it does not.
 pub(crate) fn check(assignment: &RunAssignment, limits: &Limits) -> Result<(), Invalid> {
     if len(&assignment.charter) > limits.charter_bytes {
         return Err(Invalid::Charter);
     }
-    if u64::try_from(assignment.grants.len()).expect("a length fits") > u64::from(limits.accounts) {
+    if len_u64(assignment.grants.len()) > u64::from(limits.accounts) {
         return Err(Invalid::Grants);
     }
     for (index, grant) in assignment.grants.iter().enumerate() {
@@ -24,12 +25,12 @@ pub(crate) fn check(assignment: &RunAssignment, limits: &Limits) -> Result<(), I
 
 /// The length of `bytes`.
 pub(crate) fn len(bytes: &[u8]) -> u64 {
-    u64::try_from(bytes.len()).expect("a length fits in a u64")
+    len_u64(bytes.len())
 }
 
 /// A start carries at most one inbox of individually bounded messages.
 pub(crate) fn messages_fit(messages: &[crate::StartMessage], limits: &Limits) -> bool {
-    if u64::try_from(messages.len()).expect("a length fits") > u64::from(limits.inbox) {
+    if len_u64(messages.len()) > u64::from(limits.inbox) {
         return false;
     }
     for message in messages {

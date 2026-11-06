@@ -223,6 +223,7 @@ where it holds it.
   traces without its bytes (http.md, 2; channel.md, 3). Only what oauth.md, 4
   names as no credential prints as it came.
 - **Widening:** `length::usize_of` widens a `u32` count to an index and `length::len_u64` a length to a count, so no step writes `try_from` for either.
+- **A length added up with checks:** `length::Measure` starts at `Measure::ZERO` and `add`s lengths: past a `usize` it stays `None`. `total` gives the sum, and `total_u32` the sum a `u32` holds. A writer measures a head or a frame with it before `Writer::new`.
 
 ### 6.1 Base64
 
@@ -756,8 +757,7 @@ What of this document is not built is in [`lib.status.md`](lib.status.md).
   `temper-box`, `temper-client-domain`, `temper-client-view` and
   `temper-client-tools`, move onto `Wall::civil` and `Civil`, and its
   hand-set token tags onto `Token::tagged`, in its own tree. They wait with
-  no debt item to hold them; smith's tags wait on
-  `smith/docs/development/debt/D020-hand-set-token-tags.md`.
+  no debt item to hold them.
 - **The carriers left:** section 6's rule goes crate by crate, each when a
   draft asks for it; `lib.status.md` names those it has not reached. The
   stream's records and `Intake` would close the most at once, since every

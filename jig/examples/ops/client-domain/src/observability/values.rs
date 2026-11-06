@@ -2,7 +2,7 @@
 //! jig owns the lead's proposals; no connector revision is invented.
 use super::documents::{Service, State, Subject};
 use alloc::boxed::Box;
-use skein_lib::{List, Wall};
+use skein_lib::{List, Wall, length::len_u64};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LoadPoint {
@@ -139,13 +139,13 @@ fn service_price(service: &Service, limits: &jig_client::DomainLimits) -> Option
     {
         return None;
     }
-    u64::try_from(service.environment.len()).ok()?.checked_add(u64::try_from(service.name.len()).ok()?)
+    len_u64(service.environment.len()).checked_add(len_u64(service.name.len()))
 }
 fn fact_price(fact: &Fact, limits: &jig_client::DomainLimits) -> Option<u64> {
     if fact.load.len() > usize::try_from(limits.rows).ok()? {
         return None;
     }
-    u64::try_from(fact.load.len()).ok()?.checked_mul(u64::try_from(size_of::<LoadPoint>()).ok()?)
+    len_u64(fact.load.len()).checked_mul(u64::try_from(size_of::<LoadPoint>()).ok()?)
 }
 fn incident_price(incident: &Incident, limits: &jig_client::DomainLimits) -> Option<u64> {
     if incident.timeline.capacity() > limits.rows || incident.alerts.len() > usize::try_from(limits.rows).ok()? {
@@ -153,7 +153,7 @@ fn incident_price(incident: &Incident, limits: &jig_client::DomainLimits) -> Opt
     }
     service_price(&incident.service, limits)?
         .checked_add(List::<Point>::price(incident.timeline.capacity())?)?
-        .checked_add(u64::try_from(incident.alerts.len()).ok()?.checked_mul(8)?)
+        .checked_add(len_u64(incident.alerts.len()).checked_mul(8)?)
 }
 #[must_use]
 pub fn price(document: &Document, limits: &jig_client::DomainLimits) -> Option<u64> {
@@ -212,7 +212,7 @@ fn text_price(value: &[u8], limits: &jig_client::DomainLimits) -> Option<u64> {
     if value.len() > usize::try_from(limits.text).ok()? {
         return None;
     }
-    u64::try_from(value.len()).ok()
+    Some(len_u64(value.len()))
 }
 
 fn identity(document: &Document) -> bool {

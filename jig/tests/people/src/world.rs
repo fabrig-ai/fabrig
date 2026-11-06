@@ -232,7 +232,7 @@ impl World {
             hold_replies: false,
         };
         world.domain.start_restore(world.env.wall);
-        assert!(world.domain.start_link(&world.env));
+        assert!(world.domain.start_link());
         world.domain.start_sweep();
         assert!(world.domain.start_complete(&world.env));
         world
@@ -1228,7 +1228,7 @@ impl World {
                 self.send(Event::Restore { record });
             }
         }
-        assert!(self.domain.start_link(&self.env));
+        assert!(self.domain.start_link());
         self.domain.start_sweep();
         let mut after = None;
         for _ in 0..self.records.len() {

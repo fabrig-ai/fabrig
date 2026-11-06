@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use alloc::boxed::Box;
-use skein_lib::{List, Wall};
+use skein_lib::{List, Wall, length::len_u64};
 
 /// A thread line, oldest first. Other activity remains available whole.
 #[derive(Debug, PartialEq, Eq)]
@@ -100,7 +100,7 @@ impl Thread {
             {
                 continue;
             }
-            let length = u64::try_from(turn.text.bytes().len()).expect("text length fits u64");
+            let length = len_u64(turn.text.bytes().len());
             if !full && bytes.saturating_add(length) <= self.limits.bytes {
                 bytes = bytes.saturating_add(length);
                 from = at;

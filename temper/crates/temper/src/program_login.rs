@@ -54,5 +54,19 @@ pub(crate) fn run(directories: &super::Directories, name: &OsStr) -> Result<u8, 
     Err(format!("exec: {error}"))
 }
 
+/// The box's POSIX command, without NAME (client/README.md, 4.6, *The printed command*).
+pub(crate) fn line(directories: &super::Directories, binary: &std::path::Path) -> Option<String> {
+    use std::fmt::Write;
+    let mut command = format!("'{}' program-login", binary.to_str()?.replace('\'', "'\\''"));
+    for (flag, path) in [("config", &directories.config), ("data", &directories.data), ("cache", &directories.cache)] {
+        let path = std::str::from_utf8(path).ok()?;
+        write!(command, " --{flag} '{}'", path.replace('\'', "'\\''")).expect("string");
+    }
+    if command.len() > 8192 {
+        return None;
+    }
+    Some(command)
+}
+
 #[cfg(test)]
 mod tests;

@@ -296,7 +296,7 @@ fn kept_seen_answers_are_skipped_and_erased_at_start() {
                 expires: Wall::from_nanos(Duration::from_secs(180).as_nanos()),
             },
         });
-        assert!(test.d.start_link(&test.env));
+        assert!(test.d.start_link());
         test.d.start_sweep();
         let mut swept = Queue::uncapped();
         test.d.start_sweep_row(&test.env, &record, &mut swept);
@@ -371,7 +371,7 @@ fn waiting_cache_keeps_newest_references_and_removes_one_task() {
         Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } },
         &mut out,
     );
-    assert!(domain.start_link(&env));
+    assert!(domain.start_link());
     domain.start_sweep();
     assert!(domain.start_complete(&env));
     for task in 1..=3 {
@@ -499,7 +499,7 @@ impl Test {
     }
 
     fn complete(&mut self) -> bool {
-        if !self.d.start_link(&self.env) {
+        if !self.d.start_link() {
             return false;
         }
         self.d.start_sweep();
@@ -855,7 +855,7 @@ fn expired_completed_key_is_erased_in_sweep_and_frees_its_slot() {
             expires: Wall::from_nanos(Duration::from_secs(180).as_nanos()),
         },
     });
-    assert!(test.d.start_link(&test.env));
+    assert!(test.d.start_link());
     test.d.start_sweep();
     let mut out = Queue::uncapped();
     test.d.start_sweep_row(&test.env, &record, &mut out);
@@ -931,7 +931,7 @@ fn restore_order_is_independent_and_bad_or_oversized_records_refuse_start() {
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
     test.d.start_restore(test.env.wall);
     test.send(Event::Restore { record: Stored::SignIn { number: 10, person: 99, expires: Wall::from_nanos(1) } });
-    let linked = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| test.d.start_link(&test.env)));
+    let linked = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| test.d.start_link()));
     drop(linked.expect_err("missing retained link panics"));
     assert!(!test.d.ready());
     test.env.limits.people = 0;
@@ -1028,7 +1028,7 @@ fn restored_role_success_checks_earlier_people_and_project_after_all_rows_arrive
         );
         test.send_bounded(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
         test.send_bounded(Event::Restore { record: Stored::Roles { project: 1, holdings: Box::new([]) } });
-        let linked = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| test.d.start_link(&test.env)));
+        let linked = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| test.d.start_link()));
         drop(linked.expect_err("missing retained link panics"));
         assert!(!test.d.ready());
     }

@@ -144,7 +144,7 @@ fn settings_answers_and_each_fault_keep_their_facts() {
             p::SettingFault::Owner,
         ] {
             let value = translate::refusals::refusal(
-                p::Refusal::NotWellFormed { at: 0, why: p::Malformed::Settings { setting, fault } },
+                p::Refusal::NotWellFormed { at: 0, why: p::Malformed::Settings { setting, fault, detail: None } },
                 &limits,
             )
             .expect("settings fixture");
@@ -505,4 +505,57 @@ fn a_judged_refusal_reaches_the_client_with_its_item_and_connector_words() {
     assert_eq!(at, 2);
     assert_eq!(setting, c::Setting::Application { kind: 7, scope: 4, number: 9 });
     assert_eq!(why.bytes(), "requires approval λ".as_bytes());
+}
+
+#[test]
+fn document_refusal_details_cross_the_client_wire() {
+    use jig_client_domain::contract as c;
+    use jig_domain_people as p;
+    let limits = jig_client_protocol_wire::CEILINGS;
+    for (member, expected) in [
+        (p::SettingMember::Documents, c::SettingMember::Documents),
+        (p::SettingMember::NameSegments, c::SettingMember::NameSegments),
+        (p::SettingMember::NameSegmentBytes, c::SettingMember::NameSegmentBytes),
+        (p::SettingMember::Path, c::SettingMember::Path),
+        (p::SettingMember::Heading, c::SettingMember::Heading),
+        (p::SettingMember::Connector, c::SettingMember::Connector),
+    ] {
+        for (rule, expected_rule) in [
+            (p::SettingRule::Maximum, c::SettingRule::Maximum),
+            (p::SettingRule::Minimum, c::SettingRule::Minimum),
+            (p::SettingRule::Registered, c::SettingRule::Registered),
+        ] {
+            let refusal = p::Refusal::NotWellFormed {
+                at: 2,
+                why: p::Malformed::Settings {
+                    setting: p::Setting::Charter(5),
+                    fault: p::SettingFault::Shape,
+                    detail: Some(p::SettingDetail { member, document: 3, segment: 4, rule, supplied: 7, bound: 6 }),
+                },
+            };
+            let wire = translate::refusals::refusal(refusal, &limits).expect("document refusal");
+            let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
+            wire.encode(&mut bytes).unwrap();
+            let wire = w::Refusal::decode(&limits, &mut skein_lib::Reader::new(&bytes.finish())).unwrap();
+            let w::Refusal::Malformed(wire) = wire else { panic!("malformed") };
+            assert_eq!(wire.at(), 2);
+            let w::Malformed::Settings(facts) = wire.why() else { panic!("settings facts") };
+            let client = jig_client_protocol_link::translate::settings::restore_malformed_settings(facts).unwrap();
+            assert_eq!(
+                client,
+                c::MalformedSettings {
+                    setting: c::Setting::Charter(c::SettingNumber { number: 5 }),
+                    fault: c::SettingFault::Shape,
+                    detail: Some(c::SettingDetail {
+                        member: expected,
+                        document: 3,
+                        segment: 4,
+                        rule: expected_rule,
+                        supplied: 7,
+                        bound: 6,
+                    }),
+                }
+            );
+        }
+    }
 }

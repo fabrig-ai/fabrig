@@ -1,4 +1,5 @@
 use super::*;
+use skein_lib::length::len_u64;
 #[test]
 fn a_read_keeps_its_long_cursor_as_opaque_bytes() {
     let actual = translate::reads::read(&fixtures::history_read(), fixtures::limits().wire()).unwrap();
@@ -240,7 +241,7 @@ fn a_read_value_of_another_wire_version_is_unreachable_and_reported() {
 #[test]
 fn a_read_value_counts_its_discriminator_against_the_document_byte_bound() {
     let value = fixtures::encoded_read_value(&fixtures::frame_read_value());
-    let bytes = u64::try_from(value.len()).unwrap();
+    let bytes = len_u64(value.len());
     let limits = fixtures::read_byte_limits(bytes);
     assert_eq!(translate::reads::value(&value, &limits), Ok(c::ReadValue::Me(Box::new(fixtures::frame()))));
     let short = fixtures::read_byte_limits(bytes.checked_sub(1).unwrap());

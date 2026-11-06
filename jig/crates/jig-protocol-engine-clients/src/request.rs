@@ -1,6 +1,7 @@
 //! Keyed request admission and version envelopes (protocol/client.md, 5 and 9).
 use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, people, routes, sign_in, w};
 use crate::sign_in::CarriedRequest;
+use skein_lib::length::len_u64;
 impl Component {
     pub(super) fn request(
         &mut self,
@@ -205,7 +206,7 @@ impl Component {
                         self.settings.moved_bytes,
                         self.settings.redirect_bytes,
                     );
-                    if u64::try_from(carried.len()).expect("value size fits u64") > bound && carrying.is_some() {
+                    if len_u64(carried.len()) > bound && carrying.is_some() {
                         let reply = people::Reply::Refused(people::Refusal::Limit { which: people::LimitKind::Words });
                         let answer = crate::translate::answers::answer(&reply, &self.settings.models, &env.limits.wire);
                         self.answer(exchange, answer);

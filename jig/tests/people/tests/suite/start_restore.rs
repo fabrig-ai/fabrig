@@ -80,7 +80,7 @@ fn explicit_start_one_row_pages_hold_no_expired_keys_as_the_range_grows() {
             let mut out = Queue::uncapped();
             for walk in 0..2 {
                 if walk == 1 {
-                    assert!(domain.start_link(&env));
+                    assert!(domain.start_link());
                     domain.start_sweep();
                 }
                 for number in 0..count {
@@ -243,7 +243,7 @@ fn selected_census_projects_needs_results_and_chats_without_opening() {
         assert_eq!(counts.needs, 3);
         assert_eq!(counts.unread, prefix);
         assert!(counts.more_unread);
-        assert!(domain.start_link(&env));
+        assert!(domain.start_link());
         assert!(!domain.read_conversations().contains_key(&(PERSON, 22)));
         assert!(domain.read_conversations().contains_key(&(PERSON, 21)));
         assert!(!domain.ready());
@@ -286,7 +286,7 @@ fn selected_ended_owners_retain_only_loaded_read_position_witnesses() {
                 assert!(domain.start_project(&limits, RestoreProjection::EndedConversation { task }));
             }
             assert_eq!(domain.read_conversations().len(), 1);
-            assert!(domain.start_link(&env));
+            assert!(domain.start_link());
             assert!(domain.read_conversations().is_empty());
             domain.start_sweep();
             assert!(domain.start_complete(&env));
