@@ -53,39 +53,15 @@ pub enum Story {
 #[must_use]
 pub fn limits() -> accounts::Limits {
     let client = oauth::ClientLimits {
-        document: oauth::Limits {
-            document_bytes: 1024,
-            string_bytes: 1024,
-            token_bytes: 256,
-            client_bytes: 64,
-            detail_bytes: 64,
-            record_bytes: 2048,
-            depth: 8,
-            tokens: 64,
-            issued_client_bytes: 64,
-            granted_bytes: 64,
-            subject_bytes: 64,
-            id_token_bytes: 1024,
-        },
-        uri_bytes: 256,
-        scope_bytes: 64,
-        state_bytes: 64,
-        code_bytes: 64,
-        url_bytes: 1024,
-        request_bytes: 1024,
-        parameter_bytes: 0,
-        resource_bytes: 0,
+        document: oauth::Limits { document_bytes: 1024, ..oauth::ClientLimits::TEST.document },
         nonce_bytes: 64,
         metadata_bytes: 1024,
         key_set_bytes: 2048,
         keys: 4,
-        modulus_bits: 2048,
-        skew: Duration::from_secs(0),
-        sign_in_time: Duration::from_secs(120),
-        request_time: Duration::from_secs(10),
         backoff_base: Duration::from_secs(1),
         backoff_ceiling: Duration::from_secs(4),
         max_attempts: 2,
+        ..oauth::ClientLimits::TEST
     };
     accounts::Limits {
         accounts: 2,
