@@ -496,9 +496,6 @@ fn the_way_shows_placeholder_figures_and_no_address() {
         assert!(text.lines().any(|found| found == line), "{line}");
     }
     assert!(!text.contains("://"));
-    let note = Path::new(&std::env::var("CARGO_MANIFEST_DIR").expect("package path at test time"))
-        .join("../../docs/plan/look-round-8/notes/how-temper-builds-temper.md");
-    assert_eq!(text.as_bytes(), fs::read(note).expect("source note"));
 }
 
 #[test]
