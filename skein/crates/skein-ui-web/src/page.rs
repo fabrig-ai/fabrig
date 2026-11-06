@@ -606,6 +606,12 @@ impl Page<'_> {
         Some((node, act))
     }
 
+    /// A pointer's press on this node leaves the focus where it was (ui-web.md, 7).
+    #[must_use]
+    pub fn press_keeps_focus(&self, node: NodeId) -> bool {
+        self.held(node).made.attribute.states.as_slice().contains(&State::ToLogEnd)
+    }
+
     fn press(&mut self, node: NodeId, ops: &mut Vec<Op>) -> Option<(NodeId, Act)> {
         if self.held(node).made.attribute.states.as_slice().contains(&State::ToLogEnd) {
             let mut logs = Vec::new();
@@ -868,6 +874,7 @@ impl Page<'_> {
                         && held.measured.is_some_and(|(_, height, viewport)| height > viewport)
                 }) {
                     ops.push(Op::ScrollScreen { node, down: key.as_ref() == b"PageDown" });
+                    ops.push(Op::Measure { node });
                 }
             }
             return None;

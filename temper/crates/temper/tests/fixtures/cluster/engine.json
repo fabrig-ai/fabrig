@@ -68,9 +68,7 @@
         "tasks.tasks": 8,
         "tasks.tree_tasks": 8,
         "views.runs": 1,
-        "views.text_bytes": 1024,
-        "views.watchers": 16,
-        "views.watchers_per_party": 16
+        "views.text_bytes": 1024
       }}
     }},
     "llm": {{

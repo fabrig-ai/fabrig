@@ -392,3 +392,92 @@ fn a_person_token_failure_names_the_header_and_masks_the_token() {
         }))
     );
 }
+
+const DISCOVERY: &[u8] = b"http://127.0.0.1:8888/.well-known/openid-configuration";
+fn later_source(address: Option<Box<[u8]>>) -> Drive {
+    let mut drive = Drive::new(fixtures::owned()).with_source_address(address);
+    assert_eq!(drive.versions(fixtures::later(), true), Request::Layout);
+    let Request::Write { file: File::AppIni, .. } = drive.send(Event::Done) else { panic!("settings") };
+    refreshed(&mut drive);
+    drive
+}
+fn source_list() -> Request {
+    Request::Source {
+        spec: spec::source_list(&fixtures::owned(), &fixtures::place()),
+        deadline: skein_lib::Duration::from_secs(7),
+    }
+}
+fn source_update() -> Request {
+    Request::Source {
+        spec: spec::source_update(&fixtures::owned(), &fixtures::place(), b"27", DISCOVERY),
+        deadline: skein_lib::Duration::from_secs(7),
+    }
+}
+#[test]
+fn a_later_preparation_points_a_listed_source_at_the_current_address() {
+    let mut drive = later_source(Some(DISCOVERY.into()));
+    assert_eq!(drive.send(Event::Done), source_list(), "only after state was written");
+    assert_eq!(drive.send(fixtures::ran(b"ID Name Type Enabled\n27 temper OAuth2 true\n")), source_update());
+    assert_eq!(drive.send(fixtures::ran(b"")), Request::End(Ok(())));
+}
+#[test]
+fn a_source_not_listed_is_left_to_its_step() {
+    let mut drive = later_source(Some(DISCOVERY.into()));
+    assert_eq!(drive.send(Event::Done), source_list());
+    assert_eq!(drive.send(fixtures::ran(b"ID Name Type Enabled\n27 other OAuth2 true\n")), Request::End(Ok(())));
+}
+#[test]
+fn without_an_address_a_preparation_runs_no_source_command() {
+    let mut drive = later_source(None);
+    assert_eq!(drive.send(Event::Done), Request::End(Ok(())));
+}
+#[test]
+fn no_ending_of_the_source_commands_fails_the_preparation() {
+    for (update, exit) in
+        [(false, Exit::Code(1)), (false, Exit::Signal(9)), (true, Exit::Code(1)), (true, Exit::Signal(9))]
+    {
+        let mut drive = later_source(Some(DISCOVERY.into()));
+        assert_eq!(drive.send(Event::Done), source_list());
+        if update {
+            assert_eq!(drive.send(fixtures::ran(b"27 temper OAuth2 true\n")), source_update());
+        }
+        let Request::Note { line } = drive.send(Event::Ran(Ran {
+            exit,
+            stdout: fixtures::secret(b"failed key-secret\n"),
+            stderr: fixtures::secret(b"internal-secret\r\njwt-secret\t"),
+        })) else {
+            panic!("one diagnostic line")
+        };
+        assert_eq!(
+            line.as_ref(),
+            b"forge source: discovery address not updated: failed [redacted] [redacted]  [redacted] \n"
+        );
+        assert_eq!(drive.send(Event::Done), Request::End(Ok(())));
+    }
+}
+#[test]
+fn a_first_preparation_runs_no_source_command() {
+    let mut drive = Drive::new(fixtures::owned()).with_source_address(Some(DISCOVERY.into()));
+    let mut request = drive.versions(fixtures::first(), true);
+    for _ in 0_usize..40 {
+        let event = match request {
+            Request::Source { .. } | Request::Note { .. } => panic!("a first preparation has no source yet"),
+            Request::End(answer) => {
+                assert_eq!(answer, Ok(()));
+                return;
+            }
+            Request::Version { .. } => panic!("versions checked"),
+            Request::Draw => Event::Drew(fixtures::draw(7)),
+            Request::Run { command: Command::CreatePerson, .. } => fixtures::person_created(),
+            Request::Run { .. } | Request::Token { .. } | Request::PersonToken { .. } => {
+                fixtures::ran(b"fixture-value\n")
+            }
+            Request::Exists { .. } => Event::Exists(false),
+            Request::Lock(_) | Request::Clear | Request::Layout | Request::Write { .. } | Request::Rename { .. } => {
+                Event::Done
+            }
+        };
+        request = drive.send(event);
+    }
+    panic!("preparation settles");
+}

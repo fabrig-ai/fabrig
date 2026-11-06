@@ -108,3 +108,18 @@ fn repository_addresses_stop_at_the_url_bound() {
         assert!(address(&row, sign_in, b"o", &name).is_none(), "one byte past the URL bound");
     }
 }
+
+#[test]
+fn an_empty_owner_or_name_has_no_address() {
+    let mut facts = Forges::new();
+    facts.read("3 forgejo https://forge.example owned");
+    let empty = Forges::new();
+    let mut row = row();
+    row.kind = Kind::Forgejo;
+    row.web = Some(b"https://forge.example".as_slice().into());
+    for (owner, name) in [(b"".as_slice(), b"hello".as_slice()), (b"work", b""), (b"", b"")] {
+        for sign_in in [&empty, &facts] {
+            assert!(address(&row, sign_in, owner, name).is_none(), "empty repository segment");
+        }
+    }
+}

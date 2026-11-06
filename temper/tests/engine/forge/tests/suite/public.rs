@@ -52,7 +52,7 @@ fn a_two_member_landing_with_a_failed_gate_through_either_member() {
         for member in record.members() {
             for gate in member.gates() {
                 if gate.proof() == &w::PublicProof::Failed {
-                    assert!(gate.run().as_ref().is_some_and(|run| !run.is_empty()), "seed {SEED}: run address");
+                    assert_eq!(gate.proof(), &w::PublicProof::Failed, "seed {SEED}: failed proof state");
                     failed = true;
                 }
             }

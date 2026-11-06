@@ -22,8 +22,7 @@ fn titles_and_mechanics_are_projected_and_follow_amendments() {
             changed: 10,
             active: None,
             ended: None,
-            spent: 0,
-            budget: 100,
+            spent: Some(0),
             delegates: zero(),
         })
     );
@@ -108,4 +107,70 @@ fn tree_order_keeps_a_parents_subtree_before_its_next_sibling() {
     assert_eq!(project.tree(1), Some(([2, 4, 3].as_slice(), 0)));
     assert_eq!(project.delegates(1), ([2, 3].as_slice(), 0));
     assert_eq!(project.public_tasks().as_ref(), &[1, 2, 3, 4]);
+}
+
+#[test]
+fn a_goals_line_carries_its_spend_and_a_tasks_carries_none() {
+    let (mut core, limits) = fixture();
+    visibility(&mut core, &limits, true);
+    make(&mut core, &limits, 1, None, Some(1), false);
+    make(&mut core, &limits, 2, Some(1), None, false);
+    for task in [1, 2] {
+        let mut row = core.tasks.task(task).unwrap().clone();
+        row.numbers.spent = 5;
+        row.numbers.spent_below = 7;
+        crate::public::follow(&mut core, &limits, &row);
+    }
+    let project = ready(&core);
+    assert_eq!(project.line(1).unwrap().spent, Some(12));
+    assert_eq!(project.line(2).unwrap().spent, None);
+}
+
+#[test]
+fn an_ended_line_says_how_it_ended() {
+    let report = tasks::TaskResult::Report { words: Box::from(b"Private result".as_slice()) };
+    for (ending, expected) in [
+        (tasks::Ending::Done(report.clone()), PublicPhase::Done),
+        (tasks::Ending::Failed { reason: Box::from(b"Private failure".as_slice()) }, PublicPhase::Failed),
+        (
+            tasks::Ending::Cancelled {
+                by: tasks::Party::Person(1),
+                at: Wall::EPOCH,
+                reason: Box::from(b"Private cancellation".as_slice()),
+                result: None,
+            },
+            PublicPhase::Cancelled,
+        ),
+        (
+            tasks::Ending::Cancelled {
+                by: tasks::Party::Person(1),
+                at: Wall::EPOCH,
+                reason: Box::from(b"Private cancellation".as_slice()),
+                result: Some(report),
+            },
+            PublicPhase::Cancelled,
+        ),
+    ] {
+        let (mut core, limits) = fixture();
+        visibility(&mut core, &limits, true);
+        make(&mut core, &limits, 1, None, Some(1), false);
+        make(&mut core, &limits, 2, Some(1), None, false);
+        let mut delegate = core.tasks.task(2).unwrap().clone();
+        end(&mut core, &limits, 2);
+        delegate.phase = tasks::Phase::Ended(ending.clone());
+        delegate.ended_at = Some(Wall::from_nanos(10_000_000_000));
+        crate::public::follow(&mut core, &limits, &delegate);
+        let project = ready(&core);
+        assert_eq!(project.live(), &[1]);
+        assert_eq!(project.line(2).unwrap().phase, expected, "live tree: {ending:?}");
+        assert_eq!(project.counts(1), PublicCounts { ended: 1, ..zero() }, "live counts: {ending:?}");
+        end(&mut core, &limits, 1);
+        let project = ready(&core);
+        assert!(project.live().is_empty());
+        let [frozen] = project.ended() else { panic!("one frozen goal") };
+        assert_eq!(frozen.line.phase, PublicPhase::Cancelled);
+        let [line] = frozen.tree.as_ref() else { panic!("one frozen delegate") };
+        assert_eq!(line.phase, expected, "frozen tree: {ending:?}");
+        assert_eq!(frozen.line.delegates, PublicCounts { ended: 1, ..zero() }, "frozen counts: {ending:?}");
+    }
 }

@@ -641,6 +641,77 @@ fn page_key(down: bool, in_field: bool) -> Event {
 }
 
 #[test]
+fn a_page_key_measures_its_log_in_the_same_apply() {
+    let mut page = reading_page(false, false);
+    scroll(&mut page, 800, 1000, 200);
+    for down in [false, true] {
+        let mut ops = Vec::new();
+        assert_eq!(page.act(page_key(down, true), &mut ops), None);
+        assert_eq!(ops, vec![Op::ScrollScreen { node: LOG, down }, Op::Measure { node: LOG }]);
+    }
+}
+
+#[test]
+fn a_page_up_while_following_stops_following() {
+    let mut page = reading_page(false, false);
+    scroll(&mut page, 800, 1000, 200);
+    assert!(!page.html().contains("data-log-away"));
+    page.act(page_key(false, true), &mut Vec::new());
+    scroll(&mut page, 600, 1000, 200);
+    assert!(page.html().contains("data-log-away"));
+}
+
+#[test]
+fn a_delivery_after_a_page_up_leaves_the_position() {
+    let mut page = reading_page(true, false);
+    scroll(&mut page, 800, 1000, 200);
+    page.act(page_key(false, true), &mut Vec::new());
+    scroll(&mut page, 600, 1000, 200);
+    let mut ops = Vec::new();
+    page.apply(&[Patch::Text { node: LOG, text: Box::new([]) }], &mut ops);
+    assert_eq!(ops.first(), Some(&Op::HoldView { node: LOG }));
+    assert!(ops.ends_with(&[Op::PutView { node: LOG }, Op::Measure { node: LOG }]));
+    assert!(scroll_ends(&ops).is_empty());
+}
+
+#[test]
+fn a_page_down_to_the_foot_follows_again() {
+    let mut page = reading_page(false, false);
+    scroll(&mut page, 800, 1000, 200);
+    page.act(page_key(false, true), &mut Vec::new());
+    scroll(&mut page, 600, 1000, 200);
+    assert!(page.html().contains("data-log-away"));
+    page.act(page_key(true, true), &mut Vec::new());
+    scroll(&mut page, 800, 1000, 200);
+    assert!(!page.html().contains("data-log-away"));
+    let mut ops = Vec::new();
+    page.apply(&[Patch::Text { node: LOG, text: Box::new([]) }], &mut ops);
+    assert_eq!(scroll_ends(&ops), vec![LOG]);
+    assert!(!ops.contains(&Op::HoldView { node: LOG }));
+}
+
+#[test]
+fn the_browsers_scroll_event_after_a_page_key_changes_nothing() {
+    let mut page = reading_page(true, false);
+    scroll(&mut page, 400, 600, 200);
+    page.act(page_key(false, true), &mut Vec::new());
+    assert_eq!(scroll(&mut page, 200, 600, 200), NEAR_HEAD);
+    let mut ops = Vec::new();
+    assert_eq!(page.act(Event::Scrolled { node: LOG, top: 200, height: 600, viewport: 200 }, &mut ops), None);
+    assert!(ops.is_empty());
+}
+
+#[test]
+fn a_press_to_log_end_keeps_the_focus() {
+    let (page, _) = log_page(false);
+    assert!(page.press_keeps_focus(LOG_END));
+    assert!(!page.press_keeps_focus(LOG));
+    let mut plain = super::page();
+    plain.apply(&fixtures::patches(&mut View::new(&LIMITS), 0, events), &mut Vec::new());
+    assert!(!plain.press_keeps_focus(EVENT_BUTTON));
+}
+
+#[test]
 fn pgup_and_pgdn_scroll_the_first_log_from_a_field() {
     let mut page = page();
     page.apply(
@@ -665,7 +736,7 @@ fn pgup_and_pgdn_scroll_the_first_log_from_a_field() {
         for down in [false, true] {
             ops.clear();
             assert_eq!(page.act(page_key(down, in_field), &mut ops), None);
-            assert_eq!(ops, vec![Op::ScrollScreen { node: LOG, down }]);
+            assert_eq!(ops, vec![Op::ScrollScreen { node: LOG, down }, Op::Measure { node: LOG }]);
         }
     }
     for modifier in 0..4 {
@@ -684,7 +755,11 @@ fn pgup_and_pgdn_scroll_the_first_log_from_a_field() {
     page.apply(&[Patch::Move { node: NodeId(4), parent: MAIN, before: Some(LOG) }], &mut Vec::new());
     ops.clear();
     assert_eq!(page.act(page_key(false, true), &mut ops), None);
-    assert_eq!(ops, vec![Op::ScrollScreen { node: NodeId(4), down: false }], "tree order, not node order");
+    assert_eq!(
+        ops,
+        vec![Op::ScrollScreen { node: NodeId(4), down: false }, Op::Measure { node: NodeId(4) }],
+        "tree order, not node order"
+    );
 }
 
 #[test]
