@@ -233,7 +233,9 @@ no manual proof on record checks it in both shells. Edits past 131,072 bytes
 keep a prefix and overflow count, losing the rest on a new drawing, where the
 `long-words` request keeps every typed word (`client/README.md`, 5.4 and 5.15).
 The words being written draw an empty message in the dots' place until they hold a word, their "▍" falls below a closed
-fence, a last block still open changes as it commits, and no browser test draws them
+fence, and a last block still open changes as it commits. A committed call or card
+before the first text replaces that text's nodes; the paragraph render proof at
+1440 and 420 px does not cover these Markdown and block-order cases
 (`client/README.md`). A run of calls is one line on a chat's page and an agent's, its
 verbs and time for the user to read on a real chat (`draft/chat-reading.md`), but no test
 takes its call under way from the engine or draws it running in a browser or a real
