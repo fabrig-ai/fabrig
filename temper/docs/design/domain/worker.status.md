@@ -1,9 +1,10 @@
 # worker: status
 
-2026-11-05. Where temper's code lags or departs from [worker.md](worker.md).
+2026-11-06. Where temper's code lags or departs from [worker.md](worker.md).
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
 `serve.log`; that operator-output path has no gap.
 
+- **Not yet:** 5: a base with heads merged in does not check each merge commit out: `temper-worker-domain-checkout/src/hold.rs`, `CommitHead`, goes straight to the next head, so the agent is handed HEAD at the base's tip with the merge's state still there, and a second head's merge is refused by git ("You have not concluded your merge", exit 128, run by hand with git 2.47 on 2026-11-06) and ends the preparation transient.
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
   change, so it is section 12's question, and `temper help server` says
