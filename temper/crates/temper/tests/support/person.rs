@@ -108,7 +108,7 @@ pub fn welcome_sign_in() -> Script {
             Step::Go { address: Address::Welcome { step: temper_client_domain::Step::Model { way: None } } },
             Step::See { find: Find::exactly_named(Role::Button, b"Continue with ChatGPT"), within: START_WITHIN },
             Step::Press { find: Find::exactly_named(Role::Button, b"Continue with ChatGPT") },
-            Step::See { find: Find::named(Role::Paragraph, b"Model ChatGPT plan"), within: START_WITHIN },
+            Step::See { find: Find::named(Role::Paragraph, b"ChatGPT plan"), within: START_WITHIN },
         ]),
     }
 }
