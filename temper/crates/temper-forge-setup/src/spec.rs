@@ -254,3 +254,23 @@ pub fn source_add(owned: &Owned, place: &Place, client: &[u8], discovery: &[u8])
         ]),
     )
 }
+
+/// Points the box's source at temper's current discovery address (sign-in.md, 9.9).
+#[must_use]
+pub fn source_update(owned: &Owned, place: &Place, id: &[u8], discovery: &[u8]) -> Spec {
+    forgejo(
+        owned,
+        place,
+        &words(&[
+            b"admin",
+            b"auth",
+            b"update-oauth",
+            b"--id",
+            id,
+            b"--use-custom-urls",
+            b"false",
+            b"--auto-discover-url",
+            discovery,
+        ]),
+    )
+}
