@@ -289,9 +289,13 @@ impl Plan {
     }
     #[expect(
         clippy::too_many_lines,
-        clippy::manual_let_else,
         clippy::manual_map,
-        reason = "exchange dispatch keeps explicit matches for document kinds and optional step numbers"
+        reason = "each exchange consumes its terminal document and maps optional step numbers explicitly"
+    )]
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        clippy::manual_let_else,
+        reason = "the exchange's decoder picks the kind: forge.status.md, 4.2"
     )]
     fn done(&mut self, state: State, body: Body) -> Result<(State, Option<Step>), api::Error> {
         let state = match state {
@@ -307,7 +311,7 @@ impl Plan {
             State::Ended => unreachable!("owner stops feeding an ended actions plan"),
         };
         let document = match body {
-            Body::Document(document) => Some(document),
+            Body::Document(document) => document,
             Body::Raw { bytes, more } => {
                 return match state {
                     State::Log { attempt, step, truncated } => Ok((
@@ -330,13 +334,13 @@ impl Plan {
             Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
                 return Err(if field == b"log" { api::Error::InvalidAnswer } else { api::Error::TooLarge });
             }
-            Body::Empty | Body::Malformed(_) => None,
+            Body::Empty | Body::Malformed(_) => return Err(api::Error::InvalidAnswer),
         };
         match state {
             State::Listing { mut checks, mut page } => {
                 let combined = match document {
-                    Some(d::Document::CombinedStatus(combined)) => combined,
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    d::Document::CombinedStatus(combined) => combined,
+                    _ => return Err(api::Error::InvalidAnswer),
                 };
                 checks.shape = match checks.shape {
                     Shape::Statuses { .. } => {
@@ -365,8 +369,8 @@ impl Plan {
             }
             State::RunLookup { checks, job_index, run, .. } => {
                 match document {
-                    Some(d::Document::Tree { .. } | d::Document::Runs { .. }) => {}
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    d::Document::Tree { .. } | d::Document::Runs { .. } => {}
+                    _ => return Err(api::Error::InvalidAnswer),
                 }
                 match run {
                     Some(run) => {
@@ -378,15 +382,15 @@ impl Plan {
             }
             State::JobsLookup { checks, .. } => {
                 match document {
-                    Some(d::Document::Listed { .. }) => {}
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    d::Document::Listed { .. } => {}
+                    _ => return Err(api::Error::InvalidAnswer),
                 }
                 self.next_check(checks)
             }
             State::Run { attempt, max } => {
                 let run = match document {
-                    Some(d::Document::Run(run)) => run,
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    d::Document::Run(run) => run,
+                    _ => return Err(api::Error::InvalidAnswer),
                 };
                 let head = reading::commit(run.commit_sha, self.row.object_format).ok_or(api::Error::InvalidAnswer)?;
                 if head != attempt.head || run.id != attempt.run {
@@ -397,8 +401,8 @@ impl Plan {
             }
             State::Job { attempt, max, step } => {
                 let job = match document {
-                    Some(d::Document::Job(job)) => job,
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    d::Document::Job(job) => job,
+                    _ => return Err(api::Error::InvalidAnswer),
                 };
                 if job.id != attempt.job || job.run_id != attempt.run || job.attempt != attempt.attempt {
                     return Err(api::Error::MissingJob);

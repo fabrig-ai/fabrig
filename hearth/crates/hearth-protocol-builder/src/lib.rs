@@ -109,22 +109,10 @@ impl Current {
             Self::Call(_) | Self::Idle | Self::Step(_) | Self::Keeping(_) | Self::Git { .. } => None,
         }
     }
-    fn keeping(&self) -> Option<&keep::Keep> {
-        match self {
-            Self::Keeping(keep) => Some(keep),
-            Self::Call(_) | Self::Idle | Self::Step(_) | Self::Resolving(_) | Self::Git { .. } => None,
-        }
-    }
     fn keeping_mut(&mut self) -> Option<&mut keep::Keep> {
         match self {
             Self::Keeping(keep) => Some(keep),
             Self::Call(_) | Self::Idle | Self::Step(_) | Self::Resolving(_) | Self::Git { .. } => None,
-        }
-    }
-    fn git(self) -> Option<(git::Child, Mode)> {
-        match self {
-            Self::Git { child, mode } => Some((child, mode)),
-            Self::Call(_) | Self::Idle | Self::Step(_) | Self::Keeping(_) | Self::Resolving(_) => None,
         }
     }
     fn git_mut(&mut self) -> Option<(&mut git::Child, &mut Mode)> {
@@ -714,7 +702,12 @@ fn resume_mode(
     }
 }
 fn finish(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Asked>) {
-    let (child, mode) = core::mem::replace(&mut protocol.current, Current::Idle).git().expect("closed git child");
+    let (child, mode) = match core::mem::replace(&mut protocol.current, Current::Idle) {
+        Current::Git { child, mode } => (child, mode),
+        Current::Call(_) | Current::Idle | Current::Step(_) | Current::Keeping(_) | Current::Resolving(_) => {
+            unreachable!("closed git child")
+        }
+    };
     let failure = failure(&mode, &child, &env.limits.git);
     let (request, event) = match mode {
         Mode::Rev { request, repository, revision: _, stdout, ended: _ } => {

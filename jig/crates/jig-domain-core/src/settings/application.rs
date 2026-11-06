@@ -260,6 +260,31 @@ impl Judging {
     }
 }
 
+/// Read the active decision's templates under the policy it would leave for this project.
+pub(crate) fn project_templates(core: &Core, owner: Token, project: u32) -> Box<[crate::Template]> {
+    assert!(core.settings_judging.groups.get(Id::from_token(owner)).is_some(), "active settings judge owner");
+    let decision = core.settings_judging.decision.as_ref().expect("active settings decision");
+    let items = &decision.change.items;
+    let overrides = match super::check::edit(items, Setting::ProjectPolicy { project }) {
+        Some(super::Edit::Set(super::Value::Policy(policy))) => policy.templates.as_ref(),
+        Some(
+            super::Edit::Set(
+                super::Value::Charter(_)
+                | super::Value::Template(_)
+                | super::Value::Rules(_)
+                | super::Value::Application(_),
+            )
+            | super::Edit::Removed
+            | super::Edit::Reset,
+        ) => unreachable!("checked project policy"),
+        None => match core.template_overrides.get(&project) {
+            Some(entries) => entries.as_ref(),
+            None => &[],
+        },
+    };
+    super::templates::merged(&super::check::templates(&core.current, items), overrides)
+}
+
 pub(crate) fn start(
     core: &mut Core,
     routed: &mut Routed,

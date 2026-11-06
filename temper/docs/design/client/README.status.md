@@ -22,6 +22,24 @@
   ChatGPT’s sign-in, in the new tab" and its link, and reads "Finishing your sign-in…" in the disclosure, where the
   welcome's note reads those words alone (*Finishing a paste*): `temper-client-view`'s `pages/connect_model.rs`,
   `body`, draws `sign_in_wait::waiting` while the sign-in runs, whatever its paste. No reason is recorded.
+- **Not yet:** 3.5, *the words being written* and *While it works*: no browser test
+  draws the words being written, so the "▍" faint and in the line of the last word,
+  and the place held as the turn commits, are seen by reading the sheet's
+  `.temper-writing-end`. The gallery's `chat-work-writing` draws them and holds nothing
+  of the mark. The request `chat-reading-a` has the user read them on a real chat.
+- **Departs:** 3.5, *the words being written*. Before its first word the page and the
+  dots ask only whether the text is empty (`temper-client-view`'s `pages/chat.rs`,
+  `conversation_with_times`, and `pages/chats.rs`, `working`), where `read_growing`
+  holds back a marker being written: a text so far of `##`, `**` or blank lines draws
+  its message with nothing in it and no "▍", and the three dots go, until its next
+  word. A closed fence's code keeps its last newline (`skein-ui`'s `markdown.rs`,
+  `line`), and a `<pre>` shows it, so a text ending in one has its "▍" on a line of its
+  own, and the block loses that line as the turn commits: the look request `chat-work`
+  left this to `read_growing`, which sets the end inside the code, after that newline.
+  A last block holding a run still open, or a last line of digits or of a marker alone,
+  `read` shows as the characters it is once committed, so that block changes at the
+  commit, where only the "▍" should go. No reason is recorded for any; seen by reading,
+  and no test reads them.
 - **Design departs:** 3.5, *Starting a goal from a chat's document*, and 5.14, from
   the request `ui-chat-draft` of 2026-11-05, decided by the answers that day to its
   tasks `goal-sheet-state` and `goal-sheet`: one sheet, `ui-goal-page`'s, where the
@@ -109,6 +127,28 @@
   box's self-proposal says "Authority missing" and offers no Accept. A task's Cancel,
   an agent's task's Stop, Reject and Start over are drawn at each width by their
   gallery states, and no walk on record presses them.
+- **Not yet:** 3.5, *temper's own way, beside the page*: no walk on record presses "See how it
+  works" or "Start from it", and no journey records them: the view's tests and the gallery's
+  `configure-reference` and `configure-reference-draft` alone draw them, since the plan that built
+  them took no walk.
+- **Design departs:** 3.5, *The configuring chat's page* and *temper's own way, beside the page*,
+  from the request `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
+  request's plan's cut. The picture, the figures and the table's Workers and QA stand in
+  `../draft/own-way.status.md`. Beside them:
+  - the reference's title is level 2 at 28 px over level 3 sections at 17 px, as a chat's document
+    has them, where the request's page has a small level 3 title over large level 2 sections;
+  - its section 3 says of a goal's branch "whose tests run along the way", where the request has
+    it checked "by CI and a review on the way": the reference's goal branches have neither
+    (`../draft/reference-code-production.md`, sections 6 and 10);
+  - a table's row name is bold in a cell, where the request's rule is `th[scope=row]`, since
+    skein's reader draws no row header; a figure's term and value are `role=term` and
+    `role=definition`, where its rules are `dt` and `dd`;
+  - the thread's padding of 28 and 8 reaches the opening alone, at wide widths, where the request's
+    rule reaches every chat; a phone keeps its 20 and 16;
+  - the card's steps are a list with no marker and the pane a region of slots, where the request's
+    page has an `ol`, an `article` and `section`s;
+  - a phone hides the composer's hint, by the rule every session has there, where the request's page
+    shows it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
   the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
@@ -177,17 +217,6 @@
   Stop there by hand, which no test keeps. That model has no script of a configuring
   agent's document or proposal and no hold of temper's own, so the gallery alone
   draws those states.
-- **Not yet:** 3.5, *Needs you*, 5.13: a proposal of settings has its inbox row say
-  project 0, so *Needs you* by the open project and the rail's count
-  (`temper-client-domain`'s `pages/needs.rs`, `count`) leave it out, whichever
-  project's kinds its items change, where the greenfield mock, the target, has its
-  card and its count. No live walk shows that card: the gallery's
-  `configure-chat-proposal` draws it in a chat, and `needs-proposal` is a goal's.
-  Section 11 holds the decision.
-- **Not yet:** 3.5, *What the client keeps*, its held send: once, on a fake box at
-  1440, a choice pressed just after Undo left the card, the count and the engine's
-  question as they were after six seconds, and a repeat on a fresh box and the walk
-  at 420 answered. The cause is unknown; no test holds it (section 11).
 - **Not yet:** 5.3: the rename's form asks the focus, and so does an open reply:
   `temper-client-view`'s `pages/ask.rs`, `reply_form`, calls `b.focus(0)` with no
   guard, where `pages/chat.rs`, `document.rs`, `settings.rs`, `new_chat.rs` and
@@ -415,6 +444,10 @@
   And " · later" shows on *Needs you*'s mono line as on Home's, where the request
   and the mock have it on Home's card alone: the one function draws both, and no
   reason is recorded.
+- **Design departs:** 3.5, *Claude*, 4.6, from the request `ui-walk-2` of 2026-11-06,
+  decided by its plan's cut. `program_environment` answers the owner at any time,
+  where the request has it during set up, because Connect a model draws the same
+  command after set up.
 - **Design departs:** 3.5, *The flows' paths* and *Builders*, from the request
   `ui-settings-tabs` of 2026-11-05, decided by its plan's cut. The terminal
   draws no path, where the request has each flow add one: the same request

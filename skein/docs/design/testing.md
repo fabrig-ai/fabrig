@@ -383,7 +383,7 @@ examples/echo/*                 the echo: its domain, protocol layer, service an
 examples/ui/*                   the UI example: its view, its browser shell and its server, a crate each (examples.md, 9)
 ```
 
-**A world's library is its own.** No package, in any tree, depends on a package under `skein/tests/`: what a second crate needs from a world lives in a kit under `testing/` (testing-strategy.md, 7), and the world's own suite reads it through its library, which re-exports the kit. No `#[path]` under `skein/` reaches outside its package. `tests/boundary/tests/skein_worlds.rs` holds both.
+**A world's library is its own.** No package, whichever tree it's in, depends on a package under `skein/tests/`: what a second crate needs from a world lives in a kit under `testing/` (testing-strategy.md, 7), and the world's own suite reads it through its library, which re-exports the kit. No `#[path]` under `skein/` reaches outside its package. `tests/boundary/tests/skein_worlds.rs` holds both, for `skein/` alone: it doesn't read the worlds under smith's and temper's `tests/`, and packages still depend on those.
 
 No crate under `crates/` has a `tests/` directory: its step tests are
 in `src/`, and whatever drives it from outside is a crate under `tests/`,

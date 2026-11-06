@@ -182,15 +182,8 @@ impl Common {
                         &forge.access.as_ref().expect("held access").credential,
                     )
                     .expect("checked credential length");
-                    match forgejo.exchange.start(
-                        c,
-                        Some(deadline),
-                        env,
-                        forge,
-                        &self.owner.user_agent,
-                        request,
-                        authorization,
-                    ) {
+                    c.until(Some(deadline));
+                    match forgejo.exchange.start(c, env, forge, &self.owner.user_agent, request, authorization) {
                         Ok(()) => {
                             forgejo.exchange.keep_after(plan.after());
                         }
