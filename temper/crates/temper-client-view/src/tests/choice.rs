@@ -149,6 +149,141 @@ fn line_facts(
 ) -> d::Domain {
     line_fixture(ready, accounts, preference, kept, effort, task_page).0
 }
+pub(super) fn provider_byline_root(
+    address: Address,
+    ready: [c::Readiness; 2],
+    present: [bool; 2],
+    models: bool,
+) -> (d::Domain, Option<Token>) {
+    let (mut root, me_watch, task_watch, _, accounts_watch) =
+        fixtures::root_at_full(address, &fixtures::limits(), b"Shop");
+    let sample = fixtures::playground_root(Address::NewChat { draft: false }, fixtures::PROJECT, true);
+    let mut me = fixtures::configuring_me(sample.pages().me(sample.client()).unwrap().clone());
+    me.providers = List::with_capacity(2);
+    let mut doc = super::accounts::document(0);
+    doc.cut = false;
+    doc.settled = true;
+    doc.accounts = List::with_capacity(2);
+    doc.readiness = List::with_capacity(2);
+    for (index, (provider, name, kind)) in
+        [(18, b"anthropic".as_slice(), c::AccountKind::Program), (17, b"openai".as_slice(), c::AccountKind::SignIn)]
+            .into_iter()
+            .enumerate()
+    {
+        let mut programs = List::with_capacity(1);
+        if kind == c::AccountKind::Program {
+            programs.push(c::Text::new(Box::from(b"claude_code".as_slice()), 32).unwrap()).unwrap();
+        }
+        me.providers
+            .push(c::ProviderOffer {
+                provider,
+                name: c::DocumentText::complete(c::Text::new(Box::from(name), 32).unwrap()),
+                key_bytes: 4096,
+                sign_in: kind == c::AccountKind::SignIn,
+                key: false,
+                programs,
+                programs_cut: false,
+                none: false,
+                signed_in_plan: kind == c::AccountKind::SignIn,
+                manage_usage: None,
+            })
+            .unwrap();
+        if present[index] {
+            let mut row = account(provider, kind, None);
+            row.provider = Some(provider);
+            row.provider_name = Some(c::DocumentText::complete(c::Text::new(Box::from(name), 32).unwrap()));
+            row.sources = List::with_capacity(1);
+            row.sources.push(source(kind, true)).unwrap();
+            doc.accounts.push(row).unwrap();
+        }
+        doc.readiness
+            .push(c::PayerReadiness {
+                provider,
+                payer: c::AccountUse::Party(73),
+                readiness: ready[index],
+                settled: Some(true),
+            })
+            .unwrap();
+    }
+    doc.usable = ready.contains(&c::Readiness::Usable);
+    let project = me.projects.iter_mut().find(|p| p.project == fixtures::PROJECT).unwrap();
+    if let Address::Configure { .. } = root.pages().address() {
+        project.templates.clear();
+    }
+    let sample_model = project.models.get(0).unwrap().clone();
+    project.models = List::with_capacity(3);
+    if models {
+        for (provider, name) in [(17, "gpt-6.1-sol"), (17, "gpt-6-luna"), (18, "claude-opus-5-5")] {
+            let mut model = sample_model.clone();
+            model.provider = Some(provider);
+            model.name = c::Text::new(Box::from(name.as_bytes()), 32).unwrap();
+            project.models.push(model).unwrap();
+        }
+    }
+    delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
+    delivered(&mut root, accounts_watch.unwrap(), c::Delivery::Accounts(Box::new(doc)));
+    (root, task_watch)
+}
+
+#[test]
+fn every_byline_keeps_the_accounts_provider_with_its_models() {
+    for (ready, present, account_words, task_model) in [
+        (
+            [c::Readiness::Usable, c::Readiness::Unavailable],
+            [true, false],
+            "your Claude subscription, through Claude Code",
+            "claude-opus-5-5",
+        ),
+        ([c::Readiness::Unavailable, c::Readiness::Usable], [false, true], "ChatGPT plan", "gpt-6-luna"),
+    ] {
+        for page in 0_u32..4 {
+            let address = match page {
+                0 => Address::NewChat { draft: false },
+                1 | 2 => Address::Chat { task: 9 },
+                _ => Address::Configure { project: fixtures::PROJECT },
+            };
+            let (mut root, task_watch) = provider_byline_root(address, ready, present, true);
+            if let Some(watch) = task_watch {
+                let mut task = fixtures::task::document();
+                task.chip.task = 9;
+                task.project = fixtures::PROJECT;
+                task.chip.executor = c::ChipExecutor::Agent { charter: if page == 2 { 37 } else { 1 } };
+                task.budget.funder = c::Funder::Pool { project: fixtures::PROJECT, person: 73, period: 1 };
+                task.llm = Some(c::LlmChoice {
+                    account: None,
+                    main: c::ModelEffort {
+                        model: c::Text::new(Box::from(task_model.as_bytes()), 32).unwrap(),
+                        effort: None,
+                    },
+                    subagents: List::with_capacity(0),
+                });
+                task.kept_account = None;
+                delivered(&mut root, watch, c::Delivery::Task(Box::new(task)));
+            }
+            for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+                let node =
+                    view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::BYLINE)).unwrap();
+                let line = core::str::from_utf8(node.description.as_deref().or(node.name.as_deref()).unwrap()).unwrap();
+                let model = if page == 0 || page == 3 {
+                    if present[0] { "claude-opus-5-5" } else { "gpt-6.1-sol" }
+                } else {
+                    task_model
+                };
+                let prefix = if page == 1 || page == 2 { "T9 · " } else { "" };
+                for (account, foreign_models) in [
+                    ("Claude subscription", &["gpt-6.1-sol", "gpt-6-luna"][..]),
+                    ("ChatGPT plan", &["claude-opus-5-5"][..]),
+                ] {
+                    for model in foreign_models {
+                        assert!(!(line.contains(account) && line.contains(model)), "{account} with {model}: {line}");
+                    }
+                }
+                assert_eq!(line, format!("{prefix}{account_words} · {model}"), "page {page}");
+            }
+        }
+    }
+}
+
 fn line_fixture(
     ready: Option<c::PayerReadiness>,
     accounts: List<c::AccountLine>,

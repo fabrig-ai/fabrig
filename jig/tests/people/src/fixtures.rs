@@ -1,4 +1,13 @@
-//! Shared amendment payloads for the tests.
+//! Shared people fixtures for the tests.
+pub const SIGN_IN: u64 = 10;
+pub const OWNER: u64 = 1;
+pub const SECOND_SIGN_IN: u64 = 11;
+pub const SECOND: u64 = 2;
+pub const PERSON: u64 = 1;
+pub const PROJECT: u32 = 1;
+pub const CONNECTOR: u16 = 1;
+pub const OWNER_RELOGIN: u64 = 11;
+
 /// An amendment retaining every field, with the supplied explanation.
 #[must_use]
 pub fn person_unchanged(reason: &[u8]) -> jig_domain_people::Amendment {
@@ -16,7 +25,7 @@ pub fn person_unchanged(reason: &[u8]) -> jig_domain_people::Amendment {
 }
 
 pub fn member(world: &mut crate::World) -> u64 {
-    let call = world.signin(10, 1);
+    let call = world.sign_in_owner();
     assert!(world.reply(call).is_none());
     world.commit_all();
     let jig_domain_people::Reply::SignedIn { person, .. } =
@@ -24,7 +33,7 @@ pub fn member(world: &mut crate::World) -> u64 {
     else {
         panic!("signed in")
     };
-    world.roles(1, Box::new([jig_domain_people::Holding { person, role: jig_domain_people::Role::Member }]));
+    world.roles(PROJECT, Box::new([jig_domain_people::Holding { person, role: jig_domain_people::Role::Member }]));
     world.commit_all();
     person
 }
@@ -73,5 +82,5 @@ pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
 pub fn create(words: &[u8], tracked: Option<u32>) -> jig_domain_people::Ask {
     let mut member = people_member(words, 1);
     member.tracked = tracked;
-    jig_domain_people::Ask::Create { project: 1, batch: Box::new([member]) }
+    jig_domain_people::Ask::Create { project: PROJECT, batch: Box::new([member]) }
 }

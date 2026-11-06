@@ -60,6 +60,7 @@ impl Composition {
         };
         let settings = clients::Settings {
             provider: None,
+            link_secret: None,
             addresses: Box::new([]),
             link: None,
             deployment_provider: 2,

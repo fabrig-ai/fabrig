@@ -110,15 +110,12 @@ a { color: inherit; text-decoration: none; }
 .temper-project-new button:hover { border-color: #ba9c89; color: var(--temper-accent-dark); }
 /* The switcher's fields keep their labels for assistive technology alone. */
 .temper-project-new > label, .temper-project-rename-form > label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-/* The open project's row: its name, and Rename at its end; renaming, the row is its name's field. */
+/* The banner's open project offers Rename beside its name; its form replaces that row. */
 .temper-projects[open]::details-content { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 .temper-projects > :not(.temper-project-rename):not([aria-pressed=true]) { grid-column: 1 / -1; }
 .temper-projects > button.temper-project-rename { width: auto; padding: 5px 12px 5px 6px; color: var(--temper-faint); font-size: 11px; opacity: 0; }
 .temper-projects > button[aria-pressed=true]:hover + .temper-project-rename, .temper-projects > .temper-project-rename:hover, .temper-projects > .temper-project-rename:focus-visible { opacity: 1; }
 .temper-projects > button.temper-project-rename:hover { background: none; color: var(--temper-accent-dark); text-decoration: underline; }
-.temper-projects > .temper-project-rename-form { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 12px; }
-.temper-project-rename-form input { flex: 1; min-width: 0; padding: 2px 6px; margin-left: -7px; border: 1px solid #cba893; border-radius: 4px; outline: 0; background: var(--temper-paper); color: var(--temper-ink); font-size: 12px; font-weight: 600; }
-.temper-project-rename-form button { flex: none; padding: 2px 8px; border: 1px solid #ddd6cb; border-radius: 4px; background: none; color: var(--temper-accent-dark); font-size: 11px; }
 @media (hover: none) { .temper-projects > button.temper-project-rename { opacity: 1; } }
 @supports selector(::details-content) {
   @media (min-width: 761px) {
@@ -140,7 +137,7 @@ a { color: inherit; text-decoration: none; }
 /* Resolve body's em spacing at main's larger font instead of inheriting its computed pixels. */
 .temper-main { font-size: 14px; letter-spacing: -.015em; width: min(1213.33px, calc(100% - 56px)); margin: 0 auto; padding: 25.67px 0 67.67px; }
 /* The preceding skein sheet's focus ring and visually hidden figures, inside main. */
-.temper-main:focus-visible, :where(.temper-main) :focus-visible { outline-width: 2.33px; outline-offset: 2.33px; }
+:where(.temper-main) :focus-visible { outline-width: 2.33px; outline-offset: 2.33px; }
 :where(.temper-main) [data-drawn] > :not(svg), :where(.temper-main) [id^="skein-ui-state-"] { width: 1.17px; height: 1.17px; margin: -1.17px; }
 /* skein's absolute small label is 13px in Chromium; unlike inherited type it needs its own length. */
 :where(.temper-main:where(:not(.temper-settings))) label[for^="skein-ui-label-"]:has(+ input:not([type="radio"], [type="checkbox"])) { font-size: 15.17px; }
@@ -224,7 +221,7 @@ section.temper-accounts button:hover { text-decoration: underline; }
 .temper-agent-page .temper-taskbar button:hover { color: var(--temper-accent); text-decoration: underline; }
 /* .terminal-thread and .terminal-thread-inner: edge scrollbar, centred contents. */
 .temper-agent-page .temper-thread { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.temper-agent-page .temper-thread > [role=log] { flex: 0 1 auto; min-height: 0; min-height: calc-size(min-content, min(size, 33%)); width: 100%; padding: 25.67px max(37.33px, calc((100% - 1213.33px) / 2)) 35px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #d9d1c5 transparent; }
+.temper-agent-page .temper-thread > [role=log] { position: relative; flex: 0 1 auto; min-height: 0; min-height: calc-size(min-content, min(size, 33%)); width: 100%; padding: 25.67px max(37.33px, calc((100% - 1213.33px) / 2)) 35px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #d9d1c5 transparent; }
 .temper-agent-page .temper-thread > [role=log]:not(:last-child) { padding-bottom: 0; }
 .temper-agent-page .temper-thread > :not([role=log]):not(.temper-cards) { flex: none; width: min(1213.33px, calc(100% - 74.67px)); margin-inline: auto; }
 /* .first-run-context: a direct chat child shares the conversation column. */
@@ -858,8 +855,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* Failure reasons repeat the mockup's red; shared account/sign-in rows keep their own styles. */
 :is(.temper-flow-details, .temper-model-key) > [role=alert] { color: var(--temper-red); font-size: 12.83px; margin: 0 0 11.67px; }
-/* A sign-in's external address is its own line; folded paste refusals keep the card's alert priority. */
-.temper-flow-details > .temper-model-sign-in[target="_blank"] { margin-inline-start: 0; }
+/* Folded paste refusals keep the card's alert priority. */
 .temper-model-sign-in [role=alert] { color: var(--temper-red); font-size: 12.83px; margin: 0 0 11.67px; }
 .temper-model-key > :is(h2, p, form) { max-width: 490px; }
 .temper-main .temper-model-key > h2 { margin-bottom: 21px; }
@@ -928,7 +924,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 @font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url(files/fonts/ibm-plex-sans-latin-600-normal.woff2) format('woff2'); }
 @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url(files/fonts/ibm-plex-mono-latin-400-normal.woff2) format('woff2'); }
 @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url(files/fonts/ibm-plex-mono-latin-500-normal.woff2) format('woff2'); }
-:root:has(.temper-welcome) {
+:root:has(:is(.temper-welcome, .temper-welcome-check)) {
   --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73;
   --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-signal: #c2410c; --gf-good: #15803d;
   --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
@@ -973,10 +969,13 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card:where(:not(.temper-settings-row *))) > :is(h2, p, div:not(.temper-flow-actions)):has(+ :is(button, a, .temper-flow-actions)) { margin-bottom: 18px; }
 #app > .temper-welcome .temper-flow-actions { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 /* Buttons: ink filled for the default, white bordered otherwise; quiet acts as underlined words. */
-#app > .temper-welcome :where(.temper-flow-primary, .temper-flow-secondary, .temper-welcome-card > button, .temper-welcome-card > a) { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 14.5px/1.6 var(--gf-sans); text-decoration: none; }
+#app > .temper-welcome :where(.temper-flow-primary, .temper-flow-secondary, .temper-welcome-card > button, .temper-welcome-card > a),
+#app > .temper-page :is(.temper-welcome-away, .temper-welcome-paste) :where(.temper-flow-primary) { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 14.5px/1.6 var(--gf-sans); text-decoration: none; }
 #app > .temper-welcome :where(.temper-flow-secondary, .temper-welcome-card > button:not(.temper-flow-primary), .temper-welcome-card > a:not(.temper-flow-primary)):hover { border-color: #b4b4ae; background: var(--gf-surface); color: var(--gf-ink); }
-#app > .temper-welcome .temper-flow-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
-#app > .temper-welcome .temper-flow-primary:hover { border-color: #000; background: #000; color: #fff; }
+#app > .temper-welcome .temper-flow-primary,
+#app > .temper-page :is(.temper-welcome-away, .temper-welcome-paste) .temper-flow-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
+#app > .temper-welcome .temper-flow-primary:hover,
+#app > .temper-page :is(.temper-welcome-away, .temper-welcome-paste) .temper-flow-primary:hover { border-color: #000; background: #000; color: #fff; }
 #app > .temper-welcome .temper-flow-quiet { font: 400 15px/1.6 var(--gf-sans); color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app > .temper-welcome .temper-flow-quiet:hover { text-decoration-color: var(--gf-ink); }
 /* Under the cards: a note, then back and the way out. */
@@ -1064,7 +1063,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-foot > button.temper-flow-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
 #app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-foot > button.temper-flow-primary:hover { border-color: #000; background: #000; }
 #app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-foot > button:disabled { opacity: .45; cursor: default; }
-#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet :focus-visible { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet :focus-visible:not([tabindex="-1"]) { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
 @media (max-width: 760px) {
   #app:has(> .temper-welcome) > .temper-banner { padding: 14px 16px; }
   #app:has(> .temper-welcome) .temper-flow-step:not([aria-current]) > a { font-size: 0; gap: 0; padding: 6px 4px; }
@@ -1186,7 +1185,19 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* Home's column. */
 
+/* ==== ui: switcher ==== */
+.temper-project-rename-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px; }
+.temper-project-rename-form > input { flex: 1; min-width: 0; min-height: 34px; padding: 6px 12px; border: 1px solid var(--gf-line-2, #d4d4cf); border-radius: 8px; background: var(--gf-surface, #fff); color: var(--gf-ink, #18181b); }
+.temper-project-rename-form > button { flex: none; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-ink, #18181b); border-radius: 8px; background: var(--gf-ink, #18181b); color: #fff; font-size: 13.5px; font-weight: 500; }
+.temper-project-rename-form > button:hover { background: #000; }
+.temper-project-rename-form > button:disabled { opacity: .45; cursor: default; }
+/* Cancel is Escape's alone here: the page part presses it from the tree. */
+.temper-project-rename-form > [aria-keyshortcuts=Escape] { display: none; }
+.temper-project-rename-form > [role=status] { flex: 0 0 100%; order: 1; }
+
 /* ==== ui: home ==== */
+/* Navigation focuses page targets without drawing a control ring. */
+#app :is(main, h1)[tabindex="-1"]:focus { outline: none; }
 #app > .temper-home .temper-home-byline { margin: 0; font-size: 12px; color: var(--gf-faint); }
 #app > .temper-home .temper-home-facts { font-size: 13.5px; color: var(--gf-muted); }
 #app > .temper-home .temper-home-facts > a { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
@@ -1281,7 +1292,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-doc-empty { color: var(--gf-muted); }
 
 #app > .temper-session .temper-doc-sec { border-radius: 8px; transition: background .8s; }
-#app > .temper-session .temper-doc-sec:focus { outline: none; }
 #app > .temper-session .temper-doc-flash { border-radius: 8px; animation: flash 1.8s ease-out; }
 @keyframes flash { 0% { background: #fde7cf; } 100% { background: var(--gf-signal-pale); } }
 #app > .temper-session .temper-turn-tool > button:hover { color: var(--gf-ink); text-decoration-color: var(--gf-ink); }
@@ -1409,7 +1419,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-session > .temper-session-top { padding: 10px 12px; gap: 8px; }
   #app > .temper-session .temper-crumbs > .temper-back { display: inline-flex; flex: none; min-width: 36px; min-height: 36px; align-items: center; justify-content: center; font-size: 0; color: var(--gf-ink); }
   #app > .temper-session .temper-crumbs > .temper-back::before { content: '‹'; font-size: 20px; line-height: 1; }
-  #app > .temper-session :is(.temper-trail, .temper-byline) { display: none; }
+  #app > .temper-session :is(.temper-trail, .temper-byline, .temper-session-hint) { display: none; }
 }
 
 /* The byline is the chooser's summary; feedback stays above the composer. */
@@ -1482,7 +1492,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* A chat's log is the scroller; skein follows its end while the person stays there. */
 #app > .temper-session .temper-thread:has(> [role=log]) { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
-#app > .temper-session .temper-thread > [role=log] { flex: 1; min-height: 0; width: 100%; overflow-y: auto; scrollbar-gutter: stable both-edges; padding: 36px 40px 24px; }
+#app > .temper-session .temper-thread > [role=log] { position: relative; flex: 1; min-height: 0; width: 100%; overflow-y: auto; scrollbar-gutter: stable both-edges; padding: 36px 40px 24px; }
 #app > .temper-session .temper-thread-inner { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 #app > .temper-session .temper-thread-inner > .temper-chats-more { align-self: center; margin: 0; display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 400 13.5px/1.6 var(--gf-sans); text-decoration: none; text-align: left; }
 #app > .temper-session .temper-thread-inner > .temper-chats-more:hover { border-color: #b4b4ae; background: var(--gf-hover); color: var(--gf-ink); }
@@ -1536,13 +1546,13 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session.temper-mode-chat > .temper-doc { display: none; }
 #app > .temper-session.temper-mode-draft > .temper-convo { grid-row: 3; background: var(--gf-surface); }
 #app > .temper-session.temper-mode-draft .temper-thread { display: none; }
-#app > .temper-session > .temper-doc { min-height: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; padding: 44px 56px 80px; border-left: 1px solid var(--gf-line); background: var(--gf-surface); }
+#app > .temper-session > .temper-doc { position: relative; min-height: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; padding: 44px 56px 80px; border-left: 1px solid var(--gf-line); background: var(--gf-surface); }
 #app > .temper-session.temper-mode-draft > .temper-doc { grid-row: 2; padding-bottom: 24px; border-left: 0; }
 #app > .temper-session .temper-doc-inner { max-width: 640px; margin: 0 auto; font-size: 15.5px; line-height: 1.7; color: var(--gf-ink); }
 #app > .temper-session .temper-doc-inner p { margin: 0 0 8px; }
 #app > .temper-session .temper-doc-path { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; margin-bottom: 18px !important; font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
 #app > .temper-session .temper-doc-inner h2 { margin: 0 0 4px; font: 500 28px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--gf-ink); }
-#app > .temper-session .temper-doc-inner h3 { margin: 26px 0 8px; font: 600 17px/1.5 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+#app > .temper-session .temper-doc-inner h3 { margin: 26px 0 8px; font: 600 17px/1.7 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
 #app > .temper-session :is(.temper-doc-sub, .temper-doc-muted) { color: var(--gf-muted); }
 #app > .temper-session .temper-doc-muted { font-size: 14px; }
 #app > .temper-session .temper-doc-inner ul { margin: 0; padding-left: 20px; }
@@ -2095,6 +2105,20 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* ==== ui: welcome ==== */
 
+#app > .temper-page :is(.temper-welcome-away, .temper-welcome-paste) { letter-spacing: normal; }
+#app > .temper-page .temper-welcome-away { font-size: 15px; }
+#app > .temper-page .temper-welcome-away .temper-flow-muted { color: var(--gf-muted); }
+
+#app > :is(.temper-welcome, .temper-page) .temper-welcome-away > div > .temper-welcome-again { display: inline-block; margin-top: 8px; color: var(--gf-ink); font: 400 14px/1.6 var(--gf-sans); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > :is(.temper-welcome, .temper-page) .temper-welcome-away > div > .temper-welcome-again:hover { text-decoration-color: var(--gf-ink); }
+#app > :is(.temper-welcome, .temper-page) .temper-welcome-paste { margin: -18px 0 32px; font-size: 13.5px; color: var(--gf-muted); }
+#app > .temper-page > .temper-welcome-paste { margin-inline: auto; }
+#app > :is(.temper-welcome, .temper-page) .temper-welcome-paste > summary { width: fit-content; cursor: pointer; }
+#app > :is(.temper-welcome, .temper-page) .temper-welcome-paste > p { margin: 10px 0 12px; font-size: 14px; line-height: 1.6; }
+#app > :is(.temper-welcome, .temper-page) .temper-welcome-paste > label { display: block; margin-bottom: 6px; color: var(--gf-ink-2); font-size: 13.5px; }
+#app > :is(.temper-welcome, .temper-page) .temper-welcome-paste > input { box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); }
+#app > :is(.temper-welcome, .temper-page) .temper-welcome-paste > button { margin-top: 12px; }
+
 #app > .temper-home .temper-home-steps > li > .temper-home-copy { grid-column: 2 / -1; display: flex; align-items: baseline; gap: 12px; color: var(--gf-muted); font-size: 14px; line-height: 1.55; min-width: 0; }
 #app > .temper-home .temper-home-copy > p { margin: 0; overflow-wrap: anywhere; }
 #app > .temper-home .temper-home-copy.temper-home-done::before { content: '✓' / ''; color: var(--gf-good); }
@@ -2129,10 +2153,10 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 #app:has(> .temper-welcome) { --gf-hover: #ececea; --gf-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace; }
-#app > .temper-welcome > h1:has(+ :is(.temper-welcome-panel, .temper-welcome-away, .temper-welcome-forge-status)) { margin-bottom: 32px; }
+#app > :is(.temper-welcome, .temper-main) > h1:has(+ :is(.temper-welcome-panel, .temper-welcome-away, .temper-welcome-forge-status)) { margin-bottom: 32px; }
 
 #app:has(> .temper-welcome) .temper-welcome-panel,
-#app:has(> .temper-welcome) .temper-welcome-away { padding: 22px; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
+#app:has(> :is(.temper-welcome, .temper-page)) .temper-welcome-away { padding: 22px; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
 #app:has(> .temper-welcome) .temper-welcome-panel { display: flex; flex-direction: column; gap: 18px; margin-bottom: 32px; }
 #app:has(> .temper-welcome) .temper-welcome-panel > :is(p, form, .temper-welcome-acts, .temper-welcome-field) { margin: 0; }
 #app:has(> .temper-welcome) .temper-welcome-panel > p { font-size: 15px; line-height: 1.6; }
@@ -2142,48 +2166,60 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app:has(> .temper-welcome) .temper-welcome-field .temper-flow-field { margin: 0; }
 #app:has(> .temper-welcome) .temper-welcome-field label { display: block; margin: 0; font: inherit; color: var(--gf-muted); }
 #app:has(> .temper-welcome) .temper-welcome-field input { width: 100%; min-height: 38px; padding: 6px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); margin: 0; }
-#app:has(> .temper-welcome) .temper-welcome-numbered { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; list-style-type: decimal; }
-#app:has(> .temper-welcome) .temper-welcome-numbered p { margin: 0; }
-#app:has(> .temper-welcome) .temper-welcome-numbered a { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app:has(> .temper-welcome) .temper-welcome-acts .temper-flow-quiet { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font-size: 14.5px; text-decoration: none; }
 #app:has(> .temper-welcome) .temper-welcome-acts .temper-flow-quiet:hover { background: var(--gf-hover); color: var(--gf-ink); }
-#app:has(> .temper-welcome) .temper-welcome-away { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 32px; }
-#app:has(> .temper-welcome) .temper-welcome-away p { margin: 0; font-size: 15px; line-height: 1.6; }
-#app:has(> .temper-welcome) .temper-welcome-away .temper-flow-muted { margin-top: 4px; font-size: 15px; line-height: 1.6; }
-#app:has(> .temper-welcome) .temper-welcome-away .temper-welcome-spin { margin-top: 5px; }
-#app:has(> .temper-welcome) .temper-welcome-forge-status > [role=status] { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
-#app:has(> .temper-welcome) .temper-welcome-forge-status > [role=status] > .temper-flow-muted { color: var(--gf-muted); font-size: inherit; }
+#app:has(> :is(.temper-welcome, .temper-page)) .temper-welcome-away { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 32px; }
+#app:has(> :is(.temper-welcome, .temper-page)) .temper-welcome-away p { margin: 0; font-size: 15px; line-height: 1.6; }
+#app:has(> :is(.temper-welcome, .temper-page)) .temper-welcome-away .temper-flow-muted { margin-top: 4px; font-size: 15px; line-height: 1.6; }
+#app:has(> :is(.temper-welcome, .temper-page)) .temper-welcome-away .temper-welcome-spin { margin-top: 5px; }
+#app:has(.temper-welcome-forge-status) .temper-welcome-forge-status > [role=status] { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+#app:has(.temper-welcome-forge-status) .temper-welcome-forge-status > [role=status] > .temper-flow-muted { color: var(--gf-muted); font-size: inherit; }
 #app:has(> .temper-welcome) .temper-welcome-panel .temper-flow-primary:disabled { opacity: .45; }
 @media (max-width: 760px) {
-  #app > .temper-welcome > h1:has(+ :is(.temper-welcome-panel, .temper-welcome-away, .temper-welcome-forge-status)) { margin-bottom: 24px; }
+  #app > :is(.temper-welcome, .temper-main) > h1:has(+ :is(.temper-welcome-panel, .temper-welcome-away, .temper-welcome-forge-status)) { margin-bottom: 24px; }
   #app:has(> .temper-welcome) .temper-welcome-panel { margin-bottom: 24px; }
   #app:has(> .temper-welcome) .temper-welcome-panel,
-  #app:has(> .temper-welcome) .temper-welcome-away { padding: 18px; }
+  #app:has(> :is(.temper-welcome, .temper-page)) .temper-welcome-away { padding: 18px; }
 }
 
 
-#app > .temper-welcome .temper-welcome-forge-status { padding: 14px 16px; border-radius: 10px; background: #f1f1ee; font-size: 14.5px; }
-#app > .temper-welcome .temper-welcome-forge-status.temper-flow-done { background: #eef6f0; }
-#app > .temper-welcome .temper-welcome-forge-status > p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--gf-ink); }
-#app > .temper-welcome .temper-welcome-forge-status strong { font-weight: 500; color: var(--gf-ink); }
-#app > .temper-welcome .temper-welcome-forge-status > p > .temper-flow-muted { color: var(--gf-muted); font-size: inherit; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status { padding: 14px 16px; border-radius: 10px; background: #f1f1ee; font-size: 14.5px; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status.temper-flow-done { background: #eef6f0; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status > p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--gf-ink); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status strong { font-weight: 500; color: var(--gf-ink); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status > p > .temper-flow-muted { color: var(--gf-muted); font-size: inherit; }
 #app > .temper-welcome .temper-welcome-sep { color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-spin { flex: none; width: 14px; height: 14px; border: 2px solid var(--gf-line-2); border-top-color: var(--gf-ink); border-radius: 50%; animation: temper-welcome-spin .9s linear infinite; }
+#app > :is(.temper-welcome, .temper-page, .temper-main) .temper-welcome-spin { flex: none; width: 14px; height: 14px; border: 2px solid var(--gf-line-2); border-top-color: var(--gf-ink); border-radius: 50%; animation: temper-welcome-spin .9s linear infinite; }
 @keyframes temper-welcome-spin { to { transform: rotate(360deg); } }
-#app > .temper-welcome .temper-welcome-ok { color: var(--gf-good); font-weight: 600; }
-#app > .temper-welcome .temper-welcome-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 32px 0; }
-#app > .temper-welcome .temper-welcome-forge-status > details > summary { width: fit-content; margin-top: 6px; cursor: pointer; font-size: 13px; color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; color: var(--gf-faint); }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li { padding-left: 0; color: var(--gf-faint); }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li::before { position: static; content: '○' / ''; display: inline-block; width: 1.4em; }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li.temper-flow-done { color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li.temper-flow-done::before { content: '✓' / ''; color: var(--gf-good); }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li[aria-current] { color: var(--gf-ink); font-weight: 400; }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li[aria-current]::before { content: '●' / ''; color: var(--gf-good); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-ok { color: var(--gf-good); font-weight: 600; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 32px 0; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status > details > summary { width: fit-content; margin-top: 6px; cursor: pointer; font-size: 13px; color: var(--gf-muted); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; color: var(--gf-faint); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress > li { padding-left: 0; color: var(--gf-faint); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress > li::before { position: static; content: '○' / ''; display: inline-block; width: 1.4em; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress > li.temper-flow-done { color: var(--gf-muted); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress > li.temper-flow-done::before { content: '✓' / ''; color: var(--gf-good); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress > li[aria-current] { color: var(--gf-ink); font-weight: 400; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress > li[aria-current]::before { content: '●' / ''; color: var(--gf-good); }
 @media (max-width: 760px) {
-  #app > .temper-welcome .temper-welcome-acts { margin: 24px 0; }
-  #app > .temper-welcome .temper-welcome-forge-status .temper-welcome-sep { display: none; }
-  #app > .temper-welcome .temper-welcome-forge-status > p > .temper-flow-muted { flex-basis: 100%; padding-left: 22px; }
+  #app > :is(.temper-welcome, .temper-main) .temper-welcome-acts { margin: 24px 0; }
+  #app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-welcome-sep { display: none; }
+  #app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status > :is(p, [role=status]) > .temper-flow-muted { flex-basis: 100%; padding-left: 22px; }
+}
+
+/* model-check: the welcome tries a model with one real turn, its steps live. */
+#app > .temper-main:not(.temper-welcome) .temper-welcome-check { font-family: var(--gf-sans); line-height: 1.6; letter-spacing: normal; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check { margin-bottom: 24px; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check.temper-flow-done + .temper-welcome-acts { margin-top: 24px; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check > [role=alert] { color: var(--gf-signal); font-size: 14.5px; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check > [role=alert] strong { color: var(--gf-signal); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check-stopped { background: #fff7ed; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check .temper-flow-progress > li.temper-welcome-check-failed { color: var(--gf-signal); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check .temper-flow-progress > li.temper-welcome-check-failed::before { content: '✕' / ''; color: var(--gf-signal); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check > .temper-welcome-check-why { display: block; margin: 10px 0 0; color: var(--gf-ink-2); font-size: 14px; line-height: 1.55; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check ~ .temper-welcome-acts { align-items: center; }
+@media (max-width: 760px) {
+  #app > :is(.temper-welcome, .temper-main) .temper-welcome-check > [role=status] > .temper-flow-muted { padding-left: 0; }
 }
 
 

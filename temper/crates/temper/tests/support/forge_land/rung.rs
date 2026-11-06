@@ -837,8 +837,7 @@ fn setup(driver: &mut Driver, paths: &[PathBuf; 3], account: &Path) -> Result<Va
     };
     driver.ctl(&["sign-in", "-"], Some(&link))?;
     setup_tools(driver)?;
-    let output = fs::read_to_string(driver.store.join("box.err")).map_err(|e| e.to_string())?;
-    let baseline = setup_observer(driver, paths, &output)?;
+    let baseline = setup_observer(driver, paths)?;
     driver.ctl(&["account", "import", account.to_str().ok_or("held path")?, "--key", "connect-plan"], None)?;
     let accounts = driver.wait(&["account", "list"], "usable")?;
     require(
@@ -872,9 +871,10 @@ fn setup_tools(driver: &mut Driver) -> Result<(), String> {
     Ok(())
 }
 
-fn setup_observer(driver: &mut Driver, paths: &[PathBuf; 3], output: &str) -> Result<Value, String> {
+fn setup_observer(driver: &mut Driver, paths: &[PathBuf; 3]) -> Result<Value, String> {
+    let log = super::super::boxed::box_log(&paths[1]);
     require(
-        output.lines().any(|line| line.ends_with(&format!("Forge {} (Forgejo): started", driver.forge))),
+        log.lines().any(|line| line.ends_with(&format!("Forge {} (Forgejo): started", driver.forge))),
         "box reported the forge started",
     )?;
     let log = std::fs::read_to_string(paths[1].join(format!("box/logs/forgejo-{}.log", driver.forge)))
@@ -924,16 +924,15 @@ pub fn offline_setup(root: &Path) {
             Step::Run(Call::sign_in()),
             Step::Then(Box::new(move |_| {
                 *tool_result.borrow_mut() = setup_tools(&mut tools.borrow_mut());
-                // Return to the harness so it drains setup's printed forge paths
-                // before handing the captured stderr to the observer checkpoint.
+                // Return to the harness before the observer reads setup's logs.
                 Call::new(&["me", "--json"])
             })),
         ],
         boxed::BOX_DEADLINE,
-        |stderr| -> Result<(), String> {
+        |_| -> Result<(), String> {
             prepared.borrow().clone()?;
             let mut driver = driver.borrow_mut();
-            setup_observer(&mut driver, &paths, std::str::from_utf8(stderr).map_err(|e| e.to_string())?)?;
+            setup_observer(&mut driver, &paths)?;
             let accounts = driver.ctl(&["account", "list"], None)?;
             require(accounts["accounts"]["party"] == json!([]), "no account imported by the offline setup")?;
             let project = driver.project.clone();

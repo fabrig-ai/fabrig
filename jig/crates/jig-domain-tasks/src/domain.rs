@@ -654,7 +654,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             );
         }
         Event::StalledProposal { proposer, proposal, from, revision, holder } => {
-            crate::proposals::stalled(domain, env, (proposer, proposal), from, revision, holder, out);
+            let stalled = crate::proposals::Stalled { proposer, number: proposal };
+            crate::proposals::stalled(domain, env, stalled, from, revision, holder, out);
         }
         Event::WithdrawProposal { reply_to, proposer, proposal } => {
             crate::proposals::withdraw(domain, env, reply_to, proposer, proposal, out);
@@ -669,7 +670,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::control::amend(domain, env, reply_to, (by, funder), operation, &places, out);
         }
         Event::Move { reply_to, operation, person, period, pool_budget, period_budget } => {
-            crate::moving::apply(domain, env, reply_to, operation, (person, period, pool_budget, period_budget), out);
+            let funding = crate::moving::Funding { person, period, pool_budget, period_budget };
+            crate::moving::apply(domain, env, reply_to, operation, funding, out);
         }
         Event::Subscribe { reply_to, task, subscription } => {
             crate::subscriptions::subscribe(domain, env, reply_to, task, subscription, false, out);
@@ -720,7 +722,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::funders::open(domain, env, reply_to, project, period, budget, out);
         }
         Event::CarvePool { reply_to, project, person, period, budget } => {
-            crate::funders::carve(domain, env, reply_to, project, person, (period, budget), out);
+            let carving = crate::funders::Carving { period, budget };
+            crate::funders::carve(domain, env, reply_to, project, person, carving, out);
         }
         Event::ResizePool { reply_to, project, person, period, budget } => {
             crate::funders::resize_pool(domain, reply_to, project, person, period, budget, out);

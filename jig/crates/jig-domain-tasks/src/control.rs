@@ -324,7 +324,8 @@ pub(crate) fn check_amend(
         if record(domain, *dependency).is_none() && place(places, *dependency).is_none() {
             return Err(Box::new(crate::Problem::new(Some(*dependency), Refusal::Unknown)));
         }
-        if !dependency_reached(domain, staged, env, by, (old.project, number, *dependency), places) {
+        let reaching = Reaching { project: old.project, task: number, dependency: *dependency };
+        if !dependency_reached(domain, staged, env, by, reaching, places) {
             return Err(Box::new(crate::Problem::naming(Some(number), Refusal::Dependencies, &[*dependency])));
         }
         if record(domain, *dependency).is_some() {
@@ -370,6 +371,12 @@ fn place(places: &[DependencyPlace], number: u64) -> Option<&DependencyPlace> {
     None
 }
 
+struct Reaching {
+    project: u32,
+    task: u64,
+    dependency: u64,
+}
+
 /// Live reach stays as for a batch; ended reach follows stored requesters
 /// (`domain/tasks.md`, section 7).
 fn dependency_reached(
@@ -377,9 +384,10 @@ fn dependency_reached(
     staged: &Staged,
     env: &Env<Limits>,
     by: Party,
-    (project, task, dependency): (u32, u64, u64),
+    reaching: Reaching,
     places: &[DependencyPlace],
 ) -> bool {
+    let Reaching { project, task, dependency } = reaching;
     if task == dependency {
         return true;
     }

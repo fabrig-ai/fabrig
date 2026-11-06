@@ -1,4 +1,4 @@
-use jig_tasks_world::{run_story, run_story_choices, stories::Story};
+use jig_tasks_world::{PERSON_PARTY, run_story, run_story_choices, stories::Story};
 
 // Stable draw stream for timing/price and fault/cut variations after exhaustive choices.
 const DRAW_SOURCE: u64 = 47;
@@ -35,7 +35,7 @@ fn random_faults_and_restart_cuts_reach_every_retained_ending() {
 #[test]
 fn selected_starts_keep_drawn_choices_and_name_the_first_removed_effort() {
     use jig_domain_tasks::{
-        self as tasks, Domain, Event, Key, LlmChoice, ModelEffort, Party, RestoreCause, RestoreFailure, RestoreLlmWhy,
+        self as tasks, Domain, Event, Key, LlmChoice, ModelEffort, RestoreCause, RestoreFailure, RestoreLlmWhy,
     };
     use jig_tasks_world::{EFFORTS, LIMITS, Reply, World, charters, task};
     use skein_lib::{Queue, Rng};
@@ -50,7 +50,7 @@ fn selected_starts_keep_drawn_choices_and_name_the_first_removed_effort() {
         member.authority.models = tasks::Models::Named(0b11);
         member.llm = Some(choice.clone());
         let mut world = World::new(seed, LIMITS);
-        assert_eq!(world.make(Party::Person(9), vec![member]), Reply::Made(vec![number]));
+        assert_eq!(world.make(PERSON_PARTY, vec![member]), Reply::Made(vec![number]));
         world.restart();
         assert_eq!(world.record(number).llm, Some(choice));
 

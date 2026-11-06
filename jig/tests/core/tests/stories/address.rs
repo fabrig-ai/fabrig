@@ -1,4 +1,5 @@
 use super::*;
+use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::reads::Parties;
 use jig_core_world::stories::instructions::task_document;
 use jig_core_world::world::Setup;
@@ -18,15 +19,7 @@ fn a_person_task_is_readdressed_after_durability_and_the_previous_taker_cannot_a
     let before = task_document(&mut w, task, 80_001);
     assert_eq!(before.person_revision, Some(0));
     assert_eq!(before.taken_by, Some(first));
-    w.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(80_002)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
-            login: b"second".as_slice().into(),
-            name: b"new addressee".as_slice().into(),
-        },
-    }));
+    w.send(signin(Token::new(80_002), 0, &8_u64.to_be_bytes(), b"second", b"new addressee"));
     let second_sign_in = w.sign_in.expect("person signed in");
     let Some(people::Reply::SignedIn { person: second, .. }) = w.people_answers.last().cloned() else {
         panic!("sign-in")

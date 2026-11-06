@@ -79,6 +79,8 @@ pub struct Seeds {
     pub deployment: [u8; 16],
     pub seed: u64,
     pub crypto: Secret,
+    /// The first link's secret supplied by the box (temper/docs/design/protocol/setup.md, 7.1).
+    pub link_secret: Option<Secret>,
     /// The installation's identifier drawn for a first start; a later start
     /// sends the one its store keeps (jig's configuration.md, 8).
     pub installation: [u8; 16],
