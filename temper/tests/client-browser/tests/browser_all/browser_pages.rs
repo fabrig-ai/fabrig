@@ -422,10 +422,13 @@ const READING_MESSAGES: u32 = 16;
 fn reading_words(number: u32) -> Box<[u8]> {
     format!("Reading paragraph {number:02}.").into_bytes().into_boxed_slice()
 }
-fn reading_history() -> Vec<Step> {
+fn reply_end(number: u32) -> Find {
+    Find::text(format!("End of reply {number}.").as_bytes())
+}
+fn reading_history(messages: u32) -> Vec<Step> {
     let mut steps = temper_client_browser_world::start_playground_chat(&reading_words(1));
     steps.push(see(Find::text(b"End of the large reply.")));
-    for number in 2..=READING_MESSAGES {
+    for number in 2..=messages {
         steps.extend([
             Step::Person(PersonStep::Type {
                 find: Find::exactly_named(Role::TextArea, b"Message"),
@@ -439,46 +442,51 @@ fn reading_history() -> Vec<Step> {
     }
     steps.extend([
         Step::Person(PersonStep::Reload),
-        see(paragraph(&reading_words(READING_MESSAGES))),
+        see(paragraph(&reading_words(messages))),
         gone(Find::exactly_named(Role::Status, b"Loading earlier messages")),
         gone(Find::exactly_named(Role::Button, b"Older")),
         gone(Find::exactly_named(Role::Button, b"Latest")),
     ]);
     steps
 }
-fn reading_tier(anchoring: bool) -> Tier {
+fn reading_tier(anchoring: bool, messages: u32) -> Tier {
     use std::fmt::Write as _;
     let tier =
         if anchoring { Tier::demo("reading-anchored") } else { Tier::demo_without_anchoring("reading-unanchored") };
     // A long, horizontally scrollable code line crosses the byte bound without thousands of page keys.
-    let mut reply = format!("```text\n{}\n```\n\nEnd of the large reply.", "data ".repeat(12_600));
+    let mut reply = format!("```text\n{}\n```\n\nEnd of the large reply.", "data ".repeat(12_700));
     for line in 1..=30 {
         write!(reply, "\n\nNumbered line {line:02}. Keep this paragraph available while reading.").expect("reply text");
     }
-    tier.with_replies(&[("Reading paragraph", reply)])
+    tier.with_replies(&[
+        (&format!("Reading paragraph {:02}.", messages - 1), format!("{reply}\n\nEnd of reply {}.", messages - 1)),
+        (&format!("Reading paragraph {messages:02}."), format!("{reply}\n\nEnd of reply {messages}.")),
+        ("Reading paragraph", format!("{reply}\n\nEnd of reply 1.")),
+    ])
 }
 #[test]
 fn a_long_chat_opens_at_its_end_and_reads_back_from_the_composer() {
     reading_position(true);
 }
+#[test]
+fn earlier_words_stay_put_without_browser_scroll_anchoring() {
+    reading_position(false);
+}
 fn reading_position(anchoring: bool) {
-    let tier = reading_tier(anchoring);
-    let mut steps = reading_history();
+    let messages = if anchoring { READING_MESSAGES } else { 3 };
+    let tier = reading_tier(anchoring, messages);
+    let mut steps = reading_history(messages);
     let composer = || Find::exactly_named(Role::TextArea, b"Message");
-    let anchor = || paragraph(&reading_words(READING_MESSAGES - 1));
+    let anchor = || paragraph(&reading_words(messages - 1));
     let loading = || Find::exactly_named(Role::Status, b"Loading earlier messages");
     steps.extend([
         keep_box(Find::named(Role::Log, b"Conversation"), "log"),
-        keep_box(Find::text(b"Numbered line 30.").nth(1), "end"),
+        keep_box(reply_end(messages), "end"),
         keep_box(anchor(), "head"),
         Step::Person(PersonStep::Press { find: composer() }),
     ]);
     steps.extend(serve_signal(&tier, "-STOP"));
-    steps.extend([
-        Step::Key(Key::PageUp),
-        Step::Focused(composer()),
-        keep_box(Find::text(b"Numbered line 30.").nth(1), "up"),
-    ]);
+    steps.extend([Step::Key(Key::PageUp), Step::Focused(composer()), keep_box(reply_end(messages), "up")]);
     for _ in 0..5 {
         steps.push(Step::Key(Key::PageUp));
     }
@@ -490,11 +498,40 @@ fn reading_position(anchoring: bool) {
     ]);
     steps.extend(serve_signal(&tier, "-CONT"));
     steps.extend([
-        see(paragraph(&reading_words(READING_MESSAGES - 2))),
+        see(if anchoring { paragraph(&reading_words(messages - 2)) } else { reply_end(1) }),
         gone(loading()),
         keep_box(anchor(), "after-earlier"),
         Step::Focused(composer()),
     ]);
+    if anchoring {
+        read_to_start(&mut steps);
+        steps.extend([gone(reply_end(messages)), see(Find::exactly_named(Role::Button, b"Latest"))]);
+        // Hold the later read while PageDown reaches the retained window's foot.
+        steps.extend(serve_signal(&tier, "-STOP"));
+        for _ in 0..40 {
+            steps.push(Step::Key(Key::PageDown));
+        }
+        steps.push(keep_box(Find::text(b"End of reply 15."), "before-later"));
+        steps.extend(serve_signal(&tier, "-CONT"));
+        steps.extend([
+            see(reply_end(messages)),
+            keep_box(Find::text(b"End of reply 15."), "after-later"),
+            Step::Focused(composer()),
+            see(Find::exactly_named(Role::Button, b"Latest")),
+        ]);
+        // Read the dropped head again, dropping the newest reply before Latest restores it.
+        for _ in 0..40 {
+            steps.push(Step::Key(Key::PageUp));
+        }
+        steps.extend([
+            see(paragraph(&reading_words(1))),
+            gone(reply_end(messages)),
+            Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Latest") }),
+            see(reply_end(messages)),
+            gone(Find::exactly_named(Role::Button, b"Latest")),
+            keep_box(reply_end(messages), "latest-end"),
+        ]);
+    }
     let mut script = Script::new(steps.into_boxed_slice());
     let mut harness = Harness::new(tier.setup());
     let outcome = harness.run(&mut [&mut script]);
@@ -509,6 +546,20 @@ fn reading_position(anchoring: bool) {
     assert!((top - head) * 2 >= height * 3, "head {head}, log {top} + {height}");
     assert!(box_of(&harness, "up").0 > box_of(&harness, "end").0, "PageUp scrolls from the composer");
     held(&harness, "before-earlier", "after-earlier");
+    if anchoring {
+        in_log(&harness, "before-later");
+        held(&harness, "before-later", "after-later");
+        in_log(&harness, "latest-end");
+    }
+}
+fn read_to_start(steps: &mut Vec<Step>) {
+    // Reach the held head, then wait for the next numbered message before scrolling again.
+    for number in (1..=READING_MESSAGES - 2).rev() {
+        for _ in 0..6 {
+            steps.push(Step::Key(Key::PageUp));
+        }
+        steps.push(see(paragraph(&reading_words(number))));
+    }
 }
 fn held(harness: &Harness, before: &str, after: &str) {
     let before = box_of(harness, before);
