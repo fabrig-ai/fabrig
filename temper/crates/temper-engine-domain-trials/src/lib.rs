@@ -1,7 +1,6 @@
 //! A model's trials, a row per account (temper/docs/design/domain/trial.md, 3).
 #![no_std]
 #![forbid(unsafe_code)]
-extern crate alloc;
 
 use skein_lib::{Duration, Env, List, Queue, Wall};
 
@@ -27,13 +26,32 @@ pub struct Row {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Step { Starts, Answers }
+pub enum Step {
+    Starts,
+    Answers,
+}
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum State { Running, Answered { seconds: u32 }, Failed { why: Why } }
+pub enum State {
+    Running,
+    Answered { seconds: u32 },
+    Failed { why: Why },
+}
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Why { Ended { class: Class }, Refused, Waited }
+pub enum Why {
+    Ended { class: Class },
+    Refused,
+    Waited,
+}
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Class { Transient, Permanent, Run, Agent, Lost, Invalid, Refused }
+pub enum Class {
+    Transient,
+    Permanent,
+    Run,
+    Agent,
+    Lost,
+    Invalid,
+    Refused,
+}
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Event {
     Try { account: u32, person: u64, again: bool },
@@ -67,7 +85,9 @@ impl Trials {
     pub fn rows(&self, person: u64) -> impl Iterator<Item = &Row> {
         let mut rows = List::with_capacity(self.rows.len());
         for row in &self.rows {
-            if row.person == person { rows.push(row).expect("no more references than rows"); }
+            if row.person == person {
+                rows.push(row).expect("no more references than rows");
+            }
         }
         rows.into_boxed().into_iter()
     }
@@ -76,7 +96,9 @@ impl Trials {
     pub fn running(&self) -> impl Iterator<Item = u64> + '_ {
         let mut tasks = List::with_capacity(self.rows.len());
         for row in &self.rows {
-            if is_running(row) && let Some(task) = row.task {
+            if is_running(row)
+                && let Some(task) = row.task
+            {
                 tasks.push(task).expect("no more tasks than rows");
             }
         }
@@ -85,7 +107,11 @@ impl Trials {
 
     #[must_use]
     pub fn holds(&self, task: u64) -> bool {
-        for row in &self.rows { if row.task == Some(task) { return true; } }
+        for row in &self.rows {
+            if row.task == Some(task) {
+                return true;
+            }
+        }
         false
     }
 
@@ -95,7 +121,10 @@ impl Trials {
         for row in &self.rows {
             if is_running(row) {
                 let due = due(row);
-                next = Some(match next { Some(previous) => due.min(previous), None => due });
+                next = Some(match next {
+                    Some(previous) => due.min(previous),
+                    None => due,
+                });
             }
         }
         next
@@ -107,8 +136,13 @@ pub fn step(trials: &mut Trials, env: &Env<Limits>, event: Event, out: &mut Queu
     match event {
         Event::Try { account, person, again } => start(trials, env.wall, account, person, again, out),
         Event::AccountGone { account } => remove(trials, account, out),
-        Event::Made { .. } | Event::Refused { .. } | Event::Observed { .. } | Event::Turn { .. }
-        | Event::Finished { .. } | Event::RunFailed { .. } | Event::Due => {
+        Event::Made { .. }
+        | Event::Refused { .. }
+        | Event::Observed { .. }
+        | Event::Turn { .. }
+        | Event::Finished { .. }
+        | Event::RunFailed { .. }
+        | Event::Due => {
             for row in trials.rows.iter_mut() {
                 if is_running(row) && update(row, env.wall, event, out) {
                     out.push(Request::Changed { person: row.person });
@@ -119,7 +153,10 @@ pub fn step(trials: &mut Trials, env: &Env<Limits>, event: Event, out: &mut Queu
 }
 
 fn is_running(row: &Row) -> bool {
-    match row.state { State::Running => true, State::Answered { .. } | State::Failed { .. } => false }
+    match row.state {
+        State::Running => true,
+        State::Answered { .. } | State::Failed { .. } => false,
+    }
 }
 
 fn due(row: &Row) -> Wall {
@@ -134,42 +171,62 @@ fn seconds(began: Wall, wall: Wall) -> u32 {
 
 fn end(row: &mut Row, state: State, out: &mut Queue<Request>) {
     row.state = state;
-    if let Some(task) = row.task { out.push(Request::Cancel { task }); }
+    if let Some(task) = row.task {
+        out.push(Request::Cancel { task });
+    }
 }
 
 fn update(row: &mut Row, wall: Wall, event: Event, out: &mut Queue<Request>) -> bool {
     match event {
         Event::Made { account, task } => {
-            if row.account != account || row.task == Some(task) { return false; }
+            if row.account != account || row.task == Some(task) {
+                return false;
+            }
             row.task = Some(task);
         }
         Event::Refused { account } => {
-            if row.account != account { return false; }
+            if row.account != account {
+                return false;
+            }
             row.state = State::Failed { why: Why::Refused };
         }
         Event::Observed { task, past_starting, took } => {
-            if row.task != Some(task) { return false; }
+            if row.task != Some(task) {
+                return false;
+            }
             let mut changed = false;
             match row.step {
                 Step::Starts => {
-                    if past_starting { row.step = Step::Answers; changed = true; }
+                    if past_starting {
+                        row.step = Step::Answers;
+                        changed = true;
+                    }
                 }
                 Step::Answers => {}
             }
-            if row.took.is_none() && took.is_some() { row.took = took; changed = true; }
+            if row.took.is_none() && took.is_some() {
+                row.took = took;
+                changed = true;
+            }
             return changed;
         }
         Event::Turn { task } | Event::Finished { task } => {
-            if row.task != Some(task) { return false; }
+            if row.task != Some(task) {
+                return false;
+            }
             let seconds = seconds(row.began, wall);
             end(row, State::Answered { seconds }, out);
         }
         Event::RunFailed { task, class } => {
-            if row.task != Some(task) { return false; }
+            if row.task != Some(task) {
+                return false;
+            }
             end(row, State::Failed { why: Why::Ended { class } }, out);
         }
         Event::Due => {
-            if wall < due(row) { return false; }
+            if wall < due(row) {
+                return false;
+            }
             end(row, State::Failed { why: Why::Waited }, out);
         }
         Event::Try { .. } | Event::AccountGone { .. } => return false,
@@ -183,7 +240,11 @@ fn remove(trials: &mut Trials, account: u32, out: &mut Queue<Request>) {
         let row = trials.rows.get(index).expect("each original row is visited once");
         if row.account == account || row.took == Some(account) {
             let row = trials.rows.swap_remove(index).expect("visited row exists");
-            if is_running(&row) && let Some(task) = row.task { out.push(Request::Cancel { task }); }
+            if is_running(&row)
+                && let Some(task) = row.task
+            {
+                out.push(Request::Cancel { task });
+            }
             out.push(Request::Changed { person: row.person });
         } else {
             index = index.checked_add(1).expect("index is within row count");
@@ -197,14 +258,21 @@ fn start(trials: &mut Trials, wall: Wall, account: u32, person: u64, again: bool
     for index in 0..trials.rows.len() {
         let row = trials.rows.get(index).expect("index is within row count");
         if row.account == account {
-            if !again || is_running(row) { return; }
+            if !again || is_running(row) {
+                return;
+            }
             existing = Some(index);
         }
         match row.state {
-            State::Running => {},
+            State::Running => {}
             State::Answered { .. } | State::Failed { .. } => {
-                let replace = match oldest { Some((_, began)) => row.began < began, None => true };
-                if replace { oldest = Some((index, row.began)); }
+                let replace = match oldest {
+                    Some((_, began)) => row.began < began,
+                    None => true,
+                };
+                if replace {
+                    oldest = Some((index, row.began));
+                }
             }
         }
     }
@@ -215,7 +283,9 @@ fn start(trials: &mut Trials, wall: Wall, account: u32, person: u64, again: bool
         if trials.rows.room() == 0 {
             let Some((index, _)) = oldest else { return };
             let removed = trials.rows.swap_remove(index).expect("oldest ended row exists");
-            if removed.person != person { out.push(Request::Changed { person: removed.person }); }
+            if removed.person != person {
+                out.push(Request::Changed { person: removed.person });
+            }
         }
         trials.rows.push(row).expect("room for the admitted trial");
     }
