@@ -1,0 +1,3 @@
+draft = "skein-browser-starts"
+repo = "fabrig"
+sources = ["skein/docs/plan/skein-browser-starts/inputs/request.md", "skein/tests/ui-web/tests/browser_harness.rs", "skein/tests/ui-web/tests/support/tab.rs", "skein/tests/browser/tests/browser_real.rs", "skein/tests/browser/tests/browser_facts.rs", "AGENTS.md", "DESIGN.md"]
