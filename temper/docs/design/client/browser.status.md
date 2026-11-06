@@ -2,8 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 4.3, *The tier's window*: the tier's bundle holds the whole `document_bytes`,
-  and `reading_tier`'s replies are sized for it.
 - **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
   is compiled. Its runtime red and green await the browser tier after landing;
   the incompatible plan-row placement is the repair's red-first source evidence.
