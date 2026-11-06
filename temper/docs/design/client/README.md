@@ -687,12 +687,16 @@ keeps (`../protocol/configuration.md`, section 2).
     from a new chat, its draft, `Configure`, a starter and a suggested request
     alike. "Start goal" is none of these: it opens the goal's page, its heading
     focused. A start refused stays on its page and moves nothing.
-  - *Opened any other way* (a list, a link, an address, Back or Forward, a
-    reload): the chat opens on its heading, so that a person reading with a
-    screen reader or the keyboard lands on what the page is.
-  - *After a send,* by Enter or by "Send", the focus is in the composer, on a
-    chat's, a goal's and an agent's task's (5.11) alike: "Send" disables as the
-    words clear, and a disabled button holds no focus.
+  - *Opened any other way,* its composer asks for nothing. From a list or a
+    link, a new entry, the chat opens on its heading, so that a person reading
+    with a screen reader or the keyboard lands on what the page is, though the
+    heading is drawn after the page (`browser.md`, 2.3). An address, a reload,
+    Back and Forward make no new entry, and take the focus to no heading
+    (skein's `ui-web.md`, 7).
+  - *After a send,* by Enter or by "Send", whether or not it went out, the focus
+    is in the composer, on a chat's, a goal's and an agent's task's (5.11) alike:
+    "Send" disables as the words clear, and a disabled button holds no focus.
+    "Pause", "Resume" and "+ Draft" send too, and ask for nothing.
   - *While the rename's form is open* it keeps the focus (5.3), and a composer
     that has asked for it takes it back as the form closes.
   - *On a phone* the same acts ask the same, as a phone's messaging app does:
@@ -2085,7 +2089,7 @@ keeps (`../protocol/configuration.md`, section 2).
     them; and "Builders", to `Builders { project }`, at
     `/projects/<project>/settings/builders`.
   - *`Forges` and `Accounts`* keep their addresses and paths, so that a
-    sign-in's return, To begin's links and their tests hold. Whenever the
+    connect's `back`, To begin's links and their tests hold. Whenever the
     page has a project, as the rail does (5.3), they draw inside this frame,
     with no level-1 heading of their own and no page bar; their rows follow
     the tabs. With no project they take the same column, sections and rows
@@ -5199,7 +5203,8 @@ section 5.
   and these open the tab, `Address` having no anchors: Home's "Turn on drafts
   and goals", "See the settings" and "Limits".
 - **The card in a chat:** a proposal of settings is a card at the call that
-  made it, as every proposal is (3.5): the title "How temper will run
+  made it where its turn names it, and after the conversation otherwise, as
+  every proposal is (3.5): the title "How temper will run
   PROJECT", PROJECT its `projects`' names joined by ", " and " and ", or, with
   none, the deployment's, "How temper will run your projects"; a line per line of the proposal's reason, in the person's words;
   then each item, in small mono type, faint, in the words of `temper ctl` but
@@ -6491,6 +6496,16 @@ own tests:
   a reload or another device loses it, since an ended proposal asks no card and jig
   names no `projects` on one. A card from the ended proposal, or a stored record, would
   keep it. Default: this session's alone.
+- **A Reject on a chat's card** (5.13; the request `ui-chat-accept` of 2026-11-06,
+  which counts Reject among the card's acts): the mock's `chat.html` draws "Accept" and
+  "Change something" alone, and the reason's box stands on the card in *Needs you*.
+  Drawing one takes a view change and that box; its ask already goes under the
+  proposal's own `project`. Default: none, a person rejects in *Needs you* or says what
+  to change in the chat.
+- **A rejected proposal of settings, on its chat's card** (5.13; the same request): its
+  title and lines stay with neither acts nor a state line, where the card in *Needs you*
+  says "Rejected"; the reason sent and the agent's reply stand in the conversation above
+  it. No words for it are designed. Default: as it stands.
 - **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; the
   requests `ui-final-walk` of 2026-11-05 and `ui-walk-3` of 2026-11-06): the pinned
   Claude Code fetch, from a box with directories of its own up to the sign-in prompt
@@ -6525,6 +6540,17 @@ own tests:
   a keyboard the person did not ask for. Telling them apart takes a kit mechanism,
   a focus request that raises no keyboard (skein's `ui-web.md`, 7). Default: the
   same focus at every width.
+- **A start refused, by its press** (3.5, *Where the focus stands on a chat*; the
+  request `ui-composer-focus` of 2026-11-06): the send arrow disables while a start
+  is out, and a disabled button holds no focus, so a start refused after a press
+  leaves the focus where the browser put it, and the person clicks the composer to
+  try again. That request does not ask for it. Default: a refused start moves
+  nothing.
+- **A composer that comes back** (3.5, *Where the focus stands on a chat*; the
+  request `ui-composer-focus` of 2026-11-06): a composer's request rides its insert
+  (skein's `ui-web.md`, 7), so a chat that loses Message and regains it, after a
+  send or "Change something", takes the focus again, from a person typing elsewhere
+  on that page at that moment. Default: not guarded.
 
 - **Pages the mockups do not show:** a project's page with its
   resources, findings, notes and settings (policy, people and roles,
