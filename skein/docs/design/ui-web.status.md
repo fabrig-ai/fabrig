@@ -10,5 +10,3 @@
   inert words takes the focus there, on no control, and the button doesn't get it
   back. No reason is recorded; seen by reading, and no test presses past a menu
   with such an element under the press.
-- **Not yet:** 7, *A focus request*: a request takes the focus and nothing more, so a node that
-  already holds it stays out of view (`skein-ui-web`'s `page.rs`, `Op::Focus`).

@@ -344,6 +344,7 @@ impl<P: ShellPlatform> Shell<P> {
             | skein_ui_web::page::Op::Value { .. }
             | skein_ui_web::page::Op::Choice { .. }
             | skein_ui_web::page::Op::Href { .. }
+            | skein_ui_web::page::Op::Reveal { .. }
             | skein_ui_web::page::Op::ScrollEnd { .. }
             | skein_ui_web::page::Op::Component { .. } => false,
         });

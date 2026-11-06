@@ -43,6 +43,7 @@ pub enum Op {
     Choice { node: NodeId, checked: bool },
     Href { node: NodeId, path: Box<[u8]> },
     Focus { node: NodeId },
+    Reveal { node: NodeId },
     ScrollEnd { node: NodeId },
     Component { node: NodeId, component: usize, made: Made },
 }
@@ -185,6 +186,7 @@ impl<'a> Page<'a> {
         if let Some(node) = focus.filter(|node| self.nodes.contains_key(node)) {
             self.focused = Some(node);
             ops.push(Op::Focus { node });
+            ops.push(Op::Reveal { node });
         }
     }
 
