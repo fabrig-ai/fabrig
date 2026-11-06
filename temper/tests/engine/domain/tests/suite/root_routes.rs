@@ -4619,7 +4619,7 @@ fn a_worker_frozen_past_its_grace_gets_no_next_attempt_until_its_sum_has_passed(
     driver.send(hello_with(Token::new(8), 1, Duration::from_secs(5), Box::new([])));
     driver.settle();
     assert!(
-        driver.delivered.iter().any(|delivery| matches!(delivery, Delivery::Refuse { channel }
+        driver.delivered.iter().any(|delivery| matches!(delivery, Delivery::Refuse { channel, .. }
         if *channel == Token::new(8))),
         "a worker whose stop bound reaches engine grace cannot place runs"
     );

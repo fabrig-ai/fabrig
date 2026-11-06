@@ -18,7 +18,7 @@ mod result;
 #[cfg(test)]
 mod tests;
 
-pub use assignment::{CONTRACT_CHECKS_MUST_PASS, CONTRACT_TEXT_MAX, WAIT_GRANTED, assignment};
+pub use assignment::{CHANGE_BODY_MAX, CONTRACT_CHECKS_MUST_PASS, CONTRACT_TEXT_MAX, WAIT_GRANTED, assignment};
 pub use boundary::{
     Budget, ChangeRule, Charter, Contract, Conventions, FieldRule, ItemRule, Items, Llm, Model, Prices, Reserve,
     Section, TextRule, Tool, ToolEffect, VerdictRule, WorkspaceTools,

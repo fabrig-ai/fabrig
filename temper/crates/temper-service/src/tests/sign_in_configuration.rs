@@ -145,12 +145,12 @@ fn provider(jig: &mut config::Engine) {
         clients: Box::new([
             config::clients::ProviderClient {
                 id: b"forgejo".as_slice().into(),
-                secret: b"forgejo.secret".as_slice().into(),
+                secret: Some(b"forgejo.secret".as_slice().into()),
                 redirect_uri: b"http://127.0.0.1:9/user/oauth2/temper/callback".as_slice().into(),
             },
             config::clients::ProviderClient {
                 id: b"second".as_slice().into(),
-                secret: b"second.secret".as_slice().into(),
+                secret: Some(b"second.secret".as_slice().into()),
                 redirect_uri: b"http://127.0.0.1:9/user/oauth2/temper/callback".as_slice().into(),
             },
         ]),
@@ -256,7 +256,7 @@ fn forge_metas_escape_attributes_publish_modes_and_change_the_etag() {
     bundle.fill_sign_in(true).unwrap();
     let before = bundle.etag.clone();
     engine.clients.adopt_bundle(bundle);
-    engine.clients.forge_sign_in = Entries::new(&sign_in.forges, &clients, None, 65_536);
+    engine.clients.forge_sign_in = Entries::new(&sign_in.forges, &clients, None, None, 65_536);
     refresh(engine);
     let bundle = engine.clients.bundle.as_ref().unwrap();
     assert_eq!(bundle.page.as_ref(), b"<head><meta name=\"temper-sign-in\" content=\"google\"><meta name=\"temper-forge-sign-in\" content=\"1 forge&amp;&quot;&#39;&lt; &gt; https://forge.example/?x=&quot;&amp;y=&#39;&lt;&gt; other\"></head>");
@@ -270,11 +270,11 @@ fn forge_metas_escape_attributes_publish_modes_and_change_the_etag() {
     for (port, origin) in [(443, "https://git.example.com"), (8443, "https://git.example.com:8443")] {
         let public = temper_forge_setup::setup::Origin { host: b"git.example.com".as_slice().into(), port };
         clients[0].redirect_uri = format!("{origin}/user/oauth2/temper/callback").into_bytes().into();
-        engine.clients.forge_sign_in = Entries::new(&sign_in.forges, &clients, Some(&public), 65_536);
+        engine.clients.forge_sign_in = Entries::new(&sign_in.forges, &clients, Some(&public), None, 65_536);
         refresh(engine);
         assert_eq!(engine.clients.bundle.as_ref().unwrap().page.as_ref(), format!("<head><meta name=\"temper-forge-sign-in\" content=\"1 forge&amp;&quot;&#39;&lt; &gt; {origin} owned\"></head>").as_bytes());
     }
-    engine.clients.forge_sign_in = Entries::new(&sign_in.forges, &clients, None, 1);
+    engine.clients.forge_sign_in = Entries::new(&sign_in.forges, &clients, None, None, 1);
     refresh(engine);
     assert_eq!(engine.clients.bundle.as_ref().unwrap().page.as_ref(), b"<head></head>");
 }

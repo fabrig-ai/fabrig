@@ -119,7 +119,7 @@ fn both_auth_methods_and_a_form_encoded_basic_id_are_accepted() {
     assert_eq!(issuer.token_request(Some(&header), TYPE, &body).expect("Basic").client.as_ref(), b"client");
     let mut settings = settings();
     settings.clients.get_mut(0).expect("client").id = boxed(b"client:+");
-    settings.clients.get_mut(0).expect("client").secret = secret(b"s +:");
+    settings.clients.get_mut(0).expect("client").secret = Some(secret(b"s +:"));
     let special = Issuer::new(settings, limits()).expect("special client");
     let body = replace(&body, "&client_id=client", "");
     let header = basic(b"client%3A%2B:s+%2B%3A");

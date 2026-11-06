@@ -154,7 +154,7 @@ temper ctl DIR sign-in -
 temper ctl DIR me
 ```
 
-Expect: `party 1 · owner · Owner`; `me` lists no project yet.
+Expect: `party 1 · LOGIN · Owner`, LOGIN the configured person; `me` lists no project yet.
 
 Policy 1 sizes future projects; `project-policy` immediately resizes the
 open period and parties' pools (temper help configure). After setup:
@@ -198,7 +198,7 @@ YYYY-MM-DDTHH:MM:SSZ Forgejo: person LOGIN
 
 Headers: `DATA/forge-FORGE/person_read.header` and `person_write.header`;
 `curl -H @PATH` keeps tokens private.
-First password: `person_password`.
+First password: `person_password`. Repository links sign you in through temper; if unavailable, use this password (`box.log` says why).
 
 If not: `not met: timeout` (exit 3) after 300 seconds:
 run `temper ctl DIR forge list --until made:FORGE`.
