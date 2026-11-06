@@ -795,7 +795,7 @@ pub fn repository(root: &Domain, project: u32) -> Repository {
         return copies;
     }
     match forge::listed::held(root.forges(), root.forge().playground(), project) {
-        Held::One { owner, name } | Held::Several { owner, name, .. } => {
+        Held::One { owner, name, .. } | Held::Several { owner, name, .. } => {
             return Repository::In { owner: owner.into(), name: name.into() };
         }
         Held::Unknown => {

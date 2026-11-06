@@ -158,6 +158,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut view.forge,
             project,
             &mut times,
+            &view.forge_sign_in,
         );
     } else {
         crate::frame::banner(&mut builder, root, &view.forge_words, &mut view.pages, &mut view.forge);
@@ -309,7 +310,14 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     } else if let temper_client_domain::Address::Builders { project } = root.pages().address() {
         crate::pages::builders::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     } else if let temper_client_domain::Address::Repositories { project } = root.pages().address() {
-        crate::pages::settings::repositories(&mut builder, root, &view.forge_words, &mut view.pages, *project);
+        crate::pages::settings::repositories(
+            &mut builder,
+            root,
+            &view.forge_words,
+            &mut view.pages,
+            *project,
+            &view.forge_sign_in,
+        );
     } else if let temper_client_domain::Address::Chat { .. } = root.pages().address() {
         crate::pages::chat::main(
             &mut builder,

@@ -544,6 +544,7 @@ pub enum Word {
 
     Rename,
     RenameProject,
+    RepositoryLink,
     SwitcherRepository,
     SwitcherSeveral,
     SwitcherMore,
@@ -1374,7 +1375,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1858;
+const PHRASES: u32 = 1859;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1399,10 +1400,10 @@ const PHRASES: u32 = 1858;
 // Last landing adds four segments (client/README.md, 3.5).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3249;
+const SEGMENTS: u32 = 3254;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45402;
-const ALL: [Word; 1259] = [
+const ENGLISH_BYTES: u32 = 45407;
+const ALL: [Word; 1260] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1923,6 +1924,7 @@ const ALL: [Word; 1259] = [
     Word::GitHubNotListedAfter,
     Word::Rename,
     Word::RenameProject,
+    Word::RepositoryLink,
     Word::SwitcherRepository,
     Word::SwitcherSeveral,
     Word::SwitcherMore,
@@ -3159,6 +3161,7 @@ impl Word {
 
             Self::Rename => 2184,
             Self::RenameProject => 2185,
+            Self::RepositoryLink => 3105,
             Self::SwitcherRepository => 3100,
             Self::SwitcherSeveral => 3101,
             Self::SwitcherMore => 3102,
@@ -4714,6 +4717,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ConnectManagedWeb => (&[b"Its web address"], &[]),
         Word::Rename => (&[b"Rename"], &[]),
         Word::RenameProject => (&[b"Rename ", b""], &[Name]),
+        Word::RepositoryLink => (&[b"", b"/", b" \xe2\x86\x97"], &[Name, Name]),
         Word::SwitcherRepository => (&[b"", b"/", b""], &[Name, Name]),
         Word::SwitcherSeveral => (&[b"", b"/", b" +", b""], &[Name, Name, Number]),
         Word::SwitcherMore => (&[b" +", b""], &[Number]),

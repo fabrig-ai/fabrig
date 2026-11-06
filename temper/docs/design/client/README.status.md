@@ -109,8 +109,6 @@
   number; a row past that window has no "started goal" line. The answer of
   2026-11-05 to `ui-chat-draft/chats-drafts` keeps this one chips window,
   without raising jig's bound.
-- **Not yet:** 3.5, *The Forge step*, and 5.3, *Projects in the rail*, a repository's link, and Settings'
-  Repositories' (the request `ui-repo-link`): a repository is plain words in all three.
 - **Design departs:** 5.3, from the greenfield target, by the request `ui-repo-link` of 2026-11-06: the mock's
   switcher row is one button holding the name and the small words; here the small words are a sibling of the
   button, since a link can't sit inside one, and they are a link with its "↗" where the repository has an address.
