@@ -205,7 +205,7 @@ pub fn settings_text(
             )
             .or(Err(Problem::Range(b"items")))?,
         )),
-        SettingsAnswer::Unknown => return Ok(Box::from(b"unknown\n".as_slice())),
+        SettingsAnswer::Unknown => return Ok(Box::from(b"not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\n".as_slice())),
     };
     Ok(settings_form::settings_text(&value, requested, &limits))
 }

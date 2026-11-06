@@ -17,7 +17,11 @@ fn context_beside_a_writer_preserves_its_home_and_readoption() {
     context.home = false;
     fixtures::begin_adoption(&mut d, Token::new(4), context);
     for answer in [
-        api::Answer::Permission(api::Permission::Read),
+        api::Answer::Permission(api::UserPermission {
+            user: 1,
+            login: Box::from(b"".as_slice()),
+            permission: api::Permission::Read,
+        }),
         api::Answer::Settings(writer.settings.clone()),
         api::Answer::Protection(None),
     ] {
@@ -39,7 +43,11 @@ fn context_beside_a_writer_preserves_its_home_and_readoption() {
 
     fixtures::begin_adoption(&mut d, Token::new(5), fixtures::adoption());
     for answer in [
-        api::Answer::Permission(api::Permission::Write),
+        api::Answer::Permission(api::UserPermission {
+            user: 1,
+            login: Box::from(b"".as_slice()),
+            permission: api::Permission::Write,
+        }),
         api::Answer::Branches(Box::new([])),
         api::Answer::Settings(writer.settings),
         api::Answer::Protection(None),
@@ -83,7 +91,11 @@ fn an_adoption_accepts_a_prefix_whose_branches_fit_authority_segments() {
     let mut d = domain();
     fixtures::begin_adoption(&mut d, Token::new(4), fixtures::adoption());
     for answer in [
-        api::Answer::Permission(api::Permission::Write),
+        api::Answer::Permission(api::UserPermission {
+            user: 1,
+            login: Box::from(b"".as_slice()),
+            permission: api::Permission::Write,
+        }),
         api::Answer::Branches(Box::new([])),
         api::Answer::Settings(adopted().settings),
         api::Answer::Protection(None),
@@ -373,7 +385,11 @@ fn each_admission_conflict_keeps_its_own_reason() {
         if why == AdoptionRefusal::PrefixOccupied {
             fixtures::answer_next(
                 &mut d,
-                Ok(skein_forge::api::Answer::Permission(skein_forge::api::Permission::Write)),
+                Ok(skein_forge::api::Answer::Permission(skein_forge::api::UserPermission {
+                    user: 1,
+                    login: Box::from(b"".as_slice()),
+                    permission: skein_forge::api::Permission::Write,
+                })),
             );
             requests = fixtures::answer_next(
                 &mut d,

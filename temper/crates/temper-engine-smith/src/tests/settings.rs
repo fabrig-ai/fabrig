@@ -759,5 +759,5 @@ fn repository_identities_share_settings_pagination_and_stay_out_of_other_reads()
         crate::settings_repository_answer(&SettingsAnswer::Unknown, 0, None, &[], None, &repositories, 256)
             .into_parts();
     assert!(error);
-    assert_eq!(unknown.as_ref(), b"unknown\nend\n", "context belongs only to an inventory");
+    assert_eq!(unknown.as_ref(), b"not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\nend\n", "context belongs only to an inventory");
 }
