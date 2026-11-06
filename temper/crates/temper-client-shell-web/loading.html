@@ -1,0 +1,21 @@
+<div id="boot"
+ data-figure="{got} of {total} MB"
+ data-left=" · about {left} left"
+ data-seconds="{n} s"
+ data-minutes="{n} min"
+ data-keeps="Your browser keeps this, so next time it opens at once."
+ data-waiting="Waiting for the server…"
+ data-starting="Starting…"
+ data-failed="temper didn’t load"
+ data-dropped="The connection dropped at {got} of {total} MB."
+ data-answered="The server answered {status}."
+ data-silent="The server didn’t answer."
+ data-no-wasm="This browser has no WebAssembly."
+ data-no-start="It didn’t start.">
+<svg viewBox="0 0 1390 280" role="img" aria-label="temper"><g fill="#b8664e" transform="scale(11.4)"><path d="M12 1.5c1.5 5.6 2.9 7 8.5 8.5-5.6 1.5-7 2.9-8.5 8.5C10.5 12.9 9.1 11.5 3.5 10 9.1 8.5 10.5 7.1 12 1.5Z"/><circle cx="18.5" cy="18.5" r="2"/></g><path fill="#18181b" transform="translate(402 36)" d="m70 10v40h46v32h-46v59q0 10 4 14q4 3 16 3h23v32h-39q-26 0-37-11q-11-11-11-38v-59h-23v-32h23v-40zm202 110v12h-105q2 16 12 24q10 8 27 8q14 0 29-4q15-4 30-13v35q-15 6-31 9q-16 3-32 3q-38 0-59-20q-21-19-21-54q0-34 21-54q20-19 56-19q33 0 53 19q20 20 20 54zm-46-15q0-13-7-21q-8-8-20-8q-13 0-21 8q-8 7-10 21zm198-32q9-13 20-20q12-6 26-6q24 0 37 15q12 14 12 43v85h-45v-73q1-2 1-3q0-2 0-5q0-15-5-22q-4-7-14-7q-13 0-19 11q-7 10-8 30v69h-45v-73q0-23-4-30q-4-7-14-7q-13 0-20 11q-7 11-7 30v69h-45v-140h45v20q8-11 19-17q11-6 24-6q14 0 25 7q11 7 17 19zm170 97v73h-44v-193h44v20q10-12 21-18q11-5 26-5q26 0 42 20q17 21 17 53q0 32-17 53q-16 21-42 21q-15 0-26-6q-11-6-21-18zm30-91q-14 0-22 11q-8 10-8 30q0 20 8 31q8 10 22 10q15 0 22-10q8-11 8-31q0-20-8-30q-7-11-22-11zm237 41v12h-104q1 16 11 24q10 8 27 8q14 0 29-4q15-4 31-13v35q-16 6-32 9q-16 3-32 3q-38 0-59-20q-21-19-21-54q0-34 21-54q20-19 57-19q33 0 52 19q20 20 20 54zm-46-15q0-13-7-21q-8-8-20-8q-13 0-21 8q-8 7-10 21zm173-17q-6-3-12-4q-6-1-12-1q-17 0-26 11q-10 11-10 32v64h-44v-140h44v23q9-14 20-20q11-6 27-6q2 0 5 0q2 0 7 1z"/></svg>
+<progress max="1" value="0" aria-label="Loading temper"></progress>
+<p id="boot-line"></p>
+<p id="boot-note" aria-live="polite"></p>
+<button type="button" hidden>Try again</button>
+{noscript}
+</div>
