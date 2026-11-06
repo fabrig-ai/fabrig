@@ -67,8 +67,7 @@ fn join(directory: &[u8], leaf: &[u8]) -> Vec<u8> {
 }
 /// A name nobody in the directory has.
 fn fresh(rng: &mut Rng, fs: &Fs, directory: &[u8]) -> Vec<u8> {
-    let taken = fs.list(directory).expect("a directory");
-    join(directory, &layers::name(rng, &taken))
+    join(directory, &layers::name(rng, |leaf| fs.lookup(&join(directory, leaf)).is_some()))
 }
 
 type Paths = Vec<(Vec<u8>, usize)>;
