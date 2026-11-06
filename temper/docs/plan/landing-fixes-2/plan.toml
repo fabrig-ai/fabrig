@@ -1,3 +1,22 @@
 draft = "landing-fixes-2"
 repo = "fabrig"
 sources = ["temper/docs/plan/landing-fixes-2/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "port-reservation"
+title = "a reservation that loses its kernel-chosen port takes another, so a fake box's preparation holds under parallel tests"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 7.5"
+
+[[slice]]
+id = 1
+story = "A fake box's preparation never fails because another process took its port between bind and listen"
+parts = ["port-reservation"]
+walk = false
