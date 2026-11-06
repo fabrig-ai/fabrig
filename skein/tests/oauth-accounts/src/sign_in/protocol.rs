@@ -1,6 +1,6 @@
 //! The actual accounts owner and independent issuer over shared seeded wires.
 use super::browser::url_parts;
-use super::{Client, Fact, ROOM, Story, confidential, registration};
+use super::{Fact, ROOM, Story, confidential, registration};
 use skein_fake_oauth as fake;
 use skein_io as io;
 use skein_lib::{Duration, Env, Queue, Time, Wall, bytes};
@@ -96,10 +96,10 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
     let mut issuer_out = Queue::with_capacity(ROOM);
     let mut client_wire = Wire::new(seed);
     let mut server_wire = Wire::new(seed.wrapping_add(1));
-    let mut client = Client::new(story, false);
+    let mut client = super::client(story, false);
     client.address = Some((Ipv4Addr::LOCALHOST, 31000).into());
     let mut now = Time::ZERO;
-    client.start(&Env { now, wall: Wall::EPOCH, limits: profile });
+    super::start(&mut client, &Env { now, wall: Wall::EPOCH, limits: profile });
     let mut owner = None;
     let mut body = Vec::new();
     let mut document = None;
@@ -122,14 +122,14 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
         let wall = Wall::from_nanos(now.as_nanos());
         let env = Env { now, wall, limits: profile };
         let server_env = Env { now, wall, limits: server_limits };
-        client.restart(&env);
+        super::restart(&mut client, &env);
         let component = client.component.as_mut().expect("component");
         if component.has_work() || component.next_deadline().is_some_and(|due| due <= now) {
             component.fire(&env, &mut client.above, &mut client.requests, &mut client.files);
         }
-        client.observe(&env);
-        if (scripted == 0 || story == Story::Restart || client.facts.contains(&Fact::Granted(1)))
-            && let Some(url) = client.visits.get(scripted)
+        super::observe(&mut client, &env);
+        if (scripted == 0 || story == Story::Restart || super::owner(&client).facts.contains(&Fact::Granted(1)))
+            && let Some(url) = super::owner(&client).visits.get(scripted)
         {
             scripted += 1;
             if !matches!(story, Story::Cancel | Story::Abort | Story::Timeout) {
@@ -153,13 +153,13 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
             && matches!(story, Story::Paste | Story::PasteThenListener | Story::ListenerThenPaste)
             && super::paste::delivery_ready(
                 story,
-                client.callback,
+                super::owner(&client).callback,
                 callback_count > 0 && !callback_pending,
-                &client.facts,
+                &super::owner(&client).facts,
             )
             && let Some(uri) = &redirect
         {
-            client.paste(&env, uri.clone());
+            super::paste::paste(&mut client, &env, uri.clone());
             pasted = true;
             if story == Story::Paste {
                 redirect = None;
@@ -299,7 +299,7 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
                 io::Request::Bind { owner: identity, socket } => {
                     assert_eq!(socket, Token::new(11));
                     assert!(callback.replace(identity).is_none());
-                    client.callback = super::paste::Callback::Accepted;
+                    super::owner_mut(&mut client).callback = super::paste::Callback::Accepted;
                 }
                 io::Request::Stream { stream, down } if stream == Token::new(11) => {
                     if let Down::Send(bytes) = &down {
@@ -348,7 +348,7 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
                         }
                         trace.append(&mut callback_wire.trace);
                         callback_pending = false;
-                        client.callback = super::paste::Callback::Finished;
+                        super::owner_mut(&mut client).callback = super::paste::Callback::Finished;
                         callback.take().expect("callback owner")
                     };
                     client.component.as_mut().expect("component").up(
@@ -532,7 +532,7 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
             trace.append(&mut client_wire.trace);
             trace.append(&mut server_wire.trace);
             trace.append(&mut callback_wire.trace);
-            return (client.facts, trace);
+            return (client.sign_in.expect("sign-in story").facts, trace);
         }
         now = now.saturating_add(Duration::from_millis(1));
     }
