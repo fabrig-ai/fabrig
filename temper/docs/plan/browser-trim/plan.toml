@@ -1,0 +1,5 @@
+draft = "browser-trim"
+repo = "fabrig"
+sources = ["temper/docs/plan/browser-trim/inputs/request.md", "skein/docs/foundation/testing-strategy.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
