@@ -3,6 +3,7 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
+  - 8.11, *The next producer merges the landing tip first*: a clean merge is left in progress for its run, not committed before it starts (`worker.status.md`, 5).
   - 11: a task's saved work is not deleted as it closes: `s<task>` is no hold,
     and a close releases holds alone (`temper-engine-domain-forge/src/domain.rs`,
     `continue_release`), so the branch stays on the forge. From reading: no story

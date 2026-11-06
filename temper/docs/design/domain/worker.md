@@ -207,8 +207,8 @@ temper's workspace items beside it:
   attempt starts from the saved work: the tree follows the transcript,
   so a retry that remembers a write finds the file it wrote, and a run
   that starts fresh from its brief starts from a clean checkout. A run
-  that ended with its change landed, or from a merge in progress, saves
-  nothing (step 7).
+  that ended with its change landed saves nothing, and one holding a merge
+  in progress saves only once its conflicts are resolved (step 7).
 - **Charter.** smith's, as the engine wrote it (agent.md, section 4),
   carried as bytes. The worker gives it to the agent with the workspace
   it prepared: where the repositories sit, which may be written, and for
@@ -498,7 +498,16 @@ runs as contained processes and whose output it parses.
   contains the base: if so there is nothing to merge, and it goes on as a
   start from that branch or saved work does, with no merge state and no
   second parent. A resolution's or a merge job's names no landing branch and
-  always merges.
+  always merges. A producer's base that merges cleanly is committed at once,
+  as a base with heads merged in is: two parents (the commit it merged into
+  and the base), the repository's identity as its author, the title
+  `Merge <base>`, and that commit checked out (`../protocol/git.md`, 4.7). So
+  its run starts on a clean tree with no merge state, its earlier work and the
+  base's files both in its head, and nothing staged to misread or remove. The
+  commit it merged into stays the checkout's start, so a save with nothing new
+  saves the merge commit, and its first push carries the merge, even with
+  nothing new. A producer's conflict stays in progress as above, and its start
+  names the files in conflict (smith's `domain/run.md`, 8.3).
 - **Push commits what the run checked.** When a run asks to deliver, at
   `finish` with a change or mid-run, it has run the repository's checks
   with nothing else writing to the checkout (smith's `domain/run.md`,
@@ -548,7 +557,14 @@ runs as contained processes and whose output it parses.
   push against that baseline, which later finishes reuse. Saving still
   compares with the checkout's start. A fresh start resets and cleans
   the checkout.
-  Work done since the last save is lost if the worker dies.
+  Work done since the last save is lost if the worker dies. A merge start
+  whose branch is the repository's saved-work branch started from saved work:
+  a later save of it that lands nothing (nothing new, markers left, a failed
+  push) leaves that saved work standing, and the next run starts from it. A
+  run's own edits are in the saved commit, so in the next run's head, and
+  `git status` shows none of them. A run that parks with a conflict marker
+  left keeps none of that run's edits (section 12); what was saved before it
+  stands.
 - **No credentials on disk.** Every git operation that reaches the forge,
   or commits, names the repository's identity, which the protocol layer
   maps to credentials or an author for that invocation only, never into a
@@ -687,7 +703,8 @@ among temper's tiers and keeps their fakes.
   unreachable forge failing for now and a refusing one for good; a
   branch another party advanced making the push moved, nothing forced;
   saved work where a later run resumes; an abort ending a prepare under
-  way; merges that conflict, keep their markers until resolved and
+  way; a producer's clean merge committed before it is ready; merges that
+  conflict, keep their markers until resolved and
   commit both parents, a stale expected head refused, and a push that
   lands but times out; a first hold pushing, releasing, and a new hold
   delivering the same existing diff without another edit; landing ancestry,
@@ -714,7 +731,9 @@ among temper's tiers and keeps their fakes.
   smith; a host call and its committed answer across the agent's
   channel; a person's words and stop reaching smith; an adopted
   repository prepared and mounted in smith; a parked run resuming
-  through both roots; a withheld commit holding the assignment.
+  through both roots; a parked producer's delivered and saved edits
+  surviving a moved landing branch, clean and in conflict, to its next
+  delivery; a withheld commit holding the assignment.
 - **The one-process world** (`tests/one-process`): temper's services on
   skein's simulator, the worker's agents smith's processes over skein's
   fake LLM (`testing.md`, 2.5).
@@ -729,6 +748,12 @@ for; and that nothing is live once it settles.
 
 ## 12. Open questions
 
+- **A park with markers left.** A save refuses a tree whose merge still holds
+  a conflict marker, so a run that parks so keeps none of that run's edits,
+  and its charter tells it to settle first (`temper help change`). Keeping
+  them would need the list of files in conflict to outlive the hold: without
+  it a saved tree's markers could be delivered, since the refusal at push
+  reads that list. That list would be stored, so this is the user's.
 - **A push's message:** the worker commits the run's title and body; how
   a change's pull request takes them, and whether a squash keeps them.
 - **An assignment naming an expected head.** The worker enforces one when
