@@ -1,6 +1,6 @@
 //! Credential values travel between protocol components only (channel.md, 8).
 use alloc::boxed::Box;
-use jig_domain_host as host;
+use jig_domain_link::{Form, Grant};
 use jig_protocol_accounts::table::{self, Table};
 use jig_protocol_engine_workers::{GrantValue, Scheme};
 use skein_lib::{List, Map, Secret, Time};
@@ -26,13 +26,13 @@ impl Values {
         self.application.insert(key, value).expect("application credential capacity");
     }
 
-    pub fn grants(&self, grants: &[host::Grant], now: Time) -> Box<[Option<GrantValue>]> {
+    pub fn grants(&self, grants: &[Grant], now: Time) -> Box<[Option<GrantValue>]> {
         let mut values = List::with_capacity(u32::try_from(grants.len()).expect("bounded grants"));
         for grant in grants {
             let value = match grant.form {
-                host::Form::Program(name) => Some(GrantValue::Program { name }),
-                host::Form::Credential(_) => account_grant(self.accounts.value(grant.account, grant.generation, now)),
-                host::Form::Application => application_grant(self.application.get(&(grant.account, grant.generation))),
+                Form::Program(name) => Some(GrantValue::Program { name }),
+                Form::Credential(_) => account_grant(self.accounts.value(grant.account, grant.generation, now)),
+                Form::Application => application_grant(self.application.get(&(grant.account, grant.generation))),
             };
             values.push(value).expect("one value slot per grant");
         }

@@ -1,4 +1,5 @@
 use crate::{Credential, Limits};
+use jig_domain_link::{Bounds, Hello, Hosting, ModelBound, Phase};
 use skein_lib::{Duration, Secret};
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const SECRET_A: &[u8] = b"secret-a";
@@ -65,16 +66,16 @@ pub const ATTEMPT_TWO: Token = Token::new(2);
 pub fn codec() -> wire::v9::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
-pub fn hello() -> host::Hello {
-    host::Hello {
+pub fn hello() -> Hello {
+    Hello {
         jobs: Box::default(),
         slots: 1,
         stop_bound: Duration::from_secs(1),
         workstreams: Box::new([3]),
-        hosting: Box::new([host::Hosting { run: RUN_SEVEN, attempt: ATTEMPT_TWO, phase: host::Phase::Active }]),
-        bounds: host::Bounds {
+        hosting: Box::new([Hosting { run: RUN_SEVEN, attempt: ATTEMPT_TWO, phase: Phase::Active }]),
+        bounds: Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([host::ModelBound { name: b"model".as_slice().into(), window: 16, output: 8 }]),
+            models: Box::new([ModelBound { name: b"model".as_slice().into(), window: 16, output: 8 }]),
             turns: 1,
             spend: 10,
             time: Duration::from_secs(60),

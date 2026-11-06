@@ -43,10 +43,6 @@ pub enum Step {
 pub fn decoder(name: Name, status: u16, reset: Time, limits: &Limits) -> Decoder {
     Decoder { name, status, reset, named: false, scratch: Scratch::new(limits) }
 }
-#[must_use]
-pub const fn first(_decoder: &Decoder) -> tokenizer::Request {
-    tokenizer::Request::Next
-}
 /// Whether the body named its error, read after `step` gives `Decoded(Err(_))`; false for a status fallback.
 #[must_use]
 pub const fn named(decoder: &Decoder) -> bool {

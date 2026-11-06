@@ -13,7 +13,7 @@ jig-channel-kit.workspace = true
 [dev-dependencies]
 serde_json.workspace = true
 smith-transcript.workspace = true
-jig-domain-fleet.workspace = true
+jig-domain-link.workspace = true
 smith-fake-claude.workspace = true
 jig-domain-core.workspace = true
 jig-domain-accounts.workspace = true

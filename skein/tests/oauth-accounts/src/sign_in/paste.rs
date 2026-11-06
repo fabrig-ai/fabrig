@@ -118,64 +118,60 @@ impl Wrong {
     }
 }
 
-impl Client {
-    pub(super) fn paste(&mut self, env: &Env<accounts::Limits>, uri: Box<[u8]>) {
-        match self.story {
-            Story::PasteExpired => {
-                self.expired_paste = Some(uri);
-                return;
-            }
-            Story::PasteCancelled => self.ask(env, accounts::Request::Cancel { account: 0 }),
-            Story::PasteWrong => {
-                for wrong in
-                    [Wrong::Host, Wrong::Port, Wrong::Path, Wrong::Fragment, Wrong::DuplicateState, Wrong::Long]
-                {
-                    self.ask(
-                        env,
-                        accounts::Request::Redirected {
-                            account: 0,
-                            uri: skein_lib::Secret::new(wrong.edit(&uri, self.limits.client.url_bytes)),
-                        },
-                    );
-                }
-            }
-            Story::StateRefusals => {
-                for _ in 0..accounts::STATE_REFUSALS {
-                    self.ask(
-                        env,
-                        accounts::Request::Redirected { account: 0, uri: skein_lib::Secret::new(wrong_state(&uri)) },
-                    );
-                }
-            }
-            Story::Return(_)
-            | Story::OpenIdAgain
-            | Story::IssuedClientId
-            | Story::AnotherSubject
-            | Story::RequiredScopes
-            | Story::Paste
-            | Story::PasteThenListener
-            | Story::ListenerThenPaste
-            | Story::PasteTwice
-            | Story::ListenerWrongState
-            | Story::PasteClose
-            | Story::Public
-            | Story::VaryingTaken
-            | Story::TwoPorts
-            | Story::Confidential
-            | Story::WrongPath
-            | Story::WrongHost
-            | Story::LongHead
-            | Story::CloseWaiting
-            | Story::CloseConfidential
-            | Story::Cancel
-            | Story::Abort
-            | Story::NotKept
-            | Story::Timeout
-            | Story::Restart => {}
+pub(super) fn paste(client: &mut Client, env: &Env<accounts::Limits>, uri: Box<[u8]>) {
+    match super::owner(client).story {
+        Story::PasteExpired => {
+            super::owner_mut(client).expired_paste = Some(uri);
+            return;
         }
-        self.ask(env, accounts::Request::Redirected { account: 0, uri: skein_lib::Secret::new(uri.clone()) });
-        if self.story == Story::PasteTwice {
-            self.ask(env, accounts::Request::Redirected { account: 0, uri: skein_lib::Secret::new(uri) });
+        Story::PasteCancelled => client.ask(env, accounts::Request::Cancel { account: 0 }),
+        Story::PasteWrong => {
+            for wrong in [Wrong::Host, Wrong::Port, Wrong::Path, Wrong::Fragment, Wrong::DuplicateState, Wrong::Long] {
+                client.ask(
+                    env,
+                    accounts::Request::Redirected {
+                        account: 0,
+                        uri: skein_lib::Secret::new(wrong.edit(&uri, client.limits.client.url_bytes)),
+                    },
+                );
+            }
         }
+        Story::StateRefusals => {
+            for _ in 0..accounts::STATE_REFUSALS {
+                client.ask(
+                    env,
+                    accounts::Request::Redirected { account: 0, uri: skein_lib::Secret::new(wrong_state(&uri)) },
+                );
+            }
+        }
+        Story::Return(_)
+        | Story::OpenIdAgain
+        | Story::IssuedClientId
+        | Story::AnotherSubject
+        | Story::RequiredScopes
+        | Story::Paste
+        | Story::PasteThenListener
+        | Story::ListenerThenPaste
+        | Story::PasteTwice
+        | Story::ListenerWrongState
+        | Story::PasteClose
+        | Story::Public
+        | Story::VaryingTaken
+        | Story::TwoPorts
+        | Story::Confidential
+        | Story::WrongPath
+        | Story::WrongHost
+        | Story::LongHead
+        | Story::CloseWaiting
+        | Story::CloseConfidential
+        | Story::Cancel
+        | Story::Abort
+        | Story::NotKept
+        | Story::Timeout
+        | Story::Restart => {}
+    }
+    client.ask(env, accounts::Request::Redirected { account: 0, uri: skein_lib::Secret::new(uri.clone()) });
+    if super::owner(client).story == Story::PasteTwice {
+        client.ask(env, accounts::Request::Redirected { account: 0, uri: skein_lib::Secret::new(uri) });
     }
 }

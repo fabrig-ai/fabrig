@@ -19,6 +19,7 @@ smith-charter.workspace = true
 smith-channel.workspace = true
 
 [dev-dependencies]
+jig-domain-link.workspace = true
 jig-domain-fleet.workspace = true
 
 [lints]

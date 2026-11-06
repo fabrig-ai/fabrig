@@ -1,6 +1,7 @@
 #[expect(clippy::module_inception, reason = "Keep the existing test paths under the suite file module.")]
 mod grants {
-    use jig_domain_host::{self as host, LinkDown};
+    use jig_domain_host::LinkDown;
+    use jig_domain_link::Form;
     use jig_engine_workers_world::{World, fixtures};
     use jig_protocol_engine_workers::{Event, GrantValue, Request, Scheme};
     use jig_protocol_worker_wire as wire;
@@ -29,7 +30,7 @@ mod grants {
             world.observed(connection).iter().find(|record| record.kind == 0x0180).expect("assignment crossed");
         wire::Assignment::decode(&codec(), &mut Reader::new(&record.body)).expect("assignment decodes")
     }
-    fn send_grant(world: &mut World, channel: Token, form: host::Form, value: GrantValue) {
+    fn send_grant(world: &mut World, channel: Token, form: Form, value: GrantValue) {
         world.down(Event::Down {
             channel,
             down: LinkDown::Grant { run: Token::new(7), attempt: Token::new(2), grant: fixtures::grant(form) },
@@ -63,16 +64,16 @@ mod grants {
         send_grant(
             &mut world,
             channel,
-            host::Form::Credential(host::Scheme::Bearer),
+            Form::Credential(jig_domain_link::Scheme::Bearer),
             fixtures::credential_value(Scheme::Bearer),
         );
         send_grant(
             &mut world,
             channel,
-            host::Form::Credential(host::Scheme::Key),
+            Form::Credential(jig_domain_link::Scheme::Key),
             fixtures::credential_value(Scheme::Key),
         );
-        send_grant(&mut world, channel, host::Form::Application, application());
+        send_grant(&mut world, channel, Form::Application, application());
         let grants = received_grants(&world, connection);
         assert_eq!(grants.len(), 3);
         for record in &grants {
@@ -91,7 +92,7 @@ mod grants {
         send_grant(
             &mut world,
             channel,
-            host::Form::Credential(host::Scheme::Bearer),
+            Form::Credential(jig_domain_link::Scheme::Bearer),
             fixtures::credential_value(Scheme::Key),
         );
         assert!(received_grants(&world, connection).is_empty());
@@ -136,7 +137,7 @@ mod grants {
         send_grant(
             &mut world,
             channel,
-            host::Form::Credential(host::Scheme::Bearer),
+            Form::Credential(jig_domain_link::Scheme::Bearer),
             fixtures::credential_value(Scheme::Bearer),
         );
         assert!(received_grants(&world, connection).is_empty());
@@ -150,7 +151,7 @@ mod grants {
         send_grant(
             &mut world,
             Token::new(1),
-            host::Form::Credential(host::Scheme::Bearer),
+            Form::Credential(jig_domain_link::Scheme::Bearer),
             fixtures::credential_value(Scheme::Bearer),
         );
         assert!(received_grants(&world, connection).is_empty());
@@ -177,7 +178,7 @@ mod grants {
             down: LinkDown::Grant {
                 run: Token::new(7),
                 attempt: Token::new(2),
-                grant: fixtures::grant(host::Form::Credential(host::Scheme::Bearer)),
+                grant: fixtures::grant(Form::Credential(jig_domain_link::Scheme::Bearer)),
             },
             parts: Box::new([]),
             values: Box::new([None]),

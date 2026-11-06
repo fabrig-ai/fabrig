@@ -1,6 +1,7 @@
 //! The worker's limits and their validity (programming-model.md, section 6).
 
 use jig_domain_host as host;
+use jig_domain_link::Bounds;
 use skein_lib::{Duration, List};
 use smith_host_domain as agent;
 use temper_worker_domain_checkout as checkout;
@@ -25,7 +26,7 @@ pub struct Limits {
     /// The bounds of what a run on this worker may be given: its agent's
     /// models and its runs' turns, spend, time and inbox, for the engine to
     /// place only what fits.
-    pub bounds: host::Bounds,
+    pub bounds: Bounds,
     /// The longest the worker may take to stop a run it lost contact for
     /// (`domain/worker.md`, section 2; jig's `domain/hosts.md`, 6.6), which
     /// its configuration derives and the hello states. The engine's grace is

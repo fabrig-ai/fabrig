@@ -4,9 +4,9 @@ use jig_accounts_world::{
     ALICE, BOB, LIMITS, PROVIDER, World, account, commit, provider, providers, save, source, want,
 };
 use jig_domain_accounts::{
-    Bound, Event, Form, FromComponent, Held, Holder, Key, Kind, Refusal, Request, Scheme, SignIn, State, Stored,
-    room_for_sign_in,
+    Bound, Event, FromComponent, Held, Holder, Key, Kind, Refusal, Request, SignIn, State, Stored, room_for_sign_in,
 };
+use jig_domain_link::{Form, Scheme};
 use skein_lib::{Duration, Time, Wall};
 use std::collections::BTreeMap;
 

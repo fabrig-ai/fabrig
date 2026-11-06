@@ -2,6 +2,7 @@
 use super::goal_branch::{branch_tip, goal_request};
 use super::light_rules::change_row;
 use super::*;
+use jig_domain_link::JobKind;
 use temper_engine_domain_forge_change as change;
 
 const CHANNEL: Token = Token::new(7);
@@ -108,7 +109,7 @@ fn next_job(world: &mut World, task: u64) -> host::JobAssignment {
 }
 
 fn check_job(world: &World, task: u64, job: &host::JobAssignment, branch: &[u8], head: u64, base: u64) {
-    assert_eq!(job.kind, host::JobKind(3));
+    assert_eq!(job.kind, JobKind(3));
     assert_eq!(live_task(world, job.run.raw()).requester, tasks::Party::Task(task));
     assert_eq!(change_row(world, task).catch_up, Some(translate::commit(base)));
     assert_eq!(change_row(world, task).base.as_ref(), branch);

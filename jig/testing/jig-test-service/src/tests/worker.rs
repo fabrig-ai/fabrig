@@ -1,5 +1,6 @@
 use super::fixtures;
 use crate::{Service, Worker, iterate};
+use jig_domain_link::PROGRAM_ENDPOINTS;
 use jig_test_worker as root;
 use skein_io as io;
 use skein_lib::{Time, Token, Wall};
@@ -24,7 +25,7 @@ fn spawn(service: &mut Service) -> (Token, io::kernel::Spawn) {
 fn startup_refuses_a_worker_hello_with_65_program_endpoints() {
     use jig_protocol_config::{Path, Problem, Segment, What};
     let mut agent = fixtures::agent();
-    let past_cap = jig_domain_host::PROGRAM_ENDPOINTS + 1;
+    let past_cap = PROGRAM_ENDPOINTS + 1;
     let mut endpoints = skein_lib::List::with_capacity(past_cap);
     for endpoint in 0..past_cap {
         endpoints.push(endpoint).expect("one slot per endpoint");
@@ -111,7 +112,7 @@ fn a_turn_is_encoded_against_the_worker_s_endpoints() {
 }
 #[test]
 fn a_grant_s_value_reaches_smith_s_host_half_in_its_envelope() {
-    use jig_domain_host::{Form, Scheme as GrantScheme};
+    use jig_domain_link::{Form, Scheme as GrantScheme};
     use jig_protocol_accounts::table::{Scheme, Value};
     use skein_lib::Secret;
     let largest_token = Box::new([b't'; 7934]);
@@ -194,7 +195,7 @@ fn a_worker_without_its_own_runtime_is_refused_at_its_root_path() {
     }
 }
 
-fn start_on_pipes(service: &mut Service, form: jig_domain_host::Form) -> Box<[u8]> {
+fn start_on_pipes(service: &mut Service, form: jig_domain_link::Form) -> Box<[u8]> {
     use skein_lib::stream;
     let agent = fixtures::agent();
     let schema = smith_protocol_channel::schema_for_start(&agent.limits.bodies, agent.limits.start_bytes)
@@ -377,7 +378,8 @@ fn a_roots_step_count_moves_with_an_input_and_not_with_an_idle_iterate() {
 
 #[test]
 fn a_program_check_rearms_at_the_configured_interval() {
-    use jig_domain_host::{LinkDown, SourceName};
+    use jig_domain_host::LinkDown;
+    use jig_domain_link::SourceName;
     use skein_lib::Duration;
     let document =
         fixtures::with(fixtures::WORKER_DOCUMENT, b"\"check_interval_ms\":60000", b"\"check_interval_ms\":1250");

@@ -36,7 +36,7 @@ pub fn decode_cut(decoder: client::Decoder, body: &[u8], limits: &Limits, after_
 fn drive(mut decoder: client::Decoder, body: &[u8], limits: &Limits, cut_at: Option<u32>) -> Decoded {
     let mut feed = tokenizer::Feed::new(body, &limits.json);
     let mut rows = List::with_capacity(64);
-    let mut demand = client::first(&decoder);
+    let mut demand = tokenizer::Request::Next;
     loop {
         let event = feed.answer(demand);
         match client::step(&mut decoder, limits, &event) {
@@ -54,7 +54,7 @@ pub fn deliver(header: &[u8], body: &[u8], limits: &Limits) -> Result<crate::for
     use crate::forgejo::client::delivery::{self, Step};
     let mut decoder = delivery::decoder(header, limits).expect("known delivery");
     let mut feed = tokenizer::Feed::new(body, &limits.json);
-    let mut demand = delivery::first(&decoder);
+    let mut demand = tokenizer::Request::Next;
     loop {
         let event = feed.answer(demand);
         match delivery::step(&mut decoder, limits, &event) {
@@ -73,7 +73,7 @@ pub fn request(
     use crate::forgejo::server;
     let server::Route::Body(mut decoder) = server::route(method, target, limits).unwrap() else { panic!("body route") };
     let mut feed = tokenizer::Feed::new(body, &limits.json);
-    let mut request = server::body_first(&decoder);
+    let mut request = tokenizer::Request::Next;
     for _answer in 0..=body.len() {
         let event = feed.answer(request);
         match server::body(&mut decoder, limits, &event) {

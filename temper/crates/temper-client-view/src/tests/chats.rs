@@ -392,7 +392,7 @@ pub(super) fn listed_root() -> Domain {
     ended.ended_at = Some(Wall::EPOCH);
     listed(&[line()], &[ended], false)
 }
-fn listed(live: &[TaskLine], closed: &[TaskLine], more: bool) -> Domain {
+pub(super) fn listed(live: &[TaskLine], closed: &[TaskLine], more: bool) -> Domain {
     use temper_client_domain::{Address, Event};
     let limits = fixtures::domain_limits();
     let (mut root, me_watch, _) =
@@ -1587,5 +1587,58 @@ fn a_paused_chat_s_row_says_paused() {
         }
         let status = status.expect("paused row");
         assert_eq!(status.styles.as_slice(), [crate::look::STATUS_QUIET]);
+    }
+}
+
+#[test]
+fn behind_with_unanswered_reads_chats_claims_no_empty() {
+    for selected in [ChatsFilter::All, ChatsFilter::Live, ChatsFilter::Closed, ChatsFilter::Drafts] {
+        let mut page = fixtures::ReadPage::new(temper_client_domain::Address::Chats { filter: selected });
+        page.drop_inbox();
+        for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+            assert!(fixtures::find(view.tree(), Role::Status, b"Behind").is_some());
+            assert!(fixtures::find(view.tree(), Role::Paragraph, b"None.").is_none());
+        }
+    }
+}
+#[test]
+fn a_lost_closed_read_keeps_the_closed_rows() {
+    let mut page = fixtures::ReadPage::new(temper_client_domain::Address::Chats { filter: ChatsFilter::All });
+    let ended = timed(8, 0, Some(0));
+    page.live_chats(&[]);
+    page.closed(core::slice::from_ref(&ended));
+    page.live_chats(&[]);
+    let read = page.reads.last().unwrap().0;
+    page.answer(read, ReadResult::None(ReadNone::Unreachable));
+    for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+        assert!(skein_lib::bytes::find(&fixtures::main_text(view.tree()), ended.chip.title.bytes()).is_some());
+    }
+}
+#[test]
+fn drafts_claims_no_empty_until_its_notes_answer() {
+    let mut page = fixtures::ReadPage::new(temper_client_domain::Address::Chats { filter: ChatsFilter::Drafts });
+    page.live_chats(&[]);
+    page.closed(&[]);
+    for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+        assert!(fixtures::find(view.tree(), Role::Paragraph, b"None.").is_none());
+    }
+    let mut read = None;
+    for (token, what) in &page.reads {
+        if let Read::Notes { .. } = what {
+            read = Some(*token);
+        }
+    }
+    let read = read.expect("notes read");
+    page.answer(
+        read,
+        ReadResult::Value(ReadValue::Notes(Box::new(NotePage {
+            rows: List::with_capacity(0),
+            before: None,
+            after: None,
+            cut: false,
+        }))),
+    );
+    for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
+        assert!(fixtures::find(view.tree(), Role::Paragraph, b"None.").is_some());
     }
 }

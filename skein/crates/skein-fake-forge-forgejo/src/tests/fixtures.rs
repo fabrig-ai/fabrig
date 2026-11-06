@@ -1,6 +1,7 @@
 use crate::{Config, Faults, Limits, Repository};
 use alloc::boxed::Box;
 use skein_forge::forgejo::request::Repo;
+use skein_json::tokenizer;
 use skein_lib::{List, Secret, bytes};
 pub const FIXTURE_SECRET: &[u8] = b"fixture-hook-secret";
 pub fn hooked_config() -> Config {
@@ -52,7 +53,7 @@ pub fn limits() -> Limits {
             send: 1024,
         },
         documents: skein_forge::forgejo::limits::Limits {
-            json: skein_json::tokenizer::Limits { chunk: 1024, string: 16384, number: 32, depth: 16, length: 65536 },
+            json: tokenizer::Limits { chunk: 1024, string: 16384, number: 32, depth: 16, length: 65536 },
             writer: skein_json::writer::Limits { depth: 16, length: 65536 },
             string_bytes: 512,
             body_bytes: 16384,
@@ -486,9 +487,9 @@ impl Harness {
         let limits = &self.env.limits.documents;
         let mut decoder = client::decoder(request, limits).expect("document decoder");
         let body = self.body();
-        let mut feed = skein_json::tokenizer::Feed::new(&body, &limits.json);
+        let mut feed = tokenizer::Feed::new(&body, &limits.json);
         let mut rows = List::with_capacity(limits.inner);
-        let mut demand = client::first(&decoder);
+        let mut demand = tokenizer::Request::Next;
         loop {
             let event = feed.answer(demand);
             match client::step(&mut decoder, limits, &event) {
@@ -505,59 +506,7 @@ impl Harness {
 }
 
 pub fn fake_config() -> fake::Config {
-    fake::Config {
-        limits: fake::Limits {
-            repositories: 1,
-            users: 3,
-            bypassing_users: 4,
-            labels: 2,
-            items: 64,
-            comments: 32,
-            dependencies: 2,
-            reviews: 8,
-            branches: 4,
-            commits: 16,
-            files: 4,
-            statuses: 4,
-            contexts: 4,
-            workflows: 0,
-            workflow_runs: 0,
-            pages: 1,
-            name_bytes: 64,
-            title_bytes: 64,
-            body_bytes: 1024,
-            content_bytes: 128,
-            page_size: 2,
-            calls: 4,
-            hooks: 8,
-            observations: 64,
-        },
-        latency_min: Duration::from_millis(10),
-        latency_max: Duration::from_millis(50),
-        settle_min: Duration::from_secs(2),
-        settle_max: Duration::from_secs(2),
-        late: 0,
-        late_min: Duration::from_secs(1),
-        late_max: Duration::from_secs(3),
-        unavailable: 0,
-        timeouts: 0,
-        landing: 0,
-        land_min: Duration::from_secs(1),
-        land_max: Duration::from_secs(3),
-        rate_limit: 0,
-        rate_window: Duration::from_secs(10),
-        ci: 3,
-        setup_faults: 0,
-        lost: 0,
-        hook_min: Duration::ZERO,
-        hook_max: Duration::ZERO,
-        hooks_late: 0,
-        hooks_lost: 0,
-        resolution: Duration::from_secs(1),
-        skew: fake::Skew::Ahead(Duration::from_secs(20)),
-        status_updates: false,
-        edit_updates: false,
-    }
+    fake::Config::TEST
 }
 
 pub fn deliver(
@@ -567,8 +516,8 @@ pub fn deliver(
 ) -> Result<skein_forge::forgejo::delivery::Delivery, skein_forge::forgejo::decode::Malformed> {
     use skein_forge::forgejo::client::delivery::{self, Step};
     let mut decoder = delivery::decoder(header, limits).expect("known delivery");
-    let mut feed = skein_json::tokenizer::Feed::new(body, &limits.json);
-    let mut demand = delivery::first(&decoder);
+    let mut feed = tokenizer::Feed::new(body, &limits.json);
+    let mut demand = tokenizer::Request::Next;
     loop {
         let event = feed.answer(demand);
         match delivery::step(&mut decoder, limits, &event) {

@@ -3,6 +3,7 @@ use jig_accounts_world::{
     HOLDER, LIMITS, PROVIDER, World, account, held, issued, program, provider, providers, source,
 };
 use jig_domain_accounts::{Event, Holder, Kind, Refusal, Request, Stored, programs};
+use jig_domain_link::{Form, Grant};
 use skein_lib::{Env, Queue};
 const OTHER: Holder = Holder::Party(8);
 const JOINED_ACCOUNT: u32 = 20;
@@ -46,8 +47,7 @@ fn a_declaration_saves_its_reservation_atomically() {
                 Request::Save { record: Stored::Next { number: 2 } },
                 Request::Programs {
                     names: Box::new([jig_domain_accounts::Program {
-                        name: jig_domain_accounts::SourceName::new(b"personal".as_slice())
-                            .expect("admitted fixture name"),
+                        name: jig_domain_link::SourceName::new(b"personal".as_slice()).expect("admitted fixture name"),
                         cleanup: false
                     }])
                 },
@@ -341,7 +341,7 @@ fn a_holder_check_is_answered_after_dispatch() {
         rows[rows.len() - 2..],
         [
             Request::CheckProgram {
-                name: jig_domain_accounts::SourceName::new(b"personal".as_slice()).expect("admitted fixture name")
+                name: jig_domain_link::SourceName::new(b"personal".as_slice()).expect("admitted fixture name")
             },
             Request::Answer { request, answer: jig_domain_accounts::Answer::Done }
         ]
@@ -523,11 +523,9 @@ fn an_issued_name_answers_its_source_holder() {
     }
 }
 
-fn named_grant(source: u32, generation: u64) -> jig_domain_accounts::Grant {
-    jig_domain_accounts::Grant {
-        form: jig_domain_accounts::Form::Program(
-            jig_domain_accounts::SourceName::new(b"personal").expect("source name"),
-        ),
+fn named_grant(source: u32, generation: u64) -> Grant {
+    Grant {
+        form: Form::Program(jig_domain_link::SourceName::new(b"personal").expect("source name")),
         account: source,
         generation,
         valid: jig_domain_accounts::PROGRAM_VALID,

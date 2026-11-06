@@ -1,6 +1,7 @@
 //! Child limits remain in their owners' vocabulary (hosts.md, section 11).
 use alloc::boxed::Box;
 use jig_domain_host as host;
+use jig_domain_link::{Bounds, valid_program_endpoints};
 use skein_lib::Duration;
 use smith_host_domain as smith;
 
@@ -16,7 +17,7 @@ pub struct Limits {
     pub watermark: u32,
     pub hub: host::Limits,
     pub agent: smith::Limits,
-    pub bounds: host::Bounds,
+    pub bounds: Bounds,
     pub stop_bound: Duration,
     pub workstreams: Box<[u64]>,
 }
@@ -25,7 +26,7 @@ pub struct Limits {
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
     smith::check(&limits.agent).is_ok()
-        && host::valid_program_endpoints(&limits.bounds.program_endpoints)
+        && valid_program_endpoints(&limits.bounds.program_endpoints)
         && host::valid_hub(&limits.hub)
         && limits.hub.slots <= limits.agent.agents
         && limits.hub.slots.checked_mul(limits.agent.calls).is_some()

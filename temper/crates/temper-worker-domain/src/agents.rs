@@ -10,6 +10,7 @@
 
 use alloc::boxed::Box;
 use jig_domain_host as host;
+use jig_domain_link::Phase;
 use skein_lib::{Env, Queue, Time, Token};
 use smith_host_domain as smith;
 
@@ -238,7 +239,7 @@ pub(crate) fn decoded(
     start: Result<Box<smith::Start>, host::Undecoded>,
 ) {
     let Some(hosting) = domain.host.hosting(owner) else { return };
-    if hosting.phase != host::Phase::Starting {
+    if hosting.phase != Phase::Starting {
         return route::host_step(
             domain,
             env,
@@ -428,7 +429,7 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, 
 /// The hub hears the agent has gone, unless its run has answered already.
 fn gone(domain: &mut Domain, env: &Env<Limits>, owner: Token, detail: Box<[u8]>) {
     if let Some(hosting) = domain.host.hosting(owner)
-        && hosting.phase != host::Phase::Answered
+        && hosting.phase != Phase::Answered
     {
         route::host_step(domain, env, host::Event::Agent(host::FromAgent::Gone { owner, detail }));
     }

@@ -3,6 +3,7 @@ use super::{Worker, WorkerRuntime};
 use crate::tests::fixtures;
 use io::kernel::{self, Done, Op};
 use jig_domain_host as hub;
+use jig_domain_link::JobKind;
 use jig_protocol_worker_link as link;
 use root::tooling::{Event, Exit, Request};
 use skein_io::{self as io, kernel::Fd};
@@ -307,7 +308,7 @@ fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
         let job = hub::JobAssignment {
             run: JOB,
             attempt: Token::new(2),
-            kind: jig_domain_host::JobKind(1),
+            kind: JobKind(1),
             spec: spec.into(),
             deadline: skein_lib::Duration::from_secs(2),
             workspace: assignment.assignment.workspace,

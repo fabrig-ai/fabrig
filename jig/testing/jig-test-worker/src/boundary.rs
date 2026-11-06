@@ -1,6 +1,7 @@
 //! The protocol layer's hand-outs and the hub's link (hosts.md, 6.8).
 use alloc::boxed::Box;
 use jig_domain_host as host;
+use jig_domain_link::SourceName;
 use skein_lib::Token;
 use smith_host_domain as smith;
 
@@ -27,12 +28,12 @@ pub enum Event {
 pub enum Request {
     Source {
         owner: Token,
-        name: host::SourceName,
+        name: SourceName,
         operation: host::sources::Operation,
         deadline: skein_lib::Time,
     },
     SourceFault,
-    Hello(host::Hello),
+    Hello(jig_domain_link::Hello),
     Link(host::LinkUp),
     CancelRelay {
         run: Token,
