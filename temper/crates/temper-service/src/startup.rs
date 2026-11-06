@@ -125,6 +125,10 @@ pub struct Named {
     pub forges: Box<[Forge]>,
     pub identities: Box<[Identity]>,
     pub clients: config::Address,
+    /// `engine.clients.link`: the deployment prints a sign-in link.
+    pub link: bool,
+    /// `application.clients.public`.
+    pub public: Option<application::Origin>,
     pub sign_in: Option<SignIn>,
     /// `application.clients.bundle`, for the binary's read.
     pub bundle: Option<Box<[u8]>>,
@@ -580,6 +584,8 @@ pub fn named_with(
         asked_files: Box::new([]),
         redirects: redirects(&parsed.engine),
         clients: parsed.application.clients.listener,
+        link: parsed.engine.clients.link,
+        public: parsed.application.clients.public,
         sign_in: parsed.application.sign_in,
         bundle: parsed.application.clients.bundle,
         bundle_limits: parsed.application.limits.clients,

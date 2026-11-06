@@ -10,7 +10,7 @@ use temper_client_world::{
     front::{Joint, account_acts as h},
 };
 
-const FIELD: &[u8] = b"Address of the page that couldn't be reached";
+const FIELD: &[u8] = "Address of the page that couldn’t be reached".as_bytes();
 const FINISH: &[u8] = b"Finish connecting";
 const ELSEWHERE: &[u8] = "This browser isn't on temper's computer ›".as_bytes();
 // Inert fake issuer only. Callback fixtures are generated locally and never formatted.
@@ -22,7 +22,15 @@ fn at(path: &[u8]) -> Address {
 }
 
 fn shown(root: &Root) -> View {
-    let (_, mut view) = Temper::new(f::SEED);
+    let limits = f::domain_limits();
+    let words = temper_client_view::words::Words::english(
+        f::FORGE,
+        limits.client.domain.text,
+        temper_client_view::words::Shell::Browser,
+    )
+    .expect("browser words fit");
+    let bounds = f::view_bounds(&limits, &words);
+    let mut view = View::Person(Box::new(temper_client_view::View::new(&bounds, &limits, words, f::FORGE)));
     let mut patches = Queue::with_capacity(Temper::patch_limit(&view));
     Temper::build(&mut view, root, &mut patches);
     view
@@ -68,7 +76,23 @@ fn begin(path: &[u8], departing: bool, elsewhere: bool) -> (Joint, Root, u32) {
     } else {
         h::event(&mut front, &mut root, Temper::went(at(path)));
     }
-    press(&mut front, &mut root, if elsewhere { ELSEWHERE } else { b"Continue with ChatGPT" });
+    if elsewhere {
+        h::event(
+            &mut front,
+            &mut root,
+            temper_client_domain::Event::Act {
+                action: temper_client_domain::Action::Pages(pages::Act::ConnectModel(
+                    pages::connect_model::Act::SignInElsewhere {
+                        name: [1; 16],
+                        way: pages::accounts::Way::SignIn { provider: 17, plan: true },
+                    },
+                )),
+            }
+            .into(),
+        );
+    } else {
+        press(&mut front, &mut root, b"Continue with ChatGPT");
+    }
     let source = h::signing(&front);
     visit(&mut front, &mut root, source);
     (front, root, source)
@@ -127,7 +151,7 @@ fn elsewhere_keeps_connect_in_the_page_and_the_welcome_offers_none() {
     let (front, root, _) = begin(b"/accounts/connect", true, true);
     assert!(front.engine.protocol.returns.is_empty(), "no native tab return for elsewhere");
     assert!(front.leaves.is_empty(), "the sign-in remains in this tab");
-    assert!(has(&root, "Open ChatGPT's sign-in ›".as_bytes()), "elsewhere link has the promised words");
+    assert!(has(&root, "Open it again ›".as_bytes()), "waiting link has the promised words");
     assert!(
         Temper::tree(&shown(&root))
             .nodes()
@@ -265,11 +289,10 @@ fn reload_of_the_waiting_source_drops_the_pasted_value() {
     assert!(front.leaves.is_empty());
 }
 
-// client/README.md 3.5 From another computer: the ordinary paste is folded;
-// choosing elsewhere presents it already open.
+// client/README.md 3.5 From another computer: both sign-in acts use the folded paste.
 #[test]
-fn ordinary_paste_is_folded_and_elsewhere_paste_is_open() {
-    const DISCLOSURE: &[u8] = b"Signed in, but the page couldn't be reached?";
+fn both_sign_in_acts_offer_the_paste_folded() {
+    const DISCLOSURE: &[u8] = "Signed in, but the page couldn’t be reached?".as_bytes();
     for elsewhere in [false, true] {
         let (_, root, _) = begin(b"/accounts/connect", false, elsewhere);
         let view = shown(&root);
@@ -277,11 +300,7 @@ fn ordinary_paste_is_folded_and_elsewhere_paste_is_open() {
             .nodes()
             .iter()
             .find(|node| node.role == Role::Disclosure && node.name.as_deref() == Some(DISCLOSURE));
-        if elsewhere {
-            assert!(disclosure.is_none_or(|node| node.states.as_slice().contains(&State::Expanded)));
-        } else {
-            assert!(!disclosure.expect("ordinary paste disclosure").states.as_slice().contains(&State::Expanded));
-        }
+        assert!(!disclosure.expect("waiting paste disclosure").states.as_slice().contains(&State::Expanded));
     }
 }
 
@@ -309,7 +328,7 @@ fn accounts_row_sign_in_offers_the_paste_and_observes_success() {
     press(&mut front, &mut root, b"Continue with ChatGPT");
     let source = h::signing(&front);
     visit(&mut front, &mut root, source);
-    assert!(offered(&root, Role::TextField, FIELD));
+    assert!(offered(&root, Role::TextField, b"Address of the page that couldn't be reached"));
     assert!(disabled(&root));
     paste(&mut front, &mut root, &callback());
     assert!(!disabled(&root));
@@ -325,7 +344,7 @@ fn accounts_row_sign_in_offers_the_paste_and_observes_success() {
         },
     );
     assert!(has(&root, b"Signed in to ChatGPT"));
-    assert!(!offered(&root, Role::TextField, FIELD));
+    assert!(!offered(&root, Role::TextField, b"Address of the page that couldn't be reached"));
     assert!(front.leaves.is_empty());
 }
 

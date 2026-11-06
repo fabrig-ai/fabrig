@@ -1223,6 +1223,11 @@ the application that needs it.
   then (14.3).
 - **Parts for other effects** (a share sheet, a clipboard write): an
   application's own code until a second application writes the same.
+- **A view's say in a fold or a selection:** a view has no way to fold a
+  disclosure, which is the page part's (section 7), nor to select a
+  field's words as it takes the focus. Each waits for an application that
+  needs it; temper's rename draws without them
+  (`temper/docs/design/client/README.md`, 11).
 - **The vocabulary that waits** (ui.md, 4.2), each with its row in
   section 6 when the light path brings it.
 - **Tabs of one person sharing one stream,** so that many tabs hold one

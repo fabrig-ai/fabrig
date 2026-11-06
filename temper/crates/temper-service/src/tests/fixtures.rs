@@ -446,7 +446,13 @@ pub fn load(
 }
 
 pub fn seeds() -> settings::Seeds {
-    settings::Seeds { deployment: [7; 16], installation: [9; 16], seed: 7, crypto: Secret::new(Box::new([7; 32])) }
+    settings::Seeds {
+        deployment: [7; 16],
+        installation: [9; 16],
+        seed: 7,
+        crypto: Secret::new(Box::new([7; 32])),
+        link_secret: None,
+    }
 }
 
 /// The worker digests the engine document names.
