@@ -99,7 +99,7 @@ pub(crate) fn main(
             bindings,
         );
         b.close();
-        if task.result.is_none() && !super::chats::ended(&task.chip) && !configuring {
+        if task.result.is_none() && !super::chats::ended(&task.chip) {
             crate::choice::above_composer(b, root, Some(task), words, bindings, times);
         }
         session_composer(b, root, chat, task, words, bindings);

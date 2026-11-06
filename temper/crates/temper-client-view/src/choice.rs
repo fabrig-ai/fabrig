@@ -302,7 +302,7 @@ fn feedback(
         crate::pages::chats::outcome_text(b, w, outcome, 0);
     }
     if let Some(task) = task {
-        waiting(b, root, task.run_wait, w, bindings, times);
+        waiting(b, root, task, w, bindings, times);
     }
 }
 
@@ -815,20 +815,23 @@ fn editable(task: &c::Task) -> bool {
 pub(crate) fn waiting(
     b: &mut Builder,
     root: &Domain,
-    wait: Option<c::TaskRunWait>,
+    task: &c::Task,
     w: &Words,
     bindings: &mut Bindings,
     times: &mut Times,
 ) {
-    match wait {
+    match task.run_wait {
         None => {}
-        Some(c::TaskRunWait::Credential) => line(b, w, W::WaitCredential, &[]),
+        Some(c::TaskRunWait::Credential) => {
+            line(b, w, W::WaitCredential, &[]);
+            control(b, bindings, Role::Link, &w.say(W::ForgesTitle, &[]), Act::Go { address: Address::Forges }, false);
+        }
         Some(c::TaskRunWait::Refused(why)) => {
             line(b, w, W::WaitRefused, &[Hole::Name(refused(w, times, why))]);
         }
         Some(c::TaskRunWait::Host) => line(b, w, W::WaitCapacity, &[]),
-        Some(c::TaskRunWait::Account { account, source, why }) => {
-            account_wait(b, root, account, source, why, w, bindings);
+        Some(c::TaskRunWait::Account { .. }) => {
+            account_wait(b, root, task, w, bindings);
         }
     }
 }
@@ -886,19 +889,12 @@ fn agent_shortfall(w: &Words, why: c::AgentShortfall) -> Box<[u8]> {
         S::Turns | S::Spend | S::Time | S::Waiting | S::Message | S::Inbox | S::Unacknowledged => w.say(word, &[]),
     }
 }
-fn account_wait(
-    b: &mut Builder,
-    root: &Domain,
-    account: Option<u32>,
-    source: Option<u32>,
-    why: c::TaskWaitWhy,
-    w: &Words,
-    bindings: &mut Bindings,
-) {
+fn account_wait(b: &mut Builder, root: &Domain, task: &c::Task, w: &Words, bindings: &mut Bindings) {
     use crate::accounts::words::{self, Word as A};
     use c::{TaskSourceState as S, TaskWaitWhy as R};
+    let Some(c::TaskRunWait::Account { account, source, why }) = task.run_wait else { return };
     b.open(Role::Status);
-    b.style(crate::look::STATUS_ACTIVE);
+    b.style(crate::look::STATUS_WAITING);
     let name = w.say(W::AccountWaiting, &[]);
     b.name(&name);
     b.text(skein_ui::Run::Plain, &name);
@@ -915,11 +911,41 @@ fn account_wait(
     match why {
         R::Source(S::Moving) => line(b, w, W::WaitMoving, &[]),
         R::Refreshing => line(b, w, W::WaitRefreshing, &[]),
-        R::Host => line(b, w, W::WaitHost, &[]),
+        R::Host => {
+            let row = match account {
+                Some(number) => account_row(root, number),
+                None => None,
+            };
+            let name = match row {
+                Some(row) => skein_lib::bytes::copy_of(row.display.bytes()),
+                None => w.say(W::AccountRegion, &[]),
+            };
+            line(b, w, W::WaitHost, &[Hole::Name(name)]);
+            if let Some(row) = row {
+                for entry in &row.sources {
+                    if Some(entry.number) == source
+                        && entry.kind == c::AccountKind::Program
+                        && let Some(name) = &entry.name
+                    {
+                        crate::pages::connect_model::command(b, root, w, name, false);
+                    }
+                }
+            }
+            account_link(b, bindings, &w.say(W::SettingsAccountsTab, &[]));
+        }
         R::Empty => {
-            line(b, w, W::WaitEmpty, &[]);
-            account_link(b, bindings, &w.say(W::AccountSignIn, &[]));
-            account_link(b, bindings, &w.say(W::AccountKey, &[]));
+            match &task.llm {
+                Some(choice) => line(b, w, W::WaitEmptyModel, &[Hole::Name(w.model_name(choice.main.model.bytes()))]),
+                None => line(b, w, W::WaitEmpty, &[]),
+            }
+            control(
+                b,
+                bindings,
+                Role::Link,
+                &w.say(W::ConnectModel, &[]),
+                Act::Go { address: Address::ConnectModel { way: None } },
+                false,
+            );
         }
         R::Invalid(why) => {
             line(b, w, W::WaitInvalid, &[]);
