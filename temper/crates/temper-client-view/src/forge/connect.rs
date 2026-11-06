@@ -1110,10 +1110,10 @@ pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row)
             let repository =
                 w.say(Word::WelcomeForgeDoneRepository, &[Hole::Name(forge::words::full_name(org, repository))]);
             let line = crate::accounts::words::join(&[&forge, b" \xc2\xb7 ", &login, b" \xc2\xb7 ", &repository]);
-            stacked(b, w, &line, &forge, &[&login, &repository], true);
+            stacked(b, w, &line, &forge, &[&login, &repository], Mark::Done);
         } else {
             let line = w.say(Word::ForgeStatus, &[Hole::Name(forge.clone()), Hole::Name(connection.clone())]);
-            stacked(b, w, &line, &forge, &[&connection], true);
+            stacked(b, w, &line, &forge, &[&connection], Mark::Done);
         }
         return;
     }
@@ -1123,10 +1123,10 @@ pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row)
             Word::WelcomeForgeLine,
             &[Hole::Name(forge.clone()), Hole::Name(target.clone()), Hole::Name(connection.clone())],
         );
-        stacked(b, w, &line, &forge, &[&target, &detail], false);
+        stacked(b, w, &line, &forge, &[&target, &detail], Mark::ToCome);
     } else {
         let line = w.say(Word::ForgeStatus, &[Hole::Name(forge.clone()), Hole::Name(connection.clone())]);
-        stacked(b, w, &line, &forge, &[&detail], false);
+        stacked(b, w, &line, &forge, &[&detail], Mark::ToCome);
     }
     if busy(row) && w.shell == Shell::Browser {
         b.open(Role::Progress);
@@ -1150,12 +1150,20 @@ fn busy(row: &Row) -> bool {
 }
 /// The forge's line (client/README.md, 3.5): one paragraph named by its words. The browser
 /// stacks its name and details by style; the terminal has neither, so says them on a line.
-fn stacked(b: &mut Builder, w: &Words, line: &[u8], forge: &[u8], details: &[&[u8]], done: bool) {
+pub(crate) fn stacked(b: &mut Builder, w: &Words, line: &[u8], forge: &[u8], details: &[&[u8]], mark: Mark) {
     b.open(Role::Paragraph);
     b.name(line);
-    if done {
-        b.style(look::FLOW_DONE);
-    }
+    let done = match mark {
+        Mark::Done => {
+            b.style(look::FLOW_DONE);
+            true
+        }
+        Mark::Stopped | Mark::Failed => {
+            b.style(look::FLOW_FAILED);
+            false
+        }
+        Mark::UnderWay | Mark::ToCome => false,
+    };
     match w.shell {
         Shell::Browser => {
             b.open(Role::Text);

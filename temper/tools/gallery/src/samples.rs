@@ -694,8 +694,8 @@ pub fn samples() -> [Sample; N] {
         model_forge_sample("welcome-model-forge-done", 7),
         model_forge_sample("welcome-model-forge-failed", 9),
         welcome_model_sample("welcome-model-claude", temper_client_domain::WayKind::Program, Shown),
-        welcome_model_sample("welcome-model-claude-checking", temper_client_domain::WayKind::Program, Shown),
-        welcome_model_sample("welcome-model-claude-not-yet", temper_client_domain::WayKind::Program, Shown),
+        welcome_model_sample("welcome-ready-checking", temper_client_domain::WayKind::Program, Shown),
+        welcome_model_sample("welcome-ready-not-yet", temper_client_domain::WayKind::Program, Shown),
         welcome_model_sample("welcome-model-key-details", temper_client_domain::WayKind::Key, Shown),
         model_forge_sample("welcome-model-connected", 7),
         welcome_model_sample("welcome-model-away", temper_client_domain::WayKind::SignIn, SigningIn),
@@ -955,7 +955,7 @@ fn special_mockup(name: &str) -> Option<String> {
         "forge-setup-failed" | "welcome-setup-failed" => {
             return Some("connect-forge.html?world=first-run&step=6&forge=3&bare#other-states".to_owned());
         }
-        "welcome-model-claude" | "welcome-model-claude-checking" | "welcome-model-claude-not-yet" => {
+        "welcome-model-claude" => {
             return Some("welcome.html?at=model&way=claude".to_owned());
         }
         "welcome-model-key-details" => {
@@ -981,7 +981,11 @@ fn special_mockup(name: &str) -> Option<String> {
             return Some("welcome.html?world=first-run&step=0&at=forge&forge=3&bare".to_owned());
         }
         "welcome-model-choose" => return Some("welcome.html?world=first-run&step=0&at=model&bare".to_owned()),
-        "welcome-ready-copies" | "welcome-ready-none" | "welcome-ready-signing" => {
+        "welcome-ready-checking"
+        | "welcome-ready-not-yet"
+        | "welcome-ready-copies"
+        | "welcome-ready-none"
+        | "welcome-ready-signing" => {
             return Some("welcome.html?at=ready".to_owned());
         }
         "welcome-ready-under-way" => return Some("welcome.html?world=first-run-real&step=3&at=ready&bare".to_owned()),
@@ -1336,7 +1340,11 @@ pub fn domain(sample: &Sample) -> Domain {
             &mut out,
         );
     }
-    if sample.name.starts_with("welcome-model-") || sample.name.starts_with("welcome-paste-") {
+    if sample.name.starts_with("welcome-model-")
+        || sample.name == "welcome-ready-checking"
+        || sample.name == "welcome-ready-not-yet"
+        || sample.name.starts_with("welcome-paste-")
+    {
         let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("Model accounts").clone();
         doc.usable =
             matches!(sample.name, "welcome-model-connected" | "welcome-model-signin-ready" | "welcome-model-renewed");
@@ -1359,7 +1367,10 @@ pub fn domain(sample: &Sample) -> Domain {
             &mut out,
         );
     }
-    if sample.name.starts_with("welcome-model-claude") {
+    if sample.name == "welcome-model-claude"
+        || sample.name == "welcome-ready-checking"
+        || sample.name == "welcome-ready-not-yet"
+    {
         claude(&mut root, sample.name, accounts_watch.expect("Claude accounts watch"), &mut out);
         return root;
     }
@@ -1573,6 +1584,13 @@ fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>)
         },
         out,
     );
+    step(
+        root,
+        Event::Went {
+            place: temper_client_domain::Place::Address(Address::Welcome { step: temper_client_domain::Step::Ready }),
+        },
+        out,
+    );
     step(root, Event::Client { event: jig_client::Event::Stored }, out);
     let attempt = sent_attempt(out);
     step(
@@ -1594,7 +1612,7 @@ fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>)
         },
         out,
     );
-    if name == "welcome-model-claude-not-yet" {
+    if name == "welcome-ready-not-yet" {
         step(root, Event::Client { event: jig_client::Event::Stored }, out);
         let attempt = sent_attempt(out);
         step(

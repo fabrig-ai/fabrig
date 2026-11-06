@@ -459,24 +459,29 @@ fn welcome_claude_rechecks_a_held_source_only_after_answer_and_settled() {
     assert_ne!(check.1, second.1);
 }
 #[test]
-fn welcome_claude_ready_replaces_the_pressed_step_and_clears_the_check() {
-    let (mut root, watch) = claude();
-    program_document(&mut root, watch, true, false);
-    let check = sends(signed_in(&mut root)).pop().expect("source checked");
-    answered(&mut root, check.0, done(c::DocumentOutcome::AccountChanged));
-    let out = program_document(&mut root, watch, true, true);
-    let mut shown = false;
-    for request in &out {
-        shown |= *request == crate::Request::Show { address: Address::Welcome { step: Step::Ready }, replace: true };
-    }
-    assert!(shown);
-    assert_eq!(checked(&root), connect_model::ProgramCheck::Idle);
-    for request in &program_document(&mut root, watch, true, true) {
-        if let crate::Request::Show { .. } = request {
-            panic!("a completed check never moves twice");
+fn welcome_claude_press_replaces_at_once_and_keeps_the_check_on_ready() {
+    for existing in [false, true] {
+        let (mut root, watch) = claude();
+        if existing {
+            program_document(&mut root, watch, false, false);
         }
+        let out = signed_in(&mut root);
+        let mut replaced = false;
+        for request in &out {
+            replaced |=
+                *request == crate::Request::Show { address: Address::Welcome { step: Step::Ready }, replace: true };
+        }
+        assert!(replaced);
+        let check = checked(&root);
+        event(&mut root, Event::Went { place: crate::Place::Address(Address::Welcome { step: Step::Ready }) });
+        assert_eq!(checked(&root), check);
+        assert_eq!(pages::welcome::model_counts(&root), Some(true));
+        assert!(sends(signed_in(&mut root)).is_empty());
+        program_document(&mut root, watch, true, true);
+        assert_eq!(checked(&root), connect_model::ProgramCheck::Idle);
     }
 }
+
 #[test]
 fn welcome_claude_busy_refusal_keeps_checking_and_other_refusals_remain_visible() {
     let (mut root, watch) = claude();
@@ -597,17 +602,102 @@ fn a_refusal_leaves_the_words_empty() {
 }
 
 #[test]
-fn sign_in_again_returns_only_a_stopped_welcome_check_to_the_panel() {
+fn a_ways_page_clears_a_stopped_check_and_ready_can_retry() {
     let (mut root, watch) = claude();
-    program_document(&mut root, watch, true, false);
+    program_document(&mut root, watch, false, false);
     let check = sends(signed_in(&mut root)).pop().unwrap();
-    act(&mut root, Act::SignInAgain);
-    assert_eq!(checked(&root), connect_model::ProgramCheck::Checking { source: 43 });
+    event(&mut root, Event::Went { place: crate::Place::Address(Address::Welcome { step: Step::Ready }) });
     answered(&mut root, check.0, done(c::DocumentOutcome::AccountChanged));
     program_document(&mut root, watch, true, false);
     assert_eq!(checked(&root), connect_model::ProgramCheck::NotYet);
-    assert!(sends(act(&mut root, Act::SignInAgain)).is_empty());
+    assert_eq!(pages::welcome::model_counts(&root), Some(false));
+    let retry = sends(signed_in(&mut root)).pop().expect("Ready retries");
+    assert_check(retry.2);
+    assert_ne!(check.1, retry.1);
+    event(&mut root, Event::Went { place: crate::Place::Address(program_address(true)) });
     assert_eq!(checked(&root), connect_model::ProgramCheck::Idle);
-    assert!(root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().outcome.is_some());
-    assert_check(sends(signed_in(&mut root)).pop().expect("panel checks again").2);
+}
+
+#[test]
+fn a_welcome_key_moves_once_only_after_it_is_added_and_usable() {
+    for (refused, answer_first) in [(false, false), (false, true), (true, true)] {
+        let (mut root, _, watch) = root(Way::Key { provider: PROVIDER });
+        event(
+            &mut root,
+            Event::Went {
+                place: crate::Place::Address(Address::Welcome {
+                    step: Step::Model { way: Some(connect_model::model_way(Way::Key { provider: PROVIDER })) },
+                }),
+            },
+        );
+        key(&mut root, b"private-once");
+        let attempt = sends(act(&mut root, Act::Submit { name: NAME })).pop().unwrap().0;
+        let answer = if refused {
+            c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None }
+        } else {
+            done(c::DocumentOutcome::AccountKeyKept { source: 43 })
+        };
+        if answer_first {
+            let out = answered(&mut root, attempt, answer);
+            assert_no_moves(&out);
+        }
+        let c::WatchEvent::Delivered(c::Delivery::Accounts(mut doc)) = document(false) else { unreachable!() };
+        doc.usable = true;
+        let out = deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc.clone())));
+        let mut replaced = 0_usize;
+        for request in &out {
+            if *request == (crate::Request::Show { address: Address::Welcome { step: Step::Ready }, replace: true }) {
+                replaced = replaced.checked_add(1).unwrap();
+            }
+        }
+        assert_eq!(replaced, usize::from(!refused));
+        let out = deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)));
+        assert_no_moves(&out);
+        if refused {
+            assert!(root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().outcome.is_some());
+        }
+    }
+}
+#[test]
+fn signed_in_elsewhere_sends_nothing_and_a_ways_page_clears_a_stop() {
+    let (mut root, watch) = claude();
+    program_document(&mut root, watch, false, false);
+    let attempt = sends(signed_in(&mut root)).pop().unwrap().0;
+    event(&mut root, Event::Went { place: crate::Place::Address(Address::Welcome { step: Step::Ready }) });
+    answered(&mut root, attempt, done(c::DocumentOutcome::AccountChanged));
+    program_document(&mut root, watch, true, false);
+    assert_eq!(checked(&root), connect_model::ProgramCheck::NotYet);
+    event(
+        &mut root,
+        Event::Went { place: crate::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
+    );
+    assert_eq!(checked(&root), connect_model::ProgramCheck::NotYet);
+    assert!(sends(signed_in(&mut root)).is_empty(), "Choose is not the tried way");
+    event(&mut root, Event::Went { place: crate::Place::Address(program_address(true)) });
+    assert_eq!(checked(&root), connect_model::ProgramCheck::Idle);
+    assert_check(sends(signed_in(&mut root)).pop().expect("the way can check again").2);
+}
+
+#[test]
+fn a_fresh_sign_in_on_ready_leaves_the_retained_check_behind() {
+    let (mut root, _) = claude();
+    signed_in(&mut root);
+    event(&mut root, Event::Went { place: crate::Place::Address(Address::Welcome { step: Step::Ready }) });
+    let way = Way::SignIn { provider: PROVIDER, plan: true };
+    let out = act(&mut root, Act::SignIn { name: NAME, way });
+    let sent = sends(out).pop().expect("Ready’s fresh sign-in does not wait on the retained check");
+    assert_eq!(
+        sent.2,
+        jig_client::Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: PROVIDER }))
+    );
+    assert_eq!(checked(&root), connect_model::ProgramCheck::Idle);
+    assert_eq!(root.pages().connect_model().unwrap().tried, None);
+}
+
+fn assert_no_moves(out: &Queue<crate::Request>) {
+    for request in out {
+        if let crate::Request::Show { .. } = request {
+            panic!("a key moves once; a refusal stays said");
+        }
+    }
 }

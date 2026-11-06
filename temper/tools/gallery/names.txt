@@ -238,8 +238,6 @@ welcome-go-on
 welcome-model-away
 welcome-model-choose
 welcome-model-claude
-welcome-model-claude-checking
-welcome-model-claude-not-yet
 welcome-model-connected
 welcome-model-declined
 welcome-model-forge-done
@@ -265,8 +263,10 @@ welcome-paste-unsent
 welcome-paste-waiting
 welcome-paste-written
 welcome-ready-adopted
+welcome-ready-checking
 welcome-ready-copies
 welcome-ready-none
+welcome-ready-not-yet
 welcome-ready-signing
 welcome-ready-under-way
 welcome-setup-failed
