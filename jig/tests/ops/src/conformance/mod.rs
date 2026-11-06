@@ -877,7 +877,9 @@ impl Application for Ops {
         }
     }
     fn observed(peers: &mut Peers, _: &Systems, store: &Store, clock: Clock) -> Vec<r::Observed> {
-        peers.observer.durable(clock.now, &observations::core_store(store));
+        if store.applied != peers.observer.applied() {
+            peers.observer.durable(clock.now, &observations::core_store(store));
+        }
         let mut observed = Vec::new();
         let mut answers = Vec::new();
         for evidence in std::mem::take(&mut peers.application_observed) {

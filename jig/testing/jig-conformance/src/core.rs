@@ -600,6 +600,12 @@ impl Observer {
         }
     }
 
+    /// The last commit applied to the observer's durable evidence.
+    #[must_use]
+    pub fn applied(&self) -> u64 {
+        self.applied
+    }
+
     /// Snapshot only the store's durable rows, including held acknowledgements.
     pub fn durable(&mut self, now: u64, store: &Store<'_>) {
         self.durable_at(now, store, store.applied);
