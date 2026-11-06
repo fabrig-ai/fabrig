@@ -156,3 +156,7 @@ The implementer's report, and:
 - **The rule broken** for each new test, and the failure seen.
 - **The story's CPU and wall,** and the tier's measure against 85 CPU s.
 - **The phone:** Step 6's table and what it does and doesn't show.
+
+## Answers
+
+2026-11-06 (temper/ui). Extend: repair delayed-heading focus in temper-client-shell-web's finish here, red first: a page whose h1 arrives after navigation moves the focus from main to the heading, unless the person has moved it meanwhile; never steal a focus they've placed. It's a real keyboard bug. Keep the strict assertion.
