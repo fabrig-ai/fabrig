@@ -1,0 +1,3 @@
+draft = "limits-heavy"
+repo = "fabrig"
+sources = ["temper/docs/plan/limits-heavy/inputs/request.md", "temper/crates/temper/tests/suite/box_listeners.rs", "temper/crates/temper-client-view/src/tests/limits.rs", "temper/tools/gallery/Cargo.toml", "AGENTS.md", "DESIGN.md"]
