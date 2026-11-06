@@ -4,6 +4,134 @@ use temper_client_domain::{self as d, Address, ChatsFilter};
 
 const UNKNOWN: u32 = 99;
 
+// Home's try survives leaving Ready (temper/docs/design/domain/trial.md, 6.3).
+fn trial_home(beginning: bool) -> d::Domain {
+    let (mut root, accounts) = home_root(forge_rows(true), !beginning, !beginning);
+    super::accounts::deliver(
+        &mut root,
+        accounts,
+        super::accounts::card_document(b"anthropic", b"owner", c::AccountKind::Program),
+    );
+    assert_eq!(d::pages::home::facts(&root, f::PROJECT, f::NOW).to_begin(), beginning);
+    root
+}
+
+fn trial_rows(root: &mut d::Domain, state: Option<d::forge::trials::State>) {
+    let rows: Box<[d::forge::trials::Row]> = match state {
+        Some(state) => Box::new([d::forge::trials::Row {
+            account: 1,
+            task: Some(91),
+            took: None,
+            step: d::forge::trials::Step::Answers,
+            state,
+        }]),
+        None => Box::default(),
+    };
+    drive(
+        root,
+        d::Event::Forge(d::forge::Event::Trials { event: d::forge::trials::Event::Rows { rows }, adoption: None }),
+    );
+}
+
+fn failed_trial() -> d::forge::trials::State {
+    d::forge::trials::State::Failed { why: d::forge::trials::Why::Waited }
+}
+
+const TRY_STOPPED: &str = "Claude didn’t answer when tried";
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic node positions and attributes")]
+fn home_says_a_try_that_stopped() {
+    for beginning in [false, true] {
+        let mut root = trial_home(beginning);
+        trial_rows(&mut root, Some(failed_trial()));
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let intro = styled(view.tree(), crate::look::HOME_INTRO);
+            let nodes = subtree(view.tree(), intro.id);
+            let direct = children(nodes);
+            let mut last = direct.iter().rev();
+            assert_eq!(last.next().expect("retry").name.as_deref(), Some(b"Try again".as_slice()));
+            assert_eq!(last.next().expect("stopped line").name.as_deref(), Some(TRY_STOPPED.as_bytes()));
+            let line = nodes
+                .iter()
+                .position(|n| n.role == Role::Paragraph && n.name.as_deref() == Some(TRY_STOPPED.as_bytes()))
+                .expect("stopped try under intro");
+            let retry = nodes
+                .iter()
+                .position(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Try again"))
+                .expect("retry under intro");
+            assert!(line < retry);
+            assert!(nodes.get(line).unwrap().styles.as_slice().contains(&crate::look::HOME_BYLINE));
+            assert!(nodes.iter().take(line).any(|n| n.role == Role::Heading { level: 1 }));
+            let output = printed(&view);
+            let line = skein_lib::bytes::find(&output, TRY_STOPPED.as_bytes()).expect("printed stopped try");
+            let retry = skein_lib::bytes::find(&output, b"Try again").expect("printed retry");
+            assert!(line < retry);
+        }
+    }
+}
+
+fn silent_trial(state: d::forge::trials::State) {
+    for beginning in [false, true] {
+        let mut root = trial_home(beginning);
+        trial_rows(&mut root, Some(state));
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            absent(&f::main_text(view.tree()), TRY_STOPPED);
+            absent(&f::main_text(view.tree()), "Try again");
+        }
+    }
+}
+
+#[test]
+fn answered_says_nothing_more() {
+    silent_trial(d::forge::trials::State::Answered { seconds: 6 });
+}
+
+#[test]
+fn running_says_nothing() {
+    silent_trial(d::forge::trials::State::Running);
+}
+
+#[test]
+fn try_again_runs_another_and_the_line_goes() {
+    for beginning in [false, true] {
+        for browser in [false, true] {
+            let mut root = trial_home(beginning);
+            trial_rows(&mut root, Some(failed_trial()));
+            let mut view = if browser { f::browser_page_view(&root) } else { f::page_view(&root) };
+            let retry = main_find(view.tree(), Role::Button, b"Try again");
+            let action = crate::act(&mut view, retry, Act::Press).expect("retry acts");
+            assert_eq!(action, d::Action::Forge(d::forge::Act::TryAccount { account: 1, again: true }));
+            drive(&mut root, d::Event::Act { action });
+            assert_eq!(root.forge().trial_asked(), Some(1));
+            for running in [false, true] {
+                if running {
+                    trial_rows(&mut root, Some(d::forge::trials::State::Running));
+                    assert_eq!(root.forge().trial_asked(), None);
+                }
+                f::build(&mut view, &root);
+                absent(&f::main_text(view.tree()), TRY_STOPPED);
+                absent(&f::main_text(view.tree()), "Try again");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_home_with_no_trial_reads_as_today() {
+    for beginning in [false, true] {
+        let mut root = trial_home(beginning);
+        let before = [f::page_view(&root), f::browser_page_view(&root)];
+        trial_rows(&mut root, Some(failed_trial()));
+        trial_rows(&mut root, None);
+        for (before, after) in before.iter().zip([f::page_view(&root), f::browser_page_view(&root)]) {
+            absent(&f::main_text(after.tree()), TRY_STOPPED);
+            absent(&f::main_text(after.tree()), "Try again");
+            assert_eq!(before.tree().nodes(), after.tree().nodes(), "no trial changes no node");
+        }
+    }
+}
+
 fn printed(view: &crate::View) -> Box<[u8]> {
     let mut print = skein_ui_text::Print::new(&view.limits().tree).expect("terminal bounds");
     skein_ui_text::render(view.tree(), b"temper", None, &mut print);
