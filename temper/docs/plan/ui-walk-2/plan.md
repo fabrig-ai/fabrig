@@ -36,6 +36,8 @@ Not chained, as the request asks: they share only `temper/docs/design/client/REA
 - **No compatibility:** there is no supported deployment. `Reading` gains a variant, `ProgramEnvironmentAnswer` is new, and the client wire's family number moves if the generator asks.
 - **The design was written by this cut:** `temper/docs/design/client/README.md`, 3.5, 4.6 and 11, with its **Not yet** entries in `README.status.md`, which each task removes as it lands. No draft's status changes: neither finding comes from a draft.
 
+- **`login-command`'s spec has corrections in `notes/common.md`,** which win over it: it went out with a wrong test path, a route through a `startup::Checked` that doesn't exist, and a wrong class name, and a pushed spec never changes.
+
 ## Overlaps not avoided
 
 - `temper-client-domain/src/pages/inbox.rs`, `pages/needs.rs`, `tests/pages/inbox.rs`, with `ui-walk-large/needs-proposal`: the fault is there, and it can't wait.
