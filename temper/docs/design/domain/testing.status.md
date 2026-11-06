@@ -2,7 +2,11 @@
 
 2026-11-06. Where temper's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 6.4: the row of the configuring agent's reads: its stock reads, the inventory's people and a refusal naming no command have no story.
+Section 6.4 has no gap in the configuring inventory's separation of a box
+requester and its forge approver, the stock permission mapping, refusal of the
+owner role after admin adoption, or acceptance of a fresh maintainer rule.
+The configuring stories also cover stock reads and project people; the
+approval-identity story covers a refusal naming no command.
 
 Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 
