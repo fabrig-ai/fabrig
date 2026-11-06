@@ -40,73 +40,16 @@ pub(crate) fn me<'a>(runner: &Runner, client: &'a Client) -> Option<&'a c::Me> {
     }
 }
 pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
+    if let Some(request) = immediate(&called.call, &env.limits) {
+        prepared(runner, client, env, called, request, out);
+        return;
+    }
     if called.call.tool == rows::PROJECT_FUND_AT || called.call.tool == rows::PROJECT_AMEND_AT {
         let Some(me) = me(runner, client) else { return };
         let request = if called.call.tool == rows::PROJECT_AMEND_AT {
             project_amend(&called.call, me)
         } else {
             project_fund(&called.call, me)
-        };
-        prepared(runner, client, env, called, request, out);
-        return;
-    }
-    if called.call.tool == rows::LIFT_AT {
-        let ask = c::Ask::Lift {
-            hold: number(&called.call, 0).expect("hold argument"),
-            revision: c::Revision { value: number(&called.call, 1).expect("revision argument") },
-            with_tasks: value(&called.call, 2).is_some(),
-        };
-        prepared(runner, client, env, called, Ok((Request::Ask(ask), None)), out);
-        return;
-    }
-    if called.call.tool == rows::RESTORE_AT {
-        let request = match words(&called.call, 1, &env.limits) {
-            Ok(reason) => {
-                let revision =
-                    u32::try_from(number(&called.call, 0).expect("revision argument")).expect("revision fits u32");
-                Ok((Request::Ask(c::Ask::Restore { revision, reason }), None))
-            }
-            Err(why) => Err(why),
-        };
-        prepared(runner, client, env, called, request, out);
-        return;
-    }
-    if called.call.tool == rows::MOVE_TO_NEWEST_AT {
-        let revision = u32::try_from(number(&called.call, 0).expect("revision argument")).expect("revision fits u32");
-        prepared(
-            runner,
-            client,
-            env,
-            called,
-            Ok((Request::Ask(c::Ask::MoveToNewest(c::MoveToNewest { revision })), None)),
-            out,
-        );
-        return;
-    }
-    if called.call.tool == rows::CHANGE_SETTINGS_AT || called.call.tool == rows::PROPOSE_SETTINGS_AT {
-        let request = match crate::jig::settings_file::request(&called.call, &env.limits) {
-            Ok(ask) => {
-                let ask = if called.call.tool == rows::PROPOSE_SETTINGS_AT {
-                    c::Ask::Propose {
-                        project: 0,
-                        reason: match words(&called.call, 1, &env.limits) {
-                            Ok(reason) => reason,
-                            Err(why) => {
-                                prepared(runner, client, env, called, Err(why), out);
-                                return;
-                            }
-                        },
-                        action: c::ProposeAction::Settings(c::ProposeSettings {
-                            against: ask.against,
-                            items: ask.items,
-                        }),
-                    }
-                } else {
-                    c::Ask::ChangeSettings(ask)
-                };
-                Ok((Request::Ask(ask), None))
-            }
-            Err(why) => Err(Failed::Detail(why)),
         };
         prepared(runner, client, env, called, request, out);
         return;
@@ -125,6 +68,52 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         },
     });
     runner.acts.insert(called.call_number, Reading { called, document: None });
+}
+fn immediate(call: &Call, limits: &Limits) -> Option<Prepared> {
+    let request = match call.tool {
+        rows::PROJECT_MAKE_AT => project_make(call, limits),
+        rows::LIFT_AT => Ok((
+            Request::Ask(c::Ask::Lift {
+                hold: number(call, 0).expect("hold argument"),
+                revision: c::Revision { value: number(call, 1).expect("revision argument") },
+                with_tasks: value(call, 2).is_some(),
+            }),
+            None,
+        )),
+        rows::RESTORE_AT => restore_request(call, limits),
+        rows::MOVE_TO_NEWEST_AT => {
+            let revision = u32::try_from(number(call, 0).expect("revision argument")).expect("revision fits u32");
+            Ok((Request::Ask(c::Ask::MoveToNewest(c::MoveToNewest { revision })), None))
+        }
+        rows::CHANGE_SETTINGS_AT | rows::PROPOSE_SETTINGS_AT => settings_request(call, limits),
+        _ => return None,
+    };
+    Some(request)
+}
+fn project_make(call: &Call, limits: &Limits) -> Prepared {
+    let name = words(call, 0, limits)?;
+    Ok((Request::Ask(c::Ask::MakeProject { name, policy: 1 }), None))
+}
+fn restore_request(call: &Call, limits: &Limits) -> Prepared {
+    let reason = words(call, 1, limits)?;
+    let revision = u32::try_from(number(call, 0).expect("revision argument")).expect("revision fits u32");
+    Ok((Request::Ask(c::Ask::Restore { revision, reason }), None))
+}
+fn settings_request(call: &Call, limits: &Limits) -> Prepared {
+    let settings = match crate::jig::settings_file::request(call, limits) {
+        Ok(settings) => settings,
+        Err(why) => return Err(Failed::Detail(why)),
+    };
+    let ask = if call.tool == rows::PROPOSE_SETTINGS_AT {
+        c::Ask::Propose {
+            project: 0,
+            reason: words(call, 1, limits)?,
+            action: c::ProposeAction::Settings(c::ProposeSettings { against: settings.against, items: settings.items }),
+        }
+    } else {
+        c::Ask::ChangeSettings(settings)
+    };
+    Ok((Request::Ask(ask), None))
 }
 fn act_read(call: &Call) -> c::Read {
     let task = number(call, 0).unwrap_or(0);

@@ -2050,6 +2050,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-host",
  "jig-domain-link",
+ "jig-protocol-charter",
  "skein-io",
  "skein-lib",
  "smith-channel",

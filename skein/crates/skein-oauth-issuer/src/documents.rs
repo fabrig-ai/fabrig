@@ -31,6 +31,15 @@ impl Issuer {
         ] {
             text(out, name, value);
         }
+        let mut public = false;
+        for client in &self.clients {
+            public |= client.secret.is_none();
+        }
+        let methods: &[&[u8]] = if public {
+            &[b"client_secret_basic", b"client_secret_post", b"none"]
+        } else {
+            &[b"client_secret_basic", b"client_secret_post"]
+        };
         for (name, values) in [
             (b"response_types_supported".as_slice(), [b"code".as_slice()].as_slice()),
             (b"response_modes_supported", [b"query".as_slice()].as_slice()),
@@ -38,10 +47,7 @@ impl Issuer {
             (b"subject_types_supported", [b"public".as_slice()].as_slice()),
             (b"id_token_signing_alg_values_supported", [b"RS256".as_slice()].as_slice()),
             (b"scopes_supported", [b"openid".as_slice(), b"profile", b"email"].as_slice()),
-            (
-                b"token_endpoint_auth_methods_supported",
-                [b"client_secret_basic".as_slice(), b"client_secret_post"].as_slice(),
-            ),
+            (b"token_endpoint_auth_methods_supported", methods),
             (b"code_challenge_methods_supported", [b"S256".as_slice()].as_slice()),
             (
                 b"claims_supported",

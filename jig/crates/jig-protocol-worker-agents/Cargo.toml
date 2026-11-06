@@ -19,5 +19,9 @@ smith-host-protocol.workspace = true
 smith-protocol-channel.workspace = true
 smith-protocol-program.workspace = true
 
+[dev-dependencies]
+jig-protocol-charter.workspace = true
+smith-host-protocol = { workspace = true, features = ["fixture"] }
+
 [lints]
 workspace = true

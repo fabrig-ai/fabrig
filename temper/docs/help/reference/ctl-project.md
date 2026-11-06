@@ -2,7 +2,7 @@
 
 Kind: reference
 
-Projects: read their periods and pools, set their spend per period.
+Projects: make one, read periods and pools, set spend and visibility.
 
 ## project show
 
@@ -41,4 +41,16 @@ Prints: `project 1: public` and, made public, `page: /public/projects/3f2a9c01d4
 --json: the record project_amend.
 Key: --key KEY, required.
 Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.
+```
+
+## project make
+
+```
+project make NAME --key KEY
+  NAME (name): text, at most 1048576 bytes; required. The new project's name
+Make a project from policy 1
+Prints: The new project's number
+--json: the record make-project.
+Key: --key KEY, required.
+Copies policy 1 as it is now. A key replay returns the first project's number. Add a repository with repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY.
 ```

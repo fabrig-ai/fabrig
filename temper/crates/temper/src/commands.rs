@@ -54,7 +54,7 @@ const DIRECTORIES: Argument = Argument {
 const FORGE: Argument = Argument { shown: "FORGE", line: "A forge's number in the configuration." };
 
 /// Every row, in `temper --help`'s order: by `Who`, then as listed in protocol/README.md, section 4.
-pub const COMMANDS: [Row; 20] = [
+pub const COMMANDS: [Row; 21] = [
     Row {
         words: &["help"],
         who: Who::Documentation,
@@ -170,6 +170,15 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
         notes: "Reads the slot's kind from box/groups/FORGE and refuses a directory outside data or in the cache.",
+    },
+    Row {
+        words: &["forge", "source"],
+        who: Who::Deployment,
+        forms: &["[DIRECTORIES] FORGE"],
+        line: "Add the box’s public temper sign-in source to its owned Forgejo.",
+        arguments: &[DIRECTORIES, FORGE],
+        settings: &[&directories::SETTINGS],
+        notes: "Lists the sources and adds temper when absent, under the setup deadline. Prints source added or source failed WHY and exits 0 either way: a failure keeps the box running with plain links.",
     },
     Row {
         words: &["forge", "sign-in"],

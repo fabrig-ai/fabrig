@@ -265,8 +265,11 @@ which it keeps. What the core gets is its **description:**
   - *idempotent:* a set, which may be applied twice to the same final
     state. It is written again. Where the system offers a version to
     check, the set carries it, so a late copy cannot land over a newer
-    write; where it does not, the kind says a late copy may.
-    **The same final state, possibly more than once.**
+    write; where it does not, the kind says a late copy may. A transition
+    is idempotent only if every copy of it, in any order, leaves true the
+    one state its kind names, or changes nothing: it is looked for by
+    that state and made again if not found, and the kind says what else a
+    copy may move. **The same final state, possibly more than once.**
   - *unrecoverable:* none of the above, such as a restart through an
     interface that gives no operation's id. An uncertain entry is never
     tried again by the engine: its task is held, saying so, for a person
@@ -286,7 +289,9 @@ which it keeps. What the core gets is its **description:**
   the one before has passed, so no copy of an earlier attempt lands after
   a later one is sent. A fake system that delivers copies later breaks
   this assumption, not the connector. A system whose writes cannot be
-  bounded so has no class but unrecoverable.
+  bounded so has no class but unrecoverable, or an idempotent transition:
+  no copy can undo the state it names, so its promise alone rests on no
+  lifetime, and its world shows a copy landing past one.
 
 ### 4.4 Keys
 

@@ -34,6 +34,7 @@ pub enum Step {
     Fetch,
     Prepare,
     Run,
+    Source,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Binary {

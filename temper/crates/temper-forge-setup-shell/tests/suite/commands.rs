@@ -26,3 +26,13 @@ fn a_program_that_is_not_there_is_reported_not_run() {
     assert!(matches!(command::run_one(&support::io(), &spec), Err(command::Error::Spawn(skein_io::Error::Other))));
     scratch.remove();
 }
+
+#[test]
+fn a_source_command_deadline_closes_a_live_child_and_settles_both_pipes() {
+    let scratch = support::Scratch::new("command_deadline");
+    let spec = support::script(scratch.path(), "sleep 0.1");
+    let until = skein_shell::Clock::new().now().now.saturating_add(skein_lib::Duration::from_millis(10));
+    let answer = command::run_until(&support::io(), &spec, until);
+    assert!(matches!(answer, Err(command::Error::Kernel(ref why)) if why == "source deadline expired"));
+    scratch.remove();
+}
