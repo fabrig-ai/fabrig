@@ -9,6 +9,15 @@
   `scrolling_panes_contain_their_hidden_absolute_parts`), and no test measures the
   page; no reason is recorded. That test names the session's log and draft pane,
   and the session's thread with no log, which scrolls too, is not positioned.
+- **Not yet:** 2.5: a numbered list read from Markdown
+  (`temper/docs/design/draft/chat-reading.md`, 6) shows no numbers in a card of a
+  chat's thread: `temper.css` makes `.temper-card:not(.temper-task-card) li` there
+  `display: flex`, under no `ul`, and an item that is no `list-item` draws no
+  marker. A proposal's reason reads there (`temper-client-view`'s `cards.rs`,
+  `document`). On a document page `.temper-doc-inner ul` has no `ol` beside it, so
+  a numbered list takes the browser's margins and padding. Both are seen by reading
+  the sheet: no browser test draws a numbered list, the request `chat-reading-d`
+  having the user read one on a real chat and leaving the sheet to the look's owner.
 - **Departs:** 2.5: `Ctrl+\` keeps Chat → Split → Draft on a phone too,
   with Split displayed as Draft. The 2026-11-05 answer to
   `ui-chat-draft/document-pane` accepts this cycle without viewport state;

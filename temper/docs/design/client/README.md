@@ -5370,7 +5370,8 @@ and its small store, are jig's (jig's `protocol/client.md`, sections 8,
 temper's:
 
 - **The printed link** (jig's `protocol/client.md`, section 8): at
-  start, `temper serve` prints a sign-in link for the deployment's
+  start, `temper serve`, or `temper box` before it starts serve
+  (`../protocol/setup.md`, 7.2), prints a sign-in link for the deployment's
   first owner (`../protocol/README.md`, section 4), in the default
   mapping's link route under temper's prefix,
   `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`. `temper open
@@ -6459,6 +6460,11 @@ own tests:
   draw the same page. Candidate: the accounts document gives a sign-in's
   holder its address, which jig's `protocol/llm.md`, 5.2 keeps as an
   answer alone. Default: no link, the paste still offered.
+- **The person's login over 760 px** (3.5, *Sign out*; 5.3; the request
+  `ui-owner-menu`): the sheet hides the `Accounts` tab's row whole, so a browser
+  that wide reads the person's name on the rail's foot, and their login on no tab
+  of `Settings`. Candidate: the sheet hides the row's button alone, its words
+  staying. Default: the whole row.
 - **Which tasks hold a revision, and which could move** (5.13). jig's
   `settings` document counts the live tasks holding each revision, but
   a task query has no revision among its keys (jig's
