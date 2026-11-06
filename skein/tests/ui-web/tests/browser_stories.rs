@@ -170,3 +170,5 @@ fn copy_without_module(source: &std::path::Path, target: &std::path::Path) {
         }
     }
 }
+#[path = "support/tab.rs"]
+mod tab;

@@ -96,24 +96,22 @@ impl Directories {
             })
             .cloned()
             .collect();
-        let same = resolve(&[], &defaults, working).is_ok_and(|(defaults, _)| {
-            self.config == defaults.config && self.data == defaults.data && self.cache == defaults.cache
-        });
+        let defaults = resolve(&[], &defaults, working).ok().map(|(defaults, _)| defaults);
         let home = environment.iter().find(|(name, _)| name.as_ref() == b"HOME").map(|(_, value)| value.as_ref());
         let mut words = Vec::new();
-        if !same {
-            for (name, path) in [
-                (b"TEMPER_CONFIG=".as_slice(), &self.config),
-                (b"TEMPER_DATA=", &self.data),
-                (b"TEMPER_CACHE=", &self.cache),
-            ] {
+        for (name, path, default) in [
+            (b"TEMPER_CONFIG=".as_slice(), &self.config, defaults.as_ref().map(|dirs| &dirs.config)),
+            (b"TEMPER_DATA=", &self.data, defaults.as_ref().map(|dirs| &dirs.data)),
+            (b"TEMPER_CACHE=", &self.cache, defaults.as_ref().map(|dirs| &dirs.cache)),
+        ] {
+            if Some(path) != default {
                 words.extend_from_slice(name);
                 words.extend_from_slice(&crate::printed::path_word(path, home));
                 words.push(b' ');
             }
         }
         let word = if word.len() <= BOUND.saturating_sub(words.len()) { word } else { b"temper" };
-        if !same || word != b"temper" {
+        if !words.is_empty() || word != b"temper" {
             words.extend_from_slice(word);
         }
         words.into_boxed_slice()

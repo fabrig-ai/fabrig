@@ -61,19 +61,7 @@ pub(crate) fn limits() -> Limits {
         inner: 32,
         target_bytes: 4096,
         tls: skein_tls::client::Limits { read: 16384, send: 16384, records: skein_tls::client::MAX_RECORD },
-        io: skein_io::Limits {
-            sockets: 8,
-            names: 0,
-            refusals: 2,
-            intake: 32768,
-            receive: 4096,
-            output: 32768,
-            sends: 4,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: Duration::from_secs(1),
-            retry: Duration::from_millis(10),
-        },
+        io: skein_io::Limits { sockets: 8, refusals: 2, receive: 4096, sends: 4, ..skein_io::Limits::TEST },
     }
 }
 fn forge(number: u16) -> Forge {

@@ -30,16 +30,11 @@ impl Peer {
     fn new(listener: Option<TcpListener>) -> Self {
         let limits = io::Limits {
             sockets: 1,
-            names: 0,
-            refusals: 1,
             intake: 4096,
-            receive: 1024,
             output: 4096,
             sends: 1,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: Duration::from_secs(1),
             retry: Duration::from_millis(1),
+            ..io::Limits::TEST
         };
         let mut io = io::Io::new(&limits);
         let adopted = listener.is_some();

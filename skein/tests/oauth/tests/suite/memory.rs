@@ -17,28 +17,7 @@ fn client_and_rotating_issuer_steps_stay_under_their_heap_ceilings() {
 const CLIENT_REFRESH_HEAP_CEILING: u64 = 1_900;
 
 fn check_client(document: oauth::Limits) {
-    let client_limits = oauth::ClientLimits {
-        document,
-        uri_bytes: 256,
-        scope_bytes: 64,
-        state_bytes: 64,
-        code_bytes: 64,
-        url_bytes: 1024,
-        request_bytes: 1024,
-        parameter_bytes: 0,
-        resource_bytes: 0,
-        nonce_bytes: 0,
-        metadata_bytes: 0,
-        key_set_bytes: 0,
-        keys: 0,
-        modulus_bits: 2048,
-        skew: Duration::from_secs(60),
-        sign_in_time: Duration::from_secs(120),
-        request_time: Duration::from_secs(10),
-        backoff_base: Duration::from_secs(2),
-        backoff_ceiling: Duration::from_secs(8),
-        max_attempts: 3,
-    };
+    let client_limits = oauth::ClientLimits { document, skew: Duration::from_secs(60), ..oauth::ClientLimits::TEST };
     let meter = Meter::new();
     let mut client = oauth::Client::new(client_limits).expect("client");
     let mut out = Queue::with_capacity(1);

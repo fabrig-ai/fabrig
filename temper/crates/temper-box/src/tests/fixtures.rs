@@ -179,6 +179,7 @@ pub struct Harness {
     pub endings: HeldEndings,
 }
 pub struct Opening {
+    pub link_form: crate::terminal::LinkForm,
     pub log_lines: Box<[Box<[u8]>]>,
     pub first_link: Option<crate::host::FirstLink>,
     pub after_block: Box<[u8]>,
@@ -236,7 +237,12 @@ impl Harness {
             buffer,
             limits,
             echo,
-            Opening { log_lines, first_link: None, after_block: Box::new([]) },
+            Opening {
+                link_form: crate::terminal::LinkForm::Bare,
+                log_lines,
+                first_link: None,
+                after_block: Box::new([]),
+            },
         )
     }
     pub fn with_terminal(
@@ -268,6 +274,7 @@ impl Harness {
             }
         }
         let settings = Settings {
+            link_form: opening.link_form,
             log_lines: opening.log_lines,
             first_link: opening.first_link,
             after_block: opening.after_block,

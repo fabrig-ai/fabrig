@@ -24,6 +24,8 @@ mod grow;
 #[cfg(debug_assertions)]
 mod log_fixture;
 #[cfg(debug_assertions)]
+mod tab_fixture;
+#[cfg(debug_assertions)]
 mod tree;
 
 const NAMES: &[Names<'_>] = &[Names {
@@ -81,6 +83,11 @@ pub fn start() {
     #[cfg(debug_assertions)]
     if path == "/test/folds-away" {
         folds_fixture::start(mount, facts.primary);
+        return;
+    }
+    #[cfg(debug_assertions)]
+    if path.split('?').next() == Some("/test/tab") {
+        tab_fixture::start(mount, facts.primary);
         return;
     }
     #[cfg(debug_assertions)]

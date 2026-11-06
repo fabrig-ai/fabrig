@@ -80,7 +80,7 @@ fn terminal_serializes_both_targets_through_full_budget_acknowledgements() {
 fn block_admission_counts_the_active_item_and_is_atomic() {
     let mut terminal = fifo();
     let mut out = Queue::with_capacity(8);
-    let mut formatter = Formatter::new();
+    let mut formatter = Formatter::new(crate::terminal::LinkForm::Bare);
     terminal.push(item(Target::Stderr, b"held\n"));
     terminal.tick(false, &mut out);
     out.pop();
