@@ -123,7 +123,8 @@ Forgejo's command without its binary and paths
 configuration names a `uuid`, reading no row, where the `runner-labels`
 request of 2026-11-05 has the uuid match (`protocol/setup.md`), `temper
 box` prints its link first and alone, but no story holds a connection
-waiting on its socket and then signing in, and a first box from a binary
+waiting on its socket and then signing in, no run on record has its OSC 8
+link on a real terminal, and a first box from a binary
 with no browser does not say so (`protocol/setup.md`), and a
 held task names no run's failure, which
 is the user's to decide (`domain/worker.md`); a start past 20 slots on
@@ -179,8 +180,8 @@ kinds, stays on Needs you once accepted, leaves its chat on a reload and follows
 "Decision made" while it waits, and Accept on that chat's own card is refused, where
 Needs you's and Home's work (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
-binary that runs it and has a Copy, but no browser test presses the Copy; a `TEMPER_` value named only where it
-differs (`client/README.md`) and a link clickable on a terminal (`protocol/setup.md`) wait on `box-small-2`; and
+binary that runs it and has a Copy, but no browser test presses the Copy; with no `HOME` and an XDG variable placing
+only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request
 `model-check-pane` in its list's words, and a sign-in that ends on its way's page stops at

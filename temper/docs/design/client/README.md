@@ -6826,8 +6826,11 @@ own tests:
 
 - **A command for anyone but the owner** (3.5, 4.6): `program_login` goes to any
   party signed in, its paths with it, so a person who isn't the owner reads on
-  Accounts the directories `program_environment` refuses them. Default: so, what's
-  printed working when pasted, until a deployment says otherwise.
+  Accounts the directories `program_environment` refuses them. It names all three
+  by their flags, at their defaults or not, where the owner's words name each only
+  off its own: the request `box-small-2` of 2026-11-06 asks that of
+  `program_environment` alone. Default: so, what's printed working when pasted,
+  until a deployment says otherwise.
 - **This deployment's directories under "each host"** (4.6, 5.5): Connect a model's
   Ready says "Run this on each host temper’s agents run on" over "On this machine,
   run:" and the command with `program_environment`'s words, which are this
