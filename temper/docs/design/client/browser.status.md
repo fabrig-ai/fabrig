@@ -4,6 +4,7 @@
 
 - **Not yet:** 4.3, *The tier's window*: the tier's bundle holds the whole `document_bytes`,
   and `reading_tier`'s replies are sized for it.
+- **Not yet:** 8.3: three things remain, as the request `ui-public-2` left them. Landed work from before a project went public never shows. A restart empties the history (jig's `domain/people.md`, 13.9). A stock queue's Landings stay empty, since its changes land without a landing by turn.
 - **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
   is compiled. Its runtime red and green await the browser tier after landing;
   the incompatible plan-row placement is the repair's red-first source evidence.

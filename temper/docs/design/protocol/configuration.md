@@ -898,8 +898,8 @@ have one, an engine alone none. Each:
   `core.brief_parts`, `core.brief_core_budgets.`, `core.resume_bytes`,
   `core.run_bytes`, `core.escalation_reason_bytes`,
   `core.load_slots` and `core.load_bytes`, a person's read of the store,
-  from `root.loads.read_bytes`; as constants, in place of `views.`,
-  `core.fill_mark` and `core.connectors`. An
+  from `root.loads.read_bytes`; as constants, in place of `views.`, but
+  for its watch rooms (below), `core.fill_mark` and `core.connectors`. An
   override of one of these changes nothing the root holds, but for
   `core.resume_bytes`: the core's resume setting is still taken from it,
   above 0 and within `root.journal.transcript_bytes`.
@@ -915,17 +915,68 @@ have one, an engine alone none. Each:
   deployment lets in, whose limits are the client's. A test holds the
   owned example's and the process tier's configuration to temper's
   client's limits, so the two cannot drift apart unseen.
-- **The engine's watch room fits temper's client.** A watch past the
-  room the engine allows a party, or a stream, is refused busy, and each
-  holds its place until the engine has ended it, so a deployment allows
-  each party, and each stream, at least the watches one client opens at
-  its limit, `me`'s included (jig's `client/domain/contract.md`, 7.2;
-  jig's `protocol/client.md`, section 13). temper's client opens 17, so
-  its engine allows 17 a party, 17 a stream and 17 in all, temper's own
-  numbers above jig's profiles' 4, which the root holds whatever
-  `engine.limits` says (`../domain/root.md`, section 10). It checks none
-  of this at start, as for documents (above); the same test holds these
-  rooms to temper's client's watches.
+- **The engine's watch rooms follow what it admits.** A watch past the
+  room the engine allows a party, a stream or the deployment is refused
+  busy, and each holds its place until the engine has ended it (jig's
+  `client/domain/contract.md`, 7.2; jig's `protocol/client.md`, section
+  13). The deployment admits `clients.streams` clients at once, each
+  holding up to its own watches, `me`'s included, and temper's shipped
+  clients open 17 (`../domain/root.md`, section 10). So:
+  - *a stream's room* is 17, `WATCHES_PER_STREAM`, one shipped client's;
+  - *the deployment's room* is `clients.streams` times that: 136 at
+    `temper init`'s 8 streams (13.4), 34 at the small profile's 2;
+  - *a party's room* is the deployment's, since a person's tabs and their
+    `temper ctl` calls are one party and may hold every stream.
+    `views.watchers_per_party` never bites below `views.watchers` here:
+    what one person can use up is the streams, and that refusal names
+    them.
+
+  `clients_http.streams` bounds the transport's side of those same
+  streams and adds no room. The same test as for documents holds a
+  stream's room to temper's client's watches, and a test of the limits
+  holds the other two to `clients.streams`.
+- **The rooms have no setting of their own.** More room is more streams,
+  `clients.streams`, and the 17 is the shipped clients' bound. An
+  `engine.limits.overrides` naming `views.watchers` or
+  `views.watchers_per_party` is refused at the start, naming
+  `clients.streams`, and `temper help limits-engine` lists neither: the
+  root never took them, so a document naming them was told nothing.
+  Those two names stay jig's, for an application whose root takes them
+  (jig's `protocol/configuration.md`, section 6). `views.`'s other names
+  stay as above.
+- **What a watch costs.** A watch holds a views slot, a name, a flight
+  and its stream's entry, and shares a subject's slot with the other
+  watches on that subject. It keeps no document between deliveries (jig's
+  `domain/engine.md`, section 11), and these capacities allocate nothing
+  until used, so a larger room costs nothing until it is held.
+  - *Work:* an opening scans the watches held and builds its first
+    document. Each commit's marks scan the watches held, and build one
+    document for each watch whose subject changed, none shared between
+    watches on one subject, with one delivery in flight per watch.
+  - *Heap:* that pass holds each document it built until the document is
+    delivered, so its peak is what those documents hold, each within the
+    documents' bounds. No heap sum admits the root (`../domain/root.md`,
+    section 10), so no figure at the start moves. The engine's world
+    measures a full room (`temper/tests/engine/domain/tests/suite/memory.rs`).
+    With one or eight streams the empty root held 4,742 heap bytes; full rooms
+    of 17 and 136 held another 14,112–15,256 and 114,720–126,336 bytes after
+    delivery, respectively, and one marking commit peaked at 116,816 and
+    452,176 bytes in the engine world including its driver and fake store.
+  - *The journal's door:* a full room puts at most 136 deliveries behind
+    one commit, 408 behind `root.journal.commits`' 3, within
+    `root.journal.deliveries`' 512. Past that the watermark paces new
+    work, and nothing fails.
+  - *The store:* its bounds don't follow the rooms. A watch holds no row,
+    and an opening on a retained subject takes one of `root.loads.loads`,
+    refused busy past them.
+- **Past the room.** Each stream's room fits the deployment's, so only
+  watches still closing can overlap it: a stream's predecessor holds its
+  place until its terminals come (jig's `client/domain/client.md`, 8.1).
+  Each is given back at its terminal, and a client refused busy opens
+  again after a backoff, so it gets its answer once they end. Until then
+  its link is offline and it knows why (jig's `client/domain/client.md`,
+  8.2), and `temper ctl` says so at its deadline (`../client/tools.md`,
+  6.3).
 - **The forge's paths fit a document.** jig's documents carry a
   resource's path and a pattern whole, with as many segments as the
   engine admits in a name (jig's `client/domain/contract.md`, 5.3), and
@@ -1249,6 +1300,16 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **A party's fair share of the watch rooms.** A party's room is the
+  deployment's (section 7), so one person with every stream leaves another
+  none, and the refusal they meet is the streams'. Nothing has asked for
+  less, and a smaller share would lock a person's own tabs out again.
+  Default: none.
+- **`views.`'s other names.** `views.runs`, `views.subjects_per_change`,
+  `views.text_bytes` and `views.facts` are still taken and change nothing
+  the root holds (section 7), where `views.watchers` and
+  `views.watchers_per_party` are refused. Nobody was misled by them on
+  record. Default: they stay until one is.
 - **A Claude-only box on the small profile.** Its largest turn's store
   frame passes small's page ceiling (13.8), where `standard`'s holds any
   turn smith admits: a page decision of jig's or skein's profile.
@@ -1950,7 +2011,7 @@ init`'s document carries none of them (`setup.md`, 8.3).
   (`clients.exchanges`, `clients_http.calls` and temper's server
   connections, 12), since every `temper ctl` call holds a stream and a
   wait holds it for the wait, so a person and a walk hold three to five
-  at once. One call's arguments are bounded by its model's output, not
+  at once, and the engine's watch rooms follow them (section 7). One call's arguments are bounded by its model's output, not
   by the message bound: the agent's `tool_payload`, and
   `checkout.message_bytes` with it, is the largest smith admits at
   init's models (13.8). smith offers a run a message within the same

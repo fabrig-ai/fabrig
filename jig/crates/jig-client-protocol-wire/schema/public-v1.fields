@@ -12,10 +12,9 @@ enum PublicPhase backing_off tag=6 payload=-
 enum PublicPhase active tag=7 payload=-
 enum PublicPhase closing tag=8 payload=-
 enum PublicPhase held tag=9 payload=-
-enum PublicPhase ended tag=10 payload=-
-enum PublicPhase done tag=11 payload=-
-enum PublicPhase failed tag=12 payload=-
-enum PublicPhase cancelled tag=13 payload=-
+enum PublicPhase done tag=10 payload=-
+enum PublicPhase failed tag=11 payload=-
+enum PublicPhase cancelled tag=12 payload=-
 enum PublicHold failures tag=0 payload=-
 enum PublicHold stalled tag=1 payload=-
 enum PublicHold dependency tag=2 payload=-
@@ -52,8 +51,7 @@ record PublicLine made u64 tag=- default=-
 record PublicLine changed u64 tag=- default=-
 record PublicLine active option u64 tag=- default=-
 record PublicLine ended option u64 tag=- default=-
-record PublicLine spent u64 tag=- default=-
-record PublicLine budget u64 tag=- default=-
+record PublicLine spent option u64 tag=- default=-
 record PublicLine delegates PublicCounts tag=- default=-
 record PublicProject project u64 tag=- default=-
 record PublicProject name text 64 tag=- default=-
