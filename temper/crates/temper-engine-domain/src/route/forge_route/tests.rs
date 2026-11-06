@@ -1588,23 +1588,27 @@ fn a_ci_repairs_words_open_with_its_head_and_two_failed_contexts() {
     let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
     assert!(words[..128].starts_with(b"Repair CI at abcdef012345: "));
     assert!(words.ends_with(super::REPAIR_PRESERVATION));
-    assert!(super::repair_words(&row, super::forge_change::Repair::Ci, &[], 64).is_none());
+    for why in [super::forge_change::Repair::Ci, super::forge_change::Repair::Semantic] {
+        assert!(super::repair_words(&row, why, &[], 64).is_none());
+    }
 }
 
 #[test]
 fn a_ci_repair_with_no_failed_check_known_says_so() {
-    for (observed, failed) in
-        [(None, b"stale check".as_slice()), (Some(SHA256), b"stale check".as_slice()), (Some(SHA1), b"".as_slice())]
-    {
-        let mut row = change_row(Some(42));
-        row.change.last_head = Some(SHA1);
-        row.result.head = observed;
-        row.result.failed.bytes = failed.into();
-        let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
-        assert_repair_instruction(&words, b"Repair CI at abcdef012345: no failed check named\n");
-        for bound in 0..512 {
-            if let Some(words) = super::repair_words(&row, super::forge_change::Repair::Ci, &[], bound) {
-                assert_repair_instruction(&words, b"Repair CI at abcdef012345: no failed check named\n");
+    for why in [super::forge_change::Repair::Ci, super::forge_change::Repair::Semantic] {
+        for (observed, failed) in
+            [(None, b"stale check".as_slice()), (Some(SHA256), b"stale check".as_slice()), (Some(SHA1), b"".as_slice())]
+        {
+            let mut row = change_row(Some(42));
+            row.change.last_head = Some(SHA1);
+            row.result.head = observed;
+            row.result.failed.bytes = failed.into();
+            let words = super::repair_words(&row, why, &[], 512).unwrap();
+            assert_repair_instruction(&words, b"Repair CI at abcdef012345: no failed check named\n");
+            for bound in 0..512 {
+                if let Some(words) = super::repair_words(&row, why, &[], bound) {
+                    assert_repair_instruction(&words, b"Repair CI at abcdef012345: no failed check named\n");
+                }
             }
         }
     }
@@ -1661,13 +1665,15 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
 }
 
 #[test]
-fn a_base_break_repairs_words_open_with_its_head_and_base() {
+fn a_clean_updates_red_opens_with_its_head_and_failed_check() {
     let mut row = change_row(Some(42));
     row.change.last_head = Some(SHA1);
+    row.result.head = Some(SHA1);
+    row.result.failed.bytes = b"build".as_slice().into();
     let words = super::repair_words(&row, super::forge_change::Repair::Semantic, &[], 512).unwrap();
     assert_repair_instruction(
         &words,
-        b"Repair the base's break at abcdef012345: main\nRepair the base update's semantic conflict",
+        b"Repair CI at abcdef012345: build\nCI failed after a clean update from the base, and no merge conflict waits. Repair what the failed check says.",
     );
 }
 

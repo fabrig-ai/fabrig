@@ -3533,8 +3533,7 @@ fn review_words(
 /// The gate's kind uses the same words as the change panel.
 fn repair_opening(row: &forge::ChangeRow, why: forge_change::Repair) -> Option<Box<[u8]>> {
     let number = match why {
-        forge_change::Repair::Ci => return Some(Box::from(&b"Repair CI at "[..])),
-        forge_change::Repair::Semantic => return Some(Box::from(&b"Repair the base's break at "[..])),
+        forge_change::Repair::Ci | forge_change::Repair::Semantic => return Some(Box::from(&b"Repair CI at "[..])),
         forge_change::Repair::Gate(number) => number,
         forge_change::Repair::Landing { .. } => return None,
     };
@@ -3619,7 +3618,7 @@ fn repair_words(
 ) -> Option<Box<[u8]>> {
     let previous: &[u8] = match why {
         forge_change::Repair::Ci => b"Repair the failed CI on the change branch.",
-        forge_change::Repair::Semantic => b"Repair the base update's semantic conflict.",
+        forge_change::Repair::Semantic => b"CI failed after a clean update from the base, and no merge conflict waits. Repair what the failed check says.",
         forge_change::Repair::Gate(_) => b"Repair the requested gate changes.",
         forge_change::Repair::Landing { .. } => return None,
     };
@@ -3629,8 +3628,8 @@ fn repair_words(
     let tail = u32::try_from(previous.len().checked_add(REPAIR_PRESERVATION.len())?.checked_add(1)?).ok()?;
     let mut identity = List::with_capacity(room.checked_sub(tail)?);
     let opening = repair_opening(row, why)?;
-    let unnamed_ci =
-        why == forge_change::Repair::Ci && (row.result.head != Some(head) || row.result.failed.bytes.is_empty());
+    let unnamed_ci = (why == forge_change::Repair::Ci || why == forge_change::Repair::Semantic)
+        && (row.result.head != Some(head) || row.result.failed.bytes.is_empty());
     let name_bytes = if unnamed_ci { b"no failed check named".len() } else { 1 };
     // Keep the opening, head and an explicit name even under a small task spec bound.
     if usize::try_from(identity.room()).ok()? < opening.len().checked_add(14)?.checked_add(name_bytes)? {
@@ -3640,14 +3639,13 @@ fn repair_words(
     append(&mut identity, digits.get(..12).expect("a commit has at least 40 hexadecimal digits"));
     append(&mut identity, b": ");
     match why {
-        forge_change::Repair::Ci => {
+        forge_change::Repair::Ci | forge_change::Repair::Semantic => {
             if row.result.head == Some(head) && !row.result.failed.bytes.is_empty() {
                 append(&mut identity, &row.result.failed.bytes);
             } else {
                 append(&mut identity, b"no failed check named");
             }
         }
-        forge_change::Repair::Semantic => append(&mut identity, &row.base),
         forge_change::Repair::Gate(_) => append(&mut identity, b"changes requested"),
         forge_change::Repair::Landing { .. } => return None,
     }
