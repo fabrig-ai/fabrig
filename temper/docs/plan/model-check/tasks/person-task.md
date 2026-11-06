@@ -15,6 +15,9 @@ files = [
   "jig/crates/jig-domain-core/src/documents/chip_phase.rs",
   "jig/crates/jig-domain-core/src/tests/person_task.rs",
   "jig/crates/jig-domain-core/src/tests.rs",
+  "jig/crates/jig-domain-authority/src/check.rs",
+  "jig/crates/jig-domain-authority/src/lib.rs",
+  "jig/crates/jig-domain-authority/src/tests_policy.rs",
 ]
 effort = "high"
 minutes = 120
@@ -115,3 +118,24 @@ The checks: fmt, `old_forms.py` for `jig`, clippy on `jig-domain-core`, the test
 
 As the implementer's text asks: each story's bite; every reader you had to touch for project 0, with its reason; the
 options taken.
+
+## Answers
+
+2026-11-06. **`check_run` refuses project 0 with `Finding::UnknownProject`, outside this task's files: widen the task, or
+a prerequisite task?** Widen: "It runs" cannot hold without it, and `jig/docs/design/domain/authority.md`, 6.1 already
+decides it ("Project 0 names no project and has no policy"; "its authority: the rules' ceiling"). `files` now hold
+`jig/crates/jig-domain-authority/src/check.rs`, its `lib.rs` for the re-export and `tests_policy.rs`. Resume from the
+pushed `4ad4220b01`. No synthetic policy, no substitute project, no bypass in the core.
+
+- **The name:** `jig_domain_authority::NO_PROJECT: u32 = 0`, citing 6.1; the authority child names no other child, so it
+  doesn't take `jig_domain_people::DEPLOYMENT`. Beside `person_seed`, the core holds them equal:
+  `const _: () = assert!(authority::NO_PROJECT == people::DEPLOYMENT);`.
+- **`check_run` only:** with no policy, a project other than `NO_PROJECT` still refuses `UnknownProject`. At `NO_PROJECT`
+  the rules' ceiling stands in the policy's place for the run cap and the deadline, and a write refuses with
+  `Finding::Grant { source: Source::Project }`, since nothing grants it (6.1: no grants).
+- **Every other check keeps its refusal:** `check_call`, `check_effect`, `check_batch`, `check_projection`, `check_job`
+  and `check_request` on project 0 refuse, as is right for a task with no tools, grants or delegation. If a story shows
+  one on the run's own path, that is a new question.
+- **Its story, failing first, in `tests_policy.rs`:** project 0 with no policy allows a good run; past the rules' spend
+  or deadline it refuses; a write refuses; project 99 with no policy still refuses `UnknownProject`. Run
+  `jig-domain-authority`'s `--lib` with the checks above.
