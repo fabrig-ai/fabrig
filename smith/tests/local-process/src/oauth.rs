@@ -135,7 +135,7 @@ impl Browser {
                             .expect("callback body length")
                             .parse::<u32>()
                             .expect("bounded callback page");
-                        assert!(length == 18 || length == 43, "the legacy or native callback page");
+                        assert!(length == 18 || length == 42, "the legacy or native callback page");
                         self.stream_down(Down::Demand { read: Read::Fill(length), room: 0 });
                     }
                 }
