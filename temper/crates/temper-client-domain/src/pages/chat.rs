@@ -1,6 +1,7 @@
 //! One chat borrows its task and retains jig's bounded conversation projection
 //! (temper/docs/design/client/README.md, 3.5).
 pub mod document;
+mod request;
 pub mod sheet;
 use super::{Act, Request, activity::Asking, delegation};
 use crate::{Limits, owner::Owner};
@@ -45,6 +46,7 @@ pub struct Chat {
     pub shown_count: u64,
     draft_read: Handle,
     goal_read: Handle,
+    request: request::Reader,
     goal_watched: Option<u64>,
     pub proposed: Option<c::Recipient>,
     draft_asking: Asking,
@@ -63,6 +65,7 @@ pub struct Chat {
     pub thread: Thread,
     to_end: u64,
     pub words: Box<[u8]>,
+    pub beyond: u64,
     pub composer_focus: u64,
     /// The proposal "Change something" was pressed on, until something is sent or it is decided (client/README.md, 5.13).
     pub change_asked: Option<c::ProposalKey>,
@@ -80,6 +83,13 @@ pub struct Chat {
     pub final_task: Option<Box<c::Task>>,
 }
 impl Chat {
+    /// The first message's bytes and whether they are whole (client/README.md, 5.4).
+    #[must_use]
+    pub fn request<'a>(&'a self, client: &'a Client) -> Option<(&'a [u8], bool)> {
+        let words = &self.task(client)?.spec.specification.words;
+        Some(self.request.words(words))
+    }
+
     /// The log's end request (temper/docs/design/client/README.md, 5.15).
     #[must_use]
     pub fn to_end(&self) -> u64 {
@@ -116,6 +126,7 @@ impl Chat {
             shown_count: 0,
             draft_read: handle(first.checked_add(2).expect("chat handles fit")),
             goal_read: handle(first.checked_add(3).expect("chat handles fit")),
+            request: request::Reader::new(limits.client.domain.long_text),
             goal_watched: None,
             proposed: None,
             draft_asking: Asking::new(),
@@ -133,6 +144,7 @@ impl Chat {
             thread,
             to_end: 0,
             words: Box::default(),
+            beyond: 0,
             composer_focus: 0,
             change_asked: None,
             pending: List::with_capacity(5),
@@ -151,12 +163,14 @@ impl Chat {
     pub(crate) fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
         self.asking.fire(now, self.activity, out);
         self.draft_asking.fire(now, self.draft_read, out);
+        self.request.fire(now, out);
         for read in self.card_reads.iter_mut() {
             read.asking.fire(now, read.handle, out);
         }
     }
     pub(crate) fn next_deadline(&self) -> Option<Time> {
         let mut at = super::activity::earliest(self.asking.next_deadline(), self.draft_asking.next_deadline());
+        at = super::activity::earliest(at, self.request.next_deadline());
         for read in &self.card_reads {
             at = super::activity::earliest(at, read.asking.next_deadline());
         }
@@ -170,6 +184,7 @@ impl Chat {
         if self.goal_watched.is_some() {
             unwatch(self.goal_read, out);
         }
+        self.request.leave(out);
         for (handle, _) in &self.decisions {
             unwatch(*handle, out);
         }
@@ -251,6 +266,7 @@ impl Chat {
             Told::Changed { handle } if handle == self.document => {
                 if let Some(Latest::Jig(c::Delivery::Task(task))) = latest(client, handle) {
                     ask_activity(&mut self.asking, self.activity, self.thread.document(task), out);
+                    self.request.start(task, &mut self.next, out);
                     self.watch_run(task, out);
                     self.proposals(task, out);
                     self.open_draft(task.project, out);
@@ -264,6 +280,7 @@ impl Chat {
             Told::Page { handle, page } if handle == self.document => {
                 if let Some(task) = page_task(page, self.task) {
                     ask_activity(&mut self.asking, self.activity, self.thread.document(&task), out);
+                    self.request.start(&task, &mut self.next, out);
                     self.watch_run(&task, out);
                     self.proposals(&task, out);
                     self.open_draft(task.project, out);
@@ -272,6 +289,9 @@ impl Chat {
             }
             Told::Changed { handle } | Told::Text { handle } if Some(handle) == self.run => {
                 self.run_changed(client, handle, out);
+            }
+            Told::Page { handle, page } if Some(handle) == self.request.handle => {
+                self.request.page(now, client, self.task, page, out);
             }
             Told::Page { handle, page } if handle == self.draft_read => {
                 self.draft_page(now, client, page, out);
@@ -1118,9 +1138,7 @@ impl Chat {
                 self.composer_focus = self.composer_focus.checked_add(1).expect("focus count fits");
             }
             Act::MessageWords { words } => {
-                if words.len() <= usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("text bound fits") {
-                    self.words = words;
-                }
+                (self.words, self.beyond) = super::composer::held(words, env.limits.client.domain.long_text);
             }
             Act::Mode { mode } => self.mode = mode,
             Act::ShowSection { line } => {
@@ -1232,7 +1250,7 @@ impl Chat {
     }
     fn send(
         &mut self,
-        _env: &Env<Limits>,
+        env: &Env<Limits>,
         client: &Client,
         kind: Sending,
         supplied: Option<&[u8]>,
@@ -1251,7 +1269,12 @@ impl Chat {
         };
         let words = match kind {
             Sending::Message if !message.is_empty() && allowed(task, c::ActKind::Message) => {
-                Some(c::Text::new(message.into(), temper_client_protocol_wire::CUE_BYTES).expect("composer bounded"))
+                let Some(me) = me else { return };
+                if supplied.is_none() && super::composer::over(&self.words, self.beyond, me.words_bytes) > 0 {
+                    return;
+                }
+                let Ok(words) = c::Text::new(message.into(), env.limits.client.domain.long_text) else { return };
+                Some(words)
             }
             Sending::Message => return,
             Sending::Stop | Sending::Resume | Sending::Seen | Sending::Close => None,
@@ -1297,10 +1320,13 @@ impl Chat {
         if let Some(words) = words {
             let Some(me) = me else { return };
             if !self.thread.sending(key, me.party.number, words, 0) {
+                self.outcome = Some(jig_client::Outcome::Limit);
+                self.outcome_kind = Some(kind);
                 return;
             }
             if supplied.is_none() {
                 self.words = Box::default();
+                self.beyond = 0;
             }
             self.change_asked = None;
         }
@@ -1325,7 +1351,7 @@ pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits {
         )
         .unwrap_or(u32::MAX),
         bytes: limits.client.domain.document_bytes,
-        text: limits.client.domain.text,
+        text: limits.client.domain.long_text,
         live: limits.client.domain.long_text,
     }
 }
