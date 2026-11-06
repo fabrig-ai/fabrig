@@ -702,8 +702,10 @@ The table grows area by area, each with its stories (section 11).
    `goal start` defaults to stock template 2; `--template` names an
    offered template, including its charter, contract, tracking, label,
    flags, LLM choice and symbolic resources. The chosen executor needs
-   `--charter CHARTER`; omitting it fails as usage, exit 1, nothing sent:
-   `template 2 lets its creator choose the executor; name it: --charter CHARTER`.
+   `--charter CHARTER`. Missing controls are collected before returning usage,
+   exit 1, nothing sent: `template 2 needs: --charter CHARTER; --budget AMOUNT or --as-allowed; --deadline TIME; help goal start`.
+   Only controls required by the selected template and absent from the call
+   appear; fixed budget and deadline defaults are kept.
    A fixed executor takes its template's charter; also giving `--charter`
    fails as usage: `template 4's executor is charter 5; leave out --charter`
    (the numbers name that template and charter). A charter not offered
