@@ -352,9 +352,19 @@ pub fn line(source: &domain::Line, limits: &wire::Limits) -> Result<wire::Line, 
             limits,
             wire::TurnLineParts { reply: *reply, attempt: *attempt, turn: *turn, read: *read },
         )?),
-        domain::Line::Decided { revision } => {
-            wire::Line::Decided(wire::DecidedLine::new(limits, wire::DecidedLineParts { revision: *revision })?)
-        }
+        domain::Line::Decided { revision, proposal } => wire::Line::Decided(wire::DecidedLine::new(
+            limits,
+            wire::DecidedLineParts {
+                revision: *revision,
+                proposal: match proposal {
+                    Some(value) => Some(wire::DecidedProposal::new(
+                        limits,
+                        wire::DecidedProposalParts { number: value.number, made: value.made },
+                    )?),
+                    None => None,
+                },
+            },
+        )?),
         domain::Line::Kept { attempt, pending, question } => wire::Line::Kept(wire::KeptLine::new(
             limits,
             wire::KeptLineParts {
@@ -401,8 +411,14 @@ pub fn read_line(source: wire::Line, limits: &wire::Limits) -> Result<domain::Li
             domain::Line::Turn { reply, attempt, turn, read }
         }
         wire::Line::Decided(source) => {
-            let wire::DecidedLineParts { revision } = source.into_parts();
-            domain::Line::Decided { revision }
+            let wire::DecidedLineParts { revision, proposal } = source.into_parts();
+            domain::Line::Decided {
+                revision,
+                proposal: match proposal {
+                    Some(value) => Some(domain::DecidedProposal { number: value.number(), made: value.made() }),
+                    None => None,
+                },
+            }
         }
         wire::Line::Kept(source) => {
             let wire::KeptLineParts { attempt, pending, question } = source.into_parts();

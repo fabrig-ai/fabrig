@@ -1372,7 +1372,11 @@ fn a_withdrawn_settings_proposal_is_read_as_its_retained_state() {
     let history = c::ReadValue::Ended(Box::new(c::Ended {
         key: c::ObjectKey::Proposal(key),
         value: c::EndedValue::Proposal(c::ProposalHistory {
+            reason: c::DocumentText::complete(
+                c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+            ),
             action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                projects: List::with_capacity(0),
                 against: 5,
                 items: list([c::RevisionItemHead { setting: c::Setting::Rules, edit: c::RevisionItemEdit::Reset }]),
                 made: None,
@@ -1418,6 +1422,9 @@ fn retained_proposal(key: c::ProposalKey, action: c::RetainedAction) -> c::ReadV
     c::ReadValue::Ended(Box::new(c::Ended {
         key: c::ObjectKey::Proposal(key),
         value: c::EndedValue::Proposal(c::ProposalHistory {
+            reason: c::DocumentText::complete(
+                c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+            ),
             action,
             number: key.number,
             proposer,
@@ -1448,7 +1455,12 @@ fn retained_settings_preserves_task_or_party_keys_and_its_revision_details() {
         let key = c::ProposalKey { proposer, number: 7 };
         let history = retained_proposal(
             key,
-            c::RetainedAction::Settings(c::RetainedActionSettings { against: 5, items: list([]), made: Some(6) }),
+            c::RetainedAction::Settings(c::RetainedActionSettings {
+                projects: List::with_capacity(0),
+                against: 5,
+                items: list([]),
+                made: Some(6),
+            }),
         );
         for json in [false, true] {
             let argv = if json { vec!["proposal", "show", name, "--json"] } else { vec!["proposal", "show", name] };
@@ -1827,6 +1839,7 @@ fn repeated_settings_decisions_send_the_given_key_and_print_the_engine_answer() 
                 let mut history = retained_proposal(
                     proposal,
                     c::RetainedAction::Settings(c::RetainedActionSettings {
+                        projects: List::with_capacity(0),
                         against: 5,
                         items: list([]),
                         made: if accepted { Some(6) } else { None },

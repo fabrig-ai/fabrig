@@ -21,9 +21,19 @@ pub fn line(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::ActivityLi
             limits,
             w::ActivityTurnParts { reply: *reply, attempt: *attempt, turn: *turn, read: *read },
         )?),
-        t::Line::Decided { revision } => {
-            w::Activity::Decided(w::ActivityDecided::new(limits, w::ActivityDecidedParts { revision: *revision })?)
-        }
+        t::Line::Decided { revision, proposal } => w::Activity::Decided(w::ActivityDecided::new(
+            limits,
+            w::ActivityDecidedParts {
+                revision: *revision,
+                proposal: match proposal {
+                    Some(value) => Some(w::ActivityDecidedProposal::new(
+                        limits,
+                        w::ActivityDecidedProposalParts { number: value.number, made: value.made },
+                    )?),
+                    None => None,
+                },
+            },
+        )?),
         t::Line::Kept { attempt, pending, question } => {
             let mut rows =
                 skein_lib::List::with_capacity(u32::try_from(pending.len()).expect("bounded pending dependencies"));

@@ -444,6 +444,7 @@ pub fn wire_retained_action_settings(
     w::RetainedActionSettings::new(
         limits,
         w::RetainedActionSettingsParts {
+            projects: value.projects.clone(),
             against: value.against,
             items: list(value.items.iter().map(|item| wire_revision_item_head(item, limits)))?,
             made: value.made.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,

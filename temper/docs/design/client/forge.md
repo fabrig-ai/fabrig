@@ -431,7 +431,8 @@ and `connect-forge.html`.
   parts below and its actions. Every row starts folded.
 - **"Open Forgejo ↗"** on a connected Forgejo that signs its people in
   through temper (`../protocol/sign-in.md`, section 9): a link to the
-  forge's `ROOT/user/oauth2/temper`, `ROOT` its `git` URL, in a new tab,
+  forge's `ROOT/user/oauth2/temper`, `ROOT` its browser origin as
+  `../protocol/sign-in.md`, 9.1 defines it, in a new tab,
   and under the actions the line "Open Forgejo signs you in as LOGIN,
   through temper: Forgejo’s sign-in is temper’s.", LOGIN the member's
   login. Forgejo starts its sign-in with the temper source, temper
@@ -456,7 +457,9 @@ and `connect-forge.html`.
   OWNER and NAME are each percent-encoded as a path's segment, all but ASCII
   letters, digits, `-`, `.`, `_` and `~`, and in `redirect_to` that path is
   encoded again as a query's value, so a name can't end the path, the query or
-  the address. An address that isn't a safe `http` or `https` URL is none.
+  the address. A whole segment `.` or `..` has its dots encoded twice
+  (`%252E`), since browsers normalize a once-encoded dot segment too.
+  An address that isn't a safe `http` or `https` URL is none.
   The terminal draws no link, and its words are unchanged. A folded row's
   summary stays words: a disclosure's description is text in its `<summary>`,
   and a link there is the trap a link in a button is; its link is in the
@@ -1355,6 +1358,10 @@ made by the forge connector from what it keeps of the change
 
 ## 10. Open questions
 
+- **A repository link in a folded forge row** (5.4): the summary stays
+  words and the link lives in the body's Repositories. Offering it while
+  folded needs a row whose navigation and disclosure are separate controls.
+  Default: the body's link, as the `ui-repo-link` cut decided.
 - **A visitor's links to the forge** (11.3): a commit, a pull request or a
   run linked where its repository is known public. Default: none. The
   forge's state would have to keep whether a repository is private, and

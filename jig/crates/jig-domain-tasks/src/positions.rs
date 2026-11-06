@@ -97,7 +97,15 @@ pub(crate) fn history(
         }
         ProposalState::Pending { .. } => {}
     }
-    crate::activity::append(&mut task.record, env.wall, crate::Line::Decided { revision }, out);
+    crate::activity::append(
+        &mut task.record,
+        env.wall,
+        crate::Line::Decided {
+            revision,
+            proposal: Some(crate::DecidedProposal { number: proposal.number, made: change == Change::Proposed }),
+        },
+        out,
+    );
     out.push(Request::Save {
         record: Stored::History(History {
             task: proposal.proposer,

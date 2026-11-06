@@ -246,6 +246,7 @@ fn an_attribute_patch_keeps_a_tag_it_can_update() {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
             | Op::HoldView { .. }
             | Op::PutView { .. }
@@ -289,6 +290,7 @@ fn a_changed_tag_replaces_the_element() {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
             | Op::HoldView { .. }
             | Op::PutView { .. }
@@ -499,15 +501,33 @@ fn focus_heading(b: &mut Builder, count: u64) {
 fn a_focus_request_focuses_its_node() {
     let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
     page.apply(&fixtures::patches(&mut view, 0, |b| focus_heading(b, 1)), &mut ops);
-    assert_eq!(ops.last(), Some(&Op::Focus { node: FOCUS_HEADING }));
+    assert_eq!(ops.iter().rev().nth(1), Some(&Op::Focus { node: FOCUS_HEADING }));
+}
+
+#[test]
+fn a_focus_request_brings_its_node_into_view() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, |b| focus_heading(b, 1)), &mut ops);
+    assert!(ops.ends_with(&[Op::Focus { node: FOCUS_HEADING }, Op::Reveal { node: FOCUS_HEADING }]));
+}
+
+fn moved_focus_ops() -> Vec<Op> {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, |b| focus_heading(b, 1)), &mut Vec::new());
+    page.apply(&fixtures::patches(&mut view, 1, |b| focus_heading(b, 2)), &mut ops);
+    ops
 }
 
 #[test]
 fn a_moved_focus_count_focuses_again() {
-    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
-    page.apply(&fixtures::patches(&mut view, 0, |b| focus_heading(b, 1)), &mut Vec::new());
-    page.apply(&fixtures::patches(&mut view, 1, |b| focus_heading(b, 2)), &mut ops);
-    assert_eq!(ops.last(), Some(&Op::Focus { node: FOCUS_HEADING }));
+    let ops = moved_focus_ops();
+    assert_eq!(ops.iter().rev().nth(1), Some(&Op::Focus { node: FOCUS_HEADING }));
+}
+
+#[test]
+fn a_moved_focus_count_brings_its_node_into_view_again() {
+    let ops = moved_focus_ops();
+    assert!(ops.ends_with(&[Op::Focus { node: FOCUS_HEADING }, Op::Reveal { node: FOCUS_HEADING }]));
 }
 
 #[test]
@@ -594,6 +614,7 @@ fn a_changed_count_sets_each_items_setsize_again() {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
             | Op::HoldView { .. }
             | Op::PutView { .. }
@@ -688,6 +709,7 @@ fn a_component_patch_receives_the_new_value() {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::HoldView { .. }
             | Op::PutView { .. }
             | Op::Measure { .. }
@@ -914,6 +936,7 @@ fn completion_attributes_keep_the_items_children_before_its_description() {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
             | Op::HoldView { .. }
             | Op::PutView { .. }
@@ -960,6 +983,7 @@ fn setting_then_clearing_a_placeholder_updates_its_attributes() {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
             | Op::HoldView { .. }
             | Op::PutView { .. }
@@ -1017,6 +1041,7 @@ fn disclosure_attribute_patches_keep_the_summary_before_its_children() {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
             | Op::HoldView { .. }
             | Op::PutView { .. }
@@ -1063,6 +1088,7 @@ fn a_progress_that_moves_keeps_its_element_and_says_its_new_words() {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
             | Op::HoldView { .. }
             | Op::PutView { .. }
@@ -1130,6 +1156,7 @@ fn list_op_kinds(ops: &[Op]) -> Vec<&str> {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
             | Op::HoldView { .. }
             | Op::PutView { .. }
