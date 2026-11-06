@@ -55,7 +55,10 @@ them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
-reads a spec in pieces of it (`protocol/setup.md`). A green head ends a CI repair
+reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
+its reply's room, but in those pieces where its process has no local agent, by the
+`read-task-room` plan's cut, and no goal on record has counted what the room saves
+(`domain/root.md`). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s
@@ -184,7 +187,11 @@ agent's task's Stop, Reject or Start over (`client/README.md`), and a sheet's ac
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
-answer as it stood (`domain/agent.md`). The
+answer as it stood (`domain/agent.md`). A journey's `add` redacts, proves
+and scans before it writes, but no real box's recording has been through it, the
+committed recordings keep their fake boxes' dummies until next added, nothing
+refuses `again` on a real journey, and the refusal's process tests watch two
+directories, not every path (`client/journeys.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
