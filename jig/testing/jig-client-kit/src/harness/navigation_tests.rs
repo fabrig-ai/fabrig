@@ -66,7 +66,9 @@ fn the_current_show_is_delivered_after_latency_once_despite_repeated_shows() {
     assert_eq!(outcome.verdict, Verdict::Passed);
     assert!(world.front().went.is_empty(), "Went is not delivered synchronously");
     assert_eq!(world.schedule.next_time(), Some(Time::from_nanos(2_000_000)));
-    let outcome = drain(&mut world);
+    let outcome = world.run(Until::Steps(1));
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert!(world.schedule.is_empty(), "a resumed step reaches the delayed acknowledgement");
     assert_eq!(outcome.dropped, 0);
     assert_eq!(world.front().went, [(client, address)]);
     assert_eq!(world.clients[client.0].history, [crate::stories::inbox(), address]);
