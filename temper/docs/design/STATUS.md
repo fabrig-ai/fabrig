@@ -184,10 +184,11 @@ says "Starting", and `task show` names a `deployment show` ctl lacks
 task and says a held task waits on its hold, but `temper help task` still says ctl
 takes no task and numbers a party's question, which `waiting on:` does not
 (`client/tools.md`). A proposal of settings reaches a
-project's Needs you and rail's count, but its live card lists no item of temper's
-kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
-"Decision made" while it waits, and Accept on that chat's own card is refused, where
-Needs you's and Home's work (`client/README.md`). "Start goal…" went once from a
+project's Needs you and rail's count and is accepted on its chat's card, but its live
+card lists no item of temper's kinds, stays on Needs you once accepted, leaves its chat
+on a reload, stands below the chat's newest reply rather than at its call and follows a
+"Decision made" while it waits; the chat's card draws no Reject, departing from the
+request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
 binary that runs it and has a Copy, but no browser test presses the Copy; with no `HOME` and an XDG variable placing
 only some directories it names all three `TEMPER_` values; and
