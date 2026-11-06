@@ -112,7 +112,7 @@ pub fn forge_kept(root: &Domain) -> bool {
 /// Where "Go on setting up" and Forge's and Model's "Continue" go: Ready with a usable model, else Model.
 #[must_use]
 pub fn go_on(root: &Domain) -> crate::Step {
-    if model_usable(root) == Some(true) { crate::Step::Ready } else { crate::Step::Model { way: None } }
+    if model_counts(root) == Some(true) { crate::Step::Ready } else { crate::Step::Model { way: None } }
 }
 /// The store's first-run state (temper/docs/design/client/README.md, 3.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -129,7 +129,7 @@ pub fn decision(root: &Domain) -> Option<FirstRun> {
     if !root.forge().playground_answered() {
         return None;
     }
-    let model = model_usable(root)?;
+    let model = model_counts(root)?;
     let rows = match root.forges() {
         Forges::Unknown => return None,
         Forges::Ended => None,
@@ -296,4 +296,16 @@ pub fn model_usable(root: &Domain) -> Option<bool> {
         forge::model::owner_deployment(root.forge(), root.client()),
         provider,
     ))
+}
+
+/// `model_usable`, or a declaration whose host’s check is out (client/README.md, 3.5, *The try*).
+#[must_use]
+pub fn model_counts(root: &Domain) -> Option<bool> {
+    if let Some(page) = root.pages().connect_model() {
+        match page.check {
+            connect_model::ProgramCheck::Declaring | connect_model::ProgramCheck::Checking { .. } => return Some(true),
+            connect_model::ProgramCheck::Idle | connect_model::ProgramCheck::NotYet => {}
+        }
+    }
+    model_usable(root)
 }

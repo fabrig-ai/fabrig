@@ -292,8 +292,9 @@ delegate's phases; the frame's speed changes how long the person waits
   finding.
 - **In a browser, outside the gate:** the browser tier walks story A on
   the built playground in headless Chromium (`client/browser.md`,
-  section 4), and measures the download from the bundle's files (raw
-  and compressed), and the memory's high water and the longest slice
+  section 4), and measures the download from the bundle's files (raw,
+  and each compressed alone by the machine's `gzip`, a tool beside the
+  code under test), and the memory's high water and the longest slice
   from what the frame shows, reported against their bars.
 - **By hand, before the release:** Firefox and Safari on a desktop,
   walking story A.

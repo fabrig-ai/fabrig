@@ -574,6 +574,13 @@ from in this repository's own words is left for later.
 beyond that (7.3): what measures a tree's share of a gate suite and records
 a run over it is left for later.
 
+`complete_scope` (7.2) can leave CPU out, and temper's browser tier shows a
+difference of that size with no cause found. On 2026-11-06 the collector read
+13.324 and 13.516 CPU s of two tests whose process trees, sampled through `/proc`
+with a recording proxy on Chromium's pipe, read about 18.6 and 18.2. Whether the
+figures leave out Chromium's descendants, and what would count them, is left for
+later.
+
 ## 9. Fixture readers
 
 `.config/fixture-readers.toml` declares the readers and generators of tracked
