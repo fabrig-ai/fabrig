@@ -46,3 +46,16 @@ As the implementer's text has it, with the differences from the request's pages 
 ## Answers
 
 2026-11-06 (temper/ui). The user's rule, 2026-11-06: a plan executed by fab runs focused and fuzzy alone, and is complete when it lands. Walks and render checks follow landing, and file findings back to fab. So drop this task's throwaway-driver comparison and screenshots: don't start a browser to compare. temper/ui runs the render check after the plan lands.
+
+## Rebase (2026-11-06, step merge, foreman look-round-13/forge-yours/foreman-1)
+
+merge both vocabularies in words.rs, resolve phrase ID collisions, and regenerate declarations
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`.
+Main’s `ad4ac04cbc` and `e4ba790733` add three Settings proposal words alongside this branch’s Forgejo vocabulary changes.
+Keep both sets of variants, English phrases and `ALL` entries; retain this task’s removed obsolete words and revised Forgejo descriptions.
+Preserve main’s IDs: `SettingsProposalChangeAsks = 3928`, `SettingsProposalRejected = 3929`, `SettingsProposalWithdrawn = 3930`.
+Move this branch’s ten `ConnectHow` through `ConnectFirst` IDs to the next unused range, currently 3931–3940; the first three collide even after the textual conflict is resolved.
+Regenerate `ALL`, `PHRASES`, `SEGMENTS` and `ENGLISH_BYTES` using `tests::accounts::english_phrase_declarations_match_the_vocabulary` with `SKEIN_CODEGEN_WRITE=1`, through heavy.
+For the inspected integration tip, the combined declarations should be `ALL` length 1298, `PHRASES = 1899`, `SEGMENTS = 3330`, `ENGLISH_BYTES = 46530`.
+Run that focused test again without write mode, then the task’s focused checks.
+Regenerate any goldens, gallery prints or journey prints made stale by the combined code using their tools.
