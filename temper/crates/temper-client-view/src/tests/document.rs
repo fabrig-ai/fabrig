@@ -550,7 +550,7 @@ fn a_note_call_isnt_counted() {
     let root =
         activity_root(Some(BODY), Mode::Chat, mixed_activity(b"read", false, "Read README"), ProposalState::Ordinary);
     let view = view(&root, Shell::Browser);
-    let disclosure = f::find(view.tree(), Role::Disclosure, b"read").unwrap();
+    let disclosure = f::find(view.tree(), Role::Disclosure, b"Read 1 file").unwrap();
     assert_eq!(view.tree().find(disclosure).unwrap().description.as_deref(), None);
     let at = view.tree().nodes().iter().position(|node| node.id == disclosure).unwrap();
     assert_eq!(f::node_text(view.tree(), at).as_ref(), b"readRead README");

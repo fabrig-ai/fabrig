@@ -302,6 +302,7 @@ pub struct Task {
     pub tree: Handle,
     pub activity: Handle,
     pub run: Option<Handle>,
+    current_call: Option<Box<c::CurrentCall>>,
     pub ended: Option<Ended>,
     pub goal: Option<super::goal::Goal>,
     pub shape: Shape,
@@ -317,6 +318,12 @@ pub struct Task {
     pub amending: Option<Amending>,
 }
 impl Task {
+    /// The supplied call under way (temper/docs/design/client/README.md, 5.9).
+    #[must_use]
+    pub fn current_call(&self) -> Option<&c::CurrentCall> {
+        self.current_call.as_deref()
+    }
+
     pub(crate) fn new(number: u64, first: u64, limits: &Limits, out: &mut Queue<Request>) -> Self {
         let document = handle(first);
         let tree = handle(first.checked_add(1).expect("task handles fit"));
@@ -342,6 +349,7 @@ impl Task {
             tree,
             activity,
             run: None,
+            current_call: None,
             ended: None,
             goal: None,
             shape: Shape::Unknown,
@@ -407,14 +415,13 @@ impl Task {
                     self.asking.ask(self.activity, older, out);
                 }
             }
-            Act::Newer if self.shape == Shape::Agent => {
+            Act::Newer | Act::Latest if self.shape == Shape::Agent => {
                 if let Some(newer) = self.thread.newer() {
                     self.asking.ask(self.activity, newer, out);
                 }
             }
-            Act::Older | Act::Newer => {}
-            Act::Latest
-            | Act::FocusComposer
+            Act::Older | Act::Newer | Act::Latest => {}
+            Act::FocusComposer
             | Act::Amend
             | Act::AmendWords { .. }
             | Act::AmendTracked
@@ -875,6 +882,10 @@ impl Task {
                     && let Some(Latest::Jig(c::Delivery::RunState(run))) = latest(client, handle)
                 {
                     self.thread.run(run, client.text(handle).or(run.writing.as_ref()));
+                    self.current_call = match &run.call {
+                        Some(call) => Some(Box::new(call.clone())),
+                        None => None,
+                    };
                 }
             }
             Told::Ended { handle, .. } if handle == self.tree || Some(handle) == self.run => {}
@@ -1130,6 +1141,7 @@ impl Task {
                 subject: Watchable::Jig(c::Subject::Run { task: self.number, turn: None, offset: 0 }),
             }));
         } else if !running && let Some(handle) = self.run.take() {
+            self.current_call = None;
             unwatch(handle, out);
         }
     }

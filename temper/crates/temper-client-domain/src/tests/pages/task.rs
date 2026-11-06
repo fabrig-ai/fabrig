@@ -496,6 +496,180 @@ fn a_transient_first_page_keeps_an_unknown_tasks_thread() {
     page.fire(Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1)), &mut f.out);
     assert_eq!(f.out.pop(), Some(activity_read(&page)));
 }
+fn open_task_run(page: &Task, fixture: &mut f::Fixture) -> skein_lib::Token {
+    let mut emitted = Queue::with_capacity(OUTPUTS);
+    fixture.client.step_unlinked(
+        Time::ZERO,
+        Wall::EPOCH,
+        Event::Watch {
+            handle: page.run.expect("live run"),
+            subject: Watchable::Jig(c::Subject::Run { task: f::TASK, turn: None, offset: EMPTY_OFFSET }),
+        },
+        &mut emitted,
+    );
+    while let Some(request) = emitted.pop() {
+        if let jig_client::UnlinkedRequest::Down {
+            down: jig_client::Down::Open { watch, subject: Watchable::Jig(c::Subject::Run { .. }) },
+        } = request
+        {
+            return watch;
+        }
+    }
+    panic!("run opened");
+}
+fn current_call() -> c::CurrentCall {
+    c::CurrentCall {
+        identity: c::CallIdentity {
+            owner: skein_lib::Token::new(1),
+            sequence: 1,
+            retry: 0,
+            id: fixtures::acts::text(b"call-1"),
+        },
+        tool: fixtures::acts::text(b"read_docs"),
+        input: fixtures::acts::text(br#"{"page":"index"}"#),
+        cut: false,
+        began: Some(Wall::EPOCH),
+    }
+}
+fn deliver_task_call(
+    page: &mut Task,
+    fixture: &mut f::Fixture,
+    watch: skein_lib::Token,
+    call: Option<c::CurrentCall>,
+    text: bool,
+) {
+    fixture.client.step_unlinked(
+        Time::ZERO,
+        Wall::EPOCH,
+        Event::Up {
+            up: jig_client::Up::Watched {
+                watch,
+                event: c::WatchEvent::Delivered(c::Delivery::RunState(Box::new(c::RunState {
+                    task: f::TASK,
+                    attempt: Some(ATTEMPT),
+                    committed_turn: 0,
+                    writing: None,
+                    call,
+                }))),
+            },
+        },
+        &mut Queue::with_capacity(OUTPUTS),
+    );
+    let handle = page.run.expect("live run");
+    let told = if text { Told::Text { handle } } else { Told::Changed { handle } };
+    page.told(Time::ZERO, &fixture.client, told, &mut fixture.out);
+}
+fn agent_page() -> (Task, f::Fixture) {
+    let (mut page, mut fixture) = opened();
+    f::deliver(&mut fixture.client, fixture.watch, agent_document());
+    page.told(Time::ZERO, &fixture.client, Told::Changed { handle: page.document }, &mut fixture.out);
+    (page, fixture)
+}
+#[test]
+fn an_agents_page_keeps_the_call_under_way() {
+    let (mut page, mut fixture) = agent_page();
+    let watch = open_task_run(&page, &mut fixture);
+    assert_eq!(page.current_call(), None);
+    let mut call = current_call();
+    for text in [false, true] {
+        deliver_task_call(&mut page, &mut fixture, watch, Some(call.clone()), text);
+        assert_eq!(page.current_call(), Some(&call));
+        call.tool = fixtures::acts::text(b"settings");
+    }
+}
+fn agent_with_call() -> (Task, f::Fixture, skein_lib::Token) {
+    let (mut page, mut fixture) = agent_page();
+    let watch = open_task_run(&page, &mut fixture);
+    deliver_task_call(&mut page, &mut fixture, watch, Some(current_call()), false);
+    (page, fixture, watch)
+}
+#[test]
+fn the_call_ends_with_the_run() {
+    let (mut page, mut fixture, _watch) = agent_with_call();
+    let mut task = agent_document();
+    f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
+    f::deliver(&mut fixture.client, fixture.watch, task);
+    page.told(Time::ZERO, &fixture.client, Told::Changed { handle: page.document }, &mut fixture.out);
+    assert_eq!(page.current_call(), None);
+}
+#[test]
+fn a_delivery_without_a_call_clears_it() {
+    let (mut page, mut fixture, watch) = agent_with_call();
+    deliver_task_call(&mut page, &mut fixture, watch, None, false);
+    assert_eq!(page.current_call(), None);
+}
+fn assert_no_call((mut page, mut fixture): (Task, f::Fixture)) {
+    let watch = open_task_run(&page, &mut fixture);
+    deliver_task_call(&mut page, &mut fixture, watch, Some(current_call()), false);
+    assert_eq!(page.current_call(), None, "{:?}", page.shape);
+}
+#[test]
+fn another_shape_keeps_no_call() {
+    assert_no_call(goal());
+    assert_no_call(procedure());
+}
+fn newer_cursor() -> c::Cursor {
+    c::Cursor::new(b"newer".as_slice().into(), 5).unwrap()
+}
+#[test]
+fn latest_on_an_agents_page_reads_newer() {
+    let (mut pages, client) = task_pages(agent_document());
+    let page = pages.task_mut().unwrap();
+    page.thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+    let jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(rows))) = activity_page(f::POSITION)
+    else {
+        panic!("activity fixture")
+    };
+    let _read = page.thread.page(*rows);
+    page.thread.lines.edges.before = jig_client::thread::window::Edge::More(newer_cursor());
+    let handle = page.activity;
+    let mut out = page_act(&mut pages, &client, Act::Latest);
+    assert_eq!(
+        out.pop(),
+        Some(Request::Client(Event::Read {
+            handle,
+            read: Readable::Jig(c::Read::ActivityBeside { task: f::TASK, position: f::POSITION, side: c::Side::Later }),
+        }))
+    );
+    assert!(out.is_empty());
+    assert!(page_act(&mut pages, &client, Act::Latest).is_empty(), "one outstanding read");
+    pages::step(
+        &mut pages,
+        &fixtures::env(&fixtures::limits()),
+        &client,
+        pages::Event::Told { told: Told::Page { handle, page: jig_client::Readout::Limit } },
+        &mut out,
+    );
+    let due = Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1));
+    pages.task_mut().unwrap().fire(due, &mut out);
+    assert_eq!(
+        out.pop(),
+        Some(Request::Client(Event::Read {
+            handle,
+            read: Readable::Jig(c::Read::ActivityBeside { task: f::TASK, position: f::POSITION, side: c::Side::Later }),
+        }))
+    );
+    assert!(out.is_empty(), "the newer read is retried through asking");
+}
+#[test]
+fn latest_with_nothing_newer_asks_nothing() {
+    let (mut pages, client) = task_pages(agent_document());
+    let page = pages.task_mut().unwrap();
+    page.thread.reading = None;
+    page.thread.loaded = page.thread.committed;
+    assert!(page_act(&mut pages, &client, Act::Latest).is_empty());
+}
+#[test]
+fn latest_on_another_shape_asks_nothing() {
+    for shape in [Shape::Tracked, Shape::HeaderAndPlan] {
+        let (mut pages, client) = task_pages(agent_document());
+        let task = pages.task_mut().unwrap();
+        task.shape = shape;
+        task.thread.reading = None;
+        task.thread.lines.edges.before = jig_client::thread::window::Edge::More(newer_cursor());
+        assert!(page_act(&mut pages, &client, Act::Latest).is_empty(), "{shape:?}");
+    }
+}
 #[test]
 fn an_agents_live_run_text_reaches_its_thread() {
     use skein_lib::Time;
