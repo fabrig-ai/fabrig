@@ -13,7 +13,7 @@ fn again_without_a_name_is_usage() {
     assert!(output.stdout.is_empty());
     assert_eq!(
         String::from_utf8(output.stderr).expect("usage is text"),
-        "usage: temper-client-journeys [add NAME FILE | again NAME]\n"
+        "usage: temper-client-journeys [add [--redact TEXT]... NAME FILE | again NAME | --help]\n"
     );
 }
 
@@ -74,8 +74,32 @@ fn a_stale_recording_prints_no_line_of_its_own() {
     }
     assert!(output.stdout.is_empty());
     let expected = format!(
-        "temper-client-journeys: {name} is stale at turn 1, line {exchange_line}: recorded exchange, asked exchange; record it again (client/journeys.md, 8)\n"
+        "temper-client-journeys: {name} is stale at turn 1, line {exchange_line}: recorded exchange, asked exchange; record it again (client/journeys.md, 8); nothing was written\n"
     );
     assert!(output.stderr == expected.as_bytes(), "the stale refusal names the turn, line and record kinds alone");
     assert!(!directory.exists(), "a refused add creates no journey");
+}
+
+#[test]
+fn help_says_what_is_left_to_the_person() {
+    let output = Command::new(paths::binary("temper-client-journeys")).arg("--help").output().expect("help");
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stderr.is_empty());
+    let help = String::from_utf8(output.stdout).expect("help text");
+    for sentence in [
+        "usage: temper-client-journeys [add [--redact TEXT]... NAME FILE | again NAME | --help]",
+        "These aren't all a secret could be: any other private text stands unless --redact names it, so read the pages before you commit them.",
+        "FILE keeps every original: keep it out of the repository and remove it once added.",
+        "link",
+        "stored",
+        "typed",
+        "--redact",
+        "key",
+        "JWT",
+        "bearer",
+        "code",
+        "refresh token",
+    ] {
+        assert!(help.contains(sentence), "help includes the promised fact");
+    }
 }
