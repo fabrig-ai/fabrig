@@ -1,6 +1,6 @@
 # engine: status
 
-2026-11-05. Where jig's code lags or departs from [engine.md](engine.md).
+2026-11-06. Where jig's code lags or departs from [engine.md](engine.md).
 Unlisted provisions have no known gap, including the saved-window load
 and unread-tail retry guard in 7.1 and 7.2.
 
@@ -66,6 +66,11 @@ and unread-tail retry guard in 7.1 and 7.2.
   by its plan's cut: a range names the revision it read in `recalled`, the tool's
   member that already says it, where the request has `revision`, so that one fact
   keeps one name and a call without `first` stays as it is.
+- **Design departs:** 10, from the request `ui-chat-draft` of 2026-11-05, decided by
+  its plan's cut: `core::Held::NotesWritten` keeps its owner, name and revision
+  (`jig-domain-core/src/vocabulary.rs`), where the request gives it `lines`, `added`,
+  `removed` and `first` too, because nothing makes it: a write's answer goes by the
+  call's own part, which has them.
 - **Departs:** 6: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it. 8: the
   client wire drops the failing charter's number of a
