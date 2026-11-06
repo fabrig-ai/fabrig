@@ -30,42 +30,34 @@ pub(super) fn compare(scenario: Scenario, seed: u64, selected: Option<&[u64]>) {
     assert_eq!(*cuts.borrow(), selected.map_or_else(|| (1..=baseline.commits).collect::<Vec<_>>(), <[u64]>::to_vec));
     assert!(baseline.commits >= if selected.is_some() { 3 } else { 1 });
 }
-
 #[test]
 fn late_copy_snapshots_match_complete_fresh_state() {
     compare(Scenario::LateCopy, 81, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn other_hand_snapshots_match_complete_fresh_state() {
     compare(Scenario::OtherHand, 82, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn uncertain_restarts_snapshots_match_complete_fresh_state() {
     compare(Scenario::UncertainRestarts, 83, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn changed_judge_snapshots_match_complete_fresh_state() {
     compare(Scenario::ChangedJudge, 84, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn shrinking_pool_snapshots_match_complete_fresh_state() {
     compare(Scenario::ShrinkingPool, 85, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn narrowing_policy_snapshots_match_complete_fresh_state() {
     compare(Scenario::NarrowingPolicy, 86, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn standing_task_snapshots_match_complete_fresh_state() {
     compare(Scenario::StandingTask, 87, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn run_budget_snapshots_match_complete_fresh_state() {
     compare(Scenario::RunBudget, 88, Some(&[1, 2, 3]));
