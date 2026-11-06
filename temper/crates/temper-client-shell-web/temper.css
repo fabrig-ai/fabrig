@@ -925,7 +925,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 @font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url(files/fonts/ibm-plex-sans-latin-600-normal.woff2) format('woff2'); }
 @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url(files/fonts/ibm-plex-mono-latin-400-normal.woff2) format('woff2'); }
 @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url(files/fonts/ibm-plex-mono-latin-500-normal.woff2) format('woff2'); }
-:root:has(.temper-welcome) {
+:root:has(:is(.temper-welcome, .temper-welcome-check)) {
   --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73;
   --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-signal: #c2410c; --gf-good: #15803d;
   --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
@@ -2137,7 +2137,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 
 #app:has(> .temper-welcome) { --gf-hover: #ececea; --gf-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace; }
-#app > .temper-welcome > h1:has(+ :is(.temper-welcome-panel, .temper-welcome-away, .temper-welcome-forge-status)) { margin-bottom: 32px; }
+#app > :is(.temper-welcome, .temper-main) > h1:has(+ :is(.temper-welcome-panel, .temper-welcome-away, .temper-welcome-forge-status)) { margin-bottom: 32px; }
 
 #app:has(> .temper-welcome) .temper-welcome-panel,
 #app:has(> .temper-welcome) .temper-welcome-away { padding: 22px; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
@@ -2159,39 +2159,54 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app:has(> .temper-welcome) .temper-welcome-away p { margin: 0; font-size: 15px; line-height: 1.6; }
 #app:has(> .temper-welcome) .temper-welcome-away .temper-flow-muted { margin-top: 4px; font-size: 15px; line-height: 1.6; }
 #app:has(> .temper-welcome) .temper-welcome-away .temper-welcome-spin { margin-top: 5px; }
-#app:has(> .temper-welcome) .temper-welcome-forge-status > [role=status] { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
-#app:has(> .temper-welcome) .temper-welcome-forge-status > [role=status] > .temper-flow-muted { color: var(--gf-muted); font-size: inherit; }
+#app:has(.temper-welcome-forge-status) .temper-welcome-forge-status > [role=status] { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+#app:has(.temper-welcome-forge-status) .temper-welcome-forge-status > [role=status] > .temper-flow-muted { color: var(--gf-muted); font-size: inherit; }
 #app:has(> .temper-welcome) .temper-welcome-panel .temper-flow-primary:disabled { opacity: .45; }
 @media (max-width: 760px) {
-  #app > .temper-welcome > h1:has(+ :is(.temper-welcome-panel, .temper-welcome-away, .temper-welcome-forge-status)) { margin-bottom: 24px; }
+  #app > :is(.temper-welcome, .temper-main) > h1:has(+ :is(.temper-welcome-panel, .temper-welcome-away, .temper-welcome-forge-status)) { margin-bottom: 24px; }
   #app:has(> .temper-welcome) .temper-welcome-panel { margin-bottom: 24px; }
   #app:has(> .temper-welcome) .temper-welcome-panel,
   #app:has(> .temper-welcome) .temper-welcome-away { padding: 18px; }
 }
 
 
-#app > .temper-welcome .temper-welcome-forge-status { padding: 14px 16px; border-radius: 10px; background: #f1f1ee; font-size: 14.5px; }
-#app > .temper-welcome .temper-welcome-forge-status.temper-flow-done { background: #eef6f0; }
-#app > .temper-welcome .temper-welcome-forge-status > p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--gf-ink); }
-#app > .temper-welcome .temper-welcome-forge-status strong { font-weight: 500; color: var(--gf-ink); }
-#app > .temper-welcome .temper-welcome-forge-status > p > .temper-flow-muted { color: var(--gf-muted); font-size: inherit; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status { padding: 14px 16px; border-radius: 10px; background: #f1f1ee; font-size: 14.5px; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status.temper-flow-done { background: #eef6f0; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status > p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--gf-ink); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status strong { font-weight: 500; color: var(--gf-ink); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status > p > .temper-flow-muted { color: var(--gf-muted); font-size: inherit; }
 #app > .temper-welcome .temper-welcome-sep { color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-spin { flex: none; width: 14px; height: 14px; border: 2px solid var(--gf-line-2); border-top-color: var(--gf-ink); border-radius: 50%; animation: temper-welcome-spin .9s linear infinite; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-spin { flex: none; width: 14px; height: 14px; border: 2px solid var(--gf-line-2); border-top-color: var(--gf-ink); border-radius: 50%; animation: temper-welcome-spin .9s linear infinite; }
 @keyframes temper-welcome-spin { to { transform: rotate(360deg); } }
-#app > .temper-welcome .temper-welcome-ok { color: var(--gf-good); font-weight: 600; }
-#app > .temper-welcome .temper-welcome-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 32px 0; }
-#app > .temper-welcome .temper-welcome-forge-status > details > summary { width: fit-content; margin-top: 6px; cursor: pointer; font-size: 13px; color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; color: var(--gf-faint); }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li { padding-left: 0; color: var(--gf-faint); }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li::before { position: static; content: '○' / ''; display: inline-block; width: 1.4em; }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li.temper-flow-done { color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li.temper-flow-done::before { content: '✓' / ''; color: var(--gf-good); }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li[aria-current] { color: var(--gf-ink); font-weight: 400; }
-#app > .temper-welcome .temper-welcome-forge-status .temper-flow-progress > li[aria-current]::before { content: '●' / ''; color: var(--gf-good); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-ok { color: var(--gf-good); font-weight: 600; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 32px 0; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status > details > summary { width: fit-content; margin-top: 6px; cursor: pointer; font-size: 13px; color: var(--gf-muted); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; color: var(--gf-faint); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress > li { padding-left: 0; color: var(--gf-faint); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress > li::before { position: static; content: '○' / ''; display: inline-block; width: 1.4em; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress > li.temper-flow-done { color: var(--gf-muted); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress > li.temper-flow-done::before { content: '✓' / ''; color: var(--gf-good); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress > li[aria-current] { color: var(--gf-ink); font-weight: 400; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-flow-progress > li[aria-current]::before { content: '●' / ''; color: var(--gf-good); }
 @media (max-width: 760px) {
-  #app > .temper-welcome .temper-welcome-acts { margin: 24px 0; }
-  #app > .temper-welcome .temper-welcome-forge-status .temper-welcome-sep { display: none; }
-  #app > .temper-welcome .temper-welcome-forge-status > p > .temper-flow-muted { flex-basis: 100%; padding-left: 22px; }
+  #app > :is(.temper-welcome, .temper-main) .temper-welcome-acts { margin: 24px 0; }
+  #app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status .temper-welcome-sep { display: none; }
+  #app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status > :is(p, [role=status]) > .temper-flow-muted { flex-basis: 100%; padding-left: 22px; }
+}
+
+/* model-check: the welcome tries a model with one real turn, its steps live. */
+#app > .temper-main:not(.temper-welcome) .temper-welcome-check { font-family: var(--gf-sans); line-height: 1.6; letter-spacing: normal; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check { margin-bottom: 24px; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check.temper-flow-done + .temper-welcome-acts { margin-top: 24px; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check > [role=alert] { color: var(--gf-signal); font-size: 14.5px; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check > [role=alert] strong { color: var(--gf-signal); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check-stopped { background: #fff7ed; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check .temper-flow-progress > li.temper-welcome-check-failed { color: var(--gf-signal); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check .temper-flow-progress > li.temper-welcome-check-failed::before { content: '✕' / ''; color: var(--gf-signal); }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check > .temper-welcome-check-why { display: block; margin: 10px 0 0; color: var(--gf-ink-2); font-size: 14px; line-height: 1.55; }
+#app > :is(.temper-welcome, .temper-main) .temper-welcome-check ~ .temper-welcome-acts { align-items: center; }
+@media (max-width: 760px) {
+  #app > :is(.temper-welcome, .temper-main) .temper-welcome-check > [role=status] > .temper-flow-muted { padding-left: 0; }
 }
 
 
