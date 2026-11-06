@@ -11,6 +11,7 @@ pub mod accounts;
 mod activity;
 pub mod away;
 pub mod builders;
+pub mod calls;
 pub mod changes;
 pub mod chat;
 /// Whether the project's settings offer writing drafts (client/README.md, 5.13).

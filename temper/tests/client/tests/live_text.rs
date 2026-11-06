@@ -96,7 +96,7 @@ fn a_tool_only_turn_leaves_no_provisional_text() {
         &body,
     ));
     world.front().engine.settle();
-    world.person(person, vec![see(Find::named(Role::Disclosure, b"1 tool call")), gone(Find::text(&provisional))]);
+    world.person(person, vec![see(Find::named(Role::Disclosure, b"wait")), gone(Find::text(&provisional))]);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
 }

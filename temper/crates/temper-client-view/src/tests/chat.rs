@@ -701,7 +701,7 @@ fn person_words_keep_their_shell_and_only_assistant_calls_keep_work() {
     for hidden in [look::BY_TOOL, look::BY_SYSTEM, look::BY_AGENT] {
         assert!(style_position(tree.nodes(), hidden).is_none(), "inputs and call-only assistant have no shell");
     }
-    assert_call_fold(&tree, b"1 tool call", b"Read", &[b"Read"]);
+    assert_run_line(&tree, b"Read", b"", &[b"Read: Done"]);
 }
 #[test]
 fn only_omission_markers_keep_the_turn_region() {
@@ -1060,20 +1060,20 @@ fn repeated_calls_fold_in_first_name_order_with_each_outcome_inside() {
         run::call(2, b"wait", b"{}", None),
         run::call(3, b"read", b"{}", Some(b"Read the second file")),
     ]);
-    assert_call_fold(
+    assert_run_line(
         &tree,
-        b"3 tool calls",
-        "read ×2 · wait".as_bytes(),
-        &[b"readRead the first file", b"wait", b"readRead the second file"],
+        "read ×2, wait".as_bytes(),
+        b"",
+        &[b"read: Read the first file", b"wait", b"read: Read the second file"],
     );
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Temper").is_none());
 }
 #[test]
 fn a_fold_names_two_repeated_calls_and_two_distinct_calls() {
     use fixtures::first_run as run;
-    for (tool, description) in [(b"read".as_slice(), "read ×2"), (b"edit".as_slice(), "read · edit")] {
+    for (tool, description) in [(b"read".as_slice(), "read ×2"), (b"edit".as_slice(), "read, edit")] {
         let tree = assistant_blocks(&[run::call(1, b"read", b"{}", None), run::call(2, tool, b"{}", None)]);
-        assert_call_fold(&tree, b"2 tool calls", description.as_bytes(), &[b"read", tool]);
+        assert_run_line(&tree, description.as_bytes(), b"", &[b"read", tool]);
     }
 }
 #[test]
@@ -1105,24 +1105,31 @@ fn a_tool_name_using_the_whole_turn_budget_fits_its_fold_description() {
         &mut crate::frame::Bindings::new(bounds.tree.bindings),
     );
     let tree = b.finish();
-    assert_call_fold(&tree, b"1 tool call", &tool, &[&tool]);
+    let mut name = skein_lib::Writer::new(256);
+    name.put(tool.get(..253).unwrap()).unwrap();
+    name.put("…".as_bytes()).unwrap();
+    let mut row = skein_lib::Writer::new(160);
+    row.put(tool.get(..157).unwrap()).unwrap();
+    row.put("…".as_bytes()).unwrap();
+    assert_run_line(&tree, &name.finish(), b"", &[&row.finish()]);
 }
 // The fake person sees the fold and all its content, without an Expanded state.
-pub(super) fn assert_call_fold(tree: &skein_ui::Tree, name: &[u8], description: &[u8], lines: &[&[u8]]) {
+pub(super) fn assert_run_line(tree: &skein_ui::Tree, name: &[u8], description: &[u8], lines: &[&[u8]]) {
     assert!(fixtures::person_find(tree, Role::Disclosure, name).is_some());
     let at = named_position(tree.nodes(), Role::Disclosure, Some(name)).expect("disclosure node");
     let fold = &tree.nodes()[at];
-    assert_eq!(fold.description.as_deref(), Some(description));
+    assert_eq!(fold.description.as_deref().unwrap_or(b""), description);
     assert!(!fold.states.as_slice().contains(&skein_ui::State::Expanded));
-    let mut child = at.checked_add(1).unwrap();
+    let slot = at.checked_add(1).unwrap();
+    assert!(tree.nodes()[slot].styles.as_slice().contains(&crate::look::WORK_CALLS));
+    let mut child = slot.checked_add(1).unwrap();
     for line in lines {
         let node = &tree.nodes()[child];
-        assert_eq!(node.role, Role::Slot);
-        assert!(node.styles.as_slice().contains(&crate::look::WORK));
+        assert_eq!(node.role, Role::Paragraph);
         assert_eq!(fixtures::node_text(tree, child).as_ref(), *line);
-        child = child.checked_add(usize::try_from(node.size).expect("work line size")).unwrap();
+        child = child.checked_add(usize::try_from(node.size).unwrap()).unwrap();
     }
-    assert_eq!(child, at.checked_add(usize::try_from(fold.size).expect("fold size")).unwrap());
+    assert_eq!(child, at.checked_add(usize::try_from(fold.size).unwrap()).unwrap());
 }
 #[test]
 fn an_assistants_opaque_block_stays_inside_its_temper_message() {
@@ -1874,15 +1881,14 @@ fn a_proposals_fold_precedes_its_card_after_the_message() {
         root.pages().chat().unwrap().thread.lines.rows
     );
     let turn = turn.unwrap();
-    let children = subtree(&tree, turn);
-    let card = style_position(children, crate::look::CARD).expect("proposal inside first turn");
-    let message = style_position(children, crate::look::MESSAGE).expect("message");
-    assert!(card >= message + usize::try_from(children[message].size).unwrap());
-    let fold = style_position(children, crate::look::WORK).expect("fold in the same turn");
-    assert!(fold >= message + usize::try_from(children[message].size).unwrap());
-    assert!(fold + usize::try_from(children[fold].size).unwrap() <= card, "fold before proposal card");
+    let message = styled(&tree, crate::look::MESSAGE);
+    let fold = styled(&tree, crate::look::WORK_RUN);
+    let card = styled(&tree, crate::look::CARD);
+    assert!(fold >= message + usize::try_from(tree.nodes()[message].size).unwrap());
+    assert!(fold + usize::try_from(tree.nodes()[fold].size).unwrap() <= card, "run before proposal card");
+    assert!(turn < fold);
     assert_eq!(named_count(&tree, Role::Button, b"Accept"), 1);
-    assert_call_fold(&tree, b"2 tool calls", "read ×2".as_bytes(), &[b"read", b"read"]);
+    assert_run_line(&tree, "read ×2".as_bytes(), b"", &[b"read", b"read"]);
     let said = fixtures::text(&tree);
     assert!(skein_lib::bytes::find(&said, b"propose").is_none());
 }
@@ -1937,7 +1943,7 @@ fn unavailable_models_block_send_and_enter_in_the_view() {
     }
 }
 
-fn configuring_task_root(mut task: c::Task, template: bool, charter: u32) -> temper_client_domain::Domain {
+pub(super) fn configuring_task_root(mut task: c::Task, template: bool, charter: u32) -> temper_client_domain::Domain {
     let (mut root, me_watch, task_watch) =
         fixtures::root_at(temper_client_domain::Address::Chat { task: TASK }, &fixtures::domain_limits());
     let source = messaging_root();
@@ -1951,7 +1957,7 @@ fn configuring_task_root(mut task: c::Task, template: bool, charter: u32) -> tem
     deliver_chat(&mut root, task_watch.expect("task watch"), c::Delivery::Task(Box::new(task)));
     root
 }
-fn configuring_task() -> c::Task {
+pub(super) fn configuring_task() -> c::Task {
     let source = messaging_root();
     let mut task = source.pages().chat().expect("chat").task(source.client()).expect("task").clone();
     task.chip.title = c::DocumentText::complete(fixtures::first_run::text(b"Hello"));
@@ -2201,7 +2207,7 @@ fn configuring_chats_keep_the_conversation_and_proposals_whole() {
         assert!(style_position(configuring_tree.nodes(), crate::look::TASK_CARD).is_some());
         assert!(skein_lib::bytes::find(&fixtures::text(configuring_tree), b"Delegated work").is_some());
         assert_eq!(named_count(configuring_tree, Role::Button, b"Accept"), 1);
-        assert!(fixtures::find(configuring_tree, Role::Disclosure, b"1 tool call").is_some());
+        assert!(fixtures::find(configuring_tree, Role::Disclosure, b"read").is_some());
         assert!(skein_lib::bytes::find(&fixtures::text(configuring_tree), b"Here is my proposal").is_some());
     }
 }
