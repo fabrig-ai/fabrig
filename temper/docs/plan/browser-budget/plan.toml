@@ -1,0 +1,3 @@
+draft = "browser-budget"
+repo = "fabrig"
+sources = ["temper/docs/plan/browser-budget/inputs/request.md", "temper/tests/client-browser/tests/browser_all/browser_pages.rs", "skein/testing/skein-fake-person-browser/src/face.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
