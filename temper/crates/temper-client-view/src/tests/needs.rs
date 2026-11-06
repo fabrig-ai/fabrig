@@ -674,7 +674,7 @@ fn proposal_parts_accept_reject_and_task_open() {
         }
         let reject = main(&view)
             .iter()
-            .position(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Reject"))
+            .position(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Reject with reason"))
             .unwrap();
         assert!(
             super::inbox::subtree(view.tree(), super::inbox::styled(view.tree(), look::ASK_CHOICES))

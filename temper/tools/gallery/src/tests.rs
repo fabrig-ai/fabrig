@@ -249,21 +249,21 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "task-cancelling",
+        name: "task-closing",
         heading: "T3 · CSV import",
         parts: &[
-            Part::Named { role: Role::Dialog, name: "Cancel this task?" },
+            Part::Named { role: Role::Dialog, name: "Close this task?" },
             Part::Named { role: Role::Button, name: "Keep it" },
-            Part::Named { role: Role::Button, name: "Cancel task" },
+            Part::Named { role: Role::Button, name: "Close task" },
         ],
     },
     Holds {
-        name: "task-stopping",
+        name: "task-paused",
         heading: "T3 · CSV import",
         parts: &[
-            Part::Named { role: Role::Dialog, name: "Stop this task?" },
-            Part::Named { role: Role::Button, name: "Keep going" },
-            Part::Named { role: Role::Button, name: "Stop task" },
+            Part::Named { role: Role::Button, name: "Resume" },
+            Part::Named { role: Role::Button, name: "Close" },
+            Part::Text { text: "Paused" },
         ],
     },
     Holds {
@@ -282,6 +282,18 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Dialog, name: "Reject this proposal?" },
             Part::Named { role: Role::Button, name: "Keep it" },
             Part::Named { role: Role::Button, name: "Reject" },
+        ],
+    },
+    Holds {
+        name: "chat-paused",
+        heading: "T6 · Why is tally sum slow on big files?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Resume" },
+            Part::Named { role: Role::Button, name: "Close" },
+            Part::Named { role: Role::Status, name: "Paused" },
+            Part::Text { text: "Sending resumes this chat." },
+            Part::Absent { role: Role::Button, name: "Pause" },
+            Part::Absent { role: Role::Status, name: "Applied" },
         ],
     },
     Holds {
@@ -398,10 +410,10 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "goal-stop-dialog",
+        name: "goal-closing",
         heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
         parts: &[
-            Part::Named { role: Role::Dialog, name: "Stop this goal?" },
+            Part::Named { role: Role::Dialog, name: "Close this goal?" },
             Part::Text { text: "What landed on its branch stays there." },
         ],
     },
@@ -473,9 +485,9 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "goal-stopped",
-        heading: "Stopped by you. What landed on the goal branch stays there.",
-        parts: &[Part::Text { text: "Stopped before it landed." }],
+        name: "goal-closed",
+        heading: "Closed by you. What landed on the goal branch stays there.",
+        parts: &[Part::Text { text: "Closed before it landed." }],
     },
     Holds {
         name: "goal-failed",
@@ -1085,7 +1097,7 @@ const HOLDS: [Holds; samples::N] = [
                 "CSV export · planning",
                 "Profile tally sum on a 2 GB file · 0 / 1 · paused by you",
                 "CSV import: the quoted-field parser · 2 / 2 · landed ",
-                "The process documents, read aloud · 0 / 1 · stopped",
+                "The process documents, read aloud · 0 / 1 · closed",
                 "CSV import: errors with line and column · 0 / 1 · failed",
             ],
         }],
@@ -1142,11 +1154,11 @@ const HOLDS: [Holds; samples::N] = [
             Part::Goals {
                 rows: &[
                     "CSV import: the quoted-field parser · 2 / 2 · landed ",
-                    "The process documents, read aloud · 0 / 1 · stopped",
+                    "The process documents, read aloud · 0 / 1 · closed",
                     "CSV import: errors with line and column · 0 / 1 · failed",
                 ],
             },
-            Part::Text { text: "Stopped by you." },
+            Part::Text { text: "Closed by you." },
             Part::Text { text: "Failed." },
         ],
     },
@@ -2554,7 +2566,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 41] = [
+const SPENDS: [(&str, Role, &str); 42] = [
     ("chat-work-done", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-open", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-running", Role::Paragraph, "70 spent · of 101472"),
@@ -2565,6 +2577,7 @@ const SPENDS: [(&str, Role, &str); 41] = [
     ("chat-work-separated", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-empty", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-reading", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-paused", Role::Paragraph, "1 spent · of 40"),
     ("chat-closed", Role::Paragraph, "1 spent · of 40"),
     ("chat-closing-below", Role::Paragraph, "1 spent · of 40"),
     ("chat-closing-proposal", Role::Paragraph, "1 spent · of 40"),
@@ -2779,7 +2792,7 @@ fn goal_pages_hold_reports_counts_and_only_their_needs() {
         ("goal-paused", 108, 6, 9, State::Paused, true),
         ("goal-landed", 123, 2, 2, State::Landed, true),
         ("goal-landed-open", 123, 2, 2, State::Landed, true),
-        ("goal-stopped", 118, 1, 3, State::Stopped, false),
+        ("goal-closed", 118, 1, 3, State::Closed, false),
         ("goal-failed", 122, 0, 0, State::Failed, false),
         ("goal-no-report", 108, 6, 9, State::Running, false),
     ] {
@@ -2818,7 +2831,7 @@ fn goal_pages_hold_reports_counts_and_only_their_needs() {
                     .contains(&temper_client_view::look::GOAL_PRIMARY)
             );
         }
-        if matches!(state, State::Landed | State::Stopped | State::Failed) {
+        if matches!(state, State::Landed | State::Closed | State::Failed) {
             assert!(
                 !view.tree().nodes().iter().any(|node| node.role == Role::TextArea),
                 "{name}: ended page has no composer"
@@ -3202,7 +3215,7 @@ fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
 fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
     for (name, role, label) in [
         ("goal-amending", Role::Region, "Amend task 108"),
-        ("goal-stop-dialog", Role::Dialog, "Stop this goal?"),
+        ("goal-closing", Role::Dialog, "Close this goal?"),
         ("goal-toast", Role::Status, ""),
     ] {
         let sample = samples::samples().into_iter().find(|sample| sample.name == name).unwrap();
