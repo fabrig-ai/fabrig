@@ -3965,9 +3965,10 @@ and an agent's message, question or answer and a result, up to
 `tasks.message_bytes` and `tasks.result_bytes` (10,660 on it). Each draws whole in
 the browser and the terminal, never cut (jig's `client/domain/client.md`, section
 16). The window's bytes do not move: a line weighs what it holds within
-`document_bytes`, so a window holds at least eight lines at `long_text`, and fewer
-lines the longer they are. The view's window already prices those bytes, at two
-nodes and two bytes of text a byte. A person's words waiting to be read total at
+`document_bytes`, including `LINE_ROOM` for each line and its parts, so a window
+holds fewer lines the longer they are. The view prices the bytes at Markdown's
+maximum nodes and text, plus ten structural nodes per `LINE_ROOM`, with room for
+their names and text. A person's words waiting to be read total at
 most `document_bytes` too (jig's `client/domain/client.md`, section 10), and the
 view prices them so. A line past `long_text`, or a page of lines past
 `document_bytes`, has its page refused and its read ended (5.15): no box `temper
@@ -5519,7 +5520,8 @@ measures it (skein's `ui-web.md`, section 7).
   failed with no line to show, says the same at the head. An answer the client
   cannot decode is such a failure (jig's `client/domain/client.md`, section 16): it
   asks nothing again until the person moves, or a new line is committed, and the
-  page's other lines and acts go on. Only a lost exchange is asked again by itself.
+  page's other lines and acts go on. Lost exchanges and busy reads keep their
+  transient retries.
 - **"Latest":** the view returns to the window's foot. On a chat where the
   window let the end go, a press reads the end again (`Thread::latest`),
   which replaces the window. A person sending on a chat does the same
@@ -6470,6 +6472,11 @@ own tests:
   `tasks.spec_bytes`, 131,072, and its composer stops at `words_bytes`, 8,192, which
   jig's `client/domain/contract.md`, 5.1 gives for a spec, a message and an answer
   alike. Default: one bound for every composer.
+- **An edit past `long_text`** (5.4): the client keeps its prefix and a count of
+  the characters beyond it; the browser keeps the whole value only while that
+  field stays mounted and its value count stays unchanged. Keeping the whole
+  edit across a new drawing, or in the terminal, needs room beyond that bound.
+  Default: the bounded prefix and count, with Send disabled while any lies beyond.
 - **A fresh configuring chat from its composer** (3.5, *The configuring chat's
   page*): a command ("/clear") once the composer takes commands. Default: "Start
   over" in its bar.

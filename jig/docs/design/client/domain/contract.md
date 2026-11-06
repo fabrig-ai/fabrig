@@ -1136,6 +1136,11 @@ party reads is therefore never lost by a crash.
   position needs more joins than any read allows, as too linked, naming
   the bound (`../../protocol/store.md`, 7.3), so a client never reads
   the same position again in vain.
+- **An answer that cannot be encoded** within the client wire's bounds is
+  answered malformed. At the client, an answer that cannot be decoded within its
+  receiving bounds ends any jig read malformed, with the link's undecodable fact
+  (client.md, section 16). A lost exchange remains unreachable; decoding failure
+  alone never asks for another attempt.
 - **A question's answer** is read with the question, by whoever may read
   the question: a delegate is in its requester's project, and the
   answer's words are those of the task the question was put to
@@ -1582,11 +1587,11 @@ designs (`../../protocol/client.md`):
   (`../../domain/people.md`, section 12).
 - **Search** over tasks, results, notes and transcripts, which the engine
   has only over notes' descriptions.
-- **A document past its bounds:** what a read or a watch is answered
-  when the engine cannot make its document within the client's bounds:
-  bounds derived so that it cannot happen, as a path's segments are, or
-  an answer of its own. Until it is settled, a watch's is refused as
-  unknown and a delivery's ends its watch (7.2).
+- **A document past its bounds:** a read whose answer cannot be encoded or
+  decoded ends malformed (section 6). Whether the engine instead derives bounds
+  so it cannot happen, as a path's segments are, or takes a client's bounds to
+  page within them. A watch's opening is refused as unknown and an oversized
+  delivery ends its watch (7.2); a watch's answer of its own remains open.
 - **A compound's project on the wire** (3.4): each of its operations names a
   project on the client wire, and the clients' protocol layer refuses one other
   than the compound's before the ask goes further. Whether people refuses it,
