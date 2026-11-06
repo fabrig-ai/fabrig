@@ -1,6 +1,6 @@
 use crate::{
-    contract::{Bound, Exceeded, HoldCategory as H, HoldFailure, Phase},
-    words::{self, Word},
+    contract::{Bound, Exceeded, HoldCategory as H, HoldFailure, Phase, WaitsOn},
+    words::{self, WaitingWord, Word},
 };
 use skein_ui::phrases::{Form, Hole, Language, PhraseLimits, Phrasebook, PluralClass, Segment};
 const TEXT: u32 = 32;
@@ -190,4 +190,11 @@ fn a_ceiling_refusal_has_its_own_english_phrase() {
     };
     let book = book(Box::new([words::english()]));
     assert_eq!(book.say(0, Word::refusal(&refusal).id(), &[]).unwrap().text.as_ref(), b"Policy ceiling exceeded");
+}
+
+#[test]
+fn a_held_tasks_wait_has_its_own_word() {
+    let book = book(Box::new([words::english()]));
+    assert_eq!(book.say(0, Word::Waiting(WaitingWord::Held).id(), &[]).unwrap().text.as_ref(), b"held");
+    assert_eq!(book.say(0, Word::waiting(&WaitsOn::Nothing).id(), &[]).unwrap().text.as_ref(), b"Nothing awaited");
 }

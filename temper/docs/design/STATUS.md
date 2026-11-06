@@ -159,7 +159,11 @@ goal starts from a document through the one sheet, which has none of the request
 opens nothing for a party with no creating bound; drafts follow kind 7's setting,
 off in the stock, where that request has them follow a tracked template
 (`client/README.md`), and a goal keeps its own note scope, where that request
-has it keep no notes (`domain/agent.md`). A proposal of settings reaches a
+has it keep no notes (`domain/agent.md`). A box with one kind of account runs on
+the first model it can use, and a run that can't start says why on its page and
+in `task show`, but no walk on record has a real box do either, a Chats row still
+says "Starting", and `task show` names a `deployment show` ctl lacks
+(`client/README.md`, `client/tools.md`). A proposal of settings reaches a
 project's Needs you and rail's count, but its live card lists no item of temper's
 kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
 "Decision made" while it waits (`client/README.md`). `again` can't record a journey
