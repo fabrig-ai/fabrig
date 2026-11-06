@@ -302,14 +302,7 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
             return;
         }
         Refusal::Malformed { at, why: jig_client::contract::Malformed::Settings(value) } => {
-            settings_form::refusal(
-                &settings_form::Refusal::Malformed {
-                    at: *at,
-                    setting: crate::jig::settings_adapter::form_setting(value.setting),
-                    fault: crate::jig::settings_adapter::form_setting_fault(value.fault),
-                },
-                out,
-            );
+            malformed_settings(*at, value, out);
             return;
         }
         Refusal::Malformed { why: jig_client::contract::Malformed::Running, .. } => {
@@ -530,4 +523,19 @@ pub fn wall(wall: Option<skein_lib::Wall>, out: &mut Text) {
         Some(wall) => out.number(wall.as_nanos()),
         None => out.put(b"none"),
     }
+}
+
+fn malformed_settings(at: u32, value: &jig_client::contract::MalformedSettings, out: &mut Text) {
+    settings_form::refusal(
+        &settings_form::Refusal::Malformed {
+            at,
+            setting: crate::jig::settings_adapter::form_setting(value.setting),
+            fault: crate::jig::settings_adapter::form_setting_fault(value.fault),
+            detail: match value.detail {
+                Some(value) => Some(crate::jig::settings_adapter::form_setting_detail(value)),
+                None => None,
+            },
+        },
+        out,
+    );
 }

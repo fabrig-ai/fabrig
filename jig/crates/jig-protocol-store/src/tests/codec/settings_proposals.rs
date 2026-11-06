@@ -145,7 +145,7 @@ fn application_settings_asks_and_judged_refusals_round_trip_at_their_bounds() {
                 models: Box::new([]),
                 outcome: p::Outcome::Refused(p::Refusal::NotWellFormed {
                     at: number,
-                    why: p::Malformed::Settings { setting, fault: p::SettingFault::Judged },
+                    why: p::Malformed::Settings { setting, fault: p::SettingFault::Judged, detail: None },
                 }),
                 at: Wall::EPOCH,
             });
@@ -218,6 +218,7 @@ fn restore_asks_outcomes_and_forgotten_refusals_round_trip_at_their_bounds() {
                     why: p::Malformed::Settings {
                         setting: p::Setting::ProjectPolicy { project: u32::MAX },
                         fault: p::SettingFault::Shape,
+                        detail: None,
                     },
                 },
             ] {

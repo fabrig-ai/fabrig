@@ -154,3 +154,82 @@ fn answers(driver: &runtime::Driver) -> Vec<skein_lib::Token> {
         .filter_map(|request| if let Request::Answer { run, .. } = request { Some(*run) } else { None })
         .collect()
 }
+
+/// An idle host checks and publishes a lapsed login without another entrance
+/// (temper/docs/design/protocol/credentials.md, 3; jig's domain/accounts.md, 3.4).
+#[test]
+fn an_idle_workers_login_is_checked_at_its_interval() {
+    use skein_lib::{Env, Queue, Wall};
+    use temper_worker_domain::{Domain, Event, fire, step};
+
+    let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: temper_worker_domain_world::limits() };
+    let mut domain = Domain::new(&env.limits, Box::new([]));
+    let mut out = Queue::uncapped();
+    let name = host::SourceName::new(b"login").unwrap();
+    step(&mut domain, &env, Event::Ready, &mut out);
+    assert!(matches!(out.pop(), Some(Request::Hello(_))));
+    step(&mut domain, &env, Event::Link(host::LinkDown::Sources { sources: Box::new([name]) }), &mut out);
+    let Some(Request::Source { owner, name: checked, operation: host::sources::Operation::Check, .. }) = out.pop()
+    else {
+        panic!("a declared source is checked immediately");
+    };
+    assert_eq!(checked, name);
+    assert!(out.is_empty());
+
+    // The interval starts at the answer, rather than at the request.
+    env.now = Time::ZERO.saturating_add(Duration::from_secs(5));
+    step(
+        &mut domain,
+        &env,
+        Event::SourceAnswered { owner, answer: host::sources::Answer::Checked(host::LoginState::Usable) },
+        &mut out,
+    );
+    assert_eq!(
+        out.pop(),
+        Some(Request::Link(host::LinkUp::Logins {
+            logins: Box::new([host::Login { name, state: host::LoginState::Usable }])
+        }))
+    );
+    let due = env.now.saturating_add(env.limits.host.source_interval);
+    assert_eq!(domain.agent().agents(), 0, "no agent can wake the idle worker");
+    assert_eq!(domain.next_deadline(), Some(due), "the root exposes the source alarm");
+    env.now = Time::from_nanos(due.as_nanos().checked_sub(1).unwrap());
+    assert!(!domain.is_due(env.now), "checks wait the whole interval");
+    fire(&mut domain, &env, &mut out);
+    assert!(out.is_empty(), "no early check");
+
+    env.now = due;
+    assert!(domain.is_due(env.now));
+    fire(&mut domain, &env, &mut out);
+    let Some(Request::Source { owner, name: checked, operation: host::sources::Operation::Check, deadline }) =
+        out.pop()
+    else {
+        panic!("the interval alone starts the next source check");
+    };
+    assert_eq!(checked, name);
+    assert_eq!(deadline, due.saturating_add(env.limits.host.source_timeout));
+    assert!(out.is_empty(), "one check in flight");
+    assert_eq!(domain.next_deadline(), None, "an in-flight check has no root alarm");
+    assert!(!domain.is_due(due.saturating_add(env.limits.host.source_interval)), "no spin awaiting the answer");
+    step(
+        &mut domain,
+        &env,
+        Event::SourceAnswered { owner, answer: host::sources::Answer::Checked(host::LoginState::NotSignedIn) },
+        &mut out,
+    );
+    assert_eq!(
+        out.pop(),
+        Some(Request::Link(host::LinkUp::Logins {
+            logins: Box::new([host::Login { name, state: host::LoginState::NotSignedIn }])
+        }))
+    );
+    assert!(out.is_empty(), "the lapse is published at the interval");
+    let next = due.saturating_add(env.limits.host.source_interval);
+    assert_eq!(domain.next_deadline(), Some(next), "the answer rearms the interval");
+    step(&mut domain, &env, Event::Lost, &mut out);
+    assert_eq!(domain.next_deadline(), None, "a disconnected source has no alarm");
+    assert!(!domain.is_due(next), "no spin with the link down");
+    env.now = next;
+    fire(&mut domain, &env, &mut out);
+    assert!(out.is_empty(), "no check with the link down");
+}

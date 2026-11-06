@@ -396,6 +396,7 @@ fn the_forges_charter_change_reaches_the_next_change() {
                 why: people::Malformed::Settings {
                     setting: people::Setting::Application { kind: 3, scope: 0, number: 1 },
                     fault: people::SettingFault::Reference,
+                    detail: None
                 },
             }))
         )),

@@ -767,6 +767,25 @@ fn held_versions_past_the_limit_keep_the_pending_set_across_restart() {
     world.reads = Some(reads::Parties::new(world.store.applied));
     let owner = world.sign_in.expect("owner sign-in");
     let task = world.assigned.as_ref().expect("live holder").task;
+    fixtures::ask_as(
+        &mut world,
+        owner,
+        151,
+        people::Ask::Amend {
+            project: 1,
+            task,
+            revision: 0,
+            release: None,
+            amendment: people::Amendment {
+                llm: Some(people::LlmChoice {
+                    account: None,
+                    main: people::ModelEffort { model: 0, effort: Some(0) },
+                    subagents: Box::new([]),
+                }),
+                ..jig_test_profile::fixtures::person_unchanged(b"keep the current model")
+            },
+        },
+    );
     let task_before = fixtures::live_row(&world, task).clone();
     let policy_before = world.assigned.as_ref().expect("live run").run.policy.clone();
     let first = propose(&mut world, owner, 152, 1, model_proposal_items(model.clone()));

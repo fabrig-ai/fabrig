@@ -418,10 +418,14 @@ fn settings_refusals_keep_ctls_words_without_a_client_dependency() {
             (s::Setting::Charter(1), c::Setting::Charter(c::SettingNumber { number: 1 })),
             (s::Setting::ProjectPolicy { project: 1 }, c::Setting::ProjectPolicy { project: 1 }),
         ] {
-            let core = R::NotWellFormed { at: 2, why: Malformed::Settings { setting, fault: core } };
+            let core = R::NotWellFormed { at: 2, why: Malformed::Settings { setting, fault: core, detail: None } };
             let client = c::Refusal::Malformed {
                 at: 2,
-                why: c::Malformed::Settings(c::MalformedSettings { setting: client_setting, fault: client }),
+                why: c::Malformed::Settings(c::MalformedSettings {
+                    setting: client_setting,
+                    fault: client,
+                    detail: None,
+                }),
             };
             assert_eq!(
                 crate::settings::refusal(&core),
@@ -836,4 +840,47 @@ fn a_settings_note_source_requires_one_positive_revision_and_no_inline_items() {
     ] {
         assert_eq!(decided(b"propose_settings", input).unwrap_err(), why);
     }
+}
+
+#[test]
+fn settings_document_refusal_words_name_member_and_bound() {
+    use jig_domain_people::{Malformed, Refusal, SettingDetail, SettingFault, SettingMember, SettingRule};
+    let refusal = Refusal::NotWellFormed {
+        at: 0,
+        why: Malformed::Settings {
+            setting: s::Setting::Charter(5),
+            fault: SettingFault::Shape,
+            detail: Some(SettingDetail {
+                member: SettingMember::Documents,
+                document: 0,
+                segment: 0,
+                rule: SettingRule::Maximum,
+                supplied: 3,
+                bound: 2,
+            }),
+        },
+    };
+    let client = c::Refusal::Malformed {
+        at: 0,
+        why: c::Malformed::Settings(c::MalformedSettings {
+            setting: c::Setting::Charter(c::SettingNumber { number: 5 }),
+            fault: c::SettingFault::Shape,
+            detail: Some(c::SettingDetail {
+                member: c::SettingMember::Documents,
+                document: 0,
+                segment: 0,
+                rule: c::SettingRule::Maximum,
+                supplied: 3,
+                bound: 2,
+            }),
+        }),
+    };
+    assert_eq!(
+        crate::settings::refusal(&refusal),
+        temper_client_tools::jig::render::settings_refusal(&client, temper_client_tools::limits::TEXT)
+    );
+    assert_eq!(
+        crate::settings::refusal(&refusal).as_ref(),
+        b"out of shape; item 0; charter 5: shape; documents: supplied 3; maximum tasks.charter_documents 2"
+    );
 }

@@ -90,8 +90,9 @@ fn documents_past_each_bound_are_shape_failures_naming_the_charter() {
         cases.push(charter).unwrap();
     }
     assert_eq!(cases.len(), 7);
-    for charter in cases.into_boxed() {
-        let failure = Failure { setting: Setting::Charter(1), fault: Fault::Shape };
+    let expected = document_faults(&limits);
+    for (charter, (member, rule, supplied, bound)) in cases.into_boxed().into_iter().zip(expected) {
+        let failure = document_failure(member, rule, supplied, bound);
         assert_eq!(
             crate::settings::check::restore_fit(
                 Setting::Charter(1),
@@ -108,7 +109,15 @@ fn documents_past_each_bound_are_shape_failures_naming_the_charter() {
 fn documents_require_a_registered_connector() {
     let mut charter = bounded_charter(&limits());
     charter.documents[0].connector = u16::MAX;
-    check_at_start_and_change(charter, Err(Failure { setting: Setting::Charter(1), fault: Fault::Shape }));
+    check_at_start_and_change(
+        charter,
+        Err(document_failure(
+            people::SettingMember::Connector,
+            people::SettingRule::Registered,
+            u32::from(u16::MAX),
+            0,
+        )),
+    );
 }
 
 #[test]
@@ -128,7 +137,12 @@ fn stored_documents_past_a_bound_are_refused_at_restart() {
     assert_eq!(
         core.start_failure(),
         Some(crate::start::Failure::Settings {
-            failure: Failure { setting: Setting::Charter(1), fault: Fault::Shape },
+            failure: document_failure(
+                people::SettingMember::Path,
+                people::SettingRule::Maximum,
+                DOCUMENT_PATH_BYTES.checked_add(1).unwrap(),
+                DOCUMENT_PATH_BYTES
+            ),
             changed: true,
         })
     );
@@ -156,4 +170,49 @@ fn documents_at_their_bounds_are_priced_within_each_charters_setting() {
         with_documents.checked_sub(crate::settings::set_bound(&limits).unwrap()).unwrap(),
         u64::from(limits.tasks.charters).checked_mul(documents).unwrap()
     );
+}
+
+fn document_failure(member: people::SettingMember, rule: people::SettingRule, supplied: u32, bound: u32) -> Failure {
+    Failure {
+        setting: Setting::Charter(1),
+        fault: Fault::Shape,
+        detail: Some(people::SettingDetail { member, document: 0, segment: 0, rule, supplied, bound }),
+    }
+}
+
+fn document_faults(limits: &Limits) -> [(people::SettingMember, people::SettingRule, u32, u32); 7] {
+    [
+        (
+            people::SettingMember::Documents,
+            people::SettingRule::Maximum,
+            limits.tasks.charter_documents.checked_add(1).unwrap(),
+            limits.tasks.charter_documents,
+        ),
+        (
+            people::SettingMember::NameSegments,
+            people::SettingRule::Maximum,
+            limits.authority.segments.checked_add(1).unwrap(),
+            limits.authority.segments,
+        ),
+        (
+            people::SettingMember::NameSegmentBytes,
+            people::SettingRule::Maximum,
+            limits.authority.segment_bytes.checked_add(1).unwrap(),
+            limits.authority.segment_bytes,
+        ),
+        (people::SettingMember::Path, people::SettingRule::Minimum, 0, 1),
+        (
+            people::SettingMember::Path,
+            people::SettingRule::Maximum,
+            DOCUMENT_PATH_BYTES.checked_add(1).unwrap(),
+            DOCUMENT_PATH_BYTES,
+        ),
+        (people::SettingMember::Heading, people::SettingRule::Minimum, 0, 1),
+        (
+            people::SettingMember::Heading,
+            people::SettingRule::Maximum,
+            DOCUMENT_HEADING_BYTES.checked_add(1).unwrap(),
+            DOCUMENT_HEADING_BYTES,
+        ),
+    ]
 }

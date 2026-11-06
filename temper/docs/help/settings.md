@@ -77,7 +77,13 @@ its default. A stored change still wins over a changed default.
 - Before commit, temper checks each value's shape and bounds, each kind's
   count, and references such as a template's charter or a charter's models.
 - A refused change commits nothing. Its refusal names the item, its
-  setting and its fault.
+  setting and its fault. A charter document refusal also names the member,
+  the document index where applicable, and its rule. A document count past
+  the allowance says, for example, `documents: supplied 3; maximum
+  tasks.charter_documents 2`. A path or heading refusal names its byte bound;
+  a name refusal names the authority segment bound; a connector refusal says
+  that the connector must be registered. Change the named member and submit
+  the proposal again.
 - A change against any other revision is refused as stale, naming the
   newest. Read again, and decide on what you read.
 - A change that alters no setting is refused as unchanged.

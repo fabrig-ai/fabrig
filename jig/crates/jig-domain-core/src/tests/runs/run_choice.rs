@@ -10,7 +10,7 @@ const TASK: u64 = 1;
 const FIRST: Token = Token::new(7);
 const SECOND: Token = Token::new(11);
 
-fn account(core: &mut Core, limits: &Limits, event: accounts::Event) {
+pub(in crate::tests) fn account(core: &mut Core, limits: &Limits, event: accounts::Event) {
     let mut out = Queue::uncapped();
     accounts::step(
         &mut core.accounts,
@@ -19,7 +19,7 @@ fn account(core: &mut Core, limits: &Limits, event: accounts::Event) {
         &mut out,
     );
 }
-fn granted(core: &mut Core, limits: &Limits, source: u32) {
+pub(in crate::tests) fn granted(core: &mut Core, limits: &Limits, source: u32) {
     account(
         core,
         limits,
@@ -34,10 +34,16 @@ fn granted(core: &mut Core, limits: &Limits, source: u32) {
 pub(in crate::tests) fn host(core: &mut Core, limits: &Limits, channel: Token, names: &[&[u8]]) {
     host_with_logins(core, limits, channel, names, Box::new([]));
 }
-fn host_with_logins(core: &mut Core, limits: &Limits, channel: Token, names: &[&[u8]], logins: Box<[fleet::Login]>) {
+pub(in crate::tests) fn host_with_logins(
+    core: &mut Core,
+    limits: &Limits,
+    channel: Token,
+    names: &[&[u8]],
+    logins: Box<[fleet::Login]>,
+) {
     host_with_endpoints(core, limits, channel, names, logins, Box::new([]));
 }
-fn host_with_endpoints(
+pub(in crate::tests) fn host_with_endpoints(
     core: &mut Core,
     limits: &Limits,
     channel: Token,
@@ -307,16 +313,20 @@ fn adoption_uses_recorded_sources_through_refresh_and_removal() {
 }
 
 #[test]
-fn a_default_chooses_a_usable_provider_once_with_its_first_effort() {
+fn an_unclaimed_default_rechecks_usable_providers_with_its_first_effort() {
     let (mut core, limits) = ready(false);
     granted(&mut core, &limits, 2);
     account(&mut core, &limits, accounts::Event::Limited { account: 1, reset: None });
     let mut batch = [new_row(&core, 2, tasks::Funder::Period { project: 1, period: 1 }, None)];
     core.resolve_llm(&mut batch).unwrap();
-    assert_eq!(batch[0].llm.as_ref().unwrap().main, tasks::ModelEffort { model: 2, effort: Some(0) });
+    assert_eq!(batch[0].llm, None);
     fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new(batch));
+    assert_eq!(
+        core.next_llm(core.tasks.task(2).unwrap()).unwrap().main,
+        tasks::ModelEffort { model: 2, effort: Some(0) }
+    );
     account(&mut core, &limits, accounts::Event::Limited { account: 2, reset: None });
-    assert_eq!(core.chosen_policy(2).model.name.as_ref(), b"other");
+    assert_eq!(core.chosen_policy(2).model.name.as_ref(), b"scripted");
 }
 
 fn terminal_after_zero_reset(account_terminal: bool) -> tasks::Tries {
@@ -472,10 +482,10 @@ fn a_progress_count_leaves_due_task_watches_unmarked() {
 const OWNER: u64 = 1;
 const OTHER_PERSON: u64 = 2;
 const PERSONAL_SOURCE: u32 = 3;
-fn login(name: &[u8], state: fleet::LoginState) -> fleet::Login {
+pub(in crate::tests) fn login(name: &[u8], state: fleet::LoginState) -> fleet::Login {
     fleet::Login { name: fleet::SourceName::new(name).unwrap(), state }
 }
-fn inventory(core: &mut Core, limits: &Limits, channel: Token, logins: Box<[fleet::Login]>) {
+pub(in crate::tests) fn inventory(core: &mut Core, limits: &Limits, channel: Token, logins: Box<[fleet::Login]>) {
     let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
@@ -661,7 +671,10 @@ fn a_program_source_is_chosen_only_where_its_login_is_usable() {
 fn an_unusable_program_login_does_not_fall_back_to_a_key() {
     let (mut core, limits) = placement_fixture(accounts::Holder::Party(OWNER), accounts::Holder::Party(OWNER), true);
     inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", fleet::LoginState::NotSignedIn)]));
-    assert_eq!(core.run_choice(TASK), Err(RunWait::Host));
+    assert_eq!(
+        core.run_choice(TASK),
+        Err(RunWait::Account { account: Some(0), source: Some(PERSONAL_SOURCE), why: accounts::WaitWhy::Host })
+    );
 }
 #[test]
 fn a_deployment_held_login_restricts_no_run() {
@@ -737,7 +750,10 @@ fn the_engine_never_takes_a_program_source() {
     limits.fleet.engine_slots = 1;
     core.fleet = placement_fleet(&core, &limits);
     host(&mut core, &limits, Token::new(0), &[b"scripted"]);
-    assert_eq!(core.run_choice(TASK), Err(RunWait::Host));
+    assert_eq!(
+        core.run_choice(TASK),
+        Err(RunWait::Account { account: Some(0), source: Some(PERSONAL_SOURCE), why: accounts::WaitWhy::Host })
+    );
 }
 
 #[test]
@@ -1416,10 +1432,9 @@ fn an_open_task_retains_its_program_endpoint_alternative() {
     core::mem::swap(&mut core.fleet, &mut old);
     host_with_endpoints(&mut core, &limits, FIRST, &[b"scripted", b"same"], Box::new([]), Box::new([PROGRAM_ENDPOINT]));
     let choice = core.run_choice(OPEN_TASK).unwrap();
-    assert_eq!(
-        choice.policy.alternatives.as_ref(),
-        core::slice::from_ref(&core.current.test_charter_mut(1).policy.alternatives[0])
-    );
+    let mut expected = core.current.test_charter_mut(1).policy.alternatives[0].clone();
+    expected.effort = Some(b"low".as_slice().into());
+    assert_eq!(choice.policy.alternatives.as_ref(), core::slice::from_ref(&expected));
     assert_eq!(choice, core.run_choice(TASK).unwrap());
     let mut proof = RunProof::claimed(OPEN_TASK, 7, 7, None, choice.placement.kind);
     proof.placement = Some(choice.placement.channel);

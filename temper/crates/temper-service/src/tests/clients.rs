@@ -817,7 +817,8 @@ fn settings_entrances_refuse_cut_or_trailing_values_naming_item_one() {
                     at: 1,
                     why: people::Malformed::Settings {
                         setting: people::Setting::Application { kind: 1, scope: 0, number: 1 },
-                        fault: people::SettingFault::Shape
+                        fault: people::SettingFault::Shape,
+                        detail: None
                     }
                 }
             );

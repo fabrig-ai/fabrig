@@ -1319,7 +1319,7 @@ fn check_run() {
     assert_eq!(
         ended.stderr,
         format!(
-            "smith: trust roots: 1 taken, 0 skipped, 0 malformed blocks, 0 other blocks\n{{\"boundary\":{{\"lines\":1,\"lost\":0}}}}\ntemper fake forge check: opening {}: errno 2\n",
+            "{{\"boundary\":{{\"lines\":1,\"lost\":0}}}}\ntemper fake forge check: opening {}: errno 2\n",
             store.display()
         )
         .as_bytes()
