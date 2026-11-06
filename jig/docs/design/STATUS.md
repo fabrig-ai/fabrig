@@ -12,7 +12,8 @@ built (the protocol documents), nor the store's retention, rehearsal and
 going back (`protocol/store.md`, `protocol/client.md`). An
 application's own kinds of setting, a project's policy in a change of
 settings and a settings revision's `Restore` are built, but a proposal
-of settings waits for the deployment's owners whatever it names, and the
+of settings waits for the deployment's owners whatever it names, so a
+project's owner alone reads no row of it, and the
 core world's restore stories are ignored (`domain/engine.md`,
 `domain/connectors.md`). A start does not check an application's declared
 kinds against its limits, and a project's deletion as a whole has no price
@@ -27,7 +28,7 @@ service and its connectors' protocols (`examples.md`). `RemoveProject`
 is offered in no project's document (`client/domain/contract.md`).
 Public reading's remaining departure is the public index's memory fit
 check (`protocol/configuration.md`). The test root is not in `ops`'s
-shape, which awaits the user, and temper keeps its own message words and
+shape, which the user deferred, 2026-11-06, and temper keeps its own message words and
 its admission's yes or no, where the user's request of 2026-11-05 has it
 use jig's (`domain/root.md`, `domain/hosts.md`).
 A transcript's load refused for want of a slot counts as a failure, where

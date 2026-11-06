@@ -1294,3 +1294,27 @@ fn form_application_state(v: &c::ApplicationState) -> n::ApplicationState {
         charters: v.charters.clone(),
     }
 }
+
+/// Translate the document refusal facts without checking the settings again.
+#[must_use]
+pub fn form_setting_detail(value: c::SettingDetail) -> n::SettingDetail {
+    n::SettingDetail {
+        member: match value.member {
+            c::SettingMember::Documents => n::SettingMember::Documents,
+            c::SettingMember::NameSegments => n::SettingMember::NameSegments,
+            c::SettingMember::NameSegmentBytes => n::SettingMember::NameSegmentBytes,
+            c::SettingMember::Path => n::SettingMember::Path,
+            c::SettingMember::Heading => n::SettingMember::Heading,
+            c::SettingMember::Connector => n::SettingMember::Connector,
+        },
+        rule: match value.rule {
+            c::SettingRule::Maximum => n::SettingRule::Maximum,
+            c::SettingRule::Minimum => n::SettingRule::Minimum,
+            c::SettingRule::Registered => n::SettingRule::Registered,
+        },
+        document: value.document,
+        segment: value.segment,
+        supplied: value.supplied,
+        bound: value.bound,
+    }
+}

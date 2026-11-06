@@ -503,14 +503,8 @@ pub(crate) fn encode_refusal(value: &domain::Refusal, limits: &wire::Limits) -> 
             wire::RefusalNotWellFormedParts {
                 at: *at,
                 why: match why {
-                    domain::Malformed::Settings { setting, fault } => {
-                        wire::Malformed::Settings(wire::MalformedSettings::new(
-                            limits,
-                            wire::MalformedSettingsParts {
-                                setting: encode_setting(*setting, limits)?,
-                                fault: encode_setting_fault(*fault),
-                            },
-                        )?)
+                    domain::Malformed::Settings { setting, fault, detail } => {
+                        encode_malformed_settings(*setting, *fault, *detail, limits)?
                     }
                     domain::Malformed::SettingsUnchanged => wire::Malformed::SettingsUnchanged,
                     domain::Malformed::Running => wire::Malformed::Running,
@@ -640,10 +634,7 @@ pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
             domain::Refusal::NotWellFormed {
                 at,
                 why: match why {
-                    wire::Malformed::Settings(value) => domain::Malformed::Settings {
-                        setting: decode_setting(value.setting()),
-                        fault: decode_setting_fault(value.fault()),
-                    },
+                    wire::Malformed::Settings(value) => decode_malformed_settings(value),
                     wire::Malformed::SettingsUnchanged => domain::Malformed::SettingsUnchanged,
                     wire::Malformed::Running => domain::Malformed::Running,
                     wire::Malformed::ProposedAsAllowed => domain::Malformed::ProposedAsAllowed,
@@ -967,5 +958,85 @@ fn decode_ceiling_dimension(value: &wire::CeilingDimension) -> domain::CeilingDi
         wire::CeilingDimension::Grants => domain::CeilingDimension::Grants,
         wire::CeilingDimension::Deadline => domain::CeilingDimension::Deadline,
         wire::CeilingDimension::Notes => domain::CeilingDimension::Notes,
+    }
+}
+
+/// Translate the document refusal facts without checking the settings again.
+fn encode_setting_detail(
+    value: domain::SettingDetail,
+    limits: &wire::Limits,
+) -> Result<wire::SettingDetail, wire::Problem> {
+    wire::SettingDetail::new(
+        limits,
+        wire::SettingDetailParts {
+            member: match value.member {
+                domain::SettingMember::Documents => wire::SettingMember::Documents,
+                domain::SettingMember::NameSegments => wire::SettingMember::NameSegments,
+                domain::SettingMember::NameSegmentBytes => wire::SettingMember::NameSegmentBytes,
+                domain::SettingMember::Path => wire::SettingMember::Path,
+                domain::SettingMember::Heading => wire::SettingMember::Heading,
+                domain::SettingMember::Connector => wire::SettingMember::Connector,
+            },
+            rule: match value.rule {
+                domain::SettingRule::Maximum => wire::SettingRule::Maximum,
+                domain::SettingRule::Minimum => wire::SettingRule::Minimum,
+                domain::SettingRule::Registered => wire::SettingRule::Registered,
+            },
+            document: value.document,
+            segment: value.segment,
+            supplied: value.supplied,
+            bound: value.bound,
+        },
+    )
+}
+/// Translate the document refusal facts without checking the settings again.
+fn decode_setting_detail(value: &wire::SettingDetail) -> domain::SettingDetail {
+    domain::SettingDetail {
+        member: match value.member() {
+            wire::SettingMember::Documents => domain::SettingMember::Documents,
+            wire::SettingMember::NameSegments => domain::SettingMember::NameSegments,
+            wire::SettingMember::NameSegmentBytes => domain::SettingMember::NameSegmentBytes,
+            wire::SettingMember::Path => domain::SettingMember::Path,
+            wire::SettingMember::Heading => domain::SettingMember::Heading,
+            wire::SettingMember::Connector => domain::SettingMember::Connector,
+        },
+        rule: match value.rule() {
+            wire::SettingRule::Maximum => domain::SettingRule::Maximum,
+            wire::SettingRule::Minimum => domain::SettingRule::Minimum,
+            wire::SettingRule::Registered => domain::SettingRule::Registered,
+        },
+        document: value.document(),
+        segment: value.segment(),
+        supplied: value.supplied(),
+        bound: value.bound(),
+    }
+}
+
+fn encode_malformed_settings(
+    setting: domain::Setting,
+    fault: domain::SettingFault,
+    detail: Option<domain::SettingDetail>,
+    limits: &wire::Limits,
+) -> Result<wire::Malformed, wire::Problem> {
+    Ok(wire::Malformed::Settings(wire::MalformedSettings::new(
+        limits,
+        wire::MalformedSettingsParts {
+            setting: encode_setting(setting, limits)?,
+            fault: encode_setting_fault(fault),
+            detail: match detail {
+                Some(value) => Some(encode_setting_detail(value, limits)?),
+                None => None,
+            },
+        },
+    )?))
+}
+fn decode_malformed_settings(value: wire::MalformedSettings) -> domain::Malformed {
+    domain::Malformed::Settings {
+        setting: decode_setting(value.setting()),
+        fault: decode_setting_fault(value.fault()),
+        detail: match value.detail() {
+            Some(value) => Some(decode_setting_detail(value)),
+            None => None,
+        },
     }
 }

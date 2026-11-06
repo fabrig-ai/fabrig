@@ -1386,8 +1386,11 @@ impl Joint {
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 let (welcome, owned) = self.deployment;
-                let answer = w::DeploymentAnswer::new(&w::CEILINGS, w::DeploymentAnswerParts { welcome, owned })
-                    .expect("deployment answer");
+                let answer = w::DeploymentAnswer::new(
+                    &w::CEILINGS,
+                    w::DeploymentAnswerParts { welcome, owned, program_login: None },
+                )
+                .expect("deployment answer");
                 self.callbacks.push((
                     who,
                     RootEvent::Client {

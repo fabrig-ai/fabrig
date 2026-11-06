@@ -115,7 +115,7 @@ impl Core {
                 || self.settings_proposals.len() >= self.settings_proposals.capacity()
             {
                 self.refuse_restore(crate::start::Failure::Settings {
-                    failure: Failure { setting: Setting::Rules, fault: Fault::Count },
+                    failure: Failure { setting: Setting::Rules, fault: Fault::Count, detail: None },
                     changed: true,
                 });
                 return false;
@@ -168,7 +168,7 @@ impl Core {
             return false;
         }
         if self.settings_restore.defaults.insert(setting, default).is_err() {
-            let _refused = self.refuse_settings(Failure { setting, fault: Fault::Count });
+            let _refused = self.refuse_settings(Failure { setting, fault: Fault::Count, detail: None });
             return false;
         }
         true
@@ -258,7 +258,8 @@ impl Core {
         if changed {
             let previous = self.current.newest();
             if previous.checked_add(1).is_none() {
-                let _request = self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Count });
+                let _request =
+                    self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Count, detail: None });
                 return false;
             }
             // The new head and defaults take effect only after tasks have
@@ -416,11 +417,11 @@ impl Core {
         let previous = self.current.newest();
         let release = self.settings_restore.release.is_some() || super::application::defaults_changed(self);
         if release && previous.checked_add(1).is_none() {
-            let _refused = self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Count });
+            let _refused = self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Count, detail: None });
             return out;
         }
         if release && !crate::routing::settings::dispatch::withdrawal_room(self, None) {
-            let _refused = self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Count });
+            let _refused = self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Count, detail: None });
             return out;
         }
         let newest = if release { previous.checked_add(1).expect("release number preflighted") } else { previous };

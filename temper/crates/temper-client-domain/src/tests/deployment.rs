@@ -8,7 +8,8 @@ fn page(welcome: bool, owned: bool) -> Readout {
     Readout::Family {
         family: wire::FORGE,
         record: Some(wire::deployment_answer(
-            &w::DeploymentAnswer::new(&w::CEILINGS, w::DeploymentAnswerParts { welcome, owned }).unwrap(),
+            &w::DeploymentAnswer::new(&w::CEILINGS, w::DeploymentAnswerParts { welcome, owned, program_login: None })
+                .unwrap(),
         )),
     }
 }
@@ -68,21 +69,24 @@ fn the_answer_is_kept_across_a_gap_and_a_read_with_no_record() {
         assert!(tell(&mut side, Told::Page { handle: first, page: page(welcome, owned) }, &mut out));
         assert_ne!(forge::shown(&side), before, "a new answer publishes");
         let shown = forge::shown(&side);
-        let expected = Some(deployment::Answer { welcome, owned });
+        let expected = Some(deployment::Answer { welcome, owned, program_login: None });
         tell(&mut side, Told::Link { link: Link::Offline }, &mut out);
-        assert_eq!(side.deployment(), expected);
+        assert_eq!(side.deployment(), expected.as_ref());
         let next = read(&mut side);
         assert!(tell(
             &mut side,
             Told::Page { handle: next, page: Readout::Family { family: wire::FORGE, record: None } },
             &mut out
         ));
-        assert_eq!(side.deployment(), expected);
+        assert_eq!(side.deployment(), expected.as_ref());
         assert_eq!(forge::shown(&side), shown, "an unchanged answer does not publish");
         tell(&mut side, Told::Link { link: Link::Offline }, &mut out);
         let next = read(&mut side);
         assert!(tell(&mut side, Told::Page { handle: next, page: page(!welcome, !owned) }, &mut out));
-        assert_eq!(side.deployment(), Some(deployment::Answer { welcome: !welcome, owned: !owned }));
+        assert_eq!(
+            side.deployment(),
+            Some(&deployment::Answer { welcome: !welcome, owned: !owned, program_login: None })
+        );
         assert_ne!(forge::shown(&side), shown, "a changed answer publishes");
         assert!(out.is_empty(), "answers send no reads");
     }
@@ -101,7 +105,7 @@ fn a_read_that_ends_with_no_record_reads_as_no_welcome() {
         let handle = read(&mut side);
         let mut out = Queue::uncapped();
         assert!(tell(&mut side, Told::Page { handle, page }, &mut out));
-        assert_eq!(side.deployment(), Some(deployment::Answer { welcome: false, owned: false }));
+        assert_eq!(side.deployment(), Some(&deployment::Answer { welcome: false, owned: false, program_login: None }));
         assert!(out.is_empty());
     }
 }
@@ -134,4 +138,41 @@ pub(super) fn answer(root: &mut crate::Domain, welcome: bool, owned: bool) {
         }
     }
     panic!("deployment read reaches the world");
+}
+
+#[test]
+fn the_deployment_command_survives_a_gap_and_changes_with_the_answer() {
+    let mut side = forge::Side::new(&f::limits().forge, f::SEED);
+    let mut out = Queue::uncapped();
+    for line in [Some(b"'/box/temper' program-login".as_slice()), None] {
+        let handle = read(&mut side);
+        let answer = w::DeploymentAnswer::new(
+            &w::CEILINGS,
+            w::DeploymentAnswerParts {
+                welcome: true,
+                owned: false,
+                program_login: match line {
+                    Some(line) => Some(line.into()),
+                    None => None,
+                },
+            },
+        )
+        .unwrap();
+        let before = forge::shown(&side);
+        tell(
+            &mut side,
+            Told::Page {
+                handle,
+                page: Readout::Family { family: wire::FORGE, record: Some(wire::deployment_answer(&answer)) },
+            },
+            &mut out,
+        );
+        assert_eq!(side.deployment().unwrap().program_login.as_deref(), line);
+        assert_ne!(forge::shown(&side), before);
+        tell(&mut side, Told::Link { link: Link::Offline }, &mut out);
+        let handle = read(&mut side);
+        tell(&mut side, Told::Page { handle, page: Readout::Limit }, &mut out);
+        assert_eq!(side.deployment().unwrap().program_login.as_deref(), line);
+        tell(&mut side, Told::Link { link: Link::Offline }, &mut out);
+    }
 }

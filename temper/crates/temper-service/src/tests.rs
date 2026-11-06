@@ -9,6 +9,7 @@ mod store;
 
 mod accounts;
 mod engine;
+mod first_model;
 mod first_period;
 mod stop;
 

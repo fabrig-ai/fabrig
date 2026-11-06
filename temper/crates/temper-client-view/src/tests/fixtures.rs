@@ -1798,7 +1798,8 @@ pub fn deliver_playground(
 }
 pub fn deliver_deployment(root: &mut temper_client_domain::Domain, read: Token, welcome: bool, owned: bool) {
     let answer =
-        w::DeploymentAnswer::new(&w::CEILINGS, w::DeploymentAnswerParts { welcome, owned }).expect("deployment answer");
+        w::DeploymentAnswer::new(&w::CEILINGS, w::DeploymentAnswerParts { welcome, owned, program_login: None })
+            .expect("deployment answer");
     playground_record(root, read, Some(wire::deployment_answer(&answer)));
 }
 pub fn deliver_no_playground(root: &mut temper_client_domain::Domain, read: Token) {

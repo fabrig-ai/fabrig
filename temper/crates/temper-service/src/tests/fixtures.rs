@@ -586,6 +586,7 @@ fn start_with_worker(
         worker,
         io,
         if under_box { Some(system::BOX_BYTES) } else { None },
+        None,
     )
     .unwrap();
 
@@ -1373,7 +1374,7 @@ pub fn configured_prepared(
     let root = limits::engine(&config.engine.jig.limits, &config.engine.limits).unwrap();
     let seed = ForgeSeed::new(&root, &config.engine.jig);
     let empty = crate::forge::prepare(&config.engine, skein_lib::List::with_capacity(0))?;
-    let mut service = crate::Service::prepared(config.engine, seeds, accounts, empty, worker, io, box_bytes)?;
+    let mut service = crate::Service::prepared(config.engine, seeds, accounts, empty, worker, io, box_bytes, None)?;
     service.engine.as_mut().unwrap().store = records_store();
     for endpoint in endpoints.forges.into_boxed() {
         let engine = service.engine.as_mut().unwrap();

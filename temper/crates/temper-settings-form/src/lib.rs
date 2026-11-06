@@ -144,7 +144,7 @@ impl Limits {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Refusal {
     Stale(u32),
-    Malformed { at: u32, setting: view::Setting, fault: view::SettingFault },
+    Malformed { at: u32, setting: view::Setting, fault: view::SettingFault, detail: Option<view::SettingDetail> },
     Unchanged,
     Authority,
     Limit,
@@ -165,13 +165,16 @@ pub fn refusal(why: &Refusal, out: &mut Text) {
             out.number(u64::from(*newest));
             out.put(b"; read settings show again");
         }
-        Refusal::Malformed { at, setting, fault } => {
+        Refusal::Malformed { at, setting, fault, detail } => {
             out.put(b"out of shape; item ");
             out.number(u64::from(*at));
             out.put(b"; ");
             render::setting_text(*setting, out);
             out.put(b": ");
             out.put(render::fault_word(*fault));
+            if let Some(detail) = detail {
+                render::setting_detail(detail, out);
+            }
         }
         Refusal::Unchanged => out.put(b"settings unchanged"),
         Refusal::Authority => out.put(b"Authority missing"),

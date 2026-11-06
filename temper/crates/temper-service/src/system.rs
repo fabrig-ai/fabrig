@@ -173,11 +173,12 @@ impl Service {
         io_limits: io::Limits,
     ) -> Result<Self, Problems> {
         let forges = crate::forge::prepare(&settings, forges)?;
-        Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None)
+        Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None, None)
     }
     #[expect(
+        clippy::too_many_arguments,
         clippy::too_many_lines,
-        reason = "startup composes the engine and its client facts in one checked sequence"
+        reason = "startup keeps the checked settings and runtime facts together"
     )]
     pub(crate) fn prepared(
         mut settings: settings::Engine,
@@ -187,6 +188,7 @@ impl Service {
         worker: Option<Worker>,
         io_limits: io::Limits,
         box_line_bytes: Option<u32>,
+        program_login: Option<Box<[u8]>>,
     ) -> Result<Self, Problems> {
         let mut limits =
             limits::engine(&settings.jig.limits, &settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
@@ -229,6 +231,7 @@ impl Service {
         )?;
         clients.program_environment.clone_from(&settings.program_environment);
         clients.deployment = crate::family::Deployment {
+            program_login: if worker.is_some() { program_login } else { None },
             welcome: settings.welcome,
             owned: deployment_owned(settings.machine.owned.is_some(), box_line_bytes.is_some()),
         };
