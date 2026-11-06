@@ -1,0 +1,3 @@
+draft = "box-small"
+repo = "fabrig"
+sources = ["temper/docs/plan/box-small/inputs/request.md", "AGENTS.md", "DESIGN.md"]
