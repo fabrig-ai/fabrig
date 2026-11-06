@@ -1,0 +1,3 @@
+draft = "jig-world-cost"
+repo = "fabrig"
+sources = ["jig/docs/plan/jig-world-cost/inputs/request.md", "jig/testing/jig-core-kit/src/conformance.rs", "jig/testing/jig-core-kit/src/oracle.rs", "jig/testing/jig-test-store-files/src/store/readback.rs", "jig/crates/jig-protocol-store/src/pages/reader.rs", "jig/crates/jig-protocol-store/src/retained.rs", "jig/tests/core/tests/suite/faults.rs", "jig/docs/development/debt/D034-world-replay-cost.md", "AGENTS.md", "DESIGN.md"]
