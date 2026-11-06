@@ -537,7 +537,7 @@ Google's (4.1). The issuer is the public origin (2.2), or
 | `GET /.well-known/openid-configuration` | the discovery document: the issuer, the endpoints below, the code flow alone, PKCE S256, RS256, the scopes and the claims | the issuer's bytes, taken once at start |
 | `GET /oauth/keys` | the key set, its `kid` the key's | the issuer's bytes, taken once at start |
 | `GET /oauth/authorize` | the authorization: temper's page, as every other `GET` (9.3) | the bundle |
-| `POST /oauth/token` | the code's exchange, from Forgejo's server: the client by Basic or by its secret in the body, the verifier | jig's `Redeem` with the request's `Authorization`, `Content-Type` and body, answered `Redeemed` |
+| `POST /oauth/token` | the code's exchange, from Forgejo's server: the client id, a confidential client's secret by Basic or in the body, and the verifier; a public client's password is ignored (9.9) | jig's `Redeem` with the request's `Authorization`, `Content-Type` and body, answered `Redeemed` |
 | `GET /oauth/userinfo` | the claims, for the access token as Bearer | jig's `Claims` with the request's `Authorization`, answered `Claimed` |
 
 - **Each answer jig gives is sent as it is:** its status, its body,
@@ -567,8 +567,9 @@ Google's (4.1). The issuer is the public origin (2.2), or
   and by its secret in the body when that fails; it calls the userinfo
   endpoint by `GET` with the access token as Bearer, and requires its
   `sub` to be the ID token's. It verifies no signature of the ID token:
-  it takes the token straight from the token endpoint, authenticated by
-  its secret.
+  it takes the token straight from the token endpoint. A confidential
+  client authenticates with its secret; the box's public client has none,
+  and relies on S256 and the exact redirect (9.9).
 - **The signing algorithm is RS256 alone,** by the key jig's
   configuration names (9.7): `skein_tls::sign_rs256` signs it, its
   signatures replay byte for byte in the worlds, and skein's client, the
@@ -738,6 +739,11 @@ section 3), and temper's `application.sign_in.forges`:
 
 ### 9.8 Testing
 
+- **An attacker review of the box's sign-in** (9.9): another process on
+  the machine and another browser tab, account linking by name and address,
+  excluded identities, public-client redemption and PKCE, the printed link,
+  cookies, key files, source failure and restored source facts. Every finding
+  is fixed or recorded with its remaining exposure.
 - **A box's owned Forgejo** (9.9): the step tests of its claims, its refused
   logins, its address's encoding and the issuer's refusals; the box world, its
   source step failing with the box running and the set-up done; the process
@@ -883,10 +889,13 @@ other rules are skein's, per client, so no other client is weakened.
 it, by `add-oauth --name temper --provider openidConnect --key forgejo
 --auto-discover-url ISSUER/.well-known/openid-configuration` with `--work-path` and
 `--config`. temper is serving by then, since it asked for the group. On a restart, serve
-starts before this group too: Forgejo fetches discovery while loading its source.
+starts before this group too: a later preparation's source commands and Forgejo, loading its
+source, fetch discovery. So serve's read at its start comes before preparation's new handover,
+which it reads again once its first reconcile has waited for Forgejo, taking it before the
+connect (`setup.md`, 6.5).
 A restored group reports started only after its final source outcome, as on its first start.
 Its source fact is accepted for the kept box-owned Forgejo even with no setup ask in flight;
-the restored forge is already connected. An unknown or non-owned forge cannot set this fact.
+the restored forge needs no ask. An unknown or non-owned forge cannot set this fact.
 
 **A moved port.** The discovery address names temper's own listener, and a port a box
 finds taken is one its person may edit (`setup.md`, 7.1). Forgejo reads a source's
@@ -916,6 +925,24 @@ as it is. `temper ctl` and a coding run's credentials are untouched: they are th
 bot's and the person's tokens, and neither passes this provider.
 
 ## 10. Open questions
+
+- **Generating the provider's key in process** (9.9): it needs a key
+  generator in skein; its signing library does not generate RSA keys.
+  Default: `openssl` at init, with the provider off and password links
+  when the key cannot be made. No new cryptography dependency for this alone.
+- **Upgrading an existing box to repository sign-in** (9.9): an older
+  document has no provider or `owned.sign_in` and keeps its password links
+  and printed-link login `owner`. Default: no migration; init's new
+  document sets up the provider on a fresh box.
+- **The terminal's sign-in fallback status** (9.9): the page's off fact
+  reaches the browser's Forges row alone. Default: `box.log` for the
+  terminal, as the `ui-repo-link` cut decided; a wire fact waits for a
+  terminal status design.
+- **A handover after Forgejo restarts with serve still running** (9.9):
+  discovery can be answered, but taking preparation's new handover
+  needs a notification and a takeover while the forge is connected
+  (`setup.md`, section 15). Default: it waits for serve's next start;
+  9.9's second read is once per serve start, not per Forgejo restart.
 
 - **Links after a failed source-address update** (9.9): whether a box
   records the failure between preparation and the source step, so the

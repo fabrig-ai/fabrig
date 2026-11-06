@@ -462,7 +462,8 @@ blamed landing's full commit (2026-11-04).
   pull request's number, so that a late verdict's comment reaches it,
   and its title, at most 256 bytes, since a change's close takes its row
   and temper's `Changes` page still names it (`../client/forge.md`,
-  section 3), its trailers within `trailers` and
+  section 3; a visitor's public queue merges read its commits and tasks
+  alone, 11.2 there), its trailers within `trailers` and
   `trailer_bytes`, and each tier's verdict (verifying, cleared, or red
   with its count); a ring, written at each move of a watched landing
   branch (section 8), at each merge of temper's, when a change sees its
@@ -545,6 +546,10 @@ with failing tests by id and uploading their artifacts:
 
 ## 14. Later
 
+- **Older public queue merges:** public history beyond the landing log's
+  ring, or beyond the tasks jig's public index hands, is the client's
+  question (`../client/forge.md`, section 10). Default: none; keeping a
+  landing in the log grants no public access to it (section 10).
 - **A red after landing blamed within a goal's landing,** bisected over
   its changes' merges to the change that brought it. A goal's landing
   is one landing to its tiers, so its red names the goal's landing

@@ -151,10 +151,10 @@ pub fn domain_limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // Page handles, session settings and Away, project-needs and the goals watch/read.
-                handles: 14,
+                // Page handles, session settings and Away, project-needs and the goals watch/read, trials and a running trial task.
+                handles: 16,
                 // Closing page watches overlap the session watches.
-                watches: 13,
+                watches: 15,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -177,7 +177,7 @@ pub fn domain_limits() -> Limits {
             exchanges: 8,
         };
 
-        Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8 }
+        Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8, window_bytes: None }
     }
 }
 

@@ -71,6 +71,13 @@ pub(super) enum IntentSource {
     Request,
     Record,
 }
+/// A restored forge's read after its reconcile (protocol/setup.md, 6.5).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum ReadAgain {
+    No,
+    AfterReconcile,
+    Reading,
+}
 #[derive(Debug)]
 pub(super) struct Local {
     pub(super) source: Source,
@@ -86,6 +93,7 @@ pub(super) struct Local {
     pub(super) handover: Option<Secret>,
     pub(super) path: Box<[u8]>,
     pub(super) file: FileStep,
+    pub(super) read_again: ReadAgain,
     pub(super) trigger: Trigger,
 }
 #[derive(PartialEq, Eq, Debug)]
@@ -634,6 +642,9 @@ pub(super) fn kept(engine: &mut crate::engine::Engine, purpose: Purpose) {
             if engine.domain.forge_ended(active.forge) {
                 return;
             }
+            if read_after_reconcile(engine, active.forge) {
+                return;
+            }
             if !create_local(engine, active.forge) {
                 adopt_local(engine, active.forge);
             }
@@ -1007,6 +1018,7 @@ pub(crate) fn restored(engine: &mut crate::engine::Engine) {
 fn local_stopped(engine: &mut crate::engine::Engine, forge: u16, why: crate::SetupStopped) {
     let local = engine.setup.lifecycle.local_mut(forge).expect("local failure");
     local.handover = None;
+    local.read_again = ReadAgain::No;
     let connection = match local.trigger {
         Trigger::Start => {
             if local.source == Source::Managed {
@@ -1031,6 +1043,16 @@ fn local_stopped(engine: &mut crate::engine::Engine, forge: u16, why: crate::Set
     };
     engine.notes.push(crate::Note::ForgeSetupStopped { number: forge, why });
     state(engine, forge, connection);
+}
+fn read_after_reconcile(engine: &mut crate::engine::Engine, forge: u16) -> bool {
+    if engine.setup.lifecycle.local(forge).expect("reconciled local").read_again != ReadAgain::AfterReconcile {
+        return false;
+    }
+    let run = next_run(&mut engine.setup.lifecycle);
+    let local = engine.setup.lifecycle.local_mut(forge).expect("reconciled local");
+    local.read_again = ReadAgain::Reading;
+    local.file = FileStep::Reading { run, sent: false };
+    true
 }
 fn start_pending(engine: &mut crate::engine::Engine, forge: u16) -> bool {
     if super::making::running(&engine.setup.runs, forge) {
@@ -1423,6 +1445,7 @@ pub(crate) fn started(engine: &mut crate::engine::Engine, forge: u16) {
     }
     let local = engine.setup.lifecycle.local_mut(forge).expect("local start");
     local.trigger = Trigger::Asked;
+    local.read_again = ReadAgain::No;
     if super::making::running(&engine.setup.runs, forge) {
         engine.setup.lifecycle.local_mut(forge).expect("local start").pending = true;
         return;
@@ -1542,8 +1565,18 @@ fn file_answer(engine: &mut crate::engine::Engine, forge: u16) -> bool {
     }
     match core::mem::replace(&mut local.file, FileStep::Idle) {
         FileStep::Read(Ok(value)) => {
+            let after_reconcile = local.read_again == ReadAgain::Reading;
+            if after_reconcile {
+                local.read_again = ReadAgain::No;
+            }
             local.handover = value;
-            start_local(engine, forge);
+            if after_reconcile && local.handover.is_none() {
+                if !create_local(engine, forge) {
+                    adopt_local(engine, forge);
+                }
+            } else {
+                start_local(engine, forge);
+            }
         }
         FileStep::Read(Err(why)) => {
             let path = local.path.clone();

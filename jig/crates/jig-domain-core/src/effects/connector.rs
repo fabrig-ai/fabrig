@@ -31,6 +31,23 @@ impl RepairSeed {
     }
 }
 
+/// A person's task in no project (jig/docs/design/domain/authority.md, 6.1).
+#[derive(Debug)]
+pub struct PersonSeed {
+    pub(crate) number: u64,
+    pub(crate) funder: tasks::Funder,
+    pub(crate) authority: tasks::Authority,
+    pub(crate) opens: (Option<tasks::Event>, Option<tasks::Event>),
+}
+
+impl PersonSeed {
+    /// The allocated task number.
+    #[must_use]
+    pub const fn number(&self) -> u64 {
+        self.number
+    }
+}
+
 /// What one adopted resource permits this project to do.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ResourceRole {
@@ -432,6 +449,9 @@ pub enum Ask {
     SettleOutbox,
 }
 
+const _: () =
+    assert!(authority::NO_PROJECT == people::DEPLOYMENT, "projectless authority and people use the same number");
+
 impl Core {
     /// Whether a project or deployment effect requirement names this
     /// connector's landing gate on the resource.
@@ -487,6 +507,33 @@ impl Core {
         };
         given.budget.spend = given.budget.spend.min(available).min(self.authority.rules().maximum_run_spend);
         if given.budget.spend == 0 { None } else { Some(given) }
+    }
+
+    /// Allocate a person's task in no project (jig/docs/design/domain/authority.md, 6.1).
+    /// None: the person is unknown, no task number is left, or the pool has no room for a run.
+    pub fn person_seed(&mut self, person: u64) -> Option<PersonSeed> {
+        self.start_input();
+        self.people.identity(person)?;
+        let (funder, numbers) = self.person_pool(people::DEPLOYMENT, person);
+        let mut authority = self.authority.rules().ceiling.clone();
+        authority.budget.spend = self.authority.rules().maximum_run_spend.min(
+            numbers
+                .budget
+                .saturating_sub(numbers.spent)
+                .saturating_sub(numbers.spent_below)
+                .saturating_sub(numbers.reserved),
+        );
+        if authority.budget.spend == 0 {
+            return None;
+        }
+        authority.tools = authority::Tools(0);
+        authority.grants = Box::new([]);
+        authority.notes = authority::Scopes(0);
+        authority.note_resources = Box::new([]);
+        authority.delegation = authority::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+        let number = fresh(&mut self.counters, Family::Task)?;
+        let opens = self.open_person_pool(people::DEPLOYMENT, person);
+        Some(PersonSeed { number, funder, authority: translate::task_authority(&authority), opens })
     }
 
     /// Allocate a policy-bounded connector repair before its root translates holdings.

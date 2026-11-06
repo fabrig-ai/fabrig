@@ -262,6 +262,7 @@ impl Driver {
             | Delivery::PlaygroundNote { .. }
             | Delivery::Panel { .. }
             | Delivery::ForgeDocument { .. }
+            | Delivery::Trials { .. }
             | Delivery::Forges { .. }
             | Delivery::SourceSignedOut { .. }
             | Delivery::Application { .. }

@@ -2,6 +2,20 @@
 
 2026-11-06. Where temper's code lags or departs from [testing.md](testing.md).
 
+Sections 2.4 and 2.6 have the reusable-port chooser and its callers:
+socket-claimed blocks below Linux's configured ephemeral range, the
+retained deployment's listeners, the browser's reserved sockets and the
+fake box's nine-port override. Focused tests cover disjoint choosers,
+released ports listening again and retained sandbox ports. The supplied
+inventory establishes no slow-tier restart outcome for `process-ports`;
+that proof remains with the after-landing runs (11).
+
+- **Departs:** 2.6: `temper-fixtures/src/ports.rs`, `ephemeral_first`,
+  uses 49152 when `/proc/sys/net/ipv4/ip_local_port_range` is absent,
+  rather than reading macOS's configured range. The plan chose its
+  default because macOS has no Linux range file. A lower configured
+  boundary can overlap the chosen ports; reading it remains later (11).
+
 Section 6.4 has no gap in the configuring inventory's separation of a box
 requester and its forge approver, the stock permission mapping, refusal of the
 owner role after admin adoption, or acceptance of a fresh maintainer rule.
@@ -15,6 +29,13 @@ parent-death mechanism. The combined default-runner browser and terminal
 proof is not established by the supplied inventory (`../protocol/setup.status.md`,
 7.1, 7.2 and 13.4); the existing real-box sign-in story still awaits its
 after-landing execution (`../protocol/sign-in.status.md`, 9.9).
+
+- **Not yet:** 2.6: the supplied inventory has no result for any of
+  `ui-restart-red`'s five repaired process stories
+  (`../protocol/setup.status.md`, 13.4). The stock-purse regression and
+  late-handover tests are present, and the started-cut fixture uses
+  init's no-sign-in configuration while it holds the engine; none is a
+  recorded pass of the five stories.
 
 - **Not yet:** 2.6: no passing whole run is recorded for the three-test
   profile with the four fixed-callback walks serialized. Its proof belongs
@@ -93,6 +114,12 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   Claude Code one on `claude-haiku-5-5` included; the pair's `#[ignore]`
   reasons still say "a person's sitting" and "owner-run only"
   (`crates/temper/tests/live.rs`).
+  Its `owned_forge_landing` also passes seven setup calls on a fresh
+  first run and four otherwise to `assert_forgejo_setup`, which expects
+  six and three (`crates/temper/tests/support/forge_land.rs`). Those
+  lengths disagree before the token-file assertion. The late-handover
+  cause reaches both stories through that shared assertion, but its
+  repair establishes no live pass and does not fix this oracle mismatch.
   2.7: the held record's guard is shown on the fake issuer and on stubs
   alone (`crates/temper/tests/process.rs`,
   `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`,

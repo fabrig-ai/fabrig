@@ -15,6 +15,7 @@ mod playground;
 mod public;
 mod question;
 mod status;
+mod trials;
 
 pub(crate) mod fixtures;
 mod forge_ways;

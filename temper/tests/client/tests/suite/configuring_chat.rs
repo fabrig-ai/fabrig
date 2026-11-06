@@ -514,20 +514,15 @@ fn a_deployments_proposal_shows_in_each_project_its_owner_owns() {
     assert!(inbox.contains("\"projects\":[1,2]"), "{inbox}");
 }
 
-#[test]
-#[ignore = "settings rejection carries running; jig refuses it as NotWellFormed(Running) before committing a decision"]
-fn an_owner_rejects_a_chats_pending_proposal_under_needs_you() {
+fn reject_under_needs(world: &mut ClientWorld, person: ClientId, reason: &[u8]) {
     use skein_fake_person::{Find, Step, Target};
     use skein_ui::Role;
-    let (mut world, agent, task, proposal) = propose(false, None);
-    let person = world.client(fixtures::PARTY, Address::Home { project: PROJECT });
-    let reason = b"Keep chats waiting one second.";
     world.person(
         person,
         vec![
             Step::See { find: Find::named(Role::Region, b"Needs you"), within: fixtures::WITHIN },
             Step::See { find: Find::named(Role::Disclosure, b"Reject with reason"), within: fixtures::WITHIN },
-            Step::Type { find: Find::named(Role::TextArea, b"Reason"), words: reason.as_slice().into() },
+            Step::Type { find: Find::named(Role::TextArea, b"Reason"), words: reason.into() },
             Step::Press { find: Find::exactly_named(Role::Button, b"Reject") },
         ],
     );
@@ -545,6 +540,14 @@ fn an_owner_rejects_a_chats_pending_proposal_under_needs_you() {
     );
     let outcome = world.run(jig_client_kit::harness::Until::Done);
     assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
+}
+
+#[test]
+fn an_owner_rejects_a_chats_pending_proposal_under_needs_you() {
+    let (mut world, agent, task, proposal) = propose(false, None);
+    let person = world.client(fixtures::PARTY, Address::Home { project: PROJECT });
+    let reason = b"Keep chats waiting one second.";
+    reject_under_needs(&mut world, person, reason);
     let review = text(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
     assert!(review.contains("rejected"), "{review}");
     let run = world.front().engine.task(task).expect("configuring chat").clone();
@@ -559,4 +562,224 @@ fn an_owner_rejects_a_chats_pending_proposal_under_needs_you() {
         run.inbox
     );
     assert!(text(&mut world, agent, &[b"settings", b"show"]).starts_with("newest revision 1\n"));
+}
+
+#[test]
+fn change_something_asks_in_the_composer_until_a_message_goes_out() {
+    use jig_client_kit::harness::Until;
+    use skein_fake_person::{Find, Step};
+    use skein_ui::Role;
+    use skein_world::domain::Verdict;
+    let (mut world, _, task, _) = propose(false, None);
+    let person = world.client(fixtures::PARTY, Address::Settings { project: PROJECT });
+    world.go(person, Address::Chat { task });
+    world.person(
+        person,
+        vec![
+            Step::See { find: Find::named(Role::Button, b"Change something"), within: fixtures::WITHIN },
+            Step::Press { find: Find::named(Role::Button, b"Change something") },
+        ],
+    );
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    let chat = world.root(person).person().pages().chat().expect("chat page");
+    assert!(chat.change_asked.is_some(), "the card asks what should change");
+    world.person(
+        person,
+        vec![
+            Step::Type {
+                find: Find::named(Role::TextArea, b"Message"),
+                words: b"Wait three seconds instead".as_slice().into(),
+            },
+            Step::Press { find: Find::named(Role::Button, b"Send") },
+        ],
+    );
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    assert_eq!(world.root(person).person().pages().chat().expect("chat page").change_asked, None);
+}
+
+#[test]
+fn a_decision_from_needs_you_reaches_an_open_chats_card() {
+    use jig_client_kit::harness::Until;
+    use skein_fake_person::{Find, Step};
+    use skein_ui::Role;
+    use skein_world::domain::Verdict;
+    let (mut world, _, task, _) = propose(false, None);
+    let chat = world.client(fixtures::PARTY, Address::Chat { task });
+    world
+        .person(chat, vec![Step::See { find: Find::exactly_named(Role::Button, b"Accept"), within: fixtures::WITHIN }]);
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    let owner = world.client(fixtures::PARTY, Address::Home { project: PROJECT });
+    reject_under_needs(&mut world, owner, b"Keep chats waiting one second.");
+    world.person(
+        chat,
+        vec![
+            Step::See {
+                find: Find::exactly_named(Role::Paragraph, "Rejected · nothing changes".as_bytes()),
+                within: fixtures::WITHIN,
+            },
+            Step::Gone {
+                find: Find::exactly_named(Role::Paragraph, b"Waiting for an owner"),
+                within: fixtures::WITHIN,
+            },
+            Step::Gone { find: Find::exactly_named(Role::Button, b"Accept"), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    assert_eq!(world.root(chat).person().pages().address(), &Address::Chat { task });
+}
+
+#[test]
+fn a_second_proposal_stands_below_the_first_and_a_reply_below_it() {
+    use jig_client::{contract as c, thread::Line};
+    use skein_ui::Role;
+    let (mut world, agent, task, first) = propose(false, None);
+    world.front().configuring_reply(task, b"First reply");
+    let task_words = task.to_string();
+    text(&mut world, agent, &[b"task", b"message", task_words.as_bytes(), b"Tell me more", b"--key", b"more"]);
+    world.front().configuring_reply(task, b"Second reply");
+    let person = world.client(fixtures::PARTY, Address::Chat { task });
+    see(&mut world, person, skein_fake_person::Find::exactly_named(Role::Button, b"Accept"));
+    read_chat_start(&mut world, person);
+    accept(&mut world, agent, &first, b"accept-first-card");
+    let charter = world.front().host_tool(
+        task,
+        1,
+        engine::Tool::Settings {
+            read: SettingsRead::Setting { setting: s::Setting::Charter(1), revision: 2 },
+            from: 0,
+        },
+    );
+    let HostAnswer::Settings(charter) = charter else { panic!("charter read") };
+    let SettingsAnswer::Setting(charter) = *charter else { panic!("charter") };
+    let Some(s::Value::Charter(mut charter)) = charter.value else { panic!("charter value") };
+    charter.policy.waiting = Duration::from_secs(3);
+    let items: Box<[s::Item]> =
+        Box::new([s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(s::Value::Charter(charter)) }]);
+    let kinds = temper_engine_domain_world::kinds::decoded(&items);
+    let proposed = world.front().host_tool(
+        task,
+        2,
+        engine::Tool::ProposeSettings { against: 2, items, reason: REASON.as_bytes().into(), kinds },
+    );
+    let HostAnswer::Tool(engine::CallAnswer::Proposed { proposal: second, .. }) = proposed else {
+        panic!("second proposal: {proposed:?}")
+    };
+    // Commit the tool's completion before the words of the next run, as a model does.
+    world.front().configuring_reply(task, b"");
+    text(
+        &mut world,
+        agent,
+        &[b"task", b"message", task_words.as_bytes(), b"Explain the revision", b"--key", b"explain"],
+    );
+    world.front().configuring_reply(task, b"Third reply");
+    see(&mut world, person, skein_fake_person::Find::text(b"Third reply"));
+    // Read the older pages as a person does; the first page is deliberately thin.
+    read_chat_start(&mut world, person);
+    let root = world.root(person).person();
+    let chat = root.pages().chat().unwrap();
+    let lines = chat.thread.lines().into_boxed();
+    let made = lines.iter().position(|line| matches!(line, Line::Activity { line }
+        if matches!(line.source.line, c::Activity::Decided { proposal: Some(c::DecidedProposal { number, made: true }), .. } if number == second))).expect("engine making line");
+    assert!(
+        lines.iter().skip(made + 1).any(|line| matches!(line, Line::Turn { .. })),
+        "the engine makes the proposal before its completion commits"
+    );
+    let view = chat_view(&world, person);
+    let mut order = Vec::new();
+    for node in view.tree().nodes() {
+        if let Some(key) = node.key
+            && key.kind == 1
+            && key.a == task
+        {
+            order.push(if key.b == second { "Second card" } else { "First card" });
+        }
+        for run in &node.text {
+            for reply in ["First reply", "Second reply", "Third reply"] {
+                if run.text.as_ref() == reply.as_bytes() {
+                    order.push(reply);
+                }
+            }
+        }
+    }
+    assert_eq!(order, ["First reply", "First card", "Second reply", "Second card", "Third reply"]);
+}
+
+fn read_chat_start(world: &mut ClientWorld, person: ClientId) {
+    for _ in 0..32 {
+        if world
+            .root(person)
+            .person()
+            .pages()
+            .chat()
+            .expect("chat page")
+            .thread
+            .lines
+            .edges
+            .reaches(jig_client::thread::window::End::After)
+        {
+            break;
+        }
+        world.event(person, Event::Act { action: Action::Pages(Act::Older) }.into());
+        world.run(jig_client_kit::harness::Until::Steps(2));
+    }
+}
+
+fn chat_view(world: &ClientWorld, person: ClientId) -> temper_client_view::View {
+    let root = world.root(person).person();
+    let limits = fixtures::domain_limits();
+    let words = temper_client_view::words::Words::english(
+        fixtures::FORGE,
+        limits.client.domain.text,
+        temper_client_view::words::Shell::Browser,
+    )
+    .expect("browser words fit the world bounds");
+    let bounds = fixtures::view_bounds(&limits, &words);
+    let mut view = temper_client_view::View::new(&bounds, &limits, words, fixtures::FORGE);
+    temper_client_view::build(
+        &mut view,
+        root,
+        fixtures::NOW,
+        &mut skein_lib::Queue::with_capacity(bounds.tree.patches),
+    );
+    view
+}
+
+#[test]
+fn a_decided_proposal_stands_after_a_reload() {
+    use skein_fake_person::Find;
+    use skein_ui::Role;
+    let (mut world, agent, task, _) = propose(false, None);
+    world.front().configuring_reply(task, b"First reply");
+    text(
+        &mut world,
+        agent,
+        &[b"task", b"message", task.to_string().as_bytes(), b"Tell me more", b"--key", b"reload-more"],
+    );
+    world.front().configuring_reply(task, b"Second reply");
+    let owner = world.client(fixtures::PARTY, Address::Home { project: PROJECT });
+    reject_under_needs(&mut world, owner, b"Keep the settings");
+    let reload = world.client(fixtures::PARTY, Address::Chat { task });
+    see(&mut world, reload, Find::named(Role::Log, b"Conversation"));
+    world.run(jig_client_kit::harness::Until::Steps(16));
+    read_chat_start(&mut world, reload);
+    see(&mut world, reload, Find::named(Role::Paragraph, "Rejected · nothing changes".as_bytes()));
+    let view = chat_view(&world, reload);
+    let mut order = Vec::new();
+    for node in view.tree().nodes() {
+        for run in &node.text {
+            let said = run.text.as_ref();
+            assert_ne!(said, b"Decision made");
+            if said == b"First reply" {
+                order.push("first");
+            }
+            if said.starts_with(b"How temper will run ") {
+                order.push("card");
+            }
+            if said == b"Second reply" {
+                order.push("second");
+            }
+        }
+    }
+    assert_eq!(order, ["first", "card", "second"]);
 }

@@ -1197,6 +1197,10 @@ with a person in front of a tree, are view.md's, 18.10.
 
 ## 18. Open questions
 
+- **A busy watch's cause** (8.2): `watches_full` records the refusal,
+  which carries no count or separate capacity cause. Whether to distinguish
+  watch room from another admission bound is a protocol decision. Default:
+  the existing Busy refusal and a boolean, read on demand by the application.
 - **Activity past a client's read bounds** (sections 14 and 16): a line past
   `long_text`, or a page past `document_bytes`, ends the read malformed without
   cutting its words. Whether an application grows its bounds for a larger

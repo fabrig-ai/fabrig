@@ -151,6 +151,7 @@ pub(crate) fn proposal_history_fields(
     limits: &Limits,
 ) -> Result<c::ProposalHistory, w::Problem> {
     Ok(c::ProposalHistory {
+        reason: crate::translate::facts::document_text(value.reason(), limits)?,
         action: retained_action_fields(value.action(), limits)?,
         number: value.number(),
         proposer: value.proposer(),

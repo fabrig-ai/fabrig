@@ -1723,3 +1723,92 @@ fn decisions_rows_are_bounded_at_construction_and_decode() {
         }
     }
 }
+
+// temper/docs/design/domain/trial.md, 6.
+#[test]
+fn trial_requests_watches_and_outcomes_round_trip() {
+    let limits = fixtures::limits();
+    for again in [false, true] {
+        let request = v1::Requesting::new(
+            &limits,
+            v1::RequestingParts {
+                request: v1::Request::TryAccount(
+                    v1::TryAccount::new(&limits, v1::TryAccountParts { account: u32::MAX, again }).unwrap(),
+                ),
+            },
+        )
+        .unwrap();
+        let bytes = crate::requesting(&request);
+        assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
+        assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
+    }
+    let watch = v1::Watching::new(&limits, v1::WatchingParts { watch: v1::Watch::Trials }).unwrap();
+    let bytes = crate::watching(&watch);
+    assert_eq!(crate::decode_watching(&bytes, &limits), Some(watch));
+    assert_eq!(crate::decode_watching(&fixtures::trailing(&bytes), &limits), None);
+    for outcome in [v1::Outcome::Tried, v1::Outcome::NotTheirs] {
+        let answer = v1::Answer::new(&limits, v1::AnswerParts { outcome }).unwrap();
+        assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&answer))), Ok(answer));
+    }
+}
+
+#[test]
+fn trial_rows_round_trip_each_step_state_and_failure() {
+    let limits = fixtures::limits();
+    let mut states = List::uncapped();
+    for state in [
+        v1::TrialState::Running,
+        v1::TrialState::Answered(
+            v1::TrialAnswered::new(&limits, v1::TrialAnsweredParts { seconds: u32::MAX }).unwrap(),
+        ),
+        v1::TrialState::Failed(
+            v1::TrialFailed::new(&limits, v1::TrialFailedParts { why: v1::TrialWhy::Refused }).unwrap(),
+        ),
+        v1::TrialState::Failed(
+            v1::TrialFailed::new(&limits, v1::TrialFailedParts { why: v1::TrialWhy::Waited }).unwrap(),
+        ),
+    ] {
+        states.push(state).unwrap();
+    }
+    for class in [
+        v1::TrialClass::Transient,
+        v1::TrialClass::Permanent,
+        v1::TrialClass::Run,
+        v1::TrialClass::Agent,
+        v1::TrialClass::Lost,
+        v1::TrialClass::Invalid,
+        v1::TrialClass::Refused,
+    ] {
+        states
+            .push(v1::TrialState::Failed(
+                v1::TrialFailed::new(
+                    &limits,
+                    v1::TrialFailedParts {
+                        why: v1::TrialWhy::Ended(v1::TrialEnded::new(&limits, v1::TrialEndedParts { class }).unwrap()),
+                    },
+                )
+                .unwrap(),
+            ))
+            .unwrap();
+    }
+    for state in &states {
+        for step in [v1::TrialStep::Starts, v1::TrialStep::Answers] {
+            for (task, took) in [(None, None), (Some(u64::MAX), Some(u32::MAX))] {
+                let row = v1::TrialRow::new(
+                    &limits,
+                    v1::TrialRowParts { account: u32::MAX, task, took, step: step.clone(), state: state.clone() },
+                )
+                .unwrap();
+                let mut rows = List::with_capacity(1);
+                rows.push(row).unwrap();
+                let document = v1::Trials::new(&limits, v1::TrialsParts { rows }).unwrap();
+                let mut writer = skein_lib::Writer::new(usize::try_from(document.measure()).unwrap());
+                document.encode(&mut writer).unwrap();
+                let bytes = writer.finish();
+                let mut reader = Reader::new(&bytes);
+                assert_eq!(v1::Trials::decode(&limits, &mut reader), Ok(document));
+                assert!(reader.is_empty());
+            }
+        }
+    }
+}

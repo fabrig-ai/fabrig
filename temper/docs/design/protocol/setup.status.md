@@ -2,11 +2,35 @@
 
 2026-11-06. Where temper's code lags or departs from [setup.md](setup.md).
 
+Section 7.5 has the new-sandbox nine-port override, occupied-port
+refusals and retention of the saved ports when given another valid
+choice. Its running-box restart proof remains after landing (15).
+
+- **Departs:** 7.5: a malformed `TEMPER_FAKE_BOX_PORTS` refuses even a
+  retained sandbox, where the section says it keeps its ports whatever
+  the variable says. `crates/temper/src/fake_backends.rs`, `run`, parses
+  the variable before `prepare` checks for a retained sandbox. The
+  retained path ignores a parsed choice, but never receives an invalid
+  one; no reason for this limit is recorded.
+
 Sections 6.2 and 6.3 have no known implementation gap in the hour-long
 owned session or the later preparation's best-effort source update.
+Section 6.5 has no known implementation gap in taking a signed-in box's
+late handover before connecting: the restored forge reads again after its
+first reconcile, takes and removes a present file, and reconciles again;
+an absent file needs no second reconcile. The service's setup-lifecycle
+tests cover both answers and the single read without sign-in.
 Sections 7.1 and 7.2 have no known implementation gap in an ordered hangup
 stop, ignored hangups, or Linux's parent-death wrapper. macOS's lack of
 a parent-death signal is the designed limit, deferred in section 15.
+
+- **Not yet:** 13.4: the supplied inventory contains no run results for
+  `ui-restart-red`'s five repaired process stories: the CSV landing, the
+  playground copy's source read, the person's plan change, the person's
+  change and the setup/removal cuts. Their requested all-five pass is
+  unverified here; landed parts and focused test code do not establish
+  those outcomes. The started cut's fixture disables sign-in alone,
+  restoring it before the final setup and removal cut (13.4).
 
 - **Not yet:** 7.1, 7.2, 13.4: the `ui-repo-link-2` request's combined
   1440-pixel walk with the default runner, a restart, a moved temper port

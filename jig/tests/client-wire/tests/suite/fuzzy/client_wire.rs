@@ -478,6 +478,7 @@ fn records_11(bytes: &[u8]) {
     check!(ActivityRunEnded, bytes);
     check!(ActivityTurn, bytes);
     check!(ActivityDecided, bytes);
+    check!(ActivityDecidedProposal, bytes);
     check!(ActivityMilestone, bytes);
     check!(Activity, bytes);
     check!(ActivityLine, bytes);

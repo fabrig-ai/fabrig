@@ -2299,8 +2299,31 @@ contract's reads, watches and requests, they take:
 
 ## 14. Later
 
+- **Model catalogue changes** (5.5, area 5): `model list` reads the
+  offer; it fetches no provider list and adds no model. Catalogue settings,
+  adding by name and refreshing an account's list follow the store and list
+  steps (`../draft/model-catalogue.md`, section 7).
+
 Each is named here and designed when it comes.
 
+- **The cause of a long-chat wait** (8.2): a retry's growing span can
+  keep a ready answer from a call, but that alone does not say why a chat
+  whose model refused its resume answered late or never. The next QA walk
+  must capture the engine's answer and the client's pending state together,
+  using 6.3's diagnostic and the service's long-pass line
+  (`../protocol/README.md`, 8.1), before attributing that wait to the engine
+  or the client. The 30 s deadline stays.
+- **A kept request the engine cannot decode** (8.2): the HTTP client
+  treats every status other than 200 as a lost answer, so a request that
+  is not a record retries until retention. Distinguishing a terminal 400
+  from a lost answer needs the protocol owner's decision. Until then it
+  keeps that retry behaviour; unsupported settings efforts take the
+  existing final refusal (jig's `client/domain/contract.md`, section 4).
+- **A busy watch's precise cause** (6.3): the deadline's line uses jig's
+  `watches_full`, whose refusal carries no count and does not distinguish
+  watch capacity from an opening's load slot. Distinct lines wait for jig
+  to distinguish the causes (`jig/docs/design/client/domain/client.md`, 18).
+  Until then the line names watches in use, as the `watch-room` request asks.
 - **An MCP endpoint of the engine,** for agents with no shell:
   `temper-service` serves the same tools at `/mcp` on the clients'
   listener, each session a tools' root holding `jig-client` over an

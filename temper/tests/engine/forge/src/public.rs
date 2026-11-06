@@ -173,3 +173,32 @@ pub fn step(world: &mut World, position: u64, two: bool) -> policy::Decision {
     }
     choice
 }
+
+/// A stock queue's change, landed through the fake forge and observed by its procedure.
+#[must_use]
+pub fn queue_merge() -> World {
+    let mut world = World::new(SEED);
+    world.adopt();
+    world.slow_calls(Duration::ZERO);
+    world.produce(BRANCH);
+    world.status(BRANCH, raw::Check::Passed);
+    let pull = world.open_pull(BRANCH, b"main");
+    let head = crate::translate::commit(world.branch(BRANCH));
+    let mut row = changes::change_row();
+    row.task = CHANGE;
+    row.change.task = CHANGE;
+    row.branch = Box::from(BRANCH);
+    row.pull = Some(pull);
+    row.change.last_head = Some(head);
+    row.change.state = c::State::Queued { head, ready_since: world.wall() };
+    mark(&mut row);
+    world.event(top::Event::Change { row });
+    // The change procedure takes the queue's turn, merges, and observes the commit.
+    for entry in 1..=8 {
+        changes::change_step_task(&mut world, CHANGE, entry, c::Status::Passed, Box::new([]), false, false);
+        if matches!(world.change(CHANGE).change.state, c::State::Landed { .. }) {
+            break;
+        }
+    }
+    world
+}

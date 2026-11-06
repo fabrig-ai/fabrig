@@ -29,6 +29,98 @@ fn restored_owned_forge_reads_a_present_handover_before_using_kept_admin() {
     assert!(!contains(&face.wire.received, b"test-admin"), "kept admin did not bypass the handover");
 }
 
+/// A kept owned forge whose first handover read precedes box preparation (protocol/setup.md, 6.5).
+fn restored_box(sign_in: bool) -> crate::Service {
+    let mut config = local_config(true, false);
+    let entries = core::mem::replace(&mut config.setup, Box::new([]));
+    config.machine = runtime_config().machine.clone();
+    if sign_in {
+        config.machine.owned.as_mut().unwrap().sign_in = Some(b"forgejo".as_slice().into());
+    }
+    let mut service = local_service(config, local_store(true));
+    let mut record = fixtures::forge_record(1);
+    record.mode = domain::Mode::Owned;
+    record.place.api = domain::Address { host: b"127.0.0.1".as_slice().into(), port: 9, tls: None };
+    fixtures::commit(
+        &mut service.engine.as_mut().unwrap().store,
+        1,
+        Box::new([root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::Forge(record.clone())) })]),
+    );
+    assert!(service.engine.as_mut().unwrap().store.host.above.pop().is_some());
+    fixtures::keep_forge(&mut service, record);
+    service.engine.as_mut().unwrap().setup.fixture_locals(&entries);
+    restore_local(&mut service);
+    service
+}
+
+fn reconcile_origin(service: &mut crate::Service, face: &mut Face) {
+    adoption_tests::reconcile_bot(service, face);
+    adoption_tests::record_repository(
+        service,
+        face,
+        41,
+        br#"{"permission":"write","user":{"id":42,"login":"temper"}}"#,
+    );
+    assert!(service.engine.as_ref().unwrap().forge.starts.is_empty(), "Origin Kept gates connect");
+    let engine = service.engine.as_mut().unwrap();
+    assert_eq!(engine.setup.writes.first().unwrap().1.number, records::number(1, Item::Origin));
+    let Some(StoreEvent::Kept { owner }) = engine.store.host.above.pop() else { panic!("durable Origin") };
+    answer(engine, StoreEvent::Kept { owner });
+    while engine.setup.answers.pop().is_some() {}
+    advance(engine);
+}
+
+#[test]
+fn a_restored_box_takes_the_handover_preparation_made_after_serve_started() {
+    let mut service = restored_box(true);
+    let mut face = Face::new();
+    reconcile_origin(&mut service, &mut face);
+    let read = service.take_handover_read().expect("reconcile reads preparation's new handover");
+    assert!(service.engine.as_ref().unwrap().forge.starts.is_empty(), "the row stays connecting");
+    assert_eq!(read.path.as_ref(), b"/data/forge/admin_token");
+    assert!(service.take_handover_read().is_none(), "one second read");
+    service.handover_read(1, read.run, Ok(Some(Secret::new(b"test-admin".as_slice().into()))));
+    advance(service.engine.as_mut().unwrap());
+    assert_eq!(service.engine.as_ref().unwrap().setup.runs.first().unwrap().1.kind, Kind::LocalTakeOver);
+    let remove = takeover_done(&mut service, &mut face);
+    assert_eq!(service.engine.as_ref().unwrap().setup.runs.first().unwrap().1.kind, Kind::LocalRemoval);
+    assert!(service.engine.as_ref().unwrap().forge.starts.is_empty());
+    service.handover_removed(1, remove.run, Ok(()));
+    advance(service.engine.as_mut().unwrap());
+    assert_eq!(service.engine.as_ref().unwrap().setup.runs.first().unwrap().1.kind, Kind::LocalReconcile);
+    face.hold_done = false;
+    reconcile_origin(&mut service, &mut face);
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(engine.forge.starts.len(), 1);
+    assert_eq!(engine.forge.starts.get(0).unwrap().0, 1);
+    assert!(engine.setup.runs.is_empty());
+    assert!(service.take_handover_read().is_none(), "no third read");
+}
+
+#[test]
+fn a_restored_box_with_no_new_handover_connects_after_its_second_read() {
+    let mut service = restored_box(true);
+    let mut face = Face::new();
+    reconcile_origin(&mut service, &mut face);
+    let read = service.take_handover_read().expect("reconcile checks for preparation's new handover");
+    assert!(service.engine.as_ref().unwrap().forge.starts.is_empty());
+    service.handover_read(1, read.run, Ok(None));
+    advance(service.engine.as_mut().unwrap());
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(engine.forge.starts.len(), 1);
+    assert!(engine.setup.runs.is_empty(), "no second Reconcile for an absent handover");
+    assert!(service.take_handover_read().is_none());
+}
+
+#[test]
+fn a_box_with_no_sign_in_reads_its_handover_once() {
+    let mut service = restored_box(false);
+    let mut face = Face::new();
+    reconcile_origin(&mut service, &mut face);
+    assert_eq!(service.engine.as_ref().unwrap().forge.starts.len(), 1);
+    assert!(service.take_handover_read().is_none(), "no second read without sign-in");
+}
+
 fn keep_next(service: &mut crate::Service, item: Item) {
     let owner = *service.engine.as_mut().expect("engine").setup.writes.first().unwrap().0;
     assert_eq!(
