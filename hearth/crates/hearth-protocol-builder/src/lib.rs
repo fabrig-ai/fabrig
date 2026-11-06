@@ -238,9 +238,10 @@ impl Protocol {
             Current::Idle => return false,
             Current::Git { child, mode } => (child, mode),
         };
-        if child.stage == Stage::Closing {
-            return child.work_pending() || child.done();
-        }
+        let (output, error) = match &child.stage {
+            Stage::Live { output, error } => (output, error),
+            Stage::Closing => return child.work_pending() || child.done(),
+        };
         if child.failed && child.process.token().is_none() {
             return child.process == Resource::Closed;
         }
@@ -250,7 +251,7 @@ impl Protocol {
             Mode::Hunks { answer, .. } => answer.is_some(),
             Mode::Read(read) => read.ready(),
         };
-        if child.error.token().is_some() && child.error_state == Intake::Demand {
+        if child.error.token().is_some() && *error == Intake::Demand {
             return true;
         }
         if child.failed || ready {
@@ -260,10 +261,8 @@ impl Protocol {
             {
                 return pending;
             }
-            return (child.output.token().is_some()
-                && child.output_state != Intake::Ended
-                && child.output_state != Intake::Draining)
-                || (child.output_state == Intake::Ended && child.error_state == Intake::Ended && child.exit.is_some());
+            return (child.output.token().is_some() && *output != Intake::Ended && *output != Intake::Draining)
+                || (*output == Intake::Ended && *error == Intake::Ended && child.exit.is_some());
         }
         match mode {
             Mode::Rev { .. } => false,
@@ -627,37 +626,39 @@ fn resume_git(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Even
     {
         return;
     }
-    if child.stage != Stage::Closing
-        && let Some(stream) = child.error.token()
-        && child.error_state == Intake::Demand
-    {
-        child.error_state = Intake::Waiting;
-        below.push(Asked::Io(io::Request::Stream {
-            stream,
-            down: Down::Demand { read: StreamRead::Arrived { max: env.limits.git.chunk.max(1) }, room: 0 },
-        }));
-        return;
-    }
-    if child.stage != Stage::Closing
-        && (child.failed || ready)
-        && child.output_state != Intake::Ended
-        && child.output.token().is_some()
-        && child.output_state != Intake::Draining
-    {
-        let pending = child.output_state == Intake::Reading;
-        child.output_state = Intake::Draining;
-        if pending {
-            return;
+    match &mut child.stage {
+        Stage::Live { output, error } => {
+            if let Some(stream) = child.error.token()
+                && *error == Intake::Demand
+            {
+                *error = Intake::Waiting;
+                below.push(Asked::Io(io::Request::Stream {
+                    stream,
+                    down: Down::Demand { read: StreamRead::Arrived { max: env.limits.git.chunk.max(1) }, room: 0 },
+                }));
+                return;
+            }
+            if (child.failed || ready)
+                && *output != Intake::Ended
+                && child.output.token().is_some()
+                && *output != Intake::Draining
+            {
+                let pending = *output == Intake::Reading;
+                *output = Intake::Draining;
+                if pending {
+                    return;
+                }
+                child.stream(
+                    Down::Demand { read: StreamRead::Arrived { max: env.limits.git.chunk.max(1) }, room: 0 },
+                    below,
+                );
+                return;
+            }
+            if (child.failed || ready) && *output == Intake::Ended && *error == Intake::Ended && child.exit.is_some() {
+                child.stage = Stage::Closing;
+            }
         }
-        child.stream(Down::Demand { read: StreamRead::Arrived { max: env.limits.git.chunk.max(1) }, room: 0 }, below);
-        return;
-    }
-    if (child.failed || ready)
-        && child.output_state == Intake::Ended
-        && child.error_state == Intake::Ended
-        && child.exit.is_some()
-    {
-        child.stage = Stage::Closing;
+        Stage::Closing => {}
     }
     if child.process == Resource::Closed {
         child.stage = Stage::Closing;

@@ -13,8 +13,6 @@ pub(crate) struct Child {
     pub output: Resource,
     pub error: Resource,
     pub tail: crate::git_machine::tail::Tail,
-    pub output_state: Intake,
-    pub error_state: Intake,
     pub command: crate::render::errors::Command,
     pub fault: Option<crate::render::errors::Ended>,
     pub input: Resource,
@@ -24,7 +22,7 @@ pub(crate) struct Child {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Stage {
-    Live,
+    Live { output: Intake, error: Intake },
     Closing,
 }
 impl Child {
@@ -71,14 +69,12 @@ impl Child {
             output: Resource::Awaited,
             error: Resource::Awaited,
             tail: crate::git_machine::tail::Tail::new(limits),
-            output_state: Intake::Waiting,
-            error_state: Intake::Demand,
             command: named,
             fault: None,
             input: Resource::Awaited,
             exit: None,
             failed: false,
-            stage: Stage::Live,
+            stage: Stage::Live { output: Intake::Waiting, error: Intake::Demand },
         }
     }
     pub fn spawned(&mut self, child: Token, pipes: &[Token]) {
@@ -95,9 +91,14 @@ impl Child {
         }
     }
     pub fn refused(&mut self) {
-        self.failed = true;
-        self.error_state = Intake::Ended;
-        self.output_state = Intake::Ended;
+        match &mut self.stage {
+            Stage::Live { output, error } => {
+                self.failed = true;
+                *error = Intake::Ended;
+                *output = Intake::Ended;
+            }
+            Stage::Closing => {}
+        }
     }
     pub fn exited(&mut self, exit: kernel::Exit) {
         self.exit = Some(match exit {
@@ -126,12 +127,12 @@ impl Child {
             && self.error.token().is_none()
     }
     pub fn stream(&mut self, down: Down, below: &mut Queue<Asked>) {
-        if let Down::Demand { read, .. } = &down
-            && self.output_state != Intake::Ended
-            && self.output_state != Intake::Draining
+        if let Stage::Live { output, .. } = &mut self.stage
+            && let Down::Demand { read, .. } = &down
+            && *output != Intake::Ended
+            && *output != Intake::Draining
         {
-            self.output_state =
-                if *read == skein_lib::stream::Read::Nothing { Intake::Waiting } else { Intake::Reading };
+            *output = if *read == skein_lib::stream::Read::Nothing { Intake::Waiting } else { Intake::Reading };
         }
         below.push(Asked::Io(io::Request::Stream { stream: self.output.token().expect("spawned stdout"), down }));
     }
