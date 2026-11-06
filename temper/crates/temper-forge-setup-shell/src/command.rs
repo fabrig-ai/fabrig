@@ -22,6 +22,13 @@ pub enum Error {
 const OWNER: Token = Token::new(1);
 /// Reads both pipes through their end, retaining only the configured prefix.
 pub fn run_one(limits: &Limits, spec: &Spec) -> Result<Ran, Error> {
+    run(limits, spec, None)
+}
+/// One deadline shared by a box's source-list and source-add commands (setup.md, 7.1).
+pub fn run_until(limits: &Limits, spec: &Spec, deadline: Time) -> Result<Ran, Error> {
+    run(limits, spec, Some(deadline))
+}
+fn run(limits: &Limits, spec: &Spec, deadline: Option<Time>) -> Result<Ran, Error> {
     let signals = skein_shell::open_termination_signals().map_err(|n| Error::Kernel(format!("signals: errno {n}")))?;
     let operations = skein_io::operations(limits).expect("usable io limits");
     let mut kernel = match Kernel::open(Config { operations }) {
@@ -66,6 +73,7 @@ pub fn run_one(limits: &Limits, spec: &Spec) -> Result<Ran, Error> {
         bound: usize::try_from(spec.output).expect("output bound"),
         exit: None,
         failure: None,
+        deadline,
         complete: Queue::with_capacity(operations),
         subs: Queue::with_capacity(operations),
         events: Queue::uncapped(),
@@ -94,6 +102,7 @@ struct Running {
     bound: usize,
     exit: Option<Exit>,
     failure: Option<Error>,
+    deadline: Option<Time>,
     complete: Queue<Complete>,
     subs: Queue<Submit>,
     events: Queue<Event>,
@@ -177,6 +186,13 @@ impl Host for Running {
             skein_io::fire(&mut self.io, &env, &mut self.events, &mut self.subs);
             self.events(&env);
         }
+        if self.failure.is_none() && self.deadline.is_some_and(|at| now >= at) {
+            self.deadline = None;
+            self.failure = Some(Error::Kernel("source deadline expired".into()));
+            if let Some(child) = self.child {
+                self.down(&env, Request::Close { entity: child });
+            }
+        }
         if let Some(spawn) = self.spawn.take() {
             self.down(&env, Request::Spawn { owner: OWNER, spawn });
         }
@@ -190,12 +206,13 @@ impl Host for Running {
     }
     fn work_pending(&self, now: Time) -> bool {
         self.io.is_ready() || self.io.is_due(now) || !self.complete.is_empty()
+            || self.failure.is_none() && self.deadline.is_some_and(|at| now >= at)
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
-        None
+        if self.failure.is_none() { self.deadline } else { None }
     }
     fn is_empty(&self) -> bool {
         self.spawn.is_none() && self.io.is_empty()

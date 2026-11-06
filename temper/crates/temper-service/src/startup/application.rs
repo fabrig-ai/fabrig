@@ -352,16 +352,26 @@ pub fn parse(
     read::finish(object, document, &path, problems);
     let machine = match machine_at {
         Some(at) => {
-            let mut found = temper_forge_setup::problem::Problems::empty();
-            let machine =
-                temper_forge_setup::machine::read(document, at, &bounds.setup.plan(), directories, &mut found);
-            if !found.is_empty() {
-                problems.push(path.member(b"machine"), What::Jig(config::What::Form));
-            }
+            let mut found = config::Problems::empty();
+            let machine = temper_forge_setup::machine::read_config(document, at, directories, &mut found);
+            problems.append(found, &Path::root());
             machine
         }
         None => None,
     };
+    if let Some(machine) = &machine
+        && let Some(owned) = &machine.owned
+        && let Some(client) = &owned.sign_in
+    {
+        let found = match &jig.clients.provider {
+            Some(provider) => provider.clients.iter().any(|configured| configured.id == *client),
+            None => false,
+        };
+        read::form(sign_in::visible(client), path.member(b"machine").member(b"owned").member(b"sign_in"), problems);
+        if !found {
+            problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::Jig(config::What::Refers));
+        }
+    }
     if let Some(sign_in) = &sign_in {
         sign_in::check_forges(&sign_in.forges, jig, problems);
     }

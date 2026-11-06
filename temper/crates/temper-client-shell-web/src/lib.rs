@@ -368,6 +368,16 @@ fn forge_sign_in(
         }
         selector.push_str(" ~ meta[name='temper-forge-sign-in']");
     }
+    let mut selector = String::from("meta[name='temper-forge-sign-in-off']");
+    for _ in 0..temper_client_view::forge_sign_in::FORGES {
+        let Some(meta) = document.query_selector(&selector).expect("forge off meta selector") else { break };
+        if let Some(content) = meta.get_attribute("content") {
+            facts.read_off(&content);
+            #[cfg(feature = "record")]
+            raw.push([b"off ".as_slice(), content.as_bytes()].concat().into());
+        }
+        selector.push_str(" ~ meta[name='temper-forge-sign-in-off']");
+    }
     facts
 }
 

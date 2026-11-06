@@ -62,6 +62,7 @@ fn a_public_kind_above_the_ceiling_names_answer_bytes() {
         &crate::tests::fixtures::seeds(),
         &config.limits.root.journal,
         None,
+        None,
         &[],
     ) else {
         panic!("landings exceeds the ceiling by one byte")

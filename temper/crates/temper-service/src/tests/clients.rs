@@ -28,6 +28,7 @@ fn with_given_secret() -> crate::Service {
         &seeds,
         &settings.limits.root.journal,
         None,
+        None,
         &[],
     )
     .expect("clients with a given secret");
@@ -319,6 +320,7 @@ fn a_sign_in_ending_waits_for_its_erase_to_commit() {
         &super::fixtures::seeds(),
         &journal,
         None,
+        None,
         &[],
     )
     .unwrap();
@@ -551,6 +553,7 @@ fn clients_public_admits_the_public_and_listener_hosts_and_refuses_an_unknown_ho
             &super::fixtures::seeds(),
             &config.limits.root.journal,
             None,
+        None,
             &[],
         )
         .unwrap();

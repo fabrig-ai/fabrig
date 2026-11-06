@@ -18,13 +18,13 @@ use std::{
     process::{Command, Stdio},
 };
 const CALLBACK: &str = "https://forge.example/user/oauth2/temper/callback";
-const VERIFIER: &str = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG";
+pub(super) const VERIFIER: &str = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG";
 
-struct Configuration {
-    provider: Provider,
-    files: [(Box<[u8]>, Secret); 2],
+pub(super) struct Configuration {
+    pub(super) provider: Provider,
+    pub(super) files: [(Box<[u8]>, Secret); 2],
 }
-fn configuration() -> Configuration {
+pub(super) fn configuration() -> Configuration {
     let scratch =
         skein_scratch::paths::package().join("../../target").join(format!("provider-world-{}", std::process::id()));
     std::fs::create_dir_all(&scratch).unwrap();
@@ -62,7 +62,7 @@ fn configuration() -> Configuration {
         files,
     }
 }
-fn request(service: &mut crate::Service, method: &str, path: &str, fields: &str, body: &[u8]) -> Peer {
+pub(super) fn request(service: &mut crate::Service, method: &str, path: &str, fields: &str, body: &[u8]) -> Peer {
     let head = format!(
         "{method} {path} HTTP/1.1\r\nHost: temper.example.com\r\nConnection: close\r\nContent-Length: {}\r\n{fields}\r\n",
         body.len()
@@ -83,14 +83,14 @@ fn body(peer: &Peer) -> &[u8] {
     let at = bytes::find(peer.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
     peer.received().get(at..).unwrap()
 }
-fn json(peer: &Peer) -> skein_json::Document {
+pub(super) fn json(peer: &Peer) -> skein_json::Document {
     jig_protocol_config::document(
         body(peer),
         &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
     )
     .unwrap()
 }
-fn text(document: &skein_json::Document, name: &[u8]) -> Box<[u8]> {
+pub(super) fn text(document: &skein_json::Document, name: &[u8]) -> Box<[u8]> {
     let mut object = jig_protocol_config::read::Object::new(document, 0).unwrap();
     jig_protocol_config::read::text(document, object.member(document, name).unwrap(), 16_384).unwrap()
 }
@@ -99,7 +99,7 @@ fn encoded(value: &[u8], alphabet: Alphabet, length: usize) -> Box<[u8]> {
     base64::encode(alphabet, value, &mut out).unwrap();
     out.finish()
 }
-fn authorize(service: &mut crate::Service, cookie: &[u8]) -> Box<[u8]> {
+pub(super) fn authorize(service: &mut crate::Service, cookie: &[u8]) -> Box<[u8]> {
     let challenge = encoded(&skein_lib::sha256::digest(VERIFIER.as_bytes()), Alphabet::Url, 43);
     let query = format!(
         "response_type=code&client_id=forgejo&redirect_uri=https%3A%2F%2Fforge.example%2Fuser%2Foauth2%2Ftemper%2Fcallback&scope=openid%20email%20profile&state=world&nonce=world&code_challenge={}&code_challenge_method=S256",

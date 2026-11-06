@@ -364,6 +364,7 @@ pub(crate) fn note_line(note: temper_service::Note) -> String {
                     String::from_utf8_lossy(&origin),
                     String::from_utf8_lossy(&client)
                 ),
+                Unserved::NoSource => "the temper sign-in source is not ready".into(),
                 Unserved::NoRoom => "no room for its meta within clients.bundle_bytes".into(),
             };
             format!("temper serve: forge {number}: no sign-in through temper: {why}\n")

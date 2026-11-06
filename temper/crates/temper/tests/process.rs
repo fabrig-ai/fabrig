@@ -2038,6 +2038,12 @@ fn a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_p
 }
 
 #[test]
+fn an_owned_forgejo_accepts_a_public_source_once_and_exchanges_its_code() {
+    let scratch = support::Scratch::new("forgejo_public_source");
+    support::forgejo_sign_in::public(scratch.path());
+    scratch.remove();
+}
+#[test]
 fn an_owned_forgejo_signs_its_member_in_through_temper() {
     let scratch = support::Scratch::new("forgejo_sign_in");
     support::forgejo_sign_in::run(scratch.path());

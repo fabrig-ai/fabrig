@@ -805,6 +805,7 @@ fn a_root_productive_past_one_quantum_lets_a_waiting_answer_in() {
         &fixtures::seeds(),
         &settings.limits.root.journal,
         None,
+        None,
         &[],
     )
     .unwrap();

@@ -17,6 +17,8 @@ pub enum FirstSignIn {
     MakesAccount,
     /// Makes none: an account already there links once, by its password.
     LinksOnly,
+    /// A box makes or links by name and address, without a password (sign-in.md, 9.9).
+    LinksByName,
 }
 impl FirstSignIn {
     /// The settings `instructions` prints.
@@ -25,6 +27,7 @@ impl FirstSignIn {
         match self {
             Self::MakesAccount => SETTINGS,
             Self::LinksOnly => LINKS_ONLY_SETTINGS,
+            Self::LinksByName => LINKS_BY_NAME_SETTINGS,
         }
     }
 }
@@ -90,4 +93,63 @@ pub fn instructions(
         first.settings(),
         b"\n# Once the source works, [service] ENABLE_INTERNAL_SIGNIN = false makes it the web's only sign-in.\n",
     ])
+}
+
+/// A box's owned Forgejo alone links the accounts temper made (sign-in.md, 9.9).
+pub const LINKS_BY_NAME_SETTINGS: &[u8] = b"[oauth2_client]\nENABLE_AUTO_REGISTRATION = true\nUSERNAME = preferred_username\nACCOUNT_LINKING = auto\n[service]\nDISABLE_REGISTRATION = true\nALLOW_ONLY_EXTERNAL_REGISTRATION = true\n";
+
+/// Names and addresses a box's person may not take through automatic linking.
+#[must_use]
+pub fn refused_person(login: &[u8], email: &[u8]) -> bool {
+    login.eq_ignore_ascii_case(b"temper")
+        || login.eq_ignore_ascii_case(crate::spec::ADMIN)
+        || login.eq_ignore_ascii_case(b"work")
+        || email.eq_ignore_ascii_case(b"temper@temper.invalid")
+        || email.eq_ignore_ascii_case(crate::spec::ADMIN_EMAIL)
+}
+
+/// The box retains this outcome for the group's next start request (setup.md, 7.1).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Source {
+    Added,
+    Failed(Box<[u8]>),
+}
+impl Source {
+    /// The source command writes exactly one bounded line, without credentials.
+    #[must_use]
+    pub fn read(line: &[u8]) -> Option<Self> {
+        let line = line.strip_suffix(b"\n").unwrap_or(line);
+        if line == b"source added" {
+            return Some(Self::Added);
+        }
+        let why = line.strip_prefix(b"source failed ")?;
+        if why.is_empty() || why.len() > 1024 {
+            return None;
+        }
+        for byte in why {
+            if byte.is_ascii_control() {
+                return None;
+            }
+        }
+        Some(Self::Failed(why.into()))
+    }
+    #[must_use]
+    pub fn line(&self) -> Box<[u8]> {
+        match self {
+            Self::Added => b"source added\n".as_slice().into(),
+            Self::Failed(why) => joined(&[b"source failed ", why, b"\n"]),
+        }
+    }
+}
+
+/// Forgejo's auth list is a table: its second column is the exact source name.
+#[must_use]
+pub fn source_present(table: &[u8]) -> bool {
+    for line in table.split(|byte| *byte == b'\n') {
+        let mut columns = line.split(|byte| byte.is_ascii_whitespace()).filter(|column| !column.is_empty());
+        if columns.next().is_some() && columns.next() == Some(b"temper".as_slice()) {
+            return true;
+        }
+    }
+    false
 }

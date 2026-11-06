@@ -46,6 +46,8 @@ pub struct Spec {
 pub const OUTPUT: u32 = 65_536;
 /// Temper's site administrator, also named by a token failure.
 pub const ADMIN: &[u8] = b"temper-admin";
+/// The setup administrator’s address, also refused for automatic person linking.
+pub const ADMIN_EMAIL: &[u8] = b"temper-admin@example.invalid";
 fn environment(which: Which, owned: &Owned, place: &Place) -> Box<[Box<[u8]>]> {
     match which {
         Which::Forgejo => Box::new([
@@ -108,7 +110,7 @@ pub fn command(command: Command, owned: &Owned, place: &Place) -> Spec {
             b"--username",
             ADMIN,
             b"--email",
-            b"temper-admin@example.invalid",
+            ADMIN_EMAIL,
             b"--admin",
             b"--random-password",
             b"--must-change-password=false",
@@ -224,4 +226,18 @@ pub fn listening(mut spec: Spec) -> Spec {
     environment.push(b"LISTEN_FDS=1".as_slice().into()).expect("listener entry");
     spec.environment = environment.into_boxed();
     spec
+}
+
+/// Lists the owned Forgejo's authentication sources, using its own database.
+#[must_use]
+pub fn source_list(owned: &Owned, place: &Place) -> Spec {
+    forgejo(owned, place, &words(&[b"admin", b"auth", b"list"]))
+}
+/// Adds the box's public client; no credential enters an argument (sign-in.md, 9.9).
+#[must_use]
+pub fn source_add(owned: &Owned, place: &Place, client: &[u8], discovery: &[u8]) -> Spec {
+    forgejo(owned, place, &words(&[
+        b"admin", b"auth", b"add-oauth", b"--name", b"temper", b"--provider", b"openidConnect",
+        b"--key", client, b"--auto-discover-url", discovery,
+    ]))
 }

@@ -244,8 +244,12 @@ pub fn configuration(directories: &super::Directories) -> Result<Configuration, 
     };
     let mut held = Vec::new();
     let first_run = if empty {
-        held = super::init::core(directories)?.listeners;
-        Some(format!("First run: wrote the configuration, {}\n", directories.document().display()).into_bytes().into())
+        let written = super::init::core(directories)?;
+        held = written.listeners;
+        let mut opening = written.no_sign_in.map_or_else(String::new, |why| format!("First run: no sign-in through temper: {why}\n"));
+        use std::fmt::Write;
+        writeln!(opening, "First run: wrote the configuration, {}", directories.document().display()).expect("string");
+        Some(opening.into_bytes().into())
     } else {
         None
     };

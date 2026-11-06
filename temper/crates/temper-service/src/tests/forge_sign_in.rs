@@ -63,7 +63,7 @@ fn entries(
             redirect_uri: CALLBACK.into(),
         })
         .collect();
-    service.engine.as_mut().unwrap().clients.forge_sign_in = Entries::new(&rows, &clients, public, limit);
+    service.engine.as_mut().unwrap().clients.forge_sign_in = Entries::new(&rows, &clients, public, None, limit);
 }
 fn configured() -> crate::Service {
     let mut service = world();
@@ -342,4 +342,146 @@ fn a_page_reply_on_its_way_ends_with_the_page_it_began() {
     let (reply, status, _) = get(&mut service, None);
     assert_eq!(status, 200);
     assert!(fixtures::bundle::body(&reply).windows(FIRST_META.len()).any(|bytes| bytes == FIRST_META));
+}
+
+#[test]
+fn machine_owned_sign_in_must_name_a_provider_client_at_its_path() {
+    let input = super::stock::generated();
+    let input = fixtures::with(&input, b"application.machine.owned", br#"{"listen":{"socket":"127.0.0.1:8368"},"remote":"http://127.0.0.1:8368","person":{"login":"ada","email":"ada@localhost"},"forgejo":"fetched","runner":null,"sign_in":"unknown"}"#);
+    let problems = crate::startup::named(&input, &jig_protocol_config::Directories::working()).unwrap_err();
+    assert!(core::str::from_utf8(&crate::startup::lines(&problems)).unwrap().contains("application.machine.owned.sign_in: unknown reference"));
+}
+
+#[test]
+fn sign_in_members_login_refuses_the_bot_without_any_forge_entries() {
+    for login in ["temper", "TEMPER"] {
+        let input = super::stock::generated();
+        let input = fixtures::with(&input, b"engine.providers", br#"[{"number":1,"kind":"link"},{"number":2,"kind":"deployment"},{"number":3,"kind":"application"}]"#);
+        let input = fixtures::with(&input, b"engine.owners", br#"[{"provider":3,"subject":"ada@localhost"}]"#);
+        let sign_in = format!(r#"{{"google":{{"provider":3,"client":"client","secret":"google.secret","endpoints":null}},"members":[{{"address":"ada@localhost","login":"{login}"}}]}}"#);
+        let input = fixtures::with(&input, b"application.sign_in", sign_in.as_bytes());
+        let problems = crate::startup::named(&input, &jig_protocol_config::Directories::working()).unwrap_err();
+        assert!(core::str::from_utf8(&crate::startup::lines(&problems)).unwrap().contains("application.sign_in.members[0].login:"));
+    }
+}
+
+#[test]
+fn a_box_document_starts_and_its_printed_link_supplies_the_persons_verified_claims() {
+    use super::provider;
+    use jig_client_protocol_wire as wire;
+    use skein_lib::{Secret, Writer};
+    let mut configuration = provider::configuration();
+    configuration.provider.addresses = Box::new([1]);
+    configuration.provider.clients[0].secret = None;
+    let input = super::stock::generated();
+    let input = fixtures::with(&input, b"engine.clients.provider", br#"{"key":"provider.key","addresses":[1],"clients":[{"id":"forgejo","secret":null,"redirect_uri":"https://forge.example/user/oauth2/temper/callback"}]}"#);
+    let input = fixtures::with(&input, b"application.machine.owned", br#"{"listen":{"socket":"127.0.0.1:8368"},"remote":"http://127.0.0.1:8368","person":{"login":"ada","email":"ada@localhost"},"forgejo":"fetched","runner":null,"sign_in":"forgejo"}"#);
+    let named = crate::startup::named(&input, &jig_protocol_config::Directories::working()).unwrap();
+    assert!(named.sign_in.is_none());
+    let mut config = fixtures::engine();
+    config.jig = super::stock::engine(&input);
+    config.jig.clients.provider = Some(configuration.provider);
+    config.clients.public = Some(crate::startup::application::Origin {
+        scheme: crate::startup::application::Scheme::Https,
+        host: b"temper.example.com".as_slice().into(), port: None, name: b"temper.example.com".as_slice().into(),
+    });
+    let mut seeds = fixtures::seeds();
+    seeds.link_secret = Some(Secret::new(Box::new([7; 32])));
+    let mut clients = crate::clients::Clients::new(
+        &jig_protocol_config::Directories::working(), &config.jig, &config.clients, &seeds,
+        &config.limits.root.journal, None, named.machine.owned.as_ref(), &configuration.files,
+    ).unwrap();
+    clients.starting = None;
+    let mut service = fixtures::ready();
+    service.engine.as_mut().unwrap().clients = clients;
+    fixtures::listening(&mut service);
+    let limits = service.engine.as_ref().unwrap().clients.env.limits.wire;
+    let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret: seeds.link_secret.unwrap() }).unwrap();
+    let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut out).unwrap();
+    let signed = provider::request(&mut service, "POST", "/jig/v1/sign-in/link", "Content-Type: application/octet-stream\r\nJig-Client: browser\r\n", &out.finish());
+    let cookie = sign_in::header(&signed, "set-cookie").split(|byte| *byte == b';').next().unwrap().to_vec();
+    let code = provider::authorize(&mut service, &cookie);
+    let form = format!("grant_type=authorization_code&code={}&client_id=forgejo&redirect_uri=https%3A%2F%2Fforge.example%2Fuser%2Foauth2%2Ftemper%2Fcallback&code_verifier={}", core::str::from_utf8(&code).unwrap(), provider::VERIFIER);
+    let token = provider::request(&mut service, "POST", "/oauth/token", "Content-Type: application/x-www-form-urlencoded\r\n", form.as_bytes());
+    assert!(token.received().starts_with(b"HTTP/1.1 200"));
+    let access = provider::text(&provider::json(&token), b"access_token");
+    let user = provider::request(&mut service, "GET", "/oauth/userinfo", &format!("Authorization: Bearer {}\r\n", core::str::from_utf8(&access).unwrap()), &[]);
+    let claims = provider::json(&user);
+    assert_eq!(provider::text(&claims, b"preferred_username").as_ref(), b"ada");
+    assert_eq!(provider::text(&claims, b"name").as_ref(), b"Owner");
+    assert_eq!(provider::text(&claims, b"email").as_ref(), b"ada@localhost");
+    assert_eq!(provider::text(&claims, b"sub").as_ref(), b"1:ada@localhost");
+    let mut object = jig_protocol_config::read::Object::new(&claims, 0).unwrap();
+    assert!(jig_protocol_config::read::boolean(&claims, object.member(&claims, b"email_verified").unwrap()).unwrap());
+}
+
+fn box_entries(service: &mut crate::Service, key: bool) {
+    let mut settings = fixtures::engine();
+    let input = super::stock::generated();
+    let named = crate::startup::named(&input, &jig_protocol_config::Directories::working()).unwrap();
+    settings.machine = named.machine;
+    if key {
+        settings.machine.owned.as_mut().unwrap().sign_in = Some(b"forgejo".as_slice().into());
+        settings.jig.clients.provider = Some(jig_protocol_config::clients::Provider {
+            key: b"provider.key".as_slice().into(), addresses: Box::new([1]),
+            clients: Box::new([ProviderClient { id: b"forgejo".as_slice().into(), secret: None, redirect_uri: CALLBACK.into() }]),
+        });
+    }
+    settings.machine.owned.as_mut().unwrap().public = Some(temper_forge_setup::setup::Origin { host: b"git.example.com".as_slice().into(), port: 443 });
+    let engine = service.engine.as_mut().unwrap();
+    engine.clients.deployment.owned = true;
+    engine.clients.configure_forge_sign_in(&settings);
+}
+#[test]
+fn a_box_owned_forge_has_an_off_fact_until_its_source_is_added_whatever_its_number() {
+    let mut service = world();
+    box_entries(&mut service, true);
+    let mut owned = record(9);
+    owned.mode = forge::Mode::Owned;
+    fixtures::keep_forge(&mut service, owned);
+    let (reply, status, _) = get(&mut service, None);
+    assert_eq!(status, 200);
+    assert_eq!(fixtures::bundle::body(&reply), page(b"<meta name=\"temper-forge-sign-in-off\" content=\"9\">").as_ref());
+    assert_eq!(notes(&mut service), [(9, b"forgejo".as_slice().into(), Unserved::NoSource)]);
+    let (_, _, headers) = get(&mut service, None);
+    let tag = fixtures::header(&headers, b"etag").unwrap().to_vec();
+    let engine = service.engine.as_mut().unwrap();
+    let mut out = skein_lib::Queue::uncapped();
+    engine.box_link = crate::route::box_link::Link::new(256, true);
+    engine.box_link.ask(9, Token::new(991), &mut out);
+    out.clear();
+    engine.box_link.read(b"source 9 failed discovery unavailable\n", &mut out);
+    assert_eq!(out.pop(), Some(crate::route::box_link::Out::Source { forge: 9, added: false }));
+    refresh(engine);
+    assert!(notes(&mut service).is_empty(), "the same unserved reason is named once");
+    let engine = service.engine.as_mut().unwrap();
+    engine.box_link.read(b"source 8 added\n", &mut out);
+    assert!(matches!(out.pop(), Some(crate::route::box_link::Out::Named(_))), "another forge cannot enable this one");
+    engine.box_link.read(b"source 9 added\n", &mut out);
+    crate::route::box_link::drain(engine, &mut out);
+    let (reply, status, headers) = get(&mut service, Some(&tag));
+    assert_eq!(status, 200);
+    assert_ne!(fixtures::header(&headers, b"etag"), Some(tag.as_slice()));
+    assert_eq!(fixtures::bundle::body(&reply), page(b"<meta name=\"temper-forge-sign-in\" content=\"9 forgejo https://git.example.com owned\">").as_ref());
+    assert!(notes(&mut service).is_empty());
+}
+#[test]
+fn a_box_without_a_provider_key_has_only_its_owned_forges_off_fact() {
+    let mut service = world();
+    box_entries(&mut service, false);
+    let mut owned = record(7);
+    owned.mode = forge::Mode::Owned;
+    fixtures::keep_forge(&mut service, owned);
+    fixtures::keep_forge(&mut service, record(8));
+    let (reply, _, _) = get(&mut service, None);
+    assert_eq!(fixtures::bundle::body(&reply), page(b"<meta name=\"temper-forge-sign-in-off\" content=\"7\">").as_ref());
+}
+
+#[test]
+fn the_refused_person_identity_is_the_forge_domains_bot() {
+    use temper_engine_domain_forge::{BOT_EMAIL, BOT_LOGIN};
+    use temper_forge_setup::sign_in::refused_person;
+    assert!(refused_person(BOT_LOGIN, b"person@example.invalid"));
+    assert!(refused_person(b"person", BOT_EMAIL));
 }

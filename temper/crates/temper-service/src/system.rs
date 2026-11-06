@@ -227,6 +227,7 @@ impl Service {
             seeds,
             &limits.journal,
             settings.sign_in.as_ref(),
+        settings.machine.owned.as_ref(),
             settings.files.entries.as_slice(),
         )?;
         clients.program_environment.clone_from(&settings.program_environment);
@@ -237,8 +238,8 @@ impl Service {
         };
         if let Some(sign_in) = &settings.sign_in {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
-            clients.configure_forge_sign_in(&settings);
         }
+        clients.configure_forge_sign_in(&settings);
         let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
         let mut forge = crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &[])
             .expect("checked forge limits");
@@ -1213,6 +1214,7 @@ mod box_tests {
             panic!("owned machine fixture")
         };
         machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
+            sign_in: None,
             listen: owned.listen,
             remote: b"http://forge.example".as_slice().into(),
             person: owned.person,

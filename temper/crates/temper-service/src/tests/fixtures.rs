@@ -506,6 +506,7 @@ fn start_with_worker(
     }
     if under_box && let temper_forge_setup::setup::Mode::Owned(owned) = owned_setup(1).entry.mode {
         settings.machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
+            sign_in: None,
             listen: owned.listen,
             remote: b"http://127.0.0.1:9".as_slice().into(),
             person: owned.person,
@@ -1037,6 +1038,7 @@ pub fn clients() -> crate::clients::Clients {
         &seeds(),
         &engine.limits.root.journal,
         None,
+        None,
         &[],
     )
     .unwrap()
@@ -1352,6 +1354,7 @@ pub fn configured_prepared(
         match &setup.entry.mode {
             temper_forge_setup::setup::Mode::Owned(owned) => {
                 config.engine.machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
+                    sign_in: None,
                     listen: owned.listen,
                     remote: b"http://127.0.0.1:9".as_slice().into(),
                     person: owned.person.clone(),
