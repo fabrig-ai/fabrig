@@ -50,6 +50,7 @@ pub struct Service {
     io_completions: Queue<Complete>,
     io_asked: Queue<io::Request>,
     io_env: Env<io::Limits>,
+    files_env: Env<file_layer::Limits>,
     protocol: Protocol,
     protocol_env: Env<protocol::limits::Limits>,
     domain: Builder,
@@ -83,13 +84,9 @@ impl Service {
         assert!(limits.io.is_usable() && limits.queue > 0, "usable io and queues carrying operations");
         assert!(limits.watermark > 0, "a watermark that admits work");
         assert!(valid(limits), "representable limits");
-        let mut files = FileIo::with_whole_limit(
-            limits.files.files,
-            limits.files.read,
-            limits.files.entries,
-            limits.files.whole,
-            limits.files.timeout,
-        );
+        let Files { files, read, entries, whole, timeout } = limits.files;
+        let file_limits = file_layer::Limits { files, read, entries, whole, timeout };
+        let mut files = FileIo::with_limits(&file_limits);
         files.seed_randomness(seed);
         let roots = protocol::Roots {
             store: protocol::Root { fd: roots.store, token: files.adopt_root(roots.store).expect("store root slot") },
@@ -112,6 +109,7 @@ impl Service {
             io_completions: Queue::uncapped(),
             io_asked: Queue::uncapped(),
             io_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.io },
+            files_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: file_limits },
             protocol: Protocol::new(&limits.protocol, call, form, roots, &configuration.store, seed)
                 .with_proxy(configured_proxy(configuration))
                 .with_file_read(limits.files.read),
@@ -240,6 +238,8 @@ pub fn operations(limits: &Limits) -> Option<u32> {
 pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     service.io_env.now = now;
     service.io_env.wall = wall;
+    service.files_env.now = now;
+    service.files_env.wall = wall;
     service.protocol_env.now = now;
     service.protocol_env.wall = wall;
     service.domain_env.now = now;
@@ -266,7 +266,13 @@ fn io_up(service: &mut Service) {
             break;
         };
         if file_layer::owns(complete.op) {
-            file_layer::up(&mut service.files, complete, &mut service.file_told, &mut service.file_submissions);
+            file_layer::step::up(
+                &mut service.files,
+                &service.files_env,
+                complete,
+                &mut service.file_told,
+                &mut service.file_submissions,
+            );
         } else {
             service.io_completions.push(complete);
         }
@@ -280,7 +286,7 @@ fn io_up(service: &mut Service) {
         service.io_env.now,
     );
     if service.files.is_due(service.io_env.now) {
-        file_layer::expire(&mut service.files, service.io_env.now, &mut service.file_submissions);
+        file_layer::step::expire(&mut service.files, &service.files_env, &mut service.file_submissions);
     }
 }
 fn protocol_up(service: &mut Service) {
@@ -372,18 +378,18 @@ fn io_down(service: &mut Service) {
             }
             Asked::Beneath(request) => {
                 let request = beneath(&service.files, request);
-                file_layer::down(
+                file_layer::step::down(
                     &mut service.files,
-                    service.io_env.now,
+                    &service.files_env,
                     request,
                     &mut service.file_told,
                     &mut service.file_submissions,
                 );
             }
             Asked::File(request) => {
-                file_layer::down(
+                file_layer::step::down(
                     &mut service.files,
-                    service.io_env.now,
+                    &service.files_env,
                     request,
                     &mut service.file_told,
                     &mut service.file_submissions,

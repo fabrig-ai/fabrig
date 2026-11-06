@@ -8,7 +8,7 @@ use jig_protocol_store::{
 use skein_fake_machine::{Machine, serve};
 use skein_io::{
     file,
-    file_layer::{self, FileIo},
+    file_layer::{FileIo, Limits as FileLimits, step},
     kernel::{Complete, Submit},
 };
 use skein_lib::{Env, Queue, Time, Token, Wall};
@@ -46,6 +46,7 @@ pub struct World {
     pid: Pid,
     root: Root,
     io: [FileIo; 3],
+    file_limits: FileLimits,
     store: Store,
     env: Env<jig_protocol_store::Limits>,
     above: Queue<Event>,
@@ -134,15 +135,16 @@ fn file_heap(event: &file::Event) -> u64 {
     u64::try_from(bytes).expect("input heap fits")
 }
 
-fn drivers(root: skein_io::kernel::Fd, limits: &jig_protocol_store::Limits) -> [FileIo; 3] {
-    std::array::from_fn(|_| {
-        let whole = limits.store.chunk.max(jig_protocol_store::sizes::MANIFEST_BYTES);
-        jig_protocol_store::sizes::whole(whole).expect("world drivers hold the largest manifest");
-        let mut io =
-            FileIo::with_whole_limit(8, limits.store.chunk, 32, whole, limits.store.deadline).with_effective_user(0);
+fn drivers(root: skein_io::kernel::Fd, limits: &jig_protocol_store::Limits) -> ([FileIo; 3], FileLimits) {
+    let whole = limits.store.chunk.max(jig_protocol_store::sizes::MANIFEST_BYTES);
+    jig_protocol_store::sizes::whole(whole).expect("world drivers hold the largest manifest");
+    let files = FileLimits { files: 8, read: limits.store.chunk, entries: 32, whole, timeout: limits.store.deadline };
+    let drivers = std::array::from_fn(|_| {
+        let mut io = FileIo::with_limits(&files).with_effective_user(0);
         assert_eq!(io.adopt_root(root), Some(Token::new(1)));
         io
-    })
+    });
+    (drivers, files)
 }
 
 fn below() -> Below {
@@ -184,7 +186,7 @@ impl World {
         let mut sim = Sim::new(seed, Config::calm());
         let pid = sim.spawn_process();
         let fd = sim.root(pid, Handle::new(handle.raw()));
-        let mut io = drivers(fd, &limits);
+        let (mut io, file_limits) = drivers(fd, &limits);
         let [store, secrets, transcripts] = &mut io;
         let seeded = jig_protocol_store::seed([store, secrets, transcripts], seed);
         if let Some(observe) = observer {
@@ -208,6 +210,7 @@ impl World {
             pid,
             root: Root { token: Token::new(1), fd },
             io,
+            file_limits,
             store: component,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             above: Queue::with_capacity(QUEUE),
@@ -322,7 +325,7 @@ impl World {
         let fd = self.sim.root(self.pid, Handle::new(handle.raw()));
         self.root = Root { token: Token::new(1), fd };
         self.starts += 1;
-        self.io = drivers(fd, &self.env.limits);
+        (self.io, self.file_limits) = drivers(fd, &self.env.limits);
         let [store, secrets, transcripts] = &mut self.io;
         let seeded = jig_protocol_store::seed(
             [store, secrets, transcripts],
@@ -749,7 +752,8 @@ impl World {
         let io = self.io.get_mut(driver).expect("three drivers");
         assert!(io.takes());
         let mut events = Queue::with_capacity(QUEUE);
-        file_layer::down(io, self.env.now, request, &mut events, &mut self.subs);
+        let env = self.env.with(self.file_limits);
+        step::down(io, &env, request, &mut events, &mut self.subs);
         for _ in 0..100 {
             if !self.subs.is_empty() {
                 self.sim.submit(self.pid, &mut self.subs);
@@ -778,7 +782,7 @@ impl World {
             }
             self.sim.reap(self.pid, &mut self.completions);
             while let Some(complete) = self.completions.pop() {
-                file_layer::up(io, complete, &mut events, &mut self.subs);
+                step::up(io, &env, complete, &mut events, &mut self.subs);
             }
             if io.takes() {
                 break;

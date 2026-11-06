@@ -97,6 +97,9 @@ pub fn visitor(document: &serde_json::Value) -> skein_playground::visitor::Confi
             intake: 4096,
             receive: 4096,
             output: 16_384,
+            sends: 8,
+            backlog: 2,
+            retry: Duration::from_millis(1),
             ..skein_io::Limits::TEST
         },
         // Heads match the clients listener; bodies stream within its 16384-byte
