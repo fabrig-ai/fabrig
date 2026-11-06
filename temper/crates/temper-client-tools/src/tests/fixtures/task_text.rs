@@ -97,10 +97,32 @@ pub(crate) fn source_summary(
 ) -> jig_client::contract::Task {
     let task = core::documents::task_from_row(core, limits, 1, row, Wall::EPOCH).unwrap();
     let answer = core::reads::Answer::Document(Box::new(core::documents::Document::Task(Box::new(task))));
-    let jig_client_protocol_wire::ReadValue::Task(wire) =
-        jig_protocol_engine_clients::translate::objects::document(&answer, &[], &jig_client_protocol_wire::CEILINGS)
-            .unwrap()
-    else {
+    let mut models = skein_lib::List::with_capacity(u32::try_from(core.settings.models.len()).unwrap());
+    for model in &core.settings.models {
+        models
+            .push(jig_protocol_engine_clients::Model {
+                name: model.name.clone(),
+                provider: None,
+                window: model.window,
+                output: model.output,
+                efforts: model.efforts.clone(),
+                prices: jig_protocol_engine_clients::Prices {
+                    input: model.input_price,
+                    cached: model.cached_price,
+                    cache_write: model.cache_write_price,
+                    output: model.output_price,
+                    unit: model.price_unit,
+                },
+                description: None,
+            })
+            .unwrap();
+    }
+    let jig_client_protocol_wire::ReadValue::Task(wire) = jig_protocol_engine_clients::translate::objects::document(
+        &answer,
+        models.as_slice(),
+        &jig_client_protocol_wire::CEILINGS,
+    )
+    .unwrap() else {
         panic!("task summary")
     };
     let limits = crate::limits::client().client.domain;

@@ -81,7 +81,7 @@ fn welcome() -> Host {
         .expect("deployment read");
     let answer = temper_client_protocol_wire::v1::DeploymentAnswer::new(
         &temper_client_protocol_wire::v1::CEILINGS,
-        temper_client_protocol_wire::v1::DeploymentAnswerParts { welcome: true, owned: true },
+        temper_client_protocol_wire::v1::DeploymentAnswerParts { welcome: true, owned: true, program_login: None },
     )
     .unwrap();
     host.client(jig_client::Event::Up {

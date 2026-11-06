@@ -510,7 +510,7 @@ pub(super) fn program_body(b: &mut Builder, root: &Domain, w: &Words, bindings: 
         }
         b.close();
     }
-    command(b, w, &name, page.program_environment());
+    command(b, root, w, &name, false);
     muted(b, &say(w, W::ProgramNote));
     button(
         b,
@@ -539,23 +539,43 @@ fn key_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
     button(b, bindings, &w.say(Word::ModelAddKey, &[]), Act::Submit { name: root.pages().account_name() }, busy, true);
     b.close();
 }
-pub(super) fn command(b: &mut Builder, w: &Words, name: &[u8], environment: &[u8]) {
-    b.open(Role::Code);
-    b.style(crate::look::FLOW_CODE);
-    b.text(Run::Plain, &command_words(w, name, environment));
-    b.close();
-}
-pub(super) fn command_words(w: &Words, name: &[u8], environment: &[u8]) -> Box<[u8]> {
-    let command = named(w, if environment.is_empty() { W::Command } else { W::ProgramLogin }, name);
-    let size = environment.len().checked_add(command.len()).expect("bounded command");
-    let size = size.checked_add(usize::from(!environment.is_empty())).expect("bounded command");
-    let mut words = skein_lib::Writer::new(size);
-    if !environment.is_empty() {
-        words.put(environment).expect("measured command");
-        words.put(b" ").expect("measured command");
+/// The whole command for NAME (client/README.md, 4.6, *The printed command*).
+pub(crate) fn printed_command(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]> {
+    let (environment, answered) = match root.pages().connect_model() {
+        Some(page) => (page.program_environment(), page.program_environment_answered()),
+        None => (b"".as_slice(), false),
+    };
+    if answered {
+        if environment.is_empty() {
+            named(w, W::EnvironmentCommand, name)
+        } else {
+            words::join(&[environment, b" ", &named(w, W::ProgramLogin, name)])
+        }
+    } else if let Some(answer) = root.forge().deployment()
+        && let Some(line) = &answer.program_login
+    {
+        words::join(&[line, b" ", &crate::choice::shown(name, w)])
+    } else {
+        named(w, W::Command, name)
     }
-    words.put(&command).expect("measured command");
-    words.finish()
+}
+/// The same command with the words saying where to run it.
+pub(crate) fn command_line(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]> {
+    words::join(&[&command_prompt(root, w), &printed_command(root, w, name)])
+}
+pub(super) fn command_prompt(root: &Domain, w: &Words) -> Box<[u8]> {
+    let word = match root.forge().deployment() {
+        Some(answer) if answer.program_login.is_some() => W::ProgramCommandHere,
+        Some(_) | None => W::ProgramCommand,
+    };
+    named(w, word, b"")
+}
+pub(crate) fn command(b: &mut Builder, root: &Domain, w: &Words, name: &[u8], welcome: bool) {
+    description(b, &command_prompt(root, w));
+    b.open(Role::Code);
+    b.style(if welcome { crate::look::WELCOME_CMD } else { crate::look::FLOW_CODE });
+    b.text(Run::Plain, &printed_command(root, w, name));
+    b.close();
 }
 pub(super) fn ready_body(
     b: &mut Builder,
@@ -588,7 +608,7 @@ pub(super) fn ready_body(
             );
             crate::cards::text(b, Role::Status, &label);
             text(b, w, Role::Paragraph, W::ProgramRun);
-            command(b, w, name, page.program_environment());
+            command(b, root, w, name, false);
             text(b, w, Role::Paragraph, W::ProgramNote);
         }
         Way::SignIn { .. } => {

@@ -302,9 +302,12 @@ machine's roots.
   A block decodes until its first defect or its bound, whichever comes
   first, and that decides which it is. A malformed block is not kept, so
   it does not count towards the number of certificates.
-- **Startup says the counts once** on standard error: how many roots
-  were taken; how many `skein-tls` skipped as unparsable; how many blocks
-  were malformed; and how many were others.
+- **Startup says nothing of its roots unless a block is malformed.** A
+  machine's bundle ordinarily holds a root `skein-tls` can't parse, or a
+  block of another kind, and no one acts on a line at every start. With a
+  malformed block it says the counts once on standard error: how many
+  roots were taken; how many `skein-tls` skipped as unparsable; how many
+  blocks were malformed; and how many were others.
 
 ### 6.3 Terminal modes
 

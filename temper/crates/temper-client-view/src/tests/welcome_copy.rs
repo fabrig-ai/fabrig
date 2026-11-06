@@ -69,3 +69,38 @@ fn clipboard_outcomes_change_the_button_for_two_seconds_and_leave_the_command_se
         }
     }
 }
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "semantic assertions locate the command’s subtree")]
+fn copied_program_command_uses_the_same_precedence_as_both_model_pages() {
+    let line = b"'/box/temper' program-login --config '/box/config'";
+    for (deployment, environment, expected) in [
+        (None, None, b"temper program-login --config CONFIG --data DATA --cache CACHE claude-pat".as_slice()),
+        (Some(line.as_slice()), None, b"'/box/temper' program-login --config '/box/config' claude-pat".as_slice()),
+        (Some(line.as_slice()), Some(b"".as_slice()), b"temper program-login claude-pat".as_slice()),
+        (Some(line.as_slice()), Some(b"~/bin/temper".as_slice()), b"~/bin/temper program-login claude-pat".as_slice()),
+    ] {
+        let way = Some(d::ModelWay { source: None, provider: 17, kind: d::WayKind::Program });
+        for address in [d::Address::ConnectModel { way }, d::Address::Welcome { step: d::Step::Model { way } }] {
+            let (mut root, watch) = super::connect_model::program_root_with_line(address, deployment);
+            let mut document = super::accounts::document(0);
+            document.usable = false;
+            document.settled = true;
+            super::accounts::deliver(&mut root, watch, document);
+            if let Some(environment) = environment {
+                super::connect_model::answer_environment(&mut root, environment);
+            }
+            assert_eq!(super::connect_model::command_line(&root), expected);
+            let mut browser = f::browser_page_view(&root);
+            let terminal = f::page_view(&root);
+            let code = browser.tree().nodes().iter().position(|node| node.role == Role::Code).unwrap();
+            assert_eq!(f::node_text(browser.tree(), code).as_ref(), expected);
+            let code = terminal.tree().nodes().iter().position(|node| node.role == Role::Code).unwrap();
+            assert_eq!(f::node_text(terminal.tree(), code).as_ref(), expected);
+            if let d::Address::Welcome { .. } = root.pages().address() {
+                let id = f::find(browser.tree(), Role::Button, b"Copy").unwrap();
+                assert_eq!(crate::act(&mut browser, id, Act::Press), Some(d::Action::Copy { words: expected.into() }));
+            }
+        }
+    }
+}

@@ -174,12 +174,13 @@ fn program(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, w
     }
     panel(b);
     text(b, root, w, Role::Paragraph, Word::WelcomeClaudeBody);
+    crate::cards::text(b, Role::Paragraph, &model::command_prompt(root, w));
     super::welcome_copy::block(
         b,
         root,
         w,
         bindings,
-        &model::command_words(w, &page.program_name(root.client()), page.program_environment()),
+        &model::printed_command(root, w, &page.program_name(root.client())),
     );
     b.open(Role::Paragraph);
     b.style(look::FLOW_MUTED);

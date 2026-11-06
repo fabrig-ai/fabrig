@@ -385,6 +385,7 @@ fn stderr_keeps_only_complete_allow_listed_forms() {
         allowed.push(format!("smith: warning: {}", credential.line("claude")));
     }
     let rejected = [
+        "smith: trust roots: 12 taken, 0 skipped, 0 malformed blocks, 0 other blocks",
         "private-stderr",
         "smith: agent started private-tail",
         "smith: trust roots: private taken, 0 skipped, 0 malformed blocks, 0 other blocks",
