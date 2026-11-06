@@ -91,16 +91,19 @@ fn live_answer_arrives_whole(pieces: &'static [&'static [u8]]) {
     let client = fixtures::whole_turn_client(&mut world, task);
     world.person(client, vec![Step::See { find: Find::text(pieces[0]), within: fixtures::WITHIN }]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
-    assert!(world.front().release_reply());
-    let whole = pieces.concat();
-    world.person(
-        client,
-        vec![
-            Step::See { find: Find::text(&whole), within: fixtures::WITHIN },
-            Step::See { find: Find::text(WRITING), within: fixtures::WITHIN },
-        ],
-    );
-    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    let mut whole = pieces[0].to_vec();
+    for piece in &pieces[1..] {
+        assert!(world.front().release_reply());
+        whole.extend_from_slice(piece);
+        world.person(
+            client,
+            vec![
+                Step::See { find: Find::text(&whole), within: fixtures::WITHIN },
+                Step::See { find: Find::text(WRITING), within: fixtures::WITHIN },
+            ],
+        );
+        assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    }
 }
 
 #[test]
@@ -112,7 +115,7 @@ fn a_live_answer_past_a_fields_window_arrives_whole() {
 
 #[test]
 fn a_live_answer_past_the_engines_retained_bytes_arrives_whole() {
-    static PIECES: &[&[u8]] = &[&FIRST_LONG_PIECE, &SECOND_LONG_PIECE];
+    static PIECES: &[&[u8]] = &[b"QA followed from the start ", &FIRST_LONG_PIECE, &SECOND_LONG_PIECE];
     live_answer_arrives_whole(PIECES);
 }
 
