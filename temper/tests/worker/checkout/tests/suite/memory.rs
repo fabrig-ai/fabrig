@@ -292,7 +292,8 @@ impl Fill {
         for place in 0..limits.repositories {
             assert_eq!(self.done(hold, Done::Fetched { commit: commit(1) })[..], [Asked::Io { op: Kind::Fetch }]);
             assert_eq!(self.done(hold, Done::Fetched { commit: commit(5) })[..], [Asked::Io { op: Kind::CheckOut }]);
-            assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Merge }]);
+            assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::IsAncestor }]);
+            assert_eq!(self.done(hold, Done::IsAncestor { contains: false })[..], [Asked::Io { op: Kind::Merge }]);
             if place + 1 < limits.repositories {
                 assert_eq!(
                     self.done(hold, Done::Conflicted { files: full_paths(&limits) })[..],
