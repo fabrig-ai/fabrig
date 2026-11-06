@@ -59,16 +59,6 @@
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
-- **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
-  is left no funding. Its roles' pools are as large as the project's period
-  (`temper-service`'s `stock.rs`, `project_policy`), so once a person's pool has
-  opened in a period, nothing of it is left: `jig-domain-core`'s
-  `connector_repair_authority` gives no seed, the run is refused
-  (`../domain/forge.md`, 5.7) and Home keeps the computed sentence, with no lede
-  or byline, at each sitting of that period. The request `ui-home-status` of 2026-11-05 has the
-  agent always run for now. Both the root's status world and the fake box's walk
-  shrink the owner's pool to leave funding, the box's by `project fund`
-  (`../protocol/configuration.status.md`, 13.4, holds the stock's room).
 - **Not yet:** 3.5, *Home on any project*: a brief shows only with its `landed`
   above `seen`, so one written at a return after a look that saw the landing
   never shows; with 0 landed since, the headline has no landed sentence, so

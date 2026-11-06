@@ -77,9 +77,6 @@ fn home_on_the_fake_box_keeps_a_landing_count_after_box_and_client_restarts() {
                 "status-repository",
                 "--json",
             ])),
-            // Keep period funding for the deployment-started status run, as the
-            // root's status world does; the person's pool otherwise reserves it all.
-            Act::Now(Call::new(&["project", "fund", "1", "1000000", "--role", "0", "--key", "status-pool", "--json"])),
             walk.add_key(),
             Act::Now(Call::new(&["account", "list", "--until", "usable", "--json"])),
             Act::After(Box::new(move |_| {
@@ -102,7 +99,7 @@ fn home_on_the_fake_box_keeps_a_landing_count_after_box_and_client_restarts() {
         ],
         show_status,
     );
-    assert_eq!(seen.answers.len(), 8, "setup, first look, chat and landed change");
+    assert_eq!(seen.answers.len(), 7, "setup, first look, chat and landed change");
     let landed = ctl::json(seen.answers.last().expect("landing read"));
     assert_eq!(landed["met"], true);
     assert_eq!(landed["change"]["step"], "landed");
