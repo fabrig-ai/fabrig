@@ -1690,6 +1690,20 @@ fn task_acts_show_their_name_and_admission_or_nothing_when_absent() {
 }
 
 #[test]
+fn a_send_asks_for_the_agents_composer() {
+    let mut task = f::delegate();
+    offers(&mut task, &[(c::ActKind::Message, c::Admission::Allowed)]);
+    let mut root = f::agent_root(task, Some(f::tree()), true);
+    for count in 0..=2 {
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let composer = &view.tree().nodes()[index_of(view.tree(), Role::TextArea, b"Message")];
+            assert_eq!(composer.focus, if count == 0 { None } else { Some(count) });
+        }
+        fixtures::root_event(&mut root, Event::Act { action: Action::Pages(Act::Send) });
+    }
+}
+
+#[test]
 fn an_agents_taskbar_has_pause_and_its_composer_has_the_steering_note() {
     let mut task = f::delegate();
     offers(

@@ -30,6 +30,41 @@ fn opening_a_chat_watches_task_and_reads_its_first_activity_page() {
     assert!(out.is_empty());
 }
 #[test]
+fn every_send_asks_for_the_composer() {
+    let mut f = f::opened();
+    let mut task = f::task();
+    task.acts = fixtures::acts::offered(c::ActKind::Message, c::Admission::Allowed);
+    f::deliver(&mut f.client, f.watch, task);
+    for event in [
+        Event::Watch { handle: crate::pages::me_handle(), subject: Watchable::Jig(c::Subject::Me) },
+        Event::Up {
+            up: jig_client::Up::Watched {
+                watch: f.me,
+                event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(fixtures::chats::me()))),
+            },
+        },
+    ] {
+        f.client.step_unlinked(Time::ZERO, skein_lib::Wall::EPOCH, event, &mut Queue::uncapped());
+    }
+    let env = fixtures::env(&fixtures::limits());
+    let mut serial = SERIAL;
+    assert_eq!(f.chat.composer_focus, 0);
+    f.chat.act(&env, &f.client, Act::MessageWords { words: b"Hello".as_slice().into() }, &mut serial, &mut f.out);
+    assert_eq!(f.chat.composer_focus, 0);
+    f.chat.act(&env, &f.client, Act::Send, &mut serial, &mut f.out);
+    assert_eq!(fixtures::acts::sent(&mut f.out).len(), 1);
+    assert_eq!(f.chat.composer_focus, 1);
+    assert!(f.chat.words.is_empty());
+    f.chat.act(&env, &f.client, Act::Send, &mut serial, &mut f.out);
+    assert!(fixtures::acts::sent(&mut f.out).is_empty());
+    assert_eq!(f.chat.composer_focus, 2);
+    for act in [Act::Stop, Act::AddDraft, Act::MessageWords { words: b"Again".as_slice().into() }] {
+        f.chat.act(&env, &f.client, act, &mut serial, &mut f.out);
+        assert_eq!(f.chat.composer_focus, 2);
+    }
+}
+
+#[test]
 fn a_live_run_is_watched_and_dropped_when_it_ends() {
     let mut f = f::opened();
     let run = f.chat.run.expect("live run watched");

@@ -10,7 +10,7 @@ use alloc::collections::BTreeMap;
 use jig_protocol_store::{codec, keys};
 use skein_io::{
     file,
-    file_layer::{self, FileIo},
+    file_layer::{FileIo, Limits, step},
     kernel::Complete,
 };
 use skein_lib::{Duration, Queue, Token};
@@ -28,7 +28,9 @@ fn plant(directory: &Path, ops: Box<[skein_kv::Op]>) {
     let (_, _, profile) = fixtures::store_limits();
     let limits = profile.store;
     let mut kv = skein_kv::Store::new(&limits);
-    let mut io = FileIo::new(8, limits.chunk, 32, limits.deadline);
+    let skein_kv::Limits { chunk: read, deadline: timeout, .. } = limits;
+    let file_limits = Limits { files: 8, read, entries: 32, whole: read, timeout };
+    let mut io = FileIo::with_limits(&file_limits);
     io.seed_randomness(0);
     let root = skein_shell::open_root(directory).expect("plant root");
     let root_token = io.adopt_root(root).expect("root slot");
@@ -68,10 +70,11 @@ fn plant(directory: &Path, ops: Box<[skein_kv::Op]>) {
                     Expired::Failed(figures) => panic!("plant completes within five seconds: {figures}"),
                 }
             }
+            let file_env = clock.now().with(file_limits);
             if io.takes()
                 && let Some(request) = below.pop()
             {
-                file_layer::down(&mut io, clock.now().now, request, &mut events, &mut submitted);
+                step::down(&mut io, &file_env, request, &mut events, &mut submitted);
             }
             kernel.submit(&mut submitted, Wait::No);
             kernel.reap(&mut completed);
@@ -80,7 +83,7 @@ fn plant(directory: &Path, ops: Box<[skein_kv::Op]>) {
                 kernel.reap(&mut completed);
             }
             while let Some(complete) = completed.pop() {
-                file_layer::up(&mut io, complete, &mut events, &mut submitted);
+                step::up(&mut io, &file_env, complete, &mut events, &mut submitted);
             }
             while let Some(event) = events.pop() {
                 let now = clock.now();
@@ -92,17 +95,13 @@ fn plant(directory: &Path, ops: Box<[skein_kv::Op]>) {
             }
         }
     }
-    file_layer::down(
-        &mut io,
-        clock.now().now,
-        file::Request::Close { owner: Token::new(4), file: root_token },
-        &mut events,
-        &mut submitted,
-    );
+    let file_env = clock.now().with(file_limits);
+    let close = file::Request::Close { owner: Token::new(4), file: root_token };
+    step::down(&mut io, &file_env, close, &mut events, &mut submitted);
     kernel.submit(&mut submitted, Wait::Forever);
     kernel.reap(&mut completed);
     while let Some(complete) = completed.pop() {
-        file_layer::up(&mut io, complete, &mut events, &mut submitted);
+        step::up(&mut io, &file_env, complete, &mut events, &mut submitted);
     }
     let Some(file::Event::Closed { .. }) = events.pop() else { panic!("plant root closed") };
 }

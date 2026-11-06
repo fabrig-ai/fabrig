@@ -3,8 +3,9 @@
 //! `FileIo` keeps open file and root descriptors behind tokens, one request
 //! in flight, its deadline, and bounded bytes or entries while a whole-file
 //! operation progresses. It does not know a workspace's writable policy or
-//! interpret a file's content or version. `down` accepts one request while
-//! `takes` is true; `up` handles one completion; `expire` settles a deadline.
+//! interpret a file's content or version. `step::down` and `step::down_until`
+//! accept one request while `takes` is true; `step::up` handles one completion;
+//! `step::expire` settles a deadline.
 //! Each admitted request produces one terminal event after owned descriptors
 //! are closed. Loads refuse excess bytes; scans retain a name-order prefix
 //! within their entry and byte caps and count all omitted entries. Private
@@ -21,7 +22,7 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::mem;
-use skein_lib::{Duration, Env, Map, Queue, Time, Token, Wall, usize_of};
+use skein_lib::{Duration, Env, Map, Queue, Time, Token, usize_of};
 
 mod directory;
 mod opens;
@@ -275,22 +276,10 @@ pub struct FileIo {
     next_op: u64,
     work: Work,
     cancelling: Cancelling,
-    limits: Limits,
     random: Option<u64>,
 }
 
 impl FileIo {
-    #[must_use]
-    pub fn new(files: u32, max_read: u32, max_entries: u32, timeout: Duration) -> FileIo {
-        Self::with_whole_limit(files, max_read, max_entries, max_read, timeout)
-    }
-
-    /// Creates a driver with separate whole-file and read-chunk bounds.
-    #[must_use]
-    pub fn with_whole_limit(files: u32, max_read: u32, max_entries: u32, max_file: u32, timeout: Duration) -> FileIo {
-        Self::with_limits(&Limits { files, read: max_read, entries: max_entries, whole: max_file, timeout })
-    }
-
     #[must_use]
     pub fn with_limits(limits: &Limits) -> FileIo {
         assert!(valid(limits), "file limits need room");
@@ -301,7 +290,6 @@ impl FileIo {
             next_op: 1,
             work: Work::Idle,
             cancelling: Cancelling::Quiet,
-            limits: *limits,
             random: None,
         }
     }
@@ -413,24 +401,6 @@ fn list(io: &mut FileIo, pending: Pending, fd: Fd, subs: &mut Queue<Submit>) -> 
         },
         subs,
     )
-}
-
-/// One file request, only while `FileIo::takes` is true.
-pub fn down(io: &mut FileIo, now: Time, request: Request, events: &mut Queue<Event>, subs: &mut Queue<Submit>) {
-    let env = Env { now, wall: Wall::EPOCH, limits: io.limits };
-    step::down(io, &env, request, events, subs);
-}
-
-/// Starts one request with the owner's absolute deadline.
-pub fn down_until(
-    io: &mut FileIo,
-    deadline: Time,
-    request: Request,
-    events: &mut Queue<Event>,
-    subs: &mut Queue<Submit>,
-) {
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: io.limits };
-    step::down_until(io, &env, deadline, request, events, subs);
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive request match keeps file admission in one place")]
@@ -631,13 +601,6 @@ fn read_whole(
     issue(io, Pending::LoadReading { owner, fd, max, bytes }, op, subs)
 }
 
-/// Cancels the outstanding kernel operation after its request deadline. The
-/// terminal failure is emitted when the target has settled, exactly once.
-pub fn expire(io: &mut FileIo, now: Time, subs: &mut Queue<Submit>) {
-    let env = Env { now, wall: Wall::EPOCH, limits: io.limits };
-    step::expire(io, &env, subs);
-}
-
 /// Requests cancellation of the active owner's file operation. The terminal
 /// reports `Cancelled` only when the request was stopped before completion.
 pub fn cancel(io: &mut FileIo, owner: Token, subs: &mut Queue<Submit>) {
@@ -703,12 +666,6 @@ fn submit_cancel(io: &mut FileIo, target: Token, subs: &mut Queue<Submit>) -> Ca
     let op = io.mint_op();
     subs.push(Submit { op, kind: Op::Cancel { target } });
     Cancelling::Asked { op, target }
-}
-
-/// One kernel completion. It may submit the continuation of a short transfer.
-pub fn up(io: &mut FileIo, complete: Complete, events: &mut Queue<Event>, subs: &mut Queue<Submit>) {
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: io.limits };
-    step::up(io, &env, complete, events, subs);
 }
 
 fn follow_work(io: &mut FileIo, deadline: Option<Time>) {

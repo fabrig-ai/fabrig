@@ -5,7 +5,8 @@ use std::os::fd::AsRawFd;
 
 use skein_io::kernel::Fd;
 use skein_lib::Duration;
-use skein_shell::{Clock, wait_readable};
+use skein_shell::Clock;
+use skein_shell::keeper::wait_readable;
 
 #[test]
 fn an_empty_listener_times_out() {

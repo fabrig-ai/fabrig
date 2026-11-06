@@ -52,19 +52,7 @@ pub const ECHO: usize = 0;
 pub const fn server() -> service::Limits {
     let shipped = skein_echo_shell::limits().protocol;
     service::Limits {
-        io: skein_io::Limits {
-            sockets: 6,
-            refusals: 1,
-            intake: 24,
-            receive: 8,
-            output: 32,
-            sends: 2,
-            accepts: 1,
-            backlog: 2,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
-            retry: Duration::from_millis(10),
-        },
+        io: skein_io::Limits { sockets: 6, intake: 24, receive: 8, output: 32, backlog: 2, ..skein_io::Limits::TEST },
         protocol: protocol::Limits {
             conns: 3,
             line: LINE,
