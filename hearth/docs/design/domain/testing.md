@@ -1667,21 +1667,40 @@ VM tier its one real machine relies on.
   figure stands as an idle-machine figure
   (`skein/docs/foundation/testing-strategy.md`, 8.1). It depends on the
   user's ruling on the measurements.
-- **The focused suite's way to its figure** (9.1): whether remaining repeated
-  seed-independent setup, duplicate tree-file decoding, and render's per-task
-  listing scans, export-cache rescans and retained-spec re-walk need repair
-  to hold the queue's figure under 30 CPU seconds. Shared counting allocation's
-  sampled estimate is 18.03% of the tree family's base CPU, 4.58% of the base
-  focused suite; its current share is unknown. Test builds stay unoptimized
-  (`skein/docs/foundation/testing-strategy.md`, 8). Measurements of any remaining
-  overrun go to the user for a ruling
+- **The focused suite's way to its figure** (9.1): whether what is left needs
+  repair to hold the queue's figure under 30 CPU seconds. The shares below are a
+  sampled profile's estimates of the suite before its repairs (the `hearth-speed-2`
+  plan's figures, at `668f7cd3e5`), which overlap and do not add. What each would
+  save is unknown.
+  - What a world repeats: what 9.1 has it compute once, `rendered_keys` above all;
+    config's `reference::decode` of one document's bytes per seed and its
+    `reference::position`, which counts from byte zero (1.20% of the suite); the
+    tree world's file read twice in `Helper::digests` (2.57%) and its parents
+    built and decoded again per edit and per fault; the render world's expected
+    directories read and templates compiled again.
+  - The fake machine: a call's second path resolution, after `touched`'s.
+  - Render's own code: the per-task listing scans, which `class` every entry; the
+    exports cache's `prime`, which restarts after each pair, and its `needed`,
+    which scans the targets; `placement`'s clones; a call's rescans in `needs`,
+    `contains` and `copies`; `retain_spec`'s re-walk of what it holds; and
+    `Collector::push`, which walks the retained errors twice (0.59%).
+  - The git protocol's code: `hunks::append`, which pushes a chunk's bytes one at
+    a time (1.30%).
+  - skein's: through the tree family, `skein-heap`'s counting `alloc` (4.58%) and
+    `dealloc` (4.06%) and `skein_lib::sha256::compress` (2.22%); through the
+    smaller worlds, `skein_world::stream::Wire::answer` (1.57%) and
+    `skein_lib::intake::Intake::take` (0.96%). Their current shares are unknown,
+    and a repair there is a question first, not a task.
+
+  Test builds stay unoptimized (`skein/docs/foundation/testing-strategy.md`, 8).
+  Measurements of any remaining overrun go to the user for a ruling
   (`skein/docs/foundation/testing-strategy.md`, 8.1). The figure stands, and a run
   over it is recorded, never refused. It depends on the queue's record and on
   the user's ruling.
-- **The large render's cost:** about 15 CPU seconds, which is why the fuzzy
+- **The large render's cost:** about 4 to 5 CPU seconds, which is why the fuzzy
   suite carries it (8.4). No run has isolated that cost: it followed the
-  work per target, not the listing, and whether it lies in the harness or
-  in hearth's crates is unknown. It depends on a run that isolates it.
+  work per target, not the listing, and how it divides between the harness and
+  hearth's crates is unknown. It depends on a run that isolates it.
 - **The conformance tier's budget and its runs** (5.5, 9.2):
   whether it takes a budget and a place after landing
   depends on the user, and on a runner holding its prerequisites (6.4).

@@ -36,6 +36,7 @@ fn allowed(path: &str) -> bool {
                 "FORGE_ARGUMENT",
                 "machine::BoxKind",
                 "fetch::Fetched",
+                "sign_in::Source",
                 "",
             ],
         )
@@ -73,7 +74,7 @@ fn check_source(source: &str) {
         let after = position.checked_add("temper_forge_setup".len()).expect("source position");
         assert!(
             allowed(&source[after..]),
-            "the box names only steps, kinds, group files and fetch progress: {}",
+            "the box names only steps, kinds, group files, fetch progress and source outcomes: {}",
             source[position..].lines().next().unwrap()
         );
     }

@@ -124,7 +124,11 @@ fn receipt_text(commit: &[u8; 32], branch: &[u8]) -> Box<[u8]> {
     const PUSHED: &[u8] = b"pushed ";
     const TO_BRANCH: &[u8] = b" to branch ";
     const DETACHED: &[u8] = b"; your checkout stays detached, as expected";
-    let base = 64_usize
+    let width = if commit.get(20..).expect("fixed id") == [0; 12] { 20_usize } else { 32 };
+    let digits = commit.get(..width).expect("fixed id");
+    let base = width
+        .checked_mul(2)
+        .expect("fixed commit digits")
         .checked_add(PUSHED.len())
         .expect("fixed receipt prefix")
         .checked_add(DETACHED.len())
@@ -145,7 +149,7 @@ fn receipt_text(commit: &[u8; 32], branch: &[u8]) -> Box<[u8]> {
     };
     let mut text = Writer::new(len);
     text.put(PUSHED).expect("measured receipt prefix");
-    for byte in commit {
+    for byte in digits {
         let high = *b"0123456789abcdef".get(usize::from(byte >> 4_u8)).expect("hex nibble");
         let low = *b"0123456789abcdef".get(usize::from(byte & 15)).expect("hex nibble");
         text.put(&[high, low]).expect("two characters per commit byte");
