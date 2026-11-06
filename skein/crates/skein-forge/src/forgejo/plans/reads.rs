@@ -373,6 +373,7 @@ impl Plan {
         clippy::too_many_lines,
         reason = "streaming states validate their decoder-selected row kind and charge it before retaining it"
     )]
+    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
     fn row(
         &mut self,
         mut state: State,
@@ -388,10 +389,9 @@ impl Plan {
             return Err(api::Error::TooLarge);
         }
         keep_row(&value, self.repository.forge, tables);
-        let value = Some(value);
         match &mut state {
             State::Pulls { head, base, pull, found, .. } => match value {
-                Some(d::Row::Pull(value)) => {
+                d::Row::Pull(value) => {
                     if !*found
                         && value.head.name == *head
                         && value.head.repo_id == u64::from(self.repository.repository)
@@ -401,16 +401,16 @@ impl Plan {
                         *found = true;
                     }
                 }
-                Some(_) | None => return Err(api::Error::InvalidAnswer),
+                _ => return Err(api::Error::InvalidAnswer),
             },
             State::Searching { .. } => match value {
-                Some(d::Row::User(_)) => {}
-                Some(_) | None => return Err(api::Error::InvalidAnswer),
+                d::Row::User(_) => {}
+                _ => return Err(api::Error::InvalidAnswer),
             },
             State::Collaborators { rows, size, .. } => {
                 let user = match value {
-                    Some(d::Row::User(user)) => user.id,
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    d::Row::User(user) => user.id,
+                    _ => return Err(api::Error::InvalidAnswer),
                 };
                 if !charge(
                     size,
@@ -424,8 +424,8 @@ impl Plan {
             }
             State::Items { rows, size, .. } => {
                 let item = match value {
-                    Some(d::Row::Issue(issue)) => reading::summary(word, issue),
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    d::Row::Issue(issue) => reading::summary(word, issue),
+                    _ => return Err(api::Error::InvalidAnswer),
                 };
                 let added = row_size(crate::measure::SUMMARY_BYTES, size::summary(&item, bounds.rows)?, bounds)?;
                 if !charge(size, added, rows.len() < rows.capacity(), bounds) {
@@ -435,8 +435,8 @@ impl Plan {
             }
             State::Comments { rows, more, size, .. } => {
                 let comment = match value {
-                    Some(d::Row::Comment(comment)) => reading::comment(word, comment),
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    d::Row::Comment(comment) => reading::comment(word, comment),
+                    _ => return Err(api::Error::InvalidAnswer),
                 };
                 let added =
                     row_size(crate::measure::COMMENT_BYTES, body_size(&comment.body, comment.key.as_deref())?, bounds)?;
@@ -449,8 +449,8 @@ impl Plan {
             }
             State::Reviews { format, rows, size, .. } => {
                 let review = match value {
-                    Some(d::Row::Review(review)) => reading::review(word, review, *format)?,
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    d::Row::Review(review) => reading::review(word, review, *format)?,
+                    _ => return Err(api::Error::InvalidAnswer),
                 };
                 if let Some(review) = review {
                     let added = row_size(
@@ -465,7 +465,7 @@ impl Plan {
                 }
             }
             State::Remarks { rows, more, page, size } => match value {
-                Some(d::Row::ReviewComment(remark)) => {
+                d::Row::ReviewComment(remark) => {
                     let skip = page.saturating_sub(1).checked_mul(bounds.page_size).ok_or(api::Error::TooLarge)?;
                     if self.count > skip.saturating_add(bounds.page_size) {
                         *more = true;
@@ -485,12 +485,12 @@ impl Plan {
                         }
                     }
                 }
-                Some(_) | None => return Err(api::Error::InvalidAnswer),
+                _ => return Err(api::Error::InvalidAnswer),
             },
             State::Branches { prefix, rows, size, .. } => {
                 let branch = match value {
-                    Some(d::Row::Branch(branch)) => branch.name,
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    d::Row::Branch(branch) => branch.name,
+                    _ => return Err(api::Error::InvalidAnswer),
                 };
                 if !branch.starts_with(prefix) {
                     return Err(api::Error::InvalidAnswer);
@@ -502,8 +502,8 @@ impl Plan {
                 rows.push(branch).expect("room checked");
             }
             State::Protection => match value {
-                Some(d::Row::Protection(_)) => {}
-                Some(_) | None => return Err(api::Error::InvalidAnswer),
+                d::Row::Protection(_) => {}
+                _ => return Err(api::Error::InvalidAnswer),
             },
             State::New { .. }
             | State::Resolving { .. }
