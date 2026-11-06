@@ -1,0 +1,22 @@
+draft = "skein-world-costs"
+repo = "fabrig"
+sources = ["skein/docs/plan/skein-world-costs/inputs/request.md", "skein/testing/skein-heap/src/lib.rs", "skein/testing/skein-world/src/stream.rs", "skein/tests/heap/tests/suite/main.rs", "AGENTS.md", "DESIGN.md"]
+
+# What every world pays to count its heap and keep its wire's trace; see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "counting"
+title = "Counting keeps the same counts, reaching one thread-local once per call"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[slice]]
+id = 1
+story = "every world's heap is counted as exactly as before, for less, with the six tests read before and after"
+parts = ["counting"]
+walk = false
