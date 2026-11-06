@@ -18,6 +18,7 @@ Section 5 of `temper/docs/design/draft/chat-reading.md`, on top of part (a) and 
 | `page-part` | `page-reading` | `log-surface` | `Near` from measures, `Continues`, the held view, PgUp and PgDn, in real Chromium |
 | `text-shell` | `text-reading` | `log-surface` | `up`, `down`, and what PgUp and PgDn make |
 | `page-busy` | `log-busy` | `page-reading` | `Near` again when a log's busy state goes |
+| `page-part` | `head-reads-on` | `page-reading`, `log-busy` | a log at its head goes on reading, and nothing throws; from a check on this trunk |
 | `view-bounds` | `view-window` | `thread-window` | the page's bounds priced from the window's bytes |
 | `domain` | `chat-reads` | `thread-window` | `Newer` is read, `Latest` and sending go to the end, no `fill` |
 | `page` | `chat-page` | `chat-reads`, `view-window`, `text-reading`, `log-surface` | the log bound, its lines keyed, no "Older", the terminal's prints |

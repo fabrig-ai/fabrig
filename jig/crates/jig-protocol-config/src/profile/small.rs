@@ -305,7 +305,7 @@ pub(super) const LIMITS: Limits = Limits {
     routes: 512,
 };
 
-/// Native client HTTP: 4 sockets, 8 exchanges, 5 minute link, 30 second stall.
+/// Native client HTTP: 4 sockets, 8 exchanges, 2 hour link, 30 second stall.
 pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_engine_clients::Limits {
     public: jig_protocol_engine_clients::PublicLimits::OFF,
     streams: 2,
@@ -322,7 +322,7 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
     // One full moved file and its keyed account-change envelope.
     message_bytes: 131_328,
     wire: jig_client_protocol_wire::v19::CEILINGS,
-    link_span: Duration::from_secs(300),
+    link_span: Duration::from_secs(7200),
 };
 
 /// Accounts use bounded OAuth exchanges and the shared socket limits.

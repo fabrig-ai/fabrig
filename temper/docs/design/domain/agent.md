@@ -788,6 +788,13 @@ the saved window is unread, the first load spends a transient try; its
 retry starts fresh without the tail, keeping the person's pending words
 (jig's `domain/engine.md`, 7.2).
 
+An unidentified startup fault keeps its agent-failure classification and
+bounded operator diagnostic through cleanup (jig's `domain/hosts.md`, 6.3).
+It retains the transcript and pending words for the next attempt; it does
+not establish a transcript refusal. A persistent fault exhausts the agent
+allowance and holds the chat. An unidentified fault alone never takes
+the fresh preparation above.
+
 ## 8. The agents temper runs
 
 | Agent | Messages in | Tools its authority gives | Ends when |
@@ -1244,6 +1251,10 @@ host:
 
 ## 10. Open questions
 
+- **What a delivery keeps, under a deployment's own charter** (6): the stock's
+  coding charter and the reference's tell a run its own history isn't kept. A
+  deployment's own charter is its author's, so a run under one isn't told.
+  Default: so.
 - **A task read where the process has no local agent.** The engine does not
   know its remote agents' reply bound, so a run there reads a task's words in
   pieces of `documents.text_bytes` (`root.md`, 5.2). Going past it needs each

@@ -86,7 +86,9 @@ pub fn resolve(
 impl Directories {
     /// Words needed by program-login on this deployment (temper/docs/design/client/README.md, 4.6).
     #[must_use]
-    pub fn program_environment(&self, environment: &[EnvironmentEntry], working: &[u8]) -> Box<[u8]> {
+    pub fn program_environment(&self, environment: &[EnvironmentEntry], working: &[u8], word: &[u8]) -> Box<[u8]> {
+        // temper/docs/design/client/README.md, 4.6: the answer's byte bound.
+        const BOUND: usize = 49_216;
         let defaults: Vec<_> = environment
             .iter()
             .filter(|(name, _)| {
@@ -94,24 +96,25 @@ impl Directories {
             })
             .cloned()
             .collect();
-        if let Ok((defaults, _)) = resolve(&[], &defaults, working)
-            && self.config == defaults.config
-            && self.data == defaults.data
-            && self.cache == defaults.cache
-        {
-            return Box::new([]);
-        }
+        let same = resolve(&[], &defaults, working).is_ok_and(|(defaults, _)| {
+            self.config == defaults.config && self.data == defaults.data && self.cache == defaults.cache
+        });
+        let home = environment.iter().find(|(name, _)| name.as_ref() == b"HOME").map(|(_, value)| value.as_ref());
         let mut words = Vec::new();
-        for (name, path) in [
-            (b"TEMPER_CONFIG=".as_slice(), &self.config),
-            (b"TEMPER_DATA=", &self.data),
-            (b"TEMPER_CACHE=", &self.cache),
-        ] {
-            if !words.is_empty() {
+        if !same {
+            for (name, path) in [
+                (b"TEMPER_CONFIG=".as_slice(), &self.config),
+                (b"TEMPER_DATA=", &self.data),
+                (b"TEMPER_CACHE=", &self.cache),
+            ] {
+                words.extend_from_slice(name);
+                words.extend_from_slice(&crate::printed::path_word(path, home));
                 words.push(b' ');
             }
-            words.extend_from_slice(name);
-            words.extend_from_slice(&temper_forge_setup::sign_in::quote(path));
+        }
+        let word = if word.len() <= BOUND.saturating_sub(words.len()) { word } else { b"temper" };
+        if !same || word != b"temper" {
+            words.extend_from_slice(word);
         }
         words.into_boxed_slice()
     }

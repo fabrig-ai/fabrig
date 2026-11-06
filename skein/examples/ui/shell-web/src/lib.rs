@@ -17,6 +17,8 @@ use skein_ui_web::{
 use std::{cell::RefCell, rc::Rc};
 
 #[cfg(debug_assertions)]
+mod copy_fixture;
+#[cfg(debug_assertions)]
 mod folds_fixture;
 mod grow;
 #[cfg(debug_assertions)]
@@ -76,6 +78,11 @@ pub fn start() {
     #[cfg(debug_assertions)]
     if path.starts_with("/test/reading/") {
         reading_fixture::start(mount, &path, facts.primary);
+        return;
+    }
+    #[cfg(debug_assertions)]
+    if path.split('?').next() == Some("/test/copy") {
+        copy_fixture::start(mount, facts.primary);
         return;
     }
     #[cfg(debug_assertions)]

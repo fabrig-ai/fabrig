@@ -27,6 +27,7 @@ pub enum Down {
 /// Navigation, authentication and facts stay in the host.
 #[derive(Debug)]
 pub enum Duty {
+    Copy { token: u32 },
     Show { address: client::Address, replace: bool },
     SignOut,
     Fact(client::Fact),
@@ -34,6 +35,7 @@ pub enum Duty {
 #[must_use]
 pub fn down(request: client::Request) -> Down {
     match request {
+        client::Request::Copy { token, words: _ } => Down::Duty(Duty::Copy { token }),
         client::Request::Client { request } => Down::Shell(request),
         client::Request::Unlinked { request } => Down::Unlinked(request),
         client::Request::Show { address, replace } => Down::Duty(Duty::Show { address, replace }),
