@@ -821,6 +821,29 @@ component instead (6.1).
   fake peer (an issuer on loopback) has no TLS; no default turns it on,
   and a shipped bundle never does. The check is a pure function of the
   target and the feature, tested natively (section 14).
+- **A tab of the page's own,** for what a person does beside a page that
+  stays (a provider's sign-in): the platform's three acts, one tab at a
+  time, the shell's to ask and outside the transport's whole.
+  - **Opened,** `open_tab`, with a line of words, in the turn of a person's
+    act (section 11, A person's gesture), before the transport carries that
+    turn's writes and exchanges: `window.open` with no address and no
+    `noopener`, which would hide the tab from the page; the words its title
+    and its body. It answers whether a tab opened: a browser that refuses
+    (a pop-up blocker, an act's activation spent) gives no tab, `false`,
+    and the application draws what the person does instead. A tab held and
+    not yet pointed is closed first.
+  - **Pointed,** `point_tab`, once, from an event (an answer), never from
+    the state, under the navigation's targets (above): its opener cut
+    first (`opener` set to null), so that the page at the address has no
+    hold on this one, then sent to the address in place of its blank
+    entry. A target outside them closes the tab, and nothing is reported,
+    as the navigation away: the application shows the address otherwise
+    too. The platform lets a pointed tab go, and keeps no hold on it.
+  - **Closed,** `close_tab`: what an answer refusing the act asks. With no
+    tab held, closing and pointing do nothing.
+  - **A platform with no tabs** refuses each opening: the trait's default,
+    which the worker's takes (section 18), and so does a test's unless it
+    says otherwise. A reload ends the hold, and the tab stays as it is.
 - **A hidden tab lets its stream go** a minute after it is hidden (a
   default, the application's parameter): fetch closes the stream and
   reports its end, as any drop; an opening while hidden waits until the
@@ -851,7 +874,7 @@ share sheet, a clipboard write, a file picked).
   callback (a promise settled, a picker's change) raises a report, and
   the inbox calls the turn only when none runs.
 - **A person's gesture:** an effect the platform allows only during one
-  (a file picker, a share sheet, a clipboard write) is asked in the turn
+  (a file picker, a share sheet, a clipboard write, a tab: section 10) is asked in the turn
   the person's act started, which the inbox runs within the act's event,
   so the gesture holds. Asked in a turn a timer or an answer started, it
   is refused by the platform, and reported refused.
@@ -1008,6 +1031,10 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
     6), so a find by words in its name finds it, as the fake person's
     find by its name alone does (ui.md, 17.1);
   - `Pending` while the kit answers.
+- **Its tabs:** the person's other tabs read as the browser lists them
+  (browser.md, section 6), awaited until they read as the step says: how
+  many, and for each its title, words in its address, and whether it can
+  still reach its opener, each only where the step asks.
 - **Its acts:** press; type, an input's whole value (the field's value
   selected whole by the kit's select-all key, then the words typed over
   it), a date's or a time's by the kit's keys (below);
@@ -1213,6 +1240,15 @@ parts carry, so that its tier tests each once.
   pending add, which the server makes once; and the closing warning met
   by a reload while an add is pending, and by none once it is made
   (examples.md, 9.2 and 9.5).
+- **A tab,** at a test build's address alone, `/test/tab` (section 10):
+  a press opens the tab in that press's turn, its words its title; a
+  second points it, on the page's own origin, its opener cut; one outside
+  the targets closes it, as a third does; and an opening no press started,
+  the page's own at its start, is refused. So the press's path, the inbox's
+  turn within the act's event, is held to Chromium's pop-up rule. Firefox
+  and Safari are read and not run: nothing between the click's listener and
+  `window.open` yields to the event loop, which is what each asks of a
+  gesture.
 - **A clipboard write,** in its test build alone, at `/test/copy`: a press
   through the page's own path writes in the act's event and gets one
   report; `?at-start` writes with no press, and is refused; `?no-clipboard`,
@@ -1350,7 +1386,7 @@ unchanged.
 - **No navigation away:** the platform holds no other origin. A
   navigation to a path on the page's own origin shows it in the address
   bar, and anything else is not followed, as section 10's rule refuses
-  a target outside it.
+  a target outside it. It opens no tab: each is refused (section 10).
 - **Tested** by its pure half on the host: the clock's arithmetic over
   speeds and pauses, the timer's conversion, the messages' encoding
   (section 14); the page half runs in the application's browser tier
