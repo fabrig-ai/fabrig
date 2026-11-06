@@ -175,3 +175,20 @@ The merge reported content conflicts only; no build or test failure was reported
 - Check automatically merged deployment fixtures retain `program_login` alongside upstream confirmation fixtures. Run the spec’s view and gallery validation, and regenerate affected gallery/journey prints with their tools. Preserve upstream journey documentation and this branch’s two answered clauses.
 
 Keep unrelated repairs outside this rebase. Preserve the existing `## Left` record; report any changed failure evidence separately.
+
+## Answers
+
+2026-11-06. **May the English literal-byte capacity grow past 44,284 to fit the combined vocabulary, or must the wording change?**
+It grows, and the wording stays. In `temper/crates/temper-client-view/src/words.rs`, `text_bytes` is the sum the combined words need, measured:
+44323 against `aab4f2590b`, and the measured sum if the trunk has moved. This is the same capacity as `PHRASES` and `SEGMENTS`,
+written down with the vocabulary, and it has grown with each change to the words: no budget, wire or stored format. "Preserve `text_bytes: 44284`" in the
+rebase above meant taking the trunk's number over the branch's 43848 in that conflict; it set no ceiling, and this answer replaces that clause. The
+arithmetic holds: this task's words add 60 bytes, the trunk's 44,284 had 21 to spare, so it falls 39 short. Add one line to the comments above the field,
+as they do, naming this task's printed command and the 60 bytes. The other limits stay.
+
+Continue from the pushed `first-usable-model/printed-command-r2` (`476e80df94`); don't replay it. Then do what the rebase above left: regenerate both Story A logs,
+verify the two replays, and run the spec's remaining validation, the gallery and the three journeys, under the existing answer's stop conditions.
+
+**Old forms.** `old_forms.py`, from `temper`, passes on `476e80df94` and on `aab4f2590b` in a clean checkout, `comment:actual` within its 59, and the branch's diff
+adds no such comment. The 61 the run saw doesn't reproduce, so it isn't an inherited red: don't record it under `## Left`. Run it once more on your final tree. If it's still
+red, find the lines from its log and report them; the baseline doesn't rise.
