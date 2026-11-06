@@ -600,9 +600,10 @@ served is held, kept and unsent, for its owner's version (client.md,
     escalations, person tasks), and their updates unread, counted up to
     a limit; their read position over results; each project's merged
     templates (3.6), each with `resolved_default: Option<LlmChoice>`
-    beside its configured LLM intent. The preview uses Create's own
-    resolver, charter order, effective creating authority and current
-    receiving-party payer (`../../domain/engine.md`, 11.1). An explicit
+    beside its configured LLM intent. The preview takes what a run's check
+    would for a task keeping no account (`../../domain/accounts.md`, 4.3),
+    under the effective creating authority and current receiving-party
+    payer (`../../domain/engine.md`, 11.1). An explicit
     choice previews itself; an omitted choice with no eligible model
     or an executor still *chosen* gives `None`. It grants and reserves
     nothing. Shapes retain configured intent, never the preview, and

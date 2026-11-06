@@ -1013,3 +1013,29 @@ fn a_browser_held_delegation_keeps_the_held_token() {
     fixtures::build(&mut view, &root);
     status(&view, b"Held", look::STATUS_HELD);
 }
+
+/// The browser chat's card hides progress steps (temper/docs/design/client/browser.md, 4.6).
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the view's styles and their browser sheet jointly hide progress")]
+fn a_browser_chat_card_hides_its_steps() {
+    let root = root(&[change()], &[CHANGE], false);
+    let view = fixtures::browser_page_view(&root);
+    let list = find(&view, Find::exactly_named(Role::List, b"Steps")).expect("semantic progress list");
+    assert!(view.tree().find(list).expect("progress list").styles.as_slice().contains(&look::STEPS));
+    let card = fixtures::find(view.tree(), Role::Region, b"Task 2").expect("change card");
+    assert!(view.tree().find(card).expect("change card").styles.as_slice().contains(&look::TASK_CARD));
+    let mut session = false;
+    for node in view.tree().nodes() {
+        session |= node.styles.as_slice().contains(&look::SESSION);
+    }
+    assert!(session, "the card is in the browser session");
+    let sheet = include_str!("../../../temper-client-shell-web/temper.css");
+    let rule = sheet
+        .split_once("#app > .temper-session .temper-task-card > :is(.temper-meta, .temper-steps) {")
+        .expect("chat card's hidden parts")
+        .1
+        .split_once('}')
+        .expect("style rule")
+        .0;
+    assert!(rule.contains("display: none;"), "chat cards hide their progress steps");
+}

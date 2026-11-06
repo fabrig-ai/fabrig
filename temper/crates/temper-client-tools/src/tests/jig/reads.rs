@@ -988,12 +988,47 @@ fn task_json_includes_only_supplied_retry_reasons() {
 }
 
 #[test]
+fn empty_account_wait_names_claude_login_path() {
+    use jig_client::contract as c;
+    for model in [Some(b"gpt-6.1-sol".as_slice()), None] {
+        let (mut root, call, mut task) = fixtures::task_read();
+        root.limits.tools.program_login = b"temper program-login --config BOX --data STORE --cache SCRATCH";
+        task.llm = match model {
+            Some(model) => Some(c::LlmChoice {
+                account: None,
+                main: c::ModelEffort { model: c::Text::new(Box::from(model), 32).unwrap(), effort: None },
+                subagents: skein_lib::List::with_capacity(0),
+            }),
+            None => None,
+        };
+        task.kept_account = None;
+        task.run_wait = Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty });
+        root.serve(call, fixtures::task_result(task));
+        let answer = root.answer(call).expect("empty-account task answered");
+        assert_eq!(answer.status, 0);
+        assert!(answer.stderr.is_empty());
+        assert!(skein_lib::bytes::find(&answer.stdout, b"next run: account unknown source unknown: empty").is_some());
+        assert_eq!(skein_lib::bytes::find(&answer.stdout, b"main model: gpt-6.1-sol").is_some(), model.is_some());
+        for words in [
+            "Claude Code: account declare PROVIDER claude_code NAME --key KEY, then temper program-login --config BOX --data STORE --cache SCRATCH NAME",
+            "skip program-login if NAME's directory is already signed in; then account list and account verify ACCOUNT --source program",
+            "provider sign-in, where offered: account connect PROVIDER --key KEY",
+            "API key, where offered: account add-key PROVIDER FILE --key KEY",
+            "without an explicit model, a usable account may select another offered model",
+        ] {
+            assert!(skein_lib::bytes::find(&answer.stdout, words.as_bytes()).is_some(), "missing {words}");
+        }
+        assert!(next_run_line(&answer.stdout).starts_with(b"  no account serving this work yet"));
+    }
+}
+
+#[test]
 fn task_waits_explain_the_next_act_after_the_code_line() {
     use jig_client::contract::{self as c, TaskRunWait as W, TaskSourceState as S, TaskWaitWhy as R};
     for (wait, explanation) in [
         (
             W::Account { account: None, source: None, why: R::Empty },
-            "  no account can run chosen yet: account connect PROVIDER, or account add-key PROVIDER FILE",
+            "  no account serving this work yet (shown model: chosen)",
         ),
         (
             W::Account { account: Some(43), source: Some(17), why: R::Host },

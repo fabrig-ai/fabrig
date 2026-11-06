@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_core::{self as domain, TurnRecord};
 use jig_domain_tasks as tasks;
 use skein_io::file;
-use skein_lib::{List, Queue, Reader, Token, Writer};
+use skein_lib::{List, Queue, Reader, Token, Writer, length::len_u64};
 mod party;
 pub(crate) const OWNER: Token = Token::new(0x5453);
 #[derive(Debug)]
@@ -501,8 +501,7 @@ fn header(
             return whole_from_head(store, read, offset, length, &bytes, below);
         }
     }
-    let expected = u64::try_from(bytes.len().checked_sub(versions).ok_or(())?)
-        .or(Err(()))?
+    let expected = len_u64(bytes.len().checked_sub(versions).ok_or(())?)
         .checked_add(u64::from(size))
         .ok_or(())?
         .checked_add(8)
@@ -676,7 +675,7 @@ fn accept(store: &mut Store, read: &mut Read, frame: Decoded, below: &mut Below)
             return Err(());
         }
         let row = page.rows.get_mut(page.index).expect("pending turn row");
-        let payload = u64::try_from(turn.transcript.len()).or(Err(()))?;
+        let payload = len_u64(turn.transcript.len());
         row.related = Some(domain::Record::Core(domain::CoreRecord::Turn(turn)));
         let mut bytes = row.owned_bytes().ok_or(())?;
         if charge_frame {

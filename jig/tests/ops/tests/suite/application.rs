@@ -3,7 +3,7 @@ use jig_ops_domain as root;
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_world::conformance::{Config, Ops, Story};
 use sha2::{Digest, Sha256};
-use skein_lib::{ReplyTo, Token};
+use skein_lib::{ReplyTo, Token, length::len_u64};
 
 fn request(sign_in: u64) -> root::Event {
     let value = infrastructure::ApplicationRequest {
@@ -16,9 +16,9 @@ fn request(sign_in: u64) -> root::Event {
 
 fn ask(sign_in: u64, key: u8, value: infrastructure::ApplicationRequest) -> root::Event {
     let mut bytes = Vec::new();
-    bytes.extend(u64::try_from(value.environment.pool.len()).expect("bounded pool name").to_be_bytes());
+    bytes.extend(len_u64(value.environment.pool.len()).to_be_bytes());
     bytes.extend_from_slice(&value.environment.pool);
-    bytes.extend(u64::try_from(value.environment.name.len()).expect("bounded environment name").to_be_bytes());
+    bytes.extend(len_u64(value.environment.name.len()).to_be_bytes());
     bytes.extend_from_slice(&value.environment.name);
     bytes.extend(value.revision.to_be_bytes());
     bytes.extend(value.until.to_be_bytes());

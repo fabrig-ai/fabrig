@@ -565,7 +565,7 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
         assert!(initial.is_empty(), "restore outputs: {initial:?}");
     }
     let people_env = env.with(env.limits.core.people);
-    assert!(domain.core.people.start_link(&people_env));
+    assert!(domain.core.people.start_link());
     domain.core.people.start_sweep();
     assert!(domain.core.people.start_complete(&people_env));
     assert!(take(&mut domain, &env).is_empty());

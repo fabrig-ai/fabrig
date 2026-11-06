@@ -8,7 +8,7 @@ use crate::{
     public::{Names, Of, PublicKind},
 };
 use jig_client_protocol_wire::{self as wire, public_v1};
-use skein_lib::{List, Secret, Wall, Writer};
+use skein_lib::{List, Secret, Wall, Writer, length::len_u64};
 #[path = "records.rs"]
 mod records;
 
@@ -257,7 +257,7 @@ impl Component {
                 match bytes {
                     Some(bytes) => {
                         if reservation.exchange.is_some() {
-                            sent = u64::try_from(bytes.len()).expect("bounded document");
+                            sent = len_u64(bytes.len());
                         }
                         PublicReply::Document { bytes, decided }
                     }

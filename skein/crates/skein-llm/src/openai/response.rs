@@ -963,7 +963,7 @@ pub struct Echo {
 }
 impl Echo {
     pub const NONE: Echo = Echo { instructions: false, tools: false, attribution_bytes: 0 };
-    const REQUEST: Echo = Echo { instructions: true, tools: true, attribution_bytes: 0 };
+    pub(crate) const REQUEST: Echo = Echo { instructions: true, tools: true, attribution_bytes: 0 };
     #[must_use]
     pub const fn enabled(self) -> bool {
         self.instructions || self.tools || self.attribution_bytes > 0
@@ -1209,17 +1209,6 @@ pub(crate) fn decoder_fixed_bound(limits: &Limits) -> Option<u64> {
 /// Bounds stream decoder retention.
 pub(crate) fn decoder_bound(limits: &Limits) -> Option<u64> {
     decoder_fixed_bound(limits)?.checked_add(u64::from(limits.answer))
-}
-
-/// Synthetic fake-server completion with repeated instructions and tools.
-/// The client decoder deliberately ignores the request echo.
-pub fn encode_completion(
-    stop: Stop,
-    usage: Usage,
-    request: &Request,
-    limits: &Limits,
-) -> Result<Box<[u8]>, DecodeError> {
-    encode_peer_event(&Event::Completed { stop, usage }, Some(request), Echo::REQUEST, limits)
 }
 
 fn write_echo(out: &mut Encoder, request: &Request, selection: Echo) {

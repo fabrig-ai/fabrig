@@ -7,7 +7,8 @@ use skein_forge::forgejo::{
     request::Request,
     server::{self, Answer},
 };
-use skein_lib::{List, Secret, Writer, bytes, usize_of};
+use skein_lib::bytes::{concat, concat as joined};
+use skein_lib::{List, Secret, bytes, usize_of};
 mod accounts;
 mod collaborators;
 mod creation;
@@ -168,7 +169,7 @@ impl Store {
             }
             Request::UserOf { login } => Some(match self.find(login) {
                 Some(account) => encoded(200, Answer::User(self.user(account.id).expect("account found")), limits),
-                None => refusal(404, &joined(&[b"user redirect does not exist [name: ", login, b"]"]), limits),
+                None => refusal(404, &concat(&[b"user redirect does not exist [name: ", login, b"]"]), limits),
             }),
             Request::CreateUser { .. }
             | Request::Tokens { .. }
@@ -345,18 +346,6 @@ fn refusal(status: u16, message: &[u8], limits: &Limits) -> Reply {
         Answer::Error(document::ErrorBody { message: document::Body::Kept(bytes::copy_of(message)) }),
         limits,
     )
-}
-
-fn joined(parts: &[&[u8]]) -> Box<[u8]> {
-    let mut length = 0_usize;
-    for part in parts {
-        length = length.saturating_add(part.len());
-    }
-    let mut writer = Writer::new(length);
-    for part in parts {
-        writer.put(part).expect("sized setup message");
-    }
-    writer.finish()
 }
 
 fn empty() -> Reply {

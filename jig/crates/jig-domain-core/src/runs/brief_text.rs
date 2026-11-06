@@ -4,7 +4,7 @@
 use alloc::boxed::Box;
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
-use skein_lib::{Decimal, List, Writer};
+use skein_lib::{Decimal, List, Writer, length::len_u64};
 
 use crate::{Core, RetainedResult, Transcript};
 
@@ -254,7 +254,7 @@ fn attempt_read(tries: tasks::Tries, invalid: Option<tasks::InvalidResult>, byte
     writer.put(kept).expect("invalid reason prefix fits");
     let text = writer.finish();
     BriefRead::Got(Box::new([BriefFragment {
-        left: u64::try_from(total.checked_sub(text.len()).expect("written prefix")).expect("usize fits u64"),
+        left: len_u64(total.checked_sub(text.len()).expect("written prefix")),
         bytes: text,
     }]))
 }
@@ -438,7 +438,7 @@ fn tail_read(transcript: &Transcript, bytes: u32) -> BriefRead {
         if kept <= u64::from(bytes) {
             break;
         }
-        kept = kept.checked_sub(u64::try_from(text.bytes.len()).expect("bounded text")).expect("counted texts");
+        kept = kept.checked_sub(len_u64(text.bytes.len())).expect("counted texts");
         skipped = skipped.checked_add(1).expect("bounded text count");
         if kept < u64::from(bytes) {
             cut = Some(super::transcript_text::cut_transcript_text(
@@ -612,7 +612,7 @@ fn task_read(record: &tasks::RunContext, parts: u32, bytes: u32) -> BriefRead {
         let last = gathered.get_mut(0).expect("first part");
         last.left = last
             .left
-            .checked_add(u64::try_from(part.bytes.len()).expect("usize fits u64"))
+            .checked_add(len_u64(part.bytes.len()))
             .expect("bounded omitted bytes")
             .checked_add(part.left)
             .expect("bounded omitted bytes");

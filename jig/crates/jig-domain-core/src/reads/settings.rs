@@ -825,7 +825,7 @@ mod tests {
         ] {
             people::step(&mut core.people, &people_env, people::Event::Restore { record }, &mut Queue::uncapped());
         }
-        assert!(core.people.start_link(&people_env));
+        assert!(core.people.start_link());
         core.people.start_sweep();
         assert!(core.people.start_complete(&people_env));
         (core, env)

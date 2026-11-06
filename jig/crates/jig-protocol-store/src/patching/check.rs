@@ -7,7 +7,7 @@ use crate::{Arrived, Below, Check, KeptFamily, KeptMap, OpenRefusal, Owner, Root
 use alloc::boxed::Box;
 use jig_domain_core::RestoreRange;
 use skein_io::{file, kernel::Kind};
-use skein_lib::{List, Token};
+use skein_lib::{List, Token, length::len_u64};
 
 /// The manifest order is the supplied sets' order, then their families'.
 #[derive(Debug)]
@@ -18,7 +18,7 @@ pub(crate) struct Counted {
 }
 
 /// Both maps are in memory. Each nonterminal page consumes at least one
-/// row; skein-kv's actual row count bounds the pages, plus the empty page.
+/// row; skein-kv's row count bounds the pages, plus the empty page.
 pub(crate) fn count(store: &mut Store, owner: Owner, family: &KeptFamily) -> Option<u64> {
     let limits = pages::map_limits(store, family.map);
     let rows = match family.map {
@@ -46,7 +46,7 @@ pub(crate) fn count(store: &mut Store, owner: Owner, family: &KeptFamily) -> Opt
             if page.rows.is_empty() && page.next.is_some() {
                 return None;
             }
-            count = count.checked_add(u64::try_from(page.rows.len()).ok()?)?;
+            count = count.checked_add(len_u64(page.rows.len()))?;
             cursor = page.next;
             if cursor.is_none() {
                 break;

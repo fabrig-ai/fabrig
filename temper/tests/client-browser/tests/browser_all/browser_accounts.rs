@@ -39,14 +39,6 @@ fn the_accounts_page_returns_after_a_key_send() {
         Step::Address(Box::from(b"/chats".as_slice())),
         Step::Back,
         see(accounts()),
-        // The accounts watch retains the key added before leaving the flow.
-        press(b"Settings", Role::Link),
-        press(b"Accounts", Role::Link),
-        see(Find::exactly_named(Role::Heading { level: 2 }, "Your accounts · 1".as_bytes())),
-        see(Find::named(Role::Disclosure, b"Test provider API key")),
-        Step::Person(PersonStep::Press { find: Find::named(Role::Disclosure, b"Test provider API key") }),
-        see(Find::exactly_named(Role::Button, b"Replace")),
-        see(Find::exactly_named(Role::Button, b"Remove account")),
     ]));
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
 }

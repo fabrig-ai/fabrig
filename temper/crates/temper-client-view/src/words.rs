@@ -1373,7 +1373,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Last landing adds two phrases (client/README.md, 3.5).
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
-const PHRASES: u32 = 1857;
+const PHRASES: u32 = 1858;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1398,9 +1398,9 @@ const PHRASES: u32 = 1857;
 // Last landing adds four segments (client/README.md, 3.5).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3244;
+const SEGMENTS: u32 = 3245;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45451;
+const ENGLISH_BYTES: u32 = 45455;
 const ALL: [Word; 1259] = [
     Word::CloseTitle,
     Word::CloseChat,

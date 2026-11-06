@@ -22,7 +22,7 @@ fn restoring() -> (Domain, Env<people::Limits>, Queue<Request>) {
 }
 
 fn complete(domain: &mut Domain, env: &Env<people::Limits>) {
-    if domain.start_link(env) {
+    if domain.start_link() {
         domain.start_sweep();
         assert!(domain.start_complete(env));
     }
@@ -186,7 +186,7 @@ fn selected_ended_read_hints_stay_read_after_the_loaded_position_retires() {
     ));
     assert!(domain.start_project(&env.limits, RestoreProjection::EndedConversation { task: TASK }));
     assert_eq!(domain.conversation_seen(PERSON, TASK), Some(2));
-    assert!(domain.start_link(&env));
+    assert!(domain.start_link());
     assert!(domain.read_conversations().is_empty());
     assert_eq!(
         &*domain.cached_updates(&env.limits, PERSON).expect("loaded updates"),

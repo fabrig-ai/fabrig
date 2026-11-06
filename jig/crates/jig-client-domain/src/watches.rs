@@ -5,7 +5,7 @@ use crate::{
     domain::tell,
 };
 use alloc::boxed::Box;
-use skein_lib::{Duration, Env, Queue, Time, Token};
+use skein_lib::{Duration, Env, Queue, Time, Token, length::len_u64};
 #[derive(Debug)]
 pub(crate) struct Watch {
     pub subject: Watchable,
@@ -87,7 +87,7 @@ impl Domain {
     }
     fn deliver(&mut self, env: &Env<Limits>, id: u64, latest: Latest, out: &mut Queue<Request>) {
         if let Latest::Family(record) = &latest
-            && u64::try_from(record.bytes.len()).expect("family bytes fit") > env.limits.document_bytes
+            && len_u64(record.bytes.len()) > env.limits.document_bytes
         {
             self.refuse_watch(id, Why::Limit, out);
             return;

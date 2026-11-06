@@ -4,7 +4,7 @@ use crate::{Arrived, Below, Event, Io, Phase, Store};
 use alloc::boxed::Box;
 use jig_domain_core::{CoreKey, CoreRecord, Key, Record, TurnRecord};
 use skein_io::{file, kernel::Error};
-use skein_lib::{Queue, Token};
+use skein_lib::{Queue, Token, length::len_u64};
 fn submit(store: &mut Store, number: u64, turns: &[TurnRecord]) -> (Box<[Event]>, Below) {
     let mut writes =
         skein_lib::List::with_capacity(u32::try_from(turns.len()).expect("test turns").checked_add(1).expect("header"));
@@ -67,7 +67,7 @@ fn a_turn_is_written_and_synced_before_its_commit() {
         panic!("commit after frame sync");
     };
     assert_eq!(store.stores.store.last(), 2);
-    assert_eq!(place(&mut store).length, u64::try_from(bytes.len()).expect("frame length"));
+    assert_eq!(place(&mut store).length, len_u64(bytes.len()));
 }
 #[test]
 fn a_turns_save_puts_no_turn_row_in_the_map() {
@@ -124,7 +124,7 @@ fn a_second_turn_writes_past_the_first_still_queued() {
     let Some(file::Request::WriteAt { offset, .. }) = below.transcripts.pop() else {
         panic!("second frame");
     };
-    assert_eq!(offset, u64::try_from(bytes.len()).expect("first frame length"));
+    assert_eq!(offset, len_u64(bytes.len()));
 }
 #[test]
 fn a_window_turn_moves_the_tasks_window_in_the_commit() {
@@ -135,7 +135,7 @@ fn a_window_turn_moves_the_tasks_window_in_the_commit() {
     let (_, _, below) = written_frame(&mut store, below);
     assert_eq!(place(&mut store).window, 0);
     fixtures::script(&mut store, below, &[Answer::Synced]);
-    assert_eq!(place(&mut store).window, u64::try_from(bytes.len()).expect("first frame length"));
+    assert_eq!(place(&mut store).window, len_u64(bytes.len()));
 }
 #[test]
 fn a_commit_behind_a_turn_waits_its_turn() {
@@ -207,10 +207,7 @@ fn a_new_attempt_keeps_its_first_turns_offset() {
     let key = crate::keys::encode_own(&crate::keys::Own::Attempt { task: LIVE, attempt: 2 }, fixtures::KEY_LIMIT)
         .expect("attempt key");
     let value = fixtures::get_kv(&mut store, &key).expect("new attempt place");
-    assert_eq!(
-        crate::codec::component::Attempt::decode(&value).expect("attempt decodes").first,
-        u64::try_from(bytes.len()).expect("first frame length")
-    );
+    assert_eq!(crate::codec::component::Attempt::decode(&value).expect("attempt decodes").first, len_u64(bytes.len()));
 }
 #[test]
 fn the_transcript_queue_refuses_before_a_later_commit_is_submitted() {
@@ -392,7 +389,7 @@ fn read_answer(store: &mut Store, mut below: Below, disk: &[u8], chunk: u32) -> 
     let request = below.transcripts.pop().expect("transcript io request");
     let event = match request {
         file::Request::OpenRead { owner, .. } => {
-            file::Event::Opened { owner, file: Token::new(701), len: u64::try_from(disk.len()).expect("disk length") }
+            file::Event::Opened { owner, file: Token::new(701), len: len_u64(disk.len()) }
         }
         file::Request::ReadAt { owner, offset, max, .. } => {
             let start = usize::try_from(offset).expect("fixture offset");
@@ -579,7 +576,7 @@ fn exhausted_pages_remain_empty_terminal_answers() {
         assert!(found.is_empty());
         assert_eq!(next, None);
     }
-    let (_, below) = ask(&mut store, 801, window(Some(u64::try_from(disk.len()).expect("end"))), 1, 0);
+    let (_, below) = ask(&mut store, 801, window(Some(len_u64(disk.len()))), 1, 0);
     let events = answer_reads(&mut store, below, &disk, 4096);
     let (_, found, next) = page(&events);
     assert!(found.is_empty());
@@ -600,12 +597,9 @@ fn framed_readable(raw: &[u8]) -> Store {
             skein_kv::Op::Put {
                 key: crate::keys::encode_own(&crate::keys::Own::Transcript { task: frames::TASK }, fixtures::KEY_LIMIT)
                     .expect("frame places key"),
-                value: crate::codec::component::Transcript {
-                    length: u64::try_from(raw.len()).expect("frame"),
-                    window: 0,
-                }
-                .encode()
-                .expect("frame places"),
+                value: crate::codec::component::Transcript { length: len_u64(raw.len()), window: 0 }
+                    .encode()
+                    .expect("frame places"),
             },
             skein_kv::Op::Put {
                 key: crate::keys::encode_own(
@@ -672,7 +666,7 @@ fn current_and_patched_frames_share_the_exact_direct_read_bound() {
     for (body, version, raw_length) in [(5, 1, 189), (6, 1, 194), (6, 2, FIXTURE_FRAME)] {
         let transcript = fixtures::fixture_turn(version, &said, &replay, FIXTURE_TOKENS);
         let raw = frames::frame(body, &transcript);
-        assert_eq!(u64::try_from(raw.len()).expect("raw frame length"), raw_length);
+        assert_eq!(len_u64(raw.len()), raw_length);
         let mut store = framed_readable(&raw);
         for read in [
             crate::TranscriptRead::Window {

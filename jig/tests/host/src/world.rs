@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use jig_domain_host::{
     self as host, AgentFailure, CallAnswer, Event, Fact, Failure, Limits, Reason, Request, RunFailure,
 };
-use skein_lib::{Duration, Rng, Time, Token};
+use skein_lib::{Duration, Rng, Time, Token, length::len_u64};
 use skein_world::domain::{Ledger, Schedule, Span, Stage};
 
 use crate::engine::{self, Act, Engine, Plan};
@@ -876,7 +876,7 @@ impl World {
             Request::Hello { hello } => self.hello(&hello),
             Request::Agent(ToAgent::Message { agent, ref words, .. }) => {
                 let owner = *self.agents.get(&agent).expect("a delivery is to a started agent");
-                let len = u64::try_from(words.len()).expect("fits");
+                let len = len_u64(words.len());
                 assert!(len <= self.settings.host.event_bytes, "an event within the limits");
                 let hosted = self.hosted.get_mut(&owner).expect("an agent's run is hosted");
                 let head = words.get(..8).expect("an event begins with its place");
@@ -1147,5 +1147,5 @@ fn cancel_path(hosted: &Hosted, answer: &host::Ending) -> Option<&'static str> {
 }
 
 fn len(bytes: &[u8]) -> u64 {
-    u64::try_from(bytes.len()).expect("fits")
+    len_u64(bytes.len())
 }
