@@ -78,3 +78,18 @@ Then fmt, clippy on `temper-client-shell-web`, its tests, commit and push.
 ## Report
 
 As the implementer's text says, with the table's count and how each row failed first.
+
+## Rebase (2026-11-06, step merge, foreman real-journeys/redact/foreman-1)
+
+resolve journey.rs by retaining both redaction exports and prove_drawn
+The merge conflicts in `temper/crates/temper-client-shell-web/src/journey.rs`.
+Integration commit `2a48c5c00c7dc733646ec0194f8c59b2a8fe9f62` adds `pub use replay::prove_drawn;` beside this branch’s redaction export.
+Rebase onto the landing’s current integration tip and retain all three adjacent exports:
+```rust
+pub use redact::{Redacted, Unredacted, redact};
+pub use replay::prove_drawn;
+pub use replay::{Mark, Refusal, Replay, Stale, prove};
+```
+Keep `mod redact;` before `mod replay;` and preserve the other module declarations and exports.
+This is an adjacent insertion conflict; no redaction algorithm change is needed.
+Run formatting and the focused `temper-client-shell-web` journey tests through heavy with `TEMPER_BUNDLE=none`.
