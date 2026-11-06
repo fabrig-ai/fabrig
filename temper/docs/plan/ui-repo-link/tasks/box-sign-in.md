@@ -105,3 +105,14 @@ Then the narrow tests, `cargo fmt`, old forms for temper, clippy naming each pac
 ## Report
 
 As the implementer's text says, with: what `add-oauth` did with no secret; the key's cost and what you did about it; what login and name the printed link now gives a box; what you checked of `temper ctl` and a coding run's credentials.
+
+## Rebase (2026-11-06, step merge, foreman ui-repo-link/box-sign-in/foreman-1)
+
+Rebase onto the integration tip, preserve both sign-in changes, and regenerate combined wire and journeys.
+The merge refusal is the branch’s: overlapping changes conflict with integration commit `be165992cf`, merged by `888267536b`.
+- In `temper/crates/temper-box/src/tests/host.rs`, keep this branch’s source-outcome tests and main’s link-format tests from `15f2bb5867`. Preserve `link_form` fields, Debug expectations, and the two-hour link wording.
+- In `temper/crates/temper-client-view/src/words.rs`, retain `SignInOff` and `ForgeSource` alongside integration’s `WelcomeTabOpening`, `WelcomeCopy`, `WelcomeCopied`, and `WelcomeNotCopied`. Recompute the combined phrasebook capacities and `ALL` length; preserve each word’s ID.
+- For `temper/crates/temper-client-protocol-wire/src/generated/v1.rs`, regenerate from the merged schema. Keep this branch’s `SetUpStep::Source` and integration’s removal of `Return`, `Request::return_`, and `Outcome::returning`; do not hand-merge generated tags or golden tables.
+- Regenerate `temper/docs/design/client/journeys/chat-draft/06.html` through `22.html` and its `recording`, plus `welcome-playground/recording`, using the combined code. Keep recordings and prints consistent; do not resolve by selecting either stale recording.
+- Follow `temper/docs/plan/ui-repo-link/notes/common.md`: wire changes require re-recording affected journeys, and generated artifacts belong to this task.
+Run focused box host tests, view vocabulary/Forges tests, wire codec checks, and journey replay checks through `heavy`; then complete the spec’s required checks.
