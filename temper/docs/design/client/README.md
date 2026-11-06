@@ -1950,7 +1950,7 @@ keeps (`../protocol/configuration.md`, section 2).
   - *By its kind.* A question reads its words by their line form
     (`../domain/agent.md`, 8.2); words in no such form are answered by
     "Reply…" alone. A proposal's question line is its reason's first
-    sentence, its facts and rows as `.ctx` beneath, then Accept (primary,
+    sentence, without a heading's marks, its facts and rows as `.ctx` beneath, then Accept (primary,
     with no "recommended") and Reject (plain, its reason's textarea as on
     the terminal's card), through the confirmation they have (3.6). A
     held task: its title and its words, its facts as the terminal's card
@@ -5206,7 +5206,7 @@ section 5.
   made it where its turn names it, and after the conversation otherwise, as
   every proposal is (3.5): the title "How temper will run
   PROJECT", PROJECT its `projects`' names joined by ", " and " and ", or, with
-  none, the deployment's, "How temper will run your projects"; a line per line of the proposal's reason, in the person's words;
+  none, the deployment's, "How temper will run your projects"; the proposal's reason, in the person's words, its Markdown drawn as the Accept sheet draws it (3.6);
   then each item, in small mono type, faint, in the words of `temper ctl` but
   for temper's kinds of a project: kind 7 as "Drafts: on", "Goals: shown",
   "Changes page: shown", "Away switch: shown" and "Way: NAME", kind 6 as
@@ -5216,7 +5216,9 @@ section 5.
   in the deployment (`../protocol/configuration.md`, 13.2): without one, or until
   it is delivered, kinds 6 and 7 are named as `temper ctl` names them. Then
   "Accept", primary, jig's `Decide` with running work staying, and "Change
-  something", quiet, focusing the composer. A decision goes under the proposal's
+  something", quiet: it focuses the composer, brings it into view and sets its
+  placeholder to "What should change?", until something is sent or the proposal
+  is decided, when the placeholder goes back. A decision goes under the proposal's
   own `project`, never the chat's: a proposal of settings is the deployment's,
   whichever chat made it, and jig knows it under no other project. The card has
   no "Reject": the person rejects it on its card in *Needs you* (3.5), or says
