@@ -132,6 +132,45 @@ fn kept_lines_and_met_notices_cross_both_client_translations() {
 }
 
 #[test]
+fn proposal_lines_keep_their_identity_and_making_through_the_client() {
+    use jig_client_domain::contract as c;
+    use jig_domain_tasks as t;
+    use skein_lib::{List, Reader, Wall, Writer};
+    let limits = fixtures::wire_limits();
+    for proposal in [
+        None,
+        Some(t::DecidedProposal { number: 19, made: true }),
+        Some(t::DecidedProposal { number: 19, made: false }),
+    ] {
+        let mut rows = List::with_capacity(1);
+        rows.push(reads::PageRow::Activity {
+            line: t::ActivityLine {
+                task: 7,
+                position: 3,
+                at: Wall::EPOCH,
+                line: t::Line::Decided { revision: 5, proposal },
+            },
+            turn: None,
+        })
+        .unwrap();
+        let w::ReadValue::Activity(record) = activity(&fixtures::page(rows), &limits).unwrap() else {
+            panic!("activity")
+        };
+        let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut out).unwrap();
+        let bytes = out.finish();
+        let record = w::ActivityPage::decode(&limits, &mut Reader::new(&bytes)).unwrap();
+        let actual =
+            jig_client_protocol_link::translate::pages::activity_page(record, &fixtures::client_limits()).unwrap();
+        let expected = match proposal {
+            Some(value) => Some(c::DecidedProposal { number: value.number, made: value.made }),
+            None => None,
+        };
+        assert_eq!(actual.rows.get(0).unwrap().source.line, c::Activity::Decided { revision: 5, proposal: expected });
+    }
+}
+
+#[test]
 fn a_line_at_the_largest_profile_bound_encodes() {
     use jig_domain_tasks as t;
     use skein_lib::{Reader, Wall, Writer};

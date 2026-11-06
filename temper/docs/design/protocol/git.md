@@ -716,9 +716,11 @@ checks this document's contract:
   A hidden log in conflict in a merge stays unmerged, so `write-tree` ends
   `Broken`; no story makes one.
 - **HEAD after a commit.** Default: not moved (section 4.7), keeping each
-  commit to four invocations; an agent that reads git sees the work
-  since its start as uncommitted. Moving it costs a fifth invocation
-  (`git reset -q <commit>`).
+  commit to four invocations; after a delivery an agent that reads git sees
+  the work since its start as uncommitted. Preparation follows each clean
+  producer merge or merged head's commit with `CheckOut`, moving HEAD and
+  clearing the merge's state before the run (`../domain/worker.md`, section 5).
+  Moving HEAD after a delivery costs a fifth invocation (`git reset -q <commit>`).
 - **A forge whose certificate needs its own trust for git.** Default: the
   machine's roots, for git as for the forge's API, whose record names
   its TLS name alone (forge.md, 2.1). Between hosts, the trust would

@@ -1238,6 +1238,7 @@ pub fn decided_proposal(p: &Proposal, state: ProposalHistoryState) -> Ended {
     Ended {
         key: ObjectKey::Proposal(p.key),
         value: EndedValue::Proposal(ProposalHistory {
+            reason: p.reason.clone(),
             action,
             number: p.key.number,
             proposer: match p.key.proposer {
