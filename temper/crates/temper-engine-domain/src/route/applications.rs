@@ -1,4 +1,5 @@
 //! The core admits each typed application before its forge connector decides it.
+//! Trials: temper/docs/design/domain/trial.md, 6.
 use super::{Domain, Work, forge, forge_route};
 use crate::{Application, ApplicationAnswer};
 use alloc::boxed::Box;
@@ -38,7 +39,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             None => people::ApplicationScope::Deployment,
         },
         Application::Forge(forge::Ask::Adopt(_)) => scope,
-        Application::Return { .. } => people::ApplicationScope::Own,
+        Application::Return { .. } | Application::Try { .. } => people::ApplicationScope::Own,
         Application::Dismiss {
             what: forge::PersonFact::ToBegin { project } | forge::PersonFact::GoalFrom { project, .. },
         }
@@ -46,6 +47,38 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         | Application::SetAway { project, .. }
         | Application::Overturn { project, .. } => people::ApplicationScope::Project(*project),
     };
+    match &request {
+        Application::Try { .. } => {
+            if let Some(carried) = carried {
+                assert!(
+                    super::now(
+                        domain,
+                        crate::Request::Party(crate::PartyRequest::Deliver(crate::Delivery::CarriedUnused {
+                            number: carried.number
+                        },))
+                    ),
+                    "carried value output door reserved"
+                );
+            }
+            assert!(
+                super::now(
+                    domain,
+                    crate::Request::Party(crate::PartyRequest::Deliver(crate::Delivery::Application {
+                        to: reply_to,
+                        outcome: Some(ApplicationAnswer::Try(crate::TryAnswer::NotTheirs)),
+                    },))
+                ),
+                "application output door reserved"
+            );
+            return;
+        }
+        Application::Forge(_)
+        | Application::Return { .. }
+        | Application::Dismiss { .. }
+        | Application::Looked { .. }
+        | Application::SetAway { .. }
+        | Application::Overturn { .. } => {}
+    }
     if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_playground = Some(super::playground::Context { sign_in, key, carried });
     }
@@ -78,6 +111,7 @@ pub(super) fn admitted(
     assert_eq!(held, owner, "the core admits the application's owner");
     let carried = domain.application_carried.take();
     match ask {
+        Application::Try { .. } => unreachable!("trial refused at the application entrance"),
         Application::SetAway { project, on, until, kinds } => {
             domain.work.push(Work::Forge(forge::Event::SetAway {
                 request,
@@ -185,5 +219,43 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         Some(forge::Answered::SetAway(answer)) => Some(ApplicationAnswer::SetAway(answer)),
         Some(forge::Answered::Overturn(answer)) => Some(ApplicationAnswer::Overturn(answer)),
         None => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Application, ApplicationAnswer, Delivery, Event, PartyInput, PartyRequest, Request, TryAnswer};
+    use skein_lib::{Queue, ReplyTo, Token};
+
+    #[test]
+    fn a_trial_is_refused_at_once_without_a_retained_application() {
+        let (mut domain, env) = crate::tests::resume_fixture::root();
+        let reply = Token::new(90);
+        crate::try_step(
+            &mut domain,
+            &env,
+            Event::Party(PartyInput::Application {
+                reply_to: ReplyTo::new(reply),
+                sign_in: 10,
+                key: [1; 16],
+                digest: [1; 32],
+                scope: jig_domain_people::ApplicationScope::Own,
+                carried: None,
+                request: Application::Try { account: 1, again: false },
+            }),
+        )
+        .unwrap();
+        let mut out = Queue::uncapped();
+        crate::release(&mut domain, &env, &mut out);
+        crate::release(&mut domain, &env, &mut out);
+        assert_eq!(
+            out.pop(),
+            Some(Request::Party(PartyRequest::Deliver(Delivery::Application {
+                to: ReplyTo::new(reply),
+                outcome: Some(ApplicationAnswer::Try(TryAnswer::NotTheirs)),
+            })))
+        );
+        assert_eq!(out.pop(), None);
+        assert!(domain.application.is_none());
     }
 }

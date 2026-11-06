@@ -1,4 +1,5 @@
 //! The forge family's records at the clients' boundary (client/README.md, 8).
+//! Trials: temper/docs/design/domain/trial.md, 6.
 use alloc::boxed::Box;
 use jig_protocol_engine_clients as kit;
 use skein_lib::{List, Token, Wall, Writer};
@@ -167,6 +168,7 @@ pub fn to_root(
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
+                        | w::Request::TryAccount(_)
                         | w::Request::Dismiss(_)
                         | w::Request::SetAway(_)
                         | w::Request::Overturn(_)
@@ -278,6 +280,17 @@ pub fn to_root(
                             from,
                             into,
                         }),
+                    }));
+                }
+                w::Request::TryAccount(value) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope: jig_domain_people::ApplicationScope::Own,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Try { account: value.account(), again: value.again() },
                     }));
                 }
                 w::Request::Dismiss(value) => {
@@ -433,6 +446,11 @@ pub fn to_root(
                         scope,
                         connector: wire::FORGE,
                         subject: Token::new(forge::changes_subject(subject.project())),
+                    },
+                    w::Watch::Trials => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Own,
+                        connector: wire::FORGE,
+                        subject: Token::new(root::TRIALS_SUBJECT),
                     },
                     w::Watch::Dismissed => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Own,
@@ -821,6 +839,8 @@ pub fn answer(
         Some(temper_engine_domain::ApplicationAnswer::Adopt(
             forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
         )) => return None,
+        Some(root::ApplicationAnswer::Try(root::TryAnswer::Tried)) => w::Outcome::Tried,
+        Some(root::ApplicationAnswer::Try(root::TryAnswer::NotTheirs)) => w::Outcome::NotTheirs,
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
         Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)) => w::Outcome::Looked,
         Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)) => w::Outcome::Away,

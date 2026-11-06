@@ -581,6 +581,7 @@ fn world_in_layout(
                         | w::Watch::Landings(_)
                         | w::Watch::Decided(_)
                         | w::Watch::Status(_)
+                        | w::Watch::Trials
                         | w::Watch::Changes(_)
                         | w::Watch::Dismissed => {
                             continue;
