@@ -305,10 +305,10 @@ fn a_new_chat_lands_its_delegated_change_and_closes_in_your_chats() {
         person,
         vec![
             press(Role::Button, b"Close"),
-            see(Find::exactly_named(Role::Dialog, b"Close")),
-            press(Role::Button, b"Confirm"),
+            see(Find::exactly_named(Role::Dialog, b"Close this chat?")),
+            press(Role::Button, b"Close chat"),
             Step::Pause { span: PAST_CLOSE_GRACE },
-            see(Find::text(b"Closed 00:00")),
+            see(Find::text(b"Closed at 00:00")),
             Step::Gone { find: Find::exactly_named(Role::TextArea, b"Message"), within: fixtures::WITHIN },
         ],
     );
@@ -440,8 +440,11 @@ fn a_goal_proposed_in_a_chat_accepted_in_the_inbox_leaves_the_chat() {
             Step::Pause { span: BEFORE_INBOX_DECISION },
             Step::See { find: Find::named(Role::Button, b"Accept"), within: fixtures::WITHIN },
             Step::Press { find: Find::named(Role::Button, b"Accept") },
-            Step::See { find: Find::named(Role::Dialog, b"Accept"), within: fixtures::WITHIN },
-            Step::Press { find: Find::named(Role::Button, b"Confirm") },
+            Step::See { find: Find::named(Role::Dialog, b"Accept this proposal?"), within: fixtures::WITHIN },
+            Step::Press {
+                find: Find::named(Role::Button, b"Accept")
+                    .within(Box::new([skein_fake_person::Target::Role { role: Role::Dialog, name: Box::new([]) }])),
+            },
             Step::See { find: Find::text(b"Accepted"), within: fixtures::WITHIN },
         ],
     );
@@ -560,6 +563,40 @@ fn opening_a_chat_clears_its_reply_from_the_engines_inbox() {
             Step::Press { find: Find::exactly_named(Role::Link, b"Needs you") },
             Step::See { find: Find::named(Role::Heading { level: 1 }, b"Inbox"), within: fixtures::WITHIN },
             Step::Gone { find: Find::named(Role::Heading { level: 3 }, b"replied"), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+}
+
+#[test]
+fn a_refused_close_stays_in_its_sheet_until_kept() {
+    let mut world = fixtures::world(fixtures::SEED);
+    let task = fixtures::replied_chat(world.front(), b"Finish while I consider closing");
+    let person = world.client(fixtures::PARTY, fixtures::chat_page(task));
+    world.person(
+        person,
+        vec![
+            Step::See { find: Find::named(Role::Button, b"Close"), within: fixtures::WITHIN },
+            Step::Press { find: Find::named(Role::Button, b"Close") },
+            Step::See { find: Find::named(Role::Dialog, b"Close this chat?"), within: fixtures::WITHIN },
+        ],
+    );
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    fixtures::finish_replied_chat(world.front(), task);
+    world.person(
+        person,
+        vec![
+            Step::Press { find: Find::named(Role::Button, b"Close chat") },
+            Step::See {
+                find: Find::text(b"No visible object with that name").within(Box::new([
+                    skein_fake_person::Target::Role { role: Role::Dialog, name: b"Close this chat?".as_slice().into() },
+                ])),
+                within: fixtures::WITHIN,
+            },
+            Step::Press { find: Find::named(Role::Button, b"Keep it") },
+            Step::Gone { find: Find::named(Role::Dialog, b"Close this chat?"), within: fixtures::WITHIN },
+            Step::See { find: Find::text(b"The chat is complete"), within: fixtures::WITHIN },
         ],
     );
     let outcome = world.run(Until::Done);

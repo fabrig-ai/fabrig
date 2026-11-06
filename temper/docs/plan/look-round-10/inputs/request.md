@@ -1,25 +1,25 @@
-# look-round-7: signing in, in a new tab
+# look-round-10: closing a chat, and every confirmation
 
-At the user's request (2026-11-06, who took the behaviour as offered): land the look request `sign-in-new-tab` (`c725deec96`, on `origin/look-requests`).
+At the user's request (2026-11-06; asleep, taking recommendations): land the look request `close-chat` (``, on `origin/look-requests`; the branch moves, so if that hash is gone, find it by its `Look-request: close-chat` trailer). The close dialog becomes a sheet ("Close this chat?", "Keep it", "Close chat") saying only what closing changes, and a closed chat ends on one quiet line. "Dangerous action", the zero counts, "Decision made" and "Applied" go. The same sheet serves every confirmation in `confirm.rs`. No behaviour changes.
 
-**The procedure is `temper/docs/design/draft/look-requests.md`: every step of sections 3 to 5, and its account.** Read the commit and its whole message. Every commit carries `Look-request: sign-in-new-tab` directly above `Co-Authored-By:`. `configure-temper-own-way`, above it on the branch, is held for the user: don't land it. `chat-work` is `look-round-6`'s.
+**The procedure is `temper/docs/design/draft/look-requests.md`: every step of sections 3 to 5, and its account.** Read the commit and its whole message. Every commit carries `Look-request: close-chat` directly above `Co-Authored-By:`. Requests above and below it on the branch are other plans'.
 
 ## Beside it
 
-fabrig/temper builds the behaviour, `temper/docs/design/draft/sign-in-new-tab.md`, after this, and takes this look by catch-up. So this plan lands the view's and stylesheet's part. Where the view has no fact yet, draw what can honestly be drawn, keep one function for it, and name it in the account as deferred to that draft. Don't build the behaviour here. The journey walks that sign in will meet a new tab once it lands; that's fabrig/temper's to reconcile (`journeys.md`, 3.1 and 4.2).
+`look-round-6` (`chat-work`) changes how a chat reads, and `ui-walk-2` is checking presses lost to re-renders on Needs you: a confirmation's button keeps its identity while the page updates. `ui-goal-page`'s Pause and Stop, and `ui-needs`' Accept, go through `confirm.rs`: walk each confirmation it serves. Expect catch-ups. New rules go under `/* ==== ui: chats ==== */`.
 
 ## How the cut shapes it
 
-One or two tasks. Screenshots come back to the user beside the request's pages at 1440, 1000 and 420 wide, in `~/src/fabrig/look-round-7/` on the builder, outside any worktree, the report saying which builder. New rules go under `/* ==== ui: welcome ==== */`.
+One or two tasks. Screenshots beside the request's pages at 1440, 1000 and 420 wide in `~/src/fabrig/look-round-10/` on the builder, outside any worktree, the report saying which builder. The terminal's prints keep their meaning.
 
 ## Size
 
-One cut is at most 30 minutes. Budgets and timeouts are the user's (skein's `docs/foundation/testing-strategy.md`, 8.1).
+One cut is at most 20 minutes. Budgets and timeouts are the user's (skein's `docs/foundation/testing-strategy.md`, 8.1).
 
 ## Sources
 
+- `temper/crates/temper-client-view/src/confirm.rs`
 - `temper/docs/design/draft/look-requests.md`
-- `temper/docs/design/draft/sign-in-new-tab.md`
 
 ## For every task of this plan
 
