@@ -17,7 +17,7 @@ fn tool_shapes_keep_the_argument_the_line_needs() {
         (b"settings", br#"{"history":true}"#, Touched::SettingHistory),
         (b"other", br#"{"nested":{},"task":3}"#, Touched::Other { argument: Some(Box::from(b"task 3".as_slice())) }),
         (b"other", br#"{"path":"file"}"#, Touched::Other { argument: Some(Box::from(b"file".as_slice())) }),
-        (b"other", br#"{"path":"file\nnext"}"#, Touched::Other { argument: Some(Box::from(b"file\nnext".as_slice())) }),
+        (b"other", br#"{"path":"file\nnext"}"#, Touched::Other { argument: Some(Box::from(b"file".as_slice())) }),
         (b"read_docs", br#"{"topic":"cut"#, Touched::Other { argument: None }),
     ];
     for (tool, input, expected) in rows {
@@ -100,5 +100,43 @@ fn touched_text_is_bounded_on_a_character_boundary() {
         };
         assert_eq!(argument.len(), expected);
         assert_eq!(argument.get(expected.saturating_sub(tail.len())..), Some(tail));
+    }
+}
+
+#[test]
+fn a_cut_input_keeps_only_a_closed_first_member() {
+    for (input, expected) in [
+        (br#"{"path":"src/a.rs","content":"aaaa"#.as_slice(), Some(b"src/a.rs".as_slice())),
+        (br#"{"pa\"th":"src/\"a.rs","content":"aaaa"#, Some(b"src/\"a.rs")),
+        (br#"{"task":12,"content":"aaaa"#, Some(b"task 12")),
+        (br#"{"task":12"#, None),
+        (br#"{"task":1e,"content":"aaaa"#, None),
+        (br#"{"path":"src/a.rs"#, None),
+        (br#"{"nested":{},"path":"file","content":"aaaa"#, None),
+    ] {
+        let argument = match expected {
+            Some(expected) => Some(Box::from(expected)),
+            None => None,
+        };
+        assert_eq!(touched(b"write", input), Touched::Other { argument }, "{input:?}");
+    }
+}
+#[test]
+fn only_other_text_arguments_stop_at_the_first_line() {
+    for (tool, input, expected) in [
+        (
+            b"shell".as_slice(),
+            br#"{"command":"cargo test\necho body"}"#.as_slice(),
+            Touched::Other { argument: Some(Box::from(b"cargo test".as_slice())) },
+        ),
+        (b"other", br#"{"text":"first\r\nbody"}"#, Touched::Other { argument: Some(Box::from(b"first".as_slice())) }),
+        (
+            b"read_docs",
+            br#"{"topic":"first\nbody"}"#,
+            Touched::Doc { topic: Box::from(b"first\nbody".as_slice()), from: None },
+        ),
+        (b"read_docs", br#"{"search":"first\nbody"}"#, Touched::Search { words: Box::from(b"first\nbody".as_slice()) }),
+    ] {
+        assert_eq!(touched(tool, input), expected);
     }
 }
