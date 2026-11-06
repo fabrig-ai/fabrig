@@ -3238,7 +3238,8 @@ fn a_paused_chat_says_resume_paused_and_its_hint() {
         assert!(fixtures::find(view.tree(), Role::Button, b"Close").is_some());
         let status = named_position(view.tree().nodes(), Role::Status, Some(b"Paused")).expect("paused status");
         assert_eq!(view.tree().nodes()[status].styles.as_slice(), [crate::look::STATUS_QUIET]);
-        assert!(fixtures::find(view.tree(), Role::Paragraph, b"Sending resumes this chat.").is_some());
+        let hint = fixtures::find(view.tree(), Role::Paragraph, b"Sending resumes this chat.").expect("resuming hint");
+        assert!(view.tree().find(hint).unwrap().styles.as_slice().contains(&crate::look::HINT));
     }
 }
 #[test]
