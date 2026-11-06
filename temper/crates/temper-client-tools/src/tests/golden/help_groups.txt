@@ -52,9 +52,9 @@ lists what `DIR` keeps, and sends nothing.
 - **The exit status says who answered:**
   - 0: a read answered, an act done or proposed, a wait's condition
     met;
-  - 1: the call failed on ctl's side: usage, `DIR` refused or busy,
-    signed out, a bound of ctl's, the engine unreachable past the
-    link's deadline. The engine refused nothing;
+  - 1: ctl failed: usage, `DIR` refused or busy, signed out, ctl's
+    bounds, nothing listening, engine unreachable or link down past
+    its deadline. The engine refused nothing;
   - 2: the engine refused, and only the engine: a key conflict, a
     revision that moved, a subject no longer visible, no room for
     another answer (below). Its line says what to do instead where
