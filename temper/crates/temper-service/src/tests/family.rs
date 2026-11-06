@@ -3446,3 +3446,100 @@ fn trying_an_account_preserves_its_fields_and_uses_own_scope() {
         assert_eq!(request, root::Application::Try { account: u32::MAX, again });
     }
 }
+
+#[test]
+fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
+    use skein_lib::{Reader, Wall};
+    use temper_engine_domain_trials::{Class, Row, State, Step, Why};
+    let states = [
+        State::Running,
+        State::Answered { seconds: 3 },
+        State::Failed { why: Why::Refused },
+        State::Failed { why: Why::Waited },
+        State::Failed { why: Why::Ended { class: Class::Transient } },
+        State::Failed { why: Why::Ended { class: Class::Permanent } },
+        State::Failed { why: Why::Ended { class: Class::Run } },
+        State::Failed { why: Why::Ended { class: Class::Agent } },
+        State::Failed { why: Why::Ended { class: Class::Lost } },
+        State::Failed { why: Why::Ended { class: Class::Invalid } },
+        State::Failed { why: Why::Ended { class: Class::Refused } },
+    ];
+    let expected = [
+        w::TrialState::Running,
+        w::TrialState::Answered(w::TrialAnswered::new(&w::CEILINGS, w::TrialAnsweredParts { seconds: 3 }).unwrap()),
+        w::TrialState::Failed(
+            w::TrialFailed::new(&w::CEILINGS, w::TrialFailedParts { why: w::TrialWhy::Refused }).unwrap(),
+        ),
+        w::TrialState::Failed(
+            w::TrialFailed::new(&w::CEILINGS, w::TrialFailedParts { why: w::TrialWhy::Waited }).unwrap(),
+        ),
+    ];
+    for (index, state) in states.into_iter().enumerate() {
+        let rows = Box::new([
+            Row {
+                account: 12,
+                person: 7,
+                task: Some(31),
+                began: Wall::EPOCH,
+                took: Some(14),
+                step: Step::Answers,
+                state,
+            },
+            Row {
+                account: 11,
+                person: 7,
+                task: None,
+                began: Wall::EPOCH,
+                took: None,
+                step: Step::Starts,
+                state: State::Running,
+            },
+        ]);
+        let bytes = family::trials(rows, &w::CEILINGS).expect("whole trial document");
+        let mut reader = Reader::new(&bytes);
+        let document = w::Trials::decode(&w::CEILINGS, &mut reader).unwrap();
+        assert!(reader.is_empty());
+        let rows = document.into_parts().rows.into_boxed();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].account(), 12);
+        assert_eq!(*rows[0].task(), Some(31));
+        assert_eq!(*rows[0].took(), Some(14));
+        assert_eq!(*rows[0].step(), w::TrialStep::Answers);
+        assert_eq!(rows[1].account(), 11);
+        assert_eq!(*rows[1].task(), None);
+        assert_eq!(*rows[1].took(), None);
+        assert_eq!(*rows[1].step(), w::TrialStep::Starts);
+        if index < expected.len() {
+            assert_eq!(rows[0].state(), &expected[index]);
+        } else {
+            let w::TrialState::Failed(failed) = rows[0].state() else { panic!("failed row") };
+            let w::TrialWhy::Ended(ended) = failed.why() else { panic!("run ending") };
+            let classes = [
+                w::TrialClass::Transient,
+                w::TrialClass::Permanent,
+                w::TrialClass::Run,
+                w::TrialClass::Agent,
+                w::TrialClass::Lost,
+                w::TrialClass::Invalid,
+                w::TrialClass::Refused,
+            ];
+            assert_eq!(*ended.class(), classes[index - expected.len()]);
+        }
+        let bounds = w::Limits { trials_rows: 0, ..w::CEILINGS };
+        assert!(
+            family::trials(
+                Box::new([Row {
+                    account: 1,
+                    person: 7,
+                    task: None,
+                    began: Wall::EPOCH,
+                    took: None,
+                    step: Step::Starts,
+                    state,
+                }]),
+                &bounds
+            )
+            .is_none()
+        );
+    }
+}
