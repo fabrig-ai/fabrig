@@ -19,7 +19,7 @@ The request: `inputs/request.md`. Two tasks, one after the other, 130 implemente
 - **The tab's form stays in the tree and the sheet hides it over 760 px:** the view doesn't know a width, and a phone needs it. So a browser at a phone's width shows the row, its login and the failure line as today.
 - **A project-less Accounts page has nothing to change:** the request says it keeps Sign out "there", at the tab's foot. In the code that page has no such row: its Sign out is the banner's (`temper/docs/design/client/README.md`, 3.5). It stays the banner's.
 - **The browser story is the existing one:** `signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract` already signs out, reloads and stays out, and it is the test `ui-browser-red` held. It gains the menu's steps and keeps its assertions, with no new server's time on the tier's budget. It signs out from the Accounts page, so its press meets accounts arriving as before.
-- **Written by this cut:** `client/README.md`, 3.5 and 5.3; `browser.md`, 2.5, 5 and 7.2; a stale line of `journeys.md`, 2, that said temper's view draws no menu; the note of departures, in `greenfield/README.md` and `README.status.md`. The mock's pages stay as drawn.
+- **Written by this cut:** `client/README.md`, 3.5 and 5.3; `browser.md`, 2.5, 5 and 7.2; a stale line of `journeys.md`, 3.4, that said temper's view draws no menu; the note of departures, in `greenfield/README.md` and `README.status.md`. The mock's pages stay as drawn.
 
 ## Catching up with `ui-rename-focus`
 
