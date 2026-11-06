@@ -69,3 +69,16 @@ The checks: fmt, `old_forms.py` for `temper`, clippy on `temper-client-view`, `t
 ## Report
 
 As the implementer's text asks: each test's bite; whether you took `notes/client.md`'s merge; which option.
+
+## Rebase (2026-11-06, step merge, foreman model-check/home-line/foreman-1)
+
+reconcile HomeTryStopped with the landing’s Copy vocabulary and combined word bounds
+Rebase `3d7107d4c9` onto the updated landing target.
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`: both sides change vocabulary totals and `ALL`’s length.
+Upstream merge `98c62ae899` brings in main’s Copy vocabulary, including merge `b1230cbb3e`.
+Keep `WelcomeCopy`, `WelcomeCopied`, and `WelcomeNotCopied`, alongside this task’s `HomeTryStopped` enum variant, `ALL` entry, ID `3876`, and English phrase.
+Preserve the trial-ending vocabulary retained by the integration branch.
+Against integration tip `6c11e278cd`, the combined values are `PHRASES = 1869`, `SEGMENTS = 3272`, `ENGLISH_BYTES = 45678`, and `ALL: [Word; 1269]`; recount if the target advances.
+Keep both independently added node allowances in the automatically merged `limits.rs`: account trial nodes and Home’s stopped-trial line.
+Review the automatic merges in `root.rs` and `tests/home.rs` for preservation of both sides.
+Run the spec’s checks through the required tools, including the view, gallery, and terminal tests; regenerate any combined-code expectations that become stale.
