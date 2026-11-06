@@ -99,9 +99,12 @@ browser, whose story A walks in the browser tier but not yet by hand
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). The browser tier holds 14 tests, two past its cap, its CPU
 measured within its budget on the 12 without the call line's and the welcome's
-sign-in's alone, a closed
+sign-in's, and at 83.069911 of its 85 on a run of 13 with one red, a public project's
+`temper ctl` visibility command past its deadline, its cause not found, a closed
 chat's wait is located but not split, and no test shows a head waiting for room
-ended by the stall deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
+ended by the stall deadline (`client/browser.md`). The bundle travels gzipped and a
+placeholder paints first, but its fade takes 160 ms where the design has 200, and a
+stall before the module's answer draws no words (`client/browser.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
 pages draw their own worlds, not the mock's scenario (`client/browser.md`).
 Forges kept in the store, a forge's removal and the
@@ -197,7 +200,8 @@ on a reload, stands below the chat's newest reply rather than at its call and fo
 "Decision made" while it waits; the chat's card draws no Reject, departing from the
 request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
-binary that runs it and has a Copy, but no browser test presses the Copy; with no `HOME` and an XDG variable placing
+binary that runs it and has a Copy, but no browser test presses the Copy or sees its word change; the gallery's walk of
+named controls excepts a recommended choice's tag, departing from the request `ui-copy-once`; with no `HOME` and an XDG variable placing
 only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request

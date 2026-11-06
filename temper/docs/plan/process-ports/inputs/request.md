@@ -1,23 +1,30 @@
-# ui-copy-once: the welcome's Copy reads once
+# process-ports: tests can't take each other's ports
 
-The user, from the laptop (2026-11-06), on main at `81f0250dd3`: the welcome's Claude way shows its button as "CopyCopy". Seen in a browser on a fake box: the rendered button is `Copy<span>Copy</span>`. "Copied" and the not-copied word double the same way.
+The way to `process-temper` at three threads, which agents/loop measured as after-landing's biggest lever: 204 s of wall against 504 s, about 5 minutes a run (`temper/docs/design/domain/testing.md`, 2.6 already specifies three concurrent stories). One of the two failures in that trial: `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`:
 
-**Cause:** `temper-client-view/src/pages/welcome_copy.rs`, `block()`: the button has both `b.name(&w.say(word, &[]))` and `w.text(b, word, &[])`. skein's web mapping (`skein-ui-web/src/mapping.rs`, the arm for `Role::Button | Role::Tab | Role::Option`) already writes a button's name as its text, so the text child draws it a second time.
+```text
+box.err: temper box: .../held-login-guard/config/temper.json: port 45949 (127.0.0.1:45949): cannot listen: AddressInUse
+```
 
-**Fix:** remove the text child, keeping the name, the styles and the binding. Don't change skein's mapping.
+Figures and logs: `fab/retired/test-speed/temper/docs/plan/test-speed/figures/tier-threads.md` on hel8. 45949 was the box's retained webhooks listener, a port the kernel chose earlier, and the story restarts on it. Who took it isn't established. The likely reading: a port from the kernel's ephemeral range, free while the box was stopped, went to another process's outgoing socket or listener.
 
-**Other buttons:** on main's pages I found one other `Role::Button` with a name and a text child, Home's Skip (`pages/home.rs`), and its text is terminal-only, so it doesn't double in a browser: leave it. My search read `b.open` by eye, and 14 sites open a role held in a variable. If one of those opens a `Button`, `Tab` or `Option` in the browser shell with a text child, it's the same bug: fix it here too and name it in the report.
+## The change
 
-**Test:** a test in `temper-client-view`'s tests, in the browser shell, that for each of the three labels (`Copy`, `Copied`, not copied) the button's text reads once: its name is the word and it has no text child. Show it red without the fix. If the view's gallery tests walk every state simply, also assert across them that no `Button`, `Tab` or `Option` has both a name and a text child in the browser shell; if that means building anything new, skip it and say so.
+A test's chosen port never comes from the ephemeral range, and two concurrent test processes never choose the same one. In the test support (`support::free_addresses`, `support::own_listener_files`, the fake sandbox's ports, wherever a port a test will listen on again is chosen). Say what you found; a block of ports per nextest slot (`NEXTEST_TEST_GLOBAL_SLOT`), or a small lock file per port under the target directory, are the obvious shapes; take the simplest that also holds between tiers on one builder. Read `/proc/sys/net/ipv4/ip_local_port_range` rather than assuming it. A person's box is unchanged. A retained deployment's restart keeps its ports, as now. Check `temper/crates/temper/tests/fake_backends/` and `temper/tests/` for other tests choosing ports by binding to 0 and then releasing them.
 
-**Proof:** one throwaway render of the welcome's Claude way, showing the button reading "Copy" once.
+**Keep `test-threads = 1`:** raising it is a later, separate change, after temper/forge's look at the second failure. The fixed callback port's `temper-sign-in-callback` group stays.
 
-One task. No look decision is needed. No `Look-request` trailer.
+## Proof
+
+Focused tests of the choice: outside the ephemeral range, disjoint across two slots, a retained restart keeps its port. `cargo check --tests` for what changes in the process tier. Nothing in the slow tiers runs in this plan: after-landing proves it.
+
+## Size
+
+One task. One cut is at most 15 minutes. Budgets and timeouts are the user's (skein's `docs/foundation/testing-strategy.md`, 8.1).
 
 ## Sources
 
-- `temper/crates/temper-client-view/src/pages/welcome_copy.rs`
-- `skein/crates/skein-ui-web/src/mapping.rs`
+- `temper/docs/design/domain/testing.md`
 
 ## For every task of this plan
 
