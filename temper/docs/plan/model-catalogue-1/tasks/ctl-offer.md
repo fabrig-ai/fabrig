@@ -10,6 +10,7 @@ files = [
   "temper/crates/temper-client-tools/src/jig/render/document/account_lines.rs",
   "temper/crates/temper-client-tools/src/tests/jig/choices.rs",
   "temper/crates/temper-client-tools/src/tests/jig/accounts.rs",
+  "temper/crates/temper-client-tools/src/tests/jig/amend_choice.rs",
   "temper/docs/help/account.md",
 ]
 effort = "high"
@@ -69,3 +70,20 @@ Acceptance:
 ## Report
 
 As the implementer's text says.
+
+## Answers
+
+2026-11-06. May this task update the two obsolete assertions in `tests/jig/amend_choice.rs`, outside its files? Yes:
+acceptance 1 and 2 reach `task amend` through the shared choice path, and `temper/docs/design/client/tools.md`, 5.5
+fixes both behaviours, so the task's own suite can't pass without them. The file is now in `files`, for these two tests
+alone:
+
+- **`amend_refuses_an_unknown_model`:** the expected words become `model not offered: unknown\n`; the rest stands.
+- **`amend_requires_an_effort_for_a_model_with_efforts`:** remove it. `tests/jig/choices.rs`'s
+  `amend_takes_the_default_instead_of_the_previous_effort`, which the run wrote, is the story that replaces it.
+
+Resume from the pushed `5ba6e91bef` on `model-catalogue-1/ctl-offer`. Merge `origin/model-catalogue-1/offer-surface`
+first: its `c::MeModel` and `MeProject` shapes and literals are that task's, and `fixtures/choices.rs` takes `effort`,
+the first of `efforts`, from it. If the merge still stops compiling at that task's work, edit none of it: stop and
+report that the task still waits on `offer-surface`, naming the error. Then the report's *Unobserved work on resume*
+stands as the remaining work, each break-it-once check included.
