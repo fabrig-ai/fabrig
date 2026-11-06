@@ -399,6 +399,8 @@ pub struct Place {
 /// The machine's places (temper/docs/design/protocol/configuration.md, 3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Machine {
+    /// `application.machine.owned.person`'s login; empty with no owned machine.
+    pub owned_person: Box<[u8]>,
     pub owned: Option<Place>,
     pub fake: Option<Place>,
     pub github: Place,

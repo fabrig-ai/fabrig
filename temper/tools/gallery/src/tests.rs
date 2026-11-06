@@ -106,6 +106,15 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "rail-person-menu",
+        heading: "tally",
+        parts: &[
+            Part::Named { role: Role::Menu, name: "Robin" },
+            Part::Named { role: Role::MenuItem, name: "Accounts" },
+            Part::Named { role: Role::MenuItem, name: "Sign out" },
+        ],
+    },
+    Holds {
         name: "rail-new-menu",
         heading: "tally",
         parts: &[
@@ -2969,6 +2978,56 @@ fn the_rail_menu_sample_opens_the_menu() {
     assert!(!menu.contains("hidden"), "{menu}");
     assert!(html.contains("Ask a question or ask for a change."));
     assert!(html.contains("Agents plan a larger change and land it."));
+}
+
+#[test]
+fn the_person_menu_sample_opens_above_its_row() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "rail-person-menu").unwrap();
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    let person = html.split("class=\"temper-rail-person\"").nth(1).unwrap();
+    assert!(person.contains("aria-expanded=\"true\""));
+    let menu = person.split("role=\"menu\"").nth(1).unwrap().split('>').next().unwrap();
+    assert!(!menu.contains("hidden"), "{menu}");
+    assert!(person.contains("role=\"menuitem\">Accounts</div>"));
+    assert!(person.contains("role=\"menuitem\">Sign out</div>"));
+    let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
+    let panel = css
+        .lines()
+        .find(|line| line.starts_with("#app > .temper-rail > .temper-rail-foot > .temper-rail-person > [role=menu] {"))
+        .unwrap();
+    assert!(panel.contains("bottom: calc(100% + 6px)"));
+    assert!(!panel.contains("top:"));
+}
+
+#[test]
+fn the_accounts_tabs_sign_out_hides_over_a_phones_width_alone() {
+    let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
+    let mut selectors = Vec::new();
+    let mut start = 0;
+    let mut hiding_rules = 0;
+    for (at, character) in css.char_indices() {
+        match character {
+            '{' => {
+                selectors.push(css[start..at].trim());
+                start = at + 1;
+            }
+            '}' => {
+                let selector = selectors.pop().unwrap();
+                let declarations = css[start..at].split_whitespace().collect::<String>();
+                if selector.contains("temper-settings-sign-out") && declarations.contains("display:none") {
+                    assert!(
+                        selectors.contains(&"@media (min-width: 761px)"),
+                        "Sign out must hide only over a phone's width: {selector}"
+                    );
+                    assert_eq!(selector, ".temper-settings-setting.temper-settings-sign-out");
+                    hiding_rules += 1;
+                }
+                start = at + 1;
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(hiding_rules, 1, "one desktop-only hiding rule");
 }
 
 #[test]

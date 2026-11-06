@@ -1392,12 +1392,20 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
                 text.add(b"More collaborators available.\n")?;
             }
         }
-        api::Answer::Permission(permission) => match permission {
-            api::Permission::None => text.add(b"No permission")?,
-            api::Permission::Read => text.add(b"Read")?,
-            api::Permission::Write => text.add(b"Write")?,
-            api::Permission::Admin => text.add(b"Admin")?,
-        },
+        api::Answer::Permission(value) => {
+            text.add(match value.permission {
+                api::Permission::None => b"No permission",
+                api::Permission::Read => b"Read",
+                api::Permission::Write => b"Write",
+                api::Permission::Admin => b"Admin",
+            })?;
+            text.add(b"; forge user ")?;
+            text.number(value.user)?;
+            if !value.login.is_empty() {
+                text.add(b", login ")?;
+                text.add(&value.login)?;
+            }
+        }
         api::Answer::Created(number) | api::Answer::Commented(number) | api::Answer::Reviewed(number) => {
             text.number(*number)?;
         }
