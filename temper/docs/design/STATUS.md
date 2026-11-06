@@ -14,7 +14,10 @@ findings, whole (`domain/findings.md`, with their families in
 worker runs temper's merge kind, and the merge job settles a
 change's conflict before a resolution and produces a catch-up into a
 goal's branch; a goal's landing whose update conflicts takes it, but
-no story runs that (`domain/forge.md`). The prepare and key kinds
+no story runs that (`domain/forge.md`). Lost updates and prepares recover
+in the worlds, with a reason at their retry bound; the three-thread
+real-process restart proof awaits its after-landing trial
+(`domain/forge.md`, `domain/landing.md`). The prepare and key kinds
 are not built, so the turn's tooling and the `Rewrite` delivery lag
 (`domain/worker.md`, `protocol/tooling.md`, `domain/landing.md`,
 `protocol/git.md`). The landing rules and the forge's charters are
@@ -85,7 +88,11 @@ counts disagree with its shared oracle (`protocol/setup.md`,
 `protocol/sign-in.md`, `domain/testing.md`). The
 combined default-runner, restart, moved-port and terminal-hangup walk
 has no outcome in the supplied inventory, and the real-box sign-in
-story awaits its after-landing run (`protocol/setup.md`,
+story awaits its after-landing run. Repository links and box-owned sign-in
+are built, with native browser clicks at 1440 and Settings links at 420;
+the runner was disabled. No separate attacker-review outcome is supplied,
+three laptop baseline cases remain unrepeated, and an intermittent busy
+authorization page without a request is unresolved (`protocol/setup.md`,
 `protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
@@ -102,9 +109,14 @@ asks a run to name no commit off its branch (`domain/agent.md`). A head already 
 takes its base first, a receipt says what it pushed, a producer is told which task to ask
 and a resume holding the landing tip makes no merge, but no record shows the next landing
 plan on a real deployment, which the `landing-fixes` request has as their proof. The first
-saves a change's wait and not a run the forge started (`domain/forge.md`), and a resume on
-saved work whose save changes nothing leaves the engine's saved set
-(`domain/worker.md`, `protocol/channel.md`). Saved work in the task's saved set
+saves a change's wait and not a run the forge started (`domain/forge.md`). A resume on
+saved work keeps that work when its save lands nothing. A producer's clean merge is
+committed before its run; a conflict's start, the help page and stock charters explain
+its staged files. The parked producer's proof uses fake git and disk, with a delivery
+as its first commit; the `resume-told` request's real-checkout proof and deployment
+replay are not on record. Parking with markers still loses that run's own edits,
+while earlier saved work stands (`domain/worker.md`, `protocol/channel.md`).
+Saved work in the task's saved set
 is deleted through its release, and a clean update's repair names its failed
 check and carries its output before the base's contents; their real-deployment
 proof still awaits the next landing plan (`domain/forge.md`). Hello refusals
@@ -250,7 +262,11 @@ only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane from the host's check and then a trial through the worker and model, with
 its line on Accounts and, failed, on Home (`domain/trial.md`). The gallery lacks the
-account's stopped sample and Ready's trial states (`client/browser.md`). Model's line departs from the request `model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
+account's stopped sample and Ready's trial states (`client/browser.md`). Simultaneous
+usable accounts can lose a trial request, and account rows share one task's wait
+reason (`domain/trial.md`). The pane lacks the draft's "one short message" spend
+notice and its Model-step line (`draft/model-check.md`); no outcome of the required
+real-account trial walk is supplied for retirement. Model's line departs from the request `model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
 moves on by itself, but only Chromium has run that, against a fake issuer, and no test has a slow sign-in move on after a
 hidden tab, or a paste's end on the welcome. It draws the waiting page of the request
 `sign-in-new-tab`; the page departs from the request in the terminal's words
