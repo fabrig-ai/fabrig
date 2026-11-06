@@ -42,6 +42,9 @@ Acceptance:
   isn't so, you change here, and say which in your report.
 - `temper/docs/help/**`: whichever page says a model's account is usable only after its check, or the welcome stops on it: fixed in
   its bound, by the help page's rules. None: say so.
+- `temper/docs/help/settings.md` and `charter.md`: the stock's charter count and list take charter 10, as a trial's and
+  never offered: "Stock floors are six charters" becomes seven, while its rules still offer six charter executors and
+  `tasks.executor_kinds` stays nine.
 - `python3 -I -B tools/citations/citations.py --base origin/main`: clean.
 
 ## Inputs
