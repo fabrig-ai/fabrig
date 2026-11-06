@@ -76,7 +76,7 @@ fn every_act_keeps_its_decision_admission() {
                 number: SETTINGS,
                 proposer: 2,
                 project: people::DEPLOYMENT,
-                action: tasks::ProposalAction::Settings { against: 1, items: Box::new([]) },
+                action: tasks::ProposalAction::Settings { projects: Box::default(), against: 1, items: Box::new([]) },
                 reason: Box::new([]),
                 as_holder: false,
                 state: tasks::ProposalState::Pending {

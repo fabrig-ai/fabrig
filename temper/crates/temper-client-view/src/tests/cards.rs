@@ -733,11 +733,15 @@ fn replaced_and_accepted_say_so() {
         card.page = Some(c::ReadValue::Ended(Box::new(c::Ended {
             key: card.object,
             value: c::EndedValue::Proposal(c::ProposalHistory {
+                reason: c::DocumentText::complete(
+                    c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+                ),
                 number: SETTINGS_KEY.number,
                 proposer: fixtures::chat::DELEGATE,
                 as_holder: true,
                 state,
                 action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                    projects: List::with_capacity(0),
                     against: 0,
                     items: List::with_capacity(0),
                     made: None,

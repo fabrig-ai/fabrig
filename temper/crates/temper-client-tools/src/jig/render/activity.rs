@@ -88,7 +88,7 @@ fn owner(row: &c::ActivityLine, out: &mut Text) {
             turn::name(c::TurnName { attempt: *attempt, number: *number }, out);
             out.put(b" unreadable");
         }
-        c::Activity::Decided { revision } => {
+        c::Activity::Decided { revision, .. } => {
             out.put(b"decision ");
             out.number(*revision);
         }

@@ -47,6 +47,7 @@ pub enum Line {
     },
     Decided {
         revision: u64,
+        proposal: Option<DecidedProposal>,
     },
     Milestone {
         position: u64,
@@ -59,6 +60,13 @@ pub enum Line {
         pending: Box<[u64]>,
         question: Option<u64>,
     },
+}
+
+/// Which proposal a decision line names, and whether it records its making.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct DecidedProposal {
+    pub number: u64,
+    pub made: bool,
 }
 
 /// The durable cause carried through preparation to the committed claim.

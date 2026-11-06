@@ -339,8 +339,10 @@ fn proposal_bytes(proposal: &Proposal) -> Option<u64> {
         ProposalState::Pending { .. } | ProposalState::Accepted { .. } | ProposalState::Withdrawn => {}
     }
     match &proposal.action {
-        ProposalAction::Settings { items, .. } => {
-            total = total.checked_add(bytes(size_of_val(items.as_ref()))?)?;
+        ProposalAction::Settings { items, projects, .. } => {
+            total = total
+                .checked_add(bytes(size_of_val(items.as_ref()))?)?
+                .checked_add(bytes(size_of_val(projects.as_ref()))?)?;
         }
         ProposalAction::Batch(batch) => {
             total = total.checked_add(batch_bytes(batch)?)?;

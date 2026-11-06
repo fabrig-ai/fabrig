@@ -12,6 +12,7 @@ pub(in crate::codec) fn wire_proposal_history(
     w::ProposalHistory::new(
         limits,
         w::ProposalHistoryParts {
+            reason: wire_document_text(&value.reason, limits)?,
             action: wire_retained_action(&value.action, limits)?,
             number: value.number,
             proposer: value.proposer,

@@ -37,6 +37,7 @@ pub enum HistoryChange {
 /// One retained task-origin proposal and its actual decision state.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ProposalHistory {
+    pub reason: DocumentText,
     pub action: RetainedAction,
     pub number: u64,
     /// Raw task-origin proposer number; the source supplies no maker discriminator.
