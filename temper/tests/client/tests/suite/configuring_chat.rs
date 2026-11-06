@@ -613,3 +613,66 @@ fn a_decision_from_needs_you_reaches_an_open_chats_card() {
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     assert_eq!(world.root(chat).person().pages().address(), &Address::Chat { task });
 }
+
+#[test]
+fn a_second_proposal_stands_below_the_first_and_a_reply_below_it() {
+    use jig_client::{contract as c, thread::Line};
+    use skein_ui::Role;
+    let (mut world, agent, task, first) = propose(false, None);
+    world.front().configuring_reply(task, b"First reply");
+    let task_words = task.to_string();
+    text(&mut world, agent, &[b"task", b"message", task_words.as_bytes(), b"Tell me more", b"--key", b"more"]);
+    world.front().configuring_reply(task, b"Second reply");
+    let person = world.client(fixtures::PARTY, Address::Chat { task });
+    see(&mut world, person, skein_fake_person::Find::exactly_named(Role::Button, b"Accept"));
+    accept(&mut world, agent, &first, b"accept-first-card");
+    let charter = world.front().host_tool(task, 1, engine::Tool::Settings {
+        read: SettingsRead::Setting { setting: s::Setting::Charter(1), revision: 2 }, from: 0,
+    });
+    let HostAnswer::Settings(charter) = charter else { panic!("charter read") };
+    let SettingsAnswer::Setting(charter) = *charter else { panic!("charter") };
+    let Some(s::Value::Charter(mut charter)) = charter.value else { panic!("charter value") };
+    charter.policy.waiting = Duration::from_secs(3);
+    let items: Box<[s::Item]> = Box::new([s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(s::Value::Charter(charter)) }]);
+    let kinds = temper_engine_domain_world::kinds::decoded(&items);
+    let proposed = world.front().host_tool(task, 2, engine::Tool::ProposeSettings {
+        against: 2, items, reason: REASON.as_bytes().into(), kinds,
+    });
+    let HostAnswer::Tool(engine::CallAnswer::Proposed { proposal: second, .. }) = proposed else { panic!("second proposal: {proposed:?}") };
+    // Commit the tool's completion before the words of the next run, as a model does.
+    world.front().configuring_reply(task, b"");
+    text(&mut world, agent, &[b"task", b"message", task_words.as_bytes(), b"Explain the revision", b"--key", b"explain"]);
+    world.front().configuring_reply(task, b"Third reply");
+    see(&mut world, person, skein_fake_person::Find::text(b"Third reply"));
+    // Read the older pages as a person does; the first page is deliberately thin.
+    for _ in 0..32 {
+        if world.root(person).person().pages().chat().unwrap().thread.lines.edges.reaches(jig_client::thread::window::End::After) { break; }
+        world.event(person, Event::Act { action: Action::Pages(Act::Older) }.into());
+        world.run(jig_client_kit::harness::Until::Steps(2));
+    }
+    let root = world.root(person).person();
+    let chat = root.pages().chat().unwrap();
+    let lines = chat.thread.lines().into_boxed();
+    let made = lines.iter().position(|line| matches!(line, Line::Activity { line }
+        if matches!(line.source.line, c::Activity::Decided { proposal: Some(c::DecidedProposal { number, made: true }), .. } if number == second))).expect("engine making line");
+    assert!(lines.iter().skip(made + 1).any(|line| matches!(line, Line::Turn { .. })), "the engine makes the proposal before its completion commits");
+    let limits = fixtures::domain_limits();
+    let words = temper_client_view::words::Words::english(fixtures::FORGE, limits.client.domain.text, temper_client_view::words::Shell::Browser).unwrap();
+    let bounds = fixtures::view_bounds(&limits, &words);
+    let mut view = temper_client_view::View::new(&bounds, &limits, words, fixtures::FORGE);
+    temper_client_view::build(&mut view, root, fixtures::NOW, &mut skein_lib::Queue::with_capacity(bounds.tree.patches));
+    let mut order = Vec::new();
+    for node in view.tree().nodes() {
+        if let Some(key) = node.key
+            && key.kind == 1 && key.a == task
+        {
+            order.push(if key.b == second { "Second card" } else { "First card" });
+        }
+        for run in &node.text {
+            for reply in ["First reply", "Second reply", "Third reply"] {
+                if run.text.as_ref() == reply.as_bytes() { order.push(reply); }
+            }
+        }
+    }
+    assert_eq!(order, ["First reply", "First card", "Second reply", "Second card", "Third reply"]);
+}
