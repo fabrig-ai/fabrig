@@ -44,6 +44,7 @@ pub struct Worker {
     jobs: jobs::Jobs,
     agent: Agent,
     sources: crate::program_sources::Component,
+    source_files: crate::program_sources::FileStage,
     link: link::Component,
     link_out: Queue<link::Request>,
     out: Queue<root::Request>,
@@ -125,14 +126,7 @@ impl Worker {
             git,
             jobs: jobs::Jobs::new(slots),
             sources: crate::program_sources::Component::new(config.limits.hub.detail_bytes),
-            root: root::Domain::new(
-                &prepared.root,
-                Box::new([root::tooling::Kind {
-                    bound: crate::limits::merge_bound(),
-                    verb: b"merge".as_slice().into(),
-                    delivers: true,
-                }]),
-            ),
+            root: worker_root(&prepared.root),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: prepared.root },
             agent: Agent {
                 run_limits: agent.run_limits,
@@ -143,6 +137,7 @@ impl Worker {
                 bounds: agent.bounds.clone(),
                 host_limits: agent.host_limits,
             },
+            source_files: crate::program_sources::FileStage::new(crate::tokens::worker(0).expect("worker prefix")),
             link,
             link_out: Queue::uncapped(),
             out: Queue::uncapped(),
@@ -567,15 +562,33 @@ impl Worker {
         let parts = worker_route::job_answer_parts(&answer, work, preparation);
         self.link_down(self.env.now, link::Event::Up { up: hub::LinkUp::JobAnswer { run, attempt, answer }, parts });
     }
+    fn start_source(
+        &mut self,
+        owner: Token,
+        name: jig_domain_host::SourceName,
+        operation: jig_domain_host::sources::Operation,
+        deadline: Time,
+    ) {
+        let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
+        self.next = self.next.checked_add(1).expect("source owner sequence");
+        assert!(self.next < (1_u64 << 48_u32), "worker owner range");
+        let root = self.directory.expect("worker root");
+        let settled = self.sources.start(
+            owner,
+            io_owner,
+            name,
+            operation,
+            root,
+            deadline,
+            &mut self.io,
+            self.source_files.requests(),
+        );
+        self.answered(settled);
+    }
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
             root::Request::Source { owner, name, operation, deadline } => {
-                let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
-                self.next = self.next.checked_add(1).expect("source owner sequence");
-                assert!(self.next < (1_u64 << 48_u32), "worker owner range");
-                let root = self.directory.expect("worker root");
-                let settled = self.sources.start(owner, io_owner, name, operation, root, deadline, &mut self.io);
-                self.answered(settled);
+                self.start_source(owner, name, operation, deadline);
             }
             root::Request::SourceFault => self.link_down(self.env.now, link::Event::SourceFault),
             root::Request::Hello(hello) => {
@@ -748,6 +761,8 @@ impl Worker {
         self.jobs_fire(now, false);
         let settled = self.sources.fire(now, &mut self.io);
         self.answered(settled);
+        let settled = self.source_files.step(now, &mut self.sources, &mut self.io, &mut self.submitted);
+        self.answered(settled);
         self.started = true;
         if !self.git.started && !self.stopping {
             self.git.started = true;
@@ -804,6 +819,21 @@ impl Worker {
             root::resume(&mut self.root, &self.env, &mut self.out);
             self.drain_root();
         }
+        self.reclaim_processes();
+        for agent in &agents {
+            if let Some(process) = self.processes.get_mut(agent) {
+                for _ in 0..PROCESS_CHANNEL_REQUESTS {
+                    let Some(request) = process.next_channel_down() else { break };
+                    process.channel_down(request, &mut self.io);
+                }
+            }
+        }
+        self.retired.clear();
+        self.root.reclaim();
+        self.git.component.reclaim();
+        self.close_root();
+    }
+    fn reclaim_processes(&mut self) {
         for index in 0..self.retired.len() {
             let agent = *self.retired.get(index).expect("retired agent");
             drop(self.processes.remove(&agent));
@@ -826,23 +856,11 @@ impl Worker {
                 let _entity = self.entities.remove(owner);
             }
         }
-        for agent in &agents {
-            if let Some(process) = self.processes.get_mut(agent) {
-                for _ in 0..PROCESS_CHANNEL_REQUESTS {
-                    let Some(request) = process.next_channel_down() else { break };
-                    process.channel_down(request, &mut self.io);
-                }
-            }
-        }
-        self.retired.clear();
-        self.root.reclaim();
-        self.git.component.reclaim();
-        self.close_root();
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         if !self.started || self.aborted.is_some() {
-            return None;
+            return self.source_files.next_deadline();
         }
         let link = if self.git.ready { self.link.next_deadline() } else { None };
         let mut next = [
@@ -851,6 +869,7 @@ impl Worker {
             self.values.next_expiry(),
             self.git.component.next_deadline(),
             self.sources.next_deadline(),
+            self.source_files.next_deadline(),
             self.jobs.deadline(),
         ]
         .into_iter()
@@ -875,6 +894,7 @@ impl Worker {
             || !self.held.is_empty()
             || !self.process_events.is_empty()
             || !self.submitted.is_empty()
+            || self.source_files.work_pending(now)
             || (self.aborted.is_none() && self.root.is_ready())
             || match self.next_deadline() {
                 Some(at) => at <= now,
@@ -882,7 +902,12 @@ impl Worker {
             }
     }
     pub(super) fn closed(&self) -> bool {
-        self.closed && self.jobs.empty() && self.sources.settled() && self.processes.is_empty() && self.io.is_empty()
+        self.closed
+            && self.jobs.empty()
+            && self.sources.settled()
+            && self.source_files.settled()
+            && self.processes.is_empty()
+            && self.io.is_empty()
     }
     #[must_use]
     pub fn is_empty(&self) -> bool {
@@ -894,6 +919,9 @@ impl Worker {
             && self.root_close.is_none()
             && let Some(fd) = self.directory
         {
+            if let Some(parent) = self.sources.take_parent() {
+                self.source_files.close_parent(parent);
+            }
             self.root_close = Some(Token::new(self.prefix.checked_add(1).expect("root close")));
             self.submitted.push(io::kernel::Submit {
                 op: Token::new(self.prefix.checked_add(1).expect("root close")),
@@ -902,6 +930,10 @@ impl Worker {
         }
     }
     pub fn complete(&mut self, now: Time, complete: io::kernel::Complete) -> Result<(), io::kernel::Complete> {
+        let complete = match self.source_files.complete(complete) {
+            Ok(()) => return Ok(()),
+            Err(complete) => complete,
+        };
         let complete = match self.job_complete(complete) {
             Ok(()) => return Ok(()),
             Err(complete) => complete,
@@ -1019,6 +1051,17 @@ fn owner_of(event: &mut io::Event, new: Token) {
         | io::Event::Resized
         | io::Event::Shutdown { .. } => {}
     }
+}
+
+fn worker_root(limits: &root::Limits) -> root::Domain {
+    root::Domain::new(
+        limits,
+        Box::new([root::tooling::Kind {
+            bound: crate::limits::merge_bound(),
+            verb: b"merge".as_slice().into(),
+            delivers: true,
+        }]),
+    )
 }
 
 #[cfg(test)]

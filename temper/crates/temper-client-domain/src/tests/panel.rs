@@ -187,6 +187,7 @@ fn another_tasks_page_closes_the_old_panel_and_watches_its_own_subject() {
             | Request::Dropped { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
+            | Request::Copy { .. }
             | Request::Fact { .. } => {}
         }
     }

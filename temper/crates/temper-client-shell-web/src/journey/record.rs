@@ -50,6 +50,7 @@ impl Recorder {
     pub fn report(&mut self, host: &mut Host, page: &Page<'_>, report: Report) -> Duties {
         match &report {
             Report::Start => self.keep(&Line::Start),
+            Report::Copied { token, written } => self.keep(&Line::Copied { token: *token, written: *written }),
             Report::Due => self.keep(&Line::Due),
             Report::TabRefused => self.keep(&Line::TabRefused),
             Report::Place { path } => self.keep(&Line::Place(path.clone())),
@@ -124,6 +125,9 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
             TabAct::Close => Line::TabClose,
         });
     }
+    if let Some((token, words)) = &duties.copy {
+        lines.push(Line::Copy { token: *token, words: words.clone() });
+    }
     for ask in &duties.asked {
         lines.push(match ask {
             Asked::Exchange { id, call, bound, cache: _, keep: _ } => Line::Exchange {
@@ -164,6 +168,7 @@ pub(super) fn is_ask(line: &Line) -> bool {
         Line::TabOpen(_)
             | Line::TabPoint(_)
             | Line::TabClose
+            | Line::Copy { .. }
             | Line::Exchange { .. }
             | Line::Open { .. }
             | Line::Close

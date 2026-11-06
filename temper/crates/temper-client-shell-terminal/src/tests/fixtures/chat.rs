@@ -237,6 +237,7 @@ fn first_run_sheet(address: client::Address, landed: bool, closing: bool) -> ske
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Copy { .. }
             | Request::Fact { .. } => None,
         };
         if let Some(up) = up {

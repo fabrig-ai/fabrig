@@ -151,6 +151,7 @@ impl Replay {
         let line = &self.lines[at];
         let report = match line {
             Line::Start => Report::Start,
+            Line::Copied { token, written } => Report::Copied { token: *token, written: *written },
             Line::Due => Report::Due,
             Line::TabRefused => Report::TabRefused,
             Line::Place(path) => Report::Place { path: path.clone() },
@@ -204,6 +205,7 @@ impl Replay {
             | Line::Save { .. }
             | Line::Erase(_)
             | Line::Writes(_)
+            | Line::Copy { .. }
             | Line::Navigate(_)
             | Line::Replace(_)
             | Line::Show { .. }

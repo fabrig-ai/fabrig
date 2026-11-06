@@ -45,6 +45,7 @@ fn pressed(welcome: bool) -> (Domain, crate::View, skein_lib::Token) {
             | d::Request::Dropped { .. }
             | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
+            | d::Request::Copy { .. }
             | d::Request::Fact { .. } => {}
         }
     }

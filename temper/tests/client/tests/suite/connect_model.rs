@@ -538,7 +538,7 @@ fn owner_command(words: &[u8], expected: &[u8]) {
 #[test]
 fn the_owner_sees_the_command_the_box_answers() {
     owner_command(
-        b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache'",
+        b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper",
         b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper program-login claude-person",
     );
 }

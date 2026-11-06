@@ -3,6 +3,9 @@
 //! reads a login file. `new`, `from_io` and `fire` drive the command; `answer`
 //! translates its settled record into the host domain's vocabulary.
 
+mod inspection;
+pub use inspection::SourceInspection;
+
 use alloc::boxed::Box;
 use skein_io::{Event as IoEvent, Request as IoRequest, kernel};
 use skein_lib::{Queue, Time, Token};

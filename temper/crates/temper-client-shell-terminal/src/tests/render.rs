@@ -192,6 +192,7 @@ fn no_project_reads_the_same_in_the_terminal() {
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Copy { .. }
             | Request::Fact { .. } => None,
         };
         if let Some(up) = up {

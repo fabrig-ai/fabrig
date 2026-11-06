@@ -443,6 +443,7 @@ fn populate_page(
             | Request::Tab { .. }
             | Request::Leave { .. }
             | Request::SignOut
+            | Request::Copy { .. }
             | Request::Fact { .. }
             | Request::Dropped { .. } => {}
         }

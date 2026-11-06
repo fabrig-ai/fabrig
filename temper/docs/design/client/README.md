@@ -1361,6 +1361,16 @@ keeps (`../protocol/configuration.md`, section 2).
       The check's end shows on Ready (*The try,* below). A refused
       `DeclareProgram` or `CheckProgram` says the refusal's words under
       Ready's Model line.
+    - *The command's Copy,* on each of the welcome's command blocks, in a
+      browser alone: a quiet "Copy" in the block's top right corner, whose
+      right padding keeps the text from running under it at every width. A
+      press writes the command's exact text, as one line, an effect asked in
+      the press's own turn (skein's `ui.md`, section 13; `ui-web.md`, section
+      11). It reads "Copied" for 2 s. On plain http, where a browser has no
+      clipboard, and on any refusal or failure, it reads "Couldn’t copy" for
+      2 s, and the text stays selectable. A press within the 2 s writes again,
+      and an answer to an earlier press says nothing. The terminal has no
+      button.
     - *A plan's sign-in,* its way at its address with none asked, or one
       ended with no model usable, "Signing in to PLAN": `ConnectModel`'s card
       for the way, or its ending's words and acts, in the panel; "All ways".
@@ -3119,33 +3129,56 @@ for its kind, its user's login and its installations. Its nodes:
   the deployment's one worker is on the engine's machine
   (`../protocol/configuration.md`, section 1, the standalone shape),
   `program_login` is that machine's whole command but NAME, the running
-  binary's absolute path and the three directories in effect, each quoted
-  for a POSIX shell: `'/home/alice/temper' program-login --config '…' --data
-  '…' --cache '…'`. The pages print it with NAME after "On this machine,
+  binary's word and the three directories in effect, each as a word
+  (*The words of a command for this machine*): `~/temper program-login
+  --config '…' --data '…' --cache '…'`. The pages print it with NAME after "On this machine,
   run:". It is a path of a machine that the party signed in to it
   may read: a read carries a sign-in (jig's `protocol/client.md`), and no
   answer goes before one. A path that isn't UTF-8, a line past its
   bound, and a deployment whose workers are elsewhere send none: the pages
   then print the placeholders the tools do, `temper program-login --config
   CONFIG --data DATA --cache CACHE NAME`, "On each host, with its
-  directories:", or, on a page holding `program_environment`'s answer, those
-  words and `temper program-login NAME` under the same line.
+  directories:". Once the owner's `program_environment` answer comes, it
+  replaces this command: an empty answer prints `temper program-login NAME`,
+  and any other prints its words followed by `program-login NAME`.
 - **The program's environment, `program_environment`:** of the deployment's
-  scope, with no fields and no subject: what `temper program-login` needs set
-  to act on this deployment. It is the party's read, and only the deployment's
-  owner has it, at any time, since the welcome's Model step shows them the command
-  during set up and Connect a model after it; anyone else's is refused, and their
-  page prints the command without its words. Its answer is the record
-  `ProgramEnvironmentAnswer`: `environment` (bytes), empty when each of the
-  three directories (`../protocol/configuration.md`, 12) is the one the command
-  finds by itself in the environment the engine started in, and otherwise
-  `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…`, all three, each value a POSIX
-  shell word. It is one string, composed where the directories are known, so
-  that the client holds no path as a fact, quotes nothing and decides no
-  default; it is a read of its own, separate from `DeploymentAnswer`.
-  A page asks when its address names a program's way, the only place that
-  draws the command with these words; Accounts' has none of them (section 11). On the
-  wire it is `Reading`'s `program_environment`.
+  scope, with no fields and no subject: what `temper program-login` needs
+  around it to act on this deployment, from this machine's shell. It is the
+  party's read, and only the deployment's owner has it, at any time, since the
+  welcome's Model step shows them the command during set up and Connect a model
+  after it; anyone else's is refused, and their page prints the command without
+  its words. Its answer is
+  the record `ProgramEnvironmentAnswer`: `environment` (bytes), the words the
+  command starts with, which a page draws before `program-login NAME`. They are
+  none when `temper` runs this binary and each of the three directories
+  (`../protocol/configuration.md`, 12) is the one the command finds by itself
+  in the environment the engine started in. Otherwise they are the word that
+  runs the binary, after `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…`, all
+  three, where a directory isn't that one. It is one string, composed where the
+  binary and the directories are known, so that the client holds no path as a
+  fact, quotes nothing and decides no default; it is a read of its own,
+  separate from `DeploymentAnswer`. A page asks when its address names a
+  program's way, the only place that draws the command with these words;
+  Accounts' has none of them (section 11). On the wire it is `Reading`'s
+  `program_environment`.
+- **The words of a command for this machine:** how `program_environment`'s are
+  made.
+  - *The word that runs the binary.* The running process's executable, less the
+    ` (deleted)` Linux adds to one rebuilt while it runs. The word is `temper`
+    when the first executable file named `temper` on the process's `PATH` is
+    that file, by canonical paths: only the first counts, as that is what a
+    shell runs, and an entry of `PATH` that isn't absolute counts for nothing,
+    since the person's shell stands elsewhere. Otherwise it is the executable's
+    path, as a word (below). An executable that can't be read gives `temper`.
+  - *A path as a word,* for the executable and the three `TEMPER_` values alike:
+    repeated slashes collapsed, then a leading `$HOME`, whole components of it,
+    as `~/`, and the path alone as `~`. It stays unquoted where it can, so that
+    the shell expands `~/`, which it does right after `=` in an assignment
+    prefix too. A path needing quotes quotes only what follows `~/`
+    (`~/'my dir/temper'`), and whole where no `$HOME` leads it (`'/my dir/temper'`).
+    `$HOME` unset, relative or `/` leads nothing.
+  - *The bound.* The words fit the answer's 49,216 bytes: a word for the binary
+    that would pass it gives way to `temper`.
 - **A change's panel, the subject `change`** (`forge.md`, 9.2): of a
   project's scope, its window unused, naming the change task's number
   (u64). On the wire it is `Watching`'s `change`, `Watching` naming
@@ -6417,7 +6450,7 @@ own tests:
   fetches at once; a copy from a public host. Default: none, until a plan walks them.
 - **What feeds the try** (3.5, *The try*; `../draft/model-check.md`): the trial's
   task and charter, how it selects its model, who pays, what ends it and its
-  cancelling on leaving are that draft's, and are designed as it is built, with
+  cancelling once its account is removed are that draft's, and are designed as it is built, with
   what it leaves open: an act on Settings' accounts, and a world for the wait.
   Default: the host's check feeds Model's line at its first step, and no line says
   "answered".
@@ -6757,8 +6790,12 @@ own tests:
   printed working when pasted, until a deployment says otherwise.
 - **This deployment's directories under "each host"** (4.6, 5.5): Connect a model's
   Ready says "Run this on each host temper’s agents run on" over "On this machine,
-  run:" and the command, whose paths are this machine's, and another host's may
+  run:" and the command with `program_environment`'s words, which are this
+  deployment's directories and this machine's binary, and another host's may
   differ. Default: so, a box being one host.
+- **A `~/` in another's shell** (4.6): the words' `~/` is the engine's `$HOME`,
+  and a shell of another user on this machine reads its own. Default: so, the
+  owner being the person at this machine.
 - **The command before its read answers** (4.6): while `program_environment` is
   unanswered, or if its read fails, a page with no `program_login` draws the
   placeholders and says nothing. Default: so.
