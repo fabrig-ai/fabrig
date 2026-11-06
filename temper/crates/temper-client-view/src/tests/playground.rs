@@ -234,7 +234,7 @@ fn the_hidden_deployment_playground_account_needs_only_its_public_provider() {
         (Some(Readiness::Usable), 73, "Scripted model · Default"),
         (Some(Readiness::Unknown), 73, "Scripted model · Default"),
         (None, 73, "Scripted model · Default"),
-        (Some(Readiness::Unavailable), 73, "Scripted model · needs an account"),
+        (Some(Readiness::Unavailable), 73, "Scripted model · Default"),
         (Some(Readiness::Usable), 74, "Scripted model · Default"),
     ] {
         let root = f::hidden_playground_root(ready, payer);

@@ -23,6 +23,10 @@ fn me() -> c::Me {
             .push(c::MeModel {
                 prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
                 description: None,
+                effort: None,
+                shown: None,
+                accounts: List::with_capacity(0),
+                picker: true,
                 name: fixtures::acts::text(name),
                 provider: Some(17),
                 window: 1024,
@@ -37,7 +41,12 @@ fn me() -> c::Me {
 fn draft() -> Draft {
     let mut draft = Draft::default();
     draft.reset(
-        Some(Context::Template { project: PROJECT, executor: c::TemplateExecutor::Charter(1), model_index: None }),
+        Some(Context::Template {
+            project: PROJECT,
+            template: jig_client::shapes::CHAT,
+            executor: c::TemplateExecutor::Charter(1),
+            model_index: None,
+        }),
         None,
     );
     draft
@@ -73,8 +82,10 @@ fn a_main_model_edit_preserves_the_remaining_choice() {
 fn me_requiring_effort() -> c::Me {
     let mut me = me();
     let model = me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap();
-    model.efforts = List::with_capacity(1);
+    model.efforts = List::with_capacity(2);
+    model.efforts.push(fixtures::acts::text(b"low")).unwrap();
     model.efforts.push(fixtures::acts::text(b"high")).unwrap();
+    model.effort = Some(fixtures::acts::text(b"high"));
     me
 }
 fn effort_draft() -> (c::Me, Draft) {
@@ -92,21 +103,35 @@ fn amended(mut draft: Draft, task: &c::Task) -> Queue<crate::pages::Request> {
 }
 #[test]
 fn a_missing_required_effort_prevents_start() {
-    let (me, draft) = effort_draft();
+    let (me, mut draft) = effort_draft();
+    draft.requested.as_mut().unwrap().main.effort = None;
     assert!(start(&draft, &me).is_empty());
 }
 #[test]
-fn a_supplied_required_effort_allows_start() {
-    let (me, mut draft) = effort_draft();
-    draft.edit(&me, Act::Effort { index: 0 });
-    assert_eq!(start(&draft, &me).len(), 1);
+fn a_model_press_sets_its_effort_and_starts_at_once() {
+    let me = me_requiring_effort();
+    for original in [None, Some(choice(b"second"))] {
+        let mut draft = draft();
+        draft.reset(draft.context, original.as_ref());
+        draft.edit(&me, Act::Model { index: 0 });
+        assert!(draft.valid(&me));
+        let asks = start(&draft, &me);
+        let [c::Ask::Create { tasks, .. }] = asks.as_ref() else { panic!("create") };
+        assert_eq!(tasks.get(0).unwrap().llm.as_ref().unwrap().main.effort, Some(fixtures::acts::text(b"high")));
+    }
 }
+
 #[test]
 fn a_project_change_discards_the_previous_choice() {
     let mut draft = draft();
     draft.edit(&me(), Act::Model { index: 1 });
     draft.reset(
-        Some(Context::Template { project: PROJECT + 1, executor: c::TemplateExecutor::Charter(1), model_index: None }),
+        Some(Context::Template {
+            project: PROJECT + 1,
+            template: jig_client::shapes::CHAT,
+            executor: c::TemplateExecutor::Charter(1),
+            model_index: None,
+        }),
         None,
     );
     assert_eq!(draft.requested, None);
@@ -194,6 +219,10 @@ fn the_selected_duplicate_models_effort_reaches_the_request() {
             .push(c::MeModel {
                 prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
                 description: None,
+                effort: efforts.get(0).cloned(),
+                shown: None,
+                accounts: List::with_capacity(0),
+                picker: true,
                 name: fixtures::acts::text(b"shared"),
                 provider: Some(provider),
                 window: 1024,
@@ -209,4 +238,27 @@ fn the_selected_duplicate_models_effort_reaches_the_request() {
     let asks = start(&draft, &me);
     let [c::Ask::Create { tasks, .. }] = asks.as_ref() else { panic!("create") };
     assert_eq!(tasks.get(0).unwrap().llm.as_ref().unwrap().main.effort, Some(fixtures::acts::text(b"second-effort")));
+}
+
+#[test]
+fn a_templates_unoffered_choice_still_starts() {
+    let mut draft = draft();
+    let original = choice(b"unoffered");
+    let mut me = me();
+    me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().llm = Some(original.clone());
+    draft.reset(draft.context, Some(&original));
+    let asks = start(&draft, &me);
+    let [c::Ask::Create { tasks, .. }] = asks.as_ref() else { panic!("create") };
+    assert_eq!(tasks.get(0).unwrap().llm, Some(original));
+}
+
+#[test]
+fn a_tasks_unoffered_choice_stays_valid() {
+    let mut draft = draft();
+    let task = fixtures::chat::task();
+    draft.reset(
+        Some(Context::Task { project: PROJECT, task: task.chip.task, revision: task.spec_revision, model_index: None }),
+        Some(&choice(b"unoffered")),
+    );
+    assert!(draft.valid(&me()));
 }

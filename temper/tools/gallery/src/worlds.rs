@@ -103,9 +103,20 @@ fn frame(w: World, connecting: bool, configuring: bool) -> c::Me {
             prices: c::ModelPrices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 },
             window: 200_000,
             output: 16_384,
+            effort: efforts.get(0).cloned(),
+            shown: None,
+            accounts: {
+                let mut accounts = List::with_capacity(1);
+                accounts.push(1).expect("account");
+                accounts
+            },
+            picker: true,
             efforts,
         })
         .expect("model");
+    if matches!(w, World::Bare | FirstRun { step: 0 }) {
+        member.models.clear();
+    }
     if matches!(w, FirstRun { step: 6..=9 }) {
         let mut models = List::with_capacity(2);
         let mut model = member.models.get(0).expect("demo model").clone();
@@ -147,12 +158,18 @@ fn frame(w: World, connecting: bool, configuring: bool) -> c::Me {
     me
 }
 fn template_preview(member: &mut c::MeProject) {
-    let template = member.templates.get_mut(0).expect("chat template");
-    template.llm = Some(c::LlmChoice {
-        account: None,
-        main: c::ModelEffort { model: text("gpt-6-luna"), effort: None },
-        subagents: List::with_capacity(0),
-    });
+    member.defaults = List::with_capacity(1);
+    member
+        .defaults
+        .push(c::MeDefault {
+            template: jig_client::shapes::CHAT,
+            choice: c::LlmChoice {
+                account: None,
+                main: c::ModelEffort { model: text("gpt-6-luna"), effort: None },
+                subagents: List::with_capacity(0),
+            },
+        })
+        .expect("template preview");
 }
 fn providers(w: World) -> List<c::ProviderOffer> {
     let mut rows = List::with_capacity(3);
