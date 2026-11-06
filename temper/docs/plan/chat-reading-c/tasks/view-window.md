@@ -67,3 +67,17 @@ Not this task: `thread_limits` (`chat-reads`); any drawing.
 ## Report
 
 As the implementer's text asks, with the figures above. Whichever you measured, say how.
+
+## Answers
+
+2026-11-06. **Question:** the candidate price of `text_bytes` is 5,140,013,034, beyond `u32`: tighten the per-room text accounting, or widen the page's accounting?
+
+**Tighten; `skein_ui::Limits.text_bytes` stays a `u32`.** The overflow is the candidate's, not a page's: it charges each room's 10 structure nodes at `text` (4,281, the longest phrase in the whole book), twice, 701,399,040 bytes each, where the contract's *temper's view* puts `max_text_bytes(document_bytes)` alone beside `window_nodes`.
+
+- **A room's structure:** a line's own bytes are already in `max_text_bytes`. What a structure node adds is a short phrase and what a row cuts: `chat_line.rs` cuts a run's line at 253 bytes and a row at 160. Charge those nodes a named constant in `limits.rs`, 512 bytes a node, its comment saying why, in both `window_text` and `live_text`. It is a constant, not `receiving.text`: those cuts don't shrink with a small domain.
+- **The figure:** from your own intermediates, 3,724,136,082 + 85,983,232 (window) + 94,371,840 (live) + 495,960 = 3,904,987,114, below today's 3,942,944,842. That sum is calculated, not built: your report gives the built figure.
+- **Leave `text` and the outside-window price as they are.** They aren't this task's question, and they fit.
+- **One more test, since the price is new:** `a_window_full_of_calls_builds`, in `tests/limits.rs`, a window of turns filled with calls that draw rows and a run's line, and its bite shown as the others': halve the 512, and see the panic. If it can't be made to panic, say so, with the text it measured.
+- **If a line draws more than the price holds** (a phrase carrying a line's bytes beyond twice), price what it draws and say so. If the sum then leaves `u32`, stop as the acceptance says, with the figures.
+
+The rest of the acceptance stands, the steps you did not reach included: both shells' `Some`, the halved-window mutation, the heap figures for a full window, clippy and the four packages' tests. Your `nodes` figure, 22,518,676, is mostly `lines * plain` in `live_nodes`: if it moves a heap ceiling, name it with its measurement, as *Heap* says, and take the smaller bound *Live lines and words* allows.
