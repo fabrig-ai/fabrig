@@ -133,6 +133,126 @@ fn link(root: &mut Domain, link: Link) -> Queue<Request> {
     out
 }
 
+fn trial_pages() -> [crate::Address; 3] {
+    [
+        crate::Address::Welcome { step: crate::Step::Model { way: None } },
+        crate::Address::Welcome { step: crate::Step::Ready },
+        crate::Address::ConnectModel { way: None },
+    ]
+}
+fn account_session(address: crate::Address) -> (Domain, Token, Token) {
+    let mut root = crate::unlinked(&f::limits(), f::SEED);
+    let (me, accounts) = f::start_accounts(&mut root, List::with_capacity(0));
+    let mut out = Queue::uncapped();
+    f::confirm(&mut root, me, f::PARTY, &mut out);
+    let trials = opening(&out, trials::watch(&f::limits().forge).unwrap()).expect("trial watch");
+    up(&mut root, Up::Watched { watch: trials, event: c::WatchEvent::Opened });
+    event(&mut root, Event::Went { place: crate::Place::Address(address) });
+    (root, accounts, trials)
+}
+fn account(root: &mut Domain, watch: Token, usable: bool) -> Queue<Request> {
+    let mut document = super::playground::accounts(Some(17), usable, false);
+    document.accounts.get_mut(0).unwrap().number = ACCOUNT;
+    up(root, Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(document))) })
+}
+fn tries(out: Queue<Request>) -> List<(u32, bool)> {
+    let mut found = List::uncapped();
+    for request in &out {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down { down: Down::Send { request: Ask::Family { scope, record }, .. } },
+        } = request
+            && let w::Request::TryAccount(value) =
+                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+        {
+            assert_eq!(*scope, c::Scope::Own);
+            found.push((value.account(), value.again())).unwrap();
+        }
+    }
+    found
+}
+
+#[test]
+fn an_account_newly_usable_on_the_welcome_is_tried() {
+    for address in trial_pages() {
+        let (mut root, watch, _) = account_session(address);
+        assert!(tries(account(&mut root, watch, false)).is_empty());
+        assert_eq!(tries(account(&mut root, watch, true)).as_slice(), [(ACCOUNT, false)]);
+        assert_eq!(root.forge().trial_asked(), Some(ACCOUNT));
+        assert!(tries(account(&mut root, watch, true)).is_empty());
+        assert!(tries(account(&mut root, watch, false)).is_empty());
+        assert!(tries(account(&mut root, watch, true)).is_empty(), "an ask is already out");
+    }
+}
+
+#[test]
+fn the_first_delivery_tries_nothing() {
+    for address in trial_pages() {
+        let (mut root, watch, _) = account_session(address);
+        assert!(tries(account(&mut root, watch, true)).is_empty());
+        assert_eq!(root.forge().trial_asked(), None);
+        assert!(tries(account(&mut root, watch, true)).is_empty());
+        assert_eq!(root.forge().trial_asked(), None);
+    }
+}
+
+#[test]
+fn elsewhere_tries_nothing() {
+    use crate::{Address, Step};
+    for address in [
+        Address::Welcome { step: Step::WelcomeAsked },
+        Address::Welcome { step: Step::Forge { forge: None } },
+        Address::Accounts,
+        Address::Forges,
+        Address::ConnectForge { forge: None },
+        Address::Inbox { filter: crate::address::Filter::ALL },
+        Address::Chats { filter: crate::ChatsFilter::All },
+        Address::NewChat { draft: false },
+        Address::Chat { task: TASK },
+        Address::Task { task: TASK },
+        Address::Home { project: f::PROJECT },
+        Address::Goals { project: f::PROJECT, filter: crate::GoalsFilter::All },
+        Address::Changes { project: f::PROJECT },
+        Address::Settings { project: f::PROJECT },
+        Address::Repositories { project: f::PROJECT },
+        Address::Builders { project: f::PROJECT },
+        Address::Configure { project: f::PROJECT },
+        Address::Adopt { project: f::PROJECT },
+    ] {
+        let (mut root, watch, _) = account_session(address.clone());
+        account(&mut root, watch, false);
+        assert!(tries(account(&mut root, watch, true)).is_empty(), "{address:?}");
+        assert_eq!(root.forge().trial_asked(), None);
+        event(&mut root, Event::Went { place: crate::Place::Address(Address::Welcome { step: Step::Ready }) });
+        assert!(tries(account(&mut root, watch, true)).is_empty(), "seen advances on {address:?}");
+    }
+}
+
+#[test]
+fn the_playground_is_never_tried() {
+    for address in trial_pages() {
+        let (mut root, watch, _) = account_session(address);
+        super::playground::deliver_playground_read(
+            &mut root,
+            super::playground::page_with_state(w::PlaygroundState::Running),
+        );
+        account(&mut root, watch, false);
+        assert!(tries(account(&mut root, watch, true)).is_empty());
+        assert_eq!(root.forge().trial_asked(), None);
+    }
+}
+
+#[test]
+fn an_account_with_a_row_is_not_asked_again() {
+    for address in trial_pages() {
+        let (mut root, watch, trial_watch) = account_session(address);
+        account(&mut root, watch, false);
+        deliver(&mut root, trial_watch, &[ended()]);
+        assert!(tries(account(&mut root, watch, true)).is_empty());
+        assert_eq!(root.forge().trial_asked(), None);
+    }
+}
+
 #[test]
 fn the_rows_arrive_for_the_session() {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
