@@ -37,3 +37,36 @@ id = 1
 story = "the whole client walked as a person would, beside the mock and the second walk, with every difference named"
 parts = ["walk", "additions", "real-login"]
 walk = false
+
+[[part]]
+id = "fix-look"
+title = "The small findings in the sheets and the view"
+mode = "direct"
+needs = ["walk", "additions", "real-login"]
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[part]]
+id = "fix-flow"
+title = "The small findings in the domain, the shell, the engine and the real check"
+mode = "direct"
+needs = ["fix-look"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 2
+story = "each small finding fixed, with a test red first"
+parts = ["fix-look", "fix-flow"]
+walk = false
+
+[[part]]
+id = "walk-again"
+title = "The walk once more over what the fixes touched: the report, the list of what's large, the contact page"
+mode = "direct"
+needs = ["fix-flow"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 3
+story = "the report the user reads: what's fixed, what's new, what regressed since the second walk"
+parts = ["walk-again"]
+walk = false
