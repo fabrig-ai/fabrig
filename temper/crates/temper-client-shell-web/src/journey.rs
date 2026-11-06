@@ -3,13 +3,17 @@ use crate::host::{self, Host};
 use skein_lib::{Time, Wall};
 use skein_ui::{Act, NodeId, Role, Tree};
 use skein_ui_web::{mapping::Primary, page::Page};
+mod fields;
 mod line;
 mod record;
 mod replay;
+mod stream;
 mod walk;
+pub use fields::{Framing, fields_mut};
 pub use line::{Line, Unreadable, lines};
 pub use record::Recorder;
 pub use replay::{Mark, Refusal, Replay, Stale, prove};
+pub use stream::{Event, Plain, Streams, Undecoded};
 pub use walk::{Step, Unwalkable, differs, still, walk};
 #[cfg(test)]
 mod tests;
