@@ -85,3 +85,9 @@ The checks: fmt, `old_forms.py` for `temper`, clippy on what you changed, the te
 ## Report
 
 As the implementer's text asks: each test's bite; every world you touched and why; each walk's time before and after.
+
+## Answers
+
+2026-11-06 (temper/forge). **Your question: extend `trial-start` to both view-test files,** `temper/crates/temper-client-view/src/tests/connect_forge.rs` and `welcome.rs`, expectations only: `pane-feed` has landed, so nobody else holds them. **The joined story needs `trial-root`'s admission,** which is still running: merge `origin/model-check/trial-root` once it has landed there. If it hasn't when the rest is done, commit, push and report `Question:`, recommending you wait.
+
+**The user's rule, 2026-11-06: a plan's execution only ever runs the focused and fuzzy suites.** No after-landing tier runs during a plan: we run optimistically, and repair if after-landing flags. A new story in a slow tier is written and compiled, not run. So no walk under `fake_backends/walk` and no `client-browser` story runs. An expectation there that a trial's attempt or line moves is changed by reading, compiled, and named in your report. The 20 s bound's measurement goes with them: after-landing shows it.
