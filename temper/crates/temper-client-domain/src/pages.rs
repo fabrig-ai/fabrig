@@ -245,6 +245,7 @@ pub enum Event {
     Left,
     AccountKey { value: skein_lib::Secret },
     SignInAddress { value: skein_lib::Secret },
+    SignInKept { source: u32, address: Box<[u8]>, refused: bool },
     Went { address: Address },
     Act { act: Act },
     Told { told: Told },
@@ -513,6 +514,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             went(pages, env, address, out);
             if let Some(project) = address_project(&pages.address) {
                 choose_project(pages, client, project);
+            }
+        }
+        Event::SignInKept { source, address, refused } => {
+            if let Some(page) = &mut pages.connect_model {
+                page.request.keep_sign_in(source, address, refused);
             }
         }
         Event::SignInAddress { value } => {
