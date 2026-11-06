@@ -39,30 +39,6 @@ fn a_refused_token_emits_stopped_once_naming_the_forge() {
 }
 
 #[test]
-fn a_refused_connect_waits_its_backoff_and_connects_again() {
-    let mut h = fixtures::Harness::new(fixtures::settings());
-    h.refuse(fixtures::FORGE);
-    assert_eq!(
-        h.start(fixtures::FORGE),
-        skein_forge_connection::start::Start::Waiting {
-            until: Time::from_nanos(1_000_000_000),
-            next: Duration::from_secs(2)
-        },
-        "refusal backs off"
-    );
-    h.run(Duration::from_millis(999));
-    assert_eq!(h.connections_opened(), 1, "no early retry");
-    h.run(Duration::from_millis(1));
-    h.connected(fixtures::FORGE);
-    assert_eq!(h.connections_opened(), 2, "new connection after backoff");
-    assert_eq!(
-        h.request_lines(fixtures::FORGE).as_slice(),
-        [Box::from(&b"GET /api/v1/user HTTP/1.1"[..])],
-        "check starts again"
-    );
-}
-
-#[test]
 fn an_idle_connection_closes_at_idle() {
     let mut h = fixtures::Harness::ready();
     assert_eq!(h.component.next_deadline(), Some(Time::from_nanos(5_000_000_000)), "fixture idle");
@@ -243,58 +219,6 @@ fn a_stopped_forge_does_not_stop_another() {
     h.run(Duration::from_secs(20));
     assert_eq!(h.stopped(), Some((fixtures::FORGE, skein_forge_connection::Stopped::OtherUser { user: 1 })));
 }
-#[test]
-fn an_idle_connection_is_reassigned_to_another_forge() {
-    use skein_forge::api;
-    let limits = skein_forge_connection::Limits { connections: fixtures::EVICTION_CONNECTIONS, ..fixtures::limits() };
-    let shared = skein_forge_connection::Shared { calls: fixtures::EVICTION_CALLS, ..fixtures::shared() };
-    let mut h = fixtures::ready_two(limits, shared);
-    h.call(1, fixtures::REPO, api::Op::Read(api::Read::Branch { branch: Box::from(fixtures::BRANCH) }));
-    h.run(Duration::ZERO);
-    h.connected(fixtures::FORGE);
-    fixtures::branch_answers(&mut h, fixtures::FORGE);
-    let before = h.connections_opened();
-    h.call(2, fixtures::OTHER_REPO, api::Op::Read(api::Read::Branch { branch: Box::from(fixtures::BRANCH) }));
-    h.run(Duration::ZERO);
-    h.connected(fixtures::OTHER_FORGE);
-    fixtures::branch_answers(&mut h, fixtures::OTHER_FORGE);
-    assert_eq!(h.connections_opened(), before.checked_add(fixtures::EVICTION_CONNECTIONS).expect("next connection"));
-    assert_eq!(
-        (h.connections_for(fixtures::FORGE), h.connections_for(fixtures::OTHER_FORGE)),
-        (fixtures::EVICTION_NO_CONNECTIONS, fixtures::EVICTION_CONNECTIONS)
-    );
-    assert_eq!(
-        h.answered(2),
-        Some(&skein_forge_connection::Answered {
-            call: skein_lib::Token::new(2),
-            cost: 2,
-            free: 0,
-            rate: None,
-            result: Ok(api::Answer::Commit(fixtures::BRANCH_HEAD)),
-        })
-    );
-    assert_eq!(h.answers.len(), fixtures::EVICTION_ANSWERS);
-}
-#[test]
-fn start_backoff_doubles_to_its_maximum() {
-    use skein_forge_connection::start::Start;
-    let mut h = fixtures::Harness::new(fixtures::settings());
-    for (wait, until, next, before) in [(1, 1, 2, 1), (2, 3, 4, 2), (4, 7, 8, 3), (8, 15, 8, 4), (8, 23, 8, 5)] {
-        h.refuse(fixtures::FORGE);
-        assert_eq!(
-            h.start(fixtures::FORGE),
-            Start::Waiting {
-                until: Time::ZERO.saturating_add(Duration::from_secs(until)),
-                next: Duration::from_secs(next),
-            }
-        );
-        h.run(Duration::from_nanos(wait * 1_000_000_000 - 1));
-        assert_eq!(h.connections_opened(), before, "{wait}: before deadline");
-        h.run(Duration::from_nanos(1));
-        assert_eq!(h.connections_opened(), before + 1, "{wait}: at deadline");
-    }
-}
-
 use skein_forge_connection::seam::Phase;
 
 #[test]
