@@ -47,7 +47,7 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
             p::step(&mut selected, &env, p::Event::Restore { record: row.clone() }, &mut out);
             p::step(&mut ordinary, &env, p::Event::Restore { record: row }, &mut out);
         }
-        assert!(ordinary.start_link(&env));
+        assert!(ordinary.start_link());
         ordinary.start_sweep();
         assert!(ordinary.start_complete(&env));
         assert!(out.is_empty(), "seed {seed}");
@@ -126,7 +126,7 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
         assert!(!selected.ready());
         assert_eq!(selected.next_deadline(), None);
         assert!(out.is_empty(), "restore with an explicit ended mark writes nothing, seed {seed}");
-        assert!(selected.start_link(&env));
+        assert!(selected.start_link());
         assert_eq!(selected.counts(&limits, PERSON), ordinary.counts(&limits, PERSON), "seed {seed}");
         assert_eq!(selected.cached_updates(&limits, PERSON), ordinary.cached_updates(&limits, PERSON), "seed {seed}");
         selected.start_sweep();
@@ -166,7 +166,7 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
         if extra != 0 {
             assert!(matches!(out.pop(), Some(p::Request::RestoreRefused { .. })));
             assert!(!diagnostic.start_project(&limits, P::EndedConversation { task: 31 }));
-            assert!(!diagnostic.start_link(&env));
+            assert!(!diagnostic.start_link());
             assert_eq!(diagnostic.restore_failure(), expected, "seed {seed}");
         }
         assert!(out.is_empty());
