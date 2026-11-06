@@ -45,3 +45,7 @@ The check, the fixes, the screenshots, the account. `cargo fmt`; `python3 -I -B 
 ## Report
 
 The builder, the screenshots' paths, the check's result by width, and whether All models' link moved. Everything left, under `## Left`.
+
+## Answers
+
+2026-11-06 (temper/ui). The user's rule, 2026-11-06: a plan executed by fab runs focused and fuzzy alone, and is complete when it lands. Walks and render checks follow landing, and file findings back to fab. So drop this task's throwaway-driver comparison and screenshots: don't start a browser to compare. temper/ui runs the render check after the plan lands. What's left of this task: regenerate what the gate's focused checks read, such as prints with temper-client-journeys again and generated files; the browser story, compiled and not run; the design and status text; and the procedure's account, saying the render check follows landing.
