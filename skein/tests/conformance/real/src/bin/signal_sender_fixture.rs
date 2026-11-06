@@ -101,16 +101,12 @@ fn main() {
     // sender live until the parent has consumed its signal (io.md, 7).
     let limits = io::Limits {
         sockets: 3,
-        names: 0,
-        refusals: 1,
         intake: 8,
         receive: 4,
         output: 8,
         sends: 1,
-        accepts: 1,
-        backlog: 1,
-        close_timeout: Duration::from_secs(1),
         retry: Duration::from_millis(1),
+        ..io::Limits::TEST
     };
     let mut state = io::Io::new(&limits);
     let source = state.adopt_signals(signals).expect("source entity");

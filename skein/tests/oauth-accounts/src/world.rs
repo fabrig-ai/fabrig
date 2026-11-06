@@ -105,19 +105,7 @@ pub fn limits() -> accounts::Limits {
         client,
         http: skein_http::client::Limits { request: 2048, head: 2048, headers: 16, read: 256, send: 256 },
         tls: skein_tls::client::Limits { read: 2048, send: 2048, records: 131_072 },
-        io: io::Limits {
-            sockets: 4,
-            refusals: 1,
-            intake: 32_768,
-            receive: 1024,
-            output: 32_768,
-            sends: 4,
-            accepts: 1,
-            backlog: 2,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
-            retry: Duration::from_millis(1),
-        },
+        io: io::Limits { sockets: 4, sends: 4, backlog: 2, retry: Duration::from_millis(1), ..io::Limits::TEST },
     }
 }
 

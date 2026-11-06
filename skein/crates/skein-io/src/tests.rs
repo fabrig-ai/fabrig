@@ -30,19 +30,7 @@ use crate::{Event, Io, Limits, MAX_OUT_DOWN, MAX_OUT_FIRE, MAX_OUT_RESUME, MAX_O
 
 /// Tiny limits, so that every admission point is in reach.
 pub(crate) const fn limits() -> Limits {
-    Limits {
-        sockets: 2,
-        refusals: 2,
-        intake: 8,
-        receive: 4,
-        output: 8,
-        sends: 2,
-        accepts: 1,
-        backlog: 4,
-        close_timeout: Duration::from_secs(1),
-        names: 2,
-        retry: Duration::from_millis(10),
-    }
+    Limits { refusals: 2, intake: 8, receive: 4, output: 8, backlog: 4, names: 2, ..Limits::TEST }
 }
 
 /// `127.0.0.1:port`.
