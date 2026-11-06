@@ -1,4 +1,6 @@
 //! The builder's two passes and reclaim point (skein/docs/foundation/programming-model.md, 2).
+//! A pass resumes each layer at most the watermark; remaining work waits for
+//! the next pass (hearth/docs/design/domain/render.md, 8.4).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -55,7 +57,7 @@ pub struct Service {
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
     told: Queue<io::Event>,
-    queue_limit: u32,
+    watermark: u32,
     asked: Queue<Asked>,
     calls: Queue<Event>,
     answers: Queue<Request>,
@@ -66,10 +68,20 @@ impl Service {
     pub const fn domain(&self) -> &Builder {
         &self.domain
     }
+    /// What `told`, `file_told`, `answers` and `asked` hold (render.md, 8.4).
+    #[must_use]
+    pub fn backlog(&self) -> u32 {
+        self.told
+            .len()
+            .saturating_add(self.file_told.len())
+            .saturating_add(self.answers.len())
+            .saturating_add(self.asked.len())
+    }
     #[must_use]
     pub fn new(configuration: &Configuration, roots: Roots, call: Call, form: protocol::Form, seed: u64) -> Self {
         let limits = &configuration.limits;
-        assert!(limits.io.is_usable() && limits.queue >= 3, "usable io and queues holding every MAX_OUT");
+        assert!(limits.io.is_usable() && limits.queue > 0, "usable io and queues carrying operations");
+        assert!(limits.watermark > 0, "a watermark that admits work");
         assert!(valid(limits), "representable limits");
         let mut files = FileIo::with_whole_limit(
             limits.files.files,
@@ -109,10 +121,10 @@ impl Service {
             completions: Queue::with_capacity(limits.queue),
             submissions: Queue::with_capacity(limits.queue),
             told: Queue::uncapped(),
-            queue_limit: limits.queue,
-            asked: Queue::with_capacity(limits.queue),
-            calls: Queue::with_capacity(limits.queue),
-            answers: Queue::with_capacity(limits.queue),
+            watermark: limits.watermark,
+            asked: Queue::uncapped(),
+            calls: Queue::uncapped(),
+            answers: Queue::uncapped(),
         }
     }
     pub fn adopt_output_pipe(&mut self, fd: Fd) -> Result<(), Fd> {
@@ -187,19 +199,18 @@ impl Service {
         self.io.is_ready()
             || self.io.is_due(now)
             || self.files.is_due(now)
-            || ((!self.file_submissions.is_empty() || !self.io_submissions.is_empty()) && self.submissions.room() > 0)
+            || !self.file_submissions.is_empty()
+            || !self.io_submissions.is_empty()
             || !self.io_completions.is_empty()
             || (!self.io_asked.is_empty() && self.io.takes())
-            || (protocol_ready && protocol_resume_has_room(self))
-            || (protocol_resume_has_room(self)
-                && match protocol::next_deadline(&self.protocol) {
-                    Some(at) => at <= now,
-                    None => false,
-                })
+            || protocol_ready
+            || match protocol::next_deadline(&self.protocol) {
+                Some(at) => at <= now,
+                None => false,
+            }
             || (protocol_accepts_event(self) && (!self.file_told.is_empty() || !self.told.is_empty()))
-            || (domain_ready && domain_resume_has_room(self))
+            || (domain_ready && admits(self))
             || (!domain_ready
-                && domain_step_has_room(self)
                 && (!self.calls.is_empty()
                     || match domain::next_deadline(&self.domain) {
                         Some(at) => at <= now,
@@ -239,10 +250,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     protocol_down(service);
     io_down(service);
     service.io.reclaim();
-    for _ in 0..service.submissions.capacity() {
-        if service.submissions.room() == 0 {
-            break;
-        }
+    for _ in 0..service.submissions.room() {
         if let Some(submit) = service.io_submissions.pop() {
             service.submissions.push(submit);
         } else if let Some(submit) = service.file_submissions.pop() {
@@ -276,16 +284,12 @@ fn io_up(service: &mut Service) {
     }
 }
 fn protocol_up(service: &mut Service) {
-    if protocol_resume_has_room(service) {
-        protocol::fire(&mut service.protocol, &service.protocol_env, &mut service.calls, &mut service.asked);
-    }
-    for _ in 0..service.queue_limit {
-        if !service.protocol.work_pending() || !protocol_resume_has_room(service) {
+    protocol::fire(&mut service.protocol, &service.protocol_env, &mut service.calls, &mut service.asked);
+    for _ in 0..service.watermark {
+        if !service.protocol.work_pending() {
             break;
         }
-        let marks = (service.calls.len(), service.asked.len());
         protocol::resume(&mut service.protocol, &service.protocol_env, &mut service.calls, &mut service.asked);
-        protocol_within(service, marks, protocol::MAX_OUT_RESUME);
     }
     if service.protocol.work_pending() {
         return;
@@ -305,14 +309,13 @@ fn protocol_up(service: &mut Service) {
             &mut service.asked,
         );
     }
-    for _ in 0..service.queue_limit {
+    for _ in 0..service.told.len() {
         if !protocol_accepts_event(service) {
             break;
         }
         let Some(event) = service.told.pop() else {
             break;
         };
-        let marks = (service.calls.len(), service.asked.len());
         protocol::up(
             &mut service.protocol,
             &service.protocol_env,
@@ -320,47 +323,37 @@ fn protocol_up(service: &mut Service) {
             &mut service.calls,
             &mut service.asked,
         );
-        protocol_within(service, marks, protocol::MAX_OUT_UP);
     }
 }
 fn domain_stage(service: &mut Service) {
-    for _ in 0..service.calls.capacity() {
-        if !service.domain.work_pending() || !domain_resume_has_room(service) {
+    for _ in 0..service.watermark {
+        if !service.domain.work_pending() || !admits(service) {
             break;
         }
-        let before = service.answers.len();
         domain::resume(&mut service.domain, &service.domain_env, &mut service.answers);
-        within(before, service.answers.len(), domain::MAX_OUT_RESUME);
     }
     if service.domain.work_pending() {
         return;
     }
-    for _ in 0..service.calls.capacity() {
-        if !domain_step_has_room(service) {
-            break;
-        }
+    for _ in 0..service.calls.len() {
         let Some(event) = service.calls.pop() else {
             break;
         };
-        let before = service.answers.len();
         domain::step(&mut service.domain, &service.domain_env, event, &mut service.answers);
-        within(before, service.answers.len(), domain::MAX_OUT);
     }
-    if service.calls.is_empty() && domain_step_has_room(service) {
+    if service.calls.is_empty() {
         domain::fire(&mut service.domain, &service.domain_env, &mut service.answers);
     }
 }
 fn protocol_down(service: &mut Service) {
-    for _ in 0..service.answers.capacity() {
+    for _ in 0..service.answers.len() {
         if !protocol_accepts_answer(service) {
             break;
         }
         let Some(request) = service.answers.pop() else {
             break;
         };
-        let marks = (service.calls.len(), service.asked.len());
         protocol::down(&mut service.protocol, &service.protocol_env, request, &mut service.calls, &mut service.asked);
-        protocol_within(service, marks, protocol::MAX_OUT_DOWN);
     }
 }
 fn io_down(service: &mut Service) {
@@ -399,33 +392,18 @@ fn io_down(service: &mut Service) {
         }
     }
 }
-fn protocol_resume_has_room(service: &Service) -> bool {
-    protocol_room(service, protocol::MAX_OUT_RESUME)
-}
 fn protocol_accepts_event(service: &Service) -> bool {
-    !service.protocol.work_pending() && protocol_room(service, protocol::MAX_OUT_UP)
-}
-fn domain_resume_has_room(service: &Service) -> bool {
-    service.answers.room() >= domain::MAX_OUT_RESUME
-}
-fn domain_step_has_room(service: &Service) -> bool {
-    service.answers.room() >= domain::MAX_OUT
+    !service.protocol.work_pending()
 }
 fn protocol_accepts_answer(service: &Service) -> bool {
-    service.protocol.takes() && protocol_room(service, protocol::MAX_OUT_DOWN)
+    service.protocol.takes()
 }
 fn io_accepts_request(service: &Service) -> bool {
     service.io_asked.is_empty() && service.files.takes()
 }
-fn protocol_room(service: &Service, max: protocol::MaxOut) -> bool {
-    service.calls.room() >= max.above && service.asked.room() >= max.below
-}
-fn protocol_within(service: &Service, (up, down): (u32, u32), max: protocol::MaxOut) {
-    within(up, service.calls.len(), max.above);
-    within(down, service.asked.len(), max.below);
-}
-fn within(before: u32, after: u32, max: u32) {
-    assert!(after.checked_sub(before).expect("steps add to outputs") <= max, "an entry point keeps its MAX_OUT");
+/// Whether the domain's next resume may run: the backlog is under the watermark (render.md, 8.5).
+fn admits(service: &Service) -> bool {
+    service.backlog() < service.watermark
 }
 #[cfg(test)]
 mod tests;

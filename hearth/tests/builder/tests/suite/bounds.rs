@@ -1,14 +1,14 @@
 //! Peaks shared by the service and protocol layer's checked worlds.
 use hearth_builder_world::fixtures::{self, File, Scenario};
-// The smallest capped service queues hold every MAX_OUT. One more target
-// forces a later pass while printer output is still moving through them.
-pub const QUEUE: u32 = 3;
-pub const TARGETS: u32 = QUEUE + 1;
+// A watermark this small, with more targets than it holds, forces a later
+// pass while printer output is still moving through the layers.
+pub const WATERMARK: u32 = 2;
+pub const TARGETS: u32 = 4;
 pub const SEED: u64 = fixtures::SIMULATION_SEED;
 #[must_use]
 pub fn limits() -> hearth::Limits {
     let mut limits = fixtures::small_limits();
-    limits.queue = QUEUE;
+    limits.watermark = WATERMARK;
     limits.domain.render.targets = TARGETS;
     limits
 }

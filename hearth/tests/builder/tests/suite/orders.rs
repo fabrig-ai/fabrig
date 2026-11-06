@@ -6,8 +6,8 @@ use skein_sim::{Event, Summary, Text};
 
 use super::bounds;
 
-// The task's smallest, intermediate and roomy service queues.
-const QUEUES: [u32; 3] = [bounds::QUEUE, 32, 4_096];
+// Kernel queue sizes and the independent watermark that paces each pass.
+const QUEUES: [(u32, u32); 4] = [(1, 1), (3, 2), (32, 30), (4_096, 4_096)];
 
 #[test]
 fn a_client_s_output_has_one_demand_out_whatever_the_chunk() {
@@ -36,11 +36,12 @@ fn what_a_call_prints_and_stores_does_not_depend_on_its_queues() {
         ("building", building),
     ] {
         let mut baseline = None;
-        for queue in QUEUES {
+        for (queue, watermark) in QUEUES {
             let mut limits = bounds::limits();
             limits.queue = queue;
+            limits.watermark = watermark;
             let outcome = simulated::with_limits(&scenario, bounds::SEED, limits);
-            if name == "resolving" && queue == bounds::QUEUE {
+            if name == "resolving" && (queue, watermark) == QUEUES[0] {
                 a_store_answer_precedes_the_next_index(&outcome);
             }
             let snapshot = (
@@ -50,7 +51,7 @@ fn what_a_call_prints_and_stores_does_not_depend_on_its_queues() {
                 fixtures::store_files(&outcome.machine),
             );
             if let Some(expected) = &baseline {
-                assert_eq!(&snapshot, expected, "{name}: queue {queue} against queue {}", bounds::QUEUE);
+                assert_eq!(&snapshot, expected, "{name}: queue {queue}, watermark {watermark} against {:?}", QUEUES[0]);
             } else {
                 baseline = Some(snapshot);
             }
@@ -123,4 +124,41 @@ fn a_build_prints_its_layers_then_its_failure_then_its_reply() {
     assert_eq!(lines.next(), Some("failed       fetch packages   unavailable"), "{output}");
     assert_eq!(lines.next(), None, "nothing prints after the failure: {output}");
     assert_eq!(fixtures::client_exits(&outcome), [Exit::Code(69)], "the complete report precedes the reply");
+}
+
+#[test]
+fn a_pass_stops_short_of_a_whole_render() {
+    // The watermark bounds the number of resumes in a pass, even when render
+    // retains the first side's specs without queue entries. The watermark holds
+    // every target's final change and the reply, so only the pass bound can
+    // leave work pending below it.
+    let mut scenario = bounds::queued();
+    scenario.call = hearth::Call::Diff {
+        resolve: false,
+        repository: fixtures::GIT_DIR.into(),
+        from: b"HEAD".as_slice().into(),
+        to: b"HEAD".as_slice().into(),
+        targets: Box::default(),
+    };
+    scenario.form = hearth::Form::JsonLines;
+    let mut limits = bounds::limits();
+    limits.watermark = bounds::TARGETS + 1;
+    let outcome = simulated::with_limits(&scenario, bounds::SEED, limits);
+    let passes: u32 = outcome
+        .procs
+        .iter()
+        .filter_map(|proc| match proc {
+            simulated::Proc::Client(client) => Some(client.bounded_passes()),
+            simulated::Proc::Git(_) | simulated::Proc::Mmdebstrap(_) => None,
+        })
+        .sum();
+    assert!(passes > 0, "the pass bound leaves render pending below the watermark: {passes}");
+    let output =
+        String::from_utf8(outcome.machine.contents(fixtures::OUTPUT).expect("printed changes")).expect("JSON lines");
+    let changes: Vec<_> = output.lines().filter(|line| line.starts_with(r#"{"record":"change","target":"#)).collect();
+    let expected: Vec<_> = (0..bounds::TARGETS)
+        .map(|target| format!(r#"{{"record":"change","target":"b{target}-prod","kind":"same"}}"#))
+        .collect();
+    assert_eq!(changes, expected, "every target prints once, in order");
+    assert_eq!(fixtures::client_exits(&outcome), [Exit::Code(0)]);
 }
