@@ -5,6 +5,13 @@ pub(crate) enum Waited {
     Stream,
     Read,
     Outcome,
+    Again(Again),
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Again {
+    Busy,
+    NotReady,
+    Lost,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Act {
@@ -13,7 +20,13 @@ pub(crate) enum Act {
     Kept { named: bool },
     Once { named: bool },
 }
-pub(crate) fn waited(link: jig_client::Link, connected: bool, heard: bool, acting: bool) -> Waited {
+pub(crate) fn waited(
+    link: jig_client::Link,
+    connected: bool,
+    heard: bool,
+    acting: bool,
+    retry: Option<jig_client::Retry>,
+) -> Waited {
     match link {
         jig_client::Link::Offline | jig_client::Link::SignedOut | jig_client::Link::OutOfDate => Waited::Link,
         jig_client::Link::Starting => {
@@ -27,7 +40,12 @@ pub(crate) fn waited(link: jig_client::Link, connected: bool, heard: bool, actin
         }
         jig_client::Link::Live => {
             if acting {
-                Waited::Outcome
+                match retry {
+                    Some(jig_client::Retry::Busy) => Waited::Again(Again::Busy),
+                    Some(jig_client::Retry::NotReady) => Waited::Again(Again::NotReady),
+                    Some(jig_client::Retry::Lost | jig_client::Retry::Undecodable) => Waited::Again(Again::Lost),
+                    Some(jig_client::Retry::Full { .. }) | None => Waited::Outcome,
+                }
             } else {
                 Waited::Read
             }
@@ -41,6 +59,15 @@ pub(crate) fn line(address: &str, waited: Waited, act: Act) -> String {
             format!("the engine at {address} took the connection but its stream did not answer within 30 s")
         }
         Waited::Read => format!("the engine at {address} did not answer a read within 30 s"),
+        Waited::Again(Again::Busy) => {
+            format!("the engine at {address} last answered this act busy; no outcome within 30 s")
+        }
+        Waited::Again(Again::NotReady) => {
+            format!("the engine at {address} last answered this act not ready; no outcome within 30 s")
+        }
+        Waited::Again(Again::Lost) => {
+            format!("the last answer to this act from the engine at {address} was lost; no outcome within 30 s")
+        }
         Waited::Outcome => format!("the engine at {address} gave no outcome for this act within 30 s"),
     };
     line.push_str(match act {
