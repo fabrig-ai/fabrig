@@ -1120,6 +1120,59 @@ fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary test snapshots page state apart from its render counter")]
+fn reference_opens_only_at_configure_without_a_request() {
+    use crate::{
+        Address,
+        pages::{Act, chat::document::Mode},
+    };
+    for address in [
+        Address::Configure { project: fixtures::PROJECT },
+        Address::NewChat { draft: false },
+        Address::Chats { filter: ChatsFilter::All },
+        Address::Home { project: fixtures::PROJECT },
+        Address::Chat { task: fixtures::acts::TASK },
+    ] {
+        let mut page = Page::new(configuring_me(), address.clone());
+        let reference = match page.pages.chats() {
+            Some(chats) => chats.reference,
+            None => None,
+        };
+        assert_eq!(reference, None);
+        let before = format!("{:?}", (page.pages.chats(), page.pages.chat(), page.pages.task()));
+        if let Address::Configure { .. } = address {
+            page.act(Act::Mode { mode: Mode::Draft });
+            assert_eq!(page.pages.chats().unwrap().reference, None);
+            assert!(page.out.is_empty());
+        }
+        page.act(Act::ShowReference);
+        assert!(page.out.is_empty(), "{address:?}");
+        if let Address::Configure { .. } = address {
+            assert_eq!(page.pages.chats().unwrap().reference, Some(Mode::Split));
+            page.act(Act::ShowReference);
+            assert_eq!(page.pages.chats().unwrap().reference, Some(Mode::Split));
+            assert!(page.out.is_empty());
+            for mode in [Mode::Draft, Mode::Chat, Mode::Split] {
+                page.act(Act::Mode { mode });
+                let chats = page.pages.chats().unwrap();
+                assert_eq!(chats.reference, Some(mode));
+                assert!(chats.start.is_none());
+                assert!(page.out.is_empty());
+            }
+            page.event(crate::pages::Event::Went { address: Address::NewChat { draft: false } });
+            page.event(crate::pages::Event::Went { address });
+            assert_eq!(page.pages.chats().unwrap().reference, None);
+        } else {
+            assert_eq!(
+                format!("{:?}", (page.pages.chats(), page.pages.chat(), page.pages.task())),
+                before,
+                "{address:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn the_chats_list_excludes_working_notes_from_documents() {
     let limits = fixtures::limits();
     let root = crate::unlinked(&limits, fixtures::SEED);

@@ -32,10 +32,11 @@ pub enum Kind {
     Concept,
     Walk,
     Recipe,
+    Way,
     Reference,
 }
 impl Kind {
-    /// The word of its kind line: "index", "concept", "walk", "recipe", "reference".
+    /// The word of its kind line: "index", "concept", "walk", "recipe", "way", "reference".
     #[must_use]
     pub fn word(self) -> &'static str {
         match self {
@@ -43,17 +44,19 @@ impl Kind {
             Self::Concept => "concept",
             Self::Walk => "walk",
             Self::Recipe => "recipe",
+            Self::Way => "way",
             Self::Reference => "reference",
         }
     }
 
-    /// Its bound in bytes: 6,144; 12,288; 12,288; 3,072; 32,768.
+    /// Its bound in bytes: 6,144; 12,288; 12,288; 3,072; 8,192; 32,768.
     #[must_use]
     pub fn bound(self) -> usize {
         match self {
             Self::Index => 6_144,
             Self::Concept | Self::Walk => 12_288,
             Self::Recipe => 3_072,
+            Self::Way => 8_192,
             Self::Reference => PAGE_BYTES,
         }
     }
@@ -74,9 +77,19 @@ pub struct Page {
     pub text: &'static str,
 }
 
-/// `index`, then the concepts, walks, recipes and reference pages, each by name.
+/// The way the client draws beside "Configure temper" and the configuring agent reads.
+#[expect(clippy::disallowed_macros, reason = "the page compiles its single Markdown source as static data")]
+pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
+    name: "how-temper-builds-temper",
+    kind: Kind::Way,
+    title: "How temper builds temper",
+    summary: "How fabrig builds temper, with temper: one way among many. Start from it, from something smaller, or from your own words.",
+    text: include_str!("../../../docs/help/how-temper-builds-temper.md"),
+};
+
+/// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 59] = [
+pub static PAGES: [Page; 60] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -294,6 +307,7 @@ pub static PAGES: [Page; 59] = [
         summary: "A project spends at most AMOUNT units a week, every week.",
         text: include_str!("../../../docs/help/weekly-budget.md"),
     },
+    HOW_TEMPER_BUILDS_TEMPER,
     Page {
         name: "commands",
         kind: Kind::Reference,

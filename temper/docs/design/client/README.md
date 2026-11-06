@@ -2259,7 +2259,7 @@ keeps (`../protocol/configuration.md`, section 2).
     kind, as Ready's model line chooses it, and the first model `me`
     serves for the project.
   - *The conversation,* a region named "Conversation", its opening a
-    page as `Home` is, starting at the conversation's top, with no
+    page as `Home` is, starting 28 pixels from the conversation's top, with no
     kicker: the level-2 heading "How should temper run PROJECT?", drawn
     as Home's headline; the lede "Tell it how you work, in your own
     words or by pointing at a document."; a list named "What it sets",
@@ -2267,11 +2267,11 @@ keeps (`../protocol/configuration.md`, section 2).
     work runs: how chats and goals start, are checked and land",
     "Models: which plan or model each role runs on" and "Approvals: what
     waits for you, and what lands on its own"; the note "It proposes the
-    settings; nothing changes until you accept.", small and muted; then
-    the section "Ways to begin", headed as Home's sections: its starters
-    as cards, as the welcome's choices, three to a row where they fit and
-    one a row on a phone, the whole card the button, its title over a
-    line in grey:
+    settings; nothing changes until you accept.", small and muted; then,
+    30 pixels under the note, the section "Ways to begin", headed as Home's
+    sections: its starters as cards, as the welcome's choices, three to a
+    row where they fit and one a row on a phone, the whole card the button,
+    its padding 14 and 16 pixels, its title over a line in grey:
 
     | Title | Line | The words it sends |
     |---|---|---|
@@ -2279,11 +2279,23 @@ keeps (`../protocol/configuration.md`, section 2).
     | "A design draft first" | "Agents plan its tasks; they land together." | "I write a design draft first; agents plan its tasks and land them together once checked." |
     | "Models by role" | "Claude for reviews, my ChatGPT plan for the rest." | "Use Claude for reviews and my ChatGPT plan for everything else." |
 
-    Under them a fourth starter, a button drawn as a link, "Not sure yet?
-    Ask what temper can do.", which sends "Not sure yet. What can temper
-    do?". The terminal has no style to tell a term from its line: each
-    item and each card is one line of words, "TERM: LINE", and "Ways to
-    begin" is its section's name, once.
+    A fourth starter, a button drawn as a link, "Not sure yet? Ask what
+    temper can do.", which sends "Not sure yet. What can temper do?",
+    stands in the section's head, at its right. Under the cards, a wide
+    card of temper's own way (`../draft/own-way.md`, 2), a group named
+    "temper’s own way": its title, "At scale, as temper builds itself";
+    under it its steps in small grey, a list named "Its steps: designers
+    cut a draft into parts, coding agents make them in parallel, the goal
+    lands whole", "Draft", "The cut", "Coding agents", "Goal’s branch" and
+    "main", an arrow ending each line where they wrap; at its right two
+    outlined buttons, "See how it works" (*temper's own way, beside the
+    page,* below) and "Start from it", a starter that sends "Set PROJECT
+    up the way temper builds itself, sized for this machine."; on a phone
+    the buttons stand under the words, each half the width. The terminal
+    has no style to tell a term from its line: each item and each card of
+    the three is one line of words, "TERM: LINE", and "Ways to begin" is
+    its section's name, once; the wide card's title, steps and buttons
+    follow in that order, the steps a list with no arrows.
   - *The composer,* a form named "Configure temper", at the
     foot, focused as the page opens: its text area "Describe how you
     work, or what to change", that its placeholder too, its text 14
@@ -2303,17 +2315,58 @@ keeps (`../protocol/configuration.md`, section 2).
   shifted by half a scrollbar where the platform's scrollbars take room. On
   a phone
   neither keeps a gutter and both stand 16 pixels in, the conversation
-  scrolling with no scrollbar drawn, the question at 26 pixels and the
-  cards tighter. At 1366 by 680 the whole opening and the
+  scrolling with no scrollbar drawn, the opening 20 pixels from the top,
+  the question at 26 pixels and the cards keeping their 14 and 16 pixel
+  padding. At 1366 by 680 the whole opening and the
   composer show with no scrolling.
 
   A starter or "Send" starts the chat, the words it sends the first
   message, as a suggested request does: one act, one request (3.6), from template 3
   (`../protocol/configuration.md`, 13.4) while `me` lists it among the
   project's templates, else template 1, with its template's own models.
-  While it is out, the four starters and "Send" are disabled and the words
-  stay; made, the chat's page opens; refused, jig's words stay under the
+  While it is out, the four starters, "Start from it" and "Send" are disabled
+  and the words stay; "See how it works" starts nothing, and stays enabled;
+  made, the chat's page opens; refused, jig's words stay under the
   composer, the words kept. The chat names no repository.
+- **temper's own way, beside the page** (`../draft/own-way.md`, 2 and 3):
+  "See how it works" opens the reference, "How temper builds temper", in
+  the pane of *A chat's document* (below), in Split, the rail folded, the
+  page's main carrying that mode's style. No chat is made and nothing
+  changes. Every project offers it: no project way hides the card or the
+  pane, so a fresh project's page, Goals and drafts hidden, has both.
+  - *The bar* gains the mode group at its right, after the line of what the
+    runs use, once the reference has opened: "Chat", "Split" and "Draft", a
+    group named "How temper builds temper, beside the chat", with a chat's
+    document's shortcut, and the composer's hint is a document's. "Chat"
+    folds the pane, the group staying. The mode is the page's, in no address
+    and kept nowhere: leaving the page or a reload closes the reference.
+  - *In Split,* the ways to begin are one a row, each title and its line on
+    one line where they fit, wrapping at a narrower width, the wide card's
+    buttons under its words. *On a phone* there is
+    no Split: the reference alone, as Draft, the composer under it, as a
+    chat's document is.
+  - *The pane:* its line, in small mono, "temper’s own way · a reference"
+    and "changes nothing"; the page's title, as a document's level-2
+    heading; its summary in grey; then its sections, read by skein-ui's
+    reader (`skein/docs/design/ui.md`, section 10). The reference is the
+    stock page `how-temper-builds-temper`
+    (`../protocol/documentation.md`, 2.2), compiled into the client, so
+    that opening it reads nothing and fetches nothing.
+  - *Its parts:* section 1, the picture, is a numbered list of the flow's six
+    steps, a name in ink and its caption, with one number and no bullet.
+    Section 5's table has a row name in ink over the reader's cells. A
+    section's closing note, under the table and under the figures, is muted.
+    Section 6's figures are three pale boxes in a row where they fit, a
+    term over its value, made from the bullets `- TERM: VALUE` that open the
+    section, so that the file alone holds their values. They are "—" until
+    the user fills them; the deployment fetches nothing.
+  - *The terminal* prints the pane after the composer, as it prints a chat's
+    document: the line, the title, the summary, each section with its
+    heading, the figures as terms and descriptions.
+  - *A chat started beside it,* by a starter or "Send", opens the chat's page
+    as from the page alone, and the reference closes; the chat's own document
+    comes when it writes one. The configuring agent reads the same page
+    (`../domain/agent.md`, 8.1).
 - **A configuring chat** is a chat whose chip's executor is the charter
   of template 3 as `me` lists it (*Home,* above). In `Chats` it is listed
   with the others, tagged "Configuring". Its `Chat { task }`, opened from
