@@ -1,14 +1,14 @@
 //! Scenarios at the separate piece/commit boundary (domain/testing.md, 6.3).
-use jig_client_kit::harness::Until;
+use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
-use temper_client_world::fixtures;
+use skein_world::domain::Verdict;
+use temper_client_world::{app::Temper, fixtures, front::Joint};
 
 const WRITING: &[u8] = "▍".as_bytes();
 const PARTS: &[&[u8]] = &[b"QA joint prefix", b" and its full suffix."];
 const WHOLE: &[u8] = b"QA joint prefix and its full suffix.";
 
-#[test]
-fn full_live_text_stays_provisional_until_the_turn_commits() {
+fn whole_reply_before_commit() -> (World<Temper, Joint>, ClientId) {
     // domain/testing.md, 6.3: the text and its committed turn are separate releases.
     let mut world = fixtures::open_world(fixtures::SEED);
     world.front().reply_in_pieces(PARTS);
@@ -21,7 +21,7 @@ fn full_live_text_stays_provisional_until_the_turn_commits() {
             Step::See { find: Find::text(WRITING), within: fixtures::WITHIN },
         ],
     );
-    world.run(Until::Done);
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     assert!(matches!(TreeFace::new(world.tree(client)).find(&Find::text(WHOLE)), Found::Absent));
     assert!(world.front().release_reply(), "release the second piece without committing");
     world.person(
@@ -31,7 +31,13 @@ fn full_live_text_stays_provisional_until_the_turn_commits() {
             Step::See { find: Find::text(WRITING), within: fixtures::WITHIN },
         ],
     );
-    world.run(Until::Done);
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    (world, client)
+}
+
+#[test]
+fn full_live_text_stays_provisional_until_the_turn_commits() {
+    let (mut world, client) = whole_reply_before_commit();
     assert!(world.front().release_reply(), "release the turn's commit");
     world.person(
         client,
@@ -42,6 +48,23 @@ fn full_live_text_stays_provisional_until_the_turn_commits() {
     );
     world.run(Until::Done);
     assert!(!world.front().release_reply(), "nothing remains to release after commit");
+}
+
+#[test]
+fn the_words_stay_on_the_page_at_every_step_of_a_turns_end() {
+    // Enough delivery turns for the commit, its activity read and the final redraw.
+    const ENDING_STEPS: u32 = 256;
+    let (mut world, client) = whole_reply_before_commit();
+    assert!(world.front().release_reply(), "release the turn's commit");
+    for step in 0..ENDING_STEPS {
+        assert_eq!(world.run(Until::Steps(1)).verdict, Verdict::Passed);
+        let mut face = TreeFace::new(world.tree(client));
+        assert!(!matches!(face.find(&Find::text(WHOLE)), Found::Absent), "words disappeared at ending step {step}");
+        if matches!(face.find(&Find::text(WRITING)), Found::Absent) {
+            return;
+        }
+    }
+    panic!("the writing mark remained after {ENDING_STEPS} ending steps");
 }
 
 #[test]

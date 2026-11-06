@@ -117,7 +117,8 @@ fn provisional_text_keeps_its_cut_mark_and_recovery_replaces_uncommitted_text() 
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"abcd");
     assert!(c.conversation().live.get(0).unwrap().cut);
     feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 10, 12, b"xy", true)));
-    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"xy");
+    assert_eq!(c.client.text(run).unwrap().text.bytes(), b"xy");
+    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"abcd");
     assert_eq!(
         match c.client.text(run) {
             Some(text) => text.through,
@@ -126,7 +127,8 @@ fn provisional_text_keeps_its_cut_mark_and_recovery_replaces_uncommitted_text() 
         12
     );
     c.reopen(run);
-    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"xy");
+    assert_eq!(c.client.text(run).unwrap().text.bytes(), b"xy");
+    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"abcd");
     feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 0, 3, b"new", false)));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"new");
     assert!(!c.conversation().live.get(0).unwrap().cut);
@@ -750,19 +752,22 @@ fn explicit_cut_and_reopened_origin_replace_retry_text_while_valid_suffixes_dedu
     value.cut = true;
     feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(
-        c.conversation().live.get(0).unwrap().text.bytes(),
+        c.client.text(run).unwrap().text.bytes(),
         b"deXYZ",
         "cut never joins a retained prefix across a lost origin"
     );
+    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"abcdef");
     assert!(c.conversation().live.get(0).unwrap().cut);
     value.from = 10;
     value.through = 15;
     value.text = text(b"XYZ++");
     value.cut = false;
     feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
-    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"deXYZ++");
+    assert_eq!(c.client.text(run).unwrap().text.bytes(), b"deXYZ++");
+    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"abcdef");
     feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
-    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"deXYZ++");
+    assert_eq!(c.client.text(run).unwrap().text.bytes(), b"deXYZ++");
+    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"abcdef");
     let mut stale = value.clone();
     stale.from = 8;
     stale.through = 13;
@@ -770,14 +775,16 @@ fn explicit_cut_and_reopened_origin_replace_retry_text_while_valid_suffixes_dedu
     stale.cut = true;
     feed_run(&mut c, run, crate::tests::fixtures::run(stale));
     assert_eq!(
-        c.conversation().live.get(0).unwrap().text.bytes(),
+        c.client.text(run).unwrap().text.bytes(),
         b"deXYZ++",
         "older captured cut document cannot move a retained position backward"
     );
+    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"abcdef");
     c.reopen(run);
+    assert_eq!(c.client.text(run).unwrap().text.bytes(), b"deXYZ++");
     assert_eq!(
         c.conversation().live.get(0).unwrap().text.bytes(),
-        b"deXYZ++",
+        b"abcdef",
         "brief interruption keeps the visible text"
     );
     value.from = 0;

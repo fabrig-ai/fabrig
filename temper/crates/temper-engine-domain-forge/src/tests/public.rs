@@ -417,8 +417,6 @@ fn expected_change() -> w::PublicChange {
         &w::CEILINGS,
         w::PublicChangeParts {
             task: 0,
-            repository: Box::new([]),
-            pull: Some(Box::new([])),
             head: Some(HEAD),
             step: w::PublicStep::Opening,
             repair: None,
@@ -463,7 +461,6 @@ fn expected_landings() -> w::PublicLandings {
             queues: list([w::PublicQueue::new(
                 l,
                 w::PublicQueueParts {
-                    repository: Box::new([]),
                     changes: list([w::PublicQueued::new(
                         l,
                         w::PublicQueuedParts { task: 2, goal: 3, ready_since: 90 },
@@ -486,8 +483,7 @@ fn expected_landing() -> w::PublicLanding {
                     l,
                     w::PublicMemberParts {
                         task,
-                        repository: Box::new([]),
-                        pull: Some(Box::new([])),
+
                         base: Some(BASE),
                         candidate: Some(CANDIDATE),
                         landed: Some(MERGE),
@@ -498,7 +494,6 @@ fn expected_landing() -> w::PublicLanding {
                                 kind: w::PublicGateKind::Check,
                                 blocks: true,
                                 proof: w::PublicProof::Failed,
-                                run: Some(Box::from(RUN)),
                             },
                         )
                         .expect("proof")]),
@@ -666,11 +661,8 @@ fn the_largest_answers_fit_their_declared_bounds() {
         contexts: 2,
         refusal_bytes: 64,
     };
-    let change = d.public(&ask(w::PUBLIC_CHANGE, Some(CHANGE), &public), &limits).expect("bounded change");
-    let change = w::PublicChange::decode(&w::CEILINGS, &mut Reader::new(&change.record)).expect("change link");
-    assert_eq!(change.pull().as_ref().expect("pull").len(), 2048);
     let declared = temper_client_protocol_wire::public_bounds(&bounds);
-    assert_eq!(declared, [4927, 198_733, 165_794]);
+    assert_eq!(declared, [822, 67_405, 1562]);
     for ((kind, task), bound) in
         [(w::PUBLIC_CHANGE, Some(CHANGE)), (w::PUBLIC_LANDINGS, None), (w::PUBLIC_LANDING, Some(CHANGE))]
             .into_iter()
@@ -723,46 +715,7 @@ fn the_newest_landing_and_a_pin_only_member_obey_the_same_filter() {
     assert_eq!(landings(&d, &public).landings().len(), 1);
 }
 
-#[test]
-fn links_come_from_the_retained_forge_and_fake_links_are_empty() {
-    let mut d = setup();
-    let public = handed();
-    let record = ForgeRecord {
-        number: 1,
-        kind: Kind::Forgejo,
-        mode: Mode::Connected,
-        state: ForgeState::Kept,
-        place: Place {
-            api: Address { host: Box::from(b"forge.example".as_slice()), port: 443, tls: None },
-            git: Box::from(b"https://forge.example/".as_slice()),
-            web: None,
-        },
-        git_program: None,
-        read_only: false,
-        bot: Bot { login: Box::new([]), name: Box::new([]), email: Box::new([]) },
-        asked: false,
-        first: None,
-    };
-    let mut out = skein_lib::Queue::uncapped();
-    forges::save(&mut d, record.clone(), &mut out);
-    let made = change(&d, &public);
-    assert_eq!(made.repository(), b"https://forge.example/org/repo");
-    assert_eq!(made.pull().as_deref(), Some(b"https://forge.example/org/repo/pulls/1".as_slice()));
-    for kind in [Kind::GitHub, Kind::Forgejo] {
-        let mut record = record.clone();
-        record.kind = kind;
-        record.mode = Mode::Fake;
-        forges::save(&mut d, record, &mut out);
-        let made = change(&d, &public);
-        assert!(made.repository().is_empty());
-        assert_eq!(made.pull().as_deref(), Some(b"".as_slice()));
-    }
-}
-
 fn maximal_proofs(d: &mut Domain) {
-    // A 2012-byte base, /org/repo (9), /pulls/ (7) and u64::MAX (20) fill the 2048-byte link.
-    // Every member proof also carries a run address at its receiving bound.
-    d.configured.get_mut(&1).expect("forge").git = Box::new([b'a'; 2012]);
     let mut proof_gates = List::with_capacity(8);
     for number in 0..8_u64 {
         let name: Box<[u8]> = Box::from(skein_lib::Decimal::of(number).as_bytes());
@@ -781,7 +734,7 @@ fn maximal_proofs(d: &mut Domain) {
                 Receipt {
                     failures: None,
                     passed: false,
-                    run: ReceiptRun { id: 7, number: 7, url: Box::new([b'a'; 2048]) },
+                    run: ReceiptRun { id: 7, number: 7, url: Box::from(RUN) },
                     candidate: CANDIDATE,
                     ended: env().wall,
                 },

@@ -1,9 +1,8 @@
-//! Public forge mechanics and links (temper/docs/design/client/forge.md, 11.1 and 11.3).
-use super::{Draw, external};
+//! Public forge mechanics and commits (temper/docs/design/client/forge.md, 11.1 and 11.3).
+use super::Draw;
 use crate::words::{TimeForm, Word};
-use alloc::boxed::Box;
 use jig_client_protocol_wire::public_v1::PublicApplication;
-use skein_lib::{Wall, Writer};
+use skein_lib::Wall;
 use skein_ui::{Builder, Role, phrases::Hole};
 use temper_client_domain::{address::Public, forge::words::ChangeWord as W};
 use temper_client_protocol_wire::public_v1 as f;
@@ -26,12 +25,19 @@ impl Draw<'_> {
             b.open(Role::Region);
             self.paragraph(b, Word::PublicQueue);
             b.open(Role::List);
+            b.style(crate::look::PUBLIC_ROWS);
             for change in queue.changes() {
                 b.open(Role::Item);
+                b.style(crate::look::PUBLIC_ROW);
+                b.open(Role::Paragraph);
+                b.style(crate::look::PUBLIC_LINE);
                 self.task(b, app, change.task(), false);
+                self.text(b, Word::ToolSeparator);
                 self.task(b, app, change.goal(), true);
-                let time = self.times.say(self.words, TimeForm::Ago, seconds(change.ready_since()));
+                self.text(b, Word::ToolSeparator);
+                let time = self.times.public_time(self.words, TimeForm::Ago, seconds(change.ready_since()));
                 self.words.text(b, Word::PublicReadySince, &[Hole::Name(time)]);
+                b.close();
                 b.close();
             }
             b.close();
@@ -42,36 +48,42 @@ impl Draw<'_> {
         if let Some(turn) = landings.turn() {
             b.open(Role::Paragraph);
             self.text(b, Word::PublicTurn);
+            self.text(b, Word::ToolSeparator);
             self.landing_link(b, app, *turn);
             b.close();
         }
         self.queues(b, app, landings);
+        if landings.landings().is_empty() {
+            self.paragraph(b, Word::PublicNothingLanded);
+        }
         b.open(Role::List);
+        b.style(crate::look::PUBLIC_ROWS);
         for landing in landings.landings() {
             b.open(Role::Item);
+            b.style(crate::look::PUBLIC_ROW);
+            b.open(Role::Paragraph);
+            b.style(crate::look::PUBLIC_LINE);
             self.forge_words(b, landing_phase(landing.phase()), &[]);
             for task in landing.members() {
+                self.text(b, Word::ToolSeparator);
                 self.landing_link(b, app, *task);
             }
             for hash in landing.landed() {
                 if let Some(member) = landing.members().as_slice().first()
                     && let Some(task) = app.tasks().get(u32::from(*member))
                 {
-                    let hash = hex(hash);
-                    self.link(
-                        b,
-                        hash.get(..8).expect("short hash"),
-                        Public::Landing { project: self.project, task: *task },
-                    );
+                    self.text(b, Word::ToolSeparator);
+                    self.link(b, &short(hash), Public::Landing { project: self.project, task: *task });
                 }
             }
+            b.close();
             b.close();
         }
         b.close();
     }
     pub(super) fn change(&mut self, b: &mut Builder, _app: &PublicApplication, change: &f::PublicChange) {
         b.open(Role::Region);
-        b.style(crate::look::CHANGE);
+        b.style(crate::look::PUBLIC_SECTION);
         b.open(Role::Paragraph);
         self.forge_words(b, step(change.step()), &[]);
         b.close();
@@ -83,11 +95,16 @@ impl Draw<'_> {
             f::PublicCi::Passed => W::Passed,
             f::PublicCi::Failed => W::Failed,
         };
+        self.text(b, Word::ToolSeparator);
         self.forge_words(b, ci, &[]);
         b.close();
         b.open(Role::List);
+        b.style(crate::look::PUBLIC_ROWS);
         for gate in change.gates() {
             b.open(Role::Item);
+            b.style(crate::look::PUBLIC_ROW);
+            b.open(Role::Paragraph);
+            b.style(crate::look::PUBLIC_LINE);
             self.forge_words(b, gate_kind(gate.kind(), gate.blocks()), &[Hole::Number(gate.number())]);
             let verdict = match gate.verdict() {
                 f::PublicVerdict::None => W::NotYet,
@@ -95,18 +112,16 @@ impl Draw<'_> {
                 f::PublicVerdict::Approved => W::Approved,
                 f::PublicVerdict::Changes => W::Changes,
             };
+            self.text(b, Word::ToolSeparator);
             self.forge_words(b, verdict, &[]);
+            b.close();
             b.close();
         }
         b.close();
-        if let Some(pull) = change.pull() {
-            external(b, &self.words.say(Word::PublicChange, &[]), pull);
-        }
-        if let Some(hash) = change.head() {
-            commit(b, change.repository(), hash);
-        }
-        if let Some(hash) = change.merge() {
-            commit(b, change.repository(), hash);
+        if let Some(hash) = change.merge().as_ref().or(change.head().as_ref()) {
+            b.open(Role::Paragraph);
+            self.words.text(b, Word::PublicChange, &[Hole::Name(short(hash).as_slice().into())]);
+            b.close();
         }
         b.close();
     }
@@ -118,18 +133,25 @@ impl Draw<'_> {
             self.paragraph(b, Word::PublicTurn);
         }
         b.open(Role::List);
+        b.style(crate::look::PUBLIC_ROWS);
         for member in landing.members() {
             b.open(Role::Item);
+            b.style(crate::look::PUBLIC_ROW);
+            b.open(Role::Paragraph);
+            b.style(crate::look::PUBLIC_LINE);
             self.task(b, app, member.task(), false);
-            if let Some(pull) = member.pull() {
-                external(b, &self.words.say(Word::PublicChange, &[]), pull);
+            if let Some(hash) = member.landed().as_ref().or(member.candidate().as_ref()) {
+                self.text(b, Word::ToolSeparator);
+                self.words.text(b, Word::PublicChange, &[Hole::Name(short(hash).as_slice().into())]);
             }
-            for hash in [member.base(), member.candidate(), member.landed()].into_iter().flatten() {
-                commit(b, member.repository(), hash);
-            }
+            b.close();
             b.open(Role::List);
+            b.style(crate::look::PUBLIC_ROWS);
             for gate in member.gates() {
                 b.open(Role::Item);
+                b.style(crate::look::PUBLIC_ROW);
+                b.open(Role::Paragraph);
+                b.style(crate::look::PUBLIC_LINE);
                 self.forge_words(b, gate_kind(gate.kind(), gate.blocks()), &[Hole::Number(gate.number())]);
                 let proof = match gate.proof() {
                     f::PublicProof::Unkeyed | f::PublicProof::Keyed => W::NotYet,
@@ -137,10 +159,9 @@ impl Draw<'_> {
                     f::PublicProof::Passed => W::Passed,
                     f::PublicProof::Failed => W::Failed,
                 };
+                self.text(b, Word::ToolSeparator);
                 self.forge_words(b, proof, &[]);
-                if let Some(run) = gate.run() {
-                    external(b, &super::forge_text(self.words, proof, &[]), run);
-                }
+                b.close();
                 b.close();
             }
             b.close();
@@ -200,37 +221,12 @@ fn landing_phase(phase: &f::PublicLandingPhase) -> W {
         f::PublicLandingPhase::Cancelled => W::EndedLine,
     }
 }
-fn commit(b: &mut Builder, repository: &[u8], hash: &[u8; 32]) {
-    if !skein_ui::markdown::safe_url(repository) {
-        return;
+fn short(hash: &[u8; 32]) -> [u8; 7] {
+    let mut digits = [0; 7];
+    for (position, digit) in digits.iter_mut().enumerate() {
+        let byte = hash.get(position.checked_div(2).expect("nonzero divisor")).expect("short hash byte");
+        let nibble = if position.is_multiple_of(2) { byte >> 4_u8 } else { byte & 15_u8 };
+        *digit = *b"0123456789abcdef".get(usize::from(nibble)).expect("hex digit");
     }
-    let hash = hex(hash);
-    let mut writer = Writer::new(
-        repository
-            .len()
-            .checked_add(b"/commit/".len())
-            .expect("bounded repository")
-            .checked_add(hash.len())
-            .expect("bounded commit address"),
-    );
-    writer.put(repository).expect("repository");
-    writer.put(b"/commit/").expect("commit path");
-    writer.put(&hash).expect("hash");
-    external(b, hash.get(..8).expect("short hash"), &writer.finish());
-}
-fn hex(bytes: &[u8; 32]) -> Box<[u8]> {
-    let mut size = 20_usize;
-    for byte in bytes.get(20..).expect("fixed hash") {
-        if *byte != 0 {
-            size = 32;
-        }
-    }
-    let mut writer = Writer::new(size.checked_mul(2).expect("fixed hash"));
-    for byte in bytes.get(..size).expect("fixed hash") {
-        for nibble in [byte >> 4_u8, byte & 15_u8] {
-            let byte = *b"0123456789abcdef".get(usize::from(nibble)).expect("hex digit");
-            writer.put(&[byte]).expect("fixed hash");
-        }
-    }
-    writer.finish()
+    digits
 }

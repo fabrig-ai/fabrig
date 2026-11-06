@@ -79,6 +79,7 @@ pub struct LinkView<'a> {
     pub sign_out_lost: bool,
     pub not_signed_in: Option<NotSignedIn>,
     pub streams_full: Option<domain::StreamsFull>,
+    pub watches_full: bool,
     pub credential: Option<&'a Secret>,
 }
 #[derive(Debug)]
@@ -324,6 +325,7 @@ impl Client {
         LinkView {
             state: self.domain.link(),
             streams_full: self.domain.streams_full(),
+            watches_full: self.domain.watches_full(),
             party: self.domain.party(),
             not_served: self.domain.not_served(),
             sign_out_lost: self.sign_out_lost,

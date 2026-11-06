@@ -122,8 +122,7 @@ pub fn line(task: u64) -> c::PublicLine {
         changed: 2,
         active: Some(3),
         ended: None,
-        spent: 4,
-        budget: 5,
+        spent: None,
         delegates: c::PublicCounts { working: 1, waiting: 2, held: 3, closing: 4, ended: 5 },
     }
 }

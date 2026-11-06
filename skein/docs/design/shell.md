@@ -333,6 +333,13 @@ the ring adapter's:
   io through the same signalfd, as an event that the window changed
   (io.md, 7), and the service asks for the new size with a synchronous
   record (kernel.md, 6.3).
+- **A terminal's closing.** A service that is to stop when its terminal
+  closes opens its signals with `Watch::TerminationAndHangup`: startup
+  blocks `SIGHUP` with the termination signals, and it arrives as `Shutdown
+  { signal: Hangup }` (io.md, 7). A `SIGHUP` already ignored when startup
+  looks stays ignored and is not watched, as `nohup` asks: a blocked signal
+  reaches a signalfd whatever its disposition, so startup must look. A
+  service that does not ask keeps the default, and a hangup ends it at once.
 
 A service without a terminal never asks for any of this, and a line
 pipe needs none of it.
@@ -873,7 +880,8 @@ other module is safe Rust, the same on both systems.
   so a stopped or continued child's state now leaves `Wait` pending, and
   any other non-exit code still fails with the diagnostic.
 - **Signals to the service:** startup sets the signals the service
-  watches (`SIGINT`, `SIGTERM`, and `SIGWINCH` at a terminal) to be
+  watches (`SIGINT`, `SIGTERM`, `SIGWINCH` at a terminal, and `SIGHUP`
+  when asked and not already ignored, 6.3) to be
   ignored, which Darwin still reports to a kqueue, and opens a kqueue with
   an `EVFILT_SIGNAL` for each: the descriptor `ReadSignal` names, readable
   while one is pending. A `ReadSignal` takes one event without waiting and

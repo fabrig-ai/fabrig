@@ -176,3 +176,5 @@ fn the_first_link_opened_at_once_waits_and_signs_in() {
     );
     assert!(stderr == [box_link::PRELUDE, box_link::FOOTER].concat(), "no fresh-link separator");
 }
+
+mod lifetime;

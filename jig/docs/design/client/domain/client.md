@@ -635,6 +635,11 @@ handles, as every presentation does (sections 7 and 8).
   transport bound (`../../protocol/client.md`, 4 and 17.2). `Link(state)`
   tells the caller when this fact arrives even if the state is unchanged;
   it stays through retries until `me` returns or the sign-in ends.
+  `watches_full` says that a watch the client holds, `me`'s or an
+  application's, was last answered busy (8.1) and has had no answer since.
+  It clears when that watch is answered, or is closed or ended. It carries
+  no count, since a refusal names none, and tells no `Link(state)`: an
+  application reads it when it has cause to, as at a deadline.
 - **Judged from the stream alone,** whatever the application watches. A
   request that got no answer while the link is live is sent again after
   a backoff, and does not by itself make the client offline.
@@ -778,9 +783,12 @@ for any presentation of a chat or of any agent task's activity.
   thread keeps each turn's line, since the client holds only the turn
   being written (8.3). A line keeps its text's start, up to the thread's
   `live` bound, so it only grows; past the bound it stays as it is until
-  its committed turn takes its place. A turn lost with its host never commits: its
-  provisional text is dropped when the run ends, and the next run
-  starts after the last committed turn.
+  its committed turn takes its place. A run's end takes no line away by
+  itself, since its committed turn may be a read away and a person may be
+  reading those words: once the run has ended and the committed activity has
+  been read, a line no committed turn replaced goes. That is a turn lost with
+  its host, which never commits, and the next run starts after the last
+  committed turn.
 - **A person's words, in three states:** being sent, while their
   `Message` is pending; sent, once its answer names their message in
   the task's inbox; read, once a committed turn says it read through

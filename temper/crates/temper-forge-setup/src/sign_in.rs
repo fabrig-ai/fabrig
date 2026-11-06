@@ -143,20 +143,25 @@ impl Source {
     }
 }
 
-/// Forgejo's auth list is a table: its second column is the exact source name.
+/// The first column of the row whose second names `temper`.
 #[must_use]
-pub fn source_present(table: &[u8]) -> bool {
+pub fn source_id(table: &[u8]) -> Option<&[u8]> {
     let mut rest = table;
     while !rest.is_empty() {
         let end = bytes::find(rest, b"\n").unwrap_or(rest.len());
         let line = rest.get(..end).expect("line boundary");
-        let (_, columns) = column(line);
+        let (id, columns) = column(line);
         if column(columns).0 == b"temper" {
-            return true;
+            return Some(id);
         }
         rest = rest.get(end..).expect("line boundary").strip_prefix(b"\n").unwrap_or_default();
     }
-    false
+    None
+}
+/// Forgejo's auth list is a table: its second column is the exact source name.
+#[must_use]
+pub fn source_present(table: &[u8]) -> bool {
+    source_id(table).is_some()
 }
 
 fn column(input: &[u8]) -> (&[u8], &[u8]) {

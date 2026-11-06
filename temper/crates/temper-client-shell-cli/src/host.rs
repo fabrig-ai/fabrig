@@ -613,6 +613,12 @@ impl OneShot {
                 self.fail(format!("the engine's {} streams are all in use, by waits and open clients; end one, or wait and call again", full.size).as_bytes());
                 return;
             }
+            if self.root.client().link().watches_full {
+                self.fail(
+                    b"all the engine's watches are in use, by open pages and waits; close one, or wait and call again",
+                );
+                return;
+            }
             let line = if matches!(self.class, Class::SignIn | Class::SignOut) {
                 format!("the engine at {address} did not answer within 30 s")
             } else {
@@ -659,7 +665,7 @@ impl OneShot {
                 io::Event::Shutdown { signal, .. } => self.finish(
                     match signal {
                         ServiceSignal::Interrupt => limits::INTERRUPTED,
-                        ServiceSignal::Terminate => limits::TERMINATED,
+                        ServiceSignal::Terminate | ServiceSignal::Hangup => limits::TERMINATED,
                     },
                     true,
                 ),

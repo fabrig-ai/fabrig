@@ -1,7 +1,6 @@
 //! A landing reached through a public member (temper/docs/design/client/forge.md, 11.1).
 use super::{Names, phase, policy, w};
 use crate::{Check, Domain, ReceiptKey};
-use alloc::boxed::Box;
 use skein_lib::List;
 impl Domain {
     pub(super) fn make_landing(&self, row: &policy::Landing, names: &mut Names) -> Option<w::PublicLanding> {
@@ -12,7 +11,7 @@ impl Domain {
             let mut gates = List::with_capacity(l.public_member_gates);
             for (index, saved) in member.gates.iter().enumerate() {
                 let gate = self.landing.gates(row.project, change.repository).get(index)?;
-                let (proof, run) = self.public_proof(row, member_index, index, saved.proof)?;
+                let proof = self.public_proof(row, member_index, index, saved.proof)?;
                 gates
                     .push(
                         w::PublicGateProof::new(
@@ -22,7 +21,6 @@ impl Domain {
                                 kind: w::PublicGateKind::Check,
                                 blocks: gate.blocking,
                                 proof,
-                                run,
                             },
                         )
                         .ok()?,
@@ -35,8 +33,6 @@ impl Domain {
                         l,
                         w::PublicMemberParts {
                             task: names.name(member.change)?,
-                            repository: self.repository_address(change)?,
-                            pull: self.public_pull(change),
                             base: member.base,
                             candidate: member.candidate,
                             landed: member.landed,
@@ -75,9 +71,9 @@ impl Domain {
         member: usize,
         gate: usize,
         saved: policy::Proof,
-    ) -> Option<(w::PublicProof, Option<Box<[u8]>>)> {
+    ) -> Option<w::PublicProof> {
         let (key, mut proof) = match saved {
-            policy::Proof::Unkeyed => return Some((w::PublicProof::Unkeyed, None)),
+            policy::Proof::Unkeyed => return Some(w::PublicProof::Unkeyed),
             policy::Proof::Keyed { key } => (key, w::PublicProof::Keyed),
             policy::Proof::Dispatched { key, .. } => (key, w::PublicProof::Dispatched),
             policy::Proof::Passed { key } => (key, w::PublicProof::Passed),
@@ -86,29 +82,19 @@ impl Domain {
         let repository = self.changes.get(&row.members.get(member)?.change)?.repository;
         let name = &self.landing.gates(row.project, repository).get(gate)?.name;
         let key = ReceiptKey { project: row.project, repository, check: Check::Gate(name.clone()), key };
-        let mut run = None;
         if let Some(receipt) = self.landing.receipts.get(&key) {
             proof = if receipt.passed { w::PublicProof::Passed } else { w::PublicProof::Failed };
-            run = Some(receipt.run.url.clone());
         } else {
             let flight = match self.landing.flights.get(&key) {
                 Some(flight) => Some(flight),
                 None => self.landing.faults.get(&(row.task, u16::try_from(member).ok()?, u16::try_from(gate).ok()?)),
             };
-            if let Some(flight) = flight {
-                if flight.task != row.task {
-                    proof = w::PublicProof::Waiting;
-                } else if let Some(flight) = &flight.run {
-                    run = Some(flight.url.clone());
-                }
+            if let Some(flight) = flight
+                && flight.task != row.task
+            {
+                proof = w::PublicProof::Waiting;
             }
         }
-        if let Some(forge) = self.configured.get(&repository.forge)
-            && forge.mode == crate::Mode::Fake
-            && run.is_some()
-        {
-            run = Some(Box::default());
-        }
-        Some((proof, run))
+        Some(proof)
     }
 }

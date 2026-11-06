@@ -16,6 +16,8 @@ pub enum Watch {
     Termination,
     /// Read SIGINT, SIGTERM and SIGWINCH.
     TerminationAndWindow,
+    /// Read SIGINT, SIGTERM and SIGHUP, leaving a SIGHUP ignored at startup ignored.
+    TerminationAndHangup,
 }
 /// What startup found on its input descriptor.
 pub enum Input {

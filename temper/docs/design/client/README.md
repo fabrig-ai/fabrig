@@ -6478,6 +6478,12 @@ own tests:
 
 ## 11. Open questions
 
+- **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
+  signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),
+  while `temper open`'s refusals, the terminal's link instructions and the
+  command's help still name `temper serve`. A person may have run `temper box`.
+  Default: those words stay until a wording change covers the terminal and
+  command help; the request `ui-qa-small` names the browser paragraph alone.
 - **A line past `long_text`** (5.4): `standard` with no override takes a message of
   262,144 bytes (`../protocol/configuration.md`, 13.8), past `long_text`, and a page
   of its `documents.rows` lines can pass `document_bytes`. Its read ends and says so

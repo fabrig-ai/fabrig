@@ -46,11 +46,11 @@ pub(super) fn relations() {
     });
     for (name, broken) in [
         ("clients.public.rate_burst", 7),
-        ("clients.public.bytes_burst", 524_287),
-        ("clients.public.answer_bytes", 524_289),
+        ("clients.public.bytes_burst", super::PUBLIC_BYTES - 1),
+        ("clients.public.answer_bytes", super::PUBLIC_BYTES + 1),
         ("clients_http.public_calls", 5),
         ("clients.public.max_age", 61),
-        ("clients.public.answer_bytes", 198_732),
+        ("clients.public.answer_bytes", super::PUBLIC_ANSWER_BYTES - 1),
         ("core.public.goals", 0),
         ("core.public.ended", 0),
         ("core.public.lines", 0),
