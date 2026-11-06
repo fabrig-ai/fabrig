@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Form, Grant, GrantTable, Scheme};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, Token, Wall};
@@ -14,13 +15,8 @@ use crate::{
     CallKey, Core, Family, GoalRoute, Limits, PersonProposalRoute, RoutedCall, fresh, routing::flight::Flight,
 };
 
-pub(crate) fn fleet_grant(grant: jig_domain_link::Grant) -> fleet::Grant {
-    fleet::Grant {
-        form: fleet_form(grant.form),
-        account: grant.account,
-        generation: grant.generation,
-        valid: grant.valid,
-    }
+pub(crate) fn fleet_grant(grant: Grant) -> Grant {
+    Grant { form: fleet_form(grant.form), account: grant.account, generation: grant.generation, valid: grant.valid }
 }
 
 /// Destination of an accepted message after the task child saved it.
@@ -243,8 +239,8 @@ impl Core {
                 continue;
             }
             let table = match source.kind {
-                accounts::Kind::Program => fleet::GrantTable::Name,
-                accounts::Kind::SignIn | accounts::Kind::Key | accounts::Kind::None => fleet::GrantTable::Accounts,
+                accounts::Kind::Program => GrantTable::Name,
+                accounts::Kind::SignIn | accounts::Kind::Key | accounts::Kind::None => GrantTable::Accounts,
             };
             holds.push(fleet::GrantName { table, account: binding.source }).expect("provider names");
             if let Some(grant) = self.accounts.source_grant(binding.source, env.now) {
@@ -253,7 +249,7 @@ impl Core {
         }
         for number in &self.proofs.get(&task).expect("restored claim proof").credentials {
             holds
-                .push(fleet::GrantName { table: fleet::GrantTable::Application, account: *number })
+                .push(fleet::GrantName { table: GrantTable::Application, account: *number })
                 .expect("credential name room");
             if let Some(grant) = self.accounts.credential_grant(*number, env.now) {
                 grants.push(fleet_grant(grant)).expect("credential grant room");
@@ -566,13 +562,13 @@ impl Core {
     }
 }
 
-fn fleet_form(form: jig_domain_link::Form) -> fleet::Form {
+fn fleet_form(form: Form) -> Form {
     match form {
-        jig_domain_link::Form::Credential(scheme) => fleet::Form::Credential(match scheme {
-            jig_domain_link::Scheme::Bearer => fleet::Scheme::Bearer,
-            jig_domain_link::Scheme::Key => fleet::Scheme::Key,
+        Form::Credential(scheme) => Form::Credential(match scheme {
+            Scheme::Bearer => Scheme::Bearer,
+            Scheme::Key => Scheme::Key,
         }),
-        jig_domain_link::Form::Application => fleet::Form::Application,
-        jig_domain_link::Form::Program(name) => fleet::Form::Program(name),
+        Form::Application => Form::Application,
+        Form::Program(name) => Form::Program(name),
     }
 }

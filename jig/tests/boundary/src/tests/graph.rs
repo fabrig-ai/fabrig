@@ -331,6 +331,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-domain-authority",
                 "jig-domain-people",
                 "jig-domain-fleet",
+                "jig-domain-link",
                 "jig-domain-accounts",
                 "jig-domain-tasks",
                 "jig-domain-views",

@@ -1,5 +1,6 @@
 //! Standing admission facts survive history loss, but never blame an admitted host.
-use jig_domain_fleet::{self as fleet, AgentShortfall, Event, Hello, HelloRefusal, HostKind, Kinds};
+use jig_domain_fleet::{self as fleet, AgentShortfall, Event, HelloRefusal, HostKind, Kinds};
+use jig_domain_link::{Bounds, Hello};
 use skein_lib::{Duration, Env, Time, Token, Wall};
 
 use super::Fleet;
@@ -12,7 +13,7 @@ impl Fleet {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
         }
     }
-    fn at_hello(&mut self, channel: u64, at: u64, worker: u32, bounds: fleet::Bounds, stop_bound: Duration) {
+    fn at_hello(&mut self, channel: u64, at: u64, worker: u32, bounds: Bounds, stop_bound: Duration) {
         self.env.wall = Wall::from_nanos(at);
         self.send(Event::Hello {
             channel: Token::new(channel),
@@ -30,10 +31,10 @@ impl Fleet {
     fn refused(&self, kinds: Kinds) -> Option<(HostKind, u64, HelloRefusal)> {
         self.domain.standing_refusal(kinds).map(|(kind, record)| (kind, record.at.as_nanos(), record.why))
     }
-    fn short() -> fleet::Bounds {
-        fleet::Bounds { message_bytes: 9, ..jig_fleet_world::fixtures::bounds() }
+    fn short() -> Bounds {
+        Bounds { message_bytes: 9, ..jig_fleet_world::fixtures::bounds() }
     }
-    fn good() -> fleet::Bounds {
+    fn good() -> Bounds {
         jig_fleet_world::fixtures::bounds()
     }
     fn lost(&mut self, channel: u64) {

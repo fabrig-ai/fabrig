@@ -1,6 +1,7 @@
 //! The engine's local slots and worker-only charters at the fleet boundary.
 
-use jig_domain_fleet::{self as fleet, Answer, Domain, Event, Hello, HostKind, Kinds, Limits, Request};
+use jig_domain_fleet::{self as fleet, Answer, Domain, Event, HostKind, Kinds, Limits, Request};
+use jig_domain_link::{Bounds, Hello};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 
 fn step(domain: &mut Domain, limits: Limits, event: Event) -> Vec<Request> {
@@ -271,7 +272,7 @@ fn refs() -> jig_domain_fleet::Assignment {
 fn a_worker_refused_for_its_agent_hosts_nothing() {
     let limits = jig_fleet_world::LIMITS;
     let mut domain = waiting_worker(limits);
-    let bounds = fleet::Bounds { turns: 7, ..jig_fleet_world::fixtures::bounds() };
+    let bounds = Bounds { turns: 7, ..jig_fleet_world::fixtures::bounds() };
     assert_eq!(
         step(
             &mut domain,
@@ -354,7 +355,7 @@ fn startup_and_hello_check_only_the_charters_for_the_host_kind() {
     ] {
         let mut needs = worker_needs();
         needs.charters[0].kinds = kinds;
-        let bounds = fleet::Bounds { turns: 7, ..jig_fleet_world::fixtures::bounds() };
+        let bounds = Bounds { turns: 7, ..jig_fleet_world::fixtures::bounds() };
         let expected = applies.then_some(fleet::AgentShortfall::Turns { charter: 1 });
         assert_eq!(fleet::shortfall(&needs, &bounds, kind), expected);
         let limits = Limits { engine_slots: 1, ..jig_fleet_world::LIMITS };
@@ -392,9 +393,9 @@ fn startup_and_hello_check_only_the_charters_for_the_host_kind() {
 #[test]
 fn the_global_message_bound_applies_only_when_a_charter_does() {
     let needs = worker_needs();
-    let adequate = fleet::Bounds { message_bytes: 64, ..jig_fleet_world::fixtures::bounds() };
+    let adequate = Bounds { message_bytes: 64, ..jig_fleet_world::fixtures::bounds() };
     assert_eq!(fleet::shortfall(&needs, &adequate, HostKind::Worker), None);
-    let short = fleet::Bounds { message_bytes: 63, ..adequate };
+    let short = Bounds { message_bytes: 63, ..adequate };
     assert_eq!(fleet::shortfall(&needs, &short, HostKind::Worker), Some(fleet::AgentShortfall::Message));
     assert_eq!(fleet::shortfall(&needs, &short, HostKind::Engine), None);
 }

@@ -6,6 +6,7 @@ use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{SignOutResult, SourceName};
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -236,15 +237,15 @@ pub enum Held {
     /// A claimed host receives the parent's conversation references.
     Assign { channel: Token, run: Token, attempt: Token, activation: u64, assignment: fleet::Assignment },
     /// Replace the connected worker's whole program-source list after commit.
-    Sources { channel: Token, sources: Box<[fleet::SourceName]> },
+    Sources { channel: Token, sources: Box<[SourceName]> },
     /// Request a fresh observation of one named program source on this channel.
-    CheckSource { channel: Token, name: fleet::SourceName },
+    CheckSource { channel: Token, name: SourceName },
     /// Ask this channel to sign out one source, without retrying after loss.
-    SignOutSource { channel: Token, name: fleet::SourceName },
+    SignOutSource { channel: Token, name: SourceName },
     /// End one source sign-out; None means the channel could not confirm it.
-    SourceSignedOut { to: ReplyTo, channel: Token, name: fleet::SourceName, result: Option<fleet::SignOutResult> },
+    SourceSignedOut { to: ReplyTo, channel: Token, name: SourceName, result: Option<SignOutResult> },
     /// A grant follows every prior commit and its attempt's assignment (engine.md, 5.2).
-    Grant { channel: Token, run: Token, attempt: Token, grant: fleet::Grant },
+    Grant { channel: Token, run: Token, attempt: Token, grant: jig_domain_link::Grant },
     /// The host receives an answer under its original opaque call name.
     Relayed { channel: Token, run: Token, attempt: Token, call: Box<[u8]>, answer: Token },
     /// The host receives the same named label and words the root supplied.

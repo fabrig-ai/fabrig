@@ -2,7 +2,7 @@ use jig_core_world::fixtures::{ask_as, delegate, inbox_objects, live_row, member
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
-use jig_domain_link::{Form, Scheme};
+use jig_domain_link::{Form, Hello, Hosting, Phase, Scheme};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -281,16 +281,16 @@ fn pending_release_proposals_and_placed_holds_survive_a_restart() {
     s.world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
-        hello: jig_domain_fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(100),
             slots: 3,
             workstreams: Box::new([]),
-            hosting: Box::new([jig_domain_fleet::Hosting {
+            hosting: Box::new([Hosting {
                 run: Token::new(s.coordinator.0),
                 attempt: Token::new(s.coordinator.1),
-                phase: jig_domain_fleet::Phase::Active,
+                phase: Phase::Active,
             }]),
         },
     })));

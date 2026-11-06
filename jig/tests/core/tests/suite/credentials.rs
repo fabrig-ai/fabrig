@@ -4,6 +4,7 @@ use jig_core_world::world::World;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Form, Grant, Hello, Hosting, Phase, Scheme, SourceName};
 use jig_domain_people as people;
 use jig_test_domain as root;
 use jig_test_profile::fixtures::CREDENTIAL_RESOURCE;
@@ -35,16 +36,12 @@ fn hello(world: &mut World) {
     let hosting = world
         .assignments
         .iter()
-        .map(|(task, attempt)| fleet::Hosting {
-            run: Token::new(*task),
-            attempt: Token::new(*attempt),
-            phase: fleet::Phase::Active,
-        })
+        .map(|(task, attempt)| Hosting { run: Token::new(*task), attempt: Token::new(*attempt), phase: Phase::Active })
         .collect();
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),
@@ -54,7 +51,7 @@ fn hello(world: &mut World) {
         },
     })));
 }
-fn received(world: &World) -> (Token, fleet::Grant) {
+fn received(world: &World) -> (Token, Grant) {
     let (_, task, _, grant) = world.received_grant().expect("host received a credential grant");
     (task, grant)
 }
@@ -70,8 +67,8 @@ fn a_run_needing_a_credential_waits_until_it_is_granted() {
 fn the_assignment_carries_the_credential_named_by_its_table() {
     let world = delegated(151);
     let assignment = world.assigned.as_ref().expect("the delegate is assigned");
-    assert!(assignment.grants.contains(&jig_domain_link::Grant {
-        form: jig_domain_link::Form::Application,
+    assert!(assignment.grants.contains(&Grant {
+        form: Form::Application,
         account: WORKSPACE_CREDENTIAL,
         generation: 3,
         valid: Duration::from_secs(60),
@@ -86,8 +83,8 @@ fn a_new_credential_generation_reaches_the_live_run() {
         received(&world),
         (
             Token::new(task),
-            fleet::Grant {
-                form: fleet::Form::Application,
+            Grant {
+                form: Form::Application,
                 account: WORKSPACE_CREDENTIAL,
                 generation: 4,
                 valid: Duration::from_secs(60),
@@ -106,8 +103,8 @@ fn an_adopted_run_is_sent_its_credential_again() {
         received(&world),
         (
             Token::new(task),
-            fleet::Grant {
-                form: fleet::Form::Application,
+            Grant {
+                form: Form::Application,
                 account: WORKSPACE_CREDENTIAL,
                 generation: 4,
                 valid: Duration::from_secs(60),
@@ -341,13 +338,13 @@ fn the_deployment_watch_shows_the_deployments_accounts_and_not_a_partys_own() {
 fn a_sources_form_reaches_the_fleet_as_the_component_named_it() {
     const SECOND_ANALYST: u32 = 2;
     let mut world = jig_core_world::fixtures::waiting_on_source(166, SECOND_ANALYST);
-    world.announce_grant(SECOND_ANALYST, 1, jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key));
+    world.announce_grant(SECOND_ANALYST, 1, Form::Credential(Scheme::Key));
     assert_eq!(
         world.assigned.as_ref().expect("the fleet started the run").grants[0].form,
-        jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key),
+        Form::Credential(Scheme::Key),
     );
     hello(&mut world);
-    assert_eq!(received(&world).1.form, fleet::Form::Credential(fleet::Scheme::Key));
+    assert_eq!(received(&world).1.form, Form::Credential(Scheme::Key));
 }
 
 fn party(world: &World, sign_in: u64) -> u64 {
@@ -788,7 +785,7 @@ fn an_adopted_program_run_is_sent_its_grant_again() {
     let (received_task, grant) = received(&world);
     assert_eq!(
         (received_task, grant.form, grant.account, grant.generation),
-        (Token::new(task), fleet::Form::Program(fleet::SourceName::new(b"personal").expect("source name")), 1, 2)
+        (Token::new(task), Form::Program(SourceName::new(b"personal").expect("source name")), 1, 2)
     );
     assert!(grant.valid > accounts::KEY_VALID);
 }

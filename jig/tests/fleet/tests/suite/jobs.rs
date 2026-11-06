@@ -1,8 +1,6 @@
 //! Job hosts in the fleet's scripted world (jig/docs/design/domain/engine.md, 7.5).
-use jig_domain_fleet::{
-    Answer, Call, Domain, Event, Hello, HelloRefusal, Hosting, Limits, Message, Phase, Request, Undelivered,
-};
-use jig_domain_link::{JobBound, JobKind};
+use jig_domain_fleet::{Answer, Call, Domain, Event, HelloRefusal, Limits, Message, Request, Undelivered};
+use jig_domain_link::{Form, Grant, Hello, Hosting, JobBound, JobKind, Phase};
 use jig_fleet_world::{Settings, World, fixtures};
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 const LIMITS: Limits = Limits { grace: Duration::from_secs(10), ..jig_fleet_world::LIMITS };
@@ -214,12 +212,7 @@ fn a_worker_never_gets_a_message_or_relay_for_a_job() {
     );
     assert!(
         h.step(Event::Grant {
-            grant: jig_domain_fleet::Grant {
-                form: jig_domain_fleet::Form::Application,
-                account: 1,
-                generation: 2,
-                valid: Duration::from_secs(10)
-            }
+            grant: Grant { form: Form::Application, account: 1, generation: 2, valid: Duration::from_secs(10) }
         })
         .is_empty()
     );

@@ -2,7 +2,7 @@
 //! root outputs, and the component's answers reach the accounts child and the party's outcome
 //! (`domain/people.md`, 5.1; `domain/accounts.md`, 3.3 and section 5).
 use crate::tests::*;
-use jig_domain_link::{Form, Scheme};
+use jig_domain_link::{Form, Membership, Scheme};
 
 const PARTY: accounts::Holder = accounts::Holder::Party(1);
 const SIGN_IN: u64 = 9;
@@ -240,7 +240,7 @@ fn program_sign_out_routes_the_offline_member_result() {
     let mut providers = core.settings.llm_providers.clone();
     providers.providers[0].offers.programs = Box::new([b"claude_code".as_slice().into()]);
     core.accounts = accounts::Domain::new(&env.limits.accounts, providers);
-    let membership = fleet::Membership::new(
+    let membership = Membership::new(
         Box::new([b"offline".as_slice().into()]),
         env.limits.fleet.configured_workers,
         env.limits.fleet.worker_name_bytes,

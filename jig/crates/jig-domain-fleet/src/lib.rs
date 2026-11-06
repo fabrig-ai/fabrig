@@ -57,8 +57,9 @@ mod call;
 mod channel;
 mod programs;
 mod sources;
-pub use jig_domain_link::{
-    Membership, PROGRAM_ENDPOINTS, Problem as WorkerProblem, SourceName, Worker, valid_program_endpoints,
+use jig_domain_link::{
+    Bounds, CountKind, Form, Grant, Login, LoginState, Membership, ModelBound, Operation, SignOutResult, SourceName,
+    Worker, valid_program_endpoints,
 };
 pub use programs::{ProgramResult, WORKER_NAME};
 mod domain;
@@ -85,7 +86,5 @@ pub use progress::{Activity, Observation, Report};
 
 pub use needs::{CATALOGUE_MODELS, CATALOGUE_NAME_BYTES};
 
-pub use jig_domain_link::{
-    Bounds, CountKind, Form, Grant, GrantTable, Hello, Hosting, Login, LoginMethod, LoginState, ModelBound, Operation,
-    Phase, Scheme, SignOutResult, SourceFailure,
-};
+#[cfg(test)]
+use jig_domain_link::{Hello, Hosting, PROGRAM_ENDPOINTS, Phase, Scheme};

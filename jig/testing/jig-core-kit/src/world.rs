@@ -6,6 +6,7 @@ use crate::Store;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Grant, Hello};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
@@ -113,7 +114,7 @@ pub struct World {
     pub answers: Vec<(Token, core::CallKey, core::CallPart)>,
     pub assigned: Option<root::Assignment>,
     last_read: Option<u64>,
-    received_grant: Option<(Token, Token, Token, fleet::Grant)>,
+    received_grant: Option<(Token, Token, Token, Grant)>,
     grant_follows_assignment: bool,
     renew_on_running: Option<accounts::FromComponent>,
     pub fail_account_before_workspace: bool,
@@ -225,7 +226,7 @@ impl World {
         self.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
             worker,
             channel,
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: kinds,
                 bounds,
                 stop_bound: Duration::from_millis(100),
