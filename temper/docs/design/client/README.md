@@ -4798,7 +4798,7 @@ section 5.
   read capacity, or sign-in still settling) retries after one second, doubling
   to at most 30 seconds; a successful answer resets the wait. Kind 7 retries
   while its project is open, kind 6 while the tab is open; leaving that scope
-  drops its retry. Until read, or if refused, the optional entries,
+  drops its retry. Until first read, or after a lasting refusal, the optional entries,
   the tab's live controls and `drafts` all read as hidden, off and absent; a
   value of none reads as the stock (`../protocol/configuration.md`, 13.4).
 - **Its acts:** each live control sends at once jig's `ChangeSettings` with one
