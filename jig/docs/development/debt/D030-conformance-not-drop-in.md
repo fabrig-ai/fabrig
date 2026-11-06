@@ -3,7 +3,7 @@
 - **Kind:** tests
 - **Where:** `jig/testing/jig-conformance/src/harness.rs`, `jig/testing/jig-core-kit/src/conformance.rs`, `jig/tests/conformance/src/lib.rs`, `jig/tests/ops/src/conformance/mod.rs`, `jig/tests/ops/src/joint/engine.rs`, `temper/tests/conformance/src/lib.rs`
 - **Seen:** 2026-10-31 at `c30cf6a03`, in the jig code-quality review (T6 "the conformance world is not drop-in", A11 F1, F2; order of work, item 18)
-- **Checked:** 2026-11-06 at `82d63043ff`
+- **Checked:** 2026-11-06
 - **Value:** medium (an application adopts the kit without adapters of its own)
 - **Size:** M (five mixed boundary functions across four adopters)
 - **Status:** open
@@ -26,7 +26,7 @@ brace; attributes are outside those counts.
 | Adopter | Impl lines | `deliver` | `poll` | `inbound` | `cold` | `observed` |
 |---|---:|---:|---:|---:|---:|---:|
 | `Testing` | 478 | 155 | 45 | 12 | 6 | 18 |
-| `Ops` | 764 | 375 | 105 | 19 | 11 | 54 |
+| `Ops` | 766 | 375 | 105 | 19 | 11 | 56 |
 | `OpsApplication` | 328 | 166 | 32 | 12 | 6 | 39 |
 | temper's `Temper` | 522 | 72 | 102 | 30 | 27 | 62 |
 

@@ -61,7 +61,7 @@ fn a_read_of_a_refused_task_is_not_checked() {
 fn a_read_fault_makes_only_its_reading_task_unsound() {
     let motd = fixtures::declaration(&[], &[fixtures::read(b"mail", &[])]);
     let documents = fixtures::declarations(&[(b"core", Some(fixtures::declaration(&[], &[]))), (b"motd", Some(motd))]);
-    let mut faults = skein_lib::List::with_capacity(4);
+    let mut faults = skein_lib::List::uncapped();
     let defaults = crate::schema::declarations(
         &documents,
         documents.entries(),
@@ -77,7 +77,7 @@ fn sound_tasks_are_looked_up_in_name_order() {
         (b"a_b", Some(fixtures::declaration(&[], &[]))),
         (b"a", Some(fixtures::declaration(&[], &[]))),
     ]);
-    let mut faults = skein_lib::List::with_capacity(4);
+    let mut faults = skein_lib::List::uncapped();
     let defaults = crate::schema::declarations(
         &documents,
         documents.entries(),

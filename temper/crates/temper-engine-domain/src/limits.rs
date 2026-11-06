@@ -67,6 +67,9 @@ pub struct Limits {
     pub policy_bytes: u64,
     /// Configured settled-call byte budget, independent of journal capacity.
     pub call_answer_bytes: u32,
+    /// The longest host answer the local agent takes, its `host_reply_text`;
+    /// `None` in a process with no local agent's metadata.
+    pub host_reply_bytes: Option<u32>,
     /// Settings history and value bounds parsed by jig.
     pub settings: jig_domain_core::settings::Limits,
     /// Forge connector subtree and its bounded outbox.
@@ -97,6 +100,19 @@ pub struct BriefBudgets {
     pub attempts: u32,
     pub plan: u32,
     pub notes: u32,
+}
+
+/// The most words one task read holds (temper/docs/design/domain/root.md, 5.2).
+pub(crate) fn task_read_room(limits: &Limits) -> u32 {
+    match limits.host_reply_bytes {
+        None => limits.documents.text_bytes,
+        Some(reply) => {
+            let carrier = jig_domain_core::reads::run_task::answer_carrier_bound(&core_limits(limits))
+                .expect("admitted task-read carrier fits u64");
+            let journal = u64::from(limits.journal.transcript_bytes).saturating_sub(carrier);
+            reply.min(limits.call_answer_bytes).min(u32::try_from(journal).expect("room is within u32 journal"))
+        }
+    }
 }
 
 pub(crate) fn environment_core(env: &Env<Limits>) -> Env<jig_domain_core::Limits> {
@@ -438,4 +454,22 @@ fn brief_fetches(limits: &Limits) -> Option<u32> {
 }
 fn inbox_slots(limits: &Limits) -> Option<u32> {
     limits.tasks.tasks.checked_mul(2)?.checked_add(limits.tasks.inbox_messages)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn task_read_room_reserves_the_journal_carrier() {
+        let mut limits = crate::tests::resume_fixture::limits();
+        limits.host_reply_bytes = Some(2048);
+        let carrier =
+            u32::try_from(jig_domain_core::reads::run_task::answer_carrier_bound(&core_limits(&limits)).unwrap())
+                .unwrap();
+        limits.journal.transcript_bytes = carrier + 8;
+        assert_eq!(task_read_room(&limits), 8);
+        limits.journal.transcript_bytes = carrier - 1;
+        assert_eq!(task_read_room(&limits), 0, "metadata cannot underflow the door's room");
+    }
 }

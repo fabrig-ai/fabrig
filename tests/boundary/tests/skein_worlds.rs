@@ -12,6 +12,7 @@ struct Dependency {
     name: String,
     directory: PathBuf,
     dev: bool,
+    features: Vec<String>,
 }
 
 struct Package {
@@ -58,6 +59,12 @@ fn packages(metadata: &str) -> Vec<Package> {
                         name: dependency["name"].as_str().expect("dependency name").to_owned(),
                         directory: normalized(path.strip_prefix(root).unwrap_or(path)),
                         dev: dependency["kind"].as_str() == Some("dev"),
+                        features: dependency["features"]
+                            .as_array()
+                            .expect("dependency features")
+                            .iter()
+                            .map(|feature| feature.as_str().expect("dependency feature").to_owned())
+                            .collect(),
                     })
                 })
                 .collect(),
@@ -73,6 +80,27 @@ fn world_edges(packages: &[Package]) -> Vec<String> {
                 && !(dependency.dev && dependency.directory == package.directory)
             {
                 failures.push(format!("{} -> {}: {}", package.name, dependency.name, dependency.directory.display()));
+            }
+        }
+    }
+    failures.sort();
+    failures.dedup();
+    failures
+}
+
+/// The seam's one world (skein/docs/design/forge-connection.md, 10).
+fn seam_edges(packages: &[Package]) -> Vec<String> {
+    let mut failures = Vec::new();
+    for package in packages {
+        for dependency in &package.dependencies {
+            if dependency.name == "skein-forge-connection"
+                && dependency.features.iter().any(|feature| feature == "seam")
+                && package.name != "skein-forge-machine-world"
+            {
+                failures.push(format!(
+                    "{} -> {}: seam is private to skein-forge-machine-world",
+                    package.name, dependency.name
+                ));
             }
         }
     }
@@ -157,6 +185,7 @@ fn dependency_paths_hold_for_every_kind_and_tree() {
                 "name": "consumer", "manifest_path": format!("/workspace/{directory}/Cargo.toml"),
                 "dependencies": [{
                     "name": "provider", "rename": "alias", "kind": kind, "target": "cfg(unix)",
+                    "features": [],
                     "path": format!("/workspace/{dependency}/../{}/", Path::new(dependency).file_name().expect("directory").to_string_lossy()),
                 }, { "name": "registry", "kind": null }],
             }],
@@ -164,6 +193,34 @@ fn dependency_paths_hold_for_every_kind_and_tree() {
         let failures = world_edges(&packages(&metadata.to_string()));
         let expected = if expected { vec![format!("consumer -> provider: {dependency}")] } else { vec![] };
         assert_eq!(failures, expected, "{directory} -> {dependency}, {kind}");
+    }
+}
+
+#[test]
+fn seam_is_private_to_the_machine_world() {
+    for (consumer, kind, features, expected) in [
+        ("skein-forge-machine-world", Value::Null, vec!["seam"], false),
+        ("consumer", Value::Null, vec!["seam"], true),
+        ("consumer", Value::from("dev"), vec!["seam"], true),
+        ("consumer", Value::Null, vec![], false),
+    ] {
+        let metadata = serde_json::json!({
+            "workspace_root": "/workspace",
+            "packages": [{
+                "name": consumer, "manifest_path": "/workspace/consumer/Cargo.toml",
+                "dependencies": [{
+                    "name": "skein-forge-connection", "rename": "alias", "kind": kind,
+                    "path": "/workspace/skein/crates/skein-forge-connection", "features": features,
+                }],
+            }],
+        });
+        let failures = seam_edges(&packages(&metadata.to_string()));
+        let expected = if expected {
+            vec!["consumer -> skein-forge-connection: seam is private to skein-forge-machine-world"]
+        } else {
+            vec![]
+        };
+        assert_eq!(failures, expected, "{consumer}, {kind}, {features:?}");
     }
 }
 
@@ -206,6 +263,7 @@ fn skein_worlds_are_private_to_their_packages() {
         assert!(packages.iter().any(|package| package.directory.starts_with(tree)), "metadata reads {tree}");
     }
     let mut failures = world_edges(&packages);
+    failures.extend(seam_edges(&packages));
     failures.extend(path_crossings(&root));
     assert!(
         failures.is_empty(),

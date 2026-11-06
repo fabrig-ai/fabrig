@@ -54,9 +54,9 @@ spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
-2026-11-05 has 8,192, which the web and terminal clients refuse, so a spec
-reads in pieces of it (`protocol/setup.md`). A green head ends a CI repair and a
-hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
+2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
+reads a spec in pieces of it (`protocol/setup.md`). A green head ends a CI repair
+and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s
 `held:` line calls a cancelled delegate failed (`domain/forge.md`). A failed
@@ -178,7 +178,10 @@ numbers in a chat's card, whose items the sheet makes flex, and a document page'
 takes the browser's margins (`client/browser.md`). temper's own way stands on
 Configure, departing from the request `configure-temper-own-way` in its reference's
 words and look (`client/README.md`), but no walk on record presses its acts and no
-render has drawn its picture as a numbered list (`client/browser.md`). Every confirmation of a chat, a
+render has drawn its picture as a numbered list (`client/browser.md`). The words being written draw an
+empty message in the dots' place until they hold a word, their "▍" falls below a closed
+fence, a last block still open changes as it commits, and no browser test draws them
+(`client/README.md`). Every confirmation of a chat, a
 task or a card is one sheet, but a closed chat hides every "Decision made", where the
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
 effect's choice closes its sheet, no walk on record presses Accept, a task's Cancel, an

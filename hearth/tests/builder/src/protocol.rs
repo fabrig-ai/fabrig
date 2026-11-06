@@ -81,10 +81,10 @@ impl World {
             protocol,
             domain_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.domain },
             protocol_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.protocol },
-            calls: Queue::with_capacity(fixtures::PROTOCOL_QUEUE),
-            answers: Queue::with_capacity(fixtures::PROTOCOL_QUEUE),
-            asked: Queue::with_capacity(fixtures::PROTOCOL_QUEUE),
-            told: Queue::with_capacity(fixtures::PROTOCOL_QUEUE),
+            calls: Queue::uncapped(),
+            answers: Queue::uncapped(),
+            asked: Queue::uncapped(),
+            told: Queue::uncapped(),
             schedule: Schedule::new(),
             ordered: BTreeMap::new(),
             rng: skein_lib::Rng::new(seed),
@@ -95,9 +95,7 @@ impl World {
             let now = self.protocol_env.now;
             self.below.step(now);
             self.schedule_events(now);
-            if self.told.room() > 0
-                && let Some(told) = self.schedule.next(now)
-            {
+            if let Some(told) = self.schedule.next(now) {
                 self.told.push(told);
             }
             self.iterate();
@@ -156,26 +154,20 @@ impl World {
         }
     }
     fn iterate(&mut self) {
-        if self.calls.room() > 0 && self.asked.room() > 0 {
-            protocol::fire(&mut self.protocol, &self.protocol_env, &mut self.calls, &mut self.asked);
-            if self.protocol.work_pending() {
-                protocol::resume(&mut self.protocol, &self.protocol_env, &mut self.calls, &mut self.asked);
-            } else if let Some(told) = self.told.pop() {
-                protocol::up(&mut self.protocol, &self.protocol_env, told, &mut self.calls, &mut self.asked);
-            }
+        protocol::fire(&mut self.protocol, &self.protocol_env, &mut self.calls, &mut self.asked);
+        if self.protocol.work_pending() {
+            protocol::resume(&mut self.protocol, &self.protocol_env, &mut self.calls, &mut self.asked);
+        } else if let Some(told) = self.told.pop() {
+            protocol::up(&mut self.protocol, &self.protocol_env, told, &mut self.calls, &mut self.asked);
         }
-        if self.answers.room() >= builder::MAX_OUT_RESUME.max(builder::MAX_OUT) {
-            if self.domain.work_pending() {
-                builder::resume(&mut self.domain, &self.domain_env, &mut self.answers);
-            } else if let Some(event) = self.calls.pop() {
-                builder::step(&mut self.domain, &self.domain_env, event, &mut self.answers);
-            } else {
-                builder::fire(&mut self.domain, &self.domain_env, &mut self.answers);
-            }
+        if self.domain.work_pending() {
+            builder::resume(&mut self.domain, &self.domain_env, &mut self.answers);
+        } else if let Some(event) = self.calls.pop() {
+            builder::step(&mut self.domain, &self.domain_env, event, &mut self.answers);
+        } else {
+            builder::fire(&mut self.domain, &self.domain_env, &mut self.answers);
         }
         if self.protocol.takes()
-            && self.calls.room() > 0
-            && self.asked.room() > 0
             && let Some(request) = self.answers.pop()
         {
             protocol::down(&mut self.protocol, &self.protocol_env, request, &mut self.calls, &mut self.asked);

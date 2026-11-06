@@ -803,6 +803,8 @@ pub enum NamedAction {
         field: crate::reads::TaskTextField,
         task: u64,
         from: u64,
+        /// The most words this answer holds, named by its application (engine.md, 7.3).
+        room: u32,
     },
     /// A settings read decides nothing and keeps no call record (engine.md, 7.3).
     Settings(crate::reads::SettingsRead),
