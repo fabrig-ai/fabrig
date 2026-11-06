@@ -84,7 +84,7 @@ fn a_drawing_past_the_trees_bound_asserts() {
     builder.drawing(DrawingKind { owner: Owner { number: 65_536 }, kind: 1 }, b"name", b"123456789", 16);
 }
 
-const BINDING_ROLES: &[(Role, bool)] = &[
+pub(super) const BINDING_ROLES: &[(Role, bool)] = &[
     (Role::Page, false),
     (Role::Banner, false),
     (Role::Navigation, false),
@@ -119,7 +119,7 @@ const BINDING_ROLES: &[(Role, bool)] = &[
     (Role::Dialog, false),
     (Role::Status, false),
     (Role::Alert, false),
-    (Role::Log, false),
+    (Role::Log, true),
     (Role::Tree, false),
     (Role::TreeItem, false),
     (Role::Tabs, false),

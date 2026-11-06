@@ -20,6 +20,10 @@ pub const STYLESHEET: &[u8] = include_bytes!("../skein-ui.css");
 /// What the application gives the bundler.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Inputs {
+    pub gzip: bool,
+    /// The page's title; the application's name where `None`.
+    pub title: Option<String>,
+    pub placeholder: Option<Placeholder>,
     pub name: String,
     /// One or more segments, with one leading and one trailing slash.
     pub prefix: String,
@@ -29,6 +33,13 @@ pub struct Inputs {
     pub page: Option<PathBuf>,
     pub files: Option<PathBuf>,
     pub noscript: String,
+}
+
+/// What a page with a placeholder paints first (ui-web.md, 4.3).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Placeholder {
+    pub markup: PathBuf,
+    pub stylesheet: PathBuf,
 }
 
 /// The glue generated for one module, including its imported snippets.
@@ -57,6 +68,8 @@ pub enum Refusal {
     SameName { file: PathBuf },
     Glue,
     NoMarker { page: PathBuf },
+    NoNoscriptMarker { markup: PathBuf },
+    PlaceholderWithPage { page: PathBuf },
     Io { path: PathBuf },
 }
 
@@ -71,8 +84,10 @@ pub fn bundle(inputs: &Inputs, glue: &Glue, out: &Path) -> Result<Digest, Refusa
 
 /// `bundle` with a worker module (playground.md, 7).
 pub fn bundle_with(inputs: &Inputs, glue: &Glue, worker: Option<&Worker>, out: &Path) -> Result<Digest, Refusal> {
+    if let (Some(page), Some(_)) = (&inputs.page, &inputs.placeholder) {
+        return Err(Refusal::PlaceholderWithPage { page: page.clone() });
+    }
     let mut files = BTreeMap::new();
-    files.insert("boot.js".into(), page::starter(&inputs.name));
     files.insert("skein-ui.css".into(), STYLESHEET.to_vec());
     insert(&mut files, format!("{}.js", inputs.name), glue.js.clone(), Path::new(&inputs.name))?;
     insert(&mut files, format!("{}_bg.wasm", inputs.name), glue.wasm.clone(), Path::new(&inputs.name))?;
@@ -93,7 +108,7 @@ pub fn bundle_with(inputs: &Inputs, glue: &Glue, worker: Option<&Worker>, out: &
             insert(&mut files, name, bytes.clone(), Path::new(path))?;
         }
     }
-    for path in &inputs.stylesheets {
+    for path in inputs.stylesheets.iter().chain(inputs.placeholder.iter().map(|placeholder| &placeholder.stylesheet)) {
         let name = path.file_name().and_then(|name| name.to_str()).ok_or_else(|| Refusal::Io { path: path.clone() })?;
         if name == "skein-ui.css" {
             return Err(Refusal::ReservedName { file: path.clone() });
@@ -106,6 +121,14 @@ pub fn bundle_with(inputs: &Inputs, glue: &Glue, worker: Option<&Worker>, out: &
     if let Some(directory) = &inputs.files {
         collect(directory, "files", &mut files)?;
     }
+    if inputs.gzip {
+        compress(&mut files)?;
+    }
+    let starter = if inputs.placeholder.is_some() { page::loader(inputs, &files) } else { page::starter(&inputs.name) };
+    if inputs.gzip {
+        files.insert("boot.js.gz".into(), compressed("boot.js", &starter)?);
+    }
+    files.insert("boot.js".into(), starter);
     let digest = digest::of(&files);
     if let Some(path) = &inputs.page
         && types::of(path).is_none()
@@ -127,6 +150,26 @@ pub fn bundle_with(inputs: &Inputs, glue: &Glue, worker: Option<&Worker>, out: &
     let index = out.join("index.html");
     io(&index, fs::write(&index, page))?;
     Ok(digest)
+}
+
+// Generated forms bypass the closed input type list; inputs cannot name a .gz.
+fn compress(files: &mut BTreeMap<String, Vec<u8>>) -> Result<(), Refusal> {
+    let mut forms = BTreeMap::new();
+    for (name, bytes) in files.iter() {
+        if types::gzipped(Path::new(name)) {
+            forms.insert(format!("{name}.gz"), compressed(name, bytes)?);
+        }
+    }
+    files.append(&mut forms);
+    Ok(())
+}
+
+fn compressed(name: &str, bytes: &[u8]) -> Result<Vec<u8>, Refusal> {
+    use std::io::Write;
+    let path = Path::new(name);
+    let mut encoder = flate2::GzBuilder::new().mtime(0).write(Vec::new(), flate2::Compression::best());
+    io(path, encoder.write_all(bytes))?;
+    io(path, encoder.finish())
 }
 
 fn collect(directory: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Result<(), Refusal> {
@@ -151,10 +194,10 @@ fn insert(files: &mut BTreeMap<String, Vec<u8>>, name: String, bytes: Vec<u8>, s
     if !Path::new(&name).components().all(|part| matches!(part, std::path::Component::Normal(_))) {
         return Err(Refusal::Io { path: source.to_owned() });
     }
-    if types::of(Path::new(&name)).is_none() {
+    if name.chars().any(char::is_control) || types::of(Path::new(&name)).is_none() {
         return Err(Refusal::Type { file: source.to_owned() });
     }
-    if files.contains_key(&name) {
+    if name == "boot.js" || files.contains_key(&name) {
         return Err(Refusal::SameName { file: source.to_owned() });
     }
     files.insert(name, bytes);
@@ -167,6 +210,10 @@ impl fmt::Display for Refusal {
             Self::Type { file } => write!(f, "unsupported bundle type: {}", file.display()),
             Self::ReservedName { file } => write!(f, "reserved stylesheet name: {}", file.display()),
             Self::SameName { file } => write!(f, "duplicate bundle name: {}", file.display()),
+            Self::NoNoscriptMarker { markup } => {
+                write!(f, "placeholder has no {{noscript}} marker: {}", markup.display())
+            }
+            Self::PlaceholderWithPage { page } => write!(f, "placeholder beside an own page: {}", page.display()),
             Self::NoMarker { page } => write!(f, "page has no {{bundle}} marker: {}", page.display()),
             Self::Io { path } => write!(f, "cannot read or write: {}", path.display()),
             Self::Glue => f.write_str("cannot generate module glue"),

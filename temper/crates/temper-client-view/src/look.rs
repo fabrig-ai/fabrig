@@ -132,8 +132,8 @@ pub const GOALS_STATE_PLANNING: Style = Style { owner: owner(), token: 291 };
 pub const GOALS_STATE_PAUSED: Style = Style { owner: owner(), token: 292 };
 /// A landed goal (client/README.md, 3.5).
 pub const GOALS_STATE_LANDED: Style = Style { owner: owner(), token: 293 };
-/// A stopped or failed goal (client/README.md, 3.5).
-pub const GOALS_STATE_STOPPED: Style = Style { owner: owner(), token: 294 };
+/// A closed or failed goal (client/README.md, 3.5).
+pub const GOALS_STATE_CLOSED: Style = Style { owner: owner(), token: 294 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
 pub const CHANGES: Style = Style { owner: owner(), token: 180 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
@@ -970,7 +970,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-goals-state-planning",
         b"temper-goals-state-paused",
         b"temper-goals-state-landed",
-        b"temper-goals-state-stopped",
+        b"temper-goals-state-closed",
         b"temper-reserved-295",
         b"temper-reserved-296",
         b"temper-reserved-297",

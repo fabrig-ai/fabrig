@@ -3,7 +3,7 @@
 use super::{Clients, policy};
 use alloc::boxed::Box;
 use jig_protocol_engine_clients_http::bundle::{self, field, target};
-pub use jig_protocol_engine_clients_http::bundle::{File, kind};
+pub use jig_protocol_engine_clients_http::bundle::{File, compressed_of, kind};
 use skein_http::{Method, server as http};
 use skein_lib::{List, Map, Token, bytes, stream::Up};
 
@@ -27,6 +27,7 @@ pub struct Bundle {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Answer {
     File,
+    Gzip,
     Page,
     NoBundle,
     NotModified,
@@ -49,6 +50,7 @@ impl Bundle {
     fn content(&self, reply: &Reply) -> &[u8] {
         match reply.answer {
             Answer::File | Answer::Root => &self.file(&reply.path).expect("routed file").bytes,
+            Answer::Gzip => self.file(&reply.path).expect("routed file").gzip.as_deref().expect("routed form"),
             Answer::Page => &self.page,
             Answer::NoBundle => NO_BUNDLE_PAGE,
             Answer::NotModified | Answer::NotFound | Answer::NotAllowed | Answer::Busy => b"",
@@ -96,7 +98,8 @@ pub(crate) fn route(bundle: Option<&Bundle>, head: &http::Call) -> Answer {
     }
     let path = target(head);
     if path.starts_with(b"/bundle/") {
-        return if bundle.file(path).is_some() { Answer::File } else { Answer::NotFound };
+        let Some(file) = bundle.file(path) else { return Answer::NotFound };
+        return if file.gzip.is_some() && head.accepts_gzip() { Answer::Gzip } else { Answer::File };
     }
     if path == b"/robots.txt" && bundle.file(path).is_none() {
         return Answer::NotFound;
@@ -113,13 +116,13 @@ impl Clients {
     pub(super) fn serve_call(&mut self, call: Token, head: &http::Call, busy: bool) {
         let answer = if busy { Answer::Busy } else { route(self.bundle.as_ref(), head) };
         let reply = Reply { answer, path: bytes::copy_of(target(head)), offset: 0 };
-        let mut headers = List::with_capacity(3);
+        let mut headers = List::with_capacity(4);
         let mut length = 0;
         let status = match answer {
-            Answer::Page | Answer::File | Answer::Root => {
+            Answer::Page | Answer::Gzip | Answer::File | Answer::Root => {
                 let bundle = self.bundle.as_ref().expect("routed bundle");
                 let kind = match answer {
-                    Answer::File | Answer::Root => bundle.file(&reply.path).expect("routed file").kind,
+                    Answer::Gzip | Answer::File | Answer::Root => bundle.file(&reply.path).expect("routed file").kind,
                     Answer::Page => b"text/html; charset=utf-8",
                     Answer::NoBundle => unreachable!("handled without a bundle"),
                     Answer::NotModified | Answer::NotFound | Answer::NotAllowed | Answer::Busy => {
@@ -127,6 +130,14 @@ impl Clients {
                     }
                 };
                 field(&mut headers, b"Content-Type", kind);
+                if answer == Answer::Gzip {
+                    field(&mut headers, b"Content-Encoding", b"gzip");
+                }
+                if (answer == Answer::Gzip || answer == Answer::File)
+                    && bundle.file(&reply.path).expect("routed file").gzip.is_some()
+                {
+                    field(&mut headers, b"Vary", b"Accept-Encoding");
+                }
                 length = bundle.content(&reply).len();
                 200
             }
@@ -141,7 +152,7 @@ impl Clients {
             Answer::Busy => 503,
         };
         match answer {
-            Answer::File => field(&mut headers, b"Cache-Control", policy::FILES_CACHE),
+            Answer::Gzip | Answer::File => field(&mut headers, b"Cache-Control", policy::FILES_CACHE),
             Answer::Page | Answer::Root | Answer::NotModified => {
                 field(&mut headers, b"Cache-Control", policy::PAGE_CACHE);
                 field(&mut headers, b"ETag", &self.bundle.as_ref().expect("revalidated bundle").etag);
@@ -214,7 +225,8 @@ impl Clients {
         let reply = self.replies.get_mut(&call).expect("own reply");
         let body = match reply.answer {
             Answer::NoBundle => NO_BUNDLE_PAGE,
-            Answer::File
+            Answer::Gzip
+            | Answer::File
             | Answer::Page
             | Answer::Root
             | Answer::NotModified

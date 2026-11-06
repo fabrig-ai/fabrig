@@ -30,6 +30,8 @@ pub enum State {
     WaitingForNews,
     /// Running without more specific observed work.
     Running,
+    /// Held by the reader's own pause.
+    Paused,
     /// Observed writing.
     Writing,
     /// Observed using this tool.
@@ -82,6 +84,11 @@ pub fn row_state(chip: &c::Chip) -> State {
 /// A goal's header state from its exact wait, falling back to its chip.
 #[must_use]
 pub fn header_state(task: &c::Task, me: Option<&c::Me>) -> State {
+    if let Some(me) = me
+        && super::chat::paused(&task.chip, me)
+    {
+        return State::Paused;
+    }
     match task.chip.phase {
         c::Phase::Ended | c::Phase::Done | c::Phase::Failed | c::Phase::Cancelled => return row_state(&task.chip),
         c::Phase::Waiting
@@ -418,12 +425,12 @@ impl Task {
                     self.asking.ask(self.activity, older, out);
                 }
             }
-            Act::Latest if self.shape == Shape::Agent => {
+            Act::Newer | Act::Latest if self.shape == Shape::Agent => {
                 if let Some(newer) = self.thread.newer() {
                     self.asking.ask(self.activity, newer, out);
                 }
             }
-            Act::Older | Act::Latest => {}
+            Act::Older | Act::Newer | Act::Latest => {}
             Act::FocusComposer
             | Act::Amend
             | Act::AmendWords { .. }
@@ -608,6 +615,7 @@ impl Task {
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Older
+            | Act::Newer
             | Act::Latest
             | Act::ClosedChats
             | Act::MoreGoals
@@ -635,6 +643,14 @@ impl Task {
         out: &mut Queue<Request>,
     ) -> Option<Key> {
         let task = self.document(client)?;
+        let paused = match self.shape {
+            Shape::Tracked => super::goals::state(&task.chip, false, false, 0) == super::goals::State::Paused,
+            Shape::Agent => match latest(client, super::me_handle()) {
+                Some(Latest::Jig(c::Delivery::Me(me))) => super::chat::paused(&task.chip, me),
+                Some(Latest::Jig(_) | Latest::Family(_)) | None => false,
+            },
+            Shape::Unknown | Shape::HeaderAndPlan => false,
+        };
         let ask = match kind {
             Sending::Message
                 if (self.shape == Shape::Agent || self.shape == Shape::Tracked)
@@ -651,11 +667,7 @@ impl Task {
             Sending::Stop if super::chat::allowed(task, c::ActKind::Stop) => {
                 c::Ask::Stop { project: task.project, task: self.number }
             }
-            Sending::Resume
-                if self.shape == Shape::Tracked
-                    && super::goals::state(&task.chip, false, false, 0) == super::goals::State::Paused
-                    && super::chat::allowed(task, c::ActKind::Release) =>
-            {
+            Sending::Resume if paused && super::chat::allowed(task, c::ActKind::Release) => {
                 let value = chip_hold(&task.chip)?;
                 c::Ask::Release {
                     project: task.project,
@@ -668,8 +680,8 @@ impl Task {
                 project: task.project,
                 task: self.number,
                 reason: c::Text::new(
-                    Box::from(if self.shape == Shape::Tracked {
-                        b"Stopped from its page".as_slice()
+                    Box::from(if self.shape == Shape::Tracked || self.shape == Shape::Agent {
+                        b"Closed from its page".as_slice()
                     } else {
                         b"Cancelled from its page".as_slice()
                     }),
@@ -791,6 +803,11 @@ impl Task {
         // (client/README.md, 5.11); a refused or unknown one by the outcome.
         let mut said = false;
         if kind == Some(Sending::Message)
+            && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(_))) = &outcome
+        {
+            said = true;
+        }
+        if (kind == Some(Sending::Stop) || kind == Some(Sending::Resume))
             && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(_))) = &outcome
         {
             said = true;
@@ -967,8 +984,12 @@ impl Task {
         if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = page {
             self.asking.answered();
             if self.shape == Shape::Agent {
+                let empty_with_more = page.rows.is_empty() && page.before.is_some();
                 if let Some(reading) = self.thread.page(*page) {
                     self.asking.ask(self.activity, reading, out);
+                }
+                if empty_with_more && let Some(older) = self.thread.older() {
+                    self.asking.ask(self.activity, older, out);
                 }
             } else {
                 self.latest = Some(page);
@@ -1159,7 +1180,7 @@ fn read(handle: Handle, read: c::Read, out: &mut Queue<Request>) {
     out.push(Request::Client(jig_client::Event::Read { handle, read: Readable::Jig(read) }));
 }
 /// The hold's revision a chip says, if it is held.
-fn chip_hold(chip: &c::Chip) -> Option<u64> {
+pub(super) fn chip_hold(chip: &c::Chip) -> Option<u64> {
     match chip.details.as_ref() {
         c::ChipPhaseFacts { phase: c::ChipPhase::Held { revision, .. }, .. } => Some(*revision),
         c::ChipPhaseFacts { .. } => None,

@@ -588,17 +588,13 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 
 /* Existing unavailable guidance uses the Accounts card and reading column. */
 .temper-main:has(> .temper-unavailable) { width: 100%; padding-top: 191.33px; }
-.temper-unavailable, body > noscript, #app:not(:empty):not(:has(*)) { width: min(760px, calc(100% - 48px)); margin: 0 auto; border: 1px solid #dbd4ca; border-radius: 9px; background: var(--temper-paper); padding: 20px; color: var(--temper-ink); font: 12px/1.58 var(--temper-mono); overflow-wrap: anywhere; }
+.temper-unavailable, #app:not(:empty):not(:has(*)) { width: min(760px, calc(100% - 48px)); margin: 0 auto; border: 1px solid #dbd4ca; border-radius: 9px; background: var(--temper-paper); padding: 20px; color: var(--temper-ink); font: 12px/1.58 var(--temper-mono); overflow-wrap: anywhere; }
 .temper-unavailable { width: min(886.67px, calc(100% - 56px)); margin: 0 auto; border: 1px solid #dbd4ca; border-radius: 10.5px; background: var(--temper-paper); padding: 23.33px; color: var(--temper-ink); font: 14px/1.58 var(--temper-mono); overflow-wrap: anywhere; }
 /* The shell has no banner: align its existing messages with the status card. */
-body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
+#app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app:not(:empty):not(:has(*)) { color: var(--temper-red); }
-/* Keep the fallback hidden when scripting is enabled. */
-@media (scripting: none) {
-  body > noscript { display: block; }
-}
 @media (max-width: 760px) {
-  .temper-unavailable, body > noscript, #app:not(:empty):not(:has(*)) { width: calc(100% - 28px); }
+  .temper-unavailable, #app:not(:empty):not(:has(*)) { width: calc(100% - 28px); }
   .temper-unavailable { width: calc(100% - 32.67px); }
 }
 
@@ -659,8 +655,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   .temper-agent-page:not(:has(> .temper-agent-lineage)) .temper-taskbar > div:last-child { gap: 21px; }
   .temper-agent-page .temper-taskbar > div:last-child > * { flex: none; }
   .temper-agent-page .temper-taskbar [role=status] { max-width: none; white-space: nowrap; overflow-wrap: normal; }
-  /* The mockup hides the narrow status and spend, keeping the title and acts. */
-  .temper-agent-page .temper-taskbar > div:first-child > [role=status] { display: none; }
+  /* A narrow bar keeps a quiet status beside the title; spend stays hidden. */
+  .temper-agent-page .temper-taskbar > div:first-child > [role=status]:not(.temper-status-quiet) { display: none; }
   .temper-agent-page .temper-taskbar > div:last-child > p { display: none; }
   .temper-agent-page .temper-turn > .temper-work, .temper-agent-page .temper-turn > .temper-task-card { margin-left: 0; }
   .temper-agent-page .temper-task-card > .temper-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1272,6 +1268,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
 
 /* ==== ui: chats ==== */
+/* A message's effect stays visible where keyboard instructions are hidden. */
+#app > .temper-session .temper-session-foot > .temper-session-hint.temper-hint { display: block; align-self: stretch; white-space: normal; }
 /* close-chat: a confirmation asks in a sentence, says only what will change, and names its acts. */
 #app dialog.temper-confirm { margin: auto; display: flex; flex-direction: column; gap: 16px; width: min(460px, calc(100% - 32px)); padding: 24px 26px; border: 0; border-radius: 14px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 24px 64px rgba(24, 24, 27, .22); font: 15px/1.55 var(--gf-sans); }
 #app dialog.temper-confirm::backdrop { background: rgba(24, 24, 27, .32); }
@@ -1789,7 +1787,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app:has(> .temper-rail) .temper-goals-row-ended .temper-goals-line { color: var(--gf-muted); }
 #app:has(> .temper-rail) .temper-goals-state-needs { color: var(--gf-signal); }
 #app:has(> .temper-rail) .temper-goals-state-running, #app:has(> .temper-rail) .temper-goals-state-planning { color: var(--gf-good); }
-#app:has(> .temper-rail) .temper-goals-state-landed, #app:has(> .temper-rail) .temper-goals-state-stopped, #app:has(> .temper-rail) .temper-goals-state-paused { color: var(--gf-faint); }
+#app:has(> .temper-rail) .temper-goals-state-landed, #app:has(> .temper-rail) .temper-goals-state-closed, #app:has(> .temper-rail) .temper-goals-state-paused { color: var(--gf-faint); }
 #app:has(> .temper-rail) .temper-goals-filters { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--gf-hover); }
 #app:has(> .temper-rail) .temper-goals-filters button { padding: 5px 12px; border: 0; border-radius: 7px; background: none; font-size: 13px; color: var(--gf-muted); }
 #app:has(> .temper-rail) .temper-goals-filters button[aria-pressed=true] { background: var(--gf-surface); color: var(--gf-ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }

@@ -2,7 +2,7 @@
 
 2026-11-06. Where the design lags or departs from [own-way.md](own-way.md).
 
-The design carries sections 2, 3, 4 and 6: `../client/README.md`, 3.5, *temper's own way, beside the page*; `../protocol/documentation.md`, 2.2 and 3; `../domain/agent.md`, 8.1. Each departure below is fabrig/ui's, at the user's word of 2026-11-06, which released this draft and took its open questions.
+The design carries sections 2, 3, 4 and 6: `../client/README.md`, 3.5, *temper's own way, beside the page*; `../protocol/documentation.md`, 2.2 and 3; `../domain/agent.md`, 8.1. Each departure below is fabrig/ui's, at the user's word of 2026-11-06, which released this draft and took its open questions. Its preamble and section 7 still say no plan takes it up and hold those questions: that word overrides them, and no request has asked them rewritten.
 
 The reference shows no figures and links to none: figures live on the site or the public-facing version, the user's word of 2026-11-06.
 

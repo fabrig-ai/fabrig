@@ -223,7 +223,7 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     }
     b.bind(bindings.insert(Act::StartChat));
     b.close();
-    super::session::hint(b, w, chats.reference.is_some());
+    super::session::hint(b, w, if chats.reference.is_some() { Word::DraftSendHint } else { Word::ChatSendHint });
     if chats.refusal.is_some() {
         w.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);
     }

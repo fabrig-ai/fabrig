@@ -647,6 +647,72 @@ fn a_held_task_that_awaits_nothing_else_waits_on_its_hold() {
 }
 
 #[test]
+fn a_task_no_account_serves_waits_on_an_account() {
+    let mut task = f::goal(f::TASK, c::WaitsOn::Nothing);
+    task.run_wait = Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty });
+    let answer = f::read_answer(f::TASK_CALL, f::task_result(task));
+    assert_eq!(answer.status, 0);
+    assert!(f::has(&answer, b"\nwaiting on: an account\n"), "{answer:?}");
+    assert!(!f::has(&answer, b"Nothing awaited"), "{answer:?}");
+}
+
+#[test]
+fn a_held_task_no_account_serves_waits_on_its_hold() {
+    let mut task = f::held_task(f::goal(f::TASK, c::WaitsOn::Nothing), c::HoldCategory::Effects);
+    task.run_wait = Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty });
+    let answer = f::read_answer(f::TASK_CALL, f::task_result(task));
+    assert_eq!(answer.status, 0);
+    assert!(f::has(&answer, b"\nwaiting on: held\n"), "{answer:?}");
+    assert!(!f::has(&answer, b"waiting on: an account"), "{answer:?}");
+}
+
+#[test]
+fn a_task_that_awaits_something_else_keeps_its_word() {
+    for (wait, expected) in [
+        (c::WaitsOn::Delegates, b"\nwaiting on: Waiting for delegates\n".as_slice()),
+        (c::WaitsOn::News, b"\nwaiting on: Waiting for news\n"),
+        (f::waiting_on_me(), "\nwaiting on: you: question of task 42 · 1 waiting\n".as_bytes()),
+        (
+            c::WaitsOn::Dependencies { pending: List::with_capacity(0), count: 2 },
+            b"\nwaiting on: Kept by its dependencies\n".as_slice(),
+        ),
+    ] {
+        let mut task = f::goal(f::TASK, wait);
+        task.run_wait = Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty });
+        let answer = f::read_answer(f::TASK_CALL, f::task_result(task));
+        assert_eq!(answer.status, 0);
+        assert!(f::has(&answer, expected), "{answer:?}");
+    }
+}
+
+#[test]
+fn every_other_run_wait_keeps_nothing_awaited() {
+    for (wait, expected) in [
+        (c::TaskRunWait::Host, b"\nnext run: host\n".as_slice()),
+        (c::TaskRunWait::Credential, b"\nnext run: credential\n"),
+        (
+            c::TaskRunWait::Account {
+                account: Some(43),
+                source: Some(17),
+                why: c::TaskWaitWhy::Source(c::TaskSourceState::Limited { until: None }),
+            },
+            b"\nnext run: account 43 source 17: limited until unknown\n".as_slice(),
+        ),
+        (
+            c::TaskRunWait::Account { account: None, source: Some(17), why: c::TaskWaitWhy::Empty },
+            b"\nnext run: account unknown source 17: empty\n".as_slice(),
+        ),
+    ] {
+        let mut task = f::goal(f::TASK, c::WaitsOn::Nothing);
+        task.run_wait = Some(wait);
+        let answer = f::read_answer(f::TASK_CALL, f::task_result(task));
+        assert_eq!(answer.status, 0);
+        assert!(f::has(&answer, b"\nwaiting on: Nothing awaited\n"), "{answer:?}");
+        assert!(f::has(&answer, expected), "{answer:?}");
+    }
+}
+
+#[test]
 fn a_held_task_a_delegate_keeps_prints_its_delegates() {
     for (wait, expected) in [
         (c::WaitsOn::Delegates, b"\nwaiting on: Waiting for delegates\n".as_slice()),
@@ -1099,6 +1165,22 @@ fn person_shown(argv: &[&str], page: c::ReadResult) -> Box<[u8]> {
     let printed = root.answer(call).expect("person task answered");
     assert_eq!(printed.status, 0, "{printed:?}");
     printed.stdout
+}
+#[test]
+fn a_person_tasks_bounded_amend_prints_no_authority() {
+    for beyond in
+        [c::Beyond::Proposed { to: c::Recipient::Party(f::PARTY) }, c::Beyond::Refused(c::Refusal::NotOffered)]
+    {
+        let mut person = f::person_document();
+        person.acts.clear();
+        person
+            .acts
+            .push(c::Offered { act: c::ActKind::Amend, admission: f::bounded_offer(beyond), effect: None })
+            .expect("amend offer");
+        let shown = person_shown(f::TASK_CALL, c::ReadResult::Value(c::ReadValue::PersonTask(Box::new(person))));
+        assert!(skein_lib::bytes::find(&shown, b"\n  task amend 41 --key KEY\n").is_some());
+        assert!(skein_lib::bytes::find(&shown, b"authority {").is_none());
+    }
 }
 #[test]
 #[expect(clippy::disallowed_methods, reason = "printed-byte assertions decode the renderer's UTF-8")]

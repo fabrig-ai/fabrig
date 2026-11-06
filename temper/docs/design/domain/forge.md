@@ -58,9 +58,9 @@ makes each call to a forge and hears its deliveries, is
   gives temper's user its access (4.2, 4.3). What it reads of the landing
   branch's rules, and the merge style, it says in words (4.4).
 - **Updates are lazy and mechanical.** A change takes its base when it
-  is first in line, or about to get a run, through the forge's own
-  update; an LLM only resolves a conflict, in a workspace where the
-  merge is in progress.
+  is first in line, about to get a run, or at its check with its head
+  already behind (8.2, step 3), through the forge's own update; an LLM
+  only resolves a conflict, in a workspace where the merge is in progress.
 - **Every landing is news** for every goal working in that repository;
   it wakes a goal's coordinator only when it overlaps the files of that
   goal's changes.
@@ -2564,9 +2564,10 @@ early, by these rules:
   rules ask no update (a goal's own branch, section 11 and 8.7), whose
   workspace would start from the change's pushed branch or from saved
   work, starts instead from a merge in progress: that start, with the landing branch's tip as the
-  base merged into it (`worker.md`, 4.1 and section 5). A conflict is
-  left in its checkout for it to settle; its first push commits the
-  merge. A tip that start already contains is no merge, so a resume with
+  base merged into it (`worker.md`, 4.1 and section 5). A clean merge is
+  committed before its run starts, so the run finds a clean tree with the
+  tip in its head. A conflict is left in its checkout for it to settle.
+  Either way its first push delivers the merge. A tip that start already contains is no merge, so a resume with
   nothing new adds no commit, and the head its run reported stays the
   change's. One with nothing pushed or saved starts from the landing
   branch's tip, which now holds its dependencies' work. So a producer
@@ -3331,3 +3332,17 @@ whole.
   stored mark beside where the question stands. One that never answers hears
   nothing of it, and the question stays until the change ends. Default: so; it
   did reach someone.
+- **A forge's run on a head replaced** (8.2, step 3): the update first ends the
+  change's wait for that head's CI, not the run, since temper has no effect that
+  stops one, and a pull request must exist before the forge can update it, so a
+  run that starts at its opening starts first. Default: so; what it spends goes by
+  the repository's own CI settings.
+- **An early update against the bound** (8.2, step 3): it counts against
+  `forge.change_policy.updates` (3 in `small`, 80 in `standard`), so under a base
+  that keeps moving `Hold::Updates` comes one update sooner. Not counting it would
+  leave the bound untrue of update attempts. Default: it counts; the figure is the
+  user's.
+- **A report's head past a merge** (8.11): a next producer's start that merges a
+  tip it lacks makes a new head at its first push, so a report written before names
+  an older one, where a tip it contains no longer does. Default: so; the head
+  delivered names what is on the branch (`agent.md`, section 6).

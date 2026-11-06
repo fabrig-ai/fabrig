@@ -218,6 +218,12 @@ fn read_value(
         }
     }
     match what {
+        c::Read::ActivityBeside { .. } => Some(c::ReadValue::Activity(Box::new(c::ActivityPage {
+            rows: List::with_capacity(0),
+            before: None,
+            after: None,
+            cut: false,
+        }))),
         c::Read::Activity { .. } => match &side.activity {
             Some(page) => Some(c::ReadValue::Activity(Box::new(page.clone()))),
             None => None,
@@ -429,17 +435,17 @@ fn landed_word_and_token() {
     assert_state(task, TOTAL, false, b"landed", look::GOALS_STATE_LANDED);
 }
 #[test]
-fn stopped_word_and_token() {
+fn closed_word_and_token() {
     let mut task = document();
     let by = task.requester;
-    end(&mut task, c::ChipEnding::Cancelled { reason: text(b"Stop here."), result: None, by, at: UPDATED });
-    assert_state(task, TOTAL, false, b"stopped", look::GOALS_STATE_STOPPED);
+    end(&mut task, c::ChipEnding::Cancelled { reason: text(b"Close here."), result: None, by, at: UPDATED });
+    assert_state(task, TOTAL, false, b"closed", look::GOALS_STATE_CLOSED);
 }
 #[test]
 fn failed_word_and_token() {
     let mut task = document();
     end(&mut task, c::ChipEnding::Failed(text(b"Checks failed.")));
-    assert_state(task, TOTAL, false, b"failed", look::GOALS_STATE_STOPPED);
+    assert_state(task, TOTAL, false, b"failed", look::GOALS_STATE_CLOSED);
 }
 #[test]
 fn the_heading_is_the_reports() {
@@ -461,11 +467,11 @@ fn a_planning_goal_with_no_draft() {
     assert_heading(task, 0, 0, b"Planning: reading what was asked.");
 }
 #[test]
-fn a_stopped_goals_heading() {
+fn a_closed_goals_heading() {
     let mut task = document();
     let by = task.requester;
-    end(&mut task, c::ChipEnding::Cancelled { reason: text(b"Stop here."), result: None, by, at: UPDATED });
-    assert_heading(task, DONE, TOTAL, b"Stopped by you. What landed on the goal branch stays there.");
+    end(&mut task, c::ChipEnding::Cancelled { reason: text(b"Close here."), result: None, by, at: UPDATED });
+    assert_heading(task, DONE, TOTAL, b"Closed by you. What landed on the goal branch stays there.");
 }
 #[test]
 fn a_landed_goals_heading_is_its_results_first_line() {
@@ -796,7 +802,7 @@ fn a_delegates_own_delegates_and_cancelled_ones_are_left_out() {
     child.depth = 2;
     let mut cancelled = landed(12, b"Cancelled");
     cancelled.chip.details.details.ending = Some(c::ChipEnding::Cancelled {
-        reason: text(b"Stop"),
+        reason: text(b"Close"),
         result: None,
         by: c::Requester::Person(73),
         at: UPDATED,
@@ -1016,7 +1022,7 @@ fn landing_says() {
         (Some(c::ChipEnding::Failed(text(b"Failure"))), None, true, 3, b"Failed before it landed."),
         (
             Some(c::ChipEnding::Cancelled {
-                reason: text(b"Stop"),
+                reason: text(b"Close"),
                 result: None,
                 by: c::Requester::Person(73),
                 at: UPDATED,
@@ -1024,7 +1030,7 @@ fn landing_says() {
             None,
             true,
             3,
-            b"Stopped before it landed.",
+            b"Closed before it landed.",
         ),
         (None, None, true, 0, b"Lands whole once all its tasks are checked."),
         (None, None, false, 3, b"Each task lands on its own once checked."),
@@ -1413,7 +1419,7 @@ fn a_need_makes_the_state_needs() {
     );
 }
 
-fn paused_document() -> c::Task {
+pub(super) fn paused_document() -> c::Task {
     let mut task = document();
     f::phase(&mut task, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 1 });
     task.chip.details.details.hold = Some(c::ChipHold {
@@ -1478,12 +1484,12 @@ fn the_acts_in_order_by_offer() {
     let root = root(task, DONE, TOTAL, None, false);
     for words in [fixtures::browser_words(), fixtures::words()] {
         let (tree, bindings, _) = draw(&root, &words);
-        assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Chat T2", b"Amend", b"Pause", b"Stop"]);
-        for (name, act) in [(b"Amend".as_slice(), Act::Amend), (b"Pause", Act::Pause), (b"Stop", Act::Close)] {
+        assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Chat T2", b"Amend", b"Pause", b"Close"]);
+        for (name, act) in [(b"Amend".as_slice(), Act::Amend), (b"Pause", Act::Pause), (b"Close", Act::Close)] {
             let node = tree.nodes().get(named_index(&tree, Role::Button, name)).unwrap();
             assert!(node.styles.as_slice().contains(&look::GOAL_BTN));
             assert!(node.styles.as_slice().contains(&look::GOAL_SMALL));
-            assert_eq!(node.styles.as_slice().contains(&look::GOAL_QUIET), name == b"Stop");
+            assert_eq!(node.styles.as_slice().contains(&look::GOAL_QUIET), name == b"Close");
             assert_eq!(
                 bindings.decode(node.binding.unwrap().token, skein_ui::Act::Press),
                 Some(temper_client_domain::Action::Pages(act))
@@ -1521,7 +1527,7 @@ fn ended_has_none() {
     for ending in [
         c::ChipEnding::Done(c::ResultValue::Report(text(b"Done"))),
         c::ChipEnding::Failed(text(b"Failed")),
-        c::ChipEnding::Cancelled { reason: text(b"Stopped"), result: None, by: c::Requester::Person(73), at: NOW },
+        c::ChipEnding::Cancelled { reason: text(b"Closed"), result: None, by: c::Requester::Person(73), at: NOW },
     ] {
         let mut task = document();
         task.acts = offers(&[c::ActKind::Amend, c::ActKind::Stop, c::ActKind::Cancel]);
@@ -1535,7 +1541,7 @@ fn paused_says_resume() {
     let mut task = paused_document();
     task.acts = offers(&[c::ActKind::Amend, c::ActKind::Release, c::ActKind::Stop, c::ActKind::Cancel]);
     let tree = draw(&root(task, DONE, TOTAL, None, false), &fixtures::browser_words()).0;
-    assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Amend", b"Resume", b"Stop"]);
+    assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Amend", b"Resume", b"Close"]);
 }
 #[test]
 fn held_otherwise_has_no_resume() {
@@ -1547,7 +1553,7 @@ fn held_otherwise_has_no_resume() {
     assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice()]);
 }
 #[test]
-fn the_stop_dialogs_words() {
+fn the_close_dialogs_words() {
     let mut task = document();
     task.acts = offers(&[c::ActKind::Cancel]);
     task.acts.get_mut(0).unwrap().effect = Some(c::Effect::Cancel(c::Impact {
@@ -1567,13 +1573,17 @@ fn the_stop_dialogs_words() {
     let mut root = root(task, DONE, TOTAL, None, false);
     press(&mut root, Act::Close);
     let tree = draw(&root, &fixtures::browser_words()).0;
-    let dialog = named_index(&tree, Role::Dialog, b"Stop this goal?");
-    assert_eq!(tree.nodes()[dialog].name.as_deref(), Some(b"Stop this goal?".as_slice()));
-    assert_eq!(fixtures::node_text(&tree, dialog).as_ref(), b"Stop this goal?What landed on its branch stays there.");
-    for label in [b"Keep going".as_slice(), b"Stop goal"] {
+    let dialog = named_index(&tree, Role::Dialog, b"Close this goal?");
+    assert_eq!(tree.nodes()[dialog].name.as_deref(), Some(b"Close this goal?".as_slice()));
+    assert_eq!(
+        fixtures::node_text(&tree, dialog).as_ref(),
+        "Close this goal?You can still read it, but it can’t be reopened.What landed on its branch stays there."
+            .as_bytes()
+    );
+    for label in [b"Keep it".as_slice(), b"Close goal"] {
         assert!(fixtures::find(&tree, Role::Button, label).is_some());
     }
-    assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Stop"]);
+    assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Close"]);
 }
 #[test]
 fn the_editor_sits_between_header_and_bands() {
@@ -1606,22 +1616,22 @@ fn the_editor_sits_between_header_and_bands() {
     }
 }
 #[test]
-fn an_agents_stop_still_confirms_as_before() {
+fn an_agents_close_uses_the_same_sheet() {
     let mut task = f::delegate();
-    task.acts = offers(&[c::ActKind::Stop]);
+    task.acts = offers(&[c::ActKind::Cancel]);
     let mut root = f::agent_root(task, Some(f::tree()), true);
-    press(&mut root, Act::Stop);
-    let tree = fixtures::browser_page_view(&root);
-    assert!(fixtures::find(tree.tree(), Role::Dialog, b"Stop this task?").is_some());
+    press(&mut root, Act::Close);
+    let view = fixtures::browser_page_view(&root);
+    assert!(fixtures::find(view.tree(), Role::Dialog, b"Close this task?").is_some());
     assert!(
         skein_lib::bytes::find(
-            &fixtures::text(tree.tree()),
-            b"Its run stops, and the task is held until it is released."
+            &fixtures::text(view.tree()),
+            "You can still read it, but it can’t be reopened.".as_bytes()
         )
         .is_some()
     );
-    for name in [b"Keep going".as_slice(), b"Stop task"] {
-        assert!(fixtures::find(tree.tree(), Role::Button, name).is_some());
+    for name in [b"Keep it".as_slice(), b"Close task"] {
+        assert!(fixtures::find(view.tree(), Role::Button, name).is_some());
     }
 }
 pub(super) fn with_goal_answer(act: Act, answer: c::Answer) -> Domain {

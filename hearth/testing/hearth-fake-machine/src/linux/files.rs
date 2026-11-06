@@ -14,7 +14,7 @@ pub(super) struct Found {
 impl Machine {
     pub(super) fn add(&mut self, parent: Node, kind: Kind, mode: u32, ids: Ids, bytes: &[u8]) -> Node {
         assert!(self.nodes.len() < usize::try_from(self.sizes.files).expect("file bound fits"), "scenario file bound");
-        self.room(0, u64::try_from(bytes.len()).expect("contents fit"));
+        let used = self.room(0, u64::try_from(bytes.len()).expect("contents fit"));
         self.next_node = self.next_node.checked_add(1).expect("node identities fit");
         let node = Node(self.next_node);
         self.nodes.insert(
@@ -34,18 +34,19 @@ impl Machine {
                 parent,
             },
         );
+        self.used = used;
+        self.changing.push(node);
         node
     }
-    fn room(&self, old: u64, new: u64) {
-        let used = self.nodes.values().map(|n| n.facts.size).sum::<u64>();
-        assert!(
-            used.checked_sub(old).and_then(|n| n.checked_add(new)).expect("bounded contents") <= self.sizes.bytes,
-            "scenario byte bound"
-        );
+    fn room(&self, old: u64, new: u64) -> u64 {
+        let used = self.used.checked_sub(old).and_then(|n| n.checked_add(new)).expect("bounded contents");
+        assert!(used <= self.sizes.bytes, "scenario byte bound");
+        used
     }
     fn change(&mut self, node: Node) {
         let facts = &mut self.inode_mut(node).facts;
         facts.changes = facts.changes.checked_add(1).expect("change counter fits");
+        self.changing.push(node);
     }
     pub(super) fn laid(&self, path: &[u8]) -> Option<Node> {
         let mut node = Node(1);
@@ -240,9 +241,10 @@ impl Machine {
         open.node
     }
     fn resize(&mut self, node: Node, length: u64) {
-        self.room(self.inode(node).facts.size, length);
+        let used = self.room(self.inode(node).facts.size, length);
         self.inode_mut(node).bytes.resize(usize::try_from(length).expect("scenario byte bound fits"), 0);
         self.inode_mut(node).facts.size = length;
+        self.used = used;
         self.change(node);
     }
     fn removable(&self, pid: Pid, found: &Found) -> Result<Node, Refusal> {
@@ -276,7 +278,9 @@ impl Machine {
             && !self.handles.values().any(|h| h.node == node)
             && !self.processes.values().any(|p| p.cwd == node || p.root == node)
         {
-            self.nodes.remove(&node);
+            let inode = self.nodes.remove(&node).expect("reclaimed node exists");
+            self.used = self.used.checked_sub(inode.facts.size).expect("reclaimed contents were held");
+            self.changing.push(node);
         }
     }
     fn rename(

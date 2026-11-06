@@ -1,6 +1,6 @@
 # temper's client
 
-Provisional, 2026-10-14, revised 2026-11-04. temper's client: temper's own
+Provisional, 2026-10-14, revised 2026-11-06. temper's client: temper's own
 presentation on jig's client, `jig-client`. Its crates; its client root,
 which holds `jig-client` and temper's pages, the LLM accounts' and the
 forges' among them; the forge's client family, its words, its one form
@@ -360,9 +360,9 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
 | `NewChat { draft }` | the greenfield mock's `chat.html?id=new`, and `&draft=` for a draft; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (*A new chat,* below), in the playground's project the playground's start (4.8, 5.6); with `draft`, the empty document beside it (*A chat's document,* below) | as `Chats`; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; "+ Draft" |
-| `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its byline and chooser, its status, Stop and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, older pages while its window has room (5.4), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7); its document, read again when its run writes it (*A chat's document,* below); the person's facts (4.6) | message, stop, close, change the next run's model, accept or reject a proposal in place; choose Chat, Split or Draft; "+ Draft"; start a goal from its document; on a configuring chat, start over |
+| `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its byline and chooser, its status, Pause or Resume, and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", or "Sending resumes this chat." on a chat the person paused (*A person's pause,* below), then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, earlier and later pages at the conversation's log edges (5.15), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7); its document, read again when its run writes it (*A chat's document,* below); the person's facts (4.6) | message, pause, resume, close, change the next run's model, accept or reject a proposal in place; choose Chat, Split or Draft; "+ Draft"; start a goal from its document; on a configuring chat, start over |
 | `Goals { project, filter }` | the greenfield mock's `goals.html` | the project's goals: its intro, its filters, a row a goal, each its state and its report's headline (*Goals,* below) | `me`; `tasks{query}`: the project, the goal template's label, tracked, by priority, its live group watched, its ended pages by when each ended; a row's report, one read at a time; `inbox`'s needs for that project | choose the filter; more goals |
-| `Task { task }` | the greenfield mock's `goal.html`, for a goal; `task.html` otherwise | a goal: its header, its needs as bands, its report, its tasks, landing, how it runs and what it decided, what the person sent (5.8), with Amend, Pause or Resume, Stop and its composer (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Stop and its composer (5.11), and its own held card while it is held | `task`, `tree`, `activity` a page at a time, older pages on an agent's task's "Older"; `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change; a goal's report, its own line and its needs (5.8) | as its document offers them (5.11): on a goal amend, pause, resume, stop, message, and answer its needs; on an agent's task message, amend, stop, release its own held task or one of its plan |
+| `Task { task }` | the greenfield mock's `goal.html`, for a goal; `task.html` otherwise | a goal: its header, its needs as bands, its report, its tasks, landing, how it runs and what it decided, what the person sent (5.8), with Amend, Pause or Resume, Close and its composer (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Pause or Resume, Close and its composer (5.11), and its own held card while it is held for any cause but the person's own pause | `task`, `tree`, `activity` a page at a time, earlier and later pages at an agent's conversation's log edges (5.15); `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change; a goal's report, its own line and its needs (5.8) | as its document offers them (5.11): on a goal amend, pause, resume, close, message, and answer its needs; on an agent's task message, amend, pause, resume, close, release its own held task or one of its plan |
 | `Changes { project }` | the greenfield mock's `changes.html` | what is on the way to the project's landing branches and what last landed there (*Changes,* below; `forge.md`, section 3) | the subject `changes`, through the forge's side (4.2, 4.6); a `task` per row shown, for where it came from | none: each row links to its change's `Task` |
 | `Adopt { project }` | none: 4.4 | under its path (*Settings,* below), the adoption form, into `project` (4.4), with the picker of the repositories temper can reach on the chosen forge | `me`; the chosen forge's deployment part, for its kind, mode, user and installations (`forge.md`, 5.4); the picker's page, a `Reachable` request (section 8) | adopt a repository (4.4) |
 | `Forges` | `forges.html` | inside Settings' frame while a project is open (*Settings,* below): the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (4.8); "+ Add a forge", to `ConnectForge`, but while the playground runs (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (section 8) |
@@ -406,8 +406,10 @@ keeps (`../protocol/configuration.md`, section 2).
      can't start (jig's `client/domain/client.md`, 19.1).
      Every ended chat says "Closed", with no time: its end's line has the time
      (3.6, *Closed ends on one line*).
-  3. *Stop and Close,* while allowed, each quiet and small. The mock has
-     neither; they are the only way to stop or end a chat.
+     A chat the person paused says "Paused", quiet; one held for any other
+     reason says "Held", and its card says why (*A person's pause,* below).
+  3. *Pause or Resume, and Close,* while allowed, each quiet and small. The
+     mock has neither; they are the only way to pause or end a chat.
   4. *Its own spend,* "N spent · of B", in the view and hidden in the
      browser.
 
@@ -415,6 +417,29 @@ keeps (`../protocol/configuration.md`, section 2).
   After the byline, once a chat has a document, its mode group; with none,
   "+ Draft"; then "Start goal…" or its goal's link; on a configuring chat
   "Start over" (*A chat's document,* below).
+- **A person's pause** is a chat held by a placed hold of that person's own,
+  mode Stop, over the chat's own subtree: the chip's hold names it, not lifted,
+  its owner the party reading (jig's `client/domain/contract.md`, 5.6). Nothing
+  else is a pause: a hold of another's, of a task above it, or with a reason of
+  its own says "Held", with its card and why, and has no "Resume": the card
+  keeps its acts.
+  - "Pause" is `Ask::Stop`, while Stop is allowed and the chat isn't paused.
+    "Resume" takes its place on a paused chat where Release is allowed, and is
+    `Ask::Release` naming the hold's revision. Each is sent at once (3.6). The
+    status says it happened: an accepted Pause or Resume draws no status under
+    the conversation; a refusal says why there.
+  - **Sending resumes.** A message to a paused chat, where Release is allowed,
+    is one act: `Ask::Compound` of its `Message`, then a `Release` naming the
+    hold's revision (jig's `client/domain/contract.md`, 3.4; jig's
+    `domain/tasks.md`, section 7: no message releases a task, and words to a
+    task its party stopped come with a release). The composer's hint says so
+    while it is paused, "Sending resumes this chat.", in place of its usual
+    words. It commits whole or not at all: a refusal, the hold's revision moved
+    or the words refused, leaves the chat paused and nothing in its inbox, and
+    the composer says why as for a lone message. Any other chat's message is a
+    lone `Message`.
+  - An agent's task's Pause and Resume are these acts (5.11); a message to it
+    resumes nothing (section 11).
 - **A conversation's turns** are named "You" when the turn is the
   person's own, "Temper" when it is the agent's, and by the party's
   name otherwise (`chat.html`), on every page that draws a
@@ -446,8 +471,9 @@ keeps (`../protocol/configuration.md`, section 2).
   stage (jig's `client/domain/client.md`, 19.1). A chat held on a
   configured bound (jig's `Exceeded` hold) says jig's phrase for that
   hold, as its hold card does: "Held: the model's reasoning went past
-  its configured allowance of 2048 bytes". Any other hold says jig's
-  "Held", and the chat's page says why.
+  its configured allowance of 2048 bytes". A chat the person paused says
+  "Paused", on its bar and on its line on Chats and on Home (*A person's
+  pause,* below). Any other hold says jig's "Held", and the chat's page says why.
 - **A chat's conversation** is the chat's own, drawn from jig's thread
   (jig's `client/domain/objects.md`, section 10), never its runs'
   mechanics (`chat.html`, the mockups' first run):
@@ -610,17 +636,19 @@ keeps (`../protocol/configuration.md`, section 2).
     a button *to log end* (skein's `ui.md`, 3.2) beside the log, shown while
     the log is away from its end (`data-log-away`, skein's `ui-web.md`, 7).
     Pressed, the view returns to the end and it goes. Where the window has
-    let the newest lines go it is bound too, and a press reads the page
-    after (jig's `Thread::newer`). New words while reading back don't move
-    the view, and it stays.
+    let the newest lines go the log continues and the pill stays visible,
+    even at the window's foot. A press on a chat reads the end again;
+    on an agent's page it reads the next later page (5.15).
+    Sending on a chat returns to the end too. New words arriving while
+    reading back don't move the view.
   - *"Loading earlier messages…",* `temper-thread-loading`, faint and
     centred at the head of a chat's conversation or an agent's, a status
-    named "Loading earlier messages", only while an older read is out, in
-    place of "Older". Nothing once the chat's start is shown.
-  - *"Older"* is a `.btn.quiet.small`, centred, at the head while an older
-    page remains and the window has filled. It is replaced by the loading
-    status while that read is out; the agent's page uses the same head,
-    with "Older" whenever an older page remains. *Its end* has
+    named "Loading earlier messages", only while an older read is out.
+    A failed read says "Couldn't load earlier messages" there, in the same
+    look; the next move toward the head tries again (5.15). Nothing once
+    the chat's start is shown.
+  - *Earlier lines* load as the log's head nears the view (5.15), with no
+    "Older" button, on a chat's page and an agent's. *Its end* has
     `.meta-line`'s look, and an ended chat has no composer.
 - **A new chat** (the greenfield mock's `chat.html?id=new`): `NewChat`,
   at `/chats/new`, for the open project. The domain's `Chats` state holds
@@ -662,12 +690,16 @@ keeps (`../protocol/configuration.md`, section 2).
     from a new chat, its draft, `Configure`, a starter and a suggested request
     alike. "Start goal" is none of these: it opens the goal's page, its heading
     focused. A start refused stays on its page and moves nothing.
-  - *Opened any other way* (a list, a link, an address, Back or Forward, a
-    reload): the chat opens on its heading, so that a person reading with a
-    screen reader or the keyboard lands on what the page is.
-  - *After a send,* by Enter or by "Send", the focus is in the composer, on a
-    chat's, a goal's and an agent's task's (5.11) alike: "Send" disables as the
-    words clear, and a disabled button holds no focus.
+  - *Opened any other way,* its composer asks for nothing. From a list or a
+    link, a new entry, the chat opens on its heading, so that a person reading
+    with a screen reader or the keyboard lands on what the page is, though the
+    heading is drawn after the page (`browser.md`, 2.3). An address, a reload,
+    Back and Forward make no new entry, and take the focus to no heading
+    (skein's `ui-web.md`, 7).
+  - *After a send,* by Enter or by "Send", whether or not it went out, the focus
+    is in the composer, on a chat's, a goal's and an agent's task's (5.11) alike:
+    "Send" disables as the words clear, and a disabled button holds no focus.
+    "Pause", "Resume" and "+ Draft" send too, and ask for nothing.
   - *While the rename's form is open* it keeps the focus (5.3), and a composer
     that has asked for it takes it back as the form closes.
   - *On a phone* the same acts ask the same, as a phone's messaging app does:
@@ -2060,7 +2092,7 @@ keeps (`../protocol/configuration.md`, section 2).
     them; and "Builders", to `Builders { project }`, at
     `/projects/<project>/settings/builders`.
   - *`Forges` and `Accounts`* keep their addresses and paths, so that a
-    sign-in's return, To begin's links and their tests hold. Whenever the
+    connect's `back`, To begin's links and their tests hold. Whenever the
     page has a project, as the rail does (5.3), they draw inside this frame,
     with no level-1 heading of their own and no page bar; their rows follow
     the tabs. With no project they take the same column, sections and rows
@@ -2247,7 +2279,7 @@ keeps (`../protocol/configuration.md`, section 2).
     pressed; at the section head's right, the `.link` "Start one from a draft",
     opening 5.14's sheet with no draft, while the project has a tracked
     template. Under them, the rows, or "None."; "Needs you" is state needs,
-    "Under way" running, planning and paused, "Ended" landed, stopped and
+    "Under way" running, planning and paused, "Ended" landed, closed and
     failed.
   - **"More goals",** a quiet button after the rows while the ended page has
     more, reading the next ended page in its place as "more closed chats"; the
@@ -2278,12 +2310,12 @@ keeps (`../protocol/configuration.md`, section 2).
   | planning | live, no report, no delegates | "planning" |
   | running | any other live | "running" |
   | landed | ended, done | "landed " and its end in the clock form (5.12) |
-  | stopped | ended, cancelled | "stopped" |
+  | closed | ended, cancelled | "closed" |
   | failed | ended, failed | "failed" |
 
   A row's **headline** is its report's. With no report: "Planning from the
   draft." planning; "N of M tasks landed." running or paused; "Landed." landed;
-  "Stopped by you." stopped; "Failed." failed; a goal that needs the person
+  "Closed by you." closed; "Failed." failed; a goal that needs the person
   takes running's words, or planning's with no delegates.
 
   **Ways** are one public function, `goals::ways`, of the view, the project's
@@ -2446,7 +2478,7 @@ keeps (`../protocol/configuration.md`, section 2).
   there, from its start or from its proposal's review (5.13), has this
   layout: the same top bar, its path still through `Settings`, its
   heading the chat's number and title as a chat's is, then its line of
-  what its runs use, its status, its spend, Stop and Close; the
+  what its runs use, its status, its spend, Pause or Resume, and Close; the
   conversation as a chat's in place of the starters; the composer of
   this layout, its text area "Message" as a chat's, with no composer's
   line and no chooser, and none on an ended chat; "Settings" is the
@@ -2520,11 +2552,9 @@ keeps (`../protocol/configuration.md`, section 2).
   `client/domain/contract.md`, 5.4). Closing a chat says only what closing
   changes (*The sheet,* below). Removing a forge says what goes and what stays on the
   forge (`forge.md`, 5.4); deleting a project asks for the project's
-  name, and sends nothing until it is typed whole (3.5). On an agent's
-  task's page, stopping is confirmed too, since it holds the task until it is
-  released (5.11); a chat's Stop, and a goal's Pause and Resume, which are
-  undone by each other, are sent at once. A goal's Stop, which cancels it,
-  says that what landed on its branch stays there (5.11). Where the document offers an act
+  name, and sends nothing until it is typed whole (3.5). Pause and Resume, on a
+  chat, a goal or an agent's task, are undone by each other and sent at once. A
+  goal's Close says that what landed on its branch stays there (5.11). Where the document offers an act
   as proposable (jig's `client/domain/contract.md`, 5.3), the card says
   so, and to whom; where it offers it as refused, the card says why and
   sends nothing.
@@ -2539,9 +2569,8 @@ keeps (`../protocol/configuration.md`, section 2).
   |---|---|---|---|---|
   | closing a chat | "Close this chat?" | "You can still read it, but it can’t be reopened.", and what it changes | "Keep it" | "Close chat" |
   | "Start over" | "Start over?" | "A new configuring chat starts. This one stays in Chats.", and what it changes | "Keep going" | "Start over" |
-  | a goal's Stop | "Stop this goal?" | "What landed on its branch stays there." | "Keep going" | "Stop goal" |
-  | a task's Cancel | "Cancel this task?" | what it changes | "Keep it" | "Cancel task" |
-  | an agent's task's Stop | "Stop this task?" | "Its run stops, and the task is held until it is released." | "Keep going" | "Stop task" |
+  | closing a goal | "Close this goal?" | "You can still read it, but it can’t be reopened.", then "What landed on its branch stays there." | "Keep it" | "Close goal" |
+  | closing an agent's task | "Close this task?" | "You can still read it, but it can’t be reopened.", and what it changes | "Keep it" | "Close task" |
   | accepting a proposal | "Accept this proposal?" | its facts | "Not yet" | "Accept" |
   | rejecting a proposal | "Reject this proposal?" | its facts and reason | "Keep it" | "Reject" |
   | releasing a task | "Release this task?" | what releasing does; an uncertain effect's two choices | "Keep it held" | "Release" |
@@ -2577,7 +2606,8 @@ keeps (`../protocol/configuration.md`, section 2).
 - **Closed ends on one line.** A chat its requester closed ends on one quiet line,
   "Closed at 21:05" (*The Chats page,* its ended line), between two hairlines; its
   bar's status says "Closed", with no time. "Applied" isn't said once it is
-  closed, nor "Decision made" for the closing itself: that line says it.
+  closed, nor "Decision made" for the closing itself: that line says it; nor
+  after a chat's Pause or Resume: its status says it (3.5, *A person's pause*).
 - **It names what the person saw.** Each deciding act names the
   revision of the document the card showed; when the engine refuses it
   as moved, the card asks the person to look again (jig's
@@ -3883,7 +3913,8 @@ The acts of both, each one act and one request (3.6):
 ### 5.4 Limits
 
 The view's limits are skein-ui's (skein's `ui.md`, section 15), derived
-from the domain's: each page's nodes at its windows' most rows, the
+from the domain's: each page's nodes at its conversation's bytes (5.15)
+and its other windows' most rows, the
 forge's form and its outcome's lines, the kinds' list at its longest,
 and one paragraph per part not read. Their text across a tree,
 `text_bytes`, is the nodes outside a window's turns at a node's most
@@ -3921,15 +3952,20 @@ three rows (`rows`, which bounds a turn's messages and a message's blocks
 as well as a page's lines), 512 bytes of field text (`text`), and 131,072 bytes
 of a turn (`long_text`): the turn being written (jig's thread's `live`), and a
 committed turn's shared text (`turn_text`, which jig's transcript prices its
-calls' names first: jig's `client/domain/client.md`, section 14). A window of
-16 lines holds at most 2,097,152 bytes of turns' text. The CSV chat's first turn fits with its
+calls' names first: jig's `client/domain/client.md`, section 14). The CSV
+chat's first turn fits with its
 `delegate` input of about 1.2 KB, so its card appears at that call (5.7).
-A chat's window holds 16 lines (the domain's chat page), and the page
-reads the page before its oldest while an older one remains and the
-window has room for a page, `rows` lines, so a conversation of a dozen
-lines shows whole, with no "Older". Past that, "Older" reads the page
-before, and the lines the window lets go are not said (jig's `Left` draws
-nothing). The engine's pages keep their own rows (its
+A conversation's window is bounded by `document_bytes`, 1,048,576, not
+16 lines (5.15). jig's thread charges the bytes and `LINE_ROOM`, 64 bytes,
+for each line, message, block, object and part. Its `lines` stays for jig's
+reference UI and tools; temper sets it to `document_bytes / LINE_ROOM`,
+16,384, which the bytes reach first. The view prices its window from those
+bytes, including Markdown and ten structural nodes per room. Earlier and
+later reads let whole lines go at the opposite end, and read them again
+when that edge nears the view; nothing says how many left. No second page
+is read merely because the window has room: the browser measures the log,
+and the terminal opens with one page. An empty page with an older cursor
+reads on in either shell. The engine's pages keep their own rows (its
 `documents.rows`, at most the client's). Committed turns on both the chat
 and agent task pages are priced by `turn_text`; cards and other fields
 retain `text`.
@@ -4235,7 +4271,7 @@ repository, and the cues the playground's, copied in from its read:
   message, so the start has no task and no number; once a suggestion
   or the composer starts the chat, its page opens in place of `NewChat`
   and keeps the frame (3.5).
-- **The context line,** at the thread's head, in `.meta-line`'s look: on a chat's page,
+- **The context line,** at the thread's head (5.15), in `.meta-line`'s look: on a chat's page,
   "PROJECT · OWNER/NAME on Playground forge", PROJECT the project as
   the switcher names it; then "Signed in
   as the deployment’s owner" while `me`'s role on the deployment is
@@ -4448,14 +4484,14 @@ an open need on it, whether it has a report, and its direct delegates' total.
   - `<h1>`: the report's headline. With none: planning, or live with no tasks yet, "Planning from NAME:
     reading it and the designs it cites.", NAME the draft's file from the
     goal's words (below), or "Planning: reading what was asked." without one;
-    stopped, "Stopped by you. What landed on the goal branch stays there.";
+    closed, "Closed by you. What landed on the goal branch stays there.";
     landed, the result's first line, or "Landed."; failed, "Failed: " and the
     failure's reason; otherwise "N of M tasks landed."
   - `p.byline`: "Written by its agent at " and the note's `changed` in the
     clock form. No byline with no report.
   - `.acts`: "Draft" (`.btn.small`), when the goal's words name a draft and a
     chat: to that `Chat`. "Chat T2", when the requester is a task: to that
-    chat. Neither otherwise. While live: "Amend", "Pause" or "Resume", "Stop",
+    chat. Neither otherwise. While live: "Amend", "Pause" or "Resume", "Close",
     5.11's. Ended, none of the three.
 - **Needs you bands,** one `section.band` named "Needs you" per open need of
   the goal, in the inbox's order, between the header and the report:
@@ -4506,7 +4542,7 @@ an open need on it, whether it has a report, and its direct delegates' total.
     - While the ended page has more after it or was cut, "More of its tasks are
       not shown." as `.facts`.
   - **Landing,** `p.facts`: landed, "Landed at 01:12." in the clock form;
-    stopped, "Stopped before it landed."; failed, "Failed before it landed.";
+    closed, "Closed before it landed."; failed, "Failed before it landed.";
     live, holding a goal branch, "Lands whole once all nine are checked.", the
     delegates' total in words through nine, then a digit, or "Lands whole once
     all its tasks are checked." with no tasks yet; live with no branch, "Each
@@ -4632,8 +4668,9 @@ acts on it as its document offers (5.11).
 
 - **Its parts, in order:** the lineage bar; the taskbar, with its acts
   (5.11); "Task brief"; the run's heading, then its own held card while
-  it is held (5.11); "Older" while an older page remains; the
-  conversation; its acts' outcome; "Result", once it has ended; "Plan",
+  it is held (5.11); the earlier read's loading or failure status (5.15);
+  the conversation, read by its log's edges with no "Older" button;
+  its acts' outcome; "Result", once it has ended; "Plan",
   while its tree holds a delegate or a held task's card; the composer
   while Message is offered (5.11); then the confirmation while one is
   open (3.6). At phone width the order is
@@ -4914,7 +4951,7 @@ disabled. One it offers is drawn by its admission (jig's
 Its rules on a goal's page:
 
 - **Where they are:** `.acts` in the header (5.8), "Amend", "Pause" or
-  "Resume" (`.btn.small`), "Stop" (`.btn.quiet.small`), keeping `.btn.small`'s
+  "Resume" (`.btn.small`), "Close" (`.btn.quiet.small`), keeping `.btn.small`'s
   height at phone width, wrapping as drawn. Ended, none of the three.
 - **Pause** sends `Ask::Stop` at once, no confirmation. A person's Stop is a
   placed hold over the goal's subtree. Its toast: "Paused: running tasks stop,
@@ -4923,10 +4960,10 @@ Its rules on a goal's page:
   revision, at once, no confirmation. A subtree hold's root released lifts it
   whole. Its toast: "Resumed." A goal held for any other cause has no Resume:
   its band has the need.
-- **Stop** opens the confirmation (`confirm.rs`, `Role::Dialog`, 3.6, *The sheet*):
-  "Stop this goal?", then "What landed on its branch stays there.", "Keep going",
-  "Stop goal". It sends
-  `Ask::Cancel` with the reason "Stopped from its page". A goal branch nothing
+- **Close** opens the confirmation (`confirm.rs`, `Role::Dialog`, 3.6, *The sheet*):
+  "Close this goal?", then "You can still read it, but it can’t be reopened." and
+  "What landed on its branch stays there.", "Keep it", "Close goal". It sends
+  `Ask::Cancel` with the reason "Closed from its page". A goal branch nothing
   landed from stays (`../domain/forge.md`, 11.1), so the sentence holds. The
   acts stay drawn behind the dialog.
 - **Amend** opens the amendment's editor below, between the header and the
@@ -4939,7 +4976,7 @@ Its rules on a goal's page:
   amendment it shows you first." While Message is refused as `NotWaiting`, the
   composer's place holds nothing; ended, no composer.
 - **The toast** is the frame's (3.5, *Needs you*: one at a time, one optional
-  act). It says Pause's and Resume's done words, a Pause's, Resume's, Stop's or
+  act). It says Pause's and Resume's done words, a Pause's, Resume's, Close's or
   Message's refusal in jig's words, with "Look again" after a moved one, which
   closes it, and "Unknown" past the engine's retention. Nothing is shown done
   before its answer; a pending request's double press joins it (3.6).
@@ -4950,12 +4987,12 @@ Its rules on a goal's page:
 Its rules on an agent's task's page:
 
 - **Where they are.** In its taskbar after its spend, as a chat's chatbar
-  holds Stop and Close: "Amend", "Stop"; and its composer last (below).
+  holds its acts: "Amend", "Pause" or "Resume", "Close"; and its composer last
+  (below).
   The taskbar's acts wrap as a chat's do. While the page's confirmation is
-  open, the taskbar draws no act: the dialog is the one place to answer, and
-  its "Cancel" the only one on the page.
-- **Its own held card.** While the page's task is held, stopped among
-  the reasons, its held task's card (3.6), with Release and its
+  open, the taskbar draws no act: the dialog is the one place to answer.
+- **Its own held card.** While the page's task is held for any cause but
+  the person's own pause, its held task's card (3.6), with Release and its
   confirmation, follows the agent's run heading. The task is no row of its
   own plan, so its plan never draws it; a delegate's held card stays in its
   row. Release names the hold's revision, and a moved one's refusal asks the
@@ -4970,12 +5007,13 @@ Its rules on an agent's task's page:
   temper's "Messages reach it once it runs." (any other refusal: its supplied
   words, in the same look, since why Message isn't offered is no outcome), and
   its model choice line alone.
-- **Stop,** confirmed (3.6, *The sheet*): "Stop this task?" saying "Its run stops,
-  and the task is held until it is released.", then "Keep going" and "Stop task".
-  It is sent as
-  `Ask::Stop`. The engine holds the task, stopped by the person, so Release is
-  offered next, its effect said as 3.6 says ("The next run resumes its
-  conversation; tries count again from zero").
+- **Pause and Resume** are a chat's (3.5, *A person's pause*): `Ask::Stop` at once,
+  and on the person's own pause "Resume", `Ask::Release` naming the hold's revision,
+  at once. The page's state says "Paused"; neither draws a done word, and a refusal
+  says why as any of its acts' does.
+- **Close,** confirmed (3.6, *The sheet*): "Close this task?" saying "You can still
+  read it, but it can’t be reopened." and what it changes, then "Keep it" and "Close
+  task". It sends `Ask::Cancel` with the reason "Closed from its page".
 
 On both:
 
@@ -5015,9 +5053,10 @@ On both:
   refusal in jig's words, with "Look again" after a moved one; past the
   engine's retention, "Unknown". It follows the conversation, as a chat's. On a
   goal's page, the toast (above).
-- **"Older,"** on an agent's task's page, the chat's (5.4): before the
-  conversation while an older page remains, reading the page before
-  through the same read of its activity, no other.
+- **Reading the conversation,** on an agent's task's page, is the chat's
+  (5.15): the log's head asks for earlier activity and its foot for later
+  activity, through the same thread, with no "Older" button. Latest returns
+  to the window's foot and asks for later activity while the end is missing (5.15).
 - **Against the mockup,** an agent's task's page's way:
   - the composer's text area is named "Message", the chat's, where the
     mockup's is "Write to agent task" with a placeholder "Write to
@@ -5033,10 +5072,11 @@ On both:
   - the acts hidden while the confirmation is open.
 - **Where it is decided:** the domain's task page holds the composer's
   words, its pending requests by kind and the last outcome, as a chat's
-  page does, and the chat's acts (`Act::MessageWords`, `Send`, `Stop`,
-  `Older`) are routed to whichever of the two pages is open; a goal's
-  Pause and Resume (`Act::Pause`, `Act::Resume`) are sent at once; an agent's
-  task's Stop and a goal's Stop (`Act::Close`) open their confirmation first, as
+  page does, and the chat's acts (`Act::MessageWords`, `Send`,
+  `Older`, `Newer`, `Latest`) are routed to whichever of the two pages is open; a goal's and an
+  agent's task's Pause and Resume (`Act::Pause`, `Act::Resume`), and a chat's
+  (`Act::Stop`, `Act::Resume`), are sent at once; an agent's
+  task's Close and a goal's Close (`Act::Close`) open their confirmation first, as
   `Confirm` with the page's task as its object, and `Act::Confirm` sends them.
   An agent's task's page reads a card for its own task when its document is
   held, as it reads one for a held row. The view draws each act by
@@ -5173,7 +5213,8 @@ section 5.
   and these open the tab, `Address` having no anchors: Home's "Turn on drafts
   and goals", "See the settings" and "Limits".
 - **The card in a chat:** a proposal of settings is a card at the call that
-  made it, as every proposal is (3.5): the title "How temper will run
+  made it where its turn names it, and after the conversation otherwise, as
+  every proposal is (3.5): the title "How temper will run
   PROJECT", PROJECT its `projects`' names joined by ", " and " and ", or, with
   none, the deployment's, "How temper will run your projects"; a line per line of the proposal's reason, in the person's words;
   then each item, in small mono type, faint, in the words of `temper ctl` but
@@ -5188,8 +5229,9 @@ section 5.
   something", quiet, focusing the composer. A decision goes under the proposal's
   own `project`, never the chat's: a proposal of settings is the deployment's,
   whichever chat made it, and jig knows it under no other project. The card has
-  no "Reject": the person rejects it on its card in *Needs you* (3.5), or says
-  what to change here. Replaced by a later proposal, it is
+  no "Reject": the person rejects it on its card in *Needs you* (3.5). Saying
+  what to change here revises nothing while it waits: the agent answers that an
+  owner rejects it, then proposes afresh (`../domain/agent.md`, 8.1). Replaced by a later proposal, it is
   dimmed, "Replaced by the proposal below"; accepted, "✓ Accepted · new work
   follows it". A person who may not accept it sees neither act: "Waiting for an
   owner", the parties it waits for as jig's proposal names them, "Owners of this
@@ -5376,6 +5418,56 @@ can open it. `draft` is the draft's path in the repository
 - **The chat's thread:** a person's Create leaves no turn, so its "Started goal"
   line is drawn from the fact `GoalFrom` (3.5).
 - **The look:** `browser.md`, 2.5, *A goal's look*.
+
+### 5.15 Reading a conversation
+
+A chat's conversation and an agent's task's (5.9) are read by scrolling
+(`../draft/chat-reading.md`, section 5). jig's thread holds the window
+(jig's `client/domain/client.md`, section 10), and skein's page part
+measures it (skein's `ui-web.md`, section 7).
+
+- **The log is bound** while an earlier page remains or the window has let
+  its newest lines go, its act decoding to `Older` at its head and `Newer` at
+  its foot. There is no "Older" button. Earlier lines load when the head
+  comes within one and a half screens, whatever brought it there. The same
+  rule opens a chat: a long one opens with at least a screen and a half,
+  a short one whole.
+- **The window** fills `document_bytes`, with no count of lines: its `lines`
+  is what its bytes hold (`thread_limits`). The page's bounds are priced from
+  its bytes (5.4). Reading earlier past them lets the newest whole lines go,
+  and reading later the earliest; they come back when scrolled to, and nothing
+  says how many left.
+- **While a window has let its newest go** the log *continues* (skein's
+  `ui.md`, 3.2), so it isn't followed and "Latest" shows, even at its foot.
+  New words and a run's live text wait: they show when the end is back.
+- **Each line's outer node is keyed,** a turn by its name, a run of calls by
+  its first turn's, a person's words by their message, an activity line by its
+  position. So a page read in above is an insert, nothing already drawn is
+  rewritten, and the page part can keep the words where they are.
+- **The log's head holds nothing that stays while lines arrive below it,** but
+  the status below: the page part holds the first entry in view. So the context
+  line (5.6) draws once the window holds the chat's start, and a day's label is
+  keyed by its date and the first line under it, so that a page of the same day
+  read in above replaces it.
+- **While a read is out** the log is *busy*, and so it stays after a failure,
+  which the page part then leaves alone until the person moves. At the head:
+  "Loading earlier messages…" while an earlier page is out, "Couldn't load
+  earlier messages" in the same look after one failed, and nothing once the
+  chat's start is shown. A read at the foot says nothing.
+- **"Latest":** the view returns to the window's foot. On a chat where the
+  window let the end go, a press reads the end again (`Thread::latest`),
+  which replaces the window. A person sending on a chat does the same
+  through the log's end request,
+  which `Chat` counts. An agent's page has the same pill; while its window
+  has let the end go, a press asks for the next later page (`Thread::newer`).
+  Its log has no end request, so sending there does not request the end.
+- **The terminal:** the log is bound and continues as in a browser, with no
+  measures: `up` reads earlier and `down` later (skein's `ui-text.md`, section
+  6), and each prints the whole window again. These are lines followed by
+  Enter, as are the escape sequences PgUp and PgDn make, not raw keys.
+  It opens with one page. The line under its bound log's name says
+  `(up, down: more lines)`; there is no pill, and sending on a chat reads
+  the end again.
 
 ## 6. The terminal shell
 
@@ -6025,11 +6117,14 @@ own tests:
   page cut; an agent's task with no priority reading none; the panel's
   slot in each state; each step's slot and the steps done; a task's
   page's acts, 5.11: a goal's Pause and Resume sent at once, naming the hold's
-  revision, its Stop's reason and each toast; Message, Stop, Cancel and Release each as its
-  request, Stop and Cancel only once confirmed, one request per kind
+  revision, its Close's reason and each toast; an agent's task's Pause and Resume the same;
+  a chat's Pause and Resume sent at once, its status from whose hold it is, and its message
+  while paused one compound of the words and the release, whole or refused;
+  Message, Stop, Cancel and Release each as its
+  request, Cancel only once confirmed, one request per kind
   at a time, an act not offered, proposable or refused sending
-  nothing, a card read for its own task once held, and "Older" as the
-  chat's read); the forge side's steps
+  nothing, a card read for its own task once held, and the log's earlier
+  and later acts as the chat's reads (5.15)); the forge side's steps
   (the form's rules, its request, every outcome, the version check; the
   picker's pages by number, "Next" asking the shown page's number plus
   one, a full last page's "Next" and a page past the last answering no
@@ -6055,9 +6150,9 @@ own tests:
   result in each state and none before it ends, and its plan only with
   a delegate or a card; a task's page's acts, 5.11: each act by its
   admission (a button, proposable, refused, and not offered: not
-  drawn), a goal's acts in order, Pause and Resume sent at once, Stop's dialog,
+  drawn), a goal's acts in order, Pause and Resume sent at once, Close's dialog,
   the taskbar's acts, gone while the confirmation is open, the composer with its
-  note and a refused Message in its place, the Stop dialog's words, its own held
+  note and a refused Message in its place, the Close dialog's words, its own held
   card where 5.11 puts it, and each outcome: pending, done, refused, moved, a
   goal's in the toast; the
   amendment's editor on a goal and on an agent's task, a cut spec read
@@ -6161,7 +6256,8 @@ own tests:
   `client/domain/testing.md`, sections 5, 6 and 7). The forge's request
   and outcome are decoded and encoded by the engine's routing (section
   8), exhaustive both ways. Stories: signing in and seeing the inbox; a
-  chat started and answered; a goal proposed in a chat, accepted in the
+  chat started and answered; a chat paused, resumed and paused again, and a
+  message to it resuming it, answered; a goal proposed in a chat, accepted in the
   inbox, and gone from the chat's card; a
   held task released from its own page; a goal's page saying which
   task a delegate waits on, then, the first delegate ended, the second's line
@@ -6170,9 +6266,10 @@ own tests:
   brief, its run's heading and its committed turn, the goal reached
   again by its lineage bar, and, once the delegate has reported, its
   run ended and its result; from a running delegate's page, a message
-  sent and read by its scripted run's next turn; that delegate stopped,
-  confirmed, its own held card shown, and released, running again; a
-  goal stopped from its page, confirmed, and its delegates ended; a goal paused and
+  sent and read by its scripted run's next turn; that delegate paused at once,
+  saying "Paused" with no held card of its own, and resumed, running again; a
+  delegate closed through its sheet, and ended; a
+  goal closed from its page, confirmed, and its delegates ended; a goal paused and
   resumed from its page; a waiting delegate's Message refused, its page
   saying why and sending nothing; an amendment of a goal's
   specification from its page, and one refused as moved asking to look
@@ -6462,6 +6559,16 @@ own tests:
   a reload or another device loses it, since an ended proposal asks no card and jig
   names no `projects` on one. A card from the ended proposal, or a stored record, would
   keep it. Default: this session's alone.
+- **A Reject on a chat's card** (5.13; the request `ui-chat-accept` of 2026-11-06,
+  which counts Reject among the card's acts): the mock's `chat.html` draws "Accept" and
+  "Change something" alone, and the reason's box stands on the card in *Needs you*.
+  Drawing one takes a view change and that box; its ask already goes under the
+  proposal's own `project`. Default: none, a person rejects in *Needs you*, where what
+  they say to change in the chat also leads while it waits (5.13).
+- **A rejected proposal of settings, on its chat's card** (5.13; the same request): its
+  title and lines stay with neither acts nor a state line, where the card in *Needs you*
+  says "Rejected"; the reason sent and the agent's reply stand in the conversation above
+  it. No words for it are designed. Default: as it stands.
 - **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; the
   requests `ui-final-walk` of 2026-11-05 and `ui-walk-3` of 2026-11-06): the pinned
   Claude Code fetch, from a box with directories of its own up to the sign-in prompt
@@ -6496,6 +6603,17 @@ own tests:
   a keyboard the person did not ask for. Telling them apart takes a kit mechanism,
   a focus request that raises no keyboard (skein's `ui-web.md`, 7). Default: the
   same focus at every width.
+- **A start refused, by its press** (3.5, *Where the focus stands on a chat*; the
+  request `ui-composer-focus` of 2026-11-06): the send arrow disables while a start
+  is out, and a disabled button holds no focus, so a start refused after a press
+  leaves the focus where the browser put it, and the person clicks the composer to
+  try again. That request does not ask for it. Default: a refused start moves
+  nothing.
+- **A composer that comes back** (3.5, *Where the focus stands on a chat*; the
+  request `ui-composer-focus` of 2026-11-06): a composer's request rides its insert
+  (skein's `ui-web.md`, 7), so a chat that loses Message and regains it, after a
+  send or "Change something", takes the focus again, from a person typing elsewhere
+  on that page at that moment. Default: not guarded.
 
 - **Pages the mockups do not show:** a project's page with its
   resources, findings, notes and settings (policy, people and roles,
@@ -6623,11 +6741,10 @@ own tests:
   time under 12 hours old prints again each minute while it is shown.
   Default: as printed; a terminal shell that says every time as its
   moment, with no wake, is the candidate.
-- **Reading a chat by scrolling** (3.5, 5.4; `../draft/chat-reading.md`, 5):
-  earlier lines loading as a log's head nears (skein's `ui.md`, section 18), PgUp and
-  PgDn from anywhere, a window bounded by size that never loses the newest, and Latest
-  on the person sending and across all the window let go. Default: "Older" at the
-  head, a window of 16 lines, Latest reading one page and sending leaving the view.
+- **Reading a conversation in every browser** (5.15; `../draft/chat-reading.md`, 5):
+  the position staying put when lines load above is for the user to read on a
+  real chat. Default: the browser tier runs Chromium, including with
+  `overflow-anchor: none`; Firefox and Safari themselves are read, not run.
 - **The rest of a run's line** (3.5, 5.9; `../draft/chat-reading.md`, 2 and 7): words
   for tools past the table, which are the user's to read on a real chat. Default: any
   other tool is its name. A run of one turn has its time as *A run's time* says, and an
@@ -6688,7 +6805,12 @@ own tests:
     matter least;
   - no drain: Pause is jig's Stop, so its toast says running tasks stop, where the
     mock's say they finish. jig's Drain and a party's `Hold` are not built;
-  - "Stop" is `Ask::Cancel`, and no new word replaces it.
+  - "Close" is `Ask::Cancel`, where the mock says "Stop": Pause, Resume and Close are
+    one vocabulary across a chat, a goal and an agent's task.
+- **A message to a paused goal or agent's task** (3.5, *A person's pause*): the request
+  `ui-pause-close` makes sending resume a chat alone. Default: words alone, which wait for
+  Resume, since a goal's release lifts its whole subtree's hold; an agent's task that resumes
+  on a message is the candidate.
 - **A goal's own line** (5.8): no key selects one task, so a goal's counts follow
   `Read::Tasks` by its project, requester, label and tracked for at most 8 pages,
   and a party with more goals than that sees what the page holds. Default: so,
@@ -6708,13 +6830,11 @@ own tests:
     where the mockup draws none;
   - its acts are 5.11's.
 - **A task's page's acts** (5.11), each a default the user may change:
-  - Stop confirmed on a task's page, where a chat's Stop is sent at
-    once: stopping holds the task until it is released, and the task's
-    page acts on work the person may not be watching. The chat
-    confirming its Stop too is the candidate;
-  - Cancel on a goal's page only, as its Stop; an agent's task's Cancel, which
-    the engine offers the person its requesters lead to, is reached from
-    `temper ctl`;
+  - an agent's task's Pause sent at once, as a chat's and a goal's, though that
+    page acts on work the person may not be watching: Resume undoes it (3.6). A
+    sheet on it is the candidate;
+  - Close on a goal's and an agent's task's page alone; a procedure's Cancel, which
+    no page draws, is reached from `temper ctl`;
   - the amendment's editor on the pages: the specification's words
     and, on a goal, its tracking and priority, the model choice being
     the choice line's; the rest of an amendment is `temper ctl
@@ -6737,8 +6857,9 @@ own tests:
   shown." or "More of its ended tasks are not shown." past it; a goal's
   page reads its latest activity's page for what the person sent, not the
   older ones. Default: one page of each, since a procedure makes a handful
-  and a goal's page is read for what is under way. An "Older" read is the candidate, as an agent's task's
-  conversation has: the ended page's `after` as the next query's
+  and a goal's page is read for what is under way. Reading at a list's edge
+  is the candidate, as an agent's task's conversation does (5.15): the
+  ended page's `after` as the next query's
   start, and the activity's older pages by their `before`; with the
   view's words and tests and the client world's story, about two hours
   of work.
@@ -6822,8 +6943,11 @@ own tests:
 
 - **A command for anyone but the owner** (3.5, 4.6): `program_login` goes to any
   party signed in, its paths with it, so a person who isn't the owner reads on
-  Accounts the directories `program_environment` refuses them. Default: so, what's
-  printed working when pasted, until a deployment says otherwise.
+  Accounts the directories `program_environment` refuses them. It names all three
+  by their flags, at their defaults or not, where the owner's words name each only
+  off its own: the request `box-small-2` of 2026-11-06 asks that of
+  `program_environment` alone. Default: so, what's printed working when pasted,
+  until a deployment says otherwise.
 - **This deployment's directories under "each host"** (4.6, 5.5): Connect a model's
   Ready says "Run this on each host temper’s agents run on" over "On this machine,
   run:" and the command with `program_environment`'s words, which are this

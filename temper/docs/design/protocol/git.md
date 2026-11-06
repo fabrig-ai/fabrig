@@ -334,7 +334,8 @@ git diff-files --name-only -z --diff-filter=U          only after exit 1
 
 - **Exit 0:** `Merged`, a commit already contained in HEAD ("Already up
   to date") included: the next commit still records both parents
-  (section 4.7).
+  (section 4.7). A producer's start asks first, and runs no merge of a
+  base its branch contains (section 4.9).
 - **Exit 1, and a list that is not empty:** `Conflicted { files }`, the
   unmerged paths, NUL-separated, relative to the repository's top, in
   git's order. More than the checkout's `conflicts`, or one longer than
@@ -345,6 +346,9 @@ git diff-files --name-only -z --diff-filter=U          only after exit 1
   entries whatever the repository's diff settings say.
 - **The committer** git requires even with `--no-commit` is the
   placeholder of section 5: Merge names no identity, and makes no commit.
+- **Who commits it** is the domain's (`../domain/worker.md`, section 5): a
+  producer's clean merge and each head of a base with heads merged in at
+  once, any other merge at its run's first push or save.
 
 ### 4.7 Commit
 
@@ -461,7 +465,10 @@ Exit 0 ends `IsAncestor { contains: true }`, exit 1 ends it with false,
 and other exits fail as `Broken`. The same command inside Push retains
 section 4.8's separate contract: exit 1 rejects that push. The checkout
 uses this operation to compare an existing producer head with the landing
-tip frozen by its prepare; the comparison alone is never a push receipt.
+tip frozen by its prepare, and to ask whether a start's checkout already
+contains a head or a producer's base it would merge
+(`../domain/worker.md`, section 5); the comparison alone is never a push
+receipt.
 
 
 ### 4.10 Rewrite

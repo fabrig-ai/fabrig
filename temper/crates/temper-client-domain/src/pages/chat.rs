@@ -6,14 +6,16 @@ use super::{Act, Request, activity::Asking, delegation};
 use crate::{Limits, owner::Owner};
 use alloc::boxed::Box;
 use document::{Document, Mode, NoteWrite};
-use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c, thread::Thread};
+use jig_client::{
+    Client, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c,
+    thread::{Thread, window::End},
+};
 use skein_lib::{Env, List, Queue, Time, Wall};
-/// A small conversation's retained window (client/README.md, 5.4).
-pub const LINES: u32 = 16;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sending {
     Message,
     Stop,
+    Resume,
     Seen,
     Close,
 }
@@ -52,7 +54,7 @@ pub struct Chat {
     current_run: Option<Box<c::RunState>>,
     pub next: u64,
     pub thread: Thread,
-    rows: u32,
+    to_end: u64,
     pub words: Box<[u8]>,
     pub composer_focus: u64,
     pub settings_proposals: List<c::Proposal>,
@@ -69,6 +71,12 @@ pub struct Chat {
     pub final_task: Option<Box<c::Task>>,
 }
 impl Chat {
+    /// The log's end request (temper/docs/design/client/README.md, 5.15).
+    #[must_use]
+    pub fn to_end(&self) -> u64 {
+        self.to_end
+    }
+
     /// The supplied call under way (temper/docs/design/client/README.md, 3.5).
     #[must_use]
     pub fn current_call(&self) -> Option<&c::CurrentCall> {
@@ -114,11 +122,11 @@ impl Chat {
             current_run: None,
             next: first.checked_add(4).expect("chat handles fit"),
             thread,
-            rows: limits.client.domain.rows,
+            to_end: 0,
             words: Box::default(),
             composer_focus: 0,
             settings_proposals: List::with_capacity(limits.client.domain.reads),
-            pending: List::with_capacity(4),
+            pending: List::with_capacity(5),
             outcome: None,
             outcome_kind: None,
             seen: 0,
@@ -226,7 +234,6 @@ impl Chat {
             Told::Changed { handle } if handle == self.document => {
                 if let Some(Latest::Jig(c::Delivery::Task(task))) = latest(client, handle) {
                     ask_activity(&mut self.asking, self.activity, self.thread.document(task), out);
-                    self.fill(out);
                     self.watch_run(task, out);
                     self.proposals(task, out);
                     self.open_draft(task.project, out);
@@ -240,7 +247,6 @@ impl Chat {
             Told::Page { handle, page } if handle == self.document => {
                 if let Some(task) = page_task(page, self.task) {
                     ask_activity(&mut self.asking, self.activity, self.thread.document(&task), out);
-                    self.fill(out);
                     self.watch_run(&task, out);
                     self.proposals(&task, out);
                     self.open_draft(task.project, out);
@@ -449,8 +455,11 @@ impl Chat {
         let why = super::activity::read_end(client, &page);
         if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = page {
             self.asking.answered();
+            let empty_with_more = page.rows.is_empty() && page.before.is_some();
             ask_activity(&mut self.asking, self.activity, self.thread.page(*page), out);
-            self.fill(out);
+            if empty_with_more {
+                ask_activity(&mut self.asking, self.activity, self.thread.older(), out);
+            }
         } else if let Readout::Jig(c::ReadResult::None(c::ReadNone::SignedOut)) = page
             && client.link().state == jig_client::Link::Starting
             && super::awaits_first_read(&self.thread)
@@ -532,20 +541,10 @@ impl Chat {
         self.pending = kept;
         self.outcome = Some(outcome);
     }
-    fn room(&self) -> bool {
-        self.thread.lines.rows.len() <= LINES.saturating_sub(self.rows)
-    }
-    fn fill(&mut self, out: &mut Queue<Request>) {
-        if self.room() && self.thread.reading.is_none() {
-            ask_activity(&mut self.asking, self.activity, self.thread.older(), out);
-        }
-    }
-    /// Older activity is offered once another page cannot fit in the window.
-    #[must_use]
-    pub fn offers_older(&self) -> bool {
-        match self.thread.lines.edges.after {
-            jig_client::thread::window::Edge::More(_) => !self.room(),
-            jig_client::thread::window::Edge::End => false,
+    fn request_end(&mut self, out: &mut Queue<Request>) {
+        self.to_end = self.to_end.checked_add(1).expect("end request count fits");
+        if !self.thread.lines.edges.reaches(End::Before) {
+            ask_activity(&mut self.asking, self.activity, self.thread.latest(), out);
         }
     }
     #[must_use]
@@ -648,8 +647,7 @@ impl Chat {
                 }
                 jig_client::thread::Line::Words { .. }
                 | jig_client::thread::Line::Undecoded { .. }
-                | jig_client::thread::Line::Provisional { .. }
-                | jig_client::thread::Line::Left { .. } => continue,
+                | jig_client::thread::Line::Provisional { .. } => continue,
             };
             for message in turn.messages.iter().rev() {
                 for block in message.blocks.iter().rev() {
@@ -945,8 +943,9 @@ impl Chat {
                 self.shown = Some(line);
                 self.shown_count = self.shown_count.checked_add(1).expect("shown count fits");
             }
+            Act::Newer => ask_activity(&mut self.asking, self.activity, self.thread.newer(), out),
             Act::Older => ask_activity(&mut self.asking, self.activity, self.thread.older(), out),
-            Act::Latest => ask_activity(&mut self.asking, self.activity, self.thread.newer(), out),
+            Act::Latest => self.request_end(out),
             Act::AddDraft => {
                 let Some(task) = self.task(client) else { return };
                 if self.draft.is_some() || self.writing || task.result.is_some() || super::chats::ended(&task.chip) {
@@ -961,6 +960,7 @@ impl Chat {
                 self.composer_focus = self.composer_focus.checked_add(1).expect("focus count fits");
             }
             Act::Stop => self.send(env, client, Sending::Stop, None, serial, out),
+            Act::Resume => self.send(env, client, Sending::Resume, None, serial, out),
             Act::OpenStart { .. }
             | Act::StartDraft { .. }
             | Act::StartName { .. }
@@ -1009,7 +1009,6 @@ impl Chat {
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Pause
-            | Act::Resume
             | Act::Amend
             | Act::AmendWords { .. }
             | Act::AmendTracked
@@ -1055,14 +1054,51 @@ impl Chat {
     ) {
         let message = supplied.unwrap_or(&self.words);
         let Some(task) = self.task(client) else { return };
+        let me = match latest(client, super::me_handle()) {
+            Some(Latest::Jig(c::Delivery::Me(me))) => Some(me.as_ref()),
+            Some(Latest::Jig(_) | Latest::Family(_)) | None => None,
+        };
+        let resumes = match me {
+            Some(me) => paused(&task.chip, me) && allowed(task, c::ActKind::Release),
+            None => false,
+        };
+        let words = match kind {
+            Sending::Message if !message.is_empty() && allowed(task, c::ActKind::Message) => {
+                Some(c::Text::new(message.into(), temper_client_protocol_wire::CUE_BYTES).expect("composer bounded"))
+            }
+            Sending::Message => return,
+            Sending::Stop | Sending::Resume | Sending::Seen | Sending::Close => None,
+        };
         let ask = match kind {
-            Sending::Message if !message.is_empty() && allowed(task, c::ActKind::Message) => c::Ask::Message {
+            Sending::Message => {
+                let words = words.as_ref().expect("message words checked").clone();
+                if resumes {
+                    c::Ask::Compound {
+                        project: task.project,
+                        operations: List::from_boxed(Box::new([
+                            c::Operation::Message { project: task.project, task: self.task, words },
+                            c::Operation::Release {
+                                project: task.project,
+                                task: self.task,
+                                revision: c::Revision {
+                                    value: super::task::chip_hold(&task.chip).expect("paused is held"),
+                                },
+                                again: None,
+                            },
+                        ])),
+                    }
+                } else {
+                    c::Ask::Message { project: task.project, task: self.task, words }
+                }
+            }
+            Sending::Resume if resumes => c::Ask::Release {
                 project: task.project,
                 task: self.task,
-                words: c::Text::new(message.into(), temper_client_protocol_wire::CUE_BYTES).expect("composer bounded"),
+                revision: c::Revision { value: super::task::chip_hold(&task.chip).expect("paused is held") },
+                again: None,
             },
             Sending::Stop if allowed(task, c::ActKind::Stop) => c::Ask::Stop { project: task.project, task: self.task },
-            Sending::Message | Sending::Stop | Sending::Seen | Sending::Close => return,
+            Sending::Stop | Sending::Resume | Sending::Seen | Sending::Close => return,
         };
         for (_, pending) in &self.pending {
             if *pending == kind {
@@ -1071,11 +1107,9 @@ impl Chat {
         }
         *serial = serial.checked_add(1).expect("chat keys fit");
         let key = Key { asker: Owner::Pages.asker(), number: *serial };
-        if let c::Ask::Message { words, .. } = &ask {
-            let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else {
-                return;
-            };
-            if !self.thread.sending(key, me.party.number, words.clone(), 0) {
+        if let Some(words) = words {
+            let Some(me) = me else { return };
+            if !self.thread.sending(key, me.party.number, words, 0) {
                 return;
             }
             if supplied.is_none() {
@@ -1090,12 +1124,18 @@ impl Chat {
             name: None,
             request: jig_client::Ask::Jig(Box::new(ask)),
         }));
+        if kind == Sending::Message && supplied.is_none() {
+            self.request_end(out);
+        }
     }
 }
 #[must_use]
 pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits {
     jig_client::thread::Limits {
-        lines: LINES,
+        lines: u32::try_from(
+            limits.client.domain.document_bytes.checked_div(u64::from(c::LINE_ROOM)).expect("line room is nonzero"),
+        )
+        .unwrap_or(u32::MAX),
         bytes: limits.client.domain.document_bytes,
         text: limits.client.domain.text,
         live: limits.client.domain.long_text,
@@ -1170,4 +1210,25 @@ fn remember_settings(proposals: &mut List<c::Proposal>, proposal: &c::Proposal) 
         }
     }
     proposals.push(proposal.clone()).expect("bounded settings snapshots");
+}
+
+/// The person's own pause (client/README.md, 3.5): held by a placed hold of theirs, mode Stop, over the task's own subtree.
+#[must_use]
+pub fn paused(chip: &c::Chip, me: &c::Me) -> bool {
+    let c::ChipPhaseFacts { phase, details } = chip.details.as_ref();
+    match phase {
+        c::ChipPhase::Held { .. } => {
+            let Some(hold) = &details.hold else { return false };
+            let Some(placed) = &hold.placed else { return false };
+            placed.mode == c::HoldMode::Stop
+                && placed.scope == (c::HoldScope::Subtree { task: chip.task })
+                && !placed.lifted
+                && placed.owner == (c::HoldOwner::Party { person: me.party.number })
+        }
+        c::ChipPhase::Waiting { .. }
+        | c::ChipPhase::Active(_)
+        | c::ChipPhase::Person { .. }
+        | c::ChipPhase::Closing(_)
+        | c::ChipPhase::Ended => false,
+    }
 }

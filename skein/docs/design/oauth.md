@@ -1008,3 +1008,9 @@ accounts component nor its listener requires a sum of heap prices.
   `pending_grant`, `aborted` and `file_active` beside its stage, and neither
   crate's machine has one handler per cell (programming-model.md, section
   5.4). Default: as they stand, until a debt item names them.
+- **A return no application gives** (6.5): temper's sign-in runs in a tab of its
+  own and holds its page (`temper/docs/design/client/README.md`, 3.5,
+  `ConnectModel`, The sign-in's tab), so neither `Request::Return` nor
+  `jig-protocol-accounts`'s `return_to`, over it, has a shipping caller: their own
+  tests alone reach them. Whether they go, or wait for an application that sends
+  its own tab to `visit`. Default: they stay.

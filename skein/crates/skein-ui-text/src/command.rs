@@ -1,7 +1,7 @@
 //! Last-print numbers interpreted against the current tree (ui-text.md, 6).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer, bytes, usize_of};
-use skein_ui::Act;
+use skein_ui::{Act, LogEdge};
 use skein_ui::{NodeId, Role, State, Tree};
 /// What one typed line asks the host to do.
 #[derive(Debug, PartialEq, Eq)]
@@ -41,6 +41,8 @@ pub fn command(line: &[u8], numbers: Option<&[NodeId]>, tree: &Tree, longest: u3
         b"" => return Command::Nothing,
         b"p" => return Command::Print,
         b"q" => return Command::Close,
+        b"up" | b"\x1b[5~" => return near(tree, LogEdge::Head),
+        b"down" | b"\x1b[6~" => return near(tree, LogEdge::Foot),
         _ => {}
     }
     let split = bytes::find(line, b" ").unwrap_or(line.len());
@@ -124,6 +126,15 @@ pub fn command(line: &[u8], numbers: Option<&[NodeId]>, tree: &Tree, longest: u3
     };
     Command::Act { node: id, first, submit: field && node.states.as_slice().contains(&State::SubmitsOnEnter) }
 }
+fn near(tree: &Tree, edge: LogEdge) -> Command {
+    for at in 0..tree.len() {
+        let node = tree.get(at).expect("preorder node exists");
+        if node.role == Role::Log && node.binding.is_some() {
+            return Command::Act { node: node.id, first: Act::Near { edge }, submit: false };
+        }
+    }
+    refused(Refusal::Unknown, 0)
+}
 fn refused(refusal: Refusal, number: u64) -> Command {
     Command::Refused { refusal, number }
 }
@@ -154,7 +165,7 @@ pub fn refusal_line(name: &[u8], refusal: Refusal, number: u64) -> Box<[u8]> {
         Refusal::TakesNoWords => (b": [", b"] takes no words\n", true),
         Refusal::NoPage => (b": no page yet\n", b"", false),
         Refusal::TooLong => (b": line too long\n", b"", false),
-        Refusal::Unknown => (b": commands: n, n words, p, q\n", b"", false),
+        Refusal::Unknown => (b": commands: n, n words, p, q, up, down\n", b"", false),
     };
     let number_bytes = if numbered { digits.as_bytes() } else { b"" };
     let length = name

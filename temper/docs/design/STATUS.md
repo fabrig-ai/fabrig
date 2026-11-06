@@ -35,8 +35,10 @@ built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but no walk
-on record has run a real model on its words, nothing it reads names the
-worker slots it is to size temper's own way by (`domain/agent.md`), and a
+on record has run a real model on its words as they stand, nothing it reads names the
+worker slots it is to size temper's own way by, no story that runs has an owner reject
+its proposal under Needs you, with `temper help proposal` still saying that press fails,
+and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
@@ -64,7 +66,16 @@ request has as its proof, nor why its hold came about 57 minutes in, and a no-ch
 under another hold is said only once a release holds it again (`domain/forge.md`). A
 merged start has no real run on record (`domain/worker.md`), a commit leaves out a
 stray by the name `.*.log` alone (`protocol/git.md`), and the coding charter alone
-asks a run to name no commit off its branch (`domain/agent.md`). A green head ends a CI repair
+asks a run to name no commit off its branch (`domain/agent.md`). A head already behind
+takes its base first, a receipt says what it pushed, a producer is told which task to ask
+and a resume holding the landing tip makes no merge, but no record shows the next landing
+plan on a real deployment, which the `landing-fixes` request has as their proof. The first
+saves a change's wait and not a run the forge started (`domain/forge.md`), and a resume on
+saved work whose save changes nothing leaves the engine's saved set
+(`domain/worker.md`, `protocol/channel.md`). That request's other items stand open: a
+task's saved work outlives its close and a repair's brief with no cause is untraced
+(`domain/forge.md`), a refused worker hears no why (`domain/worker.md`), and a unit test's
+port reservation flakes (`domain/testing.md`). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s
@@ -86,8 +97,9 @@ alone, and many of ctl's tools (`client/README.md`,
 browser, whose story A walks in the browser tier but not yet by hand
 (`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). The browser tier holds 13 tests, one past its cap, its CPU
-measured within its budget on the 12 without the call line's alone, a closed
+(`release.md`). The browser tier holds 14 tests, two past its cap, its CPU
+measured within its budget on the 12 without the call line's and the welcome's
+sign-in's alone, a closed
 chat's wait is located but not split, and no test shows a head waiting for room
 ended by the stall deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
@@ -123,7 +135,8 @@ Forgejo's command without its binary and paths
 configuration names a `uuid`, reading no row, where the `runner-labels`
 request of 2026-11-05 has the uuid match (`protocol/setup.md`), `temper
 box` prints its link first and alone, but no story holds a connection
-waiting on its socket and then signing in, and a first box from a binary
+waiting on its socket and then signing in, no run on record has its OSC 8
+link on a real terminal, and a first box from a binary
 with no browser does not say so (`protocol/setup.md`), and a
 held task names no run's failure, which
 is the user's to decide (`domain/worker.md`); a start past 20 slots on
@@ -173,24 +186,33 @@ says "Starting", and `task show` names a `deployment show` ctl lacks
 (`client/README.md`, `client/tools.md`). `task show` names who answered a person
 task and says a held task waits on its hold, but `temper help task` still says ctl
 takes no task and numbers a party's question, which `waiting on:` does not
+(`client/tools.md`). With no account serving the work `task show` says so on both
+its lines, and a bounded `task amend` prints its call alone, but a task pinned to
+an account with no source still reads `Nothing awaited` beneath `no account
+serving this work yet`, and a person task's `task amend` prints no arguments
 (`client/tools.md`). A proposal of settings reaches a
-project's Needs you and rail's count, but its live card lists no item of temper's
-kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
-"Decision made" while it waits, and Accept on that chat's own card is refused, where
-Needs you's and Home's work (`client/README.md`). "Start goal…" went once from a
+project's Needs you and rail's count and is accepted on its chat's card, but its live
+card lists no item of temper's kinds, stays on Needs you once accepted, leaves its chat
+on a reload, stands below the chat's newest reply rather than at its call and follows a
+"Decision made" while it waits; the chat's card draws no Reject, departing from the
+request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
-binary that runs it and has a Copy, but no browser test presses the Copy; a `TEMPER_` value named only where it
-differs (`client/README.md`) and a link clickable on a terminal (`protocol/setup.md`) wait on `box-small-2`; and
+binary that runs it and has a Copy, but no browser test presses the Copy; with no `HOME` and an XDG variable placing
+only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request
-`model-check-pane` in its list's words, and a sign-in that ends on its way's page stops at
-*A model usable*, where that request goes on to Ready (`client/README.md`). A plan's sign-in draws the waiting page of the request
+`model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
+moves on by itself, but only Chromium has run that, against a fake issuer, and no test has a slow sign-in move on after a
+hidden tab, or a paste's end on the welcome. It draws the waiting page of the request
 `sign-in-new-tab`; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
 (`client/README.md`). The rail's person's menu departs from the request
 `ui-owner-menu` in a press outside that took the focus, which keeps it, a project-less
 `Accounts` page's "Sign out", which stays the banner's, and the tab's whole row leaving
-over 760 px, the login with it (`client/README.md`). The rename's form asks the focus beside an
+over 760 px, the login with it (`client/README.md`). A chat started by sending opens on its
+composer and a send leaves the focus there, but a starter's press asks the same on a phone,
+and no run on record shows what a real phone's keyboard does (`client/README.md`), and no test
+moves the focus while a heading drawn after its page waits (`client/browser.md`). The rename's form asks the focus beside an
 open reply, where a tree holds one request, seen by reading (`client/README.md`),
 and no test measures a long chat's document against its window, where the user's
 answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
@@ -200,8 +222,7 @@ Configure, departing from the request `configure-temper-own-way` in its referenc
 words and look (`client/README.md`), but no journey records its acts and no
 render has checked its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
 the line departs from the request `chat-work` in a failed call's colour, and the end
-mark is a glyph that does not blink (`client/README.md`); a chat is read by "Older" in a
-window of 16 lines until `draft/chat-reading.md`, 5 is built, and on a walk a long chat's
+mark is a glyph that does not blink (`client/README.md`); on a walk a long chat's
 first "Older" did not end in 40 seconds, its cause unknown (`client/README.md`). The words being written draw an
 empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, a last block still open changes as it commits, and no browser test draws them
@@ -212,9 +233,12 @@ terminal, a call under way with none ended says its words twice, and a run still
 no "1 failed" (`client/README.md`). Every confirmation of a chat, a
 task or a card is one sheet, but a closed chat hides every "Decision made", where the
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
-effect's choice closes its sheet, no walk on record presses a task's Cancel or an
-agent's task's Stop (`client/README.md`), and a sheet's acts stand
-44 px on a phone, where that request has 38 (`client/browser.md`). A document
+effect's choice closes its sheet, no walk on record presses an
+agent's task's Close (`client/README.md`), and a sheet's acts stand
+44 px on a phone, where that request has 38 (`client/browser.md`). A chat, a goal and an
+agent's task say Pause, Resume and Close, an agent's task's departing from the request
+`ui-pause-close`, its Stop being a hold that stays one as Pause, but no browser test walks
+them or a message that resumes, and no test draws "Paused" on Home (`client/README.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
@@ -222,7 +246,15 @@ answer as it stood (`domain/agent.md`). A journey's `add` redacts, proves
 and scans before it writes, but no real box's recording has been through it, the
 two welcome journeys keep their fake boxes' link secrets until next added, nothing
 refuses `again` on a real journey, and the refusal's process tests watch two
-directories, not every path (`client/journeys.md`). The process tier runs one test
+directories, not every path; no run on record has `again` walk `project-landing`'s
+setup through a sign-in's new tab, and its words still say the page returns
+(`client/journeys.md`). Conversations are read by their log's edges
+(`client/README.md`, 5.15); in the terminal PgUp and PgDn are lines followed
+by Enter, and `lines` stays for jig's reference UI and tools, past what
+temper's bytes hold. The browser tier runs Chromium alone, with
+`overflow-anchor: none` as the nearest run to Safari; Firefox and Safari
+themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**).
+The process tier runs one test
 at a time where its design has three, its one trial at three having failed twice on
 causes not found, and most of the `test-speed` plan's whole runs read over its CPU
 budget (`domain/testing.md`). The
