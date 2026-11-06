@@ -390,7 +390,8 @@ judge.
    `Fresh` read) as its start time.
 2. **Check.** Only a write carrying a `Condition` (a merge, an update or
    a review) reads its pull request afresh; any other goes to step 3. A
-   closed pull request fails `Closed`; another head or base fails `Stale`.
+   closed pull request fails `Closed`; another head or base fails `Stale`,
+   an update's after a lost attempt too (section 7.5).
 3. **Make.** In the decision that sends the call the client emits
    `Progress` with the entry's `start` (a `Position`, fixed once) and its
    `attempt`: the send, its monotonic `deadline` and its absolute
@@ -404,7 +405,7 @@ judge.
    review by its key, the merge by its pull request merged at the entry's
    head and base, the update by a comparison showing the head holds the
    base. A merge not so proved is `Raced { Merged, Stale }`; an update
-   not so proved is not found (section 7.5). A merge answered `Queued` is
+   not so proved is not found, and so made again (section 7.5). A merge answered `Queued` is
    the queue's (7.7).
 5. **A lost answer.** `Timeout` or `InvalidAnswer` on a write may have
    reached the forge: the entry counts a failure, emits `Progress` and

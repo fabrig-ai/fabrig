@@ -31,12 +31,17 @@ The cut runs nothing. `update-class` reproduces the request's reading first, in 
 |---|---|---|
 | class | `update-class` | |
 | machine | `change-decides-again` | |
-
-Later batches add the top's mapping, the hold's words and the connector's world.
+| machine | `update-let-go` | `change-decides-again` |
+| machine | `update-hold-words` | `update-class`, `update-let-go` |
+| worlds | `update-worlds` | `update-class`, `update-let-go` |
 
 ## Critical path
 
-`change-decides-again`, then the top's mapping and the worlds. `update-class` runs beside it.
+`change-decides-again`, `update-let-go`, `update-worlds` (about 195 minutes). `update-class` runs beside the first two, and `update-hold-words` beside the last.
+
+## After landing
+
+temper/ui re-runs its three-thread trial, which is the proof. Not recorded here, and to record then: `style=merge` of a head already holding its base, and what a rebase's push does to a push made while it works (`skein/docs/design/forge.md`, 9). The plan relies on the first only for a copy landing between a check and a send, where a refusal is typed. The second is taken at its worst.
 
 ## Overlaps not avoided
 

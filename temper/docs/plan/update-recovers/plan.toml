@@ -24,8 +24,21 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/domain/forge.md, 10"
 
+[[part]]
+id = "worlds"
+title = "the connector's world shows the class holds for both styles, and what a late copy costs"
+mode = "direct"
+needs = ["class", "machine"]
+design = "jig/docs/design/domain/connectors.md, 15"
+
 [[slice]]
 id = 1
 story = "an update whose answer is lost neither holds its change nor spins: made again, decided again, told why at its bound"
 parts = ["class", "machine"]
+walk = false
+
+[[slice]]
+id = 2
+story = "under a queue and as a turn's prepare, a lost update lands with no one asked, and a late copy lands nothing unchecked"
+parts = ["worlds"]
 walk = false
