@@ -205,8 +205,8 @@
 - **Not yet:** 10: a walk from the sheet through planning, a live report and
   delegate tasks, Pause, Resume, a message and Stop, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The
-  browser tier walks Goals' link to `/chats` and back alone
-  (`start_goal_opens_chats_for_a_draft`), and the fake box's walk reaches an
+  view holds Goals' link to `/chats` (`the_link_shows_with_a_tracked_template`),
+  and the fake box's walk reaches an
   ended goal's report from its Goals row, in the terminal's client
   (`a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list`). The fake
   box's model (`temper-fake/src/backends.rs`, `model_document`) writes a report
