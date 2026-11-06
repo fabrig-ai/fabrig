@@ -498,3 +498,50 @@ fn a_deployments_proposal_shows_in_each_project_its_owner_owns() {
     let inbox = text(&mut world, agent, &[b"inbox", b"--json"]);
     assert!(inbox.contains("\"projects\":[1,2]"), "{inbox}");
 }
+
+#[test]
+#[ignore = "settings rejection carries running; jig refuses it as NotWellFormed(Running) before committing a decision"]
+fn an_owner_rejects_a_chats_pending_proposal_under_needs_you() {
+    use skein_fake_person::{Find, Step, Target};
+    use skein_ui::Role;
+    let (mut world, agent, task, proposal) = propose(false, None);
+    let person = world.client(fixtures::PARTY, Address::Home { project: PROJECT });
+    let reason = b"Keep chats waiting one second.";
+    world.person(
+        person,
+        vec![
+            Step::See { find: Find::named(Role::Region, b"Needs you"), within: fixtures::WITHIN },
+            Step::See { find: Find::named(Role::Disclosure, b"Reject with reason"), within: fixtures::WITHIN },
+            Step::Type { find: Find::named(Role::TextArea, b"Reason"), words: reason.as_slice().into() },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Reject") },
+        ],
+    );
+    let outcome = world.run(jig_client_kit::harness::Until::Done);
+    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
+    assert!(world.root(person).person().pages().confirmation().is_some());
+    world.person(
+        person,
+        vec![Step::Press {
+            find: Find::exactly_named(Role::Button, b"Reject").within(Box::new([Target::Role {
+                role: Role::Dialog,
+                name: b"Reject this proposal?".as_slice().into(),
+            }])),
+        }],
+    );
+    let outcome = world.run(jig_client_kit::harness::Until::Done);
+    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
+    let review = text(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
+    assert!(review.contains("rejected"), "{review}");
+    let run = world.front().engine.task(task).expect("configuring chat").clone();
+    assert!(run.proposal.is_none(), "the rejected proposal no longer waits");
+    assert!(
+        run.inbox.iter().any(|word| matches!(
+            &word.kind, tasks::MessageKind::SettingsDecision {
+                outcome: tasks::SettingsOutcome::Rejected, ..
+            } if word.words.as_ref() == reason
+        )),
+        "the chat hears the owner's rejection reason: {:?}",
+        run.inbox
+    );
+    assert!(text(&mut world, agent, &[b"settings", b"show"]).starts_with("newest revision 1\n"));
+}
