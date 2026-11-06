@@ -22,11 +22,10 @@ keeps it; publication is not a cutoff on a handed change's commit.
   cover the host's check alone; the view's tests draw the trial states.
   The model-check plan's close added the catalogue rows in section 7.2,
   but not their sample fixtures or names. `home-try-stopped` is present.
-- **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
-  (`public_board_and_task_lines_are_readable_at_desktop_and_phone_widths`)
-  is compiled, with the current rows' executor and spend rules. Its runtime
-  check awaits the browser tier after landing, under the user's rule that
-  plans run focused and fuzzy alone.
+- **Not yet:** 8.4: the browser kit returns the first content quad of each text
+  node, so the public geometry story cannot check every wrapped fragment.
+  Its result needs a browser testing interface decision before it can retain those
+  fragments. Missing rectangles remain failures.
 - **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:

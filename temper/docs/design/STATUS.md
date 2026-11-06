@@ -146,8 +146,7 @@ endings and seven-digit commits; public records carry no forge addresses.
 Ended-goal history before publication and across a restart is deferred, and
 the board says so; a stock queue's merges read as public landings within the
 landing log and jig's public index, including a pre-publication merge whose
-change is handed from a live goal. The public geometry story's runtime
-check awaits the browser tier after landing
+change is handed from a live goal. The public geometry story checks a wrapped text by its first quad alone
 (`client/browser.md`, `client/forge.md`).
 The browser tier holds 17 tests, five past its cap, its CPU
 measured within its budget on the 12 without the call line's and the welcome's
