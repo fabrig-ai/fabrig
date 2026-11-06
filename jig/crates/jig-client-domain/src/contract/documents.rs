@@ -549,7 +549,51 @@ pub struct ArchivedTurn {
     pub at: Wall,
     pub turn: TurnRead,
 }
+/// What a line weighs in a window: its bytes, and this for it and for each
+/// message, block, object and part it holds (client.md, section 10).
+pub const LINE_ROOM: u32 = 64;
 impl DecodedActivityLine {
+    /// Retained payload bytes and structural room (client.md, section 10).
+    #[must_use]
+    pub fn weight(&self) -> u64 {
+        let mut weight = u64::from(LINE_ROOM).saturating_add(activity_weight(&self.source.line));
+        if let Some(archive) = &self.decoded {
+            match &archive.turn {
+                TurnRead::Decoded(turn) => {
+                    for message in &turn.messages {
+                        weight = weight.saturating_add(u64::from(LINE_ROOM));
+                        for block in &message.blocks {
+                            weight = weight.saturating_add(u64::from(LINE_ROOM));
+                            match block {
+                                super::Block::Text(text) => weight = weight.saturating_add(byte_weight(text.bytes())),
+                                super::Block::Opaque { dialect, .. } => {
+                                    weight = weight.saturating_add(byte_weight(dialect.bytes()));
+                                }
+                                super::Block::Result { summary, .. } => {
+                                    weight = weight.saturating_add(byte_weight(summary.bytes()));
+                                }
+                                super::Block::Call(call) => {
+                                    weight = weight.saturating_add(byte_weight(call.tool.bytes()));
+                                    weight = weight.saturating_add(byte_weight(call.input.bytes()));
+                                    if let Some(outcome) = &call.outcome {
+                                        weight = weight.saturating_add(byte_weight(outcome.bytes()));
+                                    }
+                                    weight = weight.saturating_add(
+                                        u64::from(call.objects.len()).saturating_mul(u64::from(LINE_ROOM)),
+                                    );
+                                    for part in &call.parts {
+                                        weight = weight.saturating_add(part_weight(part));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                TurnRead::Undecodable { .. } => {}
+            }
+        }
+        weight
+    }
     /// A committed archive identity, independent of whether its bytes are available.
     #[must_use]
     pub fn committed_turn(&self) -> Option<TurnName> {
@@ -659,4 +703,82 @@ pub struct LiveDelegate {
 pub struct Tasks {
     pub rows: List<TaskLine>,
     pub more: bool,
+}
+
+fn byte_weight(bytes: &[u8]) -> u64 {
+    u64::try_from(bytes.len()).expect("retained byte length fits u64")
+}
+fn activity_weight(activity: &super::Activity) -> u64 {
+    match activity {
+        super::Activity::Words { words, kind, .. } => byte_weight(words.bytes()).saturating_add(kind_weight(kind)),
+        super::Activity::Heard(word) | super::Activity::Notified { word, .. } => {
+            u64::from(LINE_ROOM).saturating_add(byte_weight(word.words.bytes())).saturating_add(kind_weight(&word.kind))
+        }
+        super::Activity::Kept { pending, .. } => u64::from(pending.len()).saturating_mul(u64::from(LINE_ROOM)),
+        super::Activity::RunBegan { .. }
+        | super::Activity::RunEnded { .. }
+        | super::Activity::Turn { .. }
+        | super::Activity::Decided { .. }
+        | super::Activity::Milestone { .. } => 0,
+    }
+}
+fn kind_weight(kind: &super::MessageKind) -> u64 {
+    match kind {
+        super::MessageKind::Result(result) => match result {
+            super::WordResult::Approved { state, .. } => byte_weight(state.bytes()),
+            super::WordResult::Verdict { fields, .. } => {
+                let mut weight = 0_u64;
+                for field in fields {
+                    weight = weight
+                        .saturating_add(u64::from(LINE_ROOM))
+                        .saturating_add(byte_weight(&field.name))
+                        .saturating_add(byte_weight(&field.value));
+                }
+                weight
+            }
+            super::WordResult::Report
+            | super::WordResult::Change { .. }
+            | super::WordResult::Failed
+            | super::WordResult::Cancelled => 0,
+        },
+        super::MessageKind::QuestionOwed
+        | super::MessageKind::NothingAwaited
+        | super::MessageKind::SettingsDecision { .. }
+        | super::MessageKind::Escalation { .. }
+        | super::MessageKind::Proposal { .. }
+        | super::MessageKind::PersonStalled { .. }
+        | super::MessageKind::ProposalDecision { .. }
+        | super::MessageKind::QuestionAnswered { .. }
+        | super::MessageKind::QuestionEnded { .. }
+        | super::MessageKind::Words
+        | super::MessageKind::EffectNotMade { .. }
+        | super::MessageKind::Amendment { .. }
+        | super::MessageKind::Question
+        | super::MessageKind::Answer { .. }
+        | super::MessageKind::Notice { .. }
+        | super::MessageKind::Timer { .. }
+        | super::MessageKind::News { .. }
+        | super::MessageKind::Met { .. } => 0,
+    }
+}
+fn part_weight(part: &ApplicationPart) -> u64 {
+    let mut weight = u64::from(LINE_ROOM);
+    match part {
+        ApplicationPart::Resource { path, .. } => {
+            for segment in path {
+                weight = weight.saturating_add(byte_weight(segment));
+            }
+        }
+        ApplicationPart::Connector { .. }
+        | ApplicationPart::Kind { .. }
+        | ApplicationPart::Panel { .. }
+        | ApplicationPart::Result { .. }
+        | ApplicationPart::Effect { .. }
+        | ApplicationPart::OwnerEffect { .. }
+        | ApplicationPart::Outbox { .. }
+        | ApplicationPart::Hold { .. }
+        | ApplicationPart::Project { .. }
+        | ApplicationPart::Deployment { .. } => {}
+    }
+    weight
 }

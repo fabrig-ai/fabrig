@@ -375,7 +375,7 @@ fn state_attribute(e: &mut Element, role: Role, state: State) {
             },
             if role == Role::Choice || role == Role::Option { "" } else { "true" },
         ),
-        State::Completed => {}
+        State::Completed | State::Continues => {}
         State::Required => {
             let native = [Role::TextField, Role::TextArea, Role::Select, Role::Check].contains(&role);
             e.set(if native { "required" } else { "aria-required" }, if native { "" } else { "true" });

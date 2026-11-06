@@ -205,6 +205,7 @@ pub enum Act {
         fate: jig_client::shapes::Fate,
     },
     Older,
+    Newer,
     Latest,
     ClosedChats,
     MoreGoals,
@@ -637,7 +638,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act {
-            act: act @ (Act::FocusComposer | Act::MessageWords { .. } | Act::Send | Act::Older | Act::Latest),
+            act:
+                act @ (Act::FocusComposer | Act::MessageWords { .. } | Act::Send | Act::Older | Act::Newer | Act::Latest),
         } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
@@ -1590,6 +1592,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::AddDraft
         | Act::Send
         | Act::Older
+        | Act::Newer
         | Act::Latest
         | Act::GoalsFilter { .. }
         | Act::MoreGoals

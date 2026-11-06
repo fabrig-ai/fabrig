@@ -320,6 +320,7 @@ fn read_subject(read: &core::reads::Read) -> Option<Subject> {
         | core::reads::Read::EndedDelegates { .. }
         | core::reads::Read::History { .. }
         | core::reads::Read::Activity { .. }
+        | core::reads::Read::ActivityBeside { .. }
         | core::reads::Read::Inbox { .. }
         | core::reads::Read::Tasks { .. }
         | core::reads::Read::Notes { .. }

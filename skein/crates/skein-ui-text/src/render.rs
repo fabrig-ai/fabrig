@@ -248,8 +248,8 @@ fn node(tree: &Tree, at: u32, indent: u32, number: Option<u64>, print: &mut Prin
         | Role::ChoiceGroup
         | Role::Select
         | Role::Tabs
-        | Role::Log
         | Role::Drawing => Some(group(n, indent, &mut print.text)),
+        Role::Log => Some(log(n, indent, &mut print.text)),
         Role::Description => Some(indent.saturating_add(2)),
         Role::Item | Role::TreeItem => {
             start(&mut print.text, indent);
@@ -322,6 +322,14 @@ fn node(tree: &Tree, at: u32, indent: u32, number: Option<u64>, print: &mut Prin
             None
         }
     }
+}
+fn log(n: &Node, indent: u32, out: &mut List<u8>) -> u32 {
+    let indent = group(n, indent, out);
+    if n.binding.is_some() {
+        start(out, indent);
+        raw(out, b"(up, down: more lines)\n");
+    }
+    indent
 }
 fn group(n: &Node, indent: u32, out: &mut List<u8>) -> u32 {
     if let Some(name) = &n.name {
@@ -584,7 +592,7 @@ fn states(n: &Node, out: &mut List<u8>) {
                     raw(out, if state == State::Pressed { b" (pressed)" } else { b" (selected)" });
                 }
             }
-            State::FoldsAway | State::ToLogEnd => {}
+            State::FoldsAway | State::Continues | State::ToLogEnd => {}
             State::Required => raw(out, b" (required)"),
             State::Completed => raw(out, b" (completed)"),
             State::SubmitsOnEnter => {

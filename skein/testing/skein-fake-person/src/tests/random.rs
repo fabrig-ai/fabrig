@@ -101,6 +101,7 @@ impl Sweep {
                         self.submitted.insert(node);
                         assert!(control.states.as_slice().contains(&State::SubmitsOnEnter));
                     }
+                    Act::Near { .. } => panic!("this tree has no bound logs"),
                     Act::Drawing { .. } => panic!("the random person never makes drawing acts"),
                     Act::Toggle => {
                         self.toggled.insert(node);
@@ -321,4 +322,63 @@ fn the_random_person_toggles_a_choice() {
         }
     }
     assert!(acted);
+}
+
+#[test]
+fn the_random_person_scrolls_a_bound_log() {
+    let view = build(|b| {
+        b.open(Role::Page);
+        b.open(Role::Log);
+        b.bind(binding(1));
+        b.close();
+        b.open(Role::Log);
+        b.close();
+        b.open(Role::Log);
+        b.bind(binding(2));
+        b.state(State::Disabled);
+        b.close();
+        b.close();
+    });
+    let mut edges = [false; 2];
+    for seed in 0..32 {
+        let mut person = RandomPerson::new(seed, 4);
+        let mut replay = RandomPerson::new(seed, 4);
+        for _ in 0..16 {
+            let doing = person.next(view.tree());
+            assert_eq!(doing, replay.next(view.tree()));
+            match doing {
+                Some(RandomDoing::Act { node, act: Act::Near { edge } }) => {
+                    assert_eq!(node, CONTROL);
+                    assert!(TreeFace::new(view.tree()).allows(node, &Act::Near { edge }));
+                    edges[match edge {
+                        skein_ui::LogEdge::Head => 0,
+                        skein_ui::LogEdge::Foot => 1,
+                    }] = true;
+                }
+                Some(RandomDoing::Back | RandomDoing::Reload) => {}
+                other => panic!("a bound log takes Near: {other:?}"),
+            }
+        }
+    }
+    assert_eq!(edges, [true, true]);
+}
+
+#[test]
+fn without_a_bound_log_the_seed_keeps_its_acts() {
+    let view = random_tree();
+    let mut person = RandomPerson::new(7, 4);
+    let acts: Vec<_> = (0..8).map(|_| person.next(view.tree())).collect();
+    assert_eq!(
+        acts,
+        [
+            Some(RandomDoing::Act { node: BUTTON, act: Act::Press }),
+            Some(RandomDoing::Act { node: COMPOSER, act: Act::Submit }),
+            Some(RandomDoing::Act { node: COMPOSER, act: Act::Submit }),
+            Some(RandomDoing::Act { node: COMPOSER, act: Act::Submit }),
+            Some(RandomDoing::Act { node: LINK, act: Act::Press }),
+            Some(RandomDoing::Act { node: LINK, act: Act::Press }),
+            Some(RandomDoing::Act { node: LINK, act: Act::Press }),
+            Some(RandomDoing::Act { node: CHECK, act: Act::Toggle }),
+        ]
+    );
 }

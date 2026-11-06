@@ -15,6 +15,7 @@ pub fn page() -> skein_ui::Tree {
     text(&mut b, Role::Paragraph, &spend(7, 100, 2));
     b.open(Role::Log);
     b.name(b"Conversation");
+    b.bind(binding());
     text(&mut b, Role::Paragraph, b"You");
     text(&mut b, Role::Paragraph, b"Hello");
     text(&mut b, Role::Paragraph, b"Temper");
@@ -27,7 +28,6 @@ pub fn page() -> skein_ui::Tree {
         (Role::Button, b"Send"),
         (Role::Button, b"Stop"),
         (Role::Button, b"Close"),
-        (Role::Button, b"Older"),
     ] {
         b.open(role);
         b.name(name);

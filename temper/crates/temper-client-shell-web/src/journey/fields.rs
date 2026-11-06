@@ -39,7 +39,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         Line::Act { act, event, name } => {
             let mut fields = match act {
                 Act::Input { value } | Act::Drawing { data: value } => vec![(value, Text)],
-                Act::Press | Act::Submit | Act::Toggle => Vec::new(),
+                Act::Press | Act::Submit | Act::Toggle | Act::Near { .. } => Vec::new(),
             };
             fields.extend([(event, Text), (name, Text)]);
             fields

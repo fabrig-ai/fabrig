@@ -6,6 +6,8 @@ use real::{Profile, Rig, Scenario, chromium};
 mod folds_away;
 #[path = "suite/log_end.rs"]
 mod log_end;
+#[path = "suite/log_reading.rs"]
+mod log_reading;
 
 #[test]
 fn chromium_opens_finds_and_presses_a_button() {

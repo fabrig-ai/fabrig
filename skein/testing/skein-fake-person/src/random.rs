@@ -4,7 +4,7 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use skein_lib::Rng;
-use skein_ui::{Act, takes};
+use skein_ui::{Act, LogEdge, takes};
 use skein_ui::{Node, NodeId, Role, State, Tree};
 
 const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyz 0123456789\n#*_`[]()>-+.!";
@@ -51,7 +51,10 @@ impl RandomPerson {
             .expect("node index fits usize");
         let node = tree.nodes().iter().filter(|node| available(tree, node)).nth(chosen).expect("chosen node exists");
         let submits = node.states.as_slice().contains(&State::SubmitsOnEnter);
-        let act = if takes(node.role, submits, &Act::Toggle) {
+        let act = if node.role == Role::Log {
+            let edge = if self.rng.below(2) == 0 { LogEdge::Head } else { LogEdge::Foot };
+            Act::Near { edge }
+        } else if takes(node.role, submits, &Act::Toggle) {
             Act::Toggle
         } else if takes(node.role, submits, &Act::Press) {
             Act::Press
@@ -81,7 +84,7 @@ fn available(tree: &Tree, node: &Node) -> bool {
         && node.id != NodeId(0)
         && tree.bound(node.id).is_some()
         && !tree.disabled(node.id)
-        && [Act::Toggle, Act::Press, Act::Input { value: Box::new([]) }, Act::Submit]
+        && [Act::Toggle, Act::Press, Act::Input { value: Box::new([]) }, Act::Submit, Act::Near { edge: LogEdge::Head }]
             .iter()
             .any(|act| takes(node.role, submits, act))
 }

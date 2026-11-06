@@ -1318,6 +1318,8 @@ fn key_info(key: Key) -> (&'static [u8], &'static [u8], u64, &'static [u8]) {
         Key::Enter => (b"Enter", b"Enter", 13, b"\r"),
         Key::Escape => (b"Escape", b"Escape", 27, b""),
         Key::Tab => (b"Tab", b"Tab", 9, b"\t"),
+        Key::PageUp => (b"PageUp", b"PageUp", 33, b""),
+        Key::PageDown => (b"PageDown", b"PageDown", 34, b""),
         Key::Backspace => (b"Backspace", b"Backspace", 8, b""),
         Key::ArrowUp => (b"ArrowUp", b"ArrowUp", 38, b""),
         Key::ArrowDown => (b"ArrowDown", b"ArrowDown", 40, b""),

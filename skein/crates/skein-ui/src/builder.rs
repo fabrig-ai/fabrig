@@ -218,6 +218,12 @@ impl Builder {
         self.focused = true;
     }
 
+    /// Request the log's end in view (ui.md, 3.2).
+    pub fn end_request(&mut self, count: u64) {
+        assert!(self.node().role == Role::Log, "end requests belong to logs");
+        self.node_mut().end_request = Some(count);
+    }
+
     /// Count the whole collection when only part of it is shown.
     pub fn count(&mut self, count: u32) {
         assert!([Role::List, Role::Table, Role::Tree].contains(&self.node().role), "counts belong to collections");
@@ -265,6 +271,9 @@ impl Builder {
         }
         if state == State::Completed {
             assert!(self.node().role == Role::Item, "completed belongs to items");
+        }
+        if state == State::Continues {
+            assert!(self.node().role == Role::Log, "continues belongs to logs");
         }
         if state == State::FoldsAway {
             assert!(self.node().role == Role::Disclosure, "folds away belongs to disclosures");
@@ -605,7 +614,8 @@ fn acted_on(role: Role) -> bool {
         | Role::Tab
         | Role::Option
         | Role::MenuItem
-        | Role::Drawing => true,
+        | Role::Drawing
+        | Role::Log => true,
         Role::Page
         | Role::Banner
         | Role::Navigation
@@ -632,7 +642,6 @@ fn acted_on(role: Role) -> bool {
         | Role::Dialog
         | Role::Status
         | Role::Alert
-        | Role::Log
         | Role::Tree
         | Role::TreeItem
         | Role::Tabs
