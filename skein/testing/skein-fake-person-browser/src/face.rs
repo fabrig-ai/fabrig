@@ -66,6 +66,8 @@ pub struct BrowserFace<'a> {
     search: Option<Search>,
     answer: Option<Found>,
     seen: Vec<(Seen, Option<Role>)>,
+    boxed_matches: Vec<Seen>,
+    boxed_more: u32,
     acting: Option<Token>,
     now: Time,
     last_find: Option<(NodeId, Find)>,
@@ -107,6 +109,8 @@ impl<'a> BrowserFace<'a> {
             search: None,
             answer: None,
             seen: Vec::new(),
+            boxed_matches: Vec::new(),
+            boxed_more: 0,
             acting: None,
             now: Time::ZERO,
             last_find: None,
@@ -311,6 +315,12 @@ impl<'a> BrowserFace<'a> {
         }
         self.answer.take().unwrap_or(Found::Pending)
     }
+    /// All retained matches of the last completed boxed query and the count beyond
+    /// the browser's match limit. Nodes without geometry keep their missing rectangle.
+    #[must_use]
+    pub fn boxed_matches(&self) -> (&[Seen], u32) {
+        (&self.boxed_matches, self.boxed_more)
+    }
     pub(crate) fn rect(&self, node: NodeId) -> Option<skein_browser::boundary::Rect> {
         self.seen.get(usize::try_from(node.0).expect("node fits"))?.0.rect
     }
@@ -426,7 +436,7 @@ impl<'a> BrowserFace<'a> {
                 name: name.into(),
                 matching,
                 within: search.within,
-                boxes: search.boxes,
+                boxes: search.boxes && search.depth == search.find.within.len(),
             },
         });
         self.search = Some(search);
@@ -449,6 +459,10 @@ impl<'a> BrowserFace<'a> {
             return;
         }
         let mut search = self.search.take().expect("matching search");
+        if search.boxes && search.depth == search.find.within.len() {
+            self.boxed_matches = seen.iter().cloned().collect();
+            self.boxed_more = more;
+        }
         let nth = if search.depth < search.find.within.len() { 0 } else { search.find.nth };
         if let Some(seen) = seen.get(nth) {
             if search.depth < search.find.within.len() {
