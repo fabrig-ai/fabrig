@@ -1919,6 +1919,11 @@ a.temper-repository-link:hover { text-decoration: underline; }
 
 
 /* ==== ui: settings ==== */
+/* Settings' list of models. */
+#app > .temper-settings .temper-models-source { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+#app > .temper-settings .temper-models-source small, #app > .temper-settings .temper-settings-section > small, #app > .temper-settings .temper-models-ask { font-size: 13px; color: var(--gf-muted); }
+#app > .temper-settings .temper-models-ask a { text-decoration: underline; text-underline-offset: 2px; }
+
 
 /* The stock reference beside Configure (client/README.md, 3.5). */
 #app > .temper-session.temper-mode-split .temper-starters { grid-template-columns: minmax(0, 1fr); gap: 8px; }

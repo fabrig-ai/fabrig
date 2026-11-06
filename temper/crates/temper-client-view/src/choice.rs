@@ -55,6 +55,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Goals { .. }
@@ -783,7 +784,7 @@ fn account_line(b: &mut Builder, root: &Domain, w: &Words, account: u32, labels:
     }
 }
 
-fn provider_line(
+pub(crate) fn provider_line(
     b: &mut Builder,
     root: &Domain,
     provider: &c::ProviderOffer,

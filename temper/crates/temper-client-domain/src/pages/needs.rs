@@ -245,6 +245,7 @@ impl Session {
             | Address::Chat { .. }
             | Address::Task { .. }
             | Address::Home { .. }
+            | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Settings { .. }
@@ -684,6 +685,7 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Ac
                 | Address::Welcome { .. }
                 | Address::Chat { .. }
                 | Address::Task { .. }
+                | Address::Models { .. }
                 | Address::Builders { .. }
                 | Address::Repositories { .. }
                 | Address::Settings { .. }

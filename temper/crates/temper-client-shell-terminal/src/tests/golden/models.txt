@@ -1,0 +1,36 @@
+== What the picker offers. == Live
+First:
+  [1] temper
+  First:
+    [2] First (pressed)
+    New project:
+      [3] New project: (empty) (enter sends)
+      [4] Create
+    [5] Settings for First
+  [6] Home
+  [7] Needs you
+  [8] Chats
+  [9] + New chat
+  More ways to start work:
+    [10] Chat
+      Ask a question or ask for a change.
+    [11] All ways to start work
+  [12] Settings (current)
+  * Pat
+First · settings
+The models your accounts can run, by what pays for them. Each model can be left off the picker; a task keeps the model it has.
+Settings:
+  [13] How work runs
+  [14] Repositories
+  [15] Forges
+  [16] Accounts
+  [17] Models (current)
+  [18] Builders
+## Claude
+These come with temper.
+Opus 5.5 claude-opus-5-5 · high · the default On
+Sonnet 5.5 claude-sonnet-5-5 · high Off
+## OpenAI
+These come with temper.
+GPT-6.1 Sol gpt-6.1-sol · high On
+To change a default or a role’s models, tell Configure temper.

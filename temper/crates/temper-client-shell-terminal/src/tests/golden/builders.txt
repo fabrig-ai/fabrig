@@ -24,7 +24,8 @@ Settings:
   [14] Repositories
   [15] Forges
   [16] Accounts
-  [17] Builders (current)
+  [17] Models
+  [18] Builders (current)
 ## Builders · 2
 No builder is connected.
 worker

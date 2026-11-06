@@ -517,6 +517,36 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "models",
+        heading: "What the picker offers.",
+        parts: &[
+            Part::Text { text: "Your Claude subscription. These come with temper." },
+            Part::Text { text: "Your ChatGPT plan. These come with temper." },
+            Part::Text { text: "claude-opus-5-5 · high · the default" },
+            Part::Text { text: "claude-sonnet-5-5 · high" },
+            Part::Text { text: "claude-fable-5-1 · high" },
+            Part::Text { text: "gpt-6.1-sol · high" },
+            Part::Text { text: "gpt-6-astra · high" },
+            Part::Text { text: "gpt-6.1-terra · medium" },
+            Part::Text { text: "gpt-6-luna · medium" },
+            Part::Text { text: "Off" },
+            Part::Named { role: Role::Link, name: "Configure temper." },
+        ],
+    },
+    Holds {
+        name: "models-one-account",
+        heading: "What the picker offers.",
+        parts: &[
+            Part::Text { text: "Your Claude subscription. These come with temper." },
+            Part::Text { text: "claude-opus-5-5 · high · the default" },
+            Part::Named { role: Role::Link, name: "Connect a plan or key ›" },
+            Part::Absent { role: Role::Text, name: "GPT-6.1 Sol" },
+            Part::Absent { role: Role::Text, name: "GPT-6 Astra" },
+            Part::Absent { role: Role::Text, name: "GPT-6.1 Terra" },
+            Part::Absent { role: Role::Text, name: "GPT-6 Luna" },
+        ],
+    },
+    Holds {
         name: "builders",
         heading: "Where agents work.",
         parts: &[

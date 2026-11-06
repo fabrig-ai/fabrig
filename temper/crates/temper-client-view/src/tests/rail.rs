@@ -588,6 +588,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     Address::Changes { .. } => Some(b"Changes".as_slice()),
                     Address::Goals { .. } => Some(b"Goals".as_slice()),
                     Address::Settings { .. }
+                    | Address::Models { .. }
                     | Address::Builders { .. }
                     | Address::Repositories { .. }
                     | Address::Configure { .. }

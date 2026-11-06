@@ -225,6 +225,16 @@ pub enum Word {
     GoalRisk,
     GoalSeparator,
 
+    ModelsTab,
+    ModelsHeading,
+    ModelsLede,
+    ModelsStock,
+    ModelsSubscription,
+    ModelsPlan,
+    ModelsKey,
+    ModelsDefault,
+    ModelsAsk,
+    ModelsConfigure,
     SettingsBuildersTab,
     SettingsBuildersHeading,
     SettingsBuildersLede,
@@ -1392,7 +1402,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1876;
+const PHRASES: u32 = 1886;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1418,10 +1428,10 @@ const PHRASES: u32 = 1876;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3295;
+const SEGMENTS: u32 = 3309;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45779;
-const ALL: [Word; 1275] = [
+const ENGLISH_BYTES: u32 = 46079;
+const ALL: [Word; 1285] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1630,6 +1640,16 @@ const ALL: [Word; 1275] = [
     Word::GoalLeft,
     Word::GoalRisk,
     Word::GoalSeparator,
+    Word::ModelsTab,
+    Word::ModelsHeading,
+    Word::ModelsLede,
+    Word::ModelsStock,
+    Word::ModelsSubscription,
+    Word::ModelsPlan,
+    Word::ModelsKey,
+    Word::ModelsDefault,
+    Word::ModelsAsk,
+    Word::ModelsConfigure,
     Word::SettingsBuildersTab,
     Word::SettingsBuildersHeading,
     Word::SettingsBuildersLede,
@@ -2891,6 +2911,16 @@ impl Word {
             Self::SettingsNoneTag => 3413,
             Self::SettingsNoneBody => 3414,
             Self::SettingsSignedIn => 3415,
+            Self::ModelsTab => 3912,
+            Self::ModelsHeading => 3913,
+            Self::ModelsLede => 3914,
+            Self::ModelsStock => 3915,
+            Self::ModelsSubscription => 3916,
+            Self::ModelsPlan => 3917,
+            Self::ModelsKey => 3918,
+            Self::ModelsDefault => 3919,
+            Self::ModelsAsk => 3920,
+            Self::ModelsConfigure => 3921,
             Self::SettingsBuildersTab => 3467,
             Self::SettingsBuildersHeading => 3468,
             Self::SettingsBuildersLede => 3469,
@@ -5399,6 +5429,16 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsReviewLine => (&[b"Proposes the plan and its tasks, and starts nothing until you approve."], &[]),
         Word::SettingsOne => (&[b"One agent, one branch"], &[]),
         Word::SettingsOneLine => (&[b"No plan: one agent works the draft through and opens one change."], &[]),
+        Word::ModelsTab => (&[b"Models"], &[]),
+        Word::ModelsHeading => (&[b"What the picker offers."], &[]),
+        Word::ModelsLede => (&[b"The models your accounts can run, by what pays for them. Each model can be left off the picker; a task keeps the model it has."], &[]),
+        Word::ModelsStock => (&[b"These come with temper."], &[]),
+        Word::ModelsSubscription => (&[b"Your ", b" subscription."], &[Name]),
+        Word::ModelsPlan => (&[b"Your ", b" plan."], &[Name]),
+        Word::ModelsKey => (&[b"Your API key."], &[]),
+        Word::ModelsDefault => (&[b" \xc2\xb7 the default"], &[]),
+        Word::ModelsAsk => (&[b"To change a default or a role\xe2\x80\x99s models, tell "], &[]),
+        Word::ModelsConfigure => (&[b"Configure temper."], &[]),
         Word::SettingsBuildersTab => (&[b"Builders"], &[]),
         Word::SettingsBuildersHeading => (&[b"Where agents work."], &[]),
         Word::SettingsBuildersLede => (&[b"The machines temper\xe2\x80\x99s agents run on, each with its slots and how many are in use."], &[]),

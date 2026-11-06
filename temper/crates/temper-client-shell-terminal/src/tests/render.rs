@@ -43,6 +43,7 @@ fn each_adoption_form_state_prints_as_its_golden_file() {
 fn each_fixture_page_prints_as_its_golden_file() {
     for (name, tree) in [
         ("settings", fixtures::chat::settings()),
+        ("models", fixtures::page(&temper_client_domain::Address::Models { project: 1 }, false)),
         ("builders", fixtures::page(&temper_client_domain::Address::Builders { project: 1 }, false)),
         ("changes", fixtures::changes_page()),
         ("inbox", fixtures::inbox_page()),
@@ -282,4 +283,67 @@ fn a_composer_past_the_bound_prints_its_line() {
     let printed = String::from_utf8_lossy(print.text.as_slice());
     assert!(printed.contains("That's 1 character over what one message holds."));
     assert!(printed.contains(String::from_utf8_lossy(&words).as_ref()));
+}
+
+/// The Models print reads a supplied offer, including an off row and the chat default.
+pub(super) fn models_frame(
+    address: &temper_client_domain::Address,
+    mut me: jig_client::contract::Me,
+) -> jig_client::contract::Me {
+    use jig_client::contract as c;
+    use skein_lib::List;
+    if !matches!(address, temper_client_domain::Address::Models { .. }) {
+        return me;
+    }
+    let text = |value: &str| c::Text::new(value.as_bytes().into(), 256).unwrap();
+    me.providers = List::uncapped();
+    for (provider, name) in [(17, "anthropic"), (18, "openai")] {
+        me.providers
+            .push(c::ProviderOffer {
+                provider,
+                name: c::DocumentText::complete(text(name)),
+                key_bytes: 4096,
+                sign_in: true,
+                key: true,
+                programs: List::with_capacity(0),
+                programs_cut: false,
+                none: false,
+                signed_in_plan: true,
+                manage_usage: None,
+            })
+            .unwrap();
+    }
+    let project = me.projects.get_mut(0).unwrap();
+    project.models = List::uncapped();
+    for (provider, name, shown, picker) in [
+        (17, "claude-opus-5-5", "Opus 5.5", true),
+        (17, "claude-sonnet-5-5", "Sonnet 5.5", false),
+        (18, "gpt-6.1-sol", "GPT-6.1 Sol", true),
+    ] {
+        project
+            .models
+            .push(c::MeModel {
+                name: text(name),
+                provider: Some(provider),
+                window: 200_000,
+                output: 16_384,
+                efforts: List::from_boxed(Box::new([text("low"), text("high")])),
+                effort: Some(text("high")),
+                shown: Some(text(shown)),
+                accounts: List::with_capacity(0),
+                picker,
+                description: None,
+                prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 5, unit: 1000 },
+            })
+            .unwrap();
+    }
+    project.defaults = List::from_boxed(Box::new([c::MeDefault {
+        template: jig_client::shapes::CHAT,
+        choice: c::LlmChoice {
+            account: None,
+            main: c::ModelEffort { model: text("claude-opus-5-5"), effort: Some(text("high")) },
+            subagents: List::with_capacity(0),
+        },
+    }]));
+    me
 }
