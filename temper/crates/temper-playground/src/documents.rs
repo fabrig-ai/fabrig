@@ -526,6 +526,7 @@ impl Seeds {
             deployment: self.deployment,
             installation: self.installation,
             crypto: self.crypto.clone(),
+            link_secret: None,
         }
     }
 }

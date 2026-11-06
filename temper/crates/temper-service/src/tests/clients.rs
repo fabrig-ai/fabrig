@@ -9,6 +9,92 @@ const LISTENER: Token = Token::new(77);
 const STARTING_LISTENER: Token = Token::new(99);
 const REPLY: ReplyTo = ReplyTo::new(Token::new(9));
 const PROCESS_UPTIME: skein_lib::Time = skein_lib::Time::from_nanos(600_000_000_000);
+// The fixture's first configured person is the deployment's owner.
+const OWNER_PARTY: u64 = 1;
+
+fn given_secret() -> skein_lib::Secret {
+    skein_lib::Secret::new(Box::new([23; crate::clients::LINK_SECRET_BYTES]))
+}
+
+fn with_given_secret() -> crate::Service {
+    let mut service = super::fixtures::started();
+    let settings = super::fixtures::engine();
+    let mut seeds = super::fixtures::seeds();
+    seeds.link_secret = Some(given_secret());
+    service.engine.as_mut().expect("engine").clients = crate::clients::Clients::new(
+        &jig_protocol_config::Directories::working(),
+        &settings.jig,
+        &settings.clients,
+        &seeds,
+        &settings.limits.root.journal,
+        None,
+        &[],
+    )
+    .expect("clients with a given secret");
+    super::fixtures::restart(&mut service);
+    service
+}
+
+fn sign_in_with_link(engine: &mut crate::engine::Engine, link: &[u8]) -> jig_client_protocol_wire::v19::SignInAnswer {
+    let body = peer::link_body(engine, link);
+    let mut peer = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
+    peer.pump(engine, true);
+    peer.sign_in_answer(engine)
+}
+
+fn given_link() -> Box<[u8]> {
+    crate::clients::first_link_url(([127, 0, 0, 1], 7100).into(), None, &given_secret())
+}
+
+#[test]
+fn a_given_secret_prints_no_first_link_and_signs_in() {
+    let mut service = with_given_secret();
+    assert!(service.links().is_empty(), "the box already holds the first link");
+    let engine = service.engine.as_mut().expect("engine");
+    let jig_client_protocol_wire::v19::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &given_link()) else {
+        panic!("the given secret signs in")
+    };
+    assert_eq!(answer.party(), OWNER_PARTY, "the link signs in the owner");
+    assert!(answer.token().is_some(), "the sign-in returns a credential");
+    super::fixtures::turn(&mut service);
+    assert!(service.links().is_empty(), "spending the first link prints nothing");
+}
+
+#[test]
+fn a_spent_given_secret_prints_a_fresh_link() {
+    let mut service = with_given_secret();
+    let engine = service.engine.as_mut().expect("engine");
+    let link = given_link();
+    let _signed_in = sign_in_with_link(engine, &link);
+    let answer = sign_in_with_link(engine, &link);
+    assert!(answer == jig_client_protocol_wire::v19::SignInAnswer::Refused, "a spent secret is refused");
+    super::fixtures::turn(&mut service);
+    let fresh = service.links().pop().expect("a fresh link is printed");
+    assert!(fresh != link, "a later link has a fresh secret");
+    assert!(service.links().is_empty(), "one fresh link is printed");
+    let engine = service.engine.as_mut().expect("engine");
+    let jig_client_protocol_wire::v19::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &fresh) else {
+        panic!("the fresh printed link signs in")
+    };
+    assert_eq!(answer.party(), OWNER_PARTY);
+}
+
+#[test]
+fn first_link_url_is_what_serve_prints() {
+    let public = crate::startup::application::Origin {
+        scheme: crate::startup::application::Scheme::Https,
+        host: Box::from(b"temper.example.com".as_slice()),
+        port: Some(8443),
+        name: Box::from(b"temper.example.com:8443".as_slice()),
+    };
+    let address = ([127, 0, 0, 1], 7100).into();
+    let secret = given_secret();
+    for origin in [None, Some(&public)] {
+        let url = crate::clients::first_link_url(address, origin, &secret);
+        assert!(url == crate::clients::printed::link_public(address, origin, &secret), "same URL bytes");
+        assert!(!url.contains(&b'\n'), "the URL has no line feed");
+    }
+}
 
 #[test]
 fn a_link_printed_on_the_first_clock_tick_is_live() {
