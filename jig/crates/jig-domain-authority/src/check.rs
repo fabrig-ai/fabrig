@@ -485,9 +485,14 @@ pub fn check_run(domain: &Domain, ask: &RunAsk, why: &mut Queue<Finding>) -> cra
             return crate::RunAnswer::Refuse;
         }
     }
-    let Some(policy) = domain.policy(ask.project) else {
-        why.push(Finding::UnknownProject);
-        return crate::RunAnswer::Refuse;
+    let policy = domain.policy(ask.project);
+    let ceiling = match policy {
+        Some(policy) => &policy.ceiling,
+        None if ask.project == crate::NO_PROJECT => &domain.rules().ceiling,
+        None => {
+            why.push(Finding::UnknownProject);
+            return crate::RunAnswer::Refuse;
+        }
     };
     let mut answer = Answer::Allow;
     if ask.numbers.spent.checked_add(ask.numbers.spent_below).is_none() {
@@ -502,7 +507,7 @@ pub fn check_run(domain: &Domain, ask: &RunAsk, why: &mut Queue<Finding>) -> cra
     if ask.budget > domain.rules().maximum_run_spend || ask.budget > ask.authority.budget.spend {
         find(&mut answer, why, Answer::Refuse, Finding::RunCap);
     }
-    if ask.budget > policy.ceiling.budget.spend {
+    if ask.budget > ceiling.budget.spend {
         find(&mut answer, why, Answer::Refuse, Finding::RunCap);
     }
     if let Some(deadline) = ask.authority.budget.deadline
@@ -510,7 +515,7 @@ pub fn check_run(domain: &Domain, ask: &RunAsk, why: &mut Queue<Finding>) -> cra
     {
         find(&mut answer, why, Answer::Wait, Finding::Deadline);
     }
-    for ceiling in [&policy.ceiling, &domain.rules().ceiling] {
+    for ceiling in [ceiling, &domain.rules().ceiling] {
         if let Some(deadline) = ceiling.budget.deadline
             && ask.wall > deadline
         {
@@ -542,7 +547,10 @@ pub fn check_run(domain: &Domain, ask: &RunAsk, why: &mut Queue<Finding>) -> cra
         }
     }
     for write in &ask.writes {
-        grants(domain, policy, &ask.authority, &write.effect, &mut answer, why);
+        match policy {
+            Some(policy) => grants(domain, policy, &ask.authority, &write.effect, &mut answer, why),
+            None => find(&mut answer, why, Answer::Refuse, Finding::Grant { source: Source::Project }),
+        }
         writable(&write.effect, &mut answer, why);
         match write.held {
             Writer::Task | Writer::Ancestor => {}

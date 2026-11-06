@@ -1,4 +1,5 @@
 //! The forge family's records at the clients' boundary (client/README.md, 8).
+//! Trials: temper/docs/design/domain/trial.md, 6.
 use alloc::boxed::Box;
 use jig_protocol_engine_clients as kit;
 use skein_lib::{List, Token, Wall, Writer};
@@ -149,6 +150,7 @@ pub fn to_root(
                         | w::Request::Reachable(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
+                        | w::Request::TryAccount(_)
                         | w::Request::Dismiss(_)
                         | w::Request::SetAway(_)
                         | w::Request::Overturn(_)
@@ -260,6 +262,17 @@ pub fn to_root(
                             from,
                             into,
                         }),
+                    }));
+                }
+                w::Request::TryAccount(value) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope: jig_domain_people::ApplicationScope::Own,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Try { account: value.account(), again: value.again() },
                     }));
                 }
                 w::Request::Dismiss(value) => {
@@ -415,6 +428,11 @@ pub fn to_root(
                         scope,
                         connector: wire::FORGE,
                         subject: Token::new(forge::changes_subject(subject.project())),
+                    },
+                    w::Watch::Trials => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Own,
+                        connector: wire::FORGE,
+                        subject: Token::new(root::TRIALS_SUBJECT),
                     },
                     w::Watch::Dismissed => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Own,
@@ -802,6 +820,8 @@ pub fn answer(
         Some(temper_engine_domain::ApplicationAnswer::Adopt(
             forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
         )) => return None,
+        Some(root::ApplicationAnswer::Try(root::TryAnswer::Tried)) => w::Outcome::Tried,
+        Some(root::ApplicationAnswer::Try(root::TryAnswer::NotTheirs)) => w::Outcome::NotTheirs,
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
         Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)) => w::Outcome::Looked,
         Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)) => w::Outcome::Away,
@@ -1833,4 +1853,65 @@ fn copy_addresses(addresses: Box<[Box<[u8]>]>, limits: &w::Limits) -> Option<w::
         list.push(address).ok()?;
     }
     w::CopyAddresses::new(limits, w::CopyAddressesParts { addresses: list }).ok()
+}
+
+/// The person's whole trials document (temper/docs/design/domain/trial.md, 6).
+#[must_use]
+pub fn trials(rows: Box<[temper_engine_domain_trials::Row]>, limits: &w::Limits) -> Option<Box<[u8]>> {
+    use temper_engine_domain_trials::{Class, State, Step, Why};
+    let mut encoded = List::with_capacity(64);
+    for row in rows {
+        let state = match row.state {
+            State::Running => w::TrialState::Running,
+            State::Answered { seconds } => {
+                w::TrialState::Answered(w::TrialAnswered::new(limits, w::TrialAnsweredParts { seconds }).ok()?)
+            }
+            State::Failed { why } => {
+                let why = match why {
+                    Why::Refused => w::TrialWhy::Refused,
+                    Why::Waited => w::TrialWhy::Waited,
+                    Why::Ended { class } => w::TrialWhy::Ended(
+                        w::TrialEnded::new(
+                            limits,
+                            w::TrialEndedParts {
+                                class: match class {
+                                    Class::Transient => w::TrialClass::Transient,
+                                    Class::Permanent => w::TrialClass::Permanent,
+                                    Class::Run => w::TrialClass::Run,
+                                    Class::Agent => w::TrialClass::Agent,
+                                    Class::Lost => w::TrialClass::Lost,
+                                    Class::Invalid => w::TrialClass::Invalid,
+                                    Class::Refused => w::TrialClass::Refused,
+                                },
+                            },
+                        )
+                        .ok()?,
+                    ),
+                };
+                w::TrialState::Failed(w::TrialFailed::new(limits, w::TrialFailedParts { why }).ok()?)
+            }
+        };
+        encoded
+            .push(
+                w::TrialRow::new(
+                    limits,
+                    w::TrialRowParts {
+                        account: row.account,
+                        task: row.task,
+                        took: row.took,
+                        step: match row.step {
+                            Step::Starts => w::TrialStep::Starts,
+                            Step::Answers => w::TrialStep::Answers,
+                        },
+                        state,
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    let document = w::Trials::new(limits, w::TrialsParts { rows: encoded }).ok()?;
+    let mut writer = Writer::new(usize::try_from(document.measure()).ok()?);
+    document.encode(&mut writer).ok()?;
+    Some(writer.finish())
 }

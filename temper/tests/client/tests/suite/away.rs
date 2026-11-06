@@ -38,8 +38,9 @@ impl Story {
     fn new() -> Self {
         let mut limits = fixtures::domain_limits();
         // Home may open while the previous page's handles retire.
-        limits.client.domain.handles = 16;
-        limits.client.domain.watches = 16;
+        // The session also holds trials and a running trial task.
+        limits.client.domain.handles = 18;
+        limits.client.domain.watches = 18;
         let mut story = Self {
             front: Joint::with_away_people(fixtures::SEED, limits),
             probes: Vec::new(),

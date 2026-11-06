@@ -357,7 +357,7 @@ impl Walker {
                         }
                     } else {
                         let gap = match &self.steps[self.at] {
-                            Step::Mark => Duration::from_secs(1),
+                            Step::Mark => Duration::from_secs(3),
                             Step::Act { .. } | Step::End => Duration::from_millis(500),
                         };
                         self.phase = Phase::Gap { earlier: save, until: now.saturating_add(gap) };

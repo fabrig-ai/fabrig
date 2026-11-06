@@ -12,6 +12,7 @@ pub(crate) enum Meaning {
     Copy { words: Box<[u8]> },
     Action(AccountAct),
     Model(pages::connect_model::Act),
+    Try { account: u32 },
     Go(temper_client_domain::Address),
     Key,
     SignInAddress,
@@ -58,6 +59,14 @@ impl Bindings {
                 continue;
             }
             match (meaning, &act) {
+                (Meaning::Try { account }, Act::Press) => {
+                    return Some(Event::Act {
+                        action: Action::Forge(temper_client_domain::forge::Act::TryAccount {
+                            account: *account,
+                            again: true,
+                        }),
+                    });
+                }
                 (Meaning::Copy { words }, Act::Press) => {
                     return Some(Event::Act { action: Action::Copy { words: words.clone() } });
                 }
@@ -74,7 +83,7 @@ impl Bindings {
                         })),
                     });
                 }
-                (Meaning::Copy { .. } | Meaning::Model(_) | Meaning::Go(_), _) => return None,
+                (Meaning::Try { .. } | Meaning::Copy { .. } | Meaning::Model(_) | Meaning::Go(_), _) => return None,
                 _ => {}
             }
             let action = match (meaning, act) {
@@ -85,13 +94,19 @@ impl Bindings {
                 (Meaning::Action(action), Act::Press) => action.clone(),
                 (_, Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. })
                 | (
-                    Meaning::Action(_) | Meaning::Copy { .. } | Meaning::Model(_) | Meaning::Go(_) | Meaning::Program,
+                    Meaning::Action(_)
+                    | Meaning::Try { .. }
+                    | Meaning::Copy { .. }
+                    | Meaning::Model(_)
+                    | Meaning::Go(_)
+                    | Meaning::Program,
                     Act::Input { .. },
                 )
                 | (
                     Meaning::Key
                     | Meaning::SignInAddress
                     | Meaning::Program
+                    | Meaning::Try { .. }
                     | Meaning::Copy { .. }
                     | Meaning::Model(_)
                     | Meaning::Go(_),

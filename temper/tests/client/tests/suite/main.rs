@@ -59,6 +59,7 @@ mod forges_edges;
 mod github_connect;
 mod live_text;
 mod model;
+mod model_check;
 mod question;
 mod sign_in;
 mod sign_in_paste;

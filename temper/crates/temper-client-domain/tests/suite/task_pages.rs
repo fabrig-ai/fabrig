@@ -33,9 +33,9 @@ mod tests {
                     }],
                     requests,
                     ask_bytes: requests.bytes / u64::from(requests.requests),
-                    // Session settings, its project read and the standing needs watch.
-                    handles: 12,
-                    watches: 11,
+                    // Session settings, its project read and the standing needs watch, trials and a running trial task.
+                    handles: 14,
+                    watches: 13,
                     turn_bytes: 65536,
                     backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                     authority: 12,
