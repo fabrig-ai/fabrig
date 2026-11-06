@@ -364,8 +364,10 @@ impl Accounts {
 
     /// Route one terminal of this driver's kernel operations.
     pub fn complete(&mut self, complete: kernel::Complete) {
-        if let Some(complete) = self.socket_completion(complete) {
+        if file_layer::owns(complete.op) {
             file_layer::up(&mut self.files, complete, &mut self.events, &mut self.submissions);
+        } else {
+            self.socket_completions.push(complete);
         }
     }
 

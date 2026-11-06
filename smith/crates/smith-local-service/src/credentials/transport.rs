@@ -1,24 +1,10 @@
-//! The account driver's socket pass and operation namespace.
-//! File operations keep the low namespace; socket cancellations retain theirs.
+//! The account driver's socket pass; io and file operations keep their lanes.
+//! Completions return by file_layer::owns (skein/docs/design/io.md, 5).
 use super::Accounts;
-use skein_io::{self as io, kernel};
-use skein_lib::{Env, Time, Token, Wall};
-
-const SOCKET_OPERATION: u64 = 1 << 61;
+use skein_io as io;
+use skein_lib::{Env, Time, Wall};
 
 impl Accounts {
-    pub(super) fn socket_completion(&mut self, complete: kernel::Complete) -> Option<kernel::Complete> {
-        if complete.op.raw() & SOCKET_OPERATION == 0 {
-            return Some(complete);
-        }
-        self.socket_completions.push(kernel::Complete {
-            op: Token::new(complete.op.raw() & !SOCKET_OPERATION),
-            kind: complete.kind,
-            result: complete.result,
-        });
-        None
-    }
-
     pub(super) fn socket_up(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits.io };
         io::stage::up(
@@ -48,7 +34,7 @@ impl Accounts {
                 break;
             }
             let Some(submit) = self.socket_submissions.pop() else { break };
-            self.submissions.push(socket_submit(submit));
+            self.submissions.push(submit);
         }
         self.sockets.reclaim();
         self.driver.reclaim();
@@ -72,14 +58,3 @@ impl Accounts {
     }
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "only an external kernel Cancel names another operation")]
-fn socket_submit(submit: kernel::Submit) -> kernel::Submit {
-    let kind = match submit.kind {
-        kernel::Op::Cancel { target } if target.raw() != u64::MAX => {
-            kernel::Op::Cancel { target: Token::new(target.raw() | SOCKET_OPERATION) }
-        }
-        other => other,
-    };
-    assert!(submit.op.raw() & SOCKET_OPERATION == 0, "account socket operation space");
-    kernel::Submit { op: Token::new(submit.op.raw() | SOCKET_OPERATION), kind }
-}
