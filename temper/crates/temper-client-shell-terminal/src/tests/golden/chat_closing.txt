@@ -44,8 +44,8 @@ Conversation:
         - CI passed
         - Landed
       [17] Task 2 ↗
-    1 tool call: wait
-      wait
+    wait:
+      `wait`
 Close this chat?
   ## Close this chat?
   You can still read it, but it can’t be reopened.

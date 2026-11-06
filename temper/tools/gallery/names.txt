@@ -50,6 +50,16 @@ chat-solo-T10
 chat-solo-T6
 chat-start-goal
 chat-start-goal-refused
+chat-work-done
+chat-work-empty
+chat-work-failed
+chat-work-one
+chat-work-open
+chat-work-reading
+chat-work-running
+chat-work-separated
+chat-work-unknown
+chat-work-writing
 chat-working
 chats-closed
 chats-drafts

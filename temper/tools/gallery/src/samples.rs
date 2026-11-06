@@ -88,7 +88,11 @@ impl Sample {
     /// Opens a page-owned disclosure in the static print (client/browser.md, 7).
     #[must_use]
     pub fn open_disclosure(&self) -> Option<&[u8]> {
-        if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
+        match self.name {
+            "chat-byline-open" => Some(b"Change model"),
+            "chat-work-open" => Some("Checked settings 3×, read 7 docs".as_bytes()),
+            _ => None,
+        }
     }
     /// Opens the rail menu through the page part in the static print (client/browser.md, 7).
     #[must_use]
@@ -100,7 +104,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 262;
+pub const N: usize = 272;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -112,6 +116,16 @@ fn task(task: u64) -> Address {
 #[expect(clippy::too_many_lines, reason = "one table keeps every named gallery state in its promised order")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "chat-work-done", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-open", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-running", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-writing", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-failed", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-one", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-unknown", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-separated", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-empty", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-reading", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample {
             name: "builders",
             world: Solo,
@@ -1215,6 +1229,9 @@ fn start_domain(sample: &Sample) -> Domain {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name.starts_with("chat-work-") {
+        return crate::worlds::chat_work_world(sample.name);
+    }
     if sample.name == "chats-drafts" {
         return crate::worlds::drafts_world();
     }

@@ -1,6 +1,6 @@
 # render: status
 
-2026-11-05. Where hearth's code lags or departs from [render.md](render.md).
+2026-11-06. Where hearth's code lags or departs from [render.md](render.md).
 
 - **Not yet:** 5.4: recording apt's and mmdebstrap's versions from
   `--version` in M2. `hearth-protocol-builder`'s resolution reply gives
