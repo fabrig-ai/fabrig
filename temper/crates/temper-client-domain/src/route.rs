@@ -327,6 +327,7 @@ fn forge_me(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: 
         forge::forges::configure(&mut root.forge, env.limits.forge, &mut child);
         forge::away::configure(&mut root.forge, env.limits.forge, &mut child);
         forge::dismissed::configure(&mut root.forge, env.limits.forge, &mut child);
+        forge::trials::configure(&mut root.forge, env.limits.forge, &mut child);
     }
     route_forge(root, env, &mut child, out);
     consumed

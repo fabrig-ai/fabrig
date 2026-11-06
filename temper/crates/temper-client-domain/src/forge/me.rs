@@ -10,6 +10,8 @@ pub(super) const FORGES: u64 = 1;
 pub(super) const DISMISSED: u64 = 2;
 pub(super) const SETTINGS: u64 = 3;
 pub(super) const AWAY: u64 = 4;
+pub(super) const TRIALS: u64 = 5;
+pub(super) const TRIAL_TASK: u64 = 6;
 pub(crate) fn handle() -> Handle {
     Handle { asker: crate::owner::Owner::Forge.asker(), number: 0 }
 }
