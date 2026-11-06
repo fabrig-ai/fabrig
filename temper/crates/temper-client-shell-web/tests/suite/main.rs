@@ -5,3 +5,4 @@ static HEAP: Counting = Counting;
 
 mod host;
 mod memory;
+mod switcher;
