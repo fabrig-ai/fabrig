@@ -48,6 +48,8 @@ impl Given {
 }
 
 const FORGE: u16 = 1;
+const FIRST_CHOICES: &[&[u8]] = &[b"claude-opus-5-5", b"gpt-6.1-sol"];
+const CONFIGURING_FIRST_CHOICES: &[&[u8]] = &[b"claude-opus-5-5", b"gpt-6-astra", b"gpt-6.1-sol"];
 
 /// Each project's funding span, from its first period (protocol/configuration.md, 13.4).
 pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
@@ -160,7 +162,7 @@ fn grant_floors(grants: &[authority::Grant], limits: &authority::Limits, setting
 }
 
 /// The defaults temper passes jig's builder at each start. Each charter offers every
-/// model `llm` configures, in its order, the first its default.
+/// model `llm` configures, with the stock's first choices before the document's rest.
 /// # Panics
 /// If `llm` offers no model or its budgets overflow; startup checks both before calling this.
 #[must_use]
@@ -172,16 +174,19 @@ pub fn defaults(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Defaults {
 pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Option<Defaults> {
     llm.models.first()?;
     let mut charters = Box::new([
-        charter(1, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/chat.txt"), llm),
-        charter(2, WORK_TURNS, WORK_TIME, include_bytes!("stock/coding.txt"), llm),
+        charter(1, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/chat.txt"), llm, FIRST_CHOICES),
+        charter(2, WORK_TURNS, WORK_TIME, include_bytes!("stock/coding.txt"), llm, FIRST_CHOICES),
         configuring_charter(llm),
         reviewer(llm),
         foreman(llm),
         status(llm),
     ]);
     // jig prices the costliest completion; one reserve turn plus one is 2C.
-    // Its existing admission helper keeps the stock on that same rounding rule.
-    let minimum_run = jig_domain_core::reserve_floor(&charters.first()?.policy)?;
+    let mut completion = 0;
+    for model in &llm.models {
+        completion = completion.max(jig_domain_core::most_costly(model)?);
+    }
+    let minimum_run = completion.checked_mul(2)?;
     let mut run = minimum_run.checked_mul(2)?; // K starts at 4C.
     // K's floor is four units for each of the chat's 64 run turns, 256 units.
     run = run.max(u64::from(charters.first()?.policy.turns).checked_mul(4)?);
@@ -263,11 +268,32 @@ const WORK_TURNS: u32 = 800;
 // Coding, reviewer and foreman rows: eight hours (temper/docs/design/protocol/configuration.md, 13.4).
 const WORK_TIME: Duration = Duration::from_secs(28_800);
 
-fn charter(number: u32, turns: u32, time: Duration, instructions: &[u8], llm: &jig_protocol_config::Llm) -> Charter {
-    let model = llm.models.first().expect("parsed llm offers at least one model").clone();
-    let mut alternatives = List::with_capacity(u32::try_from(llm.models.len().saturating_sub(1)).expect("model count"));
-    for alternative in llm.models.iter().skip(1) {
-        alternatives.push(alternative.clone()).expect("one per remaining configured model");
+fn charter(
+    number: u32,
+    turns: u32,
+    time: Duration,
+    instructions: &[u8],
+    llm: &jig_protocol_config::Llm,
+    first_choices: &[&[u8]],
+) -> Charter {
+    let mut ordered = List::with_capacity(u32::try_from(llm.models.len()).expect("model count"));
+    for name in first_choices {
+        for model in &llm.models {
+            if model.name.as_ref() == *name {
+                ordered.push(model.clone()).expect("one per configured model");
+            }
+        }
+    }
+    for model in &llm.models {
+        if !first_choices.contains(&model.name.as_ref()) {
+            ordered.push(model.clone()).expect("one per configured model");
+        }
+    }
+    let mut ordered = ordered.into_boxed().into_iter();
+    let model = ordered.next().expect("parsed llm offers at least one model");
+    let mut alternatives = List::with_capacity(u32::try_from(ordered.len()).expect("model count"));
+    for alternative in ordered {
+        alternatives.push(alternative).expect("one per remaining configured model");
     }
     Charter {
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
@@ -303,25 +329,26 @@ fn charter(number: u32, turns: u32, time: Duration, instructions: &[u8], llm: &j
     }
 }
 fn configuring_charter(llm: &jig_protocol_config::Llm) -> Charter {
-    let mut value = charter(3, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/configuring.txt"), llm);
+    let mut value =
+        charter(3, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/configuring.txt"), llm, CONFIGURING_FIRST_CHOICES);
     value.policy.modify = false;
     value.policy.agents = false;
     value
 }
 fn reviewer(llm: &jig_protocol_config::Llm) -> Charter {
-    let mut value = charter(4, WORK_TURNS, WORK_TIME, include_bytes!("stock/review.txt"), llm);
+    let mut value = charter(4, WORK_TURNS, WORK_TIME, include_bytes!("stock/review.txt"), llm, FIRST_CHOICES);
     value.policy.modify = false;
     value.policy.agents = false;
     value
 }
 fn foreman(llm: &jig_protocol_config::Llm) -> Charter {
-    let mut value = charter(6, WORK_TURNS, WORK_TIME, include_bytes!("stock/foreman.txt"), llm);
+    let mut value = charter(6, WORK_TURNS, WORK_TIME, include_bytes!("stock/foreman.txt"), llm, FIRST_CHOICES);
     value.policy.modify = false;
     value.policy.agents = false;
     value
 }
 fn status(llm: &jig_protocol_config::Llm) -> Charter {
-    let mut value = charter(9, 4, Duration::from_secs(300), include_bytes!("stock/status.txt"), llm);
+    let mut value = charter(9, 4, Duration::from_secs(300), include_bytes!("stock/status.txt"), llm, FIRST_CHOICES);
     value.policy.inspect = false;
     value.policy.modify = false;
     value.policy.agents = false;

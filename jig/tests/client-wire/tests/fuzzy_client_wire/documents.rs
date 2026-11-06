@@ -6,6 +6,7 @@ fn records_1(bytes: &[u8]) {
     check!(MeParty, bytes);
     check!(Needs, bytes);
     check!(MeProject, bytes);
+    check!(MeDefault, bytes);
     check!(Me, bytes);
     check!(ImpactCounts, bytes);
     check!(Impact, bytes);

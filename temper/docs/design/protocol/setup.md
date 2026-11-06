@@ -2552,17 +2552,18 @@ override.
   record, drawn by the setup plan that makes its first hook (5.4).
   Adoption makes the repository's hook; the fake's start-time adoption hooks its seeded
   repositories (8.4). GitHub's hints come from its App's delivery log.
-- **Its LLM providers:** the owned example's `engine.llm`, whole (8.1),
-  with no account; 2, `anthropic`, on every document, whatever is on
+- **Its LLM providers:** the owned example's `engine.llm` with no
+  account, its models `temper init`'s (configuration.md, 13.4), each with
+  its `shown`, `efforts` and `effort`, where the owned example's are its
+  own; 2, `anthropic`, on every document, whatever is on
   `PATH`, so that the Model step offers ChatGPT and Claude
   (`../client/README.md`, 3.5): `signed_in_plan` false, `manage_usage`
-  `https://claude.ai/settings/usage`, its one model `claude-opus-5-5`,
+  `https://claude.ai/settings/usage`, its models Anthropic's of that table,
   through Claude Code's `--model` (smith's `protocol/programs.md`, 5.1),
   and its one source Claude Code's program, `claude_code`; one
   endpoint, `anthropic`, naming that program, Anthropic's dialect, 2, at
-  `api.anthropic.com:443` on TLS, with OpenAI's bounds; the model's
-  window 1,048,576 and output 8,192, as the shipped model's, and 1 per
-  1,000,000 for input, cached and output, figures a subscription bills
+  `api.anthropic.com:443` on TLS, with OpenAI's bounds; its models'
+  prices are that table's, figures a subscription bills
   to nobody; the agent's configuration declares them too (8.2), and the
   `standard` profile's `documents.lines`, 16, holds the offer's three
   lines, so that no override is written; and 3, `demo`, the scripted
@@ -2623,15 +2624,16 @@ override.
   model, with no pick. jig takes it at each run's check until the task
   keeps an account: a chat started before an account of a real
   provider stays on the model it took, and a chat started after takes
-  the charter's first,
-  `gpt-6.1-sol` once an OpenAI key serves it. The composer's line says
+  the first of its charter's models with an account usable,
+  `claude-opus-5-5` once a Claude login is. The composer's line says
   which, before the start, from jig's `resolved_default` preview in
   `me`, never by guessing from catalogue order (`../client/README.md`,
   5.5). The request keeps its omitted choice; the preview does not turn
   it into an explicit one. The charters, the
   templates and the forge's charter are the binary's stock settings,
-  their models every model `engine.llm` configures in the document's
-  order, the scripted model last as `temper init --box` writes it; the document names
+  their models every model `engine.llm` configures in the stock's order
+  (configuration.md, 13.4), the scripted model last as `temper init --box`
+  writes it; the document names
   none of them (configuration.md, 13.4), and a person changes them from
   "How work runs" (`../client/README.md`, 5.13).
 - **One worker,** in the process, its `root` `workspaces` in the data

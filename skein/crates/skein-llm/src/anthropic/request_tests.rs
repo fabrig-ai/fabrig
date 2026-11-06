@@ -108,12 +108,18 @@ fn signed_and_redacted_reasoning_tool_calls_and_native_error_results_replay_in_o
 
 #[test]
 fn effort_is_explicit_and_unsupported_fields_are_rejected() {
-    for effort in [b"low".as_slice(), b"medium", b"high", b"max"] {
+    for (effort, output_config) in [
+        (b"low".as_slice(), br#""output_config":{"effort":"low"}"#.as_slice()),
+        (b"medium", br#""output_config":{"effort":"medium"}"#),
+        (b"high", br#""output_config":{"effort":"high"}"#),
+        (b"xhigh", br#""output_config":{"effort":"xhigh"}"#),
+        (b"max", br#""output_config":{"effort":"max"}"#),
+    ] {
         let mut prompt = prompt(Role::User, text(b"hello"));
         prompt.reasoning_effort = Some(bytes::copy_of(effort));
         let wire = encode_request(&prompt, 4096, &LIMITS).expect("supported adaptive effort");
         assert!(bytes::find(&wire, br#""thinking":{"type":"adaptive"}"#).is_some(), "effort enables adaptive thinking");
-        assert!(bytes::find(&wire, br#""output_config":{"effort":""#).is_some(), "effort goes into output_config");
+        assert!(bytes::find(&wire, output_config).is_some(), "effort is preserved in output_config");
     }
     let mut prompt = prompt(Role::User, text(b"hello"));
     prompt.reasoning_effort = Some(bytes::copy_of(b"off"));

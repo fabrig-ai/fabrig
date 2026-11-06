@@ -913,6 +913,13 @@ and waits in the Needs you of each project it belongs to (jig's
   holds the settings family (in the stock, charter 3's alone) reads them,
   of its own project alone, as for the repositories, and they hold no
   address, display name or credential.
+  The same inventory names the offer to the chat's payer (jig's
+  `client/domain/contract.md`, 5.1), one line a model, with its provider,
+  its efforts and its default effort, and says so where it holds none. It
+  is the only list of models the agent is told, so that it neither proposes
+  nor mentions a model no account can run: a charter it reads may name
+  others, and the agent's instructions leave those as they stand and name
+  none of them to the person.
   A read of a project's ways or questions with none stored answers the
   stock (`../protocol/configuration.md`, 13.4), never unknown. A read that
   finds nothing is an error whose words say it was not read and that this
@@ -1346,9 +1353,9 @@ host:
   the decide family as it stands would also let every chat under policy 1 decide
   proposals and escalations. Default: an owner rejects it, until a walk shows whether
   that asks too much of the person.
-- **What sizes temper's own way** (8.1): a read of the deployment's worker slots
-  and of the models its accounts reach, offered to a run with the settings
-  family, or an answer from the person. Default: the person's, as nothing reads
+- **What sizes temper's own way** (8.1): a read of the deployment's worker slots,
+  offered to a run with the settings family, or an answer from the person.
+  Default: the person's, as nothing reads
   them.
 - **QA in temper's own way** (8.1): `../draft/own-way.md`, 6, has it proposed once
   a tester is set; QA after landing isn't built (`findings.md`, section 8).

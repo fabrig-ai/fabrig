@@ -26,7 +26,6 @@ use crate::{
     documents::{Document, *},
     effects::{connector, projections},
     routing::Work,
-    runs::state as run,
     settings::revisions,
     *,
 };
@@ -696,6 +695,8 @@ fn documents_frame_carries_roles_retention_and_configured_charters() {
                 },
             }),
             models: authority::Models::ALL,
+            offer: List::with_capacity(tasks::MODELS),
+            defaults: List::with_capacity(limits.templates),
             templates: List::with_capacity(0),
         }]
     );
