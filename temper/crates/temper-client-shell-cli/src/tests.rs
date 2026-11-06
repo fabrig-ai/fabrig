@@ -210,6 +210,54 @@ fn an_unheard_read_exits_1_at_the_link_deadline() {
     assert_eq!(f.exit(), Some(Exit::Code(1)));
 }
 #[test]
+fn a_read_refused_before_hearing_the_engine_exits_1_at_once() {
+    let mut f = fixtures::Engine::read(&["me"]);
+    f.refuse_connections = true;
+    f.drain();
+    assert_eq!(f.refused_connections, 1);
+    assert_eq!(f.stderr(), b"temper ctl: nothing listens at http://127.0.0.1:4000; is temper running?\n");
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+}
+#[test]
+fn an_act_refused_before_hearing_the_engine_keeps_its_store_and_releases_its_lock() {
+    let mut f = fixtures::Disk::act_with(fixtures::kept_chat());
+    f.refuse_connections = true;
+    f.drain();
+    assert_eq!(f.refused_connections, 1);
+    assert_eq!(f.stderr(), b"temper ctl: nothing listens at http://127.0.0.1:4000; is temper running?\n");
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.kept_records(), 1);
+    assert!(!f.act_sent());
+    assert_eq!(f.locks, 1);
+    assert_eq!(f.released_after, Some(0));
+}
+#[test]
+fn a_sign_in_refused_before_hearing_the_engine_exits_1_at_once() {
+    let mut f = fixtures::Disk::sign_in(fixtures::LINK);
+    f.refuse_connections = true;
+    f.drain();
+    assert_eq!(f.refused_connections, 1);
+    assert_eq!(f.stderr(), b"temper ctl: nothing listens at http://127.0.0.1:4000; is temper running?\n");
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.stored(b"token"), None);
+    assert_eq!(f.stored(b"address"), None);
+    assert_eq!(f.released_after, Some(0));
+}
+#[test]
+fn a_sign_in_that_heard_busy_keeps_its_deadline_when_the_retry_is_refused() {
+    let mut f = fixtures::Disk::sign_in(fixtures::LINK);
+    f.busy_links = 1;
+    f.answer_sign_in_then_me();
+    f.refuse_connections = true;
+    f.advance_past(SIGN_IN_FIRST);
+    assert_eq!(f.refused_connections, 1);
+    assert_eq!(f.exit(), None);
+    assert_eq!(f.stderr(), b"");
+    f.advance_past(limits::DEADLINE);
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.stderr(), b"temper ctl: temper is busy; this link stays usable until it expires\n");
+}
+#[test]
 fn streams_full_exits_one_at_the_link_deadline() {
     for bound in [jig_client_protocol_wire::StreamBound::Component, jig_client_protocol_wire::StreamBound::Transport] {
         for words in [&["me"][..], &["task", "show", "41", "--until", "changed"][..]] {
@@ -671,6 +719,37 @@ fn a_stopping_engine_exits_the_wait_only_at_the_link_deadline() {
             "{span:?}"
         );
     }
+}
+#[test]
+fn a_refused_reconnection_keeps_a_heard_wait_until_the_link_deadline() {
+    let mut f = fixtures::Engine::wait(&["task", "show", "41", "--until", "changed"]);
+    f.refuse_connections = true;
+    f.drop_stream();
+    f.advance_past(skein_lib::Duration::from_secs(1));
+    assert!(f.refused_connections > 0, "the restart's connection was refused");
+    assert_eq!(f.exit(), None);
+    assert_eq!(f.stderr(), b"");
+    f.advance_past(skein_lib::Duration::from_secs(28));
+    assert_eq!(f.exit(), None);
+    f.advance_past(skein_lib::Duration::from_secs(1));
+    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer within 30 s\n");
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+}
+#[test]
+fn a_heard_wait_reconnects_after_a_refusal_and_observes_the_change() {
+    let mut f = fixtures::Engine::wait(&["task", "show", "41", "--until", "changed"]);
+    f.refuse_connections = true;
+    f.drop_stream();
+    f.advance_past(skein_lib::Duration::from_secs(1));
+    assert!(f.refused_connections > 0, "the restart's connection was refused");
+    assert_eq!(f.exit(), None);
+    f.refuse_connections = false;
+    f.sign_in_then_deliver_me();
+    f.advance_past(limits::native().io.close_timeout);
+    assert!(f.stream_live(), "the engine's restarted stream is live");
+    f.change_task();
+    assert_eq!(f.stderr(), b"");
+    assert_eq!(f.exit(), Some(Exit::Code(0)));
 }
 #[test]
 fn a_live_wait_passes_30_seconds() {

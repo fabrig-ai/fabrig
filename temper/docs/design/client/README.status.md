@@ -186,28 +186,17 @@
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
   the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
-  under way is the first step Running with no "one short message", and settled with no
-  usable source is the first step Stopped, its why the host's. No page reaches Running past
-  its first step, Answered, a sign-in's or a key's steps, a stop at a later step, a reason
-  with no act, or the box on `ConnectModel`: each is drawn and tested
-  (`temper-client-view`'s `tests/model_check.rs`), with no gallery state, and
-  `model_check::last_try_failed` is false, so Ready's muted line is not said. "Try again"
-  checks the host again, and it and "Sign in again" act on the welcome's Claude way alone
-  (`temper-client-domain`'s `pages/connect_model.rs`, `matches_welcome_program`), so on a
-  plan's, a key's or `ConnectModel`'s box a press would do nothing. A model usable moves on
-  to Ready by itself until that draft is built.
-- **Design departs:** 3.5, *The try*, from the look request `model-check` of 2026-11-06, each
-  by the cut of its landing: the steps are Forge's list, named "Each step" with hidden state
-  words, where the request's pages have neither, because the terminal reads them, so an
-  answered box prints "Each step" twice there, its disclosure's name and its list's, the same
-  tree as Forge's. "Sign in again" is a button, where 03 has a link, because its address is
-  the page it stands on. A reason with no act keeps "Continue anyway" after "All ways", where
-  the request's words have "Try again" and "All ways" alone, because
-  `../draft/model-check.md`, 4 keeps no one out. At a phone's width answered's muted words
-  take a row of their own, where 02 draws them inline, because the request's words put them
-  under the title. The host's why ends "Sign in again, then try again.", where the request
-  keeps the alert's words, because the box stands in the panel's place, with no command above
-  it.
+  under way is the first step Running, and settled with no usable source the first step
+  Stopped, its why the host's; a usable account is its ticked line with no "answered in N s".
+  No page reaches Running past its first step, Answered, a sign-in's or a key's steps, a stop
+  at a later step, a stop with the account usable, or a reason with no act: each is drawn and
+  tested (`temper-client-view`'s `tests/model_check.rs`), with no gallery state. "Try again"
+  checks the host again. Home's line after a try that stopped and the same lines on an account's
+  row of the accounts page are not drawn: nothing reports a try once the person has left Ready.
+- **Design departs:** 3.5, *The try*, from the look request `model-check-pane` of 2026-11-06,
+  each by the cut of its landing: the steps' list has hidden state words and its accessible name,
+  as Forge's has, where the request's pages have the same words, because the terminal reads
+  them. A line with nothing yet keeps its "Forge" or "Model" label, as the request's words say.
 - **Not yet:** 10: a walk from the sheet through planning, a live report and
   delegate tasks, Pause, Resume, a message and Stop, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The

@@ -327,17 +327,20 @@ enum Field {
     Word(Box<[u8]>),
     Bytes(Box<[u8]>),
 }
-struct Read {
+pub(super) struct Read {
     fields: std::vec::IntoIter<Field>,
 }
 impl Read {
-    fn word(&mut self) -> Result<Box<[u8]>, &'static str> {
+    pub(super) fn remaining(&self) -> usize {
+        self.fields.len()
+    }
+    pub(super) fn word(&mut self) -> Result<Box<[u8]>, &'static str> {
         match self.fields.next() {
             Some(Field::Word(word)) => Ok(word),
             _ => Err("expected word"),
         }
     }
-    fn bytes(&mut self) -> Result<Box<[u8]>, &'static str> {
+    pub(super) fn bytes(&mut self) -> Result<Box<[u8]>, &'static str> {
         match self.fields.next() {
             Some(Field::Bytes(bytes)) => Ok(bytes),
             _ => Err("expected quoted bytes"),
@@ -352,7 +355,7 @@ impl Read {
             .try_fold(0_u64, |value, digit| value.checked_mul(10)?.checked_add(u64::from(digit - b'0')))
             .ok_or("number overflow")
     }
-    fn count(&mut self) -> Result<u32, &'static str> {
+    pub(super) fn count(&mut self) -> Result<u32, &'static str> {
         u32::try_from(self.number()?).map_err(|_| "number overflow")
     }
     fn status(&mut self) -> Result<u16, &'static str> {
@@ -366,7 +369,7 @@ impl Read {
         Ok(result)
     }
 }
-fn fields(mut line: &[u8]) -> Result<Read, &'static str> {
+pub(super) fn fields(mut line: &[u8]) -> Result<Read, &'static str> {
     let mut fields = Vec::new();
     while !line.is_empty() {
         if line[0] == b'"' {

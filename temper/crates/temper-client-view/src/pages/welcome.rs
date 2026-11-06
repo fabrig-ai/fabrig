@@ -8,10 +8,7 @@ use alloc::boxed::Box;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain, Step,
-    forge::{
-        connect, deployment,
-        forges::{Connection, FirstState},
-    },
+    forge::{connect, deployment},
     pages::Act,
 };
 
@@ -76,7 +73,7 @@ fn go(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, step: Ste
 /// The welcome's steps, in its frame's top bar (3.5).
 pub(crate) fn steps(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, current: Step) {
     use temper_client_domain::pages::welcome;
-    let marks = welcome::step_marks(current, welcome::forge_kept(root), welcome::model_usable(root) == Some(true));
+    let marks = welcome::step_marks(current, welcome::forge_kept(root), welcome::model_counts(root) == Some(true));
     let [welcome, forge, model, ready] = marks;
     b.open(Role::List);
     b.name(&w.say(Word::WelcomeSteps, &[]));
@@ -195,7 +192,7 @@ pub(crate) fn main(
             }
         }
         Step::Ready => {
-            ready(b, root, w, bindings, accounts, forge, sign_in);
+            ready(b, root, w, bindings, accounts, forge, sign_in, text_per_node);
         }
     }
     if let Step::Forge { .. } | Step::Model { .. } | Step::Ready = step {
@@ -215,18 +212,19 @@ pub(crate) fn main(
     b.close();
 }
 
-/// A checklist line: its name, strong, then what it says of it, as the
-/// greenfield mockup draws "Forge Forgejo on this machine · connected as
-/// temper" (3.5).
-fn labelled(b: &mut Builder, w: &Words, label: Word, detail: &[u8]) {
-    let label = w.say(label, &[]);
-    b.open(Role::Paragraph);
-    b.name(&crate::accounts::words::join(&[&label, b" ", detail]));
+/// A line with nothing yet keeps its label and inline connect link (client/README.md, 3.5, Ready).
+fn none_yet(b: &mut Builder, w: &Words, bindings: &mut Bindings, label: Word, none: Word, link: Word, step: Step) {
+    let name = crate::accounts::words::join(&[&w.say(label, &[]), b" ", &w.say(none, &[])]);
+    b.open(Role::Slot);
+    b.style(look::ACCOUNT_LINE);
+    b.name(&name);
     b.open(Role::Text);
-    b.run(Run::Strong, &label);
+    b.run(Run::Strong, &w.say(label, &[]));
     b.run(Run::Plain, b" ");
-    b.run(Run::Plain, detail);
+    b.run(Run::Plain, &w.say(none, &[]));
+    b.run(Run::Plain, " · ".as_bytes());
     b.close();
+    go(b, w, bindings, link, step);
     b.close();
 }
 fn model_line(
@@ -235,47 +233,45 @@ fn model_line(
     w: &Words,
     bindings: &mut Bindings,
     accounts: &mut crate::accounts::Bindings,
+    text_per_node: u32,
 ) {
-    if let Some(usable) = temper_client_domain::pages::welcome::model_usable(root) {
-        b.open(Role::Item);
-        if usable {
-            b.style(look::FLOW_DONE);
-            // The account, "ChatGPT plan · owner@example.com"; the model and
-            // its effort are chosen elsewhere.
-            let account = match super::accounts::first_usable_short(root, w) {
-                Some(account) => account,
-                None => crate::choice::new_chat_model(root, w),
-            };
-            labelled(b, w, Word::WelcomeModelStep, &account);
-        } else if let Some(provider) = super::accounts::own_signing_name(root, w) {
-            b.style(look::WELCOME_CURRENT);
-            labelled(b, w, Word::WelcomeModelStep, &w.say(Word::WelcomeModelSigningIn, &[Hole::Name(provider)]));
-        } else {
-            let label = w.say(Word::WelcomeModelStep, &[]);
-            let none = w.say(Word::WelcomeNoModel, &[]);
-            b.open(Role::Slot);
-            b.style(look::ACCOUNT_LINE);
-            b.name(&crate::accounts::words::join(&[&label, b" ", &none]));
+    if let Some(trial) = super::model_check::trial(root, w) {
+        super::model_check::line(b, root, w, accounts, &trial);
+    } else if temper_client_domain::pages::welcome::model_usable(root).is_some() {
+        if let Some(provider) = super::accounts::own_signing_name(root, w) {
+            let detail = w.say(Word::WelcomeModelSigningIn, &[Hole::Name(provider)]);
+            let name = crate::accounts::words::join(&[&w.say(Word::WelcomeModelStep, &[]), b" ", &detail]);
+            b.open(Role::Paragraph);
+            b.name(&name);
             b.open(Role::Text);
-            b.run(Run::Strong, &label);
+            b.run(Run::Strong, &w.say(Word::WelcomeModelStep, &[]));
             b.run(Run::Plain, b" ");
-            b.run(Run::Plain, &none);
-            b.run(Run::Plain, b" \xc2\xb7 ");
+            b.run(Run::Plain, &detail);
             b.close();
-            go(b, w, bindings, Word::WelcomeModelTitle, Step::Model { way: None });
             b.close();
+        } else {
+            none_yet(
+                b,
+                w,
+                bindings,
+                Word::WelcomeModelStep,
+                Word::WelcomeNoModel,
+                Word::WelcomeModelTitle,
+                Step::Model { way: None },
+            );
             b.open(Role::Slot);
             b.style(look::WELCOME_END);
             super::connect_model::welcome_end(b, root, w, accounts);
             b.close();
         }
-        if super::model_check::last_try_failed() {
-            super::model_check::ready_note(b, w);
-        }
-        if usable {
-            text(b, w, Role::Status, Word::FlowDone);
-        }
-        b.close();
+    }
+    if let Some(page) = root.pages().connect_model()
+        && let Some(pending) = &page.request.pending
+        && let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
+            ..
+        }))) = &pending.outcome
+    {
+        super::accounts::outcome(b, root, w, accounts, &page.request, text_per_node);
     }
 }
 fn connected(root: &Domain) -> bool {
@@ -288,6 +284,10 @@ fn connected(root: &Domain) -> bool {
     }
     false
 }
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Ready composes the form, pane and three binding sets with the text bound"
+)]
 fn ready(
     b: &mut Builder,
     root: &Domain,
@@ -296,9 +296,10 @@ fn ready(
     accounts: &mut crate::accounts::Bindings,
     forge: &mut crate::forge::bindings::Bindings,
     sign_in: &crate::forge_sign_in::Forges,
+    text_per_node: u32,
 ) {
     use crate::forge::connect;
-    let done = connected(root) && temper_client_domain::pages::welcome::model_usable(root) == Some(true);
+    let done = connected(root) && temper_client_domain::pages::welcome::model_counts(root) == Some(true);
     if done {
         text(b, w, Role::Heading { level: 1 }, Word::WelcomeReadyStep);
         ready_lead(b, root, w);
@@ -306,66 +307,7 @@ fn ready(
         text(b, w, Role::Heading { level: 1 }, Word::WelcomeReadyTitle);
         paragraph(b, w, Word::WelcomeDefaultWait, look::WELCOME_LEAD);
     }
-    b.open(Role::List);
-    b.style(look::FLOW_PROGRESS);
-    b.style(look::WELCOME_CHECKLIST);
-    b.open(Role::Item);
     let row = connect::personal(root);
-    if let Some(row) = row {
-        let underway = temper_client_domain::forge::connect::underway(row);
-        if underway {
-            b.style(look::WELCOME_CURRENT);
-        }
-        if temper_client_domain::pages::welcome::forge_connected(row) {
-            if !underway {
-                b.style(look::FLOW_DONE);
-            }
-            if let Connection::Connected { login, .. } = &row.connection {
-                let login = w.say(Word::WelcomeForgeDoneDetail, &[Hole::Name(skein_lib::bytes::copy_of(login))]);
-                let mut detail =
-                    crate::accounts::words::join(&[&connect::name(w, row, root), " · ".as_bytes(), &login]);
-                if let Some(first) = &row.first {
-                    match first.state {
-                        FirstState::Made { .. } => {
-                            let repository = w.say(
-                                Word::WelcomeForgeDoneRepository,
-                                &[Hole::Name(temper_client_domain::forge::words::full_name(
-                                    &first.org,
-                                    &first.repository,
-                                ))],
-                            );
-                            detail = crate::accounts::words::join(&[&detail, " · ".as_bytes(), &repository]);
-                        }
-                        FirstState::Making | FirstState::Failed { .. } => {}
-                    }
-                }
-                labelled(b, w, Word::WelcomeForgeStep, &detail);
-            }
-            crate::forge::forges::open_link(b, w, row, sign_in, Some(look::FLOW_QUIET));
-            text(b, w, Role::Status, Word::FlowDone);
-        } else {
-            let detail = connect::status_words(root, w, row);
-            labelled(b, w, Word::WelcomeForgeStep, &detail);
-            connect::each_step(b, root, w, row);
-        }
-    } else {
-        let label = w.say(Word::WelcomeForgeStep, &[]);
-        let none = w.say(Word::WelcomeNoForge, &[]);
-        b.open(Role::Slot);
-        b.style(look::ACCOUNT_LINE);
-        b.name(&crate::accounts::words::join(&[&label, b" ", &none]));
-        b.open(Role::Text);
-        b.run(Run::Strong, &label);
-        b.run(Run::Plain, b" ");
-        b.run(Run::Plain, &none);
-        b.run(Run::Plain, " · ".as_bytes());
-        b.close();
-        go(b, w, bindings, Word::WelcomeForgeTitle, Step::Forge { forge: None });
-        b.close();
-    }
-    b.close();
-    model_line(b, root, w, bindings, accounts);
-    b.close();
     if let Some(row) = row {
         connect::setup_ending(b, root, w, forge, row);
     }
@@ -376,6 +318,25 @@ fn ready(
     {
         paragraph(b, w, Word::WelcomeForgeStillSettingUp, look::FLOW_FACTS);
     }
+    b.open(Role::Complementary);
+    b.style(look::WELCOME_STATUS);
+    b.name(&w.say(Word::WelcomeForgeAndModel, &[]));
+    if let Some(row) = row {
+        connect::welcome_line(b, root, w, row);
+        crate::forge::forges::open_link(b, w, row, sign_in, Some(look::FLOW_QUIET));
+    } else {
+        none_yet(
+            b,
+            w,
+            bindings,
+            Word::WelcomeForgeStep,
+            Word::WelcomeNoForge,
+            Word::WelcomeForgeTitle,
+            Step::Forge { forge: None },
+        );
+    }
+    model_line(b, root, w, bindings, accounts, text_per_node);
+    b.close();
 }
 fn ready_lead(b: &mut Builder, root: &Domain, w: &Words) {
     let (word, hole) = if let Some(first) = root.pages().welcome_first() {
