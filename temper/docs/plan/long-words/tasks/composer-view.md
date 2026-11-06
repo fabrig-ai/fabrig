@@ -11,6 +11,8 @@ files = [
   "temper/crates/temper-client-view/src/pages/goal.rs",
   "temper/crates/temper-client-view/src/pages/ask.rs",
   "temper/crates/temper-client-view/src/words.rs",
+  "temper/crates/temper-client-view/src/frame.rs",
+  "temper/crates/temper-client-view/src/tests/toast.rs",
   "temper/crates/temper-client-view/src/tests/chat.rs",
   "temper/crates/temper-client-view/src/tests/chats.rs",
   "temper/crates/temper-client-view/src/tests/task.rs",
@@ -72,3 +74,15 @@ Not this task: a chat's first message reading back: `start-reads-back`'s. The do
 ## Report
 
 As the implementer's text asks, with the line's two words as they read, and where each stands on each composer, for temper/ui.
+
+## Answers
+
+2026-11-06. *May this task wrap the reply's toast in a landmark in `frame.rs`, or should the toast's owner repair it first?* This task wraps it. `a_long_reply_is_answered` is this task's acceptance and can't pass while the toast is a child of the page (`skein/docs/design/ui.md`, 14), and no task in this plan owns the toast.
+
+- `frame::toast`, these edits alone: after its `let Some(toast)` return, open a `Role::Region`, `b.name` a new `Word::ToastRegion`, "Notices" (as `Word::AccountRegion` names its region); close it after the toast's `b.close()`. The `Role::Status` keeps `look::TOAST` and everything in it. The region has no style, and `temper.css` doesn't change: the toast is fixed, so the region takes no room. A view with no toast draws no region.
+- `Word::ToastRegion` takes the next free id in `words.rs`. `root.rs` doesn't change.
+- `tests/toast.rs`: add `skein_ui::outline::check(view.tree())` is `None` to `toast_is_last_on_home_and_chats_in_both_shells_and_undo_is_only_held`, red before the wrapper. Its other assertions stay as they are: the toast stays last, with the status role.
+- `temper/docs/design/client/README.md`, 3.5, *The toast*, already says this: no design edit is left for the task.
+- The report names "Notices" for temper/ui, beside the line's two words.
+- `host::redacted::a_committed_journey_redacted_replays` stays under `## Left`: no recording is edited for this task. The gallery's `chat-composer-over` stays dropped, as the spec's option says.
+- Finish by running `a_long_reply_is_answered` to its end, and `temper-client-view`'s and `temper-client-gallery`'s tests.
