@@ -24,10 +24,16 @@ fn a_find_of_an_indexed_key_loads_the_record_whole() {
 }
 #[test]
 fn a_find_without_an_index_is_declined() {
-    for mut store in [fixtures::full(), fixtures::failed_entry()] {
+    let unusable = Decline::Unusable { step: Step::List };
+    let full = Decline::Full { limit: crate::vocabulary::Limit::CacheFiles, most: limits::SHIPPED.cache_files };
+    for (mut store, why) in [
+        (fixtures::full(), unusable),
+        (fixtures::failed_entry(), unusable),
+        (fixtures::failed_entry_from(crate::Standing::Declining(full)), full),
+    ] {
         assert_eq!(
             &*store.step(Time::ZERO, Event::Find { key: fixtures::KEY }),
-            &[Output::Answer(Answer::Declined { why: Decline::Unusable { step: Step::List } })]
+            &[Output::Answer(Answer::Declined { why })]
         );
     }
 }
