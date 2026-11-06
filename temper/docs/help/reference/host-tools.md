@@ -235,13 +235,14 @@ A read.
 
 ## propose_settings
 
-Propose a change of the deployment's settings to its owners, with a reason. You hear in your messages whether it was accepted, rejected or went stale.
+Propose whole settings from items or a note revision to owners. One owner acceptance makes one revision. Keep How PROJECT works separate.
 
 A write.
 
 - `against`: an integer from 1 to 4294967295; required. The newest revision you read. A proposal against an older one is stale, and you hear the newest.
 - `reason`: text; required. Why; the owners read it.
-- `items`: a list; required. The changes, at most one per setting.
+- `note`: an object; optional. {name, revision}: goal note work: settings with {items:[...]}; build a few KB per write with first/remove/join.
+- `items`: a list; optional. The changes, at most one per setting. Supply exactly one of items or note.
 
 ## read_items
 

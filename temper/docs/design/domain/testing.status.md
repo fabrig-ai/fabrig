@@ -2,6 +2,8 @@
 
 2026-11-05. Where temper's code lags or departs from [testing.md](testing.md).
 
+Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
+
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
   the twins' documents among `temper-playground`'s stories: B0's and

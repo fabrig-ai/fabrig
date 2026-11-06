@@ -1,14 +1,33 @@
 # README: status
 
-2026-11-05. Where temper's code lags or departs from [README.md](README.md).
+2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Departs:** 3.5, *Starting a goal from a chat's document*: the shared sheet
-  has no Budget field or "Plan, then wait for me" choice. It uses
-  `goals::ways`' template-number order and the creating bound's budget.
-  The 2026-11-05 answers to `ui-chat-draft/goal-sheet-state` and
-  `ui-chat-draft/goal-sheet` assign the sheet to `ui-goal-page/start-domain`
-  and `ui-goal-page/start-sheet`; these differences remain theirs. The
-  draft snapshot and its chat provenance do reach the created goal.
+- **Design departs:** 3.5, *Starting a goal from a chat's document*, and 5.14, from
+  the request `ui-chat-draft` of 2026-11-05, decided by the answers that day to its
+  tasks `goal-sheet-state` and `goal-sheet`: one sheet, `ui-goal-page`'s, where the
+  request draws a chat's own. So the sheet has no Budget field, its budget the
+  creating bound's. It has no "Plan, then wait for me" of stock template 2:
+  `shapes::set_agreed_goal_from` and `sheet::WayKind::Agreed` stand built, and nothing
+  sends them, `sheet::snapshot`
+  taking the task-by-task words alone. Its ways are `goals::ways`', the project's
+  templates by number with their own names and lines, where the request has three in
+  its own order and words. It has "When it needs you", which the request leaves out
+  until the away switch exists, as it now does. Its words close with `Draft:` and
+  `Chat:`, which the request doesn't name and the goal's page reads for its link back.
+  A proposed goal is 5.14's toast, where the request has a line above the composer:
+  `Chat.proposed` is set (`temper-client-domain`'s `pages/start_goal.rs`, `told`) and
+  read by nothing. No plan holds these; section 11 keeps them.
+- **Design departs:** 3.5, *A chat's document*, from that request's decision 7,
+  decided by the answer that day to `goal-sheet-state`: `drafts_offered` reads kind
+  7's `drafts`, false in the stock (5.13), where the request has it true while `me`
+  lists a tracked template with no conversation flag. So a fresh project offers no "+
+  Draft", Drafts filter, "Start goal…" or rail's "Goal" until "Chats can write drafts"
+  is turned on, as the journey `chat-draft` does first.
+- **Departs:** 5.14: a party whose `me` gives the project no creating bound still
+  sees a chat's "Start goal…" (`temper-client-view`'s `pages/chat_sheet.rs`, `bar`),
+  and a press opens nothing (`pages/start_goal.rs`, `open`;
+  `no_creating_or_empty_document_opens_no_sheet`), where the section has `NotOffered`
+  said in jig's words. No reason is recorded.
 - **Departs:** 3.5, *The Chats page*: the document read stops at
   `limits.client.domain.rows` notes, so a chat beyond those notes has no
   "writes" line and is absent under Drafts. Goal chips cover only the newest
@@ -73,7 +92,8 @@
   (`a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list`). The fake
   box's model (`temper-fake/src/backends.rs`, `model_document`) writes a report
   only for the first chat's goal, task 2, then finishes it without delegates, so
-  it can show none of those live states.
+  it can show none of those live states: the journey `chat-draft` walks a chat's
+  sheet to that finished goal's page and back to the chat alone.
 - **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
   delivered yet the switch draws off, but its act is still offered, where 4.6
   has it not offered: `temper-client-view`'s `frame.rs`, `away`, and
@@ -108,9 +128,9 @@
   both a draft and a chat, so "Start a goal" and the Draft field are drawn by
   nothing. The rulings of 2026-11-05 on that request (the answers to its tasks
   `start-domain`, `start-sheet` and `goal-browser`) keep no typed draft path: the
-  link goes to Chats' Drafts filter and the sheet opens from a chat, which
-  `ui-chat-draft` adds. The entry still goes to All, where the rulings name
-  Drafts.
+  link goes to Chats' Drafts filter and the sheet opens from a chat. The entry
+  still goes to All, where the rulings name Drafts, the filter being there only
+  while `drafts_offered`.
 - **Design departs:** 5.8, from the request `ui-goal-page` of 2026-11-05, decided
   by its plan's cut and its proof. A goal's bar is `figure.bar` in the browser
   and `Role::Image` in the terminal, where the request has `div.bar` and

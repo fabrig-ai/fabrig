@@ -57,3 +57,9 @@
   `Unusable::Zero`, which names none, for what `skein_tls::client::valid`,
   `skein_http::client::valid` and `skein_http::server::valid` refuse; no
   reason is recorded.
+  10: the item the `debt-24` request of 2026-11-05 paid has the moved tests use
+  the fake's own server, and the forge worlds share one io harness. `hand`'s
+  tests keep their literal bytes, because they carry faults and identities no
+  fake serves, and each world keeps its own arms, because a shared table ended
+  131 lines up against 100 down, by that plan's owner. The `seam` feature adds
+  177 net lines beside the step code.

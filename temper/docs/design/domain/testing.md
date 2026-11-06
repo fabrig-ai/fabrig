@@ -2543,6 +2543,15 @@ the forge's API, and the person's two documents. The pass answers the
 agent's questions from the documents and its brief, chooses no rule to
 become structure, and accepts with running work staying as it is.
 
+The revision's edits alone form `items.json`; `current.json` is collected
+separately. The collector never unions earlier revisions or substitutes current
+values for unrelated accepted edits. The recorded-ctl regression carries the
+complete note proposal's accepted set and retains designer and triage bindings;
+the eleven-proposal workaround's incomplete final revision leaves them unbound.
+The engine domain world proves bounded note writes, including a line past one
+call, exact whole-value reconstruction, no application before acceptance and
+one complete accepted revision, with refusal and decided-call replay cases (6.4).
+
 #### 6.5.4 The check and the judge
 
 - **The check,** `temper-stage-one check EVIDENCE`: the binding, then a
@@ -2711,6 +2720,11 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **jig's referee tests, repeated.** `tests/engine/domain/tests/suite/referee.rs`
+  keeps tests of jig's referees that jig's own suites hold:
+  `authority_referee_rejects_a_person_without_a_grant` observes what
+  `rejects_an_observer_routed` does in `jig/tests/people/tests/suite/referee.rs`.
+  Default: they stay, until a debt item names them.
 - **The live pair's bound.** The owned-forge landing pair runs in one
   invocation within profile `live-temper`'s 50 minutes, each story
   bounding itself at 40 (2.7). The profile's figure is set from the
