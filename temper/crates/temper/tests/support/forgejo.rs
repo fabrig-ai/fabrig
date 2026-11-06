@@ -640,6 +640,23 @@ impl Throwaway {
         assert_eq!(response.status, 204, "remove adoption collaborator");
     }
 
+    pub fn remove_adoption_hooks(&self, name: &str) {
+        let value = self.repository_observation("other", name, "hooks");
+        for hook in value.as_array().expect("adoption hooks") {
+            let id = hook["id"].as_u64().expect("hook id");
+            let response = self
+                .instance
+                .exchange(&Outgoing::json(
+                    "DELETE",
+                    &format!("/api/v1/repos/other/{name}/hooks/{id}"),
+                    Some(&self.instance.admin().token),
+                    b"null",
+                ))
+                .expect("remove hook answer");
+            assert_eq!(response.status, 204, "remove adoption hook");
+        }
+    }
+
     /// Keeps the forge's pull, branch and comparison evidence when an update stalls.
     pub fn pull_update_failure(&self, base: Option<&str>) {
         eprintln!("stalled update: style=rebase, requested base={base:?}");

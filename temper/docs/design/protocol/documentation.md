@@ -187,6 +187,12 @@ to a suite's time beyond milliseconds.
 
 - **Translations.** Default: English only.
 - **The site.** The user's: whatever it renders of `docs/help/`.
+- **The figures of `how-temper-builds-temper`** (`../draft/own-way.md`, 5): their
+  values, fixed at a release, and whether a link to live ones ever shows, are the
+  user's. They are filled in that page alone, and `temper-docs`' step test
+  `the_way_shows_placeholder_figures_and_no_address` changes with them. A
+  deployment's own throughput beside them is a dashboard's
+  (`../draft/dashboards.md`). Default: "—", "Figures to come." and no link.
 - **A page of a release's changes,** read by the configuring agent when
   a release's revision changed a default (`../draft/configuring.md`,
   3.2). Default: a page `releases`, newest first, joining the map with

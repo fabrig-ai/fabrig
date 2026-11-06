@@ -59,9 +59,14 @@
   `NEXTEST_DOUBLE_SPAWN=0` and all 34 hearth workspace packages selected.
   All 2189 focused tests pass; the CPU verdict is red. The builder suite
   costs 12.008451 CPU s, the tree suite 10.029600, the builder real-git
-  binary 8.479085 and the render suite 4.086128. Whether repairs to
-  those costs reach 30 CPU s is unknown; the figure stands
-  (`hearth/docs/design/domain/testing.md`, 11).
+  binary 8.479085 and the render suite 4.086128. Within them the largest
+  families are the builder suite's `domain::` at 4.139167, the tree suite's
+  `walk::` at 3.612423 and `memory::` at 2.833243, and the render suite's
+  `properties::` at 2.217494; the largest test is the tree suite's
+  `memory::walk::walking_wide_and_deep_layers_holds_no_more_than_its_ceiling`
+  at 1.299843. These rank the work, and show neither an inefficiency nor
+  what a repair saves. Whether repairs to those costs reach 30 CPU s is
+  unknown; the figure stands (`hearth/docs/design/domain/testing.md`, 11).
   Fuzzy takes 100.520668 CPU s, 24.255479 s of execution wall, with all
   60 tests passing and the large render included at 14.633486 CPU s.
   Neither run has retries, starvation, unobserved attempts, leaked
@@ -70,7 +75,6 @@
   (`tools/tiers/design.md`, 7.2); full-gate incremental build and clippy
   costs for this revision are unknown because the measurement excludes
   them. The fuzzy budget's basis and the render world's selection on
-  every change await the user's ruling (11). Why earlier suite figures
-  differ, and how much of the large render's CPU lies in the harness or
-  production code, remain unknown because this measurement isolates
-  neither cause.
+  every change await the user's ruling (11). How much of the large render's
+  CPU lies in the harness or production code remains unknown because this
+  measurement doesn't isolate it.

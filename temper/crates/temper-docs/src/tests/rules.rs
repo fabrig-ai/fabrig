@@ -474,6 +474,14 @@ fn approval_help_names_the_forge_and_project_policy_route() {
 }
 
 #[test]
+fn forgejo_help_says_what_a_hook_on_this_host_needs() {
+    let text = find(b"forgejo").expect("Forgejo help").text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for words in ["ALLOWED_HOST_LIST", "application.webhooks.listener", "by polling"] {
+        assert!(text.contains(words), "Forgejo help must explain {words}");
+    }
+}
+
+#[test]
 fn a_way_numbers_its_sections_from_one() {
     template(&fixture(Kind::Way, "## 1. First\n## 2. Next\n")).expect("numbered sections");
     for text in ["", "## 2. First\n", "## 1. First\n## 3. Next\n", "## First\n", "## 1. \n"] {
@@ -488,9 +496,6 @@ fn the_way_shows_placeholder_figures_and_no_address() {
         assert!(text.lines().any(|found| found == line), "{line}");
     }
     assert!(!text.contains("://"));
-    let note = Path::new(&std::env::var("CARGO_MANIFEST_DIR").expect("package path at test time"))
-        .join("../../docs/plan/look-round-8/notes/how-temper-builds-temper.md");
-    assert_eq!(text.as_bytes(), fs::read(note).expect("source note"));
 }
 
 #[test]
