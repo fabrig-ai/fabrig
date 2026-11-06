@@ -138,19 +138,24 @@ pub fn adoption_page(form: &client::forge::Form, words: &temper_client_view::wor
     builder.close();
     visible(builder.finish())
 }
-pub fn visible(mut tree: skein_ui::Tree) -> skein_ui::Tree {
-    let limits = tree_limits();
+pub fn visible(tree: skein_ui::Tree) -> skein_ui::Tree {
+    visible_at(tree, &tree_limits())
+}
+fn visible_at(mut tree: skein_ui::Tree, limits: &skein_ui::Limits) -> skein_ui::Tree {
     skein_ui::diff(
         &skein_ui::Tree::new(limits.nodes),
         &mut tree,
-        &limits,
+        limits,
         &mut 0,
         &mut skein_lib::Queue::with_capacity(limits.patches),
     );
     tree
 }
 pub fn copy_tree(source: &skein_ui::Tree) -> skein_ui::Tree {
-    let mut builder = skein_ui::Builder::new(&tree_limits());
+    copy_tree_at(source, &tree_limits())
+}
+pub fn copy_tree_at(source: &skein_ui::Tree, limits: &skein_ui::Limits) -> skein_ui::Tree {
+    let mut builder = skein_ui::Builder::new(limits);
     let mut open = Vec::new();
     for (index, node) in source.nodes().iter().enumerate() {
         while open.last().is_some_and(|end| *end == index) {
@@ -190,7 +195,7 @@ pub fn copy_tree(source: &skein_ui::Tree) -> skein_ui::Tree {
     for _ in open {
         builder.close();
     }
-    visible(builder.finish())
+    visible_at(builder.finish(), limits)
 }
 pub fn page(address: &temper_client_domain::Address, signed_out: bool) -> skein_ui::Tree {
     use skein_lib::{Env, Queue};
