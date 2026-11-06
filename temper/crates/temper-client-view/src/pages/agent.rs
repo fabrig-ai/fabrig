@@ -74,9 +74,15 @@ pub(crate) fn main(
             words,
             (rows, page.thread.limits.text),
             super::chat::speakers(task, me),
-            super::chat::Drawn::Lines,
+            match task::run(task) {
+                Some(task::Run::Live { .. }) => super::chat::Drawn::AgentRun { current: page.current_call() },
+                Some(task::Run::Waiting { .. } | task::Run::Ended { .. } | task::Run::NoRun) | None => {
+                    super::chat::Drawn::Lines
+                }
+            },
             bindings,
         );
+        super::chat::latest(b, &page.thread, words, bindings);
         super::task::outcome(b, root, words);
         super::task::result(b, task, words, look::AGENT_RESULT);
         if let Some(document) = root.client().document(page.tree)
