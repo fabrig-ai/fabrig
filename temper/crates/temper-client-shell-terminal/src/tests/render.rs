@@ -218,3 +218,57 @@ fn no_project_reads_the_same_in_the_terminal() {
     assert!(!text.contains("Set up temper"), "{text}");
     assert!(!text.contains("Try the playground"), "{text}");
 }
+
+#[test]
+fn a_chats_or_agents_long_line_draws_whole() {
+    use jig_client::contract as c;
+    use temper_client_domain::Address;
+    for length in [1149, 10_660] {
+        let bytes = vec![b'x'; length];
+        for address in [Address::Chat { task: 1 }, Address::Task { task: 1 }] {
+            let tree = fixtures::chat::long_line_page(
+                address,
+                &c::Activity::Words {
+                    message: 1,
+                    by: c::Requester::Person(1),
+                    kind: c::MessageKind::Words,
+                    words: temper_fixtures::first_run::text(&bytes),
+                },
+            );
+            assert_long_line(&tree, &bytes);
+        }
+    }
+}
+
+fn assert_long_line(tree: &skein_ui::Tree, bytes: &[u8]) {
+    assert!(tree.nodes().iter().any(|node| {
+        node.text.as_slice().iter().flat_map(|run| run.text.iter().copied()).eq(bytes.iter().copied())
+    }));
+    let limits = crate::limits::view(&crate::limits::native()).expect("native bounds").0;
+    let mut print = skein_ui_text::Print::new(&limits.tree).expect("native print bounds");
+    skein_ui_text::render(tree, b"temper", None, &mut print);
+    assert!(skein_lib::bytes::find(print.text.as_slice(), bytes).is_some(), "whole words in the print");
+}
+
+#[test]
+fn an_agents_heard_or_notified_long_word_draws_whole() {
+    use jig_client::contract as c;
+    for length in [1149, 10_660] {
+        let bytes = vec![b'x'; length];
+        let word = c::Word {
+            number: 1,
+            from: c::Requester::Task(2),
+            kind: c::MessageKind::Words,
+            words: temper_fixtures::first_run::text(&bytes),
+            at: skein_lib::Wall::EPOCH,
+            hits: 1,
+            eligible: true,
+        };
+        for event in
+            [c::Activity::Heard(word.clone()), c::Activity::Notified { recipient: c::Requester::Person(1), word }]
+        {
+            let tree = fixtures::chat::long_line_page(temper_client_domain::Address::Task { task: 1 }, &event);
+            assert_long_line(&tree, &bytes);
+        }
+    }
+}
