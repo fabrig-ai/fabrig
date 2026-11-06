@@ -310,8 +310,12 @@
   that can't start, where the request has a run that isn't about to start say why,
   because a row holds no run wait and its query carries no run's check per row
   (jig's `client/domain/client.md`, 19.1). The chat's own page says why.
-- **Not yet:** 3.5, *Where the focus stands on a chat*, 5.3 and 5.11: a chat started by sending opens on its
-  heading, and after a send a composer asks for no focus: a press of "Send" leaves it on a button that disables.
+- **Design departs:** 3.5, *Where the focus stands on a chat*, from the request `ui-composer-focus` of 2026-11-06,
+  decided by its plan's cut: a starter's or a suggested request's press asks for the composer's focus on a phone too,
+  where the request has no press raise a keyboard the person did not ask for, because the tree has no width and telling
+  them apart takes a kit mechanism (section 11). Whether a keyboard rises is unknown, for those and for the request's own
+  answers, up after a send and down on a chat opened from a list: no run on record has a real phone, and headless
+  Chromium draws no keyboard.
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. Until it

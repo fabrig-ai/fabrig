@@ -687,12 +687,16 @@ keeps (`../protocol/configuration.md`, section 2).
     from a new chat, its draft, `Configure`, a starter and a suggested request
     alike. "Start goal" is none of these: it opens the goal's page, its heading
     focused. A start refused stays on its page and moves nothing.
-  - *Opened any other way* (a list, a link, an address, Back or Forward, a
-    reload): the chat opens on its heading, so that a person reading with a
-    screen reader or the keyboard lands on what the page is.
-  - *After a send,* by Enter or by "Send", the focus is in the composer, on a
-    chat's, a goal's and an agent's task's (5.11) alike: "Send" disables as the
-    words clear, and a disabled button holds no focus.
+  - *Opened any other way,* its composer asks for nothing. From a list or a
+    link, a new entry, the chat opens on its heading, so that a person reading
+    with a screen reader or the keyboard lands on what the page is, though the
+    heading is drawn after the page (`browser.md`, 2.3). An address, a reload,
+    Back and Forward make no new entry, and take the focus to no heading
+    (skein's `ui-web.md`, 7).
+  - *After a send,* by Enter or by "Send", whether or not it went out, the focus
+    is in the composer, on a chat's, a goal's and an agent's task's (5.11) alike:
+    "Send" disables as the words clear, and a disabled button holds no focus.
+    "Pause", "Resume" and "+ Draft" send too, and ask for nothing.
   - *While the rename's form is open* it keeps the focus (5.3), and a composer
     that has asked for it takes it back as the form closes.
   - *On a phone* the same acts ask the same, as a phone's messaging app does:
@@ -6525,6 +6529,17 @@ own tests:
   a keyboard the person did not ask for. Telling them apart takes a kit mechanism,
   a focus request that raises no keyboard (skein's `ui-web.md`, 7). Default: the
   same focus at every width.
+- **A start refused, by its press** (3.5, *Where the focus stands on a chat*; the
+  request `ui-composer-focus` of 2026-11-06): the send arrow disables while a start
+  is out, and a disabled button holds no focus, so a start refused after a press
+  leaves the focus where the browser put it, and the person clicks the composer to
+  try again. That request does not ask for it. Default: a refused start moves
+  nothing.
+- **A composer that comes back** (3.5, *Where the focus stands on a chat*; the
+  request `ui-composer-focus` of 2026-11-06): a composer's request rides its insert
+  (skein's `ui-web.md`, 7), so a chat that loses Message and regains it, after a
+  send or "Change something", takes the focus again, from a person typing elsewhere
+  on that page at that moment. Default: not guarded.
 
 - **Pages the mockups do not show:** a project's page with its
   resources, findings, notes and settings (policy, people and roles,
