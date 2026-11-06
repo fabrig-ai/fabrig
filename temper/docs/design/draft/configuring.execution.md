@@ -43,7 +43,7 @@ nothing.
 | P1 | Documents, revisions, a chat's template | 2 (rules reach the runs), 4, 5.4 (`chat start`) | | done: landed 2026-11-03 01:39Z (`be16409150`) |
 | P2 | Settings through ctl | 3.3, 5.4 | P1; the reference's M3 | done: landed 2026-11-03 16:12Z (`bfa287bbc4`) |
 | P3 | The configuring agent | 5.3, 6 | P2 | done: landed 2026-11-03 20:36Z (`a6a8155d35`) |
-| P4 | Stage 1 | 8.1 | P3 | done: landed 2026-11-03 23:12Z (`062fc5fb1f`); its walk failed 2026-11-05, 24 of 80 obligations failing, and runs again now its repairs have landed |
+| P4 | Stage 1 | 8.1 | P3 | done: landed 2026-11-03 23:12Z (`062fc5fb1f`); its walk passed 2026-11-06, 86 of 86, at `59fc195c6b`, and runs again as the golden moved after it |
 | P5 | Stage 2, rung D | 8.2 | P4; rung C (the reference's M10) | not started |
 
 ### P1. Documents, revisions, a chat's template
