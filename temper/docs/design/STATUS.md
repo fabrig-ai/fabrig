@@ -150,7 +150,11 @@ endings and seven-digit commits; public records carry no forge addresses.
 Ended-goal history before publication and across a restart is deferred, and
 the board says so; a stock queue's merges read as public landings within the
 landing log and jig's public index, including a pre-publication merge whose
-change is handed from a live goal. The public geometry story checks a wrapped text by its first quad alone
+change is handed from a live goal. The public geometry story measures each
+page and width from one boxed query, checks a wrapped text by its first
+quad alone, and retains missing-box failures; their intermittent cause is
+unestablished. Its sign-out 401 expectation accepts that console text
+throughout the walk
 (`client/browser.md`, `client/forge.md`).
 The browser tier holds 17 tests, five past its cap. The four reading stories
 pass with ctl history and a 131,072-byte window, but their CPU medians sum to

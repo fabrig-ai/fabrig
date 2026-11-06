@@ -546,6 +546,12 @@ The kit's tests are a crate of their own, `tests/browser`
 
 ## 11. Open questions
 
+- **Every fragment of wrapped text** (5): whether the browser testing
+  interface should carry all content quads of a text node. Default:
+  `Seen.rect` keeps the first content quad alone; a missing rectangle stays
+  in a boxed query's result for its caller to judge. Temper's public
+  geometry story needs the other fragments to check a wrapped line whole
+  (`temper/docs/design/client/browser.md`, 8.4).
 - **Chromium's own sandbox** under a service's containment: whether the
   namespaces it needs are there, or the real loop's sandbox stands in for
   it.

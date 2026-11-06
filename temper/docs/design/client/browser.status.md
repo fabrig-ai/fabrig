@@ -26,6 +26,18 @@ keeps it; publication is not a cutoff on a handed change's commit.
   node, so the public geometry story cannot check every wrapped fragment.
   Its result needs a browser testing interface decision before it can retain those
   fragments. Missing rectangles remain failures.
+- **Not yet:** 8.4: the intermittent missing rectangle's cause remains
+  unestablished. The story retains one terminal boxed query per page and
+  width, checks its truncation count, and fails on missing geometry with
+  the text and a preceding measurement-stage line. Batching narrows a
+  changing page's query window without making it atomic; the request
+  `ui-public-story`'s timer-driven explanation remains unproved (section 5).
+- **Departs:** 8.4: `browser_public` accepts the 401 resource-load console
+  text throughout the walk, including its public reads, because a stream
+  around sign-out can correctly answer for an ended session. The request
+  `ui-public-story` permits this expectation if the sign-out flake recurs;
+  it is matched by text, without a stage or resource constraint, so an
+  unexpected public-read 401 with those words is accepted too (section 5).
 - **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:
