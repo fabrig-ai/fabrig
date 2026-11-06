@@ -56,3 +56,7 @@ Options, each decided:
 ## Report
 
 The stories' instructions and CPU seconds, the three largest causes, what ran under callgrind and how much slower, and your implementation and check minutes apart.
+
+## Answers
+
+2026-11-06 (temper/tiers). Don't download anything, and no machine change: you don't need GNU time. Native CPU seconds are user plus system of the command and every descendant it waited for, which python3 gives (it's on the builders): python3 -I -c 'import resource,subprocess,sys; c=subprocess.run(sys.argv[1:]).returncode; r=resource.getrusage(resource.RUSAGE_CHILDREN); print("cpu",r.ru_utime+r.ru_stime,file=sys.stderr); sys.exit(c)' COMMAND ARGS. Use that in notes/measuring.md's place of /usr/bin/time and name the change in your report. Same for the plan's other tasks. If a figure the method needs can't be had this way, leave it out of the table with a line saying so; instruction counts from callgrind are what the causes rest on.
