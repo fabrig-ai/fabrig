@@ -486,6 +486,7 @@ pub enum Word {
     NeedsYouCountCut,
     ToastAnswered,
     ToastLater,
+    ToastNotSent,
     ToastUndo,
     AnsweredReply,
     RailSettings,
@@ -1269,7 +1270,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
 // The rail menu adds six literal phrases (client/README.md, 5.3).
-const PHRASES: u32 = 1759;
+const PHRASES: u32 = 1760;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1290,8 +1291,9 @@ const PHRASES: u32 = 1759;
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
 // The rail menu adds six literal segments (client/README.md, 5.3).
-const SEGMENTS: u32 = 3055;
-const ALL: [Word; 1160] = [
+// The unsent answer toast adds one literal phrase and segment (3.5).
+const SEGMENTS: u32 = 3056;
+const ALL: [Word; 1161] = [
     Word::DraftsChats,
     Word::ChatsDraftLede,
     Word::ChatRowWrites,
@@ -1758,6 +1760,7 @@ const ALL: [Word; 1160] = [
     Word::NeedsYouCountCut,
     Word::ToastAnswered,
     Word::ToastLater,
+    Word::ToastNotSent,
     Word::ToastUndo,
     Word::AnsweredReply,
     Word::RailSettings,
@@ -2894,6 +2897,7 @@ impl Word {
             Self::NeedsYouCountCut => 3332,
             Self::ToastAnswered => 3333,
             Self::ToastLater => 3334,
+            Self::ToastNotSent => 3687,
             Self::ToastUndo => 3335,
             Self::AnsweredReply => 3336,
             Self::RailSettings => 3084,
@@ -3906,7 +3910,7 @@ impl Words {
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Settings and the chat document include their literal bytes (client/README.md, 3.5, 5.13).
-            text_bytes: 43848,
+            text_bytes: 43888,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -4402,6 +4406,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NeedsYouCount => (&[b"Needs you ", b""], &[Number]),
         Word::NeedsYouCountCut => (&[b"Needs you ", b"+"], &[Number]),
         Word::ToastAnswered => (&[b"Answered: ", b""], &[Name]),
+        Word::ToastNotSent => (&[b"That answer wasn't sent. Press it again."], &[]),
         Word::ToastLater => (&[b"Later: it stays in Needs you, after the others."], &[]),
         Word::ToastUndo => (&[b"Undo"], &[]),
         Word::AnsweredReply => (&[b"Replied: \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name]),
