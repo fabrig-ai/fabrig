@@ -15,6 +15,7 @@ use JournalOutput as Output;
 use alloc::boxed::Box;
 use core::mem::size_of;
 pub use jig_domain_core::{Counters, fresh};
+use jig_domain_link::{SignOutResult, SourceName};
 use jig_domain_people as people;
 use skein_lib::{Decision as SkeinDecision, Journal as SkeinJournal, List, Queue, ReplyTo, Token};
 
@@ -98,8 +99,8 @@ pub enum Delivery {
     SourceSignedOut {
         to: ReplyTo,
         channel: Token,
-        name: jig_domain_fleet::SourceName,
-        result: Option<jig_domain_fleet::SignOutResult>,
+        name: SourceName,
+        result: Option<SignOutResult>,
     },
     Application {
         to: ReplyTo,

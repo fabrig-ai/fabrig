@@ -1,6 +1,7 @@
 //! Sign-in holding, reload and endings through the joined world's public fakes.
 use jig_client_kit::harness::{App, Front, FrontFault};
 use jig_domain_accounts as a;
+use jig_domain_link::{Form, Scheme};
 use skein_lib::{Duration, Queue};
 use skein_ui::{Act, Role};
 use temper_client_domain::{Address, Place, address};
@@ -314,7 +315,7 @@ fn welcome_ready_names_the_made_account() {
             account: source,
             generation: 1,
             valid: Duration::from_secs(3600),
-            form: a::Form::Credential(a::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
         }),
     );
     h::reopen(&mut front, &mut root, at(b"/welcome?at=ready"));
