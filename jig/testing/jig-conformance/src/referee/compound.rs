@@ -2,7 +2,7 @@
 use super::{Promise, Snapshot, Task, Violation, require};
 use std::collections::{BTreeMap, BTreeSet};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Compound {
     baseline: BTreeMap<u64, Option<Task>>,
     changed: Option<(u64, BTreeSet<u64>)>,

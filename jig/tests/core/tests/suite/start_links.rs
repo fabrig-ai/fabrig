@@ -1,5 +1,6 @@
 //! Starts retain durable diagnostic answers (jig/docs/design/domain/engine.md, 6).
 use jig_core_world::fixtures;
+use jig_core_world::fixtures::phase;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_core_world::world::fixture;
@@ -74,10 +75,6 @@ impl Harness {
         }
         panic!("bounded start opens");
     }
-}
-
-fn phase(action: &Action, expected: Phase) {
-    assert!(matches!(action, Action::Step(found) if *found == expected));
 }
 
 #[test]

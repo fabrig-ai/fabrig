@@ -5,9 +5,9 @@ use jig_domain_tasks::{
     self as tasks, Amendment, Authority, CharterModels, Domain, Event, Executor, LlmChoice, LlmFault, ModelEffort,
     Models, Party, PersonAddress, Problem, Refusal,
 };
-use jig_tasks_world::{LIMITS, Reply, World, authority, domain, task};
+use jig_tasks_world::{LIMITS, PERSON, Reply, World, authority, domain, task};
 
-const PERSON: Party = Party::Person(1);
+const LLM_REQUESTER: Party = Party::Person(1);
 
 fn effort(model: u8, effort: Option<u8>) -> ModelEffort {
     ModelEffort { model, effort }
@@ -52,7 +52,7 @@ fn amend(world: &mut World, task: u64, authority: Option<Authority>, llm: Option
         places: Box::new([]),
         funder: None,
         reply_to,
-        by: PERSON,
+        by: LLM_REQUESTER,
     });
     world.replies.last_key_value().expect("amendment answered").1.clone()
 }
@@ -68,7 +68,7 @@ fn refused(reply: &Reply, model: u8, why: LlmFault) {
 fn a_choice_is_kept_through_a_restart_amended_and_given_to_a_delegate() {
     let mut world = World::new(71, LIMITS);
     let first = choice(effort(0, Some(1)), &[effort(1, None), effort(2, Some(0))]);
-    assert_eq!(world.make(PERSON, vec![chosen(1, 0b111, first.clone())]), Reply::Made(vec![1]));
+    assert_eq!(world.make(LLM_REQUESTER, vec![chosen(1, 0b111, first.clone())]), Reply::Made(vec![1]));
     assert_eq!(world.record(1).llm, Some(first));
     world.restart();
 
@@ -89,7 +89,7 @@ fn a_choice_is_kept_through_a_restart_amended_and_given_to_a_delegate() {
 #[test]
 fn a_choice_is_refused_naming_its_first_failing_model_and_why() {
     let procedure = Executor::Procedure { connector: 1, code: 1 };
-    let person = Executor::Person(PersonAddress::Person(9));
+    let person = Executor::Person(PersonAddress::Person(PERSON));
     let cases = [
         (Executor::Agent { charter: 1 }, 0b1111, choice(effort(9, None), &[]), 9, LlmFault::Unconfigured),
         (Executor::Agent { charter: 1 }, 0b1111, choice(effort(0, Some(2)), &[]), 0, LlmFault::Effort),
@@ -129,7 +129,7 @@ fn a_choice_is_refused_naming_its_first_failing_model_and_why() {
         }
         let mut new = chosen(1, models, llm);
         new.executor = executor;
-        refused(&world.make(PERSON, vec![new]), model, why);
+        refused(&world.make(LLM_REQUESTER, vec![new]), model, why);
         assert_eq!(world.records, before, "{why:?} writes nothing");
     }
 }
@@ -137,7 +137,7 @@ fn a_choice_is_refused_naming_its_first_failing_model_and_why() {
 #[test]
 fn a_delegates_choice_is_refused_outside_its_charters_models_without_writes() {
     let mut world = World::new(75, LIMITS);
-    assert_eq!(world.make(PERSON, vec![task(1, &[])]), Reply::Made(vec![1]));
+    assert_eq!(world.make(LLM_REQUESTER, vec![task(1, &[])]), Reply::Made(vec![1]));
     let before = world.records.clone();
     let mut child = chosen(2, 0b1111, choice(effort(0, Some(0)), &[effort(3, None)]));
     child.funder = jig_domain_tasks::Funder::Task(1);
@@ -182,7 +182,7 @@ fn a_choice_checked_alone_uses_the_newest_charter_including_its_removal() {
 fn an_amendment_s_choice_and_a_narrowed_authority_are_checked_against_each_other() {
     let mut world = World::new(73, LIMITS);
     let kept = choice(effort(0, Some(0)), &[effort(1, None)]);
-    assert_eq!(world.make(PERSON, vec![chosen(1, 0b011, kept.clone())]), Reply::Made(vec![1]));
+    assert_eq!(world.make(LLM_REQUESTER, vec![chosen(1, 0b011, kept.clone())]), Reply::Made(vec![1]));
     refused(&amend(&mut world, 1, None, Some(choice(effort(2, Some(0)), &[]))), 2, LlmFault::Authority);
     refused(&amend(&mut world, 1, Some(allowing(0b001)), None), 1, LlmFault::Authority);
     assert_eq!(world.record(1).llm, Some(kept));
@@ -190,7 +190,7 @@ fn an_amendment_s_choice_and_a_narrowed_authority_are_checked_against_each_other
 
     let mut procedure = task(2, &[]);
     procedure.executor = Executor::Procedure { connector: 1, code: 1 };
-    assert_eq!(world.make(PERSON, vec![procedure]), Reply::Made(vec![2]));
+    assert_eq!(world.make(LLM_REQUESTER, vec![procedure]), Reply::Made(vec![2]));
     refused(&amend(&mut world, 2, None, Some(choice(effort(1, None), &[]))), 1, LlmFault::Procedure);
 }
 

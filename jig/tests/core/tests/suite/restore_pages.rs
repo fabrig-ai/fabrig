@@ -1,6 +1,7 @@
 //! Public cold-restore page scheduling (`domain/testing.md`, sections 4 and 7).
 
 use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::peers::Peers;
 use jig_core_world::store_peer::StorePeer;
 use jig_core_world::store_peer::with_start_mark;
@@ -24,11 +25,8 @@ fn identity() -> people::Identity {
 }
 
 fn sign_in(token: u64) -> root::Event {
-    root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(token)),
-        identity: identity(),
-    })
+    let identity = identity();
+    signin(Token::new(token), identity.key.provider, &identity.key.subject, &identity.login, &identity.name)
 }
 
 fn ask(world: &World, sign_in: u64, token: u64) -> root::Event {

@@ -2,10 +2,9 @@ use jig_domain_tasks::{
     self as tasks, Accepted, Active, Added, Amendment, Cancel, End, EndKind, Ending, Event, Funder, Key, Line,
     MessageKind, Party, Phase, Refusal, Stored,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, OWNER, PERSON_PARTY as DIRECTOR, Reply, World, refused, task};
 use skein_lib::ReplyTo;
 
-const DIRECTOR: Party = Party::Person(9);
 const T4B: u64 = 1;
 const T4R: u64 = 2;
 const FIRST_RUN: u64 = 3;
@@ -44,13 +43,6 @@ fn amend(world: &mut World, by: Party, task: u64, dependencies: &[u64]) -> Reply
         by,
         funder: None,
     })
-}
-
-fn refused(reply: Reply, task: u64, why: Refusal, blocked: &[u64]) {
-    let Reply::Refused(problem) = reply else { panic!("expected refusal, got {reply:?}") };
-    assert_eq!(problem.task, Some(task));
-    assert_eq!(problem.why, why);
-    assert_eq!(problem.blocked_by.as_deref(), Some(blocked));
 }
 
 fn parked(world: &mut World, task: u64, dependency: u64) {
@@ -170,7 +162,6 @@ fn a_running_repin_given_a_dependency_lands_after_the_other_and_starts_its_depen
 // domain/tasks.md, 5.7, 7, 8.1 and 12.
 #[test]
 fn an_owner_adds_a_dependency_its_child_found_while_working() {
-    const OWNER: u64 = 1;
     const CHILD: u64 = 2;
     const FOUND: u64 = 3;
     let mut world = World::new(881, LIMITS);

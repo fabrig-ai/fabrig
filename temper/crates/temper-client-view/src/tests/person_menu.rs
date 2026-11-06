@@ -1,9 +1,5 @@
 //! The rail's person and sign out (temper/docs/design/client/README.md, 3.5 and 5.3).
-#![expect(
-    clippy::disallowed_types,
-    clippy::disallowed_methods,
-    reason = "ordinary tests inspect semantic subtrees"
-)]
+#![expect(clippy::disallowed_types, clippy::disallowed_methods, reason = "ordinary tests inspect semantic subtrees")]
 use super::fixtures as f;
 use crate::look;
 use skein_ui::{Act, Node, Role, Tree};
