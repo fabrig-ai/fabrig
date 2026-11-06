@@ -1,0 +1,3 @@
+draft = "managed-listener"
+repo = "fabrig"
+sources = ["temper/docs/plan/managed-listener/inputs/request.md", "AGENTS.md", "DESIGN.md"]
