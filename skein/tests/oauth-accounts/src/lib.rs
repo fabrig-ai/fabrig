@@ -13,3 +13,5 @@ pub mod accounts;
 pub mod sign_out;
 
 pub mod shared;
+
+pub mod streams;
