@@ -7,6 +7,9 @@
     and a close releases holds alone (`temper-engine-domain-forge/src/domain.rs`,
     `continue_release`), so the branch stays on the forge. From reading: no story
     closes a task with saved work and looks.
+  - 8.4: a clean update's red opens `Repair the base's break at HEAD: BASE`
+    and calls itself a semantic conflict, naming no failed check
+    (`temper-engine-domain/src/route/forge_route.rs`, `repair_words`).
   - 8.9: a refusal's "adopt the repository again" has no story from the browser. The engine takes an adopted repository's adoption (`readopt`, `temper/tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`), and by reading alone the form sends one (`../client/README.md`, 4.4); it opens at its defaults, so the person types the repository, its role, prefix and landing branch again.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
