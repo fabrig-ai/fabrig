@@ -213,7 +213,7 @@ no "1 failed" (`client/README.md`). Every confirmation of a chat, a
 task or a card is one sheet, but a closed chat hides every "Decision made", where the
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
 effect's choice closes its sheet, no walk on record presses a task's Cancel or an
-agent's task's Stop (`client/README.md`), and a sheet's acts stand
+agent's task's Close (`client/README.md`), and a sheet's acts stand
 44 px on a phone, where that request has 38 (`client/browser.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
