@@ -1968,9 +1968,30 @@ delegate's terminal wakes it to offer the landed result.
   is never held just for waiting, yet tells the person of a check that
   never reports within the same sitting. A wait for access is not one:
   while its forge is not connected, or its repository not reachable
-  (4.1, 4.3), the stall does not count. Nor is a wait for its agent
-  while a question of that agent's is open (8.11): the stall counts
-  again from the step that relays its last answer down.
+  (4.1, 4.3), the stall does not count. Nor is a wait for its agent:
+  while the change's producer, repair, resolution or merge job is a live
+  task, running, between its tries or waiting for a host, the stall does
+  not count. An agent working for an hour is working, and jig bounds what
+  it does (its tries, its executor's stall, its budget: jig's
+  `domain/tasks.md`, 5.5). The stall counts from that delegate's end, as
+  it does while a question of that agent's is open (8.11), from the step
+  that relays its last answer down. A gate's task is a wait on the forge
+  as this bullet names it, and stays bounded.
+- **A stall holds as any hold does.** The change and its task are held
+  together, never one without the other: its escalation waits for its
+  holder, which it wakes (jig's `domain/tasks.md`, 5.5 and section 9): the
+  goal above it where that goal may decide, otherwise its person or the
+  role the project's policy names. A decision to hold reaches the task
+  whatever step the procedure is at.
+- **A result that arrives on a held change is kept.** A delegate ending
+  while its change is held on a stall at that delegate's wait ends the
+  hold, with no party's release, as a green head does (above): the change
+  goes on from the state it was held at, its stall counted from the result,
+  the deployment releases its task (jig's `domain/tasks.md`, section 7),
+  and the result is taken as any is: a head and a title open the pull
+  request, a no-change ends the change. Under any other hold, the result
+  stays on the change and a release takes it, as the hold's own words say;
+  a no-change under one is said by the hold, since nothing else would.
 - **A release** lifts what it releases: repairs, resolutions and updates
   count again from it (not from the deployment's, ending a hold at a green
   head, above), its stall is counted from it, and the change decides
@@ -3172,6 +3193,11 @@ whole.
   the client should also be posted on the forge as the person, so that
   the forge's protection requires it independently, needs a forge
   credential of the person's (jig's `domain/people.md`, section 12).
+- **A gate's live run past the stall** (8.4): a review's task stays a wait
+  the stall bounds, though a review working 30 minutes is as normal as a
+  producer. Its verdict is kept if it arrives on the hold, and a release goes
+  on from it. Default: as it stands, its wait being named by 8.4; the request
+  `parallel-faults` of 2026-11-06 met no such hold.
 - **A green head no wake reaches** (8.4, 5.2): a held change reads on a wake,
   and a poll wakes it only when what it read of the pull request moved. Under
   a rule's required contexts, a check they do not name can keep the pull

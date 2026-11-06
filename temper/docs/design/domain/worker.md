@@ -475,7 +475,10 @@ runs as contained processes and whose output it parses.
   checks out the base's tip, and merges each head into it in their
   order, committing each merge at once, with two parents (what was
   checked out so far and the head) and the repository's identity as its
-  author; a head the checkout already contains is no merge. The last
+  author, and checks that commit out before going on (`../protocol/git.md`,
+  4.7: a commit moves neither HEAD nor the merge's state), so that the next
+  merge can run and the agent is handed a checkout on the last commit with no
+  merge in progress; a head the checkout already contains is no merge. The last
   commit is the checkout's start, for its saves and its push alike, and
   the branch it pushes is made by its first push, as a base's is. A
   head that does not merge cleanly fails the preparation as a conflict,
