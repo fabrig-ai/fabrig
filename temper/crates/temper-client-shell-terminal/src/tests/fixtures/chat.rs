@@ -55,8 +55,20 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
 pub fn closing_page() -> skein_ui::Tree {
     first_run_sheet(client::Address::Chat { task: 1 }, false, true)
 }
-#[expect(clippy::too_many_lines, reason = "the fixture pumps one first-run page and optionally opens its confirmation")]
+pub fn long_line_page(address: client::Address, line: &contract::Activity) -> skein_ui::Tree {
+    first_run_words(address, false, false, Some(line), None)
+}
 fn first_run_sheet(address: client::Address, landed: bool, closing: bool) -> skein_ui::Tree {
+    first_run_words(address, landed, closing, None, None)
+}
+#[expect(clippy::too_many_lines, reason = "the fixture pumps one first-run page and optionally opens its confirmation")]
+fn first_run_words(
+    address: client::Address,
+    landed: bool,
+    closing: bool,
+    line: Option<&contract::Activity>,
+    typed: Option<&[u8]>,
+) -> skein_ui::Tree {
     use jig_client::contract as c;
     use skein_lib::{Env, List, Queue, Time, Wall};
     use temper_client_domain::{Event, Request};
@@ -110,6 +122,9 @@ fn first_run_sheet(address: client::Address, landed: bool, closing: bool) -> ske
                     c::Subject::Me => Some(c::Delivery::Me(Box::new(demo_me()))),
                     c::Subject::Task { task } => {
                         let mut document = delegation_task(task, landed);
+                        if line.is_some() {
+                            document.activity = 1;
+                        }
                         if closing && task == 1 {
                             document.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
                             document.acts = List::with_capacity(1);
@@ -161,7 +176,22 @@ fn first_run_sheet(address: client::Address, landed: bool, closing: bool) -> ske
             } => Some(jig_client::Up::ReadDone {
                 read,
                 result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(
-                    first_run::page(&delegation_activity(landed), before.as_ref(), limits.client.domain.rows),
+                    if let Some(line) = line {
+                        let mut rows = List::with_capacity(1);
+                        rows.push(c::DecodedActivityLine {
+                            source: Box::new(c::ActivityLine {
+                                task: 1,
+                                position: 1,
+                                at: Wall::EPOCH,
+                                line: line.clone(),
+                            }),
+                            decoded: None,
+                        })
+                        .expect("whole line");
+                        c::ActivityPage { rows, before: None, after: None, cut: false }
+                    } else {
+                        first_run::page(&delegation_activity(landed), before.as_ref(), limits.client.domain.rows)
+                    },
                 )))),
             }),
             Request::Unlinked {
@@ -253,10 +283,25 @@ fn first_run_sheet(address: client::Address, landed: bool, closing: bool) -> ske
             &mut out,
         );
     }
-    let mut view =
-        temper_client_view::View::new(&temper_client_view::Limits { tree: tree_limits() }, &limits, page_words(), 1);
-    temper_client_view::build(&mut view, &root, super::NOW, &mut Queue::with_capacity(tree_limits().patches));
-    copy_tree(view.tree())
+    if let Some(words) = typed {
+        client::step(
+            &mut root,
+            &env,
+            Event::Act { action: client::Action::Pages(client::pages::Act::MessageWords { words: words.into() }) },
+            &mut out,
+        );
+        client::step(&mut root, &env, Event::Act { action: client::Action::Pages(client::pages::Act::Send) }, &mut out);
+        assert!(out.is_empty(), "an oversized Send sends nothing");
+        assert_eq!(root.pages().chat().unwrap().words.as_ref(), words);
+    }
+    let bounds = if line.is_some() || typed.is_some() {
+        temper_client_view::Limits::of(&limits, &page_words()).expect("whole-line bounds")
+    } else {
+        temper_client_view::Limits { tree: tree_limits() }
+    };
+    let mut view = temper_client_view::View::new(&bounds, &limits, page_words(), 1);
+    temper_client_view::build(&mut view, &root, super::NOW, &mut Queue::with_capacity(bounds.tree.patches));
+    copy_tree_at(view.tree(), &bounds.tree)
 }
 fn demo_me() -> contract::Me {
     use jig_client::contract as c;
@@ -453,4 +498,8 @@ fn demo_forges() -> Box<[u8]> {
         )
         .expect("one demo forge");
     wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).expect("demo forges"))
+}
+
+pub fn composer_over_page(words: &[u8]) -> skein_ui::Tree {
+    first_run_words(client::Address::Chat { task: 1 }, false, false, None, Some(words))
 }

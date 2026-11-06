@@ -130,3 +130,44 @@ fn kept_lines_and_met_notices_cross_both_client_translations() {
         assert_eq!(word.from, c::Requester::Task(29));
     }
 }
+
+#[test]
+fn a_line_at_the_largest_profile_bound_encodes() {
+    use jig_domain_tasks as t;
+    use skein_lib::{Reader, Wall, Writer};
+    let mut words = skein_lib::bytes::zeroed(262_144);
+    words.fill(b'w');
+    let word = t::Word {
+        number: 1,
+        from: t::Party::Person(3),
+        kind: t::MessageKind::Words,
+        words: words.clone(),
+        at: Wall::from_nanos(5),
+        hits: 1,
+        eligible: true,
+    };
+    for line in [
+        t::Line::Words { message: 1, by: t::Party::Person(3), kind: t::MessageKind::Words, words: words.clone() },
+        t::Line::Heard(word.clone()),
+        t::Line::Notified { recipient: t::Party::Person(3), word },
+    ] {
+        let line = t::ActivityLine { task: 7, position: 1, at: Wall::from_nanos(5), line };
+        let record = crate::translate::activity::line(&line, &w::CEILINGS).unwrap();
+        let mut encoded = Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut encoded).unwrap();
+        let encoded = encoded.finish();
+        let decoded = w::ActivityLine::decode(&w::CEILINGS, &mut Reader::new(&encoded)).unwrap();
+        let decoded_words = match decoded.line() {
+            w::Activity::Words(record) => record.words(),
+            w::Activity::Heard(record) => record.value().words(),
+            w::Activity::Notified(record) => record.word().words(),
+            other @ (w::Activity::RunBegan(_)
+            | w::Activity::RunEnded(_)
+            | w::Activity::Turn(_)
+            | w::Activity::Decided(_)
+            | w::Activity::Milestone(_)
+            | w::Activity::Kept(_)) => panic!("word line: {other:?}"),
+        };
+        assert_eq!(decoded_words, words.as_ref());
+    }
+}

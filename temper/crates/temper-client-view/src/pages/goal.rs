@@ -721,6 +721,10 @@ fn composer(
             return;
         }
     }
+    let over = match root.pages().me(root.client()) {
+        Some(me) => temper_client_domain::pages::composer::over(&page.words, page.beyond, me.words_bytes),
+        None => 0,
+    };
     let name = words.say(Word::GoalTell, &[Hole::Name(copy_of(task.chip.title.bytes()))]);
     b.open(Role::Slot);
     b.style(look::GOAL_COMPOSER_BOX);
@@ -732,20 +736,23 @@ fn composer(
         b.focus(page.composer_focus);
     }
     b.placeholder(&name);
-    if crate::choice::can_send(root) {
+    if over == 0 && crate::choice::can_send(root) {
         b.state(UiState::SubmitsOnEnter);
+    } else if over != 0 {
+        bindings.block_submissions();
     }
     b.value(&page.words, temper_client_domain::pages::shown(root.pages()));
     b.bind(bindings.insert(Act::MessageWords { words: Box::default() }));
     b.close();
     b.open(Role::Button);
     b.name(&words.say(Word::Send, &[]));
-    if page.words.is_empty() || !crate::choice::can_send(root) {
+    if page.words.is_empty() || over != 0 || !crate::choice::can_send(root) {
         b.state(UiState::Disabled);
     }
     b.bind(bindings.insert(Act::Send));
     b.close();
     b.close();
+    super::session::over(b, words, over);
     b.open(Role::Paragraph);
     b.style(look::GOAL_HINT);
     b.text(Run::Plain, &words.say(Word::GoalHint, &[]));

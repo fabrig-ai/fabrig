@@ -86,6 +86,7 @@ pub(in crate::tests) fn document() -> Me {
         providers_cut: false,
         key_bytes: 256,
         redirect_bytes: 4096,
+        words_bytes: 8192,
         party: MeParty {
             number: 1,
             kind: PartyKind::Person,
