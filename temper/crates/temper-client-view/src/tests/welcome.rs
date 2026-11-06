@@ -1110,13 +1110,15 @@ fn in_welcome(root: &mut d::Domain, kind: d::WayKind) {
     f::root_event(root, d::Event::Went { place: d::Place::Address(model_address(kind)) });
 }
 fn model_back(root: &d::Domain) {
-    let view = f::page_view(root);
-    let tree = view.tree();
-    assert_eq!(tree.nodes().iter().filter(|n| n.name.as_deref() == Some("‹ Back".as_bytes())).count(), 1);
-    for back in ["‹ Back", "All ways"] {
+    for mut view in [f::page_view(root), f::browser_page_view(root)] {
+        let tree = view.tree();
+        assert_eq!(tree.nodes().iter().filter(|n| n.name.as_deref() == Some("‹ Back".as_bytes())).count(), 1);
+        assert!(f::find(tree, Role::Link, b"All ways").is_none());
+        assert!(!String::from_utf8_lossy(&f::text(tree)).contains("All ways"));
+        let back = node(tree, Role::Link, "‹ Back");
         assert_eq!(
-            press(root, Role::Link, back),
-            d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Model { way: None } } })
+            crate::act(&mut view, back, Act::Press),
+            Some(d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Model { way: None } } }))
         );
     }
 }
@@ -2143,14 +2145,12 @@ fn model_panels_enable_the_primary_only_after_a_secret_is_written() {
                     !tree.nodes().iter().find(|n| n.id == button).unwrap().states.as_slice().contains(&State::Pressed)
                 );
                 if !paste {
-                    let all = node(tree, Role::Link, "All ways");
-                    assert_eq!(forge::parent(tree, button), forge::parent(tree, all));
-                    assert!(all > button);
+                    let back = node(tree, Role::Link, "‹ Back");
                     if !browser {
-                        f::terminal_command(tree, &view.limits().tree, all, b"All ways", primary.as_bytes());
+                        f::terminal_command(tree, &view.limits().tree, back, "‹ Back".as_bytes(), primary.as_bytes());
                     }
                     assert_eq!(
-                        crate::act(&mut view, all, Act::Press),
+                        crate::act(&mut view, back, Act::Press),
                         Some(d::Action::Pages(pages::Act::Go {
                             address: Address::Welcome { step: Step::Model { way: None } }
                         }))
@@ -2381,7 +2381,7 @@ fn welcome_claude_states_keep_the_command_and_check_in_both_shells() {
                 );
                 assert!(has_style(tree, crate::look::WELCOME_CMD));
                 node(tree, Role::Button, "I’ve signed in");
-                node(tree, Role::Link, "All ways");
+                node(tree, Role::Link, "‹ Back");
             }
         }
         let browser = f::browser_page_view(&root);
