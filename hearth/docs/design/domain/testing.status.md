@@ -53,27 +53,24 @@
 - **Departs:** 9.1: no global timeout holds hearth's suites alone, because
   the root has one `default` and one `fuzzy` profile, whose 150 s and 600 s
   sum each tree's figures, hearth's 30 s and 120 s among them.
-- **Departs:** 9.1: the focused suite is over its 30 CPU s, because the
-  repairs tried stopped short of it: 44.886618 CPU s on 2026-11-05, by
-  `tools/tiers/cpu.py`, 14.886618 over. That run came before the last
-  repair, which took 0.803158 CPU s off the builder's domain tests, and no
-  full run has followed it. The request expected the fixed scenarios to
-  bring most of the excess; instead the suite went from 35 to 36 CPU s in
-  the gate's records of 2026-11-04 to 48.292873 before the first repair,
-  and what raised it, or whether those figures compare, is unknown. The
-  gate's record gave 30.2 CPU s the same day, and a request of
-  2026-11-05 gives about 32 on it, which no run here checked; which of
-  these measures the suite is unknown too. Since the first two, the suite
-  has gained two of the tests of
-  `hearth/tests/builder/tests/suite/orders.rs`, 0.192197 CPU s, and the
-  git, mmdebstrap and config worlds' order tests and the printer's, that
-  file's third among them. The figure stands
+- **Departs:** 9.1: the focused suite takes 41.678860 CPU s, 11.678860
+  over its 30 CPU s, by `tools/tiers/cpu.py` on 2026-11-06 at
+  `2916bc07d21c1eb4cd7210135da58460197847cf`, with
+  `NEXTEST_DOUBLE_SPAWN=0` and all 34 hearth workspace packages selected.
+  All 2189 focused tests pass; the CPU verdict is red. The builder suite
+  costs 12.008451 CPU s, the tree suite 10.029600, the builder real-git
+  binary 8.479085 and the render suite 4.086128. Whether repairs to
+  those costs reach 30 CPU s is unknown; the figure stands
   (`hearth/docs/design/domain/testing.md`, 11).
-  Fuzzy, on 2026-11-04 on a shared machine: 68 CPU s and 16 to 21 s of
-  wall, before the large render joined it at 12.238013 CPU s; it has not
-  been measured since. Also of 2026-11-04: on a full gate hearth adds 27 s
-  to the test build and 9 s to clippy; a change to `skein-lib` reaches 28
-  of hearth's 30 packages and rebuilds them in 3 s of wall, with its
-  compiler caches warm; and `hearth-render-world`, in
-  `.config/gate/always.txt`, costs every hearth change 3.4 CPU s focused
-  and 29 CPU s fuzzy.
+  Fuzzy takes 100.520668 CPU s, 24.255479 s of execution wall, with all
+  60 tests passing and the large render included at 14.633486 CPU s.
+  Neither run has retries, starvation, unobserved attempts, leaked
+  descendants or incomplete records. These are test execution costs in
+  the collector's waited-and-reaped-descendants scope
+  (`tools/tiers/design.md`, 7.2); full-gate incremental build and clippy
+  costs for this revision are unknown because the measurement excludes
+  them. The fuzzy budget's basis and the render world's selection on
+  every change await the user's ruling (11). Why earlier suite figures
+  differ, and how much of the large render's CPU lies in the harness or
+  production code, remain unknown because this measurement isolates
+  neither cause.
