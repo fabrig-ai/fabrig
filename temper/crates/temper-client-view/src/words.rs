@@ -1348,7 +1348,7 @@ const PHRASES: u32 = 1804;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 const SEGMENTS: u32 = 3127;
-const TEXT_BYTES: u32 = 44012;
+const TEXT_BYTES: u32 = 44340;
 const ALL: [Word; 1212] = [
     Word::CloseTitle,
     Word::CloseChat,
