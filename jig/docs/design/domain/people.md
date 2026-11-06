@@ -1065,10 +1065,10 @@ what outlives it (5.2).
 - **A deleted project's spend:** kept in the deployment's and its
   parties' totals for the period, never per task (5.2). Default: as
   said.
-- **A public board's ended goals across a restart:** a store index of
-  a project's ended goals, newest first, that the public index loads
-  once at start and at publication (13.9). Default: none; the board's
-  ended goals are those ended since.
+- **A public board's ended goals across a restart or before publication:**
+  a store index of a project's ended goals, newest first, that the public
+  index loads once at start and at publication (13.9). Default: none; the
+  board's ended goals are those ended while the index kept the project.
 - **A human publication capability:** a way for a person to publish
   another configured name they wrote, that an agent holding their
   credential could not use, since a credential proves who sent a
