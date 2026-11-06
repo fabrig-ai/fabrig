@@ -1,4 +1,4 @@
-//! Darwin terminal modes and window sizes (shell.md, sections 6.3 and 7.5).
+//! Terminal syscalls shared by Linux and Darwin (shell.md, sections 6.3 and 7.5).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -6,6 +6,8 @@
 //! return. Output storage is read only after the call reports success.
 //! Fcntl duplicates the live input descriptor; restoration consumes and
 //! closes that duplicate once. No call retains a pointer to Rust storage.
+#![expect(unsafe_code, reason = "terminal calls borrow local storage only until return (shell.md, 7.5)")]
+
 use crate::terminal::{Input, Kept, Keys, Modes};
 use skein_io::kernel::{Error, Fd, Size};
 use std::{mem::MaybeUninit, ptr};
@@ -14,7 +16,7 @@ fn read(fd: Fd) -> Result<libc::termios, Error> {
     let mut modes = MaybeUninit::uninit();
     // SAFETY: tcgetattr writes a complete termios into this live allocation.
     if unsafe { libc::tcgetattr(fd.raw(), modes.as_mut_ptr()) } != 0 {
-        return Err(Error::Other(super::last_errno()));
+        return Err(Error::Other(crate::system::last_errno()));
     }
     // SAFETY: successful tcgetattr initialized every termios field.
     Ok(unsafe { modes.assume_init() })
@@ -24,14 +26,14 @@ fn set(fd: Fd, modes: &libc::termios) -> Result<(), Error> {
     if unsafe { libc::tcsetattr(fd.raw(), libc::TCSANOW, ptr::from_ref(modes)) } == 0 {
         Ok(())
     } else {
-        Err(Error::Other(super::last_errno()))
+        Err(Error::Other(crate::system::last_errno()))
     }
 }
 pub(crate) fn size(fd: Fd) -> Result<Size, Error> {
     let mut size = MaybeUninit::<libc::winsize>::uninit();
     // SAFETY: TIOCGWINSZ writes one winsize into this live allocation.
     if unsafe { libc::ioctl(fd.raw(), libc::TIOCGWINSZ, size.as_mut_ptr()) } != 0 {
-        return Err(Error::Other(super::last_errno()));
+        return Err(Error::Other(crate::system::last_errno()));
     }
     // SAFETY: successful ioctl initialized the winsize.
     let size = unsafe { size.assume_init() };
@@ -47,7 +49,7 @@ pub(crate) fn raw_input(fd: Fd, keys: Keys) -> Result<Input, Error> {
     // SAFETY: fcntl duplicates the live input descriptor with close-on-exec.
     let saved = unsafe { libc::fcntl(fd.raw(), libc::F_DUPFD_CLOEXEC, 3) };
     if saved < 0 {
-        return Err(Error::Other(super::last_errno()));
+        return Err(Error::Other(crate::system::last_errno()));
     }
     let kept = Kept { fd: Fd::new(saved), modes };
     let mut raw = kept.modes;
@@ -85,6 +87,6 @@ pub(crate) fn resize(fd: Fd, size: Size) -> Result<(), Error> {
     if unsafe { libc::ioctl(fd.raw(), libc::TIOCSWINSZ, ptr::from_ref(&size)) } == 0 {
         Ok(())
     } else {
-        Err(Error::Other(super::last_errno()))
+        Err(Error::Other(crate::system::last_errno()))
     }
 }
