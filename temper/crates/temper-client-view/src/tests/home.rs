@@ -3630,3 +3630,72 @@ fn a_landing_never_stands_under_nothing_needs_you_alone() {
         }
     }
 }
+
+fn unanswered_home() -> f::ReadPage {
+    let mut page = f::ReadPage::new(Address::Home { project: f::PROJECT });
+    page.drop_inbox();
+    page
+}
+fn answered_home(closed: &[jig_client::contract::TaskLine]) -> f::ReadPage {
+    let mut page = f::ReadPage::new(Address::Home { project: f::PROJECT });
+    page.live_chats(&[]);
+    page.closed(closed);
+    page.refresh_inbox();
+    page.sections(false);
+    page
+}
+fn home_empty(root: &d::Domain, expected: bool) {
+    for view in [f::page_view(root), f::browser_page_view(root)] {
+        let main = f::main_text(view.tree());
+        for word in [b"Nothing needs you. Work carries on".as_slice(), b"No chats yet."] {
+            assert_eq!(
+                skein_lib::bytes::find(&main, word).is_some(),
+                expected,
+                "{word:?}: {main:?} facts={:?}",
+                d::pages::home::facts(root, f::PROJECT, f::NOW)
+            );
+        }
+        assert!(
+            f::find(view.tree(), Role::Heading { level: 1 }, if expected { b"Nothing needs you." } else { b"Shop" })
+                .is_some()
+        );
+    }
+}
+#[test]
+fn behind_with_unanswered_reads_home_claims_no_empty() {
+    let page = unanswered_home();
+    home_empty(&page.root, false);
+    for view in [f::page_view(&page.root), f::browser_page_view(&page.root)] {
+        assert!(f::find(view.tree(), Role::Status, b"Behind").is_some());
+        for name in [b"Needs you".as_slice(), b"Chats"] {
+            assert!(f::find(view.tree(), Role::Heading { level: 2 }, name).is_some());
+        }
+    }
+}
+#[test]
+fn answered_empty_reads_still_say_so_on_home() {
+    let mut page = answered_home(&[]);
+    page.drop_inbox();
+    assert!(f::find(f::page_view(&page.root).tree(), Role::Status, b"Behind").is_some());
+    home_empty(&page.root, true);
+}
+#[test]
+fn home_keeps_what_it_knew_through_a_dropped_link_and_a_lost_read() {
+    let mut ended = super::chats::line();
+    ended.ended_at = Some(f::NOW);
+    let mut page = answered_home(core::slice::from_ref(&ended));
+    page.up(jig_client::Up::WatchEnded { watch: page.chats.unwrap(), end: jig_client::contract::WatchEnd::Dropped });
+    page.collect();
+    let read = page.reads.last().unwrap().0;
+    page.answer(read, jig_client::contract::ReadResult::None(jig_client::contract::ReadNone::Unreachable));
+    for view in [f::page_view(&page.root), f::browser_page_view(&page.root)] {
+        assert!(skein_lib::bytes::find(&f::main_text(view.tree()), ended.chip.title.bytes()).is_some());
+    }
+    let mut page = answered_home(&[]);
+    home_empty(&page.root, true);
+    page.up(jig_client::Up::WatchEnded { watch: page.chats.unwrap(), end: jig_client::contract::WatchEnd::Dropped });
+    page.collect();
+    page.drop_inbox();
+    assert!(!page.root.pages().inbox().unwrap().delivered(page.root.client()));
+    home_empty(&page.root, true);
+}
