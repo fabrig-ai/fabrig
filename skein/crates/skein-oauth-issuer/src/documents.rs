@@ -97,10 +97,6 @@ impl Issuer {
         out.array_end();
         out.object_end();
     }
-    #[expect(
-        unused_qualifications,
-        reason = "the concatenation uses its full path independently of other byte helpers"
-    )]
     pub fn tokens(
         &self,
         authorization: &Authorization,
@@ -137,9 +133,9 @@ impl Issuer {
         let mut out = Encoder::write(len, &JSON);
         self.write_claims(&mut out, authorization, person, expires, wall);
         let payload = encoded(&out.finish())?;
-        let input = skein_lib::bytes::concat(&[&header, b".", &payload]);
+        let input = bytes::concat(&[&header, b".", &payload]);
         let signature = skein_tls::sign_rs256_pkcs8(self.settings.key.expose(), &input).ok_or(Error::Sign)?;
-        let jwt = skein_lib::bytes::concat(&[&input, b".", &encoded(&signature)?]);
+        let jwt = bytes::concat(&[&input, b".", &encoded(&signature)?]);
         let mut measure = Encoder::measure(&JSON);
         write_answer(&mut measure, access, seconds, &jwt);
         let len = measure.measured().or(Err(Error::Limits))?;
