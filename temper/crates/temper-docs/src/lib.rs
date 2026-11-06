@@ -297,7 +297,7 @@ pub static PAGES: [Page; 61] = [
         name: "open-public-reading",
         kind: Kind::Walk,
         title: "Open public reading",
-        summary: "Enable anonymous reading at the deployment's entrance, then make a project public and check its public pages without exposing its private words.",
+        summary: "Enable anonymous reading at the deployment's entrance, then make a project public and read what its public pages show.",
         text: include_str!("../../../docs/help/open-public-reading.md"),
     },
     Page {

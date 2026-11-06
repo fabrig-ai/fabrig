@@ -1756,6 +1756,9 @@ never streaming (`../draft/first-release.md`, 5.3).
   its name, and a goal is "Goal" and a task "task", each with the first
   eight digits of its public identifier, then its title, with "…" where
   cut; an executor is its kind, "an agent", "a procedure", "a person".
+  A title is the first line of a spec an agent wrote from what a person
+  said, so a chat's words can show here; making a project public says so
+  (`tools.md`, 5.3), and no page makes a project public.
 - **The look:** one plain column, the same at every width from 320 to
   1440 px, in the client's type and colours (`temper.css`'s tokens), its
   rows modelled on the Chats page's: no table, no monospace, and nothing
@@ -1777,7 +1780,10 @@ never streaming (`../draft/first-release.md`, 5.3).
   tree's rows below it and the count of lines folded; "No goals to show
   yet." when it has none. Below the goals, only when the forge's landings
   hold a queue or a landing, "Landings", a link to them, with the queues'
-  lines, and "No landings to show yet." until one has.
+  lines, and "No landings to show yet." until one has. The link looks like
+  one whatever stands under it, which may be nothing: the mock's `.link`,
+  in the ink at a row's size and underlined, not a section title's small
+  muted capitals.
 - **A task:** its row, its executor first among the muted words ("an
   agent · running · for 14 minutes"), its lineage up to its goal as
   links, its delegates' rows, and where it makes a change, the change's
@@ -1795,7 +1801,9 @@ never streaming (`../draft/first-release.md`, 5.3).
   reads "Its change:" and its landed commit, or its candidate until
   then. What a stock queue merged is a recent landing in this same form
   (`forge.md`, 11.2): its line says landed, its change and its commit,
-  and its public landing holds its change, with no gates.
+  and its public landing holds its change, with no gates. A landing's
+  stale proofs show only when it has any: a zero draws nothing, on a queue
+  merge's landing as on a landing by turn.
 - **The projects:** each public project's name, a link to its board; "No
   public projects yet." when there are none.
 - **A short commit** is the first seven digits, plain text on a change
@@ -1820,9 +1828,10 @@ never streaming (`../draft/first-release.md`, 5.3).
   page until its freshness ends and then dropping it, backing off,
   unknown's main; a goal's row and a task's, an ended row's words, each
   page's empty words, the board's line of what it doesn't hold, Landings
-  on the board only with a queue or a landing, a queue merge's line and
-  its landing, a 40-digit commit's seven digits as plain text, and no link
-  to the forge on any page.
+  on the board only with a queue or a landing, and as a link, whose look
+  the sheet's rule holds, a queue merge's line and its landing, a landing's
+  zero stale proofs drawing nothing, a 40-digit commit's seven digits as
+  plain text, and no link to the forge on any page.
 - **Fuzzy tests:** the address codec's parser over seeded paths under
   `/public`, never panicking and printing back what it read.
 - **The browser tier** (section 4): a public project on fakes read at
