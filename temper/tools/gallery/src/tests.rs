@@ -1942,6 +1942,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
             Part::Text { text: "How temper will run tally" },
+            Part::Named { role: Role::Heading { level: 5 }, name: "temper enforces" },
             Part::Text { text: "Drafts: on" },
             Part::Text { text: "Questions: answered by the goal" },
             Part::Text { text: "Way: Plan, tasks, land whole" },

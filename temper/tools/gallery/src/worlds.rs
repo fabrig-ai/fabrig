@@ -4518,7 +4518,7 @@ fn settings_proposal(key: c::ProposalKey, name: &str) -> c::ReadValue {
     if name == "configure-chat-proposal-two-projects" {
         proposal.projects.push(2).expect("second project");
     }
-    proposal.reason = doc("I work alone on small changes.\nKeep drafts beside the code.");
+    proposal.reason = doc("## temper enforces\nI work alone on small changes.\nKeep drafts beside the code.");
     let mut items = List::with_capacity(3);
     let settings = if name == "configure-chat-proposal-deployment" {
         List::from_boxed(Box::new([c::Setting::Charter(c::SettingNumber { number: 1 })]))

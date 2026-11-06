@@ -591,6 +591,33 @@ fn a_settings_proposal_draws_its_title_lines_and_items() {
     }
 }
 #[test]
+#[expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic nodes and their item subtrees")]
+fn a_settings_proposal_s_reason_draws_its_markdown() {
+    let items = [(c::Setting::Charter(c::SettingNumber { number: 2 }), c::RevisionItemEdit::Set)];
+    let mut page = settings_page(&items, true);
+    let c::ReadValue::Proposal(proposal) = &mut page else { panic!("settings proposal") };
+    proposal.reason = c::DocumentText::complete(
+        c::Text::new(Box::from(b"## temper enforces\nNo direct pushes.\n\n- one\n- two".as_slice()), 128).unwrap(),
+    );
+    let (root, _) = settings_root(page);
+    let tree = draw_settings(&root, &settings_card(&root), false);
+    assert!(fixtures::person_find(&tree, Role::Heading { level: 5 }, b"temper enforces").is_some());
+    assert!(fixtures::person_find(&tree, Role::Paragraph, b"No direct pushes.").is_some());
+    let reason =
+        tree.nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_REASON)).unwrap();
+    assert_eq!(reason.role, Role::Slot);
+    let mut item_text = tree.nodes().iter().enumerate().filter(|(_, node)| node.role == Role::Item);
+    for expected in [b"one".as_slice(), b"two", b"charter 2"] {
+        let (index, _) = item_text.next().expect("reason bullets then setting item");
+        assert_eq!(fixtures::node_text(&tree, index).as_ref(), expected);
+    }
+    assert!(item_text.next().is_none());
+    let said = fixtures::text(&tree);
+    assert!(skein_lib::bytes::find(&said, b"##").is_none());
+    let detail = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_DETAIL)).unwrap();
+    assert_eq!(detail.text.get(0).unwrap().text.as_ref(), b"charter 2");
+}
+#[test]
 fn kinds_six_and_seven_are_named_until_their_values_are_read() {
     let items = [
         (c::Setting::Application { kind: 7, scope: fixtures::PROJECT, number: 1 }, c::RevisionItemEdit::Set),
