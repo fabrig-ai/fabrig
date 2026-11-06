@@ -6,7 +6,6 @@ use skein_world::domain::Verdict;
 use temper_client_world::{app::Temper, fixtures, front::Joint};
 
 #[test]
-#[should_panic(expected = "agent ready within world time")]
 fn two_open_tabs_leave_a_fresh_tools_client_room_for_its_read() {
     let (mut world, chat, _, _) = two_open_tabs();
     let agent = fixtures::agent(&mut world);
@@ -17,7 +16,6 @@ fn two_open_tabs_leave_a_fresh_tools_client_room_for_its_read() {
 }
 
 #[test]
-#[should_panic(expected = "reloaded chat whole within world time")]
 fn two_open_tabs_leave_room_for_a_persons_reload() {
     let (mut world, chat, _, long) = two_open_tabs();
     world.reload(long);
@@ -32,7 +30,6 @@ fn two_open_tabs_leave_room_for_a_persons_reload() {
 }
 
 #[test]
-#[should_panic(expected = "third chat whole within world time")]
 fn two_open_tabs_leave_room_for_a_third_page() {
     let (mut world, chat, _, _) = two_open_tabs();
     let third = fixtures::watch_room_client(&mut world, fixtures::chat_page(chat));

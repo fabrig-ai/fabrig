@@ -206,6 +206,7 @@ impl Joint {
             config
         });
         let mut engine_limits = engine_limits();
+        engine_limits.streams = 8;
         // The goal's driver and three independent client roots.
         engine_limits.people.sign_ins = 4;
         engine_limits.tasks.tasks = tasks;
