@@ -424,7 +424,8 @@ fn conversation_turn(messages: &[c::Message], cut: bool) -> Thread {
         c::TurnRead::Decoded(turn),
     ))
     .expect("turn");
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
     thread
