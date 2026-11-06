@@ -2,6 +2,8 @@
 
 2026-11-06. Where temper's code lags or departs from [configuration.md](configuration.md).
 
+- **Not yet:** 2, 13.1, 13.4, 13.8: `engine.llm` and each agent endpoint hold the models; the stock names first choices alone.
+
 Section 7 has no known gap in the stream-derived watch rooms, refused
 watch-room overrides or the domain stories and heap ceilings.
 

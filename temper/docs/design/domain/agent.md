@@ -919,7 +919,12 @@ and waits in the Needs you of each project it belongs to (jig's
   is the list of models the agent may offer. A charter it reads goes back
   whole and may name others; the agent's instructions leave those as they
   stand and neither propose nor mention them to the person. The settings
-  check validates configured models, not the current offer.
+  check validates the catalogue's models, not the current offer. A model is
+  a setting it reads whole and proposes as any other: its window, output,
+  efforts, default effort, prices and shown name, whether the picker shows it,
+  and, as a removal, its withdrawal (`../protocol/configuration.md`, 13.4). A
+  model's setting names no account, and the agent proposes changes only to
+  the models of the offer.
   A read of a project's ways or questions with none stored answers the
   stock (`../protocol/configuration.md`, 13.4), never unknown. A read that
   finds nothing is an error whose words say it was not read and that this

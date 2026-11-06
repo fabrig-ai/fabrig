@@ -6,6 +6,9 @@ and unread-tail retry guard in 7.1 and 7.2, and the prospective templates
 query for settings judges in 17.5, and the bounded document refusal
 facts carried through proposal answers in 17.9.
 
+- **Not yet:** 17.1, 17.7, 17.8, 17.11: models are the document's, read once at the start
+  into `Settings.models`, which the clients' component, the store, the fleet and the accounts
+  child each keep a copy of. No `model` setting, no charter's resolution, no `ChangeModel`.
 - **Departs:** 11.1: an omitted template's preview uses the first offered
   model, while a task's next-run selection needs a supporting host to call
   even a direct account usable and otherwise takes the first serving one.

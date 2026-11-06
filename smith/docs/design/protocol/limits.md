@@ -62,10 +62,11 @@ the rules and the arithmetic's shape, not the values.
 
 ## 2. Declared quantities
 
-### 2.1 Per model
+### 2.1 Per endpoint
 
-Declared for each model an endpoint serves, in the agent's configuration
-(agent.md, section 4). A provider preset supplies known models' values;
+Declared once for every model an endpoint serves, in the agent's
+configuration (agent.md, section 4): the largest a charter may name on it,
+and what any of them takes. A provider preset supplies known values;
 settings override them (`docs/design/shell.md`).
 
 | Quantity | Unit | What it is |
@@ -78,7 +79,7 @@ settings override them (`docs/design/shell.md`).
 
 - **The charter carries the effective values.** A host puts a model's
   `window` and `output` in each charter's model entry, at most what the
-  configuration declares for it (charter.md, section 2). The agent
+  configuration declares for its endpoint (charter.md, section 2). The agent
   derives its limits from the configuration's, the largest any charter
   may name; the session enforces the charter's.
 - **A window is a prompt's, never its output's.** No request's output
@@ -86,7 +87,7 @@ settings override them (`docs/design/shell.md`).
   and a compaction's summary is its output (domain/session.md, 8.1 and
   8.2). Where a provider counts a request's output within its context, a
   model's `window` is declared as that context less `output`.
-- **An oversized reasoning item fails by default.** A model's
+- **An oversized reasoning item fails by default.** An endpoint's
   declaration may opt into dropping it instead: the completion is kept,
   the item is left out of later requests, and the event stream says so
   (events.md, section 3.9).
@@ -95,6 +96,7 @@ settings override them (`docs/design/shell.md`).
 
 | Quantity | Unit | What it is |
 |---|---|---|
+| `charter_models` | count | the most models one charter's LLMs name, main's among them; `run.models` is one less |
 | `conversations` | count | the most conversations open at once across a run's tree: main, its sub-agents and compactions; so the most LLM calls in flight |
 | `tool_payload` | bytes | the most a tool exchanges in one piece: a `read`'s largest window, a `write`'s content, the arguments of one call |
 | `file_bytes` | bytes | the largest file the tools hold whole: a file `read` pages through in windows, and one `edit` loads and stores. It is at least `tool_payload`, so a file can grow past one piece: written once, then extended by edits |
@@ -559,7 +561,7 @@ measured ratio (domain/session.md, 8.1). Where the material, a byte a
 token, would not fit, the derivation bounds what a window holds, never
 the window, which is the model's.
 
-For each model the configuration declares:
+For each endpoint the configuration declares:
 
 - **The room** is its `window` at `compaction_threshold`, less two
   `output`s: one for the summary that opens a new window, one for the
@@ -653,7 +655,7 @@ For each model the configuration declares:
   `tool_payload`. So every message a run admits fits an offer and can be
   read, and a new window always has room for one.
 
-The derivation takes the smallest room among the declared models, so one
+The derivation takes the smallest room among the declared endpoints, so one
 set of bounds holds whichever model a charter names. A charter may lower
 a model's `window` or `output`, but not so far that its room falls below
 the one the limits were derived for (charter.md, section 6).
@@ -687,9 +689,9 @@ Anthropic's output within what its route accepts. smith checks the rest:
 | Name | Relationship |
 |---|---|
 | `derived` | every derived limit fits its type; the first that overflows is named |
-| `fresh-window` | for each declared model, a new window at its largest (smith's own part, the host's part, the task as its instruction and one offer, a summary of `output` tokens, and one offer of held-back messages) and one `output` fit within the window at the compaction threshold, counting a byte as a token (3.9). The parts are derived so that this holds whenever smith's own part fits the room, for every shipped preset among them (`docs/design/shell.md`, 6.1); the check refuses a model whose room smith's own part fills |
-| `host-part-holds-the-role` | for each declared model, the host's part (3.9) holds the task role as written, its bytes as the shell's code holds them, not its 4 KiB cap (`docs/design/shell.md`, 6.6), beside one guide at `guide`, the shell's own start's one directory, so that the product's own default never cuts its guide or makes a start too large for the entrance; a start with more directories shares the rest (3.9) |
-| `compaction-headroom` | for each declared model, the window above its threshold holds one `output` (that of the completion whose results a compaction carries), the summary instruction and a cut result's marker for each of `calls_per_response` results: the line is at or above the threshold, and the compaction the check or the guard calls for always fits, its results cut to what is left; what it leaves is the spare (3.9; domain/session.md, 8.1) |
+| `fresh-window` | for each declared endpoint, a new window at its largest (smith's own part, the host's part, the task as its instruction and one offer, a summary of `output` tokens, and one offer of held-back messages) and one `output` fit within the window at the compaction threshold, counting a byte as a token (3.9). The parts are derived so that this holds whenever smith's own part fits the room, for every shipped preset among them (`docs/design/shell.md`, 6.1); the check refuses a model whose room smith's own part fills |
+| `host-part-holds-the-role` | for each declared endpoint, the host's part (3.9) holds the task role as written, its bytes as the shell's code holds them, not its 4 KiB cap (`docs/design/shell.md`, 6.6), beside one guide at `guide`, the shell's own start's one directory, so that the product's own default never cuts its guide or makes a start too large for the entrance; a start with more directories shares the rest (3.9) |
+| `compaction-headroom` | for each declared endpoint, the window above its threshold holds one `output` (that of the completion whose results a compaction carries), the summary instruction and a cut result's marker for each of `calls_per_response` results: the line is at or above the threshold, and the compaction the check or the guard calls for always fits, its results cut to what is left; what it leaves is the spare (3.9; domain/session.md, 8.1) |
 | `output-in-window` | each model's `output` is less than its `window` |
 | `window-first` | a window's history reaches the compaction threshold before its message, block or byte bound: the line at `TOKEN_BYTES` bytes a token, plus one completion's whole reserve and one batch's results, within the history's bytes (rule 4 of section 3). It holds by construction for 3.2's derivation, and guards it |
 | `calls-in-transcript` | a message's blocks, derived from `calls_per_response`, are at least a completion's blocks and within the transcript schema's ceiling |

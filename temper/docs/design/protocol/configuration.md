@@ -115,8 +115,10 @@ document says what temper adds. What is open is listed in section 11.
   (section 3).
 - **`engine.llm`** is jig's LLM providers (jig's
   `protocol/configuration.md`, section 3), written out whole, never
-  implied: each with its endpoints and the models they serve, each
-  model's window, output, efforts, prices and what it is good at; the
+  implied: each with the endpoint its added models take, and its
+  endpoints. It holds no model: models are settings, the binary's
+  defaults with the store's changes over them (13.4; jig's
+  `domain/engine.md`, 17.11). Each provider has the
   sources it offers, a sign-in with its public registration, keys, a
   program, or none; and the facts its terms ask temper to show. It holds
   no account, key or record: accounts are made from the client
@@ -1670,6 +1672,7 @@ The pages a person meets it on are `../client/README.md`, 5.13.
 
 | Member today | Becomes | Its default (13.4) |
 |---|---|---|
+| `engine.llm.models`, each provider's `models` and each agent endpoint's `models` | jig's models | temper's stock models, numbered (13.4) |
 | jig's `engine.charters` | jig's charters | temper's stock charters: a chat's (1), a coding agent's (2) and the configuring agent's (3) |
 | jig's `engine.templates` | jig's templates | jig's chat (1) and goal (2), and temper's configuring chat (3) |
 | jig's `engine.policies` | jig's policies projects are made from | the stock policy (1) |
@@ -1681,8 +1684,8 @@ The pages a person meets it on are `../client/README.md`, 5.13.
   the directories, the listeners, the workers and their secrets' files,
   the limits, the first owners and the sign-in providers, `machine`,
   `clients`, `sign_in`, `webhooks` and `demo`, and, for now, the LLM
-  providers (`engine.llm`), which are configuration of the work too,
-  and leave the document by a design of their own, later. jig's
+  providers and their endpoints (`engine.llm`), which are configuration of
+  the work too, and leave the document by a design of their own, later. jig's
   `engine.projects`,
   the projects a first start seeds, stays jig's member; `temper init`'s
   is `[]` (setup.md, 8.3), and a document's seeded project names its
@@ -1953,8 +1956,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
   need, so that a story not about settings makes no change to reach
   them; the binary always passes the stock.
 - **Budgets in runs of the costliest model.** The stock computes C at
-  each start: one worst-case completion of the costliest model
-  `engine.llm` configures, in the deployment's units, as jig prices it
+  each start: one worst-case completion of the costliest stock model
+  among the defaults, in the deployment's units, as jig prices it
   for a run's admission (its window and output at its costliest
   prices), since a person may pick any of them and a charter's order
   falls to any of them: sized by the first alone, K would admit no run on
@@ -1986,9 +1989,11 @@ init`'s document carries none of them (`setup.md`, 8.3).
   unit, so `temper init` states its models' prices in thousandths of a
   dollar per 1,000,000 tokens, that floor costing a run nothing it
   needs; C, and so every budget above, scales with it.
-- **`temper init`'s models,** as read from the providers' pages on
-  2026-11-06, in the document's order, the scripted model last, its
-  prices its own (`setup.md`, 8.3). Each has a window of 1,048,576 and an
+- **The stock's models,** the binary's, as read from the providers' pages on
+  2026-11-06, numbered in this order and for good, the scripted model last, 8,
+  its prices its own (`setup.md`, 8.3). A row whose provider the document
+  doesn't configure isn't among the defaults, so the scripted model is there
+  where `demo` is. Each has a window of 1,048,576 and an
   output of 8,192, whatever a provider allows; takes the efforts `low`,
   `medium`, `high`, `xhigh` and `max`, low to high, so that a picker has
   one scale, where Terra and Luna also take OpenAI's `none`; and is
@@ -2071,12 +2076,10 @@ init`'s document carries none of them (`setup.md`, 8.3).
   `authority.grants` is below the rules' grants, is refused at the
   start, naming the limit and the stock setting. A start's problem about
   a stock setting names it as ctl does, `charter 1.hosts`.
-- **The stock charters' models are the document's, in the stock's
-  order:** a charter names configured models, so it gives every model
-  `engine.llm` configures, the scripted model's among them where `demo`
-  is configured. The binary knows the first choices' names alone: those
-  configured come first, in this order, then the rest in the document's,
-  so that a document naming none of them keeps its own order. A task
+- **The stock charters' models are their first choices and the rest:** a
+  stock charter names its first choices, those among the defaults, then
+  "the rest", so that a model the catalogue gains needs no charter's change
+  (jig's `domain/engine.md`, 17.11). A task
   given no LLM choice takes the first with an account usable now, at
   that model's default effort (jig's `domain/accounts.md`, 4.3):
 
@@ -2085,9 +2088,14 @@ init`'s document carries none of them (`setup.md`, 8.3).
   | charter 3, the configuring agent's | `claude-opus-5-5`, `gpt-6-astra`, `gpt-6.1-sol` | the rest |
   | every other stock charter | `claude-opus-5-5`, `gpt-6.1-sol` | the rest |
 
-  A document whose models change between starts gives new
-  defaults, which make a revision recorded as the release's (jig's
-  `domain/engine.md`, 17.7).
+  A release whose models differ gives new defaults, which make a revision
+  recorded as the release's (jig's `domain/engine.md`, 17.7); a model a
+  person changed or turned off stays as they left it.
+- **A model of the catalogue** changes as any setting does: a proposal, which
+  the configuring chat can make, or an owner's act on Settings, Models
+  (`../client/README.md`, 3.5). A task keeps the model it has. A model added
+  by name takes its provider's dearest stock model's figures, marked estimated
+  (jig's `domain/engine.md`, 17.11).
 - **A release that changes a default** reaches every deployment that
   kept it. A setting no change is over follows the binary's default, so
   at the next start the new default makes a revision recorded as the
@@ -2266,25 +2274,26 @@ repository and branch form above (2026-11-04).
 
 ### 13.8 A model with a larger output
 
-`temper init`'s limits hold its models, each a window of 1,048,576 tokens
-and an output of 8,192 (13.4). A deployment that configures a larger
-output (gpt-6.1-sol at effort high, output 32,000, for one) overrides its profile's turn limits, each derived
+`temper init`'s limits hold the stock's models, each a window of 1,048,576
+tokens and an output of 8,192 (13.4), as its agent's endpoints declare them. A
+deployment whose model takes a larger output (gpt-6.1-sol at effort high, output
+32,000, for one) raises its agent's endpoint and overrides its profile's turn limits, each derived
 from the agent's largest turn, T, which the start checks name "the
 agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 
 - **T,** the configured turn ceiling, must hold smith's largest measured
   turn (`smith-agent-service`'s `profile.rs`). That measurement uses the
-  smallest shared room over every configured model, so one set of bounds
+  smallest shared room over every endpoint, so one set of bounds
   holds whichever model a charter names (smith's `limits.md`, 3.9).
-  `temper init`'s agent takes 48 calls per response and 26
-  conversations (13.4's table), its models an output of 8,192, a
-  `reasoning_item` of at most 65,536 and five declared efforts each,
-  which move no figure of T, smith charging an effort's name at the charter
+  `temper init`'s agent takes 48 calls per response, 26
+  conversations (13.4's table) and 64 models a charter, its endpoints an
+  output of 8,192 and a `reasoning_item` of at most 65,536, and efforts
+  move no figure of T, smith charging an effort's name at the charter
   codec's fixed bound; T is what smith measures for it,
   within smith's own ceiling of 33,554,432 bytes (smith's
   `protocol/limits.md`, 4, `turn-in-channel`), and init's document
   holds it, written by the test's writer (`setup.md`, 8.1). A box
-  without the demo is measured from its own models and must declare
+  without the demo is measured from its own endpoints and must declare
   every carrier at least as large as that measurement.
   `docs/examples/owned/agent.json` takes init's figures but its
   endpoints and programs, with its own T in `docs/examples/owned.json`.

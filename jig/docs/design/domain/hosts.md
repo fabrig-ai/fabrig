@@ -103,8 +103,8 @@ Between the core's fleet and a host, whatever its shape:
     those whose turns or answers wait for acknowledgement; and its
     agent's bounds, by which the fleet admits it (engine.md, section 8):
     the limits a run's start must meet (smith's `protocol/limits.md`):
-    the models it declares, each with its window and output, among which
-    a run's models must be; the most turns, spend, time and waiting a run
+    the endpoints it serves, each with the largest window and output a
+    run's models may take on it; the most turns, spend, time and waiting a run
     may have; its checks' timeout; the largest message a run takes, and
     how many its inbox holds; and how many turns it keeps unacknowledged.
     A worker's program logins are not in its hello: they follow it, as
@@ -931,11 +931,10 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   completions, and on a program backend one more again, is held for its
   budget (authority.md, 7 and 8.3); the fleet admits no host whose agent
   cannot run the engine's charters, and places a run only on a host that
-  declares its models and where its sources are usable (engine.md,
+  declares its endpoints and where its sources are usable (engine.md,
   section 8). When a change of settings changes the charters (engine.md,
   17.3), the fleet judges its connected hosts afresh from what each
-  declared at its hello, kept for the deployment's configured models
-  only: a host now short of a charter stays connected, its running
+  declared at its hello: a host now short of a charter stays connected, its running
   attempts with it, and takes none of that charter's new runs; its next
   hello is admitted or refused as any is. The same admission decision is public as
   `jig_domain_fleet::shortfall`, using the core's owned

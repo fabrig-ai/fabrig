@@ -133,12 +133,12 @@ it is live:
 - **Its references:** tasks it may message beyond its requester and its
   delegates (8.5).
 - **Its executor** (2) and, for an agent, its **charter**: the role's
-  instructions, the models it allows, in order, or every configured
-  one, the tools, the outcome it must produce, its default wake policy
+  instructions, the models it allows, in order, its resolution in the
+  catalogue (engine.md, 17.11), the tools, the outcome it must produce, its default wake policy
   and waiting time, whether a run resumes its transcript or starts
   fresh, and which hosts may run it (engine.md, 7.1). It names no
-  effort: each model declares its efforts, in order, in the deployment's
-  configuration (`../protocol/configuration.md`, section 3).
+  effort: each model declares its efforts, in order, in its `model` setting
+  (engine.md, 17.1).
 - **Its revision:** the settings' revision it was made in, the newest
   then, whatever its parent's (engine.md, 17.3). An agent task's runs
   read its charter from it, until a move sets it to a newer one
