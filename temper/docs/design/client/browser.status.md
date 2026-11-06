@@ -9,8 +9,6 @@ before publication are absent; a restart empties the ended-goal history
 show when its change is handed from a live goal's tree, as the plan's cut
 keeps it; publication is not a cutoff on a handed change's commit.
 
-- **Not yet:** 8.3: a landing's page draws "0 stale proofs", and the board's
-  Landings link has a section title's small muted capitals.
 - **Design departs:** 8.3, from the request `ui-public-2` of 2026-11-06:
   ended rows say how long ago they ended, where the request says "for how
   long", because "landed for 2 hours" would not describe the ending. The

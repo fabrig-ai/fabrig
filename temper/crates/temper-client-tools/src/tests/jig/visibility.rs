@@ -2,6 +2,8 @@
 use crate::{jig, tests::fixtures as f};
 use jig_client::{Ask, contract as c};
 
+const WORDS: &[u8] = b"Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too.";
+
 const AMEND: &[&str] = &["project", "amend", "shop", "--visibility", "public", "--key", "visibility"];
 // The design's example exercises every hexadecimal digit position.
 const PUBLIC: u64 = 0x3f2a_9c01_d4e5_b6a7;
@@ -55,7 +57,7 @@ fn made_public_prints_the_page_from_me() {
     let printed = amended(AMEND, Some(PADDED));
     assert_eq!(printed.status, 0);
     assert_eq!(printed.stdout.as_ref(), b"project 1: public\npage: /public/projects/00ab000000000001\n");
-    assert!(printed.stderr.is_empty());
+    assert_eq!(printed.stderr.strip_suffix(b"\n"), Some(WORDS));
 }
 #[test]
 fn the_page_waits_for_me_to_agree() {
@@ -71,6 +73,16 @@ fn the_page_waits_for_me_to_agree() {
         let printed = root.answer(call).expect("me carries the page");
         assert_eq!(printed.status, 0);
         f::check_golden(golden, &printed.stdout);
+        let line = printed.stderr.strip_suffix(b"\n").expect("notice line ending");
+        let words = if flags.is_empty() {
+            line
+        } else {
+            line.strip_prefix(b"{\"may_show\":\"")
+                .expect("notice JSON key")
+                .strip_suffix(b"\"}")
+                .expect("notice JSON ending")
+        };
+        assert_eq!(words, WORDS);
         deliver(&mut root, Some(PADDED));
         assert!(root.answer(call).is_none(), "the call prints once");
     }
@@ -91,6 +103,7 @@ fn made_private_prints_no_page() {
         let printed = root.answer(call).expect("me agrees it is private");
         assert_eq!(printed.status, 0);
         assert_eq!(printed.stdout.as_ref(), expected);
+        assert!(printed.stderr.is_empty());
     }
 }
 #[test]
@@ -105,6 +118,7 @@ fn a_refused_visibility_exits_2() {
     assert_eq!(printed.status, 2);
     assert!(printed.stdout.is_empty());
     assert!(!printed.stderr.is_empty());
+    assert!(skein_lib::bytes::find(&printed.stderr, WORDS).is_none());
 }
 #[test]
 fn project_show_says_whether_it_is_public() {
@@ -138,15 +152,24 @@ fn an_unknown_project_sends_nothing() {
 }
 #[test]
 fn a_replayed_visibility_prints_the_first_answer() {
-    let mut root = f::signed_in(f::PARTY);
-    let first = root.submit(AMEND);
-    done(&mut root, first, true);
-    deliver(&mut root, Some(PUBLIC));
-    let original = root.answer(first).expect("first answer");
-    let replay = root.submit(AMEND);
-    done(&mut root, replay, true);
-    let repeated = root.answer(replay).expect("me already agrees");
-    assert_eq!(root.sent_name(first), root.sent_name(replay));
-    assert_eq!(repeated.status, 0);
-    assert_eq!(repeated.stdout, original.stdout);
+    for flags in [&[][..], &["--json"][..]] {
+        let argv = f::extended(AMEND, flags);
+        let mut root = f::signed_in(f::PARTY);
+        let first = root.submit(argv.as_slice());
+        done(&mut root, first, true);
+        deliver(&mut root, Some(PUBLIC));
+        let original = root.answer(first).expect("first answer");
+        let replay = root.submit(argv.as_slice());
+        done(&mut root, replay, true);
+        let repeated = root.answer(replay).expect("me already agrees");
+        assert_eq!(root.sent_name(first), root.sent_name(replay));
+        assert_eq!(repeated.status, 0);
+        assert_eq!(repeated.stdout, original.stdout);
+        assert_eq!(repeated.stderr, original.stderr);
+    }
+}
+
+#[test]
+fn the_help_says_what_the_answer_says() {
+    assert!(skein_lib::bytes::find(jig::rows::PROJECT_AMEND.notes, WORDS).is_some());
 }
