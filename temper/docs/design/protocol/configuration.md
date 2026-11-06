@@ -1484,8 +1484,9 @@ login is imported.
   is required. The ordinary embedded bundle cannot replace it. Startup
   neither builds a bundle nor accesses a remote service.
 
-Before starting its supervised processes, the box prints these lines on
-stderr, for the person and for the process harness, which captures them by prefix:
+After the sign-in block (`setup.md`, 7.2), before starting its supervised
+processes, the box prints these lines on stderr, for the person and for the
+process harness, which captures them by prefix:
 
 ```text
 box: effective configuration C'
