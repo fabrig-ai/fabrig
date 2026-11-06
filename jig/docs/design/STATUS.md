@@ -22,8 +22,8 @@ Of the acts, `Hold`, `Move` under another task, `Succeed`, successors,
 markers, a drain and a conversation's questions lag (`domain/people.md`,
 `domain/tasks.md`, `domain/engine.md`, `client/domain/contract.md`); of
 the client, a committed turn's objects,
-`me`'s `resolved_default`, a service's root, the one-shot mode and the
-drawing family (`client/domain/`); and `ops` standalone, with its
+`me`'s `resolved_default` and amendment bound, a service's root, the one-shot
+mode and the drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). `RemoveProject`
 is offered in no project's document (`client/domain/contract.md`).
 Public reading's remaining departure is the public index's memory fit
