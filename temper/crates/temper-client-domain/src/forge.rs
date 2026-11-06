@@ -147,8 +147,8 @@ impl Side {
         self.playground.answered
     }
     #[must_use]
-    pub const fn deployment(&self) -> Option<deployment::Answer> {
-        self.deployment.answer
+    pub const fn deployment(&self) -> Option<&deployment::Answer> {
+        self.deployment.answer.as_ref()
     }
     #[must_use]
     pub fn playground_starting(&self) -> bool {

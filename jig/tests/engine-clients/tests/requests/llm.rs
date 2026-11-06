@@ -153,12 +153,7 @@ fn a_model_the_core_refuses_comes_back_by_its_name() {
 fn an_amend_naming_a_choice_changes_the_one_the_task_s_next_run_takes() {
     let (mut peer, mut world, bearer) = amendment_setup(363);
     let before = live_row(&world, 2);
-    let default = tasks::LlmChoice {
-        account: None,
-        main: tasks::ModelEffort { model: SCRIPTED, effort: Some(LOW) },
-        subagents: Box::new([]),
-    };
-    assert_eq!(before.llm, Some(default), "the charter's default, recorded at creation");
+    assert_eq!(before.llm, None, "an omitted choice is resolved at the run check");
     let revision = before.revisions.spec;
     let llm = choice((b"scripted", Some(b"high")), &[]);
     let socket = peer.post(b"/jig/v1/request", keyed([65; 16], &amend(revision, llm)), Some(&bearer));
