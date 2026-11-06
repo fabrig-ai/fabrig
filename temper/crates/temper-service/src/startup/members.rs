@@ -117,7 +117,7 @@ pub static SHAPES: [Shape; 32] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 108] = [
+pub static MEMBERS: [Member; 109] = [
     Member {
         shape: "document",
         name: "engine",
@@ -858,6 +858,7 @@ pub static MEMBERS: [Member; 108] = [
     machine::MEMBERS[26],
     machine::MEMBERS[27],
     machine::MEMBERS[28],
+    machine::MEMBERS[29],
 ];
 
 /// The names a shape's decoder takes, including the settings members it refuses.

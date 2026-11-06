@@ -3,6 +3,7 @@
 
 use crate::{Limits, Request, agent, checkout, host, wire};
 use alloc::boxed::Box;
+use jig_domain_link::{Bounds, Form, Grant, GrantTable, Scheme, SourceName};
 use skein_lib::{Duration, List, Token};
 
 pub const RUN: Token = Token::new(31);
@@ -92,7 +93,7 @@ pub fn limits() -> Limits {
             kill_after: Duration::from_secs(2),
             facts: 64,
         },
-        bounds: host::Bounds {
+        bounds: Bounds {
             program_endpoints: Box::new([]),
             models: Box::new([]),
             turns: 8,
@@ -110,7 +111,7 @@ pub fn limits() -> Limits {
 
 /// jig's assignment of the run, in the workstream [`WORKSTREAM`] if it has
 /// a workspace, with the grants `grants`.
-pub fn assignment(workspace: bool, grants: Box<[host::Grant]>) -> host::Assignment {
+pub fn assignment(workspace: bool, grants: Box<[Grant]>) -> host::Assignment {
     let workspace =
         if workspace { Some(host::Workspace { workstream: WORKSTREAM, items: Token::new(0) }) } else { None };
     host::Assignment {
@@ -169,14 +170,12 @@ pub fn refused(why: &[u8]) -> Request {
 }
 
 /// A grant of `account` in `table`.
-pub fn grant(table: host::GrantTable, account: u32) -> host::Grant {
-    host::Grant {
+pub fn grant(table: GrantTable, account: u32) -> Grant {
+    Grant {
         form: match table {
-            host::GrantTable::Accounts => host::Form::Credential(host::Scheme::Bearer),
-            host::GrantTable::Application => host::Form::Application,
-            host::GrantTable::Name => {
-                host::Form::Program(host::SourceName::new(b"alice").expect("fixture source name"))
-            }
+            GrantTable::Accounts => Form::Credential(Scheme::Bearer),
+            GrantTable::Application => Form::Application,
+            GrantTable::Name => Form::Program(SourceName::new(b"alice").expect("fixture source name")),
         },
         account,
         generation: 1,

@@ -1,4 +1,5 @@
 use alloc::boxed::Box;
+use jig_domain_link::{Form, Grant};
 use skein_lib::{Duration, Reader};
 use smith_charter::v4 as wire;
 
@@ -508,7 +509,8 @@ fn modify_needs_a_delivery() {
 #[test]
 fn contract_text_is_bounded_and_change_checks_are_required() {
     use jig_domain_tasks as tasks;
-    for words in [1023, 1024, 1025] {
+    assert_eq!(crate::CHANGE_BODY_MAX, 3584);
+    for words in [1023, 1024, 1025, 3583, 3584, 3585] {
         let mut value = assignment_fixture(b"Contract", words, 20, 4);
         let report = crate::assignment(value.clone(), Box::new([]), Box::new([]), false).expect("report");
         assert_eq!(report.contract.report.expect("report text").max, words.min(crate::CONTRACT_TEXT_MAX));
@@ -523,8 +525,10 @@ fn contract_text_is_bounded_and_change_checks_are_required() {
         let rule = change.contract.change.expect("change rule");
         assert!(rule.checks_must_pass);
         assert_eq!(rule.checks_must_pass, crate::CONTRACT_CHECKS_MUST_PASS);
+        assert_eq!(rule.fields[0].name.as_ref(), b"title");
+        assert_eq!(rule.fields[1].name.as_ref(), b"body");
         assert_eq!(rule.fields[0].max, words.min(crate::CONTRACT_TEXT_MAX));
-        assert_eq!(rule.fields[1].max, words.min(crate::CONTRACT_TEXT_MAX));
+        assert_eq!(rule.fields[1].max, words.min(crate::CHANGE_BODY_MAX));
     }
 }
 
@@ -660,8 +664,8 @@ fn hosted_fixture() -> jig_domain_core::Assignment {
                 answer: core::SettledAnswer::Host { error: true, body: b"refused".as_slice().into() },
             },
         }]),
-        grants: Box::new([jig_domain_host::Grant {
-            form: jig_domain_host::Form::Application,
+        grants: Box::new([Grant {
+            form: Form::Application,
             account: 1,
             generation: 2,
             valid: Duration::from_secs(30),

@@ -1,8 +1,9 @@
 use jig_accounts_world::{LIMITS, provider, providers};
 use jig_domain_accounts::{
-    ADDRESS, DISPLAY, Domain, Event, Failure, Form, FromComponent, Held, Holder, Kind, Limits, NAME, Request, SUBJECT,
-    Scheme, Signing, Stored, step,
+    ADDRESS, DISPLAY, Domain, Event, Failure, FromComponent, Held, Holder, Kind, Limits, NAME, Request, SUBJECT,
+    Signing, Stored, step,
 };
+use jig_domain_link::{Form, Scheme};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 const KINDS: [Kind; 3] = [Kind::SignIn, Kind::Key, Kind::Program];
 /// Bytes at their longest, distinct for each account.

@@ -364,7 +364,15 @@ fn the_first_project_repository_uses_forge_then_repository_order() {
     );
     assert_eq!(
         forge::listed::held(f.root.forges(), None, f::PROJECT),
-        forge::listed::Held::Several { owner: b"work", name: b"first", more: 2 }
+        forge::listed::Held::Several {
+            forge: match f.root.forges() {
+                forge::forges::State::Rows(rows) => rows.first(),
+                forge::forges::State::Unknown | forge::forges::State::Ended => None,
+            },
+            owner: b"work",
+            name: b"first",
+            more: 2
+        }
     );
 }
 #[test]
@@ -519,7 +527,7 @@ fn playground_repository_comes_from_its_own_read() {
     for state in [forge::forges::State::Unknown, forge::forges::State::Ended] {
         assert_eq!(
             forge::listed::held(&state, Some(&playground), f::PROJECT),
-            forge::listed::Held::One { owner: b"playground", name: b"widget" }
+            forge::listed::Held::One { forge: None, owner: b"playground", name: b"widget" }
         );
     }
 }
@@ -655,7 +663,11 @@ fn needs_are_unknown_until_delivered_then_count_the_needs_alone() {
         assert_eq!(inbox.cards.len(), INBOX_CARDS, "the update stays in Inbox");
         assert_eq!(home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).needs, Needs::Unknown);
         let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
-        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Unknown, "refresh waits again");
+        assert_eq!(
+            home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
+            Needs::Count { count: NEED_GROUPS, cut },
+            "known needs stand through the refresh"
+        );
         for (read, _) in inbox_reads(&out) {
             inbox_page(&mut f.root, read, List::with_capacity(EMPTY), false);
         }

@@ -1,4 +1,5 @@
 use jig_domain_host as host;
+use jig_domain_link::{Login, LoginState, SignOutResult, SourceName};
 use jig_protocol_worker_link::{Event, Request};
 use jig_protocol_worker_wire as wire;
 use jig_worker_link_world::{World, fixtures};
@@ -47,7 +48,7 @@ fn host_wide_source_records_cross_bytes_without_an_assignment() {
         .iter()
         .filter_map(|request| if let Request::Down { down, .. } = request { Some(down) } else { None })
         .collect::<Vec<_>>();
-    let alice = host::SourceName::new(b"alice").expect("name");
+    let alice = SourceName::new(b"alice").expect("name");
     assert_eq!(
         names,
         [
@@ -57,11 +58,11 @@ fn host_wide_source_records_cross_bytes_without_an_assignment() {
         ]
     );
     world.down(Event::Up {
-        up: host::LinkUp::Logins { logins: Box::new([host::Login { name: alice, state: host::LoginState::Usable }]) },
+        up: host::LinkUp::Logins { logins: Box::new([Login { name: alice, state: LoginState::Usable }]) },
         parts: Box::new([]),
     });
     world.down(Event::Up {
-        up: host::LinkUp::SignedOut { name: alice, result: host::SignOutResult::SignedOut },
+        up: host::LinkUp::SignedOut { name: alice, result: SignOutResult::SignedOut },
         parts: Box::new([]),
     });
     let records = world.records();
@@ -85,11 +86,11 @@ fn malformed_or_oversized_source_lists_are_link_faults() {
 fn backpressure_keeps_only_the_latest_inventory_until_the_queue_is_empty() {
     let mut world = world();
     world.withhold_write_room();
-    let alice = host::SourceName::new(b"alice").expect("name");
-    let latest = host::SourceName::new(b"latest").expect("name");
-    for name in [alice, alice, host::SourceName::new(b"middle").expect("name"), latest] {
+    let alice = SourceName::new(b"alice").expect("name");
+    let latest = SourceName::new(b"latest").expect("name");
+    for name in [alice, alice, SourceName::new(b"middle").expect("name"), latest] {
         world.down(Event::Up {
-            up: host::LinkUp::Logins { logins: Box::new([host::Login { name, state: host::LoginState::Usable }]) },
+            up: host::LinkUp::Logins { logins: Box::new([Login { name, state: LoginState::Usable }]) },
             parts: Box::new([]),
         });
     }
@@ -111,12 +112,10 @@ fn backpressure_keeps_only_the_latest_inventory_until_the_queue_is_empty() {
 fn a_lost_channel_drops_held_inventories_before_redial() {
     let mut world = world();
     world.withhold_write_room();
-    let alice = host::SourceName::new(b"alice").expect("name");
+    let alice = SourceName::new(b"alice").expect("name");
     for _ in 0..3 {
         world.down(Event::Up {
-            up: host::LinkUp::Logins {
-                logins: Box::new([host::Login { name: alice, state: host::LoginState::Usable }]),
-            },
+            up: host::LinkUp::Logins { logins: Box::new([Login { name: alice, state: LoginState::Usable }]) },
             parts: Box::new([]),
         });
     }

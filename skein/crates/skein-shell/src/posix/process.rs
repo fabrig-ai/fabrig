@@ -7,7 +7,8 @@
 
 #![expect(unsafe_code, reason = "signal calls borrow local storage only until return (shell.md, 7.5)")]
 
-use skein_io::kernel::{Error, Signal};
+use crate::system::process::resources;
+use skein_io::kernel::{Error, Signal, Usage};
 use std::{ffi::CString, ptr};
 
 pub(crate) fn cstring(bytes: &[u8]) -> Result<CString, i32> {
@@ -45,6 +46,11 @@ pub(crate) fn map_error(errno: i32) -> Error {
         libc::EINVAL => Error::InvalidArgument,
         other => Error::Other(other),
     }
+}
+
+/// Reads the process and its reaped children at one submission (kernel.md, section 6.3).
+pub(crate) fn usage() -> Result<Usage, Error> {
+    Ok(Usage { own: resources(libc::RUSAGE_SELF)?, children: resources(libc::RUSAGE_CHILDREN)? })
 }
 
 pub(crate) fn cpu(value: libc::timeval) -> Result<skein_lib::Duration, Error> {

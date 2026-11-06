@@ -667,3 +667,28 @@ fn the_rail_counts_a_settings_proposal_in_each_project_it_shows_in() {
     }
     assert_eq!(root.pages().needs().count(root.client(), 3).count, 0);
 }
+
+#[test]
+fn a_lost_section_read_is_no_answer() {
+    let (mut root, watch) = fixtures::inbox_home(filtered());
+    fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+    let queries = root.pages().inbox().unwrap().queries;
+    for handle in queries {
+        page(&mut root, handle, contract::ReadResult::None(contract::ReadNone::Unreachable));
+    }
+    let inbox = root.pages().inbox().unwrap();
+    assert!(inbox.delivered(root.client()));
+    assert!(!inbox.known());
+    assert!(!inbox.answered(contract::InboxReadGroup::Needs));
+    assert!(!inbox.answered(contract::InboxReadGroup::Updates));
+}
+#[test]
+fn known_stands_through_a_refresh() {
+    let (mut root, watch) = ready(filtered());
+    assert!(root.pages().inbox().unwrap().known());
+    fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+    let inbox = root.pages().inbox().unwrap();
+    assert!(!inbox.delivered(root.client()));
+    assert!(inbox.known());
+    assert!(inbox.answered(contract::InboxReadGroup::Needs));
+}

@@ -10,7 +10,7 @@ lifecycle_enum 1
 growth_floor 1
 pop_loop 0
 hex_decimal_fn 6
-host_forwarder 4
+host_forwarder 2
 widening 22
-comment:actual 74
+comment:actual 70
 comment:genuine 0

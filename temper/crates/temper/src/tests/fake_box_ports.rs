@@ -19,7 +19,7 @@ fn a_fresh_fake_box_writes_none_of_the_persons_preferred_ports() {
     let adapter = root.join("fake-claude");
     fs::write(&adapter, b"#!/bin/sh\nexit 1\n").expect("fixture adapter");
     fs::set_permissions(&adapter, fs::Permissions::from_mode(0o700)).expect("executable fixture adapter");
-    let prepared = prepare(&source, Some(&bundle), &adapter).expect("fresh fake box");
+    let prepared = prepare(&source, Some(&bundle), &adapter, None).expect("fresh fake box");
     let document: serde_json::Value =
         serde_json::from_slice(&fs::read(prepared.directories.document()).expect("written deployment"))
             .expect("deployment JSON");

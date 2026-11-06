@@ -1,4 +1,5 @@
 use jig_domain_host as host;
+use jig_domain_link::{Form, Grant, Scheme};
 use jig_protocol_worker_link::{Event, GrantValue, Request};
 use jig_protocol_worker_wire as wire;
 use jig_worker_link_world::{World, fixtures};
@@ -229,8 +230,8 @@ fn check_down_records(world: &World, records: &[&host::LinkDown]) {
         host::LinkDown::Grant {
             run: Token::new(7),
             attempt: Token::new(2),
-            grant: host::Grant {
-                form: host::Form::Credential(host::Scheme::Bearer),
+            grant: Grant {
+                form: Form::Credential(Scheme::Bearer),
                 account: 1,
                 generation: 3,
                 valid: Duration::from_secs(60)

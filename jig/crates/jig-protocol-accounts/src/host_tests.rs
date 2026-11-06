@@ -1,6 +1,7 @@
 //! The host's ordered pass and the owner's outputs (service.md, 11.1).
 use super::*;
 use crate::tests::fixtures;
+use jig_domain_link::{Form, Scheme};
 use skein_lib::bytes;
 fn machine() -> Accounts {
     let limits = fixtures::driver_limits();
@@ -85,7 +86,7 @@ fn a_grant_reaches_the_table_before_its_event_leaves() {
     host.effects.push(Effect::Child(domain::Event::Component(domain::FromComponent::Granted {
         account: 7,
         generation: 1,
-        form: domain::Form::Credential(domain::Scheme::Key),
+        form: Form::Credential(Scheme::Key),
         valid: skein_lib::Duration::from_secs(1),
     })));
     let mut table = Table::new(1, 32);

@@ -10,6 +10,8 @@ mod downloads;
 mod scope;
 #[path = "real/tabs.rs"]
 mod tabs;
+#[path = "real/viewport.rs"]
+mod viewport;
 use skein_fake_person_browser::{
     BrowserFace, origins as serve,
     person::{Doing, Face, Find, Found},
@@ -145,6 +147,7 @@ enum Stage {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Scenario {
+    Viewport,
     Button,
     Tabs,
     TabBeside,
@@ -192,6 +195,7 @@ impl Scenario {
             | Scenario::Dates
             | Scenario::Reduction
             | Scenario::ScopeReload
+            | Scenario::Viewport
             | Scenario::Attribute { .. } => "/facts",
         }
     }
@@ -611,6 +615,14 @@ impl Rig {
         reason = "one referee handles the browser's observable events for these scenarios"
     )]
     fn browser_event(&mut self, event: Event) {
+        let event = if matches!(self.scenario, Scenario::Viewport) {
+            match self.viewport_event(event) {
+                Ok(()) => return,
+                Err(event) => event,
+            }
+        } else {
+            event
+        };
         if self.choice.is_some() {
             self.choice_event(&event);
             return;
@@ -703,6 +715,7 @@ impl Rig {
                     | Scenario::ScopeReload
                     | Scenario::Tabs
                     | Scenario::TabBeside
+                    | Scenario::Viewport
                     | Scenario::Attribute { .. } => {
                         unreachable!("dialog scenario handled above")
                     }
@@ -809,6 +822,7 @@ impl Rig {
                     | Scenario::ScopeReload
                     | Scenario::Tabs
                     | Scenario::TabBeside
+                    | Scenario::Viewport
                     | Scenario::Attribute { .. } => {
                         unreachable!("dialog scenario handled above")
                     }
@@ -924,6 +938,7 @@ impl Rig {
                         | Scenario::ScopeReload
                         | Scenario::Tabs
                         | Scenario::TabBeside
+                        | Scenario::Viewport
                         | Scenario::Attribute { .. } => {
                             panic!("no action should complete for {:?}", self.scenario)
                         }

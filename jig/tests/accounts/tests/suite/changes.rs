@@ -4,6 +4,7 @@ use jig_domain_accounts::{
     Answer, Bound, Change, Event, FromComponent, Holder, KEY_VALID, Key, KeyFailure, Kind, Refusal, Request, Signing,
     State, Stored, ToComponent, USES, Use,
 };
+use jig_domain_link::{Form, Scheme};
 use skein_lib::{Duration, Token};
 const OTHER: Holder = Holder::Party(8);
 const REQUEST: Token = Token::new(50);
@@ -35,7 +36,7 @@ fn add(world: &mut World, join: Option<u32>) -> u32 {
 }
 fn grant(world: &mut World, source: u32, generation: u64) -> Vec<Request> {
     world.step(Event::Component(FromComponent::Granted {
-        form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Key),
+        form: Form::Credential(Scheme::Key),
         account: source,
         generation,
         valid: Duration::from_secs(1),
@@ -106,7 +107,7 @@ fn a_key_is_granted_generation_one_and_a_replaced_key_the_next() {
     let account = account_of(&world, source);
     let first = world.domain.grant(account, world.now).expect("first grant");
     assert_eq!((first.account, first.generation, first.valid), (source, 1, KEY_VALID));
-    assert_eq!(first.form, jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Key));
+    assert_eq!(first.form, Form::Credential(Scheme::Key));
     assert_eq!(
         change(&mut world, Change::ReplaceKey { source, carried: CARRIED + 1 }),
         vec![Request::Signing(Signing::Keep { source, carried: CARRIED + 1, replaces: true })]

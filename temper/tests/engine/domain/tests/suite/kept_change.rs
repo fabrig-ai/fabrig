@@ -181,7 +181,7 @@ fn restart(story: &Story, live_dependencies: &[engine::Assignment]) -> Driver {
     let mut restored = Driver::cold(story.driver.store.fork(), configuration(), &limits());
     let hosting = std::iter::once(&story.parent)
         .chain(live_dependencies)
-        .map(|run| protocol::hosting(run.task, run.attempt, jig_domain_host::Phase::Active))
+        .map(|run| protocol::hosting(run.task, run.attempt, jig_domain_link::Phase::Active))
         .collect();
     restored.send(protocol::hello_slots(CHANNEL, limits().fleet.slots, hosting));
     restored.settle();

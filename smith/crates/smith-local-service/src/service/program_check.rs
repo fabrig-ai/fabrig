@@ -15,6 +15,8 @@ mod driver;
 mod lifecycle;
 mod pending;
 
+const PROGRAM_TAG: u8 = 1;
+
 #[derive(Debug)]
 struct Account {
     number: u32,
@@ -95,7 +97,7 @@ impl Checks {
             shell.push(local::Request::Credential { account });
             return;
         }
-        let owner = Token::new(self.next_owner);
+        let owner = Token::tagged(PROGRAM_TAG, self.next_owner).expect("program check owner fits namespace");
         self.next_owner = self.next_owner.checked_add(1).expect("program check owners never wrap");
         let source = ProgramSource::new(
             owner,

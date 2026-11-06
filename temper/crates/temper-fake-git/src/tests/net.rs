@@ -184,7 +184,7 @@ fn decode(name: Name, bytes: Box<[u8]>) -> Call {
     let mut above = Queue::with_capacity(2);
     let mut below = Queue::with_capacity(2);
     let mut held = Held::new(bytes);
-    tokenizer::down(&mut json, &env, server::body_first(&decoder), &mut above, &mut below);
+    tokenizer::down(&mut json, &env, tokenizer::Request::Next, &mut above, &mut below);
     for _ in 0..10000 {
         if let Some(event) = above.pop() {
             match server::body(&mut decoder, &limits(), &event) {

@@ -31,6 +31,15 @@ impl Issuer {
         ] {
             text(out, name, value);
         }
+        let mut public = false;
+        for client in &self.clients {
+            public |= client.secret.is_none();
+        }
+        let methods: &[&[u8]] = if public {
+            &[b"client_secret_basic", b"client_secret_post", b"none"]
+        } else {
+            &[b"client_secret_basic", b"client_secret_post"]
+        };
         for (name, values) in [
             (b"response_types_supported".as_slice(), [b"code".as_slice()].as_slice()),
             (b"response_modes_supported", [b"query".as_slice()].as_slice()),
@@ -38,10 +47,7 @@ impl Issuer {
             (b"subject_types_supported", [b"public".as_slice()].as_slice()),
             (b"id_token_signing_alg_values_supported", [b"RS256".as_slice()].as_slice()),
             (b"scopes_supported", [b"openid".as_slice(), b"profile", b"email"].as_slice()),
-            (
-                b"token_endpoint_auth_methods_supported",
-                [b"client_secret_basic".as_slice(), b"client_secret_post"].as_slice(),
-            ),
+            (b"token_endpoint_auth_methods_supported", methods),
             (b"code_challenge_methods_supported", [b"S256".as_slice()].as_slice()),
             (
                 b"claims_supported",
@@ -97,10 +103,6 @@ impl Issuer {
         out.array_end();
         out.object_end();
     }
-    #[expect(
-        unused_qualifications,
-        reason = "the concatenation uses its full path independently of other byte helpers"
-    )]
     pub fn tokens(
         &self,
         authorization: &Authorization,
@@ -137,9 +139,9 @@ impl Issuer {
         let mut out = Encoder::write(len, &JSON);
         self.write_claims(&mut out, authorization, person, expires, wall);
         let payload = encoded(&out.finish())?;
-        let input = skein_lib::bytes::concat(&[&header, b".", &payload]);
+        let input = bytes::concat(&[&header, b".", &payload]);
         let signature = skein_tls::sign_rs256_pkcs8(self.settings.key.expose(), &input).ok_or(Error::Sign)?;
-        let jwt = skein_lib::bytes::concat(&[&input, b".", &encoded(&signature)?]);
+        let jwt = bytes::concat(&[&input, b".", &encoded(&signature)?]);
         let mut measure = Encoder::measure(&JSON);
         write_answer(&mut measure, access, seconds, &jwt);
         let len = measure.measured().or(Err(Error::Limits))?;

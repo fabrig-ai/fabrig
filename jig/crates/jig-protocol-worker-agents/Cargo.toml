@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 jig-domain-host.workspace = true
+jig-domain-link.workspace = true
 skein-io.workspace = true
 skein-lib.workspace = true
 smith-channel.workspace = true
@@ -17,6 +18,10 @@ smith-host-domain.workspace = true
 smith-host-protocol.workspace = true
 smith-protocol-channel.workspace = true
 smith-protocol-program.workspace = true
+
+[dev-dependencies]
+jig-protocol-charter.workspace = true
+smith-host-protocol = { workspace = true, features = ["fixture"] }
 
 [lints]
 workspace = true

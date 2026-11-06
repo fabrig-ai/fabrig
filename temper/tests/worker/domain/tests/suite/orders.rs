@@ -4,6 +4,7 @@
 //! hand-outs come back in the order they went out, an agent's end
 //! following its last one (W2).
 
+use jig_domain_link::{Login, LoginState, SourceName};
 use skein_lib::{Duration, Time};
 use temper_worker_domain::{Request, agent, host};
 use temper_worker_domain_world::{protocol, runtime::orders as runtime, whole::orders as whole};
@@ -165,7 +166,7 @@ fn an_idle_workers_login_is_checked_at_its_interval() {
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: temper_worker_domain_world::limits() };
     let mut domain = Domain::new(&env.limits, Box::new([]));
     let mut out = Queue::uncapped();
-    let name = host::SourceName::new(b"login").unwrap();
+    let name = SourceName::new(b"login").unwrap();
     step(&mut domain, &env, Event::Ready, &mut out);
     assert!(matches!(out.pop(), Some(Request::Hello(_))));
     step(&mut domain, &env, Event::Link(host::LinkDown::Sources { sources: Box::new([name]) }), &mut out);
@@ -181,14 +182,12 @@ fn an_idle_workers_login_is_checked_at_its_interval() {
     step(
         &mut domain,
         &env,
-        Event::SourceAnswered { owner, answer: host::sources::Answer::Checked(host::LoginState::Usable) },
+        Event::SourceAnswered { owner, answer: host::sources::Answer::Checked(LoginState::Usable) },
         &mut out,
     );
     assert_eq!(
         out.pop(),
-        Some(Request::Link(host::LinkUp::Logins {
-            logins: Box::new([host::Login { name, state: host::LoginState::Usable }])
-        }))
+        Some(Request::Link(host::LinkUp::Logins { logins: Box::new([Login { name, state: LoginState::Usable }]) }))
     );
     let due = env.now.saturating_add(env.limits.host.source_interval);
     assert_eq!(domain.agent().agents(), 0, "no agent can wake the idle worker");
@@ -214,13 +213,13 @@ fn an_idle_workers_login_is_checked_at_its_interval() {
     step(
         &mut domain,
         &env,
-        Event::SourceAnswered { owner, answer: host::sources::Answer::Checked(host::LoginState::NotSignedIn) },
+        Event::SourceAnswered { owner, answer: host::sources::Answer::Checked(LoginState::NotSignedIn) },
         &mut out,
     );
     assert_eq!(
         out.pop(),
         Some(Request::Link(host::LinkUp::Logins {
-            logins: Box::new([host::Login { name, state: host::LoginState::NotSignedIn }])
+            logins: Box::new([Login { name, state: LoginState::NotSignedIn }])
         }))
     );
     assert!(out.is_empty(), "the lapse is published at the interval");

@@ -85,6 +85,13 @@ pub enum Request {
         key: Key,
         shift: bool,
     },
+    /// Set the viewport in CSS pixels; terminal `Done` or `Refused`.
+    Viewport {
+        page: Token,
+        op: Token,
+        width: u32,
+        height: u32,
+    },
     Address {
         page: Token,
         op: Token,

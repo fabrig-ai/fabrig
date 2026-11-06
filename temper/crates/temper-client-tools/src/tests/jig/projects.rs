@@ -478,3 +478,105 @@ fn project_fund_json_preserves_the_ceiling_facts() {
     assert_eq!(printed.status, 2);
     assert_eq!(printed.stderr.as_ref(), br#"{"operation":"project fund","outcome":{"refused":{"refusal":{"authority":{"lacking":{"ceiling":{"holder":"rules","dimension":"period_spend","value":1000}},"proposable":null}},"at":null}},"task":null,"to":null}"#);
 }
+
+#[test]
+fn second_project_after_setup_has_a_ctl_remedy() {
+    for json in [false, true] {
+        let mut root = crate::tests::forges::setup_for_projects();
+        second_setup_refusal(&mut root, json);
+        let read = root.submit(&["forge", "list"]);
+        crate::tests::forges::project_forge(&mut root);
+        assert_eq!(root.answer(read).unwrap().status, 0);
+        make_second_project(&mut root, json);
+        adopt_second_repository(&mut root, json);
+    }
+}
+
+fn second_setup_refusal(root: &mut f::Harness, json: bool) {
+    use temper_client_protocol_wire::v1 as w;
+    let call = root.submit_prepared(
+        f::call(&["forge", "setup", "--org", "work", "--repository", "second", "--key", "second-setup"]),
+        json,
+        None,
+    );
+    root.adoption_answer(
+        call,
+        w::Outcome::SetUpRefused(
+            w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why: w::SetUpRefusal::NotOffered }).unwrap(),
+        ),
+    );
+    let printed = root.answer(call).unwrap();
+    assert_eq!(printed.status, 2);
+    if json {
+        f::unique_keys(&printed.stderr).unwrap();
+    }
+    let refusal = String::from_utf8_lossy(&printed.stderr);
+    for remedy in [
+        "forge list",
+        "project make NAME --key KEY",
+        "repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY",
+    ] {
+        assert!(refusal.contains(remedy), "missing remedy {remedy}: {refusal}");
+    }
+}
+
+fn make_second_project(root: &mut f::Harness, json: bool) {
+    for _ in [false, true] {
+        let make = root.submit_prepared(f::call(&["project", "make", "Second", "--key", "second-project"]), json, None);
+        assert_eq!(f::act_ask(root, make), &c::Ask::MakeProject { name: f::act_text(b"Second"), policy: 1 });
+        assert_eq!(root.sent_name(make), Some(f::named("second-project")));
+        root.done(make, c::Outcome::Document(c::DocumentOutcome::ProjectMade { project: 8 }));
+        let printed = root.answer(make).unwrap();
+        assert_eq!(printed.status, 0);
+        if json {
+            f::unique_keys(&printed.stdout).unwrap();
+            assert!(String::from_utf8_lossy(&printed.stdout).contains(r#""project_made":{"project":8}"#));
+        } else {
+            assert_eq!(printed.stdout.as_ref(), b"project 8\n");
+        }
+    }
+}
+
+fn adopt_second_repository(root: &mut f::Harness, json: bool) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut me = f::me(f::PARTY);
+    let mut second = me.projects.get(0).unwrap().clone();
+    second.project = 8;
+    second.name = f::document_text(b"Second");
+    me.projects = list(vec![me.projects.get(0).unwrap().clone(), second]);
+    root.deliver(c::Delivery::Me(Box::new(me)));
+    let make = root.submit_prepared(
+        f::call(&[
+            "repository",
+            "make",
+            "--project",
+            "8",
+            "--forge",
+            "3",
+            "work/second",
+            "--until",
+            "adopted",
+            "--key",
+            "second-repository",
+        ]),
+        json,
+        None,
+    );
+    let Ask::Family { record, .. } = root.adoption_bytes(make) else { panic!("repository request") };
+    let w::Request::MakeRepository(request) =
+        wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+    else {
+        panic!("make")
+    };
+    assert_eq!(w::MakeRepository::into(&request).as_ref().unwrap().project(), 8);
+    root.adoption_answer(make, w::Outcome::MakeKept);
+    crate::tests::forges::adopted_project_repository(root, 8);
+    let printed = root.answer(make).unwrap();
+    assert_eq!(printed.status, 0);
+    if json {
+        f::unique_keys(&printed.stdout).unwrap();
+        assert!(String::from_utf8_lossy(&printed.stdout).contains(r#""adopted":true"#));
+    } else {
+        assert_eq!(printed.stdout.as_ref(), b"work/second is in 8.\n");
+    }
+}

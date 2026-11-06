@@ -1,8 +1,9 @@
 //! Shared host bounds for the domain world.
+use jig_domain_link::{Bounds, Form, Grant, Hosting, Membership, ModelBound, Phase, Scheme};
 #[must_use]
-pub fn bounds() -> jig_domain_fleet::Bounds {
+pub fn bounds() -> Bounds {
     use skein_lib::Duration;
-    jig_domain_fleet::Bounds {
+    Bounds {
         program_endpoints: Box::new([]),
         models: Box::new([]),
         turns: u32::MAX,
@@ -23,8 +24,7 @@ pub fn hosting_pair(
     a1: skein_lib::Token,
     r2: skein_lib::Token,
     a2: skein_lib::Token,
-) -> Vec<jig_domain_fleet::Hosting> {
-    use jig_domain_fleet::{Hosting, Phase};
+) -> Vec<Hosting> {
     vec![
         Hosting { run: r1, attempt: a1, phase: Phase::Active },
         Hosting { run: r2, attempt: a2, phase: Phase::Answered },
@@ -32,8 +32,8 @@ pub fn hosting_pair(
 }
 
 /// The account granted to the fleet world's scripted attempts.
-pub const ANALYST: jig_domain_fleet::Grant = jig_domain_fleet::Grant {
-    form: jig_domain_fleet::Form::Credential(jig_domain_fleet::Scheme::Bearer),
+pub const ANALYST: Grant = Grant {
+    form: Form::Credential(Scheme::Bearer),
     account: 1,
     generation: 1,
     valid: skein_lib::Duration::from_secs(60),
@@ -78,16 +78,12 @@ pub fn model_needs() -> jig_domain_fleet::Needs {
 }
 
 #[must_use]
-pub fn model_bounds(names: &[&[u8]]) -> jig_domain_fleet::Bounds {
-    jig_domain_fleet::Bounds {
+pub fn model_bounds(names: &[&[u8]]) -> Bounds {
+    Bounds {
         program_endpoints: Box::new([]),
         models: names
             .iter()
-            .map(|name| jig_domain_fleet::ModelBound {
-                name: (*name).into(),
-                window: MODEL_WINDOW,
-                output: MODEL_OUTPUT,
-            })
+            .map(|name| ModelBound { name: (*name).into(), window: MODEL_WINDOW, output: MODEL_OUTPUT })
             .collect(),
         ..bounds()
     }
@@ -99,8 +95,8 @@ pub fn domain(limits: &jig_domain_fleet::Limits, needs: jig_domain_fleet::Needs)
     let mut domain = jig_domain_fleet::Domain::new(limits, 0, needs, Box::new([]));
     let names =
         (0..limits.configured_workers).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
-    let names = jig_domain_fleet::Membership::new(names, limits.configured_workers, limits.worker_name_bytes)
-        .expect("fixture membership");
+    let names =
+        Membership::new(names, limits.configured_workers, limits.worker_name_bytes).expect("fixture membership");
     domain.configure_workers(names);
     domain
 }
