@@ -5961,9 +5961,8 @@ own tests:
   made, nor a repository's CI outside a change. The user kept both facts
   out of the protocol (2026-11-04): the kicker is the current day and
   time, as on any Home (`../draft/to-begin.md`, 2), and the step says
-  "temper can change its code now; checked changes land on main through
-  temper's merge queue.". Supplying a creation age or a first CI result
-  needs its own protocol decision.
+  "Chats can change its code now.". Supplying a creation age or a first CI
+  result needs its own protocol decision.
 - **A project's only goal ending while Home is open** (3.5, 5.3): kind 7
   decides the rail and the tab bar; Home reads `Domain::has_goals` to choose
   Goals or Chats. The fact reads the ended group once, so once the live watch
@@ -5991,10 +5990,11 @@ own tests:
   template's `llm` may be its charter's default, which no client is given.
   Default: the first model `me` serves for the project.
 - **How a project lands, on To begin's second step**
-  (`../draft/to-begin.md`, 3): its line names temper's landing turn for
-  a project landing by turn, and no client is given a project's `by`
-  (`../domain/landing.md`, 13.1). A new fact of a protocol, the user's.
-  Default: the merge queue's words on every project.
+  (`../draft/to-begin.md`, 3): its line names how the project lands, by
+  temper's merge queue or by its landing turn, and no client is given a
+  project's `by` (`../domain/landing.md`, 13.1). A new fact of a protocol,
+  the user's. Default: "Chats can change its code now." on every project,
+  which names no way of landing.
 - **A project's home in the switcher** (5.3, 4.4): `me` does not say
   which repository is a project's home, so the first listed stands in
   for it, and a row with several repositories never reads "3
@@ -6040,6 +6040,53 @@ own tests:
   the goal hearing those words, whose scripts are throwaway. No world keeps it:
   the parser, the stock sentence, the session and the view each hold their own
   side. Default: those tests.
+- **A proposal of settings in a project's Needs you** (3.5, *Needs you*, *What the
+  client keeps*; 5.13; the request `ui-final-walk` of 2026-11-05): jig takes a
+  proposal of settings in the deployment's scope (jig's `client/domain/contract.md`,
+  3.2), so its inbox row says project 0 whatever its items change, and *Needs you*
+  by the open project and the rail's count, the ways a project's frame has, leave
+  it out; the greenfield mock has its card and its count. To see it, on a fake box:
+  `temper ctl settings propose` one `project-ways` item of project 1, then Needs
+  you from the rail. Which inbox holds a proposal whose items span the deployment
+  and several projects is a decision, then one rule for the reads. Default: its
+  card in its chat (5.13) and `temper ctl`'s inbox.
+- **A choice pressed just after Undo** (3.5, *What the client keeps*; that
+  request): on a fake box at 1440, a question with choices, Later, its Reply sent,
+  Undo, then at once a choice: six seconds on the card and the count stood, and
+  the engine held the question unanswered. A repeat on a fresh box at 1440 and the
+  walk at 420 answered. Its cause is unknown and no way shows it reliably. Default:
+  as it stands, until it is seen again.
+- **A brief refused, on Home** (3.5, *Home on any project*; that request): a status
+  run refused for want of funding leaves Home its computed sentence, with no byline
+  and nothing saying why. How a person sees that goes with what funds the run
+  (`../domain/forge.md`, 20). Default: nothing said.
+- **The Claude way's command on a box with directories of its own** (3.5, *Claude*;
+  5.5; that request): the page shows `temper program-login NAME`, which reads the
+  default directories under the person's home, so on such a box it refuses with
+  its configuration absent, before it fetches anything. The answer of 2026-11-05
+  to that plan's task `fix-flow` has the command run as shown: short with the
+  default directories, otherwise `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…
+  temper program-login NAME`, shell-quoted. No client is given the directories
+  (`temper`'s `directories.rs` holds them; the deployment's answer, `welcome` and
+  `owned` alone), so it takes a new fact from the binary through the service, the
+  wire or the page's bootstrap, the domain and the view. Its proof: tests of both
+  forms, with a space and an apostrophe and no download, then the shown command run
+  as it stands on a fresh real box, the pinned fetch with it. Default: the short
+  command.
+- **The rename the mock draws** (5.3; that request): the answer of 2026-11-06 to
+  that plan's task `fix-look`, the user's word, has the open project's row itself
+  become the form, a name's field filling the row, at least 34 pixels high, and a
+  primary small "Save", with "Rename NAME" gone from the menu's acts while it is
+  open: Enter saves, Escape cancels, an empty name keeps the old one, and there is
+  no visible "Cancel". Save or Escape gives the focus back to what opened the form,
+  or to the menu's summary, never main. Default: 5.3's form and its "Cancel".
+- **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; that
+  request): the pinned Claude Code fetch and a real browser's Sign out ran by hand,
+  on fresh loopback deployments, and no test keeps them. Not shown: a provider's
+  sign-in or a paid call; TLS, a proxy or a browser on another machine; Accounts
+  with a project or an account on it; the small engine profile whole, whose client
+  limits alone ran; another platform's build, a failed or corrupt download, two
+  fetches at once; a copy from a public host. Default: none, until a plan walks them.
 
 - **Pages the mockups do not show:** a project's page with its
   resources, findings, notes and settings (policy, people and roles,
