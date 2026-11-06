@@ -245,6 +245,7 @@ class Driver:
                                                         'deviceScaleFactor': 1, 'mobile': False})
         self.rows = []
         self.races = []
+        self.screenshots = []
         self.previous_pages = []
 
     def event(self, message):
@@ -412,8 +413,11 @@ class Driver:
         self.pause(.3)
 
     def shot(self, name):
+        before = self.snapshot()
         data = self.call('Page.captureScreenshot', {'format': 'png'})['data']
-        (self.out / f'{self.width}-{name}.png').write_bytes(base64.b64decode(data))
+        filename = f'{self.width}-{name}.png'
+        (self.out / filename).write_bytes(base64.b64decode(data))
+        self.screenshots.append({'file': filename, 'before': before, 'after': self.snapshot()})
 
     def slow(self):
         at_foot = lambda r: at_end(r['after']) and not r['after']['pill']
@@ -549,7 +553,7 @@ class Driver:
         frames = self.js('probe.frames')
         (self.out / f'{self.width}-{name}.json').write_text(json.dumps(
             {'width': self.width, 'rows': self.rows, 'races': self.races, 'frames': frames,
-             'previousPages': self.previous_pages}, indent=2) + '\n')
+             'previousPages': self.previous_pages, 'screenshots': self.screenshots}, indent=2) + '\n')
 
     def close(self):
         self.call('Page.navigate', {'url': 'about:blank'})
