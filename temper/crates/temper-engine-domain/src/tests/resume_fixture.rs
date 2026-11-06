@@ -750,7 +750,6 @@ impl StartStore {
                     | engine::Request::ForgeGone { .. }
                     | engine::Request::PlaygroundActs { .. }
                     | engine::Request::ResetAct { .. }
-                    | engine::Request::Return { .. }
                     | engine::Request::MakingCopied { .. }
                     | engine::Request::SetUp { .. }
                     | engine::Request::Connect { .. }

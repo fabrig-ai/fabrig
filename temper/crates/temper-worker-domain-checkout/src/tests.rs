@@ -805,27 +805,14 @@ fn supplied_landing_cannot_invent_eligibility_or_change_saved_semantics() {
         Start::Base { branch: bytes(b"main") },
         Start::Branch { branch: bytes(b"elsewhere") },
         Start::Commit { commit: commit(1) },
-        Start::Merge { branch: bytes(b"main"), base: commit(7) },
     ] {
         let mut h = Harness::new(MERGES);
-        let merging = match start {
-            Start::Merge { .. } => true,
-            Start::Base { .. }
-            | Start::Branch { .. }
-            | Start::Commit { .. }
-            | Start::Saved { .. }
-            | Start::Merged { .. } => false,
-        };
         let repo = Repository { start, ..retry_repository() };
         let hold = h.ready(1, spec(b"w", Box::new([repo])));
         h.one(Event::Push { hold, message: message() });
-        if merging {
-            assert_eq!(h.next(hold, Done::Committed { commit: commit(11) }).kind(), Kind::Push);
-        } else {
-            assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })), &[Landing::Unchanged]);
-            h.one(Event::Save { hold, message: message() });
-            assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })), &[Landing::Unchanged]);
-        }
+        assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })), &[Landing::Unchanged]);
+        h.one(Event::Save { hold, message: message() });
+        assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })), &[Landing::Unchanged]);
         assert!(
             !h.facts().as_slice().contains(&Fact::Started { client: Token::new(1), op: Kind::IsAncestor }),
             "ineligible starts never compare"
@@ -1591,6 +1578,103 @@ fn commit_merged_head(h: &mut Harness, hold: Token, head: u8, parent: u8, merged
     };
     assert_eq!((checked_out, clean), (commit(merged), true));
     h.one(Event::Done { owner: hold, done: Done::Succeeded })
+}
+
+fn comparing_producer_base(saved: bool) -> (Harness, Token) {
+    let mut h = Harness::new(MERGES);
+    let mut spec = merge_spec();
+    spec.repositories[0].landing = Some(bytes(b"base"));
+    if saved {
+        spec.repositories[0].start = Start::Merge { branch: bytes(b"saved/1"), base: commit(7) };
+    }
+    let (hold, _) = h.prepare(1, spec);
+    h.next(hold, Done::Succeeded);
+    h.next(hold, Done::Succeeded);
+    h.next(hold, Done::Fetched { commit: commit(1) });
+    h.next(hold, Done::Fetched { commit: commit(7) });
+    let op = h.next(hold, Done::Succeeded);
+    let Op::IsAncestor { ancestor, commit: ours, .. } = op else {
+        panic!("a producer must compare its base before merging: {op:?}")
+    };
+    assert_eq!((ancestor, ours), (commit(7), commit(1)));
+    (h, hold)
+}
+
+#[test]
+fn a_producers_contained_saved_start_delivers_its_tree_without_a_second_parent() {
+    let (mut h, hold) = comparing_producer_base(true);
+    let Op::Fetch { want: Want::Branch { branch }, .. } = h.next(hold, Done::IsAncestor { contains: true }) else {
+        panic!("fetch push branch")
+    };
+    assert_eq!(&*branch, b"main");
+    let Op::CheckOut { commit: saved, clean, .. } = h.next(hold, Done::Fetched { commit: commit(4) }) else {
+        panic!("saved checkout")
+    };
+    assert_eq!((saved, clean), (commit(1), false));
+    h.one(Event::Done { owner: hold, done: Done::Succeeded });
+    let Op::Commit { parent, merging, .. } = io(h.one(Event::Push { hold, message: message() }), hold) else {
+        panic!("ordinary commit")
+    };
+    assert_eq!((parent, merging), (commit(1), None));
+    retry_push(h.next(hold, Done::Unchanged), commit(1), commit(1));
+    assert_eq!(
+        &*landings(h.one(Event::Done { owner: hold, done: Done::Succeeded })),
+        &[Landing::Landed { commit: commit(1) }]
+    );
+}
+
+#[test]
+fn a_producers_uncontained_base_still_leaves_a_conflicted_two_parent_merge() {
+    let (mut h, hold) = comparing_producer_base(false);
+    let Op::Merge { theirs, .. } = h.next(hold, Done::IsAncestor { contains: false }) else { panic!("merge base") };
+    assert_eq!(theirs, commit(7));
+    let files = Box::new([bytes(b"code")]);
+    let ready = h.one(Event::Done { owner: hold, done: Done::Conflicted { files } });
+    let Request::Prepared { prepared: Prepared::Ready { conflicts, .. }, .. } = ready else {
+        panic!("ready with conflicts")
+    };
+    assert_eq!(&*conflicts, &[crate::Conflicts { repository: 0, files: Box::new([bytes(b"code")]) }]);
+    let Op::Commit { parent, merging, .. } = io(h.one(Event::Push { hold, message: message() }), hold) else {
+        panic!("two parent commit")
+    };
+    assert_eq!((parent, merging), (commit(1), Some(commit(7))));
+}
+
+#[test]
+fn a_failed_producer_base_query_is_transient() {
+    let (mut h, hold) = comparing_producer_base(false);
+    assert_eq!(
+        h.one(Event::Done { owner: hold, done: failed(Fault::Refused) }),
+        Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient } }
+    );
+}
+
+#[test]
+fn a_producers_merge_start_with_its_base_contained_makes_no_merge() {
+    let (mut h, hold) = comparing_producer_base(false);
+    let Op::Fetch { want: Want::Branch { branch }, .. } = h.next(hold, Done::IsAncestor { contains: true }) else {
+        panic!("fetch landing")
+    };
+    assert_eq!(&*branch, b"base");
+    h.next(hold, Done::Fetched { commit: commit(7) });
+    let Request::Prepared { prepared: Prepared::Ready { .. }, .. } =
+        h.one(Event::Done { owner: hold, done: Done::Succeeded })
+    else {
+        panic!("ready without a merge")
+    };
+    let Op::Commit { parent, merging, .. } = io(h.one(Event::Push { hold, message: message() }), hold) else {
+        panic!("ordinary commit")
+    };
+    assert_eq!((parent, merging), (commit(1), None));
+    compares(h.next(hold, Done::Unchanged), commit(1), commit(7));
+    let Op::Push { commit: head, expected, .. } = h.next(hold, Done::IsAncestor { contains: false }) else {
+        panic!("guarded push")
+    };
+    assert_eq!((head, expected), (commit(1), Some(commit(1))));
+    assert_eq!(
+        &*landings(h.one(Event::Done { owner: hold, done: Done::Succeeded })),
+        &[Landing::Landed { commit: commit(1) }]
+    );
 }
 
 #[test]

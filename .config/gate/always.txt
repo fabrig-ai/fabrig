@@ -5,6 +5,7 @@ temper-client-world
 temper-docs
 temper-client-journeys
 temper-stage-one
+temper-playground temper/tests/playground/
 skein-oauth-world
 fabrig-boundary
 hearth-render-world hearth/

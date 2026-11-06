@@ -1,8 +1,8 @@
-//! The linked host's own sign-in answer must reach the return handshake.
+//! A press opens the sign-in's tab; its answer points it while the page holds.
 use super::*;
 use jig_client_protocol_wire::{VERSION, v19 as w};
 use skein_lib::{Duration, Reader};
-use temper_client_protocol_wire::{self as wire, v1 as f};
+use temper_client_protocol_wire as wire;
 
 fn exchange(host: &mut Host) -> (u32, Box<[u8]>) {
     let requests = host.requests();
@@ -16,8 +16,11 @@ fn exchange(host: &mut Host) -> (u32, Box<[u8]>) {
 }
 
 pub(super) fn linked() -> Host {
+    linked_at(b"/accounts/connect", Vec::new())
+}
+fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
     let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
-    host.start(b"/accounts/connect", Vec::new(), None);
+    host.start(path, records, None);
     host.requests();
     host.heard(Heard::StreamOpened);
     let mut served = List::with_capacity(2);
@@ -109,15 +112,15 @@ pub(super) fn linked() -> Host {
     host
 }
 
-fn waiting_for_return() -> (Host, Vec<Asked>, u32) {
+fn press_sign_in() -> (Host, Duties) {
     let mut host = linked();
     let button = node(&host, Role::Button, b"Continue with ChatGPT");
-    host.act(button, Act::Press);
-    host.requests();
+    let duties = host.report(Report::Act { node: button, act: Act::Press });
+    (host, duties)
+}
+fn answer_sign_in(host: &mut Host) -> Duties {
     host.client(jig_client::Event::Stored);
-    let (signing, _) = exchange(&mut host);
-    let pending = host.root.pages().connect_model().expect("flow").request.pending.as_ref().expect("own sign-in");
-    assert!(pending.name.is_some() && pending.outcome.is_none(), "own unanswered request");
+    let (signing, _) = exchange(host);
     let started = w::DocumentOutcome::AccountSignInStarted(
         w::OutcomeAccountSignInStarted::new(
             &w::CEILINGS,
@@ -126,68 +129,90 @@ fn waiting_for_return() -> (Host, Vec<Asked>, u32) {
         .expect("sign-in started"),
     );
     let outcome = w::Outcome::Document(
-        w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value: started }).expect("owner outcome"),
+        w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value: started }).expect("outcome"),
     );
     let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
     let answer = w::KeyedAnswer::FinalAnswer(owned(encoded(answer.measure(), |writer| answer.encode(writer))));
-    host.heard(Heard::Answered {
+    host.report(Report::Heard(Heard::Answered {
         exchange: signing,
         status: 200,
         body: encoded(answer.measure(), |writer| answer.encode(writer)),
         headers: Vec::new(),
-    });
-    let (asked, writes) = host.duties();
-    assert_eq!(writes, 2, "the sign-in erase and return save are separate batches");
-    assert!(asked.iter().any(|ask| matches!(ask, Asked::Save { .. })), "return record");
-    assert!(asked.iter().any(|ask| matches!(ask, Asked::Erase { .. })), "finished sign-in record");
-    assert!(host.navigate.is_none(), "return is acknowledged before navigation");
-    (host, asked, writes)
+    }))
+}
+#[test]
+fn the_press_opens_before_transport_and_the_answer_points_without_return() {
+    let (mut host, press) = press_sign_in();
+    assert_eq!(press.tab, [TabAct::Open { words: "Opening ChatGPT’s sign-in…".as_bytes().into() }]);
+    assert!(press.navigate.is_none());
+    let answer = answer_sign_in(&mut host);
+    assert_eq!(answer.tab, [TabAct::Point { to: ADDRESS.into() }]);
+    assert_eq!(answer.show, Some((b"/accounts/connect?provider=17&way=sign-in&source=43".as_slice().into(), true)));
+    assert!(answer.navigate.is_none());
+    assert!(!answer.asked.iter().any(|ask| matches!(ask, Asked::Exchange { .. })), "no Return exchange");
+    let settled = host.report(Report::Carried { reports: Vec::new(), writes: answer.writes });
+    assert!(settled.tab.is_empty());
+    assert!(!settled.asked.iter().any(|ask| matches!(ask, Asked::Exchange { .. })), "no saved Return");
+}
+#[test]
+fn a_refused_tab_never_points_from_the_answer() {
+    let (mut host, _) = press_sign_in();
+    host.report(Report::TabRefused);
+    let answer = answer_sign_in(&mut host);
+    assert!(answer.tab.is_empty());
+    assert!(answer.navigate.is_none());
 }
 
 #[test]
-fn the_linked_sign_in_answer_sends_a_return_before_leaving() {
-    let (mut host, _, writes) = waiting_for_return();
-    host.carried(Vec::new(), writes);
-    let (returning, body) = exchange(&mut host);
-    let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(&body)).expect("keyed return");
-    assert_eq!(keyed.version(), wire::CLIENT_VERSION);
-    let family = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request())).expect("family request");
-    assert_eq!(*family.scope(), w::Scope::Own);
-    let request = wire::decode_requesting(family.record(), &f::CEILINGS).expect("return record");
-    let f::Request::Return(request) = request.into_parts().request else { panic!("return request") };
-    assert_eq!(request.source(), 43);
-    assert_eq!(request.path(), b"/accounts/connect?provider=17&way=sign-in&source=43");
-    let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome: f::Outcome::Returning }).expect("returning");
-    let record = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts {
-            owner: w::Owner::Family(
-                w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).expect("forge family"),
-            ),
-            version: wire::CLIENT_VERSION,
-            record: encoded(answer.measure(), |writer| answer.encode(writer)),
-        },
-    )
-    .expect("family answer");
-    let answer = w::KeyedAnswer::FinalAnswer(record);
-    host.heard(Heard::Answered {
-        exchange: returning,
-        status: 200,
-        body: encoded(answer.measure(), |writer| answer.encode(writer)),
-        headers: Vec::new(),
-    });
-    host.requests();
-    assert_eq!(host.navigate.take().as_deref(), Some(ADDRESS));
+fn an_answer_saves_its_source_address_and_refusal_without_a_client_write() {
+    for refused in [false, true] {
+        let (mut host, _) = press_sign_in();
+        if refused {
+            host.report(Report::TabRefused);
+        }
+        let answer = answer_sign_in(&mut host);
+        let saves: Vec<_> = answer
+            .asked
+            .iter()
+            .filter_map(|ask| {
+                let Asked::Save { key, value } = ask else { return None };
+                (key.as_ref() == b"sign-in").then_some(value.as_ref())
+            })
+            .collect();
+        let expected = [if refused { b"143 ".as_slice() } else { b"043 ".as_slice() }, ADDRESS].concat();
+        assert_eq!(saves, [expected.as_slice()]);
+        assert_eq!(answer.writes, 1, "only jig's answer erase is counted");
+    }
 }
 
 #[test]
-fn a_return_whose_storage_fails_never_leaves_the_linked_host() {
-    let (mut host, asked, writes) = waiting_for_return();
-    let key = asked
-        .into_iter()
-        .find_map(|ask| if let Asked::Save { key, .. } = ask { Some(key) } else { None })
-        .expect("return save");
-    host.carried(vec![skein_ui_web::transport::Carried::Refused { key }], writes);
-    assert!(!host.requests().iter().any(|ask| matches!(ask, Asked::Exchange { .. })), "failed return has no exchange");
-    assert!(host.navigate.is_none(), "a failed return has no departure");
+fn start_gives_the_kept_sign_in_after_start_and_drops_malformed_values() {
+    for value in [b"143 https://issuer.example/visit".as_slice(), b"143", b"243 address", b"14294967296 address"] {
+        let record = skein_ui_web::store::Record { key: records::SIGN_IN_KEY.into(), value: value.into() };
+        let mut host = linked_at(b"/accounts/connect?provider=17&way=sign-in&source=43", vec![record]);
+        let form = &host.root.pages().connect_model().expect("Start opened the form").request;
+        let expected = if value == b"143 https://issuer.example/visit" {
+            Some(b"https://issuer.example/visit".as_slice())
+        } else {
+            None
+        };
+        assert_eq!(form.sign_in_address(host.root.client()), expected);
+        assert_eq!(host.root.pages().connect_model().expect("model page").tab_refused(), expected.is_some());
+        assert!(host.report(Report::Start).tab.is_empty(), "restoring never opens or points a tab");
+    }
+}
+#[test]
+fn keeping_a_sign_in_is_a_save_without_a_client_write() {
+    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
+    host.out.push(Request::KeepSignIn {
+        source: 43,
+        address: b"https://issuer.example/visit".as_slice().into(),
+        refused: false,
+    });
+    let duties = host.report(Report::Start);
+    assert_eq!(duties.writes, 0);
+    assert_eq!(duties.asked.len(), 1);
+    let Asked::Save { key, value } = &duties.asked[0] else { panic!("sign-in save") };
+    assert_eq!(key.as_ref(), records::SIGN_IN_KEY);
+    assert_eq!(value.as_ref(), b"043 https://issuer.example/visit");
 }

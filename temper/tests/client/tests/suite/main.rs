@@ -13,6 +13,7 @@ mod builders;
 mod call_line;
 mod change_panel;
 mod chat;
+mod chat_accept;
 mod chat_draft;
 mod choice;
 mod clearing;

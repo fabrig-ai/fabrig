@@ -755,7 +755,7 @@ merge, with both parents. Its outcomes, in smith's terms (smith's
 
 | The push | smith's delivery |
 |---|---|
-| landed in every repository with a change, or already landed by this hold's last push | delivered, naming each head |
+| landed in every repository with a change, or already landed by this hold's last push | delivered, each receipt `pushed <head> to branch <branch>; your checkout stays detached, as expected` |
 | nothing to push | nothing |
 | a branch moved, as a fast-forward cannot take it or its head is not the one expected | stale: the run ends, and the engine decides afresh |
 | a conflicted file still holds a marker | refused, naming the file |
@@ -769,6 +769,12 @@ delivered unchanged lands the save's commit, the delivery's title and body
 unused (worker.md, section 5). The head delivered names what is on the branch,
 and the coding charter's words say so (`../protocol/configuration.md`, 13.4's
 charter 2 row), since a run can't otherwise tell.
+
+A receipt says it in words, whatever the charter, so that a run that finds its
+checkout detached does not take a good delivery for a failure: its full head,
+the branch it landed on, and that a detached checkout is expected. A branch name
+that would take a receipt past its bound (512 bytes, smith's `Receipt`) leaves
+the branch's words out and keeps the rest.
 
 A push that lands is the result, even if the run was winding down. The
 answer carries what the run left on the forge (worker.md, 4.2), and the

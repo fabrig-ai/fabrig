@@ -1029,6 +1029,12 @@ fn the_chats_words_route_repository_edits_through_change_and_wait_for_landing() 
 }
 
 #[test]
+fn the_coders_words_name_which_task_is_its_change() {
+    let words = include_str!("../stock/coding.txt");
+    assert!(words.contains("message your change only in the question form. Your change is the task your brief's [Requested by task N] line names, never [This task: N]."));
+}
+
+#[test]
 fn the_coders_words_put_its_report_in_finish() {
     let words = include_str!("../stock/coding.txt");
     assert!(words.contains("Summarize the change in finish; message your change only in the question form."));

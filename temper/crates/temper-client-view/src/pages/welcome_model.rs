@@ -223,7 +223,7 @@ pub(super) fn step(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         }
         ModelStep::Away { .. } => {
             text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
-            sign_in_wait::waiting(b, root, w, bindings, &page.request, sign_in_wait::tab_refused(), text_per_node);
+            sign_in_wait::waiting(b, root, w, bindings, &page.request, sign_in_wait::tab_refused(page), text_per_node);
         }
         ModelStep::Finishing { .. } => {
             text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);

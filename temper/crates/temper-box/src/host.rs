@@ -50,6 +50,8 @@ pub struct Settings {
     /// Whole lines, with line feeds and no time, that open the box log (protocol/setup.md, 7.2).
     pub log_lines: Box<[Box<[u8]>]>,
     pub first_link: Option<FirstLink>,
+    /// How the first and fresh links reach stdout (temper/docs/design/protocol/setup.md, 7.2).
+    pub link_form: terminal::LinkForm,
     /// Whole untimed lines following the first block on stderr (protocol/setup.md, 7.2).
     pub after_block: Box<[u8]>,
     pub signals: Fd,
@@ -69,6 +71,7 @@ impl core::fmt::Debug for Settings {
             .field("data", &self.data)
             .field("log_lines", &self.log_lines)
             .field("first_link", &self.first_link)
+            .field("link_form", &self.link_form)
             .field("after_block_bytes", &self.after_block.len())
             .field("signals", &self.signals)
             .field("stdout", &self.stdout)
@@ -243,7 +246,7 @@ impl Service {
             .max(terminal::max_bytes(&steps))
             .max(Logs::max_notice(&steps, &settings.data))
             .max(terminal::failure_bytes(&steps, &settings.data))
-            .max(LINE_BYTES.checked_add(1).expect("URL LF"))
+            .max(terminal::LINK_LINE_BYTES)
             .max(u32::try_from(settings.after_block.len()).expect("startup lines"));
         let mut children = List::with_capacity(count);
         let mut bound_names = List::with_capacity(count);
@@ -267,6 +270,7 @@ impl Service {
         let capacity =
             io::operations(&bounds).expect("bounded operations").checked_mul(4).expect("queue capacity").max(64);
         let entries = count.checked_mul(2).expect("terminal entries").checked_add(1).expect("terminal entries").max(4);
+        let formatter = Formatter::new(settings.link_form);
         Ok(Self {
             io,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds },
@@ -286,7 +290,7 @@ impl Service {
             settings,
             children: children.into_boxed(),
             terminal: Terminal::new(stdout, stderr, entries),
-            formatter: Formatter::new(),
+            formatter,
             terminate_pending: false,
             failure: None,
             deferred: Queue::with_capacity(entries),

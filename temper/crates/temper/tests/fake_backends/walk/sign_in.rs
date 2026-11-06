@@ -127,7 +127,7 @@ fn ready_can_create(config: &Path, client: &Path) {
 }
 
 #[test]
-fn a_chatgpt_browser_return_on_the_fake_box_leaves_ready_able_to_create() {
+fn a_chatgpt_browser_tab_on_the_fake_box_leaves_ready_able_to_create() {
     let walk = Walk::owned("walk-browser-sign-in");
     walk.run_then(vec![Act::Now(Call::new(&["forge", "setup", "--key", "walk-here", "--json"]))], browser_sign_in);
     walk.scratch.remove();
@@ -292,19 +292,8 @@ impl Referee<NativeClient> for Depart<'_> {
         (!self.passed()).then_some(self.until)
     }
 }
-struct Arrive {
-    settled: bool,
-}
-impl Referee<crate::support::sign_in_browser::Visitor> for Arrive {
-    fn act(&mut self, _now: Time, _visitors: &mut [crate::support::sign_in_browser::Visitor]) {}
-    fn observe(&mut self, _now: Time, visitors: &[crate::support::sign_in_browser::Visitor]) {
-        self.settled = visitors.iter().all(Host::is_empty);
-    }
-    fn passed(&self) -> bool {
-        self.settled
-    }
-}
 fn browser_sign_in(config: &Path, client: &Path) {
+    const PAGE: &[u8] = b"Sign-in received. You can close this tab.\n";
     let document: serde_json::Value =
         serde_json::from_slice(&std::fs::read(config.join("temper.json")).expect("configuration")).expect("JSON");
     let engine = document
@@ -322,7 +311,7 @@ fn browser_sign_in(config: &Path, client: &Path) {
         address: &address,
     });
     world.spawn_with_fds(vec![root], || {
-        NativeClient::departing(
+        NativeClient::new(
             Settings {
                 engine: skein_io::Addr::Ip(engine),
                 directory: b"client".as_slice().into(),
@@ -333,16 +322,19 @@ fn browser_sign_in(config: &Path, client: &Path) {
             95,
             Start::Token,
         )
-        .expect("browser's departing root")
+        .expect("browser-bounded root")
     });
     let ended = world.run(&clock, WITHIN);
-    assert!(ended.procs.iter().all(Host::is_empty), "departed browser drained");
-    let mut visitor = crate::support::sign_in_browser::Visitor::new();
-    visitor.hand(&address.take().expect("browser departure address"));
-    let ended = real::run(vec![visitor], Arrive { settled: false }, &clock, WITHIN);
-    let visitor = &ended.procs[0];
-    let (status, location) = visitor.last_redirect().expect("come-back redirect");
-    assert_eq!(status, 303, "the engine sends the browser back");
-    assert!(location.ends_with(b"/welcome?at=ready"), "the return names Ready");
+    assert!(ended.procs.iter().all(Host::is_empty), "tab address reader drained");
+    let address = address.take().expect("sign-in tab address");
+    let mut issuer = browser_socket(&address);
+    let (status, location) = hop(&mut issuer, &address);
+    assert_eq!(status, 302, "fake issuer's callback");
+    let mut tab = browser_socket(&location);
+    let (status, _) = hop(&mut tab, &location);
+    assert_eq!(status, 200, "the sign-in tab ends on the listener's fixed page");
+    let mut body = vec![0; PAGE.len()];
+    tab.read_exact(&mut body).expect("listener page");
+    assert_eq!(body, PAGE);
     ready_can_create(config, client);
 }

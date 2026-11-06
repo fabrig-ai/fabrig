@@ -4,8 +4,8 @@ use jig_client::contract as c;
 use skein_ui::{EntryKind, Role};
 #[path = "host_tests_authorize.rs"]
 mod authorize;
-#[path = "host_tests_departure.rs"]
-mod departure;
+#[path = "host_tests_tab.rs"]
+mod tab;
 const KEY: &[u8] = b"private-host-key";
 const ADDRESS: &[u8] = b"http://127.0.0.1:9/authorize?state=test";
 fn fixture() -> Host {
@@ -34,6 +34,8 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
             | Request::Copy { .. }
             | Request::Fact { .. } => None,
         })
@@ -87,6 +89,8 @@ fn deliver_forges(host: &mut Host, forges: &temper_client_protocol_wire::v1::For
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
             | Request::Copy { .. }
             | Request::Fact { .. } => None,
         })
@@ -141,6 +145,8 @@ fn send(host: &mut Host, name: &[u8]) -> Token {
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
             | Request::Copy { .. }
             | Request::Fact { .. } => None,
         })

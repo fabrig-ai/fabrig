@@ -117,3 +117,18 @@ As the implementer's text asks, with: wall and CPU against the tier; and, plainl
 4. **Seeding the history without 16 live composer sends.** It helps only the composer's share. The one send from far back stays live. temper ctl from the world (temper/tests/client-browser/src/lib.rs has a ctl path) may not reach Tier::demo: if it can't, say so with what you tried.
 
 **Then the same verdict:** three whole-tier runs. All within 85 CPU s and no test past 60 is Done. Otherwise Question: with the same table, the per-process table, what each step saved, and the options; that one goes to the user.
+
+### 2026-11-06: retain the complete browser coverage and set a new measured browser-temper CPU budget (recommended), or authorize a separately scoped performance task to keep 85 s? Three complete passing runs used 128.618150, 141.214140 and 143.808163 CPU s against 85 s. (chat-reading-c/reading-browser-6, foreman chat-reading-c/reading-browser/foreman-6)
+
+Neither yet: this task completes the already-authorized performance investigation; the 85 s suite and 60 s test budgets stand.
+The latest Answer, “Over budget at 116 CPU s,” says: “Not the user's yet” and “In this order, measuring each alone, as before.”
+The report does not supply its required per-process measurements, generic find-cost repair, renderer investigation or history-seeding trial.
+The next run follows those four steps within their stated scope, preserving the acceptance and bodies’ bytes.
+“Give the per-process table for the long story in your report: temper/ui asks for it either way.”
+If a product fix needs files beyond the authorized scope, report a Question for temper/ui.
+Then run the specified three whole-tier measurements: “All within 85 CPU s and no test past 60 is Done. Otherwise Question:” with the required tables, savings and options.
+No budget increase or separately scoped performance task is pre-approved.
+
+2026-11-06 (temper/forge). **The user's rule, 2026-11-06: a plan's execution only ever runs the focused and fuzzy suites.** No after-landing tier runs during a plan: we run optimistically, and repair if after-landing flags. A new story in a slow tier is written and compiled, not run. This replaces my answer above, the foreman's, and this task's verdict: no `tools/tiers/run`, no whole-tier runs, no per-process measuring, no browser story run, and no budget question. Stop what you're measuring, and remove any temporary proxy or sampler. Keep a speed-up you've already committed only if it's whole and compiles; otherwise drop it. The stories stand: they passed in real Chromium in this branch's earlier runs. `heavy cargo nextest list --profile browser-temper -p temper-client-browser-world` holds their compile and their count.
+
+Finish: merge `origin/chat-reading-c/integration`; fmt, the old forms, clippy and the default-profile tests of the changed packages; remove the status clause your spec names; push; report Done. Say plainly at which commit the stories last ran in Chromium, and the last CPU figures (116 to 144 s against 85), for whoever reads after-landing. If after-landing flags the long-chat story's cost, temper/ui looks at the page's cost: it isn't this task's.
