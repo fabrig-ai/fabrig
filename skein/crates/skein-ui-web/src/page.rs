@@ -110,6 +110,10 @@ impl<'a> Page<'a> {
         self.words = words;
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "patch ordering keeps log state changes before the final measurements (ui-web.md, 7)"
+    )]
     pub fn apply(&mut self, patches: &[Patch], ops: &mut Vec<Op>) {
         if !patches.is_empty() {
             for (node, held) in &self.nodes {
@@ -155,6 +159,12 @@ impl<'a> Page<'a> {
                     let old_tag = semantic(&self.held(*node).element).tag.clone();
                     let held = self.nodes.get_mut(node).expect("held node");
                     if attribute.role == Role::Log {
+                        if held.made.attribute.states.as_slice().contains(&State::Busy)
+                            && !attribute.states.as_slice().contains(&State::Busy)
+                        {
+                            held.near_head = None;
+                            held.near_foot = None;
+                        }
                         if attribute.end_request.is_some() && attribute.end_request != held.made.attribute.end_request {
                             held.end_requested = true;
                             held.follow_log = true;
@@ -742,6 +752,7 @@ impl Page<'_> {
             return None;
         }
         let continues = held.made.attribute.states.as_slice().contains(&State::Continues);
+        let busy = held.made.attribute.states.as_slice().contains(&State::Busy);
         let at_end = top.saturating_add(viewport) >= height.saturating_sub(1) && !continues;
         if held.measured.is_some_and(|(before, _, _)| top < before) || at_end {
             held.end_requested = false;
@@ -753,16 +764,19 @@ impl Page<'_> {
         let foot = height.saturating_sub(top).saturating_sub(viewport);
         let zone = i64::from(viewport) * 3;
         if i64::from(top) * 2 >= zone {
-            held.near_head = None;
+            held.near_head = if busy { Some((top, height)) } else { None };
         }
         if !continues || i64::from(foot) * 2 >= zone {
-            held.near_foot = None;
+            held.near_foot = if busy { Some((foot, height)) } else { None };
         }
         let edge = if !held.made.attribute.bound {
             None
-        } else if i64::from(top) * 2 < zone && report_near(&mut held.near_head, top, height, viewport) {
+        } else if i64::from(top) * 2 < zone && report_near(&mut held.near_head, top, height, viewport, busy) {
             Some(LogEdge::Head)
-        } else if continues && i64::from(foot) * 2 < zone && report_near(&mut held.near_foot, foot, height, viewport) {
+        } else if continues
+            && i64::from(foot) * 2 < zone
+            && report_near(&mut held.near_foot, foot, height, viewport, busy)
+        {
             Some(LogEdge::Foot)
         } else {
             None
@@ -997,15 +1011,19 @@ impl Page<'_> {
 fn enabled(attribute: &skein_ui::Attribute) -> bool {
     !attribute.states.as_slice().contains(&State::Disabled)
 }
-fn report_near(reported: &mut Option<(i32, i32)>, distance: i32, height: i32, viewport: i32) -> bool {
-    if reported.is_none_or(|(last, at_height)| {
-        at_height != height || (i64::from(last) - i64::from(distance)) * 4 >= i64::from(viewport)
-    }) {
+fn report_near(reported: &mut Option<(i32, i32)>, distance: i32, height: i32, viewport: i32, busy: bool) -> bool {
+    // A height change can move the view without a person's scroll.
+    if busy && reported.is_some_and(|(_, at_height)| at_height != height) {
         *reported = Some((distance, height));
-        true
-    } else {
-        false
+        return false;
     }
+    let report = reported.map_or(!busy, |(last, at_height)| {
+        (!busy && at_height != height) || (i64::from(last) - i64::from(distance)) * 4 >= i64::from(viewport)
+    });
+    if report || reported.is_none() {
+        *reported = Some((distance, height));
+    }
+    report
 }
 fn shortcut_key(key: &[u8], code: &[u8]) -> Option<u8> {
     if key == b"\\" || code == b"Backslash" || code == b"IntlBackslash" {
