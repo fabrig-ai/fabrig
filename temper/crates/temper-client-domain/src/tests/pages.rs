@@ -9,6 +9,7 @@ mod chat_document;
 mod chat_sheet;
 mod chats;
 mod choice;
+mod composer;
 mod connect_model;
 mod delegation;
 mod goal;

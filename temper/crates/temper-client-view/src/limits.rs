@@ -44,23 +44,25 @@ impl Limits {
         let window_text =
             skein_ui::markdown::max_text_bytes(bytes)?.checked_add(window_structure.checked_mul(STRUCTURE_TEXT)?)?;
         // Thread projects at most `lines` pending words and live turns together.
-        // Each pending word has at most `text` bytes, with a paragraph per line.
-        let plain = receiving.text.checked_add(1)?.checked_mul(2)?.checked_add(8)?;
+        // Pending words total at most the thread's bytes, with a paragraph
+        // per newline. The shared structural room covers ten nodes a line.
+        let pending_nodes = skein_ui::markdown::max_nodes(bytes)?;
         // Each live turn has `live` bytes; prune_live bounds their total by
         // document_bytes. Price the smaller of these two independent bounds.
         let live = u64::from(receiving.long_text).checked_mul(u64::from(lines))?.min(receiving.document_bytes);
         let live = u32::try_from(live).ok()?;
-        let live_nodes = skein_ui::markdown::max_nodes(live)?.checked_add(lines.checked_mul(plain.max(10))?)?;
+        let live_nodes =
+            skein_ui::markdown::max_nodes(live)?.checked_add(pending_nodes)?.checked_add(window_structure)?;
         let live_text = skein_ui::markdown::max_text_bytes(live)?
             .checked_add(window_structure.checked_mul(STRUCTURE_TEXT)?)?
-            .checked_add(lines.checked_mul(receiving.text)?)?;
+            .checked_add(bytes)?;
         let turn = receiving.turn_text.max(receiving.long_text);
+        let request_nodes = receiving.long_text.checked_add(1)?.checked_mul(2)?;
         let turns = 2_u32
             // The conversation log.
             .checked_add(1)?
-            // Request: paragraph and text per line, words at most text bytes;
-            // region, message/who/says slots and the requester's paragraph/text.
-            .checked_add(receiving.text.checked_add(1)?.checked_mul(2)?)?
+            // Request: region, message/who/says slots and the requester's
+            // paragraph/text. Its variable words and nodes are priced once.
             .checked_add(6)?
             // End line: one paragraph and its text, including the report's words.
             .checked_add(2)?;
@@ -184,8 +186,14 @@ impl Limits {
             .checked_add(window_text)?
             .checked_add(live_text)?
             .checked_add(skein_ui::markdown::max_text_bytes(receiving.long_text)?)?
+            // One chat request and one composer, each at long_text.
+            .checked_add(receiving.long_text.checked_mul(2)?)?
             .checked_add(text.checked_mul(24)?)?;
-        let nodes = structural.checked_add(window_nodes)?.checked_add(live_nodes)?.checked_add(document)?;
+        let nodes = structural
+            .checked_add(request_nodes)?
+            .checked_add(window_nodes)?
+            .checked_add(live_nodes)?
+            .checked_add(document)?;
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,

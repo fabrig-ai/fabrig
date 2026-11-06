@@ -89,6 +89,7 @@ pub(crate) fn frame_fields(value: &w::Me, limits: &Limits) -> Result<c::Me, w::P
         providers_cut: value.providers_cut(),
         key_bytes: value.key_bytes(),
         redirect_bytes: value.redirect_bytes(),
+        words_bytes: value.words_bytes(),
         party: frame_party_fields(value.party(), limits)?,
         projects: list0,
         needs: needs_fields(value.needs()),

@@ -94,6 +94,7 @@ impl Component {
                 self.read_response(
                     exchange,
                     crate::translate::reads::answer(&what, answer, &self.settings.models, &env.limits.wire),
+                    &env.limits.wire,
                 );
             }
             waiting @ Waiting::ApplicationRead { .. } => match answer {
@@ -146,7 +147,7 @@ impl Component {
                     },
                     None => Ok(crate::translate::reads::none(core::reads::Why::Unknown, &env.limits.wire)),
                 };
-                self.read_response(exchange, answer);
+                self.read_response(exchange, answer, &env.limits.wire);
             }
             Waiting::Authorize { .. }
             | Waiting::Core { .. }
@@ -166,7 +167,7 @@ impl Component {
             }
         }
     }
-    fn read_response(&mut self, exchange: Token, answer: Result<w::ReadAnswer, w::Problem>) {
+    fn read_response(&mut self, exchange: Token, answer: Result<w::ReadAnswer, w::Problem>, limits: &w::Limits) {
         let Some(owner) = self.owner(exchange) else { return };
         match answer {
             Ok(value) => {
@@ -174,7 +175,7 @@ impl Component {
                 value.encode(&mut bytes).expect("measured read answer");
                 self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::Record(bytes.finish()));
             }
-            Err(_) => self.connections.get_mut(&owner).expect("exchange owner").close(),
+            Err(_) => self.respond(exchange, routes::read_none(core::reads::Why::Malformed, limits)),
         }
     }
 }
