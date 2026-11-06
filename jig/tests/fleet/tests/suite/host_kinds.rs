@@ -272,7 +272,7 @@ fn a_worker_refused_for_its_agent_hosts_nothing() {
     let limits = jig_fleet_world::LIMITS;
     let mut domain = waiting_worker(limits);
     let bounds = fleet::Bounds { turns: 7, ..jig_fleet_world::fixtures::bounds() };
-    assert_eq!(
+    assert!(matches!(
         step(
             &mut domain,
             limits,
@@ -288,9 +288,9 @@ fn a_worker_refused_for_its_agent_hosts_nothing() {
                     hosting: Box::new([]),
                 },
             }
-        ),
-        vec![Request::Refuse { channel: Token::new(5) }]
-    );
+        ).as_slice(),
+        [Request::Refuse { channel, .. }] if *channel == Token::new(5)
+    ));
     assert_eq!(
         domain.hello_refusals().as_slice()[0].why,
         fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Turns { charter: 1 } }
@@ -380,7 +380,7 @@ fn startup_and_hello_check_only_the_charters_for_the_host_kind() {
             },
         );
         if let Some(why) = expected {
-            assert_eq!(requests, vec![Request::Refuse { channel }]);
+            assert!(matches!(requests.as_slice(), [Request::Refuse { channel: actual, .. }] if *actual == channel));
             assert_eq!(domain.hello_refusals().as_slice()[0].why, fleet::HelloRefusal::Agent { why });
         } else {
             assert!(requests.is_empty());

@@ -1184,7 +1184,8 @@ a world's loop and the browser tier's run it.
 - **What it does,** a step at a time: go to an address; press; type a
   field's whole value; send, as Enter in a field that submits on enter;
   see something, within a time; see it gone, within a time; reload;
-  pause.
+  pause; say a log's edge is near (section 6), on the tree face alone,
+  since in a browser a person scrolls and the page part says it.
 - **What it reports:** its next act on a node's id, a navigation or a
   reload; that it waits until the tree changes or a time passes; that it
   is done; or that it failed, at which step and why ("no button named
@@ -1217,9 +1218,6 @@ to 7 and 11 settle.
   several, a tree grid. Each waits for an application that needs it, and
   comes by the light path (4.3) where it maps one to one.
 - **Right-to-left text,** for section 19's question to be settled.
-- **A log's head near:** an act of a log's saying that its head has come
-  near the view, so that earlier lines load by scrolling rather than on a
-  press. It waits for `temper/docs/design/draft/chat-reading.md`, 5.
 - **An item's own blocks:** a line or a paragraph under a list's item
   ends the list (section 10), so one list written with them is several
   on the page, its numbers still as written. Read into the item, one list

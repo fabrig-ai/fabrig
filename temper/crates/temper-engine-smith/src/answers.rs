@@ -146,9 +146,18 @@ fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) 
 }
 
 fn compare_bounded(read: &Result<api::Answer, api::Error>, cap: usize) -> HostAnswer {
+    if read == &Err(api::Error::TooLarge) {
+        let mut text = Text::new();
+        text.add(b"This comparison is too large to return whole. Its commit ids were read; another id won't help. Never retry with a changed or guessed id.\n")
+            .expect("compare refusal");
+        compare_contents(&mut text).expect("compare contents");
+        text.add(b"Which bound was exceeded is unknown.\n").expect("compare bounds unknown");
+        compare_paged_recovery(&mut text).expect("compare recovery");
+        return clipped_refusal(text, cap);
+    }
     let mut count = Text::counter();
     let error = forge_read(&mut count, read, b"read_compare").expect("counting compare");
-    if count.len <= cap && read != &Err(api::Error::TooLarge) {
+    if count.len <= cap {
         let mut text = Text::new();
         if forge_read(&mut text, read, b"read_compare").is_ok()
             && let Ok(answer) = text.finish(error)
@@ -1215,7 +1224,16 @@ fn forge_read(text: &mut Text, read: &Result<api::Answer, api::Error>, tool: &[u
 }
 
 fn compare_recovery(text: &mut Text) -> Result<(), Problem> {
-    text.add(b"read_compare returns a whole comparison, with no pages. Files and commits each must fit forge.client.rows; decoded answer bytes must fit forge.client.answer_bytes.\nFor an existing pull, use read_pull to get its head, then read_pull_files with that head and page=1; advance page while more follows. Pull-file sides must fit whole too. Otherwise, or if a pull-file page is too large, use read_file to list directories at both endpoints, then read selected files at each endpoint within max_bytes.")
+    compare_contents(text)?;
+    compare_paged_recovery(text)
+}
+
+fn compare_contents(text: &mut Text) -> Result<(), Problem> {
+    text.add(b"read_compare returns a whole comparison, with no pages. Its files and commits each must fit forge.client.rows; both whole sides of every changed file must fit forge.client.answer_bytes.\n")
+}
+
+fn compare_paged_recovery(text: &mut Text) -> Result<(), Problem> {
+    text.add(b"For an existing pull, use read_pull to get its head, then read_pull_files with that head and page=1; advance page while more follows. Pull-file sides must fit whole too. Otherwise, or if a pull-file page is too large, use read_file to list directories at both endpoints, then read selected files at each endpoint within max_bytes.")
 }
 
 fn answer_configuration(text: &mut Text) -> Result<(), Problem> {

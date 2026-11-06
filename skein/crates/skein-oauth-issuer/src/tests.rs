@@ -6,6 +6,7 @@
 mod authorization;
 mod bounds;
 mod documents;
+mod public;
 mod settings;
 mod token;
 
@@ -50,7 +51,7 @@ fn limits() -> Limits {
 fn settings() -> Settings {
     let mut clients = List::with_capacity(2);
     clients
-        .push(Client { id: boxed(b"client"), secret: secret(b"secret"), redirect_uri: boxed(REDIRECT) })
+        .push(Client { id: boxed(b"client"), secret: Some(secret(b"secret")), redirect_uri: boxed(REDIRECT) })
         .expect("client slot");
     Settings {
         issuer: boxed(b"https://issuer.example"),

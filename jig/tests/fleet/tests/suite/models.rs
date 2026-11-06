@@ -106,12 +106,25 @@ fn a_declared_models_smaller_window_or_output_refuses_hello() {
         (MODEL_WINDOW, MODEL_OUTPUT - 1, AgentShortfall::Output { charter: MODEL_CHARTER, model: 0 }),
     ] {
         let mut fleet = Fleet::new();
-        let mut bounds = model_bounds(&[b"main"]);
-        bounds.models[0].window = window;
-        bounds.models[0].output = output;
+        let mut bounds = model_bounds(&[b"alternative", b"main"]);
+        let model = bounds.models.iter_mut().find(|model| model.name.as_ref() == b"main").expect("declared main model");
+        model.window = window;
+        model.output = output;
+        let figures = match why {
+            AgentShortfall::Window { .. } => {
+                fleet::Figures { required: u64::from(MODEL_WINDOW), offered: u64::from(window) }
+            }
+            AgentShortfall::Output { .. } => {
+                fleet::Figures { required: u64::from(MODEL_OUTPUT), offered: u64::from(output) }
+            }
+            _ => unreachable!("window or output fixture"),
+        };
         assert_eq!(
             fleet.send(Event::Hello { worker: 0, channel: FIRST, hello: hello(bounds) }),
-            vec![Request::Refuse { channel: FIRST }]
+            vec![Request::Refuse {
+                channel: FIRST,
+                hello: Some(fleet::HelloRefused { why: HelloRefusal::Agent { why }, figures: Some(figures) })
+            }]
         );
         assert_eq!(fleet.domain.hello_refusals().get(0).expect("refused hello").why, HelloRefusal::Agent { why });
     }

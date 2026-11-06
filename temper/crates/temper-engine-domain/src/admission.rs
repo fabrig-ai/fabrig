@@ -136,6 +136,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Relayed { .. }
             | forge::Event::StartConflicted { .. }
             | forge::Event::StepChange { .. }
+            | forge::Event::SavedWork { .. }
             | forge::Event::ReleaseChange { .. }
             | forge::Event::SettleEffects { .. }
             | forge::Event::Release { .. }

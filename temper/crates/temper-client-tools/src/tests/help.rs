@@ -288,6 +288,7 @@ const USAGES: &[&[u8]] = &[
     b"task take TASK [--key KEY]\n",
     b"task hand-back TASK [--key KEY]\n",
     b"task notes TASK --project PROJECT [--after CURSOR]\n",
+    b"project make NAME --key KEY\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -592,4 +593,34 @@ fn task_answer_help_says_a_person_task_may_ask_for_less() {
     assert!(text.contains("a person task may ask for less"));
     let help = fixtures::help(Some(jig::rows::ANSWER_AT));
     assert!(skein_lib::bytes::find(&help, b"a person task may ask for less").is_some());
+}
+
+#[test]
+fn public_reading_walk_names_every_figure_and_visibility_remedy() {
+    let page = temper_docs::find(b"open-public-reading").expect("public reading walk");
+    assert_eq!(page.kind, temper_docs::Kind::Walk);
+    assert!(temper_docs::find(b"index").unwrap().text.contains("temper help open-public-reading"));
+    assert!(temper_docs::find(b"project").unwrap().text.contains("temper help open-public-reading"));
+    for words in [
+        "clients.public.reads",
+        "clients.public.rate",
+        "clients.public.rate_burst",
+        "clients.public.bytes",
+        "clients.public.bytes_burst",
+        "clients.public.answer_bytes",
+        "clients.public.max_age",
+        "clients_http.public_calls",
+        "core.public.goals",
+        "core.public.ended",
+        "core.public.lines",
+        "core.public.depth",
+        "engine.limits.overrides",
+        "restart",
+        "project amend PROJECT --visibility public --key KEY",
+        "project show PROJECT",
+        "/public/projects/",
+        "--visibility private",
+    ] {
+        assert!(page.text.contains(words), "walk must name {words}");
+    }
 }

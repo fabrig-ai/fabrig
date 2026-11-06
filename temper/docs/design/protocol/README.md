@@ -1080,6 +1080,18 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   the worker links: jig's link backs the redials off, and a repeat of
   the same refusal prints nothing. The sign-in link stays on stdout
   (section 4).
+
+  The engine says why a hello is refused (jig's `domain/engine.md`,
+  section 8): the refusal's text, at most 256 bytes, is the fleet's reason
+  in words, and the engine writes the same words on its own stderr,
+  `temper serve: hello refused channel=<n>: <words>`. An agent's shortfall
+  reads as a start's problem for it does, after its charter and model
+  where it has them (`charter 3: needs 64 turns; the agent's
+  profile.policy.max_turns allows 32`), so a charter set after the start,
+  which no start's check saw, says the same. A refusal the fleet gives no
+  reason for reads `not admitted`. A repeat of the last words prints
+  nothing: a worker redials for good, and one line says it until the words
+  change.
 - **Each line's address is its listener's bound one:** the clients'
   server keeps its own, as the sign-in link reads it; the workers'
   routing keeps the one io's `Listening` event gives; and the webhooks'

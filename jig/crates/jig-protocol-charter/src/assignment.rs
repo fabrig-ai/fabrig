@@ -10,8 +10,13 @@ use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use skein_lib::{Decimal, List};
 
-/// Maximum contract text and field bytes (jig/docs/design/domain/hosts.md, 8).
+/// Maximum contract text and field bytes other than a change's `body`
+/// (jig/docs/design/domain/hosts.md, 8).
 pub const CONTRACT_TEXT_MAX: u32 = 1024;
+/// Maximum bytes of a change's `body`, the producer's report: its title and
+/// framing keep room within the agent's outcome
+/// (jig/docs/design/domain/hosts.md, 8).
+pub const CHANGE_BODY_MAX: u32 = 3584;
 /// Delivery requires passing checks (jig/docs/design/domain/hosts.md, 8).
 pub const CONTRACT_CHECKS_MUST_PASS: bool = true;
 /// Every run can wait (jig/docs/design/domain/hosts.md, 8.1).
@@ -118,7 +123,7 @@ fn contract(value: tasks::Contract) -> Option<Contract> {
                 checks_must_pass: CONTRACT_CHECKS_MUST_PASS,
                 fields: Box::new([
                     FieldRule { name: Box::from(&b"title"[..]), max: words.min(CONTRACT_TEXT_MAX) },
-                    FieldRule { name: Box::from(&b"body"[..]), max: words.min(CONTRACT_TEXT_MAX) },
+                    FieldRule { name: Box::from(&b"body"[..]), max: words.min(CHANGE_BODY_MAX) },
                 ]),
             }),
         },
