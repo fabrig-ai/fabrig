@@ -74,3 +74,17 @@ The merge conflicts with generated-fixture refresh commit `09a4d1a2e4`; resolve 
 - Regenerate `temper/docs/design/client/journeys/welcome-playground/recording` with `temper-client-journeys again welcome-playground` through heavy, using the combined code and configured Chromium. Main refreshed it after removing Return (`f326d63d48`); preserve that behavior and the expanded Me document.
 - Let the journey tool regenerate any resulting pages; do not splice generated recordings or state hashes by hand.
 - Verify Story A’s native replay and `temper-playground`’s `story_a_start_makes_its_project_and_adopts_widget`, plus the regenerated journey’s replay. Report regeneration commands and resulting generated-file changes.
+
+## Rebase (2026-11-06, step merge, foreman long-words/me-words/foreman-2)
+
+rebase preserving main’s configuring changes and regenerate Story A from the combined code.
+The conflict is in `temper/tests/playground/tests/fixtures/story-a.log`.
+Main refreshed this recording in `189d163c56` (configuring instructions) and merge `84528e2ea6`; branch commit `58ab2c977c` refreshed it for `Me.words_bytes`.
+Preserve both main’s behavior and the new `Me.words_bytes` field.
+Regenerate the conflicting recording; do not splice log entries or state hashes by hand:
+`SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`
+Verify its native replay:
+`heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_kept_log_replays_natively)'`
+Also verify the startup consumer:
+`heavy cargo nextest run -p temper-playground --lib -E 'test(story_a_start_makes_its_project_and_adopts_widget)'`
+Set `TEMPER_BUNDLE=none` for these commands. Report the regeneration command and resulting generated-file changes.
