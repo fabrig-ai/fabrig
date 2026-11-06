@@ -8,6 +8,7 @@ use skein_ui::Role;
 use std::{
     fs,
     path::{Path, PathBuf},
+    process::Command,
 };
 use temper_client_browser_world::{WITHIN, chromium};
 use temper_playground::{programs, story};
@@ -99,10 +100,16 @@ fn download_size(directory: &Path) -> (u64, u64) {
         let (bytes, gzip) = if entry.file_type().expect("file type").is_dir() {
             download_size(&entry.path())
         } else {
-            let bytes = fs::read(entry.path()).expect("bundle file");
-            let mut out = vec![0; skein_http::gzip::bound(bytes.len()).expect("gzip bound")];
-            let size = skein_http::gzip::encode(&bytes, &mut out).expect("gzip within its bound");
-            (u64::try_from(bytes.len()).expect("file size"), u64::try_from(size).expect("gzip size"))
+            let bytes = entry.metadata().expect("bundle file size").len();
+            // This measures the static download; compression is a tool, outside the code under test
+            // (skein/docs/foundation/testing-strategy.md, 8; temper/docs/design/playground.md, 9).
+            let gzip = Command::new("gzip")
+                .args(["--no-name", "--stdout"])
+                .arg(entry.path())
+                .output()
+                .expect("gzip is required to measure the compressed download");
+            assert!(gzip.status.success(), "gzip: {}", String::from_utf8_lossy(&gzip.stderr));
+            (bytes, u64::try_from(gzip.stdout.len()).expect("gzip size"))
         };
         raw += bytes;
         compressed += gzip;

@@ -3,7 +3,7 @@ use crate::{Cursor, KeptMap, Store, pages, restore};
 use alloc::boxed::Box;
 use restore::{Arithmetic, Cause, Failure, RangeFailure, WalkFailure};
 use skein_kv::Range;
-use skein_lib::{List, Queue, Token};
+use skein_lib::{List, Queue, Token, length::len_u64};
 
 fn cursor(store: &Store, map: KeptMap, intervals: &[Range], after: Option<&Cursor>) -> Result<(), Failure> {
     if let Some(after) = after {
@@ -30,9 +30,8 @@ pub(crate) fn past(key: &[u8]) -> Result<Box<[u8]>, Failure> {
 }
 
 pub(crate) fn row_bytes(store: &Store, row: &skein_kv::Row) -> Result<u64, Failure> {
-    let failure = Failure::at(Cause::Arithmetic(Arithmetic::RowBytes), restore::site(store, &row.key));
-    let key = u64::try_from(row.key.len()).ok().ok_or(failure.clone())?;
-    let value = u64::try_from(row.value.len()).ok().ok_or(failure.clone())?;
+    let key = len_u64(row.key.len());
+    let value = len_u64(row.value.len());
     let size = key.checked_add(value);
     size.ok_or(Failure::at(Cause::Arithmetic(Arithmetic::RowBytes), restore::site(store, &row.key)))
 }

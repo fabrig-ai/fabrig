@@ -675,6 +675,11 @@ construction, never by a person deleting a copy.
 
 ## 7. Open questions
 
+- **A stored default that reads as named:** a store from when Create
+  recorded a task's default holds that default as a choice, so its task
+  waits for it as named until it is amended or closed, and a configuring
+  chat has no chooser to amend it by. Default: no migration before v0.1.0,
+  as the request `first-usable-model` of 2026-11-06 allows; a fresh box.
 - **Pinning the model a task took:** a person who picks the model a task
   given no choice already shows sends no change, since the client's draft
   equals what it shows, so the task stays free to take another when it

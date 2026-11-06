@@ -43,10 +43,7 @@ pub(crate) fn call(service: &Service, route: Route, access: Access, body: &[u8],
     }
     let mut reachable = false;
     for (id, row) in &service.repositories {
-        if let Some(full) = reads::full(row)
-            && full == route.repository
-            && access.reaches(service, *id)
-        {
+        if reads::full(row) == route.repository && access.reaches(service, *id) {
             reachable = true;
         }
     }

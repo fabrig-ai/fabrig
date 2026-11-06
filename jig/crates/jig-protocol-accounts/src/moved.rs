@@ -3,7 +3,7 @@ use crate::v1;
 use alloc::boxed::Box;
 use jig_domain_accounts::{DISPLAY, SUBJECT};
 use skein_codec::Reason;
-use skein_lib::{Reader, Secret, Writer, bytes};
+use skein_lib::{Reader, Secret, Writer, bytes, length::len_u64};
 use skein_oauth::{Limits, SavedToken};
 
 /// The application's name, in bytes (nonempty).
@@ -86,7 +86,7 @@ pub fn encode(moved: &Moved, limits: &Limits) -> Result<Secret, Unread> {
 
 /// Decodes a whole file, checking its size before reading or allocating parts.
 pub fn decode(input: &[u8], limits: &Limits) -> Result<Moved, Unread> {
-    if u64::try_from(input.len()).or(Err(Unread::TooLarge))? > bound(limits) {
+    if len_u64(input.len()) > bound(limits) {
         return Err(Unread::TooLarge);
     }
     let value = match v1::Moved::decode(&wire_limits(limits), &mut Reader::new(input)) {

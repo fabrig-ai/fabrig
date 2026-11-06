@@ -774,6 +774,10 @@ sources in its holder's order. temper configures the LLM providers
   elsewhere takes its secrets' directory with its store, since its
   forges' records are there, or sets up and connects its forges
   again.
+- **A login command that finds its box.** Typed by hand, `temper
+  program-login NAME` reads the directories its environment gives, not a box's
+  own. The pages print the box's whole command (`../client/README.md`, 4.6), and
+  the command stays as it stands. Default: so.
 - **A second program.** `temper program-login` signs in the agent's
   one program, Claude Code. Default: it takes `--program ADAPTER` once
   smith's agent adapts a second (smith's `protocol/programs.md`).

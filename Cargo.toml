@@ -61,7 +61,6 @@ members = [
     "skein/testing/skein-conformance",
     "skein/testing/skein-browser",
     "skein/testing/skein-echo-client",
-    "skein/crates/skein-fake-machine",
     "skein/testing/skein-fake-channel",
     "skein/testing/skein-protocol-kit",
     "skein/testing/skein-json-kit",
@@ -71,15 +70,6 @@ members = [
     "skein/testing/skein-forge-kit",
     "skein/testing/skein-fake-person",
     "skein/testing/skein-fake-person-browser",
-    "skein/crates/skein-fake-oauth",
-    "skein/crates/skein-fake-checkout",
-    "skein/crates/skein-fake-forge-domain",
-    "skein/crates/skein-fake-forge-forgejo",
-    "skein/crates/skein-fake-forge-github",
-    "skein/crates/skein-fake-forge-http",
-    "skein/crates/skein-fake-llm-domain",
-    "skein/crates/skein-fake-llm-protocol",
-    "skein/crates/skein-fake-peers",
     "skein/testing/skein-heap",
     "skein/testing/skein-scratch",
     "skein/testing/skein-throwaway-forgejo",
@@ -359,8 +349,6 @@ publish = false
 
 [workspace.dependencies]
 skein-forge-conformance = { path = "skein/testing/skein-forge-conformance" }
-skein-forge-machine-world = { path = "skein/tests/forge/machine" }
-skein-forge-client-world = { path = "skein/tests/forge/client" }
 skein-forge-connection = { path = "skein/crates/skein-forge-connection" }
 skein-throwaway-forgejo = { path = "skein/testing/skein-throwaway-forgejo" }
 skein-fake-person-browser = { path = "skein/testing/skein-fake-person-browser" }
@@ -411,7 +399,6 @@ skein-echo-domain = { path = "skein/examples/echo/domain" }
 skein-echo-protocol = { path = "skein/examples/echo/protocol" }
 skein-echo-service = { path = "skein/examples/echo/service" }
 skein-echo-client = { path = "skein/testing/skein-echo-client" }
-skein-browser-world = { path = "skein/tests/browser" }
 skein-fake-machine = { path = "skein/crates/skein-fake-machine" }
 skein-fake-channel = { path = "skein/testing/skein-fake-channel" }
 skein-protocol-kit = { path = "skein/testing/skein-protocol-kit" }
@@ -435,8 +422,6 @@ rustls = { version = "=0.23.41", default-features = false, features = ["ring", "
 rustls-pki-types = { version = "1.15" }
 smith-transcript-patches = { path = "smith/tests/transcript-patches" }
 smith-fake-claude = { path = "smith/tests/fake-claude" }
-skein-tls-world = { path = "skein/tests/tls" }
-skein-llm-world = { path = "skein/tests/llm" }
 smith-host-domain = { path = "smith/crates/smith-host-domain" }
 smith-inline-agent = { path = "smith/crates/smith-inline-agent" }
 smith-local-domain = { path = "smith/crates/smith-local-domain" }
