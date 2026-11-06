@@ -1,3 +1,72 @@
 draft = "jig-world-cost"
 repo = "fabrig"
 sources = ["jig/docs/plan/jig-world-cost/inputs/request.md", "jig/testing/jig-core-kit/src/conformance.rs", "jig/testing/jig-core-kit/src/oracle.rs", "jig/testing/jig-test-store-files/src/store/readback.rs", "jig/crates/jig-protocol-store/src/pages/reader.rs", "jig/crates/jig-protocol-store/src/retained.rs", "jig/tests/core/tests/suite/faults.rs", "jig/docs/development/debt/D034-world-replay-cost.md", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "focused-cuts"
+title = "The core world's five sweeps move under fuzzy, and focused keeps cuts chosen for why"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/testing.md, 5"
+
+[[part]]
+id = "stock-room"
+title = "One world at Small's bound stays in focused, and Standard's drive goes to fuzzy"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/testing.md, 9"
+
+[[part]]
+id = "observer-view"
+title = "The core observer makes a store view only for a reader"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/testing.md, 5"
+
+[[part]]
+id = "oracle-reads"
+title = "The restart oracle walks the store twice, not four times, and a walk asks for pages"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 15"
+
+[[part]]
+id = "root-checks"
+title = "The channel referee formats the roots where a grant can arrive, and at every step in fuzzy"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/channel.md, 12"
+
+[[slice]]
+id = 1
+story = "Focused crashes a core story after a few commits named for why, and fuzzy sweeps every commit of the same five stories with the same checks"
+parts = ["focused-cuts"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A world at Small's bound answers every request and restarts in focused, and Standard's whole room stays under its heap ceiling in fuzzy"
+parts = ["stock-room"]
+walk = false
+
+[[slice]]
+id = 3
+story = "An event or commit that reads no row makes no store view, and every adopter's world behaves as it did"
+parts = ["observer-view"]
+walk = false
+
+[[slice]]
+id = 4
+story = "Every story still ends with its cold restart, reading the store once a side, and a walk by pages returns what a walk by rows did"
+parts = ["oracle-reads"]
+walk = false
+
+[[slice]]
+id = 5
+story = "A grant's value in a root's state is still caught where a grant arrives and at the story's end, and at every step in fuzzy"
+parts = ["root-checks"]
+walk = false
