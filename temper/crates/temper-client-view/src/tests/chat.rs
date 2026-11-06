@@ -467,6 +467,55 @@ fn the_end_goes_when_the_turn_commits() {
     assert_eq!(fixtures::find(&tree(&thread), Role::Status, "▍".as_bytes()), None);
 }
 
+#[test]
+fn a_committed_redraw_keeps_the_nodes_of_the_words_being_read() {
+    use fixtures::first_run as run;
+    const WORDS: &[u8] = b"First.\n\nSecond.\n\nThird.";
+    let limits = fixtures::tree_limits();
+    let mut patches = skein_lib::Queue::with_capacity(limits.patches);
+    let mut next = 0;
+    let mut thread = provisional_with_text(WORDS);
+    let mut live = tree(&thread);
+    thread.run(&c::RunState { task: TASK, attempt: None, committed_turn: TURN, writing: None, call: None }, None);
+    assert_eq!(tree(&thread).nodes(), live.nodes(), "a run's end alone redraws nothing");
+    skein_ui::diff(&skein_ui::Tree::new(limits.nodes), &mut live, &limits, &mut next, &mut patches);
+    while patches.pop().is_some() {}
+    let says = styled(&live, crate::look::SAYS);
+    let end = styled(&live, crate::look::WRITING_END);
+    let mark = live.nodes()[end].id;
+    let turn = live.nodes()[styled(&live, crate::look::TURN)].id;
+    let mut committed =
+        tree(&conversation_turn(&[run::message(c::Speaker::Assistant, &[c::Block::Text(run::text(WORDS))])], false));
+    skein_ui::diff(&live, &mut committed, &limits, &mut next, &mut patches);
+    assert_eq!(committed.nodes()[styled(&committed, crate::look::TURN)].id, turn, "the turn's slot stays");
+    for word in subtree(&live, says) {
+        if word.id != mark && !subtree(&live, end).contains(word) {
+            assert!(committed.find(word.id).is_some(), "a word's node was replaced");
+        }
+    }
+    while let Some(patch) = patches.pop() {
+        match patch {
+            skein_ui::Patch::Remove { node } => {
+                for word in subtree(&live, says) {
+                    if word.id != mark && !subtree(&live, end).contains(word) {
+                        assert_ne!(node, word.id, "a word's node was removed");
+                    }
+                }
+            }
+            skein_ui::Patch::Insert { parent, .. } => {
+                for word in subtree(&committed, styled(&committed, crate::look::SAYS)) {
+                    assert_ne!(parent, word.id, "nodes were inserted under the words");
+                }
+                assert_ne!(parent, committed.nodes()[styled(&committed, crate::look::SAYS)].id);
+            }
+            skein_ui::Patch::Move { .. }
+            | skein_ui::Patch::Text { .. }
+            | skein_ui::Patch::Attribute { .. }
+            | skein_ui::Patch::Value { .. } => {}
+        }
+    }
+}
+
 // Compare the shell-visible nodes, discounting only the live end and its size.
 fn said_without_end(tree: &skein_ui::Tree) -> List<skein_ui::Made> {
     let says = styled(tree, crate::look::SAYS);
