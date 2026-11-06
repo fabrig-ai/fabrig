@@ -8,6 +8,7 @@ use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::{Hello, Hosting, Phase};
+use jig_domain_link::{JobBound, JobKind};
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use jig_test_domain as root;
@@ -166,12 +167,8 @@ fn an_agents_delegate_naming_a_job_is_refused() {
 fn a_connector_procedure_programmed_with_an_undeclared_job_hears_its_step_refused() {
     let seed = 906;
     let (mut configuration, limits) = jig_core_world::faults::plan_fixture(seed);
-    configuration.core.jobs = Box::new([jig_domain_host::JobBound {
-        kind: jig_domain_host::JobKind(7),
-        spec: 64,
-        result: 32,
-        deadline: Duration::from_secs(60),
-    }]);
+    configuration.core.jobs =
+        Box::new([JobBound { kind: JobKind(7), spec: 64, result: 32, deadline: Duration::from_secs(60) }]);
     configuration.first.procedures[0].actions = Box::new([
         connector::ProcedureAction::Job { kind: 9, spec: Box::new([0; 64]), deadline: Duration::from_secs(60) },
         connector::ProcedureAction::Finish { result: connector::ProcedureResult::Succeeded },
@@ -205,8 +202,8 @@ fn a_connector_procedure_programmed_with_an_undeclared_job_hears_its_step_refuse
     );
 }
 
-fn bound(kind: u32) -> host::JobBound {
-    host::JobBound { kind: host::JobKind(kind), spec: 64, result: 32, deadline: Duration::from_secs(60) }
+fn bound(kind: u32) -> JobBound {
+    JobBound { kind: JobKind(kind), spec: 64, result: 32, deadline: Duration::from_secs(60) }
 }
 
 fn start(seed: u64) -> (World, u64, u64) {
@@ -282,7 +279,7 @@ fn a_procedures_job_waits_for_a_worker_declaring_its_kind_and_its_result_reaches
     let (channel, assignment) = &world.jobs[0];
     assert_eq!(*channel, Token::new(9));
     assert_eq!(assignment.run, Token::new(task));
-    assert_eq!(assignment.kind, host::JobKind(7));
+    assert_eq!(assignment.kind, JobKind(7));
     assert_eq!(assignment.spec.as_ref(), [0; 64]);
     assert_eq!(assignment.deadline, Duration::from_secs(60));
     assert!(assignment.grants.is_empty());

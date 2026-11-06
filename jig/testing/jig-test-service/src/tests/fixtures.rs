@@ -1,6 +1,7 @@
 pub(crate) mod family;
 use crate::{End, Files, PartyOutput, Seeds, Service, iterate};
 use jig_domain_core as core;
+use jig_domain_link::{Bounds, ModelBound};
 use jig_domain_people as people;
 use skein_lib::{List, ReplyTo, Secret, Time, Token, Wall};
 use skein_lib::{Queue, Writer};
@@ -520,13 +521,9 @@ pub fn agent() -> crate::Agent {
         endpoints: endpoints(),
         limits,
         host_limits,
-        bounds: jig_domain_host::Bounds {
+        bounds: Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([jig_domain_host::ModelBound {
-                name: b"small".as_slice().into(),
-                window: 8192,
-                output: 1024,
-            }]),
+            models: Box::new([ModelBound { name: b"small".as_slice().into(), window: 8192, output: 1024 }]),
             turns: 8,
             spend: 100,
             time: Duration::from_secs(300),
@@ -554,8 +551,8 @@ pub fn worker_assignment() -> jig_domain_host::LinkDown {
     assignment.assignment.identity = [3; 16];
     assignment.assignment.run = Token::new(7);
     assignment.assignment.attempt = Token::new(3);
-    assignment.assignment.grants = Box::new([jig_domain_host::Grant {
-        form: jig_domain_host::Form::Credential(jig_domain_host::Scheme::Bearer),
+    assignment.assignment.grants = Box::new([jig_domain_link::Grant {
+        form: jig_domain_link::Form::Credential(jig_domain_link::Scheme::Bearer),
         account: 1,
         generation: 1,
         valid: skein_lib::Duration::from_secs(30),

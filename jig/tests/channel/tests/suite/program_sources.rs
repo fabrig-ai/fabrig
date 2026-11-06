@@ -1,6 +1,6 @@
 use jig_channel_world::program_sources::{self, SignOutAnswer};
-use jig_domain_host::{LoginMethod, LoginState, SourceFailure};
 use jig_domain_link::SignOutResult;
+use jig_domain_link::{LoginMethod, LoginState, SourceFailure};
 use smith_fake_claude::{Logout, Status, Story};
 #[test]
 fn auth_status_reaches_the_engine_through_the_worker_channel() {

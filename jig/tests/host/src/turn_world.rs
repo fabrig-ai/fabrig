@@ -6,6 +6,7 @@
 use jig_domain_host::FromAgent;
 use jig_domain_host::ToAgent;
 use jig_domain_host::{LinkDown, LinkUp};
+use jig_domain_link::{Form, Grant, Scheme};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use jig_domain_host::{
@@ -89,10 +90,10 @@ pub struct World {
     relayed_call: Option<RelayedCall>,
     answered_call: Option<Box<[u8]>>,
     received_message: Option<ReceivedMessage>,
-    hello: Option<host::Hello>,
+    hello: Option<jig_domain_link::Hello>,
     reply: Option<host::CallAnswer>,
     next_relay: Option<host::Relayed>,
-    received_grant: Option<host::Grant>,
+    received_grant: Option<Grant>,
     prepare_waits: bool,
     last_read: Option<Token>,
     refusals: crate::refusals::Referee,
@@ -183,7 +184,7 @@ impl World {
     }
 
     #[must_use]
-    pub fn hello(&self) -> Option<&host::Hello> {
+    pub fn hello(&self) -> Option<&jig_domain_link::Hello> {
         self.hello.as_ref()
     }
 
@@ -229,22 +230,22 @@ impl World {
     }
 
     /// Assign an itemless run holding the engine's bounded grants.
-    pub fn assign_granted(&mut self, grants: Box<[host::Grant]>) {
+    pub fn assign_granted(&mut self, grants: Box<[Grant]>) {
         self.assign_with_grants(false, grants);
     }
 
     /// A renewed name received from the engine's grant table.
-    pub fn grant(&mut self, grant: host::Grant) {
+    pub fn grant(&mut self, grant: Grant) {
         self.send(Event::Down(LinkDown::Grant { run: RUN, attempt: ATTEMPT, grant }));
     }
 
     /// The last grant handed to the scripted agent.
     #[must_use]
-    pub fn received_grant(&self) -> Option<host::Grant> {
+    pub fn received_grant(&self) -> Option<Grant> {
         self.received_grant
     }
 
-    fn assign_with_grants(&mut self, workspace: bool, grants: Box<[host::Grant]>) {
+    fn assign_with_grants(&mut self, workspace: bool, grants: Box<[Grant]>) {
         self.has_workspace = workspace;
 
         let workspace = if workspace { Some(Workspace { workstream: 3, items: Token::new(4) }) } else { None };
@@ -723,10 +724,10 @@ impl World {
         self.events.push_back(Event::Down(LinkDown::Relayed { run: RUN, attempt: ATTEMPT, call, answer }));
     }
 
-    fn receive_grant(&mut self, agent: Token, grant: host::Grant) {
+    fn receive_grant(&mut self, agent: Token, grant: Grant) {
         assert_eq!(agent, AGENT);
         assert!(self.agent_live);
-        assert_eq!(grant.form, host::Form::Credential(host::Scheme::Key));
+        assert_eq!(grant.form, Form::Credential(Scheme::Key));
         self.received_grant = Some(grant);
     }
 
@@ -735,7 +736,7 @@ impl World {
         assert_eq!(workspace, if self.space_live { Some(SPACE) } else { None });
         assert_eq!(&*charter, b"charter");
         for grant in &grants {
-            assert_eq!(grant.form, host::Form::Credential(host::Scheme::Key));
+            assert_eq!(grant.form, Form::Credential(Scheme::Key));
         }
         self.owner = Some(owner);
         self.agent_live = true;

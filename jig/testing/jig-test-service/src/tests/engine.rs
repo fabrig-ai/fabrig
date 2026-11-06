@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::{End, Stop};
 use jig_domain_core as core;
+use jig_domain_link::{Bounds, Hello, ModelBound};
 use jig_domain_tasks::Cancel;
 use jig_protocol_accounts::table::{Scheme, Value};
 use jig_protocol_engine_workers::{self as engine, GrantValue};
@@ -441,14 +442,14 @@ fn an_assignment_leaves_with_its_charter_encoded_and_grants_filled() {
 }
 #[test]
 fn each_scheme_reaches_the_engine_s_grant_value() {
-    use jig_domain_host::{Form, Grant};
+    use jig_domain_link::{Form, Grant};
     use skein_lib::{Duration, Time};
     for (scheme, expected) in [(Scheme::Bearer, ("bearer", b"".as_slice())), (Scheme::Key, ("key", b"".as_slice()))] {
         let mut values = fixtures::values();
         let value = Value { token: Secret::new(fixtures::TOKEN.into()), scheme };
         values.accounts.granted(1, 2, value, Time::from_nanos(1)).expect("room");
         let grant = Grant {
-            form: Form::Credential(jig_domain_host::Scheme::Bearer),
+            form: Form::Credential(jig_domain_link::Scheme::Bearer),
             account: 1,
             generation: 2,
             valid: Duration::from_secs(1),
@@ -464,12 +465,12 @@ fn each_scheme_reaches_the_engine_s_grant_value() {
 }
 #[test]
 fn a_grant_whose_generation_the_table_lacks_is_left_out() {
-    use jig_domain_host::{Form, Grant};
+    use jig_domain_link::{Form, Grant};
     use skein_lib::{Duration, Time};
     let values = fixtures::values();
     for (form, generation, time) in [
-        (Form::Credential(jig_domain_host::Scheme::Bearer), 2, Time::ZERO),
-        (Form::Credential(jig_domain_host::Scheme::Bearer), 1, Time::from_nanos(120_000_000_000)),
+        (Form::Credential(jig_domain_link::Scheme::Bearer), 2, Time::ZERO),
+        (Form::Credential(jig_domain_link::Scheme::Bearer), 1, Time::from_nanos(120_000_000_000)),
         (Form::Application, 2, Time::ZERO),
     ] {
         let grants = values.grants(&[Grant { form, account: 1, generation, valid: Duration::from_secs(1) }], time);
@@ -479,7 +480,7 @@ fn a_grant_whose_generation_the_table_lacks_is_left_out() {
 }
 #[test]
 fn application_grants_keep_the_two_newest_generations_per_number() {
-    use jig_domain_host::{Form, Grant};
+    use jig_domain_link::{Form, Grant};
     use skein_lib::{Duration, Secret, Time};
     let mut values = fixtures::values();
     for (number, generation, value) in [
@@ -799,7 +800,7 @@ fn store_kernel_complete(service: &mut crate::Service, submit: skein_io::kernel:
 
 #[test]
 fn a_program_grant_needs_no_table_entry() {
-    use jig_domain_host::{Form, Grant, SourceName};
+    use jig_domain_link::{Form, Grant, SourceName};
     let values = fixtures::values();
     let name = SourceName::new(b"claude").expect("source name");
     let grants = values.grants(
@@ -820,7 +821,6 @@ fn program_names_share_the_wire_and_domain_bounds() {
     let name = [b'a'; 33]; // The schema's 32-byte name plus one byte.
     for (length, admitted) in [(bound, true), (past, false)] {
         let value = name.get(..length).expect("fixture spans both sides of the bound");
-        assert_eq!(jig_domain_host::SourceName::new(value).is_some(), admitted);
         assert_eq!(jig_domain_link::SourceName::new(value).is_some(), admitted);
     }
 }
@@ -954,19 +954,15 @@ fn pass_by_run() -> (fixtures::Driven, u64, u64) {
         channel: PASS_CHANNEL,
         link: root::link::Event::Hello {
             worker: 0,
-            hello: host::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 slots: 1,
                 stop_bound: Duration::ZERO,
                 workstreams: Box::new([]),
                 hosting: Box::new([]),
-                bounds: host::Bounds {
+                bounds: Bounds {
                     program_endpoints: Box::new([]),
-                    models: Box::new([host::ModelBound {
-                        name: b"small".as_slice().into(),
-                        window: 8192,
-                        output: 1024,
-                    }]),
+                    models: Box::new([ModelBound { name: b"small".as_slice().into(), window: 8192, output: 1024 }]),
                     turns: u32::MAX,
                     spend: u64::MAX,
                     time: Duration::from_secs(60),

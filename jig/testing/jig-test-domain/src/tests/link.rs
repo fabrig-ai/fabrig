@@ -4,6 +4,7 @@ use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::{Bounds, GrantTable, Hosting, ModelBound, Phase};
+use jig_domain_link::{Form, JobKind};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Queue, Token};
 
@@ -340,7 +341,7 @@ fn a_restored_program_name_survives_sign_in_and_grant_delivery() {
                 panic!("grant reaches the host");
             };
             assert_eq!(carried, grant);
-            let host::Form::Program(name) = carried.form else { panic!("program grant") };
+            let Form::Program(name) = carried.form else { panic!("program grant") };
             assert_eq!(name.as_bytes(), b"Bad_Name");
             delivered = true;
         }
@@ -350,7 +351,8 @@ fn a_restored_program_name_survives_sign_in_and_grant_delivery() {
 
 #[test]
 fn program_source_lifecycle_routes_without_run_payloads() {
-    use jig_domain_host::{LinkDown, LinkUp, Login, LoginState, SignOutResult, SourceName};
+    use jig_domain_host::{LinkDown, LinkUp};
+    use jig_domain_link::{Login, LoginState, SignOutResult, SourceName};
     let mut domain = fixtures::domain();
     domain.hub_link.connect(fixtures::CHANNEL);
     let name = SourceName::new(b"alice").expect("source name");
@@ -716,7 +718,7 @@ fn a_job_assignment_carries_its_workspace_items_through_the_commit() {
                 task: fixtures::RUN.raw(),
                 attempt: fixtures::ATTEMPT.raw(),
                 workstream: 9,
-                kind: host::JobKind(7),
+                kind: JobKind(7),
                 spec: Box::from(b"spec".as_slice()),
                 deadline: Duration::from_secs(2),
                 result: 8,

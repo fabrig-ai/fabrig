@@ -1,5 +1,6 @@
 //! One bounded chat deployment and independent provider script (channel.md, 12).
 use crate::world::{Script, Settings};
+use jig_domain_link::ModelBound;
 use jig_test_service::{Files, Seeds};
 use skein_lib::{Duration, List, Secret};
 
@@ -215,13 +216,9 @@ pub(crate) fn agent_with_limits(agent_limits: &smith_agent_service::Limits) -> j
         endpoints: endpoints(),
         limits,
         host_limits,
-        bounds: jig_domain_host::Bounds {
+        bounds: jig_domain_link::Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([jig_domain_host::ModelBound {
-                name: b"fake".as_slice().into(),
-                window: 1_048_576,
-                output: 512,
-            }]),
+            models: Box::new([ModelBound { name: b"fake".as_slice().into(), window: 1_048_576, output: 512 }]),
             turns: 8,
             spend: 100,
             time: Duration::from_secs(300),

@@ -2,6 +2,7 @@ use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_link::{Form, Hello, Scheme};
+use jig_domain_link::{JobBound, JobKind};
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
@@ -766,8 +767,8 @@ fn live_funding_work() -> World {
     world.job_hello(
         Token::new(8),
         1,
-        Box::new([jig_domain_host::JobBound {
-            kind: jig_domain_host::JobKind(TIER_JOB),
+        Box::new([JobBound {
+            kind: JobKind(TIER_JOB),
             spec: TIER_SPEC_BYTES,
             result: TIER_RESULT_BYTES,
             deadline: TIER_DEADLINE,

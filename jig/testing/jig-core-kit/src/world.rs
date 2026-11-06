@@ -6,6 +6,7 @@ use crate::Store;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
+use jig_domain_link::JobBound;
 use jig_domain_link::{Grant, Hello};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -220,7 +221,7 @@ pub struct World {
 
 impl World {
     /// A scripted worker declares the job kinds it can host (engine.md, 7.5).
-    pub fn job_hello(&mut self, channel: Token, worker: u32, kinds: Box<[jig_domain_host::JobBound]>) {
+    pub fn job_hello(&mut self, channel: Token, worker: u32, kinds: Box<[JobBound]>) {
         let mut bounds = jig_test_profile::fixtures::bounds();
         bounds.models = Box::new([]);
         self.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {

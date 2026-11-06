@@ -1521,6 +1521,7 @@ name = "jig-engine-workers-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "jig-protocol-engine-workers",
  "jig-protocol-worker-wire",
  "skein-channel",
@@ -1566,6 +1567,7 @@ name = "jig-host-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "skein-lib",
  "skein-world",
 ]
@@ -1878,6 +1880,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-tasks",
  "jig-protocol-tools",
  "skein-lib",
@@ -1957,6 +1960,7 @@ name = "jig-protocol-engine-workers"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "jig-protocol-config",
  "jig-protocol-worker-wire",
  "skein-channel",
@@ -2019,6 +2023,7 @@ name = "jig-protocol-worker-agents"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "skein-io",
  "skein-lib",
  "smith-channel",
@@ -2034,6 +2039,7 @@ name = "jig-protocol-worker-link"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "jig-protocol-worker-wire",
  "skein-channel",
  "skein-codec",
@@ -2129,7 +2135,7 @@ dependencies = [
  "jig-client-test-records",
  "jig-domain-accounts",
  "jig-domain-core",
- "jig-domain-host",
+ "jig-domain-link",
  "jig-protocol-accounts-kit",
  "jig-protocol-config",
  "jig-protocol-store",
@@ -2360,6 +2366,7 @@ name = "jig-test-worker"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "jig-protocol-config",
  "skein-lib",
  "smith-charter",
@@ -2376,6 +2383,7 @@ name = "jig-worker-link-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "jig-protocol-engine-workers",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
