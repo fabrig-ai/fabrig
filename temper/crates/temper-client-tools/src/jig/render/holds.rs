@@ -58,8 +58,8 @@ fn recovery(hold: &c::ChipHold) -> &'static [u8] {
         c::HoldCategory::Budget => b"",
         c::HoldCategory::Deadline => b"amend the task's deadline, then ",
         c::HoldCategory::Effects | c::HoldCategory::EffectFailed => b"review and resolve the effects, then ",
-        c::HoldCategory::Failures { .. }
-        | c::HoldCategory::Stalled
+        c::HoldCategory::Failures { .. } => b"the engine's log names each failure (temper help hold), then ",
+        c::HoldCategory::Stalled
         | c::HoldCategory::Dependency { .. }
         | c::HoldCategory::Stopped
         | c::HoldCategory::Placed { .. }

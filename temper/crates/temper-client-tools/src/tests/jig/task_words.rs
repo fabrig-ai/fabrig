@@ -765,6 +765,29 @@ fn a_held_tasks_text_names_its_reason_and_release_revision() {
 }
 
 #[test]
+fn a_hold_for_failed_runs_says_where_to_look() {
+    for class in [
+        c::HoldFailure::Transient,
+        c::HoldFailure::Permanent,
+        c::HoldFailure::Run,
+        c::HoldFailure::Agent,
+        c::HoldFailure::Lost,
+        c::HoldFailure::Invalid,
+    ] {
+        let task = f::held_task(f::goal(f::TASK, c::WaitsOn::Nothing), c::HoldCategory::Failures { class });
+        let answer = f::read_answer(f::TASK_CALL, f::task_result(task));
+        assert_eq!(answer.status, 0);
+        assert!(
+            f::has(
+                &answer,
+                b"\nway out: the engine's log names each failure (temper help hold), then task release 41 --hold 9; or cancel it: task cancel 41 REASON\n",
+            ),
+            "{class:?}: {answer:?}"
+        );
+    }
+}
+
+#[test]
 fn a_held_tasks_text_keeps_the_effect_source_supplied_by_the_read() {
     let mut task = f::held_task(f::goal(f::TASK, c::WaitsOn::Nothing), c::HoldCategory::EffectFailed);
     let Some(hold) = task.hold.as_mut() else { panic!("owner hold") };
