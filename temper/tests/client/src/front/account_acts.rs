@@ -282,8 +282,11 @@ fn fixture_root(
             fake: Some(place.clone()),
             github: place,
         });
+        config.core.connectors = Box::new([fixtures::FORGE]);
+        for permission in &mut config.core.seed_projects[0].policy.permissions {
+            permission.connector = fixtures::FORGE;
+        }
         if welcome {
-            config.core.connectors = Box::new([fixtures::FORGE]);
             config.forges = Box::new([temper_engine_domain_forge::Configured {
                 admin_connect: false,
                 bot: Box::new([]),
@@ -323,6 +326,8 @@ fn fixture_root(
     });
     let mut front =
         Joint::with_engine(seed, &limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, 1);
+    // A running trial keeps its deadline armed while the story plays the worker.
+    front.settles_with_a_deadline_armed = true;
     if forge_setup && !matches!(forge, WelcomeForge::Playground { .. }) {
         front.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
             forge: 1,
