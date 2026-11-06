@@ -112,7 +112,7 @@ pub(super) fn call(name: &[u8], value: &Value) -> Turn {
 
 /// Price a process story's purse from init's default model and stock run cap.
 #[must_use]
-pub(super) fn run_spend(runs: u64) -> u64 {
+pub fn run_spend(runs: u64) -> u64 {
     let mut template: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json")).expect("init template");
     // Only the default model prices this story; the demo's socket is filled by init.
@@ -120,6 +120,8 @@ pub(super) fn run_spend(runs: u64) -> u64 {
         template["engine"]["llm"][member].as_array_mut().expect("model configuration").truncate(1);
     }
     template["engine"]["llm"]["providers"][0]["models"].as_array_mut().expect("provider models").truncate(1);
+    // Init fills this; with no sign-in it writes null (protocol/sign-in.md, 9.9).
+    template["engine"]["clients"]["provider"] = Value::Null;
     let bytes = serde_json::to_vec(&template).expect("single-model template");
     let document = jig_protocol_config::document(
         &bytes,
