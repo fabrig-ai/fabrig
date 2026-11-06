@@ -1400,7 +1400,7 @@ const PHRASES: u32 = 1858;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 const SEGMENTS: u32 = 3245;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45430;
+const ENGLISH_BYTES: u32 = 45444;
 const ALL: [Word; 1259] = [
     Word::CloseTitle,
     Word::CloseChat,

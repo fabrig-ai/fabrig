@@ -106,7 +106,10 @@ pub(super) fn line_models(task_page: bool) -> List<c::MeModel> {
     if !task_page {
         models.push(offer_row(b"catalogue-first", Some(18))).unwrap();
     }
-    models.push(offer_row(if task_page { b"chosen" } else { b"gpt-6-luna" }, Some(17))).unwrap();
+    let mut model = offer_row(if task_page { b"chosen" } else { b"gpt-6-luna" }, Some(17));
+    // The shared accounts-page fixture holds account 1.
+    model.accounts = List::from_boxed(Box::new([1]));
+    models.push(model).unwrap();
     models.push(offer_row(b"second", None)).unwrap();
     models
 }
@@ -193,17 +196,21 @@ pub(super) fn provider_byline_root(
         }
     }
     project.defaults = List::with_capacity(1);
-    if models {
+    let preview = if ready[1] == c::Readiness::Usable && present[1] {
+        Some(b"gpt-6.1-sol".as_slice())
+    } else if ready[0] == c::Readiness::Usable && present[0] {
+        Some(b"claude-opus-5-5".as_slice())
+    } else {
+        None
+    };
+    if models && let Some(preview) = preview {
         project
             .defaults
             .push(c::MeDefault {
                 template: jig_client::shapes::CHAT,
                 choice: c::LlmChoice {
                     account: None,
-                    main: c::ModelEffort {
-                        model: model_text(if present[0] { b"claude-opus-5-5" } else { b"gpt-6.1-sol" }),
-                        effort: None,
-                    },
+                    main: c::ModelEffort { model: model_text(preview), effort: None },
                     subagents: List::with_capacity(0),
                 },
             })
@@ -1711,7 +1718,8 @@ fn chooser_nodes(view: &crate::View) -> &[skein_ui::Node] {
         .iter()
         .position(|node| node.role == Role::Disclosure && node.name.as_deref() == Some(b"Change model"))
         .unwrap();
-    &nodes[at..at + usize::try_from(nodes[at].size).unwrap()]
+    let end = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+    &nodes[at..end]
 }
 
 #[test]
@@ -1799,20 +1807,28 @@ fn an_empty_provider_offers_connect_without_any_model() {
     );
 }
 #[test]
-fn an_empty_provider_links_to_its_accounts_sign_in_fix() {
-    let mut row = account(7, c::AccountKind::SignIn, None);
-    row.provider = Some(18);
-    row.sources.clear();
-    let mut signin = source(c::AccountKind::SignIn, false);
-    signin.state = c::AccountState::SignInAgain;
-    row.sources.push(signin).unwrap();
-    let mut view = fixtures::page_view(&empty_provider(Some(row)));
-    let fix = fixtures::find(view.tree(), Role::Link, "Sign in again ›".as_bytes()).unwrap();
-    assert!(fixtures::find(view.tree(), Role::Link, "Connect a plan or key ›".as_bytes()).is_none());
-    assert_eq!(
-        crate::act(&mut view, fix, skein_ui::Act::Press),
-        Some(d::Action::Pages(d::pages::Act::Go { address: Address::Accounts }))
-    );
+fn an_empty_provider_links_to_its_accounts_fix() {
+    for (kind, state, label) in [
+        (c::AccountKind::SignIn, c::AccountState::SignInAgain, "Sign in again ›"),
+        (c::AccountKind::Program, c::AccountState::SignInAgain, "Check again ›"),
+        (c::AccountKind::Key, c::AccountState::SignInAgain, "Replace ›"),
+        (c::AccountKind::Key, c::AccountState::Misconfigured, "Replace ›"),
+        (c::AccountKind::SignIn, c::AccountState::Later { until: None }, "Resume ›"),
+    ] {
+        let mut row = account(7, kind, None);
+        row.provider = Some(18);
+        row.sources.clear();
+        let mut source = source(kind, false);
+        source.state = state;
+        row.sources.push(source).unwrap();
+        let mut view = fixtures::page_view(&empty_provider(Some(row)));
+        let fix = fixtures::find(view.tree(), Role::Link, label.as_bytes()).unwrap();
+        assert!(fixtures::find(view.tree(), Role::Link, "Connect a plan or key ›".as_bytes()).is_none());
+        assert_eq!(
+            crate::act(&mut view, fix, skein_ui::Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::Accounts }))
+        );
+    }
 }
 #[test]
 fn an_empty_provider_without_a_fix_keeps_readiness_unknown() {

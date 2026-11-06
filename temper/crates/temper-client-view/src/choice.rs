@@ -202,7 +202,7 @@ fn panel(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bind
     if task.is_some() && draft.requested != draft.original {
         match &draft.requested {
             Some(choice) => {
-                line(b, w, W::ChoiceDraft, &[Hole::Name(choice_shown(root, project, choice.main.model.bytes(), w))])
+                line(b, w, W::ChoiceDraft, &[Hole::Name(choice_shown(root, project, choice.main.model.bytes(), w))]);
             }
             None => line(b, w, W::ChoiceDraftDefault, &[]),
         }
@@ -263,6 +263,15 @@ pub(crate) fn byline(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: 
 
 /// The composer's line's words for a byline with nothing behind it (client/README.md, 3.5).
 pub(crate) fn byline_words(root: &Domain, task: Option<&c::Task>, project: u32, w: &Words) -> Box<[u8]> {
+    if task.is_none() {
+        let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else {
+            return Box::default();
+        };
+        let Some(models) = choice::offer(me, project) else { return Box::default() };
+        if models.is_empty() {
+            return Box::default();
+        }
+    }
     using_words(root, task, Some(project), w, LineForm::Byline).text
 }
 
@@ -815,11 +824,16 @@ fn provider_line(
             held_account = true;
             let Some(source) = account.sources.get(0) else { continue };
             let fix = match source.state {
-                c::AccountState::SignInAgain => Some(if source.kind == c::AccountKind::Program {
-                    words::say(w, A::CheckAgain, &[])
-                } else {
-                    w.say(W::WelcomeSignInAgain, &[])
+                c::AccountState::SignInAgain => Some(match source.kind {
+                    c::AccountKind::Program => words::say(w, A::CheckAgain, &[]),
+                    c::AccountKind::Key => words::say(w, A::Replace, &[]),
+                    c::AccountKind::SignIn | c::AccountKind::None => w.say(W::WelcomeSignInAgain, &[]),
                 }),
+                c::AccountState::Misconfigured | c::AccountState::Unloaded { .. }
+                    if source.kind == c::AccountKind::Key =>
+                {
+                    Some(words::say(w, A::Replace, &[]))
+                }
                 c::AccountState::Later { .. } => Some(words::say(w, A::Resume, &[])),
                 c::AccountState::Moving
                 | c::AccountState::Asking

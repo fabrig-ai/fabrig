@@ -2282,7 +2282,7 @@ fn the_playground_chats_bar_names_the_default_model() {
     let bar = styled(view.tree(), crate::look::SESSION_TOP);
     let byline = style_position(subtree(view.tree(), bar), crate::look::BYLINE).expect("byline");
     let node = &view.tree().nodes()[bar + 1 + byline];
-    assert_eq!(node.description.as_deref().or(node.name.as_deref()), Some("T9 · Scripted model · Default".as_bytes()));
+    assert_eq!(node.description.as_deref().or(node.name.as_deref()), Some("T9 · Using the default model".as_bytes()));
 }
 
 #[test]
