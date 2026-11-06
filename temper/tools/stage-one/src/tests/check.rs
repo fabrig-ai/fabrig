@@ -348,11 +348,11 @@ fn integer_bounds_and_permitted_surpluses_pass() {
 fn wrong_types_and_values_fail_comparisons() {
     let original = proposed(unedited);
     for (kind, number, pointer, found, id, expected) in [
-        ("charter", 2, "/turns", json!(16), "coding.turns", json!(17)),
-        ("charter", 2, "/turns", json!("17"), "coding.turns", json!(17)),
-        ("charter", 2, "/turns", json!(17.0), "coding.turns", json!(17)),
-        ("charter", 2, "/turns", json!(-1), "coding.turns", json!(17)),
-        ("charter", 2, "/time", json!(120_000_000_000_u64), "coding.time", json!(120_000_000_001_u64)),
+        ("charter", 2, "/turns", json!(16), "coding.turns", json!(800)),
+        ("charter", 2, "/turns", json!("800"), "coding.turns", json!(800)),
+        ("charter", 2, "/turns", json!(800.0), "coding.turns", json!(800)),
+        ("charter", 2, "/turns", json!(-1), "coding.turns", json!(800)),
+        ("charter", 2, "/time", json!(120_000_000_000_u64), "coding.time", json!(28_800_000_000_000_u64)),
         ("policy", 1, "/ceiling/tools", json!(0), "policy.tools", json!(1671)),
         ("policy", 1, "/ceiling/tools", json!("1671"), "policy.tools", json!(1671)),
         ("template", 4, "/contract/report", Value::Null, "goal-template.report", json!("non-null")),
