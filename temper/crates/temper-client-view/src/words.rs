@@ -350,6 +350,8 @@ pub enum Word {
     ConfigureModelsTitle,
     ConfigureModelsCardLine,
     ConfigureModels,
+    ConfigurePlan,
+    ConfigureKey,
     ConfigureUnsureTitle,
     ConfigureWays,
     ConfigureAlone,
@@ -1379,7 +1381,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1863;
+const PHRASES: u32 = 1865;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1405,10 +1407,10 @@ const PHRASES: u32 = 1863;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3258;
+const SEGMENTS: u32 = 3272;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45478;
-const ALL: [Word; 1263] = [
+const ENGLISH_BYTES: u32 = 45455;
+const ALL: [Word; 1265] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1740,6 +1742,8 @@ const ALL: [Word; 1263] = [
     Word::ConfigureModelsTitle,
     Word::ConfigureModelsCardLine,
     Word::ConfigureModels,
+    Word::ConfigurePlan,
+    Word::ConfigureKey,
     Word::ConfigureUnsureTitle,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -2979,6 +2983,8 @@ impl Word {
             Self::ConfigureModelsTitle => 3204,
             Self::ConfigureModelsCardLine => 3205,
             Self::ConfigureModels => 3206,
+            Self::ConfigurePlan => 3910,
+            Self::ConfigureKey => 3911,
             Self::ConfigureUnsureTitle => 3207,
             Self::ConfigureWays => 3182,
             Self::ConfigureAlone => 3183,
@@ -5407,8 +5413,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ConfigureDesignTitle => (&[b"A design draft first"], &[]),
         Word::ConfigureDesignLine => (&[b"Agents plan its tasks; they land together."], &[]),
         Word::ConfigureModelsTitle => (&[b"Models by role"], &[]),
-        Word::ConfigureModelsCardLine => (&[b"Claude for reviews, my ChatGPT plan for the rest."], &[]),
-        Word::ConfigureModels => (&[b"Use Claude for reviews and my ChatGPT plan for everything else."], &[]),
+        Word::ConfigureModelsCardLine => (&[b"", b" for reviews, ", b" for the rest."], &[Name, Name]),
+        Word::ConfigureModels => (&[b"Use ", b" for reviews and ", b" for everything else."], &[Name, Name]),
+        Word::ConfigurePlan => (&[b"my ", b" plan"], &[Name]),
+        Word::ConfigureKey => (&[b"my ", b" API key"], &[Name]),
         Word::ConfigureUnsureTitle => (&[b"Not sure yet? Ask what temper can do."], &[]),
         Word::ConfigureWays => (&[b"Ways to begin"], &[]),
         Word::ConfigureAlone => (&[b"I work alone on small changes: one chat per change, landed once CI passes."], &[]),
