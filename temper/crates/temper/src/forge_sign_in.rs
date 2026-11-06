@@ -34,6 +34,7 @@ pub(crate) fn run(directories: &super::Directories, bytes: &[u8], named: &Named,
         .expect("checked engine");
     let provider = engine.clients.provider.as_ref().ok_or("engine.clients.provider is not configured")?;
     let client = provider.clients.iter().find(|client| client.id == row.client).expect("checked sign-in client");
+    let secret = client.secret.as_ref().ok_or("its client has no secret; a box adds its own source")?;
     let application = super::member(&document, 0, b"application");
     let clients = super::member(&document, application, b"clients");
     let public = config::read::Object::new(&document, clients).expect("checked clients").member(&document, b"public");
@@ -45,15 +46,15 @@ pub(crate) fn run(directories: &super::Directories, bytes: &[u8], named: &Named,
     };
     let mut discovery = origin;
     discovery.extend_from_slice(b"/.well-known/openid-configuration");
-    let instructions = sign_in::instructions(b"forgejo", None, &client.id, &client.secret, &discovery, first_sign_in());
+    let instructions = sign_in::instructions(b"forgejo", None, &client.id, secret, &discovery, first_sign_in());
     make_missing(super::path(&provider.key), true)?;
-    make_missing(super::path(&client.secret), false)?;
+    make_missing(super::path(secret), false)?;
     std::io::stdout().write_all(&instructions).map_err(|why| format!("print instructions: {why}"))?;
     Ok(0)
 }
 
 /// Never read existing credentials. New files are complete and private before rename.
-fn make_missing(path: &Path, key: bool) -> Result<(), String> {
+pub(crate) fn make_missing(path: &Path, key: bool) -> Result<(), String> {
     match fs::symlink_metadata(path) {
         Ok(_) => return Ok(()),
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
@@ -97,3 +98,57 @@ fn make_missing(path: &Path, key: bool) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests;
+
+/// Add the public source after Forgejo answers, under the setup's one deadline.
+pub(crate) fn source(
+    bytes: &[u8],
+    named: &Named,
+    owned: &temper_forge_setup::setup::Owned,
+    place: &temper_forge_setup::place::Place,
+    deadline: skein_lib::Duration,
+) -> Result<u8, String> {
+    use temper_forge_setup::{prepare::Exit, spec};
+    use temper_forge_setup_shell::command;
+    let client = named
+        .machine
+        .owned
+        .as_ref()
+        .and_then(|owned| owned.sign_in.as_deref())
+        .ok_or("machine.owned.sign_in is not configured")?;
+    let document = config::document(
+        bytes,
+        &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
+    )
+    .expect("checked document");
+    let application = super::member(&document, 0, b"application");
+    let clients = super::member(&document, application, b"clients");
+    let public = config::read::Object::new(&document, clients).expect("checked clients").member(&document, b"public");
+    let mut discovery = match public {
+        Some(at) if document.token(at).expect("public value").kind != skein_json::document::Kind::Null => {
+            config::read::text(&document, at, 4096).expect("checked public origin").to_vec()
+        }
+        Some(_) | None => format!("http://{}", super::address(&named.clients)?).into_bytes(),
+    };
+    discovery.extend_from_slice(b"/.well-known/openid-configuration");
+    let clock = skein_shell::Clock::new();
+    let until = clock.now().now.saturating_add(deadline);
+    let limits = jig_protocol_config::profile(config::Profile::Small).io;
+    // An unreadable list still attempts add: its refusal explains the failure.
+    let present = command::run_until(&limits, &spec::source_list(owned, place), until)
+        .is_ok_and(|answer| answer.exit == Exit::Code(0) && sign_in::source_present(answer.stdout.expose()));
+    if !present {
+        let answer = command::run_until(&limits, &spec::source_add(owned, place, client, &discovery), until)
+            .map_err(super::forge::command_error)?;
+        if answer.exit != Exit::Code(0) {
+            let diagnostic =
+                if answer.stderr.expose().is_empty() { answer.stdout.expose() } else { answer.stderr.expose() };
+            return Err(format!(
+                "source registration ended: {:?}: {}",
+                answer.exit,
+                String::from_utf8_lossy(diagnostic.get(..diagnostic.len().min(512)).expect("bounded diagnostic"))
+            ));
+        }
+    }
+    std::io::stdout().write_all(&sign_in::Source::Added.line()).map_err(|why| format!("source outcome: {why}"))?;
+    Ok(0)
+}

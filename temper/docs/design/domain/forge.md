@@ -1209,7 +1209,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 |---|---|---|---|---|
 | 3 | open a pull request | a creation: from a branch into its landing branch, with a title, a body and a key | conditional: only while no pull request for its branches is open; Forgejo keeps it, closed or not | by its branches; the change accepts an open pull request, or one with its recorded number or pushed head |
 | 10 | edit a pull request's title, body or base | a set | idempotent | written again |
-| 11 | update a pull request from its base | a transition: the base's tip merged into its branch, by the forge | unrecoverable | its head contains the base tip it asked for |
+| 11 | update a pull request from its base | a transition: the base's tip merged into its branch, or its commits rebased onto it (`landing.md`, 5.2), by the forge | idempotent: every copy leaves its head containing the base, or changes nothing; a late copy may move the head (section 10) | its head contains the base tip it asked for |
 | 4 | merge a pull request | a transition, conditional on its exact head; or, where the forge keeps a merge queue on the base, the pull request queued there (9.1) | conditional | merged, and at which commit; or in the forge's merge queue |
 | 12 | close, reopen a pull request | a set | idempotent | written again |
 | 5 | post a review | a creation, with a key | unrecoverable | by its key, among the reviews after the entry's start |
@@ -1258,7 +1258,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   only while none of its name exists, but another hand can delete it, and
   nothing then shows it was made: its creation is unrecoverable.
 - **An unrecoverable creation is looked for first:** an uncertain review,
-  comment, issue, update or branch found by its key, or by the state it
+  comment, issue or branch found by its key, or by the state it
   leads to, is made; one not found by its deadline holds its task for a
   person, and is never sent again by temper on its own. The client makes
   the find (skein's `forge-client.md`, section 7).
@@ -2065,7 +2065,8 @@ the change reads the head afresh once the slot is freed. Otherwise:
 
 - **Its pull request closed** by someone else: held, saying who and
   when. A release reopens it; a cancel closes the change.
-- **Its branch moved** while nothing of temper's writes it, or by another
+- **Its branch moved** while nothing of temper's writes it, a late copy
+  of its own update among them (section 10), or by another
   identity, or not forward: held, the head kept as it is. Under its
   project's turn, the rewrite its own prepare made is the change's: the
   forge's rebase (`landing.md`, 5.2) or a prepare job's delivery
@@ -2719,6 +2720,40 @@ instead (`landing.md`, section 5).
   read afresh, contains the base's tip it asked for, which is also how
   its recovery finds it (section 6), and the new head is heard as any
   push.
+- **Lost, and made again.** An update whose answer is lost is looked for
+  by that read and, not found after its lifetime, checked and made again,
+  up to `write_attempts` (skein's `forge-client.md`, 7.5). It holds no one.
+- **Let go.** An update settled `Failed` with `Timeout` or `Unavailable`,
+  or with `Stale` from its check, says nothing of the change: the forge
+  did not answer, or what it was decided on has gone, perhaps to a copy of
+  its own. The top keeps its account and reports no result, and a change
+  updating or preparing (`landing.md`, 5.2) with no result and none
+  outstanding decides again on a fresh read of its head and base:
+
+  | Its head | Holds the base | It |
+  |---|---|---|
+  | where it was | no | updates again, counted in `updates` |
+  | where it was | yes | goes on at that head |
+  | moved | yes | takes it as its update, as if made |
+  | moved | no | holds, `BranchMoved`: no update of its own shows there |
+  | any | not yet known | waits, up to `stall` |
+
+  So it never spins, each new update spending one of `updates` and up to
+  `write_attempts` lifetimes, and never waits on nothing. Past `updates` it
+  holds, `Updates`, a person told why in the last write's account
+  (`update pull request: forge timed out; ...`).
+- **Any other failure** of an update (a protection, a forbidden write) is
+  a person's: held, `Failed`, in its account. A release of it, or of
+  `Updates`, drops the result and decides again as above, its count
+  afresh.
+- **What a late copy costs.** Once the change has moved on, a copy that
+  moves the head is drift (8.5): held, and its release takes the head and
+  checks it, so a person and a CI run; gates ask again. A merge names its
+  exact head (section 6), so a copy lands nothing unchecked. A rebase's
+  copy can also drop a push made since it read the head (skein's
+  `forge-client.md`, 7.3): the same hold, and a repair so dropped finds
+  its failure again when the head is checked. A push by another hand so
+  dropped is that hand's to make again, the hold saying the branch moved.
 - **A conflict** makes the forge refuse the update, and the change is
   resolved (8.4): by the merge job, where its project names one, then
   a resolution for what the job leaves.
@@ -3138,7 +3173,11 @@ temper did not make, the queue paused and repaired; its pull request
 closed by someone else, held, released and reopened; a landing that
 overlaps a goal's change, and one that does not; a goal's issue written,
 revised and closed; a merge whose answer is lost, found merged after a
-restart; a mergeability unsettled within the window, then settled; a
+restart; an update whose answer is lost, found, or made again and landed,
+under a queue and as a turn's prepare; one lost for good, decided again
+until its count holds it, told why, and released; one whose base went on
+while it was lost; a copy of it landing after the change moved on, held;
+a mergeability unsettled within the window, then settled; a
 forge preloaded with ten times the history, idle at the same cost. Of
 the rules as settings (8.9): a landing rule changed between two merges,
 the second judged by the new rule; a gate a rule adds asked for on a
@@ -3210,6 +3249,11 @@ whole.
   forge's repairs draw on it and a member's first spend in a period reserves it, and
   a shared project's plan doesn't serve the run. Home then keeps its computed
   sentence, and nothing tells the owners why. Default: so; they can fund the period.
+- **A late copy's hold** (10): a head moved by a late copy of the
+  change's own update, once the change has moved on, cannot be told from
+  another's move by temper's identity, and holds. Keeping the writer slot
+  past a settled update would spare it, for a time nothing bounds.
+  Default: it holds, and is measured after landing.
 - **What lands on a goal's branch and then on main** (5.6) counts twice,
   each a change landed. Default: so, said here and in the design of Home.
 - **A failed row, dismissed** (4.5; `../draft/repository-copies.md`,

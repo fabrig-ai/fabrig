@@ -272,15 +272,21 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   name.
 
 - **A compare is whole, with no pages.** Its files and commits each fit
-  `forge.client.rows`, and its decoded answer fits
-  `forge.client.answer_bytes` (skein's `forge-client.md`, 2.3, and
-  `forge.md`, 5.2 and 5.3). A `read_compare` size refusal names both
-  limits without claiming which was exceeded. It directs a run with
+  `forge.client.rows`, and its decoded answer, both whole sides of every
+  changed file, fits `forge.client.answer_bytes` (skein's
+  `forge-client.md`, 2.3, and `forge.md`, 5.2 and 5.3), so an ordinary
+  change passes them: nine files, nine commits, or a line changed in a
+  long file. A `read_compare` size refusal names both
+  limits without claiming which was exceeded. It says first that the
+  commit ids were read and that no other id helps, since a run that isn't
+  told retries with one it made up. It directs a run with
   an existing pull to `read_pull` for its head, then `read_pull_files`
   at that head, from page 1 while more follows. Pull-file sides must
   also fit whole. Otherwise, or when that page is too large, the run
   lists directories with `read_file` at both endpoints and reads
-  selected files at each within `max_bytes`. The refusal stays marked
+  selected files at each within `max_bytes`. It names no host answer bound
+  to raise: the forge client refused this, and raising one would not help.
+  The refusal stays marked
   an error and fits the host answer's byte bound. A successful comparison
   whose rendered form exceeds that bound returns measured-size feedback
   with the same recovery instead of losing its body at the worker.
@@ -655,6 +661,15 @@ smith's (smith's `domain/run.md`, 7.1):
 | a connector's result: a change landed or a successful no-change conclusion | a change, requiring the fields `title` and `body`, each within the contract's bound, its checks required; a `no_change` verdict with bounded text and no fields or items; a failure within the same bound |
 | an approval | a failure only, of at most 1,024 bytes: approvals are people's |
 
+A change's `body` holds the producer's report, what its brief asks it to
+report, whole, at most 3,584 bytes (jig's `domain/hosts.md`, 8); its `title`
+and the contract's other texts stay within 1,024. The run's contract prints
+the bound. The coding charter's words say that the report goes there, and that
+one past the bound is no question: the run cuts what can be read elsewhere and
+says under Left what it cut (`../protocol/configuration.md`, 13.4's charter 2
+row). A foreman that settles a question about it names no other form (13.4's
+charter 6 row).
+
 The `no_change` verdict becomes jig's successful `NoChange` result. It
 retains the explanation, supplies no resource or landing, and ends the
 change without a hold or escalation. The requester receives that result.
@@ -775,6 +790,11 @@ checkout detached does not take a good delivery for a failure: its full head,
 the branch it landed on, and that a detached checkout is expected. A branch name
 that would take a receipt past its bound (512 bytes, smith's `Receipt`) leaves
 the branch's words out and keeps the rest.
+
+A head in words is spelled as git spells it: 40 digits on SHA-1, 64 on SHA-256.
+The twelve zero bytes that fit a SHA-1 id in temper's 32 are never printed, since
+a run copies what it reads. That holds for a receipt and for every other word
+that prints a whole head, a cancel's reason among them.
 
 A push that lands is the result, even if the run was winding down. The
 answer carries what the run left on the forge (worker.md, 4.2), and the
@@ -1368,6 +1388,13 @@ host:
   the foreman's charter's, the reference setting its model there
   (`../protocol/configuration.md`, 13.9); a `foreman` role once a plan
   needs foremen of different weights.
+- **A report past 3,584 bytes.** The bound sits inside smith's fixed
+  4,096-byte outcome (`smith-domain-run`'s `Limits::outcome_bytes`) and
+  `hub.outcome_bytes`. The rest of the path is already sized for 10,660
+  (`tasks.result_bytes`, `checkout.message_bytes`, `forge.client.op_bytes`).
+  Going there means smith deriving its outcome from `tool_payload`, the
+  hub's profile value and jig's constant moving together, across three
+  trees. Default: 3,584, until a real run shows a report that a cut loses.
 - **A cancel's grace:** jig's `cancel` takes one, if the run gives it
   (jig's `domain/engine.md`, 7.3); temper's takes none.
 - **A code graph** for a workspace (worker.md, section 12), as an MCP

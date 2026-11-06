@@ -124,3 +124,28 @@ mod public;
 
 #[path = "tests/model_offers.rs"]
 mod model_offers;
+
+mod provider_claims {
+    use super::fixtures;
+    use crate::component::provider::person;
+    use jig_domain_people as people;
+
+    #[test]
+    fn empty_addresses_emit_no_email_claim() {
+        let signer = people::Signer {
+            kind: people::Kind::Person,
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 1, subject: b"person@example.com".as_slice().into() },
+                login: b"person".as_slice().into(),
+                name: b"Person".as_slice().into(),
+            },
+        };
+        let limits = fixtures::env().limits;
+        let without = person(signer.clone(), &[], &limits).expect("person claims");
+        assert!(without.email.is_none());
+        let with = person(signer, &[1], &limits).expect("verified address claims");
+        let email = with.email.expect("configured provider emits email");
+        assert_eq!(email.address.as_ref(), b"person@example.com");
+        assert!(email.verified);
+    }
+}

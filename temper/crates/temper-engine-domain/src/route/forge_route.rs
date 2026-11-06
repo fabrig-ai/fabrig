@@ -4034,6 +4034,7 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     } else {
         None
     };
+    let updates = why == forge_change::Hold::Updates;
     let why = match why {
         forge_change::Hold::BranchMoved
         | forge_change::Hold::BranchMissing
@@ -4052,9 +4053,9 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     };
     let end = if let Some(words) = account {
         StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, None, words)) }
-    } else if why == tasks::Hold::EffectFailed
+    } else if (updates || why == tasks::Hold::EffectFailed)
         && let Some(row) = domain.forge.change(task)
-        && row.effect == forge_change::EffectResult::Failed
+        && (updates || row.effect == forge_change::EffectResult::Failed)
         && let Some(account) = &row.effect_account
     {
         StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, Some(account.entry), account.words.clone())) }
@@ -4082,9 +4083,7 @@ fn cancel_change_gates(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureS
         Some(child) => {
             let mut reason = List::with_capacity(96);
             append(&mut reason, b"CI failed at head ");
-            for byte in &head {
-                append(&mut reason, &forge::hex(*byte));
-            }
+            append(&mut reason, &commit_text(&head));
             Box::new([jig_domain_core::StepCancel { task: child, reason: reason.into_boxed(), grace: None }])
         }
         None => Box::new([]),
@@ -4112,9 +4111,7 @@ fn cancel_change_repair(domain: &Domain, task: u64, head: [u8; 32]) -> Procedure
         Some(child) => {
             let mut reason = List::with_capacity(96);
             append(&mut reason, b"CI passed at head ");
-            for byte in &head {
-                append(&mut reason, &forge::hex(*byte));
-            }
+            append(&mut reason, &commit_text(&head));
             Box::new([jig_domain_core::StepCancel { task: child, reason: reason.into_boxed(), grace: None }])
         }
         None => Box::new([]),

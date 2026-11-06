@@ -1181,7 +1181,7 @@ pub static MEMBERS: [Member; 260] = [
         shape: "client-provider",
         name: "addresses",
         kind: "list of integer",
-        bound: "0 to 65535; application providers",
+        bound: "0 to 65535; application or link providers",
         required: true,
         line: "Names identity providers whose subjects are verified addresses.",
         gone: None,
@@ -1198,10 +1198,10 @@ pub static MEMBERS: [Member; 260] = [
     Member {
         shape: "provider-client",
         name: "secret",
-        kind: "text",
+        kind: "text or null",
         bound: "4096 bytes; data path",
         required: true,
-        line: "Names the file holding the client's secret.",
+        line: "Names the client's secret file, or null for a public client.",
         gone: None,
     },
     Member {

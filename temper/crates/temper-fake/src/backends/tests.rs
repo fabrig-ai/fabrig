@@ -16,6 +16,7 @@ fn fixture() -> (Value, Value, Paths, Peers) {
     let port = NonZeroU16::new;
     let answer = temper_init::files(
         &temper_init::Facts {
+            sign_in: false,
             binary: b"/fixture/temper",
             git: Some(b"/usr/bin/git"),
             claude: None,

@@ -253,6 +253,11 @@ For a project with no prepare command, one member per repository:
   under `queue` (skein's `forge-client.md`, 7.3: the forge's update
   checks no head); a head moved by another identity at any other time
   is drift.
+- **Lost.** A rebase whose answer is lost is looked for and made again as
+  any update is, and a prepare let go decides again as `forge.md`, 10
+  says, at the head and main it was asked for. A copy landing once the
+  candidate is proving rewrites the head under its proof: `forge.md`, 10
+  says what that costs.
 
 ### 5.3 The project's tooling, and stacks
 
@@ -665,6 +670,8 @@ across a restart of the binary. The forge's world holds:
 
 - **a landing of one** is prepared by the forge's rebase, proved by one
   dispatched run, and fast-forwarded; main carries its gate's status;
+- **a prepare whose answer is lost** is found, or made again, and the
+  landing goes on, no one asked;
 - **a documentation change** whose every gate ignores its paths lands
   on its receipts, with no run;
 - **a tree is never gated twice:** a second landing reaching a key

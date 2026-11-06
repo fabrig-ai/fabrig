@@ -1157,3 +1157,272 @@ fn opens_pull(requests: &[Request]) -> bool {
     }
     false
 }
+
+// A settled update is interpreted by the top (temper/docs/design/domain/forge.md, 10).
+fn updating_entry(preparing: bool) -> (Domain, skein_forge_client::Entry) {
+    use skein_forge::api::{UpdateStyle, Write};
+    use temper_engine_domain_forge_change as change;
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.change.updates = 1;
+    row.change.state = if preparing {
+        row.change.way = change::Way::Turn;
+        change::State::Preparing { from: fixtures::HEAD, main: fixtures::BASE, ready_since: env().wall }
+    } else {
+        change::State::Updating { from: fixtures::HEAD, base: fixtures::BASE, ready_since: env().wall }
+    };
+    let mut entry = status(fixtures::OPEN, fixtures::CHANGE);
+    entry.effect.write =
+        Write::Update { number: 1, style: if preparing { UpdateStyle::Rebase } else { UpdateStyle::Merge } };
+    entry.effect.condition = skein_forge_client::Condition::Update { head: fixtures::HEAD, base: fixtures::BASE };
+    outputs(&mut d, Event::Change { row });
+    outputs(&mut d, Event::Enqueue { entry: entry.clone() });
+    (d, entry)
+}
+
+fn settled_change(d: &mut Domain, outcome: skein_forge_client::Outcome) -> Box<[Request]> {
+    let mut out = Queue::uncapped();
+    domain::change_outcome(d, &env(), fixtures::OPEN, outcome, &mut out);
+    let mut requests = skein_lib::List::uncapped();
+    for _ in 0..out.len() {
+        requests.push(out.pop().expect("counted output")).expect("uncapped test output");
+    }
+    requests.into_boxed()
+}
+
+fn assert_settled_account(d: &Domain, entry: &skein_forge_client::Entry, outcome: skein_forge_client::Outcome) {
+    let row = d.change(fixtures::CHANGE).expect("settled change");
+    assert_eq!(row.pending, None);
+    assert_eq!(
+        row.effect_account,
+        Some(EffectAccount {
+            entry: entry.number,
+            words: effect_words::account(entry, Some(&adopted()), outcome).expect("failure's words"),
+        })
+    );
+}
+
+#[test]
+fn an_update_lost_or_overtaken_is_let_go_with_its_account() {
+    use skein_forge::api::Error;
+    use skein_forge_client::Outcome;
+    use temper_engine_domain_forge_change::EffectResult;
+    for preparing in [false, true] {
+        for error in [Error::Timeout, Error::Unavailable, Error::Stale] {
+            let (mut d, entry) = updating_entry(preparing);
+            settled_change(&mut d, Outcome::Failed(error));
+            let row = d.change(fixtures::CHANGE).expect("settled update");
+            assert_eq!(row.effect, EffectResult::None, "preparing={preparing}, {error:?}");
+            assert!(row.effect_account.as_ref().expect("account").words.starts_with(b"update pull request: "));
+            assert_settled_account(&d, &entry, Outcome::Failed(error));
+        }
+    }
+}
+
+fn decide_update_again(d: &mut Domain, preparing: bool, updates: u32) {
+    use skein_forge::api::{Answer, CommitMessage, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    fixtures::step_change(d);
+    fixtures::answer_next(d, Ok(Answer::Commit(fixtures::HEAD)));
+    fixtures::answer_next(d, Ok(Answer::Commit(fixtures::BASE)));
+    fixtures::answer_next(d, Ok(Answer::Pull(fixtures::open_pull())));
+    fixtures::answer_next(d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+    fixtures::answer_next(d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+    let (call, op) = fixtures::next_call(d);
+    assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: fixtures::BASE, page: 1 }));
+    fixtures::answer(
+        d,
+        call,
+        Ok(Answer::Commits {
+            commits: Box::new([CommitMessage {
+                id: fixtures::BASE,
+                parents: Box::new([fixtures::HEAD]),
+                message: b"base ahead".as_slice().into(),
+            }]),
+            more: false,
+        }),
+    );
+    let decided = fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    let effect = if preparing {
+        change::Effect::Prepare { head: fixtures::HEAD, main: fixtures::BASE }
+    } else {
+        change::Effect::Update { head: fixtures::HEAD, base: fixtures::BASE }
+    };
+    let mut found = false;
+    for request in &decided {
+        if let Request::ChangeDecision {
+            task: fixtures::CHANGE,
+            decision: change::Decision::Effect(chosen),
+            entry: Some(FIRST_ENTRY),
+            ..
+        } = request
+        {
+            assert_eq!(*chosen, effect);
+            found = true;
+        }
+    }
+    assert!(found, "new effect {effect:?} under a fresh entry");
+    let row = d.change(fixtures::CHANGE).expect("new update");
+    assert_eq!(row.pending, Some(FIRST_ENTRY));
+    assert_eq!(row.change.updates, updates);
+    let state = if preparing {
+        change::State::Preparing { from: fixtures::HEAD, main: fixtures::BASE, ready_since: env().wall }
+    } else {
+        change::State::Updating { from: fixtures::HEAD, base: fixtures::BASE, ready_since: env().wall }
+    };
+    assert_eq!(row.change.state, state);
+    assert!(built_entry(&decided, FIRST_ENTRY));
+}
+
+#[test]
+fn a_let_go_update_is_decided_again() {
+    for preparing in [false, true] {
+        let (mut d, _) = updating_entry(preparing);
+        let settled = settled_change(&mut d, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Timeout));
+        assert!(settled.contains(&Request::ChangeDecision {
+            task: fixtures::CHANGE,
+            decision: temper_engine_domain_forge_change::Decision::None,
+            entry: None,
+            evidence: None,
+        }));
+        decide_update_again(&mut d, preparing, 2);
+    }
+}
+
+#[test]
+fn a_let_go_update_restored_is_decided_again() {
+    for preparing in [false, true] {
+        let (mut d, _) = updating_entry(preparing);
+        let settled = settled_change(&mut d, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Stale));
+        let mut saved = None;
+        for request in settled {
+            if let Request::Save { record: Stored::Change(row), .. } = request {
+                saved = Some(row);
+            }
+        }
+        let saved = saved.expect("saved let-go");
+        assert_eq!(saved.pending, None);
+        assert_eq!(saved.effect, temper_engine_domain_forge_change::EffectResult::None);
+        let mut restored = domain();
+        outputs(&mut restored, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(&mut restored, Event::Restore { record: Stored::Change(saved) });
+        assert_eq!(restored.restore_fit_failure(), None);
+        outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut restored, Event::ReadAfresh);
+        outputs(&mut restored, Event::SettleOutbox);
+        decide_update_again(&mut restored, preparing, 2);
+    }
+}
+
+#[test]
+fn an_update_refused_for_good_still_fails() {
+    use skein_forge::api::Error;
+    use temper_engine_domain_forge_change::EffectResult;
+    for (error, expected) in [
+        (Error::Protected, EffectResult::Failed),
+        (Error::Forbidden, EffectResult::Failed),
+        (Error::Closed, EffectResult::Failed),
+        (Error::Refused, EffectResult::Failed),
+        (Error::Conflict, EffectResult::Conflict),
+    ] {
+        for preparing in [false, true] {
+            let (mut d, entry) = updating_entry(preparing);
+            let outcome = skein_forge_client::Outcome::Failed(error);
+            settled_change(&mut d, outcome);
+            assert_eq!(d.change(fixtures::CHANGE).expect("refused update").effect, expected, "{error:?}");
+            assert_settled_account(&d, &entry, outcome);
+        }
+    }
+}
+
+#[test]
+fn only_an_update_is_let_go() {
+    use skein_forge::api::{Error, Write};
+    for write in [
+        Write::Merge { number: 1, head: fixtures::HEAD, how: skein_forge::api::MergeHow::Style },
+        Write::OpenPull {
+            title: b"fix".as_slice().into(),
+            body: Box::new([]),
+            head: b"temper/51".as_slice().into(),
+            base: b"main".as_slice().into(),
+        },
+    ] {
+        for error in [Error::Stale, Error::Timeout] {
+            let (mut d, mut entry) = updating_entry(false);
+            entry.effect.write = write.clone();
+            // Keep the pending identity while choosing another operation.
+            d.entries.get_mut(&entry.number).expect("pending entry").entry = entry.clone();
+            let outcome = skein_forge_client::Outcome::Failed(error);
+            settled_change(&mut d, outcome);
+            assert_eq!(
+                d.change(fixtures::CHANGE).expect("failed write").effect,
+                temper_engine_domain_forge_change::EffectResult::Failed
+            );
+            assert_settled_account(&d, &entry, outcome);
+        }
+    }
+}
+
+#[test]
+fn a_release_of_a_failed_update_drops_its_result() {
+    use temper_engine_domain_forge_change as change;
+    for preparing in [false, true] {
+        for (effect, update_state, expected) in [
+            (change::EffectResult::Failed, true, change::EffectResult::None),
+            (change::EffectResult::Conflict, true, change::EffectResult::Conflict),
+            (change::EffectResult::Failed, false, change::EffectResult::Failed),
+        ] {
+            let (mut d, _) = updating_entry(preparing);
+            let mut row = d.change(fixtures::CHANGE).expect("update").clone();
+            row.pending = None;
+            row.effect = effect;
+            let was = if update_state { row.change.state } else { change::State::Opening { requested: true } };
+            row.change.state = change::State::Held { was: Box::new(was), why: change::Hold::Failed };
+            d.changes.insert(row.task, row).expect("existing change slot");
+            outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE });
+            assert_eq!(d.change(fixtures::CHANGE).expect("released").effect, expected);
+            if expected == change::EffectResult::None {
+                decide_update_again(&mut d, preparing, 1);
+            }
+        }
+    }
+}
+
+#[test]
+fn a_stored_held_update_keeps_its_hold_and_its_words() {
+    use temper_engine_domain_forge_change as change;
+    for preparing in [false, true] {
+        let (mut d, entry) = updating_entry(preparing);
+        settled_change(&mut d, skein_forge_client::Outcome::Held);
+        assert_eq!(d.change(fixtures::CHANGE).expect("held entry").effect, change::EffectResult::Failed);
+        assert_settled_account(&d, &entry, skein_forge_client::Outcome::Held);
+        assert!(
+            d.change(fixtures::CHANGE)
+                .expect("held entry")
+                .effect_account
+                .as_ref()
+                .expect("account")
+                .words
+                .starts_with(b"update pull request: uncertain: it may or may not have been made; ")
+        );
+        // A fresh snapshot puts the failed update on hold.
+        let was = d.change(fixtures::CHANGE).expect("update").change.state.clone();
+        fixtures::step_change(&mut d);
+        fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit(fixtures::HEAD)));
+        fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
+        fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Pull(fixtures::open_pull())));
+        fixtures::finish_open(&mut d);
+        fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Reviews { reviews: Box::new([]), more: false }));
+        assert_eq!(
+            d.change(fixtures::CHANGE).expect("held change").change.state,
+            change::State::Held { was: Box::new(was), why: change::Hold::Failed }
+        );
+        outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE });
+        decide_update_again(&mut d, preparing, 1);
+    }
+}
