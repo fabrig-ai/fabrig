@@ -45,8 +45,9 @@
   terminal's reads a committed line alone (`temper/tests/real-loop/tests/suite/terminal.rs`,
   `a_person_at_the_terminal_reads_a_run_of_calls`). A browser's running line is seen in
   the gallery's `chat-work-running`; a terminal's in the view's tests and that world.
-- **Not yet:** 5.9, *The conversation*: no browser test draws an agent's running line
-  or presses its "Latest". The gallery's `agent-work` draws both, and the domain's and
+- **Not yet:** 5.9, *The conversation*, and 5.15: no browser test draws an agent's running line,
+  presses its "Latest" or scrolls its log, so that a press reads on to the end, the log following,
+  is seen by reading. The gallery's `agent-work` draws the line and the pill, and the domain's and
   the view's tests hold what a press reads and when it binds.
 - **Departs:** 3.5, *while it runs*: a call under way with none ended draws a
   description too, its words twice ("Checking template 2", "checking template 2"),
@@ -100,9 +101,7 @@
 - **Design departs:** 3.5, *A chat's conversation*, from the look request `chat-work` of
   2026-11-06. A failed call's "1 failed" shares the description with the run's time, both
   in the signal's colour, where the request adds ", 1 failed" alone in it, and a document's
-  write ends a run (`../draft/chat-reading.status.md`, 2); "Older" and its rule stay at both
-  conversations' heads, where the request removes them, as the one way to earlier lines
-  (`../draft/chat-reading.status.md`, 5): each decided by that plan's cut. The words being
+  write ends a run (`../draft/chat-reading.status.md`, 2): each decided by that plan's cut. The words being
   written end in a faint, inline "▍" that does not blink, where the request's overlay draws
   a block 7 px by 15 that blinks: the plan `chat-reading-a` set the mark, this request's
   landing took it at a catch-up, and no reason is recorded. Its pages' line says "Read 7
@@ -251,12 +250,17 @@
   the target, draw only "Accept" and "Change something", so no Reject is drawn, and a person rejects on
   the card in *Needs you*. A Reject's ask from that card goes under the proposal's own `project` all the
   same, and only the client's world sends it, by the act (section 11, *A Reject on a chat's card*).
-- **Not yet:** 3.5, *Reading back*: on the `ui-walk-3` walk of 2026-11-06, a long chat's first "Older" stayed
-  "Loading earlier messages" for the 40 seconds watched, at 1280x720 and 1000x600, so
-  no second press was made: a fresh fake box, 66 messages of 24 sentences through ctl,
-  the chat reopened through Chats, six of four sentences through the composer, then the
-  top and one press. `a_full_chat_window_offers_older_and_reads_it_when_asked` passes on
-  the domain's own window. The cause is unknown, and no test holds it.
+- **Not yet:** 5.15: no walk on record reads a long chat by its log's edges on a box, the plan
+  `chat-reading-c` having `walk = false` for the user to read it on a real chat. On the
+  `ui-walk-3` walk of 2026-11-06, before that plan landed, a long chat's first earlier read, by the
+  "Older" since gone, stayed "Loading earlier messages" for the 40 seconds watched, at 1280x720 and
+  1000x600: a fresh fake box, 66 messages of 24 sentences through ctl, the chat reopened through
+  Chats, six of four sentences through the composer, then the top and one press. Its cause is
+  unknown, and so is whether it stands: `temper/tests/client/tests/suite/reading.rs` and
+  `browser_pages`'s `a_long_chat_opens_at_its_end_and_reads_back_from_the_composer` read a long chat
+  back on histories of their own, and no test repeats that one.
+- **Departs:** 5.15, *While a read is out*: a read that failed with the person at the head is not
+  tried again on a move back within one and a half screens (skein's `ui-web.status.md`, 7).
 - **Not yet:** 3.5, *A chat's bar*: on that walk "Start goal…" went once from a first
   chat's restored document, at 420, after a round trip through working notes, with no
   error and no setting, repository or goal changed in between. Eight other fresh boxes
