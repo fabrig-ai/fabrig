@@ -2,7 +2,6 @@
 use skein_forge::api::{self, Op, Read};
 use skein_forge_connection::{Request, Settings, settings::Forge, start::Start};
 use skein_forge_machine_world::hand as f;
-use skein_forge_machine_world::hand as gh;
 use skein_lib::{Duration, List, Token};
 use std::boxed::Box;
 
@@ -61,13 +60,13 @@ fn an_added_forgejo_starts_with_its_access() {
 fn an_added_github_mints_and_serves_a_call() {
     let mut h = harness();
     h.send(Request::Add(forge(f::github_settings())));
-    gh::accepted(&mut h, &[1]);
+    f::accepted(&mut h, &[1]);
     h.run(Duration::ZERO);
     h.connected(f::FORGE);
-    h.answer(f::FORGE, &f::ok(gh::LIVE));
-    gh::full(&mut h);
-    gh::contents(&mut h);
-    h.answer(f::FORGE, &f::ok(gh::VIEWER));
+    h.answer(f::FORGE, &f::ok(f::LIVE));
+    f::full(&mut h);
+    f::contents(&mut h);
+    h.answer(f::FORGE, &f::ok(f::VIEWER));
     h.run(Duration::ZERO);
     assert_eq!(h.start(f::FORGE), Start::Ready { cap: skein_forge::github::pin::PAGE_CAP });
     assert_eq!(h.git_tokens.as_ref().expect("tokens").len(), 1);
@@ -75,7 +74,7 @@ fn an_added_github_mints_and_serves_a_call() {
     h.call(1, f::REPO, Op::Read(Read::Branch { branch: Box::from(b"main".as_slice()) }));
     h.run(Duration::ZERO);
     h.connected(f::FORGE);
-    assert!(gh::contains(&h.request_bytes(f::FORGE), b"Authorization: Bearer artificial-full-api-secret\r\n"));
+    assert!(f::contains(&h.request_bytes(f::FORGE), b"Authorization: Bearer artificial-full-api-secret\r\n"));
     h.answer(f::FORGE, &f::ok(f::GITHUB_BRANCH));
     h.run(Duration::ZERO);
     assert_eq!(h.answered(1).expect("call answered").result, Ok(api::Answer::Commit([0; 32])));

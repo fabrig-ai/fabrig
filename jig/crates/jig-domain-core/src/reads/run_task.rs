@@ -6,6 +6,15 @@ use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Id, Queue, ReplyTo};
 
+/// The application-named task text and answer room (engine.md, 7.3).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Read {
+    pub task: u64,
+    pub field: TaskTextField,
+    pub from: u64,
+    pub room: u32,
+}
+
 /// A task's lifecycle without result payloads or live-run secrets.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TaskState {
@@ -112,10 +121,10 @@ fn value(
     limits: &Limits,
     caller: u64,
     row: &tasks::TaskRecord,
-    field: TaskTextField,
-    from: u64,
+    read: Read,
     linked: &[Box<tasks::TaskRecord>],
 ) -> Result<TaskRead, tasks::Refusal> {
+    let Read { field, from, room, .. } = read;
     if !(related(core, caller, row)
         || field == TaskTextField::Result && descendant(core, caller, row, linked, limits.tasks.depth))
     {
@@ -126,7 +135,7 @@ fn value(
         TaskTextField::Result => super::task_text::report(row).ok_or(tasks::Refusal::Unknown)?,
         TaskTextField::Instructions => return Err(tasks::Refusal::Unknown),
     };
-    let words = super::task_text::chunk(row.number, field, source, from, limits.documents.text_bytes)
+    let words = super::task_text::chunk(row.number, field, source, from, room.min(limits.call_answer_bytes))
         .or(Err(tasks::Refusal::Unknown))?;
     let state = task_state(row);
     let hold = task_hold(limits, row)?;
@@ -194,38 +203,23 @@ fn answer(to: ReplyTo, key: CallKey, value: Result<TaskRead, tasks::Refusal>) ->
     out
 }
 
-pub(crate) fn run(
-    core: &mut Core,
-    env: &Env<Limits>,
-    to: ReplyTo,
-    key: CallKey,
-    task: u64,
-    field: TaskTextField,
-    from: u64,
-) -> Queue<Request> {
+pub(crate) fn run(core: &mut Core, env: &Env<Limits>, to: ReplyTo, key: CallKey, read: Read) -> Queue<Request> {
     if let Some(part) = core.authorize_tool(key, crate::ToolKind::Read) {
         let mut out = Queue::uncapped();
         out.push(Request::Now(Box::new(Now::EffectAnswer { to, key, part })));
         return out;
     }
-    if let Some(row) = core.tasks.task(task) {
-        return answer(to, key, value(core, &env.limits, key.task, row, field, from, &[]));
+    if let Some(row) = core.tasks.task(read.task) {
+        return answer(to, key, value(core, &env.limits, key.task, row, read, &[]));
     }
-    load(core, env, to, key, task, field, from)
+    load(core, env, to, key, read)
 }
 
-fn load(
-    core: &mut Core,
-    env: &Env<Limits>,
-    to: ReplyTo,
-    key: CallKey,
-    task: u64,
-    field: TaskTextField,
-    from: u64,
-) -> Queue<Request> {
+fn load(core: &mut Core, env: &Env<Limits>, to: ReplyTo, key: CallKey, read: Read) -> Queue<Request> {
     if core.reads.len() >= env.limits.load_slots {
         return answer(to, key, Err(tasks::Refusal::Busy));
     }
+    let Read { task, field, from, .. } = read;
     let range = Range {
         party: 0,
         backwards: false,
@@ -238,7 +232,7 @@ fn load(
         bytes: env.limits.load_bytes,
     };
     let pending = Pending {
-        destination: Destination::RunTask { to, key, task, field, from },
+        destination: Destination::RunTask { to, key, read },
         sign_in: 0,
         party: 0,
         range: range.clone(),
@@ -252,9 +246,7 @@ fn load(
 
 pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Id<Pending>, result: Loaded) -> Queue<Request> {
     let pending = core.reads.get_mut(name).expect("pending task read");
-    let Destination::RunTask { to, key, task, field, from } =
-        core::mem::replace(&mut pending.destination, Destination::Done)
-    else {
+    let Destination::RunTask { to, key, read } = core::mem::replace(&mut pending.destination, Destination::Done) else {
         unreachable!("task read")
     };
     core.reads.retire(name);
@@ -270,9 +262,9 @@ pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Id<Pending>, resu
         Loaded::Page { rows, .. } => {
             for row in rows {
                 if let crate::Record::Tasks(tasks::Stored::Ended(owner)) = &row.value
-                    && owner.number == task
+                    && owner.number == read.task
                 {
-                    return answer(to, key, value(core, &env.limits, key.task, owner, field, from, &row.linked));
+                    return answer(to, key, value(core, &env.limits, key.task, owner, read, &row.linked));
                 }
             }
             answer(to, key, Err(tasks::Refusal::Reference))
@@ -294,9 +286,9 @@ pub fn owned_bytes(read: &TaskRead) -> u64 {
     bytes
 }
 
-/// Maximum task-read carrier and payload under the admitted task and document limits.
+/// The most a task read's carrier and metadata take, without its words.
 #[must_use]
-pub fn answer_bound(limits: &Limits) -> Option<u64> {
+pub fn answer_carrier_bound(limits: &Limits) -> Option<u64> {
     u64::try_from(size_of::<Result<TaskRead, tasks::Refusal>>())
         .ok()?
         .checked_add(u64::from(limits.tasks.dependencies).checked_mul(u64::try_from(size_of::<u64>()).ok()?)?)?
@@ -304,13 +296,115 @@ pub fn answer_bound(limits: &Limits) -> Option<u64> {
             u64::from(limits.tasks.inbox_messages)
                 .checked_mul(u64::try_from(size_of::<tasks::QuestionCredit>()).ok()?)?,
         )?
-        .checked_add(u64::from(limits.documents.text_bytes))?
         .checked_add(u64::from(tasks::HOLD_ACCOUNT_BYTES))
+}
+
+/// Maximum task-read carrier and payload under the admitted limits.
+#[must_use]
+pub fn answer_bound(limits: &Limits) -> Option<u64> {
+    answer_carrier_bound(limits)?.checked_add(u64::from(limits.call_answer_bytes))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn in_document_room(
+        core: &Core,
+        limits: &Limits,
+        caller: u64,
+        row: &tasks::TaskRecord,
+        field: TaskTextField,
+        from: u64,
+        linked: &[Box<tasks::TaskRecord>],
+    ) -> Result<TaskRead, tasks::Refusal> {
+        value(
+            core,
+            limits,
+            caller,
+            row,
+            Read { task: row.number, field, from, room: limits.documents.text_bytes },
+            linked,
+        )
+    }
+
+    #[test]
+    fn task_read_room_is_independent_of_the_clients_window() {
+        let (core, mut limits) = crate::tests::make_tree();
+        limits.documents.text_bytes = 4;
+        let mut row = core.tasks.task(2).expect("delegate").clone();
+        row.spec.words = b"a specification past the client window".as_slice().into();
+        let read = value(
+            &core,
+            &limits,
+            1,
+            &row,
+            Read { task: row.number, field: TaskTextField::Specification, from: 0, room: 64 },
+            &[],
+        )
+        .expect("related task");
+        assert_eq!(read.words.bytes, row.spec.words);
+        assert_eq!(read.words.next, None);
+    }
+
+    #[test]
+    fn task_read_words_are_capped_by_call_answers_and_the_named_room() {
+        let (core, mut limits) = crate::tests::make_tree();
+        limits.documents.text_bytes = 4;
+        let mut row = core.tasks.task(2).expect("delegate").clone();
+        row.spec.words = b"a specification past both limits".as_slice().into();
+        for (room, answer, expected) in [(64, 12, 12), (8, 64, 8)] {
+            limits.call_answer_bytes = answer;
+            let read = value(
+                &core,
+                &limits,
+                1,
+                &row,
+                Read { task: row.number, field: TaskTextField::Specification, from: 0, room },
+                &[],
+            )
+            .expect("related task");
+            assert_eq!(read.words.bytes.len(), expected);
+            assert_eq!(read.words.next, Some(u64::try_from(expected).unwrap()));
+        }
+    }
+
+    #[test]
+    fn task_read_answer_bound_covers_the_largest_read() {
+        let (core, mut limits) = crate::tests::make_tree();
+        limits.documents.text_bytes = 4;
+        limits.call_answer_bytes = 64;
+        let mut row = core.tasks.task(2).expect("delegate").clone();
+        row.spec.words = skein_lib::bytes::zeroed(64);
+        limits.tasks.dependencies = 2;
+        row.dependencies = Box::new([1; 2]);
+        let credit =
+            tasks::QuestionCredit { number: 1, answerer: tasks::Party::Task(1), asked: tasks::Party::Task(1), line: 2 };
+        limits.tasks.inbox_messages = 2;
+        row.questions = Box::new([credit.clone(), credit]);
+        row.phase = tasks::Phase::Held {
+            was: tasks::Was::Waiting,
+            why: tasks::Hold::Procedure,
+            source: Some(Box::new(tasks::HoldSource::Account {
+                connector: 1,
+                entry: None,
+                words: skein_lib::bytes::zeroed(usize::try_from(tasks::HOLD_ACCOUNT_BYTES).unwrap()),
+            })),
+        };
+        let read = value(
+            &core,
+            &limits,
+            1,
+            &row,
+            Read { task: row.number, field: TaskTextField::Specification, from: 0, room: u32::MAX },
+            &[],
+        )
+        .expect("largest task read");
+        assert_eq!(read.words.bytes.len(), 64);
+        let retained = u64::try_from(size_of::<Result<TaskRead, tasks::Refusal>>()).unwrap() + owned_bytes(&read);
+        assert_eq!(answer_bound(&limits), Some(retained));
+        assert_eq!(answer_carrier_bound(&limits), retained.checked_sub(64));
+    }
 
     #[test]
     fn result_reads_keep_verdict_codes_outside_reason_offsets() {
@@ -323,7 +417,15 @@ mod tests {
             words: b"caf\xc3\xa9 bold".as_slice().into(),
         }));
         for (from, bytes, next) in [(0, b"caf\xc3\xa9".as_slice(), Some(5)), (5, b" bold".as_slice(), None)] {
-            let read = value(&core, &limits, 1, &row, TaskTextField::Result, from, &[]).expect("requester result");
+            let read = value(
+                &core,
+                &limits,
+                1,
+                &row,
+                Read { task: row.number, field: TaskTextField::Result, from, room: limits.documents.text_bytes },
+                &[],
+            )
+            .expect("requester result");
             assert_eq!(read.verdict_code, Some(2));
             assert_eq!(read.words.bytes.as_ref(), bytes);
             assert_eq!(read.words.next, next);
@@ -340,15 +442,24 @@ mod tests {
             }),
         });
         assert_eq!(
-            value(&core, &limits, 1, &row, TaskTextField::Result, 0, &[]).expect("kept verdict").verdict_code,
+            in_document_room(&core, &limits, 1, &row, TaskTextField::Result, 0, &[])
+                .expect("kept verdict")
+                .verdict_code,
             Some(2)
         );
-        let spec = value(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[]).expect("requester spec");
+        let spec =
+            in_document_room(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[]).expect("requester spec");
         assert_eq!(spec.verdict_code, None);
-        assert_eq!(value(&core, &limits, 3, &row, TaskTextField::Result, 0, &[]), Err(tasks::Refusal::Reference));
+        assert_eq!(
+            in_document_room(&core, &limits, 3, &row, TaskTextField::Result, 0, &[]),
+            Err(tasks::Refusal::Reference)
+        );
         row.phase =
             tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words: b"bold".as_slice().into() }));
-        assert_eq!(value(&core, &limits, 1, &row, TaskTextField::Result, 0, &[]).expect("report").verdict_code, None);
+        assert_eq!(
+            in_document_room(&core, &limits, 1, &row, TaskTextField::Result, 0, &[]).expect("report").verdict_code,
+            None
+        );
     }
 
     #[test]
@@ -364,7 +475,8 @@ mod tests {
             line: 106,
         };
         row.questions = Box::new([credit.clone(), tasks::QuestionCredit { number: 104, ..credit.clone() }]);
-        let read = value(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[]).expect("requester read");
+        let read =
+            in_document_room(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[]).expect("requester read");
         assert_eq!(read.questions, row.questions);
         let inline = u64::try_from(size_of::<Result<TaskRead, tasks::Refusal>>()).expect("carrier");
         assert!(answer_bound(&limits).expect("bounded answer") >= inline + owned_bytes(&read));
@@ -375,7 +487,7 @@ mod tests {
             u64::try_from(size_of_val(row.questions.as_ref())).expect("credit bytes")
         );
         assert_eq!(
-            value(&core, &limits, 3, &row, TaskTextField::Specification, 0, &[]),
+            in_document_room(&core, &limits, 3, &row, TaskTextField::Specification, 0, &[]),
             Err(tasks::Refusal::Reference)
         );
     }
@@ -396,18 +508,19 @@ mod tests {
             })),
         };
         row.revisions.hold = 7;
-        let first = value(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[]).expect("direct delegate");
+        let first =
+            in_document_room(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[]).expect("direct delegate");
         assert_eq!(first.words.bytes.as_ref(), b"a\xc3\xa9b");
         assert_eq!(first.words.next, Some(4));
         let hold = first.hold.expect("connector hold");
         assert_eq!(hold.revision, 7);
         assert_eq!(hold.words.as_deref(), Some(b"missing grant; amend authority and release".as_slice()));
         assert!(
-            value(&core, &limits, 1, &row, TaskTextField::Specification, 2, &[]).is_err(),
+            in_document_room(&core, &limits, 1, &row, TaskTextField::Specification, 2, &[]).is_err(),
             "continuation cannot split UTF-8"
         );
         assert_eq!(
-            value(&core, &limits, 3, &row, TaskTextField::Specification, 0, &[]),
+            in_document_room(&core, &limits, 3, &row, TaskTextField::Specification, 0, &[]),
             Err(tasks::Refusal::Reference)
         );
         row.escalation = tasks::Escalation::Waiting {
@@ -417,16 +530,16 @@ mod tests {
             since: skein_lib::Wall::EPOCH,
         };
         assert!(
-            value(&core, &limits, 3, &row, TaskTextField::Specification, 4, &[]).is_ok(),
+            in_document_room(&core, &limits, 3, &row, TaskTextField::Specification, 4, &[]).is_ok(),
             "escalation holder can read its subject"
         );
         row.phase = tasks::Phase::Ended(tasks::Ending::Failed { reason: b"ended".as_slice().into() });
         assert!(
-            value(&core, &limits, 1, &row, TaskTextField::Specification, 4, &[]).is_ok(),
+            in_document_room(&core, &limits, 1, &row, TaskTextField::Specification, 4, &[]).is_ok(),
             "retained requester remains authorized"
         );
         assert_eq!(
-            value(&core, &limits, 3, &row, TaskTextField::Specification, 4, &[]),
+            in_document_room(&core, &limits, 3, &row, TaskTextField::Specification, 4, &[]),
             Err(tasks::Refusal::Reference)
         );
     }
@@ -476,7 +589,13 @@ mod tests {
 
     fn retained_load(core: &mut Core, env: &Env<Limits>, task: u64, from: u64) -> Id<Pending> {
         let key = CallKey { task: 1, attempt: 9, completion: 1, position: 0 };
-        let mut out = run(core, env, ReplyTo::new(skein_lib::Token::new(90)), key, task, TaskTextField::Result, from);
+        let mut out = run(
+            core,
+            env,
+            ReplyTo::new(skein_lib::Token::new(90)),
+            key,
+            Read { task, field: TaskTextField::Result, from, room: env.limits.documents.text_bytes },
+        );
         let Some(Request::Held(held)) = out.pop() else { panic!("retained load") };
         let Held::ReadLoad { load, range } = *held else { panic!("store read") };
         assert_eq!(range.scope, Scope::Task { task }, "load includes requester evidence");
@@ -727,7 +846,7 @@ mod tests {
                 retained_contract_reports(verdict_contract(&limits), review_result(), CHANGE);
             let crate::Record::Tasks(tasks::Stored::Ended(producer)) = &mut row.value else { panic!("producer") };
             assert_eq!(
-                value(&core, &limits, 3, producer, TaskTextField::Result, 0, &row.linked),
+                in_document_room(&core, &limits, 3, producer, TaskTextField::Result, 0, &row.linked),
                 Err(tasks::Refusal::Reference),
                 "a sibling shares the root but has no requester chain"
             );

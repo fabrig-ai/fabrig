@@ -4,7 +4,7 @@ use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_notes as notes;
 use jig_protocol_tools as tools;
-use skein_lib::{Duration, List, ReplyTo, Token};
+use skein_lib::{Duration, List, Token};
 use std::collections::BTreeMap;
 
 /// Answer the scripted account component's shared request vocabulary.
@@ -23,16 +23,11 @@ pub fn account(request: accounts::ToComponent, valid: Duration) -> Option<core::
     Some(core::Event::Account(accounts::Event::Component(answer)))
 }
 
-/// Carry a rendered host answer with its destination for the application's root.
-pub fn settled_answer(to: ReplyTo, tool: Box<[u8]>, rendered: tools::Rendered) -> (ReplyTo, core::SettledCall) {
-    (
-        to,
-        core::SettledCall {
-            serial: 0,
-            tool,
-            answer: core::SettledAnswer::Host { error: rendered.error, body: rendered.text },
-        },
-    )
+/// Build a settled call from a rendered host answer for the application's root.
+#[must_use]
+pub fn settled_answer(tool: Box<[u8]>, rendered: tools::Rendered) -> core::SettledCall {
+    let tools::Rendered { error, text } = rendered;
+    core::SettledCall { serial: 0, tool, answer: core::SettledAnswer::Host { error, body: text } }
 }
 
 /// The externally visible position of a core-owned restart phase.

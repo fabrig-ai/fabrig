@@ -19,13 +19,19 @@
 - Client held conversation: `jig/testing/jig-client-kit/src/stories/shared/b_held.rs` declares `OWNER = 1`, the kit's `SIGNING_PARTY`. Its scripted and core setup also repeats party 1 and parent task 1 as literals beside the named owner and parent.
 - Engine clients: `jig/tests/engine-clients/tests/requests/full.rs` declares the core kit's seeded `PARTY = 1` again and passes its project as literal 1 to `Ask::Stop`.
 
-These copies span four files; they do not fit a one-file correction. Equal values in
-independent codec fixtures, transport-owner tokens and different story roles do not
+- Accounts finish: `jig/tests/accounts/tests/suite/finish.rs` repeats `start(1, 7, 1)` five times.
+- Task holders: `jig/tests/tasks/tests/lifecycle/grace.rs`, `jig/tests/tasks/tests/suite/circles.rs` and `jig/tests/tasks/tests/suite/kept_start.rs` each declare `HOLDER = 3`.
+- Conformance conversations: `jig/tests/conformance/src/scenarios/conversations.rs` declares `PARTY = 1` and `PROJECT = 1`.
+- Placed stops: `jig/tests/tasks/tests/suite/placed.rs` keeps the task and party in `stop(&mut w, 1, 1, STOP_HOLD)` bare, along with its tree's task, party and project identities and the separate holds 101 and 102.
+- People: `jig/tests/people/tests/suite/simulation.rs` keeps proposer task 7 and completed-result task 7 as different story roles from `STOPPED_CHAT`.
+
+Equal values in independent codec fixtures, transport-owner tokens and different story roles do not
 require a shared identity. The count's excluded functions take spans, bounds or seeds,
 where the number is the point. The two named turn fixtures above also keep their exact
 numbers for the independent decoding assertions.
 
-The people, connector settings, tasks, accounts restore/model/sign-in, client activity,
+The held-chat and placed-stop rows use their local names. Connector settings,
+accounts restore/model/sign-in, client activity,
 client documents, scripted-engine sign-ins and service-capacity rows are named. Common
 core acts and the notes world's project fixture are shared. Distinct request verbs and
 the four core-kit sign-in constructors outside its shared fixtures keep their different

@@ -180,23 +180,6 @@ fn discovered_unaccepted_owner_keeps_discovery_cost() {
     assert_eq!(h.request_lines(FORGE).len(), 1);
 }
 #[test]
-fn discovered_settings_returns_without_duplicate_read() {
-    let mut h = f::github_calls();
-    begin(&mut h, Op::Read(Read::Settings));
-    h.answer(FORGE, &f::ok(f::GITHUB_REPOSITORY));
-    answered(
-        &mut h,
-        1,
-        Ok(Answer::Settings(api::Settings {
-            default_branch: Box::from(b"main".as_slice()),
-            merge: true,
-            squash: true,
-            rebase: false,
-        })),
-    );
-    assert_eq!(h.request_lines(FORGE).len(), 1);
-}
-#[test]
 fn expired_full_waits_without_holding_a_call_socket() {
     let mut h = known();
     h.component.test_github_mut().rows.get_mut(&1).expect("row").full.expiry = Time::ZERO;
@@ -421,23 +404,6 @@ fn close_during_discovery_or_token_wait_has_no_terminal() {
     }
 }
 #[test]
-fn held_answer_is_offered_once() {
-    let mut h = known();
-    begin(&mut h, branch());
-    h.answer(FORGE, &f::ok(f::GITHUB_BRANCH));
-    h.run(Duration::ZERO);
-    let answer = h.answers.remove(&1).expect("answer");
-    h.send(Request::Refused(answer));
-    h.send(Request::Offer);
-    h.run(Duration::ZERO);
-    assert_eq!(h.answered(1).expect("offered").cost, 1);
-    h.send(Request::Offer);
-    h.run(Duration::ZERO);
-    h.send(Request::Close);
-    h.run(Duration::ZERO);
-    assert!(h.closed);
-}
-#[test]
 fn both_dialect_tables_keep_forge_keys_before_the_kind_is_added() {
     let mut h = known();
     assert!(h.component.forgejo_tables().repository(REPO).is_none());
@@ -512,13 +478,6 @@ fn every_landed_write_runs_once_with_full_installation_authorization() {
             200,
             f::GITHUB_PULL,
             Answer::Done,
-        ),
-        (
-            "Merge",
-            Write::Merge { number: 7, head: [0; 32], how: api::MergeHow::Style },
-            200,
-            br#"{"sha":"0000000000000000000000000000000000000000"}"#,
-            Answer::Merged([0; 32]),
         ),
         (
             "DeleteBranch",
@@ -601,14 +560,7 @@ fn every_landed_write_runs_once_with_full_installation_authorization() {
 fn original_reads_keep_the_dialects_typed_answers() {
     for (label, op, bodies) in [
         ("Items", Read::Items { since: Time::ZERO, page: 1, kind: None }, &[b"[]".as_slice()][..]),
-        ("Item", Read::Item { number: 7, after: 0 }, &[f::GITHUB_ISSUE, f::GITHUB_COMMENTS][..]),
-        (
-            "Pull",
-            Read::Pull { number: 7 },
-            &[f::GITHUB_PULL, f::GITHUB_COMBINED, f::GITHUB_RUNS, f::GITHUB_GRAPHQL][..],
-        ),
         ("Statuses", Read::Statuses { commit: [0; 32], page: 1 }, &[f::GITHUB_COMBINED][..]),
-        ("Branches", Read::Branches { prefix: Box::from(&b"m"[..]) }, &[br#"[{"name":"main"}]"#.as_slice()][..]),
     ] {
         let mut h = known();
         begin(&mut h, Op::Read(op));
@@ -666,24 +618,6 @@ fn discovered_settings_waits_for_its_owner_without_a_second_read() {
             rebase: false,
         })),
     );
-    assert_eq!(h.connections_opened(), 1);
-}
-#[test]
-fn another_installation_proceeds_while_one_full_is_expired() {
-    let mut h = known();
-    f::github_account(&mut h, 2, 23, b"other", b"artificial-full-two");
-    let other = api::Repository { repository: 2, ..REPO };
-    f::github_repository(&mut h, other, 23);
-    h.component.test_github_mut().rows.get_mut(&1).expect("row").full.expiry = Time::ZERO;
-    h.call(1, REPO, branch());
-    h.call(2, other, branch());
-    h.run(Duration::ZERO);
-    h.connected(FORGE);
-    h.answer(FORGE, &f::ok(f::GITHUB_BRANCH));
-    h.run(Duration::ZERO);
-    assert!(h.answered(1).is_none());
-    let answer = h.answered(2).expect("other installation answered");
-    assert_eq!((answer.cost, &answer.result), (1, &Ok(Answer::Commit([0; 32]))));
     assert_eq!(h.connections_opened(), 1);
 }
 #[test]

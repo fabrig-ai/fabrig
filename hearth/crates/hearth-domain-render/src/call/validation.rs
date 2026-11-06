@@ -113,7 +113,7 @@ impl Side {
     }
 
     pub(super) fn defaults(&mut self, targets: &[Target]) {
-        let mut faults = List::with_capacity(16);
+        let mut faults = List::uncapped();
         self.defaults = crate::schema::declarations(
             &self.documents,
             &self.entries,
@@ -186,7 +186,7 @@ pub(super) fn checked(
 ) -> Option<crate::schema::Validated> {
     let names = self::targets(targets, &target.environment);
     let check = crate::schema::Check::Target { environment: &target.environment, targets: &names };
-    let mut faults = List::with_capacity(16);
+    let mut faults = List::uncapped();
     let checked = crate::schema::validate(settings, revision, &check, validator, &mut left, &mut faults);
     schema_errors(errors, revision.documents, Some(&target.name), &faults);
     if validator.limited() {

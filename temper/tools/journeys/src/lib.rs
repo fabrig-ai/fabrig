@@ -15,6 +15,10 @@ pub const JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/desi
 #[derive(Debug)]
 pub enum Refusal {
     Name(String),
+    Undecoded { name: String, line: u32 },
+    Found { name: String, line: u32, record: &'static str, place: journey::Place, what: journey::What },
+    FoundDrawn { name: String, turn: u32, what: journey::What },
+    FoundPrinted { name: String, page: String, what: journey::What },
     Proof { name: String, refusal: journey::Refusal },
     Unreadable { name: String, unreadable: journey::Unreadable },
     Io { path: PathBuf },
@@ -34,23 +38,85 @@ pub fn named(name: &str) -> bool {
         && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
-/// Takes a saved recording as the journey NAME, replacing one of that name:
-/// proves it, keeps it as `NAME/recording` without its live prints, and prints it.
+/// Counts of the originals and replacements (client/journeys.md, 3.6).
+#[derive(Debug)]
+pub struct Added {
+    pub link: u32,
+    pub stored: u32,
+    pub typed: u32,
+    pub given: u32,
+    pub places: u32,
+}
+
+/// Takes a recording as NAME, redacts, proves and scans it in memory, then
+/// replaces its recording and pages (client/journeys.md, 3.6–3.7, 4.3 and 5.1).
 /// # Errors
-/// Refuses an invalid name, an unproved recording or a filesystem failure.
-pub fn add(journeys: &Path, name: &str, recording: &[u8]) -> Result<(), Refusal> {
+/// Refuses an invalid name, unreadable or unsafe bytes, a failed proof or io.
+pub fn add(journeys: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]) -> Result<Added, Refusal> {
     if !named(name) {
         return Err(Refusal::Name(name.to_owned()));
     }
-    let recording = journey::prove(recording).map_err(|refusal| Refusal::Proof { name: name.to_owned(), refusal })?;
+    let redacted = journey::redact(recording, given).map_err(|why| match why {
+        journey::Unredacted::Unreadable(unreadable) => proof_refusal(name, journey::Refusal::Unreadable(unreadable)),
+        journey::Unredacted::Undecoded(undecoded) => Refusal::Undecoded { name: name.to_owned(), line: undecoded.line },
+    })?;
+    scanned(name, &redacted.recording, &redacted.originals)?;
+    let mut drawn = None;
+    let proof = journey::prove_drawn(&redacted.recording, &mut |turn, page| {
+        if drawn.is_none() {
+            drawn = journey::scan::page(&page.html(), &redacted.originals).map(|what| Refusal::FoundDrawn {
+                name: name.to_owned(),
+                turn,
+                what,
+            });
+        }
+    });
+    if let Some(found) = drawn {
+        return Err(found);
+    }
+    // A differing live print must not hide a hit in the printed document.
+    let recording = proof.as_deref().unwrap_or(&redacted.recording);
+    let pages = printed(name, recording)?.map_err(|stale| proof_refusal(name, journey::Refusal::Stale(stale)))?;
+    scanned(name, recording, &redacted.originals)?;
+    for page in &pages {
+        if let Some(what) = journey::scan::bytes(page.document.as_bytes(), &redacted.originals) {
+            return Err(Refusal::FoundPrinted { name: name.to_owned(), page: page.name.clone(), what });
+        }
+    }
+    let recording = proof.map_err(|refusal| proof_refusal(name, refusal))?;
+    let added = Added {
+        link: redacted.originals.count(journey::Kind::Link),
+        stored: redacted.originals.count(journey::Kind::Stored),
+        typed: redacted.originals.count(journey::Kind::Typed),
+        given: redacted.originals.count(journey::Kind::Given),
+        places: redacted.places,
+    };
     let directory = journeys.join(name);
     fs::create_dir_all(&directory).map_err(|_| io_refusal(&directory))?;
     let path = directory.join("recording");
     fs::write(&path, &recording).map_err(|_| io_refusal(&path))?;
-    if let Some(stale) = print_one(&directory, name, &recording)? {
-        return Err(Refusal::Proof { name: name.to_owned(), refusal: journey::Refusal::Stale(stale) });
+    write_pages(&directory, pages)?;
+    print::beside(journeys).map_err(|_| io_refusal(journeys))?;
+    Ok(added)
+}
+
+fn scanned(name: &str, recording: &[u8], originals: &journey::Originals) -> Result<(), Refusal> {
+    let lines = journey::lines(recording)
+        .map_err(|unreadable| proof_refusal(name, journey::Refusal::Unreadable(unreadable)))?;
+    let found = journey::scan::lines(&lines, originals)
+        .map_err(|why| Refusal::Undecoded { name: name.to_owned(), line: why.line })?;
+    if let Some(journey::Found { line, record, place, what }) = found {
+        return Err(Refusal::Found { name: name.to_owned(), line, record, place, what });
     }
-    print::beside(journeys).map_err(|_| io_refusal(journeys))
+    Ok(())
+}
+
+fn proof_refusal(name: &str, mut refusal: journey::Refusal) -> Refusal {
+    if let journey::Refusal::Stale(stale) = &mut refusal {
+        stale.recorded = stale.recorded.split_whitespace().next().unwrap_or("").to_owned();
+        stale.asked = stale.asked.split_whitespace().next().unwrap_or("").to_owned();
+    }
+    Refusal::Proof { name: name.to_owned(), refusal }
 }
 
 /// Reprints every journey under `journeys` (each directory holding a `recording`)
@@ -95,6 +161,16 @@ fn names(journeys: &Path) -> Result<Vec<String>, Refusal> {
 }
 
 fn print_one(out: &Path, name: &str, recording: &[u8]) -> Result<Option<Stale>, Refusal> {
+    match printed(name, recording)? {
+        Ok(pages) => {
+            write_pages(out, pages)?;
+            Ok(None)
+        }
+        Err(stale) => Ok(Some(stale)),
+    }
+}
+
+fn printed(name: &str, recording: &[u8]) -> Result<Result<Vec<print::Printed>, Stale>, Refusal> {
     let mut replay = journey::Replay::new(recording).map_err(|refusal| match refusal {
         journey::Refusal::Unreadable(unreadable) => Refusal::Unreadable { name: name.to_owned(), unreadable },
         refusal @ (journey::Refusal::Stale(_)
@@ -113,10 +189,13 @@ fn print_one(out: &Path, name: &str, recording: &[u8]) -> Result<Option<Stale>, 
                 });
             }
             Ok(None) => break,
-            Err(stale) => return Ok(Some(stale)),
+            Err(stale) => return Ok(Err(stale)),
         }
     }
-    let pages = print::pages(&marks);
+    Ok(Ok(print::pages(&marks)))
+}
+
+fn write_pages(out: &Path, pages: Vec<print::Printed>) -> Result<(), Refusal> {
     fs::create_dir_all(out).map_err(|_| io_refusal(out))?;
     for entry in fs::read_dir(out).map_err(|_| io_refusal(out))? {
         let entry = entry.map_err(|_| io_refusal(out))?;
@@ -129,7 +208,7 @@ fn print_one(out: &Path, name: &str, recording: &[u8]) -> Result<Option<Stale>, 
         let path = out.join(page.name);
         fs::write(&path, page.document).map_err(|_| io_refusal(&path))?;
     }
-    Ok(None)
+    Ok(())
 }
 
 fn printed_page(path: &Path) -> bool {

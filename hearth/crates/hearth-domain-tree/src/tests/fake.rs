@@ -251,7 +251,7 @@ fn go(nodes: &[Node], limits: Limits, fault: Option<u32>, kind: Fault, stream: O
     let mut fed = 0_usize;
     let mut event = Event::Walk { key: KEY, parent: if stream.is_some() { Some(PARENT) } else { None } };
     for count in 0..8_192_u32 {
-        let mut out = Queue::with_capacity(crate::MAX_OUT);
+        let mut out = Queue::with_capacity(1);
         step(&mut tree, &env, event, &mut out);
         assert_eq!(out.len(), 1, "one output a step");
         match out.pop().expect("one output") {
