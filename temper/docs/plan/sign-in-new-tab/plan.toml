@@ -14,3 +14,16 @@ id = 1
 story = "A sign-in's new tab ends on \"Sign-in received. You can close this tab.\""
 parts = ["listener-words"]
 walk = false
+
+[[part]]
+id = "web-tab"
+title = "skein's web platform opens, points and closes a tab, and reports one refused"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 10"
+
+[[slice]]
+id = 2
+story = "In Chromium, a press opens a tab in its own turn, and the page points it with its opener cut"
+parts = ["web-tab"]
+walk = false
