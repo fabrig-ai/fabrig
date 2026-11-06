@@ -422,6 +422,8 @@ fn a_configuring_proposal_of_a_projects_ways_reaches_its_needs_and_its_rail() {
     }
     assert_eq!(world.root(person).person().pages().inbox().unwrap().cards.len(), 1);
     assert_eq!(rail(&world, person, PROJECT), 1);
+    world.go(person, Address::Chat { task });
+    see(&mut world, person, skein_fake_person::Find::text(b"Goals: shown"));
     world.go(person, project_inbox(PROJECT));
     see_proposal(&mut world, person);
     let object = world.root(person).person().pages().inbox().unwrap().cards.get(0).unwrap().object;

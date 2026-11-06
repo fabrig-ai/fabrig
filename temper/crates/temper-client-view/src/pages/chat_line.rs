@@ -234,6 +234,13 @@ fn tool_words(tool: &[u8], touched: &Touched) -> Option<ToolWords> {
             | Touched::SettingHistory
             | Touched::Other { .. } => (Count::Docs, WorkReadDoc, WorkReadDocs, WorkReadPage, WorkReading),
         },
+        b"propose_settings" => (
+            Count::Calls,
+            Word::WorkProposedChange,
+            Word::WorkProposedChangeCount,
+            Word::WorkProposedChange,
+            Word::WorkProposingChange,
+        ),
         b"settings" => (Count::Calls, WorkCheckedSettings, WorkCheckedSettingsCount, WorkChecked, WorkChecking),
         _ => return None,
     };
@@ -243,7 +250,7 @@ fn tool_words(tool: &[u8], touched: &Touched) -> Option<ToolWords> {
         many,
         alone,
         present,
-        numbered: one != WorkCheckedSettings && one != WorkSearchedFiles,
+        numbered: one != WorkCheckedSettings && one != WorkSearchedFiles && one != Word::WorkProposedChange,
     })
 }
 fn same_argument(count: Count, previous: &Touched, other: &Touched) -> bool {
@@ -304,6 +311,9 @@ fn alone(call: &c::Call, words: &Words) -> Box<[u8]> {
     capitalized(phrase, true)
 }
 fn under_way(call: &c::CurrentCall, words: &Words, capitalize: bool) -> Box<[u8]> {
+    if call.tool.bytes() == b"propose_settings" {
+        return capitalized(words.say(Word::WorkProposingChange, &[]), capitalize);
+    }
     let touched = calls::touched(call.tool.bytes(), call.input.bytes());
     let Some(table) = tool_words(call.tool.bytes(), &touched) else {
         return skein_lib::bytes::copy_of(call.tool.bytes());
