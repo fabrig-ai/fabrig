@@ -1086,6 +1086,7 @@ pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits {
         lines: LINES,
         bytes: limits.client.domain.document_bytes,
         text: limits.client.domain.text,
+        live: limits.client.domain.text,
     }
 }
 pub(crate) fn page_task(page: Readout, task: u64) -> Option<Box<c::Task>> {

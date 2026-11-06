@@ -117,7 +117,8 @@ fn an_owner_activity_message_is_shown_in_the_chat() {
 
 #[test]
 fn an_inbox_answer_is_acknowledged_in_the_chat_conversation() {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
     let mut rows = List::with_capacity(1);
     rows.push(jig_client::contract::DecodedActivityLine {
@@ -173,7 +174,8 @@ fn a_chat_whose_spec_is_empty_draws_no_opening_turn() {
 }
 
 fn owner_words_thread() -> Thread {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
     let mut rows = List::with_capacity(TURN);
     rows.push(jig_client::contract::DecodedActivityLine {
@@ -397,7 +399,7 @@ fn a_long_provisional_text_says_nothing_of_what_was_cut() {
     for drawn in [fixtures::chat::projected_tree(&thread), fixtures::chat::tree(&thread)] {
         let said = fixtures::text(&drawn);
         assert!(skein_lib::bytes::find(&said, b"Earlier text omitted").is_none());
-        assert!(skein_lib::bytes::find(&said, b"\xc3\xa9 and more").is_some());
+        assert!(skein_lib::bytes::find(&said, b"1234567890123456789012345678901").is_some());
         assert!(skein_lib::bytes::find(&said, "…".as_bytes()).is_none());
     }
 }
@@ -422,7 +424,8 @@ fn conversation_turn(messages: &[c::Message], cut: bool) -> Thread {
         c::TurnRead::Decoded(turn),
     ))
     .expect("turn");
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
     thread
@@ -718,7 +721,7 @@ fn structured_messages() -> List<c::Message> {
     messages
 }
 pub(super) fn structured_thread() -> Thread {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 128 });
+    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 128, live: 128 });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let messages = structured_messages();
     let mut rows = List::with_capacity(5);
@@ -1138,7 +1141,8 @@ fn the_chatbar_keeps_jigs_word_without_the_requesters_words_wake() {
 
 fn assistant_blocks(blocks: &[c::Block]) -> skein_ui::Tree {
     use fixtures::first_run as run;
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: 512 });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: 512, live: 512 });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(1);
     rows.push(run::turn(1, ATTEMPT, 1, &[run::message(c::Speaker::Assistant, blocks)], 512)).expect("turn");
@@ -1218,7 +1222,10 @@ fn a_tool_name_using_the_whole_turn_budget_fits_its_fold_description() {
     let mut call = run::call(1, b"read", b"", None);
     let c::Block::Call(source) = &mut call else { panic!("call") };
     source.tool = c::Text::new(Box::from(tool.as_ref()), TURN_BYTES).unwrap();
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TURN_BYTES });
+    let mut thread = Thread::new(
+        TASK,
+        &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TURN_BYTES, live: TURN_BYTES },
+    );
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(1);
     rows.push(run::turn(1, ATTEMPT, 1, &[run::message(c::Speaker::Assistant, &[call])], TURN_BYTES)).unwrap();
@@ -1281,7 +1288,8 @@ fn a_persons_words_are_paragraphs_without_a_read_label() {
 
 #[test]
 fn an_owners_person_words_have_a_person_shell_and_one_paragraph_per_line() {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: 512 });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: 512, live: 512 });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(1);
     rows.push(jig_client::contract::DecodedActivityLine {
@@ -1311,7 +1319,8 @@ fn an_owners_person_words_have_a_person_shell_and_one_paragraph_per_line() {
 
 #[test]
 fn a_tasks_words_have_an_agent_shell_named_by_the_task() {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(1);
     rows.push(jig_client::contract::DecodedActivityLine {
@@ -1364,7 +1373,8 @@ fn a_tasks_words_have_an_agent_shell_named_by_the_task() {
 fn committed_text_exceeds_field_text_on_both_conversation_pages() {
     use fixtures::first_run as run;
     let value = [b'x'; 256];
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(1);
     rows.push(run::turn(
@@ -1611,7 +1621,7 @@ fn turn_wall(seconds: u64) -> Wall {
     Wall::from_nanos(seconds.checked_mul(1_000_000_000).expect("fixture wall fits"))
 }
 fn timed_thread(events: &[(u64, jig_client::contract::DecodedActivityLine)]) -> Thread {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 512 });
+    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 512, live: 512 });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(u32::try_from(events.len()).unwrap());
     for (index, (at, event)) in events.iter().enumerate().rev() {
@@ -1710,7 +1720,8 @@ fn turn_clocks_follow_separately_named_speakers_on_both_paths() {
 }
 #[test]
 fn pending_words_and_provisional_text_have_no_clock_or_day() {
-    let mut pending = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    let mut pending =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     assert!(pending.words.begin(
         jig_client::Key { asker: jig_client::Asker::JIG, number: 1 },
         None,
@@ -2498,7 +2509,7 @@ fn provisional_text_replaces_working_dots_and_agent_task_logs_never_have_them() 
         let thread = if provisional_text {
             provisional()
         } else {
-            Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT })
+            Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT })
         };
         for agent_page in [false, true] {
             let mut b = skein_ui::Builder::new(&fixtures::tree_limits());

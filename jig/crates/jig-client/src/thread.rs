@@ -18,7 +18,7 @@ use crate::contract::{
     ActivityPage, ApplicationPart, ArchivedTurn, Block, CallIdentity, Cursor, DecodedActivityLine, LiveCall, ObjectKey,
     ProvisionalTurnName, Read, RunState, RunText, Text, TurnName, TurnRead,
 };
-use skein_lib::{List, Map, Wall, Writer};
+use skein_lib::{List, Map, Wall, bytes};
 mod model;
 mod shown;
 pub mod window;
@@ -32,6 +32,8 @@ pub struct Limits {
     pub lines: u32,
     pub bytes: u64,
     pub text: u32,
+    /// The most bytes a turn being written keeps, from its start.
+    pub live: u32,
 }
 
 /// The page's presentation of one call, independent of committed turn facts.
@@ -525,7 +527,7 @@ pub fn live_turn(value: RunText, limit: u32) -> LiveTurn {
     LiveTurn {
         name: value.turn,
         began: value.began,
-        text: tail(&[], value.text.bytes(), limit),
+        text: prefix(value.text.bytes(), limit),
         offset: value.through,
         cut,
         call: value.call,
@@ -536,16 +538,9 @@ pub fn live_turn(value: RunText, limit: u32) -> LiveTurn {
 pub fn later(name: TurnName, other: TurnName) -> bool {
     name.attempt > other.attempt || (name.attempt == other.attempt && name.number > other.number)
 }
-fn tail(old: &[u8], incoming: &[u8], limit: u32) -> Text {
-    let length = old.len().checked_add(incoming.len()).expect("validated text lengths fit usize");
-    let kept = length.min(skein_lib::length::usize_of(limit));
-    let dropped = length.saturating_sub(kept);
-    let old_from = dropped.min(old.len());
-    let new_from = dropped.saturating_sub(old.len());
-    let mut writer = Writer::new(kept);
-    writer.put(old.get(old_from..).expect("old tail starts within text")).expect("old tail fits allocation");
-    writer.put(incoming.get(new_from..).expect("new tail starts within text")).expect("new tail fits allocation");
-    Text::new(writer.finish(), limit).expect("tail respects its byte bound")
+fn prefix(value: &[u8], limit: u32) -> Text {
+    let kept = bytes::utf8_prefix(value, skein_lib::length::usize_of(limit));
+    Text::new(bytes::copy_of(kept), limit).expect("prefix respects its byte bound")
 }
 fn add_part(parts: &mut List<ApplicationPart>, part: &ApplicationPart) {
     if !parts.as_slice().contains(part) {
