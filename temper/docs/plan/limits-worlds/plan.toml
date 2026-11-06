@@ -27,3 +27,30 @@ id = 1
 story = "the stories' costs are known by instruction, and the crash sweeps stop repeating their prefix"
 parts = ["figures", "cuts"]
 walk = false
+
+[[part]]
+id = "engine"
+title = "The causes the worlds share, fixed where they are"
+mode = "direct"
+needs = ["figures"]
+design = "skein/docs/foundation/testing-strategy.md, 8"
+
+[[part]]
+id = "public"
+title = "Why one public walk costs seconds"
+mode = "direct"
+needs = ["figures"]
+design = "temper/docs/design/protocol/sign-in.md, 2.5"
+
+[[part]]
+id = "conformance"
+title = "What a crash sweep's replays still cost"
+mode = "direct"
+needs = ["cuts"]
+design = "jig/docs/design/domain/testing.md, 5"
+
+[[slice]]
+id = 2
+story = "what the profiles put in the shared engine, in the public walk and in the sweep's replays is fixed at the cause"
+parts = ["engine", "public", "conformance"]
+walk = false
