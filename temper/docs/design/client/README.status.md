@@ -157,7 +157,8 @@
 - **Not yet:** 3.6, *The sheet*: that request has each confirmation walked. A browser
   on a fake box pressed Close, Start over, a goal's Stop, a Release both ways, a goal's Pause,
   and Accept and Reject on a configuring chat's proposal from *Needs you* and *Home*,
-  and Escape and the keeping act on Close, Start over, a goal's Stop, Accept and Reject,
+  and Accept from the chat itself; Reject from *Needs you* included a reason. Escape and
+  the keeping act on Close, Start over, a goal's Stop, Accept and Reject were also pressed
   by hand at each width, which no test keeps; a press while the page updates, on a Release
   alone. A task's Cancel and an agent's task's Stop are drawn at each width by their
   gallery states, the walk of the request `ui-walk-3` of 2026-11-06 having tried the
@@ -227,16 +228,7 @@
   and the card has no "Drafts: on". The person accepts on the agent's words. The
   gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
   document.
-- **Not yet:** 5.13, *The card in a chat*: the sheet's Accept on a configuring chat's own
-  card is refused "No visible object with that name", the sheet and the proposal
-  staying, where the same proposal accepts from *Needs you* and *Home*. Seen at each
-  width, with and without a cancel first, on the walk of the request `ui-walk-3` of
-  2026-11-06: a fresh fake box, Settings' Start, and the cue "Show drafts and goals for
-  this project." before any setting changes. By reading, and not proved: that card
-  decides under `task.project` (`temper-client-domain`'s `pages/chat.rs`, `proposals`),
-  and the inbox's under its row's own `project` (`pages/inbox.rs`), 0 on a proposal of
-  settings. No test holds it.
-- **Not yet:** 3.5, *Reading back*: on that walk, a long chat's first "Older" stayed
+- **Not yet:** 3.5, *Reading back*: on the `ui-walk-3` walk of 2026-11-06, a long chat's first "Older" stayed
   "Loading earlier messages" for the 40 seconds watched, at 1280x720 and 1000x600, so
   no second press was made: a fresh fake box, 66 messages of 24 sentences through ctl,
   the chat reopened through Chats, six of four sentences through the composer, then the
