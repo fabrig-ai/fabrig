@@ -65,11 +65,20 @@ pub struct Trials {
     task: Option<Task>,
     pending: Option<Pending>,
     wait: Option<c::TaskRunWait>,
+    last_wait: Option<c::TaskRunWait>,
     seen: Option<List<u32>>,
 }
 impl Trials {
     pub(crate) fn new() -> Self {
-        Self { rows: Box::new([]), watch: Watch::Unknown, task: None, pending: None, wait: None, seen: None }
+        Self {
+            rows: Box::new([]),
+            watch: Watch::Unknown,
+            task: None,
+            pending: None,
+            wait: None,
+            last_wait: None,
+            seen: None,
+        }
     }
 }
 
@@ -158,6 +167,11 @@ impl Side {
     /// The running row's wait, or the last it had: the Task document's `run_wait`.
     #[must_use]
     pub const fn trial_wait(&self) -> Option<&c::TaskRunWait> {
+        if let Some(row) = self.trials.rows.first()
+            && let State::Failed { why: Why::Waited } = row.state
+        {
+            return self.trials.last_wait.as_ref();
+        }
         self.trials.wait.as_ref()
     }
 }
@@ -213,6 +227,7 @@ pub(crate) fn send(side: &mut Side, account: u32, again: bool, limits: Limits, o
     let request = Token::new(side.serial);
     side.trials.pending = Some(Pending { request, account });
     side.trials.wait = None;
+    side.trials.last_wait = None;
     out.push(Request::Send { request, name: None, ask });
     side.changed();
 }
@@ -300,6 +315,9 @@ pub(crate) fn receive(side: &mut Side, event: Event, out: &mut Queue<Request>) {
                 && watched.number == task
             {
                 side.trials.wait = wait;
+                if wait.is_some() {
+                    side.trials.last_wait = wait;
+                }
             } else {
                 return;
             }
@@ -342,6 +360,7 @@ fn follow(side: &mut Side, out: &mut Queue<Request>) {
     side.trials.task = None;
     if let Some(number) = next {
         side.trials.wait = None;
+        side.trials.last_wait = None;
         side.trials.task = Some(Task { number, open: true });
         out.push(Request::Client {
             asked: jig_client::Event::Watch {
@@ -368,6 +387,7 @@ fn end(side: &mut Side, out: &mut Queue<Request>) {
     side.trials.rows = Box::new([]);
     side.trials.task = None;
     side.trials.wait = None;
+    side.trials.last_wait = None;
 }
 fn rows(record: &Family, limits: Limits) -> Option<Box<[Row]>> {
     if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {

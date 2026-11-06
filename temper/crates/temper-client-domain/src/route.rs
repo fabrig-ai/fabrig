@@ -541,13 +541,41 @@ pub(crate) fn welcome_program_progress(root: &mut Domain, out: &mut Queue<Reques
         page.check = ProgramCheck::Idle;
         return;
     }
-    if let ProgramCheck::Checking { .. } = page.check
+    if let ProgramCheck::Checking { source } = page.check
         && let Some(pending) = &page.request.pending
         && pending.outcome.is_some()
         && let Some(accounts) = crate::pages::accounts::document(&root.client)
         && accounts.settled
         && !accounts.cut
+        && program_settled(accounts, source)
     {
         page.check = ProgramCheck::NotYet;
     }
+}
+
+/// A connected host's pending login observation keeps the check out (temper/docs/design/domain/trial.md, 6.1).
+fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bool {
+    if accounts.program_hosts.is_empty() {
+        return true;
+    }
+    for account in &accounts.accounts {
+        for row in &account.sources {
+            if row.number != source {
+                continue;
+            }
+            let Some(name) = &row.name else { return false };
+            for host in &accounts.program_hosts {
+                if host.connected && host.awaiting_logins {
+                    return false;
+                }
+                for login in &host.programs {
+                    if host.connected && login.name == *name && login.state.is_none() {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+    }
+    false
 }
