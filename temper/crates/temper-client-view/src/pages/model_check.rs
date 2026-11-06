@@ -115,7 +115,6 @@ pub(crate) fn of_account(root: &Domain, w: &Words, account: u32) -> Option<Trial
     None
 }
 /// A failed trial for Home (domain/trial.md, 6.3); its caller is wired by home-line.
-#[cfg_attr(not(test), expect(dead_code, reason = "Home's consumer is wired by the following home-line task"))]
 pub(crate) fn stopped(root: &Domain, w: &Words) -> Option<(Box<[u8]>, u32)> {
     if root.forge().trial_asked().is_some() {
         return None;

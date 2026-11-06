@@ -31,6 +31,8 @@ Acceptance, stories in `temper/tests/engine/domain/tests/suite/trials.rs`, faili
 - `a_restart_cancels_it_and_claims_no_run`, and `a_restart_starts_nothing` with an ended row and no live task: no row, no
   task, no spend.
 - `a_second_try_spends_nothing`, `again_runs_another`.
+- `a_replayed_key_has_the_same_answer_and_spends_nothing`: the same key again, within its retention, answers `Tried` or
+  `NotTheirs` as it did, with no second row or task.
 - `another_persons_account_is_not_theirs`: `NotTheirs`, no row.
 - `it_is_in_no_list`: the person's chats query, inbox, results and Home's counts hold nothing, with a project present.
 - `past_starting_moves_its_step`, `took_is_the_account_the_run_keeps`.
@@ -53,11 +55,14 @@ Owns, as `files` lists them.
 May also change, each by a named hunk:
 
 - `temper/crates/temper-engine-domain/Cargo.toml`: the dependency.
-- `temper/crates/temper-engine-domain/src/domain.rs`: the field, its `new`, and `fire_routed`'s `Due`, as the calendar's.
+- `temper/crates/temper-engine-domain/src/domain.rs`: the field, its `new`, and `fire_routed`'s `Due`, as the calendar's;
+  the `try_answers` table and its `new`.
 - `temper/crates/temper-engine-domain/src/deadline.rs`: `next_deadline` takes `trials.next_due()`, while `ready()`.
 - `temper/crates/temper-engine-domain/src/route.rs`: `route_core_requests` calls `trials::saved`; `route_into` calls
   `trials::observe` after its work; `Stored` period routing skips project 0; `Work::StartDone`'s cancel.
-- `temper/crates/temper-engine-domain/src/route/applications.rs`: `trial-wire`'s stub goes.
+- `temper/crates/temper-engine-domain/src/route/applications.rs`: `trial-wire`'s stub and its test go; `admitted`'s
+  `Application::Try` arm; `answer`'s lookup; one private sweep of expired answers, which `Application::Return`'s arm may
+  share.
 - `temper/crates/temper-engine-domain/src/route/panels.rs`: the subject, and `Delivery::Trials`.
 - `temper/crates/temper-engine-domain/src/route/forge_route.rs`: `run_workspace`'s one early return.
 - `temper/crates/temper-engine-domain/src/boundary.rs`: `Delivery::Trials`, and `TRIALS_SUBJECT` going to the child's.
@@ -79,15 +84,29 @@ Options, each pre-approved:
 ```rust
 // route/trials.rs: joins the child to the core; holds nothing (domain/trial.md, 4).
 pub(crate) const TRIAL_CHARTER: u32 = 10;
-pub(crate) fn asked(domain: &mut Domain, env: &Env<Limits>, request: Token, person: u64, account: u32, again: bool);
+pub(crate) fn asked(domain: &mut Domain, env: &Env<Limits>, person: u64, account: u32, again: bool) -> TryAnswer;
 pub(crate) fn route(domain: &mut Domain, env: &Env<Limits>, event: trials::Event);
 pub(crate) fn saved(domain: &mut Domain, env: &Env<Limits>, record: &core::Record);
 pub(crate) fn observe(domain: &mut Domain, env: &Env<Limits>);
 pub(crate) fn restarted(domain: &mut Domain);
 ```
 
-- **`asked`:** `core.accounts.account(account)`'s holder is `Holder::Party(person)`, else `Try(NotTheirs)`. Otherwise the
-  child's `Try`, and `Try(Tried)`, whichever it decides.
+- **`asked`:** `core.accounts.account(account)`'s holder is `Holder::Party(person)`, else `NotTheirs`. Otherwise the
+  child's `Try`, and `Tried`, whichever it decides. It returns the answer: the token and its retention stay in
+  `route/applications.rs`.
+- **`start`:** a `Try` takes the common path to the core, with `carried: None`. A value it carried is delivered
+  `CarriedUnused` there, as the stub does.
+- **`admitted`'s arm:** expired answers swept, `trials::asked`, the answer kept under `token` until `retention` on both
+  clocks, then `finished(domain, request, Ok(token))`.
+
+  ```rust
+  // domain.rs, beside `returns` and bounded as it is: `Map::with_capacity(limits.people.requests)`.
+  pub(crate) try_answers: Map<Token, (TryAnswer, Time, Wall)>,
+  ```
+
+  The insert is `.expect("one marker per retained key")`, as `returns`' is: a key outlives its marker, so the sweep leaves
+  room and admission has no refusal of its own. `answer` reads the table beside `returns`, as `ApplicationAnswer::Try`. A
+  restart empties it, and a replayed key then has no outcome, as a forge setup's has.
 - **`route`'s `Make`:** `core.person_seed(person)`; `None`, `Refused { account }`. Otherwise the seed's `number()`,
   `Work::Core(Event::PersonTask { .. })` with `Executor::Agent { charter: TRIAL_CHARTER }`, the spec `words: b"Say one
   word."`, no job, parameters or inputs, `asks: false`, the contract `Report { words: 64 }`; then `Made`.
@@ -123,3 +142,14 @@ so; this task stays temper's. Resume from the pushed `11fd1ef4bb` once `person-t
 - **No stand-in:** no copy of `run_past_starting`'s logic in temper, and no `observe` without it.
 - **If an arm is still missing once `person-task` has merged:** add that arm, as `Event::ConnectorRepair`'s beside it, only
   that, and name it in your report. `run_past_starting` still absent then is a new question.
+
+2026-11-06. **May trial-root keep `Try`'s answers under their tokens in a bounded volatile `Domain` table, or does a jig
+prerequisite provide a generic mechanism?** The table, in temper. jig's contract already leaves the answer with whoever
+owns the application (`finished` checks the owner kept the token), and `Domain::returns` and the forge each keep theirs. No
+jig change. Its shape is under *Steps*, and it differs from the run's proposal in two ways:
+
+- **`asked` takes neither the token nor the retention, and returns the answer.** `route/trials.rs` still holds nothing
+  (`temper/docs/design/domain/trial.md`, 4); the table is `route/applications.rs`'s.
+- **No refusal for room.** The table has one entry per retained key, as `returns` has, so its insert is an `.expect`.
+
+Resume from the pushed `34a77b9020`, and keep its draft story and fixture.

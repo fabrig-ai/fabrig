@@ -104,7 +104,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 275;
+pub const N: usize = 276;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -248,6 +248,12 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "home-one-left",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-try-stopped",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -1950,7 +1956,8 @@ fn home_domain(name: &str) -> Domain {
         | "home-last-looked-none"
         | "home-landing-none"
         | "home-landing-red"
-        | "home-chats-sentence" => "home-nothing-needs",
+        | "home-chats-sentence"
+        | "home-try-stopped" => "home-nothing-needs",
         name => name,
     };
     let with_goals = name == "home-with-goals";
@@ -2139,6 +2146,29 @@ fn home_domain(name: &str) -> Domain {
                         Some(status) => wire::project_status(&status),
                         None => continue,
                     },
+                    w::Watch::Trials if status_name == "home-try-stopped" => {
+                        let row = w::TrialRow::new(
+                            &w::CEILINGS,
+                            w::TrialRowParts {
+                                account: accounts.accounts.get(0).expect("Home trial account").number,
+                                task: Some(91),
+                                took: None,
+                                step: w::TrialStep::Answers,
+                                state: w::TrialState::Failed(
+                                    w::TrialFailed::new(&w::CEILINGS, w::TrialFailedParts { why: w::TrialWhy::Waited })
+                                        .expect("Home stopped try"),
+                                ),
+                            },
+                        )
+                        .expect("Home trial row");
+                        let document =
+                            w::Trials::new(&w::CEILINGS, w::TrialsParts { rows: List::from_boxed(Box::new([row])) })
+                                .expect("Home trials");
+                        let mut writer =
+                            skein_lib::Writer::new(usize::try_from(document.measure()).expect("trial bytes fit"));
+                        document.encode(&mut writer).expect("measured trial bytes");
+                        writer.finish()
+                    }
                     w::Watch::Away if home_away => crate::worlds::home_away_record(away_name),
                     w::Watch::Decided(_) if home_away => {
                         decided_watch = Some(watch);
