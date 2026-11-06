@@ -1,0 +1,3 @@
+draft = "skein-limits-heavy"
+repo = "fabrig"
+sources = ["skein/docs/plan/skein-limits-heavy/inputs/request.md", "skein/tests/forge/github/src/tests.rs", "skein/tests/forge/github/README.md", "skein/tests/lib/Cargo.toml", "skein/tests/fail-stop/tests/suite/fail_stop.rs", "AGENTS.md", "DESIGN.md"]
