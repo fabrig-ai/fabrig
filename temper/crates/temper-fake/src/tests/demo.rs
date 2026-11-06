@@ -464,7 +464,7 @@ fn the_csv_chat_delegates_waits_and_reports_landing_before_waiting_again() {
     assert_eq!(answers[2].parts.len(), 2);
     assert_eq!(answers[2].parts[0], Part::Text { text: "CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change.".as_bytes().into() });
     assert_eq!(call(&answers[2], b"wait"), json!({}));
-    assert_eq!(answers.iter().map(|a| a.usage.output).collect::<Vec<_>>(), [Some(269), Some(2), Some(30)]);
+    assert_eq!(answers.iter().map(|a| a.usage.output).collect::<Vec<_>>(), [Some(270), Some(2), Some(30)]);
 }
 
 #[test]

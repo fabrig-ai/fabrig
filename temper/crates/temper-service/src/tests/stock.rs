@@ -710,11 +710,11 @@ fn each_charter_offers_every_configured_model() {
         let defaults = crate::stock::checked(&llm, 10_660).expect("representable stock");
         for charter in &defaults.charters {
             let names = if charter.number == 3 { &configuring } else { &ordinary };
-            let offered: Vec<_> = core::iter::once(&charter.policy.model)
+            let offered: Box<[_]> = core::iter::once(&charter.policy.model)
                 .chain(charter.policy.alternatives.iter())
-                .map(|model| std::str::from_utf8(&model.name).unwrap())
+                .map(|model| core::str::from_utf8(&model.name).unwrap())
                 .collect();
-            assert_eq!(&offered, names, "charter {}", charter.number);
+            assert_eq!(offered.as_ref(), names, "charter {}", charter.number);
         }
     }
 }
