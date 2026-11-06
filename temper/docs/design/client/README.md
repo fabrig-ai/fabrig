@@ -1545,8 +1545,9 @@ keeps (`../protocol/configuration.md`, section 2).
     says them in words); its title, a level-3 heading, over one short
     line; its act at the row's right while the step is left. Done, the
     title is muted and regular (`temper-home-done`).
-    1. "Tell temper how you work", "temper runs its default way of
-       working until you change it.", with "Start", filled, the act of
+    1. "Tell temper how you work", "In your own words: how you plan, review
+       and land work. temper proposes how it will run that, and nothing
+       changes until you accept.", with "Start", filled, the act of
        *The first chat* (below). Done once a configuring chat runs or ran
        in the project, or a line of the `settings` document follows a
        change; done, its title alone. A configuring chat is a row of the
@@ -1559,8 +1560,8 @@ keeps (`../protocol/configuration.md`, section 2).
        change.
     2. The repository, in the first state that holds: adopted (a row's
        `repositories` names the project), done, "ORG/NAME is in PROJECT",
-       "temper can change its code now; checked changes land on main
-       through temper's merge queue.", ORG/NAME the project's first
+       "Chats can change its code now.", with no claim that CI passed, since
+       the forge rows supply no check result; ORG/NAME the project's first
        adopted (5.3), one line on a laptop; with the rows' copies all in,
        done, "acme/widget is in Widget", or "acme/widget, acme/other are in
        Widget", its line "Chats can change its code now, on your Forgejo;
