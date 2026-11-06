@@ -67,6 +67,7 @@ impl Source {
         let login = temper.string("application/machine/owned/person/login")?;
         let generated = temper_init::files(
             &temper_init::Facts {
+                sign_in: false,
                 binary: binary.as_os_str().as_bytes(),
                 git: git.as_ref().map(|path| path.as_os_str().as_bytes()),
                 claude: claude.as_ref().map(|path| path.as_os_str().as_bytes()),

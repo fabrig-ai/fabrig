@@ -16,7 +16,14 @@ fn another_published_keys_modulus_fails_the_signature() {
 }
 #[test]
 fn each_story_replays_its_trace_and_state_digest() {
-    for story in [Story::SignIn, Story::Expired, Story::AnotherKey] {
+    for story in [Story::SignIn, Story::PublicSignIn, Story::Expired, Story::AnotherKey] {
         assert_eq!(run(29, story), run(29, story), "{story:?}");
     }
+}
+
+#[test]
+fn a_public_peer_signs_in_and_userinfo_names_the_same_subject() {
+    let outcome = run(17, Story::PublicSignIn);
+    assert_eq!(outcome.failure, None);
+    assert_eq!(outcome.subject.as_deref(), Some(b"person-42".as_slice()));
 }

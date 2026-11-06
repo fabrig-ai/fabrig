@@ -381,7 +381,7 @@ fn a_forge_not_owned_or_not_asked_does_not_offer_setup() {
     let mut world = World::new(true);
     for number in [b"5".as_slice(), b"6", b"9"] {
         let printed = world.invoke(&[b"forge", b"setup", number]);
-        assert_eq!((printed.status, printed.stderr.as_ref()), (2, b"refused: not offered\n".as_slice()));
+        assert_eq!((printed.status, printed.stderr.as_ref()), (2, b"refused: not offered\nOne owned forge is offered; read forge list, then project make NAME --key KEY; repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY\n".as_slice()));
     }
     assert_eq!(world.box_calls, 0);
     assert!(world.saved.is_empty());

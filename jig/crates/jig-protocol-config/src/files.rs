@@ -37,7 +37,9 @@ pub fn files(engine: &Engine) -> Box<[File]> {
                 .member(b"clients")
                 .child(Segment::Index(u32::try_from(index).expect("bounded clients")))
                 .member(b"secret");
-            push(&mut files, at, &client.secret, 256, true);
+            if let Some(secret) = &client.secret {
+                push(&mut files, at, secret, 256, true);
+            }
         }
     }
     for (index, worker) in engine.hosts.workers.iter().enumerate() {

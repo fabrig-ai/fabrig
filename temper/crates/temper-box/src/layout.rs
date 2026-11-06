@@ -113,6 +113,9 @@ pub fn bound(template: &Step, forge: u16) -> Step {
         template.kind(),
     )
     .listening(Box::from(template.listeners()));
+    if template.ignores_ending() {
+        step = step.ending_ignored();
+    }
     if let Some(address) = template.ready() {
         step = step.with_ready(address);
     }
