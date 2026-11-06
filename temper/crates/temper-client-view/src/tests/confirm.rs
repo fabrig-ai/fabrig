@@ -416,18 +416,19 @@ fn escape_cancels_a_confirmation_without_sending_its_action() {
     let mut root = close_root(c::RunStage::Idle, 0, 0, false);
     let mut view = fixtures::browser_page_view(&root);
     let keep = fixtures::find(view.tree(), Role::Button, b"Keep it").expect("keep act");
-    let node = view.tree().nodes().iter().find(|node| node.id == keep).unwrap();
-    assert_eq!(node.shortcut, Some(skein_ui::Shortcut::ESCAPE));
+    let mut shortcut = None;
+    for node in view.tree().nodes() {
+        if node.id == keep {
+            shortcut = node.shortcut;
+        }
+    }
+    assert_eq!(shortcut, Some(skein_ui::Shortcut::ESCAPE));
     let action = crate::act(&mut view, keep, skein_ui::Act::Press).expect("Escape's act");
     assert_eq!(action, Action::Pages(Act::Cancel));
     let mut out = skein_lib::Queue::uncapped();
     temper_client_domain::step(
         &mut root,
-        &skein_lib::Env {
-            now: skein_lib::Time::ZERO,
-            wall: fixtures::NOW,
-            limits: fixtures::domain_limits(),
-        },
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits: fixtures::domain_limits() },
         Event::Act { action },
         &mut out,
     );
