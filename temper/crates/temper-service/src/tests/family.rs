@@ -2323,19 +2323,19 @@ fn forge_settings_reads_reach_the_root_with_their_authorization_envelope() {
 fn forge_settings_answers_use_the_kinds_codec_and_preserve_proposal_edits() {
     use forge::settings::{Edit, SettingKey, SettingSlot, SizedValue, Value};
     let value = SizedValue { size: 4, value: Value::Charter(6) };
-    let record = family::forge_read(root::ForgeReadAnswer::Setting(Some(value.clone())), &w::CEILINGS).unwrap();
+    let record = family::forge_read(root::ForgeReadAnswer::Setting(Some(value.clone())), &[], &w::CEILINGS).unwrap();
     assert_eq!(
         wire::decode_setting_answer(&record, &w::CEILINGS).unwrap().value().as_deref(),
         Some(temper_engine_smith::kinds::encode(&value.value).as_ref())
     );
-    let empty = family::forge_read(root::ForgeReadAnswer::Setting(None), &w::CEILINGS).unwrap();
+    let empty = family::forge_read(root::ForgeReadAnswer::Setting(None), &[], &w::CEILINGS).unwrap();
     assert!(wire::decode_setting_answer(&empty, &w::CEILINGS).unwrap().value().is_none());
     let items = Box::new([
         (SettingKey { kind: 3, scope: 0, number: 1, slot: SettingSlot::Proposal(7) }, Edit::Set(value.clone())),
         (SettingKey { kind: 2, scope: 9, number: 2, slot: SettingSlot::Proposal(7) }, Edit::Remove),
         (SettingKey { kind: 1, scope: 0, number: 3, slot: SettingSlot::Proposal(7) }, Edit::Reset),
     ]);
-    let record = family::forge_read(root::ForgeReadAnswer::ProposalItems(items), &w::CEILINGS).unwrap();
+    let record = family::forge_read(root::ForgeReadAnswer::ProposalItems(items), &[], &w::CEILINGS).unwrap();
     let decoded = wire::decode_proposal_items_answer(&record, &w::CEILINGS).unwrap();
     assert_eq!(decoded.items().len(), 3);
     for (item, (kind, scope, number)) in decoded.items().iter().zip([(3, 0, 1), (2, 9, 2), (1, 0, 3)]) {
@@ -2406,7 +2406,7 @@ fn a_panels_questions_map_field_for_field() {
 }
 
 #[test]
-fn the_deployment_read_answers_the_document() {
+fn the_deployment_read_stays_answered_before_any_party() {
     let service = fixtures::demo_service();
     let demo = service.engine.as_ref().unwrap().demo.as_ref().unwrap();
     let row =
@@ -2419,7 +2419,8 @@ fn the_deployment_read_answers_the_document() {
     ] {
         for (demo, playground) in [(None, None), (Some(demo), None), (None, Some(&row)), (Some(demo), Some(&row))] {
             let mut input = read_input(people::ApplicationScope::Deployment);
-            if let kit::ToApplication::Read { record, .. } = &mut input {
+            if let kit::ToApplication::Read { record, sign_in, .. } = &mut input {
+                *sign_in = 0;
                 *record = wire::reading(
                     &w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Deployment }).unwrap(),
                 );
@@ -3344,6 +3345,7 @@ fn the_deployment_command_is_published_only_by_a_standalone_start() {
             if under_box { Some(fixtures::system::BOX_BYTES) } else { None },
             Some(line.as_slice().into()),
             &crate::stock::Given::Stock,
+            Box::new([]),
         )
         .unwrap();
         let deployment = &service.engine.as_ref().unwrap().clients.deployment;
@@ -3369,4 +3371,37 @@ fn the_deployment_command_is_published_only_by_a_standalone_start() {
         let answer = wire::decode_deployment_answer(&record.unwrap(), &w::CEILINGS).unwrap();
         assert_eq!(answer.program_login().as_deref(), if standalone { Some(line.as_slice()) } else { None });
     }
+}
+#[test]
+fn the_program_environment_read_goes_to_the_party() {
+    let mut input = read_input(people::ApplicationScope::Deployment);
+    if let kit::ToApplication::Read { record, sign_in, .. } = &mut input {
+        *record = wire::reading(
+            &w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::ProgramEnvironment }).unwrap(),
+        );
+        *sign_in = 3;
+    }
+    let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        input,
+        &fixtures::forge_table(&[]),
+        None,
+        &family::Deployment { welcome: false, owned: false, program_login: None },
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }) = event else {
+        panic!("party gates the environment")
+    };
+    assert_eq!(
+        (reply, sign_in, scope, query),
+        (REPLY, 3, people::ApplicationScope::Deployment, root::ForgeRead::ProgramEnvironment)
+    );
+}
+#[test]
+fn forge_read_encodes_the_environment() {
+    let words = b"TEMPER_CONFIG='/config' TEMPER_DATA='/data' TEMPER_CACHE='/cache'";
+    let bytes = family::forge_read(root::ForgeReadAnswer::ProgramEnvironment, words, &w::CEILINGS).unwrap();
+    assert_eq!(wire::decode_program_environment_answer(&bytes, &w::CEILINGS).unwrap().environment(), words);
 }

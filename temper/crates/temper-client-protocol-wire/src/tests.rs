@@ -1167,6 +1167,22 @@ fn deployment_read_and_answer_round_trip() {
 }
 
 #[test]
+fn program_environment_read_and_answer_round_trip() {
+    let limits = v1::CEILINGS;
+    let read = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::ProgramEnvironment }).unwrap();
+    let bytes = crate::reading(&read);
+    assert_eq!(crate::decode_reading(&bytes, &limits), Some(read));
+    for words in [b"".as_slice(), b"TEMPER_CONFIG='/config' TEMPER_DATA='/data' TEMPER_CACHE='/cache'"] {
+        let answer =
+            v1::ProgramEnvironmentAnswer::new(&limits, v1::ProgramEnvironmentAnswerParts { environment: words.into() })
+                .unwrap();
+        let bytes = crate::program_environment_answer(&answer);
+        assert_eq!(crate::decode_program_environment_answer(&bytes, &limits), Some(answer));
+        assert_eq!(crate::decode_program_environment_answer(&fixtures::trailing(&bytes), &limits), None);
+    }
+}
+
+#[test]
 fn playground_answer_round_trips_at_its_bounds() {
     let limits = fixtures::limits();
     for state in [v1::PlaygroundState::Starting, v1::PlaygroundState::Running, v1::PlaygroundState::Resetting] {

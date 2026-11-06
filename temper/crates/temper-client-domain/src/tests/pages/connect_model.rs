@@ -532,6 +532,71 @@ fn welcome_claude_never_declares_from_a_cut_document_or_another_holders_source()
     }
 }
 
+fn environment_read(
+    page: &mut connect_model::ConnectModel,
+    address: &Address,
+    link: jig_client::Link,
+    serial: &mut u64,
+) -> Queue<pages::Request> {
+    let mut out = Queue::uncapped();
+    page.read_environment(address, link, serial, &mut out);
+    out
+}
+fn program_address(welcome: bool) -> Address {
+    let way = Some(connect_model::model_way(Way::Program { provider: PROVIDER }));
+    if welcome { Address::Welcome { step: Step::Model { way } } } else { Address::ConnectModel { way } }
+}
+#[test]
+fn a_programs_way_reads_the_environment_once() {
+    use jig_client::{Event as C, Link, Readable};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    for welcome in [false, true] {
+        let mut page = connect_model::ConnectModel::default();
+        let mut serial = 0;
+        let address = program_address(welcome);
+        assert!(environment_read(&mut page, &address, Link::Starting, &mut serial).is_empty());
+        let mut out = environment_read(&mut page, &address, Link::Live, &mut serial);
+        let Some(pages::Request::Client(C::Read { read: Readable::Family { scope, window, record }, .. })) = out.pop()
+        else {
+            panic!("one family read")
+        };
+        assert_eq!(scope, c::Scope::Deployment);
+        assert_eq!(window, c::Window { rows: 0, after: None });
+        assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
+        assert_eq!(wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read(), &w::Read::ProgramEnvironment);
+        assert!(out.is_empty());
+        assert!(environment_read(&mut page, &address, Link::Live, &mut serial).is_empty());
+    }
+}
+#[test]
+fn another_way_reads_nothing() {
+    for way in [
+        None,
+        Some(connect_model::model_way(Way::Key { provider: PROVIDER })),
+        Some(connect_model::model_way(Way::SignIn { provider: PROVIDER, plan: true })),
+    ] {
+        let mut page = connect_model::ConnectModel::default();
+        assert!(environment_read(&mut page, &Address::ConnectModel { way }, jig_client::Link::Live, &mut 0).is_empty());
+    }
+}
+#[test]
+fn a_refusal_leaves_the_words_empty() {
+    use jig_client::{Event as C, Link, Readout, Told};
+    for answer in [
+        Readout::Family { family: temper_client_protocol_wire::FORGE, record: None },
+        Readout::Family { family: temper_client_protocol_wire::FORGE, record: Some(b"bad".as_slice().into()) },
+        Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
+        Readout::Limit,
+    ] {
+        let mut page = connect_model::ConnectModel::default();
+        let mut out = environment_read(&mut page, &program_address(false), Link::Live, &mut 0);
+        let Some(pages::Request::Client(C::Read { handle, .. })) = out.pop() else { panic!("read") };
+        assert!(page.environment_told(&Told::Page { handle, page: answer }));
+        assert_eq!(page.program_environment(), b"");
+        assert!(!page.program_environment_answered());
+    }
+}
+
 #[test]
 fn sign_in_again_returns_only_a_stopped_welcome_check_to_the_panel() {
     let (mut root, watch) = claude();
@@ -546,4 +611,23 @@ fn sign_in_again_returns_only_a_stopped_welcome_check_to_the_panel() {
     assert_eq!(checked(&root), connect_model::ProgramCheck::Idle);
     assert!(root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().outcome.is_some());
     assert_check(sends(signed_in(&mut root)).pop().expect("panel checks again").2);
+}
+
+#[test]
+fn an_empty_environment_answer_confirms_the_default_directories() {
+    use jig_client::{Event as C, Link, Readout, Told};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut page = connect_model::ConnectModel::default();
+    assert!(!page.program_environment_answered());
+    let mut out = environment_read(&mut page, &program_address(false), Link::Live, &mut 0);
+    let Some(pages::Request::Client(C::Read { handle, .. })) = out.pop() else { panic!("read") };
+    let answer =
+        w::ProgramEnvironmentAnswer::new(&w::CEILINGS, w::ProgramEnvironmentAnswerParts { environment: Box::new([]) })
+            .unwrap();
+    assert!(page.environment_told(&Told::Page {
+        handle,
+        page: Readout::Family { family: wire::FORGE, record: Some(wire::program_environment_answer(&answer)) },
+    }));
+    assert_eq!(page.program_environment(), b"");
+    assert!(page.program_environment_answered());
 }

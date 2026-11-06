@@ -758,6 +758,7 @@ fn checked_start_with(
         files: settings::Files { entries: files.entries.clone() },
         demo: parsed.application.demo,
         welcome: parsed.application.welcome,
+        program_environment: Box::new([]),
         kinds_stock: Box::default(),
         landings: parsed.application.landings,
         limits: parsed.application.limits,
@@ -821,6 +822,7 @@ pub fn startup_with(
         None,
         None,
         given,
+        Box::new([]),
     )
 }
 #[expect(clippy::too_many_arguments, reason = "the Stock entry retains the existing startup inputs")]
@@ -851,9 +853,11 @@ pub fn with_setup_given(
     box_line_bytes: Option<u32>,
     program_login: Option<Box<[u8]>>,
     given: &crate::stock::Given,
+    program_environment: Box<[u8]>,
 ) -> Result<Service, Problems> {
-    let CheckedStart { engine, worker, io, forges, not_set_up } =
+    let CheckedStart { mut engine, worker, io, forges, not_set_up } =
         checked_start_with(document, directories, files, agent, seeds, forges, setup, given)?;
+    engine.program_environment = program_environment;
     let worker = match worker {
         Some(worker) => match Worker::new(
             &worker,
@@ -908,6 +912,7 @@ pub fn with_setup(
         box_line_bytes,
         None,
         &crate::stock::Given::Stock,
+        Box::new([]),
     )
 }
 

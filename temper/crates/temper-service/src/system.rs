@@ -228,6 +228,7 @@ impl Service {
             settings.sign_in.as_ref(),
             settings.files.entries.as_slice(),
         )?;
+        clients.program_environment.clone_from(&settings.program_environment);
         clients.deployment = crate::family::Deployment {
             program_login: if worker.is_some() { program_login } else { None },
             welcome: settings.welcome,

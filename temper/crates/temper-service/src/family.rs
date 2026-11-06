@@ -388,9 +388,10 @@ pub fn to_root(
                         }
                         None
                     }
-                    read @ (w::Read::Setting(_) | w::Read::RevisionSetting(_) | w::Read::ProposalItems(_)) => {
-                        forge_settings_query(read)
-                    }
+                    read @ (w::Read::Setting(_)
+                    | w::Read::RevisionSetting(_)
+                    | w::Read::ProposalItems(_)
+                    | w::Read::ProgramEnvironment) => forge_settings_query(read),
                 };
                 if let Some(query) = query {
                     return Ok(root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }));
@@ -1756,11 +1757,19 @@ fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
     tiers
 }
 
-/// Encode the forge's typed settings answer (temper/docs/design/client/forge.md, 9).
+/// Encode a typed forge read answer (temper/docs/design/client/README.md, 4.6).
 #[must_use]
-pub fn forge_read(answer: root::ForgeReadAnswer, limits: &w::Limits) -> Option<Box<[u8]>> {
+pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], limits: &w::Limits) -> Option<Box<[u8]>> {
     use forge::settings::Edit;
     match answer {
+        root::ForgeReadAnswer::ProgramEnvironment => {
+            let record = w::ProgramEnvironmentAnswer::new(
+                limits,
+                w::ProgramEnvironmentAnswerParts { environment: program_environment.into() },
+            )
+            .ok()?;
+            Some(wire::program_environment_answer(&record))
+        }
         root::ForgeReadAnswer::Setting(value) => {
             let value = match value {
                 Some(value) => Some(temper_engine_smith::kinds::encode(&value.value)),
@@ -1801,6 +1810,7 @@ pub fn forge_read(answer: root::ForgeReadAnswer, limits: &w::Limits) -> Option<B
 
 fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
     match read {
+        w::Read::ProgramEnvironment => Some(root::ForgeRead::ProgramEnvironment),
         w::Read::Setting(value) => {
             Some(root::ForgeRead::Setting { kind: value.kind(), scope: value.scope(), number: value.number() })
         }

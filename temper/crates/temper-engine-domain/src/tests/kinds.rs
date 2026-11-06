@@ -1019,3 +1019,25 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
         );
     }
 }
+
+#[test]
+fn only_the_owner_reads_the_program_environment() {
+    use jig_domain_core::reads::{Answer, Why};
+    use jig_domain_people::{ApplicationScope, Role};
+    let (mut domain, env) = reader(Some(Role::Owner));
+    assert_eq!(
+        read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Deployment, crate::ForgeRead::ProgramEnvironment),
+        Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::ProgramEnvironment }
+    );
+    for (role, sign_in, scope, why) in [
+        (Some(Role::Observer), READ_SIGN_IN, ApplicationScope::Deployment, Why::Unknown),
+        (Some(Role::Owner), READ_SIGN_IN + 1, ApplicationScope::Deployment, Why::SignedOut),
+        (Some(Role::Owner), READ_SIGN_IN, ApplicationScope::Project(PROJECT), Why::Unknown),
+    ] {
+        let (mut domain, env) = reader(role);
+        assert_eq!(
+            read_forge(&mut domain, &env, sign_in, scope, crate::ForgeRead::ProgramEnvironment),
+            Delivery::Read { reply: READ_REPLY, answer: Answer::None(why) }
+        );
+    }
+}

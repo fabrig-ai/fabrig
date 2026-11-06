@@ -871,6 +871,82 @@ fn the_connected_model_offers_continue_as_a_terminal_command() {
     );
 }
 
+pub(super) const ENVIRONMENT: &[u8] = b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache'";
+pub(super) fn answer_environment(root: &mut d::Domain, words: &[u8]) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let address = root.pages().address().clone();
+    fixtures::root_event(root, d::Event::Went { place: d::Place::Address(d::Address::Accounts) });
+    let limits = fixtures::limits();
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits };
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(root, &env, d::Event::Went { place: d::Place::Address(address) }, &mut out);
+    let read = out
+        .iter()
+        .find_map(|request| {
+            if let d::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                    },
+            } = request
+                && wire::decode_reading(&record.bytes, &w::CEILINGS)
+                    .is_some_and(|reading| *reading.read() == w::Read::ProgramEnvironment)
+            {
+                Some(*read)
+            } else {
+                None
+            }
+        })
+        .expect("program page reads its environment");
+    let answer =
+        w::ProgramEnvironmentAnswer::new(&w::CEILINGS, w::ProgramEnvironmentAnswerParts { environment: words.into() })
+            .unwrap();
+    fixtures::root_event(
+        root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: wire::FORGE,
+                        record: Some(wire::program_environment_answer(&answer)),
+                    },
+                },
+            },
+        },
+    );
+}
+pub(super) fn command_line(root: &d::Domain) -> Vec<u8> {
+    let view = fixtures::page_view(root);
+    let nodes = view.tree().nodes();
+    let position = nodes.iter().position(|node| node.role == Role::Code).expect("command code");
+    let code = nodes.get(position).unwrap();
+    let runs: Vec<_> = nodes
+        .iter()
+        .skip(position)
+        .take(usize::try_from(code.size).unwrap())
+        .flat_map(|node| node.text.iter())
+        .collect();
+    assert_eq!(runs.len(), 1, "the command is one plain run");
+    assert_eq!(runs[0].run, skein_ui::Run::Plain);
+    runs[0].text.to_vec()
+}
+
+#[test]
+fn the_command_shows_directory_placeholders_without_words() {
+    let (root, _) = flow_fixture(d::WayKind::Program);
+    assert_eq!(command_line(&root), b"temper program-login --config CONFIG --data DATA --cache CACHE claude-pat");
+}
+#[test]
+fn the_command_takes_the_words_first() {
+    let (mut root, _) = flow_fixture(d::WayKind::Program);
+    answer_environment(&mut root, ENVIRONMENT);
+    assert_eq!(
+        command_line(&root),
+        b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper program-login claude-pat"
+    );
+}
+
 #[test]
 fn both_waiting_pages_reject_an_unsafe_address() {
     for welcome in [false, true] {
@@ -1100,5 +1176,20 @@ fn the_program_command_renders_its_full_wire_bound() {
         fixtures::build(&mut view, &root);
         let expected = format!("On this machine, run: {} claude-pat", core::str::from_utf8(&line).unwrap());
         assert!(fixtures::text(view.tree()).windows(expected.len()).any(|bytes| bytes == expected.as_bytes()));
+    }
+}
+
+#[test]
+fn the_program_environment_prefixes_the_standalone_command_on_both_model_pages() {
+    let way = Some(d::ModelWay { source: None, provider: PROVIDER, kind: d::WayKind::Program });
+    let line = b"'/box/bin/temper' program-login --config '/box/config' --data '/box/data' --cache '/box/cache'";
+    for address in [d::Address::ConnectModel { way }, d::Address::Welcome { step: d::Step::Model { way } }] {
+        let (mut root, watch) = program_root_with_line(address, Some(line));
+        let mut document = super::accounts::document(0);
+        document.usable = false;
+        document.settled = true;
+        super::accounts::deliver(&mut root, watch, document);
+        answer_environment(&mut root, ENVIRONMENT);
+        assert_eq!(command_line(&root), [ENVIRONMENT, b" ", line, b" claude-pat"].concat());
     }
 }

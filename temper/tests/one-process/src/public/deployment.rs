@@ -21,6 +21,7 @@ fn start(value: &serde_json::Value) -> Result<temper_service::Service, String> {
         None,
         None,
         &stories::given(&fixtures::world_document()),
+        Box::new([]),
     )
     .map_err(|problems| String::from_utf8_lossy(&temper_service::startup::lines(&problems)).into_owned())
 }
