@@ -1570,7 +1570,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "configure-chat-document",
         heading: "T10 · Configure temper",
         parts: &[
-            Part::Named { role: Role::Paragraph, name: "T10 · Claude subscription · Opus" },
+            Part::Named { role: Role::Paragraph, name: "T10 · Opus" },
             Part::Named { role: Role::Button, name: "Start over" },
             Part::Named { role: Role::Button, name: "Chat" },
             Part::Named { role: Role::Button, name: "Split" },

@@ -129,25 +129,11 @@ fn starter(b: &mut Builder, w: &Words, bindings: &mut Bindings, sent: Word, pend
 }
 
 pub(crate) fn byline(b: &mut Builder, root: &Domain, w: &Words, project: u32) {
-    let account = super::accounts::first_usable_kind(root, w);
-    let mut model = None;
-    if let Some(me) = root.pages().me(root.client()) {
-        for row in &me.projects {
-            if row.project == project
-                && let Some(first) = row.models.get(0)
-            {
-                model = Some(w.model_name(first.name.bytes()));
-            }
-        }
-    }
-    let line = match (&account, &model) {
-        (Some(account), Some(model)) => {
-            crate::accounts::words::join(&[account, &w.say(Word::ToolSeparator, &[]), model])
-        }
-        (Some(account), None) => account.clone(),
-        (None, Some(model)) => model.clone(),
-        (None, None) => Box::default(),
+    let task = match root.pages().chat() {
+        Some(chat) => chat.task(root.client()),
+        None => None,
     };
+    let line = crate::choice::byline_words(root, task, project, w);
     if !line.is_empty() {
         let line = match root.pages().chat() {
             Some(chat) => w.say(Word::BylineTask, &[Hole::Number(chat.task), Hole::Name(line)]),
