@@ -260,6 +260,12 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   digits; `page` is from 1, and 1 when left out; `since` is a time in
   nanoseconds, 0 when left out; `after` a comment's id, 0 when left
   out; `max_bytes`, the read's limit when left out.
+- **`read_permission` names the person:** its answer is the permission,
+  the forge user's id and the login the forge names them by, as
+  `Write; forge user 3, login ada` (skein's `forge.md`, 3.3), so that a
+  run can match a name to an id; with no login from the forge, the same
+  without it. `read_collaborators` lists ids, for `read_permission` to
+  name.
 
 - **A compare is whole, with no pages.** Its files and commits each fit
   `forge.client.rows`, and its decoded answer fits
@@ -845,6 +851,22 @@ agents must do stays text its runs read.
   setting, revision and history reads carry no repository context. A charter
   document copies that host unchanged, including its port, and OWNER/NAME.
   This lets a configuring chat name documents without a workspace or ctl.
+  The same inventory names the caller project's people, one line each:
+  its number, its login where temper holds one, its role's number, its
+  forge user's id where its identity is the forge's, and marks for the
+  person this chat is with and for temper's own forge writer, who never
+  counts as a person. Services are left out. It then names each owned
+  forge's person (`../protocol/setup.md`, section 8), the login made for
+  whoever runs the box, who may hold a party under another login.
+  Of these, a member's forge user id and an owned forge's person are more
+  than a person's own `project show` prints. Only a run whose authority
+  holds the settings family (in the stock, charter 3's alone) reads them,
+  of its own project alone, as for the repositories, and they hold no
+  address, display name or credential.
+  A read of a project's ways or questions with none stored answers the
+  stock (`../protocol/configuration.md`, 13.4), never unknown. A read that
+  finds nothing is an error whose words say it was not read and that this
+  says nothing about the settings.
   Settings pages use `core.call_answer_bytes` less the tool
   name, reserving escaped framing and continuation markers. A long value
   fills the available page even after its heading; `next: OFFSET` counts
@@ -862,6 +884,26 @@ agents must do stays text its runs read.
   its words, not a view of the client's.
 - **Its instructions** are held in the binary, in the `stock` module's
   `configuring.txt`, and say, in the person's register:
+  - to speak in the person's terms: what happens to their work, who does
+    it, what must pass before a change lands, who approves and which
+    model runs, naming a charter, template, revision or kind only in a
+    proposal, its outcome or when asked, and answering "what is the
+    current setting" from "How PROJECT works" (8.3) or in its words;
+  - never to send the person to a terminal, `temper ctl` or a command,
+    nor to relay one from a page, whose facts it takes: what it can
+    check it checks with its tools, and what it can't, an owner's
+    acceptance checks, so it proposes and says what acceptance will
+    check;
+  - to start who approves from the person, "you (ada on the forge), or
+    someone else?", from the inventory's people and forge person, with
+    `read_permission` to match a name to a forge user; it proposes the
+    rule naming the approver and says that acceptance refuses one too
+    few people can meet (`forge.md`, 8.9), offering agent review alone
+    beside it;
+  - never to report a read it could not make as a fact about the
+    settings;
+  - to say that nothing has changed once, where the person could think
+    something did, such as a proposal waiting for an owner;
   - the test for each sentence of a description: would temper's engine
     act differently without it? A sentence that changes what temper
     wakes, schedules, permits, pays for, lands or holds is structure,
@@ -895,8 +937,8 @@ agents must do stays text its runs read.
     were the thing asked; and what needs a restart (the document's
     members: a provider, a forge, a listener, a worker, a limit),
     never proposing it;
-  - to explain from the settings and the documentation (`read_docs`),
-    naming its pages, never their sections or offsets: the concepts
+  - to explain in those terms from the settings and the documentation
+    (`read_docs`), asking for its pages, never their sections or offsets: the concepts
     `settings`, `revision` (moving running work and restoring a version
     among it), `proposal`, `charter`, `template`, `policy` and
     `landing-rule`, each with what it cannot do and what needs a
@@ -1180,6 +1222,12 @@ host:
 
 ## 10. Open questions
 
+- **The person's forge identity in a chat's brief,** rather than in the
+  configuring agent's inventory (8.1), which its instructions read first.
+  A brief section would spend every chat's room for what one charter
+  uses. Default: the inventory.
+- **A collaborator's login in `read_collaborators`** (4.3). Default: ids,
+  with `read_permission` naming each.
 - **Which host tools a charter offers.** jig's charter carries the host
   families its charter's `tools` names and its task's authority holds
   (jig's `domain/engine.md`, 7.1), each stock charter's named in

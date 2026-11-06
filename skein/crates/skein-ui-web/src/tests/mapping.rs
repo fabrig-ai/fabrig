@@ -107,6 +107,7 @@ enum Property {
     Sort(skein_ui::Sort),
     Fraction(Option<Fraction>),
     Count,
+    Order,
     Position,
     Spans(skein_ui::Spans),
     Description,
@@ -128,6 +129,7 @@ enum Property {
 const LINK: Run = Run::Link { to: skein_lib::Token::new(1) };
 
 const PROPERTIES: &[(Role, Property, &str)] = &[
+    (Role::List, Property::Order, r#"<ol data-node="1" start="4"></ol>"#),
     (
         Role::Progress,
         Property::Fraction(Some(Fraction { done: 42, total: 100 })),
@@ -342,6 +344,7 @@ fn property(made: &mut Made, property: Property) {
             made.text = vec![TextRun { run: Run::Plain, text: b"Words & <b>".as_slice().into() }].into_boxed_slice();
         }
         Property::Sort(sort) => made.attribute.sort = Some(sort),
+        Property::Order => made.attribute.ordered = Some(4),
         Property::Count => made.attribute.count = Some(20),
         Property::Position => made.attribute.position = Some(7),
         Property::Spans(spans) => made.attribute.spans = Some(spans),

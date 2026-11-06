@@ -294,7 +294,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 5556);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 5542);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -1257,6 +1257,30 @@ fn configuring_txt_starts_from_temper_own_way() {
         )
     );
     assert!(temper_docs::find(b"how-temper-builds-temper").is_some());
+}
+
+#[test]
+fn configuring_txt_speaks_the_persons_terms() {
+    let words = include_str!("../stock/configuring.txt");
+    for phrase in [
+        "Speak the person's terms",
+        "only in a proposal or its outcome, or when asked",
+        "answer from \"How PROJECT works\"",
+        "Never send them to a terminal, temper ctl or a command",
+        "the owner's acceptance checks",
+        "Say that nothing has changed once",
+        "not in every reply",
+        "you (ada on the forge), or someone else?",
+        "read_permission names a forge user's login",
+        "propose the rule naming the approver",
+        "never report it as a setting",
+        "each read with project and no number",
+    ] {
+        assert!(words.contains(phrase), "missing: {phrase}");
+    }
+    for phrase in ["(kind 7)", "(kind 6)", "establish eligible people first", "naming pages"] {
+        assert!(!words.contains(phrase), "still says: {phrase}");
+    }
 }
 
 fn assert_document_rule(words: &str) {

@@ -424,7 +424,14 @@ fn a_permission_resolves_its_user_and_reuses_the_kept_login() {
     answer(&mut h, br#"{"ok":true,"data":[{"id":2,"login":"writer"}]}"#);
     last(&h, b"GET /api/v1/repos/fixture/specimen/collaborators/writer/permission HTTP/1.1");
     answer(&mut h, PERMISSION);
-    assert_eq!(h.answered(1).expect("permission").result, Ok(Answer::Permission(api::Permission::Admin)));
+    assert_eq!(
+        h.answered(1).expect("permission").result,
+        Ok(Answer::Permission(api::UserPermission {
+            user: 2,
+            login: Box::from(b"writer".as_slice()),
+            permission: api::Permission::Admin
+        }))
+    );
     assert_eq!(h.answered(1).expect("permission").cost, 2);
     h.call(2, fixtures::REPO, Op::Read(Read::Permission { user: 2 }));
     answer(&mut h, PERMISSION);

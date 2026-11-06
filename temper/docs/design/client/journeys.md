@@ -202,10 +202,10 @@ comment, no blank.
   (5.3), and the next act's mark shows what was typed.
 - **The page's own state:** skein's page draws one state that its host
   never hears of, an open menu (`Role::Menu`), and a mark taken with
-  one open fails the first replay's proof. temper's view draws no such
-  menu (on a page that is no project's, its banner's "Menu" is a
-  disclosure, the browser's own); one that does will need the page's
-  events recorded too (section 10).
+  one open fails the first replay's proof. temper's rail draws two such
+  menus, and no journey opens one (on a page that is no project's, its
+  banner's "Menu" is a disclosure, the browser's own); a journey that
+  does will need the page's events recorded too (section 10).
 
 ### 3.5 Fake only
 
