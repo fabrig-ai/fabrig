@@ -73,6 +73,8 @@ pub(crate) fn run_configuration(
         let root = skein_shell::open_root(directory).map_err(|errno| format!("directory: errno {errno}"))?;
         owned.push(root);
         let settings = Settings {
+            first_link: None,
+            after_block: Box::new([]),
             log_lines: Box::new([]),
             program: program.as_os_str().as_bytes().into(),
             environment,

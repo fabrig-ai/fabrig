@@ -178,6 +178,11 @@ pub struct Harness {
     pub held_terminal_ack: Queue<Complete>,
     pub endings: HeldEndings,
 }
+pub struct Opening {
+    pub log_lines: Box<[Box<[u8]>]>,
+    pub first_link: Option<crate::host::FirstLink>,
+    pub after_block: Box<[u8]>,
+}
 impl Harness {
     pub fn new(steps: &[Step]) -> Self {
         Self::with_stubborn(steps, false)
@@ -224,6 +229,25 @@ impl Harness {
         echo: crate::host::Echo,
         log_lines: Box<[Box<[u8]>]>,
     ) -> Self {
+        Self::with_terminal(
+            steps,
+            items,
+            stubborn,
+            buffer,
+            limits,
+            echo,
+            Opening { log_lines, first_link: None, after_block: Box::new([]) },
+        )
+    }
+    pub fn with_terminal(
+        steps: temper_forge_setup::Steps,
+        items: &[skein_fake_machine::Item],
+        stubborn: bool,
+        buffer: u32,
+        limits: &limits::Limits,
+        echo: crate::host::Echo,
+        opening: Opening,
+    ) -> Self {
         let mut config = Config::calm();
         config.buffer = buffer;
         let mut sim = Sim::new(0x12_02, config);
@@ -244,7 +268,9 @@ impl Harness {
             }
         }
         let settings = Settings {
-            log_lines,
+            log_lines: opening.log_lines,
+            first_link: opening.first_link,
+            after_block: opening.after_block,
             echo,
             data: bytes::copy_of(b"/data"),
             program: bytes::copy_of(b"process_fixture"),

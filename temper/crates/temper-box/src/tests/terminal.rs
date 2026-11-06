@@ -9,27 +9,20 @@ fn item(target: Target, words: &[u8]) -> Item {
 #[test]
 fn the_first_block_has_exact_words_and_three_targets() {
     let formatter = Formatter::new();
-    assert_eq!(formatter.block(bytes::copy_of(b"http://link\n"), wall(50)).as_slice(), &[
-        item(Target::Stderr, b"\nOpen this link in a browser on this machine. It signs you in as this\ntemper's owner, once and for a short while, so keep it private.\nOpened again once spent, it prints a fresh one here.\n\n"),
+    assert_eq!(formatter.block(bytes::copy_of(b"http://link\n")).as_slice(), &[
+        item(Target::Stderr, b"Open this link in a browser on this machine.\n\n"),
         item(Target::Stdout, b"http://link\n"),
-        item(Target::Stderr, b"\nCtrl-C stops temper.\n\n"),
+        item(Target::Stderr, b"\nIt signs you in as this temper's owner, once and for a short while.\nOpened again once spent, it prints a fresh one here.\n"),
     ]);
 }
 #[test]
-fn fresh_blocks_keep_state_across_restart_and_use_supplied_utc() {
+fn fresh_blocks_keep_state_across_restart_and_have_no_time() {
     let mut formatter = Formatter::new();
     formatter.admitted_block();
-    for (seconds, expected) in [
-        (86_399, b"23:59:59Z A fresh sign-in link:\n".as_slice()),
-        (86_400, b"00:00:00Z A fresh sign-in link:\n"),
-        (60, b"00:01:00Z A fresh sign-in link:\n"),
-        (172_861, b"00:01:01Z A fresh sign-in link:\n"),
-    ] {
-        assert_eq!(
-            formatter.block(bytes::copy_of(b"http://fresh\n"), wall(seconds)).as_slice(),
-            &[item(Target::Stderr, expected), item(Target::Stdout, b"http://fresh\n"),]
-        );
-    }
+    assert_eq!(
+        formatter.block(bytes::copy_of(b"http://fresh\n")).as_slice(),
+        &[item(Target::Stderr, b"\n"), item(Target::Stdout, b"http://fresh\n")]
+    );
 }
 #[test]
 fn notices_time_every_line_before_and_after_a_block() {
@@ -174,6 +167,9 @@ fn lifecycle_output_bound_covers_long_labels_and_signal_numbers() {
         assert!(super::fixtures::Harness::contains(&item.bytes, b"killed by signal 4294967295"));
     }
     assert!(max_bytes(&[]) >= crate::terminal::FIXED_BYTES);
+    for words in [crate::terminal::PRELUDE, crate::terminal::FOOTER] {
+        assert!(words.len() <= usize::try_from(crate::terminal::FIXED_BYTES).unwrap());
+    }
 }
 
 #[test]
