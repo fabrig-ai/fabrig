@@ -2,6 +2,8 @@
 
 2026-11-06. Where temper's code lags or departs from [testing.md](testing.md).
 
+- **Not yet:** 2.6, *One printed link, counted*: `process.rs`'s two assertions compare stdout's bytes, and their panics carry no stderr.
+
 Sections 2.4 and 2.6 have the reusable-port chooser and its callers:
 socket-claimed blocks below Linux's configured ephemeral range, the
 retained deployment's listeners, the browser's reserved sockets and the

@@ -1872,8 +1872,8 @@ keeps (`../protocol/configuration.md`, section 2).
     "Needs you", "Needs you · N" in the signal colour while something
     does, and, at its right on a wide page while more than one does,
     "Answer in a row", to that filtered *Needs you*. Empty, once its read has
-    answered: "Nothing needs you. Work carries on, and this page tells you what changed when you
-    come back."
+    answered: "Work carries on, and this page tells you what changed when you come back.", the
+    headline above having said "Nothing needs you." once.
     - *Answered lines,* under the head: what was answered in the last 2
       minutes (*What the client keeps,* below): the mock's `.answered`,
       a tick by style, "TITLE:" a link to its task, the label, and at
@@ -4958,7 +4958,7 @@ supplies it: the page computes none (jig's `client/domain/contract.md`,
   | first | "First in the queue for LANDING." |
   | updating | "Updating from LANDING." |
   | resolving | "Resolving its conflicts with LANDING." |
-  | repairing | "Repairing: CI failed at its head.", "Repairing: gate N asked for changes." or "Repairing: a semantic conflict with LANDING." |
+  | repairing | "Repairing: CI failed at its head.", "Repairing: gate N asked for changes." or, for a semantic conflict, "Repairing: CI failed at its updated head.", which blames neither the change nor what it was updated with |
   | landing | "Merging at its head." |
   | landed | "Landed · merge commit ABCDEFG", its first seven digits, as a delegation's card says it (5.7) |
 

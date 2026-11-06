@@ -2,6 +2,7 @@
 
 2026-11-06. Where temper's code lags or departs from [agent.md](agent.md).
 
+- **Not yet:** 8.1, *Its instructions*: `configuring.txt` has no sentence holding a person's forge identity to when approvals are asked about or proposed.
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
   including models outside the offer, because a proposal needs their whole
