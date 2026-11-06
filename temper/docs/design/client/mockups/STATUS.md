@@ -30,14 +30,13 @@ What the client doesn't draw yet:
 
 Where the client does otherwise:
 
-- **Claude's host check** (the client README's 3.5, *The try*): while
-  checking, the panel's place holds the model status box, its first step
-  under way, without "one short message". Not signed in, the same box
-  marks that first step failed and says why, with "Try again", "Sign in
-  again" and "Continue anyway". The mockup's checking note and separate
-  not-yet alert are not drawn. A real turn, the later steps and their
-  endings await `../../draft/model-check.md`, 2 to 4; the host's check
-  still moves a usable model on to Ready. The mockup is not edited.
+- **Claude's host check** (the client README's 3.5, *The try*): "I’ve
+  signed in" goes on to Ready at once, and the check shows as Model's line in
+  Ready's pane, its first step under way. Not signed in, Ready reads Almost
+  ready, the line marks that first step failed and says why, with "Try
+  again" and "Sign in again". The mockup's checking note and separate not-yet
+  alert are not drawn. A real turn, the later steps and their endings await
+  `../../draft/model-check.md`, 2 to 4. The mockup is not edited.
 
 - **Model's forge pane** (the client README's 3.5; `../browser.md`, 2.5;
   the user, 2026-11-04): its named Forge region follows the choices and
@@ -161,7 +160,8 @@ Where the client does otherwise:
   greenfield mock draws it; Model's cards hold the plans alone,
   no key; the forge's ticked line says who temper is on it and that
   its first repository is made; the foot has no "Later";
-  Ready is the greenfield mock's, its checklist and its first
+  Ready is the greenfield mock's, its pane, the request
+  `model-check-pane`'s in the checklist's place, and its first
   project's form, the first repository's name in capital or "My
   project" until the person names it otherwise, and
   "Create your project"; and the words of the cards and leads are the
