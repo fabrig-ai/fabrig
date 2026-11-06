@@ -105,3 +105,14 @@ As the implementer's text says, and: the tests whose expected value moved.
 Any other test in `jig-client-view` or `jig-client` that fails because a continuing cut discards held text gets the same repair: name it in your report. A failure of any other kind is outside this answer.
 
 Then run step 5's commands with `--no-fail-fast`: the first run left 5,836 selected tests unobserved, and they are unobserved until a run reaches them.
+
+## Rebase (2026-11-06, step merge, foreman chat-reading-a/live-whole/foreman-2)
+
+Rebase by combining both status deletions and preserving the incoming chat tests with live bounds.
+- The merge conflicts in `jig/docs/design/client/domain/client.status.md` and `temper/crates/temper-client-view/src/tests/chat.rs`.
+- In the status file, remove both completed **Not yet** entries: this task’s `8.3, 10:` line and `turn-order` commit `a11600d5fe`’s `10, 14:` line. Preserve the remaining entries.
+- In `chat.rs`, preserve commit `5e99713ce1`’s tests and behavior, including `conversation_turn` and the rewritten `a_note_turn_draws_no_cut_words`. Add `live: TEXT` to `conversation_turn`’s new `thread::Limits` literal; retain this branch’s other `live` additions.
+- Update `a_long_provisional_text_says_nothing_of_what_was_cut`: both drawing paths must show the retained 31 ASCII bytes `1234567890123456789012345678901`, rather than `é and more`. The 32-byte live bound cannot include the following two-byte character. Keep the assertions that neither “Earlier text omitted” nor “…” appears. Report this changed expectation.
+- Check the automatic merge in `jig-client-protocol-link/src/limits.rs`: retain `outcome: client.text` from `a11600d5fe` and this task’s `long_text` receiving bound.
+- Preserve the incoming draft-note handling in `temper-client-domain/src/pages/chat.rs` alongside this task’s `thread_limits.live`.
+- Run the spec’s step 5 package checks with `--no-fail-fast`, then the required formatting and clippy checks.
