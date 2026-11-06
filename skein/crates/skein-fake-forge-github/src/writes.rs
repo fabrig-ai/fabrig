@@ -13,6 +13,7 @@ use skein_fake_forge_domain::{
 };
 use skein_forge::github::{request::Request, server};
 use skein_lib::ReplyTo;
+use skein_lib::bytes::concat;
 
 pub(crate) mod merge;
 
@@ -210,9 +211,7 @@ pub(crate) fn call(service: &Service, route: Route, grant: &Access, body: &[u8],
         Ok(value) => value,
         Err(response) => return Outcome::Reply(response),
     };
-    let Some(repository) = reads::full(row) else {
-        return Outcome::Reply(answers::failed());
-    };
+    let repository = reads::full(row);
     dispatch(Pending { user: grant.user(), repository, stage }, op, reply_to)
 }
 fn dispatch(pending: Pending, op: Op, reply_to: ReplyTo) -> Outcome {
@@ -446,27 +445,8 @@ fn refused(stage: &Stage, error: a::Error, limits: &Limits, ambiguous: bool) -> 
         }
         Stage::OpenPull { owner, head, base } => {
             let text = match error {
-                a::Error::NothingToMerge => {
-                    let Some(prefix) = crate::service::joined(texts::NO_COMMITS, base) else {
-                        return answers::failed();
-                    };
-                    let Some(prefix) = crate::service::joined(&prefix, b" and ") else {
-                        return answers::failed();
-                    };
-                    crate::service::joined(&prefix, head)
-                }
-                a::Error::Exists => {
-                    let Some(prefix) = crate::service::joined(texts::PULL_EXISTS, owner) else {
-                        return answers::failed();
-                    };
-                    let Some(prefix) = crate::service::joined(&prefix, b":") else {
-                        return answers::failed();
-                    };
-                    let Some(prefix) = crate::service::joined(&prefix, head) else {
-                        return answers::failed();
-                    };
-                    crate::service::joined(&prefix, b".")
-                }
+                a::Error::NothingToMerge => Some(concat(&[texts::NO_COMMITS, base, b" and ", head])),
+                a::Error::Exists => Some(concat(&[texts::PULL_EXISTS, owner, b":", head, b"."])),
                 a::Error::Unavailable
                 | a::Error::Timeout
                 | a::Error::RateLimited { .. }

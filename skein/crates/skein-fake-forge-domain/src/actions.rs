@@ -341,7 +341,7 @@ pub(crate) fn steps(context: &[u8], failing: Failing, cue: Option<&Cue>, pull: O
             name: match cue {
                 Some(Cue::PullFile { step, .. }) => copy_of(step),
                 Some(Cue::File { .. } | Cue::Message { .. } | Cue::Tests { .. }) | None => {
-                    joined(context, &[b"Run ", context])
+                    skein_lib::bytes::concat(&[b"Run ", context])
                 }
             },
             status,
@@ -415,13 +415,4 @@ pub(crate) fn log(
         );
     }
     Ok(out.into_boxed())
-}
-
-fn joined(context: &[u8], parts: &[&[u8]]) -> Box<[u8]> {
-    let capacity = u32::try_from(context.len()).expect("bounded context").checked_add(4).expect("bounded name");
-    let mut out = List::with_capacity(capacity);
-    for part in parts {
-        append(&mut out, part);
-    }
-    out.into_boxed()
 }

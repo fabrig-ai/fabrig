@@ -1598,9 +1598,10 @@ Nothing the core decides depends on a view arriving.
 - **A resolved default beside intent.** Each effective template in `me`
   carries `resolved_default: Option<LlmChoice>` beside its configured
   LLM choice. An explicit template choice previews itself. For an omitted
-  choice, the core takes what a run's check would take now (accounts.md,
-  4.3): the first model in charter order with an account usable now, at its
-  default effort, under the effective creating authority and with the
+  choice, the core takes what a run's check would take now for a task
+  keeping no account (accounts.md, 4.3): the first model in charter order
+  with an account usable now, at its default effort, under the effective
+  creating authority and with the
   current receiving party as payer. No usable model, or an executor still
   *chosen*, gives `None`. This is an observation, never admission or
   an account reservation. The client's shapes keep the configured

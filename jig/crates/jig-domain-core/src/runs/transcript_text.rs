@@ -1,6 +1,7 @@
 //! Retained protocol-rendered transcript text (domain/engine.md, section 9).
 use crate::{Transcript, TurnRecord};
 use alloc::boxed::Box;
+use skein_lib::length::len_u64;
 
 /// A loaded stored turn and its protocol-rendered UTF-8 text; never stored together.
 pub type TranscriptRow = (TurnRecord, Option<Box<[u8]>>);
@@ -16,10 +17,7 @@ pub struct TranscriptText {
 pub(crate) fn cut_transcript_text(text: &[u8], bound: usize) -> TranscriptText {
     const MARKER: &[u8] = b"[earlier text cut]\n";
     if text.len() <= bound {
-        return TranscriptText {
-            bytes: Box::from(text),
-            shown: u64::try_from(text.len()).expect("text length fits u64"),
-        };
+        return TranscriptText { bytes: Box::from(text), shown: len_u64(text.len()) };
     }
     if bound < MARKER.len() {
         return TranscriptText { bytes: Box::new([]), shown: 0 };
@@ -36,7 +34,7 @@ pub(crate) fn cut_transcript_text(text: &[u8], bound: usize) -> TranscriptText {
     let mut writer = skein_lib::Writer::new(MARKER.len().checked_add(suffix.len()).expect("bounded text"));
     writer.put(MARKER).expect("measured marker");
     writer.put(suffix).expect("measured suffix");
-    TranscriptText { bytes: writer.finish(), shown: u64::try_from(suffix.len()).expect("bounded suffix") }
+    TranscriptText { bytes: writer.finish(), shown: len_u64(suffix.len()) }
 }
 
 impl Transcript {
@@ -45,28 +43,22 @@ impl Transcript {
             Some(text) => text,
             None => Box::from(&b"[a turn not readable as text]\n"[..]),
         };
-        self.text_bytes = self
-            .text_bytes
-            .checked_add(u64::try_from(text.len()).expect("text length fits u64"))
-            .expect("loaded text count");
+        self.text_bytes = self.text_bytes.checked_add(len_u64(text.len())).expect("loaded text count");
         let kept = if text.len() <= skein_lib::length::usize_of(bound) {
-            TranscriptText { shown: u64::try_from(text.len()).expect("bounded text"), bytes: text }
+            TranscriptText { shown: len_u64(text.len()), bytes: text }
         } else {
             cut_transcript_text(&text, skein_lib::length::usize_of(bound))
         };
         if kept.bytes.is_empty() {
             return;
         }
-        let length = u64::try_from(kept.bytes.len()).expect("bounded text");
+        let length = len_u64(kept.bytes.len());
         for _ in 0..self.texts.len() {
             if self.text_kept.checked_add(length).expect("two bounded texts") <= u64::from(bound) {
                 break;
             }
             let old = self.texts.pop().expect("overfull text queue has an oldest text");
-            self.text_kept = self
-                .text_kept
-                .checked_sub(u64::try_from(old.bytes.len()).expect("bounded text"))
-                .expect("counted text");
+            self.text_kept = self.text_kept.checked_sub(len_u64(old.bytes.len())).expect("counted text");
         }
         self.texts.push(kept);
         self.text_kept = self.text_kept.checked_add(length).expect("bounded text retention");

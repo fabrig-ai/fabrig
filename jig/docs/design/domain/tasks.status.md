@@ -1,6 +1,6 @@
 # tasks: status
 
-2026-11-05. Where jig's code lags or departs from [tasks.md](tasks.md).
+2026-11-06. Where jig's code lags or departs from [tasks.md](tasks.md).
 Unlisted sections have no known gap.
 
 - **Not yet:** 3: a model's default effort, `effort`: a task given none takes its model's first.

@@ -158,8 +158,7 @@ Anthropic thinking and other opaque Responses items retain typed limit failures.
 call, overriding that default in either direction. Connection owners supply
 `Request::Start.drop_reasoning` from the selected model's policy. Calls with
 different policies can reuse the same endpoint and connection; the receiving
-bounds stay unchanged. `Component::admit_with_reasoning_drop` supports the same
-explicit policy when checking admission before submitting Start.
+bounds stay unchanged.
 
 Anthropic output uses `client::Limits.declared_output_tokens` when the prompt
 has no cap. A prompt cap above that declaration is refused as `Cap::Output`.

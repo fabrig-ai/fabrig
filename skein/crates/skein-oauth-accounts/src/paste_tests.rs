@@ -1,7 +1,8 @@
 //! Redirect admission from the owner's paste and the listener (oauth.md, 6.5).
 use super::private::Owner;
 use super::*;
-use skein_lib::{Token, Writer};
+use skein_lib::Token;
+use skein_lib::bytes::concat;
 
 const REGISTERED: &[u8] = b"http://127.0.0.1:0/callback";
 const BOUND: &[u8] = b"http://127.0.0.1:41000/callback";
@@ -32,21 +33,11 @@ fn waiting(issued: bool) -> (Owner, Token, Box<[u8]>) {
     let visit = owner.visit();
     (owner, listener, visit)
 }
-fn joined(parts: &[&[u8]]) -> Box<[u8]> {
-    let mut length = 0_usize;
-    for part in parts {
-        length = length.checked_add(part.len()).expect("fixture length");
-    }
-    let mut out = Writer::new(length);
-    for part in parts {
-        out.put(part).expect("fixture room");
-    }
-    out.finish()
-}
+
 fn paste(owner: &mut Owner, address: &[u8], state: &[u8], fields: &[u8]) {
     owner.ask(Request::Redirected {
         account: 0,
-        uri: skein_lib::Secret::new(joined(&[address, b"?state=", state, fields])),
+        uri: skein_lib::Secret::new(concat(&[address, b"?state=", state, fields])),
     });
 }
 fn taken(owner: &mut Owner) {
@@ -58,7 +49,7 @@ fn refused(owner: &mut Owner, why: Refusal) {
     assert!(owner.above.is_empty());
 }
 fn head(state: &[u8], fields: &[u8]) -> Box<[u8]> {
-    joined(&[b"GET /callback?state=", state, fields, b" HTTP/1.1\r\nHost: 127.0.0.1:41000\r\n\r\n"])
+    concat(&[b"GET /callback?state=", state, fields, b" HTTP/1.1\r\nHost: 127.0.0.1:41000\r\n\r\n"])
 }
 fn settle_listener(owner: &mut Owner, listener: Token) {
     let mut held = Queue::uncapped();
@@ -153,7 +144,7 @@ fn a_paste_that_is_not_the_sign_ins_is_refused_and_the_sign_in_still_waits() {
         let (mut owner, listener, visit) = waiting(true);
         let state = Owner::query(&visit, b"state").expect("state");
         if name == "past url bound" {
-            let fields = joined(&[fields, &[b'x'; 1024]]);
+            let fields = concat(&[fields, &[b'x'; 1024]]);
             paste(&mut owner, address, state, &fields);
         } else {
             paste(&mut owner, address, if wrong_state { b"another-state" } else { state }, fields);

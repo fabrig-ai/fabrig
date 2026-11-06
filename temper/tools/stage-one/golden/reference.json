@@ -578,7 +578,20 @@
       },
       "member": "ceiling.tools",
       "test": "bits",
-      "value": 1671
+      "value": 1983
+    },
+    {
+      "id": "rules.notes",
+      "row": "the project's policy and rules",
+      "kind": "setting",
+      "subject": {
+        "setting": {
+          "kind": "rules"
+        }
+      },
+      "member": "ceiling.notes",
+      "test": "bits",
+      "value": 3
     },
     {
       "id": "rules.delegation",
@@ -672,7 +685,21 @@
       },
       "member": "ceiling.tools",
       "test": "bits",
-      "value": 1671
+      "value": 1983
+    },
+    {
+      "id": "policy.notes",
+      "row": "the project's policy and rules",
+      "kind": "setting",
+      "subject": {
+        "setting": {
+          "kind": "policy",
+          "number": 1
+        }
+      },
+      "member": "ceiling.notes",
+      "test": "bits",
+      "value": 3
     },
     {
       "id": "policy.delegation",
@@ -769,7 +796,35 @@
       },
       "member": "roles.0.authority.tools",
       "test": "bits",
-      "value": 1671
+      "value": 1983
+    },
+    {
+      "id": "policy.role0.notes",
+      "row": "the project's policy and rules",
+      "kind": "setting",
+      "subject": {
+        "setting": {
+          "kind": "policy",
+          "number": 1
+        }
+      },
+      "member": "roles.0.authority.notes",
+      "test": "bits",
+      "value": 3
+    },
+    {
+      "id": "policy.role0.effect",
+      "row": "the project's policy and rules",
+      "kind": "setting",
+      "subject": {
+        "setting": {
+          "kind": "policy",
+          "number": 1
+        }
+      },
+      "member": "roles.0.authority.tools",
+      "test": "lacks",
+      "value": 64
     },
     {
       "id": "policy.role0.delegation",
@@ -866,7 +921,35 @@
       },
       "member": "roles.0.authority.tools",
       "test": "bits",
-      "value": 1671
+      "value": 1983
+    },
+    {
+      "id": "project.role0.notes",
+      "row": "the project's policy and rules",
+      "kind": "setting",
+      "subject": {
+        "setting": {
+          "kind": "project-policy",
+          "project": "box"
+        }
+      },
+      "member": "roles.0.authority.notes",
+      "test": "bits",
+      "value": 3
+    },
+    {
+      "id": "project.role0.effect",
+      "row": "the project's policy and rules",
+      "kind": "setting",
+      "subject": {
+        "setting": {
+          "kind": "project-policy",
+          "project": "box"
+        }
+      },
+      "member": "roles.0.authority.tools",
+      "test": "lacks",
+      "value": 64
     },
     {
       "id": "project.role0.delegation",

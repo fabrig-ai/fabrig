@@ -3,7 +3,7 @@ use crate::{
     v1,
 };
 use jig_domain_accounts::{DISPLAY, SUBJECT};
-use skein_lib::{Reader, Wall, Writer, bytes};
+use skein_lib::{Reader, Wall, Writer, bytes, length::len_u64};
 use skein_oauth::{Limits, SavedToken};
 
 pub(crate) fn limits() -> Limits {
@@ -312,10 +312,7 @@ fn bound_reserves_four_bytes_above_the_generated_form() {
     }
     let limits = record_limits(&original);
     let encoded = moved::encode(&original, &limits).expect("all parts at bounds");
-    assert_eq!(
-        moved::bound(&limits),
-        u64::try_from(encoded.len()).expect("size").checked_add(4).expect("envelope allowance")
-    );
+    assert_eq!(moved::bound(&limits), len_u64(encoded.len()).checked_add(4).expect("envelope allowance"));
     assert_same(&original, &moved::decode(encoded.expose(), &limits).expect("largest file decodes"));
 }
 

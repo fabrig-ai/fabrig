@@ -43,7 +43,7 @@ impl Measured {
     }
 
     fn complete(&mut self) {
-        assert!(self.domain.start_link(&self.env));
+        assert!(self.domain.start_link());
         self.domain.start_sweep();
         assert!(self.domain.start_complete(&self.env));
     }

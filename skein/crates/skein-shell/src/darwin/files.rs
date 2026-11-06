@@ -11,6 +11,8 @@
 //! enforced by openat, before the opened kind is inspected.
 
 use super::{close, count, last_errno, retry, status, status_flags};
+pub(crate) use crate::posix::files::kind_of;
+use crate::posix::files::{kernel_error, private_error, read_opened};
 use crate::{
     calls::file_error,
     startup::{DirectoryAccess, OutputKind},
@@ -98,14 +100,7 @@ fn stat_once(fd: i32) -> Result<libc::stat, i32> {
     status(unsafe { libc::fstat(fd, ptr::from_mut(&mut raw)) })?;
     Ok(raw)
 }
-pub(super) fn kind_of(mode: libc::mode_t) -> Kind {
-    match mode & libc::S_IFMT {
-        libc::S_IFREG => Kind::File,
-        libc::S_IFDIR => Kind::Directory,
-        libc::S_IFLNK => Kind::Symlink,
-        _ => Kind::Other,
-    }
-}
+
 /// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn stat(fd: Fd) -> Result<Stat, i32> {
     let raw = stat_once(fd.raw())?;
@@ -276,14 +271,6 @@ fn open_private(path: &CString, flags: i32) -> Result<i32, i32> {
     if fd < 0 { Err(last_errno()) } else { Ok(fd) }
 }
 
-fn private_error(errno: i32) -> Unread {
-    match errno {
-        libc::ELOOP => Unread::Unsafe(Unsafe::Link),
-        libc::ENOENT => Unread::Absent,
-        other => Unread::Kernel(kernel_error(other)),
-    }
-}
-
 fn denied_private(path: &CString, user: u32) -> Unread {
     let Ok(fd) = open_private(
         path,
@@ -339,57 +326,6 @@ pub(crate) fn read_file(path: &Path, max: u32) -> Result<Box<[u8]>, Unread> {
     let result = read_opened(fd, max);
     let _closed = close(Fd::new(fd));
     result
-}
-
-fn read_opened(fd: i32, max: u32) -> Result<Box<[u8]>, Unread> {
-    // SAFETY: all-zero stat storage is valid; fstat initializes this live
-    // exclusive local during the call and retains no pointer.
-    let mut stat: libc::stat = unsafe { mem::zeroed() };
-    // SAFETY: stat is exclusive initialized storage that lives across fstat.
-    if unsafe { libc::fstat(fd, ptr::from_mut(&mut stat)) } < 0 {
-        return Err(Unread::Kernel(kernel_error(last_errno())));
-    }
-    if stat.st_mode & libc::S_IFMT != libc::S_IFREG {
-        return Err(Unread::NotAFile);
-    }
-    if stat.st_size > i64::from(max) {
-        return Err(Unread::TooLarge { max });
-    }
-    let mut bytes = Vec::new();
-    let mut buffer = [0_u8; 8 * 1_024];
-    loop {
-        // SAFETY: the kernel writes only within the live exclusive buffer;
-        // the descriptor is ours until the outer function closes it.
-        let read = unsafe { libc::read(fd, buffer.as_mut_ptr().cast(), buffer.len()) };
-        if read < 0 {
-            let errno = last_errno();
-            if errno == libc::EINTR {
-                continue;
-            }
-            return Err(Unread::Kernel(kernel_error(errno)));
-        }
-        if read == 0 {
-            return Ok(bytes.into_boxed_slice());
-        }
-        let read = usize::try_from(read).expect("a positive read fits usize");
-        let length = bytes.len().checked_add(read).ok_or(Unread::TooLarge { max })?;
-        if u64::try_from(length).expect("a length fits u64") > u64::from(max) {
-            return Err(Unread::TooLarge { max });
-        }
-        bytes.extend_from_slice(buffer.get(..read).expect("the kernel read within its buffer"));
-    }
-}
-
-fn kernel_error(errno: i32) -> Error {
-    match errno {
-        libc::EACCES | libc::EPERM => Error::Permission,
-        libc::ENOTDIR => Error::NotADirectory,
-        libc::ENAMETOOLONG => Error::NameTooLong,
-        libc::EMFILE | libc::ENFILE => Error::TooManyOpenFiles,
-        libc::EINVAL => Error::InvalidArgument,
-        libc::ENOBUFS | libc::ENOMEM => Error::NoBufferSpace,
-        other => Error::Other(other),
-    }
 }
 
 /// Makes absent directories along `path` durable, then opens it as a root

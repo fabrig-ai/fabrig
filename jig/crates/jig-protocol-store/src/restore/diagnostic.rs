@@ -1,6 +1,7 @@
 //! Key-only restore diagnostics (jig/docs/design/protocol/store.md, 7.1 and 9).
 use crate::{Family, OpenRefusal, Phase, Store};
 use alloc::boxed::Box;
+use skein_lib::length::len_u64;
 
 /// An open's first available cause (protocol/store.md, 10.1 and 10.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -104,10 +105,5 @@ pub(crate) fn site(store: &Store, key: &[u8]) -> RowSite {
         [crate::keys::JIG, crate::keys::ACCOUNTS, ..] => Some(Family::Accounts),
         _ => None,
     };
-    RowSite {
-        family,
-        key: Box::from(shown),
-        key_bytes: u64::try_from(key.len()).expect("key length fits u64"),
-        truncated: key.len() > shown.len(),
-    }
+    RowSite { family, key: Box::from(shown), key_bytes: len_u64(key.len()), truncated: key.len() > shown.len() }
 }

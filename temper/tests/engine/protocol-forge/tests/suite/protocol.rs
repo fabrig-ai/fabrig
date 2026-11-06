@@ -96,6 +96,7 @@ fn change_step_task(
         entry,
         heard: change::Heard {
             delegate_running: false,
+            delegate_live: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -488,6 +489,7 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
         entry,
         heard: change::Heard {
             delegate_running: false,
+            delegate_live: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -915,6 +917,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                 entry,
                 heard: change::Heard {
                     delegate_running: false,
+                    delegate_live: false,
                     start_conflict: None,
                     lacking: None,
                     spend: None,

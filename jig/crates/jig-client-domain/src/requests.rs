@@ -5,7 +5,7 @@ use crate::{
 };
 use skein_lib::{
     Env, List, Queue, RequestAdmission, RequestAnswered, RequestEnvelope, RequestKey, RequestOut, RequestProgress,
-    RequestRecord, RequestRefused, Token,
+    RequestRecord, RequestRefused, Token, length::len_u64,
 };
 #[derive(Debug)]
 pub(crate) struct PendingRequest {
@@ -290,7 +290,7 @@ fn kept(request: &Ask) -> bool {
 pub(crate) fn declared(limits: &Limits, request: &Ask) -> u64 {
     match request {
         Ask::Jig(_) => limits.ask_bytes,
-        Ask::Family { record: f, .. } => u64::try_from(f.bytes.len()).expect("family bytes fit"),
+        Ask::Family { record: f, .. } => len_u64(f.bytes.len()),
     }
 }
 pub(crate) fn pending(party: u64, request: &Ask) -> Pending {

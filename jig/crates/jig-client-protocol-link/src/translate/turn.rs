@@ -3,7 +3,7 @@ use super::Undecodable;
 use crate::Limits;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::{VERSION, v19 as w};
-use skein_lib::{Reader, Wall};
+use skein_lib::{Reader, Wall, length::len_u64};
 
 // Schema client-v19: ReadAnswer::Value, Owner::Jig, ReadValue::Turn,
 // TurnBytes::Carried. Generated-encoding boundary tests check this inspector.
@@ -91,7 +91,7 @@ pub(crate) fn archive(record: w::ArchivedTurn, limits: &Limits) -> Result<c::Arc
 }
 
 pub(crate) fn decode(value: &[u8], limits: &jig_protocol_transcript::Limits) -> c::TurnRead {
-    let source_bytes = u64::try_from(value.len()).expect("payload length fits u64");
+    let source_bytes = len_u64(value.len());
     let why = match jig_protocol_transcript::decode(limits, value) {
         Ok(turn) => return c::TurnRead::Decoded(turn),
         Err(jig_protocol_transcript::Undecodable::Version { found }) => c::TurnProblem::Version { found },

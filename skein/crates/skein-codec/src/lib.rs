@@ -80,58 +80,5 @@ pub fn version_of(bytes: &[u8]) -> Result<u16, Reason> {
 /// Reports whether a complete text field is UTF-8 (RFC 3629, section 4).
 #[must_use]
 pub fn text_is_valid(bytes: &[u8]) -> bool {
-    let mut more = 0_u8;
-    let mut low = 0_u8;
-    let mut high = 0_u8;
-    for &byte in bytes {
-        if more > 0 {
-            if byte < low || byte > high {
-                return false;
-            }
-            more = more.checked_sub(1).expect("a continuation remains");
-            low = 0x80;
-            high = 0xbf;
-        } else {
-            match byte {
-                0x00..=0x7f => {}
-                0xc2..=0xdf => {
-                    more = 1;
-                    low = 0x80;
-                    high = 0xbf;
-                }
-                0xe0 => {
-                    more = 2;
-                    low = 0xa0;
-                    high = 0xbf;
-                }
-                0xe1..=0xec | 0xee..=0xef => {
-                    more = 2;
-                    low = 0x80;
-                    high = 0xbf;
-                }
-                0xed => {
-                    more = 2;
-                    low = 0x80;
-                    high = 0x9f;
-                }
-                0xf0 => {
-                    more = 3;
-                    low = 0x90;
-                    high = 0xbf;
-                }
-                0xf1..=0xf3 => {
-                    more = 3;
-                    low = 0x80;
-                    high = 0xbf;
-                }
-                0xf4 => {
-                    more = 3;
-                    low = 0x80;
-                    high = 0x8f;
-                }
-                0x80..=0xc1 | 0xf5..=0xff => return false,
-            }
-        }
-    }
-    more == 0
+    skein_lib::bytes::is_utf8(bytes)
 }

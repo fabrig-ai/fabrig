@@ -1,6 +1,6 @@
 //! Arbitrary and mutated family bytes (protocol/store.md, sections 5.1 and 14).
 use jig_protocol_store::{accounts_v2, component_v3, notes_v1, people_v14};
-use skein_lib::{Reader, Rng, Writer};
+use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::{fs, path::Path};
 
 fn notes(bytes: &[u8]) {
@@ -73,8 +73,7 @@ fn mutate_goldens(root: &Path, seed: u64, check: fn(&[u8])) {
         for _ in 0_u32..100 {
             let mut bytes = golden.clone();
             if !bytes.is_empty() {
-                let index =
-                    usize::try_from(rng.below(u64::try_from(bytes.len()).expect("length fits"))).expect("index fits");
+                let index = usize::try_from(rng.below(len_u64(bytes.len()))).expect("index fits");
                 *bytes.get_mut(index).expect("chosen byte") = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
             }
             check(&bytes);

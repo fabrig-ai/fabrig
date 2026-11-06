@@ -4,7 +4,7 @@ use crate::translate::{classify, text_problem};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{List, Reader, Wall, bytes};
+use skein_lib::{List, Reader, Wall, bytes, length::len_u64};
 pub(crate) fn seen(value: &w::SeenThrough) -> c::SeenThrough {
     match value {
         w::SeenThrough::Results(row) => c::SeenThrough::Results { through: row.through() },
@@ -616,7 +616,7 @@ pub fn answer(record: w::KeyedAnswer, limits: &Limits) -> Result<c::Answer, supe
     if value.owner() != &w::Owner::Jig || value.version() != jig_client_protocol_wire::VERSION {
         return Err(super::Undecodable::Version);
     }
-    if u64::try_from(value.record().len()).expect("usize fits u64") > limits.client().document_bytes {
+    if len_u64(value.record().len()) > limits.client().document_bytes {
         return Err(super::Undecodable::TooLarge);
     }
     let value = match w::Final::decode(limits.wire(), &mut Reader::new(value.record())) {
