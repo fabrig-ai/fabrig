@@ -1122,6 +1122,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decision-why",
         b"temper-decision-late",
         b"temper-decision-overturned",
+        b"temper-welcome-check",
+        b"temper-welcome-check-stopped",
+        b"temper-welcome-check-failed",
+        b"temper-welcome-check-why",
         b"temper-rail-person",
         b"temper-settings-sign-out",
     ],
@@ -1286,10 +1290,16 @@ pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
 
+// The try’s status box (temper/docs/design/client/README.md, 3.5).
+pub const WELCOME_CHECK: Style = Style { owner: owner(), token: 447 };
+pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 448 };
+pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 449 };
+pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 450 };
+
 /// The browser's person menu (client/README.md, 5.3).
-pub const RAIL_PERSON: Style = Style { owner: owner(), token: 447 };
+pub const RAIL_PERSON: Style = Style { owner: owner(), token: 451 };
 /// The Accounts tab's sign-out row (client/README.md, 3.5).
-pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 448 };
+pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 452 };
 
 #[cfg(test)]
 mod tests {

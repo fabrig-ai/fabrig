@@ -1,18 +1,25 @@
-# ui-rename-focus: the project menu's rename form, and a stray focus ring
+# look-round-9: the welcome tries a model
 
-The user asked for these two today, seen on a box from main at `359cb69106` (through fabrig/temper). They come after `ui-final-walk`'s `fix-look`, which touches the same stylesheet. Causes below are a reader's, not reproduced: reproduce first. One or two tasks; each fix has a test red first; proof at 1440, 1000 and 420 beside the mock.
+At the user's request (2026-11-06): land the look request `model-check` (`0bfb77711b`, on `origin/look-requests`; the branch moves, so if that hash is gone, find it by its `Look-request: model-check` trailer). The welcome runs one real turn, its steps live in Forgejo's status box, and a failure offers "Try again", the fitting act, and "Continue anyway".
 
+**The procedure is `temper/docs/design/draft/look-requests.md`: every step of sections 3 to 5, and its account.** Read the commit and its whole message. Every commit carries `Look-request: model-check` directly above `Co-Authored-By:`. Requests on the branch above and below it are other plans'.
 
-1. The project menu's rename form should match the mock (greenfield/app.js 229-240 and its Escape at 1136; mock.css 291-296): while renaming, the open project's row itself becomes the form: a name field filling the row (min-height 34px) and a primary small Save. "Rename NAME" leaves the menu's acts while the form is open. Enter saves, Escape cancels, an empty name keeps the old one, no visible Cancel. Today: temper-client-view/src/frame.rs rename_form, and temper.css 119-121 .temper-project-rename-form, the old look's rules; remove what this replaces.
-2. A dark focus ring on main after a focused control disappears (the rail's divider looks like a black line). Repro: Home, project menu, Rename Hello, Cancel: skein-ui-web page.rs (~360-376) moves focus to Role::Main with tabindex=-1, and Chrome draws focus-visible; #app > main.temper-session has no rule. temper-client-shell-web lib.rs finish can do the same after keyboard use. Wanted: (a) closing the rename form by Save or Escape returns focus to the control that opened it, or the menu's summary, not main; (b) a programmatic focus target (main, its h1, anything given tabindex=-1 only to take focus) draws no outline, in skein's sheet if it belongs there. Real controls keep their focus ring.
+## Beside it
+
+fabrig/temper builds the behaviour, `temper/docs/design/draft/model-check.md`, after `first-usable-model`, and takes this look by catch-up. So this plan lands the view's and stylesheet's part. Where the view has no fact yet, draw what can honestly be drawn, keep one function for it, and name it in the account as deferred to that draft. Don't build the behaviour. `look-round-7` (`sign-in-new-tab`) changes the same Model step, and is landing now: chain behind it by catch-up, and keep its words.
+
+## How the cut shapes it
+
+One or two tasks. Screenshots beside the request's pages at 1440, 1000 and 420 wide in `~/src/fabrig/look-round-9/` on the builder, outside any worktree, the report saying which builder. New rules go under `/* ==== ui: welcome ==== */`.
 
 ## Size
 
-One cut is at most 20 minutes. Budgets and timeouts are the user's (skein's `docs/foundation/testing-strategy.md`, 8.1).
+One cut is at most 30 minutes. Budgets and timeouts are the user's (skein's `docs/foundation/testing-strategy.md`, 8.1).
 
 ## Sources
 
-- `temper/crates/temper-client-view/src/frame.rs`
+- `temper/docs/design/draft/look-requests.md`
+- `temper/docs/design/draft/model-check.md`
 
 ## For every task of this plan
 
