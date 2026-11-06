@@ -18,7 +18,7 @@ use skein_world::{
 use temper_box::host::{Service, Settings};
 use temper_forge_setup::{Kind, Step, Steps};
 
-// The only output is two small blocks, two diagnostics and lifecycle notices.
+// The terminal holds two small blocks and two diagnostics.
 const CAPTURE_BYTES: usize = 4096;
 const READ_BYTES: usize = 128;
 // At most four unused inherited pipes close alongside a signal read and write.
@@ -458,6 +458,7 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
                 &temper_box::limits::small(),
                 steps,
                 Settings {
+                    log_lines: Box::new([]),
                     echo: temper_box::host::Echo::Steps,
                     data: Box::from(b"/data".as_slice()),
                     program: PROGRAM.into(),
@@ -510,11 +511,15 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
     );
     let diagnostic = position(bytes, FRESH_DIAGNOSTIC).expect("fresh diagnostic");
     assert!(footer_end <= diagnostic && diagnostic < announcement, "fresh diagnostic is between the blocks");
-    let stopping = position(bytes, b"Stopping\n").expect("Stopping lifecycle notice");
-    let stopped = position(bytes, b"Stopped\n").expect("Stopped lifecycle notice");
-    assert!(fresh < stopping && stopping < stopped, "fresh URL precedes ordered shutdown notices");
-    timestamp_before(bytes, stopping);
-    timestamp_before(bytes, stopped);
+    assert!(position(bytes, b"Stopping\n").is_none());
+    assert!(position(bytes, b"Stopped\n").is_none());
+    let log = std::fs::read(scratch.path().join("box/logs/box.log")).expect("box log");
+    let stopping = position(&log, b"Stopping\n").expect("Stopping lifecycle notice");
+    let stopped = position(&log, b"Stopped\n").expect("Stopped lifecycle notice");
+    assert!(stopping < stopped, "shutdown notices retain their order");
+    timestamp_before(&log, stopping);
+    timestamp_before(&log, stopped);
+    assert!(log.ends_with(b"Stopped\n"));
 }
 
 #[derive(Debug)]
@@ -577,6 +582,7 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
             }]),
         };
         Proc::Box(Box::new(Service::new(&temper_box::limits::small(), steps, Settings {
+            log_lines: Box::new([]),
             program: b"/bin/sh".as_slice().into(), environment: Box::new([]), serve: b"serve".as_slice().into(),
             listeners: Box::new([]), root, echo: temper_box::host::Echo::Steps,
             data: scratch.path().as_os_str().as_encoded_bytes().into(), signals, stdout, stderr,

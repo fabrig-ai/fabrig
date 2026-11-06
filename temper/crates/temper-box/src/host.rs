@@ -10,7 +10,7 @@ use crate::{
     ready::Ready,
     records::Records,
     sink::{Sink, Terminal},
-    terminal::{self, Fact, Formatter, Item, Tail, Target},
+    terminal::{self, Fact, Formatter, Item, Place, Tail, Target},
 };
 use alloc::boxed::Box;
 use skein_io::{
@@ -37,6 +37,8 @@ pub struct Settings {
     pub root: Fd,
     pub echo: Echo,
     pub data: Box<[u8]>,
+    /// Whole lines, with line feeds and no time, that open the box log (protocol/setup.md, 7.2).
+    pub log_lines: Box<[Box<[u8]>]>,
     pub signals: Fd,
     pub stdout: Fd,
     pub stderr: Fd,
@@ -52,6 +54,7 @@ impl core::fmt::Debug for Settings {
             .field("root", &self.root)
             .field("echo", &self.echo)
             .field("data", &self.data)
+            .field("log_lines", &self.log_lines)
             .field("signals", &self.signals)
             .field("stdout", &self.stdout)
             .field("stderr", &self.stderr)
@@ -161,6 +164,7 @@ pub struct Service {
     bound_names: Box<[Option<u16>]>,
     records: Records,
     logs: Logs,
+    box_lines: Queue<Item>,
     started_notices: Queue<(usize, Wall)>,
     record_wall: Wall,
     control: Option<Control>,
@@ -253,6 +257,7 @@ impl Service {
             steps,
             records,
             logs,
+            box_lines: Queue::uncapped(),
             started_notices: Queue::uncapped(),
             record_wall: Wall::EPOCH,
             control: None,
@@ -336,6 +341,7 @@ impl Service {
             {
                 true
             }
+            Some(Order::Terminal { fact }) if fact.place() == Place::Log => !self.bindings_pending(),
             Some(Order::Terminal { fact }) => {
                 self.failure.is_none()
                     && !self.bindings_pending()
@@ -615,7 +621,9 @@ impl Service {
         {
             return;
         }
-        if self.tail_candidate(fact).is_some() && !self.terminal.failed() {
+        if fact.place() == Place::Log {
+            self.box_lines.push(self.formatter.fact(fact, &self.steps, wall));
+        } else if self.tail_candidate(fact).is_some() && !self.terminal.failed() {
             assert!(self.failure.is_none(), "one waiting failure block");
             self.failure = Some((fact, wall));
         } else if !self.terminal.failed() {
@@ -657,7 +665,9 @@ impl Service {
         if let Some(step) = self.tail_candidate(fact) {
             self.children.get(step).expect("failure step").tail.append(&mut item, &self.logs.path(step));
         }
-        self.terminal.push(item);
+        let words = item.bytes.get(10..).expect("failure time prefix");
+        // The first line is already timed; time each appended tail line too.
+        self.terminal.push(self.formatter.notice(words, wall));
     }
     fn terminal_available(&self, step: usize, plain: bool) -> bool {
         match self.failure {
@@ -757,7 +767,8 @@ impl Service {
                 break;
             }
             if self.failure.is_some()
-                && let Some(Order::Terminal { .. }) = self.orders.iter().next()
+                && let Some(Order::Terminal { fact }) = self.orders.iter().next()
+                && fact.place() == Place::Terminal
             {
                 let order = self.orders.pop().expect("counted fact");
                 let wall = self.order_walls.pop().expect("fact wall");
@@ -787,7 +798,11 @@ impl Service {
         }
         for order in &self.orders {
             match order {
-                Order::Terminal { .. } => {}
+                Order::Terminal { fact } => {
+                    if fact.place() == Place::Log && !self.bindings_pending() {
+                        return true;
+                    }
+                }
                 Order::Say { .. } => return self.reply_ready(),
                 Order::Spawn { .. }
                 | Order::Withdraw { .. }
@@ -1037,18 +1052,30 @@ impl Service {
             self.notice(self.formatter.notice(&notice, self.env.wall));
         }
         if self.logs.completed() {
-            let echo =
-                !self.logs.log_only() && (self.settings.echo == Echo::Steps || self.logs.failed(self.logs_step()));
+            let step = self.logs_step();
+            let own = step == self.logs.box_step();
+            let echo = self.log_echo();
             if (!echo || self.notice_room())
                 && let Some(piece) = self.logs.take()
             {
-                let name = self.steps.get(piece.step).expect("log step").step.name();
-                if echo {
-                    self.notice(Item { target: Target::Stderr, bytes: piece.echo(name) });
-                } else if !piece.log_only && !self.logs.failed(piece.step) {
-                    self.children.get_mut(piece.step).expect("log step").tail.push(piece.echo(name));
+                if own {
+                    if echo {
+                        self.notice(Item { target: Target::Stderr, bytes: piece.bytes });
+                    }
+                } else {
+                    let name = self.steps.get(piece.step).expect("log step").step.name();
+                    if echo {
+                        self.notice(Item { target: Target::Stderr, bytes: piece.echo(name) });
+                    } else if !piece.log_only && !self.logs.failed(piece.step) {
+                        self.children.get_mut(piece.step).expect("log step").tail.push(piece.echo(name));
+                    }
                 }
             }
+        }
+        if self.logs.takes()
+            && let Some(item) = self.box_lines.pop()
+        {
+            self.logs.put(Piece { step: self.logs.box_step(), bytes: item.bytes, wall: self.env.wall, log_only: true });
         }
         if self.logs.takes()
             && let Some((step, wall)) = self.started_notices.pop()
@@ -1061,6 +1088,14 @@ impl Service {
             });
         }
         self.logs.tick(self.settings.root, &mut self.submissions);
+    }
+    fn log_echo(&self) -> bool {
+        let step = self.logs_step();
+        if step == self.logs.box_step() {
+            self.logs.failed(step)
+        } else {
+            !self.logs.log_only() && (self.settings.echo == Echo::Steps || self.logs.failed(step))
+        }
     }
     fn logs_step(&self) -> usize {
         self.logs.step().expect("completed piece")
@@ -1171,6 +1206,7 @@ impl Service {
             || self.failure.is_some()
             || !self.deferred.is_empty()
             || !self.started_notices.is_empty()
+            || !self.box_lines.is_empty()
         {
             return;
         }
@@ -1361,6 +1397,12 @@ impl skein_shell::Host for Service {
         self.record_work();
         self.log_work();
         if self.phase == Phase::New && self.logs.ready() && self.records.ready() {
+            for line in &self.settings.log_lines {
+                self.box_lines.push(self.formatter.notice(line, wall));
+            }
+            let logs = lines::joined(&[b"Logs: ", &self.logs.directory(), b"\n"]);
+            self.box_lines.push(self.formatter.notice(&logs, wall));
+            self.box_lines.push(self.formatter.notice(terminal::CTRL_C, wall));
             for group in self.records.groups() {
                 self.machine.restore(group.forge, group.kind, group.started);
             }
@@ -1430,7 +1472,6 @@ impl skein_shell::Host for Service {
     fn submissions(&mut self) -> &mut Queue<Submit> {
         &mut self.submissions
     }
-    #[expect(clippy::too_many_lines, reason = "The host keeps its operation admission gates together.")]
     fn work_pending(&self, now: Time) -> bool {
         if self.phase == Phase::New && self.logs.ready() && self.records.ready()
             || !self.completions.is_empty() && self.submissions.room() >= io::MAX_OUT_UP.submissions
@@ -1450,15 +1491,12 @@ impl skein_shell::Host for Service {
             return true;
         }
         if self.bindings_pending() && self.logs.settled() && self.started_notices.is_empty()
-            || !self.started_notices.is_empty() && self.logs.takes()
+            || (!self.started_notices.is_empty() || !self.box_lines.is_empty()) && self.logs.takes()
             || self.failure_ready()
             || self.logs.pending()
             || self.logs.has_notice() && self.notice_room()
             || !self.deferred.is_empty() && self.failure.is_none() && (self.terminal.takes(1) || self.terminal.failed())
-            || self.logs.completed()
-                && (self.logs.log_only()
-                    || self.settings.echo == Echo::None && !self.logs.failed(self.logs_step())
-                    || self.notice_room())
+            || self.logs.completed() && (!self.log_echo() || self.notice_room())
         {
             return true;
         }
@@ -1566,6 +1604,7 @@ impl skein_shell::Host for Service {
             && self.logs.closed()
             && self.failure.is_none()
             && self.deferred.is_empty()
+            && self.box_lines.is_empty()
             && self.machine.is_idle()
             && self.io.is_empty()
             && self.requests.is_empty()
@@ -1643,15 +1682,19 @@ pub(crate) mod pressure {
             withdraw: super::withdraw_queued(&service.orders, step),
         }
     }
-    pub fn saturate(service: &mut Service) -> (u32, u32) {
+    pub fn fill_terminal(service: &mut Service) -> u32 {
         let mut queued = 0_u32;
         while service.terminal.takes(1) {
             service.terminal.push(Item { target: Target::Stderr, bytes: bytes::copy_of(b"queued\n") });
             queued = queued.checked_add(1).unwrap();
         }
+        queued
+    }
+    pub fn saturate(service: &mut Service) -> (u32, u32) {
+        let queued = fill_terminal(service);
         let orders = 64;
         for _ in 0..orders {
-            service.orders.push(Order::Terminal { fact: Fact::Stopping });
+            service.orders.push(Order::Terminal { fact: Fact::GivingUp { step: 0, why: crate::machine::Why::Busy } });
             service.order_walls.push(service.env.wall);
         }
         // Ordinary intake can drain while the terminal holds policy orders.

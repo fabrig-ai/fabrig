@@ -32,29 +32,15 @@ fn fresh_blocks_keep_state_across_restart_and_use_supplied_utc() {
     }
 }
 #[test]
-fn lifecycle_facts_are_untimed_until_a_complete_block_is_admitted() {
-    let steps = crate::layout::flatten(temper_forge_setup::Steps {
-        always: Box::new([super::fixtures::step(b"serve", temper_forge_setup::Kind::Long)]),
-        asked: Box::new([]),
-    });
+fn notices_time_every_line_before_and_after_a_block() {
     let mut formatter = Formatter::new();
-    for (fact, words, timed) in [
-        (Fact::Starting { step: 0 }, b"Starting serve\n".as_slice(), b"01:02:03Z Starting serve\n".as_slice()),
-        (Fact::Stopping, b"Stopping\n", b"01:02:03Z Stopping\n"),
-        (Fact::Stopped, b"Stopped\n", b"01:02:03Z Stopped\n"),
-    ] {
-        assert_eq!(formatter.fact(fact, &steps, wall(3_723)), item(Target::Stderr, words));
-        let mut after = Formatter::new();
-        after.admitted_block();
-        assert_eq!(after.fact(fact, &steps, wall(3_723)), item(Target::Stderr, timed));
+    for _ in 0_u32..2 {
+        assert_eq!(
+            formatter.notice(b"first\nsecond\n", wall(3723)),
+            item(Target::Stderr, b"01:02:03Z first\n01:02:03Z second\n")
+        );
+        formatter.admitted_block();
     }
-    let refused = formatter.notice(crate::terminal::REFUSAL, wall(3_723));
-    assert_eq!(refused, item(Target::Stderr, b"box: serve: sign-in link too long\n"));
-    // Neither formatting a refusal nor constructing a block marks admission.
-    drop(formatter.block(bytes::copy_of(b"held\n"), wall(3_723)));
-    assert_eq!(formatter.block_entries(), 3);
-    formatter.admitted_block();
-    assert_eq!(formatter.notice(b"box: failure\n", wall(3_723)), item(Target::Stderr, b"01:02:03Z box: failure\n"));
 }
 
 fn labelled(label: &[u8], name: &[u8]) -> Box<[crate::layout::Placed]> {

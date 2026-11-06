@@ -20,6 +20,26 @@ pub enum Fact {
     Stopping,
     Stopped,
 }
+/// Where a policy fact is placed (temper/docs/design/protocol/setup.md, 7.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Place {
+    Terminal,
+    Log,
+}
+impl Fact {
+    #[must_use]
+    pub fn place(self) -> Place {
+        match self {
+            Self::GroupFailed { .. } | Self::Restarting { .. } | Self::GivingUp { .. } => Place::Terminal,
+            Self::Starting { .. }
+            | Self::GroupStarting { .. }
+            | Self::GroupStarted { .. }
+            | Self::GroupStopped { .. }
+            | Self::Stopping
+            | Self::Stopped => Place::Log,
+        }
+    }
+}
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Target {
     Stdout,
@@ -32,6 +52,7 @@ pub struct Item {
 }
 pub const PRELUDE: &[u8] = b"\nOpen this link in a browser on this machine. It signs you in as this\ntemper's owner, once and for a short while, so keep it private.\nOpened again once spent, it prints a fresh one here.\n\n";
 pub const FOOTER: &[u8] = b"\nCtrl-C stops temper.\n\n";
+pub const CTRL_C: &[u8] = b"Ctrl-C stops temper.\n";
 pub const REFUSAL: &[u8] = b"box: serve: sign-in link too long\n";
 /// Largest fixed item, also allowing the ten-byte UTC prefix.
 pub const FIXED_BYTES: u32 = 256;
@@ -97,15 +118,26 @@ impl Formatter {
     }
     #[must_use]
     pub fn notice(&self, words: &[u8], wall: Wall) -> Item {
-        let bytes = if self.first_printed {
-            let day = wall.as_secs().rem_euclid(86_400);
-            let hours = pair(day.div_euclid(3_600));
-            let minutes = pair(day.div_euclid(60).rem_euclid(60));
-            let seconds = pair(day.rem_euclid(60));
-            joined(&[&hours, b":", &minutes, b":", &seconds, b"Z ", words])
-        } else {
-            skein_lib::bytes::copy_of(words)
-        };
+        let day = wall.as_secs().rem_euclid(86_400);
+        let hours = pair(day.div_euclid(3_600));
+        let minutes = pair(day.div_euclid(60).rem_euclid(60));
+        let seconds = pair(day.rem_euclid(60));
+        let stamp = joined(&[&hours, b":", &minutes, b":", &seconds, b"Z "]);
+        let mut parts = List::uncapped();
+        let mut rest = words;
+        for _ in 0..words.len() {
+            let length = match skein_lib::bytes::find(rest, b"\n") {
+                Some(at) => at.checked_add(1).expect("line end"),
+                None => rest.len(),
+            };
+            parts.push(stamp.as_ref()).expect("notice parts");
+            parts.push(rest.get(..length).expect("notice line")).expect("notice parts");
+            rest = rest.get(length..).expect("remaining notice");
+            if rest.is_empty() {
+                break;
+            }
+        }
+        let bytes = joined(parts.as_slice());
         Item { target: Target::Stderr, bytes }
     }
 }
@@ -240,7 +272,8 @@ pub(crate) fn failure_bytes(steps: &[Placed], data: &[u8]) -> u32 {
     for step in steps {
         name = name.max(u32::try_from(step.step.name().len()).expect("step name"));
     }
-    let line = name.checked_add(crate::host::LINE_BYTES).expect("piece").checked_add(7).expect("indent, prefix, LF");
+    let line =
+        name.checked_add(crate::host::LINE_BYTES).expect("piece").checked_add(17).expect("time, indent, prefix, LF");
     max_bytes(steps)
         .checked_add(line.checked_mul(crate::limits::MAX_TAIL_LINES).expect("tail lines"))
         .expect("failure block")

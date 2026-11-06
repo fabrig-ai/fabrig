@@ -213,6 +213,17 @@ impl Harness {
         limits: &limits::Limits,
         echo: crate::host::Echo,
     ) -> Self {
+        Self::opening(steps, items, stubborn, buffer, limits, echo, Box::new([]))
+    }
+    pub fn opening(
+        steps: temper_forge_setup::Steps,
+        items: &[skein_fake_machine::Item],
+        stubborn: bool,
+        buffer: u32,
+        limits: &limits::Limits,
+        echo: crate::host::Echo,
+        log_lines: Box<[Box<[u8]>]>,
+    ) -> Self {
         let mut config = Config::calm();
         config.buffer = buffer;
         let mut sim = Sim::new(0x12_02, config);
@@ -233,6 +244,7 @@ impl Harness {
             }
         }
         let settings = Settings {
+            log_lines,
             echo,
             data: bytes::copy_of(b"/data"),
             program: bytes::copy_of(b"process_fixture"),
@@ -719,6 +731,14 @@ impl Harness {
     pub fn stdout(&mut self) -> Box<[u8]> {
         let bytes = bytes::copy_of(self.stdout_bytes.as_slice());
         self.stdout_bytes.clear();
+        bytes
+    }
+    pub fn log(&mut self) -> Box<[u8]> {
+        let root = self.machine.reopen_root(0);
+        let fd = self.machine.open(root, b"box/logs/box.log", skein_fake_machine::How::ReadNoFollow).unwrap();
+        let bytes = self.machine.read(fd, 0, 65_536).unwrap().into_boxed_slice();
+        self.machine.close(fd);
+        self.machine.close(root);
         bytes
     }
     pub fn stderr(&mut self) -> Box<[u8]> {
