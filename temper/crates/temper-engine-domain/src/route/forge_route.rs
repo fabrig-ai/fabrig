@@ -4316,7 +4316,16 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
     let (connector, code, step) = match domain.core.tasks.procedure_due(task) {
         Some(due) if due.0 == domain.config.forge_connector && due.1 == CHANGE_CODE => due,
         Some(_) | None => {
-            if let forge_change::Decision::Delegate(kind) = choice {
+            if let forge_change::Decision::Hold(why) = choice {
+                // The row's hold reaches its task even after another step has parked it.
+                match hold_change_decision(domain, env, task, why).end {
+                    StepEnd::Hold(why) => domain.work.push(Work::Tasks(tasks::Event::Hold { task, why })),
+                    StepEnd::HoldFrom { why, source } => {
+                        domain.work.push(Work::Tasks(tasks::Event::HoldFrom { task, why, source }));
+                    }
+                    StepEnd::Result(_) | StepEnd::Wait => unreachable!("a change hold decides a task hold"),
+                }
+            } else if let forge_change::Decision::Delegate(kind) = choice {
                 domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
             }
             return;

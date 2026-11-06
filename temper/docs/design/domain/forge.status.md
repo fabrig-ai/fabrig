@@ -41,12 +41,6 @@
   - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status.
-  - 8.4: a stall's hold can leave the change held with its task not:
-    from reading, `temper-engine-domain/src/route/forge_route.rs`,
-    `change_decision`, drops a decision its procedure is not due for, and the
-    change's step reads a held state as nothing to do. The request
-    `parallel-faults` of 2026-11-06 saw it as a hold that reached nobody; no
-    test has reproduced it.
   - 8.4: widening exhausted spend with ctl before release: `task amend`'s
     `--budget` is not implemented (`../client/tools.md`, 5.5). A spend
     hold offers cancellation or asking afresh instead.

@@ -72,6 +72,7 @@ mod producer_failure;
 #[path = "forge_routes/repair_cancel.rs"]
 mod repair_cancel;
 mod repair_green;
+mod stall_hold;
 
 #[path = "forge_routes/result.rs"]
 mod result;
