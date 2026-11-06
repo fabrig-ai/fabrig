@@ -2203,8 +2203,8 @@ keeps (`../protocol/configuration.md`, section 2).
     new line". It has no composer's line and no chooser: the configuring
     role's models are a setting (5.13), which this chat can change. On a
     phone the frame's top bar and tab bar go, so that the composer keeps
-    the foot, and with them the model's line. The hint stays under the
-    composer.
+    the foot, and with them the model's line and the composer's hint,
+    as the configure-chat look request draws it.
 
   The conversation and the composer's foot each keep a scrollbar's gutter
   on both edges and hold one column, at most 720 pixels and centred, so

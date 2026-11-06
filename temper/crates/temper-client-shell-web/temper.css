@@ -1409,7 +1409,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-session > .temper-session-top { padding: 10px 12px; gap: 8px; }
   #app > .temper-session .temper-crumbs > .temper-back { display: inline-flex; flex: none; min-width: 36px; min-height: 36px; align-items: center; justify-content: center; font-size: 0; color: var(--gf-ink); }
   #app > .temper-session .temper-crumbs > .temper-back::before { content: '‹'; font-size: 20px; line-height: 1; }
-  #app > .temper-session :is(.temper-trail, .temper-byline) { display: none; }
+  #app > .temper-session :is(.temper-trail, .temper-byline, .temper-session-hint) { display: none; }
 }
 
 /* The byline is the chooser's summary; feedback stays above the composer. */
