@@ -417,6 +417,17 @@
   button of a menu with "Accounts" and "Sign out", where the mock draws the
   person's name as plain text, and a browser over 760 px signs out there rather
   than on the `Accounts` tab. `greenfield/README.md` notes it.
+- **Design departs:** 3.5, *Sign out*, and 5.3, from the request `ui-owner-menu` of
+  2026-11-06, decided by its plan's cut. A press outside that took the focus to
+  another control leaves it there, where the request returns the focus to the row:
+  the row would take back what that press landed on. A project-less `Accounts` page
+  keeps its "Sign out" in the banner, where the request keeps it at the tab's foot:
+  that page has no such row (5.1). Over 760 px the tab's whole row leaves, "Signed in
+  as NAME" and the login with "Sign out", where the request moves "Sign out" alone:
+  one form holds them, and the sheet hides it, since the view knows no width (section
+  11, *The person's login over 760 px*). The rail's "+ New chat" menu closes on a
+  press outside too, which the request doesn't name: skein's page part gives it to
+  every menu.
 - **Design departs:** 3.5, *Settings*, 5.3 and 5.13, from the request `ui-settings`
   of 2026-11-05, decided by its plan's cut. "Sign out did not reach the engine."
   stands on the rail's foot as well as the `Accounts` tab, where the request moves

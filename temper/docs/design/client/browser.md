@@ -1159,8 +1159,10 @@ Not in the tier, each in the lowest world that shows it:
   the request `ui-phone` of 2026-11-05 are throwaways by its own words, and the
   browser tier cannot open a phone's width: `skein-browser` sets every page to
   1280 by 800. So nothing holds how the phone's rules draw when the sheet next
-  moves: `temper-client-shell-web`'s suite reads one rule as text, and the CDP
-  walk of the request `ui-final-walk`, which sets the width, goes with its plan.
+  moves: `temper-client-shell-web`'s suite reads one rule as text, the gallery's
+  `the_accounts_tabs_sign_out_hides_over_a_phones_width_alone` another, the proof
+  at 420 px of the request `ui-owner-menu` is a throwaway too, and the CDP walk of
+  the request `ui-final-walk`, which sets the width, goes with its plan.
   Default: none, until a phone's rule breaks unseen.
 - **The rail's foot on a phone** (2.5; `README.md`, 5.3): the top bar holds the
   switcher alone, as the mock's does, so a project's page on a phone shows no
