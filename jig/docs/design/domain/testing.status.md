@@ -2,7 +2,7 @@
 
 2026-11-06. Where jig's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 4: the stories of `me`'s `resolved_default` and offer (engine.md, 11.1). 5: the `debt-25` request of 2026-11-06 has the core world's observer
+- **Not yet:** 5: the `debt-25` request of 2026-11-06 has the core world's observer
   update from each commit's rows
   (`jig/docs/development/debt/D034-world-replay-cost.md`), but
   `jig_conformance::core`'s `durable_at` rebuilds its snapshot whole at each

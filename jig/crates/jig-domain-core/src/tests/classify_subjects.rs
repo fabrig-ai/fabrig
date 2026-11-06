@@ -20,7 +20,7 @@ struct Row {
 
 fn rows() -> Box<[Row]> {
     let no = [false; 8];
-    let own = [true, false, true, false, false, false, false, false];
+    let own = [true, false, true, false, false, true, true, false];
     let mut chips = List::with_capacity(2);
     chips.push(TASK).unwrap();
     chips.push(TASK + 1).unwrap();
