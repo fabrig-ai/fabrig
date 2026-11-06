@@ -1,3 +1,48 @@
 draft = "limits-fixtures"
 repo = "fabrig"
 sources = ["temper/docs/plan/limits-fixtures/inputs/request.md", "temper/tests/engine/domain/Cargo.toml", "temper/crates/temper-service/Cargo.toml", "temper/tests/client/Cargo.toml", "temper/crates/temper-client-view/Cargo.toml", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "service"
+title = "temper-service's tests build their service once, from a fixture that's cheap to build"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "view"
+title = "temper-client-view's tests stop paying for the phrasebook many times over"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "engine-world"
+title = "the engine world's stories start from a cheap world and first start"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[slice]]
+id = 1
+story = "A temper-service test costs what it checks, not a dozen parses and three starts"
+parts = ["service"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A view test, and a person's browser, build the words once and cheaply"
+parts = ["view"]
+walk = false
+
+[[slice]]
+id = 3
+story = "An engine world story starts for little more than a process costs"
+parts = ["engine-world"]
+walk = false
