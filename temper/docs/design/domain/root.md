@@ -56,7 +56,8 @@ temper-engine-domain                       the root: the journal, routing, trans
 │   ├── temper-engine-domain-forge-change  the change procedure and the landing queues
 │   ├── temper-engine-domain-forge-landing the landing by turn (landing.md)
 │   └── temper-engine-domain-forge-issues  the goals' issues
-└── temper-engine-domain-calendar          each project's funding period, renewed on a span (5.7)
+├── temper-engine-domain-calendar          each project's funding period, renewed on a span (5.7)
+└── temper-engine-domain-trials            a model's trials (trial.md)
 ```
 
 - **One connector, the forge.** Configuration names the core one
@@ -1044,7 +1045,7 @@ Startup also checks the seed policy after enforced landing requirements are join
   twice as many offers behind admitted work.
 - **The watches' rooms follow the streams:** the root's `streams` is
   `clients.streams`, and `core_limits` gives the views `streams` times
-  `WATCHES_PER_STREAM`, 17, what temper's client opens, in all and to a
+  `WATCHES_PER_STREAM`, 19, one shipped client's bound, in all and to a
   party, above jig's profiles' 4 (`../protocol/configuration.md`, section
   7). The rest of the views'
   limits are jig's small profile's: 4 runs watched, 65,536 bytes of a
@@ -1147,6 +1148,10 @@ testing-strategy.md, 6).
 
 ## 13. Open questions
 
+- **A party's fair share of the watch rooms** (section 10): the
+  deployment's room is also one party's. Whether it should have less is
+  `../protocol/configuration.md`, section 11's question. Default: the whole
+  room, so one person's admitted tabs can each hold their watches.
 - **What the root keeps between steps** (section 2). jig's root keeps
   nothing between steps but its children and the journal (jig's
   `domain/root.md`, section 7). Whether each value in flight moves to its

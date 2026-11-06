@@ -725,7 +725,10 @@ served is held, kept and unsent, for its owner's version (client.md,
     within the document's bound or with its size (`../../domain/engine.md`,
     17.2);
   - *an activity line:* one of a task's words, run boundaries, turns,
-    results heard, news heard, decisions, in commit order; a turn as its
+    results heard, news heard, decisions, in commit order; a line of a change
+    to a proposal of the task's names that proposal's number and says whether
+    the change was its making, so a client can tell when a proposal was
+    made and a decision from the making; a turn as its
     bytes, within the page's byte bound, which the client's link
     decodes, with no read of its own, into the client's turn or into a
     turn that does not decode, with why (client.md, section 10): a turn
@@ -1593,6 +1596,11 @@ designs (`../../protocol/client.md`):
   and bundle, which jig never serves (`../../protocol/service.md`).
 
 ## 11. Open questions
+
+- **An account's model list** (5.1): narrowing the offer by each account's
+  last provider-list read waits for a catalogue and those reads
+  (`../../domain/engine.md`, section 16). Until then configured names and
+  usable accounts define it; no list is fetched by a client.
 
 - **Historical public boards** (section 12): ended goals across a restart
   or from before publication need the source index in

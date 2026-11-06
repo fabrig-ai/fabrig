@@ -3,6 +3,17 @@
 2026-11-06. Where jig's code lags or departs from [contract.md](contract.md).
 Unlisted sections, including public documents (12), have no known gap.
 
+- **Departs:** 5.1: an omitted template's preview and its new task's next-run
+  model can differ while no supporting worker is ready. `Core::preview_llm`
+  (`jig-domain-core/src/runs/llm.rs`) takes the first of `Core::offer`, which
+  needs no host for a direct source; `task_llm` uses `model_readiness`, which
+  needs a host even for that source, then falls back to the first serving
+  account. With a Claude program account and an OpenAI direct account, no
+  ready worker leaves Sol in the preview and Opus in the task document.
+  The plan deliberately kept direct sources offered across worker restarts
+  and left the run's readiness check unchanged; that does not establish
+  the promised agreement. Seen by reading; no runtime result is supplied.
+
 - **Not yet:** 5.1: `me` gives `words_bytes` from `people.words` for a party's
   spec, message and answer, but says no bound on an amendment's: the long-words
   plan carries the words bound alone.
@@ -14,12 +25,6 @@ Unlisted sections, including public documents (12), have no known gap.
   cancelled endings' `reason`, and a decided ending's `party` and `how`
   with `None`, so a client always reads them empty. Either the engine
   fills them or a client wire version drops them; no reason is recorded.
-  3.4: `jig-protocol-engine-clients/src/translate/operations.rs` answers an
-  operation of another project `Malformed::ProjectMismatch` itself, where this
-  section has people admit a compound, because people's `Operation` holds no
-  project, and the `debt-28` plan of 2026-11-06 found the move past the size its
-  request allows (section 11; the code's side is
-  `jig/docs/development/debt/D026-engine-clients-project-mismatch.md`).
 - **Not yet:** 5.3: `me` represents a refused creating offer by absence,
   without carrying its refusal reason, including an authority-limit
   refusal when an executor list exceeds `documents.lines`.

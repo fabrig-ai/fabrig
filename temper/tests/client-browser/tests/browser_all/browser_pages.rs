@@ -6,7 +6,7 @@ use skein_browser::boundary::Key;
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Outcome, Script, Step};
 use skein_ui::Role;
-use temper_client_browser_world::{ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Tier, WITHIN, first_chat};
+use temper_client_browser_world::{ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Tier, WITHIN, first_chat, reader_opens};
 
 /// Sending keeps the focus in the composer, by a press or a key (client/README.md, 3.5).
 #[test]
@@ -215,55 +215,15 @@ fn closing_project_rename_returns_focus_to_the_summary() {
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
 }
 
-// Each reader signals the next stage without a timing allowance between tabs.
-struct Stage<'a> {
-    script: Script,
-    wait: Option<&'a std::cell::Cell<bool>>,
-    signal: Option<&'a std::cell::Cell<bool>>,
-}
-struct Together<'a> {
-    stages: std::collections::VecDeque<Stage<'a>>,
-}
-impl skein_fake_person_browser::Play for Together<'_> {
-    fn next(
-        &mut self,
-        face: &mut skein_fake_person_browser::BrowserFace<'_>,
-        now: skein_lib::Time,
-    ) -> skein_fake_person::Next<Box<[u8]>> {
-        use skein_fake_person::Next;
-        let Some(stage) = self.stages.front_mut() else {
-            return Next::Done;
-        };
-        if stage.wait.is_some_and(|ready| !ready.get()) {
-            return Next::Wait { until: None };
-        }
-        match stage.script.next(face, now) {
-            Next::Done => {
-                if let Some(signal) = stage.signal {
-                    signal.set(true);
-                }
-                self.stages.pop_front();
-                Next::Wait { until: None }
-            }
-            next => next,
-        }
-    }
-    fn at(&self) -> u32 {
-        self.stages.front().map_or(0, |stage| stage.script.at())
-    }
-    fn check_deadline(&mut self, face: &mut skein_fake_person_browser::BrowserFace<'_>, now: skein_lib::Time) {
-        if let Some(stage) = self.stages.front_mut() {
-            stage.script.check_deadline(face, now);
-        }
-    }
-}
 /// Scrolling with the browser's keys, and the view staying put.
 #[test]
 fn latest_returns_a_chat_to_its_end_after_new_words_while_reading_back() {
     const MESSAGES: u32 = 6;
+    const START: &str = "A conversation to read back";
     const INCOMING: &[u8] = b"New words from the other reader.";
     const SENT: &[u8] = b"Sent while far back in the conversation.";
-    let tier = Tier::demo("chat-latest");
+    let reply = "Keep these words available while reading back. ".repeat(4);
+    let tier = Tier::demo("chat-latest").with_replies(&[(START, reply.clone()), ("Reading paragraph", reply)]);
     let composer = || Find::exactly_named(Role::TextArea, b"Message");
     let latest = || Find::exactly_named(Role::Button, b"Latest");
     let words = |number| {
@@ -271,20 +231,11 @@ fn latest_returns_a_chat_to_its_end_after_new_words_while_reading_back() {
             .into_bytes()
             .into_boxed_slice()
     };
-    let mut opening = temper_client_browser_world::start_playground_chat(b"Add CSV export to widget");
-    opening.extend([see(Find::exactly_named(Role::Region, b"Task 2")), Step::Reopen]);
-    let mut steps = vec![
-        Step::Person(PersonStep::Go { address: FIRST_CHAT_ADDRESS.into() }),
-        see(first_chat(b"Add CSV export to widget")),
-    ];
-    for number in 1..=MESSAGES {
-        steps.extend([
-            Step::Person(PersonStep::Type { find: composer(), words: words(number) }),
-            Step::Key(Key::Enter),
-            see(paragraph(&words(number))),
-            Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Being sent"), within: WITHIN }),
-        ]);
-    }
+    let history: Vec<_> = (1..=MESSAGES).map(words).collect();
+    let then: Vec<_> = history.iter().map(|words| std::str::from_utf8(words).expect("reading words")).collect();
+    let mut ctl = tier.ctl_face(tier.ctl_chat(START, &then));
+    let mut steps = reader_opens(FIRST_CHAT_ADDRESS);
+    steps.extend([see(paragraph(&words(MESSAGES))), see(paragraph(&words(1)))]);
     steps.extend([
         gone(latest()),
         Step::Person(PersonStep::Press { find: composer() }),
@@ -295,7 +246,15 @@ fn latest_returns_a_chat_to_its_end_after_new_words_while_reading_back() {
         keep_box(Find::named(Role::Log, b"Conversation"), "log"),
         keep_box(paragraph(&words(2)), "before-incoming"),
     ]);
-    let following = vec![
+    steps.extend(tier.ctl(&[
+        "task",
+        "message",
+        "1",
+        std::str::from_utf8(INCOMING).expect("incoming words"),
+        "--key",
+        "history-incoming",
+    ]));
+    steps.extend([
         see(paragraph(INCOMING)),
         keep_box(paragraph(&words(2)), "after-incoming"),
         see(latest()),
@@ -311,43 +270,10 @@ fn latest_returns_a_chat_to_its_end_after_new_words_while_reading_back() {
         see(paragraph(SENT)),
         gone(latest()),
         keep_box(paragraph(SENT), "sent-words"),
-    ];
-    let linked = std::cell::Cell::new(false);
-    let ready = std::cell::Cell::new(false);
-    let stage = |steps: Vec<Step>, wait, signal| Stage { script: Script::new(steps.into_boxed_slice()), wait, signal };
-    let mut reader = Together {
-        stages: [stage(opening, None, None), stage(steps, Some(&linked), Some(&ready)), stage(following, None, None)]
-            .into(),
-    };
-    let mut sender = Together {
-        stages: [
-            stage(
-                vec![
-                    see(Find::exactly_named(Role::Button, b"Try the playground")),
-                    Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Try the playground") }),
-                    Step::Person(PersonStep::Go { address: FIRST_CHAT_ADDRESS.into() }),
-                    see(first_chat(b"Add CSV export to widget")),
-                ],
-                None,
-                Some(&linked),
-            ),
-            stage(
-                vec![
-                    Step::Person(PersonStep::Go { address: FIRST_CHAT_ADDRESS.into() }),
-                    see(paragraph(&words(MESSAGES))),
-                    Step::Person(PersonStep::Type { find: composer(), words: INCOMING.into() }),
-                    Step::Key(Key::Enter),
-                    see(paragraph(INCOMING)),
-                ],
-                Some(&ready),
-                None,
-            ),
-        ]
-        .into(),
-    };
-    let mut harness = Harness::new(tier.setup());
-    let outcome = harness.run(&mut [&mut reader, &mut sender]);
-    assert_eq!(outcome, Outcome::Done, "linked {}, ready {}", linked.get(), ready.get());
+    ]);
+    let mut reader = Script::new(steps.into_boxed_slice());
+    let mut harness = Harness::new(tier.held_setup());
+    assert_eq!(harness.run(&mut [&mut ctl, &mut reader]), Outcome::Done);
     in_log(&harness, "before-incoming");
     held(&harness, "before-incoming", "after-incoming");
     in_log(&harness, "latest-words");
@@ -382,10 +308,9 @@ fn a_short_chat_opens_whole_without_a_reading_status() {
     const START: &[u8] = b"A short conversation";
     const END: &[u8] = b"The whole answer.";
     let tier = Tier::demo("reading-short").with_replies(&[("A short conversation", "The whole answer.".into())]);
-    let mut steps = temper_client_browser_world::start_playground_chat(START);
+    let mut ctl = tier.ctl_face(tier.ctl_chat("A short conversation", &[]));
+    let mut steps = reader_opens(FIRST_CHAT_ADDRESS);
     steps.extend([
-        see(Find::text(END)),
-        Step::Person(PersonStep::Reload),
         see(Find::text(END)),
         gone(Find::exactly_named(Role::Status, b"Loading earlier messages")),
         gone(Find::exactly_named(Role::Button, b"Older")),
@@ -394,62 +319,73 @@ fn a_short_chat_opens_whole_without_a_reading_status() {
         keep_box(paragraph(START), "start"),
         keep_box(Find::text(END), "end"),
     ]);
-    let mut script = Script::new(steps.into_boxed_slice());
-    let mut harness = Harness::new(tier.setup());
-    assert_eq!(harness.run(&mut [&mut script]), Outcome::Done);
+    let mut reader = Script::new(steps.into_boxed_slice());
+    let mut harness = Harness::new(tier.held_setup());
+    assert_eq!(harness.run(&mut [&mut ctl, &mut reader]), Outcome::Done);
     in_log(&harness, "start");
     in_log(&harness, "end");
 }
 
-// Sixteen near-64-KiB replies and their activity room cross the browser's 1-MiB window.
-const READING_MESSAGES: u32 = 16;
+// The tier's bundle holds an eighth of a person's window, with the same mechanism.
+// A person's bundle keeps the whole bound; a long chat at that size is read by hand
+// (temper/docs/design/client/browser.md, 4.3).
+const READING_WINDOW_BYTES: usize = 131_072;
+const READING_MESSAGES: u32 = 8;
+const READING_CODE_WORDS: usize = 10_000;
+const UNANCHORED_CODE_WORDS: usize = 7_000;
 fn reading_words(number: u32) -> Box<[u8]> {
     format!("Reading paragraph {number:02}.").into_bytes().into_boxed_slice()
 }
 fn reply_end(number: u32) -> Find {
     Find::text(format!("End of reply {number}.").as_bytes())
 }
-fn reading_history(messages: u32) -> Vec<Step> {
-    let mut steps = temper_client_browser_world::start_playground_chat(&reading_words(1));
-    steps.push(see(Find::text(b"End of the large reply.")));
-    for number in 2..=messages {
-        steps.extend([
-            Step::Person(PersonStep::Type {
-                find: Find::exactly_named(Role::TextArea, b"Message"),
-                words: reading_words(number),
-            }),
-            Step::Key(Key::Enter),
-            see(paragraph(&reading_words(number))),
-            Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Being sent"), within: WITHIN }),
-            see(Find::exactly_named(Role::Status, b"waiting on your words")),
-        ]);
-    }
+fn reading_chat(tier: &Tier, messages: u32) -> (Script, Vec<Step>) {
+    let first = reading_words(1);
+    let then: Vec<_> = (2..=messages).map(reading_words).collect();
+    let then: Vec<_> = then.iter().map(|words| std::str::from_utf8(words).expect("reading words")).collect();
+    let ctl = tier.ctl_face(tier.ctl_chat(std::str::from_utf8(&first).expect("reading words"), &then));
+    let mut steps = reader_opens(FIRST_CHAT_ADDRESS);
     steps.extend([
-        Step::Person(PersonStep::Reload),
         see(paragraph(&reading_words(messages))),
         gone(Find::exactly_named(Role::Status, b"Loading earlier messages")),
         gone(Find::exactly_named(Role::Button, b"Older")),
         gone(Find::exactly_named(Role::Button, b"Latest")),
     ]);
-    steps
+    (ctl, steps)
 }
 fn reading_tier(anchoring: bool, messages: u32) -> Tier {
-    // Thirty paragraphs span the two position measurements; ten keep a middle reply to a screen.
+    // The last reply makes opening read the preceding one. An evicting window needs room at both read margins.
     const POSITION_PARAGRAPHS: u32 = 30;
     const MIDDLE_PARAGRAPHS: u32 = 10;
-    // With their paragraph text and suffixes these answers are 65,475 and 65,444 bytes,
-    // below the fake's 65,536-byte answer bound and its part's structural room.
-    const POSITION_CODE_WORDS: usize = 12_700;
-    const MIDDLE_CODE_WORDS: usize = 12_950;
+    const WINDOW_PARAGRAPHS: u32 = 40;
+    let code_words = if anchoring { READING_CODE_WORDS } else { UNANCHORED_CODE_WORDS };
+    let cues: Vec<_> = (1..=messages).map(|number| format!("Reading paragraph {number:02}.")).collect();
+    let replies: Vec<_> = (1..=messages)
+        .zip(&cues)
+        .map(|(number, cue)| {
+            let paragraphs = if anchoring && number < messages {
+                WINDOW_PARAGRAPHS
+            } else if number >= messages - 1 {
+                POSITION_PARAGRAPHS
+            } else {
+                MIDDLE_PARAGRAPHS
+            };
+            let reply = reading_reply(code_words, paragraphs);
+            (cue.as_str(), format!("{reply}\n\nEnd of reply {number}."))
+        })
+        .collect();
+    let history_bytes: usize = replies.iter().map(|(_, reply)| reply.len()).sum();
+    if anchoring {
+        assert!(
+            history_bytes >= 3 * READING_WINDOW_BYTES,
+            "the long history spans at least three windows: {history_bytes}"
+        );
+    } else {
+        assert!(history_bytes < READING_WINDOW_BYTES, "the position history stays inside its window: {history_bytes}");
+    }
     let tier =
         if anchoring { Tier::demo("reading-anchored") } else { Tier::demo_without_anchoring("reading-unanchored") };
-    let reply = reading_reply(POSITION_CODE_WORDS, POSITION_PARAGRAPHS);
-    let brief = reading_reply(MIDDLE_CODE_WORDS, MIDDLE_PARAGRAPHS);
-    tier.with_replies(&[
-        (&format!("Reading paragraph {:02}.", messages - 1), format!("{reply}\n\nEnd of reply {}.", messages - 1)),
-        (&format!("Reading paragraph {messages:02}."), format!("{reply}\n\nEnd of reply {messages}.")),
-        ("Reading paragraph", format!("{brief}\n\nEnd of reply 1.")),
-    ])
+    tier.with_replies(&replies)
 }
 fn reading_reply(code_words: usize, paragraphs: u32) -> String {
     use std::fmt::Write as _;
@@ -471,7 +407,7 @@ fn earlier_words_stay_put_without_browser_scroll_anchoring() {
 fn reading_position(anchoring: bool) {
     let messages = if anchoring { READING_MESSAGES } else { 3 };
     let tier = reading_tier(anchoring, messages);
-    let mut steps = reading_history(messages);
+    let (mut ctl, mut steps) = reading_chat(&tier, messages);
     let composer = || Find::exactly_named(Role::TextArea, b"Message");
     let anchor = || paragraph(&reading_words(messages - 1));
     let loading = || Find::exactly_named(Role::Status, b"Loading earlier messages");
@@ -500,25 +436,25 @@ fn reading_position(anchoring: bool) {
         Step::Focused(composer()),
     ]);
     if anchoring {
-        read_to_start(&mut steps);
+        read_to_start(&tier, &mut steps, messages - 2);
         steps.extend([gone(reply_end(messages)), see(Find::exactly_named(Role::Button, b"Latest"))]);
         // Hold the later read while PageDown reaches the retained window's foot.
         steps.extend(serve_signal(&tier, "-STOP"));
-        for _ in 0..40 {
+        for _ in 0..6 {
             steps.push(Step::Key(Key::PageDown));
         }
-        steps.push(keep_box(Find::text(b"End of reply 15."), "before-later"));
+        steps.push(keep_box(reply_end(2), "before-later"));
         steps.extend(serve_signal(&tier, "-CONT"));
         steps.extend([
-            see(reply_end(messages)),
-            keep_box(Find::text(b"End of reply 15."), "after-later"),
+            see(reply_end(3)),
+            keep_box(reply_end(2), "after-later"),
             Step::Focused(composer()),
             see(Find::exactly_named(Role::Button, b"Latest")),
         ]);
+        read_to_end(&tier, &mut steps, messages);
+        steps.push(gone(paragraph(&reading_words(1))));
         // Read the dropped head again, dropping the newest reply before Latest restores it.
-        for _ in 0..40 {
-            steps.push(Step::Key(Key::PageUp));
-        }
+        read_to_start(&tier, &mut steps, messages - 1);
         steps.extend([
             see(paragraph(&reading_words(1))),
             gone(reply_end(messages)),
@@ -528,12 +464,10 @@ fn reading_position(anchoring: bool) {
             keep_box(reply_end(messages), "latest-end"),
         ]);
     }
-    let mut script = Script::new(steps.into_boxed_slice());
-    let mut harness = Harness::new(tier.setup());
-    let outcome = harness.run(&mut [&mut script]);
-    for kept in harness.kept() {
-        eprintln!("{}: {}", String::from_utf8_lossy(&kept.name), String::from_utf8_lossy(&kept.value));
-    }
+    let mut reader = Script::new(steps.into_boxed_slice());
+    let mut harness = Harness::new(tier.held_setup());
+    let outcome = harness.run(&mut [&mut ctl, &mut reader]);
+    eprintln!("kept boxes: {:?}", harness.kept());
     assert_eq!(outcome, Outcome::Done);
     in_log(&harness, "end");
     in_log(&harness, "before-earlier");
@@ -548,13 +482,32 @@ fn reading_position(anchoring: bool) {
         in_log(&harness, "latest-end");
     }
 }
-fn read_to_start(steps: &mut Vec<Step>) {
-    // Reach the held head, then wait for the next numbered message before scrolling again.
-    for number in (1..=READING_MESSAGES - 2).rev() {
-        for _ in 0..6 {
-            steps.push(Step::Key(Key::PageUp));
+fn read_to_start(tier: &Tier, steps: &mut Vec<Step>, from: u32) {
+    // Hold each read until the keys reach the retained head, then await the next message.
+    steps.push(see(paragraph(&reading_words(from))));
+    for number in (2..from).rev() {
+        read_earlier(tier, steps, paragraph(&reading_words(number)));
+    }
+    // The first reply and the first message cross separate activity pages.
+    read_earlier(tier, steps, reply_end(1));
+    read_earlier(tier, steps, paragraph(&reading_words(1)));
+}
+fn read_earlier(tier: &Tier, steps: &mut Vec<Step>, next: Find) {
+    steps.extend(serve_signal(tier, "-STOP"));
+    for _ in 0..4 {
+        steps.push(Step::Key(Key::PageUp));
+    }
+    steps.extend(serve_signal(tier, "-CONT"));
+    steps.push(see(next));
+}
+fn read_to_end(tier: &Tier, steps: &mut Vec<Step>, messages: u32) {
+    for number in 4..=messages {
+        steps.extend(serve_signal(tier, "-STOP"));
+        for _ in 0..4 {
+            steps.push(Step::Key(Key::PageDown));
         }
-        steps.push(see(paragraph(&reading_words(number))));
+        steps.extend(serve_signal(tier, "-CONT"));
+        steps.push(see(reply_end(number)));
     }
 }
 fn held(harness: &Harness, before: &str, after: &str) {

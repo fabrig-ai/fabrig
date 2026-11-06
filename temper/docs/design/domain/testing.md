@@ -850,7 +850,10 @@ terminal client, the captures and the faults.
   main-advanced and mid-proof/restarted turn-landing checks. The owned
   welcome includes program login and key admission. One setup-cut story
   walks fetch, preparation, run and started cuts using one scratch and
-  cache, makes one final setup, then restarts across its removal cut.
+  cache, makes one final setup, then restarts across its removal cut. Its
+  started cut runs on a box with no sign-in, as init writes one without
+  `openssl`: it holds the engine, and the group's source step needs the
+  engine to answer its discovery (`../protocol/sign-in.md`, 9.9).
   The slot-host story still belongs here: its loop starts the shipped
   owned-slot subprocess and real Forgejo. Its referee polls the marker
   promptly instead of waiting for the fixture shell's 30-second sleep.
@@ -1114,6 +1117,13 @@ terminal client, the captures and the faults.
     port from its first draw until it ends, so that no other test process
     on the machine draws it, of any run, tier or checkout, and an ended
     process's blocks are free at once, however it ended.
+
+  The chooser starts at port 10000 and claims blocks of 64, keeping the
+  first port's listener for the process's life. It skips occupied ports
+  and those its caller excludes, and never hands out a port twice. Fewer
+  than two blocks below the ephemeral range, or no free block, fails
+  with the range named. The callback port 1455 remains outside these
+  blocks and keeps its named test group.
 
   A story that can't share one runs in a named nextest test group, as
   `temper-real-loop` does, the reason beside the group.
@@ -2757,6 +2767,28 @@ scripts/proof-live.sh               the live tier
   (../protocol/git.md, section 3); transcripts are of 2.47.
 
 ## 11. Later
+
+- **Reusable ports on macOS** (2.6, 2.8): read its configured ephemeral
+  range before drawing ports. With no Linux range file, the chooser uses
+  49152, macOS's default; a machine configured with a lower boundary can
+  put a chosen port inside its ephemeral range.
+- **A shared chooser for another tree** (2.6): jig's browser tier has a
+  similar reservation hook. Moving the mechanism into skein waits for
+  that second consumer; temper's chooser covers its own participating
+  processes across runs, tiers and checkouts.
+- **A retained box's restart beside other port choosers** (2.6): the
+  after-landing process and browser runs prove their restarts together
+  on the story's ports. Within a plan, the proof stays in focused tests
+  of disjoint choosers and retained sandbox ports; slow-tier changes
+  compile without running.
+
+- **A started cut with the box's sign-in enabled** (2.6): the cut holds
+  the engine before it hears the group's `started`, while the source
+  step needs that engine's discovery before the group can finish. A
+  proof on that configuration needs a cut or a source step that breaks
+  this dependency without weakening the cut's assertions. Default:
+  2.6's no-sign-in fixture for this cut alone; the final setup and
+  removal cut use the box's sign-in.
 
 - **A default box's combined browser and terminal proof** (2.6;
   `../protocol/setup.md`, 7.1, 7.2 and 13.4): one 1440-pixel walk with the

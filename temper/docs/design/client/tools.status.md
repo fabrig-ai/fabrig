@@ -1,14 +1,20 @@
 # tools: status
 
 2026-11-06. Remaining gaps between temper's code and [tools.md](tools.md).
-Unlisted sections have no known gap.
+Unlisted sections have no known gap, including 6.3's watch-capacity
+diagnostic and deadline words, and 8.2's retry spans.
 
-- **Not yet:** 6.3: the deadline's lines: `temper-client-shell-cli`'s
-  `host.rs`, `link_progress`, says `the engine at ADDRESS did not answer
-  within 30 s` whatever is outstanding, and adds nothing of an act.
-- **Not yet:** 8.2, 12: a retry's span: `temper-client-tools`' `limits.rs`
-  doubles a request's and a watch's to 30 s, so a call can sleep past its
-  deadline with nothing in flight. 6.3: the lines naming a retry's why.
+- **Not yet:** 8.2, 11.2: the user's `ctl-waits` request asks for the
+  long-chat wait with a fake model refusing its resume, concurrent reads and
+  a same-key retry, with the outcome captured at both sides. The joined
+  `tests/client` story `kept_message.rs` extends a conversation and fills its
+  inbox, captures Busy and the client's retry, then frees room and checks
+  the answer and same-key replay. It disables run answers and drives no
+  model's resume refusal. The bounded retry fix covers that full-inbox
+  cause, but the reported 23.2 s success and repeated 30 s waits have no
+  reproduced cause on record; the settings-effort tests likewise guard an
+  existing final refusal, without reproducing that walk's silence. The next
+  QA walk remains the requested proof (section 14).
 - **Not yet:** 5.2: `task show`'s text says `deployment show` for a host's wait
   (`temper-client-tools`' `render/document/llm.rs`, `wait_explanation`), and ctl has
   no such tool until area 3's is built (5.5), so that line names a command that

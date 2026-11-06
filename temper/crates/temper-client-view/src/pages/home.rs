@@ -1,4 +1,5 @@
 //! A project's first page (temper/docs/design/client/README.md, 3.5).
+//! A stopped try (temper/docs/design/domain/trial.md, 6.3).
 use crate::{
     frame::Bindings,
     look,
@@ -24,11 +25,16 @@ use temper_client_domain::{
 };
 
 /// A project's first page (temper/docs/design/client/README.md, 3.5).
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Home draws page controls and a trial retry with their respective bindings"
+)]
 pub(crate) fn main(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
+    accounts: &mut crate::accounts::Bindings,
     project: u32,
     times: &mut Times,
     rows: u32,
@@ -45,7 +51,7 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::HOME);
-    intro(b, root, w, bindings, name, &facts, times);
+    intro(b, root, w, bindings, accounts, name, &facts, times);
     if facts.to_begin() {
         to_begin(b, w, bindings, project, name, &facts);
     }
@@ -171,11 +177,16 @@ fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intr
     }
     Intro { kicker, headline, lede, byline }
 }
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the intro keeps page links and the trial retry in their respective bindings"
+)]
 fn intro(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
+    accounts: &mut crate::accounts::Bindings,
     name: &[u8],
     facts: &Facts,
     times: &mut Times,
@@ -201,6 +212,7 @@ fn intro(
         if let Some(byline) = &intro.byline {
             text(b, Role::Paragraph, byline, Some(look::HOME_BYLINE));
         }
+        stopped_try(b, root, w, accounts);
         b.close();
         return;
     }
@@ -221,7 +233,16 @@ fn intro(
     if let Some(byline) = intro.byline {
         text(b, Role::Paragraph, &byline, Some(look::HOME_BYLINE));
     }
+    stopped_try(b, root, w, accounts);
     b.close();
+}
+fn stopped_try(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut crate::accounts::Bindings) {
+    if let Some((who, account)) = super::model_check::stopped(root, w) {
+        text(b, Role::Paragraph, &w.say(Word::HomeTryStopped, &[Hole::Name(who)]), Some(look::HOME_BYLINE));
+        if let Some(to) = bindings.insert(crate::accounts::Meaning::Try { account }) {
+            crate::flow::control(b, crate::flow::Control::Button { name: &w.say(Word::WelcomeTryAgain, &[]), to });
+        }
+    }
 }
 fn begin_lede(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     let (key, _) = super::accounts::home_accounts(root);

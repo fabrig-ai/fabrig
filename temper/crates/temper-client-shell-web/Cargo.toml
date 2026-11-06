@@ -10,6 +10,7 @@ publish.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [features]
+small-window = []
 playground = []
 record = [
     "web-sys/KeyboardEvent",

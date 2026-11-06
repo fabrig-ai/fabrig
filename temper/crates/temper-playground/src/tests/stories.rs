@@ -213,8 +213,9 @@ fn story_as_deployment_offers_its_llm_cues_in_order() {
 #[test]
 fn story_as_documents_can_list_every_offered_charter() {
     for (engine, jig) in configured_deployments() {
+        let offered = jig.charters.iter().filter(|charter| charter.number != 10).count();
         assert!(
-            engine.limits.core.documents.lines >= u32::try_from(jig.charters.len()).expect("offered charter count"),
+            engine.limits.core.documents.lines >= u32::try_from(offered).expect("offered charter count"),
             "the creating document lists every eligible charter before offering a chat"
         );
     }

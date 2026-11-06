@@ -281,3 +281,18 @@ fn sign_in_keeps_serve_before_the_restored_group_with_first_steps() {
         );
     }
 }
+
+#[test]
+fn a_box_with_no_sign_in_has_no_source_step_in_its_group() {
+    use temper_forge_setup::{Stage, machine::BoxKind};
+    let dirs = super::configuration::directories(std::path::Path::new("/fixture"));
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&super::configuration::init_document()).expect("init JSON");
+    document["engine"]["clients"]["provider"] = serde_json::Value::Null;
+    document["application"]["machine"]["owned"]["sign_in"] = serde_json::Value::Null;
+    let document = serde_json::to_vec(&document).expect("document JSON");
+    let (steps, _) = crate::box_command::configuration_steps(&dirs, &document, Box::new([])).expect("box steps");
+    let owned = steps.asked.iter().find(|group| group.kind == Some(BoxKind::Owned)).expect("owned slot");
+    assert!(!owned.steps.iter().any(|(stage, _)| *stage == Stage::Source), "no source needs the held engine");
+    assert_eq!(owned.before, 0, "the group can start before serve");
+}

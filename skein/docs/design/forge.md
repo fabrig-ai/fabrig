@@ -930,8 +930,10 @@ Notes on the table:
   commit. If that read fails, the call answers `Timeout`: the merge's
   outcome is unknown, and the client finds it by reading the pull
   request (forge-client.md, section 7).
-- **Updates** merge the base into the branch (`style=merge`), never a
-  rebase.
+- **Updates** merge the base into the branch (`style=merge`), or rebase
+  its commits onto the base (`style=rebase`), as the call names (3.2).
+  Both are idempotent transitions; a late rebase may drop a later push
+  (forge-client.md, 7.3).
 - **A pull request for a head and base.** Forgejo keeps at most one pull
   request open for a head and a base. Its lookup, `pulls/{base}/{head}`,
   names one of several, the oldest (section 9), and its listing has no
@@ -1617,6 +1619,10 @@ the suites (testing.md, section 6).
 - **The merge style:** the repository's `default_merge_style`. A style
   an owner names per repository would need `Write::Merge` to carry it.
   Default: the repository's.
+- **An update's real time** (5.4): aborting its call does not stop the
+  forge's git work. How often that work outlasts the client's `lifetime`,
+  and what another copy costs, await measurement (forge-client.md, 11).
+  Default: the lifetime stays, and recovery uses the idempotent class.
 - **An expired or revoked credential** reads as `Forbidden` on every
   call until the next start, which it stops (forge-connection.md,
   sections 3 and 5). Default: so; the owner could tell it apart, so a

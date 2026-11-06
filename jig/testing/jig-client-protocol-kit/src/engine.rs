@@ -442,6 +442,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::ClaimPrepared { .. }
         | core::Event::ClaimRefused { .. }
         | core::Event::ConnectorRepair { .. }
+        | core::Event::PersonTask { .. }
         | core::Event::Period { .. }
         | core::Event::TranscriptLoaded { .. }
         | core::Event::People(_)

@@ -77,6 +77,7 @@ fn account_event(front: &mut Joint, root: &mut Root, event: a::Event) {
     front.engine.send(temper_engine_domain::Event::Account(event));
     front.engine.settle();
     h::settle(front, root);
+    h::answer_trial(front, root);
 }
 fn visited(front: &mut Joint, source: u32) {
     front.engine.send(temper_engine_domain::Event::Account(a::Event::Visited { source, address: ISSUER.into() }));

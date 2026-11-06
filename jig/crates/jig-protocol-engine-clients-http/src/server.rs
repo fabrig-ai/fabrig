@@ -37,6 +37,8 @@ struct Connection {
     requests: Queue<http::Request>,
     below: Queue<Down>,
     call: Option<Token>,
+    begun: bool,
+    replacement: Option<Token>,
     reuse: Option<http::Reuse>,
     closing: bool,
     draining: bool,
@@ -128,35 +130,25 @@ impl Server {
                 }
             }
             io::Event::Accepted { owner, socket, .. } => {
-                if owner != LISTENER
-                    || self.phase != Phase::Active
-                    || self.connections.len() == self.connections.capacity()
-                {
+                if owner != LISTENER || self.phase != Phase::Active {
                     out.push(Routed::Io(io::Request::Reject { socket }));
+                } else if self.connections.len() == self.connections.capacity() {
+                    let mut idle = None;
+                    for (owner, connection) in &self.connections {
+                        if !connection.closing && connection.call.is_none() && !connection.begun {
+                            idle = Some(*owner);
+                            break;
+                        }
+                    }
+                    if let Some(owner) = idle {
+                        let connection = self.connections.get_mut(&owner).expect("idle connection");
+                        connection.replacement = Some(socket);
+                        end(connection, false, out);
+                    } else {
+                        out.push(Routed::Io(io::Request::Reject { socket }));
+                    }
                 } else {
-                    let owner = self.name();
-                    let mut requests = Queue::uncapped();
-                    requests.push(http::Request::Next);
-                    self.connections
-                        .insert(
-                            owner,
-                            Connection {
-                                socket,
-                                http: http::Server::new(&self.env.limits.http),
-                                events: Queue::uncapped(),
-                                requests,
-                                below: Queue::uncapped(),
-                                call: None,
-                                reuse: None,
-                                closing: false,
-                                draining: false,
-                                deadline: self.env.now.saturating_add(self.env.limits.stall),
-                                held: None,
-                            },
-                        )
-                        .ok()
-                        .expect("admitted connection");
-                    out.push(Routed::Io(io::Request::Bind { socket, owner }));
+                    self.admit(socket, out);
                 }
             }
             io::Event::Stream { owner, up } => {
@@ -166,6 +158,10 @@ impl Server {
                 {
                     connection.deadline =
                         self.env.now.saturating_add(self.env.limits.stall).max(connection.held.unwrap_or(Time::ZERO));
+                    match &up {
+                        Up::Bytes(bytes) => connection.begun |= !bytes.is_empty(),
+                        Up::End | Up::Room | Up::Failed(_) => {}
+                    }
                     let ended = match &up {
                         Up::End => self.env.limits.peer_end == PeerEnd::Connection && connection.call.is_some(),
                         Up::Bytes(_) | Up::Room | Up::Failed(_) => false,
@@ -181,10 +177,17 @@ impl Server {
                     self.listening = false;
                     self.listener = None;
                 }
-                if let Some(connection) = self.connections.remove(&owner)
-                    && let Some(call) = connection.call
-                {
-                    out.push(Routed::Http { call, event: http::Event::Closed });
+                if let Some(connection) = self.connections.remove(&owner) {
+                    if let Some(call) = connection.call {
+                        out.push(Routed::Http { call, event: http::Event::Closed });
+                    }
+                    if let Some(socket) = connection.replacement {
+                        if self.phase == Phase::Active {
+                            self.admit(socket, out);
+                        } else {
+                            out.push(Routed::Io(io::Request::Reject { socket }));
+                        }
+                    }
                 }
             }
             io::Event::Failed { owner, .. } => {
@@ -205,6 +208,33 @@ impl Server {
             | io::Event::Window { .. }
             | io::Event::Shutdown { .. } => {}
         }
+    }
+    fn admit(&mut self, socket: Token, out: &mut Queue<Routed>) {
+        let owner = self.name();
+        let mut requests = Queue::uncapped();
+        requests.push(http::Request::Next);
+        self.connections
+            .insert(
+                owner,
+                Connection {
+                    socket,
+                    http: http::Server::new(&self.env.limits.http),
+                    events: Queue::uncapped(),
+                    requests,
+                    below: Queue::uncapped(),
+                    call: None,
+                    begun: false,
+                    replacement: None,
+                    reuse: None,
+                    closing: false,
+                    draining: false,
+                    deadline: self.env.now.saturating_add(self.env.limits.stall),
+                    held: None,
+                },
+            )
+            .ok()
+            .expect("admitted connection");
+        out.push(Routed::Io(io::Request::Bind { socket, owner }));
     }
     fn owner(&self, call: Token) -> Option<Token> {
         for (owner, connection) in &self.connections {
@@ -251,6 +281,7 @@ impl Server {
         if let Some(owner) = self.owner(call) {
             let connection = self.connections.get_mut(&owner).expect("call owner");
             connection.call = None;
+            connection.begun = false;
             connection.held = None;
             if connection.reuse.take() == Some(http::Reuse::Keep) && self.phase < Phase::Closing {
                 connection.requests.push(http::Request::Next);

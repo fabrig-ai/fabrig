@@ -26,6 +26,11 @@ impl Core {
             return Err(people::Refusal::Role { held: None });
         }
         let holding = role.expect("checked member");
+        // Project 0 has no policy; its person's task is the application's
+        // (jig/docs/design/domain/authority.md, 6.1).
+        if project == people::DEPLOYMENT {
+            return Err(people::Refusal::Role { held: Some(holding) });
+        }
         let Some(role_policy) = self.authority.role(project, holding.number()) else {
             unreachable!("member belongs to configured policy")
         };

@@ -9,12 +9,20 @@ use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{Domain, pages::Act};
 
 #[expect(clippy::too_many_lines, reason = "one tree keeps the configuring opening, composer and reference in order")]
-pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, text_limit: u32) {
+pub(crate) fn main(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    accounts: &mut crate::accounts::Bindings,
+    project: u32,
+    text_limit: u32,
+) {
     if root.pages().me(root.client()).is_some()
         && super::project_name(root.pages().me(root.client()), project).is_none()
     {
         let mut times = crate::words::Times::new(skein_lib::Wall::EPOCH);
-        super::home::main(b, root, w, bindings, project, &mut times, 0);
+        super::home::main(b, root, w, bindings, accounts, project, &mut times, 0);
         return;
     }
     b.open(Role::Main);

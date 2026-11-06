@@ -1951,7 +1951,11 @@ a.temper-repository-link:hover { text-decoration: underline; }
 .temper-settings-proposal-title { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
 .temper-settings-proposal-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .temper-settings-proposal-items li { display: flex; flex-direction: column; gap: 2px; }
-.temper-settings-proposal-items .temper-settings-proposal-reason { color: var(--gf-ink); }
+.temper-settings-proposal-reason { color: var(--gf-ink); }
+.temper-settings-proposal .temper-settings-proposal-reason :is(h1, h2, h3, h4, h5, h6, [role=heading]) { margin: 12px 0 6px; font: 500 1em/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+.temper-settings-proposal .temper-settings-proposal-reason p { margin: 8px 0; font-size: inherit; color: inherit; }
+.temper-settings-proposal .temper-settings-proposal-reason > :first-child { margin-top: 0; }
+.temper-settings-proposal .temper-settings-proposal-reason > :last-child { margin-bottom: 0; }
 .temper-settings-proposal-items small { font: 12px var(--gf-mono); color: var(--gf-faint); }
 .temper-settings-proposal-acts { display: flex; flex-wrap: wrap; gap: 10px; }
 .temper-settings-proposal .temper-settings-btn { min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 13.5px var(--gf-sans); }
