@@ -156,9 +156,10 @@
   the sheet.
 - **Not yet:** 3.6, *The sheet*: that request has each confirmation walked. A browser
   on a fake box pressed Close, a goal's Stop and a Release both ways, a goal's Pause,
-  and Accept on a configuring chat's proposal from *Needs you*, by hand at each width,
-  which no test keeps; a press while the page updates, on a Release alone. A task's Cancel,
-  an agent's task's Stop, Reject and Start over are drawn at each width by their
+  and Accept on a configuring chat's proposal from *Needs you* and from the chat itself,
+  by hand at each width, which no test keeps; a press while the page updates, on a Release
+  alone. Reject from *Needs you*, with a reason, was also pressed at each width.
+  A task's Cancel, an agent's task's Stop and Start over are drawn at each width by their
   gallery states, and no walk on record presses them.
 - **Not yet:** 3.5, *temper's own way, beside the page*: no walk on record presses "See how it
   works" or "Start from it", and no journey records them: the view's tests and the gallery's
