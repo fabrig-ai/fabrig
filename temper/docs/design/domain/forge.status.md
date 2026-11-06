@@ -3,10 +3,6 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 11: a task's saved work is not deleted as it closes: `s<task>` is no hold,
-    and a close releases holds alone (`temper-engine-domain-forge/src/domain.rs`,
-    `continue_release`), so the branch stays on the forge. From reading: no story
-    closes a task with saved work and looks.
   - 8.4: a clean update's red opens `Repair the base's break at HEAD: BASE`
     and calls itself a semantic conflict, naming no failed check
     (`temper-engine-domain/src/route/forge_route.rs`, `repair_words`).

@@ -73,6 +73,27 @@ pub(crate) fn saved_tags(resources: &[tasks::SavedResource], connector: u16) -> 
     Some(tags.into_boxed())
 }
 
+/// A closing task's saved-work branches, from its record's saved set.
+pub(crate) fn saved_branches(domain: &Domain, env: &Env<Limits>, task: u64, root: u64) -> Box<[forge::Name]> {
+    let Some(record) = domain.core.tasks.task(task) else { return Box::new([]) };
+    let Some(tags) = saved_tags(&record.saved, domain.config.forge_connector) else { return Box::new([]) };
+    let mut branches = List::with_capacity(u32::try_from(tags.len()).expect("saved tags are bounded"));
+    for tag in tags {
+        let Some((forge, repository)) = forge::untag(tag) else { continue };
+        let Some(repository) = domain.forge.repository(skein_forge::api::Repository { forge, repository }) else {
+            continue;
+        };
+        let Some(branch) = tree_branch(repository, root, b's', task, None, env.limits.forge.name_bytes) else {
+            continue;
+        };
+        let Some(what) = branch_what(&branch, env.limits.forge.name_bytes) else { continue };
+        branches
+            .push(forge::Name { forge, repository: repository.provider.repository, what })
+            .expect("one branch per saved tag");
+    }
+    branches.into_boxed()
+}
+
 /// Build a generic people request from temper's forge repository options.
 /// The people child retains only the resource name, role and opaque options.
 #[must_use]

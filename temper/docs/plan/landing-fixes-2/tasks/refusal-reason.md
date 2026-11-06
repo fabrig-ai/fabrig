@@ -76,3 +76,13 @@ Options, each pre-approved:
 ## Report
 
 The implementer's report, plus any reader of `Request::Refuse` or `Held::Refuse` you found that this spec doesn't name.
+
+## Answers
+
+2026-11-06. May `figures` take `HostKind` to identify the failing charter version, or should the contract specify another rule?
+
+Yes: `figures(needs, bounds, kind, why)`, as `notes/contracts.md`, section 1 now says. The contract's old signature was wrong: the counterexample on the branch stands, and `a_refused_hello_uses_the_applicable_charter_versions_figures` keeps what it expects. `AgentShortfall` keeps its shape, with no revision in it.
+
+- **Selection:** take the per-version checks out of `shortfall`'s loop into one private function returning `Option<AgentShortfall>`, order unchanged. `shortfall` loops over it as now. `figures` takes the first version `kind` allows whose check gives `why`, and reads that version's amounts. This replaces `charter_need`'s lookup by number. A `why` no such version gives is None, which covers `Model`, since `shortfall` never gives it, and an undeclared model's `Window` or `Output`. The deployment-wide rows read `needs` and `bounds` as they do now.
+- **`channel.rs`:** `refuse` takes the figures as an argument, `Option<Figures>`, and its `match` goes. The shortfall call site computes them with the `kind` it already has; the other callers pass None. The `hello: Some` still comes from `refuse`.
+- **Tests:** the existing `crate::figures` calls in `tests/needs.rs` pass `HostKind::Worker`, the kind those rows' harness hellos use. Add one row with two versions of a charter under one kind, the first passing and the second short, finding the second's `required`.

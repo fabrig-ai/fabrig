@@ -61,7 +61,7 @@ Departs from the implementer's text: delete from `temper/docs/design/protocol/RE
 Options, each pre-approved:
 
 - `problems.rs`'s `admission` writes through `(writer, length, measuring)`. Default: add `pub(crate) fn admission_words(why, offered, required) -> Box<[u8]>` that measures, then writes through it, so there's one copy of the words.
-- `startup/checks.rs`, `admission`: take its amounts from `fleet::figures`, leaving only its path. Default: do this, so one decision has one projection. Where it can't express a row (`What::Agent` for a missing model stays), say so in your report.
+- `startup/checks.rs`, `admission`: take its amounts from `fleet::figures`, passing the `HostKind::Worker` its `shortfall` call passes, leaving only its path. Default: do this, so one decision has one projection. Where it can't express a row (`What::Agent` for a missing model stays), say so in your report.
 - The last words live in a field beside `notes` on `Engine` (`temper-service/src/engine.rs`), `Option<Box<[u8]>>`, at most 256 bytes. It starts empty on each start, so a restart prints the line again.
 - If `Delivery`'s size is checked and `hello` trips it, box it, and say so.
 
