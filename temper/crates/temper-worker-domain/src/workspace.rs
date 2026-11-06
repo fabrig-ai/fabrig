@@ -147,10 +147,10 @@ fn stage_items(
             wire::Access::ReadOnly => None,
         };
         branches.push(branch).expect("room for each item branch");
-        let saved = match repository.start {
+        let saved = match &repository.start {
             wire::Start::Saved { .. } => true,
-            wire::Start::Merge { .. }
-            | wire::Start::Base { .. }
+            wire::Start::Merge { branch, .. } => repository.save.as_deref() == Some(&**branch),
+            wire::Start::Base { .. }
             | wire::Start::Branch { .. }
             | wire::Start::Commit { .. }
             | wire::Start::Merged { .. } => false,
