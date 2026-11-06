@@ -153,7 +153,7 @@ pub(crate) fn tag_fleet(
             fleet::Request::Cancel { channel, run, attempt } => {
                 Request::Held(Box::new(Held::Cancel { channel, run, attempt }))
             }
-            fleet::Request::Refuse { channel } => Request::Held(Box::new(Held::Refuse { channel })),
+            fleet::Request::Refuse { channel, hello } => Request::Held(Box::new(Held::Refuse { channel, hello })),
             fleet::Request::TurnBusy { channel, run, attempt, turn } => {
                 Request::Held(Box::new(Held::TurnBusy { channel, run, attempt, turn }))
             }

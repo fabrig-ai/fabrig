@@ -19,14 +19,14 @@ const FAMILIES: &[&[u8]] = &[
 /// A name that sorts among its siblings in ways that trip a naive order: shared prefixes, `-`
 /// and `.` beside `/`, bytes past ASCII.
 #[must_use]
-pub fn name(rng: &mut Rng, taken: &[Vec<u8>]) -> Vec<u8> {
+pub fn name(rng: &mut Rng, taken: impl Fn(&[u8]) -> bool) -> Vec<u8> {
     const PARTS: &[&[u8]] = &[b"a", b"b", b"ab", b"-", b".", b"_", b"z", b"\xff", b"\x01", b" ", b"0", b"B"];
     loop {
         let mut name = Vec::new();
         for _ in 0..rng.between(1, 4) {
             name.extend_from_slice(PARTS[usize::try_from(rng.below(PARTS.len() as u64)).expect("an index")]);
         }
-        if name != b"." && name != b".." && !taken.contains(&name) {
+        if name != b"." && name != b".." && !taken(&name) {
             return name;
         }
     }
@@ -96,12 +96,11 @@ pub fn layer(rng: &mut Rng, size: u64) -> Fs {
     for _ in 0..size {
         inode += rng.between(1, 5);
         let (parent, _) = directories[usize::try_from(rng.below(directories.len() as u64)).expect("an index")].clone();
-        let taken: Vec<Vec<u8>> = fs.list(&parent).expect("a directory").into_iter().collect();
-        let leaf = name(rng, &taken);
-        let mut path = parent.clone();
+        let mut path = parent;
         if !path.is_empty() {
             path.push(b'/');
         }
+        let leaf = name(rng, |leaf| fs.lookup(&[path.as_slice(), leaf].concat()).is_some());
         path.extend_from_slice(&leaf);
         let node = node(rng, inode);
         let directory = node.kind == Kind::Directory;
@@ -119,12 +118,11 @@ pub fn layer(rng: &mut Rng, size: u64) -> Fs {
         }
         let at = linkable[usize::try_from(rng.below(linkable.len() as u64)).expect("an index")];
         let (parent, _) = directories[usize::try_from(rng.below(directories.len() as u64)).expect("an index")].clone();
-        let taken: Vec<Vec<u8>> = fs.list(&parent).expect("a directory");
-        let leaf = name(rng, &taken);
         let mut path = parent;
         if !path.is_empty() {
             path.push(b'/');
         }
+        let leaf = name(rng, |leaf| fs.lookup(&[path.as_slice(), leaf].concat()).is_some());
         path.extend_from_slice(&leaf);
         fs.link(&path, at);
     }

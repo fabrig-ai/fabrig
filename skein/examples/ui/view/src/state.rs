@@ -118,6 +118,7 @@ impl State {
         match report {
             Report::Place(place) => self.place = place,
             Report::Act(bound) => match bound.act {
+                Act::Near { .. } => {}
                 Act::Press => self.press(bound.binding, duties),
                 Act::Input { value } => {
                     self.input(bound.binding, value);

@@ -99,7 +99,6 @@ pub fn start_playground_chat(words: &[u8]) -> Vec<Step> {
     vec![
         see(Find::exactly_named(Role::Button, b"Try the playground")),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Try the playground") }),
-        Step::Person(PersonStep::Go { address: b"/chats/new".as_slice().into() }),
         see(Find::exactly_named(Role::Region, b"Playground")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
         see(Find::exactly_named(Role::Status, b"Ready")),
@@ -161,6 +160,45 @@ impl Tier {
         let scratch = skein_scratch::Scratch::new(name);
         configuration::demo(scratch.path(), &temper(), &bundle());
         Self { scratch, forged: forgery::request(), command: "box" }
+    }
+    /// The demo on a private bundle, exercising the page's anchoring without the browser's.
+    #[must_use]
+    pub fn demo_without_anchoring(name: &str) -> Self {
+        let tier = Self::demo(name);
+        let private_bundle = tier.scratch.path().join("bundle");
+        copy_bundle(&bundle(), &private_bundle);
+        let digest = fs::read_dir(&private_bundle)
+            .expect("bundle entries")
+            .map(|entry| entry.expect("bundle entry"))
+            .find(|entry| entry.file_type().expect("bundle entry type").is_dir())
+            .expect("digest directory");
+        let path = digest.path().join("temper.css");
+        let mut css = fs::read(&path).expect("bundle stylesheet");
+        css.extend_from_slice(
+            b"\n#app > .temper-session .temper-thread > [role=log] { overflow-anchor: none !important; }\n",
+        );
+        fs::write(path, css).expect("private stylesheet");
+        let path = tier.scratch.path().join("temper.json");
+        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        value["application"]["clients"]["bundle"] = serde_json::json!(private_bundle);
+        configuration::private(&path, &serde_json::to_vec(&value).expect("private bundle JSON"));
+        tier
+    }
+    /// Script the demo model's replies, with each cue selecting one whole answer.
+    #[must_use]
+    pub fn with_replies(self, replies: &[(&str, String)]) -> Self {
+        let path = self.scratch.path().join("temper.json");
+        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        value["application"]["demo"]["llm"]["asked"] = serde_json::json!(
+            replies
+                .iter()
+                .map(|(cue, text)| {
+                    serde_json::json!({"cue":cue,"turns":[{"lines":[{"text":text}],"finish":"stop","tokens":1}]})
+                })
+                .collect::<Vec<_>>()
+        );
+        configuration::private(&path, &serde_json::to_vec(&value).expect("scripted demo JSON"));
+        self
     }
     /// The box's demo with one suggested request's scripted turns replaced.
     #[must_use]
@@ -272,8 +310,7 @@ impl Tier {
     #[must_use]
     pub fn reserved(name: &str) -> Self {
         let tier = Self::new(name);
-        let listener = TcpListener::bind("127.0.0.1:0").expect("reserve restart port");
-        let address = listener.local_addr().expect("restart address");
+        let address = temper_fixtures::ports::addresses::<1>(&[])[0];
         let path = tier.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
         value["application"]["clients"]["listener"]["socket"] = serde_json::json!(address.to_string());

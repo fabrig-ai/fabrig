@@ -160,7 +160,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 | Meaning::SetupField(_)
                 | Meaning::Copies => return None,
             }),
-            (_, Act::Input { .. } | Act::Submit | Act::Drawing { .. }) => None,
+            (_, Act::Input { .. } | Act::Submit | Act::Drawing { .. } | Act::Near { .. }) => None,
         };
     }
     None

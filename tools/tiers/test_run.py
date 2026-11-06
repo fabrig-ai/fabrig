@@ -185,6 +185,8 @@ class RunnerTests(unittest.TestCase):
             ("skein", "browser", "skein-ui-example-shell-web", "skein-ui-example-server",
              "SKEIN_UI_EXAMPLE_BUNDLE", "ui-example-bundle", [],
              ["--stylesheet", "skein/examples/ui/shell-web/notes.css",
+              "--placeholder", "skein/examples/ui/shell-web/loading.html",
+              "--placeholder-stylesheet", "skein/examples/ui/shell-web/loading.css",
               "--noscript", "Notes needs WebAssembly and scripts."]),
             ("jig", "browser", "jig-client-test-shell-web", "jig-test",
              "JIG_TEST_BUNDLE", "jig-test-bundle", [],
@@ -198,7 +200,9 @@ class RunnerTests(unittest.TestCase):
         shell = "temper/crates/temper-client-shell-web"
         cases += (("temper", "browser", "temper-client-shell-web", "temper", "TEMPER_TEST_BUNDLE",
                    "temper-bundle", ["--features", "loopback-navigation"],
-                   ["--stylesheet", f"{shell}/temper.css", "--stylesheet", f"{shell}/task-pages.css",
+                   ["--title", "temper", "--placeholder", f"{shell}/loading.html",
+                    "--placeholder-stylesheet", f"{shell}/loading.css",
+                    "--stylesheet", f"{shell}/temper.css", "--stylesheet", f"{shell}/task-pages.css",
                     "--files", f"{shell}/files", "--noscript", "temper needs WebAssembly and scripts."]),)
         for tree, tier, package, server, variable, out, features, options in cases:
             with self.subTest(tree=tree, tier=tier):

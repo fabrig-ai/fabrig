@@ -346,6 +346,9 @@ git diff-files --name-only -z --diff-filter=U          only after exit 1
   entries whatever the repository's diff settings say.
 - **The committer** git requires even with `--no-commit` is the
   placeholder of section 5: Merge names no identity, and makes no commit.
+- **Who commits it** is the domain's (`../domain/worker.md`, section 5): a
+  producer's clean merge and each head of a base with heads merged in at
+  once, any other merge at its run's first push or save.
 
 ### 4.7 Commit
 

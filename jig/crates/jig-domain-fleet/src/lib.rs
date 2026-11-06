@@ -67,7 +67,7 @@ mod grants;
 mod history;
 mod limits;
 mod needs;
-pub use needs::{AgentShortfall, CharterNeeds, ModelNeed, Needs, Version, shortfall};
+pub use needs::{AgentShortfall, CharterNeeds, ModelNeed, Needs, Version, figures, shortfall};
 mod progress;
 #[cfg(test)]
 mod tests;
@@ -79,7 +79,7 @@ pub use boundary::{
 };
 pub use domain::{Domain, fire, resume, step};
 pub use facts::Fact;
-pub use history::{HelloRefusal, HelloRefusalRecord};
+pub use history::{Figures, HelloRefusal, HelloRefusalRecord, HelloRefused};
 pub use limits::{Limits, valid};
 pub use progress::{Activity, Observation, Report};
 

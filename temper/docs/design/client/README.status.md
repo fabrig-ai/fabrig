@@ -5,6 +5,17 @@
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
   request `ui-pause-close`.
+- **Design departs:** 5.11, from that request, which has an agent's task's "Stop task" and "Stop this task?" become
+  "Close task" and "Close this task?". That act is jig's hold, which "can't be reopened" would misstate, so the hold is
+  "Pause" and "Resume", sent at once, and "Close" is `Ask::Cancel`, on the sheet the request names. Its cut decided it,
+  and section 11 keeps the sheet on Pause as a candidate.
+- **Not yet:** 3.5, *A person's pause*: no browser test walks a Pause, a Resume or a message that resumes. The client's
+  world holds them on the engine's root, with no browser (`a_chat_pauses_resumes_and_a_message_resumes_it`,
+  `a_delegate_paused_from_its_page_is_held_then_resumed`), and the check that request asks on a fake box leaves its
+  proofs on a builder, outside the repository, so no record here shows it ran. A refused message is held on an answered
+  refusal in the domain (`a_refused_message_to_a_paused_chat_stays_in_the_composer_s_refusal`) and by jig's all-or-none:
+  no world moves a hold's revision between the read and the send. "Paused" on Home is seen by reading: the view's tests
+  draw it on a Chats row (`a_paused_chat_s_row_says_paused`) and none on Home.
 - **Not yet:** 3.5, `ConnectModel`, *The sign-in's tab*: only Chromium has run it, and against skein's fake issuer
   alone. Firefox's and Safari's gesture is read and not run (skein's `ui-web.md`, 14.3), and no walk on record has a
   provider's own page in the tab: the request `sign-in-new-tab` of 2026-11-06 leaves a real box to the user.
@@ -165,9 +176,9 @@
   by hand at each width, which no test keeps; a press while the page updates, on a Release
   alone. The client's world holds the chat's Accept and Reject's ask, with no browser
   (`a_configuring_chat_accepts_its_own_proposal`, `a_configuring_chat_rejects_its_own_proposal`).
-  A task's Cancel and an agent's task's Close are drawn at each width by their
-  gallery states, the walk of the request `ui-walk-3` of 2026-11-06 having tried the
-  fake box for them first, and no walk on record presses them.
+  An agent's task's Close is drawn at each width by its gallery state, the walk of the
+  request `ui-walk-3` of 2026-11-06 having tried the fake box for it first, and no walk
+  on record presses it.
 - **Not yet:** 3.5, *temper's own way, beside the page*: no journey records "See how it works"
   or "Start from it", and no test presses them on a box: the view's tests and the gallery's
   `configure-reference` and `configure-reference-draft` alone draw them. The walk of the request
@@ -184,8 +195,7 @@
     it checked "by CI and a review on the way": the reference's goal branches have neither
     (`../draft/reference-code-production.md`, sections 6 and 10);
   - a table's row name is bold in a cell, where the request's rule is `th[scope=row]`, since
-    skein's reader draws no row header; a figure's term and value are `role=term` and
-    `role=definition`, where its rules are `dt` and `dd`;
+    skein's reader draws no row header;
   - the thread's padding of 28 and 8 reaches the opening alone, at wide widths, where the request's
     rule reaches every chat; a phone keeps its 20 and 16;
   - the card's steps are a list with no marker and the pane a region of slots, where the request's
@@ -515,7 +525,16 @@
   and no walk on record has. skein's `a_clipboard_write_keeps_the_press_and_reports_once`
   holds the part, and `host_tests_copy.rs` holds that the press's own report asks the
   write; no test runs the one line between them, in `carry`
-  (`temper-client-shell-web/src/lib.rs`). Seen by reading.
+  (`temper-client-shell-web/src/lib.rs`). Seen by reading. Nor does a browser show its
+  word change: `the_button_reads_each_label_once_in_the_browser` holds the three names in
+  the view's tree, and that a name's patch rewrites the button's text
+  (`skein-ui-web/src/page/web.rs`, `refresh` and `content`) is seen by reading too.
+- **Design departs:** 3.5, *Needs you*, `.rec`, from the request `ui-copy-once` of
+  2026-11-06, decided by its plan's cut. The request has no button, tab or option with
+  both a name and a text child in a browser, and a recommended choice's button has its
+  name and the tag "recommended", which this section draws: those are other words, not
+  the name twice. `no_named_control_draws_a_text_child_in_any_state`
+  (`temper/tools/gallery/src/tests.rs`) excepts that word alone.
 - **Design departs:** 4.6, *The program's environment*, from the request `box-small-2`
   of 2026-11-06, item 1, decided by its plan's cut, which takes `resolve` as all or
   nothing: with no `HOME` and an XDG variable placing some of the directories, not all,

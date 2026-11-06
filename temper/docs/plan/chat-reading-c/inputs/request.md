@@ -1,0 +1,9 @@
+# chat-reading-c: a conversation is read by scrolling, and the newest lines are never lost
+
+The third of four parts of `temper/docs/design/draft/chat-reading.md`: section 5 alone, on top of part (a) and the look `chat-work`. The user took each recommendation, 2026-11-06. **This also fixes a journey where the conversation's end disappears after enough "Older":** the window lets the newest lines go and the chat page never reads them back (`Thread::newer` exists; `temper-client-domain`'s chat page calls only `older`). Read the section and do what it says. If something doesn't hold when you get there, say so and take the nearest thing: don't stop on it.
+
+A generic mechanism goes in skein first (a log node saying, as an act, that its head is near), and skein names no temper. In the terminal, the same keys. Check Chromium, Firefox and Safari by what the browser tier runs, and say plainly what's only read: **the position staying put when lines load above** is the one browsers differ on.
+
+`ui-rename-focus` touches the conversation's scroller (`#app > .temper-session [role=log] { position: relative; }`): take it by catch-up and keep it. fabrig/ui has priority, and its `look-round-6` draws the states: keep hunks small and name each overlap.
+
+Failing tests first, in the lowest tier: a head within one and a half screens reads earlier lines, whatever moved it; past the size bound, the lines furthest from the view go, whole, at either end, and come back when scrolled to; `newer` is read; the end stays reachable after enough reads back (the user's journey); "Latest ↓" shows while the end is out of view, and sends to the end; new words while reading back don't move the view; the lines bound is gone. A journey that moves is named for fabrig/ui. Budgets and timeouts are the user's (skein's `docs/foundation/testing-strategy.md`, 8.1). Formats change in place before v0.1.0. `walk = false`: the user reads it on a real chat.

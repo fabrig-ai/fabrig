@@ -686,8 +686,11 @@ delivery in flight is never abandoned (host.md, section 2).
 
 A repository may start from a merge in progress, the host having merged
 and left the conflicts in the working tree; the start names the files in
-conflict, and the run tells the LLM. The LLM edits them and runs the
-checks; it has no git writes (tools.md, section 5). Delivered, the host
+conflict, and the run tells the LLM. It also tells it what a merge in
+progress holds, before it looks: `HEAD` is its work so far, `MERGE_HEAD` the
+tip the host merged in, and every other staged file is what that merge
+brought, which it leaves in place. The LLM edits the files in conflict and
+runs the checks; it has no git writes (tools.md, section 5). Delivered, the host
 commits the tree as the merge, and refuses while a file the merge left
 in conflict still holds a marker, naming it.
 
