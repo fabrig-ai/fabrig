@@ -2,10 +2,8 @@
 use jig_domain_people::{
     AccountChange, AccountHolder, Ask, CapacityAction, CapacityCause, CapacityRefusal, LimitKind, Reply, RequestKey,
 };
-use jig_people_world::{Settings, World};
+use jig_people_world::{Settings, World, fixtures::SIGN_IN};
 use skein_lib::{Duration, Wall};
-const USER: u64 = 1;
-const SIGN_IN: u64 = 10;
 const KEY: u8 = 7;
 const SEED: u64 = 73;
 const PROVIDER: u32 = 987;
@@ -25,7 +23,7 @@ fn asks() -> [(Ask, CapacityAction); 3] {
 }
 fn world(settings: Settings) -> (World, u64) {
     let mut world = World::new(settings);
-    let signed_in = world.signin(SIGN_IN, USER);
+    let signed_in = world.sign_in_owner();
     world.commit_all();
     let Some(Reply::SignedIn { person, .. }) = world.reply(signed_in) else { panic!("signed in fixture") };
     (world, person)

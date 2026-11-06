@@ -1,6 +1,6 @@
 //! Load/fit/link (jig/docs/design/domain/engine.md, 6; domain/accounts.md, 3.6).
 use jig_accounts_world::{
-    HOLDER, LIMITS, PROVIDER, World, account, held, issued, program, provider, providers, source,
+    HOLDER, LIMITS, PROVIDER, World, account, commit, held, issued, program, provider, providers, source,
 };
 use jig_domain_accounts::{
     Change, Domain, Event, Held, Holder, Key, Kind, Limits, Providers, Request, RestoreLimit, RestoreSet, State,
@@ -9,6 +9,8 @@ use jig_domain_accounts::{
 use skein_lib::{Token, Wall};
 
 const ACCOUNT: u32 = 20;
+const PROGRAM_SOURCE: u32 = 21;
+const PROGRAM_PLACE: u32 = 8;
 const REMOVED_PROVIDER: u32 = 99;
 const OTHER_REMOVED_PROVIDER: u32 = 98;
 fn configured() -> Providers {
@@ -49,21 +51,21 @@ fn failed(world: &mut World, expected: RestoreLimit) {
 #[test]
 fn records_are_linked_after_loading_in_any_order() {
     let mut world = start(&[
-        program(20, 21, 8, b"Upper Name"),
-        issued(21, b"Upper Name"),
-        held(20, b"same"),
+        program(ACCOUNT, PROGRAM_SOURCE, PROGRAM_PLACE, b"Upper Name"),
+        issued(PROGRAM_SOURCE, b"Upper Name"),
+        held(ACCOUNT, b"same"),
         held(22, b"same"),
         Stored::Next { number: 50 },
     ]);
     assert_eq!(restore_limit(&world.domain), None);
-    assert!(world.domain.account(20).expect("loaded account").sources().is_empty());
+    assert!(world.domain.account(ACCOUNT).expect("loaded account").sources().is_empty());
     let out = world.step(Event::Want);
     assert!(world.domain.restore_finished());
 
     assert_eq!(restore_limit(&world.domain), None);
-    assert_eq!(world.domain.account(20).expect("linked").sources().get(&8), Some(&21));
+    assert_eq!(world.domain.account(ACCOUNT).expect("linked").sources().get(&PROGRAM_PLACE), Some(&PROGRAM_SOURCE));
     assert!(world.domain.account(22).is_some(), "source-less identity survives");
-    assert_eq!(programs::issued(&world.domain, b"Upper Name"), Some((21, HOLDER)));
+    assert_eq!(programs::issued(&world.domain, b"Upper Name"), Some((PROGRAM_SOURCE, HOLDER)));
     assert!(!out.iter().any(|rq| matches!(rq, Request::Save { .. } | Request::Erase { .. })));
     assert!(
         out.iter().any(|rq| matches!(rq, Request::Programs { names } if names[0].name.as_bytes() == b"Upper Name"))
@@ -86,7 +88,7 @@ fn admission_rules_remain_at_live_entrances() {
     let mut world = start(&rows);
     world.step(Event::Want);
 
-    assert_eq!(world.domain.account(20).expect("loaded").uses(), Some([Use::Party(7), Use::Party(7)].as_slice()));
+    assert_eq!(world.domain.account(ACCOUNT).expect("loaded").uses(), Some([Use::Party(7), Use::Party(7)].as_slice()));
     let out = world.step(Event::Change {
         request: Token::new(1),
         holder: HOLDER,
@@ -99,7 +101,7 @@ fn admission_rules_remain_at_live_entrances() {
 #[test]
 fn removed_providers_and_source_less_accounts_keep_identity() {
     let rows = [
-        account(20, REMOVED_PROVIDER, HOLDER, b"old"),
+        account(ACCOUNT, REMOVED_PROVIDER, HOLDER, b"old"),
         source(ACCOUNT, 21, 7, Kind::Key),
         account(22, OTHER_REMOVED_PROVIDER, HOLDER, b""),
     ];
@@ -107,10 +109,10 @@ fn removed_providers_and_source_less_accounts_keep_identity() {
     world.step(Event::Want);
     assert!(world.domain.restore_finished());
     assert_eq!(world.domain.accounts(), 2);
-    assert_eq!(world.domain.account(20).expect("kept").provider(), 99);
-    assert!(!world.domain.account(20).expect("kept").plan());
+    assert_eq!(world.domain.account(ACCOUNT).expect("kept").provider(), 99);
+    assert!(!world.domain.account(ACCOUNT).expect("kept").plan());
     assert_eq!(world.domain.account_state(22), None);
-    assert!(!world.domain.usable(20));
+    assert!(!world.domain.usable(ACCOUNT));
 }
 
 #[test]
@@ -133,9 +135,9 @@ fn account_and_source_places_are_preserved() {
     }
     let mut world = start(&[row, source(ACCOUNT, 21, 42, Kind::Key), source(ACCOUNT, 22, 5, Kind::Key)]);
     let out = world.step(Event::Want);
-    assert_eq!(world.domain.account(20).expect("kept").place(), 91);
+    assert_eq!(world.domain.account(ACCOUNT).expect("kept").place(), 91);
     assert_eq!(
-        world.domain.account(20).expect("kept").sources().iter().collect::<Vec<_>>(),
+        world.domain.account(ACCOUNT).expect("kept").sources().iter().collect::<Vec<_>>(),
         vec![(&5, &22), (&42, &21)]
     );
     assert!(
@@ -144,9 +146,9 @@ fn account_and_source_places_are_preserved() {
     world.step(Event::Change {
         request: Token::new(2),
         holder: HOLDER,
-        change: Change::MoveSource { account: 20, source: 21, place: 0 },
+        change: Change::MoveSource { account: ACCOUNT, source: 21, place: 0 },
     });
-    assert_eq!(world.domain.account(20).expect("kept").sources().get(&0), Some(&21));
+    assert_eq!(world.domain.account(ACCOUNT).expect("kept").sources().get(&0), Some(&21));
 }
 
 #[test]
@@ -170,13 +172,13 @@ fn excess_stored_sets_refuse_stickily() {
     for (limits, rows, expected) in [
         (
             Limits { accounts: 1, holder_accounts: 1, ..LIMITS },
-            [held(20, b""), held(22, b"")],
+            [held(ACCOUNT, b""), held(22, b"")],
             RestoreLimit { key: Key::Account { number: 22 }, set: RestoreSet::Accounts, limit: 1 },
         ),
         (
             Limits { accounts: 1, holder_accounts: 1, sources: 1, ..LIMITS },
             [source(ACCOUNT, 21, 0, Kind::Key), source(ACCOUNT, 22, 1, Kind::Key)],
-            RestoreLimit { key: Key::Source { account: 20, number: 22 }, set: RestoreSet::TotalSources, limit: 1 },
+            RestoreLimit { key: Key::Source { account: ACCOUNT, number: 22 }, set: RestoreSet::TotalSources, limit: 1 },
         ),
         (
             Limits { program_names: 1, ..LIMITS },
@@ -200,8 +202,8 @@ fn excess_sources_in_one_account_refuse_stickily() {
     failed(
         &mut world,
         RestoreLimit {
-            key: Key::Source { account: 20, number: 22 },
-            set: RestoreSet::Sources { account: 20 },
+            key: Key::Source { account: ACCOUNT, number: 22 },
+            set: RestoreSet::Sources { account: ACCOUNT },
             limit: 1,
         },
     );
@@ -220,7 +222,7 @@ fn names_past_the_fixed_carrier_refuse_stickily() {
 fn retained_capacities_bound_accounts_and_lifetime_names_after_limits_grow() {
     for (rows, expected) in [
         (
-            [held(20, b""), held(22, b"")],
+            [held(ACCOUNT, b""), held(22, b"")],
             RestoreLimit { key: Key::Account { number: 22 }, set: RestoreSet::Accounts, limit: 1 },
         ),
         (
@@ -299,7 +301,7 @@ fn held_wall_resets_and_runtime_movements_survive_start() {
     world.restore(vec![
         held(ACCOUNT, b"subject"),
         Stored::Source {
-            account: 20,
+            account: ACCOUNT,
             number: 21,
             place: 4,
             kind: Kind::SignIn,
@@ -316,8 +318,11 @@ fn held_wall_resets_and_runtime_movements_survive_start() {
     world.fire_at(60);
     assert_eq!(world.domain.source(21).expect("kept").state, State::Asking);
     assert_eq!(world.domain.next_deadline(), None);
-    let out =
-        world.step(Event::Change { request: Token::new(1), holder: HOLDER, change: Change::MoveOut { account: 20 } });
+    let out = world.step(Event::Change {
+        request: Token::new(1),
+        holder: HOLDER,
+        change: Change::MoveOut { account: ACCOUNT },
+    });
     assert!(
         out.iter().any(|rq| matches!(rq, Request::Signing(jig_domain_accounts::Signing::Withdraw { source: 21, .. })))
     );
@@ -333,7 +338,7 @@ fn removed_provider_programs_keep_plan_observations() {
         &[account(ACCOUNT, REMOVED_PROVIDER, HOLDER, b""), program(ACCOUNT, 21, 0, b"p"), issued(21, b"p")],
     );
     world.step(Event::Want);
-    assert!(world.domain.account(20).expect("kept").plan());
+    assert!(world.domain.account(ACCOUNT).expect("kept").plan());
     assert!(world.domain.source_grant(21, world.now).is_some());
 }
 
@@ -346,7 +351,7 @@ fn passed_resets_are_lifted_and_moving_holds_refresh() {
         [(21, Held::Limited { reset: Some(Wall::from_nanos(99)) }), (22, Held::Moving), (23, Held::Refused)]
     {
         rows.push(Stored::Source {
-            account: 20,
+            account: ACCOUNT,
             number,
             place: number,
             kind: Kind::SignIn,
@@ -370,13 +375,13 @@ fn live_sources_append_after_sparse_restored_places() {
         let out = world.step(Event::Change {
             request: Token::new(1),
             holder: HOLDER,
-            change: Change::DeclareProgram { provider: PROVIDER, join: Some(20), name: b"p".as_slice().into() },
+            change: Change::DeclareProgram { provider: PROVIDER, join: Some(ACCOUNT), name: b"p".as_slice().into() },
         });
         assert!(out.iter().any(|rq| matches!(
             rq,
             Request::Answer { answer: jig_domain_accounts::Answer::ProgramDeclared { .. }, .. }
         )));
-        let sources = world.domain.account(20).expect("kept").sources();
+        let sources = world.domain.account(ACCOUNT).expect("kept").sources();
         assert_eq!(sources.len(), 2);
         assert_eq!(sources.iter().map(|(_, n)| *n).collect::<Vec<_>>(), vec![21, 22]);
     }
@@ -390,7 +395,7 @@ fn live_keys_append_after_sparse_restored_places() {
         world.step(Event::Change {
             request: Token::new(1),
             holder: HOLDER,
-            change: Change::AddKey { provider: PROVIDER, join: Some(20), carried: 1 << 63 },
+            change: Change::AddKey { provider: PROVIDER, join: Some(ACCOUNT), carried: 1 << 63 },
         });
         world.step(Event::Component(jig_domain_accounts::FromComponent::Granted {
             account: 22,
@@ -398,30 +403,9 @@ fn live_keys_append_after_sparse_restored_places() {
             form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Key),
             valid: skein_lib::Duration::from_secs(60),
         }));
-        let sources = world.domain.account(20).expect("kept").sources();
+        let sources = world.domain.account(ACCOUNT).expect("kept").sources();
         assert_eq!(sources.len(), 2);
         assert_eq!(sources.iter().map(|(_, n)| *n).collect::<Vec<_>>(), vec![21, 22]);
-    }
-}
-
-fn keep(store: &mut std::collections::BTreeMap<jig_domain_accounts::Key, Stored>, out: &[Request]) {
-    for rq in out {
-        match rq {
-            Request::Save { record } => {
-                store.insert(record.key(), record.clone());
-            }
-            Request::Erase { key } => {
-                store.remove(key);
-            }
-            Request::Answer { .. }
-            | Request::Programs { .. }
-            | Request::CheckProgram { .. }
-            | Request::SignOutProgram { .. }
-            | Request::Component(_)
-            | Request::Signing(_)
-            | Request::Granted { .. }
-            | Request::Closed => {}
-        }
     }
 }
 
@@ -472,7 +456,7 @@ pub(crate) fn writer_readback(seed: u64) -> Vec<Stored> {
     let mut rng = skein_lib::Rng::new(seed);
     let mut world = World::with_start(jig_accounts_world::LIMITS, configured(), &[]);
     let mut store = std::collections::BTreeMap::new();
-    keep(&mut store, &world.step(Event::Want));
+    commit(&mut store, &world.step(Event::Want));
     for request in 0..80_u64 {
         let numbers: Vec<_> = world.domain.accounts_by_number().iter().map(|(n, _)| *n).collect();
         let account = numbers.get(usize::try_from(rng.below(3)).expect("small index")).copied().unwrap_or(u32::MAX);
@@ -498,7 +482,7 @@ pub(crate) fn writer_readback(seed: u64) -> Vec<Stored> {
             _ => Change::AddKey { provider: PROVIDER, join: None, carried: 1 << 63 },
         };
         let out = world.step(Event::Change { request: Token::new(request), holder: HOLDER, change });
-        keep(&mut store, &out);
+        commit(&mut store, &out);
         for rq in out {
             if let Request::Signing(Signing::Keep { source, .. }) = rq {
                 let out = world.step(Event::Component(FromComponent::Granted {
@@ -507,12 +491,12 @@ pub(crate) fn writer_readback(seed: u64) -> Vec<Stored> {
                     form: Form::Credential(Scheme::Key),
                     valid: skein_lib::Duration::from_secs(100),
                 }));
-                keep(&mut store, &out);
+                commit(&mut store, &out);
             }
         }
         if rng.chance(25) {
             let out = world.step(Event::Limited { account: source, reset: None });
-            keep(&mut store, &out);
+            commit(&mut store, &out);
         }
         let rows: Vec<_> = store.values().cloned().collect();
         let mut again = start(&rows);
@@ -583,7 +567,7 @@ fn removing_a_key_rebuilds_plans_without_a_configured_provider() {
         });
         assert!(out.contains(&Request::Answer { request: Token::new(1), answer: jig_domain_accounts::Answer::Done }));
         assert!(world.domain.source(21).is_none());
-        let kept = world.domain.account(20).expect("remaining durable identity");
+        let kept = world.domain.account(ACCOUNT).expect("remaining durable identity");
         assert_eq!(kept.provider(), 99);
         assert_eq!(kept.plan(), remaining == Kind::Program);
         assert_eq!(kept.sources().get(&0), Some(&22));
@@ -602,7 +586,7 @@ fn sign_in_renews_after_the_last_representable_stored_place() {
     let rows = [held(ACCOUNT, b"subject"), source(ACCOUNT, 21, u32::MAX, Kind::Key)];
     let mut world = start(&rows);
     world.step(Event::Want);
-    assert_eq!(world.domain.account(20).expect("kept").sources().get(&u32::MAX), Some(&21));
+    assert_eq!(world.domain.account(ACCOUNT).expect("kept").sources().get(&u32::MAX), Some(&21));
     world.step(Event::SignIn { request: Token::new(7), holder: HOLDER, by: 7, provider: PROVIDER });
     world.step(Event::Visited { source: 22, address: b"https://issuer.test/visit".as_slice().into() });
     let out = world.step(Event::SignedIn {
@@ -611,7 +595,7 @@ fn sign_in_renews_after_the_last_representable_stored_place() {
         display: Box::new([]),
         declined: false,
     });
-    let kept = world.domain.account(20).expect("renewed account");
+    let kept = world.domain.account(ACCOUNT).expect("renewed account");
     assert_eq!(kept.sources().len(), 2);
     assert_eq!(kept.sources().get(&0), Some(&21));
     assert_eq!(kept.sources().get(&1), Some(&22));
@@ -619,7 +603,7 @@ fn sign_in_renews_after_the_last_representable_stored_place() {
         world
             .ended()
             .iter()
-            .any(|ended| matches!(ended.end, jig_domain_accounts::End::Renewed { account: 20, declined: false }))
+            .any(|ended| matches!(ended.end, jig_domain_accounts::End::Renewed { account: ACCOUNT, declined: false }))
     );
     assert!(out.contains(&Request::Save { record: source(ACCOUNT, 22, 1, Kind::SignIn) }));
     assert!(out.contains(&Request::Save { record: source(ACCOUNT, 21, 0, Kind::Key) }));
@@ -644,16 +628,16 @@ fn a_moved_sign_in_renumbers_only_once_adoption_is_kept() {
             }),
             vec![Request::Signing(jig_domain_accounts::Signing::Adopt { source: 22, carried: 1 << 63 })]
         );
-        assert_eq!(world.domain.account(20).expect("kept").sources().get(&u32::MAX), Some(&21));
+        assert_eq!(world.domain.account(ACCOUNT).expect("kept").sources().get(&u32::MAX), Some(&21));
         let out = world.step(Event::Adopted { source: 22, kept });
-        let sources = world.domain.account(20).expect("kept").sources();
+        let sources = world.domain.account(ACCOUNT).expect("kept").sources();
         if kept {
             assert_eq!(sources.get(&0), Some(&21));
             assert_eq!(sources.get(&1), Some(&22));
             assert!(out.contains(&Request::Save { record: source(ACCOUNT, 21, 0, Kind::Key) }));
             assert!(out.contains(&Request::Answer {
                 request: Token::new(7),
-                answer: jig_domain_accounts::Answer::MovedIn { account: 20, renewed: true },
+                answer: jig_domain_accounts::Answer::MovedIn { account: ACCOUNT, renewed: true },
             }));
             assert_eq!(world.domain.source(22).expect("adopted source").state, State::Moving);
         } else {
@@ -671,17 +655,17 @@ fn program_and_sign_in_append_after_restoration() {
     let mut world = World::with_start(limits, configured(), &rows);
     let out = world.step(Event::Want);
     let mut store = rows.into_iter().map(|row| (row.key(), row)).collect();
-    keep(&mut store, &out);
+    commit(&mut store, &out);
     let (first, last, declared, signed_in) = (5, 42, 43, 44);
     let out = world.step(Event::Change {
         request: Token::new(1),
         holder: HOLDER,
-        change: Change::DeclareProgram { provider: PROVIDER, join: Some(20), name: b"p".as_slice().into() },
+        change: Change::DeclareProgram { provider: PROVIDER, join: Some(ACCOUNT), name: b"p".as_slice().into() },
     });
     assert!(out.contains(&Request::Save { record: program(ACCOUNT, 23, declared, b"p") }));
-    keep(&mut store, &out);
+    commit(&mut store, &out);
     let out = world.step(Event::SignIn { request: Token::new(2), holder: HOLDER, by: 7, provider: PROVIDER });
-    keep(&mut store, &out);
+    commit(&mut store, &out);
     world.step(Event::Visited { source: 24, address: b"https://issuer.test/visit".as_slice().into() });
     let out = world.step(Event::SignedIn {
         source: 24,
@@ -690,11 +674,11 @@ fn program_and_sign_in_append_after_restoration() {
         declined: false,
     });
     assert!(out.contains(&Request::Save { record: source(ACCOUNT, 24, signed_in, Kind::SignIn) }));
-    keep(&mut store, &out);
+    commit(&mut store, &out);
     for (number, place, kind) in [(21, first, Kind::Key), (22, last, Kind::Key), (24, signed_in, Kind::SignIn)] {
-        assert_eq!(store.get(&Key::Source { account: 20, number }), Some(&source(ACCOUNT, number, place, kind)));
-        assert_eq!(world.domain.account(20).expect("kept account").sources().get(&place), Some(&number));
+        assert_eq!(store.get(&Key::Source { account: ACCOUNT, number }), Some(&source(ACCOUNT, number, place, kind)));
+        assert_eq!(world.domain.account(ACCOUNT).expect("kept account").sources().get(&place), Some(&number));
     }
-    assert_eq!(store.get(&Key::Source { account: 20, number: 23 }), Some(&program(ACCOUNT, 23, declared, b"p")));
-    assert_eq!(world.domain.account(20).expect("kept account").sources().get(&declared), Some(&23));
+    assert_eq!(store.get(&Key::Source { account: ACCOUNT, number: 23 }), Some(&program(ACCOUNT, 23, declared, b"p")));
+    assert_eq!(world.domain.account(ACCOUNT).expect("kept account").sources().get(&declared), Some(&23));
 }

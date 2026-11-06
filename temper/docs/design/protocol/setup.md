@@ -1328,7 +1328,7 @@ temper box
 
 - **An empty configuration directory,** absent or with no entry, is
   written first by `temper init --box` (8.2), in the box's own process, before
-  the document is read; the box says so on its terminal, `First run:
+  the document is read; the box says so in its own log, `First run:
   wrote the configuration, <path>` (7.2), and goes on to its steps.
   Otherwise the box
   never writes the document: a configuration directory with entries but
@@ -1462,13 +1462,28 @@ temper box
   stderr and ignored. serve's side, its asks, its reads and the states
   they tell the engine's root, is the routing's box link (forge.md,
   2.8).
+- **The first link's secret** (7.2) reaches `temper internal serve`'s
+  first start on its standard input, a pipe of its own: the box writes
+  the secret's 32 bytes, nothing around them, and closes it. `--box` tells
+  serve to read its standard input to its end before it starts anything,
+  and it gives what it read to jig's sign-in component (jig's
+  `protocol/client.md`, section 8, *A secret given*). No argument and no
+  environment entry carries it, and no log holds it. Every later start
+  has no such pipe, its standard input is the null device, and its
+  component draws its own first secret, so a restart never replays a
+  spent one. The box gives the secret at serve's first spawn whatever
+  becomes of that start. Serve refuses any length but none or 32 bytes,
+  `--box: stdin: expected the first link's secret`. Linux and macOS read it
+  alike, as the pipe's own descriptors are made alike: skein's `Spawn` makes
+  a pipe at a child's descriptor 0 as at any other, and fills what no pipe
+  takes from `/dev/null`.
 - **A group's failure** before `started` answers `failed`, and the group
   is dormant again, to be asked again; the box runs on. Once started,
   its long steps are restarted, and given up on, as 7.2 says.
 - **A first run's steps** (8.3): `temper serve` alone runs at the
   start; the fake kind's group is dormant until the person tries the
   playground (8.4), and the owned kind's until the person sets up an
-  owned Forgejo (6.5). No step is a link: serve's first line is the
+  owned Forgejo (6.5). No step is a link: serve's links are the
   person's.
 
 ### 7.2 What it does
@@ -1523,13 +1538,13 @@ temper box
   a step that exits during it is not restarted, and a once step still
   running is closed with them; a step still starting is treated as at the
   box's stop. Once they are all closed the group is dormant, the box
-  says `<label>: stopped` on its terminal (below), and answers
+  writes `<label>: stopped` to its own log (below), and answers
   `stopped FORGE`, or at a `remove` runs the group's remover (7.1), and
   runs on; a termination signal during it
   stops the box as above, which closes them too.
-- **Its stdout** carries `temper serve`'s stdout alone, the sign-in
-  links, but for its first line when a link step follows it, which is
-  that step's (8.4). The box reads every step's output a line at a
+- **Its stdout** carries the first link (below) and then `temper
+  serve`'s stdout, the sign-in links it draws, but for its first line
+  when a link step follows it, which is that step's (8.4). The box reads every step's output a line at a
   time, and writes a line only once it holds it whole, to its line feed
   or its step's end, so that nothing written to its stderr lands inside
   a link when both streams are one terminal. A terminal-bound serve URL has
@@ -1541,58 +1556,94 @@ temper box
   step keeps its existing bounded-piece semantics and receives no sign-in
   block. Other child streams retain bounded pieces, each completed with a
   line feed at the piece bound or EOF.
-- **Its terminal,** its stderr, is quiet: the box's own lines alone.
-  Before the first sign-in block (below), `First run: wrote the
-  configuration, <path>` when `temper init` ran (7.1), `Logs:
-  <data>/box/logs/`, and `Starting <step>` as each step of `always`
-  starts. After it, each line begins with the time of day in UTC,
-  `HH:MM:SSZ `, since the box reads no time zone:
-  - for an asked group, named by its label (7.3): `<label>: starting`
-    at its `start`, then `<label>: started`, `<label>: failed, <WHY>` and
-    `<label>: stopped` as the pipe says them; its `step` lines are the
-    client's row's alone; each start of an owned forge, an asked
-    group's `started` or the box's own start of one that starts with it,
-    writes its hands (`../client/tools.md`, 11.5) to its Forgejo step's
-    log, `forgejo-N.log`, never the terminal: `Forgejo: api
-    http://ADDRESS/api/v1` and `Forgejo: person LOGIN, read header PATH,
-    write header PATH`, the files' paths and never their contents;
+- **Its terminal,** its stderr, is quiet: the sign-in block and the
+  blank line before each fresh link (below), and errors. Each error line
+  begins with the time of day in UTC, `HH:MM:SSZ `, since the box reads no
+  time zone:
+  - for an asked group, named by its label (7.3), `<label>: failed, <WHY>`
+    as the pipe says it;
   - a long step's exit, `<WHY>; restarting in <n> s`, and the box's give
     up, `<WHY>; giving up`, `<WHY>` in `failed`'s words (7.1);
-  - `Stopping` at a first termination signal, and `Stopped` once every
-    step is closed;
   - and the box's own refusals and failures, as this section and 7.1
     name them: a record, a pipe's line, a log.
 
+  A refusal of the start comes before any block, as any command's does,
+  so no link is shown that cannot work (7.1). Once the block is printed, a
+  failed start's error follows it and the link stays on the terminal: the
+  box restarts the step until it gives up, and a link opened once the box
+  has given up gets no answer, and the terminal has said why. The person
+  mends what it said and runs `temper box` again, for a new link.
+
   `--echo steps` (`TEMPER_ECHO`; the default, `none`; skein's
   `shell.md`, 6.5) also writes every line each step writes, but serve's
-  stdout, prefixed `<step>: `, as it reaches the step's log.
-- **The sign-in block:** at `temper serve`'s first link, the box
-  writes the lines below, each once the one before it is written, so
-  that a terminal shows them in order: the link alone on stdout, the
-  rest on stderr.
+  stdout, prefixed `<step>: `, as it reaches the step's log. It adds no
+  line of the box's own log.
+- **Its own log,** `<data>/box/logs/box.log`, holds what a person need not
+  read on their terminal, in the order it happens, each line beginning with
+  the time of day as the terminal's lines do, and no link:
+  `First run: wrote the configuration, <path>` when `temper init` ran
+  (7.1); `Logs: <data>/box/logs/`; `Ctrl-C stops temper.`; `Starting
+  <step>` as each step of `always` starts; for an asked group, named by its
+  label (7.3), `<label>: starting` at its `start`, then `<label>: started`
+  and `<label>: stopped` as the pipe says them; `Stopping` at a first
+  termination signal; and last, `Stopped` once every step is closed. An
+  asked group's `step` lines are the client's row's alone. Each start of an
+  owned forge, an asked group's `started` or the box's own start of one
+  that starts with it, writes its hands (`../client/tools.md`, 11.5) to its
+  Forgejo step's log, `forgejo-N.log`, never the terminal: `Forgejo: api
+  http://ADDRESS/api/v1` and `Forgejo: person LOGIN, read header PATH,
+  write header PATH`, the files' paths and never their contents.
+- **The sign-in block:** before any step starts, with its listeners held
+  (7.1) and the last run's logs moved (below), so that whoever reads the
+  link reads this run's logs, the box writes the lines below, each once the
+  one before it is written, so that a terminal shows them in order: the link
+  alone on stdout, the rest on stderr. No step starts until they are
+  written, and nothing precedes them on either stream. What the start says
+  of its logs or records while they are moved waits behind them. The link's
+  address is what serve's would be: the configured public origin, or else
+  the clients' listener, and the link route.
 
   ```
-
-  Open this link in a browser on this machine. It signs you in as this
-  temper's owner, once and for a short while, so keep it private.
-  Opened again once spent, it prints a fresh one here.
+  Open this link in a browser on this machine.
 
   http://127.0.0.1:8367/jig/v1/sign-in/link?secret=...
 
-  Ctrl-C stops temper.
-
+  It signs you in as this temper's owner, once and for a short while.
+  Opened again once spent, it prints a fresh one here.
   ```
 
-  Each later link, a fresh one after a spent or expired one was opened
-  (jig's `protocol/client.md`, section 8) or a restarted serve's first,
-  comes after `<time> A fresh sign-in link:` on stderr. A line given to
-  a link step has no block.
+  The box draws the link's secret as jig's sign-in component draws one
+  (jig's `protocol/client.md`, section 8): 32 bytes from the platform's
+  randomness, once, before the box starts anything. Serve's first start
+  takes it (7.1), and its expiry runs from then. A link opened before serve
+  is ready waits on its connection, in the backlog of the socket the box
+  holds (7.1), the browser showing its own loading, and then signs in. That
+  socket is the one the box holds today on both systems: it hands on what
+  skein's `open_listener` or `temper init` made, and on macOS, where no
+  socket says it is listening (skein's `shell.md`, 6.6), serve's check of it
+  passes as it does for any listener given.
+
+  A fresh link, after a spent or expired one was opened (jig's
+  `protocol/client.md`, section 8) or a restarted serve's first, is printed
+  alone, a blank line on stderr and then the link on stdout, neither with a
+  time. A restarted serve draws its own first secret, and the box gives a
+  secret to serve's first start alone.
+
+  **Where the box draws none.** It draws none, and gives none, where it
+  cannot print a link that works: the document's printed link not enabled
+  (jig's `configuration.md`, section 3, clients), which prints no block at
+  all; a clients' listener at port 0, not held (7.1), so with no port to
+  print, whose block is written at serve's first link, in these same words;
+  and a link step among the steps, whose line is given to it (8.4), with no
+  block. A link past the 4096 bytes below refuses the start, naming it in
+  the words below.
 
   One bounded FIFO owns whole terminal items tagged stdout or stderr. It
-  admits the first block as three adjacent items (words, URL, Ctrl-C words),
-  or a fresh block as two (announcement, URL), before consuming that URL.
-  With N steps, at most max(3, 2N + 1) items are outstanding, including the
-  active item. Only one item is in flight across both descriptors: after
+  admits the first block as three adjacent items (words, URL, closing words),
+  or a fresh block as two (the blank line, URL), before consuming that URL;
+  what `--fake-backends` adds (7.5) is one item after the first block, or at
+  the start with none. With N steps, at most max(4, 2N + 1) items are
+  outstanding, including the active item. Only one item is in flight across both descriptors: after
   sending it, the host demands the target's entire io output budget, and
   its Room acknowledgement proves the write finished before the next item
   starts. A small write grant alone is not that acknowledgement.
@@ -1614,6 +1665,9 @@ temper box
   The machine emits typed terminal facts, without words or wall time:
   Starting for an always step; a requested group's starting, started, failed
   and stopped; a step's restart or the box's give up; Stopping and Stopped.
+  The host places each: a group's failed, a restart and a give up on the
+  terminal, every other in its own log. A placement in the log waits on the
+  log's room alone, never on the terminal's.
   Group facts identify the group, and failure facts retain the exact step
   identity and structured reason (exit code, signal, not started, or record
   not written). A restart also carries the chosen backoff duration. Labels
@@ -1635,18 +1689,17 @@ temper box
   names and group labels, and owns every lifecycle word. Starting names
   always steps; Stopping is emitted once on the first requested stop, and
   Stopped after actual settlement.
-  Timestamping starts once the first visible block is admitted, and survives
-  serve restarts; a refused URL or legacy handoff does not start it. A line's
+  It times every line but the block's and a fresh link's. A line's
   completion wall time is retained across output backpressure, rather than
   replaced with its later write time. Policy facts retain their decision's
   supplied wall time across order and terminal queues. Their admission and
   item-size bounds include labels and the longest failure/restart line.
-- **Its logs,** `<data>/box/logs/`, mode 0700, made as needed: one file
-  per step, its name with each space a `-` and `.log` after it
-  (`serve.log`, `prepare-3.log`), mode 0600, holding every line the
-  step writes to its stdout or its stderr, each after the time the box
-  read it, `2026-10-23T14:03:20Z `, but serve's stdout: no file holds a
-  sign-in link. At its start the box moves the logs a box before it
+- **Its logs,** `<data>/box/logs/`, mode 0700, made as needed: its own,
+  `box.log` (above), and one file per step, its name with each space a `-`
+  and `.log` after it (`serve.log`, `prepare-3.log`), mode 0600, holding
+  every line the step writes to its stdout or its stderr, each after the
+  time the box read it, `2026-10-23T14:03:20Z `, but serve's stdout: no
+  file holds a sign-in link. At its start the box moves the logs a box before it
   left to `<data>/box/logs.previous/`, replacing that one, so the last
   two runs are kept. A start cut short after the move keeps
   `logs.previous/`; the box removes nothing else and follows no link.
@@ -1657,7 +1710,8 @@ temper box
   that would take it past the bound, so the bound holds at least one.
   A log the box cannot write is named once on its terminal, `box: cannot
   write <path>: <error>; the step's lines follow here`, and that step's
-  lines then go to the terminal as `--echo steps` writes them. Forgejo also
+  lines then go to the terminal as `--echo steps` writes them; `box.log`'s
+  lines then go there as their own words, with their times. Forgejo also
   logs to its own files.
 - **A fetch's lines,** those of 6.6 on the stdout of a step at the
   stage `fetch`:
@@ -1798,9 +1852,9 @@ without it, that configured bundle is used. Missing both refuses with the
 bundle command and --bundle. Empty C stays untouched: init writes directly
 into the effective sandbox. Box startup performs no build or fetch.
 
-Before starting its supervised peers, preparation prints the effective
-directories, the fakes' origins and the files a walk pastes
-(configuration.md, 12.1).
+After the sign-in block (7.2), before any supervised peer starts, the box
+prints the effective directories, the fakes' origins and the files a walk
+pastes (configuration.md, 12.1).
 GitHub has one fixed person and repository. Its App 1 is seeded and
 installed, with the setup URL a person gives an App of their own (17.3),
 `http://<listener>/forges/1/github/setup`, the number GitHub's forge
@@ -2349,7 +2403,7 @@ playground and no Forgejo on this machine.
   and scripted LLM addresses in both documents; `clients.bundle` always
   `null`; each refusal writing nothing, the person's fallback login
   among them; the files' modes; and the link's target. A box on a fresh init,
-  among those tests, reaches `temper serve`'s sign-in link with no forge
+  among those tests, reaches `temper serve`'s listening with no forge
   and every group dormant: no `forge-N` directory, no group's file and
   nothing in the cache. The process
   tier starts a box on empty directories (13.4), and a story of its own
@@ -3427,12 +3481,15 @@ relies on.
 - **The box's terminal and logs** (7.2), in temper-box, its clock the
   test's: given one pipe for its stdout and its stderr, serve's link
   written in pieces between other steps' lines reads whole there; the
-  sign-in block's parts in order around it, and a later link's shorter
-  block; a step's lines in its log and not on the terminal, and on both
-  with `--echo steps`; no file holding a link; the terminal's lines
-  for a group's start, `started`, `failed` and `stopped`, by its label,
-  a restart, a give up and a stop; a failure's tail, its lines and its
-  log's path; a log moved to `.1` at `box.log_bytes`, and the last run's
+  sign-in block's exact bytes before any step's spawn and nothing else on
+  either stream, and a later link's blank line and link; a step's lines in
+  its log and not on the terminal, and on both with `--echo steps`; no file
+  holding a link; the secret on serve's first spawn's stdin alone and in no
+  spawn's arguments or environment, and a restart's spawn with no stdin;
+  `box.log`'s lines for a first run, its logs' place, a group's start,
+  `started` and `stopped`, by its label, and a stop, with `Stopped` its
+  last; the terminal's lines for a group's `failed`, a restart and a give
+  up; a failure's tail, its lines and its log's path; a log moved to `.1` at `box.log_bytes`, and the last run's
   moved to `logs.previous/` at a start; a log not written named once,
   its step's lines then on the terminal.
   The link/ordering cases include separate held write acknowledgements,
@@ -3452,7 +3509,7 @@ relies on.
   replies, intentional-stop exits, repeated asks, failure teardown ordering,
   and no duplicate final give up. A failed requested group leaves serve
   usable. Held output acknowledgements preserve facts' source wall values
-  and the existing complete sign-in blocks.
+  and the complete sign-in block.
 - **The setup host's handover at runtime** (5.1), in temper-service's
   step tests: at `started`, `TakeOver` when the handover is present, its
   record kept before removal, then `Reconcile` and the connect, the row
@@ -3604,15 +3661,18 @@ it checks of this document:
   since its changes never conflict. With no webhooks, the same story
   misses its budget.
 - **`temper box`,** a test of its own on a scratch directory, with no
-  `--echo`, its terminal the box's lines alone and each step's lines in its
+  `--echo`, its terminal the sign-in block alone and each step's lines in its
   log; a story that reads a step's lines runs it with `--echo steps`: the sign-in
   link on its stdout, and whole on one pipe given as both its stdout and
-  its stderr, as a terminal is (7.2); Forgejo killed and restarted, with the engine still
+  its stderr, as a terminal is (7.2); a port taken refused with nothing on
+  its stdout; the first link opened at once, before serve listens, waiting
+  and then signing in; a killed serve's fresh link, with the socket held
+  across the restart; Forgejo killed and restarted, with the engine still
   serving; a stop leaving no process it started.
 - **A first run, into the playground and out,** a test of its own:
   `temper box` on three empty scratch directories writes the
-  configuration (8.2), says so (init's line for no browser among its
-  lines only from a binary built without one: the test checks the build
+  configuration (8.2), says so in its own log (init's line for no browser
+  among its lines only from a binary built without one: the test checks the build
   it runs in, `../client/browser.md`, 2.6), and prints one sign-in link,
   which signs the owner in, with no forge kept and every group dormant.
   The owner starts the playground with `temper ctl playground start`

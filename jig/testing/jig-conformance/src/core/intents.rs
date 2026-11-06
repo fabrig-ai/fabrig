@@ -16,7 +16,7 @@ fn signed_party(store: &super::Store<'_>, sign_in: u64) -> Option<u64> {
     })
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Intents {
     named: named::Names,
     parties: BTreeMap<(u64, [u8; 16]), bool>,

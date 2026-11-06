@@ -1,5 +1,7 @@
 //! A move's completion must remain possible at the retained-answer boundary.
 use super::*;
+use jig_core_world::fixtures::change;
+use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::world::Setup;
 
 const SEED: u64 = 211;
@@ -13,10 +15,6 @@ const EXPORT: u8 = 50;
 const FRESH_EXPORT: u8 = 51;
 const WRITTEN: u8 = 52;
 const RETRY: u8 = 53;
-
-fn change(change: people::AccountChange) -> people::Ask {
-    people::Ask::AccountChange { holder: people::AccountHolder::Own, change }
-}
 
 fn signed(requests: u32) -> (World, u32, u32) {
     let (config, mut limits) = signing_configuration(SEED);
@@ -50,11 +48,7 @@ fn fresh_session(world: &mut World) {
             }
         })
         .expect("the fixture's person survives restart");
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: skein_lib::ReplyTo::new(Token::new(9000)),
-        identity,
-    }));
+    world.send(signin(Token::new(9000), identity.key.provider, &identity.key.subject, &identity.login, &identity.name));
 }
 
 fn pass_time(world: &mut World, duration: Duration) {

@@ -1,11 +1,10 @@
 //! Requester question keeps and task-batched exits (domain/tasks.md, 5.7 and 7).
 use jig_domain_tasks::{self as tasks, Cancel, *};
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY, Reply, World, task};
 use skein_lib::{Queue, ReplyTo, Token, Wall};
 
 const REQUESTER: u64 = 1;
 const ASKER: u64 = 2;
-const PERSON: u64 = 9;
 const QUESTION: u64 = 1;
 const ANSWER: u64 = 2;
 const LATER_QUESTION: u64 = 3;
@@ -51,7 +50,7 @@ fn pair_with_limits(asks: bool, limits: &Limits) -> World {
     let mut parent = task(REQUESTER, &[]);
     parent.numbers.budget = 1_000;
     parent.authority.budget.spend = 1_000;
-    world.make(Party::Person(PERSON), vec![parent]);
+    world.make(PERSON_PARTY, vec![parent]);
     let mut child = task(ASKER, &[]);
     child.spec.asks = asks;
     child.funder = Funder::Task(REQUESTER);
@@ -140,7 +139,7 @@ fn a_question_keep_permits_cancellation() {
     let mut world = parked();
     response(&mut world, |reply_to| Event::Cancel {
         reply_to,
-        by: Party::Person(PERSON),
+        by: PERSON_PARTY,
         operation: Cancel { task: ASKER, reason: Box::new([]), grace: None, message: None },
     });
     world.settle(ASKER);
@@ -185,18 +184,18 @@ fn moved() -> World {
 fn a_moved_asker_carries_its_open_question_to_its_new_requester() {
     let mut world = moved();
     let row = world.record(ASKER);
-    assert_eq!(row.requester, Party::Person(PERSON));
+    assert_eq!(row.requester, PERSON_PARTY);
     assert_eq!(row.phase, Phase::Active(Active::Idle));
     let credit = row.questions[0].clone();
     assert_eq!(credit.number, QUESTION);
-    assert_eq!(credit.answerer, Party::Person(PERSON));
-    assert_eq!(credit.asked, Party::Person(PERSON));
+    assert_eq!(credit.answerer, PERSON_PARTY);
+    assert_eq!(credit.asked, PERSON_PARTY);
     assert_eq!(row.question_lines[0].line, credit.line);
     assert!(matches!(&world.records[&Key::Activity { task: ASKER, position: credit.line }],
         Stored::Activity(ActivityLine { line: Line::Words { message: QUESTION, words, .. }, .. })
             if words.as_ref() == b"proceed?"));
     assert!(world.record(REQUESTER).question_lines.is_empty());
-    message(&mut world, Party::Person(PERSON), ASKER, ANSWER, MessageKind::Answer { question: QUESTION });
+    message(&mut world, PERSON_PARTY, ASKER, ANSWER, MessageKind::Answer { question: QUESTION });
     assert!(world.record(ASKER).questions.is_empty());
     assert!(world.activations.contains(&ASKER));
 }
@@ -218,7 +217,7 @@ fn an_asked_task_ending_unanswered_notifies_each_asker() {
     // Move the asker under its own person so its old requester may end,
     // then ask that old requester through the retained bilateral reference.
     let mut world = moved();
-    message(&mut world, Party::Person(PERSON), ASKER, ANSWER, MessageKind::Answer { question: QUESTION });
+    message(&mut world, PERSON_PARTY, ASKER, ANSWER, MessageKind::Answer { question: QUESTION });
     message(&mut world, Party::Task(ASKER), REQUESTER, LATER_QUESTION, MessageKind::Question);
     world.claim(ASKER, ANSWER);
     world.terminal(ASKER, End::Parked);
@@ -258,7 +257,7 @@ fn fanout() -> (Domain, skein_lib::Env<Limits>) {
     let mut parent = task(REQUESTER, &[]);
     parent.numbers.budget = 10_000;
     parent.authority.budget.spend = 10_000;
-    world.make(Party::Person(PERSON), vec![parent]);
+    world.make(PERSON_PARTY, vec![parent]);
     let children = [ASKER, SECOND_ASKER, FIRST_PEER, SECOND_PEER].map(|number| {
         let mut child = task(number, &[]);
         child.funder = Funder::Task(REQUESTER);
@@ -319,7 +318,7 @@ fn moving_full_credit_lists_publishes_each_affected_task_once() {
             row.questions.iter().map(|credit| (credit.number, credit.line)).collect::<Vec<_>>(),
             original.iter().map(|credit| (credit.number, credit.line)).collect::<Vec<_>>()
         );
-        assert!(row.questions.iter().all(|credit| credit.asked == Party::Person(PERSON)));
+        assert!(row.questions.iter().all(|credit| credit.asked == PERSON_PARTY));
         for affected in [REQUESTER, asker, FIRST_PEER, SECOND_PEER] {
             assert_eq!(publications(&out, affected), 1, "task {affected}");
         }
@@ -396,7 +395,7 @@ fn person_asked_with(limits: &Limits) -> World {
             eligible: false,
         },
     });
-    assert_eq!(world.record(ASKER).questions[0].answerer, Party::Person(PERSON));
+    assert_eq!(world.record(ASKER).questions[0].answerer, PERSON_PARTY);
     world
 }
 
@@ -525,8 +524,8 @@ fn a_byte_full_inbox_keeps_the_whole_answer_notice_credit() {
     let limits =
         Limits { message_bytes: BOUND, inbox_bytes: LIMITS.result_bytes + WORD_BYTES + BOUND + WORD_BYTES, ..LIMITS };
     let mut world = person_asked_with(&limits);
-    assert!(matches!(message(&mut world, Party::Person(PERSON), REQUESTER, 2, MessageKind::Words), Reply::Done));
-    assert!(matches!(message(&mut world, Party::Person(PERSON), REQUESTER, 3, MessageKind::Words), Reply::Refused(_)));
+    assert!(matches!(message(&mut world, PERSON_PARTY, REQUESTER, 2, MessageKind::Words), Reply::Done));
+    assert!(matches!(message(&mut world, PERSON_PARTY, REQUESTER, 3, MessageKind::Words), Reply::Refused(_)));
     world.restart();
     person_reply_with(&mut world, PERSON, &vec![b'a'; BOUND as usize]);
     let row = world.record(REQUESTER);
@@ -562,10 +561,10 @@ fn a_full_inbox_keeps_room_for_its_person_answer_notice() {
     let mut world = person_asked();
     // One delegate, the unread question and its notice credit use three slots.
     for number in 2..=6 {
-        message(&mut world, Party::Person(PERSON), REQUESTER, number, MessageKind::Words);
+        message(&mut world, PERSON_PARTY, REQUESTER, number, MessageKind::Words);
     }
     let before = world.record(REQUESTER).inbox.len();
-    message(&mut world, Party::Person(PERSON), REQUESTER, 7, MessageKind::Words);
+    message(&mut world, PERSON_PARTY, REQUESTER, 7, MessageKind::Words);
     assert_eq!(world.record(REQUESTER).inbox.len(), before, "ordinary words cannot consume the notice credit");
     person_reply(&mut world, PERSON);
     assert_eq!(world.record(REQUESTER).inbox.len(), before + 1);
@@ -692,11 +691,8 @@ fn asks_requires_room_for_the_fixed_answer_notice() {
         let mut world = World::new(882, limits);
         let mut new = task(REQUESTER, &[]);
         new.spec.asks = true;
-        let reply = response(&mut world, |reply_to| Event::Make {
-            reply_to,
-            creator: Party::Person(PERSON),
-            batch: Box::new([new]),
-        });
+        let reply =
+            response(&mut world, |reply_to| Event::Make { reply_to, creator: PERSON_PARTY, batch: Box::new([new]) });
         assert_eq!(matches!(reply, Reply::Made(_)), accepted);
         assert_eq!(world.records.contains_key(&Key::Live(REQUESTER)), accepted);
         world.restart();

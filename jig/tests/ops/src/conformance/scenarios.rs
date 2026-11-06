@@ -13,7 +13,7 @@ use jig_fake_workers as workers;
 use skein_lib::{Duration, List, ReplyTo, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
 type World = Harness<Ops>;
-type Inputs = Vec<Input<root::Event, root::Record>>;
+type Inputs = Vec<Input<root::Event>>;
 mod pool;
 pub(super) mod reads;
 

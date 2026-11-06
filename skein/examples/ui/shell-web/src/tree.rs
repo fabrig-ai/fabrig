@@ -19,7 +19,7 @@ enum Report {
 
 pub(super) fn start(mount: web_sys::Element, path: &str, primary: skein_ui_web::mapping::Primary) {
     let case = path.strip_prefix("/test/tree/").expect("tree fixture route").to_owned();
-    assert!(["first", "middle", "move", "rename", "last", "mixed"].contains(&case.as_str()));
+    assert!(["first", "middle", "move", "rename", "last", "mixed", "form", "summary"].contains(&case.as_str()));
     let mut limits = skein_ui_example_view::limits::limits();
     limits.depth = 7; // Page, main, tree, three item levels, and their text.
     let page = Rc::new(RefCell::new(Page::new(
@@ -49,14 +49,18 @@ pub(super) fn start(mount: web_sys::Element, path: &str, primary: skein_ui_web::
         if !view.stale(revision) {
             return;
         }
-        let mut builder = view.builder();
-        build(&mut builder, &case, revision);
-        let mut patches = Queue::with_capacity(limits.patches);
-        view.finish(builder, revision, &mut patches);
-        let patches: Vec<_> = std::iter::from_fn(|| patches.pop()).collect();
-        let mut ops = Vec::new();
-        page.borrow_mut().apply(&patches, &mut ops);
-        dom.apply(&ops);
+        let final_revision = if case == "summary" && revision == 1 { 2 } else { revision };
+        for shown in revision..=final_revision {
+            let mut builder = view.builder();
+            build(&mut builder, &case, shown);
+            let mut patches = Queue::with_capacity(limits.patches);
+            view.finish(builder, shown, &mut patches);
+            let patches: Vec<_> = std::iter::from_fn(|| patches.pop()).collect();
+            let mut ops = Vec::new();
+            page.borrow_mut().apply(&patches, &mut ops);
+            dom.apply(&ops);
+        }
+        revision = final_revision;
     }));
     inbox.raise(Report::Start);
 }
@@ -80,6 +84,12 @@ fn build(builder: &mut Builder, case: &str, revision: u64) {
     builder.name(revision_text.as_bytes());
     builder.text(Run::Plain, revision_text.as_bytes());
     builder.close();
+    if case == "form" || case == "summary" {
+        form(builder, revision, case == "summary");
+        builder.close();
+        builder.close();
+        return;
+    }
     builder.open(Role::Tree);
     builder.name(b"Patch tree");
     item(builder, 100, b"Parent");
@@ -125,5 +135,28 @@ fn build(builder: &mut Builder, case: &str, revision: u64) {
     builder.close();
     builder.close();
     builder.close();
+    builder.close();
+}
+
+// A parent's name can change before its form is removed in a later delivery.
+fn form(builder: &mut Builder, revision: u64, closes_first: bool) {
+    builder.open(Role::Disclosure);
+    builder.name(if revision == 0 || (closes_first && revision == 1) { b"Project" } else { b"Renamed project" });
+    builder.state(skein_ui::State::Expanded);
+    if revision < if closes_first { 1 } else { 2 } {
+        builder.open(Role::Form);
+        builder.name(if revision == 0 { b"Rename project" } else { b"Rename renamed project" });
+        builder.open(Role::TextField);
+        builder.name(b"Name");
+        builder.focus(0);
+        builder.value(b"Project", 0);
+        builder.bind(NEXT);
+        builder.close();
+        builder.open(Role::Button);
+        builder.name(b"Save");
+        builder.bind(NEXT);
+        builder.close();
+        builder.close();
+    }
     builder.close();
 }

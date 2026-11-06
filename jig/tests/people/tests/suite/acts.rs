@@ -1,15 +1,17 @@
 use jig_domain_people::{Act, ActGrant, ActKind, Again, InitialOwner, LimitKind, Outcome, Refusal, Reply};
-use jig_people_world::{Settings, World, identity};
+use jig_people_world::{
+    Settings, World,
+    fixtures::{CONNECTOR, OWNER, PROJECT},
+    identity,
+};
 use skein_lib::{Duration, Wall};
 
-const CONNECTOR: u16 = 1;
 const OTHER: u16 = 2;
-const PROJECT: u32 = 1;
 const TASK: u64 = 10;
 const KEY: [u8; 16] = [7; 16];
 const DECIDED: Outcome = Outcome::Compound { project: PROJECT, operations: 1, first_message: 1 };
 fn owners() -> Box<[InitialOwner]> {
-    Box::new([InitialOwner { project: PROJECT, identity: identity(1).key }])
+    Box::new([InitialOwner { project: PROJECT, identity: identity(OWNER).key }])
 }
 fn grants() -> Box<[ActGrant]> {
     [CONNECTOR, OTHER]

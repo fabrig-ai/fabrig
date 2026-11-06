@@ -149,6 +149,16 @@ fn the_stylesheet_names_no_class() {
 }
 
 #[test]
+fn programmatic_focus_targets_lose_the_outline_after_the_general_rule() {
+    let stylesheet = include_str!("../skein-ui.css");
+    let general = stylesheet.find(":focus-visible {").expect("general focus outline");
+    let target = stylesheet
+        .find("[tabindex=\"-1\"]:not([role=menuitem], [role=treeitem]):focus-visible {\n  outline: none;\n}")
+        .expect("programmatic targets lose the outline; arrow-key controls keep it");
+    assert!(general < target, "the target rule follows the general outline");
+}
+
+#[test]
 fn skein_ui_css_comes_first_in_the_page() {
     let scratch = Scratch::new("bundle-css");
     let inputs = inputs(&scratch);
