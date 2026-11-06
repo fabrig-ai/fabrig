@@ -41,10 +41,10 @@ impl Limits {
         let turn = skein_ui::markdown::max_nodes(receiving.turn_text)?
             .checked_add(blocks.checked_mul(2_u32.checked_add(8)?)?)?
             // Per message: message/who/says slots, Temper paragraph and text,
-            // a call disclosure, and spare cut room (client/README.md, 3.5).
+            // a call disclosure, and spare shell room (client/README.md, 3.5).
             .checked_add(receiving.rows.checked_mul(8)?)?
-            // One turn region and a two-node cut status.
-            .checked_add(3)?;
+            // One turn region.
+            .checked_add(1)?;
         // Provisional/live text is capped by thread::live_turn at text bytes.
         // Person/owner words have their own text cap, not Budget: a paragraph
         // and text per line (at most text + 1 lines), plus eight shell/state nodes.

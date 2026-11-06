@@ -676,7 +676,7 @@ pub(crate) fn conversation_with_times(
                 }
             }
             Line::Turn { .. } => unreachable!("turn drawn above"),
-            Line::Provisional { text, cut, .. } => provisional(b, text, cut, words, text_limit),
+            Line::Provisional { text, .. } => provisional(b, text, words, text_limit),
             Line::Undecoded { why, .. } => undecoded(b, why, words, clock.as_deref()),
             Line::Left { lines } => {
                 b.style(look::MARKER);
@@ -750,9 +750,6 @@ fn request_message(
     b.style(look::TURN);
     let label = if requester { words.say_card(P::You, &[]) } else { words.say_card(P::Person, &[]) };
     person_message(b, &label, request.specification.words.bytes(), WordState::Read { message: 0 }, words, clock);
-    if request.specification.words.cut {
-        words.status(b, P::TurnCut, &[]);
-    }
     b.close();
 }
 fn first_time(lines: &[Line<'_>]) -> Option<skein_lib::Wall> {
@@ -828,22 +825,31 @@ fn heard_card(
         b.close();
     }
 }
-fn provisional(b: &mut Builder, message: &[u8], cut: bool, words: &Words, text_limit: u32) {
+fn provisional(b: &mut Builder, message: &[u8], words: &Words, text_limit: u32) {
     b.open(Role::Slot);
     b.style(look::MESSAGE);
     b.style(look::BY_AGENT);
     b.open(Role::Slot);
     b.style(look::WHO);
-    words.status(b, P::Provisional, &[]);
+    words.card_text(b, P::Temper, &[]);
     b.close();
     b.open(Role::Slot);
     b.style(look::SAYS);
-    markdown(b, message, words, text_limit);
-    if cut {
-        words.status(b, P::TurnCut, &[]);
+    markdown(b, message, text_limit);
+    writing_end(b, words);
+    b.close();
+    b.close();
+}
+/// The words being written end in a mark (temper/docs/design/client/README.md, 3.5).
+fn writing_end(b: &mut Builder, words: &Words) {
+    match words.shell {
+        crate::words::Shell::Browser => {
+            b.open(Role::Text);
+            b.style(look::WRITING_END);
+            b.close();
+        }
+        crate::words::Shell::Terminal => text(b, Role::Status, "▌".as_bytes()),
     }
-    b.close();
-    b.close();
 }
 fn owner_line(
     b: &mut Builder,
@@ -1083,6 +1089,9 @@ fn committed<'a>(
                     }
                 }
             }
+            if let c::Block::Opaque { .. } = block {
+                continue;
+            }
             if let c::Block::Text(value) = block
                 && value.bytes().is_empty()
             {
@@ -1099,7 +1108,7 @@ fn committed<'a>(
             b.open(Role::Region);
             b.style(look::TURN);
             match block {
-                c::Block::Text(_) | c::Block::Opaque { .. } => {
+                c::Block::Text(value) => {
                     b.open(Role::Slot);
                     b.style(look::MESSAGE);
                     b.style(match message.speaker {
@@ -1130,17 +1139,11 @@ fn committed<'a>(
                     b.close();
                     b.open(Role::Slot);
                     b.style(look::SAYS);
-                    match block {
-                        c::Block::Text(value) => skein_ui::markdown::read(value.bytes(), 2, b),
-                        c::Block::Opaque { dialect, size } => {
-                            words.card_text(b, P::OpaqueDialect, &[crate::cards::name(dialect.bytes())]);
-                            words.card_text(b, P::OpaqueBytes, &[Hole::Number(*size)]);
-                        }
-                        c::Block::Call(_) | c::Block::Result { .. } => unreachable!("text block"),
-                    }
+                    skein_ui::markdown::read(value.bytes(), 2, b);
                     b.close();
                     b.close();
                 }
+                c::Block::Opaque { .. } => unreachable!("opaque blocks are hidden"),
                 c::Block::Call(call) => {
                     card_clock(b, clock.as_deref());
                     super::document::tool_line(
@@ -1201,14 +1204,6 @@ fn committed<'a>(
             }
             b.close();
         }
-        if message.blocks.len() > rows {
-            run.flush(b, None, false, words);
-            words.status(b, P::TurnCut, &[]);
-        }
-    }
-    if turn.messages.len() > rows || (turn.cut && (!drawing.projected || !note_only(turn, rows))) {
-        run.flush(b, None, false, words);
-        words.status(b, P::TurnCut, &[]);
     }
 }
 
@@ -1255,45 +1250,6 @@ fn card_clock(b: &mut Builder, clock: Option<&[u8]>) {
     }
 }
 
-// A full structural prefix or any other content can have its own cut.
-// Turn::cut carries no provenance, so those turns keep the omission words.
-fn note_only(turn: &c::Turn, rows: u32) -> bool {
-    if turn.messages.len() >= rows {
-        return false;
-    }
-    let mut wrote = false;
-    for message in &turn.messages {
-        if message.blocks.len() >= rows {
-            return false;
-        }
-        for block in &message.blocks {
-            match block {
-                c::Block::Call(call) if super::document::write(call).is_some() => wrote = true,
-                c::Block::Result { call, failed: false, .. } => {
-                    let mut found = false;
-                    for message in &turn.messages {
-                        for block in &message.blocks {
-                            if let c::Block::Call(source) = block
-                                && source.number == *call
-                                && super::document::write(source).is_some()
-                            {
-                                found = true;
-                            }
-                        }
-                    }
-                    if !found {
-                        return false;
-                    }
-                }
-                c::Block::Text(text) if text.bytes().is_empty() => {}
-                c::Block::Text(_) | c::Block::Call(_) | c::Block::Result { .. } | c::Block::Opaque { .. } => {
-                    return false;
-                }
-            }
-        }
-    }
-    wrote
-}
 fn run_call(block: &c::Block, tasks: &mut List<u64>, delegations: Option<(&Chat, &jig_client::Client)>) -> bool {
     let c::Block::Call(call) = block else { return false };
     if super::document::write(call).is_some() {
@@ -1386,7 +1342,7 @@ fn hidden(event: &c::DecodedActivityLine, projected: bool, delegations: Option<(
         None => false,
     }
 }
-fn markdown(b: &mut Builder, bytes: &[u8], words: &Words, most: u32) {
+fn markdown(b: &mut Builder, bytes: &[u8], most: u32) {
     let most = bytes.len().min(usize::try_from(most).expect("text bound fits"));
     let mut end = most;
     if end < bytes.len() {
@@ -1400,9 +1356,6 @@ fn markdown(b: &mut Builder, bytes: &[u8], words: &Words, most: u32) {
         }
     }
     skein_ui::markdown::read(bytes.get(..end).expect("UTF-8 prefix"), 2, b);
-    if end < bytes.len() {
-        words.status(b, P::TurnCut, &[]);
-    }
 }
 
 // Only a later settings proposal anchored in this conversation replaces an ended one.

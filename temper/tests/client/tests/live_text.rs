@@ -4,7 +4,6 @@ use skein_fake_person::{Find, Step};
 use skein_ui::Role;
 use skein_world::domain::Verdict;
 use temper_client_domain::Address;
-use temper_client_view::cards::P;
 use temper_client_world::fixtures;
 
 const FIRST: &[u8] = b"The answer";
@@ -23,8 +22,7 @@ fn gone(find: Find) -> Step<Address> {
 fn a_chats_reply_shows_as_it_is_written_then_as_its_committed_turn() {
     let mut world = fixtures::open_world(fixtures::SEED);
     world.front().reply_in_pieces(&[FIRST, REST]);
-    let words = fixtures::phrasebooks(&fixtures::domain_limits());
-    let provisional = words.say_card(P::Provisional, &[]);
+    let provisional = "▌".as_bytes();
     let whole = [FIRST, REST].concat();
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
     world.person(
@@ -35,7 +33,7 @@ fn a_chats_reply_shows_as_it_is_written_then_as_its_committed_turn() {
             see(Find::named(Role::TextArea, b"What do you want done?")),
             Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: QUESTION.into() },
             Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
-            see(Find::text(&provisional)),
+            see(Find::text(provisional)),
             see(Find::text(FIRST)),
             gone(Find::text(&whole)),
         ],
@@ -45,13 +43,13 @@ fn a_chats_reply_shows_as_it_is_written_then_as_its_committed_turn() {
     assert_eq!(world.front().runs_answered, 0, "the first piece precedes the committed turn");
 
     assert!(world.front().release_reply());
-    world.person(person, vec![see(Find::text(&provisional)), see(Find::text(&whole))]);
+    world.person(person, vec![see(Find::text(provisional)), see(Find::text(&whole))]);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     assert_eq!(world.front().runs_answered, 0, "all pieces precede the committed turn");
 
     assert!(world.front().release_reply());
-    world.person(person, vec![see(Find::text(&whole)), gone(Find::text(&provisional))]);
+    world.person(person, vec![see(Find::text(&whole)), gone(Find::text(provisional))]);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     assert_eq!(world.front().runs_answered, 1);
@@ -67,9 +65,8 @@ fn a_tool_only_turn_leaves_no_provisional_text() {
     let task = fixtures::chat(world.front(), QUESTION);
     let attempt = world.front().engine.task(task).expect("running chat").attempt;
     let person = world.client(fixtures::PARTY, fixtures::chat_page(task));
-    let words = fixtures::phrasebooks(&fixtures::domain_limits());
-    let provisional = words.say_card(P::Provisional, &[]);
-    world.person(person, vec![see(Find::named(Role::TextArea, b"Message")), gone(Find::text(&provisional))]);
+    let provisional = "▌".as_bytes();
+    world.person(person, vec![see(Find::named(Role::TextArea, b"Message")), gone(Find::text(provisional))]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
 
     let mut turn = temper_worker_domain_world::protocol::session_turn(1, 0, 0, true);
@@ -96,7 +93,7 @@ fn a_tool_only_turn_leaves_no_provisional_text() {
         &body,
     ));
     world.front().engine.settle();
-    world.person(person, vec![see(Find::named(Role::Disclosure, b"wait")), gone(Find::text(&provisional))]);
+    world.person(person, vec![see(Find::named(Role::Disclosure, b"wait")), gone(Find::text(provisional))]);
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
 }
@@ -161,10 +158,6 @@ fn a_composer_reset_is_processed_while_the_reply_remains_held() {
     assert_eq!(world.front().runs_answered, 0, "the composer acts without committing the reply");
     assert!(world.front().release_reply());
     assert!(world.front().release_reply());
-    let words = fixtures::phrasebooks(&fixtures::domain_limits());
-    world.person(
-        person,
-        vec![see(Find::text(&[FIRST, REST].concat())), gone(Find::text(&words.say_card(P::Provisional, &[])))],
-    );
+    world.person(person, vec![see(Find::text(&[FIRST, REST].concat())), gone(Find::text("▌".as_bytes()))]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
 }

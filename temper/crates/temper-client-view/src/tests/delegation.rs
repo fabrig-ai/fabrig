@@ -797,8 +797,7 @@ fn csv_chat_hears_its_result(turn_text: u32) {
         fixtures::FORGE,
     );
     fixtures::build(&mut view, &root);
-    let cut = fixtures::find(view.tree(), Role::Status, b"Earlier text omitted").is_some();
-    assert_eq!(cut, turn_text < 2048, "the first turn is cut only below its 1.2 KB");
+    assert!(fixtures::find(view.tree(), Role::Status, b"Earlier text omitted").is_none());
     assert_csv_card(&view, false);
     let Some(Request::Unlinked {
         request:
