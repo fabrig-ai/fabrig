@@ -3,3 +3,35 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-pause-close/inputs/request.md", "temper/crates/temper-client-view/src/pages/chat.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# One request, two tasks in a chain: a chat's Pause, Resume and message first, then a goal's and an agent's task's Close. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "chat-pause"
+title = "A chat's Pause and Resume, its \"Paused\", a message that resumes it, and no \"Applied\" after them"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "close-words"
+title = "A goal's and an agent's task's Close, an agent's task's Pause and Resume, closed's words, and the journeys"
+mode = "direct"
+needs = ["chat-pause"]
+design = "temper/docs/design/client/README.md, 5.11"
+
+[[slice]]
+id = 1
+story = "A person pauses a chat, resumes it, pauses it again and sends a message that resumes it and is answered, in a browser on a fake box"
+parts = ["chat-pause"]
+walk = false
+
+[[slice]]
+id = 2
+story = "\"Stop\" is no person's word: a goal and an agent's task say Close, its sheet the chat's, and an ended goal says closed on every page"
+parts = ["close-words"]
+walk = false
