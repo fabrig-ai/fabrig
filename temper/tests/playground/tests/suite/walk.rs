@@ -45,6 +45,16 @@ fn story_a_walks_from_the_welcome_to_the_csv_change_landed() {
     if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some() {
         std::fs::create_dir_all(kept_log().parent().expect("fixtures directory")).expect("create fixtures directory");
         std::fs::write(kept_log(), &bytes).expect("write story A's kept log");
+        let text = std::str::from_utf8(&bytes).expect("the session log is text");
+        let first_request = text
+            .lines()
+            .position(|line| line.starts_with("input ") && line.contains(" path=L2ppZy92MS9yZXF1ZXN0 "))
+            .expect("the walk requests its playground");
+        let mut start: String = text.split_inclusive('\n').take(first_request + 1).collect();
+        start.push_str("cut\n");
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../crates/temper-playground/src/tests/fixtures/story-a-start.log");
+        std::fs::write(path, start).expect("write story A's kept start");
     }
     let kept = std::fs::read(kept_log()).expect("story A's kept log");
     assert_eq!(bytes.as_ref(), kept, "the native walk keeps the same session log byte for byte");
