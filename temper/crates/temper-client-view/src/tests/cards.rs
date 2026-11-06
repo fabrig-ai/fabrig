@@ -712,6 +712,21 @@ fn a_person_who_may_not_accept_sees_who_decides() {
     assert!(fixtures::find(&tree, Role::Paragraph, b"Waiting for an owner").is_some());
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Pat").is_some());
 }
+fn settings_read_token(out: &Queue<d::Request>) -> skein_lib::Token {
+    let mut found = None;
+    for request in out {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Proposal { .. }) },
+                },
+        } = request
+        {
+            found = Some(*read);
+        }
+    }
+    found.expect("settings proposal read")
+}
 fn restored_settings() -> (d::Domain, skein_lib::Token) {
     let (mut root, _, _) =
         fixtures::root_at(d::Address::Home { project: fixtures::PROJECT }, &fixtures::domain_limits());
@@ -724,15 +739,7 @@ fn restored_settings() -> (d::Domain, skein_lib::Token) {
             },
         },
     );
-    let read = out
-        .into_iter()
-        .find_map(|request| match request {
-            d::Request::Unlinked {
-                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read { read, .. } },
-            } => Some(*read),
-            _ => None,
-        })
-        .expect("proposal read under Needs you");
+    let read = settings_read_token(&out);
     settings_up(
         &mut root,
         jig_client::Up::ReadDone {
@@ -744,14 +751,12 @@ fn restored_settings() -> (d::Domain, skein_lib::Token) {
         &mut root,
         Event::Went { place: d::Place::Address(d::Address::Chat { task: fixtures::chat::DELEGATE }) },
     );
-    let read = out.into_iter().find_map(|request| match request {
-        d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Proposal { .. }) } } } => Some(*read),
-        _ => None,
-    }).expect("restored card read");
+    let read = settings_read_token(&out);
     assert!(settings_card(&root).page.is_none());
     assert!(root.pages().chat().unwrap().settings_proposals.get(0).unwrap().acts.is_empty());
     (root, read)
 }
+#[expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic nodes and retained reason lines")]
 fn assert_reading_settings(root: &d::Domain) {
     let tree = draw_settings(root, &settings_card(root), false);
     assert!(fixtures::find(&tree, Role::Paragraph, b"Waiting for an owner").is_none());
@@ -776,6 +781,7 @@ fn a_restored_card_says_no_waiting_when_its_read_is_busy() {
     );
     assert_reading_settings(&root);
 }
+#[expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic state lines and styles")]
 fn decided_settings(state: c::ProposalHistoryState, choice: c::ProposalChoice, replaced: bool, expected: &str) {
     let (root, _) = settings_root(settings_page(&[], true));
     for ended in [true, false] {
