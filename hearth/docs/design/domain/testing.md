@@ -1667,13 +1667,17 @@ VM tier its one real machine relies on.
   figure stands as an idle-machine figure
   (`skein/docs/foundation/testing-strategy.md`, 8.1). It depends on the
   user's ruling on the measurements.
-- **The focused suite's way to its figure** (9.1): whether the repairs 9.1 names
-  and what a profile of the suite shows bring the queue's figure under 30 CPU
-  seconds, since test builds stay unoptimized
-  (`skein/docs/foundation/testing-strategy.md`, 8). Failing those, the measurements
-  go to the user for a ruling (`skein/docs/foundation/testing-strategy.md`, 8.1). The figure
-  stands, and a run over it is recorded, never refused. It depends on the queue's
-  record and on the user's ruling.
+- **The focused suite's way to its figure** (9.1): whether remaining repeated
+  seed-independent setup, duplicate tree-file decoding, and render's per-task
+  listing scans, export-cache rescans and retained-spec re-walk need repair
+  to hold the queue's figure under 30 CPU seconds. Shared counting allocation's
+  sampled estimate is 18.03% of the tree family's base CPU, 4.58% of the base
+  focused suite; its current share is unknown. Test builds stay unoptimized
+  (`skein/docs/foundation/testing-strategy.md`, 8). Measurements of any remaining
+  overrun go to the user for a ruling
+  (`skein/docs/foundation/testing-strategy.md`, 8.1). The figure stands, and a run
+  over it is recorded, never refused. It depends on the queue's record and on
+  the user's ruling.
 - **The large render's cost:** about 15 CPU seconds, which is why the fuzzy
   suite carries it (8.4). No run has isolated that cost: it followed the
   work per target, not the listing, and whether it lies in the harness or
