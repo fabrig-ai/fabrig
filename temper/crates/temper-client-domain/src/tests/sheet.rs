@@ -227,6 +227,53 @@ fn choices_clear_picks_and_search_and_reject_old_answers() {
 }
 
 #[test]
+fn explicit_choices_survive_forge_refreshes() {
+    let (mut side, _) = opened();
+    if let State::Rows(rows) = &mut side.forges {
+        let mut rows = rows.to_vec();
+        rows.push(forge_row(9, Kind::Forgejo, Mode::Owned));
+        side.forges = State::Rows(rows.into_boxed_slice());
+    }
+    act(&mut side, Act::Forge(FORGEJO));
+    act(&mut side, Act::Target(9));
+    let pending = reading(&side);
+    progress(&mut side, env().limits, &mut Queue::uncapped());
+    assert_eq!(side.sheet().unwrap().forge, Some(FORGEJO));
+    assert_eq!(side.sheet().unwrap().target, Some(9));
+    assert_eq!(reading(&side), pending);
+    answer(&mut side, page(1, 1, false));
+    assert_eq!(side.sheet().unwrap().rows.len(), 1);
+}
+
+#[test]
+fn a_new_forge_drops_a_copy_adoption_intent() {
+    let (mut side, _) = opened();
+    act(&mut side, Act::Source(Source::Copy));
+    answer(&mut side, page(1, 1, false));
+    act(&mut side, Act::Addresses(b"acme/repo-1".as_slice().into()));
+    act(&mut side, Act::AdoptIt { org: b"acme".as_slice().into(), name: b"repo-1".as_slice().into() });
+    act(&mut side, Act::Forge(GITHUB));
+    answer(&mut side, page(1, 1, false));
+    assert!(side.sheet().unwrap().picks.is_empty());
+}
+
+#[test]
+fn a_search_after_the_last_page_fills_not_listed() {
+    let (mut side, _) = opened();
+    answer(&mut side, page(1, 9, false));
+    assert!(act(&mut side, Act::Find(b"acme/missing".as_slice().into())).is_empty());
+    let sheet = side.sheet().unwrap();
+    assert_eq!(sheet.not_listed.0.text.as_ref(), b"acme");
+    assert_eq!(sheet.not_listed.1.text.as_ref(), b"missing");
+    assert!(sheet.not_listed.0.written > 0 && sheet.not_listed.1.written > 0);
+    act(&mut side, Act::Find(b"repo-1".as_slice().into()));
+    assert!(side.sheet().unwrap().not_listed.1.text.is_empty());
+    act(&mut side, Act::NotListed { owner: Some(b"manual".as_slice().into()), name: None });
+    act(&mut side, Act::Find(b"acme/missing".as_slice().into()));
+    assert_eq!(side.sheet().unwrap().not_listed.0.text.as_ref(), b"manual");
+}
+
+#[test]
 fn search_preserves_hidden_picks_and_filters_owner_and_name() {
     let (mut side, _) = opened();
     answer(&mut side, page(1, 9, false));
@@ -277,7 +324,12 @@ fn not_listed_remedies_follow_the_forge() {
     sheet.not_listed = (field(b"acme"), field(b"missing"));
     let state = rows();
     let github = row(&state, Some(GITHUB)).unwrap();
-    assert_eq!(remedy(&sheet, github), None);
+    let grant = Remedy::Grant {
+        owner: b"acme".as_slice().into(),
+        name: b"missing".as_slice().into(),
+        page: b"https://github.com/apps/bot/installations/new".as_slice().into(),
+    };
+    assert_eq!(remedy(&sheet, github), Some(grant));
     sheet.not_listed.0 = field(b"other");
     assert_eq!(remedy(&sheet, github), Some(Remedy::NotInstalled { owner: b"other".as_slice().into() }));
     let connected = forge_row(FORGEJO, Kind::Forgejo, Mode::Connected);
@@ -292,6 +344,35 @@ fn not_listed_remedies_follow_the_forge() {
     for mode in [Mode::Managed, Mode::Owned] {
         assert_eq!(remedy(&sheet, &forge_row(FORGEJO, Kind::Forgejo, mode)), None);
     }
+}
+
+#[test]
+fn an_installed_account_gets_the_same_remedy_without_a_known_slug() {
+    let mut state = rows();
+    let State::Rows(rows) = &mut state else { panic!("forge rows") };
+    let github = rows.iter_mut().find(|row| row.number == GITHUB).unwrap();
+    github.connection = Connection::NotConnected;
+    let mut sheet = Sheet::new(PROJECT, &State::Unknown);
+    sheet.not_listed = (field(b"ACME"), field(b"missing"));
+    let grant = remedy(&sheet, github).unwrap();
+    assert_eq!(
+        grant,
+        Remedy::Grant { owner: b"ACME".as_slice().into(), name: b"missing".as_slice().into(), page: Box::new([]) }
+    );
+    assert_eq!(
+        forge::words::sheet_remedy(&grant).as_ref(),
+        b"Check ACME/missing exists, and grant it to temper's App on GitHub."
+    );
+}
+
+#[test]
+fn an_unlisted_installed_repository_waits_for_a_grant_unless_context() {
+    let (mut side, _) = opened();
+    answer(&mut side, page(1, 0, false));
+    act(&mut side, Act::NotListed { owner: Some(b"acme".as_slice().into()), name: Some(b"missing".as_slice().into()) });
+    assert!(!button(side.sheet().unwrap(), side.form().unwrap(), &side.forges).1);
+    side.form.as_mut().unwrap().role = forge::Role::Context;
+    assert!(button(side.sheet().unwrap(), side.form().unwrap(), &side.forges).1);
 }
 
 #[test]

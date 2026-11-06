@@ -63,6 +63,7 @@ pub struct Sheet {
     read_installation: Option<u64>,
     home: bool,
     making: List<w::MakeRepository>,
+    not_listed_edited: bool,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Sent {
@@ -149,25 +150,34 @@ impl Sheet {
             read_installation: None,
             home: true,
             making: List::with_capacity(CAP),
+            not_listed_edited: false,
         };
         sheet.defaults(rows);
         sheet
     }
     fn defaults(&mut self, rows: &State) {
+        let mut forge = None;
+        let mut target = None;
         for row in &super::listed::rows(rows, None) {
             if let Connection::Connected { .. } = row.connection
-                && (self.forge.is_none() || self.forge > Some(row.number))
+                && (forge.is_none() || forge > Some(row.number))
             {
-                self.forge = Some(row.number);
+                forge = Some(row.number);
             }
-            if makes(row) && (self.target.is_none() || self.target > Some(row.number)) {
-                self.target = Some(row.number);
+            if makes(row) && (target.is_none() || target > Some(row.number)) {
+                target = Some(row.number);
             }
             for repository in &row.repositories {
                 if repository.project == self.project {
                     self.home = false;
                 }
             }
+        }
+        if self.forge.is_none() {
+            self.forge = forge;
+        }
+        if self.target.is_none() {
+            self.target = target;
         }
         if self.installation.is_none() {
             self.installation = first_installation(self.forge, rows);
@@ -176,11 +186,14 @@ impl Sheet {
     fn reset(&mut self) {
         self.rows.clear();
         self.picks.clear();
-        self.find = field(b"");
+        put(&mut self.find, Box::new([]), 0);
         self.page = 0;
         self.more = true;
         self.reading = Reading::Idle;
-        self.not_listed = (field(b""), field(b""));
+        put(&mut self.not_listed.0, Box::new([]), 0);
+        put(&mut self.not_listed.1, Box::new([]), 0);
+        self.not_listed_edited = false;
+        self.adopt_when_read = None;
     }
     fn chosen(&self) -> Option<u16> {
         match self.source {
@@ -324,8 +337,13 @@ pub fn remedy(sheet: &Sheet, row: &Row) -> Option<Remedy> {
                     && let Some(account) = &installation.account
                     && account.login.eq_ignore_ascii_case(owner)
                 {
-                    // The installation record does not carry its repository selection.
-                    return None;
+                    let page = match super::forges::slug(row) {
+                        Some(slug) if !slug.is_empty() => {
+                            bytes::concat(&[b"https://github.com/apps/", slug, b"/installations/new"])
+                        }
+                        Some(_) | None => Box::from(b"".as_slice()),
+                    };
+                    return Some(Remedy::Grant { owner: Box::from(owner), name: Box::from(name), page });
                 }
             }
             Some(Remedy::NotInstalled { owner: Box::from(owner) })
@@ -515,7 +533,10 @@ pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Req
                 sheet.reset();
             }
         }
-        Act::Find(text) => put(&mut sheet.find, text, limits.field_bytes),
+        Act::Find(text) => {
+            put(&mut sheet.find, text, limits.field_bytes);
+            fill_not_listed(sheet, &side.forges, limits.field_bytes);
+        }
         Act::Pick { id, on } => {
             if on {
                 for shown in &shown(sheet, sheet.project, &side.forges) {
@@ -537,6 +558,7 @@ pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Req
             return;
         }
         Act::NotListed { owner, name } => {
+            sheet.not_listed_edited = true;
             if let Some(owner) = owner {
                 put(&mut sheet.not_listed.0, owner, limits.field_bytes);
             }
@@ -660,7 +682,7 @@ pub(crate) fn received(
                     }
                 }
             }
-            fill_not_listed(sheet, &side.forges);
+            fill_not_listed(sheet, &side.forges, limits.field_bytes);
             if !sheet.find.text.trim_ascii().is_empty() || sheet.adopt_when_read.is_some() {
                 read(side, limits, out);
             }
@@ -669,31 +691,31 @@ pub(crate) fn received(
     }
     side.changed();
 }
-fn fill_not_listed(sheet: &mut Sheet, rows: &State) {
-    if sheet.more
-        || sheet.find.text.trim_ascii().is_empty()
-        || !shown(sheet, sheet.project, rows).is_empty()
-        || sheet.not_listed.0.written > 0
-        || sheet.not_listed.1.written > 0
-    {
+fn fill_not_listed(sheet: &mut Sheet, rows: &State, bound: u32) {
+    if sheet.not_listed_edited {
+        return;
+    }
+    if sheet.more || sheet.find.text.trim_ascii().is_empty() || !shown(sheet, sheet.project, rows).is_empty() {
+        put(&mut sheet.not_listed.0, Box::new([]), 0);
+        put(&mut sheet.not_listed.1, Box::new([]), 0);
         return;
     }
     let typed = sheet.find.text.trim_ascii();
     if let Some(slash) = bytes::find(typed, b"/") {
         let after = slash.checked_add(1).expect("slash fits");
-        sheet.not_listed.0 = field(typed.get(..slash).expect("found slash"));
-        sheet.not_listed.1 = field(typed.get(after..).expect("found slash"));
+        put(&mut sheet.not_listed.0, Box::from(typed.get(..slash).expect("found slash")), bound);
+        put(&mut sheet.not_listed.1, Box::from(typed.get(after..).expect("found slash")), bound);
     } else {
         if let Some(row) = row(rows, sheet.forge) {
             for installation in &row.installations {
                 if Some(installation.id) == sheet.installation
                     && let Some(account) = &installation.account
                 {
-                    sheet.not_listed.0 = field(&account.login);
+                    put(&mut sheet.not_listed.0, account.login.clone(), bound);
                 }
             }
         }
-        sheet.not_listed.1 = field(typed);
+        put(&mut sheet.not_listed.1, Box::from(typed), bound);
     }
 }
 fn send(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
@@ -844,7 +866,9 @@ pub(crate) fn adopted(
             if let Some(done) = left.get(0) {
                 remove_pick(&mut sheet.picks, done.id);
                 if sheet.not_listed.0.text == done.owner && sheet.not_listed.1.text == done.name {
-                    sheet.not_listed = (field(b""), field(b""));
+                    put(&mut sheet.not_listed.0, Box::new([]), 0);
+                    put(&mut sheet.not_listed.1, Box::new([]), 0);
+                    sheet.not_listed_edited = false;
                 }
             }
             let mut rest = List::with_capacity(CAP);
@@ -903,7 +927,7 @@ pub(crate) fn made(
                             rewrite(&mut sheet.addresses, &raw, None, limits.field_bytes);
                         }
                     }
-                    w::MakeFrom::Empty => sheet.name = field(b""),
+                    w::MakeFrom::Empty => put(&mut sheet.name, Box::new([]), 0),
                 }
             }
             let mut rest = List::with_capacity(CAP);

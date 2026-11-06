@@ -1249,6 +1249,31 @@ pub fn app_installation(installation: &super::forges::Installation, first: bool)
     join_words(&[if first { b"" } else { b", " }, &installation_words(installation)])
 }
 
+/// What makes an unlisted repository reachable (client/forge.md, 5.1).
+#[must_use]
+pub fn sheet_remedy(remedy: &super::sheet::Remedy) -> Box<[u8]> {
+    use super::sheet::Remedy;
+    match remedy {
+        Remedy::Grant { owner, name, .. } => join_words(&[
+            b"Check ",
+            &lossy(owner),
+            b"/",
+            &lossy(name),
+            b" exists, and grant it to temper's App on GitHub.",
+        ]),
+        Remedy::NotInstalled { owner } => join_words(&[b"temper's App is not installed on ", &lossy(owner), b"."]),
+        Remedy::Collaborator { login, owner, name } => join_words(&[
+            b"Make ",
+            &lossy(login),
+            b" a collaborator with write on ",
+            &lossy(owner),
+            b"/",
+            &lossy(name),
+            b".",
+        ]),
+    }
+}
+
 /// A sheet keeps the refusal beside the remaining selections (client/README.md, 4.4).
 #[must_use]
 pub fn sheet_adoption(answer: &super::Answer) -> Box<[u8]> {

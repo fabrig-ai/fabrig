@@ -654,7 +654,9 @@ fn the_client_that_set_up_leaves_the_made_repository_unadopted() {
 #[test]
 fn a_client_that_did_not_set_up_adopts_nothing() {
     let (mut root, _, watch) = opened(true);
-    assert!(deliver_first(&mut root, watch, connected(), made()).is_empty());
+    let (_, _, request) = sent(deliver_first(&mut root, watch, connected(), made()));
+    let w::Request::Reachable(read) = request else { panic!("only the sheet reads; nothing adopts") };
+    assert_eq!((read.forge(), read.page()), (HERE, 1));
     assert!(root.forge().set_up().is_none());
 }
 #[test]
@@ -1094,7 +1096,7 @@ fn new_owned_setup_binds_the_made_rows_number_without_adopting() {
         let (mut root, _, watch) = opened(true);
         let (attempt, _, _) = sent(f::form_act(&mut root, forge::Act::Forges(forges::Act::SetUpOwned)));
         if row_first {
-            assert!(deliver_first(&mut root, watch, connected(), made()).is_empty());
+            only_picker_reads(&deliver_first(&mut root, watch, connected(), made()));
         } else {
             reply(&mut root, attempt, w::Outcome::SettingUp);
         }
@@ -1105,10 +1107,23 @@ fn new_owned_setup_binds_the_made_rows_number_without_adopting() {
         };
         assert_eq!(root.forge().set_up().unwrap().forge, Some(HERE));
         assert!(root.forge().setup_form().making.is_none());
-        for request in &out {
-            if let Request::Unlinked { request: client::UnlinkedRequest::Down { down: Down::Send { .. } } } = request {
-                panic!("connecting a forge sends no adoption or project request");
-            }
+        only_picker_reads(&out);
+    }
+}
+fn only_picker_reads(out: &Queue<Request>) {
+    for request in out {
+        if let Request::Unlinked { request: client::UnlinkedRequest::Down { down: Down::Send { request, .. } } } =
+            request
+        {
+            let client::Ask::Family { scope: c::Scope::Deployment, record } = request else {
+                panic!("connecting a forge sends no adoption or project request")
+            };
+            let w::Request::Reachable(read) =
+                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            else {
+                panic!("only the sheet reads; nothing adopts")
+            };
+            assert_eq!((read.forge(), read.page()), (HERE, 1));
         }
     }
 }

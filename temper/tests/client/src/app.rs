@@ -314,7 +314,15 @@ impl App for Temper {
         // Seen has no kept answer; match jig's client observer.
         Some(match request {
             jig_client::Ask::Jig(ask) if matches!(ask.as_ref(), jig_client::contract::Ask::Seen { .. }) => return None,
-            jig_client::Ask::Family { .. } => {
+            jig_client::Ask::Family { record, .. } => {
+                // The front answers picker reads without a store write or an adoption decision.
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                if record.family == wire::FORGE
+                    && let Some(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS)
+                    && matches!(request.request(), w::Request::Reachable(_))
+                {
+                    return None;
+                }
                 Sent { attempt: *attempt, key: *key, card: Some(adoption_card()), revision: None, words: None }
             }
             jig_client::Ask::Jig(ask) => {
