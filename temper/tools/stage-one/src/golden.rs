@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 pub struct Golden {
     pub placeholders: Placeholders,
     pub roles: Vec<Role>,
-    /// Kinds of setting no obligation asks for, and a proposal may hold.
+    /// Kinds of setting no obligation asks for, and a proposal may hold; none when left out.
     pub free: Vec<String>,
     pub obligations: Vec<Obligation>,
     pub rules: Vec<Rule>,
@@ -369,8 +369,10 @@ pub fn decode(bytes: &[u8]) -> Result<Golden, GoldenError> {
     }
     validate_anchors(&roles)?;
     let mut free = Vec::new();
-    for (i, v) in field_array(map, "free", "$")?.iter().enumerate() {
-        free.push(v.as_str().ok_or_else(|| error(&format!("$.free[{i}]"), "expected text"))?.to_owned());
+    if map.contains_key("free") {
+        for (i, v) in field_array(map, "free", "$")?.iter().enumerate() {
+            free.push(v.as_str().ok_or_else(|| error(&format!("$.free[{i}]"), "expected text"))?.to_owned());
+        }
     }
     let mut obligations = Vec::new();
     let mut ids = BTreeSet::new();
