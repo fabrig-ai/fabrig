@@ -66,6 +66,12 @@ pub fn watch_room_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::with_watch_room(seed, &watch_room_limits()))
 }
 
+/// A watch-room story with a named deployment stream count.
+#[must_use]
+pub fn watch_room_world_streams(seed: u64, streams: u32) -> World<Temper, Joint> {
+    world_with(seed, Joint::with_watch_room_streams(seed, &watch_room_limits(), streams))
+}
+
 /// A running chat with enough live delegates to fill its page's watch set.
 pub fn watch_room_chat(front: &mut Joint) -> u64 {
     use temper_engine_domain_world::fixtures::report_delegate;
