@@ -1,6 +1,8 @@
 use jig_domain_people::{Ask, EndedBy, Lack, Outcome, Refusal, Reply, TaskExecutor};
-use jig_people_world::fixtures::{member, people_member};
-use jig_people_world::{Settings, World};
+use jig_people_world::{
+    Settings, World,
+    fixtures::{OWNER, PERSON, PROJECT, SIGN_IN, member, people_member},
+};
 
 #[test]
 fn writer_refusal_replays_after_the_start_without_routing_or_writing() {
@@ -15,8 +17,8 @@ fn writer_refusal_replays_after_the_start_without_routing_or_writing() {
             member.flags.ended_by = EndedBy::Requester;
             member.flags.conversation = true;
         }
-        let ask = Ask::Create { project: 1, batch: Box::new([member]) };
-        let call = world.request(10, [14; 16], ask.clone());
+        let ask = Ask::Create { project: PROJECT, batch: Box::new([member]) };
+        let call = world.request(SIGN_IN, [14; 16], ask.clone());
         world.commit_all();
         let reply = world.reply(call).expect("durable request replied");
         if malformed {
@@ -31,14 +33,14 @@ fn writer_refusal_replays_after_the_start_without_routing_or_writing() {
         let records = world.records().clone();
         let committed = world.commit_number();
         world.restart();
-        let retried = world.request(10, [14; 16], ask.clone());
+        let retried = world.request(SIGN_IN, [14; 16], ask.clone());
         world.commit_all();
         assert_eq!(world.reply(retried), Some(reply));
         assert_eq!(world.stats().routes, routes);
         assert_eq!(world.tasks(), tasks);
         assert_eq!(world.records(), &records);
         assert_eq!(world.commit_number(), committed, "replay writes no decision");
-        let fresh = world.request(10, [15; 16], ask);
+        let fresh = world.request(SIGN_IN, [15; 16], ask);
         world.commit_all();
         if malformed {
             assert_eq!(
@@ -130,11 +132,11 @@ fn explicit_world_sweep_commits_each_page_without_skipping_erased_keys() {
     let mut world = World::new(Settings::calm(18));
     let person = member(&mut world);
     for number in 11..18 {
-        world.signin(number, 1);
+        world.signin(number, OWNER);
         world.commit_all();
     }
     for number in 1..=8 {
-        world.ask(10, [number; 16], b"work");
+        world.ask(SIGN_IN, [number; 16], b"work");
         world.commit_all();
     }
     let routes = world.stats().routes;
@@ -157,9 +159,12 @@ fn explicit_world_sweep_commits_each_page_without_skipping_erased_keys() {
 
 #[test]
 fn selected_census_projects_needs_results_and_chats_without_opening() {
-    use jig_domain_people::{self as p, RestoreProjection as P};
+    use jig_domain_people::{self as p, Holding, RestoreProjection as P, Role, Stored, Whom};
     use jig_people_world::{LIMITS, identity};
     use skein_lib::{Env, Queue, Time, Wall};
+    const QUESTION_TASK: u64 = 12;
+    const QUESTION_MESSAGE: u64 = 7;
+    let whom = Whom::Person(PERSON);
     for prefix in [0, 2] {
         let limits = p::Limits { inbox_entries: prefix, ..LIMITS };
         let env = Env { limits, now: Time::ZERO, wall: Wall::EPOCH };
@@ -168,48 +173,48 @@ fn selected_census_projects_needs_results_and_chats_without_opening() {
         domain.start_restore(env.wall);
         let mut out = Queue::uncapped();
         for row in [
-            p::Stored::Person { number: 1, identity: identity(1) },
-            p::Stored::Roles { project: 1, holdings: Box::new([p::Holding { person: 1, role: p::Role::Member }]) },
-            p::Stored::ReadResults { party: 1, through: 1 },
-            p::Stored::ReadConversation { party: 1, task: 21, through: 1 },
-            p::Stored::ReadConversation { party: 1, task: 22, through: 1 },
-            p::Stored::SignIn { number: 1, person: 1, expires: Wall::from_nanos(1) },
+            Stored::Person { number: PERSON, identity: identity(OWNER) },
+            Stored::Roles { project: PROJECT, holdings: Box::new([Holding { person: PERSON, role: Role::Member }]) },
+            Stored::ReadResults { party: PERSON, through: 1 },
+            Stored::ReadConversation { party: PERSON, task: 21, through: 1 },
+            Stored::ReadConversation { party: PERSON, task: 22, through: 1 },
+            Stored::SignIn { number: 1, person: PERSON, expires: Wall::from_nanos(1) },
         ] {
             p::step(&mut domain, &env, p::Event::Restore { record: row }, &mut out);
         }
-        assert_eq!(&*domain.parties().into_boxed(), &[1]);
-        assert_eq!(domain.results_seen(1), Some(1));
+        assert_eq!(&*domain.parties().into_boxed(), &[PERSON]);
+        assert_eq!(domain.results_seen(PERSON), Some(1));
         assert_eq!(domain.results_seen(99), None);
         assert_eq!(domain.persons(), u32::MAX);
         for (task, kind) in [
             (11, p::EntryKind::PersonTask),
-            (12, p::EntryKind::Question { message: 7 }),
+            (QUESTION_TASK, p::EntryKind::Question { message: QUESTION_MESSAGE }),
             (13, p::EntryKind::Proposal { number: 1 }),
         ] {
             assert!(domain.start_project(
                 &limits,
                 P::Waiting {
                     task,
-                    entries: Box::new([p::Entry { task, project: 1, whom: p::Whom::Person(1), kind, at: Wall::EPOCH }])
+                    entries: Box::new([p::Entry { task, project: PROJECT, whom, kind, at: Wall::EPOCH }])
                 }
             ));
         }
-        assert_eq!(domain.needs(1), Some(3));
-        assert_eq!(domain.question_person(12, 7), Some(1));
+        assert_eq!(domain.needs(PERSON), Some(3));
+        assert_eq!(domain.question_person(QUESTION_TASK, QUESTION_MESSAGE), Some(PERSON));
         let result = p::ResultRef {
             task: 22,
-            project: 1,
+            project: PROJECT,
             at: Wall::EPOCH,
             position: 2,
             forgettable: Some(p::Forgettable { label: 0, listed: false, turns_read: false, last_reply: Some(3) }),
         };
-        assert!(domain.start_project(&limits, P::Result { party: 1, entry: result }));
+        assert!(domain.start_project(&limits, P::Result { party: PERSON, entry: result }));
         for (task, live, seen) in [(21, true, None), (22, false, Some(1))] {
             assert!(domain.start_project(
                 &limits,
                 P::ChatState {
-                    party: 1,
-                    project: 1,
+                    party: PERSON,
+                    project: PROJECT,
                     task,
                     last_reply: 3,
                     live,
@@ -218,8 +223,8 @@ fn selected_census_projects_needs_results_and_chats_without_opening() {
                         activity: 4,
                         entry: p::Entry {
                             task,
-                            project: 1,
-                            whom: p::Whom::Person(1),
+                            project: PROJECT,
+                            whom,
                             kind: p::EntryKind::ChatReply { message: 3 },
                             at: Wall::EPOCH,
                         }
@@ -227,28 +232,28 @@ fn selected_census_projects_needs_results_and_chats_without_opening() {
                 }
             ));
         }
-        assert_eq!(domain.chat_owner(21), Some(1));
+        assert_eq!(domain.chat_owner(21), Some(PERSON));
         assert_eq!(domain.chat_owner(22), None);
         assert!(domain.start_project(&limits, P::EndedConversation { task: 22 }));
-        assert!(domain.read_conversations().contains_key(&(1, 22)), "Link still needs its person witness");
+        assert!(domain.read_conversations().contains_key(&(PERSON, 22)), "Link still needs its person witness");
         assert!(!domain.ready());
         assert_eq!(domain.next_deadline(), None);
         assert!(out.is_empty());
-        let counts = domain.counts(&limits, 1).expect("loaded census");
+        let counts = domain.counts(&limits, PERSON).expect("loaded census");
         assert_eq!(counts.needs, 3);
         assert_eq!(counts.unread, prefix);
         assert!(counts.more_unread);
         assert!(domain.start_link(&env));
-        assert!(!domain.read_conversations().contains_key(&(1, 22)));
-        assert!(domain.read_conversations().contains_key(&(1, 21)));
+        assert!(!domain.read_conversations().contains_key(&(PERSON, 22)));
+        assert!(domain.read_conversations().contains_key(&(PERSON, 21)));
         assert!(!domain.ready());
         domain.start_sweep();
         assert!(out.is_empty());
         assert_eq!(domain.next_deadline(), None);
         assert!(domain.start_complete(&env));
         assert!(domain.ready());
-        assert_eq!(domain.cached_results(1), Some([result].as_slice()), "zero prefix retains result witness");
-        assert_eq!(domain.needs(1), Some(3));
+        assert_eq!(domain.cached_results(PERSON), Some([result].as_slice()), "zero prefix retains result witness");
+        assert_eq!(domain.needs(PERSON), Some(3));
         assert_eq!(domain.next_deadline(), Some(Time::from_nanos(1)));
         assert_eq!(domain.restore_failure(), None);
         assert!(out.is_empty());
@@ -272,8 +277,8 @@ fn selected_ended_owners_retain_only_loaded_read_position_witnesses() {
             domain.start_restore(env.wall);
             let mut out = Queue::uncapped();
             for row in [
-                Stored::Person { number: 1, identity: identity(1) },
-                Stored::ReadConversation { party: 1, task: 1, through: 0 },
+                Stored::Person { number: PERSON, identity: identity(OWNER) },
+                Stored::ReadConversation { party: PERSON, task: 1, through: 0 },
             ] {
                 step(&mut domain, &env, Event::Restore { record: row }, &mut out);
             }
