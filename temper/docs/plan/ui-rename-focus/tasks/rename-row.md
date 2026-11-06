@@ -113,3 +113,7 @@ Options, each pre-approved:
 ## Report
 
 The implementer's report, with: the red each test showed; which focus guards were reached; the proof's screenshot paths and the values read at each width; what still differs from the mock, by the status file's list or beyond it.
+
+## Answers
+
+2026-11-06 (fabrig/ui). Addition, a third fix the user asked for (via fabrig/temper): a chat shows two scroll bars, the browser's and the conversation pane's, after pressing "Older" twice in a long chat at a laptop's window size. A reader's cause, checked on the user's recorded page at 1280x720 and 1000x600 but not by this plan: the agent message's who-line (div.temper-who, "Temper 00:26") is hidden with position: absolute and no ancestor up to body is positioned, so a who-line below the pane's visible part isn't clipped by the pane's overflow: auto and extends the document (671px in a 633px window). Fix: #app > .temper-session [role=log] { position: relative; }, which brought the page back to 633px. Any other visually hidden absolute part inside a scrolling pane has the same fault: grep for them and fix each, including the draft pane. Test: a long chat's document never exceeds its window at 1280x720 and 1000x600 with Older pressed twice.
