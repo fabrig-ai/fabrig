@@ -6,7 +6,7 @@
 - **Checked:** 2026-11-04 at `66968a30ef`
 - **Value:** medium (one less private routing rule; the shared stage's ordering)
 - **Size:** S
-- **Status:** open
+- **Status:** planned (hearth-memory-6)
 - **Paid when:** `hearth-service-builder` routes completions with `file_layer::owns`, calls `skein_io::stage::{up, down}`, and has no `tag` and no `io::resume`.
 - **Measure:** `git grep -E '\bfn tag\b|io::resume' -- hearth/crates/hearth-service-builder/src/lib.rs | wc -l`: 2
 
