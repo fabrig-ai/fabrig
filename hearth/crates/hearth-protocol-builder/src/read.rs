@@ -320,19 +320,13 @@ impl Read {
     }
     pub fn take_answer(&mut self) -> render::vocabulary::Event {
         let blob = self.blobs.get(self.index).expect("current blob");
-        assert!(self.current.ready(), "decoded or cached blob");
+        assert!(self.current.ready(), "decoded blob");
         match core::mem::replace(&mut self.current, Current::Spent) {
-            Current::Caching { cache, .. } => render::vocabulary::Event::Cached {
-                request: self.request,
-                oid: blob.oid.clone(),
-                size: blob.size,
-                sha256: cache.digest(),
-            },
             Current::Decoded(read) => {
                 render::vocabulary::Event::Read { request: self.request, oid: blob.oid.clone(), read }
             }
-            Current::Body(_) | Current::Decoding(_) | Current::Spent => {
-                unreachable!("decoded or cached blob")
+            Current::Body(_) | Current::Decoding(_) | Current::Caching { .. } | Current::Spent => {
+                unreachable!("decoded blob")
             }
         }
     }

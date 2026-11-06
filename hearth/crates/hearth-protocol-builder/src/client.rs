@@ -1,6 +1,7 @@
 //! The ordered client record stream (hearth/docs/design/client/README.md, 3.2 and 3.3).
 use crate::{
     Asked,
+    held::Held,
     builder::vocabulary::{Answer, Progress},
     records::{self, limits::Limits, printer, records::Record},
     render::vocabulary::Outcome,
@@ -14,25 +15,10 @@ use skein_lib::{
     stream::{Down, Up},
 };
 #[derive(Debug)]
-enum Output {
-    Unbound,
-    Bound(Token),
-    Closing(Token),
-    Closed,
-}
-impl Output {
-    fn token(&self) -> Option<Token> {
-        match self {
-            Self::Bound(token) | Self::Closing(token) => Some(*token),
-            Self::Unbound | Self::Closed => None,
-        }
-    }
-}
-#[derive(Debug)]
 enum Stream {
     Taking,
     Printing,
-    Ending { outcome: Outcome, printing: bool },
+    Ending { outcome: Outcome },
     Finished { outcome: Outcome },
     Broken { outcome: Option<Outcome> },
 }
@@ -58,9 +44,7 @@ impl Stream {
     }
     fn end(&mut self, outcome: Outcome) {
         *self = match mem::replace(self, Self::Broken { outcome: None }) {
-            Self::Taking => Self::Ending { outcome, printing: false },
-            Self::Printing => Self::Ending { outcome, printing: true },
-            Self::Ending { printing, .. } => Self::Ending { outcome, printing },
+            Self::Taking | Self::Printing | Self::Ending { .. } => Self::Ending { outcome },
             Self::Finished { .. } => Self::Finished { outcome },
             Self::Broken { .. } => Self::Broken { outcome: Some(outcome) },
         };
@@ -74,8 +58,7 @@ impl Stream {
                     Self::Taking
                 }
             }
-            Self::Ending { outcome, .. } => Self::Ending { outcome, printing },
-            stream @ (Self::Finished { .. } | Self::Broken { .. }) => stream,
+            stream @ (Self::Ending { .. } | Self::Finished { .. } | Self::Broken { .. }) => stream,
         };
     }
 }
@@ -84,7 +67,7 @@ pub(crate) struct Client {
     printer: printer::Printer,
     events: Queue<printer::Event>,
     requests: Queue<Down>,
-    output: Output,
+    output: Held,
     stream: Stream,
     refused: bool,
     /// Why a build ended on a step, when it did.
@@ -96,7 +79,7 @@ impl Client {
             printer: printer::Printer::new(form, &limits),
             events: Queue::with_capacity(1),
             requests: Queue::with_capacity(2),
-            output: Output::Unbound,
+            output: Held::Awaited,
             stream: Stream::Taking,
             refused: false,
             failed: None,
@@ -104,13 +87,13 @@ impl Client {
     }
     pub fn bound(&self) -> bool {
         match self.output {
-            Output::Unbound => false,
-            Output::Bound(_) | Output::Closing(_) | Output::Closed => true,
+            Held::Awaited => false,
+            Held::Open(_) | Held::Closing(_) | Held::Closed => true,
         }
     }
     pub fn bind(&mut self, output: Token) {
         assert!(self.output.token().is_none(), "one client output");
-        self.output = Output::Bound(output);
+        self.output = Held::Open(output);
     }
     pub fn owns(&self, event: &io::Event) -> bool {
         match event {
@@ -133,9 +116,9 @@ impl Client {
     pub fn up(&mut self, env: &Env<Limits>, event: io::Event) {
         match event {
             io::Event::Closed { .. } => {
-                self.output = match mem::replace(&mut self.output, Output::Closed) {
-                    Output::Unbound | Output::Bound(_) => Output::Unbound,
-                    Output::Closing(_) | Output::Closed => Output::Closed,
+                self.output = match mem::replace(&mut self.output, Held::Closed) {
+                    Held::Awaited | Held::Open(_) => Held::Awaited,
+                    Held::Closing(_) | Held::Closed => Held::Closed,
                 };
             }
             io::Event::Stream { up: Up::Failed(_), .. } | io::Event::Failed { .. } => self.fail(),
@@ -258,8 +241,8 @@ impl Client {
         !self.requests.is_empty()
             || !self.events.is_empty()
             || match self.output {
-                Output::Bound(_) => self.stream.finished(),
-                Output::Unbound | Output::Closing(_) | Output::Closed => false,
+                Held::Open(_) => self.stream.finished(),
+                Held::Awaited | Held::Closing(_) | Held::Closed => false,
             }
     }
     pub fn is_empty(&self) -> bool {
@@ -297,12 +280,12 @@ impl Client {
                 printer::down(&mut self.printer, env, printer::Request::Finish, &mut self.events, &mut self.requests);
             }
         } else if self.stream.finished() {
-            self.output = match mem::replace(&mut self.output, Output::Closed) {
-                Output::Bound(entity) => {
+            self.output = match mem::replace(&mut self.output, Held::Closed) {
+                Held::Open(entity) => {
                     below.push(Asked::Io(io::Request::Close { entity }));
-                    Output::Closing(entity)
+                    Held::Closing(entity)
                 }
-                output @ (Output::Unbound | Output::Closing(_) | Output::Closed) => output,
+                output @ (Held::Awaited | Held::Closing(_) | Held::Closed) => output,
             };
         }
     }
