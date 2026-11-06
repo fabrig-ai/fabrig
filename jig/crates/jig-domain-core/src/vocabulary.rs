@@ -631,6 +631,8 @@ pub enum Event {
         contract: tasks::Contract,
         holdings: Box<[tasks::Holding]>,
     },
+    /// A person's task in no project (jig/docs/design/domain/authority.md, 6.1).
+    PersonTask { seed: Box<crate::PersonSeed>, executor: tasks::Executor, spec: tasks::Spec, contract: tasks::Contract },
     /// A new deployment funding period, checked against core policy.
     Period { project: u32, period: u64, budget: u64, next: Option<Wall> },
     /// One page or terminal outcome of the transcript load requested by the core.
@@ -998,6 +1000,7 @@ impl Event {
             | Self::ClaimPrepared { .. }
             | Self::ClaimRefused { .. }
             | Self::ConnectorRepair { .. }
+            | Self::PersonTask { .. }
             | Self::TranscriptLoaded { .. }
             | Self::TurnPayload { .. }
             | Self::AnswerPayload { .. }

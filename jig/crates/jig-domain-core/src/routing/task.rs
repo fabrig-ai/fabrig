@@ -120,6 +120,45 @@ pub(crate) fn route_connector_repair(
     Queue::uncapped()
 }
 
+/// The pool opens precede the task in one decision (jig/docs/design/domain/authority.md, 6.1).
+pub(crate) fn route_person_task(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    seed: Box<crate::PersonSeed>,
+    executor: tasks::Executor,
+    spec: tasks::Spec,
+    contract: tasks::Contract,
+) -> Queue<Request> {
+    let (period, pool) = seed.opens;
+    for event in [period, pool].into_iter().flatten() {
+        work.push(Work::Event(Event::Tasks(event)));
+    }
+    work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        reply_to: ReplyTo::new(core.internal(Internal::Repair)),
+        creator: tasks::Party::Deployment { project: jig_domain_people::DEPLOYMENT },
+        batch: Box::new([tasks::New {
+            deadline: tasks::Deadline::Named,
+            label: 0,
+            flags: tasks::Flags::PLAIN,
+            number: seed.number,
+            project: jig_domain_people::DEPLOYMENT,
+            executor,
+            llm: None,
+            spec,
+            contract,
+            numbers: tasks::Numbers { budget: seed.authority.budget.spend, spent: 0, spent_below: 0, reserved: 0 },
+            authority: seed.authority,
+            funder: seed.funder,
+            dependencies: Box::new([]),
+            holdings: Box::new([]),
+            wake: tasks::WakePolicy::DEFAULT,
+            recurring: None,
+            tracked: None,
+        }]),
+    })));
+    Queue::uncapped()
+}
+
 pub(crate) fn route_tasks(
     core: &mut Core,
     env: &Env<Limits>,

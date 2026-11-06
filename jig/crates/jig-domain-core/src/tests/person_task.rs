@@ -1,0 +1,276 @@
+//! A person's projectless task (jig/docs/design/domain/authority.md, 6.1).
+use crate::tests::*;
+
+const PERSON: u64 = 1;
+const OTHER: u64 = 2;
+const PROJECT: u32 = people::DEPLOYMENT;
+const POOL: tasks::Funder = tasks::Funder::Pool { project: PROJECT, person: PERSON, period: 0 };
+const PERIOD: tasks::Funder = tasks::Funder::Period { project: PROJECT, period: 0 };
+const RUN_SPEND: u64 = 100; // The fixture's rules.maximum_run_spend.
+const CEILING_SPEND: u64 = 1000; // The fixture's rules.ceiling.budget.spend and period_spend.
+
+fn fixture() -> (Core, Env<Limits>) {
+    let mut limits = limits();
+    limits.accounts.accounts = 2;
+    limits.accounts.holder_accounts = 2;
+    let mut configuration = config(41);
+    let mut alternative = scripted_model();
+    alternative.name = b"second".as_slice().into();
+    configuration.settings.models = Box::new([scripted_model(), alternative.clone()]);
+    configuration.defaults.charters[0].policy.alternatives = Box::new([alternative]);
+    let mut provider = configuration.settings.llm_providers.providers[0].clone();
+    provider.number = 2;
+    provider.models = Box::new([b"second".as_slice().into()]);
+    configuration.settings.llm_providers.providers =
+        Box::new([configuration.settings.llm_providers.providers[0].clone(), provider]);
+    configuration.seed_projects = Box::new([]);
+    configuration.owners = Box::new([]);
+    configuration.connectors = Box::new([]);
+    let mut core = seeded_core(configuration, &limits).expect("projectless deployment");
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut out = Queue::uncapped();
+    for person in [PERSON, OTHER] {
+        people::step(
+            &mut core.people,
+            &env.with(limits.people),
+            people::Event::Restore {
+                record: people::Stored::Person {
+                    number: person,
+                    identity: people::Identity {
+                        key: people::IdentityKey { provider: 0, subject: person.to_be_bytes().into() },
+                        login: b"person".as_slice().into(),
+                        name: b"Person".as_slice().into(),
+                    },
+                },
+            },
+            &mut out,
+        );
+    }
+    finish_people(&mut core.people, &env.with(limits.people));
+    send_task(&mut core, &limits, tasks::Event::Check);
+    send_task(&mut core, &limits, tasks::Event::Restored);
+    (core, env)
+}
+
+fn event(seed: PersonSeed) -> Event {
+    Event::PersonTask {
+        seed: Box::new(seed),
+        executor: tasks::Executor::Agent { charter: 1 },
+        spec: tasks::Spec {
+            job: None,
+            asks: false,
+            words: b"answer once".as_slice().into(),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+        },
+        contract: tasks::Contract::Report { words: 64 },
+    }
+}
+
+fn make_person(core: &mut Core, env: &Env<Limits>) -> u64 {
+    let seed = core.person_seed(PERSON).expect("known person's pool has room");
+    let number = seed.number();
+    drop(step(core, env, event(seed)));
+    number
+}
+
+#[test]
+fn the_first_seed_opens_rules_funding_and_the_second_reuses_it() {
+    let (mut core, env) = fixture();
+    let first = make_person(&mut core, &env);
+    let row = core.tasks.task(first).expect("person task admitted without a project");
+    assert_eq!(row.funder, POOL);
+    assert_eq!(row.requester, tasks::Party::Deployment { project: PROJECT });
+    assert_eq!(row.numbers.budget, RUN_SPEND);
+    assert_eq!(core.tasks.funding(PERIOD).unwrap().numbers.budget, CEILING_SPEND);
+    assert_eq!(core.tasks.funding(POOL).unwrap().numbers.reserved, RUN_SPEND);
+    assert_eq!(core.tasks.funding(POOL).unwrap().numbers.budget, CEILING_SPEND);
+    let second = core.person_seed(PERSON).unwrap();
+    assert!(second.opens.0.is_none());
+    assert!(second.opens.1.is_none());
+    drop(step(&mut core, &env, event(second)));
+    assert_eq!(core.tasks.funding(POOL).unwrap().numbers.reserved, RUN_SPEND * 2);
+    assert_eq!(core.tasks.funding(PERIOD).unwrap().numbers.reserved, CEILING_SPEND);
+}
+
+#[test]
+fn the_seed_removes_every_permission_beyond_a_model_and_budget() {
+    let (mut core, _) = fixture();
+    let seed = core.person_seed(PERSON).expect("known person's pool has room");
+    let given = seed.authority;
+    assert_eq!(given.tools, tasks::Tools(0));
+    assert!(given.grants.is_empty());
+    assert_eq!(given.notes, tasks::Scopes(0));
+    assert!(given.note_resources.is_empty());
+    assert_eq!(given.delegation, tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 });
+    assert_eq!(given.budget.spend, RUN_SPEND);
+    assert_eq!(given.models, tasks::Models::ALL);
+}
+
+fn task_document(core: &Core, env: &Env<Limits>, task: u64) -> Task {
+    let Document::Task(document) =
+        make(core, &env.limits, PERSON, &Subject::Task { task }, &window(), env.wall).expect("payer may read Task")
+    else {
+        panic!("Task document")
+    };
+    *document
+}
+
+#[test]
+fn only_the_payer_can_read_its_account_wait_in_the_task_document() {
+    let (mut core, env) = fixture();
+    let task = make_person(&mut core, &env);
+    let document = task_document(&core, &env, task);
+    assert_eq!(document.run_wait, Some(TaskRunWait::Account { account: None, source: None, why: TaskWaitWhy::Empty }));
+    assert_eq!(document.kept_account, None);
+    assert_eq!(document.chip.details.observation, None);
+    assert_eq!(make(&core, &env.limits, OTHER, &Subject::Task { task }, &window(), env.wall), Err(Missing::NotAllowed));
+    assert_eq!(
+        task_from_row(&core, &env.limits, OTHER, core.tasks.task(task).unwrap(), env.wall),
+        Err(Missing::NotAllowed)
+    );
+}
+
+#[test]
+fn a_live_person_task_is_absent_from_chats_inbox_results_and_me_projects() {
+    let (mut core, env) = fixture();
+    let task = make_person(&mut core, &env);
+    assert!(core.tasks.task(task).is_some(), "the query runs with the task live");
+    let subject = Subject::Query {
+        query: TaskQuery {
+            project: None,
+            requester: Some(tasks::Party::Person(PERSON)),
+            root: None,
+            parent: None,
+            label: None,
+            phase: None,
+            executor: None,
+            tracked: None,
+            order: QueryOrder::Number,
+        },
+    };
+    let Document::Lines(chats) = make(&core, &env.limits, PERSON, &subject, &window(), env.wall).unwrap() else {
+        panic!("Chats-style query")
+    };
+    assert!(chats.lines.is_empty());
+    let Document::Inbox(inbox) =
+        make(&core, &env.limits, PERSON, &Subject::Inbox { party: PERSON }, &window(), env.wall).unwrap()
+    else {
+        panic!("inbox")
+    };
+    assert!(inbox.needs.is_empty());
+    assert!(inbox.updates.is_empty());
+    assert_eq!(inbox.cached_needs, 0);
+    assert_eq!(inbox.cached_updates, Count::Known(0));
+    let Document::Frame(me) =
+        make(&core, &env.limits, PERSON, &Subject::Frame { party: PERSON }, &window(), env.wall).unwrap()
+    else {
+        panic!("me")
+    };
+    assert!(me.projects.is_empty());
+    assert_eq!(me.updates, Count::Known(0));
+}
+
+#[test]
+fn the_next_seed_is_bounded_by_room_and_refused_after_it() {
+    let (mut core, env) = fixture();
+    make_person(&mut core, &env);
+    // The live task reserves RUN_SPEND; leave exactly one further unit in its pool.
+    send_task(
+        &mut core,
+        &env.limits,
+        tasks::Event::ResizePool {
+            reply_to: ReplyTo::new(Token::new(1)),
+            project: PROJECT,
+            person: PERSON,
+            period: 0,
+            budget: RUN_SPEND + 1,
+        },
+    );
+    let last = core.person_seed(PERSON).expect("one unit remains");
+    assert_eq!(last.authority.budget.spend, 1);
+    drop(step(&mut core, &env, event(last)));
+    assert!(core.person_seed(PERSON).is_none(), "the live task reserved the last unit");
+    assert!(core.person_seed(u64::MAX).is_none(), "unknown person");
+}
+
+fn person_account(core: &mut Core, env: &Env<Limits>, kind: accounts::Kind, uses: Option<Box<[Use]>>) {
+    use super::runs::run_choice::{account, granted, host};
+    for record in [
+        accounts::Stored::Account {
+            number: 1,
+            provider: 2,
+            holder: accounts::Holder::Party(PERSON),
+            place: 0,
+            uses,
+            subject: Box::new([]),
+            display: Box::new([]),
+        },
+        accounts::Stored::Source { account: 1, number: 1, place: 0, kind, name: Box::new([]), held: None },
+    ] {
+        account(core, &env.limits, accounts::Event::Restore { record });
+    }
+    account(core, &env.limits, accounts::Event::Want);
+    granted(core, &env.limits, 1);
+    host(core, &env.limits, Token::new(7), &[b"scripted", b"second"]);
+}
+
+fn claim(core: &mut Core, env: &Env<Limits>, task: u64, account: Option<u32>) {
+    send_task(core, &env.limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(1)), task });
+    send_task(
+        core,
+        &env.limits,
+        tasks::Event::Claim {
+            reply_to: ReplyTo::new(Token::new(1)),
+            task,
+            attempt: 1,
+            resumed: false,
+            budget: RUN_SPEND,
+            account,
+            writes: Box::new([]),
+        },
+    );
+}
+
+#[test]
+fn a_persons_plan_and_key_choose_the_first_usable_model_and_keep_its_account() {
+    for kind in [accounts::Kind::SignIn, accounts::Kind::Key] {
+        let (mut core, env) = fixture();
+        person_account(&mut core, &env, kind, None);
+        let task = make_person(&mut core, &env);
+        assert_eq!(core.tasks.payer(task), Some(tasks::Payer::Party(PERSON)));
+        let choice = core.run_choice(task).expect("person's account serves projectless task");
+        assert_eq!(choice.policy.model.name.as_ref(), b"second");
+        assert_eq!(choice.accounts.first().unwrap().account, 1);
+        assert_eq!(core.tasks.task(task).unwrap().llm, None);
+        claim(&mut core, &env, task, Some(1));
+        assert_eq!(task_document(&core, &env, task).kept_account, Some(1));
+    }
+}
+
+#[test]
+fn a_project_only_key_leaves_the_charters_first_model_waiting_without_an_account() {
+    let (mut core, env) = fixture();
+    person_account(&mut core, &env, accounts::Kind::Key, Some(Box::new([Use::Project(1)])));
+    let task = make_person(&mut core, &env);
+    assert_eq!(
+        core.run_choice(task),
+        Err(RunWait::Account { account: None, source: None, why: accounts::WaitWhy::Empty })
+    );
+    let document = task_document(&core, &env, task);
+    assert_eq!(document.llm.unwrap().main.model, 0);
+    assert_eq!(document.run_wait, Some(TaskRunWait::Account { account: None, source: None, why: TaskWaitWhy::Empty }));
+}
+
+#[test]
+fn a_person_task_with_a_usable_account_is_admitted_to_run() {
+    let (mut core, env) = fixture();
+    person_account(&mut core, &env, accounts::Kind::Key, None);
+    let task = make_person(&mut core, &env);
+    let context = core.tasks.run_context(task).expect("live agent task");
+    let admission = core.run_admission(&context, env.wall, Box::new([]));
+    match admission {
+        RunAdmission::Allow(_) => {}
+        other @ (RunAdmission::Wait(_) | RunAdmission::Hold(_)) => panic!("projectless run admission: {other:?}"),
+    }
+}
