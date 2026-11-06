@@ -3,9 +3,9 @@
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::file::{Event, Expect, Request};
-use skein_io::file_layer::{self, FileIo};
+use skein_io::file_layer::{FileIo, Limits, step};
 use skein_io::kernel::{Complete, Error, Fd, Op, Submit};
-use skein_lib::{Duration, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_sim::{Answer, Call, Config, Handle};
 use skein_world::{Cut, Host, Inherited, Machine, Memory, Referee, StartupRoot, World};
 
@@ -37,6 +37,7 @@ enum Phase {
 #[derive(Debug)]
 pub struct Owner {
     io: FileIo,
+    limits: Limits,
     root_fd: Fd,
     root: Token,
     signal: Fd,
@@ -57,11 +58,13 @@ pub struct Owner {
 fn make(inherited: &Inherited) -> Owner {
     assert_eq!(inherited.roots.len(), 1);
     let (name, root_fd) = &inherited.roots[0];
-    let mut io = FileIo::with_whole_limit(4, 4, 4, MAX, Duration::from_secs(1)).with_effective_user(USER);
+    let limits = Limits { files: 4, read: 4, entries: 4, whole: MAX, timeout: Duration::from_secs(1) };
+    let mut io = FileIo::with_limits(&limits).with_effective_user(USER);
     io.seed_randomness(123);
     let root = io.adopt_root(*root_fd).expect("startup root");
     Owner {
         io,
+        limits,
         root_fd: *root_fd,
         root,
         signal: inherited.signal,
@@ -122,19 +125,20 @@ impl Owner {
 }
 
 impl Host for Owner {
-    fn iterate(&mut self, now: Time, _wall: Wall) {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        let env = Env { now, wall, limits: self.limits };
         while let Some(complete) = self.completions.pop() {
             if complete.op == CLOSE_SIGNAL {
                 assert_eq!(self.phase, Phase::SignalPending);
                 assert!(complete.result.is_ok());
                 self.phase = Phase::Settled;
             } else {
-                file_layer::up(&mut self.io, complete, &mut self.up, &mut self.submissions);
+                step::up(&mut self.io, &env, complete, &mut self.up, &mut self.submissions);
                 self.observe();
             }
         }
         if self.io.is_due(now) {
-            file_layer::expire(&mut self.io, now, &mut self.submissions);
+            step::expire(&mut self.io, &env, &mut self.submissions);
         }
         if !self.io.takes() {
             self.issued += self.submissions.len();
@@ -179,7 +183,7 @@ impl Host for Owner {
         };
         if let Some(request) = request {
             self.phase = Phase::Waiting;
-            file_layer::down(&mut self.io, now, request, &mut self.up, &mut self.submissions);
+            step::down(&mut self.io, &env, request, &mut self.up, &mut self.submissions);
             self.observe();
         }
         self.issued += self.submissions.len();

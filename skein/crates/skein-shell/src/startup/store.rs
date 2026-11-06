@@ -1,7 +1,8 @@
 //! Startup's durable whole-file store (shell.md, 6.7).
 use crate::{Clock, Host, Kernel};
-use skein_io::{file, file_layer, kernel};
-use skein_lib::{Duration, Queue, Time, Token, Wall};
+use skein_io::file_layer::{FileIo, Limits, step};
+use skein_io::{file, kernel};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
 /// The most operations a startup store has in flight: the ring a caller opens for it alone.
 pub const STORE_OPERATIONS: u32 = 8;
@@ -49,7 +50,9 @@ pub enum Unstored {
 pub fn store_file(kernel: &mut Kernel, clock: &Clock, store: StartupStore<'_>) -> Result<Stored, Unstored> {
     let maximum = u32::try_from(store.bytes.len());
     let failure = maximum.err().map(|_| Unstored::TooLarge);
-    let mut io = file_layer::FileIo::with_whole_limit(2, 4096, 1, maximum.unwrap_or(1).max(1), store.timeout);
+    let whole = maximum.unwrap_or(1).max(1);
+    let limits = Limits { files: 2, read: 4096, entries: 1, whole, timeout: store.timeout };
+    let mut io = FileIo::with_limits(&limits);
     if let StoreDirectory::Private { user, .. } = store.directory {
         io = io.with_effective_user(user);
     }
@@ -71,6 +74,7 @@ pub fn store_file(kernel: &mut Kernel, clock: &Clock, store: StartupStore<'_>) -
     });
     let mut host = Storing {
         io,
+        limits,
         roots: vec![root],
         opening,
         request,
@@ -87,7 +91,8 @@ pub fn store_file(kernel: &mut Kernel, clock: &Clock, store: StartupStore<'_>) -
 }
 
 struct Storing {
-    io: file_layer::FileIo,
+    io: FileIo,
+    limits: Limits,
     roots: Vec<Token>,
     opening: Option<file::Request>,
     request: Option<file::Request>,
@@ -107,12 +112,13 @@ impl Storing {
     }
 }
 impl Host for Storing {
-    fn iterate(&mut self, now: Time, _wall: Wall) {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        let env = Env { now, wall, limits: self.limits };
         while let Some(complete) = self.completions.pop() {
-            file_layer::up(&mut self.io, complete, &mut self.events, &mut self.submissions);
+            step::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
         }
         if self.io.is_due(now) {
-            file_layer::expire(&mut self.io, now, &mut self.submissions);
+            step::expire(&mut self.io, &env, &mut self.submissions);
         }
         while let Some(event) = self.events.pop() {
             match event {
@@ -155,7 +161,7 @@ impl Host for Storing {
                 self.opening.take().or_else(|| self.request.take())
             };
             if let Some(request) = request {
-                file_layer::down(&mut self.io, now, request, &mut self.events, &mut self.submissions);
+                step::down(&mut self.io, &env, request, &mut self.events, &mut self.submissions);
             }
         }
     }
