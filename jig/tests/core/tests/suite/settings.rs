@@ -594,6 +594,11 @@ fn live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted() {
         let people::Ask::Create { batch, .. } = &mut chat else { panic!("agent batch") };
         batch[0].budget = people::Budget::Named;
         batch[0].authority.spend = 20;
+        batch[0].llm = Some(people::LlmChoice {
+            account: None,
+            main: people::ModelEffort { model: 0, effort: None },
+            subagents: Box::new([]),
+        });
         let people::Reply::Outcome(people::Outcome::Created { first, .. }) = ask(&mut world, signed, key, chat) else {
             panic!("agent task")
         };
