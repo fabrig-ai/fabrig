@@ -1,4 +1,5 @@
 use jig_domain_host as host;
+use jig_domain_link::{SignOutResult, SourceName};
 use jig_engine_workers_world::{World, fixtures};
 use jig_protocol_engine_workers::{Event, Request};
 use jig_protocol_worker_wire as wire;
@@ -27,7 +28,7 @@ fn source_records_are_host_wide_without_attempt_fences() {
     world.play(connection, frame(&[b"alice"]));
     world.run();
     assert!(world.root().iter().any(|request| matches!(request, Request::Up { channel: at, up: host::LinkUp::Logins { logins }, parts } if *at == channel && logins.len() == 1 && parts.is_empty())));
-    let alice = host::SourceName::new(b"alice").expect("name");
+    let alice = SourceName::new(b"alice").expect("name");
     for down in [
         host::LinkDown::Sources { sources: Box::new([alice]) },
         host::LinkDown::Check { name: alice },
@@ -49,7 +50,7 @@ fn source_records_are_host_wide_without_attempt_fences() {
     record.encode(&mut body).expect("encode");
     world.play(connection, fixtures::frame(0x0109, &body.finish()));
     world.run();
-    assert!(world.root().iter().any(|request| matches!(request, Request::Up { up: host::LinkUp::SignedOut { name, result: host::SignOutResult::SignedOut }, .. } if *name == alice)));
+    assert!(world.root().iter().any(|request| matches!(request, Request::Up { up: host::LinkUp::SignedOut { name, result: SignOutResult::SignedOut }, .. } if *name == alice)));
 }
 #[test]
 fn malformed_or_oversized_login_rows_are_refused() {

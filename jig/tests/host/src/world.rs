@@ -2,6 +2,7 @@ mod jobs;
 use jig_domain_host::FromAgent;
 use jig_domain_host::ToAgent;
 use jig_domain_host::{LinkDown, LinkUp};
+use jig_domain_link::{Hello, JobBound};
 use std::collections::{BTreeMap, BTreeSet};
 
 use jig_domain_host::{
@@ -346,7 +347,7 @@ pub struct World {
     refusals: crate::refusals::Referee,
     job_keys: BTreeSet<(Token, Token)>,
     job_answers: BTreeMap<(Token, Token), host::JobEnding>,
-    job_kinds: Box<[host::JobBound]>,
+    job_kinds: Box<[JobBound]>,
 }
 
 impl World {
@@ -809,7 +810,7 @@ impl World {
 
     /// Checks that a hello lists every run whose answer is not acknowledged,
     /// then lets the engine catch up and sends the answers the host keeps.
-    fn hello(&mut self, hello: &host::Hello) {
+    fn hello(&mut self, hello: &Hello) {
         assert_eq!(hello.jobs, self.job_kinds, "the hello declares the root job capability");
         let mut hosting = BTreeSet::new();
         for entry in &hello.hosting {

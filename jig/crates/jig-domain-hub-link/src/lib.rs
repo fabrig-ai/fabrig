@@ -300,7 +300,7 @@ pub enum Event {
     Prepared { assignment: Assignment, writes: Box<[tasks::Name]> },
     StartJob { job: JobStart },
     Start { task: u64, attempt: u64, kinds: fleet::Kinds, version: fleet::Version },
-    Hello { channel: Token, worker: u32, hello: host::Hello },
+    Hello { channel: Token, worker: u32, hello: jig_domain_link::Hello },
     Up { channel: Token, value: host::LinkUp },
     Lost { channel: Token },
     Receive { channel: Token, payload: Payload },

@@ -3,8 +3,7 @@
 2026-11-06. Where jig's code lags or departs from [root.md](root.md).
 
 - **Not yet:** 2, 5, 6: `smith-inline-agent` composed in the engine's
-  root. 2: the fleet, the hub and accounts still re-export the link's values
-  (`jig/docs/development/debt/D006-link-values-two-paths.md`).
+  root.
 - **Departs:** 3, 5, 8, 11: the test root is not in `ops`'s shape: its
   `Domain` keeps `now`, `store_answers`, `busy` and `public_reads` beside
   the journal between steps, its `release` steps released callbacks
@@ -24,9 +23,3 @@
   or no, as the section allows, reading `LinkUp`'s `new_work`, because
   `Class` would be a new dependency and would change the public
   `completes`, whose callers read a `bool`.
-  2: `jig-domain-link` owns the link's values, but `jig-domain-fleet`,
-  `jig-domain-host` and `jig-domain-accounts` re-export them in six `pub use`
-  lines, so each value has two paths, because the `debt-28` plan of 2026-11-06
-  paid the program-name grammar's half of that item alone, its re-exports adding
-  more lines than they remove (the code's side is
-  `jig/docs/development/debt/D006-link-values-two-paths.md`).

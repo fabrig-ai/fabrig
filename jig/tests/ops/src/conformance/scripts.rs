@@ -29,6 +29,7 @@
 //! read: smith's inline agent heard the stop in the same step. If its task
 //! stays live, the unread messages wake it again according to their policy.
 use jig_conformance::{Clock, Input};
+use jig_domain_link::{Bounds, CountKind, ModelBound, Operation};
 
 use jig_client_test_domain::DIALECT;
 use jig_domain_host as host;
@@ -689,12 +690,8 @@ pub fn lead() -> Box<[u8]> {
 fn completion_activity(owner: Token, turns: u32) -> Vec<root::Event> {
     let mut reports = Vec::new();
     for activity in [
-        host::AgentActivity::Long { operation: host::AgentOperation::Completion, span: Duration::from_secs(1) },
-        host::AgentActivity::Count {
-            kind: host::CountKind::LlmFinished,
-            elapsed: Duration::ZERO,
-            count: u64::from(turns),
-        },
+        host::AgentActivity::Long { operation: Operation::Completion, span: Duration::from_secs(1) },
+        host::AgentActivity::Count { kind: CountKind::LlmFinished, elapsed: Duration::ZERO, count: u64::from(turns) },
         host::AgentActivity::LongDone,
     ] {
         reports.push(root::Event::Agent(host::FromAgent::Activity { owner, activity }));
@@ -704,14 +701,10 @@ fn completion_activity(owner: Token, turns: u32) -> Vec<root::Event> {
 
 /// Capabilities of the scripted agent, whose script applies no smaller limits.
 #[must_use]
-pub fn agent_bounds() -> host::Bounds {
-    host::Bounds {
+pub fn agent_bounds() -> Bounds {
+    Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([host::ModelBound {
-            name: b"scripted".as_slice().into(),
-            window: u32::MAX,
-            output: u32::MAX,
-        }]),
+        models: Box::new([ModelBound { name: b"scripted".as_slice().into(), window: u32::MAX, output: u32::MAX }]),
         turns: u32::MAX,
         spend: u64::MAX,
         time: Duration::from_nanos(u64::MAX),

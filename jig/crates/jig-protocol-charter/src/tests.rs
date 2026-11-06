@@ -1,4 +1,5 @@
 use alloc::boxed::Box;
+use jig_domain_link::{Form, Grant};
 use skein_lib::{Duration, Reader};
 use smith_charter::v4 as wire;
 
@@ -660,8 +661,8 @@ fn hosted_fixture() -> jig_domain_core::Assignment {
                 answer: core::SettledAnswer::Host { error: true, body: b"refused".as_slice().into() },
             },
         }]),
-        grants: Box::new([jig_domain_host::Grant {
-            form: jig_domain_host::Form::Application,
+        grants: Box::new([Grant {
+            form: Form::Application,
             account: 1,
             generation: 2,
             valid: Duration::from_secs(30),

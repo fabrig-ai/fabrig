@@ -7,7 +7,7 @@ use crate::{
 };
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
-use jig_domain_host as host;
+use jig_domain_link::{LoginMethod, LoginState, SourceFailure};
 use jig_domain_link::{SignOutResult, SourceName};
 use jig_protocol_worker_wire as wire;
 use skein_fake_machine::{How, Item, Opened};
@@ -71,7 +71,7 @@ struct Judge {
     lost: bool,
     login: Option<Rc<Cell<LoginPhase>>>,
     ended: Option<SignOutAnswer>,
-    states: Vec<host::LoginState>,
+    states: Vec<LoginState>,
     observed: usize,
 }
 impl skein_world::Referee<Proc> for Judge {
@@ -182,23 +182,23 @@ impl Judge {
             let row = snapshot.into_parts().logins.into_boxed().into_iter().next().expect("one source").into_parts();
             assert_eq!(row.name.as_ref(), b"alice");
             self.states.push(match row.state {
-                wire::LoginState::Usable => host::LoginState::Usable,
-                wire::LoginState::NotSignedIn => host::LoginState::NotSignedIn,
+                wire::LoginState::Usable => LoginState::Usable,
+                wire::LoginState::NotSignedIn => LoginState::NotSignedIn,
                 wire::LoginState::SignedInOtherwise(method) => {
-                    host::LoginState::SignedInOtherwise(host::LoginMethod::new(method.method()).expect("method"))
+                    LoginState::SignedInOtherwise(LoginMethod::new(method.method()).expect("method"))
                 }
                 wire::LoginState::Failed(failure) => {
                     let failure = failure.into_parts();
                     assert!(failure.detail.len() <= 4096);
-                    host::LoginState::Failed {
+                    LoginState::Failed {
                         reason: match failure.reason {
-                            wire::SourceFailure::Missing => host::SourceFailure::Missing,
-                            wire::SourceFailure::Deadline => host::SourceFailure::Deadline,
-                            wire::SourceFailure::Unreadable => host::SourceFailure::Unreadable,
-                            wire::SourceFailure::Exited => host::SourceFailure::Exited,
-                            wire::SourceFailure::Unconfigured => host::SourceFailure::Unconfigured,
-                            wire::SourceFailure::Unknown => host::SourceFailure::Unknown,
-                            wire::SourceFailure::Closed => host::SourceFailure::Closed,
+                            wire::SourceFailure::Missing => SourceFailure::Missing,
+                            wire::SourceFailure::Deadline => SourceFailure::Deadline,
+                            wire::SourceFailure::Unreadable => SourceFailure::Unreadable,
+                            wire::SourceFailure::Exited => SourceFailure::Exited,
+                            wire::SourceFailure::Unconfigured => SourceFailure::Unconfigured,
+                            wire::SourceFailure::Unknown => SourceFailure::Unknown,
+                            wire::SourceFailure::Closed => SourceFailure::Closed,
                         },
                         detail: failure.detail,
                     }
@@ -213,7 +213,7 @@ impl Judge {
         if self.phase == Phase::Asked
             && (!self.sign_out || self.ended.is_some())
             && (!self.lost || hellos >= 2 && self.states.len() >= 2)
-            && (self.login.is_none() || self.states.last() == Some(&host::LoginState::Usable))
+            && (self.login.is_none() || self.states.last() == Some(&LoginState::Usable))
         {
             self.phase = Phase::Done;
         }
@@ -221,7 +221,7 @@ impl Judge {
 }
 #[derive(Default)]
 pub struct Run {
-    pub states: Vec<host::LoginState>,
+    pub states: Vec<LoginState>,
     pub ended: Option<SignOutAnswer>,
     pub observations: Vec<smith_fake_claude::Observation>,
 }

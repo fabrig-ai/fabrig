@@ -1,3 +1,4 @@
+use jig_domain_link::{Form, Grant, Scheme};
 use jig_protocol_engine_workers::{Limits, Worker};
 use skein_io::digest::digest;
 use skein_lib::{Duration, Secret, Writer};
@@ -372,8 +373,8 @@ pub const TOKEN_ONE: &[u8] = b"TOKEN_ONE";
 pub const TOKEN_TWO: &[u8] = b"TOKEN_TWO";
 pub const IDENTITY: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 #[must_use]
-pub fn grant(form: jig_domain_host::Form) -> jig_domain_host::Grant {
-    jig_domain_host::Grant { form, account: 1, generation: 4, valid: Duration::from_secs(30) }
+pub fn grant(form: Form) -> Grant {
+    Grant { form, account: 1, generation: 4, valid: Duration::from_secs(30) }
 }
 #[must_use]
 pub fn values() -> Box<[Option<jig_protocol_engine_workers::GrantValue>]> {
@@ -406,7 +407,7 @@ pub fn assignment() -> jig_domain_host::Assignment {
             save: true,
             live: jig_domain_host::LiveAsk::NONE,
             charter: Box::from(b"charter".as_slice()),
-            grants: Box::new([grant(host::Form::Credential(host::Scheme::Bearer)), grant(host::Form::Application)]),
+            grants: Box::new([grant(Form::Credential(Scheme::Bearer)), grant(Form::Application)]),
         },
         turns: Box::new([Box::from([0, 127]), Box::from([255, 1, 2])]),
         answered: Box::new([host::AnsweredCall {

@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::Bounds;
 use jig_domain_link::{Hello, Problem};
 use jig_ops_domain_connectors::Connector;
 use jig_ops_domain_infrastructure as infrastructure;
@@ -22,7 +23,7 @@ pub struct Config {
     /// Core rules and its children.
     pub core: core::Config,
     /// Agent capability supplied by its configuration, checked by the fleet.
-    pub agent_bounds: host::Bounds,
+    pub agent_bounds: Bounds,
     /// Observability owns the standing watches' delegate templates.
     pub triage_templates: Box<[observability::TriageTemplate]>,
     /// Observability owns the matching incident lead templates.
@@ -395,7 +396,7 @@ pub(crate) fn now(domain: &mut Domain, value: Output) {
     domain.journal.now(value).expect("bounded door drained by each domain iteration");
 }
 
-fn check_engine_hello(domain: &mut fleet::Domain, limits: &fleet::Limits, agent_bounds: host::Bounds, slots: u32) {
+fn check_engine_hello(domain: &mut fleet::Domain, limits: &fleet::Limits, agent_bounds: Bounds, slots: u32) {
     let mut out = Queue::uncapped();
     fleet::step(
         domain,
