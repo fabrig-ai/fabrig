@@ -96,3 +96,21 @@ temper, clippy on the packages you changed, commit and push.
 ## Report
 
 As the implementer's text says, each overlap file you changed, and the page's text bound if it moved.
+
+## Rebase (2026-11-06, step merge, foreman first-usable-model/printed-command/foreman-1)
+
+Rebase printed-command while preserving upstream sign-in waiting and model-check behavior.
+The merge refused five content conflicts; no build or test failure was reported.
+Upstream changes include `8566a5434b` (shared sign-in waiting page), `b0f391ffc0` (model-check status box), and `df530aacf6` (their integration).
+Resolve the conflicting paths as follows:
+
+- `temper/crates/temper-client-view/src/accounts/words.rs`: retain upstream word removals and punctuation; apply the branch’s placeholder `Command`, revised `ProgramCommand`, and new `ProgramCommandHere`.
+- `temper/crates/temper-client-view/src/words.rs`: retain upstream words and recompute combined `PHRASES` and `SEGMENTS`. Against the inspected integration tip, these become 1770 and 3072.
+- `temper/crates/temper-client-view/src/tests/connect_model.rs`: retain upstream waiting-page tests and append the branch’s deployment-line fixture and command tests.
+- `temper/crates/temper-client-view/src/tests/welcome.rs`: retain upstream waiting and model-check assertions; update command expectations only where a command remains visible. Preserve frame 3’s assertion that no command appears. Keep the new deployment-line test.
+- `temper/tools/gallery/src/tests.rs`: update `welcome-model-claude` to the placeholder command; preserve upstream `welcome-model-claude-not-yet` assertions for the failed trial and its retry actions, without restoring a command there.
+
+Inspect the automatically merged `pages/connect_model.rs` and `pages/welcome_model.rs`: preserve model-check early returns and pass `root` to the shared command function.
+Keep `printed_command` and `command_line` as the common source required by `notes/contracts.md` and client design 4.6.
+Regenerate gallery/journey output affected by the combined code using its tool.
+Run the spec’s focused validation through `heavy`, including the view and gallery packages; verify phrase/segment capacity against the combined words.
