@@ -277,7 +277,8 @@ fn stock_limits() -> engine::Limits {
     limits.documents.grants = 16;
     limits.documents.executors = 9;
     limits.notes.scopes = 32;
-    limits.tasks.charters = 6;
+    // Seven slots hold the stock charters.
+    limits.tasks.charters = 7;
     limits.journal.writes = journal::WALKING_WRITES;
     limits.journal.run_bytes = STOCK_RUN_BYTES;
     limits

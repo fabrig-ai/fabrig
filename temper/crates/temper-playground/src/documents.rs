@@ -168,7 +168,8 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
         ("tasks.dependencies", 2),
-        ("tasks.charters", 5),
+        // Six slots hold the stock charters except charter 3.
+        ("tasks.charters", 6),
         ("notes.entries_per_scope", 2),
         ("notes.recalled", 2),
         ("people.holdings", 2),

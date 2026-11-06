@@ -51,7 +51,8 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         ("tasks.executor_kinds", 9),
         ("tasks.authority_bytes", 128),
         ("notes.scopes", 32),
-        ("tasks.charters", 6),
+        // Seven slots hold the stock charters.
+        ("tasks.charters", 7),
         ("core.templates", 3),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
@@ -290,7 +291,10 @@ mod tests {
         for charter in &engine.charters {
             assert!(u64::from(charter.policy.turns) <= turns, "charter {} exceeds agent turns", charter.number);
         }
-        assert_eq!(engine.charters.len(), 6);
-        assert_eq!(usize::try_from(engine.limits.core.documents.lines).expect("line capacity"), engine.charters.len());
+        assert_eq!(engine.charters.len(), 7);
+        assert_eq!(
+            usize::try_from(engine.limits.core.documents.lines).expect("line capacity"),
+            engine.charters.iter().filter(|charter| charter.number != 10).count()
+        );
     }
 }
