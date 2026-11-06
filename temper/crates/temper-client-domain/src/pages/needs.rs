@@ -58,6 +58,7 @@ pub enum Toasted {
     OverturnAlready,
     Answered { object: ObjectKey, label: Label },
     Later,
+    NotSent,
     Paused,
     Resumed,
     Proposed { to: contract::Recipient },
@@ -513,13 +514,17 @@ fn make_room(session: &mut Session) -> bool {
 }
 fn answer(pages: &mut Pages, env: &Env<Limits>, object: ObjectKey, words: Box<[u8]>, reply: bool) {
     let bound = if reply { env.limits.client.domain.text } else { temper_client_protocol_wire::CUE_BYTES };
-    let Ok(words) = Text::new(words, bound) else { return };
     let Some(card) = answerable(pages, object) else { return };
     let Some(page) = &card.page else { return };
     let Some(question) = question(page) else { return };
     let project = card.project.expect("answerable project");
     let title = question.task.title.bytes().into();
+    let Ok(words) = Text::new(words, bound) else {
+        pages.needs.toast = Some((Toasted::NotSent, env.now.saturating_add(TOAST)));
+        return;
+    };
     if !make_room(&mut pages.needs) {
+        pages.needs.toast = Some((Toasted::NotSent, env.now.saturating_add(TOAST)));
         return;
     }
     let label = if reply { Label::Reply(reply_label(words.bytes())) } else { Label::Choice(Box::from(words.bytes())) };
@@ -631,6 +636,7 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
                     | Toasted::OverturnEnded
                     | Toasted::OverturnAlready
                     | Toasted::Later
+                    | Toasted::NotSent
                     | Toasted::Paused
                     | Toasted::Resumed
                     | Toasted::Proposed { .. }

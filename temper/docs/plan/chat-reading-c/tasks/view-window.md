@@ -25,7 +25,7 @@ A chat's window may now hold many more than 16 lines. `temper_client_view::Limit
 Acceptance:
 
 - `Limits::of` no longer reads `pages::chat::LINES`, and prices the window as the contract's *temper's view* says. It returns `Some` at both shells' limits, `valid` holds, and the terminal's `render_bound`, `Terminal::operations` and `Terminal::new` still hold: their tests stay green unchanged.
-- At a small domain's limits, a thread filled to its `bytes` by the Markdown that makes the most nodes and text, and again by the most lines of the smallest weight, each a turn of as many blocks as its weight allows, builds without the builder's panic. This test bites: halve the priced window, and see the panic.
+- At a small domain's limits, a thread filled to its `bytes` by the Markdown that makes the most nodes and text, and again by the most lines of the smallest weight, each a turn of as many blocks as its weight allows, builds without the builder's panic. These tests bite: under `LINES`'s price, the Markdown and small-lines ones panic (*Answers*, the last).
 - `pages/chat.rs`'s `Run::with_capacity` no longer reads `LINES`.
 - A page's figures at the shells' limits, against today's, are in your report: `nodes`, `text_bytes`, the view's heap for a full window. `temper-client-shell-web/tests/suite/memory.rs` holds a full window, in its idiom, if that's cheap (its ceiling the peak plus 25%, rounded up to two figures). If not, measure with throwaway code, give the figures, and add no feed to the host for it.
 - If `text_bytes` doesn't fit a `u32`, stop and report the figures: that is a `Question:`, as it bounds what a page may hold.
@@ -81,3 +81,11 @@ As the implementer's text asks, with the figures above. Whichever you measured, 
 - **If a line draws more than the price holds** (a phrase carrying a line's bytes beyond twice), price what it draws and say so. If the sum then leaves `u32`, stop as the acceptance says, with the figures.
 
 The rest of the acceptance stands, the steps you did not reach included: both shells' `Some`, the halved-window mutation, the heap figures for a full window, clippy and the four packages' tests. Your `nodes` figure, 22,518,676, is mostly `lines * plain` in `live_nodes`: if it moves a heap ceiling, name it with its measurement, as *Heap* says, and take the smaller bound *Live lines and words* allows.
+
+2026-11-06. **Question:** the halved price passes all three window tests: accept the old-`LINES` mutation as the bite, or revise the binding price?
+
+**Accept the old-`LINES` mutation; the price stays as the contract has it.** This replaces the acceptance's halved-window mutation, the last answer's mention of it included.
+
+- **Why:** the acceptance's purpose is that a full window fails where the window is priced as lines, and step 1 already asks for that panic. Halving can't show it: the contract's price is a worst-case bound at two nodes a byte, and at this domain the fixtures draw about 0.7 a byte (756,241 nodes against the halved total of 3,400,668), with the live and outside-window allowances beside it. Tightening a sound bound so that a mutation fires would only make it less safe, and the price costs nothing: peak heap is the same under both prices.
+- **Your work stands:** `c76b96a428`, no code change for this. The 512's non-bite (835 turns, 630,437 text bytes) is reported as the last answer allowed.
+- **The next run:** on the branch as it is, rerun the three window tests, the old-`LINES` mutation once (restored after) and step 3's checks; report `Done` with this run's figures carried over, each saying which run measured it. Don't repeat the heap measurement unless `limits.rs`' price or the fixtures change.
