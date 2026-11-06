@@ -11,6 +11,8 @@ use serde_json::{Map, Value};
 pub struct Golden {
     pub placeholders: Placeholders,
     pub roles: Vec<Role>,
+    /// Kinds of setting no obligation asks for, and a proposal may hold.
+    pub free: Vec<String>,
     pub obligations: Vec<Obligation>,
     pub rules: Vec<Rule>,
 }
@@ -257,7 +259,7 @@ fn setting_key(v: &Value, path: &str, subject: bool) -> Result<SettingKey, Golde
         .transpose()?;
     match kind.as_str() {
         "rules" if setting_number.is_none() && project.is_none() => {}
-        "project-policy" if setting_number.is_none() && project.is_some() => {}
+        "project-policy" | "project-ways" | "project-questions" if setting_number.is_none() && project.is_some() => {}
         "landing-rule" if subject || setting_number.is_some() => {}
         "charter" | "template" | "policy" | "forge-charter"
             if project.is_none() && (subject || setting_number.is_some()) => {}
@@ -342,7 +344,7 @@ fn obligation(v: &Value, path: &str) -> Result<Obligation, GoldenError> {
 /// Returns the JSON path and reason of the first invalid member.
 pub fn decode(bytes: &[u8]) -> Result<Golden, GoldenError> {
     let v = json(bytes)?;
-    let map = object(&v, "$", &["golden", "placeholders", "roles", "obligations", "rules"])?;
+    let map = object(&v, "$", &["golden", "placeholders", "roles", "free", "obligations", "rules"])?;
     text(map, "golden", "$")?;
     let placeholders = object(required(map, "placeholders", "$")?, "$.placeholders", &["forge", "repository"])?;
     let placeholders = Placeholders {
@@ -366,6 +368,10 @@ pub fn decode(bytes: &[u8]) -> Result<Golden, GoldenError> {
         });
     }
     validate_anchors(&roles)?;
+    let mut free = Vec::new();
+    for (i, v) in field_array(map, "free", "$")?.iter().enumerate() {
+        free.push(v.as_str().ok_or_else(|| error(&format!("$.free[{i}]"), "expected text"))?.to_owned());
+    }
     let mut obligations = Vec::new();
     let mut ids = BTreeSet::new();
     let profile = profile()?;
