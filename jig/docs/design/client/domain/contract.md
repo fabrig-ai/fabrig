@@ -1578,6 +1578,11 @@ designs (`../../protocol/client.md`):
 
 ## 11. Open questions
 
+- **Historical public boards** (section 12): ended goals across a restart
+  or from before publication need the source index in
+  `../../domain/people.md`, section 12. Default: the current public records,
+  projected from that document's memory-only index (13.9); no history is
+  reconstructed by the client contract.
 - **Bundling parts:** whether a jig read's answer should carry the
   application's parts it names, put together by the engine's root, to
   save a client the second round trip.

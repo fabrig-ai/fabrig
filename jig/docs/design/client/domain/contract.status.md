@@ -1,7 +1,7 @@
 # contract: status
 
 2026-11-06. Where jig's code lags or departs from [contract.md](contract.md).
-Unlisted sections have no known gap.
+Unlisted sections, including public documents (12), have no known gap.
 
 - **Not yet:** 5.1: `me` gives `words_bytes` from `people.words` for a party's
   spec, message and answer, but says no bound on an amendment's: the long-words

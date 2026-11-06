@@ -97,7 +97,12 @@ alone, and many of ctl's tools (`client/README.md`,
 browser, whose story A walks in the browser tier but not yet by hand
 (`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). The browser tier holds 17 tests, five past its cap, its CPU
+(`release.md`). Public pages use a plain column, a goal's spend alone, distinct
+endings and seven-digit commits; public records carry no forge addresses.
+Public history before publication, across a restart and from a stock queue
+is deferred, and the public geometry story's runtime check awaits the
+browser tier after landing (`client/browser.md`, `client/forge.md`).
+The browser tier holds 17 tests, five past its cap, its CPU
 measured within its budget on the 12 without the call line's and the welcome's
 sign-in's, at 83.069911 of its 85 on a run of 13 with one red, a public project's
 `temper ctl` visibility command past its deadline, its cause not found, and at

@@ -26,8 +26,11 @@ the client, a committed turn's objects,
 mode and the drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). `RemoveProject`
 is offered in no project's document (`client/domain/contract.md`).
-Public reading's remaining departure is the public index's memory fit
-check (`protocol/configuration.md`). The test root is not in `ops`'s
+Public lines carry a goal's spend alone, no budget, and distinct endings
+(`domain/people.md`, `client/domain/contract.md`). Public reading's remaining
+departure is the public index's memory fit check (`protocol/configuration.md`);
+ended goals across a restart or before publication are deferred
+(`domain/people.md`, section 12). The test root is not in `ops`'s
 shape, which the user deferred, 2026-11-06, and temper keeps its own message words and
 its admission's yes or no, where the user's request of 2026-11-05 has it
 use jig's (`domain/root.md`, `domain/hosts.md`).
