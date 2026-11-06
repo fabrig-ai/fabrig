@@ -1,6 +1,6 @@
 # Status
 
-2026-11-05. Where smith's code lags or departs from its design, from
+2026-11-06. Where smith's code lags or departs from its design, from
 the status files below. Containment waits on skein's contained trees
 (skein's `io.md`, 6.2 to 6.4): the agent and its commands run as
 plain children in process groups, so the view, the writable scope
@@ -22,7 +22,8 @@ crates drive skein's JSON tokenizer over a whole buffer by hand
 "checkout" for the workspace (`domain/run.md`), and two effective limits keep `adapter`
 in their names (`protocol/limits.md`). A host may have the shell keep
 each model request and what a program was given in a private directory
-(`protocol/agent.md`, `protocol/programs.md`). `domain/session.md`,
+(`protocol/agent.md`, `protocol/programs.md`). The local host sets one token tag
+by hand (`protocol/hosts.md`). `domain/session.md`,
 `protocol/channel.md`,
 `protocol/charter.md`, `protocol/llm.md` and
 `protocol/transcript.md` have no gap. smith has no drafts.

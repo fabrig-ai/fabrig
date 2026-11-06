@@ -33,7 +33,7 @@
   regenerates every tree's codecs (codec.md, 13). `skein-fake-checkout`
   measures two lengths with `u64::try_from`, against that item too, because
   it has no `skein-lib` dependency; `skein/scripts/old-forms.txt`'s
-  `widening` holds them at 23, the other 21 a
+  `widening` holds them at 22, the other 20 a
   `u64`'s or a signed count's, which can fail and are outside the rule. And
   136 lines of step code write `usize::try_from(..)` with no `.expect(..)` on
   the line, over a `u32` or a `u64`, `skein-kv`'s frames and snapshots among

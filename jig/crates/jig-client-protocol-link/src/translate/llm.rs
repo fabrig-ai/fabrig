@@ -70,6 +70,22 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
             Some(value) => Some(name(value, limits.receiving().me_model_description_some)?),
             None => None,
         };
+        let effort = match value.effort() {
+            Some(effort) if value.efforts().as_slice().contains(effort) => {
+                Some(name(effort, limits.receiving().me_model_effort_some)?)
+            }
+            None if value.efforts().is_empty() => None,
+            Some(_) | None => {
+                return Err(w::Problem { path: w::Path::MeModelEffort, reason: skein_codec::Reason::Malformed });
+            }
+        };
+        let shown = match value.shown() {
+            Some(shown) if shown.is_empty() => {
+                return Err(w::Problem { path: w::Path::MeModelShown, reason: skein_codec::Reason::Malformed });
+            }
+            Some(shown) => Some(name(shown, limits.receiving().me_model_shown_some)?),
+            None => None,
+        };
         let mut efforts = List::with_capacity(value.efforts().len());
         for effort in value.efforts() {
             efforts.push(name(effort, limits.receiving().me_model_efforts_item)?).expect("same capacity");
@@ -81,6 +97,10 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
                 window: value.window(),
                 output: value.output(),
                 efforts,
+                effort,
+                shown,
+                accounts: value.accounts().clone(),
+                picker: value.picker(),
                 prices: c::ModelPrices {
                     input: prices.input(),
                     cached: prices.cached(),
@@ -112,4 +132,17 @@ fn name(value: &[u8], limit: u32) -> Result<c::Text, w::Problem> {
         Ok(text) => Ok(text),
         Err(_) => Err(too_large()),
     }
+}
+
+pub(crate) fn defaults(values: &List<w::MeDefault>, limits: &Limits) -> Result<List<c::MeDefault>, w::Problem> {
+    let mut defaults = List::with_capacity(values.len());
+    for value in values {
+        defaults
+            .push(c::MeDefault {
+                template: value.template(),
+                choice: choice(Some(value.choice()), limits)?.expect("present choice"),
+            })
+            .expect("same capacity");
+    }
+    Ok(defaults)
 }

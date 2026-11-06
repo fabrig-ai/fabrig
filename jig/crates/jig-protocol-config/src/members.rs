@@ -321,7 +321,7 @@ pub static SHAPES: [Shape; 61] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 258] = [
+pub static MEMBERS: [Member; 260] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -806,6 +806,24 @@ pub static MEMBERS: [Member; 258] = [
         bound: "1 to 512 bytes",
         required: false,
         line: "Describes what the model is good at for the brief's catalogue.",
+        gone: None,
+    },
+    Member {
+        shape: "model",
+        name: "shown",
+        kind: "text",
+        bound: "1 to 256 bytes",
+        required: false,
+        line: "Gives the model's name for showing.",
+        gone: None,
+    },
+    Member {
+        shape: "model",
+        name: "picker",
+        kind: "true or false",
+        bound: "",
+        required: false,
+        line: "Says whether a picker shows the model, true when absent.",
         gone: None,
     },
     Member {

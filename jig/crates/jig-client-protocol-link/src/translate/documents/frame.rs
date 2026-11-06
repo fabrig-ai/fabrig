@@ -57,6 +57,7 @@ pub(crate) fn project_role_fields(value: &w::MeProject, limits: &Limits) -> Resu
             None => None,
         },
         models: crate::translate::llm::models(value.models(), limits)?,
+        defaults: crate::translate::llm::defaults(value.defaults(), limits)?,
     })
 }
 

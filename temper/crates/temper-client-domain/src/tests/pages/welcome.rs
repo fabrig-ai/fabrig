@@ -55,6 +55,7 @@ fn opened(owner: bool, step: Step) -> (Domain, Token, Token, Option<Token>) {
     frame
         .projects
         .push(c::MeProject {
+            defaults: List::with_capacity(0),
             public: None,
             project: f::PROJECT,
             name: jig_client::contract::DocumentText::complete(
@@ -1184,4 +1185,37 @@ fn model_attempt(out: &Queue<Request>) -> Token {
         }
     }
     panic!("Model request sent")
+}
+
+#[test]
+fn ready_creates_while_the_declared_accounts_host_check_is_out() {
+    let way = pages::accounts::Way::Program { provider: 17 };
+    let step = Step::Model { way: Some(pages::connect_model::model_way(way)) };
+    let (mut root, me, accounts, forges) = opened(true, step);
+    answer(&mut root, false);
+    let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
+    let offer = frame.providers.get_mut(0).unwrap();
+    offer.programs = List::with_capacity(1);
+    offer.programs.push(c::Text::new(b"claude_code".as_slice().into(), 32).unwrap()).unwrap();
+    deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
+    account(&mut root, accounts, 17, false);
+    forge_rows(&mut root, forges.unwrap(), Some(3), false);
+    event(
+        &mut root,
+        Event::Act {
+            action: Action::Pages(Act::ConnectModel(pages::connect_model::Act::SignedIn { name: [1; 16], way })),
+        },
+    );
+    assert_eq!(pages::welcome::model_usable(&root), Some(false));
+    assert_eq!(pages::welcome::model_counts(&root), Some(true));
+    go(&mut root, Step::Ready);
+    let mut making = false;
+    for sent in &super::accounts::sends(press_default(&mut root)) {
+        if let jig_client::Ask::Jig(ask) = &sent.2
+            && let c::Ask::MakeProject { .. } = ask.as_ref()
+        {
+            making = true;
+        }
+    }
+    assert!(making, "Ready creates while the check is out");
 }

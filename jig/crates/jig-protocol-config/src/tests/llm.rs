@@ -375,3 +375,65 @@ fn a_models_program_comes_from_its_endpoint() {
     assert_eq!(engine.llm.models[0].program, engine.llm.endpoints[0].program);
     assert!(engine.llm.models[0].window <= 272_000);
 }
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "tests are ordinary Rust (programming-model.md, 10.2)")]
+fn model_shown_and_picker_reach_the_client_catalogue() {
+    let shown = "é".repeat(128);
+    let members = format!(
+        r#""output": 1024, "shown": "{shown}", "picker": false, "efforts": ["low", "high"], "effort": "high","#
+    );
+    for (bytes, expected, picker, effort) in [
+        (fixtures::ENGINE_SMALL.into(), None, true, None),
+        (
+            fixtures::with(fixtures::ENGINE_SMALL, br#""output": 1024,"#, members.as_bytes()),
+            Some(shown.as_bytes()),
+            false,
+            Some(b"high".as_slice()),
+        ),
+        (
+            fixtures::with(
+                fixtures::ENGINE_SMALL,
+                br#""output": 1024,"#,
+                br#""output": 1024, "picker": true, "efforts": ["low", "high"],"#,
+            ),
+            None,
+            true,
+            Some(b"low".as_slice()),
+        ),
+    ] {
+        let engine = fixtures::engine(&bytes).unwrap();
+        assert_eq!(engine.llm.shown.first().unwrap().as_deref(), expected);
+        assert_eq!(engine.llm.pickers.as_ref(), [picker]);
+        let models = crate::clients::models(&engine.llm);
+        let model = models.first().unwrap();
+        assert_eq!(model.shown.as_deref(), expected);
+        assert_eq!(model.picker, picker);
+        assert_eq!(model.effort.as_deref(), effort);
+        let wire = jig_protocol_engine_clients::translate::llm::models(
+            jig_domain_authority::Models::ALL,
+            &models,
+            &jig_client_protocol_wire::v19::CEILINGS,
+        )
+        .unwrap();
+        let model = wire.get(0).unwrap();
+        assert_eq!(model.shown().as_deref(), expected);
+        assert_eq!(model.picker(), picker);
+        assert_eq!(model.effort().as_deref(), effort);
+        assert!(model.accounts().is_empty());
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "tests are ordinary Rust (programming-model.md, 10.2)")]
+fn invalid_model_shown_and_picker_are_refused_at_their_paths() {
+    let long = format!(r#""output":1024,"shown":"{}","#, "s".repeat(257));
+    for (members, name, what) in [
+        (long.as_bytes(), b"shown".as_slice(), What::Bound),
+        (br#""output":1024,"shown":"","#, b"shown", What::Form),
+        (br#""output":1024,"shown":7,"#, b"shown", What::Kind),
+        (br#""output":1024,"picker":"false","#, b"picker", What::Kind),
+    ] {
+        fixtures::refuses(br#""output": 1024,"#, members, model_path(name), what);
+    }
+}

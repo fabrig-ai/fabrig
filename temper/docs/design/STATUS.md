@@ -78,11 +78,12 @@ cannot script, How work runs' controls for a person with a project's role
 alone, and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
-and whose download is past its bar (`playground.md`), upgrades'
+(`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). The browser tier's CPU against its budget awaits the
-user, and no test shows a head waiting for room ended by the stall
-deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
+(`release.md`). The browser tier holds 13 tests, one past its cap, its CPU
+measured within its budget on the 12 without the call line's alone, a closed
+chat's wait is located but not split, and no test shows a head waiting for room
+ended by the stall deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
 pages draw their own worlds, not the mock's scenario (`client/browser.md`).
 Forges kept in the store, a forge's removal and the
@@ -167,10 +168,9 @@ says "Starting", and `task show` names a `deployment show` ctl lacks
 project's Needs you and rail's count, but its live card lists no item of temper's
 kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
 "Decision made" while it waits (`client/README.md`). `again` can't record a journey
-that begins past the welcome (`client/journeys.md`). The welcome's try of a model
-draws its box over the host's check alone, no trial being built, and departs from the request
-`model-check` in its list's names and a few of its acts and words
-(`client/README.md`). A plan's sign-in draws the waiting page of the request
+that begins past the welcome (`client/journeys.md`). The welcome's try of a model draws Model's line in
+Ready's pane over the host's check alone, no trial being built, and departs from the request
+`model-check-pane` in its list's words (`client/README.md`). A plan's sign-in draws the waiting page of the request
 `sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
 until that draft is built; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
