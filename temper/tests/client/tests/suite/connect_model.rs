@@ -311,6 +311,11 @@ fn welcome_claude_checks_on_the_wire_from_ready_and_observes_the_host_answer() {
         root.person().pages().connect_model().unwrap().request.pending.as_ref().unwrap().ask,
         Ask::AccountChange { holder: AskAccountHolder::Own, change: AccountChange::CheckProgram { source: *source } }
     );
+    assert_eq!(
+        root.person().pages().connect_model().unwrap().check,
+        d::pages::connect_model::ProgramCheck::Checking { source: *source },
+        "admission isn't the host's login observation"
+    );
     accounts::program_checked(&mut front, &mut root, false);
     assert_eq!(root.person().pages().address(), &Address::Welcome { step: d::Step::Ready });
     assert!(text(&root).contains("Claude Code isn’t signed in here yet."));

@@ -500,8 +500,12 @@ fn without_models_line(root: &Root) -> Vec<skein_ui::Node> {
                 return None;
             }
             let mut node = node.clone();
-            // Fresh trees allocate ids in order; compare structure and content.
+            // Allocation ids and write revisions vary with deliveries; compare
+            // every node's structure, content and controls.
             node.id = skein_ui::NodeId(0);
+            if let Some(value) = &mut node.value {
+                value.written = 0;
+            }
             if at < start && at + usize::try_from(node.size).expect("node size") >= end {
                 node.size -= removed;
             }
