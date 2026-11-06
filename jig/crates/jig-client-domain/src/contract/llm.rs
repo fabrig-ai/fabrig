@@ -33,10 +33,17 @@ pub struct MeModel {
     pub output: u32,
     /// The efforts it declares, in its order.
     pub efforts: List<Text>,
+    /// The default among its efforts; none only when it declares none.
+    pub effort: Option<Text>,
     /// Its configured prices.
     pub prices: ModelPrices,
     /// What it is good at, as configured, if given.
     pub description: Option<Text>,
+    /// Its configured name for showing.
+    pub shown: Option<Text>,
+    /// Accounts that can run it, in selection order.
+    pub accounts: List<u32>,
+    pub picker: bool,
 }
 
 /// Amounts per `unit` tokens in the deployment's spend unit. Without a separate cache-write

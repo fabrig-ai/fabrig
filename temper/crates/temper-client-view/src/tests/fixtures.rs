@@ -1426,6 +1426,7 @@ fn fixture_me(project_name: &[u8]) -> c::Me {
     let mut projects = List::with_capacity(2);
     projects
         .push(MeProject {
+            defaults: List::with_capacity(0),
             public: None,
             project: PROJECT,
             name: DocumentText::complete(
@@ -1511,6 +1512,10 @@ pub fn playground_frame_with_watch(
     for name in [crate::words::SCRIPTED_MODEL, b"selected"] {
         models
             .push(c::MeModel {
+                effort: None,
+                shown: None,
+                accounts: List::from_boxed(Box::new([2])),
+                picker: true,
                 name: c::Text::new(Box::from(name), 32).unwrap(),
                 provider: Some(17),
                 prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },

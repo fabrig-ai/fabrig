@@ -31,6 +31,8 @@ const LOOKUP_JOINS: u32 = 1;
 fn defaults() -> jig_domain_core::settings::Defaults {
     // This world scripts the worker; it never connects to an endpoint or real account.
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
         descriptions: Box::new([None]),

@@ -1442,6 +1442,8 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
             .collect();
     config.kinds_stock = Box::new([]);
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         models: config.core.settings.models.clone(),
         descriptions: Box::new([]),

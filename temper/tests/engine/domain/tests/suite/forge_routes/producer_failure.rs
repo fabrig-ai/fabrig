@@ -110,6 +110,8 @@ const NO_CHANGE_REPORT: &str = "For successful NoChange, tell the person nothing
 fn stock_search_chat() -> (World, engine::Assignment) {
     let model = stock::box_model();
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         models: Box::new([model.clone()]),
         descriptions: Box::new([None]),
         providers: Box::default(),
