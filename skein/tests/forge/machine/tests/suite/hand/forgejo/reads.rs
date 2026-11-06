@@ -76,7 +76,7 @@ const ISSUE: &[u8] = br#"{"number":1,"pull_request":null,"state":"open","user":{
 const EMPTY_STATUS: &[u8] = br#"{"state":"","total_count":0,"statuses":null}"#;
 const SHA: [u8; 32] = [0; 32];
 fn answer(h: &mut fixtures::Harness, body: &[u8]) {
-    h.answer(fixtures::FORGE, &fixtures::ok_dated(body));
+    h.answer(fixtures::FORGE, &fixtures::ok(body));
     h.run(Duration::ZERO);
 }
 fn last(h: &fixtures::Harness, expected: &[u8]) {

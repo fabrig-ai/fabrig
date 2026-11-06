@@ -1,14 +1,16 @@
 //! Hand-steered component exchanges (skein/docs/design/forge-connection.md, 10).
-use skein_forge_connection::Limits;
+use skein_forge::api;
+use skein_forge_connection::{Answered, Component, Event, Limits, Settings, Shared, settings::Kind, start::Start};
 pub use skein_forge_kit::fixtures::{
     BODY_ROOM, FORGE, OP_BYTES, REPO, TOKEN, USER_AGENT, WORD, WRITER, limits, settings, shared,
 };
-use skein_lib::Duration;
-
-use skein_forge::api;
-use skein_forge_connection::{Answered, Component, Event, Settings, Shared, settings::Kind, start::Start};
-use skein_lib::{Env, List, Queue, Secret, Time, Wall};
+use skein_lib::{Duration, Env, List, Queue, Secret, Time, Wall};
 use std::boxed::Box;
+
+mod forgejo;
+mod github;
+pub use forgejo::*;
+pub use github::*;
 #[derive(Debug)]
 pub struct Harness {
     pub component: Component,
@@ -278,6 +280,16 @@ impl Harness {
         h.answer(FORGE, &settings_ok());
         h
     }
+    #[must_use]
+    pub fn connections_for(&self, forge: u16) -> u32 {
+        let mut count = 0_u32;
+        for (_, peer) in &self.peers {
+            if peer.forge == forge {
+                count = count.checked_add(1).expect("bounded peers");
+            }
+        }
+        count
+    }
     fn drain(&mut self) {
         let mut quiet = 0_u32;
         for _ in 0..1024_u32 {
@@ -382,10 +394,6 @@ pub fn response(code: u16, body: &[u8]) -> Box<[u8]> {
     response_with_fields(code, body, b"")
 }
 #[must_use]
-pub fn last_page(body: &[u8]) -> Box<[u8]> {
-    response_with_fields(200, body, b"X-HasMore: false\r\n")
-}
-#[must_use]
 pub fn response_with_fields(code: u16, body: &[u8], fields: &[u8]) -> Box<[u8]> {
     let decimal = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
     let mut out = skein_lib::Writer::new(
@@ -404,10 +412,6 @@ pub fn response_with_fields(code: u16, body: &[u8], fields: &[u8]) -> Box<[u8]> 
     out.put(b"\r\nDate: Wed, 01 Jan 2020 00:00:00 GMT\r\n\r\n").expect("date fits");
     out.put(body).expect("body fits");
     out.finish()
-}
-#[must_use]
-pub fn ok_dated(body: &[u8]) -> Box<[u8]> {
-    ok(body)
 }
 #[must_use]
 pub fn status(code: u16) -> Box<[u8]> {
@@ -449,24 +453,6 @@ pub fn known() -> Harness {
     h
 }
 
-/// The literal value of the sole named header on the HTTP wire.
-#[must_use]
-pub fn header<'a>(sent: &'a [u8], name: &[u8]) -> &'a [u8] {
-    let mut found = None;
-    let mut rest = sent;
-    while let Some(end) = skein_lib::bytes::find(rest, b"\r\n") {
-        let line = rest.get(..end).expect("line end in request");
-        if let Some(value) = line.strip_prefix(name) {
-            assert!(found.is_none(), "header occurs once");
-            found = Some(value);
-        }
-        rest = rest.get(end.checked_add(2).expect("line end fits")..).expect("next line");
-    }
-    found.expect("header sent")
-}
-
-pub const TOKEN_BOUND: usize = 64;
-
 #[must_use]
 pub fn filled(length: usize, byte: u8) -> Box<[u8]> {
     let mut out = skein_lib::Writer::new(length);
@@ -478,9 +464,6 @@ pub fn filled(length: usize, byte: u8) -> Box<[u8]> {
 
 pub const OTHER_FORGE: u16 = 2;
 pub const OTHER_REPO: api::Repository = api::Repository { forge: OTHER_FORGE, repository: 1 };
-pub const BRANCH: &[u8] = b"main";
-pub const BRANCH_HEAD: [u8; 32] = [0; 32];
-pub const REPOSITORY_BODY: &[u8] = br#"{"id":1,"owner":{"id":2,"login":"fixture"},"name":"specimen","object_format_name":"sha1","default_branch":"main","default_merge_style":"merge","allow_merge_commits":true,"allow_squash_merge":false,"allow_rebase":false,"html_url":"http://127.0.0.1:3000/fixture/specimen"}"#;
 pub const BRANCH_BODY: &[u8] = br#"{"name":"main","commit":{"id":"0000000000000000000000000000000000000000"},"effective_branch_protection_name":""}"#;
 #[must_use]
 pub fn two_forges() -> Settings {
@@ -491,73 +474,8 @@ pub fn two_forges() -> Settings {
     settings.forges.push(other).expect("two forges fit");
     settings
 }
-#[must_use]
-pub fn ready_two(limits: Limits, shared: Shared) -> Harness {
-    let mut h = Harness::with(limits, shared, two_forges());
-    for forge in [FORGE, OTHER_FORGE] {
-        h.connected(forge);
-        h.answer(forge, &user_ok());
-        h.answer(forge, &settings_ok());
-        h.run(limits.idle);
-    }
-    h
-}
-pub fn branch_answers(h: &mut Harness, forge: u16) {
-    h.answer(forge, &ok(REPOSITORY_BODY));
-    h.answer(forge, &ok(BRANCH_BODY));
-    h.run(Duration::ZERO);
-}
-
-impl Harness {
-    #[must_use]
-    pub fn connections_for(&self, forge: u16) -> u32 {
-        let mut count = 0_u32;
-        for (_, peer) in &self.peers {
-            if peer.forge == forge {
-                count = count.checked_add(1).expect("bounded peers");
-            }
-        }
-        count
-    }
-}
-
 // The page premise contains two maximal rows, and also tests one row and no room.
 pub const PAGE_ROWS: u32 = 2; // The premise budgets exactly two maximal rows.
-// Eviction shares one connection and one call slot between two sequential requests.
-pub const EVICTION_CONNECTIONS: u32 = 1; // A single connection forces reassignment.
-pub const EVICTION_CALLS: u32 = EVICTION_CONNECTIONS;
-pub const EVICTION_NO_CONNECTIONS: u32 = 0; // The evicted forge has no connection.
-pub const EVICTION_ANSWERS: u32 = 2; // Each of the two sequential requests answers once.
-
-#[must_use]
-pub fn app_access(key: &[u8], id: u64, user: u64) -> skein_forge_connection::Access {
-    skein_forge_connection::Access {
-        credential: skein_forge::credential::Credential::App { id, key: Secret::new(Box::from(key)) },
-        user,
-        webhook_secret: None,
-    }
-}
-
-#[must_use]
-pub fn github_settings() -> Settings {
-    let mut settings = settings();
-    let forge = settings.forges.get_mut(0).expect("forge");
-    forge.kind = Kind::GitHub;
-    forge.access = Some(app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
-    settings
-}
-
-pub const GITHUB_REPOSITORY: &[u8] = br#"{"id":1,"owner":{"id":22,"login":"acme","type":"Organization"},"name":"widgets","default_branch":"main","html_url":"https://github.com/acme/widgets","allow_merge_commit":true,"allow_squash_merge":true,"allow_rebase_merge":false}"#;
-pub const GITHUB_BRANCH: &[u8] = br#"{"name":"main","commit":{"sha":"0000000000000000000000000000000000000000"}}"#;
-
-// GitHub dialect fixtures: issue/comment, pull, combined status, check runs and GraphQL.
-pub const GITHUB_ISSUE: &[u8] = br#"{"number":7,"state":"open","user":{"id":9},"updated_at":"2026-10-20T08:00:00Z","title":"widgets","labels":[],"body":"description"}"#;
-pub const GITHUB_COMMENTS: &[u8] = br#"[{"id":8,"user":{"id":9},"created_at":"2026-10-20T08:00:00Z","updated_at":"2026-10-20T08:00:00Z","body":"hello"}]"#;
-pub const GITHUB_PULL: &[u8] = br#"{"number":7,"state":"open","merged":false,"merge_commit_sha":null,"mergeable":true,"head":{"ref":"feature","sha":"0000000000000000000000000000000000000000"},"base":{"ref":"main","sha":"1111111111111111111111111111111111111111"},"requested_reviewers":[]}"#;
-pub const GITHUB_COMBINED: &[u8] = br#"{"state":"pending","total_count":0,"statuses":[]}"#;
-pub const GITHUB_RUNS: &[u8] = br#"{"check_runs":[]}"#;
-pub const GITHUB_GRAPHQL: &[u8] = br#"{"data":{"repository":{"pullRequest":{"id":"opaque-node","mergeCommit":null,"mergeQueueEntry":null,"timelineItems":{"nodes":[]}}}}}"#;
-
 // Sum only component/harness spans. Each next step starts with the retained
 // growth of the preceding steps; fake allocations between them are excluded.
 #[derive(Debug)]
@@ -570,215 +488,4 @@ impl CallHeap {
         self.peak = self.peak.max(self.held.checked_add(growth.peak).expect("peak growth"));
         self.held = self.held.checked_add(growth.net).expect("retained growth");
     }
-}
-
-pub const LIVE: &[u8] = br#"[{"id":1,"account":{"id":22,"login":"acme","type":"Organization"},"created_at":"1970-01-01T00:00:01Z","suspended_at":null}]"#;
-
-pub const SUSPENDED: &[u8] = br#"[{"id":1,"account":{"id":22,"login":"acme","type":"Organization"},"created_at":"1970-01-01T00:00:01Z","suspended_at":"1970-01-01T00:00:02Z"}]"#;
-
-pub const FULL: &[u8] = b"artificial-full-api-secret";
-
-pub const CONTENTS: &[u8] = b"artificial-contents-git-secret";
-
-pub const EXPIRES: &[u8] = b"1970-01-01T01:00:00Z";
-
-pub const EXPIRY: Wall = Wall::from_nanos(3_600_000_000_000);
-
-pub const VIEWER: &[u8] = br#"{"data":{"viewer":{"databaseId":9,"login":"test-app[bot]"}}}"#;
-
-pub const NEXT_PAGE: &[u8] = b"Link: <https://api.github.test/app/installations?per_page=100&page=2>; rel=\"next\"\r\n";
-
-pub fn accepted(h: &mut Harness, ids: &[u64]) {
-    h.send(skein_forge_connection::Request::Installations { forge: FORGE, accepted: Box::from(ids) });
-}
-
-#[must_use]
-pub fn mint(token: &[u8], expires: &[u8]) -> Box<[u8]> {
-    let mut body = skein_lib::Writer::new(
-        token.len().checked_add(expires.len()).expect("fixture fields").checked_add(28).expect("JSON framing"),
-    );
-    body.put(b"{\"token\":\"").expect("measured token");
-    body.put(token).expect("measured token");
-    body.put(b"\",\"expires_at\":\"").expect("measured expiry");
-    body.put(expires).expect("measured expiry");
-    body.put(b"\"}").expect("measured mint");
-    response(201, &body.finish())
-}
-
-pub fn full(h: &mut Harness) {
-    h.answer(FORGE, &mint(FULL, EXPIRES));
-}
-
-pub fn contents(h: &mut Harness) {
-    h.answer(FORGE, &mint(CONTENTS, EXPIRES));
-}
-
-#[must_use]
-pub fn contains(bytes: &[u8], needle: &[u8]) -> bool {
-    for piece in bytes.windows(needle.len()) {
-        if piece == needle {
-            return true;
-        }
-    }
-    false
-}
-
-#[must_use]
-pub fn tokens(h: &Harness) -> &[Event] {
-    h.git_tokens.as_ref().expect("GitHub harness").as_slice()
-}
-
-pub fn github_repository(h: &mut Harness, repository: api::Repository, account: u64) {
-    h.component.github_tables().keep_repository(
-        repository,
-        skein_forge::github::plans::tables::Repository {
-            owner: Box::from(b"acme".as_slice()),
-            name: Box::from(b"widgets".as_slice()),
-            owner_id: account,
-            organization: true,
-            merge: Some(skein_forge::github::plans::tables::Method::Merge),
-            html_url: Box::from(b"https://github.com/acme/widgets".as_slice()),
-        },
-    );
-}
-
-use skein_forge::github::document;
-use skein_forge_connection::seam::Read;
-const SECOND: Duration = Duration::from_secs(1);
-#[must_use]
-pub fn row(id: u64, suspended: bool) -> document::Installation {
-    document::Installation {
-        id,
-        account: 22,
-        login: Box::from(b"acme".as_slice()),
-        kind: document::Account::Organization,
-        created: Wall::EPOCH,
-        suspended,
-    }
-}
-
-// Feed the committed reconciliation transition directly to cross a written job
-// with loss; socket serialization itself is checked by the wire stories.
-pub fn commit(h: &mut Harness, rows: Box<[document::Installation]>) {
-    let gh = h.component.test_github_mut();
-    let mut reading = skein_forge_connection::seam::Reading::new(gh.rows.capacity(), gh.generation, SECOND);
-    reading.page(rows, &gh.rows, &gh.accepted, self::shared().name_bytes).expect("fixture read");
-    gh.read = Read::Reading(reading);
-    gh.commit();
-}
-
-// One-hour Full and seventy-minute Contents, with the fixture's sixty-second lead.
-pub const FULL_DUE: u64 = 3540;
-
-pub const CONTENTS_DUE: u64 = 4140;
-
-pub const CONTENTS_EXPIRY: &[u8] = b"1970-01-01T01:10:00Z";
-
-pub const LATER: &[u8] = b"1970-01-01T03:00:00Z";
-
-pub const NEW_FULL: &[u8] = b"artificial-renewed-full";
-
-pub const NEW_CONTENTS: &[u8] = b"artificial-renewed-contents";
-
-#[must_use]
-pub fn ready() -> Harness {
-    initial(CONTENTS_EXPIRY)
-}
-
-#[must_use]
-pub fn initial(contents_expiry: &[u8]) -> Harness {
-    let mut h = minted_pair(EXPIRES, contents_expiry);
-    h.answer(FORGE, &self::ok(VIEWER));
-    h.run(Duration::ZERO);
-    // Let the idle socket settle before crossing the renewal timer.
-    h.run(h.env.limits.idle);
-    h
-}
-
-#[must_use]
-pub fn minted_pair(full_expiry: &[u8], contents_expiry: &[u8]) -> Harness {
-    let mut h = Harness::new(self::github_settings());
-    accepted(&mut h, &[1]);
-    h.connected(FORGE);
-    h.answer(FORGE, &self::ok(LIVE));
-    h.answer(FORGE, &mint(FULL, full_expiry));
-    h.answer(FORGE, &mint(CONTENTS, contents_expiry));
-    h
-}
-
-pub fn advance(h: &mut Harness, seconds: u64) {
-    h.run(Time::from_nanos(Duration::from_secs(seconds).as_nanos()).saturating_since(h.env.now));
-}
-
-#[must_use]
-pub fn renewing() -> Harness {
-    let mut h = ready();
-    advance(&mut h, FULL_DUE);
-    h.connected(FORGE);
-    h
-}
-
-#[must_use]
-pub fn contents_renewing() -> Harness {
-    let mut h = renewing();
-    renewed_full(&mut h);
-    h.run(h.env.limits.idle);
-    advance(&mut h, CONTENTS_DUE);
-    h.connected(FORGE);
-    h
-}
-
-pub fn renewed_full(h: &mut Harness) {
-    h.answer(FORGE, &mint(NEW_FULL, LATER));
-    h.run(Duration::ZERO);
-}
-
-pub fn renewed_contents(h: &mut Harness) {
-    h.answer(FORGE, &mint(NEW_CONTENTS, LATER));
-    h.run(Duration::ZERO);
-}
-
-pub fn github_account(h: &mut Harness, installation: u64, account: u64, login: &[u8], token: &[u8]) {
-    use skein_forge_connection::seam::{Clock, Row, Tokens};
-    let gh = h.component.test_github_mut();
-    let _accepted = gh.accepted.insert(installation).expect("fixture accepted");
-    drop(
-        gh.rows
-            .insert(
-                installation,
-                Row {
-                    state: Tokens::Current,
-                    revision: 0,
-                    token_revision: 1,
-                    refused_revision: None,
-                    full: Clock { expiry: Time::from_nanos(3_600_000_000_000), ..Clock::empty() },
-                    contents: Clock::empty(),
-                    account: skein_forge_connection::Account { id: account, login: Box::from(login) },
-                    suspended: false,
-                    accepted: true,
-                    api: Some(Secret::new(Box::from(token))),
-                    permissions: skein_forge::github::document::Levels::NONE,
-                    api_expires: Wall::from_nanos(3_600_000_000_000),
-                    git_expires: Wall::from_nanos(3_600_000_000_000),
-                },
-            )
-            .expect("fixture installation"),
-    );
-    let account = gh.rows.get(&installation).expect("fixture row").account.clone();
-    drop(
-        gh.known
-            .insert(installation, skein_forge_connection::seam::Accepted { known: Some(account), checked: true })
-            .expect("fixture accepted bookkeeping"),
-    );
-}
-
-/// Seeds checked call state without opening a startup connection.
-#[must_use]
-pub fn github_calls() -> Harness {
-    let mut settings = github_settings();
-    settings.forges.get_mut(0).expect("forge").access = None;
-    let mut h = Harness::new(settings);
-    h.component.test_calls_ready(app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
-    github_account(&mut h, 1, 22, b"acme", b"artificial-full-one");
-    h
 }
