@@ -693,7 +693,12 @@ fn a_proposal_decided_elsewhere_leaves_the_chats_card() {
     card_page(&mut f, Time::ZERO, handle, jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)));
     proposals(&mut f, &[]);
     assert!(f.chat.cards.is_empty());
-    assert_eq!(f::handles(&mut f.out).as_ref(), [handle], "drop the card's handle too");
+    assert_eq!(
+        f.out.pop(),
+        Some(Request::Client(Event::Unwatch { handle })),
+        "release the card's read capacity before reading its decision"
+    );
+    assert_eq!(reads(&mut f.out).len(), 1, "the departed proposal is read after closing the old handle");
     assert_eq!(f.chat.next_deadline(), None, "a removed card has no retry");
     f.chat.fire(Time::ZERO.saturating_add(Duration::from_secs(30)), &mut f.out);
     assert!(reads(&mut f.out).is_empty(), "a removed card is not read again");

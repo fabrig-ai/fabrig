@@ -827,6 +827,13 @@ impl Chat {
                     }
                     continue;
                 }
+                unwatch(card.handle, out);
+                for index in 0..self.card_reads.len() {
+                    if self.card_reads.get(index).expect("bounded card read").handle == card.handle {
+                        self.card_reads.swap_remove(index).expect("bounded card read");
+                        break;
+                    }
+                }
                 self.departures.push(card.object).expect("removed cards fit their window");
                 self.departed_proposal = Some(self.departed_proposal.unwrap_or(0).max(key.number));
                 let handle = handle(self.next);
