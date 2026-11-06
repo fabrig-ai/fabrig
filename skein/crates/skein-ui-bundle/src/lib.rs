@@ -20,6 +20,7 @@ pub const STYLESHEET: &[u8] = include_bytes!("../skein-ui.css");
 /// What the application gives the bundler.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Inputs {
+    pub gzip: bool,
     pub name: String,
     /// One or more segments, with one leading and one trailing slash.
     pub prefix: String,
@@ -106,6 +107,9 @@ pub fn bundle_with(inputs: &Inputs, glue: &Glue, worker: Option<&Worker>, out: &
     if let Some(directory) = &inputs.files {
         collect(directory, "files", &mut files)?;
     }
+    if inputs.gzip {
+        compress(&mut files)?;
+    }
     let digest = digest::of(&files);
     if let Some(path) = &inputs.page
         && types::of(path).is_none()
@@ -127,6 +131,22 @@ pub fn bundle_with(inputs: &Inputs, glue: &Glue, worker: Option<&Worker>, out: &
     let index = out.join("index.html");
     io(&index, fs::write(&index, page))?;
     Ok(digest)
+}
+
+// Generated forms bypass the closed input type list; inputs cannot name a .gz.
+fn compress(files: &mut BTreeMap<String, Vec<u8>>) -> Result<(), Refusal> {
+    use std::io::Write;
+    let mut forms = BTreeMap::new();
+    for (name, bytes) in files.iter() {
+        if types::gzipped(Path::new(name)) {
+            let path = Path::new(name);
+            let mut encoder = flate2::GzBuilder::new().mtime(0).write(Vec::new(), flate2::Compression::best());
+            io(path, encoder.write_all(bytes))?;
+            forms.insert(format!("{name}.gz"), io(path, encoder.finish())?);
+        }
+    }
+    files.append(&mut forms);
+    Ok(())
 }
 
 fn collect(directory: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Result<(), Refusal> {

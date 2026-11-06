@@ -2,7 +2,6 @@
 
 2026-11-06. Where skein's code lags or departs from [http.md](http.md).
 
-- **Not yet:** 5.2: `Call::accepts_gzip`.
 - **Not yet:** 2: a server's written head: `server.rs`'s `Responding::Head`
   derives `Debug` over the head it holds until room comes to send it, so a
   `Server` prints the `Set-Cookie` value jig's sign-in writes
