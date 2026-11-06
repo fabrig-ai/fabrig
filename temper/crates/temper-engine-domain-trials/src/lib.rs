@@ -73,7 +73,7 @@ pub enum Request {
 
 /// The minute from the trial's beginning (temper/docs/design/domain/trial.md, 3.2).
 pub const WAIT: Duration = Duration::from_secs(60);
-/// The person's trials document (temper/docs/plan/model-check/notes/contracts.md).
+/// The person's trials document (temper/docs/design/domain/trial.md, 6).
 pub const TRIALS_SUBJECT: u64 = (1 << 62) | (1 << 36);
 
 impl Trials {

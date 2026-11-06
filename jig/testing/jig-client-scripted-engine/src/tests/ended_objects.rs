@@ -238,6 +238,9 @@ fn ended_task_proposal_states_preserve_raw_maker_and_do_not_use_outer_context_as
         let value = Ended {
             key: ObjectKey::Proposal(ProposalKey { proposer: Proposer::Task(u64::MAX), number: 0 }),
             value: EndedValue::Proposal(ProposalHistory {
+                reason: DocumentText::complete(
+                    Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+                ),
                 action: RetainedAction::Release { task: 0 },
                 number: 0,
                 proposer: u64::MAX,

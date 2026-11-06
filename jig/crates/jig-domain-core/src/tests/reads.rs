@@ -11,3 +11,5 @@ pub(in crate::tests) mod retained_lineage;
 pub(in crate::tests) mod task_query;
 
 mod closed;
+
+mod proposal_facts;

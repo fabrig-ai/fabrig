@@ -66,9 +66,19 @@ pub(in crate::codec) fn wire_activity(value: &c::Activity, limits: &w::Limits) -
                 read: (read).as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
             },
         )?),
-        c::Activity::Decided { revision } => {
-            w::Activity::Decided(w::ActivityDecided::new(limits, w::ActivityDecidedParts { revision: *(revision) })?)
-        }
+        c::Activity::Decided { revision, proposal } => w::Activity::Decided(w::ActivityDecided::new(
+            limits,
+            w::ActivityDecidedParts {
+                revision: *(revision),
+                proposal: match proposal {
+                    Some(value) => Some(w::ActivityDecidedProposal::new(
+                        limits,
+                        w::ActivityDecidedProposalParts { number: value.number, made: value.made },
+                    )?),
+                    None => None,
+                },
+            },
+        )?),
         c::Activity::Milestone { position } => w::Activity::Milestone(w::ActivityMilestone::new(
             limits,
             w::ActivityMilestoneParts { position: *(position) },

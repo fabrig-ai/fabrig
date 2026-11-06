@@ -222,6 +222,12 @@
 - **Not yet:** 3.5, *The try*: the gallery has no trial past the host's check on
   Ready, and no `accounts-try-stopped` sample (`browser.md`, 7.2). The view's
   tests draw those states; `home-try-stopped` draws Home's failed line.
+- **Departs:** 3.5, *The try*, 5.5: simultaneous usable accounts can lose all
+  but the first trial request, and account rows share one running task's
+  wait and last wait, so a stopped row can say another trial's reason or
+  lose its earlier reason (`../domain/trial.status.md`, 6). No reason for
+  these limits is recorded. The draft's missing "one short message" spend
+  notice remains a design gap (`../draft/model-check.status.md`, 2).
 - **Design departs:** 3.5, *The try*, from the look request `model-check-pane` of 2026-11-06,
   each by the cut of its landing: the steps' list has hidden state words and its accessible name,
   as Forge's has, where the request's pages have the same words, because the terminal reads
@@ -249,12 +255,14 @@
   gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
   document.
 - **Not yet:** 5.13, *The card in a chat*, and 3.5's `Chat { task }`: no live turn names its
-  proposal, so a live proposal's card always stands after the conversation, below the newest
-  reply, where the mock's stays above later replies, and its call stays a line of its own above.
-  A turn's calls come with no `objects` (`jig-protocol-transcript`'s `translate_block`) and nothing
-  fills them, so `temper-client-view`'s `pages/chat.rs`, `proposal_anchor`, finds none; only the
-  view's tests, which fill them by hand, draw a card at its call. Seen at each width on the walk of
-  the request `ui-chat-accept` of 2026-11-06, its cause by reading; no test holds it.
+  proposal, so a live card always takes the place of one no call names, and its call stays a line of
+  its own above it. A turn's calls come with no `objects` (`jig-protocol-transcript`'s
+  `translate_block`) and nothing fills them, so `temper-client-view`'s `pages/chat.rs`,
+  `proposal_anchor`, finds none; only the view's tests, which fill them by hand, draw a card at its call.
+  Seen at each width on the walk of the request `ui-chat-accept` of 2026-11-06, its cause by reading.
+  The `ui-proposal-card` plan keeps this gap: filling the core's turn record,
+  archived turn and call-to-proposal mapping is separate work (section 11,
+  *Calls naming their proposals*). The making line supplies the card's place.
 - **Design departs:** 5.13, *The card in a chat*, from the request `ui-chat-accept` of 2026-11-06,
   by its plan's cut: that request has the fix reach both of the card's acts, reading "the unavailable
   direct Reject control" as one family with the refused Accept. The section and the mock's `chat.html`,
@@ -289,10 +297,6 @@
   card, the rail's count gone, where an answered card leaves the open ones and the
   mock moves it to its answered stack (`temper-client-view`'s `pages/needs.rs`). Seen
   on the walk of the request `ui-walk-large` of 2026-11-06; no test holds it.
-- **Not yet:** 5.13: a chat's conversation says "Decision made" above a proposal of
-  settings that still waits (`temper-client-view`'s `pages/task.rs`, `owner_activity`,
-  `Activity::Decided`), seen on that walk at both widths. Which decision the line
-  records is unknown; no test holds it.
 - **Not yet:** 5.3: the rename's form asks the focus, and so does an open reply:
   `temper-client-view`'s `pages/ask.rs`, `reply_form`, calls `b.focus(0)` with no
   guard, where `pages/chat.rs`, `document.rs`, `settings.rs`, `new_chat.rs` and
@@ -587,9 +591,6 @@
   person's name as plain text, and a browser over 760 px signs out there rather
   than on the `Accounts` tab. `greenfield/README.md` notes it.
 - **Design departs:** 3.5, 5.13 and 10, from the request `ui-walk-large` of 2026-11-06:
-  - 5.13: that request has the chat's card stay. It stays for the session, from the
-    proposals *What the client keeps* holds; a reload or another device loses it, an
-    ended proposal asking no card (section 11). Built so by its task, for the user to see.
   - 3.5: a proposal of settings shows in the Needs you of a project's owner who also
     owns the deployment, those who can decide it, by that plan's cut: a project's owner
     alone has no row of it (jig's `domain/engine.md`, 17.6, and its status).
