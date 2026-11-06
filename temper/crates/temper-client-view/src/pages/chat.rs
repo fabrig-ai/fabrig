@@ -98,7 +98,7 @@ pub(crate) fn main(
             (Drawn::ChatPage { request: Some(&task.spec), root }, Some(times)),
             bindings,
         );
-        latest(b, chat, words, bindings);
+        latest(b, &chat.thread, words, bindings);
         b.close();
         if task.result.is_none() && !super::chats::ended(&task.chip) {
             crate::choice::above_composer(b, root, Some(task), words, bindings, times);
@@ -146,8 +146,8 @@ pub(crate) fn older(b: &mut Builder, thread: &Thread, offered: bool, words: &Wor
         b.close();
     }
 }
-/// The browser's log-end button also reads the newer page where the window dropped it (client/README.md, 3.5).
-fn latest(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bindings) {
+/// The browser's log-end button also reads the newer page where the window dropped it (client/README.md, 3.5 and 5.9).
+pub(crate) fn latest(b: &mut Builder, thread: &Thread, words: &Words, bindings: &mut Bindings) {
     if words.shell == Shell::Terminal {
         return;
     }
@@ -155,7 +155,7 @@ fn latest(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bindings) 
     b.name(&words.say(Word::Latest, &[]));
     b.style(look::LATEST);
     b.state(State::ToLogEnd);
-    if !chat.thread.lines.edges.reaches(jig_client::thread::window::End::Before) {
+    if !thread.lines.edges.reaches(jig_client::thread::window::End::Before) {
         b.bind(bindings.insert(Act::Latest));
     }
     b.close();
@@ -564,6 +564,10 @@ pub(crate) enum Drawn<'a> {
         request: Option<&'a c::SpecificationDocument>,
         delegations: Option<(&'a Chat, &'a jig_client::Client)>,
     },
+    /// An agent's page while a run is out (client/README.md, 5.9).
+    AgentRun {
+        current: Option<&'a c::CurrentCall>,
+    },
     Lines,
 }
 
@@ -572,6 +576,8 @@ struct Drawing<'a> {
     request: Option<&'a c::SpecificationDocument>,
     delegations: Option<(&'a Chat, &'a jig_client::Client)>,
     proposals: Option<&'a Domain>,
+    agent_run: bool,
+    current: Option<&'a c::CurrentCall>,
 }
 fn drawing(drawn: Drawn<'_>) -> Drawing<'_> {
     match drawn {
@@ -580,10 +586,24 @@ fn drawing(drawn: Drawn<'_>) -> Drawing<'_> {
             request,
             delegations: Some((root.pages().chat().expect("chat page"), root.client())),
             proposals: Some(root),
+            agent_run: false,
+            current: None,
         },
         #[cfg(test)]
-        Drawn::Chat { request, delegations } => Drawing { projected: true, request, delegations, proposals: None },
-        Drawn::Lines => Drawing { projected: false, request: None, delegations: None, proposals: None },
+        Drawn::Chat { request, delegations } => {
+            Drawing { projected: true, request, delegations, proposals: None, agent_run: false, current: None }
+        }
+        Drawn::AgentRun { current } => {
+            Drawing { projected: false, request: None, delegations: None, proposals: None, agent_run: true, current }
+        }
+        Drawn::Lines => Drawing {
+            projected: false,
+            request: None,
+            delegations: None,
+            proposals: None,
+            agent_run: false,
+            current: None,
+        },
     }
 }
 
@@ -611,7 +631,7 @@ pub(crate) fn conversation_with_times(
     bindings: &mut Bindings,
 ) {
     let (rows, _) = limits;
-    let Drawing { projected, request, delegations, proposals } = drawing(drawn);
+    let Drawing { projected, request, delegations, proposals, agent_run, current: agent_current } = drawing(drawn);
     let bound = match delegations {
         Some((chat, _)) => chat.delegations.capacity(),
         None => 0,
@@ -642,9 +662,14 @@ pub(crate) fn conversation_with_times(
         let clock = turn_time(b, first_time(&lines), &mut times, &mut day, words);
         request_message(b, request, speakers.requester, words, clock.as_deref());
     }
+    let mut before = None;
     for line in lines {
         if let Line::Left { .. } = line {
             continue;
+        }
+        let since = before;
+        if let Some(at) = line_at(&line) {
+            before = Some(at);
         }
         if let Some((at, _)) = started
             && let Some(time) = match &line {
@@ -690,6 +715,7 @@ pub(crate) fn conversation_with_times(
                     times: times.as_deref_mut(),
                     day: &mut day,
                     at,
+                    since,
                     projected,
                     requester: speakers.requester,
                 },
@@ -721,17 +747,25 @@ pub(crate) fn conversation_with_times(
         }
         b.close();
     }
-    let running = match proposals {
-        Some(root) => super::chats::working(root, words, thread),
-        None => false,
+    let running = if agent_run {
+        super::chats::words_not_begun(thread)
+    } else {
+        match proposals {
+            Some(root) => super::chats::working(root, words, thread),
+            None => false,
+        }
     };
     let current = if running {
-        match proposals {
-            Some(root) => match root.pages().chat() {
-                Some(chat) => chat.current_call(),
+        if agent_run {
+            agent_current
+        } else {
+            match proposals {
+                Some(root) => match root.pages().chat() {
+                    Some(chat) => chat.current_call(),
+                    None => None,
+                },
                 None => None,
-            },
-            None => None,
+            }
         }
     } else {
         None
@@ -792,6 +826,15 @@ fn first_time(lines: &[Line<'_>]) -> Option<skein_lib::Wall> {
         }
     }
     None
+}
+/// When any line happened, drawn or not; `line_time` stays the drawn lines' clock.
+fn line_at(line: &Line<'_>) -> Option<skein_lib::Wall> {
+    match line {
+        Line::Words { at, .. } => *at,
+        Line::Turn { at, .. } | Line::Undecoded { at, .. } => Some(*at),
+        Line::Activity { line } => Some(line.source.at),
+        Line::Provisional { .. } | Line::Left { .. } => None,
+    }
 }
 fn line_time(line: &Line<'_>) -> Option<skein_lib::Wall> {
     match line {
@@ -1091,6 +1134,7 @@ struct Committed<'a> {
     times: Option<&'a mut Times>,
     day: &'a mut Option<i64>,
     at: skein_lib::Wall,
+    since: Option<skein_lib::Wall>,
     projected: bool,
     requester: bool,
 }
@@ -1124,7 +1168,7 @@ fn committed<'a>(
                     cards(b, tasks, drawing.delegations, shown, words, bindings);
                     b.close();
                 }
-                run.call(call, drawing.at);
+                run.call(call, drawing.at, drawing.since.take());
                 continue;
             }
             if let c::Block::Call(call) = block

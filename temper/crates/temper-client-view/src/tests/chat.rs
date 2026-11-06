@@ -1032,7 +1032,7 @@ fn person_words_keep_their_shell_and_only_assistant_calls_keep_work() {
     for hidden in [look::BY_TOOL, look::BY_SYSTEM, look::BY_AGENT] {
         assert!(style_position(tree.nodes(), hidden).is_none(), "inputs and call-only assistant have no shell");
     }
-    assert_run_line(&tree, b"Read", b"", &[b"Read: Done"]);
+    assert_run_line(&tree, b"Read 1 file", b"", &[b"Read: Done"]);
 }
 
 fn chat_event(
@@ -1381,7 +1381,7 @@ fn repeated_calls_fold_in_first_name_order_with_each_outcome_inside() {
     ]);
     assert_run_line(
         &tree,
-        "read ×2, wait".as_bytes(),
+        "Read 2 files, wait".as_bytes(),
         b"",
         &[b"read: Read the first file", b"wait", b"read: Read the second file"],
     );
@@ -1390,7 +1390,9 @@ fn repeated_calls_fold_in_first_name_order_with_each_outcome_inside() {
 #[test]
 fn a_fold_names_two_repeated_calls_and_two_distinct_calls() {
     use fixtures::first_run as run;
-    for (tool, description) in [(b"read".as_slice(), "read ×2"), (b"edit".as_slice(), "read, edit")] {
+    for (tool, description) in
+        [(b"read".as_slice(), "Read 2 files"), (b"edit".as_slice(), "Read 1 file, edited 1 file")]
+    {
         let tree = assistant_blocks(&[run::call(1, b"read", b"{}", None), run::call(2, tool, b"{}", None)]);
         assert_run_line(&tree, description.as_bytes(), b"", &[b"read", tool]);
     }
@@ -2241,7 +2243,7 @@ fn a_proposals_fold_precedes_its_card_after_the_message() {
     assert!(fold + usize::try_from(tree.nodes()[fold].size).unwrap() <= card, "run before proposal card");
     assert!(turn < fold);
     assert_eq!(named_count(&tree, Role::Button, b"Accept"), 1);
-    assert_run_line(&tree, "read ×2".as_bytes(), b"", &[b"read", b"read"]);
+    assert_run_line(&tree, "Read 2 files".as_bytes(), b"", &[b"read", b"read"]);
     let said = fixtures::text(&tree);
     assert!(skein_lib::bytes::find(&said, b"propose").is_none());
 }
@@ -2559,7 +2561,7 @@ fn configuring_chats_keep_the_conversation_and_proposals_whole() {
         assert!(style_position(configuring_tree.nodes(), crate::look::TASK_CARD).is_some());
         assert!(skein_lib::bytes::find(&fixtures::text(configuring_tree), b"Delegated work").is_some());
         assert_eq!(named_count(configuring_tree, Role::Button, b"Accept"), 1);
-        assert!(fixtures::find(configuring_tree, Role::Disclosure, b"read").is_some());
+        assert!(fixtures::find(configuring_tree, Role::Disclosure, b"Read 1 file").is_some());
         assert!(skein_lib::bytes::find(&fixtures::text(configuring_tree), b"Here is my proposal").is_some());
     }
 }
