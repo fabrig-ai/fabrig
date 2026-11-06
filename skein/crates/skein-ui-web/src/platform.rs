@@ -14,6 +14,15 @@ pub trait Platform {
     fn remove(&mut self, key: &[u8]);
     fn send(&mut self, exchange: &crate::fetch::Exchange);
     fn navigate(&mut self, to: &[u8]);
+    /// Opens the page's tab holding a line of words, in the turn of a person's act;
+    /// false when no tab opened (ui-web.md, 10).
+    fn open_tab(&mut self, _words: &[u8]) -> bool {
+        false
+    }
+    /// Points the page's tab at an address, its opener cut first, and lets it go (ui-web.md, 10).
+    fn point_tab(&mut self, _to: &[u8]) {}
+    /// Closes the page's tab, if one is held (ui-web.md, 10).
+    fn close_tab(&mut self) {}
     fn stream(&mut self, duty: crate::transport::StreamDuty);
     /// Abandons an exchange in flight: nothing more is reported of it (ui-web.md, 10).
     fn abandon(&mut self, exchange: u32);

@@ -282,6 +282,9 @@ pub fn agent_root_with_page(
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
+            | Request::Copy { .. }
             | Request::Fact { .. } => None,
         };
         if let Some(up) = up {

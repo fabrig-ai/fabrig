@@ -73,23 +73,6 @@ pub fn to_root(
                         }),
                     }));
                 }
-                w::Request::Return(value) => {
-                    let value = value.into_parts();
-                    if !return_path(&value.path) {
-                        return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable {
-                            to: reply_to,
-                        })));
-                    }
-                    return Ok(root::Event::Party(root::PartyInput::Application {
-                        scope,
-                        reply_to,
-                        sign_in,
-                        key,
-                        digest,
-                        carried,
-                        request: root::Application::Return { source: value.source, path: value.path },
-                    }));
-                }
                 value @ (w::Request::Connect(_)
                 | w::Request::Replace(_)
                 | w::Request::Install(_)
@@ -166,7 +149,6 @@ pub fn to_root(
                         | w::Request::Reachable(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
-                        | w::Request::Return(_)
                         | w::Request::Dismiss(_)
                         | w::Request::SetAway(_)
                         | w::Request::Overturn(_)
@@ -803,7 +785,6 @@ pub fn answer(
             }
             w::Outcome::Page(w::Page::new(limits, w::PageParts { rows, more: page.more }).ok()?)
         }
-        Some(root::ApplicationAnswer::Returning) => w::Outcome::Returning,
         Some(root::ApplicationAnswer::Make(answer)) => match answer {
             forge::MakeAnswer::Kept => w::Outcome::MakeKept,
             forge::MakeAnswer::Refused(why) => {

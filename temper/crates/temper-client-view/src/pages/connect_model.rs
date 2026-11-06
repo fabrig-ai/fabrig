@@ -435,7 +435,7 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             w,
             bindings,
             &page.request,
-            super::sign_in_wait::tab_refused(),
+            super::sign_in_wait::tab_refused(page),
             text_per_node,
         );
         return;
@@ -521,22 +521,25 @@ pub(crate) fn printed_command(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]
         Some(page) => (page.program_environment(), page.program_environment_answered()),
         None => (b"".as_slice(), false),
     };
-    let command = if let Some(answer) = root.forge().deployment()
+    if answered {
+        if environment.is_empty() {
+            named(w, W::EnvironmentCommand, name)
+        } else {
+            words::join(&[environment, b" ", &named(w, W::ProgramLogin, name)])
+        }
+    } else if let Some(answer) = root.forge().deployment()
         && let Some(line) = &answer.program_login
     {
         words::join(&[line, b" ", &crate::choice::shown(name, w)])
-    } else if !answered {
-        named(w, W::Command, name)
     } else {
-        named(w, W::EnvironmentCommand, name)
-    };
-    if environment.is_empty() { command } else { words::join(&[environment, b" ", &command]) }
+        named(w, W::Command, name)
+    }
 }
 /// The same command with the words saying where to run it.
 pub(crate) fn command_line(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]> {
     words::join(&[&command_prompt(root, w), &printed_command(root, w, name)])
 }
-fn command_prompt(root: &Domain, w: &Words) -> Box<[u8]> {
+pub(super) fn command_prompt(root: &Domain, w: &Words) -> Box<[u8]> {
     let word = match root.forge().deployment() {
         Some(answer) if answer.program_login.is_some() => W::ProgramCommandHere,
         Some(_) | None => W::ProgramCommand,

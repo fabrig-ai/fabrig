@@ -1,4 +1,5 @@
 mod box_kinds;
+mod box_link_form;
 mod commands;
 mod help;
 mod init_clients;
@@ -6,6 +7,18 @@ mod limits;
 mod program_environment;
 mod reference_settings;
 mod settings_fields;
+
+// jig/docs/design/protocol/client.md, 8; temper/docs/design/protocol/setup.md, 7.2.
+#[test]
+fn the_box_footer_hours_agree_with_the_small_profile() {
+    use jig_protocol_config::profile::{Profile, profile};
+    let span = profile(Profile::Small).clients.link_span;
+    let hour = skein_lib::Duration::from_secs(3600);
+    let hours = span.as_nanos().div_euclid(hour.as_nanos());
+    let words = format!("within {hours} hours");
+    let footer = std::str::from_utf8(temper_box::terminal::FOOTER).expect("footer UTF-8");
+    assert!(footer.contains(&words), "footer must contain {words:?}: {footer}");
+}
 
 // Linux's passwd entry is the reference for macOS's command lookup.
 #[cfg(target_os = "linux")]

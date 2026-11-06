@@ -1,6 +1,6 @@
 //! Keep the reports and duties, never patches (client/journeys.md, 3.1).
 use super::{Facts, Line, line::clone_act, line::clone_heard};
-use crate::host::{Duties, Host, Report};
+use crate::host::{Duties, Host, Report, TabAct};
 use jig_client_shell_web::adapter::Asked;
 use skein_lib::{Time, Wall};
 use skein_ui::Act;
@@ -50,7 +50,9 @@ impl Recorder {
     pub fn report(&mut self, host: &mut Host, page: &Page<'_>, report: Report) -> Duties {
         match &report {
             Report::Start => self.keep(&Line::Start),
+            Report::Copied { token, written } => self.keep(&Line::Copied { token: *token, written: *written }),
             Report::Due => self.keep(&Line::Due),
+            Report::TabRefused => self.keep(&Line::TabRefused),
             Report::Place { path } => self.keep(&Line::Place(path.clone())),
             Report::Heard(heard) => self.keep(&Line::Heard(clone_heard(heard))),
             Report::Act { node, act } => {
@@ -116,6 +118,16 @@ impl Recorder {
 }
 pub(super) fn asked(duties: &Duties) -> Vec<Line> {
     let mut lines = Vec::new();
+    for tab in &duties.tab {
+        lines.push(match tab {
+            TabAct::Open { words } => Line::TabOpen(words.clone()),
+            TabAct::Point { to } => Line::TabPoint(to.clone()),
+            TabAct::Close => Line::TabClose,
+        });
+    }
+    if let Some((token, words)) = &duties.copy {
+        lines.push(Line::Copy { token: *token, words: words.clone() });
+    }
     for ask in &duties.asked {
         lines.push(match ask {
             Asked::Exchange { id, call, bound, cache: _, keep: _ } => Line::Exchange {
@@ -153,7 +165,11 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
 pub(super) fn is_ask(line: &Line) -> bool {
     matches!(
         line,
-        Line::Exchange { .. }
+        Line::TabOpen(_)
+            | Line::TabPoint(_)
+            | Line::TabClose
+            | Line::Copy { .. }
+            | Line::Exchange { .. }
             | Line::Open { .. }
             | Line::Close
             | Line::Save { .. }

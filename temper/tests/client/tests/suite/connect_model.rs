@@ -6,6 +6,9 @@ use temper_client_world::{
     fixtures,
     front::{Joint, account_acts as accounts},
 };
+// The joined world supplies this address; no test visits a real issuer.
+const ISSUER: &[u8] = b"https://issuer/visit";
+
 fn view(root: &Root) -> temper_client_view::View {
     let limits = fixtures::domain_limits();
     let words = temper_client_view::words::Words::english(
@@ -128,47 +131,121 @@ fn a_creation_key_is_absent_from_the_small_store() {
     assert!(world.kept(person).is_empty(), "a creation key has no small-store record");
 }
 
-fn start_plan_sign_in(front: &mut Joint, root: &mut Root) -> u32 {
+fn ask_plan_sign_in(front: &mut Joint, root: &mut Root) -> u32 {
     go(front, root, Address::ConnectModel { way: None });
     press(front, root, Role::Button, b"Continue with ChatGPT", skein_ui::Act::Press);
-    let source = accounts::signing(front);
-    front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::Visited {
-        source,
-        address: b"https://issuer/visit".as_slice().into(),
-    }));
-    accounts::settle(front, root);
+    accounts::signing(front)
+}
+fn start_plan_sign_in(front: &mut Joint, root: &mut Root) -> u32 {
+    let source = ask_plan_sign_in(front, root);
+    visit(front, root, source);
     source
 }
 fn returned_path(source: u32) -> Vec<u8> {
     format!("/accounts/connect?provider={}&way=sign-in&source={source}", accounts::PROVIDER).into_bytes()
 }
 #[test]
-fn a_departing_page_returns_then_leaves_once_and_a_rebuild_asks_nothing() {
+fn a_press_opens_its_tab_before_any_answer() {
     let (mut front, mut root) = accounts::plan_fixture(fixtures::SEED);
-    accounts::reopen(&mut front, &mut root, Address::ConnectModel { way: None }, true);
+    go(&mut front, &mut root, Address::ConnectModel { way: None });
+    let view = view(&root);
+    let id = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Continue with ChatGPT"))
+        .expect("sign-in button")
+        .id;
+    let event = temper_client_view::event(&view, id, skein_ui::Act::Press).expect("press");
+    accounts::press_turn(&mut front, &mut root, event.into());
+    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }]);
+    assert!(
+        root.person()
+            .pages()
+            .connect_model()
+            .expect("page")
+            .request
+            .pending
+            .as_ref()
+            .expect("pending")
+            .outcome
+            .is_none()
+    );
+    assert!(front.leaves.is_empty());
+}
+#[test]
+fn an_answer_points_once_and_replaces_the_page_address() {
+    let (mut front, mut root) = accounts::plan_fixture(fixtures::SEED);
     let source = start_plan_sign_in(&mut front, &mut root);
-    assert_eq!(front.engine.protocol.returns, [(source, returned_path(source).into_boxed_slice())]);
-    assert_eq!(front.leaves, [Box::from(b"https://issuer/visit".as_slice())]);
-    assert!(text(&root).contains("Signing in"));
+    let expected = [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Point { to: ISSUER.into() }];
+    assert_eq!(front.tabs, expected);
+    assert_eq!(d::address::print(root.person().pages().address()).as_ref(), returned_path(source));
+    assert_eq!(front.shows.last(), Some(&(root.person().pages().address().clone(), true)));
+    assert!(front.leaves.is_empty());
     view(&root);
     accounts::settle(&mut front, &mut root);
-    assert_eq!(front.leaves, [Box::from(b"https://issuer/visit".as_slice())]);
-    assert_eq!(front.engine.protocol.returns, [(source, returned_path(source).into_boxed_slice())]);
+    // An unrelated answer must not replay the sign-in's tab action.
+    go(&mut front, &mut root, Address::Forges);
+    accounts::settle(&mut front, &mut root);
+    assert_eq!(front.tabs, expected);
+}
+fn unanswered_sign_in() -> (Joint, Root, u32) {
+    let (mut front, mut root) = accounts::plan_fixture(fixtures::SEED);
+    let source = ask_plan_sign_in(&mut front, &mut root);
+    (front, root, source)
+}
+fn visited(front: &mut Joint, source: u32) {
+    front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::Visited {
+        source,
+        address: ISSUER.into(),
+    }));
+}
+fn visit(front: &mut Joint, root: &mut Root, source: u32) {
+    visited(front, source);
+    accounts::settle(front, root);
 }
 #[test]
-fn a_refused_return_keeps_the_page_and_its_sign_in_link() {
-    let (mut front, mut root) = accounts::plan_fixture(fixtures::SEED);
-    accounts::reopen(&mut front, &mut root, Address::ConnectModel { way: None }, true);
-    front.refuse_return = true;
-    start_plan_sign_in(&mut front, &mut root);
+fn an_answer_after_leaving_closes_the_tab() {
+    let (mut front, mut root, source) = unanswered_sign_in();
+    go(&mut front, &mut root, Address::Accounts);
+    visit(&mut front, &mut root, source);
+    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Close]);
+    assert_eq!(root.person().pages().address(), &Address::Accounts);
     assert!(front.leaves.is_empty());
-    assert!(view(&root).tree().nodes().iter().any(|node| node.external.as_deref() == Some(b"https://issuer/visit")));
 }
 #[test]
-fn a_non_departing_page_asks_no_return_and_never_leaves() {
-    let (mut front, mut root) = accounts::plan_fixture(fixtures::SEED);
-    start_plan_sign_in(&mut front, &mut root);
-    assert!(front.engine.protocol.returns.is_empty());
+fn a_refused_sign_in_closes_the_tab_and_explains_why() {
+    let (mut front, mut root, source) = unanswered_sign_in();
+    visited(&mut front, source);
+    accounts::refused_answer(&mut front, &mut root);
+    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Close]);
+    assert!(text(&root).contains("not offered"), "{}", text(&root));
+    assert!(front.leaves.is_empty());
+}
+#[test]
+fn a_lost_sign_in_closes_the_tab_and_explains_why() {
+    let (mut front, mut root, source) = unanswered_sign_in();
+    accounts::lose_next(&mut front);
+    visit(&mut front, &mut root, source);
+    accounts::lost(&mut front, &mut root);
+    accounts::expire_answer(&mut front, &mut root);
+    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Close]);
+    assert!(text(&root).contains("Waiting for current account facts."), "{}", text(&root));
+    assert!(front.leaves.is_empty());
+}
+#[test]
+fn a_refused_tab_keeps_the_address_without_pointing() {
+    let (mut front, mut root, source) = unanswered_sign_in();
+    let shown = d::shown(root.person());
+    accounts::event(&mut front, &mut root, d::Event::TabRefused.into());
+    assert!(d::shown(root.person()) > shown, "the tab refusal redraws the page");
+    assert!(root.person().pages().connect_model().expect("page").tab_refused());
+    visit(&mut front, &mut root, source);
+    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }]);
+    assert_eq!(
+        root.person().pages().connect_model().expect("page").request.sign_in_address(root.person().client()),
+        Some(ISSUER)
+    );
     assert!(front.leaves.is_empty());
 }
 #[test]
@@ -177,7 +254,7 @@ fn a_fresh_page_at_the_return_address_follows_the_watch_to_ready_without_departi
     let (mut front, mut root) = accounts::plan_fixture(fixtures::SEED);
     let source = start_plan_sign_in(&mut front, &mut root);
     let Place::Address(address) = d::address::parse(&returned_path(source)) else { panic!("returned address") };
-    accounts::reopen(&mut front, &mut root, address, true);
+    accounts::reopen(&mut front, &mut root, address);
     assert_eq!(
         root.person()
             .pages()
@@ -212,35 +289,148 @@ fn a_fresh_page_at_the_return_address_follows_the_watch_to_ready_without_departi
             .sign_in_state(root.person().client()),
         SignInState::Ended { source }
     );
-    assert!(front.engine.protocol.returns.is_empty());
     assert!(front.leaves.is_empty());
 }
-fn departing_welcome_sign_in() -> (Joint, Root, u32) {
+fn welcome_sign_in() -> (Joint, Root, u32) {
     let (mut front, mut root) = accounts::empty_plan_fixture(fixtures::SEED);
-    accounts::reopen(&mut front, &mut root, Address::Welcome { step: d::Step::Model { way: None } }, true);
+    accounts::reopen(&mut front, &mut root, Address::Welcome { step: d::Step::Model { way: None } });
     press(&mut front, &mut root, Role::Button, b"Continue with ChatGPT", skein_ui::Act::Press);
     let source = accounts::signing(&front);
-    front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::Visited {
-        source,
-        address: b"https://issuer/visit".as_slice().into(),
-    }));
-    accounts::settle(&mut front, &mut root);
+    visit(&mut front, &mut root, source);
     (front, root, source)
 }
 #[test]
-fn a_departing_welcome_model_step_returns_to_ready() {
-    let (front, _, source) = departing_welcome_sign_in();
-    assert_eq!(front.engine.protocol.returns, [(source, Box::from(b"/welcome?at=ready".as_slice()))]);
-    assert_eq!(front.leaves, [Box::from(b"https://issuer/visit".as_slice())]);
+fn a_welcome_model_answer_names_its_source_and_holds() {
+    let (mut front, mut root, source) = welcome_sign_in();
+    let expected = [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Point { to: ISSUER.into() }];
+    assert_eq!(front.tabs, expected);
+    assert_eq!(
+        root.person().pages().address(),
+        &Address::Welcome {
+            step: d::Step::Model {
+                way: Some(d::ModelWay { provider: accounts::PROVIDER, kind: d::WayKind::SignIn, source: Some(source) })
+            }
+        }
+    );
+    assert_eq!(front.shows.last(), Some(&(root.person().pages().address().clone(), true)));
+    view(&root);
+    accounts::settle(&mut front, &mut root);
+    assert_eq!(front.tabs, expected);
+    assert!(front.leaves.is_empty());
+}
+fn welcome_signed_in(front: &mut Joint, root: &mut Root, source: u32, declined: bool) {
+    front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::SignedIn {
+        source,
+        subject: b"subject".as_slice().into(),
+        display: b"alice@example.com".as_slice().into(),
+        declined,
+    }));
+    accounts::settle(front, root);
+}
+fn welcome_moves_on(front: &mut Joint, root: &mut Root, source: u32) {
+    let shown = front.shows.len();
+    welcome_signed_in(front, root, source, false);
+    let ready = Address::Welcome { step: d::Step::Ready };
+    assert_eq!(root.person().pages().address(), &ready);
+    assert_eq!(&front.shows[shown..], &[(ready, true)]);
+    assert!(
+        view(root).tree().nodes().iter().any(|node| {
+            node.role == Role::Paragraph && node.name.as_deref() == Some("ChatGPT plan · alice@example.com".as_bytes())
+        }),
+        "{}",
+        text(root)
+    );
+    accounts::settle(front, root);
+    assert_eq!(front.shows.len(), shown + 1);
+    assert!(front.leaves.is_empty());
 }
 #[test]
-fn a_welcome_sign_in_come_back_at_ready_reads_it_under_way_then_its_account() {
+fn a_held_welcome_sign_in_moves_on_once_when_the_watch_makes_its_account() {
+    let (mut front, mut root, source) = welcome_sign_in();
+    welcome_moves_on(&mut front, &mut root, source);
+}
+#[test]
+fn a_reloaded_welcome_sign_in_moves_on_once_when_the_watch_makes_its_account() {
+    let (mut front, mut root, source) = welcome_sign_in();
+    let path = d::address::print(root.person().pages().address());
+    let Place::Address(address) = d::address::parse(&path) else { panic!("welcome source address") };
+    accounts::reopen(&mut front, &mut root, address);
+    assert_eq!(
+        root.person().pages().connect_model().expect("model page").request.sign_in_state(root.person().client()),
+        d::pages::accounts::SignInState::Signing { source }
+    );
+    welcome_moves_on(&mut front, &mut root, source);
+}
+#[test]
+fn a_welcome_sign_in_ending_without_a_usable_model_keeps_its_words_and_acts() {
+    for declined in [true, false] {
+        let (mut front, mut root, source) = welcome_sign_in();
+        let address = Address::Welcome {
+            step: d::Step::Model {
+                way: Some(d::ModelWay { provider: accounts::PROVIDER, kind: d::WayKind::SignIn, source: Some(source) }),
+            },
+        };
+        let shown = front.shows.len();
+        let words = if declined {
+            welcome_signed_in(&mut front, &mut root, source, true);
+            "You signed in without plan usage."
+        } else {
+            front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::SignInFailed {
+                source,
+                failure: jig_domain_accounts::Failure::Misconfigured,
+            }));
+            accounts::settle(&mut front, &mut root);
+            "OpenAI refused temper’s sign-in. Check the configuration’s registration."
+        };
+        assert_eq!(root.person().pages().address(), &address);
+        assert_eq!(front.shows.len(), shown);
+        assert!(text(&root).contains(words), "{}", text(&root));
+        let view = view(&root);
+        assert!(
+            view.tree()
+                .nodes()
+                .iter()
+                .any(|node| { node.role == Role::Button && node.name.as_deref() == Some(b"Continue with ChatGPT") })
+        );
+        if declined {
+            assert!(
+                view.tree()
+                    .nodes()
+                    .iter()
+                    .any(|node| { node.role == Role::Link && node.name.as_deref() == Some(b"Use an API key") })
+            );
+        }
+        assert!(front.leaves.is_empty());
+    }
+}
+#[test]
+fn a_typed_welcome_sign_in_way_with_a_usable_model_keeps_continue() {
+    let (mut front, mut root) = accounts::plan_fixture(fixtures::SEED);
+    let Place::Address(address) =
+        d::address::parse(format!("/welcome?at=model&provider={}&way=sign-in", accounts::PROVIDER).as_bytes())
+    else {
+        panic!("welcome sign-in way");
+    };
+    accounts::reopen(&mut front, &mut root, address.clone());
+    assert_eq!(d::pages::welcome::model_usable(root.person()), Some(true));
+    assert_eq!(root.person().pages().address(), &address);
+    assert!(!front.shows.iter().any(|(address, _)| *address == Address::Welcome { step: d::Step::Ready }));
+    assert!(text(&root).contains("Connect a model"));
+    assert!(
+        view(&root)
+            .tree()
+            .nodes()
+            .iter()
+            .any(|node| { node.role == Role::Link && node.name.as_deref() == Some(b"Continue") })
+    );
+    assert!(front.leaves.is_empty());
+}
+#[test]
+fn a_typed_welcome_ready_reads_the_sign_in_then_its_account() {
     const SUBJECT: &[u8] = b"subject";
     const DISPLAY: &[u8] = b"alice@example.com";
-    let (mut front, mut root, source) = departing_welcome_sign_in();
-    let (_, returned) = front.engine.protocol.returns.last().expect("welcome return");
-    let Place::Address(address) = d::address::parse(returned) else { panic!("returned welcome address") };
-    accounts::reopen(&mut front, &mut root, address, true);
+    let (mut front, mut root, source) = welcome_sign_in();
+    accounts::reopen(&mut front, &mut root, Address::Welcome { step: d::Step::Ready });
     assert!(text(&root).contains("Model ChatGPT plan · signing in…"));
     assert!(!text(&root).contains("Connect a model"));
     front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::SignedIn {
@@ -258,7 +448,7 @@ fn a_welcome_sign_in_come_back_at_ready_reads_it_under_way_then_its_account() {
 fn an_unknown_return_source_is_removed_and_the_way_can_start_again() {
     let (mut front, mut root) = accounts::plan_fixture(fixtures::SEED);
     let Place::Address(address) = d::address::parse(&returned_path(u32::MAX)) else { panic!("returned address") };
-    accounts::reopen(&mut front, &mut root, address, true);
+    accounts::reopen(&mut front, &mut root, address);
     assert_eq!(
         d::address::print(root.person().pages().address()).as_ref(),
         format!("/accounts/connect?provider={}&way=sign-in", accounts::PROVIDER).as_bytes()
@@ -271,7 +461,6 @@ fn an_unknown_return_source_is_removed_and_the_way_can_start_again() {
             .any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Continue with ChatGPT"))
     );
     assert!(front.leaves.is_empty());
-    assert!(front.engine.protocol.returns.is_empty());
 }
 
 #[test]
@@ -284,7 +473,7 @@ fn welcome_claude_checks_on_the_wire_from_ready_and_observes_the_host_answer() {
             way: Some(d::ModelWay { provider: accounts::PROVIDER, kind: d::WayKind::Program, source: None }),
         },
     };
-    accounts::reopen(&mut front, &mut root, address.clone(), false);
+    accounts::reopen(&mut front, &mut root, address.clone());
     assert!(text(&root).contains("temper program-login claude-person"), "{}", text(&root));
     let view = view(&root);
     let button = view
@@ -349,7 +538,7 @@ fn owner_command(words: &[u8], expected: &[u8]) {
 #[test]
 fn the_owner_sees_the_command_the_box_answers() {
     owner_command(
-        b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache'",
+        b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper",
         b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper program-login claude-person",
     );
 }
@@ -367,7 +556,7 @@ fn a_stopped_welcome_check_stays_on_ready_without_a_model() {
             way: Some(d::ModelWay { provider: accounts::PROVIDER, kind: d::WayKind::Program, source: None }),
         },
     };
-    accounts::reopen(&mut front, &mut root, address, false);
+    accounts::reopen(&mut front, &mut root, address);
     press(&mut front, &mut root, Role::Button, "I’ve signed in".as_bytes(), skein_ui::Act::Press);
     accounts::program_checked(&mut front, &mut root, false);
     assert_eq!(root.person().pages().address(), &Address::Welcome { step: d::Step::Ready });

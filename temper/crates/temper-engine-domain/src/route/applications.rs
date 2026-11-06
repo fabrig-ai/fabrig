@@ -38,7 +38,6 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             None => people::ApplicationScope::Deployment,
         },
         Application::Forge(forge::Ask::Adopt(_)) => scope,
-        Application::Return { .. } => people::ApplicationScope::Own,
         Application::Dismiss {
             what: forge::PersonFact::ToBegin { project } | forge::PersonFact::GoalFrom { project, .. },
         }
@@ -63,7 +62,6 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
     }));
 }
 
-#[expect(clippy::too_many_arguments, reason = "the core admission carries the party beside its request metadata")]
 pub(super) fn admitted(
     domain: &mut Domain,
     request: Token,
@@ -72,7 +70,6 @@ pub(super) fn admitted(
     retention: Duration,
     role: Option<people::Role>,
     person: u64,
-    env: &skein_lib::Env<crate::Limits>,
 ) {
     let (held, ask) = domain.application.take().expect("one admitted application value");
     assert_eq!(held, owner, "the core admits the application's owner");
@@ -108,32 +105,6 @@ pub(super) fn admitted(
             }
             domain.work.push(Work::Forge(forge::Event::Application { request, token, retention, ask, role, carried }));
         }
-        Application::Return { source, path } => {
-            // Only live keyed answers need a volatile marker; the core bounds their room.
-            loop {
-                let mut expired = None;
-                for (held, until) in &domain.returns {
-                    if until.0 <= env.now || until.1 <= env.wall {
-                        expired = Some(*held);
-                        break;
-                    }
-                }
-                let Some(expired) = expired else { break };
-                domain.returns.remove(&expired);
-            }
-            domain
-                .returns
-                .insert(
-                    token,
-                    (
-                        env.now.saturating_add(retention),
-                        skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(retention.as_nanos())),
-                    ),
-                )
-                .expect("one marker per retained key");
-            assert!(super::now(domain, crate::Request::Return { source, path }), "return output door reserved");
-            finished(domain, request, Ok(token));
-        }
     }
 }
 
@@ -166,9 +137,6 @@ pub(super) fn finished(domain: &mut Domain, request: Token, outcome: Result<Toke
 }
 
 pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer> {
-    if domain.returns.contains_key(&token) {
-        return Some(ApplicationAnswer::Returning);
-    }
     match domain.forge.application_answer(token) {
         Some(forge::Answered::Make(answer)) => Some(ApplicationAnswer::Make(answer)),
         Some(forge::Answered::Adopt(answer)) => Some(ApplicationAnswer::Adopt(answer)),

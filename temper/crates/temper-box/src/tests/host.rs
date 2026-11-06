@@ -18,6 +18,7 @@ fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Har
         &crate::limits::small(),
         crate::host::Echo::None,
         super::fixtures::Opening {
+            link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
             first_link: Some(crate::host::FirstLink {
                 url: bytes::copy_of(FIRST_URL),
@@ -220,6 +221,7 @@ fn startup_log_and_record_diagnostics_follow_the_block() {
         &crate::limits::small(),
         crate::host::Echo::None,
         super::fixtures::Opening {
+            link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
             first_link: Some(crate::host::FirstLink {
                 url: bytes::copy_of(FIRST_URL),
@@ -253,6 +255,7 @@ fn with_no_first_link_after_block_is_at_the_start_and_the_first_serve_link_gets_
         &crate::limits::small(),
         crate::host::Echo::None,
         super::fixtures::Opening {
+            link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
             first_link: None,
             after_block: bytes::copy_of(AFTER_BLOCK),
@@ -1192,8 +1195,8 @@ fn split_links_and_diagnostics_form_ordered_first_fresh_and_restarted_blocks() {
             "diagnostic: interposed\n",
             "Open this link in a browser on this machine.\n\n",
             "http://first/link\n",
-            "\nIt signs you in as this temper's owner, once and for a short while.\n",
-            "Opened again once spent, it prints a fresh one here.\n",
+            "\nIt signs you in as this temper's owner, once, within 2 hours.\n",
+            "Opened after that, it prints a fresh one here.\n",
             "diagnostic: between refresh pieces\n\nhttp://fresh\n",
             "23:59:59Z serve exited 0; restarting in 0.5 s\n",
             "\nhttp://restart\n",
@@ -1920,6 +1923,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
     let link_debug = alloc::fmt::format(format_args!("{link:?}"));
     assert!(link_debug == "FirstLink { .. }", "FirstLink Debug hides both fields");
     let settings = Settings {
+        link_form: crate::terminal::LinkForm::Bare,
         first_link: Some(link),
         after_block: Box::new([]),
         log_lines: Box::new([]),
@@ -1935,7 +1939,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
         stderr: Fd::new(2),
     };
     let expected = alloc::fmt::format(format_args!(
-        "Settings {{ program: {:?}, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, log_lines: [], first_link: Some(FirstLink {{ .. }}), after_block_bytes: 0, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
+        "Settings {{ program: {:?}, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, log_lines: [], first_link: Some(FirstLink {{ .. }}), link_form: Bare, after_block_bytes: 0, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
         settings.program,
         settings.serve,
         settings.listeners,
@@ -2227,5 +2231,96 @@ fn bound_kind_labels_follow_the_number_through_start_stop_and_failure() {
             ));
             stop_fetch_box(&mut h);
         }
+    }
+}
+
+#[test]
+fn each_link_reads_on_stdout_as_its_form_has_it() {
+    use crate::terminal::LinkForm;
+    for (form, first, fresh) in [
+        (LinkForm::Bare, b"http://local/first\n".as_slice(), b"http://fresh/link\n".as_slice()),
+        (
+            LinkForm::Osc8,
+            b"\x1b]8;;http://local/first\x1b\\http://local/first\x1b]8;;\x1b\\\n".as_slice(),
+            b"\x1b]8;;http://fresh/link\x1b\\http://fresh/link\x1b]8;;\x1b\\\n".as_slice(),
+        ),
+    ] {
+        let mut harness = Harness::with_terminal(
+            temper_forge_setup::Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
+            &[],
+            true,
+            16_384,
+            &crate::limits::small(),
+            crate::host::Echo::None,
+            super::fixtures::Opening {
+                link_form: form,
+                log_lines: Box::new([]),
+                first_link: Some(crate::host::FirstLink {
+                    url: bytes::copy_of(FIRST_URL),
+                    secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
+                }),
+                after_block: bytes::copy_of(AFTER_BLOCK),
+            },
+        );
+        harness.run_until_idle();
+        assert_eq!(harness.stdout().as_ref(), first);
+        let serve = harness.child_index(b"serve");
+        harness.write_child(serve, 1, b"http://fresh");
+        harness.run_until_idle();
+        assert!(harness.stdout().is_empty());
+        harness.write_child(serve, 1, b"/link\n");
+        harness.run_until_idle();
+        assert_eq!(harness.stdout().as_ref(), fresh);
+        assert_eq!(
+            harness.terminal_bytes(),
+            crate::lines::joined(&[
+                crate::terminal::PRELUDE,
+                first,
+                crate::terminal::FOOTER,
+                AFTER_BLOCK,
+                b"\n",
+                fresh,
+            ])
+        );
+        stop_first_link(&mut harness);
+    }
+}
+#[test]
+fn the_widest_link_is_whole_on_a_terminal_and_one_byte_more_is_refused() {
+    for overflow in [false, true] {
+        let mut harness = Harness::with_terminal(
+            temper_forge_setup::Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
+            &[],
+            true,
+            16_384,
+            &crate::limits::small(),
+            crate::host::Echo::None,
+            super::fixtures::Opening {
+                link_form: crate::terminal::LinkForm::Osc8,
+                log_lines: Box::new([]),
+                first_link: None,
+                after_block: Box::new([]),
+            },
+        );
+        harness.run_until_idle();
+        let serve = harness.child_index(b"serve");
+        let cap = super::fixtures::line_cap();
+        harness.write_child(serve, 1, &cap);
+        harness.run_until_idle();
+        assert!(harness.stdout().is_empty(), "a partial link prints nothing");
+        harness.write_child(serve, 1, if overflow { b"x\n" } else { b"\n" });
+        harness.run_until_idle();
+        if overflow {
+            assert!(harness.stdout().is_empty(), "none of an oversized URL is printed");
+            harness.write_child(serve, 1, b"good\n");
+            harness.run_until_idle();
+            assert_eq!(harness.stdout().as_ref(), b"\x1b]8;;good\x1b\\good\x1b]8;;\x1b\\\n");
+            assert!(Harness::contains(&harness.terminal_bytes(), b"box: serve: sign-in link too long\nOpen this link"));
+        } else {
+            let stdout = harness.stdout();
+            assert_eq!(stdout.len(), 8207);
+            assert_eq!(stdout, crate::lines::joined(&[b"\x1b]8;;", &cap, b"\x1b\\", &cap, b"\x1b]8;;\x1b\\\n"]));
+        }
+        stop_first_link(&mut harness);
     }
 }

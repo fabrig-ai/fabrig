@@ -12,6 +12,9 @@
 //! They warm for 300 s, measure 600 s, and scale by six. Main moves every
 //! 600 s in the second shape. Totals allow two fast/slow passes per endpoint
 //! at the boundary: +/-12*(7*N+1) requests/hour. Fake replies take no time.
+//! Busy changes have a one-update budget, reserved for their turn
+//! (temper/docs/design/domain/forge.md, 8.2),
+//! so these read-only traffic measurements do not issue pre-CI updates.
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt::Write,
@@ -146,15 +149,16 @@ impl Scheduler {
 }
 
 fn pending(count: usize) -> (Protocol, Scheduler) {
-    configured(count, 7200)
+    configured(count, 7200, temper_engine_forge_world::LIMITS.change_policy.updates)
 }
 
-fn configured(count: usize, latency: u64) -> (Protocol, Scheduler) {
+fn configured(count: usize, latency: u64, update_limit: u32) -> (Protocol, Scheduler) {
     let shipped = profile(Profile::Small).forge;
     let mut limits = temper_engine_forge_world::LIMITS;
     limits.client = shipped.client;
     limits.resources_per_task = shipped.resources_per_task;
     limits.change_policy.stall = shipped.change_policy.stall;
+    limits.change_policy.updates = update_limit;
     let mut checks = joint::checks(1000);
     checks.latency_min = Duration::from_secs(latency);
     checks.latency_max = checks.latency_min;
@@ -397,7 +401,7 @@ fn sharing(world: &Protocol, start: usize, bucket: u64) -> (u64, u64, u64) {
 
 fn busy(moving: bool) {
     for count in 1..=3 {
-        let (mut world, mut scheduler) = configured(count, 120);
+        let (mut world, mut scheduler) = configured(count, 120, 1);
         scheduler.iterating = true;
         let epoch = world.wall().as_nanos();
         busy_run(&mut world, &mut scheduler, count, moving, 0, 300);

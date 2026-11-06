@@ -57,7 +57,7 @@ Rewritten: (disabled)
 The brief on Home
 What changed since you last looked.
 The brief on Home: (disabled)
-  [-] (*) Off
+  [-] (*) On
 Not built yet: this is what temper does today.
 ## What needs you
 Questions a goal can answer from its plan

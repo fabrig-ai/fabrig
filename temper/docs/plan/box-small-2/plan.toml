@@ -1,0 +1,23 @@
+draft = "box-small-2"
+repo = "fabrig"
+sources = ["temper/docs/plan/box-small-2/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+priority = true
+
+# The two things box-small missed; see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "words-and-link"
+title = "Each TEMPER_ variable prints only off its own default, and the box's sign-in link is clickable on a terminal"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 7.2"
+
+[[slice]]
+id = 1
+story = "A box with only its data moved prints TEMPER_DATA=~/x temper program-login NAME, and its link on a terminal is whole in OSC 8 while a pipe still reads the bare URL"
+parts = ["words-and-link"]
+walk = false

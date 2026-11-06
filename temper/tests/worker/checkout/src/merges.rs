@@ -12,6 +12,7 @@ use temper_worker_domain_checkout::{
 #[derive(Clone, Copy, Debug)]
 pub enum Case {
     Clean,
+    Contained,
     Conflict,
     Unchanged,
     Moved,
@@ -59,6 +60,10 @@ impl World {
         let left = format!("ours {seed}\n");
         let right = format!("base {seed}\n");
         let (ours, base, expected) = match case {
+            Case::Contained => {
+                let ours = forge.advance(b"forge/temper", b"topic", b"ours", left.as_bytes());
+                (ours, first, forge.tree(ours))
+            }
             Case::Unchanged | Case::Moved => {
                 let base = forge.advance(b"forge/temper", b"main", b"code", right.as_bytes());
                 (first, base, [(b"code".to_vec(), right.into_bytes())].into())
@@ -188,7 +193,7 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
             account: None,
             push: Some(b"topic".as_slice().into()),
             expected: Some(translate::commit(world.ours)),
-            landing: None,
+            landing: if matches!(case, Case::Contained) { Some(b"main".as_slice().into()) } else { None },
         }]),
     };
     world.forge.moves();
@@ -235,18 +240,73 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
         Some(translate::fake(commit))
     };
     if let Some(commit) = commit {
-        assert_eq!(world.forge.parent(commit), Some(world.ours));
-        assert_eq!(world.forge.merge_parent(commit), Some(world.base));
+        if matches!(case, Case::Contained) {
+            assert_eq!(commit, world.ours, "resume with nothing new keeps the reported head");
+            assert_eq!(world.forge.merge_parent(commit), None, "resume adds no merge parent");
+        } else {
+            assert_eq!(world.forge.parent(commit), Some(world.ours));
+            assert_eq!(world.forge.merge_parent(commit), Some(world.base));
+        }
         assert_eq!(world.forge.tree(commit), world.expected);
         assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(commit));
         let again = world.push(false, false);
         assert_eq!(again, landed, "a repeat is the same landing");
         assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(commit), "repeat creates no new commit or push");
     }
+    if matches!(case, Case::Contained) {
+        resume_saved_work(&mut world, workspace);
+    }
     let hold = world.hold.expect("held");
     assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { .. }));
     assert_eq!(world.domain.holds(), 0);
     Report { trace: world.trace, tree: world.expected, parents: (world.ours, world.base) }
+}
+
+/// A contained producer resumes the saved tree, then delivers a new ordinary commit.
+fn resume_saved_work(world: &mut World, workspace: Token) {
+    let at = translate::path(&temper_worker_domain_checkout::git::Place {
+        git: None,
+        workspace,
+        repository: b"temper".as_slice().into(),
+    });
+    world.disk.write(&[at.as_slice(), b"/saved-only"].concat(), b"unfinished work\n");
+    let saved = world.push(true, false);
+    let Landing::Landed { commit: saved } = saved[0] else { panic!("saved tree") };
+    let saved_head = translate::fake(saved);
+    let expected = world.forge.tree(saved_head);
+    assert_eq!(world.forge.parent(saved_head), Some(world.ours));
+    assert_eq!(world.forge.merge_parent(saved_head), None);
+    let hold = world.hold.take().expect("first held");
+    world.finish(Event::Release { hold }, false);
+    let spec = Spec {
+        key: b"merge".as_slice().into(),
+        repositories: Box::new([Repository {
+            name: b"temper".as_slice().into(),
+            remote: b"forge/temper".as_slice().into(),
+            git: None,
+            start: Start::Merge { branch: b"saved".as_slice().into(), base: translate::commit(world.base) },
+            identity: 0,
+            account: None,
+            push: Some(b"topic".as_slice().into()),
+            expected: None,
+            landing: Some(b"main".as_slice().into()),
+            save: Some(b"saved".as_slice().into()),
+        }]),
+    };
+    let ready = world.finish(Event::Prepare { client: Token::new(10), spec }, false);
+    assert!(matches!(ready, Request::Prepared { prepared: Prepared::Ready { .. }, .. }));
+    assert_eq!(&*world.push(false, false), &[Landing::Landed { commit: saved }]);
+    assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(saved_head));
+    assert_eq!(world.forge.tree(saved_head), expected, "saved tree survives the resume");
+    assert_eq!(world.forge.merge_parent(saved_head), None);
+    world.disk.write(&[at.as_slice(), b"/new-work"].concat(), b"after resume\n");
+    let edited = world.push(false, false);
+    let Landing::Landed { commit: edited } = edited[0] else { panic!("new work delivered") };
+    let edited = translate::fake(edited);
+    assert_ne!(edited, saved_head);
+    assert_eq!(world.forge.parent(edited), Some(saved_head));
+    assert_eq!(world.forge.merge_parent(edited), None, "new work has one parent");
+    assert_eq!(world.forge.tree(edited).get(b"saved-only".as_slice()), Some(&b"unfinished work\n".to_vec()));
 }
 
 /// A separate activation starts from the pushed topic, without editing it.

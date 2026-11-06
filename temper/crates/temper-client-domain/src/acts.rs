@@ -214,8 +214,10 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Ke
     if card.key.is_some() {
         return None;
     }
-    let project = card.project?;
     let Some(page) = &card.page else { return None };
+    // A proposal is decided under its own project, which a chat's card doesn't
+    // hold (temper/docs/design/client/README.md, 5.13).
+    let project = if let ReadValue::Proposal(proposal) = page { proposal.project } else { card.project? };
     if !allowed(page, open.act) {
         return None;
     }
@@ -225,7 +227,8 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Ke
             project,
             on: DecideOn::Proposal {
                 proposal,
-                running: if let ReadValue::Proposal(proposal) = page
+                running: if open.act == ActKind::Accept
+                    && let ReadValue::Proposal(proposal) = page
                     && let contract::ProposalAction::Settings(_) = proposal.action
                 {
                     Some(contract::Running::Stays)

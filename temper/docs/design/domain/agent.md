@@ -755,7 +755,7 @@ merge, with both parents. Its outcomes, in smith's terms (smith's
 
 | The push | smith's delivery |
 |---|---|
-| landed in every repository with a change, or already landed by this hold's last push | delivered, naming each head |
+| landed in every repository with a change, or already landed by this hold's last push | delivered, each receipt `pushed <head> to branch <branch>; your checkout stays detached, as expected` |
 | nothing to push | nothing |
 | a branch moved, as a fast-forward cannot take it or its head is not the one expected | stale: the run ends, and the engine decides afresh |
 | a conflicted file still holds a marker | refused, naming the file |
@@ -769,6 +769,12 @@ delivered unchanged lands the save's commit, the delivery's title and body
 unused (worker.md, section 5). The head delivered names what is on the branch,
 and the coding charter's words say so (`../protocol/configuration.md`, 13.4's
 charter 2 row), since a run can't otherwise tell.
+
+A receipt says it in words, whatever the charter, so that a run that finds its
+checkout detached does not take a good delivery for a failure: its full head,
+the branch it landed on, and that a detached checkout is expected. A branch name
+that would take a receipt past its bound (512 bytes, smith's `Receipt`) leaves
+the branch's words out and keeps the rest.
 
 A push that lands is the result, even if the run was winding down. The
 answer carries what the run left on the forge (worker.md, 4.2), and the
@@ -787,6 +793,13 @@ run starts fresh, its brief carrying the tail when it is readable. If
 the saved window is unread, the first load spends a transient try; its
 retry starts fresh without the tail, keeping the person's pending words
 (jig's `domain/engine.md`, 7.2).
+
+An unidentified startup fault keeps its agent-failure classification and
+bounded operator diagnostic through cleanup (jig's `domain/hosts.md`, 6.3).
+It retains the transcript and pending words for the next attempt; it does
+not establish a transcript refusal. A persistent fault exhausts the agent
+allowance and holds the chat. An unidentified fault alone never takes
+the fresh preparation above.
 
 ## 8. The agents temper runs
 
@@ -1258,6 +1271,10 @@ host:
 
 ## 10. Open questions
 
+- **What a delivery keeps, under a deployment's own charter** (6): the stock's
+  coding charter and the reference's tell a run its own history isn't kept. A
+  deployment's own charter is its author's, so a run under one isn't told.
+  Default: so.
 - **A task read where the process has no local agent.** The engine does not
   know its remote agents' reply bound, so a run there reads a task's words in
   pieces of `documents.text_bytes` (`root.md`, 5.2). Going past it needs each

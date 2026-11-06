@@ -19,7 +19,7 @@ use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Env, Id, Queue, Token, bytes, usize_of};
 use skein_oauth::Redirect;
 
-const PAGE: &[u8] = b"Sign-in received. You may close this page.\n";
+const PAGE: &[u8] = b"Sign-in received. You can close this tab.\n";
 const REFUSAL: &[u8] = b"This is not the registered redirect.\n";
 
 #[derive(Clone, Copy, PartialEq, Eq)]

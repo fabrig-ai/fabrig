@@ -8,16 +8,16 @@ fn item(target: Target, words: &[u8]) -> Item {
 }
 #[test]
 fn the_first_block_has_exact_words_and_three_targets() {
-    let formatter = Formatter::new();
+    let formatter = Formatter::new(crate::terminal::LinkForm::Bare);
     assert_eq!(formatter.block(bytes::copy_of(b"http://link\n")).as_slice(), &[
         item(Target::Stderr, b"Open this link in a browser on this machine.\n\n"),
         item(Target::Stdout, b"http://link\n"),
-        item(Target::Stderr, b"\nIt signs you in as this temper's owner, once and for a short while.\nOpened again once spent, it prints a fresh one here.\n"),
+        item(Target::Stderr, b"\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\n"),
     ]);
 }
 #[test]
 fn fresh_blocks_keep_state_across_restart_and_have_no_time() {
-    let mut formatter = Formatter::new();
+    let mut formatter = Formatter::new(crate::terminal::LinkForm::Bare);
     formatter.admitted_block();
     assert_eq!(
         formatter.block(bytes::copy_of(b"http://fresh\n")).as_slice(),
@@ -26,7 +26,7 @@ fn fresh_blocks_keep_state_across_restart_and_have_no_time() {
 }
 #[test]
 fn notices_time_every_line_before_and_after_a_block() {
-    let mut formatter = Formatter::new();
+    let mut formatter = Formatter::new(crate::terminal::LinkForm::Bare);
     for _ in 0_u32..2 {
         assert_eq!(
             formatter.notice(b"first\nsecond\n", wall(3723)),
@@ -57,7 +57,7 @@ fn group_and_failure_facts_use_supplied_labels_and_exact_words() {
     use skein_io::kernel::Exit;
     use skein_lib::Duration;
     let steps = labelled(b"\xffother\0label", b"a step");
-    let mut formatter = Formatter::new();
+    let mut formatter = Formatter::new(crate::terminal::LinkForm::Bare);
     formatter.admitted_block();
     for (fact, expected) in [
         (Fact::GroupStarting { forge: 37 }, b"\xffother\0label: starting\n".as_slice()),
@@ -113,7 +113,7 @@ fn group_started_keeps_its_label_when_the_step_carries_hands() {
     steps[0]
         .step
         .set_started_notice(b"Forgejo: api http://127.0.0.1:3000/api/v1\nForgejo: person ada\n".as_slice().into());
-    let mut formatter = Formatter::new();
+    let mut formatter = Formatter::new(crate::terminal::LinkForm::Bare);
     formatter.admitted_block();
     assert_eq!(
         formatter.fact(Fact::GroupStarted { forge: 37 }, &steps, wall(3723)),
@@ -130,7 +130,7 @@ fn every_group_fact_binds_the_owned_number_and_keeps_the_playground_label() {
         let mut steps = labelled(template, b"forgejo-65535");
         steps[0].label = Some(layout::bound_label(template, u16::MAX));
         steps[0].asked.as_mut().unwrap().forge = u16::MAX;
-        let mut formatter = Formatter::new();
+        let mut formatter = Formatter::new(crate::terminal::LinkForm::Bare);
         formatter.admitted_block();
         for (fact, suffix) in [
             (Fact::GroupStarting { forge: u16::MAX }, b": starting\n".as_slice()),
@@ -154,7 +154,7 @@ fn lifecycle_output_bound_covers_long_labels_and_signal_numbers() {
     let name: Box<[u8]> = Box::new([b'N'; 4096]);
     let steps = labelled(&label, &name);
     let why = Why::Exited { step: 0, exit: Exit::Signal(u32::MAX) };
-    let mut formatter = Formatter::new();
+    let mut formatter = Formatter::new(crate::terminal::LinkForm::Bare);
     formatter.admitted_block();
     for fact in [
         Fact::GroupFailed { forge: 37, why },
@@ -188,7 +188,7 @@ fn the_largest_tail_fits_one_output_item_and_reset_releases_every_line() {
         forge: 37,
         why: crate::machine::Why::Exited { step: 0, exit: skein_io::kernel::Exit::Code(1) },
     };
-    let formatter = Formatter::new();
+    let formatter = Formatter::new(crate::terminal::LinkForm::Bare);
     let mut block = formatter.fact(fact, &steps, Wall::EPOCH);
     tail.append(&mut block, b"/data/box/logs/last-step.log");
     assert!(block.bytes.len() > 409_600);
@@ -197,4 +197,52 @@ fn the_largest_tail_fits_one_output_item_and_reset_releases_every_line() {
     let mut empty = formatter.fact(fact, &steps, Wall::EPOCH);
     tail.append(&mut empty, b"/data/box/logs/last-step.log");
     assert_eq!(empty, formatter.fact(fact, &steps, Wall::EPOCH));
+}
+
+#[test]
+fn a_link_takes_osc_8_on_a_terminal_unless_term_is_dumb() {
+    use crate::terminal::LinkForm::{self, Bare, Osc8};
+    for (terminal, term, expected) in [
+        (true, None, Osc8),
+        (true, Some(b"xterm-256color".as_slice()), Osc8),
+        (true, Some(b"eterm-color".as_slice()), Osc8),
+        (true, Some(b"".as_slice()), Osc8),
+        (true, Some(b"dumber".as_slice()), Osc8),
+        (true, Some(b"dumb".as_slice()), Bare),
+        (false, None, Bare),
+        (false, Some(b"xterm-256color".as_slice()), Bare),
+        (false, Some(b"dumb".as_slice()), Bare),
+    ] {
+        assert_eq!(LinkForm::of(terminal, term), expected, "terminal={terminal}, TERM={term:?}");
+    }
+}
+#[test]
+fn the_first_block_on_a_terminal_wraps_its_link() {
+    let formatter = Formatter::new(crate::terminal::LinkForm::Osc8);
+    assert_eq!(formatter.block(bytes::copy_of(b"http://link\n")).as_slice(), &[
+        item(Target::Stderr, b"Open this link in a browser on this machine.\n\n"),
+        item(Target::Stdout, b"\x1b]8;;http://link\x1b\\http://link\x1b]8;;\x1b\\\n"),
+        item(Target::Stderr, b"\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\n"),
+    ]);
+}
+#[test]
+fn a_fresh_block_on_a_terminal_wraps_its_link() {
+    let mut formatter = Formatter::new(crate::terminal::LinkForm::Osc8);
+    formatter.admitted_block();
+    assert_eq!(
+        formatter.block(bytes::copy_of(b"http://link\n")).as_slice(),
+        &[item(Target::Stderr, b"\n"), item(Target::Stdout, b"\x1b]8;;http://link\x1b\\http://link\x1b]8;;\x1b\\\n"),]
+    );
+}
+#[test]
+fn the_widest_link_fills_its_line() {
+    use crate::terminal::{LINK_LINE_BYTES, LinkForm};
+    let url = super::fixtures::line_cap();
+    let line = LinkForm::Osc8.line(crate::lines::joined(&[&url, b"\n"]));
+    assert_eq!(LINK_LINE_BYTES, 8207);
+    assert_eq!(line.len(), usize::try_from(LINK_LINE_BYTES).unwrap());
+    assert_eq!(line, crate::lines::joined(&[b"\x1b]8;;", &url, b"\x1b\\", &url, b"\x1b]8;;\x1b\\\n"]));
+    for form in [LinkForm::Bare, LinkForm::Osc8] {
+        assert_eq!(form.line(bytes::copy_of(b"\n")).as_ref(), b"\n");
+    }
 }

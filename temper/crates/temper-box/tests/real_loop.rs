@@ -31,7 +31,7 @@ const PROGRAM: &[u8] = b"synthetic-box-child";
 const FIRST: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=test-first\n";
 const FRESH: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=test-fresh\n";
 const PRELUDE: &[u8] = b"Open this link in a browser on this machine.\n\n";
-const FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once and for a short while.\nOpened again once spent, it prints a fresh one here.\n";
+const FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\n";
 const ANNOUNCEMENT: &[u8] = b"\n";
 const FIRST_DIAGNOSTIC: &[u8] = b"diagnostic: between first pieces\n";
 const FRESH_DIAGNOSTIC: &[u8] = b"diagnostic: between fresh pieces\n";
@@ -458,6 +458,7 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
                 &temper_box::limits::small(),
                 steps,
                 Settings {
+                    link_form: temper_box::terminal::LinkForm::Bare,
                     first_link: None,
                     after_block: Box::new([]),
                     log_lines: Box::new([]),
@@ -589,6 +590,7 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
             }]),
         };
         Proc::Box(Box::new(Service::new(&temper_box::limits::small(), steps, Settings {
+            link_form: temper_box::terminal::LinkForm::Bare,
             first_link: None, after_block: Box::new([]),
             log_lines: Box::new([]),
             program: b"/bin/sh".as_slice().into(), environment: Box::new([]), serve: b"serve".as_slice().into(),
@@ -638,6 +640,7 @@ fn a_real_child_reads_the_secret_and_eof_on_stdin() {
                 &temper_box::limits::small(),
                 steps,
                 Settings {
+                    link_form: temper_box::terminal::LinkForm::Bare,
                     first_link: Some(temper_box::host::FirstLink {
                         url: b"http://local/first".as_slice().into(),
                         secret: skein_lib::Secret::new(secret.into()),

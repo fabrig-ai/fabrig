@@ -17,10 +17,14 @@ use skein_ui_web::{
 use std::{cell::RefCell, rc::Rc};
 
 #[cfg(debug_assertions)]
+mod copy_fixture;
+#[cfg(debug_assertions)]
 mod folds_fixture;
 mod grow;
 #[cfg(debug_assertions)]
 mod log_fixture;
+#[cfg(debug_assertions)]
+mod tab_fixture;
 #[cfg(debug_assertions)]
 mod tree;
 
@@ -72,8 +76,18 @@ pub fn start() {
     let location = window.location();
     let path = location.pathname().expect("page path") + &location.search().expect("page query");
     #[cfg(debug_assertions)]
+    if path.split('?').next() == Some("/test/copy") {
+        copy_fixture::start(mount, facts.primary);
+        return;
+    }
+    #[cfg(debug_assertions)]
     if path == "/test/folds-away" {
         folds_fixture::start(mount, facts.primary);
+        return;
+    }
+    #[cfg(debug_assertions)]
+    if path.split('?').next() == Some("/test/tab") {
+        tab_fixture::start(mount, facts.primary);
         return;
     }
     #[cfg(debug_assertions)]
