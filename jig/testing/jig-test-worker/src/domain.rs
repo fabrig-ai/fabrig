@@ -456,11 +456,6 @@ fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent::Request, o
             hub(domain, env, HubEvent::Agent(FromAgent::AccountRefused { owner: client, account, code, reason }));
         }
         smith::parent::Request::Faulted { client, fault } => {
-            if let Some(hosting) = domain.hub.hosting(client)
-                && hosting.phase == host::Phase::Starting
-            {
-                return;
-            }
             hub(domain, env, HubEvent::Agent(FromAgent::Faulted { owner: client, fault: translate::fault(fault) }));
         }
         smith::parent::Request::MessageRefused { client, name, reason } => {
