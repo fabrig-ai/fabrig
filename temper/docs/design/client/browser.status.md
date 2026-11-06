@@ -4,9 +4,6 @@
 
 - **Not yet:** 4.3, *The tier's window*: the tier's bundle holds the whole `document_bytes`,
   and `reading_tier`'s replies are sized for it.
-- **Not yet:** 4.3, *A chat's history*: `browser_pages`'s reading stories type their history
-  in the page, and `latest_returns_a_chat_to_its_end_after_new_words_while_reading_back` takes
-  a second tab for its new words.
 - **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:
