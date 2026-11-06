@@ -153,10 +153,7 @@ goal starts from a document through the one sheet, which has none of the request
 opens nothing for a party with no creating bound; drafts follow kind 7's setting,
 off in the stock, where that request has them follow a tracked template
 (`client/README.md`), and a goal keeps its own note scope, where that request
-has it keep no notes (`domain/agent.md`). A proposal of settings shows on no
-project's Needs you or rail's count, the Claude way's command refuses on a box
-with directories of its own, and a choice pressed just after Undo stayed
-unanswered once (`client/README.md`). The welcome's try of a model draws its box
+has it keep no notes (`domain/agent.md`). The welcome's try of a model draws its box
 over the host's check alone, no trial being built, and departs from the request
 `model-check` in its list's names and a few of its acts and words
 (`client/README.md`). A plan's sign-in draws the waiting page of the request
