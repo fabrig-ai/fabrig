@@ -118,6 +118,7 @@ pub(super) fn encode_refusal(value: d::MakeRefusal) -> w::MakeRefusal {
         d::MakeRefusal::Invalid => w::MakeRefusal::Invalid,
         d::MakeRefusal::HomeHeld => w::MakeRefusal::HomeHeld,
         d::MakeRefusal::Full => w::MakeRefusal::Full,
+        d::MakeRefusal::NotFailed => w::MakeRefusal::NotFailed,
     }
 }
 pub(super) fn decode_refusal(value: w::MakeRefusal) -> d::MakeRefusal {
@@ -128,6 +129,7 @@ pub(super) fn decode_refusal(value: w::MakeRefusal) -> d::MakeRefusal {
         w::MakeRefusal::Invalid => d::MakeRefusal::Invalid,
         w::MakeRefusal::HomeHeld => d::MakeRefusal::HomeHeld,
         w::MakeRefusal::Full => d::MakeRefusal::Full,
+        w::MakeRefusal::NotFailed => d::MakeRefusal::NotFailed,
     }
 }
 fn encode_failure(value: &d::MakeFailure) -> w::MakeFailure {

@@ -1622,7 +1622,7 @@ fn repository_makings_and_their_outcomes_round_trip() {
     };
     // Four live states and five steps with six failure reasons; six refusals and kept.
     const STATES: u32 = 34;
-    const OUTCOMES: u32 = 7;
+    const OUTCOMES: u32 = 8;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let branch: Box<[u8]> = Box::from(b"main".as_slice());
     let mut states = skein_lib::List::with_capacity(STATES);
@@ -1682,6 +1682,7 @@ fn repository_makings_and_their_outcomes_round_trip() {
         MakeRefusal::Invalid,
         MakeRefusal::HomeHeld,
         MakeRefusal::Full,
+        MakeRefusal::NotFailed,
     ] {
         outcomes.push(forge::ApplicationOutcome::MakeRefused(refusal)).expect("outcome fixture bound");
     }

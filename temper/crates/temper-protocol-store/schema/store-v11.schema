@@ -225,7 +225,7 @@ record MakingFailed { step: MakeStep reason: MakeFailure words: bytes 256 }
 record MakingMade { id: u64 branch: bytes 1024 }
 enum MakingState { waiting, making, made: MakingMade, adopting: MakingMade, failed: MakingFailed }
 record RepositoryMaking { key: MakingKey from: MakeFrom into: option MakeInto asked: u64 copying: bool state: MakingState }
-enum MakeRefusal { no_such_forge, not_offered, not_owner, invalid, home_held, full }
+enum MakeRefusal { no_such_forge, not_offered, not_owner, invalid, home_held, full, not_failed }
 
 record MakeRefused { reason: MakeRefusal }
 enum ApplicationOutcome { adopted: ApplicationAdopted, core_refused: CoreRefused, forge_refused: ForgeRefused, make_kept, make_refused: MakeRefused }

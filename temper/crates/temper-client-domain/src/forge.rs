@@ -27,6 +27,7 @@ pub mod trials;
 mod vocabulary;
 pub mod ways;
 pub mod words;
+pub use family::dismiss_making;
 pub use form::{Act, Broken, Check, Field, Form, Marks, Text, Typed, adoption, broken, form, write};
 pub use vocabulary::*;
 

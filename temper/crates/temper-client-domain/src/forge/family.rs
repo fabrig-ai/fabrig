@@ -50,6 +50,24 @@ pub fn make_repository(request: &w::MakeRepository, limits: &w::Limits) -> Optio
         w::Requesting::new(limits, w::RequestingParts { request: w::Request::MakeRepository(request.clone()) }).ok()?;
     Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
 }
+/// Dismiss a failed making by name (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn dismiss_making(
+    forge: u16,
+    org: &[u8],
+    name: &[u8],
+    into: Option<u32>,
+    limits: &w::Limits,
+) -> Option<jig_client::Family> {
+    let request = w::DismissMaking::new(
+        limits,
+        w::DismissMakingParts { forge, org: Box::from(org), name: Box::from(name), into },
+    )
+    .ok()?;
+    let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::DismissMaking(request) }).ok()?;
+    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
+}
+
 #[must_use]
 pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limits) -> Option<forge::Answer> {
     if record.family != wire::number(wire::Owner::Forge) {
@@ -525,4 +543,37 @@ pub fn playground(record: &[u8], limits: &w::Limits) -> Option<forge::Playground
         name: answer.name,
         cues: answer.cues.into_boxed(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dismiss_making_builds_a_bounded_forge_request() {
+        let limits = wire::limits(&wire::Bounds {
+            segments: 1,
+            segment_bytes: 8,
+            gates: 1,
+            approvals: 1,
+            field_bytes: 4,
+            checks: 1,
+            contexts: 1,
+            refusal_bytes: 64,
+        })
+        .expect("test bounds");
+        for into in [None, Some(3)] {
+            let family = dismiss_making(7, b"orgx", b"repo", into, &limits).expect("bounded dismissal");
+            assert_eq!(family.family, wire::FORGE);
+            assert_eq!(family.version, wire::CLIENT_VERSION);
+            let record = wire::decode_requesting(&family.bytes, &limits).expect("dismissal decodes");
+            let w::Request::DismissMaking(request) = record.into_parts().request else { panic!("dismissal request") };
+            assert_eq!(request.forge(), 7);
+            assert_eq!(request.org(), b"orgx");
+            assert_eq!(request.name(), b"repo");
+            assert_eq!(request.into_parts().into, into);
+        }
+        assert!(dismiss_making(7, b"orgxx", b"repo", None, &limits).is_none());
+        assert!(dismiss_making(7, b"org", b"repox", None, &limits).is_none());
+    }
 }
