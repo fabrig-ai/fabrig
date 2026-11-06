@@ -120,6 +120,16 @@ fn change_help_points_resolving_to_the_merge_command() {
 }
 
 #[test]
+fn change_help_says_what_a_resumed_producers_checkout_holds() {
+    let text = find(b"change").expect("change page").text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in
+        ["`Merge SHA`", "`MERGE_HEAD`", "`git status`", "Never answer it to remove or restore those files"]
+    {
+        assert!(text.contains(instruction), "change help must explain: {instruction}");
+    }
+}
+
+#[test]
 fn change_and_task_help_say_what_a_cancelled_early_start_means() {
     for name in [b"change".as_slice(), b"task"] {
         let page = find(name).expect("change or task page");
