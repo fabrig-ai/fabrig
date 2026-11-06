@@ -1152,12 +1152,12 @@ fn history() -> (temper_client_domain::Domain, skein_lib::Queue<temper_client_do
     (root, out)
 }
 #[test]
-fn older_is_not_offered_while_the_window_is_filling() {
+fn older_is_offered_after_the_first_page_with_more() {
     let view = fixtures::page_view(&chat_with_history());
     let nodes = subtree(view.tree(), styled(view.tree(), crate::look::THREAD));
     assert_eq!(nodes[0].role, Role::Log);
     assert!(nodes[1].styles.as_slice().contains(&crate::look::THREAD_INNER));
-    assert!(fixtures::find(view.tree(), Role::Button, b"Older").is_none());
+    assert!(fixtures::find(view.tree(), Role::Button, b"Older").is_some());
 }
 fn answered_message(answer: c::Answer) -> temper_client_domain::Domain {
     use temper_client_domain::{Action, Event, Request, pages::Act};
@@ -3017,7 +3017,13 @@ fn the_message_stands_for_older_while_a_read_is_out() {
             assert_eq!(fixtures::text(&tree).as_ref(), "Loading earlier messages…".as_bytes());
         }
     }
-    let root = chat_with_history();
+    let mut root = chat_with_history();
+    fixtures::root_event(
+        &mut root,
+        temper_client_domain::Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Older),
+        },
+    );
     let view = fixtures::browser_page_view(&root);
     let nodes = view.tree().nodes();
     let inner = styled(view.tree(), crate::look::THREAD_INNER);
