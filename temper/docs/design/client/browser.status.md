@@ -2,10 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 8.3 and 8.4: the rows' hierarchy and words, an ended row's words,
-  the empty pages' words, "Its change: 789ada1" and no link to the forge, from
-  the request `ui-public-2`. The view wraps titles and metadata in separate
-  groups, but still shows a line's priority and links out.
 - **Not yet:** 8.3: three things remain, as the request `ui-public-2` left them. Landed work from before a project went public never shows. A restart empties the history (jig's `domain/people.md`, 13.9). A stock queue's Landings stay empty, since its changes land without a landing by turn.
 - **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
   is compiled. Its runtime red and green await the browser tier after landing;

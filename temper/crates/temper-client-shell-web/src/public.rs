@@ -198,7 +198,7 @@ fn bounds() -> skein_ui::Limits {
         text_per_node: 4096,
         text_bytes: lines.checked_mul(1024).expect("public text fits"),
         drawing_bytes: 0,
-        styles_per_node: 2,
+        styles_per_node: 3,
         patches: nodes.checked_mul(5).expect("public patches fit"),
         bindings: lines,
         slots: 0,

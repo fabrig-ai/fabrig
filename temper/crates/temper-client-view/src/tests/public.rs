@@ -12,6 +12,7 @@ use temper_client_domain::{
     public::{Doc, Heard, PublicEvent, PublicLimits, Reader},
 };
 mod records;
+mod rules;
 const PROJECT: u64 = 0x3f2a_9c01_7654_3210;
 const TASK: u64 = 0x9abc_def0_7654_3210;
 // The board and card fixtures each carry a goal/task and one delegate with the same title.
@@ -66,13 +67,15 @@ fn the_view_shows_only_what_the_records_carry() {
         b"temper",
         b"Sign in",
         b"A public project",
-        b"Landings",
+        b"What temper is doing on this project, as it happens. Read-only.",
+        b" ",
+        b" \xc2\xb7 ",
         b"Goal 9abcdef0",
         b"task 9abcdef0",
         b"A public goal title",
         b"an agent",
         b"running",
-        b"for under 1 min",
+        b"for under 1 minute",
         b"12 spent",
         b"2 lines folded",
     ];
@@ -130,25 +133,22 @@ fn the_task_and_forge_pages_use_public_links_and_mechanics() {
         b"A public goal title",
         b"an agent",
         b"running",
-        b"for under 1 min",
+        b"for under 1 minute",
         b"12 spent",
         b"checking",
         b"CI at its head",
         b"Passed",
         b"Gate 3 \xc2\xb7 review \xc2\xb7 blocking",
         b"Approved",
-        b"its change on the forge",
-        b"12121212",
+        b"Its change: 789ada1",
+        b" ",
+        b" \xc2\xb7 ",
     ];
     only_words(&task_view, allowed);
     assert_eq!(title_count(&task_view), TITLED_LINES, "card shows its task and delegate titles");
     for words in [b"Passed".as_slice(), b"Approved", b"Gate 3 \xc2\xb7 review \xc2\xb7 blocking"] {
         assert!(has_text(&task_view, words), "public change field {words:?}");
     }
-    let pull = fixtures::find(task_view.tree(), Role::Link, b"its change on the forge").expect("public pull link");
-    assert_eq!(crate::public::href(&mut task_view, pull).as_deref(), Some(records::PULL));
-    let hash = fixtures::find(task_view.tree(), Role::Link, b"12121212").expect("head hash");
-    assert_eq!(crate::public::href(&mut task_view, hash).as_deref(), Some(b"https://forge.example/owner/repository/commit/1212121212121212121212121212121212121212121212121212121212121212".as_slice()));
 }
 fn only_words(view: &PublicView, allowed: &[&[u8]]) {
     for node in view.tree().nodes() {
@@ -182,7 +182,8 @@ fn the_landing_pages_show_the_turn_queues_commits_and_proofs() {
             b"Goal 3f2a9c01",
             b"Ready just now",
             b"landed",
-            b"12121212",
+            b"789ada1",
+            b" \xc2\xb7 ",
         ],
     );
     let mut landing = reader(Public::Landing { project: PROJECT, task: TASK });
@@ -202,8 +203,9 @@ fn the_landing_pages_show_the_turn_queues_commits_and_proofs() {
             b"landed",
             b"Holds the turn",
             b"task 9abcdef0",
-            b"its change on the forge",
-            b"12121212",
+            b"Its change: 789ada1",
+            b"789ada1",
+            b" \xc2\xb7 ",
             b"Gate 3 \xc2\xb7 check \xc2\xb7 advisory",
             b"Passed",
             b"2 stale proofs",
@@ -211,8 +213,6 @@ fn the_landing_pages_show_the_turn_queues_commits_and_proofs() {
     );
     assert!(has_text(&list, b"landed"), "public landings list keeps its landed phase");
     assert!(has_text(&page, b"landed"), "public landing keeps its landed phase");
-    let proof = fixtures::find(page.tree(), Role::Link, b"Passed").expect("proof run");
-    assert_eq!(crate::public::href(&mut page, proof).as_deref(), Some(records::RUN));
 }
 #[test]
 fn projects_are_named_and_the_banner_only_offers_a_known_sign_in() {
@@ -301,58 +301,4 @@ fn a_retained_companion_has_its_own_read_time() {
     assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"A public project").is_some());
     assert!(has_text(&view, b"Not available just now."));
     assert!(!has_text(&view, b"As of 00:00"));
-}
-
-#[test]
-fn public_commit_links_use_the_object_id_width() {
-    // Each change has a head and merge; each landing has a base, candidate and landed commit.
-    const CHANGE_COMMITS: usize = 2;
-    const LANDING_COMMITS: usize = 3;
-    let sha1 = [
-        0x78, 0x9a, 0xda, 0x51, 0x5c, 0x1a, 0xf9, 0xd4, 0x49, 0x67, 0xf2, 0x60, 0x49, 0xc4, 0x09, 0x0b, 0x3a, 0xb4,
-        0x72, 0xdb, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ];
-    let mut sha256_ending_in_zeroes = [0x34; 32];
-    sha256_ending_in_zeroes.get_mut(30..).expect("last two bytes").fill(0);
-    let cases: [([u8; 32], &[u8]); 3] = [
-        (sha1, b"789ada515c1af9d44967f26049c4090b3ab472db"),
-        ([0x12; 32], b"1212121212121212121212121212121212121212121212121212121212121212"),
-        (sha256_ending_in_zeroes, b"3434343434343434343434343434343434343434343434343434343434340000"),
-    ];
-    for (hash, digits) in cases {
-        commit_links(
-            Public::Task { project: PROJECT, task: TASK },
-            Doc::ForgeChange,
-            records::change_with_commits(hash, Some(hash)),
-            digits,
-            CHANGE_COMMITS,
-        );
-        commit_links(
-            Public::Landing { project: PROJECT, task: TASK },
-            Doc::ForgeLanding,
-            records::landing_with_commits(Some(hash), Some(hash), hash),
-            digits,
-            LANDING_COMMITS,
-        );
-    }
-}
-
-fn commit_links(page: Public, doc: Doc, body: Box<[u8]>, digits: &[u8], count: usize) {
-    let mut reader = reader(page);
-    answer(&mut reader, Doc::JigCard, Heard::Document { body: records::card(), fresh: Duration::from_secs(5) });
-    answer(&mut reader, doc, Heard::Document { body, fresh: Duration::from_secs(5) });
-    let mut view = view();
-    build_public(&mut view, &reader, Wall::EPOCH, &mut Queue::uncapped());
-    let mut linked = 0_usize;
-    for node in view.tree().nodes() {
-        if let Some(href) = &node.external
-            && let Some(path) = href.strip_prefix(records::REPOSITORY)
-            && let Some(hash) = path.strip_prefix(b"/commit/")
-        {
-            assert_eq!(hash, digits, "commit href uses its object id width");
-            assert_eq!(node.name.as_deref(), digits.get(..8), "commit labels keep eight digits");
-            linked = linked.checked_add(1).expect("bounded public commit links");
-        }
-    }
-    assert_eq!(linked, count, "every commit field is linked");
 }
