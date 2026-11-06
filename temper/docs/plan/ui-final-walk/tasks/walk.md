@@ -63,3 +63,15 @@ Options, each pre-approved, the first named being the default:
 ## Report
 
 As `notes/common.md`, Your report, and: how many boxes, how long each walk took, the counts of each verdict, and which of the fake's scripts you added.
+
+## Rebase (2026-11-06, step merge, foreman ui-final-walk/walk/foreman-1)
+
+combine main’s model catalogue with the walk’s added fake-model scripts
+The merge conflicts in `temper/crates/temper-fake/src/backends.rs`, in `model_document`’s single-line JSON literal around line 602.
+Main commit `7f465762d9` (“init: gpt-6.1-sol is OpenAI's first model, and so the default”) adds `gpt-6.1-sol` before `gpt-6-luna`.
+Task commit `6ebaf182ed` adds scripts on that same line; the changes are compatible.
+Resolve by retaining the task’s complete literal and incorporating main’s two-model catalogue, in that order, both with window 1048576 and output 8192.
+Preserve the added cued scripts `walk-away-mode\n\nImplement this draft.` and `## Task\n\nAdd a local hello status line to README.md.`, including their turns and inputs.
+Preserve the added asked script `Land a local hello status change.` targeting `work/hello`.
+Keep all existing scripts and their order; the combined document has nine cued scripts and four asked scripts.
+Run the task’s prescribed fake-library, three process-walk, formatting, clippy and citation checks after resolving.
