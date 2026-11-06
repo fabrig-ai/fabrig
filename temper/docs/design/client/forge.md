@@ -450,7 +450,8 @@ and `connect-forge.html`.
     Forgejo ↗", so that one click signs the member in and lands on the
     repository's page;
   - any other forge, GitHub among them, with a `web` address: `WEB/OWNER/NAME`;
-  - otherwise none, and the words stay plain, as the playground's do.
+  - otherwise none, and the words stay plain, as the playground's do. An empty
+    OWNER or NAME has no address either, on any forge.
 
   OWNER and NAME are each percent-encoded as a path's segment, all but ASCII
   letters, digits, `-`, `.`, `_` and `~`, and in `redirect_to` that path is
@@ -1358,6 +1359,12 @@ made by the forge connector from what it keeps of the change
   run linked where its repository is known public. Default: none. The
   forge's state would have to keep whether a repository is private, and
   notice when that changes.
+- **A stock queue's public landing history** (11.1): queue merges make no
+  landing by turn, so the public landings list has no entry for them.
+  Default: the queues' current changes alone, with "Nothing has landed
+  yet." when the landing list is empty (`browser.md`, 8.3); a historical
+  projection and words distinguishing an empty list from no past merge
+  wait together.
 - **What else `Changes` could draw** (section 3): a ready change's goal
   and priority and when it became ready; a change past the queue's window
   marked as going ahead; the order's rule in a line; changes not ready
