@@ -643,7 +643,7 @@ record InboxCursorNumber { number: u64 }
 record InboxCursorInbox { task: u64 object: InboxObject at: option u64 }
 enum InboxCursor { number: InboxCursorNumber, inbox: InboxCursorInbox }
 record InboxSelection { cursor: InboxCursor goals: list 64 u64 }
-record InboxEntry { reply: option TaskLine task: TaskLink project: option u32 object: InboxObject activity: option u64 at: option u64 unread: option bool cursor: InboxCursor }
+record InboxEntry { reply: option TaskLine task: TaskLink project: option u32 object: InboxObject activity: option u64 at: option u64 unread: option bool cursor: InboxCursor projects: list 32 u32 }
 record InboxPage { selection: option bytes 16777216 cut: bool rows: bytes 16777216 before: option Cursor after: option Cursor }
 record PoolLedger { source: Funder parent: option Funder numbers: Numbers left: u64 closed: bool began: option u64 next: option u64 }
 record MeParty { number: u64 kind: PartyKind login: DocumentText name: DocumentText }
@@ -717,7 +717,7 @@ record ProposalActionSettings { against: u32 items: list 128 RevisionItemHead re
 enum ProposalAction { batch: ProposalActionBatch, effect: ProposalActionEffect, procedure_effect: ProposalActionProcedureEffect, amend: boxed ProposalActionAmend, widen: ProposalActionWiden, release: ProposalActionRelease, settings: boxed ProposalActionSettings }
 record ProposalWaiting { holder: HistoryHolder since: u64 }
 record FundingOffer { source: Funder needed: u64 left: option u64 after: option u64 }
-record Proposal { key: ProposalKey project: u32 reason: DocumentText action: ProposalAction as_holder: bool waiting: ProposalWaiting funding: list 32 FundingOffer acts: bytes 16777216 }
+record Proposal { key: ProposalKey project: u32 reason: DocumentText action: ProposalAction as_holder: bool waiting: ProposalWaiting funding: list 32 FundingOffer acts: bytes 16777216 projects: list 32 u32 }
 record Escalation { acts: bytes 16777216 task: Task }
 record Question { task: Chip from: option Requester message: u64 words: DocumentText since: u64 acts: bytes 16777216 ending: option Ending }
 record OptionLine { number: u32 words: text 65536 words_max: u32 followups: u32 fields: list 32 FieldRule }

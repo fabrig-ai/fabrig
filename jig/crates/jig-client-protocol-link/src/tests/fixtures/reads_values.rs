@@ -35,6 +35,7 @@ pub fn read_value_proposer() -> c::Proposer {
 
 pub fn read_value_owner_proposal() -> c::Proposal {
     c::Proposal {
+        projects: List::with_capacity(0),
         key: read_value_proposal_key(),
         project: 7,
         reason: read_value_document_text(),

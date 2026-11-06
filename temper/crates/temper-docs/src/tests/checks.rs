@@ -65,6 +65,12 @@ pub(super) fn template(entry: &Page) -> Result<(), String> {
                     heading.strip_prefix(&format!("{}. ", n + 1)).is_some_and(|rest| !rest.is_empty())
                 })
         }
+        Kind::Way => {
+            !headings.is_empty()
+                && headings.iter().enumerate().all(|(n, heading)| {
+                    heading.strip_prefix(&format!("{}. ", n + 1)).is_some_and(|rest| !rest.is_empty())
+                })
+        }
         Kind::Index | Kind::Reference => true,
     };
     if !valid {
@@ -102,7 +108,7 @@ pub(super) fn links(entry: &Page) -> Result<(), String> {
 
 pub(super) fn written(entry: &Page) -> bool {
     match entry.kind {
-        Kind::Index | Kind::Concept | Kind::Walk | Kind::Recipe => true,
+        Kind::Index | Kind::Concept | Kind::Walk | Kind::Recipe | Kind::Way => true,
         Kind::Reference => false,
     }
 }

@@ -110,11 +110,21 @@ fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intr
         }
     };
     let landed = if facts.to_begin() { 0 } else { facts.landed_since() };
-    let brief = facts.brief();
+    let brief = if facts.to_begin() { None } else { facts.brief() };
     let sentence = match brief {
         Some(brief) => brief.sentence().into(),
         None => match landed {
-            0 => Box::default(),
+            0 => match if facts.to_begin() { None } else { facts.last_landed() } {
+                Some(last) => {
+                    if times.now.as_nanos().saturating_sub(last.as_nanos()) < minute.as_nanos() {
+                        w.say(Word::HomeLandedNow, &[])
+                    } else {
+                        let span = times.say(w, TimeForm::Looked, last);
+                        w.say(Word::HomeLandedLast, &[Hole::Name(span)])
+                    }
+                }
+                None => Box::default(),
+            },
             1 => w.say(Word::HomeLandedOne, &[]),
             2..=u64::MAX => w.say(Word::HomeLandedMany, &[Hole::Number(landed)]),
         },

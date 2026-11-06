@@ -29,6 +29,7 @@ pub struct InboxEntry {
     pub at: Option<Wall>,
     pub unread: Option<bool>,
     pub cursor: InboxCursor,
+    pub projects: List<u32>,
 }
 /// Parallel owner selection facts; roots are self followed by the exact supplied
 /// bounded ancestry. A row cursor associates context, never replaces row identity.
@@ -74,6 +75,11 @@ pub enum InboxIdentity {
     Owner { task: u64, object: InboxObject },
 }
 impl InboxEntry {
+    #[must_use]
+    pub fn shows_in(&self, project: u32) -> bool {
+        self.project == Some(project) || self.projects.as_slice().contains(&project)
+    }
+
     #[must_use]
     pub const fn task_number(&self) -> u64 {
         match &self.task {

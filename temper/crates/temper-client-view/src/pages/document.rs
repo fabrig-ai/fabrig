@@ -25,6 +25,10 @@ pub(crate) fn mode(chat: Option<&Chat>) -> skein_ui::Style {
         Some(chat) if chat.draft.is_some() || chat.writing => chat.mode,
         Some(_) | None => Mode::Chat,
     };
+    style(mode)
+}
+
+pub(crate) fn style(mode: Mode) -> skein_ui::Style {
     match mode {
         Mode::Chat => look::MODE_CHAT,
         Mode::Split => look::MODE_SPLIT,
@@ -36,10 +40,14 @@ pub(crate) fn seg(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bi
     if chat.draft.is_none() && !chat.writing {
         return;
     }
+    modes(b, Word::DraftGroup, chat.mode, words, bindings);
+}
+
+pub(crate) fn modes(b: &mut Builder, name: Word, chosen: Mode, words: &Words, bindings: &mut Bindings) {
     b.open(Role::Group);
-    b.name(&words.say(Word::DraftGroup, &[]));
+    b.name(&words.say(name, &[]));
     b.style(look::SEG);
-    let next = match chat.mode {
+    let next = match chosen {
         Mode::Chat => Mode::Split,
         Mode::Split => Mode::Draft,
         Mode::Draft => Mode::Chat,
@@ -52,7 +60,7 @@ pub(crate) fn seg(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bi
         if mode == Mode::Split {
             b.style(look::SEG_SPLIT);
         }
-        if mode == chat.mode {
+        if mode == chosen {
             b.state(State::Pressed);
         }
         b.bind(bindings.insert(Act::Mode { mode }));

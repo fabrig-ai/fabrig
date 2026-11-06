@@ -549,6 +549,7 @@ pub fn deployment() -> Deployment {
 pub fn proposal() -> Proposal {
     let key = ProposalKey { proposer: Proposer::Task(10), number: 1 };
     Proposal {
+        projects: skein_lib::List::with_capacity(0),
         key,
         project: 1,
         reason: DocumentText::complete(text(b"Resolve the incident")),
@@ -1157,6 +1158,7 @@ pub(crate) fn inbox_entry(
         ObjectKey::Note { .. } => unreachable!("notes have no inbox row"),
     };
     let row = InboxEntry {
+        projects: skein_lib::List::with_capacity(0),
         reply,
         task: TaskLink::Stored { number: task, status: None },
         project: Some(project),

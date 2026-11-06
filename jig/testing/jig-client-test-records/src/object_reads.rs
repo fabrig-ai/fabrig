@@ -139,6 +139,7 @@ pub fn read_wire_owner_proposal() -> w::Proposal {
     w::Proposal::new(
         &lim,
         w::ProposalParts {
+            projects: List::with_capacity(0),
             key: read_wire_proposal_key(),
             project: 7,
             reason: read_wire_document_text(),
