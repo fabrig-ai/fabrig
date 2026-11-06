@@ -1899,8 +1899,8 @@ keeps (`../protocol/configuration.md`, section 2).
 - **What the client keeps** of what needs the person: in `Pages`, not on
   a page, for this session, gone on reload or on sign-out, none of it a
   stored record, and at most 64 each of the cards marked later, the answered
-  lines and the refused answers, the oldest going first, a line still held
-  never:
+  lines, the refused answers and the proposals of settings, the oldest going
+  first, a line still held never:
   - *Later,* the cards marked later. *The open cards* are the needs'
     groups as `Inbox` reads them, less those answered, in the inbox's
     order, those marked later last.
@@ -1911,6 +1911,9 @@ keeps (`../protocol/configuration.md`, section 2).
     leaves the open ones at once.
   - *At,* the card a Home row asked for, until it is answered or marked
     later, or the person leaves the page.
+  - *Proposals of settings,* each document as the session read it, so that a
+    return to its chat, once it is decided and jig reads it ended, draws its card
+    from it, with no acts, and its state from that read (5.13).
   - *The held send.* jig has no retraction, so a choice or a reply is
     held in the client for 5 seconds, a deadline of the domain's as
     `next_deadline` has. The card moves to answered at once, with the
@@ -5110,7 +5113,8 @@ section 5.
   something", quiet, focusing the composer. Replaced by a later proposal, it is
   dimmed, "Replaced by the proposal below"; accepted, "✓ Accepted · new work
   follows it". A person who may not accept it sees neither act: "Waiting for an
-  owner", the parties it waits for as jig's proposal names them. Nothing of it
+  owner", the parties it waits for as jig's proposal names them, "Owners of this
+  deployment" for a holder that is the deployment's policy. Nothing of it
   says which items temper enforces and which agents follow: that is the review
   page's, below, once it is built. In the inbox, its card shows the same lines
   (3.5).
@@ -6370,14 +6374,16 @@ own tests:
   the goal hearing those words, whose scripts are throwaway. No world keeps it:
   the parser, the stock sentence, the session and the view each hold their own
   side. Default: those tests.
-- **A brief refused, on Home** (3.5, *Home on any project*; the request
-  `ui-final-walk` of 2026-11-05): a status
-  run refused for want of funding leaves Home its computed sentence, with no byline
-  and nothing saying why. How a person sees that goes with what funds the run
-  (`../domain/forge.md`, 20). Default: nothing said.
-- **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; that
-  request): the pinned Claude Code fetch and a real browser's Sign out ran by hand,
-  on fresh loopback deployments, and no test keeps them. Not shown: a provider's
+- **A decided proposal of settings' card, past the session** (5.13; 3.5, *What the
+  client keeps*; the request `ui-walk-large` of 2026-11-06, which has the chat's card
+  stay): a return to the chat draws the card, accepted, from what the session keeps;
+  a reload or another device loses it, since an ended proposal asks no card and jig
+  names no `projects` on one. A card from the ended proposal, or a stored record, would
+  keep it. Default: this session's alone.
+- **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; the
+  request `ui-final-walk` of 2026-11-05): the pinned Claude Code fetch and a real
+  browser's Sign out ran by hand, on fresh loopback deployments, and no test keeps
+  them. Not shown: a provider's
   sign-in or a paid call; TLS, a proxy or a browser on another machine; Accounts
   with a project or an account on it; the small engine profile whole, whose client
   limits alone ran; another platform's build, a failed or corrupt download, two

@@ -726,6 +726,9 @@ Release, with its uncertain pair. These add no recorded journey or page.
   which must not collide when several record at once, and a fixed start
   for its clock and the browser's, so that a recording made again
   differs from the last only where the client does.
+- **A prepared box for `again`:** a journey that begins past the welcome needs
+  its project and account made before its first act, and `again` has no such
+  stage (8.1). Default: such a journey is walked anew and added (section 8).
 - **A longer walk for `again`:** skein's harness ends its whole run at
   40 seconds, which holds the box's start and every step's saves;
   `welcome-set-up`'s fits in about 10. A journey that doesn't would need
