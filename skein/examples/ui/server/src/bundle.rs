@@ -10,8 +10,23 @@ pub struct Bundle {
     pub page: Box<[u8]>,
     pub etag: String,
     pub digest: String,
-    pub files: BTreeMap<String, Box<[u8]>>,
+    pub files: BTreeMap<String, File>,
 }
+/// The two forms of one address (skein/docs/design/ui-web.md, 4.4).
+#[derive(Debug)]
+pub struct File {
+    pub bytes: Box<[u8]>,
+    pub gzip: Option<Box<[u8]>>,
+}
+
+fn compressed_of(path: &str) -> Option<&str> {
+    let plain = path.strip_suffix(".gz")?;
+    match Path::new(plain).extension()?.to_str()? {
+        "wasm" | "js" | "css" | "svg" => Some(plain),
+        _ => None,
+    }
+}
+
 impl Bundle {
     pub fn new(page: Box<[u8]>, digest: String, files: BTreeMap<String, Box<[u8]>>) -> Result<Self, String> {
         if page.len() > skein_lib::usize_of(FILE_BYTES)
@@ -25,7 +40,7 @@ impl Bundle {
         for (path, content) in &files {
             if path.len() > 1024
                 || !Path::new(path).components().all(|part| matches!(part, Component::Normal(_)))
-                || of(Path::new(path)).is_none()
+                || (of(Path::new(path)).is_none() && compressed_of(path).is_none())
                 || content.len() > skein_lib::usize_of(FILE_BYTES)
             {
                 return Err("invalid bundle file".into());
@@ -35,12 +50,25 @@ impl Bundle {
         if bytes > BUNDLE_BYTES {
             return Err("bundle exceeds its byte limit".into());
         }
+        let mut plain = BTreeMap::new();
+        let mut forms = BTreeMap::new();
+        for (path, content) in files {
+            if let Some(name) = compressed_of(&path) {
+                forms.insert(name.to_owned(), content);
+            } else {
+                plain.insert(path, File { bytes: content, gzip: None });
+            }
+        }
+        for (name, content) in forms {
+            let file = plain.get_mut(&name).ok_or("a compressed form with no file")?;
+            file.gzip = Some(content);
+        }
         let mut hash = 0xcbf2_9ce4_8422_2325_u64;
         for byte in &page {
             hash = (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3);
         }
         let etag = format!("\"{hash:016x}\"");
-        Ok(Self { page, etag, digest, files })
+        Ok(Self { page, etag, digest, files: plain })
     }
     pub fn read(directory: &Path) -> Result<Self, String> {
         let page = skein_shell::read_file(&directory.join("index.html"), FILE_BYTES)

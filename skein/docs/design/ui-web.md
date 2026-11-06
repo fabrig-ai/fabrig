@@ -136,7 +136,8 @@ Steps from the standard, each needing one before it only where it says.
    metadata, preloads; its mount element; its stylesheets in its
    order), copied with one marker replaced (4.3), loading the starter
    by a script file, with nothing inline: the strict policy refuses at
-   run what breaks that (4.4).
+   run what breaks that (4.4). Or, in place of a whole page, its
+   placeholder (4.3).
 5. **Its files:** any of a type in the bundle's closed list, in the
    digest directory's `files/` (4.2); and root files, paths outside the
    prefix (`/favicon.ico`, `/robots.txt`), which its server answers from
@@ -189,8 +190,10 @@ Steps from the standard, each needing one before it only where it says.
   from the module (a `.wasm` file cargo built), the application's name,
   the bundle's prefix (4.3), its stylesheets in order, each owner's
   pictures' directory, its page and its files where it has them
-  (3.3, steps 4 and 5), and a playground's worker module where it has
-  one (playground.md, 7).
+  (3.3, steps 4 and 5), its title and its placeholder where it has them
+  (4.3), and a playground's worker module where it has
+  one (playground.md, 7). Its compressed forms are on unless the
+  application turns them off.
 - **The bundle is a directory, written whole:**
   - `index.html`, the page, the bundler's or the application's (4.3);
   - beside it, one directory **named by the digest of everything in
@@ -201,19 +204,35 @@ Steps from the standard, each needing one before it only where it says.
       module and the modules the glue imports (3.3, step 7);
     - `skein-ui.css` (section 12), then each given stylesheet, by its
       file name, in the order given;
+    - the placeholder's stylesheet, by its file name, where the
+      application gives one (4.3);
     - `pictures/<owner prefix>/`, each owner's pictures, so two owners'
       never clash;
     - `files/`, the application's files;
     - a worker's starter, glue and module, its snippets in `snippets/`
-      with the page's (playground.md, 7).
+      with the page's (playground.md, 7);
+    - beside each `.wasm`, `.js`, `.css` and `.svg` among them,
+      `NAME.gz`, its compressed form.
+- **A compressed form** is `NAME` as one gzip member (RFC 1952), at the
+  compressor's best level, its header holding no time and no name, so
+  that the same inputs give the same bytes. Gzip alone: every browser
+  accepts it, on plain http too, where browsers offer no Brotli. A
+  `.woff2` or a picture is compressed already. The compressor, `flate2`
+  on its Rust backend, is the bundler's alone, never linked into a
+  service or a module. An application whose host compresses for it
+  turns the forms off (`--gzip off`; `temper/docs/design/playground.md`,
+  7), and its directory holds `NAME` alone.
 - **The same inputs give the same bundle,** byte for byte; a change to
   any file in the directory gives another digest, and so another
   directory.
 - **Only the closed list of types** (4.4): a file whose extension is not
   in it refuses the bundle, naming it; so do a stylesheet named
-  `skein-ui.css` and two stylesheets of one name.
-- **skein's texts that are not Rust:** the page and the starter, which
-  the bundler writes, and `skein-ui.css`. Nothing inline.
+  `skein-ui.css` and two stylesheets of one name. `.gz` is not in it:
+  an input so named refuses the bundle, so that the only `.gz` files in
+  a directory are those the bundler wrote, and nothing is compressed
+  twice.
+- **skein's texts that are not Rust:** the page, the starter and the
+  loader, which the bundler writes, and `skein-ui.css`. Nothing inline.
 - **Its size is a guide:** the example's module, built with `web`, has
   its size kept beside the example (examples.md, 9.4); past it, what
   grew is reported.
@@ -228,7 +247,32 @@ Steps from the standard, each needing one before it only where it says.
   `<script type="module">` by `src`, an empty mount element,
   `<div id="app">`, which the reference shell finds by its id, and a
   `<noscript>` saying the application needs WebAssembly and scripts, in
-  words the application gives the bundler.
+  words the application gives the bundler. The title is the words the
+  application gives (`--title`), where it gives them.
+- **The page with a placeholder:** its first paint needs no script, for
+  an application whose module takes a while to arrive. The application
+  gives the bundler a placeholder's markup and stylesheet
+  (`--placeholder`, `--placeholder-stylesheet`, both or neither), as it
+  gives it `--noscript`, and the bundler names no application. So:
+  - **Its head** holds what the page's does, up to the title, then the
+    placeholder's stylesheet and the starter, and nothing else: a
+    stylesheet in the head holds back the first paint and the module's
+    start, so the others go in by script.
+  - **Its body** holds `<div id="app">`, then the markup, copied as bytes,
+    the bundler reading no HTML, with one marker, `{noscript}`, replaced
+    by the `<noscript>`. A markup without it is refused, naming it; so is
+    a placeholder beside an own page, which is whole already.
+  - **The markup is what the loader finds:** `#boot`, holding a `progress`,
+    `#boot-line`, `#boot-note` and a hidden `button`. The words are the
+    markup's, since the phrasebook isn't there yet, as data attributes on
+    `#boot`: `data-figure` and `data-dropped` hold `{got}` and `{total}`,
+    `data-left` holds `{left}`, `data-seconds` and `data-minutes` hold
+    `{n}` and `data-answered` holds `{status}`; `data-keeps`,
+    `data-waiting`, `data-starting`, `data-failed`, `data-silent`,
+    `data-no-wasm` and `data-no-start` are words. An application's look
+    is its stylesheet's. The policy holds it (4.4): no `style` attribute,
+    and a `progress`'s value and an inline SVG's presentation attributes
+    need none.
 - **The page names the digest directory under the bundle's prefix,** by
   absolute path (`<prefix><digest>/boot.js`), since it is answered at
   every path the application does not reserve (4.4). The prefix is a
@@ -244,6 +288,39 @@ Steps from the standard, each needing one before it only where it says.
   finds the module beside it by its own address. The starter, the glue,
   the module and the snippets reference each other relatively, so the
   directory is whole under any prefix.
+- **The loader** is the starter of a bundle with a placeholder: a text of
+  skein's under a head the bundler writes, holding the glue's, the
+  module's and each stylesheet's name, size and compressed form's size
+  (its size again, with no form), as the digest's directory fixes them.
+  - **The stylesheets** go in by script, `skein-ui.css` then the given
+    ones in their order, where they can't hold back a paint. Each counts
+    whole when it has loaded.
+  - **The glue** is a dynamic `import()`, so that it can't hold the
+    script back. It counts whole.
+  - **The module** is fetched by the script, its answer's clone counted as
+    it arrives, and the answer itself given to the glue's `init`, so that
+    compiling while it downloads holds.
+  - **`init` waits for the stylesheets,** as a page's links hold back the
+    starter, so that a client never measures a page without them.
+  - **The count is of decoded bytes** against decoded sizes, never against
+    `Content-Length`, which 4.4 makes wrong. The bar is that fraction.
+  - **The figure says what travels:** where the module's answer says
+    `Content-Encoding: gzip`, its total is the compressed sizes' and its
+    count the fraction of that; otherwise the plain sizes'. Until the
+    module's answer is in, the line says nothing.
+  - **The line:** the figure; with `data-left` once 3 s of data gives an
+    estimate over 5 s; `data-waiting` after 15 s with no byte, which is no
+    failure; `data-starting` once every byte is in. `#boot-note`: after
+    8 s, `data-keeps`.
+  - **A failure** is a fetch's error, an answer that isn't OK, a stylesheet
+    that didn't load, no WebAssembly, or an `init` that threw:
+    `data-state="failed"` on `#boot`, `data-failed` as the line, why as
+    the note, and the button, shown, reloads.
+  - **Handing over:** a `MutationObserver` on `#app`. On its first node,
+    once the stylesheets are in, `#boot` takes the class `out` and `inert`,
+    so that neither a press nor an assistive tool lands on it, and goes
+    200 ms later. A cached load shows nothing, by the application's
+    stylesheet: the placeholder's parts appear only after 250 ms.
 - **The parts find the digest directory** as the directory of the
   starter's `src` on the page, and give the pictures' addresses under it
   (section 6).
@@ -274,6 +351,14 @@ section 9), in code an application's server may copy.
   `.txt` as `text/plain; charset=utf-8`, `.webmanifest` as
   `application/manifest+json`; with `X-Content-Type-Options: nosniff`
   on every answer.
+- **A compressed answer:** where a file has its `NAME.gz` and the
+  request's `Accept-Encoding` takes gzip (`http.md`, 5.2), the answer's
+  body is `NAME.gz`, with `Content-Encoding: gzip` and `NAME`'s type;
+  where it doesn't, or the field is absent, `NAME`. Both answers say
+  `Vary: Accept-Encoding`. The rest of this section holds of either.
+  `NAME.gz` has no address of its own: asked for by that name, not
+  found. A server holds the two forms as it likes; decoded, the one
+  equals the other. The page and a root file are never compressed.
 - **The strict policy the parts run under:** they and the bundle need
   no more than `Content-Security-Policy: script-src 'self'
   'wasm-unsafe-eval'; style-src 'self'`, with nothing inline: no inline
@@ -1302,9 +1387,9 @@ the application that needs it.
 - **Tabs of one person sharing one stream,** so that many tabs hold one
   connection, and HTTP/2: wait for HTTP/2 in skein's HTTP, or for people
   keeping many tabs open.
-- **The bundle served compressed,** compressed by the bundler and served
-  in its encoding to a browser that accepts it: waits for a bundle whose
-  size over the network matters.
+- **Brotli beside gzip:** it saves more, and browsers offer it on https
+  alone. It waits for an application served over https whose wait still
+  matters with gzip.
 - **Graphics beyond a scene** (a canvas of hundreds of thousands of
   points, three dimensions, video) are a component of the application's
   (6.1), never a part of skein's.
@@ -1313,7 +1398,8 @@ the application that needs it.
 
 - **Other browsers than Chromium:** the browser tier drives Chromium
   alone, through skein's browser kit; another waits for a bug that shows
-  only there (browser.md, section 11).
+  only there (browser.md, section 11). A placeholder's `progress` is
+  unseen in Firefox and Safari, whose styles differ.
 - **Media from the origin:** the closed list (4.4) has no audio or video
   type; one waits for an application serving its own media, with media's
   role (ui.md, 4.2).

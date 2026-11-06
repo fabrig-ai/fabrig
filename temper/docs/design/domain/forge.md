@@ -2566,9 +2566,10 @@ early, by these rules:
   rules ask no update (a goal's own branch, section 11 and 8.7), whose
   workspace would start from the change's pushed branch or from saved
   work, starts instead from a merge in progress: that start, with the landing branch's tip as the
-  base merged into it (`worker.md`, 4.1 and section 5). A conflict is
-  left in its checkout for it to settle; its first push commits the
-  merge. A tip that start already contains is no merge, so a resume with
+  base merged into it (`worker.md`, 4.1 and section 5). A clean merge is
+  committed before its run starts, so the run finds a clean tree with the
+  tip in its head. A conflict is left in its checkout for it to settle.
+  Either way its first push delivers the merge. A tip that start already contains is no merge, so a resume with
   nothing new adds no commit, and the head its run reported stays the
   change's. One with nothing pushed or saved starts from the landing
   branch's tip, which now holds its dependencies' work. So a producer
