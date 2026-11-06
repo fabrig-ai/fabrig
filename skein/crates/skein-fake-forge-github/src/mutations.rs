@@ -9,6 +9,7 @@ use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as fake, api as a};
 use skein_forge::github::request::Method;
 use skein_json::Token;
+use skein_lib::bytes::concat;
 use skein_lib::{List, ReplyTo, bytes, usize_of};
 
 const PULL_REQUEST_FIELDS: u32 = 1 | 2 | 4 | 8 | 16;
@@ -63,9 +64,7 @@ pub(crate) fn call(service: &Service, route: Route, access: Access, body: &[u8],
     let mut found = false;
     let mut organization = false;
     for (_, row) in &service.repositories {
-        if let Some(full) = reads::full(row)
-            && full == repository
-        {
+        if reads::full(row) == repository {
             found = true;
             organization = row.organization;
         }
@@ -79,17 +78,11 @@ pub(crate) fn call(service: &Service, route: Route, access: Access, body: &[u8],
             let message = match missing_parameters {
                 Some(index) => {
                     let index = skein_lib::Decimal::of(u64::from(index));
-                    let Some(prefix) =
-                        crate::service::joined(b"Invalid request.\n\nInvalid property /rules/", index.as_bytes())
-                    else {
-                        return Outcome::Reply(answers::failed());
-                    };
-                    let Some(message) =
-                        crate::service::joined(&prefix, b": data matches no possible input. See `documentation_url`.")
-                    else {
-                        return Outcome::Reply(answers::failed());
-                    };
-                    message
+                    concat(&[
+                        b"Invalid request.\n\nInvalid property /rules/",
+                        index.as_bytes(),
+                        b": data matches no possible input. See `documentation_url`.",
+                    ])
                 }
                 None => bytes::copy_of(b"Validation Failed"),
             };

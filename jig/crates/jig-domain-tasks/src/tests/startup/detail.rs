@@ -1,6 +1,7 @@
 //! Stored rows exercise keyed fit diagnostics (engine.md, 6).
 use super::*;
 use crate::{RestoreBound as B, RestoreCause as C, RestoreFailure, RestoreLlmWhy as Why};
+use skein_lib::length::len_u64;
 
 fn empty(limits: &crate::Limits) -> Harness {
     let mut cold = Harness::new();
@@ -445,8 +446,8 @@ fn inbox_payloads_and_separate_reserved_lanes_keep_the_live_key() {
             crate::run::NOTHING_AWAITED_WORDS.len() + 1,
             bound(
                 B::ReminderBytes,
-                u64::try_from(crate::run::NOTHING_AWAITED_WORDS.len()).expect("fixed notice") + 1,
-                u64::try_from(crate::run::NOTHING_AWAITED_WORDS.len()).expect("fixed notice"),
+                len_u64(crate::run::NOTHING_AWAITED_WORDS.len()) + 1,
+                len_u64(crate::run::NOTHING_AWAITED_WORDS.len()),
             ),
         ),
         (
@@ -454,8 +455,8 @@ fn inbox_payloads_and_separate_reserved_lanes_keep_the_live_key() {
             crate::questions::OWED_WORDS.len() + 1,
             bound(
                 B::ReminderBytes,
-                u64::try_from(crate::questions::OWED_WORDS.len()).expect("fixed reminder") + 1,
-                u64::try_from(crate::questions::OWED_WORDS.len()).expect("fixed reminder"),
+                len_u64(crate::questions::OWED_WORDS.len()) + 1,
+                len_u64(crate::questions::OWED_WORDS.len()),
             ),
         ),
     ] {

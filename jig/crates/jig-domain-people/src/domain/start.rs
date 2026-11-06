@@ -66,7 +66,7 @@ impl Domain {
     }
 
     /// Seal loading and assert required retained references. Does not open admission or erase.
-    pub fn start_link(&mut self, _env: &Env<Limits>) -> bool {
+    pub fn start_link(&mut self) -> bool {
         assert!(self.start == Start::Loading || self.start == Start::Failed, "people link follows loading once");
         if self.start == Start::Failed {
             return false;

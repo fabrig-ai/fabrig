@@ -3,7 +3,7 @@ pub(crate) mod reader;
 use crate::{Cursor, KeptMap, Row, Store, codec, keys};
 use alloc::boxed::Box;
 use skein_kv::{KeyWriter, Range};
-use skein_lib::List;
+use skein_lib::{List, length::len_u64};
 
 #[derive(Debug)]
 pub(crate) struct WalkRow {
@@ -54,7 +54,7 @@ pub(crate) fn application(intervals: &[Range], limit: u32) -> Option<Box<[Range]
 
 pub(crate) fn decode(store: &Store, row: skein_kv::Row) -> Option<(Row, u64)> {
     if let Some(key) = keys::of_application(&row.key) {
-        let size = u64::try_from(key.len()).ok()?.checked_add(u64::try_from(row.value.len()).ok()?)?;
+        let size = len_u64(key.len()).checked_add(len_u64(row.value.len()))?;
         return Some((Row::Application { key: Box::from(key), value: row.value }, size));
     }
     let key = keys::decode(&row.key)?;
@@ -64,7 +64,7 @@ pub(crate) fn decode(store: &Store, row: skein_kv::Row) -> Option<(Row, u64)> {
     }
     // The generated family's measure is its wire length. Once decoded,
     // these stored bytes give that measure without encoding the value again.
-    Some((Row::Jig(record), u64::try_from(row.value.len()).ok()?))
+    Some((Row::Jig(record), len_u64(row.value.len())))
 }
 
 pub(crate) fn map_limits(store: &Store, map: KeptMap) -> skein_kv::Limits {

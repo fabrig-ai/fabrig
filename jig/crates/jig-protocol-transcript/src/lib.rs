@@ -18,7 +18,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 pub use jig_client_domain::contract::TurnLimits;
 use jig_client_domain::contract::{Block, Call, Message, Speaker, Text, Turn, Usage};
-use skein_lib::{Decimal, List, Reader};
+use skein_lib::{Decimal, List, Reader, length::len_u64};
 use smith_transcript::v6 as smith;
 
 mod brief;
@@ -149,10 +149,7 @@ fn empty_text() -> Text {
 fn translate_block(source: &smith::Turn, block: &smith::Block, budget: &mut Budget) -> Block {
     match block {
         smith::Block::Text(_) | smith::Block::Refusal(_) => Block::Text(empty_text()),
-        smith::Block::Opaque(opaque) => Block::Opaque {
-            dialect: empty_text(),
-            size: u64::try_from(opaque.bytes().len()).expect("schema byte ceiling fits u64"),
-        },
+        smith::Block::Opaque(opaque) => Block::Opaque { dialect: empty_text(), size: len_u64(opaque.bytes().len()) },
         smith::Block::Call(call) => Block::Call(Call {
             number: call_number(source, call.id()),
             tool: budget.text(call.name()),

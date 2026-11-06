@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-04. Where skein's code lags or departs from [shell.md](shell.md).
+2026-11-06. Where skein's code lags or departs from [shell.md](shell.md).
 
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at

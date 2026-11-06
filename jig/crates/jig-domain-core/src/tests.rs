@@ -3872,7 +3872,7 @@ pub(crate) fn finish_started(core: &mut Core, env: &Env<Limits>, mut action: cra
 }
 
 fn finish_people(domain: &mut people::Domain, env: &Env<people::Limits>) {
-    assert!(domain.start_link(env));
+    assert!(domain.start_link());
     domain.start_sweep();
     assert!(domain.start_complete(env));
 }

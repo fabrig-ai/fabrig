@@ -8,7 +8,7 @@ seed; the loop itself, over a service's `Host`, and how it ends; what
 startup reads, trust roots among it, and a terminal's modes. It is
 ordinary Rust, and the only `unsafe` in skein that a service runs lives
 here, in each system's module, `linux` (the ring adapter among it) or
-`darwin` (7.5). (The counting allocator, test-only, has the other:
+`darwin`, and in `posix`, what the two write alike (7.5). (The counting allocator, test-only, has the other:
 testing.md, 6.)
 
 ## 1. In one page
@@ -702,7 +702,7 @@ synchronous operations, the error tables, what decodes a `statx` or a
   handle to be readable, a `Signal` finds the pid its handle names, and
   a `Close` of the handle forgets it.
 
-**The crate's layout.** `unsafe` is in `linux` and `darwin` alone; every
+**The crate's layout.** `unsafe` is in `linux`, `darwin` and `posix` alone; every
 other module is safe Rust, the same on both systems.
 
 | Module | What it holds | Built for |
@@ -712,6 +712,7 @@ other module is safe Rust, the same on both systems.
 | `calls` | what every backend decodes the same way: each operation's error table, the kind of what an `Open` opened, the paths' checks, `Open`'s retries, the listing buffer's size, a release against a floor (7.6) | both |
 | `linux` | Linux's calls and wait (`linux::epoll`), and the ring adapter (`linux::ring`), the only user of `io-uring` | Linux |
 | `darwin` | Darwin's calls and wait (`darwin::kqueue`) | macOS |
+| `posix` | what both systems write alike: terminal modes and sizes, signals to a group or a process and the probes for them, the wait for a readable descriptor, the error numbers' meaning | both |
 | `clock`, `seed`, `startup`, `terminal`, `settings`, `drive` | the public startup and loop, calling `system` | both |
 
 - **One face, two systems.** `linux` and `darwin` give the same
@@ -722,11 +723,15 @@ other module is safe Rust, the same on both systems.
   `Exit`, `Done`) and error numbers, never a system's structure: no
   `statx`, `siginfo`, `stat` or `kevent` reaches the shared part, so each
   system decodes its own. Building for each system checks the face.
+  What the two write alike each takes from `posix`, so the face stays
+  whole.
 - **Each system's wrappers are its own,** written against that system's
   manual and the `libc` types for it (a `sockaddr_in`'s length byte on
   Darwin, its `stat`'s layout): neither module calls the other, and
-  neither emulates the other's calls. A call the two make alike (`flock`,
-  `ftruncate`, `tcgetattr`) is written in each.
+  neither emulates the other's calls. A wrapper that reads the same
+  against both manuals lives once, in `posix` (`tcgetattr`, `kill`); one
+  that differs in a type or a step (`ftruncate`, `fsync`) is written in
+  each, so `linux` and `darwin` hold only what differs.
 - **Linux's own is built for Linux alone:** the ring adapter and
   `Running`'s ring arm; cgroups (`open_cgroup`, `start_binary_in_cgroup`,
   `wait_cgroup_change`); the subreaper (`make_subreaper`, `subreaper`,

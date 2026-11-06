@@ -894,7 +894,7 @@ fn measured_admission_keeps_each_providers_lengths_and_refusals() {
                     input.instructions = Box::new([b'x'; 9000]);
                 }
                 let expected = skein_llm::client::measure(&input, Some(&value), &wire, &bounds);
-                let actual = pool.admit_with_reasoning_drop(Token::new(7), 0, input, Some(value), enabled);
+                let actual = pool.admit_policy(Token::new(7), 0, input, Some(value), Some(enabled));
                 match expected {
                     Ok(measured) => assert_eq!(actual.unwrap().measured(), measured),
                     Err(error) => assert_eq!(actual.err(), Some(Refusal::Client(error))),

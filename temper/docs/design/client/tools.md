@@ -961,7 +961,7 @@ The table grows area by area, each with its stories (section 11).
    - **The file's versions** (`../draft/upgrades.md`, 4.2 to 4.4): it
      carries two families, each with its version, a version naming one
      layout: jig's moved form (form 1) and, inside it, skein's
-     OAuth record (its `RECORD_VERSION`). It holds one value, not a
+     OAuth record (its record version). It holds one value, not a
      store, so no store's levels; the nesting fixes a patch's order,
      the form's patches first, then skein's on the record inside it.
      `account export` writes the form the engine's jig makes. A newer

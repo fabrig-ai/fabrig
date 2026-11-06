@@ -18,7 +18,7 @@
 use alloc::boxed::Box;
 use core::mem;
 
-use skein_lib::{Env, Id, Queue, ReplyTo, Token};
+use skein_lib::{Env, Id, Queue, ReplyTo, Token, length::len_u64};
 
 use crate::attempt::{Attempt, State, Where};
 use crate::boundary::{Call, Message, Request, Undelivered};
@@ -106,7 +106,7 @@ pub(crate) fn relay(
         out.push(Request::DropCall { call });
         return;
     };
-    if u64::try_from(call.name.len()).expect("a length fits") > env.limits.call_name_bytes {
+    if len_u64(call.name.len()) > env.limits.call_name_bytes {
         domain.facts.push(Fact::Dropped);
         out.push(Request::DropCall { call });
         return;

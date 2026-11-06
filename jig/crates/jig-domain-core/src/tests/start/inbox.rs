@@ -150,7 +150,7 @@ fn ended_conversation_witness_is_retired_at_link() {
     );
     assert!(core.restore_inbox_row(&env.limits, &Record::Tasks(tasks::Stored::Ended(Box::new(ended())))));
     assert_eq!(core.people.read_conversations().len(), 1);
-    assert!(core.people.start_link(&env.with(env.limits.people)));
+    assert!(core.people.start_link());
     assert!(core.people.read_conversations().is_empty());
 }
 
