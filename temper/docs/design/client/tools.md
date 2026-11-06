@@ -1540,7 +1540,11 @@ its `from` and `next` offsets count reason bytes alone.
 - **The agent names the key** of every tool marked `K`: `--key NAME`, a
   word of 1 to 64 bytes of `a` to `z`, `0` to `9` and `-`, such as
   `health-chat`. A call without it is refused as a usage error, before
-  anything is sent.
+  anything is sent. So is `--key` with no name, or a name outside that
+  rule, and that refusal says the rule, as 6.3 has it and the same for argv
+  and `--call`: `temper ctl: task message: --key KEY takes 1 to 64
+  lower-case letters, digits or hyphens; temper ctl help task message`.
+  `temper help ctl` says the rule too.
 - **A named key is the engine's key:** the first 16 bytes of the SHA-256
   of `temper-tools`, a zero byte and the name. jig scopes it to the party
   (jig's `client/domain/contract.md`, 3.1). The same name asked again by
