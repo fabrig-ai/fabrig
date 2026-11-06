@@ -1131,12 +1131,14 @@ impl Chat {
 }
 #[must_use]
 pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits {
+    let bytes = match limits.window_bytes {
+        Some(window) => window,
+        None => limits.client.domain.document_bytes,
+    };
     jig_client::thread::Limits {
-        lines: u32::try_from(
-            limits.client.domain.document_bytes.checked_div(u64::from(c::LINE_ROOM)).expect("line room is nonzero"),
-        )
-        .unwrap_or(u32::MAX),
-        bytes: limits.client.domain.document_bytes,
+        lines: u32::try_from(bytes.checked_div(u64::from(c::LINE_ROOM)).expect("line room is nonzero"))
+            .unwrap_or(u32::MAX),
+        bytes,
         text: limits.client.domain.text,
         live: limits.client.domain.long_text,
     }
