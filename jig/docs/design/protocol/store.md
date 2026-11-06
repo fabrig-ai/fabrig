@@ -2214,7 +2214,7 @@ was made (`../domain/tasks.md`, section 3):
   bytes (88, and 84 for each family). The store's file driver's
   whole-file bound is at least that, checked at startup with the worst
   case, or the start is refused naming it; a test world's drivers are
-  made with such a bound (skein-io's `FileIo::with_whole_limit`).
+  made with such a bound (skein-io's `file_layer::Limits`, its `whole`).
 - **A page read whole:** a transcript frame of up to the page is read
   back in one read, so each file driver reads at least the page, checked
   at startup, or the start is refused naming it; a test world that
