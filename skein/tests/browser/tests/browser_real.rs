@@ -172,3 +172,13 @@ fn a_letter_with_alt_and_shift_reaches_the_page() {
     let profile = Profile::fresh();
     Rig::new(&chromium(), &profile.0, Scenario::Letter).run();
 }
+
+#[test]
+fn chromium_lists_a_pressed_tab_and_its_cut_opener_but_blocks_an_unpressed_opening() {
+    let profile = Profile::fresh();
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Tabs);
+    rig.fixed_page(br#"<!doctype html><button id="open">Open</button><button id="cut">Cut opener</button><h1>Before</h1><script src="/tabs.js"></script>"#.to_vec());
+    rig.tab_script();
+    rig.run();
+    assert!(rig.root_closed && rig.exited && rig.child_closed);
+}

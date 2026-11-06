@@ -5,8 +5,24 @@ use skein_fake_person::{Next, Person};
 use skein_lib::{Duration, Time};
 use std::collections::VecDeque;
 mod growth;
+mod tabs;
+
+/// Other tabs awaited as listed (skein/docs/design/ui-web.md, 14.2).
+#[derive(Clone, Debug)]
+pub struct TabSeen {
+    /// The tab's title, whole.
+    pub title: Option<Box<[u8]>>,
+    /// Bytes its address holds.
+    pub address: Option<Box<[u8]>>,
+    /// Whether it can reach its opener.
+    pub opener: Option<bool>,
+}
 
 pub enum Step {
+    Tabs {
+        tabs: Box<[TabSeen]>,
+        within: Duration,
+    },
     Run(super::Command),
     Exited {
         code: i32,
@@ -78,6 +94,7 @@ pub struct Script {
     commanding: bool,
     focused: Option<skein_fake_person::Find>,
     growth: Option<growth::Growth>,
+    tabs: Option<tabs::Awaiting>,
     press: Option<(skein_fake_person::Find, skein_browser::boundary::Point)>,
     awaited: Option<(Time, Awaited)>,
     request: Option<super::Asked>,
@@ -98,11 +115,21 @@ impl Script {
             focused: None,
             press: None,
             growth: None,
+            tabs: None,
             text: None,
             awaited: None,
             request: None,
             status: None,
         }
+    }
+    fn tabs_step(&mut self, face: &mut BrowserFace<'_>, now: Time) -> bool {
+        let Some(mut tabs) = self.tabs.take() else { return false };
+        if tabs.next(face, now) {
+            self.at += 1;
+        } else {
+            self.tabs = Some(tabs);
+        }
+        true
     }
     fn await_step(&mut self, face: &mut BrowserFace<'_>, now: Time) -> bool {
         let Some((until, awaited)) = self.awaited.take() else {
@@ -218,6 +245,9 @@ impl Play for Script {
             }
             return Next::Wait { until: None };
         }
+        if self.tabs_step(face, now) {
+            return Next::Wait { until: None };
+        }
         if self.await_step(face, now) {
             return Next::Wait { until: None };
         }
@@ -266,6 +296,10 @@ impl Play for Script {
             Step::Key(key) | Step::KeyWithShift(key) => {
                 face.key(key, matches!(step, Step::KeyWithShift(_)));
                 self.at += 1;
+            }
+            Step::Tabs { tabs, within } => {
+                self.tabs = Some(tabs::Awaiting::new(tabs, now.saturating_add(within)));
+                self.tabs_step(face, now);
             }
             Step::Run(command) => {
                 face.command(super::CommandAction::Run(command));
@@ -354,6 +388,7 @@ impl Play for Script {
         self.at + self.person.as_ref().map_or(0, Person::at)
     }
     fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
+        self.tabs_step(face, now);
         if self.commanding && face.command_done() {
             self.commanding = false;
             self.at += 1;

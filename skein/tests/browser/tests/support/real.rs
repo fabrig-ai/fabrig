@@ -6,6 +6,8 @@ mod dialogs;
 mod downloads;
 #[path = "real/scope.rs"]
 mod scope;
+#[path = "real/tabs.rs"]
+mod tabs;
 use skein_fake_person_browser::{
     BrowserFace, origins as serve,
     person::{Doing, Face, Find, Found},
@@ -142,6 +144,7 @@ enum Stage {
 #[derive(Clone, Copy, Debug)]
 pub enum Scenario {
     Button,
+    Tabs,
     MouseDown { replace: bool },
     Form,
     Covered,
@@ -178,6 +181,7 @@ impl Scenario {
             Scenario::Words => "/words",
             Scenario::Figure => "/figure",
             Scenario::Facts
+            | Scenario::Tabs
             | Scenario::MouseDown { .. }
             | Scenario::Choose { .. }
             | Scenario::Select
@@ -227,6 +231,7 @@ pub struct Rig {
     pub downloaded: Option<(Box<[u8]>, PathBuf)>,
     pub download_trouble: bool,
     form_node: u64,
+    tabs_cut: Option<u64>,
 }
 
 impl Rig {
@@ -272,6 +277,7 @@ impl Rig {
             downloaded: None,
             download_trouble: false,
             form_node: 0,
+            tabs_cut: None,
             context_ready: false,
             exception_seen: false,
             csp_log_seen: false,
@@ -626,6 +632,14 @@ impl Rig {
         } else {
             event
         };
+        let event = if matches!(self.scenario, Scenario::Tabs) {
+            match self.tabs_event(event) {
+                Ok(()) => return,
+                Err(event) => event,
+            }
+        } else {
+            event
+        };
         let event = if matches!(self.scenario, Scenario::ScopeReload) {
             match self.scope_event(event) {
                 Ok(()) => return,
@@ -666,6 +680,7 @@ impl Rig {
                     | Scenario::Leave
                     | Scenario::Confirm
                     | Scenario::ScopeReload
+                    | Scenario::Tabs
                     | Scenario::Attribute { .. } => {
                         unreachable!("dialog scenario handled above")
                     }
@@ -770,6 +785,7 @@ impl Rig {
                     | Scenario::Leave
                     | Scenario::Confirm
                     | Scenario::ScopeReload
+                    | Scenario::Tabs
                     | Scenario::Attribute { .. } => {
                         unreachable!("dialog scenario handled above")
                     }
@@ -883,6 +899,7 @@ impl Rig {
                         | Scenario::Download { .. }
                         | Scenario::Letter
                         | Scenario::ScopeReload
+                        | Scenario::Tabs
                         | Scenario::Attribute { .. } => {
                             panic!("no action should complete for {:?}", self.scenario)
                         }
