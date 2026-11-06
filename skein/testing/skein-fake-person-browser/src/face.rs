@@ -308,6 +308,12 @@ impl<'a> BrowserFace<'a> {
         }
         self.answer.take().unwrap_or(Found::Pending)
     }
+    pub(crate) fn rect(&self, node: NodeId) -> Option<skein_browser::boundary::Rect> {
+        self.seen.get(usize::try_from(node.0).expect("node fits"))?.0.rect
+    }
+    pub(crate) fn keep_value(&mut self, name: Box<[u8]>, value: Box<[u8]>) {
+        self.kept = Some((name, value));
+    }
     pub(crate) fn height(&self, node: NodeId) -> Option<u64> {
         self.seen.get(usize::try_from(node.0).expect("node fits"))?.0.rect.map(|rect| rect.height)
     }
