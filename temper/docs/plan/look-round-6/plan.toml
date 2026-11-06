@@ -24,8 +24,22 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/client/README.md, 3.5"
 
+[[part]]
+id = "answer"
+title = "The answer: no reasoning, no notices, and a small block where it is being written"
+mode = "direct"
+needs = ["call-line"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "reading"
+title = "Reading's pill and message, then the landing's render check and account"
+mode = "direct"
+needs = ["answer", "log-end"]
+design = "temper/docs/design/client/README.md, 3.5"
+
 [[slice]]
 id = 1
-story = "a person reads what the agent did in one short line that opens to a row a call"
-parts = ["log-end", "call-line"]
+story = "a person reads what the agent did on one line, the answer growing in place, and scrolls back with a way to the end"
+parts = ["log-end", "call-line", "answer", "reading"]
 walk = false
