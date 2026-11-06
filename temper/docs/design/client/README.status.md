@@ -90,6 +90,10 @@
   running or leaving. Seen by reading; no test holds it.
 - **Not yet:** 3.5, *Its status*, 5.5, *A run's wait*: a run that can't start reads as starting, with dots, and a configuring chat draws no wait at all (`temper-client-view`'s `pages/chat.rs`, `choice.rs`).
 - **Not yet:** 4.6, *The printed command*: the pages print `temper program-login NAME`, which fails with directories of its own or `temper` off `PATH` (`temper-client-view`'s `accounts/words.rs`).
+- **Departs:** 3.6, *Closed ends on one line*: a requester-closed chat hides
+  every "Decision made" activity line, because `Activity::Decided` carries only
+  a revision and cannot identify the closing decision. This keeps the quiet end
+  line, at the cost of hiding earlier decision markers too.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
   the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
@@ -299,7 +303,9 @@
   4.7: the "not installed" outcome, "temper's App is not installed on
   OWNER.", with "Install on another account": `temper-service/src/family.rs`
   maps `forge::AdoptionRefusal::NotInstalled` to `ForgeReason::NoAccess`;
-  the client wire has no not-installed reason, pinned as a known gap by
+  the client wire has no not-installed reason, so ctl offers repository access
+  and Forgejo collaborator-admin recovery rather than installation recovery.
+  This gap is pinned by
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
@@ -421,6 +427,17 @@
   button of a menu with "Accounts" and "Sign out", where the mock draws the
   person's name as plain text, and a browser over 760 px signs out there rather
   than on the `Accounts` tab. `greenfield/README.md` notes it.
+- **Design departs:** 3.5, *Sign out*, and 5.3, from the request `ui-owner-menu` of
+  2026-11-06, decided by its plan's cut. A press outside that took the focus to
+  another control leaves it there, where the request returns the focus to the row:
+  the row would take back what that press landed on. A project-less `Accounts` page
+  keeps its "Sign out" in the banner, where the request keeps it at the tab's foot:
+  that page has no such row (5.1). Over 760 px the tab's whole row leaves, "Signed in
+  as NAME" and the login with "Sign out", where the request moves "Sign out" alone:
+  one form holds them, and the sheet hides it, since the view knows no width (section
+  11, *The person's login over 760 px*). The rail's "+ New chat" menu closes on a
+  press outside too, which the request doesn't name: skein's page part gives it to
+  every menu.
 - **Design departs:** 3.5, *Settings*, 5.3 and 5.13, from the request `ui-settings`
   of 2026-11-05, decided by its plan's cut. "Sign out did not reach the engine."
   stands on the rail's foot as well as the `Accounts` tab, where the request moves

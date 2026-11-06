@@ -670,7 +670,8 @@ sources in its holder's order. temper configures the LLM providers
 - **People's credentials are jig's** (jig's `protocol/client.md`,
   section 8): jig mints, verifies, expires and revokes them. Its printed
   link signs in the deployment's first owner: `temper serve` prints the
-  link at start, `temper open` signs in by it; its client holds the
+  link at start, or `temper box` before it starts serve (`setup.md`, 7.2),
+  `temper open` signs in by it; its client holds the
   bearer token it is given and sends it with every exchange, and the
   terminal keeps it in its private directory, to sign in with it again
   (`../client/README.md`, section 7). Every other way of signing in is open

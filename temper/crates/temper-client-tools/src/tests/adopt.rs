@@ -86,7 +86,6 @@ fn each_forge_refusal_exits_2_in_its_words() {
     for (reason, expected) in [
         (w::ForgeReason::NoSuchForge, b"No forge 1 is configured.\n".as_slice()),
         (w::ForgeReason::NotFound, b"No repository o/n on forge 1 that temper's forge user can see.\n".as_slice()),
-        (w::ForgeReason::NoAccess, b"temper's forge user may not read o/n on forge 1.\nA managed or owned forge gives that access by its site admin's token, which needs write:repository: the server's log names the step.\n".as_slice()),
         (w::ForgeReason::Refused, b"The forge connector refused it: another project writes o/n, the project has a home already, or branches under temper/ are not this deployment's.\n".as_slice()),
         (w::ForgeReason::AnotherProject, b"Another project writes o/n. Adopt it as context to read it, or use the project that writes it.\n".as_slice()),
         (w::ForgeReason::HomeHeld, b"The project has a home already. Adopt this repository without making it home, or choose a new project.\n  temper ctl DIR repository adopt --project 1 --forge 1 --owner o --name n --landing main --role owned --prefix temper/ --no-home --key KEY\n".as_slice()),
@@ -101,6 +100,29 @@ fn each_forge_refusal_exits_2_in_its_words() {
         let printed = root.answer(call).expect("refused durably");
         assert_eq!((printed.status, printed.stderr.as_ref()), (2, expected), "{reason:?}");
     }
+}
+#[test]
+fn write_access_refusal_explains_forgejo_collaborator_admin() {
+    let (mut root, call) = fixtures::adopt_root(&[]);
+    root.adoption_answer(call, fixtures::forge_refused(w::ForgeReason::NoAccess));
+    let printed = root.answer(call).expect("refused durably");
+    assert_eq!(printed.status, 2);
+    assert!(printed.stdout.is_empty());
+    let words = printed.stderr.as_ref();
+    assert!(words.starts_with(b"temper's forge user may not read o/n on forge 1."));
+    for required in [
+        b"Forgejo collaborator reads can require repository admin even when temper's forge user already has write"
+            .as_slice(),
+        b"A repository administrator must grant temper's forge user admin",
+        b"repository adopt again with a new key",
+        b"project show",
+        b"human's required project role",
+        b"If setup could not grant access on a managed or owned Forgejo",
+        b"site admin's token needs write:repository",
+    ] {
+        assert!(skein_lib::bytes::find(words, required).is_some(), "missing {required:?}: {words:?}");
+    }
+    assert!(skein_lib::bytes::find(words, b"the server's log names the step").is_none());
 }
 #[test]
 fn forge_refusal_has_its_typed_json_outcome() {
