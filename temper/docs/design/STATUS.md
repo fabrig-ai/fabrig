@@ -181,7 +181,10 @@ numbers in a chat's card, whose items the sheet makes flex, and a document page'
 takes the browser's margins (`client/browser.md`). temper's own way stands on
 Configure, departing from the request `configure-temper-own-way` in its reference's
 words and look (`client/README.md`), but no walk on record presses its acts and no
-render has drawn its picture as a numbered list (`client/browser.md`). The words being written draw an
+render has drawn its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
+the line departs from the request `chat-work` in a failed call's colour, and the end
+mark is a glyph that does not blink (`client/README.md`); a chat is read by "Older" in a
+window of 16 lines until `draft/chat-reading.md`, 5 is built. The words being written draw an
 empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, a last block still open changes as it commits, and no browser test draws them
 (`client/README.md`). A run of calls is one line on a chat's page and an agent's, its

@@ -85,6 +85,18 @@
   lists a tracked template with no conversation flag. So a fresh project offers no "+
   Draft", Drafts filter, "Start goal…" or rail's "Goal" until "Chats can write drafts"
   is turned on, as the journey `chat-draft` does first.
+- **Design departs:** 3.5, *A chat's conversation*, from the look request `chat-work` of
+  2026-11-06. A failed call's "1 failed" shares the description with the run's time, both
+  in the signal's colour, where the request adds ", 1 failed" alone in it, and a document's
+  write ends a run (`../draft/chat-reading.status.md`, 2); "Older" and its rule stay at both
+  conversations' heads, where the request removes them, as the one way to earlier lines
+  (`../draft/chat-reading.status.md`, 5): each decided by that plan's cut. The words being
+  written end in a faint, inline "▍" that does not blink, where the request's overlay draws
+  a block 7 px by 15 that blinks: the plan `chat-reading-a` set the mark, this request's
+  landing took it at a catch-up, and no reason is recorded. Its pages' line says "Read 7
+  docs, checked settings 3×" of calls that start with `settings`, where a phrase follows the
+  first call, so the gallery's reads "Checked settings 3×, read 7 docs"; and its 01 gives
+  the call under way an outcome, which a client is not given.
 - **Departs:** 5.14: a party whose `me` gives the project no creating bound still
   sees a chat's "Start goal…" (`temper-client-view`'s `pages/chat_sheet.rs`, `bar`),
   and a press opens nothing (`pages/start_goal.rs`, `open`;
