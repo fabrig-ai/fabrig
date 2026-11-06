@@ -29,3 +29,23 @@ id = 1
 story = "a stock project's status run is funded with the owner's pool open; a project-filtered read holds a proposal of settings"
 parts = ["w6-room", "w3-engine"]
 walk = false
+
+[[part]]
+id = "w6-home"
+title = "Home says something true over a landing, and a person's plan gets its brief on a return"
+mode = "direct"
+needs = ["w6-room"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "w3-needs"
+title = "A settings proposal in the project's Needs you, its rail and its Accept, walked in a browser"
+mode = "direct"
+needs = ["w3-engine", "w6-home"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 2
+story = "a person on a fresh box accepts Configure temper's proposal from Needs you, the rail falling, and comes back to a brief"
+parts = ["w6-home", "w3-needs"]
+walk = false
