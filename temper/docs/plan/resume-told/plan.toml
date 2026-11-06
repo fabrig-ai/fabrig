@@ -3,3 +3,54 @@ repo = "fabrig"
 sources = ["temper/docs/plan/resume-told/inputs/request.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "saved-kept"
+title = "a merge start of saved work keeps that work whatever its save says, and a story proves a parked producer's edits land"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/worker.md, 5"
+
+[[part]]
+id = "clean-merge"
+title = "a producer's clean merge is committed before its run starts, so it sees a clean tree"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/worker.md, 5"
+
+[[part]]
+id = "conflict-told"
+title = "a run that starts in a merge in progress is told what its staged files are"
+mode = "direct"
+needs = []
+design = "smith/docs/design/domain/run.md, 8.3"
+
+[[part]]
+id = "answer-words"
+title = "temper help change and the coding and foreman charters say what a resumed producer holds"
+mode = "direct"
+needs = ["saved-kept", "clean-merge", "conflict-told"]
+design = "temper/docs/design/domain/worker.md, 5"
+
+[[slice]]
+id = 1
+story = "A producer resumed after its answer finds its work and a tree it can't misread, and delivering lands every edit"
+parts = ["saved-kept", "clean-merge", "conflict-told"]
+walk = false
+
+[[slice]]
+id = 2
+story = "Whoever answers a resumed producer answers rightly from what it reads"
+parts = ["answer-words"]
+walk = false
+
+[[question]]
+id = "park-with-markers"
+text = "A run that parks with a conflict marker left keeps none of that run's edits, though what it saved earlier stands (temper/docs/design/domain/worker.md, section 12). Keeping them needs the list of files in conflict stored past the hold, a stored format change. Leave it, with the run told to settle before it asks, or store the list? I recommend leaving it until a replay shows runs parking in conflict: no task waits for this."
+parts = ["saved-kept"]
