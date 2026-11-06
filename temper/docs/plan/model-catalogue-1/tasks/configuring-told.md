@@ -71,3 +71,19 @@ Acceptance, each a story in `temper/tests/engine/domain/tests/suite/configuring.
 ## Report
 
 As the implementer's text says; the host part's figure for charter 3 before and after.
+
+## Rebase (2026-11-06, step merge, foreman model-catalogue-1/configuring-told/foreman-1)
+
+Rebase the configuring offer rule onto main’s newer charter guidance and remeasure the combined byte counts.
+The merge conflicts in `temper/crates/temper-service/src/stock/configuring.txt`, `src/tests/stock.rs` and `src/tests/stock_brief.rs`.
+Main commit `189d163c56` (“Clarify configuring instructions across runs”) overlaps branch commits `9d4604b18f` and `cb60aad9d3`.
+
+Resolve `configuring.txt` from main’s current guidance, adding the task’s complete offer-only instruction in the “First: settings without a member” paragraph.
+Preserve main’s notice timing, “How this project works” title, placeholder removal, approval/adoption responsibilities, operator wording and pending-proposal rejection instructions.
+Condense only as needed to fit charter 3’s existing host-part bound, preserving facts and the phrases asserted by the stock tests.
+
+In `stock.rs`, retain main’s newer wording tests and the branch’s stock-seven catalogue coverage; recalculate charter 3’s instruction-length assertion from the resolved text.
+In `stock_brief.rs`, retain both sides’ independent changes and remeasure the combined host-part rows, remaining room and whole-spec margin. Neither side’s pinned figures describe the combined code.
+Keep all configured bounds unchanged; report charter 3’s host-part figures before and after.
+
+Through heavy, run the focused temper-service stock wording/count checks and both brief-bound tests, then the task’s configuring inventory stories.
