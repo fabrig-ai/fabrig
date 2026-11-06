@@ -3,9 +3,6 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 8.4: a clean update's red opens `Repair the base's break at HEAD: BASE`
-    and calls itself a semantic conflict, naming no failed check
-    (`temper-engine-domain/src/route/forge_route.rs`, `repair_words`).
   - 8.2, step 3: a head already behind taking its base first stands on the fake
     forge's stories alone
     (`tests/engine/domain/tests/suite/forge_routes/update_first.rs`). The request

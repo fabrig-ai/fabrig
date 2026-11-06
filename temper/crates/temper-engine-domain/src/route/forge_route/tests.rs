@@ -1064,6 +1064,55 @@ fn change_names(pull: Option<u64>) -> Box<[super::forge::Name]> {
 }
 
 #[test]
+fn repair_section_order_puts_only_a_semantic_repairs_ci_before_its_pull() {
+    use super::forge_change::{Delegate, Repair};
+    use crate::boundary::Work;
+    use jig_domain_brief::{GatherEvent, Planned};
+    use skein_lib::{List, Queue};
+
+    for (why, kinds) in [(Repair::Ci, [3, 1]), (Repair::Semantic, [1, 3])] {
+        let (mut domain, env) = two_forges();
+        let mut row = change_row(Some(7));
+        row.change.last_head = Some(SHA1);
+        row.delegate = Some((8, Delegate::Repair(why)));
+        super::forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            super::forge::Event::Restore { record: super::forge::Stored::Change(row) },
+            &mut Queue::uncapped(),
+        );
+        crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), List::with_capacity(8), Box::new([]));
+        let mut gathered = None;
+        let mut partners = List::with_capacity(2);
+        while let Some(work) = domain.work.pop() {
+            if let Work::Brief(GatherEvent::Plan { sections, .. }) = work {
+                gathered = Some(sections);
+            } else if let Work::Forge(super::forge::Event::PlanBrief { section, partner, .. }) = work {
+                partners.push((section, partner)).expect("two forge sections");
+            }
+        }
+        let sections = gathered.expect("repair plan");
+        assert_eq!(sections.len(), 2);
+        let mut tokens = List::with_capacity(2);
+        for (section, expected_kind) in sections.iter().zip(kinds) {
+            let Planned::Connector { kind, token, priority, size, limit, .. } = section else {
+                panic!("required forge section")
+            };
+            assert_eq!(*kind, expected_kind, "{why:?} section order");
+            assert_eq!(*priority, if *kind == 1 { 5 } else { 6 });
+            assert_eq!(*size, 0);
+            assert_eq!(
+                *limit,
+                if *kind == 1 { domain.limits.brief.budgets.ci } else { domain.limits.brief.budgets.pull }
+            );
+            tokens.push(*token).expect("two forge sections");
+        }
+        let tokens = tokens.as_slice();
+        assert_eq!(partners.as_slice(), [(tokens[0], None), (tokens[1], Some(tokens[0]))]);
+    }
+}
+
+#[test]
 fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_optional_context() {
     use crate::boundary::Work;
     use jig_domain_brief::{Core, GatherEvent, Planned};
