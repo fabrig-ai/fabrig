@@ -58,7 +58,7 @@ fn settle(world: &mut Pages) {
 }
 fn press(world: &mut Pages, client: ClientId, role: Role, name: &[u8]) {
     let id = node(world, client, role, name);
-    world.act(client, id, Act::Press);
+    world.act(client, id, if role == Role::Choice { Act::Toggle } else { Act::Press });
     settle(world);
 }
 fn input(world: &mut Pages, client: ClientId, field: &[u8], value: &[u8]) {
@@ -123,12 +123,9 @@ fn your_forgejo_connects_with_bot_tokens_retries_a_stop_and_is_ready() {
     follow(
         &mut world,
         client,
-        vec![
-            see(Role::Heading { level: 2 }, b"Your Forgejo"),
-            see(Role::Button, b"Connect as its admin"),
-            see(Role::TextField, b"API token"),
-        ],
+        vec![see(Role::Heading { level: 1 }, b"Your Forgejo"), see(Role::Button, b"Connect as its admin")],
     );
+    press(&mut world, client, Role::Choice, "With its bot’s tokens".as_bytes());
     input(&mut world, client, b"Its address", b"forge.example");
     input(&mut world, client, b"Its git base", b"https://forge.example/");
     input(&mut world, client, b"Its web address", b"https://forge.example");
@@ -203,8 +200,8 @@ fn your_forgejo_connects_with_bot_tokens_retries_a_stop_and_is_ready() {
         client,
         vec![
             PersonStep::Go { address: Address::ConnectForge { forge: Some(Choice::Managed) } },
-            see(Role::Heading { level: 2 }, b"Your Forgejo"),
-            see(Role::TextField, b"API token"),
+            see(Role::Heading { level: 1 }, b"Your Forgejo"),
+            see(Role::Choice, "With its bot’s tokens".as_bytes()),
         ],
     );
 }

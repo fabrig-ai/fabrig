@@ -105,7 +105,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 279;
+pub const N: usize = 281;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -684,6 +684,18 @@ pub fn samples() -> [Sample; N] {
             name: "connect-forge-connected",
             world: FirstRun { step: 7 },
             address: Address::ConnectForge { forge: None },
+            then: Shown,
+        },
+        Sample {
+            name: "connect-forge-yours-admin",
+            world: FirstRun { step: 0 },
+            address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Managed) },
+            then: Shown,
+        },
+        Sample {
+            name: "connect-forge-yours-tokens",
+            world: FirstRun { step: 0 },
+            address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Managed) },
             then: Shown,
         },
         welcome_sample("welcome-forge-choose", temper_client_domain::Step::Forge { forge: None }),
@@ -1325,6 +1337,25 @@ pub fn domain(sample: &Sample) -> Domain {
         crate::worlds::world(sample.world, sample.address.clone(), sample.then)
     };
     let mut out = Queue::uncapped();
+    if sample.name.starts_with("connect-forge-yours-") {
+        use temper_client_domain::forge::{
+            self,
+            admin::{PlaceField, Way},
+        };
+        step(
+            &mut root,
+            Event::Act {
+                action: Action::Forge(forge::Act::Forges(forge::forges::Act::PlaceWrite {
+                    field: PlaceField::Host,
+                    text: b"https://forge.example".as_slice().into(),
+                })),
+            },
+            &mut out,
+        );
+        if sample.name == "connect-forge-yours-tokens" {
+            step(&mut root, Event::Act { action: Action::Forge(forge::Act::AdminWay(Way::Tokens)) }, &mut out);
+        }
+    }
     if sample.name.starts_with("welcome-sheet-") {
         use temper_client_domain::forge::{
             Act as F,

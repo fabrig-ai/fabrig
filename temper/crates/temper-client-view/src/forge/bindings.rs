@@ -14,6 +14,7 @@ pub enum Meaning {
     Home,
     Ci,
     Adopt,
+    AdminWay(forge::admin::Way),
     AdminToken,
     ForgejoToken(forge::tokens::Field),
     ConnectTokens(u16),
@@ -139,6 +140,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Meaning::SetUp(forge) => Action::Forge(forge::Act::SetUp { forge }),
                 Meaning::SetUpAtOnce(forge) => Action::Forge(forge::Act::SetUpAtOnce { forge }),
                 Meaning::ConnectTokens(forge) => Action::Forge(forge::Act::ConnectTokens { forge }),
+                Meaning::AdminWay(way) => Action::Forge(forge::Act::AdminWay(way)),
                 Meaning::ConnectAdmin(forge) => Action::Forge(forge::Act::ConnectAdmin { forge }),
                 Meaning::ConnectApp(forge) => Action::Forge(forge::Act::ConnectApp { forge }),
                 Meaning::ConnectManifest { forge, back } => Action::Forge(forge::Act::ConnectManifest {
@@ -235,6 +237,7 @@ pub fn event(bindings: &Bindings, token: Token, act: Act) -> Option<temper_clien
             | Meaning::Home
             | Meaning::Ci
             | Meaning::Adopt
+            | Meaning::AdminWay(_)
             | Meaning::AdminField(_)
             | Meaning::ConnectAdmin(_)
             | Meaning::ConnectTokens(_)

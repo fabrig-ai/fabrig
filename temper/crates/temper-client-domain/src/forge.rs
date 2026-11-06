@@ -341,6 +341,7 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::Ways(act) => ways::act(side, limits, act, out),
         Act::Forges(act) => forges::act(side, limits, act, out),
         Act::Go { address } => out.push(Request::Show { address }),
+        Act::AdminWay(way) => admin::way(side, way),
         Act::AdminWrite { field, text } => admin::write(side, limits, field, text),
         Act::ConnectAdmin { forge } => admin::send(side, limits, forge, out),
         Act::ConnectTokens { forge } => tokens::send(side, limits, forge, out),
