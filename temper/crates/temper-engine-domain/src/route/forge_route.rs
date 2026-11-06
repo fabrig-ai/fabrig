@@ -4082,9 +4082,7 @@ fn cancel_change_gates(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureS
         Some(child) => {
             let mut reason = List::with_capacity(96);
             append(&mut reason, b"CI failed at head ");
-            for byte in &head {
-                append(&mut reason, &forge::hex(*byte));
-            }
+            append(&mut reason, &commit_text(&head));
             Box::new([jig_domain_core::StepCancel { task: child, reason: reason.into_boxed(), grace: None }])
         }
         None => Box::new([]),
@@ -4112,9 +4110,7 @@ fn cancel_change_repair(domain: &Domain, task: u64, head: [u8; 32]) -> Procedure
         Some(child) => {
             let mut reason = List::with_capacity(96);
             append(&mut reason, b"CI passed at head ");
-            for byte in &head {
-                append(&mut reason, &forge::hex(*byte));
-            }
+            append(&mut reason, &commit_text(&head));
             Box::new([jig_domain_core::StepCancel { task: child, reason: reason.into_boxed(), grace: None }])
         }
         None => Box::new([]),
