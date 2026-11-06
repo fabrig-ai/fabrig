@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 type Envelope = (Box<[u8]>, Box<[u8]>);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Stand {
     limits: tools::Limits,
     calls: BTreeMap<core::CallKey, Envelope>,

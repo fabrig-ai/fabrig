@@ -201,7 +201,7 @@ fn call(key: core::CallKey) -> r::Receipt {
     r::Receipt::Call(key.task, key.attempt, key.completion, key.position)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct SeenFence {
     after: u64,
     position: Option<people::Seen>,
@@ -255,7 +255,7 @@ impl SeenFence {
 }
 
 /// Core evidence retained across commits and cold starts.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Observer {
     pub referee: r::Referee,
     pub intents: intents::Intents,
