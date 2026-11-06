@@ -175,6 +175,7 @@ fn document_proposal() -> c::ReadValue {
             })
             .expect("one funding source");
         c::Proposal {
+            projects: List::with_capacity(0),
             key,
             project: fixtures::PROJECT,
             reason: c::DocumentText::complete(fixtures::first_run::text(b"It touches sign-in.")),
@@ -406,7 +407,9 @@ const SETTINGS_KINDS: [(c::Setting, &[u8]); 11] = [
 fn settings_page(items: &[(c::Setting, c::RevisionItemEdit)], accept: bool) -> c::ReadValue {
     let c::ReadValue::Proposal(mut p) = batch_proposal() else { panic!("proposal") };
     p.key = SETTINGS_KEY;
-    p.project = fixtures::PROJECT;
+    p.project = 0;
+    p.projects = List::with_capacity(1);
+    p.projects.push(fixtures::PROJECT).unwrap();
     p.reason = c::DocumentText::complete(c::Text::new(SETTINGS_REASON.into(), 128).unwrap());
     p.acts = List::with_capacity(1);
     if accept {
@@ -731,4 +734,35 @@ fn replaced_and_accepted_say_so() {
     let tree = draw_settings(&root, &card, false);
     assert!(fixtures::find(&tree, Role::Paragraph, "✓ Accepted · new work follows it".as_bytes()).is_some());
     assert!(fixtures::find(&tree, Role::Button, b"Accept").is_none());
+}
+
+#[test]
+fn settings_titles_name_the_deployment_or_each_touched_project() {
+    let (root, _) = settings_root(settings_page(&[], true));
+    let cases: [(&[u32], &[u8]); 4] = [
+        (&[], b"How temper will run your projects"),
+        (&[fixtures::PROJECT], b"How temper will run Shop"),
+        (&[fixtures::PROJECT, 2], b"How temper will run Shop and Second"),
+        (&[fixtures::PROJECT, 2, 3], b"How temper will run Shop, Second and 3"),
+    ];
+    for (projects, title) in cases {
+        let mut card = settings_card(&root);
+        let c::ReadValue::Proposal(mut proposal) = settings_page(&[], true) else { panic!("proposal") };
+        proposal.projects = List::with_capacity(u32::try_from(projects.len()).unwrap());
+        for project in projects {
+            proposal.projects.push(*project).unwrap();
+        }
+        card.page = Some(c::ReadValue::Proposal(proposal));
+        let tree = draw_settings(&root, &card, false);
+        assert!(fixtures::find(&tree, Role::Paragraph, title).is_some(), "{:?}", fixtures::text(&tree));
+    }
+}
+#[test]
+fn a_settings_proposal_waiting_on_policy_zero_names_deployment_owners() {
+    let c::ReadValue::Proposal(mut proposal) = settings_page(&[], false) else { panic!("proposal") };
+    proposal.waiting.holder = c::HistoryHolder::Policy { project: 0, kind: c::MessageProposalKind::Settings };
+    let (root, _) = settings_root(c::ReadValue::Proposal(proposal));
+    let said = fixtures::text(&draw_settings(&root, &settings_card(&root), false));
+    assert!(skein_lib::bytes::find(&said, b"Owners of this deployment").is_some());
+    assert!(skein_lib::bytes::find(&said, b"Owners of project 0").is_none());
 }

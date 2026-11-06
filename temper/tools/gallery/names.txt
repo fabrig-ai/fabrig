@@ -60,6 +60,8 @@ configure-chat-accepted
 configure-chat-document
 configure-chat-document-split
 configure-chat-proposal
+configure-chat-proposal-deployment
+configure-chat-proposal-two-projects
 configure-chat-replaced
 configure-chats-tag
 configure-refused

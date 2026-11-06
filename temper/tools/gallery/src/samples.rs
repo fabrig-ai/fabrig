@@ -80,7 +80,7 @@ impl Sample {
         if self.name == "rail-new-menu" { Some(b"More ways to start work") } else { None }
     }
 }
-pub const N: usize = 248;
+pub const N: usize = 250;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -450,6 +450,18 @@ pub fn samples() -> [Sample; N] {
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Draft),
         },
         Sample { name: "configure-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample {
+            name: "configure-chat-proposal-deployment",
+            world: Solo,
+            address: Address::Chat { task: 10 },
+            then: Shown,
+        },
+        Sample {
+            name: "configure-chat-proposal-two-projects",
+            world: Solo,
+            address: Address::Chat { task: 10 },
+            then: Shown,
+        },
         Sample { name: "configure-chat-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chat-accepted", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chat-replaced", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
@@ -1494,7 +1506,14 @@ fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>)
 }
 
 fn configure_domain(sample: &Sample) -> Domain {
-    if matches!(sample.name, "configure-chat-proposal" | "configure-chat-accepted" | "configure-chat-replaced") {
+    if matches!(
+        sample.name,
+        "configure-chat-proposal"
+            | "configure-chat-proposal-deployment"
+            | "configure-chat-proposal-two-projects"
+            | "configure-chat-accepted"
+            | "configure-chat-replaced"
+    ) {
         return crate::worlds::settings_chat_world(sample.name);
     }
     if matches!(
