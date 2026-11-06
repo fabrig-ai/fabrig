@@ -300,7 +300,12 @@ where it is. The browser tier runs Chromium alone, with
 themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**). A read
 that failed at the head is not tried again on a move back within its reach (`client/README.md`).
 The process tier's three tests at a time await a passing whole run after landing,
-and its CPU-budget overages remain (`domain/testing.md`). The
+and its CPU-budget overages remain. Reusable listener ports come from
+process-held blocks below Linux's configured ephemeral range; macOS uses
+its default boundary, and the concurrent restart proof remains after
+landing (`domain/testing.md`). A fake sandbox keeps its ports across a
+valid new choice, but a malformed test override still refuses a retained
+start (`protocol/setup.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
