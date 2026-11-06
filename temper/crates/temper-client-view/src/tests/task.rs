@@ -1305,12 +1305,12 @@ fn an_agents_conversation_is_drawn_as_a_chats() {
     assert!(named(nodes, Role::Paragraph, b"Temper"));
     assert!(skein_lib::bytes::find(&fixtures::node_text(tree, log), b"Checking the credentials.").is_some());
     assert!(has_style(nodes, look::WORK));
-    assert!(named(nodes, Role::Paragraph, b"delegate"));
-    super::chat::assert_call_fold(tree, b"1 tool call", b"delegate", &[b"delegateDelegated tasks: 17"]);
+    assert!(named(nodes, Role::Paragraph, b"delegate: Delegated tasks: 17"));
+    super::chat::assert_run_line(tree, b"delegate", b"", &[b"delegate: Delegated tasks: 17"]);
     let content = children(tree, styled(tree, look::SAYS));
     let first = *content.as_slice().first().expect("message text");
     assert_eq!(fixtures::node_text(tree, first).as_ref(), b"Checking the credentials.");
-    assert!(first < index_of(tree, Role::Disclosure, b"1 tool call"));
+    assert!(first < index_of(tree, Role::Disclosure, b"delegate"));
     assert!(!has_style(nodes, look::CARD));
     let mut thread = jig_client::thread::Thread::new(
         TASK,
@@ -1323,7 +1323,7 @@ fn an_agents_conversation_is_drawn_as_a_chats() {
     assert_eq!(fixtures::node_text(tree, log), fixtures::node_text(&chat, chat_log));
 }
 #[test]
-fn an_agents_message_folds_each_call_and_keeps_results_in_their_message() {
+fn an_agents_message_folds_each_call_and_results_into_rows() {
     use fixtures::first_run as run;
     let assistant = run::message(
         c::Speaker::Assistant,
@@ -1342,31 +1342,9 @@ fn an_agents_message_folds_each_call_and_keeps_results_in_their_message() {
     task.activity = 1;
     let view = fixtures::page_view(&f::agent_root_with_page(task, Some(f::tree()), page));
     let tree = view.tree();
-    super::chat::assert_call_fold(
-        tree,
-        b"2 tool calls",
-        "read ×2".as_bytes(),
-        &[b"readFirst file", b"readSecond file"],
-    );
-    let fold = index_of(tree, Role::Disclosure, b"2 tool calls");
-    let result_message = styled(tree, look::BY_TOOL);
-    assert!(fold < result_message);
-    let mut says = None;
-    for (at, node) in tree.nodes().iter().enumerate().skip(result_message) {
-        if node.styles.as_slice().contains(&look::SAYS) {
-            says = Some(at);
-            break;
-        }
-    }
-    let says = says.expect("result body");
-    let result_lines = children(tree, says);
-    assert_eq!(result_lines.len(), 2);
-    for (at, words) in result_lines.iter().zip([b"Tool completedRead completed".as_slice(), b"Tool failedRead failed"])
-    {
-        let node = &tree.nodes()[*at];
-        assert_eq!(node.role, Role::Slot);
-        assert!(node.styles.as_slice().contains(&look::WORK));
-        assert_eq!(fixtures::node_text(tree, *at).as_ref(), words);
+    super::chat::assert_run_line(tree, "read ×2".as_bytes(), b"", &[b"read: First file", b"read: Second file"]);
+    for node in tree.nodes() {
+        assert!(!node.styles.as_slice().contains(&look::BY_TOOL));
     }
 }
 #[test]
