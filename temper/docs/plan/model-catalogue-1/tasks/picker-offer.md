@@ -89,3 +89,16 @@ Acceptance, each a test in `temper-client-view/src/tests/choice.rs` unless it sa
 ## Report
 
 As the implementer's text says; each shared file you changed, by name.
+
+## Answers
+
+### 2026-11-06: wait for offer-surface to finish, then resume picker-offer (recommended), or assign its missing domain-contract and fixture repair here? The current dependency branch prevents this task's acceptance tests from compiling. (model-catalogue-1/picker-offer-1, foreman model-catalogue-1/picker-offer/foreman-1)
+
+Wait for offer-surface to finish, then resume picker-offer; its missing domain contract and fixture repairs remain offer-surface’s work.
+The picker-offer spec declares `needs = ["offer-surface"]`.
+Offer-surface’s goal explicitly owns “`MeModel`’s `effort`, `shown`, `accounts` and `picker`; `MeProject`’s `defaults`.”
+Its acceptance 4 requires `jig_client::shapes::resolved_default`.
+Its permitted `MeProject` literal repairs explicitly include `jig/testing/jig-client-test-records/src/owner.rs`, with “`defaults` empty”.
+These changes fall outside picker-offer’s permitted files; do not reassign them here.
+After the completed dependency is available, merge it, finish regeneration, acceptance tests, deliberate rule breaks and closing checks, then commit and push.
+Picker-offer is not accepted as done: its report explicitly says acceptance is unverified.
