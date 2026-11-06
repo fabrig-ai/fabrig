@@ -426,7 +426,7 @@ fn proposal_card(
     {
         proposal_wait(b, words, times, since);
     }
-    let replaced = settings_replaced(root, card.object, rows);
+    let replaced = settings_replaced(root, card.object);
     if !crate::cards::proposal::settings(b, root, card, words, bindings, replaced) {
         crate::confirm::card(b, root, card, words, bindings, rows);
     }
@@ -1501,32 +1501,15 @@ fn hidden(event: &c::DecodedActivityLine, projected: bool, delegations: Option<(
         None => false,
     }
 }
-// Only a later settings proposal anchored in this conversation replaces an ended one.
-fn settings_replaced(root: &Domain, object: c::ObjectKey, rows: u32) -> bool {
+// A later settings proposal in this chat replaces a withdrawn one (client/README.md, 5.13).
+fn settings_replaced(root: &Domain, object: c::ObjectKey) -> bool {
+    let c::ObjectKey::Proposal(key) = object else { return false };
     let Some(chat) = root.pages().chat() else { return false };
-    let Some(anchor) = proposal_anchor(chat, object, rows) else { return false };
-    let mut reached = false;
-    for line in chat.thread.lines().into_boxed() {
-        if let Line::Turn { name, turn, .. } = line {
-            for (message, value) in turn.messages.iter().enumerate() {
-                for (block, value) in value.blocks.iter().enumerate() {
-                    if (name, message, block) == anchor {
-                        reached = true;
-                        continue;
-                    }
-                    if reached && let c::Block::Call(call) = value {
-                        for card in &chat.cards {
-                            if call.objects.as_slice().contains(&card.object)
-                                && card.object != object
-                                && proposal_anchor(chat, card.object, rows) == Some((name, message, block))
-                                && crate::cards::proposal::settings_proposal(root, card).is_some()
-                            {
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
+    for card in &chat.cards {
+        if let Some(proposal) = crate::cards::proposal::settings_proposal(root, card)
+            && proposal.key.number > key.number
+        {
+            return true;
         }
     }
     false
