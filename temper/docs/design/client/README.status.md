@@ -2,6 +2,9 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, *the agent's words*, *not drawn*, and an agent's page: "Earlier text omitted" still stands in a conversation; a turn's opaque blocks are drawn; a result's work line is whole.
+- **Not yet:** 5.4: `turn_text` and a thread's `live` stay at 2,048 and 512 bytes, and `text_bytes` is the nodes at a node's most text.
+- **Not yet:** 3.5, *the turn being written*, *While it works*: the turn being written is read as closed text under "Writing...", with no "▍".
 - **Design departs:** 3.5, *Starting a goal from a chat's document*, and 5.14, from
   the request `ui-chat-draft` of 2026-11-05, decided by the answers that day to its
   tasks `goal-sheet-state` and `goal-sheet`: one sheet, `ui-goal-page`'s, where the
