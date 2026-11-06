@@ -992,71 +992,61 @@ fn the_chat_composer_keeps_the_send_bound_when_receiving_grows() {
 }
 
 fn window_page(chat: &mut Chat, client: &jig_client::Client, out: &mut Queue<Request>, page: u32, pages: u32) {
-    let mut rows = skein_lib::List::with_capacity(2);
-    for offset in 0..2 {
+    chat.told(
+        Time::ZERO,
+        client,
+        Told::Page { handle: chat.activity, page: activity_answer(window_activity(page, pages)) },
+        out,
+    );
+}
+fn window_activity(page: u32, pages: u32) -> c::ActivityPage {
+    let mut rows = skein_lib::List::with_capacity(WINDOW_PAGE_ROWS);
+    for offset in 0..WINDOW_PAGE_ROWS {
         rows.push(crate::tests::documents::line(
-            u64::from(pages.checked_sub(page).unwrap().checked_mul(2).unwrap().checked_sub(offset).unwrap()),
+            u64::from(
+                pages.checked_sub(page).unwrap().checked_mul(WINDOW_PAGE_ROWS).unwrap().checked_sub(offset).unwrap(),
+            ),
             skein_lib::Wall::EPOCH,
             c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false },
         ))
         .unwrap();
     }
     let cursor = c::Cursor::new(Box::from(*b"older"), 5).unwrap();
-    chat.told(
-        Time::ZERO,
-        client,
-        Told::Page {
-            handle: chat.activity,
-            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
-                rows,
-                before: if page.checked_add(1).unwrap() < pages { Some(cursor) } else { None },
-                after: None,
-                cut: false,
-            })))),
-        },
-        out,
-    );
+    c::ActivityPage {
+        rows,
+        before: if page.checked_add(1).unwrap() < pages { Some(cursor) } else { None },
+        after: None,
+        cut: false,
+    }
 }
 #[test]
-fn a_chat_fills_its_window_to_the_start_without_offering_older() {
+fn no_second_read_after_a_first_page() {
     let limits = fixtures::limits();
-    let client = jig_client::Client::unlinked(&limits.client, fixtures::SEED).unwrap();
-    let mut out = Queue::with_capacity(OUTPUTS);
-    let mut chat = Chat::new(f::TASK, crate::pages::chat::document::Mode::Chat, f::FIRST, &limits, &mut out);
-    while out.pop().is_some() {}
-    for page in 0..5 {
-        window_page(&mut chat, &client, &mut out, page, 5);
-        assert_eq!(!out.is_empty(), page < 4, "page {page}");
-        while out.pop().is_some() {}
-        assert!(!chat.offers_older());
-    }
-    assert_eq!(chat.thread.lines.rows.len(), 10);
+    let (mut chat, client, mut out) = reading_chat(&limits);
+    window_page(&mut chat, &client, &mut out, 0, WINDOW_PAGES);
+    assert!(out.is_empty(), "a page with rows waits for the person's next read");
+    assert_eq!(chat.thread.lines.rows.len(), WINDOW_PAGE_ROWS);
     assert!(chat.thread.reading.is_none());
 }
 #[test]
-fn a_full_chat_window_offers_older_and_reads_it_when_asked() {
+fn a_chats_window_holds_more_than_sixteen_lines() {
+    // The fixture grants 65536 document bytes; each line costs at least 64.
+    const DOCUMENT_LINES: u32 = 1024;
     let limits = fixtures::limits();
-    let client = jig_client::Client::unlinked(&limits.client, fixtures::SEED).unwrap();
-    let mut out = Queue::with_capacity(OUTPUTS);
-    let mut chat = Chat::new(f::TASK, crate::pages::chat::document::Mode::Chat, f::FIRST, &limits, &mut out);
-    while out.pop().is_some() {}
-    for page in 0..8 {
-        window_page(&mut chat, &client, &mut out, page, 10);
-        assert_eq!(!out.is_empty(), page < 7, "page {page}");
+    assert_eq!(crate::pages::chat::thread_limits(&limits).lines, DOCUMENT_LINES);
+    let mut saturated = fixtures::limits();
+    saturated.client.domain.document_bytes = u64::MAX;
+    assert_eq!(crate::pages::chat::thread_limits(&saturated).lines, u32::MAX);
+    let (mut chat, client, mut out) = reading_chat(&limits);
+    for page in 0..WINDOW_PAGES {
+        if page > 0 {
+            chat.act(&fixtures::env(&limits), &client, Act::Older, &mut { SERIAL }, &mut out);
+            while out.pop().is_some() {}
+        }
+        window_page(&mut chat, &client, &mut out, page, WINDOW_PAGES);
         while out.pop().is_some() {}
     }
-    assert_eq!(chat.thread.lines.rows.len(), crate::pages::chat::LINES);
-    assert!(chat.offers_older());
-    let mut serial = SERIAL;
-    chat.act(&fixtures::env(&limits), &client, Act::Older, &mut serial, &mut out);
-    let Some(Request::Client(Event::Read { read: Readable::Jig(c::Read::Activity { before: Some(_), .. }), .. })) =
-        out.pop()
-    else {
-        panic!("Older reads the preceding page");
-    };
-    window_page(&mut chat, &client, &mut out, 8, 10);
-    assert!(out.is_empty());
-    assert!(chat.offers_older());
+    assert_eq!(chat.thread.lines.rows.len(), WINDOW_PAGES * WINDOW_PAGE_ROWS);
 }
 
 #[test]
@@ -1222,6 +1212,7 @@ fn leaving_a_chat_drops_its_activity_retry() {
 fn a_chats_transient_older_read_keeps_its_cursor() {
     let mut f = pending_activity();
     window_page(&mut f.chat, &f.client, &mut f.out, 0, 2);
+    chat_act(&mut f.chat, &f.client, Act::Older, &mut f.out);
     let asked = f.out.pop().expect("older read");
     let Request::Client(Event::Read { read: Readable::Jig(c::Read::Activity { before: Some(_), .. }), .. }) = &asked
     else {
@@ -1742,6 +1733,9 @@ fn accepted_proposal(key: c::ProposalKey, at: skein_lib::Wall) -> jig_client::Re
     jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
         key: c::ObjectKey::Proposal(key),
         value: c::EndedValue::Proposal(c::ProposalHistory {
+            reason: c::DocumentText::complete(
+                c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+            ),
             action: c::RetainedAction::Batch(skein_lib::List::with_capacity(0)),
             number: key.number,
             proposer: match key.proposer {
@@ -1993,27 +1987,205 @@ fn a_page_of_working_notes_does_not_hide_a_later_document() {
     assert!(f.out.is_empty());
 }
 
-#[test]
-fn latest_reads_the_newer_window_cursor_once() {
-    let limits = fixtures::limits();
+// Ten pages of two short lines exceed a four-line byte window.
+const WINDOW_PAGES: u32 = 10;
+const WINDOW_PAGE_ROWS: u32 = 2;
+const WINDOW_BYTES: u64 = 4 * 64;
+fn reading_chat(limits: &crate::Limits) -> (Chat, jig_client::Client, Queue<Request>) {
     let client = jig_client::Client::unlinked(&limits.client, fixtures::SEED).unwrap();
     let mut out = Queue::with_capacity(OUTPUTS);
-    let mut chat = Chat::new(f::TASK, crate::pages::chat::document::Mode::Chat, f::FIRST, &limits, &mut out);
+    let chat = Chat::new(f::TASK, crate::pages::chat::document::Mode::Chat, f::FIRST, limits, &mut out);
     while out.pop().is_some() {}
-    chat.thread.reading = None;
-    let cursor = c::Cursor::new(b"newer".as_slice().into(), 5).unwrap();
-    chat.thread.lines.edges.before = jig_client::thread::window::Edge::More(cursor.clone());
+    (chat, client, out)
+}
+fn activity_answer(page: c::ActivityPage) -> jig_client::Readout {
+    jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(page))))
+}
+fn empty_activity() -> c::ActivityPage {
+    c::ActivityPage {
+        rows: skein_lib::List::with_capacity(0),
+        before: Some(c::Cursor::new(Box::from(*b"older"), 5).unwrap()),
+        after: None,
+        cut: false,
+    }
+}
+fn chat_act(chat: &mut Chat, client: &jig_client::Client, act: Act, out: &mut Queue<Request>) {
+    chat.act(&fixtures::env(&fixtures::limits()), client, act, &mut { SERIAL }, out);
+}
+#[test]
+fn newer_is_read_on_a_chats_page() {
+    let (mut pages, client) = chat_pages();
+    let handle = pages.chat().unwrap().activity;
+    let mut page = window_activity(0, WINDOW_PAGES);
+    page.after = empty_activity().before;
+    chat_told(&mut pages, &client, Told::Page { handle, page: activity_answer(page) });
+    let mut out = Queue::with_capacity(OUTPUTS);
+    for _ in [false, true] {
+        crate::pages::step(
+            &mut pages,
+            &fixtures::env(&fixtures::limits()),
+            &client,
+            crate::pages::Event::Act { act: Act::Newer },
+            &mut out,
+        );
+    }
+    assert_eq!(
+        out.pop(),
+        Some(Request::Client(Event::Read {
+            handle,
+            read: Readable::Jig(c::Read::ActivityBeside {
+                task: f::TASK,
+                position: u64::from(WINDOW_PAGES * WINDOW_PAGE_ROWS),
+                side: c::Side::Later,
+            }),
+        }))
+    );
+    assert!(out.is_empty(), "an outstanding read is not duplicated");
+}
+#[test]
+fn the_end_comes_back_after_enough_older() {
+    use jig_client::thread::window::End;
+    let mut limits = fixtures::limits();
+    limits.client.domain.document_bytes = WINDOW_BYTES;
+    let (mut chat, client, mut out) = reading_chat(&limits);
     let mut serial = SERIAL;
-    chat.act(&fixtures::env(&limits), &client, Act::Latest, &mut serial, &mut out);
+    for page in 0..WINDOW_PAGES {
+        if page > 0 {
+            chat.act(&fixtures::env(&limits), &client, Act::Older, &mut serial, &mut out);
+            assert!(out.pop().is_some(), "older page {page} is read");
+        }
+        window_page(&mut chat, &client, &mut out, page, WINDOW_PAGES);
+        while out.pop().is_some() {}
+    }
+    assert!(!chat.thread.lines.edges.reaches(End::Before), "older reads let the newest lines go");
+    for page in (0..WINDOW_PAGES - 1).rev() {
+        let position = chat.thread.lines.rows.get(0).unwrap().source.position;
+        chat.act(&fixtures::env(&limits), &client, Act::Newer, &mut serial, &mut out);
+        assert_eq!(
+            out.pop(),
+            Some(Request::Client(Event::Read {
+                handle: chat.activity,
+                read: Readable::Jig(c::Read::ActivityBeside { task: f::TASK, position, side: c::Side::Later }),
+            }))
+        );
+        let mut answer = window_activity(page, WINDOW_PAGES);
+        answer.after = if page == 0 { None } else { empty_activity().before };
+        chat.told(Time::ZERO, &client, Told::Page { handle: chat.activity, page: activity_answer(answer) }, &mut out);
+        assert!(out.is_empty());
+    }
+    assert!(chat.thread.lines.edges.reaches(End::Before));
+    assert_eq!(chat.thread.lines.rows.get(0).unwrap().source.position, u64::from(WINDOW_PAGES * WINDOW_PAGE_ROWS));
+}
+#[test]
+fn latest_and_sending_go_to_the_end_and_read_it_where_it_went() {
+    use jig_client::thread::window::Edge;
+    for (act, sends, second_end) in [(Act::Latest, 0_u32, 2), (Act::Send, 1, 1)] {
+        for (edge, reads) in [(Edge::Dropped, true), (Edge::End, false)] {
+            let mut f = send_ready(b"Next", c::Admission::Allowed);
+            f.chat.thread.lines.edges.before = edge;
+            chat_act(&mut f.chat, &f.client, act.clone(), &mut f.out);
+            assert_eq!(f.chat.to_end(), 1, "{act:?} requests the end");
+            let mut read_count = 0;
+            let mut send_count = 0;
+            while let Some(request) = f.out.pop() {
+                match request {
+                    Request::Client(Event::Read { handle, read }) => {
+                        assert_eq!(handle, f.chat.activity);
+                        assert_eq!(read, Readable::Jig(c::Read::Activity { task: f::TASK, before: None }));
+                        read_count += 1;
+                    }
+                    Request::Client(Event::Send { .. }) => send_count += 1,
+                    other @ (Request::Client(_)
+                    | Request::Show { .. }
+                    | Request::Replace { .. }
+                    | Request::OpenTab { .. }) => {
+                        panic!("unexpected {other:?}")
+                    }
+                }
+            }
+            assert_eq!(read_count, u32::from(reads));
+            assert_eq!(send_count, sends);
+            f.chat.words = Box::from(*b"Again");
+            chat_act(&mut f.chat, &f.client, act.clone(), &mut f.out);
+            assert_eq!(f.chat.to_end(), second_end, "{act:?}: a press requests the end; a duplicate send stays");
+            assert!(f.out.is_empty(), "an outstanding read or send is not duplicated");
+        }
+    }
+}
+#[test]
+fn an_empty_page_with_more_reads_on() {
+    let (mut chat, client, mut out) = reading_chat(&fixtures::limits());
+    let older = empty_activity().before;
+    chat.told(
+        Time::ZERO,
+        &client,
+        Told::Page { handle: chat.activity, page: activity_answer(empty_activity()) },
+        &mut out,
+    );
     assert_eq!(
         out.pop(),
         Some(Request::Client(Event::Read {
             handle: chat.activity,
-            read: Readable::Jig(c::Read::Activity { task: f::TASK, before: Some(cursor) }),
+            read: Readable::Jig(c::Read::Activity { task: f::TASK, before: older }),
         }))
     );
-    chat.act(&fixtures::env(&limits), &client, Act::Latest, &mut serial, &mut out);
-    assert!(out.is_empty(), "an outstanding read is not duplicated");
+    assert!(out.is_empty());
+}
+#[test]
+fn a_failed_older_keeps_the_page_and_can_be_retried() {
+    use jig_client::thread::window::End;
+    let (mut chat, client, mut out) = reading_chat(&fixtures::limits());
+    window_page(&mut chat, &client, &mut out, 0, WINDOW_PAGES);
+    while out.pop().is_some() {}
+    chat_act(&mut chat, &client, Act::Older, &mut out);
+    let read = out.pop().expect("older read");
+    let rows = chat.thread.lines.rows.clone();
+    let edges = chat.thread.lines.edges.clone();
+    chat.words = Box::from(*b"Keep these words");
+    chat.mode = crate::pages::chat::document::Mode::Split;
+    chat.shown = Some(1);
+    chat.told(
+        Time::ZERO,
+        &client,
+        Told::Page { handle: chat.activity, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)) },
+        &mut out,
+    );
+    assert_eq!(chat.thread.read_failed, Some(End::After));
+    assert_eq!(chat.thread.lines.rows, rows);
+    assert_eq!(chat.thread.lines.edges, edges);
+    assert_eq!(chat.words.as_ref(), b"Keep these words");
+    assert_eq!(chat.mode, crate::pages::chat::document::Mode::Split);
+    assert_eq!(chat.shown, Some(1));
+    assert_eq!(chat.to_end(), 0);
+    assert!(out.is_empty());
+    chat_act(&mut chat, &client, Act::Older, &mut out);
+    assert_eq!(out.pop(), Some(read));
+    assert_eq!(chat.thread.read_failed, None);
+}
+
+#[test]
+fn a_send_that_sends_nothing_leaves_the_page_at_its_place() {
+    use jig_client::thread::window::Edge;
+    for (words, admission) in
+        [(b"".as_slice(), c::Admission::Allowed), (b"Next".as_slice(), c::Admission::Refused(c::Refusal::NotOffered))]
+    {
+        let mut f = send_ready(words, admission);
+        f.chat.thread.lines.edges.before = Edge::Dropped;
+        chat_act(&mut f.chat, &f.client, Act::Send, &mut f.out);
+        assert_eq!(f.chat.to_end(), 0);
+        assert_eq!(f.chat.words.as_ref(), words);
+        assert!(f.out.is_empty());
+    }
+}
+
+fn send_ready(words: &[u8], admission: c::Admission) -> f::Fixture {
+    let mut f = f::with_delegate();
+    let mut task = f::task();
+    task.acts = fixtures::acts::offered(c::ActKind::Message, admission);
+    f.chat.final_task = Some(Box::new(task));
+    f.chat.thread.reading = None;
+    f.chat.words = words.into();
+    f
 }
 
 // client/README.md, 3.5: the person's placed stop and its independently named revision.

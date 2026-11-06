@@ -177,7 +177,7 @@ fn edges(b: &mut Builder, state: &Thread, words: &Words, bindings: &mut JigBindi
         (&state.lines.edges.before, End::After, JigPhrase::ReadLater),
     ] {
         match edge {
-            Edge::End => words.text(
+            Edge::End | Edge::Dropped => words.text(
                 b,
                 match end {
                     End::Before => JigPhrase::WindowStart,

@@ -24,6 +24,15 @@ pub enum Act {
     Toggle,
     /// Bytes of the drawing's owner, reported by its drawing code in a shell.
     Drawing { data: Box<[u8]> },
+    /// An edge of a bound log has come near the person's view.
+    Near { edge: LogEdge },
+}
+
+/// An edge of a log (ui.md, section 6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum LogEdge {
+    Head,
+    Foot,
 }
 
 /// An act resolved to the owner that decodes it into a typed domain action.
@@ -40,19 +49,23 @@ pub fn takes(role: Role, submits_on_enter: bool, act: &Act) -> bool {
         Role::TextField | Role::TextArea => match act {
             Act::Input { .. } => true,
             Act::Submit => submits_on_enter,
-            Act::Press | Act::Toggle | Act::Drawing { .. } => false,
+            Act::Press | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => false,
         },
         Role::Check | Role::Choice => match act {
             Act::Toggle => true,
-            Act::Press | Act::Input { .. } | Act::Submit | Act::Drawing { .. } => false,
+            Act::Press | Act::Input { .. } | Act::Submit | Act::Drawing { .. } | Act::Near { .. } => false,
         },
         Role::Drawing => match act {
             Act::Drawing { .. } => true,
-            Act::Press | Act::Input { .. } | Act::Submit | Act::Toggle => false,
+            Act::Press | Act::Input { .. } | Act::Submit | Act::Toggle | Act::Near { .. } => false,
         },
         Role::Button | Role::Link | Role::Tab | Role::MenuItem | Role::Option => match act {
             Act::Press => true,
-            Act::Input { .. } | Act::Submit | Act::Toggle | Act::Drawing { .. } => false,
+            Act::Input { .. } | Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => false,
+        },
+        Role::Log => match act {
+            Act::Near { .. } => true,
+            Act::Press | Act::Input { .. } | Act::Submit | Act::Toggle | Act::Drawing { .. } => false,
         },
         Role::Page
         | Role::Banner
@@ -80,7 +93,6 @@ pub fn takes(role: Role, submits_on_enter: bool, act: &Act) -> bool {
         | Role::Dialog
         | Role::Status
         | Role::Alert
-        | Role::Log
         | Role::Tree
         | Role::TreeItem
         | Role::Tabs

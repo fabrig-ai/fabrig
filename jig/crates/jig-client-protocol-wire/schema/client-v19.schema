@@ -458,6 +458,8 @@ record ReadResult { task: u64 }
 record ReadEnded { task: u64 after: option Cursor }
 record ReadHistory { task: u64 subtree: bool after: option Cursor }
 record ReadActivity { task: u64 before: option Cursor }
+enum ActivitySide { earlier, later }
+record ReadActivityBeside { task: u64 position: u64 side: ActivitySide }
 record ReadInbox { group: InboxReadGroup project: option u32 kind: option InboxGroup goal: option u64 after: option Cursor }
 record ReadSpend { project: u32 after: option Cursor }
 record ReadProject { project: u32 }

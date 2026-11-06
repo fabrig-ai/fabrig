@@ -45,6 +45,10 @@ pub fn print(out: &Path) -> Result<(), Refusal> {
         stylesheets.push(PathBuf::from(path));
     }
     let inputs = skein_ui_bundle::Inputs {
+        // Prints are opened as files, so no compressed form is read.
+        gzip: false,
+        title: None,
+        placeholder: None,
         name: "temper_client_shell_web".to_owned(),
         prefix: "/bundle/".to_owned(),
         stylesheets,

@@ -1,6 +1,6 @@
 # Testing hearth: status
 
-2026-11-06. Where hearth's code lags or departs from [testing.md](testing.md).
+2026-11-06, 16:33 UTC. Where hearth's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 2.3: the M2 system world joining the builder and the real tree
   helper on one fake machine. 2.5, 2.6: the tree helper's protocol and simulated
@@ -44,6 +44,9 @@
   `systemd-container`'s nested subvolume. 9.3: build, fetch and layer costs
   checked against that machine's counts and the real tier. 10: these M2
   additions; the builder's domain tests use scripted layer operations.
+- **Not yet:** 9.1: worlds repeat per seed
+  what a seed doesn't change, as `rendered_keys` does in
+  `hearth/tests/builder/tests/suite/domain.rs`.
 - **Departs:** 5.5, 9.2: the `conformance` profile is `conformance-hearth` and
   also runs `recorded_*`, and there is no `measure` profile, because the
   root's tier profiles are `<tier>-<tree>` (`tools/tiers/design.md`, 1).
@@ -53,14 +56,21 @@
 - **Departs:** 9.1: no global timeout holds hearth's suites alone, because
   the root has one `default` and one `fuzzy` profile, whose 150 s and 600 s
   sum each tree's figures, hearth's 30 s and 120 s among them.
-- **Departs:** 9.1: the focused suite is over its 30 CPU s on the queue's record,
-  the figure the budget reads, with test builds unoptimized, as
-  `skein/docs/foundation/testing-strategy.md`, 8 has them. That record's last figure
-  with builds unoptimized is 31.7 CPU s over 2189 tests, at 08:56 UTC on 2026-11-06,
-  before scratch repositories' git setup saved about 3% of a builder's figure. The
-  repairs of 11 aren't made. Fuzzy reads 78.6 CPU s on the same record, the large
-  render about 15 of it. The fuzzy budget's basis and the render world's selection on
-  every change await the user's ruling (11). The causes of suite-cost
-  variation, the suite's CPU by function, and how much of the large render's
-  CPU lies in the harness or production code remain unknown, because no
-  measurement isolates them and no profile of the suite has been taken.
+- **Departs:** 9.1: outside the queue, all 34 hearth workspace packages with
+  `NEXTEST_DOUBLE_SPAWN=0` and unoptimized test builds measure each test's user
+  plus system CPU, waited and reaped descendants included, excluding compilation,
+  listing and nextest (`tools/tiers/design.md`, 7.3). The focused suite reads
+  23.767613 and 23.143157 CPU s over 2193 tests; the lower figure has 19.110414
+  user s and 4.032743 system s. Its families are builder 4.938397 (106 tests),
+  tree 6.606667 (55), real git 3.610547 (184), render 2.609483 (109), and the
+  rest 5.378063 CPU s (1739). The budget reads the queue's figure, which for
+  this revision is unknown until it lands. Fuzzy reads 68.963035 CPU s
+  (68.569861 user, 0.393174 system), 19.271153 wall s over 60 tests, the large
+  render 4.114809 CPU s. All selected tests pass, without retries, starvation,
+  unobserved tests, leaks or incomplete accounting. The suite's CPU by function
+  has a sampled instruction profile; shared counting allocation is estimated
+  at 18.03% of the tree family's base CPU, 4.58% of the base focused suite,
+  with its current share unknown. The fuzzy budget's basis and the render
+  world's selection on every change await the user's ruling (11). The causes
+  of variation across machines and the large render's split between harness
+  and production code remain unknown.

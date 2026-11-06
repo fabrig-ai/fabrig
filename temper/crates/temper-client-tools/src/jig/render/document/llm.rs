@@ -135,25 +135,36 @@ fn text_model(value: &c::ModelEffort, out: &mut Text) {
         out.words(effort.bytes());
     }
 }
+/// Whether no account serves the next run (client/tools.md, 6.1).
+pub(super) fn no_account(task: &c::Task) -> bool {
+    let Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty }) = task.run_wait
+    else {
+        return false;
+    };
+    true
+}
 pub(super) fn text_wait(task: &c::Task, limits: &crate::jig::Limits, out: &mut Text) {
     let Some(value) = task.run_wait else { return };
-    out.put(b"\nnext run: ");
-    match value {
-        c::TaskRunWait::Credential => out.put(b"credential"),
-        c::TaskRunWait::Refused(value) => refused_text(value, out),
-        c::TaskRunWait::Host => out.put(b"host"),
-        c::TaskRunWait::Account { account, source, why } => {
-            out.put(b"account ");
-            optional_number(account, out);
-            out.put(b" source ");
-            optional_number(source, out);
-            out.put(b": ");
-            match why {
-                c::TaskWaitWhy::Refreshing => out.put(b"refreshing"),
-                c::TaskWaitWhy::Host => out.put(b"host"),
-                c::TaskWaitWhy::Empty => out.put(b"empty"),
-                c::TaskWaitWhy::Invalid(why) => out.put(account_why(why)),
-                c::TaskWaitWhy::Source(value) => source_text(value, out),
+    out.put(b"\nnext run:");
+    if !no_account(task) {
+        out.put(b" ");
+        match value {
+            c::TaskRunWait::Credential => out.put(b"credential"),
+            c::TaskRunWait::Refused(value) => refused_text(value, out),
+            c::TaskRunWait::Host => out.put(b"host"),
+            c::TaskRunWait::Account { account, source, why } => {
+                out.put(b"account ");
+                optional_number(account, out);
+                out.put(b" source ");
+                optional_number(source, out);
+                out.put(b": ");
+                match why {
+                    c::TaskWaitWhy::Refreshing => out.put(b"refreshing"),
+                    c::TaskWaitWhy::Host => out.put(b"host"),
+                    c::TaskWaitWhy::Empty => out.put(b"empty"),
+                    c::TaskWaitWhy::Invalid(why) => out.put(account_why(why)),
+                    c::TaskWaitWhy::Source(value) => source_text(value, out),
+                }
             }
         }
     }

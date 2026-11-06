@@ -21,6 +21,14 @@ pub(crate) fn read(value: w::Read) -> Option<reads::Read> {
         }
         w::Read::Turn(value) => reads::Read::Turn { task: value.task(), attempt: value.attempt(), turn: value.turn() },
         w::Read::TaskText(value) => read_task_text(value),
+        w::Read::ActivityBeside(value) => reads::Read::ActivityBeside {
+            task: value.task(),
+            position: value.position(),
+            side: match value.side() {
+                w::ActivitySide::Earlier => reads::Side::Earlier,
+                w::ActivitySide::Later => reads::Side::Later,
+            },
+        },
         w::Read::Me => reads::Read::Frame,
         w::Read::Task(value) => reads::Read::Task { task: value.task() },
         w::Read::Proposal(value) => reads::Read::Proposal {

@@ -283,6 +283,10 @@ impl Process {
 #[derive(Debug)]
 pub struct Machine {
     nodes: BTreeMap<Node, Inode>,
+    /// The bytes all nodes hold, which `room` reads. Outside `Hash`: it follows from `nodes`.
+    used: u64,
+    /// The nodes created, changed or removed since `call` began. Outside `Hash`: `changed` holds the result.
+    changing: Vec<Node>,
     handles: BTreeMap<Handle, Open>,
     processes: BTreeMap<Pid, Process>,
     rng: Rng,
@@ -299,6 +303,8 @@ impl Machine {
     pub fn new(seed: u64, sizes: Sizes) -> Self {
         let mut machine = Self {
             nodes: BTreeMap::new(),
+            used: 0,
+            changing: Vec::new(),
             handles: BTreeMap::new(),
             processes: BTreeMap::new(),
             rng: Rng::new(seed),
@@ -358,6 +364,14 @@ impl Machine {
     #[must_use]
     pub fn contents(&self, path: &[u8]) -> Option<&[u8]> {
         Some(&self.inode(self.laid(path)?).bytes)
+    }
+    #[cfg(test)]
+    pub(crate) fn bookkeeping(&self, pid: Pid) -> (u64, BTreeMap<Node, Facts>, BTreeSet<Node>) {
+        (
+            self.used,
+            self.nodes.iter().map(|(node, inode)| (*node, inode.facts)).collect(),
+            self.processes.get(&pid).expect("a process it started").changed.clone(),
+        )
     }
 }
 

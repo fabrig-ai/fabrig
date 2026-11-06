@@ -7,6 +7,309 @@ use jig_client::{contract as c, thread::Thread};
 use skein_lib::{List, Wall};
 use skein_ui::Role;
 
+fn reading_tree(thread: &Thread, projected: bool) -> (skein_ui::Tree, crate::frame::Bindings) {
+    let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
+    let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
+    crate::pages::chat::conversation(
+        &mut b,
+        thread,
+        &fixtures::browser_words(),
+        (LINES, TEXT),
+        crate::pages::chat::Speakers { person: None, requester: false },
+        timed_drawing(projected),
+        &mut bindings,
+    );
+    (b.finish(), bindings)
+}
+
+fn reading_thread() -> Thread {
+    Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT })
+}
+
+#[test]
+fn no_page_offers_older() {
+    let view = fixtures::page_view(&chat_with_history());
+    assert!(fixtures::find(view.tree(), Role::Button, b"Older").is_none());
+}
+
+#[test]
+fn the_log_is_bound_while_it_can_read_on() {
+    use jig_client::thread::window::Edge;
+    for (after, before, bound) in [
+        (Edge::End, Edge::End, false),
+        (Edge::Dropped, Edge::End, true),
+        (Edge::End, Edge::Dropped, true),
+        (Edge::Dropped, Edge::Dropped, true),
+    ] {
+        let mut thread = reading_thread();
+        thread.lines.edges.after = after;
+        thread.lines.edges.before = before;
+        for projected in [false, true] {
+            let (tree, _) = reading_tree(&thread, projected);
+            assert_eq!(tree.nodes()[0].binding.is_some(), bound);
+        }
+    }
+}
+
+#[test]
+fn near_decodes_to_older_and_newer() {
+    use skein_ui::{Act, LogEdge};
+    use temper_client_domain::{Action, pages::Act as PageAct};
+    let mut thread = reading_thread();
+    thread.lines.edges.after = jig_client::thread::window::Edge::Dropped;
+    for projected in [false, true] {
+        let (tree, bindings) = reading_tree(&thread, projected);
+        let binding = tree.nodes()[0].binding.expect("reading binding");
+        for (edge, meaning) in [(LogEdge::Head, PageAct::Older), (LogEdge::Foot, PageAct::Newer)] {
+            assert_eq!(bindings.decode(binding.token, Act::Near { edge }), Some(Action::Pages(meaning)));
+        }
+        assert!(bindings.decode(binding.token, Act::Press).is_none());
+    }
+}
+
+#[test]
+fn a_log_continues_while_the_window_let_its_end_go() {
+    use jig_client::thread::window::Edge;
+    for (before, continues) in [(Edge::End, false), (Edge::Dropped, true)] {
+        let mut thread = reading_thread();
+        thread.lines.edges.before = before;
+        for projected in [false, true] {
+            let (tree, _) = reading_tree(&thread, projected);
+            assert_eq!(tree.nodes()[0].states.as_slice().contains(&skein_ui::State::Continues), continues);
+        }
+    }
+}
+
+#[test]
+fn a_log_is_busy_while_a_read_is_out_or_failed() {
+    use jig_client::thread::{Reading, window::End};
+    for (reading, failed, busy) in [
+        (None, None, false),
+        (Some(Reading::Older), None, true),
+        (Some(Reading::Newer), None, true),
+        (Some(Reading::Latest { known: 0 }), None, true),
+        (None, Some(End::After), true),
+        (None, Some(End::Before), true),
+    ] {
+        let mut thread = reading_thread();
+        thread.reading = reading;
+        thread.read_failed = failed;
+        for projected in [false, true] {
+            let (tree, _) = reading_tree(&thread, projected);
+            assert_eq!(tree.nodes()[0].states.as_slice().contains(&skein_ui::State::Busy), busy);
+        }
+    }
+}
+
+#[test]
+fn sending_moves_the_logs_end_request() {
+    use temper_client_domain::{Action, Event, pages::Act};
+    let mut root = messaging_root();
+    for (act, expected) in [
+        (None, 0),
+        (Some(Act::MessageWords { words: b"Hello".as_slice().into() }), 0),
+        (Some(Act::Send), 1),
+        (Some(Act::Latest), 2),
+    ] {
+        if let Some(act) = act {
+            fixtures::root_event(&mut root, Event::Act { action: Action::Pages(act) });
+        }
+        let view = fixtures::browser_page_view(&root);
+        let log = named_position(view.tree().nodes(), Role::Log, None).unwrap();
+        assert_eq!(view.tree().nodes()[log].end_request, Some(expected));
+    }
+    let (tree, _) = reading_tree(&reading_thread(), false);
+    assert_eq!(tree.nodes()[0].end_request, None);
+}
+
+fn page_words(positions: &[u64]) -> c::ActivityPage {
+    let mut rows = List::with_capacity(u32::try_from(positions.len()).unwrap());
+    for position in positions {
+        rows.push(super::documents::line(
+            *position,
+            Wall::EPOCH,
+            c::Activity::Words {
+                message: *position,
+                by: c::Requester::Person(PARTY),
+                kind: c::MessageKind::Words,
+                words: fixtures::first_run::text(if *position == 1 { b"Earlier words" } else { b"Retained words" }),
+            },
+        ))
+        .unwrap();
+    }
+    c::ActivityPage { rows, before: None, after: None, cut: false }
+}
+
+#[test]
+fn an_earlier_page_only_inserts() {
+    use jig_client::thread::Reading;
+    // Retain either the same day's lines or the next day's: both must stay put.
+    const NEXT_DAY: Wall = Wall::from_nanos(86_400_000_000_000);
+    for retained_day in [Wall::EPOCH, NEXT_DAY] {
+        let limits = fixtures::tree_limits();
+        let mut patches = skein_lib::Queue::with_capacity(limits.patches);
+        let mut next = 0;
+        let mut thread = reading_thread();
+        thread.reading = Some(Reading::Latest { known: 0 });
+        let mut page = page_words(&[2, 3]);
+        for line in page.rows.iter_mut() {
+            line.source.at = retained_day;
+        }
+        thread.page(page);
+        let mut before = timed_tree(&thread, timed_drawing(true), Some(PARTY), 0).0;
+        skein_ui::diff(&skein_ui::Tree::new(limits.nodes), &mut before, &limits, &mut next, &mut patches);
+        while patches.pop().is_some() {}
+        thread.reading = Some(Reading::Older);
+        thread.page(page_words(&[1]));
+        let mut after = timed_tree(&thread, timed_drawing(true), Some(PARTY), 0).0;
+        skein_ui::diff(&before, &mut after, &limits, &mut next, &mut patches);
+        let mut inserts = 0_u32;
+        while let Some(patch) = patches.pop() {
+            match patch {
+                skein_ui::Patch::Insert { .. } => inserts = inserts.checked_add(1).unwrap(),
+                skein_ui::Patch::Text { .. } | skein_ui::Patch::Remove { .. } => {
+                    panic!("retained line changed: {patch:?}")
+                }
+                skein_ui::Patch::Move { .. } | skein_ui::Patch::Attribute { .. } | skein_ui::Patch::Value { .. } => {}
+            }
+        }
+        assert!(inserts > 0);
+    }
+}
+
+#[test]
+fn reading_past_the_bound_only_removes_released_lines() {
+    use jig_client::thread::Reading;
+    let limits = fixtures::tree_limits();
+    let mut patches = skein_lib::Queue::with_capacity(limits.patches);
+    let mut next = 0;
+    let page = page_words(&[2, 3]);
+    // Two retained messages exactly fill the byte window.
+    let bytes = page.rows.as_slice()[0].weight().checked_mul(2).unwrap();
+    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { bytes, lines: LINES, text: TEXT, live: TEXT });
+    thread.reading = Some(Reading::Latest { known: 0 });
+    thread.page(page);
+    let mut before = tree(&thread);
+    skein_ui::diff(&skein_ui::Tree::new(limits.nodes), &mut before, &limits, &mut next, &mut patches);
+    while patches.pop().is_some() {}
+    let mut released = None;
+    for node in before.nodes() {
+        if node.styles.as_slice().contains(&crate::look::TURN) && node.key.is_some() {
+            released = Some(node.id);
+        }
+    }
+    let released = released.expect("last retained line");
+    thread.reading = Some(Reading::Older);
+    thread.page(page_words(&[1]));
+    let mut after = tree(&thread);
+    skein_ui::diff(&before, &mut after, &limits, &mut next, &mut patches);
+    let mut removed = List::with_capacity(limits.nodes);
+    while let Some(patch) = patches.pop() {
+        match patch {
+            skein_ui::Patch::Remove { node } => removed.push(node).unwrap(),
+            skein_ui::Patch::Text { .. } => panic!("retained line rewritten: {patch:?}"),
+            skein_ui::Patch::Insert { .. }
+            | skein_ui::Patch::Move { .. }
+            | skein_ui::Patch::Attribute { .. }
+            | skein_ui::Patch::Value { .. } => {}
+        }
+    }
+    assert_eq!(removed.as_slice(), [released]);
+}
+
+#[test]
+fn a_run_of_calls_takes_its_first_turns_key() {
+    use fixtures::first_run as run;
+    let mut thread = reading_thread();
+    let mut rows = List::with_capacity(2);
+    for number in [TURN, TURN + 1] {
+        rows.push(run::turn(
+            u64::from(number),
+            ATTEMPT,
+            number,
+            &[run::message(c::Speaker::Assistant, &[run::call(u64::from(number), b"read_docs", b"{}", None)])],
+            512,
+        ))
+        .unwrap();
+    }
+    thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+    thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
+    let drawn = tree(&thread);
+    let mut turns = List::with_capacity(drawn.len());
+    for node in drawn.nodes() {
+        if node.styles.as_slice().contains(&crate::look::TURN) {
+            turns.push(node).unwrap();
+        }
+    }
+    assert_eq!(turns.len(), 1);
+    assert_eq!(
+        turns.as_slice()[0].key,
+        Some(skein_ui::Key { owner: crate::frame::owner(), kind: 40, a: ATTEMPT, b: u64::from(TURN) })
+    );
+}
+
+#[test]
+fn conversation_children_after_the_head_have_distinct_keys() {
+    for drawn in [
+        &tree(&structured_thread()),
+        &timed_tree(&structured_thread(), timed_drawing(true), Some(PARTY), 0).0,
+        fixtures::browser_page_view(&proposal_root()).tree(),
+        fixtures::browser_page_view(&messaging_root()).tree(),
+    ] {
+        let log = named_position(drawn.nodes(), Role::Log, None).unwrap();
+        let column = style_position(drawn.nodes(), crate::look::THREAD_INNER).unwrap_or(log);
+        let end = column + usize::try_from(drawn.nodes()[column].size).unwrap();
+        let mut child = column + 1;
+        let mut started = false;
+        let mut keys = List::with_capacity(drawn.len());
+        while child < end {
+            let node = &drawn.nodes()[child];
+            started |= node.styles.as_slice().contains(&crate::look::TURN);
+            if started {
+                let key = node.key.expect("child after the head is keyed");
+                assert!(!keys.as_slice().contains(&key), "duplicate sibling key {key:?}");
+                keys.push(key).unwrap();
+            }
+            child += usize::try_from(node.size).unwrap();
+        }
+    }
+}
+
+#[test]
+fn a_provisional_turn_and_its_committed_one_share_a_key() {
+    let live = tree(&provisional());
+    let committed = tree(&conversation_turn(
+        &[fixtures::first_run::message(c::Speaker::Assistant, &[c::Block::Text(fixtures::first_run::text(b"Hello"))])],
+        false,
+    ));
+    let key = live.nodes()[styled(&live, crate::look::TURN)].key.expect("provisional key");
+    assert_eq!(committed.nodes()[styled(&committed, crate::look::TURN)].key, Some(key));
+}
+
+#[test]
+fn a_failed_read_says_so_at_the_head() {
+    use jig_client::thread::window::{Edge, End};
+    for (after, failed, says) in [
+        (Edge::Dropped, Some(End::After), true),
+        (Edge::Dropped, Some(End::Before), false),
+        (Edge::End, Some(End::After), false),
+    ] {
+        let mut thread = reading_thread();
+        thread.lines.edges.after = after;
+        thread.read_failed = failed;
+        let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
+        crate::pages::chat::older(&mut builder, &thread, &fixtures::browser_words());
+        let drawn = builder.finish();
+        let status = fixtures::find(&drawn, Role::Status, b"Loading earlier messages");
+        assert_eq!(status.is_some(), says);
+        if let Some(id) = status {
+            assert_eq!(drawn.find(id).unwrap().styles.as_slice(), [crate::look::THREAD_LOADING]);
+            let at = named_position(drawn.nodes(), Role::Status, Some(b"Loading earlier messages")).unwrap();
+            assert_eq!(fixtures::node_text(&drawn, at).as_ref(), b"Couldn't load earlier messages");
+        }
+    }
+}
+
 fn answer_tree(thread: &Thread, words: &crate::words::Words, projected: bool) -> skein_ui::Tree {
     let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
     crate::pages::chat::conversation(
@@ -841,9 +1144,16 @@ fn a_chats_card_carries_the_card_token() {
 #[test]
 fn each_turn_carries_the_turn_token() {
     let tree = tree(&provisional());
-    let turns = fixtures::styles(&tree, Role::Region);
-    assert_eq!(turns.len(), 1);
-    assert_eq!(turns.as_ref(), [Box::from([crate::look::TURN])]);
+    let turn = styled(&tree, crate::look::TURN);
+    assert_eq!(tree.nodes()[turn + 1].role, Role::Region);
+    let turns = fixtures::styles(&tree, Role::Slot);
+    let mut count = 0_u32;
+    for styles in &turns {
+        if styles.as_ref() == [crate::look::TURN] {
+            count = count.checked_add(1).unwrap();
+        }
+    }
+    assert_eq!(count, 1);
 }
 
 fn style_position(nodes: &[skein_ui::Node], token: skein_ui::Style) -> Option<usize> {
@@ -1061,7 +1371,6 @@ pub(super) fn structured_thread() -> Thread {
         before: Some(c::Cursor::new(Box::from(*b"older"), TEXT).expect("cursor")),
         cut: true,
     });
-    thread.left = 1;
     thread
 }
 #[test]
@@ -1219,12 +1528,12 @@ fn history() -> (temper_client_domain::Domain, skein_lib::Queue<temper_client_do
     (root, out)
 }
 #[test]
-fn older_is_not_offered_while_the_window_is_filling() {
+fn reading_is_offered_after_the_first_page_with_more() {
     let view = fixtures::page_view(&chat_with_history());
     let nodes = subtree(view.tree(), styled(view.tree(), crate::look::THREAD));
     assert_eq!(nodes[0].role, Role::Log);
     assert!(nodes[1].styles.as_slice().contains(&crate::look::THREAD_INNER));
-    assert!(fixtures::find(view.tree(), Role::Button, b"Older").is_none());
+    assert!(nodes[0].binding.is_some());
 }
 fn answered_message(answer: c::Answer) -> temper_client_domain::Domain {
     use temper_client_domain::{Action, Event, Request, pages::Act};
@@ -2832,7 +3141,7 @@ fn provisional_text_replaces_working_dots_and_agent_task_logs_never_have_them() 
 
 fn full_window(dropped: bool) -> (temper_client_domain::Domain, temper_client_domain::Limits) {
     let mut limits = fixtures::domain_limits();
-    limits.client.domain.rows = temper_client_domain::pages::chat::LINES;
+    limits.client.domain.rows = LINES;
     let mut rows = List::with_capacity(limits.client.domain.rows);
     for position in 1..=limits.client.domain.rows {
         rows.push(crate::tests::documents::line(
@@ -2864,7 +3173,7 @@ fn full_window(dropped: bool) -> (temper_client_domain::Domain, temper_client_do
     (root, limits)
 }
 #[test]
-fn the_log_has_one_column_with_older_before_turns() {
+fn the_log_has_one_column_for_its_turns() {
     let (root, limits) = full_window(false);
     for words in [fixtures::words(), fixtures::browser_words()] {
         let browser = words.shell == crate::words::Shell::Browser;
@@ -2879,10 +3188,7 @@ fn the_log_has_one_column_with_older_before_turns() {
         assert_eq!(inner, log + 1);
         assert_eq!(tree.nodes()[log].size, tree.nodes()[inner].size + 1);
         let column = subtree(tree, inner);
-        let older = named_position(column, Role::Button, Some(b"Older")).unwrap();
-        assert!(column[older].styles.as_slice().contains(&crate::look::CHATS_MORE));
-        let message = named_position(column, Role::Paragraph, Some(b"A retained message")).unwrap();
-        assert!(older < message);
+        assert!(named_position(column, Role::Paragraph, Some(b"A retained message")).is_some());
     }
 }
 
@@ -2961,8 +3267,9 @@ fn a_full_window_of_dense_turn_markdown_fits_the_derived_bound() {
         let input = repeated_markdown(pattern, length);
         let mut thread = Thread::new(TASK, &temper_client_domain::pages::chat::thread_limits(&domain));
         thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
-        thread.page(full_turn_window(&domain, &input, temper_client_domain::pages::chat::LINES));
-        assert_eq!(thread.lines().len(), temper_client_domain::pages::chat::LINES);
+        let page = full_turn_window(&domain, &input, domain.client.domain.rows);
+        thread.page(page);
+        assert_eq!(thread.lines().len(), domain.client.domain.rows);
         let mut b = skein_ui::Builder::new(&bounds.tree);
         crate::pages::chat::conversation(
             &mut b,
@@ -3057,15 +3364,15 @@ fn latest_is_bound_only_where_the_window_let_the_end_go() {
 }
 
 #[test]
-fn the_message_stands_for_older_while_a_read_is_out() {
+fn the_head_says_when_an_earlier_read_is_out() {
     use jig_client::thread::{Reading, window::Edge};
-    for (reading, at_start, loading, button) in [
-        (None, false, false, true),
-        (Some(Reading::Older), false, true, false),
-        (Some(Reading::Newer), false, false, true),
-        (Some(Reading::Latest { known: 0 }), false, false, true),
-        (None, true, false, false),
-        (Some(Reading::Older), true, false, false),
+    for (reading, at_start, loading) in [
+        (None, false, false),
+        (Some(Reading::Older), false, true),
+        (Some(Reading::Newer), false, false),
+        (Some(Reading::Latest { known: 0 }), false, false),
+        (None, true, false),
+        (Some(Reading::Older), true, false),
     ] {
         let mut thread =
             Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
@@ -3073,33 +3380,28 @@ fn the_message_stands_for_older_while_a_read_is_out() {
         thread.lines.edges.after =
             if at_start { Edge::End } else { Edge::More(c::Cursor::new(b"older".as_slice().into(), TEXT).unwrap()) };
         let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
-        let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
-        crate::pages::chat::older(&mut b, &thread, true, &fixtures::browser_words(), &mut bindings);
+        crate::pages::chat::older(&mut b, &thread, &fixtures::browser_words());
         let tree = b.finish();
         let status = fixtures::find(&tree, Role::Status, b"Loading earlier messages");
         assert_eq!(status.is_some(), loading);
-        assert_eq!(fixtures::find(&tree, Role::Button, b"Older").is_some(), button);
+        assert!(fixtures::find(&tree, Role::Button, b"Older").is_none());
         if let Some(status) = status {
             let node = tree.find(status).unwrap();
             assert_eq!(node.styles.as_slice(), [crate::look::THREAD_LOADING]);
             assert_eq!(fixtures::text(&tree).as_ref(), "Loading earlier messages…".as_bytes());
         }
     }
-    let root = chat_with_history();
+    let mut root = chat_with_history();
+    fixtures::root_event(
+        &mut root,
+        temper_client_domain::Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Older),
+        },
+    );
     let view = fixtures::browser_page_view(&root);
     let nodes = view.tree().nodes();
     let inner = styled(view.tree(), crate::look::THREAD_INNER);
     assert_eq!(nodes[inner + 1].name.as_deref(), Some(b"Loading earlier messages".as_slice()));
-}
-
-#[test]
-fn no_line_is_drawn_for_lines_left() {
-    let mut thread =
-        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
-    thread.left = 7;
-    let drawn = answer_tree(&thread, &fixtures::words(), true);
-    assert_eq!(drawn.nodes().len(), 1, "only the empty log, no region for omitted lines");
-    assert_eq!(drawn.nodes()[0].role, Role::Log);
 }
 
 #[test]

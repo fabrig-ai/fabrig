@@ -1,6 +1,6 @@
 # The browser
 
-Provisional, 2026-10-05, revised 2026-10-26. temper's browser client: a
+Provisional, 2026-10-05, revised 2026-11-06. temper's browser client: a
 second shell of temper's client (`README.md`), beside the terminal, on
 skein's browser parts. What its pages do is the client's (`README.md`;
 `forge.md`). What temper draws is the source of truth, recorded and
@@ -185,7 +185,8 @@ replay says the same clocks (`README.md`, 5.12).
      name a bundle's directory in application.clients.bundle, and
      restart temper." (`../protocol/setup.md`, 8.2);
   3. a request other than `GET`: `405`;
-  4. `/bundle/<digest>/…`: the bundle's files, immutable; any other path
+  4. `/bundle/<digest>/…`: the bundle's files, immutable, each in the
+     form the request takes (skein's `ui-web.md`, 4.4); any other path
      under `/bundle/`: not found;
   5. `/robots.txt`, the bundle's one root file (skein's `ui-web.md`,
      3.3, step 5; jig's `protocol/browser.md`, section 12), disallowing
@@ -227,7 +228,12 @@ replay says the same clocks (`README.md`, 5.12).
   (`../protocol/configuration.md`, section 7), and refuses the start
   past them, or when it is no bundle (its page and its digest's
   directory), by one code for both: a directory's files read, or the
-  binary's, already in memory, copied (2.6). A new bundle is served
+  binary's, already in memory, copied (2.6). **Both forms stay whole in
+  memory,** a file and its `NAME.gz`: the service holds no inflater, and
+  a client not taking gzip is rare but is answered without one, a
+  `curl` among them. A `NAME.gz` with no `NAME` beside it refuses the
+  start, as no bundle does; a directory without its forms (built with
+  `--gzip off`) serves `NAME` alone. A new bundle is served
   after a restart; a tab on the old one is answered not found for its
   files, and a reload loads the new (skein's `ui-web.md`, 4.4). A page
   from the binary's own bundle always speaks its engine's records, so a
@@ -408,6 +414,32 @@ replay says the same clocks (`README.md`, 5.12).
   nodes the mockups style: the frame's banner, navigation and main; the
   cards; the conversation's turns; the composers. The view sets them
   (`README.md`, 5.1); the terminal prints none.
+- **The first paint, the placeholder's:** the shell's `loading.html` and
+  `loading.css`, given to skein's bundler (skein's `ui-web.md`, 4.3), so
+  that a person on a slow connection has something to read in a few
+  hundred bytes. The mark as inline paths, so that no font is fetched and
+  nothing swaps, centred at about 38% of the height; under it a 240 px
+  `progress`, as `temper-flow-meter` draws one, 4 px, ink over the
+  hairline, and one muted line; a phone keeps the 16 px gutter. The lines,
+  each in `loading.html`'s data attributes:
+  - for the first 250 ms, the paper alone, so a cached load never flashes;
+  - downloading: "2.8 of 11.5 MB" (what travels, so a gzipped module's
+    total is its compressed size), and "· about 35 s left" once 3 s of data
+    gives an estimate over 5 s;
+  - after 8 s, under it, "Your browser keeps this, so next time it opens
+    at once.";
+  - no byte for 15 s: "Waiting for the server…" in the figure's place;
+  - every byte in: "Starting…";
+  - failed: no bar, "temper didn't load", why ("The connection dropped at
+    4.8 of 11.5 MB.", "The server answered 404.", "The server didn't
+    answer.", "This browser has no WebAssembly.", "It didn't start."), and
+    "Try again", which reloads;
+  - scripts off: no bar, and `--noscript`'s words.
+
+  Handing over, a 200 ms fade once the client's first node and the
+  stylesheets are in; reduced motion, no fade and no moving bar. The tab's
+  title is "temper" throughout. The drawing is the look request
+  `bundle-loading`'s; a terminal has no bundle and no placeholder.
 - **The bundle's stylesheets:** skein's `skein-ui.css`, then
   `temper.css`, temper's look. It takes no rules from the
   mockups' terminal sheets (`terminal-chat.css` and `terminal-pages.css`
@@ -704,7 +736,16 @@ replay says the same clocks (`README.md`, 5.12).
   being written (`README.md`, 3.5) change in place;
   skein's page keeps focus, caret and scroll across it, and the
   conversation, a log, keeps its end in view while the person has not
-  scrolled away (skein's `ui-web.md`, section 7).
+  scrolled away (skein's `ui-web.md`, section 7). Where the window has
+  let its newest lines go, live text waits until the end is read again
+  (`README.md`, 5.15).
+- **Reading the conversation** (`README.md`, 5.15): the bound log's
+  head and foot ask for earlier and later lines as they near the view,
+  with no Older control. PgUp and PgDn scroll it from the composer too,
+  except while a menu or dialog is open. skein's page part measures and
+  restores the words' position when lines are read above, including in
+  a browser without `overflow-anchor`; Latest or sending on a chat
+  returns to its end, reading it again where the window let it go.
 
 ### 2.6 The bundle in the binary
 
@@ -716,7 +757,8 @@ without it.
 
 - **One file.** The binary holds the bundle: the shell's module, its
   glue, and the stylesheets and files skein's bundler puts beside them
-  (2.2, 2.5). Running it is the whole install: no directory beside it,
+  (2.2, 2.5), and their compressed forms (skein's `ui-web.md`, 4.2).
+  Running it is the whole install: no directory beside it,
   no `scripts/bundle.sh` step.
 - **A plain `cargo build` makes it.** `cargo build`, then
   `./target/debug/temper box`, serves the browser; so do `cargo build
@@ -742,8 +784,9 @@ without it.
   2. `build --locked --release -p skein-ui-bundle`: the bundler,
      always optimized, as skein's `ui-web.md`, 4.1 asks of a tool;
   3. the bundler, with `scripts/bundle.sh`'s inputs (the name, the
-     prefix `/bundle/`, `temper.css`, `task-pages.css`, the shell's
-     `files/` and the noscript words), into its `OUT_DIR`;
+     title, the prefix `/bundle/`, `temper.css`, `task-pages.css`, the
+     placeholder's `loading.html` and `loading.css`, the shell's `files/`
+     and the noscript words), into its `OUT_DIR`;
   4. the list of the bundle's files, written into `OUT_DIR` for the
      library's include.
   It has no build dependencies: the bundler is built by the nested
@@ -781,7 +824,8 @@ without it.
   the module is built from, temper's client crates and, when a local
   jig or skein is patched in, theirs); each of those packages'
   `Cargo.toml`, the workspace's `Cargo.toml` and `Cargo.lock`, which
-  pins the git dependencies; the shell's stylesheets and its `files/`;
+  pins the git dependencies; the shell's stylesheets, its placeholder and
+  its `files/`;
   and `TEMPER_BUNDLE`, by `cargo:rerun-if-env-changed`. The first run
   has no dep-info yet, and runs regardless. An edit elsewhere never
   runs the script, and a build that does not include `temper` (a
@@ -915,9 +959,10 @@ without it.
    checks the shell's wiring of the restart part, at the test address
    `/test/panic` at which the shell panics at start, as jig's reference
    shell has it (2.1).
-5. **Reading back:** scroll a chat's log up; Latest appears. Send new words
-   while reading back and the log stays away from its end. Press Latest;
-   the end returns and the pill goes (`README.md`, 3.5).
+5. **Reading back:** scroll a chat's log up; Latest appears. New words
+   arriving while reading back leave the view where it is. Press Latest
+   or send from the chat; the end returns, read again if the window let
+   it go, and the pill goes (`README.md`, 5.15).
 6. **jig's attack stories that need a browser,** from
    `jig-client-fake-person-browser`, against `temper serve`: a
    cross-site request from another port and from another host does
@@ -999,13 +1044,16 @@ real key in that restored form.
   sign-in's tab (4.2) can go to the fake issuer on plaintext
   loopback; the ordinary binary bundle never does (skein's `ui-web.md`,
   section 10). The tier names that bundle in its configuration, so it
-  runs alike over a binary built with or without its own (2.6).
+  runs alike over a binary built with or without its own (2.6). It holds
+  the compressed forms and Chromium takes gzip on loopback, so every
+  test loads the compressed module under temper's policy.
 - **The playground's test** (4.6, 12) runs on the built playground
   instead, `scripts/bundle.sh --playground` in its own profiles
   (`../playground.md`, 7), served as static files with their `headers`
   by the tier's own static server, which maps them as a site's host
   would; the tier reads the world's figures from the page's frame, and
   compresses the download's with the machine's `gzip` (`../playground.md`, 9).
+  That bundle has no compressed forms (`../playground.md`, 7).
 - **A cap: at most 12 tests, and 120 seconds** on the slowest of the
   machines that build temper (the user, 10-27, temper#15). Past it,
   stories that share a setup become one test of several steps before
@@ -1173,6 +1221,9 @@ Not in the tier, each in the lowest world that shows it:
 - **Served from the binary's bytes,** with no copy at start: a `Bundle`
   that borrows. Default: copied (2.6), until a bundle whose copy
   matters.
+- **A box still starting:** a link opened before serve is ready gets no
+  bytes until it is, so no placeholder either, and that wait stays the
+  browser's own (`../protocol/setup.md`, 7.1). Default: as it is.
 - **The embed's steps, skein's for every application:** the nested
   build, its directory, its environment and what reruns it are nothing
   of temper's. Default: temper's crate, until a second application
