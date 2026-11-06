@@ -935,11 +935,17 @@ fn heard_card(
         b.close();
     }
 }
-fn provisional(b: &mut Builder, message: &[u8], words: &Words) {
+// A browser's semantic region passes the flex layout through the keyed turn slot.
+fn message_open(b: &mut Builder, words: &Words) {
     b.open(Role::Region);
-    b.style(look::TURN);
+    if words.shell == Shell::Browser {
+        b.style(look::TURN);
+    }
     b.open(Role::Slot);
     b.style(look::MESSAGE);
+}
+fn provisional(b: &mut Builder, message: &[u8], words: &Words) {
+    message_open(b, words);
     b.style(look::BY_AGENT);
     b.open(Role::Slot);
     b.style(look::WHO);
@@ -1097,10 +1103,7 @@ fn words_message(
     words: &Words,
     clock: Option<&[u8]>,
 ) {
-    b.open(Role::Region);
-    b.style(look::TURN);
-    b.open(Role::Slot);
-    b.style(look::MESSAGE);
+    message_open(b, words);
     b.style(side);
     b.open(Role::Slot);
     b.style(look::WHO);
@@ -1136,10 +1139,7 @@ fn person_lines(
     words: &Words,
     clock: Option<&[u8]>,
 ) {
-    b.open(Role::Region);
-    b.style(look::TURN);
-    b.open(Role::Slot);
-    b.style(look::MESSAGE);
+    message_open(b, words);
     b.style(look::BY_PERSON);
     b.open(Role::Slot);
     b.style(look::WHO);
@@ -1267,10 +1267,7 @@ fn committed<'a>(
             b.style(look::TURN);
             match block {
                 c::Block::Text(value) => {
-                    b.open(Role::Region);
-                    b.style(look::TURN);
-                    b.open(Role::Slot);
-                    b.style(look::MESSAGE);
+                    message_open(b, words);
                     b.style(match message.speaker {
                         c::Speaker::Assistant => look::BY_AGENT,
                         c::Speaker::Person => look::BY_PERSON,
@@ -1344,10 +1341,7 @@ fn committed<'a>(
                     if requested(tasks, drawing.delegations) {
                         cards(b, tasks, drawing.delegations, shown, words, bindings);
                     } else {
-                        b.open(Role::Region);
-                        b.style(look::TURN);
-                        b.open(Role::Slot);
-                        b.style(look::MESSAGE);
+                        message_open(b, words);
                         b.style(look::BY_TOOL);
                         b.open(Role::Slot);
                         b.style(look::WHO);
