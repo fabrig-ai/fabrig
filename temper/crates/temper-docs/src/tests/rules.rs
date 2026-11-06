@@ -451,3 +451,11 @@ fn approval_help_names_the_forge_and_project_policy_route() {
         assert!(text.contains("writer") && text.contains("counts") || text.contains("writer is excluded"));
     }
 }
+
+#[test]
+fn forgejo_help_says_what_a_hook_on_this_host_needs() {
+    let text = find(b"forgejo").expect("Forgejo help").text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for words in ["ALLOWED_HOST_LIST", "application.webhooks.listener", "by polling"] {
+        assert!(text.contains(words), "Forgejo help must explain {words}");
+    }
+}
