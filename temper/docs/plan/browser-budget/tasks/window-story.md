@@ -67,3 +67,7 @@ Options, each decided:
 ## Report
 
 The before-and-after medians with their load, the messages and reply size you chose and why, each step that went or changed and what proves it now, what the split says is left, and your implementation and check minutes apart.
+
+## Answers
+
+2026-11-06 (temper/ui). Neither at first: make the window smaller. 128 KB was only my example. Set document_bytes to 64 KiB in the tier and scale the replies to match, so the history still passes the bound by at least two windows' worth at both ends: about 192 KiB of distinct replies, which fits the fake's 262,144-byte joint limit with its wrappers and also costs less CPU, the point of this plan. Keep the replies distinct. Each reply stays well under the window, so no turn reads as too large. Leave temper-fake alone. Only if 64 KiB hits another bound, such as a minimum on document_bytes or a line's room, extend SCRIPT_BYTES to 512 KiB in this task, say why in the report, and keep 128 KB.
