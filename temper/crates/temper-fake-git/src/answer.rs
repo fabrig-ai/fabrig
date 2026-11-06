@@ -138,6 +138,14 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
     }
 }
 fn merge(checkout: &mut Checkout, at: &[u8], transport: &mut impl Transport, theirs: u64) -> Answer {
+    // git-transcripts' merge-in-progress records this refusal before even an already-contained head.
+    if checkout.exists(&path(at, b".git/MERGE_HEAD")) {
+        return Answer {
+            exit: 128,
+            stdout: Vec::new(),
+            stderr: b"fatal: You have not concluded your merge (MERGE_HEAD exists).\nPlease, commit your changes before you merge.\n".to_vec(),
+        };
+    }
     let Some(head) = checkout.content(&path(at, b".git/temper-head")).map(count_bytes) else {
         return Answer::local_failure();
     };

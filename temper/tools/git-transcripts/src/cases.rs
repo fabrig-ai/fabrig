@@ -271,6 +271,10 @@ fn locals(f: &Fixture, c: &mut Capture) -> Result<String> {
     fs::write(f.repo.join("untracked"), b"discard\n")?;
     success(&local(c, f, Some("checkout-2"), &["clean", "-ffdxq"])?)?;
     success(&local(c, f, Some("merge-clean"), &["merge", "--no-commit", "--no-ff", "--", &f.topic])?)?;
+    let refused = local(c, f, Some("merge-in-progress"), &["merge", "--no-commit", "--no-ff", "--", &f.base])?;
+    if refused.status.code() != Some(128) {
+        return Err("a merge in progress must refuse another merge with exit 128".into());
+    }
     success(&local(c, f, None, &["checkout", "--force", "--detach", &f.base])?)?;
     success(&local(c, f, Some("merge-up-to-date"), &["merge", "--no-commit", "--no-ff", "--", &f.base])?)?;
     success(&local(c, f, None, &["checkout", "--force", "--detach", &f.base])?)?;

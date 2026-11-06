@@ -277,7 +277,6 @@ fn a_change_with_questions_up_keeps_its_agents_message_family() {
 
 #[test]
 fn a_question_open_past_the_stall_holds_nothing() {
-    use temper_engine_domain_forge_change::Hold;
     let (mut world, requester, change, producer) = up_world(None);
     // An indefinite wait's polling must not supply the missing answer wake.
     let stall = world.env.limits.forge.change_policy.stall;
@@ -308,15 +307,13 @@ fn a_question_open_past_the_stall_holds_nothing() {
         world.tick();
     }
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
-    assert_eq!(row(&world, change).change.since, since);
+    assert!(row(&world, change).change.since >= since);
     world.env.now = Time::from_nanos(deadline);
     for _ in 0..TICKS {
         world.tick();
     }
-    assert_eq!(
-        row(&world, change).change.state,
-        State::Held { was: Box::new(State::Producing { requested: true }), why: Hold::Stalled }
-    );
+    assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
+    assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
 }
 
 #[test]

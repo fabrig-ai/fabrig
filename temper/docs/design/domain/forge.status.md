@@ -41,10 +41,6 @@
   - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status.
-  - 8.4: a wait for a live delegate still counts the stall, and a result on a
-    change held on that stall is not taken without a release
-    (`temper-engine-domain-forge-change/src/domain.rs`, `waiting_on_agent`;
-    `temper-engine-domain-forge/src/domain.rs`, `titled_change`, `delegate_result`).
   - 8.4: a stall's hold can leave the change held with its task not:
     from reading, `temper-engine-domain/src/route/forge_route.rs`,
     `change_decision`, drops a decision its procedure is not due for, and the
