@@ -27,3 +27,56 @@ id = 1
 story = "the rules hold by build and gate: a new role breaks the build where it must be placed, and an inner allow fails the old-forms check"
 parts = ["inner-allow", "role-sets"]
 walk = false
+
+[[part]]
+id = "shell-keeper"
+title = "skein D045: what a harness alone needs is fenced in skein_shell::keeper"
+mode = "direct"
+needs = []
+design = "skein/docs/design/shell.md, 7.5"
+
+[[part]]
+id = "request-states"
+title = "skein D025: the request table stays in lib, its entry in lifecycle states"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 12"
+
+[[part]]
+id = "program-grammar"
+title = "jig D006, its grammar half: the program-name grammar is written once"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/root.md, 2"
+
+[[slice]]
+id = 2
+story = "what a reader meets says what it is: a service sees a service's calls, a request's state is explicit, and one grammar judges a program's name"
+parts = ["shell-keeper", "request-states", "program-grammar"]
+walk = false
+
+[[part]]
+id = "file-layer"
+title = "skein D049: every reader on file_layer::step, the thin forms gone, Store and Opening in states"
+mode = "direct"
+needs = []
+design = "skein/docs/design/io.md, 5"
+
+[[slice]]
+id = 3
+story = "the file layer takes Env and Limits as its siblings do, in every tree, and its private machines hold their state in one enum each"
+parts = ["file-layer"]
+walk = false
+
+[[part]]
+id = "test-limits"
+title = "skein D033: io and oauth test limits start from TEST; the memory rows are labelled"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 10"
+
+[[slice]]
+id = 4
+story = "a test's limits name what it means: a new limit field touches one constant, not fifty literals"
+parts = ["test-limits"]
+walk = false
