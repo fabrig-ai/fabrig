@@ -1660,8 +1660,8 @@ VM tier its one real machine relies on.
   slowest tests reach 30 CPU seconds, or the measurements go to the user
   for a ruling (`skein/docs/foundation/testing-strategy.md`, 8.1). The
   figure stands, and a run over it is recorded, never refused. It depends
-  on a measurement of the suite by test.
-- **The large render's cost:** about 12 CPU seconds, which is why the fuzzy
+  on what repairs to the largest costs save, which no run has shown.
+- **The large render's cost:** about 15 CPU seconds, which is why the fuzzy
   suite carries it (8.4). No run has isolated that cost: it followed the
   work per target, not the listing, and whether it lies in the harness or
   in hearth's crates is unknown. It depends on a run that isolates it.

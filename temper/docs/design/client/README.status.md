@@ -127,6 +127,28 @@
   box's self-proposal says "Authority missing" and offers no Accept. A task's Cancel,
   an agent's task's Stop, Reject and Start over are drawn at each width by their
   gallery states, and no walk on record presses them.
+- **Not yet:** 3.5, *temper's own way, beside the page*: no walk on record presses "See how it
+  works" or "Start from it", and no journey records them: the view's tests and the gallery's
+  `configure-reference` and `configure-reference-draft` alone draw them, since the plan that built
+  them took no walk.
+- **Design departs:** 3.5, *The configuring chat's page* and *temper's own way, beside the page*,
+  from the request `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
+  request's plan's cut. The picture, the figures and the table's Workers and QA stand in
+  `../draft/own-way.status.md`. Beside them:
+  - the reference's title is level 2 at 28 px over level 3 sections at 17 px, as a chat's document
+    has them, where the request's page has a small level 3 title over large level 2 sections;
+  - its section 3 says of a goal's branch "whose tests run along the way", where the request has
+    it checked "by CI and a review on the way": the reference's goal branches have neither
+    (`../draft/reference-code-production.md`, sections 6 and 10);
+  - a table's row name is bold in a cell, where the request's rule is `th[scope=row]`, since
+    skein's reader draws no row header; a figure's term and value are `role=term` and
+    `role=definition`, where its rules are `dt` and `dd`;
+  - the thread's padding of 28 and 8 reaches the opening alone, at wide widths, where the request's
+    rule reaches every chat; a phone keeps its 20 and 16;
+  - the card's steps are a list with no marker and the pane a region of slots, where the request's
+    page has an `ol`, an `article` and `section`s;
+  - a phone hides the composer's hint, by the rule every session has there, where the request's page
+    shows it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
   the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
@@ -195,17 +217,6 @@
   Stop there by hand, which no test keeps. That model has no script of a configuring
   agent's document or proposal and no hold of temper's own, so the gallery alone
   draws those states.
-- **Not yet:** 3.5, *Needs you*, 5.13: a proposal of settings has its inbox row say
-  project 0, so *Needs you* by the open project and the rail's count
-  (`temper-client-domain`'s `pages/needs.rs`, `count`) leave it out, whichever
-  project's kinds its items change, where the greenfield mock, the target, has its
-  card and its count. No live walk shows that card: the gallery's
-  `configure-chat-proposal` draws it in a chat, and `needs-proposal` is a goal's.
-  Section 11 holds the decision.
-- **Not yet:** 3.5, *What the client keeps*, its held send: once, on a fake box at
-  1440, a choice pressed just after Undo left the card, the count and the engine's
-  question as they were after six seconds, and a repeat on a fresh box and the walk
-  at 420 answered. The cause is unknown; no test holds it (section 11).
 - **Not yet:** 5.3: the rename's form asks the focus, and so does an open reply:
   `temper-client-view`'s `pages/ask.rs`, `reply_form`, calls `b.focus(0)` with no
   guard, where `pages/chat.rs`, `document.rs`, `settings.rs`, `new_chat.rs` and
@@ -427,6 +438,10 @@
   And " · later" shows on *Needs you*'s mono line as on Home's, where the request
   and the mock have it on Home's card alone: the one function draws both, and no
   reason is recorded.
+- **Design departs:** 3.5, *Claude*, 4.6, from the request `ui-walk-2` of 2026-11-06,
+  decided by its plan's cut. `program_environment` answers the owner at any time,
+  where the request has it during set up, because Connect a model draws the same
+  command after set up.
 - **Design departs:** 3.5, *The flows' paths* and *Builders*, from the request
   `ui-settings-tabs` of 2026-11-05, decided by its plan's cut. The terminal
   draws no path, where the request has each flow add one: the same request

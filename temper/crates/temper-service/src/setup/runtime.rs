@@ -122,6 +122,17 @@ impl Runtime {
         entry.asked = record.asked;
         Some(entry)
     }
+    /// The listener a forge's plans are given: a managed forge's only with its API on loopback
+    /// (temper/docs/design/protocol/setup.md, 5.5).
+    fn listener(&self, mode: domain::Mode, address: skein_io::Addr) -> Option<core::net::SocketAddr> {
+        match mode {
+            domain::Mode::Managed => match address {
+                skein_io::Addr::Ip(api) if api.ip().is_loopback() => self.webhooks,
+                skein_io::Addr::Ip(_) | skein_io::Addr::InProcess(_) => None,
+            },
+            domain::Mode::Owned | domain::Mode::Fake | domain::Mode::Connected => self.webhooks,
+        }
+    }
     fn forge(
         &self,
         record: &ForgeRecord,
@@ -164,11 +175,7 @@ impl Runtime {
                         let mut limits = self.limits.setup.plan();
                         limits.repositories = self.limits.forge.client.repositories;
                         limits.reachable = self.limits.picker.page;
-                        temper_forge_setup::given::values(
-                            entry,
-                            if record.mode == domain::Mode::Managed { None } else { self.webhooks },
-                            &limits,
-                        )
+                        temper_forge_setup::given::values(entry, self.listener(record.mode, address), &limits)
                     }
                     None => settings::connected(record.number, &self.limits),
                 };
@@ -177,7 +184,13 @@ impl Runtime {
         };
         Some(host::Forge { kind, address, transport })
     }
-    fn local(&self, record: &ForgeRecord, entry: &setup::Entry, restored: bool) -> lifecycle::Local {
+    fn local(
+        &self,
+        record: &ForgeRecord,
+        entry: &setup::Entry,
+        address: skein_io::Addr,
+        restored: bool,
+    ) -> lifecycle::Local {
         lifecycle::Local {
             source: if record.mode == domain::Mode::Managed {
                 lifecycle::Source::Managed
@@ -201,7 +214,7 @@ impl Runtime {
                 limits.repositories = self.limits.forge.client.repositories;
                 limits
             },
-            webhooks: self.webhooks.is_some() && record.mode != domain::Mode::Managed,
+            webhooks: self.listener(record.mode, address).is_some(),
             bot_login: record.bot.login.clone(),
             identity: crate::settings::Identity {
                 number: u32::from(record.number),
@@ -270,7 +283,9 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, record: &ForgeRecord) {
         host::Kind::Forgejo(_) => {}
     }
     let local = match entry {
-        Some(entry) if !document => Some(runtime.local(record, &entry, engine.setup.lifecycle.startup_restored())),
+        Some(entry) if !document => {
+            Some(runtime.local(record, &entry, forge.address, engine.setup.lifecycle.startup_restored()))
+        }
         Some(_) | None => None,
     };
     if let Some(served) = engine.setup.served.get(&record.number)

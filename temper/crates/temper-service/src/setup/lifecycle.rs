@@ -332,6 +332,7 @@ pub(super) fn keep(engine: &mut crate::engine::Engine, forge: u16, item: Item, b
 }
 pub(super) enum Purpose {
     Host(Token),
+    HostSecret(Token),
     Origin(Token),
     PasteOrigin(Token),
     Tokens { run: Token, item: Item, login: Box<[u8]> },
@@ -591,6 +592,7 @@ pub(super) fn kept(engine: &mut crate::engine::Engine, purpose: Purpose) {
     match &purpose {
         Purpose::Tokens { run, .. }
         | Purpose::Host(run)
+        | Purpose::HostSecret(run)
         | Purpose::Origin(run)
         | Purpose::PasteOrigin(run)
         | Purpose::LocalOrigin(run)
@@ -635,6 +637,13 @@ pub(super) fn kept(engine: &mut crate::engine::Engine, purpose: Purpose) {
             if !create_local(engine, active.forge) {
                 adopt_local(engine, active.forge);
             }
+        }
+        Purpose::HostSecret(run) => {
+            let forge = engine.setup.runs.get(&run).expect("a plan waits on its secret").forge;
+            if connected_in_root(&engine.domain, forge) {
+                hand_secret(engine, forge);
+            }
+            engine.setup.down(host::Request::Answer { run, answer: host::Answer::Written });
         }
         Purpose::Host(run) => engine.setup.down(host::Request::Answer { run, answer: host::Answer::Written }),
         Purpose::Origin(run) => {
@@ -1297,6 +1306,27 @@ fn adopt_local(engine: &mut crate::engine::Engine, forge: u16) {
         .insert(forge, Adoption { next: NonZeroU64::new(1).expect("first repository"), repositories, files: None })
         .expect("one adoption per local fake");
 }
+/// A kept secret reaches a connected forge before its plan makes the hook
+/// (temper/docs/design/protocol/setup.md, 5.4).
+fn hand_secret(engine: &mut crate::engine::Engine, forge: u16) {
+    let Some(config) = configured(engine, forge) else { return };
+    let expected = records::origin(connection::settings::Kind::Forgejo, &config.api);
+    let rows = engine.forge_records.rows.forge(forge).expect("connected forge records");
+    let local = engine.setup.lifecycle.local(forge).expect("local connection");
+    let start = records::access(
+        connection::settings::Kind::Forgejo,
+        &expected,
+        rows,
+        &engine.forge_records.bounds,
+        local.webhooks,
+    );
+    let start = match start {
+        Ok(start) => Ok(crate::forge::Start::Restored(start)),
+        Err(why) => Err(why),
+    };
+    crate::forge::connect(engine, forge, start);
+}
+
 pub(super) fn connect_local(engine: &mut crate::engine::Engine, forge: u16) {
     if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;

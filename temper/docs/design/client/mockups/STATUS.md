@@ -269,8 +269,7 @@ unmarked in their main drawing.
 The `chat-work` conversation is drawn through the view in the gallery's
 `chat-work-*` states (`../browser.md`, 7.2): a folded run of calls and its
 rows, an answer's end mark, Latest while reading back, and the loading
-status at the head. The remaining live-text, list and scrolling behaviour,
-and an agent's running state and pill, belong to
+status at the head. The remaining live-text, list and scrolling behaviour belong to
 `../../draft/chat-reading.status.md`, sections 2, 3, 5, 6 and 7.
 "Older" remains the route to history until the log supplies a head-near act.
 

@@ -637,6 +637,12 @@ replay says the same clocks (`README.md`, 5.12).
   name is drawn, and the look of its flow's tokens isn't, since nothing draws a
   flow yet. The sheet to start a goal is the mock's `dialog.sheet`, `.option`,
   `.field` and `.text`, and `Ctrl+\` steps through the modes.
+- **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
+  `temper.css` under `/* ==== ui: settings ==== */`: on the page
+  `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
+  a chat's document's, `.temper-doc-figures` and `.temper-doc-flow`, which holds the
+  picture's numbered list and no flow, with `.temper-doc-sub` and `.temper-doc-muted`
+  under the chats' marker.
 - **What the mock lacks and a print needs** stays in the view, hidden by the
   sheet in the browser. A word the browser alone shows, or says otherwise,
   the view chooses by its shell.
@@ -1320,6 +1326,8 @@ from the engine's own answers, is where the look is tuned.
 | `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
 | `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `configure` | the configuring page before its first words, template 3 listed |
+| `configure-reference` | "See how it works" pressed: the stock reference beside the page, in Split, the rail folded, no chat made |
+| `configure-reference-draft` | `configure-reference` in Draft: the reference alone, the composer under it |
 | `configure-typing` | words entered; Send enabled |
 | `configure-sending` | the configuring start out; starters and Send disabled, words kept |
 | `configure-refused` | the start refused; jig's words below the composer, the words kept |
@@ -1375,6 +1383,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-work-empty` | before the first word or call, the three dots |
 | `chat-work-reading` | earlier messages loading and Latest over the foot while away from the end |
 | `chat-working` | a live chat at work: its three dots |
+| `agent-work` | an agent's page, its last run running with a call under way, and Latest over the foot while away from the end |
 | `chat-change-running` | a chat with a delegated change running: its one line |
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
 | `chat-change-held` | the first run's chat T1 at step 2, its change held: its one line says so |
