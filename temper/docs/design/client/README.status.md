@@ -2,6 +2,9 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
+- **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
+  agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
+  request `ui-pause-close`.
 - **Not yet:** 3.5, `ConnectModel`, *The sign-in's tab*: only Chromium has run it, and against skein's fake issuer
   alone. Firefox's and Safari's gesture is read and not run (skein's `ui-web.md`, 14.3), and no walk on record has a
   provider's own page in the tab: the request `sign-in-new-tab` of 2026-11-06 leaves a real box to the user.
@@ -119,7 +122,7 @@
   that plan's cut took no new word for it.
 - **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
-  Stop and Close, and offers Change model only with supplied choices;
+  Pause or Resume, and Close, and offers Change model only with supplied choices;
   a goal uses supplied budget units, not dollars, and offers neither the
   mock's budget field nor its earlier reports. Settings adds Configure
   temper and keeps unsupported status, funds and notification controls
@@ -153,12 +156,12 @@
   fails say why above its acts: no ask went, and the reason's box is on the card behind
   the sheet.
 - **Not yet:** 3.6, *The sheet*: that request has each confirmation walked. A browser
-  on a fake box pressed Close, Start over, a goal's Stop, a Release both ways, a goal's Pause,
+  on a fake box pressed Close, Start over, a goal's Close, a Release both ways, a goal's Pause,
   and Accept and Reject on a configuring chat's proposal from *Needs you* and *Home*,
   and Accept from the chat itself; Reject from *Needs you* included a reason. Escape and
-  the keeping act on Close, Start over, a goal's Stop, Accept and Reject were also pressed
+  the keeping act on Close, Start over, a goal's Close, Accept and Reject were also pressed
   by hand at each width, which no test keeps; a press while the page updates, on a Release
-  alone. A task's Cancel and an agent's task's Stop are drawn at each width by their
+  alone. A task's Cancel and an agent's task's Close are drawn at each width by their
   gallery states, the walk of the request `ui-walk-3` of 2026-11-06 having tried the
   fake box for them first, and no walk on record presses them.
 - **Not yet:** 3.5, *temper's own way, beside the page*: no journey records "See how it works"
@@ -169,7 +172,7 @@
   follow them.
 - **Design departs:** 3.5, *The configuring chat's page* and *temper's own way, beside the page*,
   from the request `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
-  request's plan's cut. The picture, the figures and the table's Workers and QA stand in
+  request's plan's cut. The picture and the table's Workers and QA stand in
   `../draft/own-way.status.md`. Beside them:
   - the reference's title is level 2 at 28 px over level 3 sections at 17 px, as a chat's document
     has them, where the request's page has a small level 3 title over large level 2 sections;
@@ -200,7 +203,7 @@
   as Forge's has, where the request's pages have the same words, because the terminal reads
   them. A line with nothing yet keeps its "Forge" or "Model" label, as the request's words say.
 - **Not yet:** 10: a walk from the sheet through planning, a live report and
-  delegate tasks, Pause, Resume, a message and Stop, which the request
+  delegate tasks, Pause, Resume, a message and Close, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The
   view holds Goals' link to `/chats` (`the_link_shows_with_a_tracked_template`),
   and the fake box's walk reaches an
@@ -211,7 +214,7 @@
   delegates, so it can show no planning and no delegate task: the journey
   `chat-draft` walks a chat's sheet to that goal's page and back to the chat alone.
   The request `ui-final-walk` of 2026-11-05 walked a live report, Pause, Resume and
-  Stop there by hand, which no test keeps. Of a configuring agent, that model scripts
+  Close there by hand, which no test keeps. Of a configuring agent, that model scripts
   one proposal, the cue "Show drafts and goals for this project.", and no document,
   and it has no hold of temper's own, so the gallery alone draws those states.
 - **Not yet:** 5.13, *The card in a chat*: a live proposal of temper's kinds draws its
@@ -492,12 +495,13 @@
   holds the part, and `host_tests_copy.rs` holds that the press's own report asks the
   write; no test runs the one line between them, in `carry`
   (`temper-client-shell-web/src/lib.rs`). Seen by reading.
-- **Design departs:** 4.6, *The program's environment*, from the user's word of
-  2026-11-06 on the request `box-small`: `program_environment`
-  (`crates/temper/src/directories.rs`) answers all three `TEMPER_` values where any
-  directory is off its default, where the user has each only where it differs. The word
-  reached that plan's task as it ran, and the task did not take it. `box-small-2`
-  carries it.
+- **Design departs:** 4.6, *The program's environment*, from the request `box-small-2`
+  of 2026-11-06, item 1, decided by its plan's cut, which takes `resolve` as all or
+  nothing: with no `HOME` and an XDG variable placing some of the directories, not all,
+  `program_environment` (`crates/temper/src/directories.rs`) knows no default and names
+  all three, one at its own default among them, where the request has each only where it
+  differs. The command finds the same directories either way, and no test holds this
+  case: `no_home_names_all_three` gives no XDG variable. Seen by reading.
 - **Design departs:** 4.6, *The words of a command for this machine*, from the request
   `box-small` of 2026-11-06, item 1, which has these words in any other command handed
   to the person for this machine: `temper forge run`'s refusal
