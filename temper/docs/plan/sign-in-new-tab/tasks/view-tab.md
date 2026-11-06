@@ -39,3 +39,13 @@ Acceptance:
 ## Report
 
 As the implementer's text asks.
+
+## Rebase (2026-11-06, step merge, foreman sign-in-new-tab/view-tab/foreman-1)
+
+resolve the status conflict by preserving both tasks’ sentence removals.
+The merge conflicts only in `temper/docs/design/client/README.status.md`, in the first **Not yet** entry.
+Commit `87a765c242` removes the obsolete claim that `sign_in_wait::tab_refused` is false.
+Integration commit `0cf31fbabb` removes the obsolete sentence about `Act::SignInElsewhere` and `ConnectModel::elsewhere`.
+Resolve by retaining both removals. After the existing section citations, the entry’s body should read:
+“A page reloaded holds no address, so it draws no "Open it again".”
+Preserve the remaining status entries and the task’s Rust changes.
