@@ -217,3 +217,70 @@ fn a_failed_head_read_says_so_and_the_next_near_retries() {
     run(&mut world, client, vec![near(LogEdge::Head), gone(b"Couldn't load earlier messages")]);
     assert!(held(&world, client).first() < before.first(), "the retry reads earlier turns");
 }
+
+const LONG_MESSAGES: usize = 66;
+fn long_words(number: usize, length: usize) -> Vec<u8> {
+    let mut words = format!("Long message {number:02}: ").into_bytes();
+    words.resize(length - 7, b'x');
+    words.extend_from_slice(format!(" end{number:02}.").as_bytes());
+    assert_eq!(words.len(), length);
+    words
+}
+
+fn read_long_messages(agent: bool) {
+    use temper_client_domain::Address;
+    for length in [538, 1149] {
+        let mut world = fixtures::long_messages_world(fixtures::SEED);
+        let task = fixtures::long_messages_task(world.front(), agent);
+        let messages: Vec<_> = (0..LONG_MESSAGES).map(|number| long_words(number, length)).collect();
+        for (number, words) in messages.iter().enumerate() {
+            fixtures::long_message(world.front(), task, u8::try_from(number + 1).expect("message key"), words);
+        }
+        let client = fixtures::long_messages_client(
+            &mut world,
+            if agent { Address::Task { task } } else { Address::Chat { task } },
+        );
+        world.person(client, vec![see(messages.last().expect("last message"))]);
+        let outcome = world.run(Until::Done);
+        assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+        if agent {
+            assert!(
+                world
+                    .tree(client)
+                    .nodes()
+                    .iter()
+                    .any(|node| node.styles.as_slice().contains(&temper_client_view::look::AGENT_PAGE))
+            );
+        }
+        let mut visited = vec![false; LONG_MESSAGES];
+        for _ in 0..LONG_MESSAGES {
+            let mut face = TreeFace::new(world.tree(client));
+            assert_eq!(face.find(&Find::text(b"Couldn't load earlier messages")), Found::Absent);
+            for node in world.tree(client).nodes() {
+                let text: Vec<u8> = node.text.as_slice().iter().flat_map(|run| run.text.iter().copied()).collect();
+                if text.starts_with(b"Long message ") {
+                    let number = messages.iter().position(|message| *message == text).expect("a message draws whole");
+                    visited[number] = true;
+                }
+            }
+            if visited.iter().all(|seen| *seen) {
+                break;
+            }
+            // Near the head decodes to Older on both pages.
+            world.person(client, vec![near(LogEdge::Head)]);
+            let outcome = world.run(Until::Done);
+            assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+        }
+        assert!(visited.iter().all(|seen| *seen), "every {length}-byte message is read to the start: {visited:?}");
+    }
+}
+
+#[test]
+fn sixty_six_long_messages_read_to_their_start() {
+    read_long_messages(false);
+}
+
+#[test]
+fn an_agents_page_reads_long_lines_through_older() {
+    read_long_messages(true);
+}

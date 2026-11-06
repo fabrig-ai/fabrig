@@ -2524,3 +2524,56 @@ fn a_goals_terminal_delegate_line_separates_title_and_state() {
     let view = fixtures::page_view(&root);
     assert!(contains(view.tree(), "Review the change · running".as_bytes()));
 }
+
+#[test]
+fn an_agents_long_line_draws_whole() {
+    for length in [1149, 10_660] {
+        let bytes = super::limits::repeated(b'x', length);
+        let (root, domain) = super::chat::long_line_page(
+            temper_client_domain::Address::Task { task: TASK },
+            c::Activity::Words {
+                message: 1,
+                by: c::Requester::Person(1),
+                kind: c::MessageKind::Words,
+                words: fixtures::first_run::text(&bytes),
+            },
+            false,
+        );
+        super::chat::assert_long_line(&root, &domain, &bytes);
+    }
+}
+
+#[test]
+fn a_heard_or_notified_long_word_draws_whole() {
+    for length in [1149, 10_660] {
+        let bytes = super::limits::repeated(b'x', length);
+        let mut word = heard_word(c::Requester::Task(RESULT_TASK), c::MessageKind::Words);
+        word.words = fixtures::first_run::text(&bytes);
+        for event in
+            [c::Activity::Heard(word.clone()), c::Activity::Notified { recipient: c::Requester::Person(1), word }]
+        {
+            let mut domain = fixtures::domain_limits();
+            domain.client.domain.long_text = 131_072;
+            for words in [fixtures::words(), fixtures::browser_words()] {
+                let bounds = crate::Limits::of(&domain, &words).unwrap();
+                let mut builder = Builder::new(&bounds.tree);
+                crate::pages::task::owner_activity(&mut builder, &event, &words);
+                assert_eq!(fixtures::text(&builder.finish()).as_ref(), bytes.as_ref());
+            }
+        }
+    }
+}
+
+#[test]
+fn a_tracked_tasks_heard_or_notified_long_word_draws_whole() {
+    let bytes = super::limits::repeated(b'x', 1149);
+    let mut word = heard_word(c::Requester::Task(RESULT_TASK), c::MessageKind::Words);
+    word.words = fixtures::first_run::text(&bytes);
+    for event in [c::Activity::Heard(word.clone()), c::Activity::Notified { recipient: c::Requester::Person(1), word }]
+    {
+        let (root, domain) =
+            super::chat::long_line_page(temper_client_domain::Address::Task { task: TASK }, event, true);
+        assert_eq!(root.pages().task().unwrap().shape, temper_client_domain::pages::task::Shape::Tracked);
+        super::chat::assert_long_line(&root, &domain, &bytes);
+    }
+}

@@ -3456,3 +3456,85 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
         }
     }
 }
+
+pub(super) fn long_line_page(
+    address: temper_client_domain::Address,
+    line: c::Activity,
+    tracked: bool,
+) -> (temper_client_domain::Domain, temper_client_domain::Limits) {
+    let mut domain = fixtures::domain_limits();
+    domain.client.domain.text = 512;
+    domain.client.domain.long_text = 131_072;
+    domain.client.domain.turn_text = 131_072;
+    domain.client.domain.document_bytes = 1_048_576;
+    domain.client.domain.turn_bytes = 1_048_576;
+    domain.client.domain.requests.bytes = 4_194_304;
+    domain.client.domain.ask_bytes = 1_048_576;
+    let mut rows = List::with_capacity(1);
+    rows.push(super::documents::line(1, Wall::EPOCH, line)).unwrap();
+    let (mut root, _, watch, _, _) = fixtures::root_at_with_activity(
+        address,
+        &domain,
+        b"Shop",
+        None,
+        Some(c::ActivityPage { rows, before: None, after: None, cut: false }),
+        None,
+    );
+    let mut task = fixtures::task::document();
+    task.chip.task = TASK;
+    task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+    task.priority = tracked.then_some(1);
+    task.activity = 1;
+    temper_client_domain::step(
+        &mut root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: Wall::EPOCH, limits: domain },
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: watch.unwrap(),
+                    event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))),
+                },
+            },
+        },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    (root, domain)
+}
+
+pub(super) fn assert_long_line(
+    root: &temper_client_domain::Domain,
+    domain: &temper_client_domain::Limits,
+    bytes: &[u8],
+) {
+    for shell in [crate::words::Shell::Browser, crate::words::Shell::Terminal] {
+        let words = crate::words::Words::english(fixtures::FORGE, domain.client.domain.text, shell).unwrap();
+        let bounds = crate::Limits::of(domain, &words).unwrap();
+        let mut view = crate::View::new(&bounds, domain, words, fixtures::FORGE);
+        let tree = fixtures::build(&mut view, root);
+        let mut whole = false;
+        for (index, node) in tree.nodes().iter().enumerate() {
+            if node.role == Role::Text && fixtures::node_text(tree, index).as_ref() == bytes {
+                whole = true;
+            }
+        }
+        assert!(whole, "the line's whole words are a tree text");
+    }
+}
+
+#[test]
+fn a_chats_long_line_draws_whole() {
+    for length in [1149, 10_660] {
+        let bytes = super::limits::repeated(b'x', length);
+        let (root, domain) = long_line_page(
+            temper_client_domain::Address::Chat { task: TASK },
+            c::Activity::Words {
+                message: 1,
+                by: c::Requester::Person(PARTY),
+                kind: c::MessageKind::Words,
+                words: fixtures::first_run::text(&bytes),
+            },
+            false,
+        );
+        assert_long_line(&root, &domain, &bytes);
+    }
+}
