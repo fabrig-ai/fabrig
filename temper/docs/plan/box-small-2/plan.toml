@@ -1,6 +1,7 @@
 draft = "box-small-2"
 repo = "fabrig"
 sources = ["temper/docs/plan/box-small-2/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+priority = true
 
 # The two things box-small missed; see plan.md.
 
