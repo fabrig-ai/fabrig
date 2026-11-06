@@ -189,6 +189,51 @@ fn prepare_empty(scratch: &Scratch, source: &Directories) -> Prepared {
 }
 
 #[test]
+fn a_reservation_that_loses_its_port_takes_another() {
+    let mut calls = 0;
+    let listener = reserve_from(&[], || {
+        calls += 1;
+        if calls == 1 {
+            Err(std::io::ErrorKind::AddrInUse.into())
+        } else {
+            assert_eq!(calls, 2, "one replacement bind");
+            TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+        }
+    })
+    .expect("another reservation after losing a port");
+    assert_eq!(calls, 2);
+    let address = listener.local_addr().expect("held address");
+    assert_ne!(address.port(), 0);
+    assert!(TcpListener::bind(address).is_err(), "the reported port is held");
+}
+
+#[test]
+fn a_reservation_refuses_at_once_on_any_other_error() {
+    let mut calls = 0;
+    let error = reserve_from(&[], || {
+        calls += 1;
+        assert_eq!(calls, 1, "a non-address error must not retry");
+        Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "injected permission denial"))
+    })
+    .expect_err("permission denied refuses the reservation");
+    assert_eq!(calls, 1);
+    assert_eq!(error, "fake peer reservation: injected permission denial");
+}
+
+#[test]
+fn a_reservation_refuses_after_32_lost_ports() {
+    let mut calls = 0;
+    let error = reserve_from(&[], || {
+        calls += 1;
+        assert!(calls <= 32, "lost ports must exhaust the retry bound");
+        Err(std::io::ErrorKind::AddrInUse.into())
+    })
+    .expect_err("all ports lost");
+    assert_eq!(calls, 32);
+    assert_eq!(error, "fake peer reservation: could not choose a port distinct from the deployment and callback");
+}
+
+#[test]
 fn peer_reservations_transfer_once_and_close_with_preparation() {
     let scratch = Scratch::new("peer-ownership");
     let source = scratch.dirs();

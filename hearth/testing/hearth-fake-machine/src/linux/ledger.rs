@@ -1,5 +1,5 @@
 use super::{At, Counts, Entry, Handle, How, Machine, Node, Op, Pid, Refusal, Reply};
-use alloc::collections::{BTreeMap, vec_deque::Drain};
+use alloc::collections::vec_deque::Drain;
 impl Machine {
     pub fn call(&mut self, pid: Pid, op: Op) -> Result<Reply, Refusal> {
         let ids = self.process(pid).ids;
@@ -7,7 +7,7 @@ impl Machine {
             self.ledger.len() < usize::try_from(self.sizes.ledger).expect("ledger bound fits"),
             "bounded queue the referee drains: ledger"
         );
-        let before: BTreeMap<_, _> = self.nodes.iter().map(|(node, inode)| (*node, inode.facts.changes)).collect();
+        self.changing.clear();
         let mut node = self.touched(pid, &op);
         let reading = matches!(op, Op::Read { .. });
         let writing = matches!(op, Op::Write { .. });
@@ -51,16 +51,7 @@ impl Machine {
         if writing {
             process.counts.written = process.counts.written.checked_add(bytes).expect("write count fits");
         }
-        for (node, inode) in &self.nodes {
-            if before.get(node) != Some(&inode.facts.changes) {
-                process.changed.insert(*node);
-            }
-        }
-        for node in before.keys() {
-            if !self.nodes.contains_key(node) {
-                process.changed.insert(*node);
-            }
-        }
+        process.changed.extend(self.changing.drain(..));
         process.counts.changed = u64::try_from(process.changed.len()).expect("changed count fits");
         self.ledger.push_back(Entry { pid, ids, node, bytes, refused: result.as_ref().err().copied() });
         result

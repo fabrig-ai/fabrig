@@ -94,6 +94,75 @@ fn accepted_mixed_workspace_drives_discovery_opening_and_child_metadata() {
 }
 
 #[test]
+fn a_merge_in_progress_says_what_its_staged_files_are() {
+    const NOTE: &[u8] = b"A directory with initial merge conflicts holds a merge in progress: `HEAD` is your work so far and `MERGE_HEAD` the tip the host merged into it. Every other staged file is what that merge brought in, not stray work: leave those files in place and restore nothing. Settle the files named; a delivery commits the whole tree as the merge, with both parents.\n";
+
+    for conflict_directories in 0_u32..=2 {
+        for resumed in [false, true] {
+            let mounted = Workspace {
+                directories: Box::new([
+                    workspace_directory(
+                        b"work",
+                        41,
+                        false,
+                        true,
+                        if conflict_directories == 2 { &[b"first.rs"] } else { &[] },
+                    ),
+                    workspace_directory(
+                        b"reference",
+                        42,
+                        false,
+                        true,
+                        if conflict_directories > 0 { &[b"src/merge.rs"] } else { &[] },
+                    ),
+                ]),
+            };
+            let policy = charter();
+            let mut start = carried_start(charter(), Box::default(), Some(mounted.clone()));
+            let Event::Start { resumed: selected, transcript, .. } = &mut start else { panic!("Start fixture") };
+            *selected = resumed;
+            *transcript = resumed.then_some(Token::new(77));
+            let mut harness = Harness::new(LIMITS);
+            let requests = harness.step(start);
+            let [Request::Admitted { run, .. }, Request::Read { .. }] = requests.as_ref() else {
+                panic!("workspace admitted: {requests:?}");
+            };
+            let run = *run;
+            let requests = harness.step(Event::Read { owner: run, read: Read::Missing });
+            let [Request::Read { .. }] = requests.as_ref() else { panic!("second directory's guide") };
+            let requests = harness.step(Event::Read { owner: run, read: Read::Missing });
+            let [Request::Open { opening, .. }] = requests.as_ref() else { panic!("main opens: {requests:?}") };
+            let child = crate::prompt::child(
+                &policy,
+                Some(&mounted),
+                &Found::with_capacity(0),
+                b"Inspect",
+                opening.families,
+                crate::Granted {
+                    turns: 3,
+                    time: Duration::from_secs(4),
+                    spend: 100,
+                    turns_set: crate::Set::Pool,
+                    time_set: crate::Set::Pool,
+                },
+                LIMITS.answer_bytes,
+            );
+            for text in [&opening.system, &child] {
+                if conflict_directories == 0 {
+                    assert!(skein_lib::bytes::find(text, b"MERGE_HEAD").is_none());
+                    assert!(skein_lib::bytes::find(text, b"merge in progress").is_none());
+                } else {
+                    assert_eq!(skein_lib::bytes::count(text, NOTE, u32::MAX), 1, "merge guidance appears once");
+                    let last_directory = b"- `reference`, which you may only read, a git working tree, with initial merge conflicts: `src/merge.rs` \n";
+                    let at = skein_lib::bytes::find(text, last_directory).expect("unchanged conflict paths");
+                    assert_eq!(text.get(at + last_directory.len()..at + last_directory.len() + NOTE.len()), Some(NOTE));
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn absent_workspace_suppresses_workspace_families_and_preserves_main_services() {
     let mut harness = Harness::new(LIMITS);
     let mut policy = charter();

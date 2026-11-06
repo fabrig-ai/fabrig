@@ -1067,6 +1067,85 @@ fn embedded_and_directory_files_make_the_same_bundle() {
     scratch.remove();
 }
 
+// Four compressible files and their forms, a root file, and the page: 10 files, 73 bytes.
+const FORMED_COUNT: u32 = 10;
+const FORMED_BYTES: u32 = 73;
+const FORMED_FILES: &[(&str, &[u8])] = &[
+    ("index.html", PAGE),
+    // Forms deliberately precede files in the embedded input.
+    ("0123456789abcdef/boot.js.gz", b"gz js"),
+    ("0123456789abcdef/a/module.wasm.gz", b"gz wasm"),
+    ("0123456789abcdef/a/style.css.gz", b"gz css"),
+    ("0123456789abcdef/image.svg.gz", b"gz svg"),
+    ("0123456789abcdef/boot.js", b"js"),
+    ("0123456789abcdef/a/module.wasm", b"wasm"),
+    ("0123456789abcdef/a/style.css", b"css"),
+    ("0123456789abcdef/image.svg", b"svg"),
+    ("0123456789abcdef/files/robots.txt", b"robots"),
+];
+fn formed_reads(
+    case: &str,
+    files: &[(&str, &[u8])],
+    limits: temper_service::limits::Clients,
+) -> [Result<temper_service::clients::bundle::Bundle, String>; 2] {
+    let scratch = support::Scratch::startup(case);
+    for (name, bytes) in files {
+        let path = scratch.path().join("bundle").join(name);
+        fs::create_dir_all(path.parent().expect("parent")).expect("directory");
+        fs::write(path, bytes).expect("file");
+    }
+    let directory = temper::bundle::read(scratch.path().join("bundle").as_os_str().as_encoded_bytes(), limits);
+    let embedded = temper::bundle::embedded(files, limits);
+    scratch.remove();
+    [directory, embedded]
+}
+#[test]
+fn a_bundle_reads_each_form_onto_its_file() {
+    let limits = temper_service::limits::Clients { bundle_files: FORMED_COUNT, bundle_bytes: FORMED_BYTES };
+    for read in formed_reads("bundle-read-forms", FORMED_FILES, limits) {
+        let bundle = read.expect("both forms read at their bounds");
+        assert_eq!(bundle.files.len(), 5);
+        for (name, plain, gzip) in [
+            (b"boot.js".as_slice(), b"js".as_slice(), b"gz js".as_slice()),
+            (b"a/module.wasm", b"wasm", b"gz wasm"),
+            (b"a/style.css", b"css", b"gz css"),
+            (b"image.svg", b"svg", b"gz svg"),
+        ] {
+            let file = bundle.files.get(name).expect("plain file");
+            assert_eq!(file.bytes.as_ref(), plain);
+            assert_eq!(file.gzip.as_deref(), Some(gzip));
+        }
+        assert_eq!(bundle.files.get(b"files/robots.txt".as_slice()).expect("root file").gzip, None);
+        assert!(bundle.files.get(b"boot.js.gz".as_slice()).is_none());
+    }
+}
+#[test]
+fn the_compressed_forms_count_against_the_bounds() {
+    use temper_service::limits::Clients;
+    for (limits, why) in [
+        (Clients { bundle_files: FORMED_COUNT - 1, ..BUNDLE_LIMITS }, "past clients.bundle_files"),
+        (Clients { bundle_bytes: FORMED_BYTES - 1, ..BUNDLE_LIMITS }, "past clients.bundle_bytes"),
+    ] {
+        for read in formed_reads("bundle-form-limits", FORMED_FILES, limits) {
+            assert!(read.expect_err("form exceeds bound").contains(why));
+        }
+    }
+}
+#[test]
+fn a_compressed_form_with_no_file_refuses_the_start() {
+    let files = [("index.html", PAGE), ("0123456789abcdef/absent.js.gz", b"gz".as_slice())];
+    for read in formed_reads("bundle-orphan-form", &files, BUNDLE_LIMITS) {
+        assert!(read.expect_err("orphan form").contains("a compressed form with no file"));
+    }
+}
+#[test]
+fn a_gz_of_another_type_refuses_the_start() {
+    let files = [("index.html", PAGE), ("0123456789abcdef/x.txt.gz", b"gz".as_slice())];
+    for read in formed_reads("bundle-form-type", &files, BUNDLE_LIMITS) {
+        assert!(read.expect_err("type off closed list").contains("file type is not on the closed list"));
+    }
+}
+
 #[test]
 fn embedded_files_refuse_each_spoiled_bundle_and_limit() {
     use temper_service::limits::Clients;

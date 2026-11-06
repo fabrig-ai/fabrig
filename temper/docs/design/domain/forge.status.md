@@ -3,13 +3,6 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 11: a task's saved work is not deleted as it closes: `s<task>` is no hold,
-    and a close releases holds alone (`temper-engine-domain-forge/src/domain.rs`,
-    `continue_release`), so the branch stays on the forge. From reading: no story
-    closes a task with saved work and looks. The request `landing-fixes` of
-    2026-11-06, item 5, asks whether a branch left after its goal is by design:
-    by this section it is not, though that `temper/1/s10` and `s14` were such
-    branches rests on their names alone.
   - 8.2, step 3: a head already behind taking its base first stands on the fake
     forge's stories alone
     (`tests/engine/domain/tests/suite/forge_routes/update_first.rs`). The request

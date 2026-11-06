@@ -730,9 +730,11 @@ and the page policy. It knows no route: what a call means is its owner's.
   connections it holds, and `Routed` its variant and its call's token.
 - **What serving a bundle has in common** is `bundle`, beside the server:
   `File` and `kind`, a file's type by skein's closed list (`ui-web.md`,
-  4.4); `target`, a head's path; `file`, the file a path names under its
-  digest; `field`, one header; `demand` and `chunk`, a body's way out in
-  chunks of the server's `send`. They hold no state and answer nothing.
+  4.4), a `File` holding its compressed form where the bundle has one;
+  `compressed_of`, the file a `NAME.gz` is the form of; `target`, a
+  head's path; `file`, the file a path names under its digest; `field`,
+  one header; `demand` and `chunk`, a body's way out in chunks of the
+  server's `send`. They hold no state and answer nothing.
   The owner keeps its `Bundle`, its route, its answers, what it caches
   and how a call ends (`browser.md`, section 12).
 

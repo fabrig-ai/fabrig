@@ -446,6 +446,7 @@ impl Play for Walker {
 }
 fn copy_act(act: &Act) -> Act {
     match act {
+        Act::Near { edge } => Act::Near { edge: *edge },
         Act::Press => Act::Press,
         Act::Submit => Act::Submit,
         Act::Toggle => Act::Toggle,

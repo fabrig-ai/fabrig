@@ -61,6 +61,7 @@ pub fn text(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
                 call(task, offer.act, out);
                 proposed(to, me, out);
             }
+            Admission::Bounded { .. } if offer.act == ActKind::Amend => call(task, offer.act, out),
             Admission::Bounded { within, beyond } => {
                 call(task, offer.act, out);
                 out.put(b" within ");

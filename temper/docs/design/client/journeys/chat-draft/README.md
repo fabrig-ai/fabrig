@@ -51,9 +51,11 @@ those provenance lines, beyond its shortened specification preview.
 The walk is recorded by `again chat-draft` from its `setup`, with no
 hand driver.
 
-The chat prints before starting the goal keep the call run and its rows,
-the document write's line and Show, and the end of the answer. Latest is
-a sibling of the log in Chat and Split, hidden until the live log is away
-from its end. It is absent from the terminal. The returned chat shows
-the last reply and offers Older for the earlier conversation. An older
-read replaces Older with "Loading earlier messages…".
+The chat prints before starting the goal keep the call run and its rows, the document write's
+line and Show, and the end of the answer. Latest is a sibling of the log
+in Chat and Split, hidden until the live log is away from its end. It is
+absent from the terminal. Earlier lines load as the log's head nears the
+view, with "Loading earlier messages…" during the read and no Older
+control (`../../README.md`, 5.15). On returning from the goal, the chat opens
+with one activity page until the browser measures its log; the static
+pages 21 and 22 hold that window, without performing the browser's read.

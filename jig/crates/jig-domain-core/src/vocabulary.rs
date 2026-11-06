@@ -269,7 +269,7 @@ pub enum Held {
     /// Fence and cancel one hosted attempt after the decision commits.
     Cancel { channel: Token, run: Token, attempt: Token },
     /// Refuse one host request after the decision commits.
-    Refuse { channel: Token },
+    Refuse { channel: Token, hello: Option<fleet::HelloRefused> },
     /// Ask the host to retain and retry a turn that did not enter a decision.
     TurnBusy { channel: Token, run: Token, attempt: Token, turn: u32 },
     /// Cancel the current fenced run after its task decision commits.

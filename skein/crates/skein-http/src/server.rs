@@ -232,6 +232,84 @@ pub struct Call {
     pub body: Body,
 }
 
+impl Call {
+    /// Whether the request takes gzip (skein/docs/design/http.md, 5.2).
+    #[must_use]
+    pub fn accepts_gzip(&self) -> bool {
+        self.gzip_accepted().unwrap_or(false)
+    }
+
+    fn gzip_accepted(&self) -> Option<bool> {
+        let mut listed = false;
+        let mut accepted = false;
+        let mut wildcard = false;
+        for header in &self.headers {
+            if !header.name.eq_ignore_ascii_case(b"accept-encoding") {
+                continue;
+            }
+            let mut at = 0;
+            // Each element moves past its comma, bounded by the field's bytes.
+            for _ in 0..=header.value.len() {
+                let Some((item, next)) = crate::header::element(&header.value, at) else { break };
+                at = next;
+                if item.is_empty() {
+                    continue;
+                }
+                let (coding, positive) = match bytes::find(item, b";") {
+                    Some(at) => {
+                        let coding = crate::header::trim(item.get(..at)?);
+                        let parameter = crate::header::trim(item.get(at.checked_add(1)?..)?);
+                        if !parameter.get(..2)?.eq_ignore_ascii_case(b"q=") {
+                            return None;
+                        }
+                        (coding, encoding_weight(parameter.get(2..)?)?)
+                    }
+                    None => (item, true),
+                };
+                if !crate::header::is_token(coding) {
+                    return None;
+                }
+                if coding.eq_ignore_ascii_case(b"gzip") || coding.eq_ignore_ascii_case(b"x-gzip") {
+                    listed = true;
+                    accepted |= positive;
+                } else if coding == b"*" {
+                    wildcard |= positive;
+                }
+            }
+        }
+        Some(if listed { accepted } else { wildcard })
+    }
+}
+
+// RFC 9110, 12.4.2: 0 or 1, with at most three fractional digits.
+fn encoding_weight(value: &[u8]) -> Option<bool> {
+    let (one, rest) = if let Some(rest) = value.strip_prefix(b"0") {
+        (false, rest)
+    } else if let Some(rest) = value.strip_prefix(b"1") {
+        (true, rest)
+    } else {
+        return None;
+    };
+    if rest.is_empty() {
+        return Some(one);
+    }
+    let fraction = rest.strip_prefix(b".")?;
+    if fraction.len() > 3 {
+        return None;
+    }
+    let mut nonzero = false;
+    for &byte in fraction {
+        if !byte.is_ascii_digit() {
+            return None;
+        }
+        nonzero |= byte != b'0';
+    }
+    if one && nonzero {
+        return None;
+    }
+    Some(one || nonzero)
+}
+
 // skein/docs/design/http.md, 2: a call prints its target's length and its fields so.
 impl core::fmt::Debug for Call {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

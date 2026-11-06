@@ -370,7 +370,7 @@ pub(crate) fn context_read(domain: &mut Ui, what: &jig_client::contract::Read) {
             return;
         }
         Read::History { task, .. } => Some(Section::Task { task: *task, section: TaskSection::History }),
-        Read::Activity { task, .. } | Read::PersonTask { task } => {
+        Read::Activity { task, .. } | Read::ActivityBeside { task, .. } | Read::PersonTask { task } => {
             Some(Section::Task { task: *task, section: TaskSection::Activity })
         }
         Read::Ended { task, .. } => Some(Section::Task { task: *task, section: TaskSection::Plan }),

@@ -43,9 +43,13 @@ fn the_hello_names_the_workstreams_the_checkout_holds() {
 
 #[test]
 fn a_save_says_whether_each_repository_started_from_saved_work() {
+    // The fixture's repository has one initial commit, shared by its branches.
+    let base = temper_worker_checkout_world::translate::commit(1).raw();
     let rows = [
         (wire::Start::Base { branch: Box::from(&b"main"[..]) }, false),
         (wire::Start::Saved { branch: Box::from(&b"saved"[..]) }, true),
+        (wire::Start::Merge { branch: Box::from(&b"saved"[..]), base }, true),
+        (wire::Start::Merge { branch: Box::from(&b"topic"[..]), base }, false),
     ];
     for (start, expected) in rows {
         let name = format!("{start:?}");
