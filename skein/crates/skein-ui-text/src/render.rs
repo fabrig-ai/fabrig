@@ -563,7 +563,7 @@ fn states(n: &Node, out: &mut List<u8>) {
                     raw(out, if state == State::Pressed { b" (pressed)" } else { b" (selected)" });
                 }
             }
-            State::FoldsAway => {}
+            State::FoldsAway | State::ToLogEnd => {}
             State::Required => raw(out, b" (required)"),
             State::Completed => raw(out, b" (completed)"),
             State::SubmitsOnEnter => {

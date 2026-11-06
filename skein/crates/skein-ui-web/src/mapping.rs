@@ -92,6 +92,7 @@ fn core_element(made: &Made, look: &Look<'_>, prefix: &[u8], primary: Primary) -
         State::Completed,
         State::SubmitsOnEnter,
         State::FoldsAway,
+        State::ToLogEnd,
     ] {
         if a.states.as_slice().contains(&state) {
             state_attribute(&mut e, a.role, state);
@@ -347,6 +348,7 @@ fn state_attribute(e: &mut Element, role: Role, state: State) {
             },
         ),
         State::FoldsAway => e.set("data-folds-away", ""),
+        State::ToLogEnd => e.set("data-to-log-end", ""),
         State::Expanded => e.set("aria-expanded", "true"),
         State::Busy => e.set("aria-busy", "true"),
         State::Current => e.set("aria-current", if role == Role::Link { "page" } else { "true" }),

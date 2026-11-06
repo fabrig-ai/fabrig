@@ -303,6 +303,11 @@ const PROPERTIES: &[(Role, Property, &str)] = &[
         r#"<details data-node="1" data-folds-away=""><summary></summary></details>"#,
     ),
     (
+        Role::Button,
+        Property::State(State::ToLogEnd),
+        r#"<button data-node="1" type="button" data-to-log-end=""></button>"#,
+    ),
+    (
         Role::Item,
         Property::State(State::Completed),
         r#"<li data-node="1"><span id="skein-ui-state-1"> completed</span></li>"#,
