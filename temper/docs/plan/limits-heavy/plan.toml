@@ -41,3 +41,37 @@ id = 1
 story = "The largest rows read lower in instructions, and two box stories run in the process tier"
 parts = ["box", "fake", "limits", "rate"]
 walk = false
+
+[[part]]
+id = "gallery"
+title = "Whether the gallery's tests render every page because their checks need them"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 7"
+
+[[part]]
+id = "scale"
+title = "What a goal tree of 384 tasks and a box's restart in every ending order cost"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "rows"
+title = "Four single tests in the client's tools and the service"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "close"
+title = "The repair's account: the table in plan.md and the report"
+mode = "direct"
+needs = ["box", "fake", "limits", "rate", "gallery", "scale", "rows"]
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[slice]]
+id = 2
+story = "The gallery, scale, restart and single rows read lower in instructions, and the numbers go to the user"
+parts = ["gallery", "scale", "rows", "close"]
+walk = false
