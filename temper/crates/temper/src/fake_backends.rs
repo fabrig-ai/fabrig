@@ -6,6 +6,7 @@ use import::Source;
 use json::Json;
 use skein_io::kernel::{Exit, Fd};
 use std::{
+    ffi::OsStr,
     fs::{self, OpenOptions},
     io::Write,
     net::{SocketAddr, TcpListener},
@@ -21,6 +22,24 @@ use temper_fake::backends::{self, Paths, Peers};
 use temper_forge_setup_shell::process as locks;
 
 const REQUIRED: &[&str] = &["temper.json", "agent.json", "github.json", "oauth.json", "llm.json", "forgejo.json"];
+
+/// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup.md, 7.5).
+const CHOSEN_PORTS: &str = "TEMPER_FAKE_BOX_PORTS";
+struct Chosen {
+    listeners: [u16; 5],
+    peers: [u16; 4],
+}
+fn chosen_ports(value: &OsStr) -> Result<Chosen, String> {
+    let refuse = || format!("{CHOSEN_PORTS}: expected nine comma-separated nonzero ports");
+    let text = value.to_str().ok_or_else(refuse)?;
+    let ports = text
+        .split(',')
+        .map(|word| word.parse::<u16>().ok().filter(|port| *port != 0).ok_or_else(refuse))
+        .collect::<Result<Vec<_>, _>>()?;
+    let [clients, owned, forge, llm, webhooks, github, oauth, model, forgejo]: [u16; 9] =
+        ports.try_into().map_err(|_| refuse())?;
+    Ok(Chosen { listeners: [clients, owned, forge, llm, webhooks], peers: [github, oauth, model, forgejo] })
+}
 
 struct Listeners(Vec<(Fd, NonZeroU16)>);
 impl Drop for Listeners {
@@ -67,7 +86,9 @@ pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<O
 pub(crate) fn run(source: &Directories, bundle: Option<&Path>, echo: temper_box::host::Echo) -> Result<Exit, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
     let adapter = sibling(&binary)?;
-    let Prepared { directories, bytes, mut listeners, peers, _lock: lock } = prepare(source, bundle, &adapter)?;
+    let chosen = std::env::var_os(CHOSEN_PORTS).as_deref().map(chosen_ports).transpose()?;
+    let Prepared { directories, bytes, mut listeners, peers, _lock: lock } =
+        prepare(source, bundle, &adapter, chosen.as_ref())?;
     let first = backends::steps(&directories.config, &peers);
     let opening = crate::box_command::Opening {
         log_lines: Box::new([]),
@@ -243,15 +264,33 @@ fn directories(source: &Directories) -> Result<(PathBuf, Directories), String> {
     }
     Ok((root, Directories { config, data, cache: source.cache.clone(), origins: [skein_shell::Origin::Flag; 3] }))
 }
+pub(super) const PORT_ATTEMPTS: usize = 32;
+
 fn reserve(excluded: &[u16]) -> Result<TcpListener, String> {
-    for _ in 0..32 {
-        let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
-            .map_err(|why| format!("fake peer reservation: {why}"))?;
+    reserve_from(excluded, || TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)))
+}
+fn reserve_from(
+    excluded: &[u16],
+    mut bind: impl FnMut() -> std::io::Result<TcpListener>,
+) -> Result<TcpListener, String> {
+    for _ in 0..PORT_ATTEMPTS {
+        let listener = match bind() {
+            Ok(listener) => listener,
+            Err(why) if why.kind() == std::io::ErrorKind::AddrInUse => continue,
+            Err(why) => return Err(format!("fake peer reservation: {why}")),
+        };
         if !excluded.contains(&listener.local_addr().map_err(|why| why.to_string())?.port()) {
             return Ok(listener);
         }
     }
     Err("fake peer reservation: could not choose a port distinct from the deployment and callback".into())
+}
+fn reserve_chosen(excluded: &[u16], port: Option<u16>) -> Result<TcpListener, String> {
+    match port {
+        Some(port) => TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
+            .map_err(|why| format!("{CHOSEN_PORTS}: port {port}: {why}")),
+        None => reserve(excluded),
+    }
 }
 fn addr(listener: &TcpListener) -> Result<SocketAddr, String> {
     listener.local_addr().map_err(|why| why.to_string())
@@ -490,7 +529,12 @@ fn provisioned_program(path: &Path) -> Result<(), String> {
     clippy::too_many_lines,
     reason = "startup owns its lock and listeners through validation and publishes the prepared marker last"
 )]
-fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> Result<Prepared, String> {
+fn prepare(
+    source_dirs: &Directories,
+    bundle: Option<&Path>,
+    adapter: &Path,
+    chosen: Option<&Chosen>,
+) -> Result<Prepared, String> {
     let (root, effective) = directories(source_dirs)?;
     let source_config = resolved(Path::new("/"), &source_dirs.config)?;
     if source_config.starts_with(&root) {
@@ -549,9 +593,21 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
         let bytes = replace_bundle(&effective, content, bundle, adapter)?;
         return Ok(Prepared { directories: effective, bytes, listeners: Listeners(Vec::new()), peers, _lock: lock });
     }
-    let written =
-        crate::init::write_with_program(&effective, &skein_shell::environment(), &binary, [0; 5], Some(adapter))?;
+    let written = crate::init::write_with_program(
+        &effective,
+        &skein_shell::environment(),
+        &binary,
+        chosen.map_or([0; 5], |ports| ports.listeners),
+        Some(adapter),
+    )?;
     let mut held = Listeners(written.listeners);
+    if let Some(chosen) = chosen {
+        for ((_, port), wanted) in held.0.iter().zip(chosen.listeners) {
+            if port.get() != wanted {
+                return Err(format!("{CHOSEN_PORTS}: port {wanted}: init chose port {port} instead"));
+            }
+        }
+    }
     // Init deliberately writes public documents 0644; every retained sandbox document is private.
     for path in written.paths {
         if fs::symlink_metadata(&path).map_err(|why| why.to_string())?.is_file() {
@@ -566,13 +622,13 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
     }
     let initial = public(&effective.document())?;
     let mut excluded = ordinary_ports(&effective, &initial)?;
-    let github = reserve(&excluded)?;
+    let github = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[0]))?;
     excluded.push(addr(&github)?.port());
-    let oauth = reserve(&excluded)?;
+    let oauth = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[1]))?;
     excluded.push(addr(&oauth)?.port());
-    let llm = reserve(&excluded)?;
+    let llm = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[2]))?;
     excluded.push(addr(&llm)?.port());
-    let forgejo = reserve(&excluded)?;
+    let forgejo = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[3]))?;
     let peers = Peers { github: addr(&github)?, oauth: addr(&oauth)?, llm: addr(&llm)?, forgejo: addr(&forgejo)? };
     let bundle = provisioned.expect("new preparation checked the bundle");
     let paths = Paths {

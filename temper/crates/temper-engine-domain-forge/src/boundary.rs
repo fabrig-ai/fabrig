@@ -1252,6 +1252,7 @@ pub enum SetUpStep {
     Fetch,
     Prepare,
     Run,
+    Source,
 }
 /// The binary named by the box's fetch line (protocol/forge.md, 2.8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1756,6 +1757,12 @@ pub enum Event {
         task: u64,
         root: u64,
         ending: ReleaseEnding,
+    },
+    /// A closing task's saved work: each branch becomes its hold before the
+    /// release that follows (domain/forge.md, section 11).
+    SavedWork {
+        task: u64,
+        branches: Box<[Name]>,
     },
     /// Release a closing task's holds after prior effects settled.
     Release {

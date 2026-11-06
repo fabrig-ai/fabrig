@@ -227,6 +227,7 @@ impl Service {
             seeds,
             &limits.journal,
             settings.sign_in.as_ref(),
+            settings.machine.owned.as_ref(),
             settings.files.entries.as_slice(),
         )?;
         clients.program_environment.clone_from(&settings.program_environment);
@@ -237,8 +238,8 @@ impl Service {
         };
         if let Some(sign_in) = &settings.sign_in {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
-            clients.configure_forge_sign_in(&settings);
         }
+        clients.configure_forge_sign_in(&settings);
         let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
         let mut forge = crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &[])
             .expect("checked forge limits");
@@ -750,93 +751,122 @@ fn accounts_driver(
 }
 /// Drive store terminals, account events, one root input and released outputs.
 pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
-    service.io_env.now = now;
-    service.io_env.wall = wall;
-    if let Some(engine) = &mut service.engine {
-        engine::clock(engine, now, wall);
+    for stage in STAGES {
+        iterate_stage(service, stage, now, wall);
     }
-    for _ in 0..service.io_env.limits.sockets.checked_add(service.io_env.limits.refusals).expect("io entries") {
-        if !service.io.is_ready() || service.raw_submissions.room() < io::MAX_OUT_RESUME.submissions {
-            break;
-        }
-        io::resume(&mut service.io, &service.io_env, &mut service.told, &mut service.raw_submissions);
-    }
-    if !service.io.is_ready() {
-        for _ in 0..service.completions.len() {
-            if service.raw_submissions.room() < io::MAX_OUT_UP.submissions {
-                break;
+}
+/// One stage of a pass, in the loop's order (protocol/README.md, 8.1).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Stage {
+    Io,
+    Route,
+    Engine,
+    Worker,
+    Out,
+}
+pub const STAGES: [Stage; 5] = [Stage::Io, Stage::Route, Stage::Engine, Stage::Worker, Stage::Out];
+
+/// Run one stage with the pass's times (protocol/README.md, 8.1).
+pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall) {
+    match stage {
+        Stage::Io => {
+            service.io_env.now = now;
+            service.io_env.wall = wall;
+            if let Some(engine) = &mut service.engine {
+                engine::clock(engine, now, wall);
             }
-            let complete = service.completions.pop().expect("completion count");
-            let complete = service.kernel.complete(complete, &service.raw_submissions);
-            service.complete(complete);
-        }
-        if service.completions.is_empty() {
-            for _ in 0..service.io_env.limits.sockets.checked_mul(2).expect("io timers") {
-                if !service.io.is_due(now) || service.raw_submissions.room() < io::MAX_OUT_FIRE.submissions {
+            for _ in 0..service.io_env.limits.sockets.checked_add(service.io_env.limits.refusals).expect("io entries") {
+                if !service.io.is_ready() || service.raw_submissions.room() < io::MAX_OUT_RESUME.submissions {
                     break;
                 }
-                io::fire(&mut service.io, &service.io_env, &mut service.told, &mut service.raw_submissions);
+                io::resume(&mut service.io, &service.io_env, &mut service.told, &mut service.raw_submissions);
             }
-        }
-    }
-    route_events(service);
-    if let Some(engine) = &mut service.engine {
-        engine::iterate(engine, now, wall);
-    }
-    let runs = service.worker_runs();
-    if let Some(worker) = &mut service.worker {
-        if let Some(engine) = &service.engine
-            && (engine.end.is_some()
-                || match &engine.drain {
-                    Some(drain) => drain.closing,
-                    None => false,
-                })
-        {
-            worker.abort();
-        }
-        if runs {
-            worker.iterate(now, wall);
-        }
-        if let Some(engine) = &mut service.engine {
-            if let Some(problems) = worker.refused() {
-                if engine.drain.is_none() && engine.end.is_none() {
-                    stop::shutdown(engine);
+            if !service.io.is_ready() {
+                for _ in 0..service.completions.len() {
+                    if service.raw_submissions.room() < io::MAX_OUT_UP.submissions {
+                        break;
+                    }
+                    let complete = service.completions.pop().expect("completion count");
+                    let complete = service.kernel.complete(complete, &service.raw_submissions);
+                    service.complete(complete);
                 }
-                if let Some(End::Drained) = engine.end {
-                    engine.end = Some(End::Stopped(Stop::Start(problems.clone())));
+                if service.completions.is_empty() {
+                    for _ in 0..service.io_env.limits.sockets.checked_mul(2).expect("io timers") {
+                        if !service.io.is_due(now) || service.raw_submissions.room() < io::MAX_OUT_FIRE.submissions {
+                            break;
+                        }
+                        io::fire(&mut service.io, &service.io_env, &mut service.told, &mut service.raw_submissions);
+                    }
                 }
             }
-        } else {
-            if worker.end().is_none()
-                && let Some(problems) = worker.refused()
+        }
+        Stage::Route => {
+            route_events(service);
+        }
+        Stage::Engine => {
+            if let Some(engine) = &mut service.engine {
+                engine::iterate(engine, now, wall);
+            }
+        }
+        Stage::Worker => {
+            let runs = service.worker_runs();
+            if let Some(worker) = &mut service.worker {
+                if let Some(engine) = &service.engine
+                    && (engine.end.is_some()
+                        || match &engine.drain {
+                            Some(drain) => drain.closing,
+                            None => false,
+                        })
+                {
+                    worker.abort();
+                }
+                if runs {
+                    worker.iterate(now, wall);
+                }
+                if let Some(engine) = &mut service.engine {
+                    if let Some(problems) = worker.refused() {
+                        if engine.drain.is_none() && engine.end.is_none() {
+                            stop::shutdown(engine);
+                        }
+                        if let Some(End::Drained) = engine.end {
+                            engine.end = Some(End::Stopped(Stop::Start(problems.clone())));
+                        }
+                    }
+                } else {
+                    if worker.end().is_none()
+                        && let Some(problems) = worker.refused()
+                    {
+                        worker.set_end(End::Stopped(Stop::Start(problems.clone())));
+                        worker.abort();
+                    }
+                    if worker.is_empty() && worker.end().is_none() {
+                        worker.set_end(End::Drained);
+                    }
+                }
+            }
+        }
+        Stage::Out => {
+            close_sources(service);
+            if let Some(engine) = &mut service.engine {
+                engine.abort_if_ended();
+            }
+            box_io(service);
+            service.route_components();
+            if let Some(engine) = &mut service.engine
+                && engine.clients.starting.is_none()
             {
-                worker.set_end(End::Stopped(Stop::Start(problems.clone())));
-                worker.abort();
+                for _ in 0..engine.clients.links.len() {
+                    if service.links.room() == 0 {
+                        break;
+                    }
+                    let link = engine.clients.links.pop().expect("printed sign-in links");
+                    service.links.push(link);
+                }
             }
-            if worker.is_empty() && worker.end().is_none() {
-                worker.set_end(End::Drained);
-            }
+            service.kernel.publish(&mut service.raw_submissions, &mut service.submissions);
+            service.io.reclaim();
         }
     }
-    close_sources(service);
-    if let Some(engine) = &mut service.engine {
-        engine.abort_if_ended();
-    }
-    box_io(service);
-    service.route_components();
-    if let Some(engine) = &mut service.engine
-        && engine.clients.starting.is_none()
-    {
-        for _ in 0..engine.clients.links.len() {
-            if service.links.room() == 0 {
-                break;
-            }
-            let link = engine.clients.links.pop().expect("printed sign-in links");
-            service.links.push(link);
-        }
-    }
-    service.kernel.publish(&mut service.raw_submissions, &mut service.submissions);
-    service.io.reclaim();
 }
 fn close_sources(service: &mut Service) {
     if service.end().is_some() {
@@ -1213,6 +1243,7 @@ mod box_tests {
             panic!("owned machine fixture")
         };
         machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
+            sign_in: None,
             listen: owned.listen,
             remote: b"http://forge.example".as_slice().into(),
             person: owned.person,

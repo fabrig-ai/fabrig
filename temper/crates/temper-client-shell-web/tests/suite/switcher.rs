@@ -33,3 +33,13 @@ fn scrolling_panes_contain_their_hidden_absolute_parts() {
         assert!(rule(selector).contains("position: relative;"), "{selector}");
     }
 }
+
+#[test]
+fn repository_links_underline_only_on_hover_and_counts_never_shrink() {
+    assert!(rule(".temper-projects-repo a").contains("color: inherit;"));
+    assert!(rule(".temper-projects-repo a").contains("text-decoration: none;"));
+    assert!(rule(".temper-projects-repo a:hover").contains("text-decoration: underline;"));
+    assert!(rule("a.temper-repository-link").contains("text-decoration: none;"));
+    assert!(rule("a.temper-repository-link:hover").contains("text-decoration: underline;"));
+    assert!(rule("#app > .temper-rail .temper-projects-repo > .temper-projects-more").contains("flex: none;"));
+}

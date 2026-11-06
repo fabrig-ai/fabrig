@@ -1196,6 +1196,7 @@ fn connection(
                         Some(forge::SetUpStep::Fetch) => Some(w::SetUpStep::Fetch),
                         Some(forge::SetUpStep::Prepare) => Some(w::SetUpStep::Prepare),
                         Some(forge::SetUpStep::Run) => Some(w::SetUpStep::Run),
+                        Some(forge::SetUpStep::Source) => Some(w::SetUpStep::Source),
                     },
                 },
             )

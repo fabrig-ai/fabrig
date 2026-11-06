@@ -371,13 +371,139 @@ impl Play for Walk {
     }
 }
 
+const LONG_TITLE: &str =
+    "Export widget's table as CSV with visible columns, localized headings and a readable filename for monthly reports";
+
+struct TextBoxes {
+    at: u32,
+    boxes: Vec<(String, skein_browser::boundary::Rect)>,
+}
+impl TextBoxes {
+    fn new() -> Self {
+        Self { at: 0, boxes: vec![] }
+    }
+    fn next(&mut self, face: &mut BrowserFace<'_>) -> bool {
+        let find =
+            Find::text(b"").nth(self.at).within(Box::new([Target::Role { role: Role::Main, name: Box::new([]) }]));
+        match face.find_boxed(&find) {
+            Found::Pending => false,
+            Found::Absent => true,
+            Found::Node(node) => {
+                let seen = face.seen(node).expect("public text");
+                let rect = seen.rect.expect("visible text has a box");
+                self.boxes.push((String::from_utf8_lossy(&seen.name).into_owned(), rect));
+                self.at += 1;
+                false
+            }
+        }
+    }
+    fn check(&self, width: u32) {
+        let text = self.boxes.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>().join("\n");
+        assert!(text.contains(LONG_TITLE), "long title stays readable: {text}");
+        for field in ["Goal ", "task ", "a procedure", "an agent", "for ", " spent ", "priority "] {
+            assert!(text.contains(field), "populated public field {field}: {text}");
+        }
+        assert!(
+            ["waiting", "running", "active", "preparing", "done", "held", "ended"]
+                .iter()
+                .any(|phase| text.contains(phase)),
+            "phase is populated: {text}"
+        );
+        for (at, (name, rect)) in self.boxes.iter().enumerate() {
+            assert!(rect.width > 0 && rect.height > 0, "visible {name}: {rect:?}");
+            assert!(rect.x >= 16, "text and navigation keep a gutter: {name}: {rect:?}");
+            let right = rect.x + i64::try_from(rect.width).expect("text width");
+            assert!(right <= i64::from(width) - 16, "no horizontal overflow: {name}: {rect:?}");
+            if name.contains("Export widget") {
+                assert!(rect.width >= 200, "title keeps a readable column: {rect:?}");
+            }
+            for (other, second) in self.boxes.iter().skip(at + 1) {
+                let overlaps = rect.x < second.x + i64::try_from(second.width).expect("width")
+                    && second.x < right
+                    && rect.y < second.y + i64::try_from(second.height).expect("height")
+                    && second.y < rect.y + i64::try_from(rect.height).expect("height");
+                assert!(!overlaps, "text overlaps at {width}px: {name} {rect:?}, {other} {second:?}");
+            }
+        }
+    }
+}
+struct Readable {
+    walk: Walk,
+    stage: u32,
+    boxes: TextBoxes,
+    measuring: bool,
+}
+impl Readable {
+    fn width(&self) -> u32 {
+        if self.stage == 2 || self.stage == 4 { 1440 } else { 420 }
+    }
+    fn advance(&mut self) {
+        self.boxes = TextBoxes::new();
+        self.measuring = false;
+        self.stage += 1;
+        if self.stage == 6 {
+            self.walk.open(Page::Projects, vec![go(b"/public"), see(heading(b"Public projects"))]);
+            return;
+        }
+        let mut steps = vec![Step::Viewport { width: self.width(), height: 900 }];
+        match self.stage {
+            2 => steps.extend([
+                go(self.walk.board.as_bytes()),
+                see(heading(PROJECT)),
+                see(Find::text(LONG_TITLE.as_bytes())),
+                see(Find::named(Role::Link, b"task ")),
+            ]),
+            4 => steps.extend([
+                press(Find::named(Role::Link, b"Goal ")),
+                see(Find::text(LONG_TITLE.as_bytes())),
+                see(Find::named(Role::Link, b"task ")),
+            ]),
+            3 | 5 => {}
+            _ => panic!("bounded public layout walk"),
+        }
+        self.walk.script = Script::new(steps.into_boxed_slice());
+    }
+}
+impl Play for Readable {
+    fn expected(&self) -> Vec<Box<[u8]>> {
+        self.walk.expected()
+    }
+    fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
+        if self.stage == 6 {
+            return self.walk.next(face, now);
+        }
+        if self.measuring {
+            if self.boxes.next(face) {
+                self.boxes.check(self.width());
+                self.advance();
+            }
+            return Next::Wait { until: None };
+        }
+        match self.walk.script.next(face, now) {
+            Next::Done if self.stage == 0 => {
+                self.walk.published();
+                self.stage = 1;
+            }
+            Next::Done if self.stage == 1 => self.advance(),
+            Next::Done => self.measuring = true,
+            next => return next,
+        }
+        Next::Wait { until: None }
+    }
+    fn at(&self) -> u32 {
+        self.walk.script.at()
+    }
+    fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
+        self.walk.script.check_deadline(face, now);
+    }
+}
+
 #[test]
-fn a_visitor_reads_a_public_project_and_loses_it_when_made_private() {
-    let tier = Tier::public_demo("public-visitor-project");
-    let mut walk = Walk::new(&tier);
-    // Opening ctl's spent link makes serve print the owner's fresh link for the second tab.
-    let mut ctl = Script::new(Box::new([sign_in(walk.client.path()), exited(), open_printed(), exited()]));
+fn public_board_and_task_lines_are_readable_at_desktop_and_phone_widths() {
+    let tier = Tier::public_demo_title("public-readable-lines", LONG_TITLE);
+    let mut reader = Readable { walk: Walk::new(&tier), stage: 0, boxes: TextBoxes::new(), measuring: false };
+    let mut ctl = Script::new(Box::new([sign_in(reader.walk.client.path()), exited(), open_printed(), exited()]));
     let mut setup = tier.setup();
     setup.printed.sent = Sent::Command;
-    assert_eq!(Harness::new(setup).run(&mut [&mut ctl, &mut walk]), Outcome::Done);
+    assert_eq!(Harness::new(setup).run(&mut [&mut ctl, &mut reader]), Outcome::Done);
 }

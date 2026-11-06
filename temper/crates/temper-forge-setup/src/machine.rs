@@ -82,6 +82,7 @@ pub struct OwnedMachine {
     pub listen: SocketAddr,
     pub remote: Box<[u8]>,
     pub person: Account,
+    pub sign_in: Option<Box<[u8]>>,
     pub public: Option<Origin>,
     pub fetch: Fetch,
     pub forgejo: Box<[u8]>,
@@ -119,8 +120,19 @@ pub fn read(
     problems: &mut Problems,
 ) -> Option<Machine> {
     let mut ps = config::Problems::empty();
+    let result = read_config(d, at, directories, &mut ps);
+    problems.append(ps);
+    result
+}
+/// The application retains each typed problem's full member path.
+pub fn read_config(
+    d: &Document,
+    at: u32,
+    directories: &config::Directories,
+    ps: &mut config::Problems,
+) -> Option<Machine> {
     let p = Path::root().member(b"application").member(b"machine");
-    let mut result = machine(d, at, &p, &mut ps);
+    let mut result = machine(d, at, &p, ps);
     if ps.is_empty()
         && let Some(machine) = &mut result
     {
@@ -130,7 +142,7 @@ pub fn read(
                 config::Directory::Cache,
                 &mut owned.forgejo,
                 p.member(b"owned").member(b"forgejo"),
-                &mut ps,
+                ps,
             );
             if let Some(runner) = &mut owned.runner {
                 resolve_path(
@@ -138,28 +150,20 @@ pub fn read(
                     config::Directory::Cache,
                     &mut runner.binary,
                     p.member(b"owned").member(b"runner").member(b"binary"),
-                    &mut ps,
+                    ps,
                 );
             }
         }
         if let Some(github) = &mut machine.github
             && let Some(git) = &mut github.git
         {
-            resolve_path(directories, config::Directory::Data, git, p.member(b"github").member(b"git"), &mut ps);
+            resolve_path(directories, config::Directory::Data, git, p.member(b"github").member(b"git"), ps);
         }
         if let Some(fake) = &mut machine.fake {
-            resolve_path(
-                directories,
-                config::Directory::Data,
-                &mut fake.git,
-                p.member(b"fake").member(b"git"),
-                &mut ps,
-            );
+            resolve_path(directories, config::Directory::Data, &mut fake.git, p.member(b"fake").member(b"git"), ps);
         }
     }
-    let clean = ps.is_empty();
-    problems.append(ps);
-    if clean { result } else { None }
+    if ps.is_empty() { result } else { None }
 }
 fn machine(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Machine> {
     let mut o = object(d, at, "machine", p, ps)?;
@@ -445,6 +449,7 @@ fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<O
     let person_at = o.required(d, b"person", p, ps);
     let mirror_at = o.member(d, b"mirror");
     let public_at = o.member(d, b"public");
+    let sign_in_at = o.member(d, b"sign_in");
     o.finish(d, p, ps);
     let runner_at = runner_at?;
     let mut runner = if d.token(runner_at)?.kind == Kind::Null {
@@ -484,9 +489,23 @@ fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<O
     };
     let fetch = Fetch { forgejo: fetched_forgejo, runner: fetched_runner, mirror };
     let person = account(d, person_at?, &p.member(b"person"), ps)?;
+    let sign_in = match sign_in_at {
+        Some(at) if d.token(at)?.kind != Kind::Null => match read::text(d, at, 256) {
+            Ok(value) => Some(value),
+            Err(what) => {
+                ps.push(p.member(b"sign_in"), what);
+                None
+            }
+        },
+        Some(_) | None => None,
+    };
+    if sign_in.is_some() {
+        valid(!crate::sign_in::refused_person(&person.login, b""), p.member(b"person").member(b"login"), ps);
+        valid(!crate::sign_in::refused_person(b"", &person.email), p.member(b"person").member(b"email"), ps);
+    }
     let remote = remote?;
     valid(git_base(&remote), p.member(b"remote"), ps);
-    Some(OwnedMachine { listen, remote, person, public, fetch, forgejo, runner })
+    Some(OwnedMachine { listen, remote, person, sign_in, public, fetch, forgejo, runner })
 }
 fn mirror(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Mirror> {
     let mut o = object(d, at, "machine-mirror", p, ps)?;
@@ -655,7 +674,16 @@ pub const SHAPES: [Shape; 9] = [
 ];
 
 /// The machine members read by this decoder and printed by the application.
-pub const MEMBERS: [Member; 29] = [
+pub const MEMBERS: [Member; 30] = [
+    Member {
+        shape: "machine-owned",
+        name: "sign_in",
+        kind: "text or null",
+        bound: "a client of engine.clients.provider; at most 256 bytes",
+        required: false,
+        line: "The client the box’s owned Forgejo signs its person in through, null for none.",
+        gone: None,
+    },
     Member {
         shape: "machine",
         name: "owned",

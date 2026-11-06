@@ -22,13 +22,20 @@ impl Draw<'_> {
         b.close();
     }
     pub(super) fn line(&mut self, b: &mut Builder, line: &PublicLine) {
-        b.open(Role::Paragraph);
-        b.style(crate::look::PLAN_ROW);
+        b.open(Role::Group);
+        b.style(crate::look::PUBLIC_ROW);
+        b.open(Role::Group);
+        b.style(crate::look::PUBLIC_TITLE);
         self.task_link(b, line.task(), line.goal());
+        b.open(Role::Paragraph);
         b.text(Run::Plain, line.title());
         if line.title_cut() {
             self.words.text(b, Word::PublicTitleCut, &[]);
         }
+        b.close();
+        b.close();
+        b.open(Role::Group);
+        b.style(crate::look::PUBLIC_META);
         let executor = match line.executor() {
             PublicExecutor::Agent => Word::PublicAgent,
             PublicExecutor::Procedure => Word::PublicProcedure,
@@ -46,6 +53,7 @@ impl Draw<'_> {
         if let Some(priority) = line.priority() {
             self.words.text(b, Word::Priority, &[Hole::Number(u64::from(*priority))]);
         }
+        b.close();
         b.close();
     }
 }

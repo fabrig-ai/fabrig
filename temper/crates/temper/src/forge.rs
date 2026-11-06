@@ -40,7 +40,7 @@ fn status(exit: Exit) -> String {
         Exit::Signal(n) => format!("signal {n}"),
     }
 }
-fn command_error(why: command::Error) -> String {
+pub(crate) fn command_error(why: command::Error) -> String {
     match why {
         command::Error::Interrupted => "interrupted".into(),
         command::Error::Kernel(why) => format!("command kernel: {why}"),
@@ -167,6 +167,7 @@ pub(crate) fn start(
         [verb, number] if verb == "fetch" => ("fetch", number, None),
         [verb, number] if verb == "prepare" => ("prepare", number, None),
         [verb, number] if verb == "sign-in" => ("sign-in", number, None),
+        [verb, number] if verb == "source" => ("source", number, None),
         [verb, number, which] if verb == "run" => {
             let which = match which.to_str() {
                 Some("forgejo") => Which::Forgejo,
@@ -194,7 +195,9 @@ pub(crate) fn start(
     let owned = match &entry.mode {
         Mode::Owned(owned) => Some(owned),
         Mode::Managed { .. } => return Err(refused("it is managed, not owned".into())),
-        Mode::Fake(_) if which.is_some() || verb == "fetch" => return Err(refused("it is fake, not owned".into())),
+        Mode::Fake(_) if which.is_some() || verb == "fetch" || verb == "source" => {
+            return Err(refused("it is fake, not owned".into()));
+        }
         Mode::Fake(_) => None,
     };
     if verb == "fetch" {
@@ -222,6 +225,9 @@ pub(crate) fn start(
     if let Some(which) = which {
         return run_process(owned, &place, which, listener, (number, directories), &limits).map_err(refused);
     }
+    if verb == "source" {
+        return super::forge_sign_in::source(&bytes, &named, owned, &place, checked.limits.deadline).map_err(refused);
+    }
     prepare::run(
         &limits,
         &place,
@@ -230,13 +236,15 @@ pub(crate) fn start(
             place.clone(),
             webhook_listener(&named).map_err(refused)?.map(|socket| socket.ip()),
         )
-        .with_sign_in(
+        .with_sign_in(if named.machine.owned.as_ref().is_some_and(|owned| owned.sign_in.is_some()) {
+            Some(temper_forge_setup::sign_in::FirstSignIn::LinksByName)
+        } else {
             named
                 .sign_in
                 .as_ref()
                 .is_some_and(|sign_in| sign_in.forges.iter().any(|row| row.forge == number))
-                .then(super::forge_sign_in::first_sign_in),
-        ),
+                .then(super::forge_sign_in::first_sign_in)
+        }),
     )
     .map_err(|why| refused(failure(why, &place)))?;
     Ok(0)
@@ -315,8 +323,19 @@ pub fn run(directories: &super::Directories, arguments: &[OsString], ssl_cert_fi
     match start(directories, arguments, ssl_cert_file) {
         Ok(code) => code,
         Err(why) => {
-            eprint!("{}", why.line());
-            1
+            if arguments.first().is_some_and(|verb| verb == "source") {
+                let reason: String = why
+                    .why
+                    .bytes()
+                    .take(1024)
+                    .map(|c| if c.is_ascii_graphic() || c == b' ' { char::from(c) } else { ' ' })
+                    .collect();
+                println!("source failed {reason}");
+                0
+            } else {
+                eprint!("{}", why.line());
+                1
+            }
         }
     }
 }
