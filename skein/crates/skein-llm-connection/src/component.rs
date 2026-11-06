@@ -119,42 +119,13 @@ impl Component {
         })
     }
 
-    /// Check and prepare a standalone call; down measures starts and prepares on running.
-    pub fn admit(
-        &mut self,
-        call: Token,
-        endpoint: u32,
-        prompt: Prompt,
-        credential: Option<Credential>,
-    ) -> Result<llm::client::Client, Refusal> {
-        self.admit_policy(call, endpoint, prompt, credential, None)
-    }
-
-    pub(crate) fn admit_policy(
-        &mut self,
-        call: Token,
-        endpoint: u32,
-        prompt: Prompt,
-        credential: Option<Credential>,
-        drop_reasoning: Option<bool>,
-    ) -> Result<llm::client::Client, Refusal> {
-        let request = self.measure_start(call, endpoint, prompt, credential, drop_reasoning)?;
-        match llm::client::Client::prepare_measured(request) {
-            Ok(mut client) => {
-                self.take_body(call, endpoint, &mut client);
-                Ok(client)
-            }
-            Err(error) => Err(Refusal::Client(error)),
-        }
-    }
-
     fn measure_start(
         &self,
         call: Token,
         endpoint: u32,
         prompt: Prompt,
         credential: Option<Credential>,
-        drop_reasoning: Option<bool>,
+        drop_reasoning: bool,
     ) -> Result<llm::client::MeasuredRequest, Refusal> {
         match self.lifecycle {
             Lifecycle::Live => {}
@@ -171,12 +142,8 @@ impl Component {
                 Err(error) => return Err(Refusal::Client(error)),
             }
         }
-        let enabled = match drop_reasoning {
-            Some(enabled) => enabled,
-            None => destination.limits.drop_reasoning,
-        };
         let input = Call { owner: call, prompt, credential, endpoint: destination.llm.clone() };
-        let mut request = match llm::client::measure_request(input, &destination.limits, enabled) {
+        let mut request = match llm::client::measure_request(input, &destination.limits, drop_reasoning) {
             Ok(request) => request,
             Err(error) => return Err(Refusal::Client(error)),
         };
@@ -596,7 +563,7 @@ impl Component {
         up: &mut Queue<Event>,
         io: &mut Queue<IoRequest>,
     ) {
-        let request = match self.measure_start(call, endpoint, prompt, credential, Some(drop_reasoning)) {
+        let request = match self.measure_start(call, endpoint, prompt, credential, drop_reasoning) {
             Ok(request) => request,
             Err(why) => {
                 up.push(Event::Refused { call, why });
@@ -844,6 +811,27 @@ impl Component {
 }
 
 #[cfg(test)]
+impl Component {
+    pub(crate) fn admit(
+        &mut self,
+        call: Token,
+        endpoint: u32,
+        prompt: Prompt,
+        credential: Option<Credential>,
+        drop_reasoning: bool,
+    ) -> Result<llm::client::Client, Refusal> {
+        let request = self.measure_start(call, endpoint, prompt, credential, drop_reasoning)?;
+        match llm::client::Client::prepare_measured(request) {
+            Ok(mut client) => {
+                self.take_body(call, endpoint, &mut client);
+                Ok(client)
+            }
+            Err(error) => Err(Refusal::Client(error)),
+        }
+    }
+}
+
+#[cfg(test)]
 mod link_tests {
     use super::*;
     use crate::tests::{component, credential, limits, prompt};
@@ -903,7 +891,7 @@ mod memory_tests {
         let reservation = skein_llm::client::reservation(measured, &destination.limits).unwrap();
         component.limits.memory = reservation - 1;
         assert_eq!(
-            component.admit(Token::new(7), 0, input, Some(secret)).err(),
+            component.admit(Token::new(7), 0, input, Some(secret), false).err(),
             Some(Refusal::Memory { reservation, bound: reservation - 1 })
         );
         assert_eq!(component.reserved(), 0);
