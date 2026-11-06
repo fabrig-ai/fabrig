@@ -1258,15 +1258,21 @@ fn local_pass(service: &mut Service, now: Time, wall: Wall) {
     reason = "kernel operations are external; only Cancel names another operation"
 )]
 fn namespace_submit(submit: kernel::Submit, tag: Option<u8>) -> kernel::Submit {
-    assert!(submit.op.tag() & (ACCOUNT_TAG | EFFECT_TAG) == 0, "bounded operation namespace");
-    let Some(tag) = tag else { return submit };
     let kind = match submit.kind {
         kernel::Op::Cancel { target } if target.raw() != u64::MAX => {
-            kernel::Op::Cancel { target: Token::tagged(tag, target.raw()).expect("lower cancel uses its own namespace") }
+            kernel::Op::Cancel { target: namespace_token(target, tag) }
         }
         other => other,
     };
-    kernel::Submit { op: Token::tagged(tag, submit.op.raw()).expect("bounded operation namespace"), kind }
+    kernel::Submit { op: namespace_token(submit.op, tag), kind }
+}
+
+fn namespace_token(token: Token, tag: Option<u8>) -> Token {
+    assert!(token.tag() & (ACCOUNT_TAG | EFFECT_TAG) == 0, "lower token uses its own namespace");
+    match tag {
+        Some(tag) => Token::tagged(tag, token.raw()).expect("bounded operation namespace"),
+        None => token,
+    }
 }
 
 #[cfg(test)]

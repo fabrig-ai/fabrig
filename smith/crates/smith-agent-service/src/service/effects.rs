@@ -198,8 +198,7 @@ impl Effects {
         {
             return true;
         }
-        owner.tag() == COMPONENT_TAG
-            && service.owners.get(Id::from_token(Token::new(owner.untagged()))).is_some()
+        owner.tag() == COMPONENT_TAG && service.owners.get(Id::from_token(Token::new(owner.untagged()))).is_some()
     }
 
     /// Open destinations retained while the common owner closes its other entities.

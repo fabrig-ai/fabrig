@@ -333,7 +333,11 @@ impl Accounts {
                             file_layer::down(
                                 &mut self.files,
                                 now,
-                                file::Request::Close { owner: Token::tagged(ROOT_TAG, u64::from(index)).expect("account index fits root namespace"), file: root },
+                                file::Request::Close {
+                                    owner: Token::tagged(ROOT_TAG, u64::from(index))
+                                        .expect("account index fits root namespace"),
+                                    file: root,
+                                },
                                 &mut self.events,
                                 &mut self.submissions,
                             );

@@ -1,5 +1,5 @@
 //! The account driver's socket pass; io and file operations keep their lanes.
-//! Completions return by file_layer::owns (skein/docs/design/io.md, 5).
+//! Completions return by `file_layer::owns` (skein/docs/design/io.md, 5).
 use super::Accounts;
 use skein_io as io;
 use skein_lib::{Env, Time, Wall};
@@ -57,4 +57,3 @@ impl Accounts {
             && self.socket_requests.is_empty()
     }
 }
-

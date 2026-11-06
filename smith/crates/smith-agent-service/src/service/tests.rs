@@ -339,21 +339,19 @@ fn llm_and_host_terminals_reach_the_domain_with_their_owners() {
 #[test]
 fn kernel_cancel_targets_the_right_layer_operation() {
     let mut service = service();
-    route_submission(
-        &mut service.stages,
+    assert_eq!(service.stages.submitted, 1, "the file layer's initial seed");
+    for submit in [
         kernel::Submit { op: Token::new(11), kind: kernel::Op::Close { fd: kernel::Fd::new(3) } },
-        false,
-    );
-    route_submission(
-        &mut service.stages,
-        kernel::Submit { op: Token::new(11), kind: kernel::Op::Close { fd: kernel::Fd::new(4) } },
-        true,
-    );
-    route_submission(
-        &mut service.stages,
-        kernel::Submit { op: Token::new(12), kind: kernel::Op::Cancel { target: Token::new(11) } },
-        true,
-    );
+        kernel::Submit { op: Token::new(file_layer::LANE | 0x0b), kind: kernel::Op::Close { fd: kernel::Fd::new(4) } },
+        kernel::Submit {
+            op: Token::new(file_layer::LANE | 0x0c),
+            kind: kernel::Op::Cancel { target: Token::new(file_layer::LANE | 0x0b) },
+        },
+    ] {
+        let submitted = service.stages.submitted;
+        route_submission(&mut service.stages, submit);
+        assert_eq!(service.stages.submitted, submitted + 1, "every routed submission advances the file seed");
+    }
     let io = service.stages.submissions.pop().expect("io close");
     let file = service.stages.submissions.pop().expect("file close");
     let cancel = service.stages.submissions.pop().expect("file cancel");
@@ -463,10 +461,10 @@ fn done_is_some_only_when_closed() {
     teardown::answered(&mut service.stages);
     assert_eq!(done(&service), None);
     teardown::follow(&mut service.stages, Some(&service.frame));
-    enter(&mut service, Input::OperationSubmitted { global: Token::new(77), original: Token::new(4) });
+    enter(&mut service, Input::OperationSubmitted);
     teardown::follow(&mut service.stages, Some(&service.frame));
     assert_eq!(done(&service), None);
-    enter(&mut service, Input::OperationCompleted { global: Token::new(77) });
+    enter(&mut service, Input::OperationCompleted);
     teardown::follow(&mut service.stages, Some(&service.frame));
     assert_eq!(
         service.stages.teardown,
@@ -499,7 +497,7 @@ fn a_deferred_io_completion_keeps_the_service_awake_and_unsettled() {
     up::io_up(&mut service.stages, Some(&mut service.frame));
     assert!(service.frame.io.is_ready());
     assert!(service.stages.completions.is_empty());
-    assert!(service.stages.operations.is_empty());
+    assert_eq!(service.stages.in_flight, 0);
     assert_eq!(service.stages.io_completions.len(), 1);
     service.stages.io_submissions = Queue::with_capacity(1);
     up::io_up(&mut service.stages, Some(&mut service.frame));
@@ -818,7 +816,7 @@ fn kernel_submission_credit_holds_both_lower_routes() {
     io_down(&mut service.stages, Some(&mut service.frame));
     assert_eq!(service.stages.io_submissions.len(), 1);
     assert_eq!(service.stages.file_submissions.len(), 1);
-    assert!(service.stages.operations.is_empty(), "neither internal route crossed the full edge");
+    assert_eq!(service.stages.in_flight, 0, "neither internal route crossed the full edge");
     service.stages.submissions.pop().expect("shell takes its first submission");
     io_down(&mut service.stages, Some(&mut service.frame));
     assert!(service.stages.io_submissions.is_empty(), "IO keeps priority at the edge");
@@ -875,18 +873,15 @@ mod validity {
 
     #[test]
     fn component_routes_fit_the_token_namespace() {
-        for routes in [1 << 28, (1 << 28) + 1] {
-            let mut config = configuration();
-            config.limits.routes = routes;
-            let framed = Service::new(config, 1).map(|_| ());
-            let mut config = configuration();
-            config.limits.routes = routes;
-            let effects = Effects::new(config, 1).map(|_| ());
-            for result in [framed, effects] {
-                if routes == 1 << 28 {
-                    assert!(result.is_ok(), "the last representable route slot fits");
-                } else {
-                    assert!(matches!(result, Err(ConfigError::Queue)), "routes must fit the component tag");
+        for routes in [1 << 28_u32, (1 << 28_u32) + 1] {
+            for framed in [false, true] {
+                let mut config = configuration();
+                config.limits.routes = routes;
+                let refused = if framed { Service::new(config, 1).err() } else { Effects::new(config, 1).err() };
+                match refused {
+                    None => assert_eq!(routes, 1 << 28_u32, "routes must fit the component tag"),
+                    Some(ConfigError::Queue) => assert!(routes > 1 << 28_u32, "the last representable slot fits"),
+                    Some(error) => panic!("unexpected route refusal: {error:?}"),
                 }
             }
         }

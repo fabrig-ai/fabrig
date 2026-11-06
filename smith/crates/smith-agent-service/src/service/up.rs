@@ -5,9 +5,7 @@
 use super::down::drain_facts;
 use super::routing::route_io_event;
 use super::teardown::Teardown;
-use super::{
-    COMPONENT_TAG, Failure, Frame, Operation, Owner, PendingMessage, Stages, credential, face, program, teardown,
-};
+use super::{COMPONENT_TAG, Failure, Frame, Owner, PendingMessage, Stages, credential, face, program, teardown};
 use skein_io::{self as io, file_layer, kernel};
 use skein_lib::{Id, Time, Token};
 use smith_domain::{self as domain, run};
@@ -15,19 +13,21 @@ use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
 use smith_protocol_machine as machine;
 
+#[expect(clippy::wildcard_enum_match_arm, reason = "only the external ReadSignal retains a signal read")]
 pub(super) fn io_up(service: &mut Stages, frame: Option<&mut Frame>) {
     for _ in 0..service.completions.capacity() {
         let Some(complete) = service.completions.pop() else { break };
-        let route = service.operations.remove(&complete.op).expect("one route per submitted operation");
-        match route {
-            Operation::Io(original) | Operation::Signals(original) => {
-                let complete = kernel::Complete { op: original, kind: complete.kind, result: complete.result };
-                service.io_completions.push(complete);
+        service.in_flight = service.in_flight.checked_sub(1).expect("one completion per submitted operation");
+        service.signal_reads = match &complete.kind {
+            kernel::Op::ReadSignal { .. } => {
+                service.signal_reads.checked_sub(1).expect("one completion per signal read")
             }
-            Operation::File(original) => {
-                let complete = kernel::Complete { op: original, kind: complete.kind, result: complete.result };
-                file_layer::up(&mut service.files, complete, &mut service.file_events, &mut service.file_submissions);
-            }
+            _ => service.signal_reads,
+        };
+        if file_layer::owns(complete.op) {
+            file_layer::up(&mut service.files, complete, &mut service.file_events, &mut service.file_submissions);
+        } else {
+            service.io_completions.push(complete);
         }
     }
     if let Some(io) = face::io_mut(frame) {

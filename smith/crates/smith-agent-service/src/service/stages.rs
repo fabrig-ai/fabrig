@@ -148,7 +148,7 @@ impl Stages {
         let events = crate::event_producer(&config);
         let Config { mut limits, domain, channel_endpoints, llm_endpoints, environment, stream_mode, program } = config;
         let program::Parts { program, files } = program::parts(program, &mut limits, &environment)?;
-        if limits.routes > 1 << 28 {
+        if limits.routes > 1 << 28_u32 {
             return Err(ConfigError::Queue);
         }
         let frames = limits.queue;
@@ -193,8 +193,9 @@ impl Stages {
                 completions: Queue::with_capacity(limits.queue),
                 io_completions: Queue::uncapped(),
                 owners: Slab::with_capacity(limits.routes),
-                operations: Map::with_capacity(limits.routes),
-                next_operation: 1,
+                in_flight: 0,
+                signal_reads: 0,
+                submitted: 1,
                 next_send: 1,
                 input: None,
                 output: None,
