@@ -1461,7 +1461,7 @@ fn confirmed_it_closes_with_the_chats_own_close() {
     let expected = pages.chat().unwrap().closing.clone().unwrap();
     let mut out = start_over_act(&mut pages, &client, Act::Confirm);
     assert_eq!(fixtures::acts::sent(&mut out).as_ref(), [expected]);
-    assert!(pages.confirmation().is_none());
+    assert!(pages.confirmation().unwrap().sent.is_some());
     assert_eq!(pages.chat().unwrap().pending.get(0).unwrap().1, Sending::Close);
     assert!(start_over_act(&mut pages, &client, Act::Confirm).is_empty());
 }
@@ -1482,18 +1482,22 @@ fn answer_start_over(
     out
 }
 #[test]
-fn the_close_answered_shows_configure() {
+fn a_done_start_over_shows_configure() {
     let (mut pages, client) = start_over_pages();
     start_over_act(&mut pages, &client, Act::StartOver);
     start_over_act(&mut pages, &client, Act::Confirm);
     let mut out = answer_start_over(&mut pages, &client, seen_answer());
     assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Configure { project: fixtures::PROJECT } }));
     assert!(out.is_empty());
+    assert!(pages.confirmation().is_none());
+    assert!(pages.chat().unwrap().closing.is_none());
+    assert!(!pages.chat().unwrap().restarting);
 }
 #[test]
-fn a_refused_close_stays() {
+fn a_failed_close_keeps_its_fates_and_restarting() {
     let (mut pages, client) = start_over_pages();
     start_over_act(&mut pages, &client, Act::StartOver);
+    let closing = pages.chat().unwrap().closing.clone();
     start_over_act(&mut pages, &client, Act::Confirm);
     let refused = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
         refusal: c::Refusal::NotOffered,
@@ -1503,7 +1507,10 @@ fn a_refused_close_stays() {
     assert_eq!(pages.address(), &crate::Address::Chat { task: f::TASK });
     assert_eq!(pages.chat().unwrap().outcome.as_ref(), Some(&refused));
     assert_eq!(pages.chat().unwrap().outcome_kind, Some(Sending::Close));
-    assert!(!pages.chat().unwrap().restarting);
+    assert!(pages.chat().unwrap().restarting);
+    assert_eq!(pages.chat().unwrap().closing, closing);
+    assert_eq!(pages.confirmation().unwrap().failed.as_ref(), Some(&refused));
+    assert_eq!(fixtures::acts::sent(&mut start_over_act(&mut pages, &client, Act::Confirm)).len(), 1);
 }
 #[test]
 fn cancel_changes_nothing() {

@@ -433,7 +433,16 @@ replay says the same clocks (`README.md`, 5.12).
   spacing; a native control's own size; skein's sheet's lengths inside
   main (its focus ring, its visually hidden boxes); and a viewport
   length, which a zoom grows like any other. Dialogs are drawn inside
-  main, and scale with it.
+  main, and scale with it. Confirmation sheets stand under `#app` at their
+  own scale (`README.md`, 3.6).
+- **Confirmation sheets:** `dialog.temper-confirm`, 460 px wide at most,
+  with 24 px by 26 px padding, 14 px corners and a native `::backdrop`.
+  The title is 19 px; the lead 14.5 px; impacts 14 px under a hairline.
+  Keep precedes the named primary act in a separate group. An uncertain
+  release's choices have a wrapping group of their own, with the same
+  secondary buttons; those and the acts keep 44 px phone targets.
+  Progress and refusal stay above the acts. A requester-closed chat's end
+  line is 12.5 px between two hairlines, and the bar has no clock.
 - **Connection flows:** standalone connection cards use 5 px corners;
   the welcome's steps have a look of their own (The welcome's look,
   below). The
@@ -1150,8 +1159,10 @@ Not in the tier, each in the lowest world that shows it:
   the request `ui-phone` of 2026-11-05 are throwaways by its own words, and the
   browser tier cannot open a phone's width: `skein-browser` sets every page to
   1280 by 800. So nothing holds how the phone's rules draw when the sheet next
-  moves: `temper-client-shell-web`'s suite reads one rule as text, and the CDP
-  walk of the request `ui-final-walk`, which sets the width, goes with its plan.
+  moves: `temper-client-shell-web`'s suite reads one rule as text, the gallery's
+  `the_accounts_tabs_sign_out_hides_over_a_phones_width_alone` another, the proof
+  at 420 px of the request `ui-owner-menu` is a throwaway too, and the CDP walk of
+  the request `ui-final-walk`, which sets the width, goes with its plan.
   Default: none, until a phone's rule breaks unseen.
 - **The rail's foot on a phone** (2.5; `README.md`, 5.3): the top bar holds the
   switcher alone, as the mock's does, so a project's page on a phone shows no
@@ -1169,6 +1180,11 @@ Not in the tier, each in the lowest world that shows it:
   own, since the gallery draws what the view draws and no fact reaches it. Default:
   the host's two rows, the view's tests holding the rest, until that draft gives
   the facts.
+- **A tab refused in the gallery** (7.2; `README.md`, 3.5, *The sign-in under way*;
+  `../draft/sign-in-new-tab.md`, 2): the gallery draws what the view draws, and the
+  view has no fact of a tab refused, so the note's plain title and primary link have
+  no state of their own. Default: the view's test holds them, until that draft gives
+  the fact.
 
 ## 7. The gallery
 
@@ -1461,6 +1477,17 @@ from the engine's own answers, is where the look is tuned.
 | `out-of-date` | a bundle older than the engine |
 | `chats-empty` | the chats with none, outside the playground |
 | `inbox-empty` | nothing needs the person |
+| `chat-closing-below` | a chat at rest with one task below it: a singular count and the hairline |
+| `chat-closing-proposal` | a chat at rest with one proposal: a singular count and the hairline |
+| `task-releasing-uncertain` | a release with an uncertain effect and its two choices |
+| `chat-closing-work` | a run, two delegates with opposite fates, and two proposals: what closing changes |
+| `chat-closing-failed` | the same close refused: the sheet keeps its choices and says why |
+| `chat-closed` | the requester closed it: one end line at 21:05, with a quiet bar |
+| `chat-closing-start-over` | a configuring chat's Start over confirmation |
+| `task-cancelling` | an agent's task Cancel confirmation, with a task below it |
+| `task-stopping` | an agent's task Stop confirmation |
+| `proposal-accepting` | a proposal's Accept confirmation |
+| `proposal-rejecting` | a proposal's Reject confirmation with its reason |
 | `chat-closing` | `chat-solo-T6` with Close pressed: its confirmation |
 | `chat-rejecting` | `chat-solo-T10` with Reject pressed: the reason's box |
 | `task-held` | an agent's task's plan with a held task, Release offered |

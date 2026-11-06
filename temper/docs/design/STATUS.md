@@ -34,9 +34,8 @@ project's policy in a change of settings and a revision restored are
 built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
-is in the stock and the reference pages it reads are built, but its
-runs cannot read a project's own policy, its inventory names no project
-people and its words lag (`domain/agent.md`), and a
+is in the stock and the reference pages it reads are built, but no walk
+on record has run a real model on its words (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
@@ -111,7 +110,10 @@ managed row set up failed offers Connect to ctl alone
 Forgejo's command without its binary and paths
 (`protocol/setup.md`), a preparation keeps a runner's row when its
 configuration names a `uuid`, reading no row, where the `runner-labels`
-request of 2026-11-05 has the uuid match (`protocol/setup.md`), and a
+request of 2026-11-05 has the uuid match (`protocol/setup.md`), `temper
+box` prints its link first and alone, but no story holds a connection
+waiting on its socket and then signing in, and a first box from a binary
+with no browser does not say so (`protocol/setup.md`), and a
 held task names no run's failure, which
 is the user's to decide (`domain/worker.md`); a start past 20 slots on
 the owned example names a limit no document raises, and no test runs 8
@@ -160,10 +162,19 @@ with directories of its own, and a choice pressed just after Undo stayed
 unanswered once (`client/README.md`). The welcome's try of a model draws its box
 over the host's check alone, no trial being built, and departs from the request
 `model-check` in its list's names and a few of its acts and words
-(`client/README.md`). The rename's form asks the focus beside an
+(`client/README.md`). A plan's sign-in draws the waiting page of the request
+`sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
+until that draft is built; the page departs from the request in the terminal's words
+and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
+(`client/README.md`). The rail's person's menu departs from the request
+`ui-owner-menu` in a press outside that took the focus, which keeps it, a project-less
+`Accounts` page's "Sign out", which stays the banner's, and the tab's whole row leaving
+over 760 px, the login with it (`client/README.md`). The rename's form asks the focus beside an
 open reply, where a tree holds one request, seen by reading (`client/README.md`),
 and no test measures a long chat's document against its window, where the user's
-answer of 2026-11-06 asks one (`client/browser.md`). A document
+answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
+numbers in a chat's card, whose items the sheet makes flex, and a document page's
+takes the browser's margins (`client/browser.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
