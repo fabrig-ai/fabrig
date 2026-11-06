@@ -1,9 +1,9 @@
 //! Home's stored count and status agent on a fresh fake box
 //! (temper/docs/design/client/README.md, 3.5; temper/docs/design/domain/forge.md, 5.6, 5.7).
 use super::open_default::{browser_bounds, named};
-use super::{Act, Call, Walk, ctl, path};
+use super::{Act, Call, Walk, ctl, path, usable};
 use crate::support::WITHIN;
-use skein_lib::Time;
+use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
 use skein_ui::{Act as Input, Role};
 use skein_world::{Referee, real};
@@ -77,9 +77,6 @@ fn home_on_the_fake_box_keeps_a_landing_count_after_box_and_client_restarts() {
                 "status-repository",
                 "--json",
             ])),
-            // Keep period funding for the deployment-started status run, as the
-            // root's status world does; the person's pool otherwise reserves it all.
-            Act::Now(Call::new(&["project", "fund", "1", "1000000", "--role", "0", "--key", "status-pool", "--json"])),
             walk.add_key(),
             Act::Now(Call::new(&["account", "list", "--until", "usable", "--json"])),
             Act::After(Box::new(move |_| {
@@ -102,7 +99,7 @@ fn home_on_the_fake_box_keeps_a_landing_count_after_box_and_client_restarts() {
         ],
         show_status,
     );
-    assert_eq!(seen.answers.len(), 8, "setup, first look, chat and landed change");
+    assert_eq!(seen.answers.len(), 7, "setup, first look, chat and landed change");
     let landed = ctl::json(seen.answers.last().expect("landing read"));
     assert_eq!(landed["met"], true);
     assert_eq!(landed["change"]["step"], "landed");
@@ -111,12 +108,101 @@ fn home_on_the_fake_box_keeps_a_landing_count_after_box_and_client_restarts() {
     walk.scratch.remove();
 }
 
+#[test]
+fn a_plans_project_has_its_brief_on_a_return_past_the_sitting() {
+    let walk = Walk::owned("walk-status-plan");
+    walk.run(vec![]);
+    let config = walk.sandbox().join("config/temper.json");
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&config).expect("public configuration")).expect("JSON");
+    let limits = &mut document["application"]["limits"]["overrides"];
+    for (name, millis) in [("poll_ms", 100), ("poll_max_ms", 500), ("slow_ms", 1000), ("hinted_ms", 100)] {
+        limits[format!("forge.client.{name}")] = millis.into();
+    }
+    limits["forge.sitting_ms"] = SITTING.as_millis().into();
+    super::super::write(&config, &serde_json::to_vec(&document).expect("configuration JSON"));
+    let clock = Clock::new();
+    let started = clock.now().now;
+    let seen = walk.run_then(
+        vec![
+            Act::Now(Call::new(&["forge", "setup", "--repository", "widget", "--key", "status-forge", "--json"])),
+            Act::Now(Call::new(&["account", "connect", "1", "--key", "status-plan", "--json"])),
+            Act::Visit,
+            Act::Now(Call::new(&["account", "list", "--until", "usable", "--json"])),
+            Act::After(Box::new(|seen| {
+                assert_plan(seen.last().expect("usable account"));
+                Call::new(&[
+                    "chat",
+                    "start",
+                    "--project",
+                    "1",
+                    "--model",
+                    "gpt-6-luna",
+                    "--key",
+                    "status-chat",
+                    ASK,
+                    "--json",
+                ])
+            })),
+            Act::Now(Call::new(&["task", "show", "1", "--until", "phase:idle", "--json"])),
+            Act::Now(Call::new(&["change", "show", "2", "--until", "landed", "--json"])),
+            Act::Now(Call::new(&["project", "show", "1", "--json"])),
+            Act::After(Box::new(|seen| {
+                let project = ctl::json(seen.last().expect("project membership"));
+                eprintln!(
+                    "status plan: {} member, {} unreserved",
+                    project["members"].as_array().expect("members").len(),
+                    project["current_period"]["left"]
+                );
+                assert_eq!(
+                    project["members"].as_array().expect("members").len(),
+                    1,
+                    "the plan holder is the project's only member"
+                );
+                Call::new(&["account", "list", "--json"])
+            })),
+        ],
+        |config, client| {
+            show_home(config, client, Visit::AfterLanding);
+            let clock = Clock::new();
+            let until = clock.now().now.saturating_add(SITTING).saturating_add(Duration::from_secs(1));
+            while clock.now().now < until {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            show_home(config, client, Visit::Brief);
+        },
+    );
+    assert_eq!(ctl::json(&seen.answers[5])["change"]["step"], "landed");
+    let accounts = walk.run(vec![Act::Now(Call::new(&["account", "list", "--json"]))]);
+    assert_plan(accounts.answers.last().expect("accounts after the status run"));
+    eprintln!("personal-plan status walk: {} milliseconds", clock.now().now.saturating_since(started).as_millis());
+    walk.scratch.remove();
+}
+
+const SITTING: Duration = Duration::from_secs(3);
+const LEDE: &[u8] = b"The README now records the local status change.";
+fn assert_plan(answer: &crate::support::Ended) {
+    assert!(usable(answer), "the fake sign-in left a usable account");
+    let document = ctl::json(answer);
+    let accounts = &document["accounts"];
+    assert_eq!(accounts["deployment"].as_array().expect("deployment accounts").len(), 0, "no deployment key");
+    let party = accounts["party"].as_array().expect("personal accounts");
+    assert_eq!(party.len(), 1, "only the person's plan can pay for the status run");
+    assert_eq!(party[0]["provider"], 1, "the ChatGPT plan");
+    let sources = party[0]["sources"].as_array().expect("plan sources");
+    assert_eq!(sources.len(), 1);
+    assert_eq!(sources[0]["kind"], "sign_in");
+    assert_eq!(sources[0]["usable"], true);
+}
+
 #[derive(Debug)]
 enum Page {
     Starting,
     Begin,
     FirstLook,
     Computed,
+    LastLanding,
+    Brief,
     Done,
 }
 #[derive(Clone, Copy)]
@@ -124,6 +210,8 @@ enum Visit {
     First,
     Return,
     Restart,
+    AfterLanding,
+    Brief,
 }
 struct Judge {
     page: Page,
@@ -148,6 +236,8 @@ impl Referee<NativeClient> for Judge {
                 self.page = match self.visit {
                     Visit::First => Page::Begin,
                     Visit::Return | Visit::Restart => Page::Computed,
+                    Visit::AfterLanding => Page::LastLanding,
+                    Visit::Brief => Page::Brief,
                 };
             }
             Page::Begin => {
@@ -171,7 +261,24 @@ impl Referee<NativeClient> for Judge {
                 client.close();
                 self.page = Page::Done;
             }
-            Page::Starting | Page::FirstLook | Page::Computed | Page::Done => {}
+            Page::LastLanding => {
+                if let Some(skip) = named(client, Role::Button, b"Skip") {
+                    let id = skip.id;
+                    assert!(client.act(id, Input::Press), "skip To begin after landing");
+                }
+                if words(client, b"The last change landed") {
+                    assert!(!words(client, b"Written by the status agent"));
+                    client.close();
+                    self.page = Page::Done;
+                }
+            }
+            Page::Brief
+                if words(client, SENTENCE) && words(client, LEDE) && words(client, b"Written by the status agent") =>
+            {
+                client.close();
+                self.page = Page::Done;
+            }
+            Page::Starting | Page::FirstLook | Page::Computed | Page::Brief | Page::Done => {}
         }
         assert!(
             self.passed() || now < self.until,
@@ -199,8 +306,6 @@ impl Referee<NativeClient> for Judge {
 }
 
 fn show_status(config: &Path, client: &Path) {
-    // The process tier has a 1080-second wall backstop. The 31-minute sitting is
-    // a separate render proof; this walk waits only on the real box's answers.
     let model: serde_json::Value =
         serde_json::from_slice(&std::fs::read(config.join("llm.json")).expect("public model document"))
             .expect("model JSON");
@@ -241,7 +346,13 @@ fn show_home(config: &Path, client: &Path, visit: Visit) {
             },
             root,
             skein_shell::effective_user(),
-            96,
+            match visit {
+                Visit::First => 96,
+                Visit::Return => 97,
+                Visit::Restart => 98,
+                Visit::AfterLanding => 99,
+                Visit::Brief => 100,
+            },
             Start::Token,
         )
         .expect("browser-bounded native client")

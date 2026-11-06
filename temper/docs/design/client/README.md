@@ -357,7 +357,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
 | `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the fifth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
 | `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
-| `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root). In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
+| `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
 | `NewChat { draft }` | the greenfield mock's `chat.html?id=new`, and `&draft=` for a draft; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (*A new chat,* below), in the playground's project the playground's start (4.8, 5.6); with `draft`, the empty document beside it (*A chat's document,* below) | as `Chats`; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; "+ Draft" |
 | `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its byline and chooser, its status, Stop and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, older pages while its window has room (5.4), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7); its document, read again when its run writes it (*A chat's document,* below); the person's facts (4.6) | message, stop, close, change the next run's model, accept or reject a proposal in place; choose Chat, Split or Draft; "+ Draft"; start a goal from its document; on a configuring chat, start over |
@@ -458,32 +458,68 @@ keeps (`../protocol/configuration.md`, section 2).
     `skein-ui`'s reader (skein's `ui.md`, section 10): paragraphs, lists,
     quotes, code, and tables at the top level. A browser draws a table
     as the mockups' (`md-table`), and leaves out a header row whose
-    cells are all empty, as they do. A text cut at the bound ends in "…"
-    where it was cut, and nothing else says so;
-  - *the turn being written,* while a run writes it: the same words under
-    "Temper", from jig's thread's provisional line, whole from their start
-    up to `long_text` (5.4), read by `skein-ui`'s `read_growing` (skein's
-    `ui.md`, section 10): a block a blank line has closed stays on the
-    page as it was, only the last changes as words arrive, and no marker
-    shows being written. A small block, "▍", stands after the last word.
-    The committed turn draws the same blocks in the same place, and only
-    the block goes. Before its first word the turn draws nothing, and the
-    three dots stand (below);
-  - *its calls,* after its message's text: each delegation as its
-    task's card (5.7), then the message's other calls in one
-    disclosure (skein's `ui.md`, its disclosure), named by its count,
-    "1 tool call" or "N tool calls", and described by their tools'
-    names in order, a name called again given once with "×N", joined by
-    " · " ("read ×2", "read · edit"). A browser shows it folded to its
-    summary, the name and then its description in a lighter tone, as
-    the mockups' two tones, until the person opens it; the terminal
-    prints the description on its own line under the name (skein's
-    `ui-text.md`),
-    while the terminal and the fake person find its content whole: each
-    of those calls in order, as a work line, its tool's name and its
-    outcome where the call has one, as an agent's task's page draws a
-    call (5.9). A call that a card stands for is neither counted, named
-    nor listed;
+    cells are all empty, as they do. A provider's opaque block, a turn's
+    reasoning, is not drawn, and nothing stands in its place. A
+    conversation says nothing of what was cut: no notice, at a text's end,
+    a turn's or a window's;
+  - *the words being written,* the turn being written, under "Temper",
+    whole from its start up to `long_text` (5.4), read by `skein-ui`'s
+    `read_growing` (skein's `ui.md`, section 10): a block a blank line
+    has closed stays on the page as it was, only the last changes as
+    words arrive, and no marker shows being written. A small block,
+    "▍", in `temper-writing-end`, stands after the last word. The
+    committed turn draws the same blocks in the same place, and only
+    the block goes. Before its first word the turn draws nothing, and
+    the three dots stand (below);
+  - *its calls,* where they fall among the agent's texts: each
+    delegation as its task's card (5.7), a document's write as its tool
+    line (*A chat's document*, *The tool line*), and every other call in *a run*: every
+    call between two of the agent's texts, across the turns that made
+    them, drawn once as one line. A text, a person's words, a card, a
+    document's write or any other drawn line ends a run; a line the chat
+    hides does not. A call that a card stands for is neither counted,
+    named nor listed. The line is one disclosure (skein's `ui.md`, its
+    disclosure), `temper-work-run`, in a turn of its own:
+    - *its name,* one phrase a tool, in the order first called, joined
+      by ", ", the first capitalised unless it is a tool's own name:
+      "Read 7 docs, checked settings 3×", "read_file ×2". The phrases are
+      the view's table, one function (`pages/chat_line.rs`), tool by tool,
+      starting from the tools a chat calls most. A tool in it counts what
+      it touched, not its calls: `read_docs` is "read N docs", its distinct
+      topics, each search one, a call whose input can't be read one
+      ("read 1 doc"); `settings` is "checked settings N×", once "checked
+      settings". Any other tool is its name, counted: "read_file ×2", once
+      "read_file". A run of one call alone says what it touched: "Read the
+      page hold", "Searched the docs for WORDS", "Checked template 2";
+      any other tool still its name;
+    - *its description,* faint: the time the run took, then nothing else.
+      "29 s", under a minute in whole seconds, then "4 min": from the
+      first turn of the run to its last, as the committed turns say. A
+      run of one turn, or under a second, has no time and no description;
+    - *a failed call* adds "1 failed" ("N failed") before the time in the
+      description, "1 failed · 29 s", the description then in the signal's
+      colour, `temper-work-failed`, and read after the name with a comma
+      the stylesheet draws;
+    - *while it runs:* the conversation's last run, while the chat's
+      status is active (`chats::working`), has `temper-work-running` and no
+      time. It counts what has ended, and its description is the call
+      under way, from the run's `call` (jig's `RunState`), the phrase's
+      present form in faint words: "checking template 2", "reading index",
+      any other tool its name; the stylesheet adds the "…". With no call
+      under way, no description. A call under way with none ended is the
+      line alone, its name the present form capitalised;
+    - *opened,* `temper-work-calls`, a row a call in order, the call under
+      way last: a paragraph named "TOOL ARGUMENT: OUTCOME", the tool in
+      code, the argument in a few words (`read_docs`: "index", "change,
+      from 1438", a search's words; `settings`: "the inventory", "charter
+      1", "history"; any other tool: its input's first text or number
+      member, "task 3"; nothing where the input can't be read), and, in
+      `temper-work-out`, its outcome's first line, a failed call's
+      "failed: LINE" in the signal's colour. Never a result's body. A row
+      is cut at 160 bytes, and a name at 256 at a phrase's end, with "…".
+    A browser shows it folded until the person opens it. The terminal
+    prints the name, then its description after a colon, and its rows
+    under it, as text; the fake person finds them whole;
   - *the person's words,* the thread's words and each words line a
     person sent (jig's `OwnerActivity::Words`, by a person), under
     "You" or the party's name, a paragraph for each line, with "Being
@@ -529,24 +565,43 @@ keeps (`../protocol/configuration.md`, section 2).
     the bubble. The day's line is hidden; a marker is `.meta-line`.
   - *A delegate's words* look like `.turn-agent`, with "TN" kept visible,
     12 px and faint, above them.
-  - *A call's line,* `.turn-tool`, opens with the pen icon. The disclosure
-    of other calls keeps its name and description ("2 tool calls",
-    "read ×2") as one line: pen, name muted, description faint; open, its
-    work lines are indented 24 px. A delegated change and a goal are one
-    line each (5.7).
+  - *A call's line,* `.turn-tool`, opens with the document's icon where it
+    is a run's and the pen where it is a write's. A run's line is muted, its
+    description faint, with a "›" that turns when it opens; open, its rows
+    are indented 24 px, a row wraps at a phone's width, the tool 12 px mono,
+    the argument muted, the outcome faint. A delegated change and a goal are
+    one line each (5.7).
   - *While it works:* three dots, `.typing`, at the end of the log, named
     "Writing", while the chat's status is Starting, Writing, Working or a
-    tool's and the window's last line is not provisional text holding a
-    word. The terminal prints nothing new for it. *The turn being written*
-    looks like `.turn-agent`, its name hidden as a committed turn's, its
-    "▍" faint and in the line of the last word; the terminal prints the "▍"
-    as it prints a status.
+    tool's, the window's last line is not provisional text holding a word, and no run is
+    running at the conversation's end. The terminal
+    prints nothing new for it. *The words being written* look like
+    `.turn-agent`, their name hidden as a committed turn's, their "▍"
+    faint and in the line of the last word; the terminal prints the "▍"
+    as it prints a status. A numbered list's `ol` is 22 px in, its
+    markers faint.
   - *A card in the conversation* (a proposal, a held task, a question's
     answer) is `.proposal`: white, radius 12, its shadow, 20 px 22 px; a
     kind's title in `.proposal-title`; `.proposal-split` and
     `.proposal-state`; its first button `.btn.primary.small`, the rest
     `.btn.quiet.small`.
-  - *"Older"* is a `.btn.quiet.small`, centred, at the head. *Its end* has
+  - *Reading back:* "Latest", `temper-latest`, a browser's alone: a small
+    pill, centred 12 px over the pane's foot, its " ↓" the stylesheet's, on
+    a button *to log end* (skein's `ui.md`, 3.2) beside the log, shown while
+    the log is away from its end (`data-log-away`, skein's `ui-web.md`, 7).
+    Pressed, the view returns to the end and it goes. Where the window has
+    let the newest lines go it is bound too, and a press reads the page
+    after (jig's `Thread::newer`). New words while reading back don't move
+    the view, and it stays.
+  - *"Loading earlier messages…",* `temper-thread-loading`, faint and
+    centred at the head of a chat's conversation or an agent's, a status
+    named "Loading earlier messages", only while an older read is out, in
+    place of "Older". Nothing once the chat's start is shown.
+  - *"Older"* is a `.btn.quiet.small`, centred, at the head while an older
+    page remains and the window has filled. It is replaced by the loading
+    status while that read is out; the agent's page uses the same head,
+    with "Older" whenever an older page remains. An agent's page has no
+    Latest pill. *Its end* has
     `.meta-line`'s look, and an ended chat has no composer.
 - **A new chat** (the greenfield mock's `chat.html?id=new`): `NewChat`,
   at `/chats/new`, for the open project. The domain's `Chats` state holds
@@ -608,8 +663,8 @@ keeps (`../protocol/configuration.md`, section 2).
   - *The tool line:* a `note` call whose answer parses (`../domain/agent.md`,
     8.3) is a `.turn-tool` in the conversation: the pen, "Wrote" for a first
     write, else "Edited"; `.file` NAME; a `.turn-tool` detail, "64 lines" or "+18
-    −6"; "Show", a button. It isn't counted in the "N tool calls" disclosure; a
-    failed one stays in the disclosure. The domain parses the words, as
+    −6"; "Show", a button. It isn't counted in a run, and ends one; a failed one is a call of its
+    run. The domain parses the words, as
     `delegation::results` does. "Show" moves to Split (on a phone, Draft) unless
     already in Split or Draft, and moves the focus to the section holding that
     call's `first`, which brings it into view and flashes it (`.doc-sec.flash`,
@@ -1670,13 +1725,18 @@ keeps (`../protocol/configuration.md`, section 2).
       need you." and so on in number words to "Nine", digits after,
       "N+ things need you." where the read is cut, the
       project's name until its needs are delivered. With N as `landed`
-      less `seen`, the landed sentence is the brief's `sentence` if the
-      brief's `landed` is above `seen`; else "One change landed since you
-      last looked." or "N changes landed since you last looked."; nothing
-      for 0. "overnight" is the status agent's word, never the computed
-      sentence's;
-    - *the lede and the byline:* the brief's `lede`, if the brief's
-      `landed` is above `seen` as above, then "Written by the status
+      less `seen`, and a brief new to the person where its `landed` is above
+      `seen` or its `at` is after `previous`, the landed sentence is a new
+      brief's `sentence`; else "One change landed since you last looked." or
+      "N changes landed since you last looked."; for 0, with `landed` above 0
+      and a `last_landed`, "The last change landed SPAN ago.", SPAN the
+      kicker's word, "just now" under a minute; nothing with nothing landed.
+      So a landing never stands under "Nothing needs you." alone, whatever
+      became of the brief: a refused, failed or unfunded run isn't the
+      person's error, and Home has no word for one. "overnight" is the status
+      agent's word, never the computed sentence's;
+    - *the lede and the byline:* the brief's `lede`, if the brief is new as
+      above, then "Written by the status
       agent at 07:42", its `at` by 5.12's *clock*, in `temper-home-byline`,
       12 px in the faint colour. Otherwise neither: the computed Home has
       no prose of its own.
@@ -1847,7 +1907,10 @@ keeps (`../protocol/configuration.md`, section 2).
   - *The rail's count:* one standing `inbox` watch while a project's
     frame shows, the rail being what reads it, so that a client on no
     project's page asks nothing more; its needs' rows counted by the open
-    project, less those answered; "N+" where its document is cut, and no
+    project, less those answered, a row counting in each project it shows in
+    (jig's `client/domain/contract.md`, 5.1: `shows_in`), so that a proposal of
+    settings counts in the projects it belongs to, and for one of the
+    deployment's in each the person owns; "N+" where its document is cut, and no
     count before it is delivered. A card marked later still counts. `me`'s
     `needs_total` stays the banner's navigation's.
 - **Changes** (the user's greenfield mock's `changes.html`; `forge.md`,
@@ -3670,8 +3733,8 @@ A chat's window holds 16 lines (the domain's chat page), and the page
 reads the page before its oldest while an older one remains and the
 window has room for a page, `rows` lines, so a conversation of a dozen
 lines shows whole, with no "Older". Past that, "Older" reads the page
-before, and the lines the window lets go are said ("Earlier lines omitted N", jig's
-`Left`). The engine's pages keep their own rows (its
+before, and the lines the window lets go are not said (jig's `Left` draws
+nothing). The engine's pages keep their own rows (its
 `documents.rows`, at most the client's). Committed turns on both the chat
 and agent task pages are priced by `turn_text`; cards and other fields
 retain `text`.
@@ -4400,14 +4463,11 @@ acts on it as its document offers (5.11).
 - **The conversation,** from the task's bounded thread (jig-client's
   `thread`), read as the chat's page reads it, is drawn as work, not as
   a chat's (3.5): its latest window; committed turns, the agent's
-  "Temper"; a message's calls folded as a chat's (3.5), in one
-  disclosure after its text, named and described as the chat's and
-  listing each call as a work line, a `delegate` call's too, since a
-  delegation's card is the chat's (5.7); each result as a work line, its
-  first line alone, where its message has it; "Run N began" and
-  "Run N ended"; the lines omitted before the window; and a live run's
-  provisional text, as the chat's provisional turn. A turn's opaque
-  blocks are not drawn, as in a chat.
+  "Temper" over its texts; its calls in runs, as a chat's (3.5), one
+  line a run with no running state, a `delegate` call's a row too, since a
+  delegation's card is the chat's (5.7), and a run's results its rows'
+  outcomes, a message that holds only those drawing no "Completed"; "Run N began" and
+  "Run N ended"; and a live run's words being written, as the chat's.
 - **Its result,** once it has ended: a region "Result" after the
   conversation, its state and its words as a goal's "Result" says them
   (5.8), from the same function (`pages::delegation::facts`):
@@ -4894,7 +4954,8 @@ section 5.
   and goals", "See the settings" and "Limits".
 - **The card in a chat:** a proposal of settings is a card at the call that
   made it, as every proposal is (3.5): the title "How temper will run
-  PROJECT"; a line per line of the proposal's reason, in the person's words;
+  PROJECT", PROJECT its `projects`' names joined by ", " and " and ", or, with
+  none, the deployment's, "How temper will run your projects"; a line per line of the proposal's reason, in the person's words;
   then each item, in small mono type, faint, in the words of `temper ctl` but
   for temper's kinds of a project: kind 7 as "Drafts: on", "Goals: shown",
   "Changes page: shown", "Away switch: shown" and "Way: NAME", kind 6 as
@@ -6327,8 +6388,8 @@ own tests:
   Default: as printed; a terminal shell that says every time as its
   moment, with no wake, is the candidate.
 - **An agent's conversation drawn as a chat's** (5.9): the agent's
-  page folds a message's calls as a chat does, and keeps each result
-  and the run markers as work lines, which a chat hides (3.5).
+  page draws runs as a chat does, and keeps the run markers
+  as work lines, which a chat hides (3.5).
   Default: as work; the chat's drawing is the candidate, the task
   pages'.
 - **Which person messages are the person's** (3.5): jig's turns keep no
@@ -6396,11 +6457,8 @@ own tests:
     document's `cut` does not say which list was cut; a cut of its own
     on the dependencies, as a plan row's, is the candidate (a jig
     change);
-  - a message's calls: folded as a chat's, in the disclosure named
-    "N tool calls" and described by their names (3.5), each call a work
-    line inside it;
-    its results stay work lines where their message has them, which
-    the mockup doesn't draw;
+  - its calls: runs as a chat's, one line a run (3.5), a row a call,
+    a result its row's outcome, which the mockup doesn't draw;
   - its plan: drawn while its tree holds a delegate or a held card,
     where the mockup draws none;
   - its acts are 5.11's.

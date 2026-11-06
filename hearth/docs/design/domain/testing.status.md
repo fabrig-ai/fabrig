@@ -66,9 +66,10 @@
   gate's record gave 30.2 CPU s the same day, and a request of
   2026-11-05 gives about 32 on it, which no run here checked; which of
   these measures the suite is unknown too. Since the first two, the suite
-  has gained the two tests of
+  has gained two of the tests of
   `hearth/tests/builder/tests/suite/orders.rs`, 0.192197 CPU s, and the
-  git, mmdebstrap and config worlds' order tests and the printer's. The figure stands
+  git, mmdebstrap and config worlds' order tests and the printer's, that
+  file's third among them. The figure stands
   (`hearth/docs/design/domain/testing.md`, 11).
   Fuzzy, on 2026-11-04 on a shared machine: 68 CPU s and 16 to 21 s of
   wall, before the large render joined it at 12.238013 CPU s; it has not
