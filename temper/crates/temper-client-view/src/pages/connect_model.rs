@@ -439,7 +439,7 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             w,
             bindings,
             &page.request,
-            super::sign_in_wait::tab_refused(),
+            super::sign_in_wait::tab_refused(page),
             text_per_node,
         );
         return;
