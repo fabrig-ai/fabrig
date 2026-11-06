@@ -501,13 +501,13 @@ record MessageKindNews { subscription: u64 class: NewsClass }
 record MessageKindResult { value: WordResult }
 record MessageKindMet { dependency: u64 removed: bool }
 enum MessageKind { escalation: MessageKindEscalation, proposal: MessageKindProposal, person_stalled: MessageKindPersonStalled, proposal_decision: MessageKindProposalDecision, words, effect_not_made: MessageKindEffectNotMade, amendment: MessageKindAmendment, question, answer: MessageKindAnswer, notice: MessageKindNotice, timer: MessageKindTimer, news: MessageKindNews, result: MessageKindResult, met: MessageKindMet, settings_decision: MessageKindSettingsDecision, question_ended: MessageKindAnswer, question_answered: MessageKindAnswer, question_owed, nothing_awaited }
-record Word { number: u64 from: Requester kind: MessageKind words: text 65536 at: u64 hits: u32 eligible: bool }
+record Word { number: u64 from: Requester kind: MessageKind words: text 262144 at: u64 hits: u32 eligible: bool }
 record RunWhyMessage { message: u64 }
 record RunWhyRetry { tries: FailureTries }
 enum RunWhy { made, ready, message: RunWhyMessage, released, retry: RunWhyRetry, narrowed, changed }
 record RunEndFailed { class: HoldFailure }
 enum RunEnd { parked, finished, cancelled, failed: RunEndFailed, refused }
-record ActivityWords { message: u64 by: Requester kind: MessageKind words: text 65536 }
+record ActivityWords { message: u64 by: Requester kind: MessageKind words: text 262144 }
 record ActivityHeard { value: Word }
 record ActivityNotified { recipient: Requester word: Word }
 record ActivityRunBegan { attempt: u64 why: RunWhy resumed: bool }
