@@ -3871,6 +3871,39 @@ A note's body and a task's words are `long_text`, 131,072 on each of temper's
 clients, past a field's `text` (jig's `client/domain/client.md`, section 14), and
 a chat's document's section is read within the view's `text_bytes`, which prices one.
 
+A line of a conversation holds words the store took, and they are `long_text` too:
+a person's message or reply, up to `people.words` (8,192 on `temper init`'s box),
+and an agent's message, question or answer and a result, up to
+`tasks.message_bytes` and `tasks.result_bytes` (10,660 on it). Each draws whole in
+the browser and the terminal, never cut (jig's `client/domain/client.md`, section
+16). The window's bytes do not move: a line weighs what it holds within
+`document_bytes`, so a window holds at least eight lines at `long_text`, and fewer
+lines the longer they are. The view's window already prices those bytes, at two
+nodes and two bytes of text a byte. A person's words waiting to be read total at
+most `document_bytes` too (jig's `client/domain/client.md`, section 10), and the
+view prices them so. A line past `long_text`, or a page of lines past
+`document_bytes`, has its page refused and its read ended (5.15): no box `temper
+init` makes reaches one (section 11).
+
+A composer, a chat's message, a new chat's first words, an agent's or a goal's
+message or a question's reply, takes what a person types or pastes up to what one
+message holds: `Me`'s `words_bytes`, the engine's `people.words`, within `long_text`
+(jig's `client/domain/contract.md`, 5.1). Past that nothing is cut, dropped or kept
+stale: the words stay as typed, Send is disabled, Enter makes a new line, and a line
+under the composer says how far over they are, counting the characters past the
+bound: "That's 3,200 characters over what one message holds." The client holds an
+edit's first `long_text` bytes and counts the characters past them in that line. A
+browser's field keeps them, since a field's value is written only when its owner's
+count moves (skein's `ui.md`, 3.4), and a composer drawn anew shows what the
+client holds. A suggestion's words and a choice's stay within `CUE_BYTES`, as a
+cue's and a button's. The view prices one composer's value at `long_text`.
+
+A chat's first message reads back whole. Past the engine's `documents.text_bytes`
+(512 on `temper init`'s box) its spec comes marked cut, and the chat's page reads
+the rest through `TaskText`, as a goal's page does (5.8), drawing what it has, ending
+in `…`, until it has it all or the read ended. The view prices that line at
+`long_text`.
+
 temper's client takes every document within the bounds the engine's
 configuration gives its documents. A path's segments have a bound of
 their own, 9, apart from the windows' rows (jig's
@@ -5378,7 +5411,11 @@ measures it (skein's `ui-web.md`, section 7).
   which the page part then leaves alone until the person moves. At the head:
   "Loading earlier messages…" while an earlier page is out, "Couldn't load
   earlier messages" in the same look after one failed, and nothing once the
-  chat's start is shown. A read at the foot says nothing.
+  chat's start is shown. A read at the foot says nothing, but a chat's first read,
+  failed with no line to show, says the same at the head. An answer the client
+  cannot decode is such a failure (jig's `client/domain/client.md`, section 16): it
+  asks nothing again until the person moves, or a new line is committed, and the
+  page's other lines and acts go on. Only a lost exchange is asked again by itself.
 - **"Latest":** the view returns to the end, and where the window let it go a
   press reads the end again (`Thread::latest`), which replaces the window. A
   person sending does the same through the log's end request, which `Chat`
@@ -6315,6 +6352,16 @@ own tests:
 
 ## 11. Open questions
 
+- **A line past `long_text`** (5.4): `standard` with no override takes a message of
+  262,144 bytes (`../protocol/configuration.md`, 13.8), past `long_text`, and a page
+  of its `documents.rows` lines can pass `document_bytes`. Its read ends and says so
+  (5.15), where a line would otherwise draw whole. Only a deployment with larger
+  models reaches it. Default: so; or `long_text` and `document_bytes` grow with such
+  a profile, or the engine stops a page at a client's bound.
+- **A new chat's first words** (5.4): the engine takes a task's spec up to
+  `tasks.spec_bytes`, 131,072, and its composer stops at `words_bytes`, 8,192, which
+  jig's `client/domain/contract.md`, 5.1 gives for a spec, a message and an answer
+  alike. Default: one bound for every composer.
 - **A fresh configuring chat from its composer** (3.5, *The configuring chat's
   page*): a command ("/clear") once the composer takes commands. Default: "Start
   over" in its bar.

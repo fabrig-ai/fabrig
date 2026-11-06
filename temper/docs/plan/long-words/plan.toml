@@ -3,3 +3,29 @@ repo = "fabrig"
 sources = ["temper/docs/plan/long-words/inputs/request.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 after = ["chat-reading-c"]
+
+# One long message can't stop a chat being read, and a person can write one; see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "line-words"
+title = "A line's words are read to long_text and draw whole"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.4"
+
+[[part]]
+id = "kept-words"
+title = "A thread bounds a person's kept words by their bytes"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/client.md, 10"
+
+[[slice]]
+id = 1
+story = "a page holding a line past a field's text reads whole, through the real engine"
+parts = ["line-words", "kept-words"]
+walk = false
