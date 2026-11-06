@@ -262,9 +262,8 @@ where it is. The browser tier runs Chromium alone, with
 `overflow-anchor: none` as the nearest run to Safari; Firefox and Safari
 themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**). A read
 that failed at the head is not tried again on a move back within its reach (`client/README.md`).
-The process tier runs one test
-at a time where its design has three, its one trial at three having failed twice on
-causes not found, and most of the `test-speed` plan's whole runs read over its CPU
+The process tier's three tests at a time have no whole run on record until the next
+after-landing run, and most of the `test-speed` plan's whole runs read over its CPU
 budget (`domain/testing.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
