@@ -457,8 +457,9 @@ fn peer_lines(peers: &Peers, forgejo: &temper_fake::forge::Document) -> Vec<Stri
     lines
 }
 fn program_login_line(dirs: &Directories, binary: &Path) -> String {
-    let command = crate::program_login::line(dirs, binary)
-        .unwrap_or_else(|| "temper program-login --config CONFIG --data DATA --cache CACHE".into());
+    let command =
+        crate::program_login::line(dirs, &crate::printed::path_word(binary.as_os_str().as_bytes(), None), None)
+            .unwrap_or_else(|| "temper program-login --config CONFIG --data DATA --cache CACHE".into());
     format!("{command} NAME (the name the Model step shows)")
 }
 

@@ -13,7 +13,9 @@ Unlisted sections have no known gap.
   the role and `documents.lines` as checks, without asserting either cause.
 - **Not yet:** 5.5: `temper help task`'s Limits still says temper does not
   let ctl take a task or hand it back, where area 3's `task take` and
-  `task hand-back` do so for a person task.
+  `task hand-back` do so for a person task. The `plainer-panels` request of
+  2026-11-06 left the line, saying nothing else changes, so the page's
+  `taken by:` stands beside it.
 - **Not yet:** 5.1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
@@ -49,6 +51,13 @@ Unlisted sections have no known gap.
   its `--ended` adds the ended to the live. 5.3: `task stop` places a
   hold over the task's subtree (`jig/rows.rs` `STOP`), as jig's `Stop`
   does (jig's `domain/people.md`, 5.1), where its row holds the task;
-  `hold lift` is keyed optionally (`Keyed::Optional`). 12: an authority's
-  entries are 14 (`limits.rs`), and the client's `projects` bound, 2, is
+  `hold lift` is keyed optionally (`Keyed::Optional`). 6.1: a party's wait
+  prints `you: question of task 44 · 1 waiting`, with no question's number,
+  where the section's sample and `temper help task` have `question 3`, and
+  the `plainer-panels` request has that page say what the line prints: jig's
+  `WaitsOn::Party` carries the asked task, its kind and how many wait, and no
+  number (`render/document.rs`, `waiting`). A task's spent and budget print
+  divided by 100, `spent 1.20 of 5.00` (`render/document.rs`, `amount`), as
+  `temper help budget` says, where the section has them never scaled. 12: an
+  authority's entries are 14 (`limits.rs`), and the client's `projects` bound, 2, is
   not in the table.

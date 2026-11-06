@@ -10,6 +10,9 @@ files = [
   "temper/crates/temper-client-view/src/pages/chat.rs",
   "temper/crates/temper-client-view/src/tests/configure.rs",
   "temper/crates/temper-client-view/src/words.rs",
+  "temper/crates/temper-client-view/src/choice.rs",
+  "temper/crates/temper-client-view/src/tests/choice.rs",
+  "temper/crates/temper-client-domain/src/tests/pages/chats.rs",
   "temper/tests/client/tests/suite/configuring_chat.rs",
 ]
 effort = "high"
@@ -73,3 +76,25 @@ Acceptance:
 ## Report
 
 As the implementer's text says; each shared file you changed, by name.
+
+## Answers
+
+2026-11-06. Extend this task to remove the unused byline helper and repair the two stale tests, or leave them to their
+owners? **Extend it.** The commit pushed on `model-catalogue-1/configure-picker` stands; build on it. This task's
+acceptance and closing checks can't hold without these three, no other task owns them, and `picker-offer`, which last
+held them, is done. The two tests' new expectations are the user's own: "The configuring chat gets the picker", and
+acceptance 2 here. They now belong to this task's `files`, beyond "compile or words alone":
+
+1. `temper-client-view/src/choice.rs`: remove `byline_words`, and only what its removal leaves unused.
+2. `temper-client-domain/src/tests/pages/chats.rs`, `a_start_from_configure_keeps_its_templates_models`: a start from
+   Configure now behaves as an ordinary chat's start with the same draft, on both `me`s and both acts:
+   - draft untouched: `Create` names the template's own `llm` (`expected`), so the test's name still holds;
+   - an offered model in the draft (`other`): `Create` names it;
+   - draft reset to `None`: `Create` names none;
+   - a model the offer leaves out (`unoffered`): `Draft::valid` fails, and no `Create` is sent.
+   Assert the last by what was sent, not through `page.task()`.
+3. `temper-client-view/src/tests/choice.rs`, `provider_byline_root`: on `Configure`, stop clearing the templates, and
+   give the default preview to the template the page resolves (`configuring_template`), so that
+   `every_byline_keeps_the_accounts_provider_with_its_models` keeps its provider and account assertions unchanged.
+
+Break each repaired rule once to see it bite, then rerun the failed checks and the closing checks, clippy included.

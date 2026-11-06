@@ -657,19 +657,29 @@ recipient.
     application's, kept or dropped as its own (`../domain/people.md`,
     section 3).
 - **The printed link,** on one person's machine: at start the component
-  draws a one-time secret, valid for a short while, and gives it to the
-  application's startup, `Link { secret }`, which prints a URL carrying
+  draws a one-time secret, valid for the profile's `link_span`, and gives it
+  to the application's startup, `Link { secret }`, which prints a URL carrying
   it. The URL is the application's; the default mapping's is its link
   route (17.1). Signing in with the secret signs that person in as the
   deployment's first owner it names, and spends it. One link is live at
   a time: a sign-in with a secret spent, expired or unknown is refused,
   and the component draws a fresh one, which the startup prints again,
   unless the live one is reserved (below).
+  - *How long it lives.* The small profile's `link_span` is 2 hours, because
+    a link may be opened late on a person's own machine: they start a box,
+    leave it, and come back to its terminal. It is one value, so a server's
+    printed link takes it too, and there it is a secret live for longer in
+    what that server wrote, its terminal or the log it goes to. What holds it
+    is that it is a one-time link, spent by its first sign-in, on the machine
+    that printed it: whoever can read that output on that machine within the
+    2 hours can sign in as the owner, if the owner hasn't. So that output is
+    kept as privately as the machine's other secrets, and a link in doubt is
+    spent by opening it.
   - *A secret given.* An application's startup may draw the first link's
     secret itself, 32 bytes from the platform's randomness, and print its
     URL before the engine starts. It gives the secret in the component's
     settings (`link_secret`), and the component takes it at start in the
-    draw's place: its short while runs from that taking, it says no
+    draw's place: its `link_span` runs from that taking, it says no
     `Link`, since the startup holds it, and all below holds of it as of a
     drawn one. It is the first link's alone: every later link is drawn,
     and a component started with none given draws its first. A secret of

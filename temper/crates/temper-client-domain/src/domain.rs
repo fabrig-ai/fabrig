@@ -5,6 +5,7 @@ use skein_lib::{Env, Queue, Rng, Time};
 #[derive(Debug)]
 pub struct Domain {
     zone_minutes: i32,
+    pub(crate) copy: crate::copy::Copy,
     pub(crate) pages: crate::pages::Pages,
     pub(crate) forge: forge::Side,
     pub(crate) client: jig_client::Client,
@@ -49,6 +50,7 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
     .expect("checked client limits");
     Domain {
         zone_minutes: 0,
+        copy: crate::copy::Copy::new(),
         pages: crate::pages::Pages::seeded(rng.next_u64()),
         forge: forge::Side::new(&limits.forge, rng.next_u64()),
         client,
@@ -62,6 +64,10 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
     }
 }
 impl Domain {
+    #[must_use]
+    pub const fn copy_label(&self) -> crate::copy::Label {
+        self.copy.label()
+    }
     /// Minutes east of universal time: the shell's input (temper/docs/design/client/README.md, 5.12).
     #[must_use]
     pub const fn zone_minutes(&self) -> i32 {
@@ -134,6 +140,7 @@ pub fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<
     welcome(root, out);
 }
 pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    root.copy.fire(env.now);
     let mut client = Queue::uncapped();
     if root.unlinked {
         root.client.fire_unlinked(env.now, env.wall, &mut client);
@@ -153,10 +160,15 @@ pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 }
 #[must_use]
 pub fn next_deadline(root: &Domain) -> Option<Time> {
-    [crate::pages::next_deadline(&root.pages), forge::next_deadline(&root.forge), root.client.next_deadline()]
-        .into_iter()
-        .flatten()
-        .min()
+    [
+        root.copy.next_deadline(),
+        crate::pages::next_deadline(&root.pages),
+        forge::next_deadline(&root.forge),
+        root.client.next_deadline(),
+    ]
+    .into_iter()
+    .flatten()
+    .min()
 }
 /// Reclaim only after every child's tells have been routed.
 pub fn take(root: &mut Domain, _env: &Env<Limits>, _out: &mut Queue<Request>) {
@@ -169,6 +181,8 @@ pub fn shown(root: &Domain) -> u64 {
     count
         .checked_add(forge::shown(&root.forge))
         .expect("forge shown count fits")
+        .checked_add(root.copy.shown)
+        .expect("copy shown count fits")
         .checked_add(root.authorization_revision)
         .expect("authorization revision fits")
 }
