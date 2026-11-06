@@ -546,6 +546,10 @@ with failing tests by id and uploading their artifacts:
 
 ## 14. Later
 
+- **Older public queue merges:** public history beyond the landing log's
+  ring, or beyond the tasks jig's public index hands, is the client's
+  question (`../client/forge.md`, section 10). Default: none; keeping a
+  landing in the log grants no public access to it (section 10).
 - **A red after landing blamed within a goal's landing,** bisected over
   its changes' merges to the change that brought it. A goal's landing
   is one landing to its tiers, so its red names the goal's landing

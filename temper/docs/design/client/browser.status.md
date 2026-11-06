@@ -2,10 +2,12 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
-Public history retains two limits the request `ui-public-2` left for later
-(section 5), which the board's own line states (8.3): landed work from before
-a project went public never shows; a restart empties the ended-goal history
-(jig's `domain/people.md`, 13.9).
+Public history retains two limits the request `ui-public-history` leaves
+for later (section 5), which the board's own line states (8.3): goals ended
+before publication are absent; a restart empties the ended-goal history
+(jig's `domain/people.md`, 13.9). A merge from before publication can still
+show when its change is handed from a live goal's tree, as the plan's cut
+keeps it; publication is not a cutoff on a handed change's commit.
 
 - **Design departs:** 8.3, from the request `ui-public-2` of 2026-11-06:
   ended rows say how long ago they ended, where the request says "for how
