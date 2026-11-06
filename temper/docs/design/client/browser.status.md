@@ -62,6 +62,34 @@
   ended by the stall deadline: `temper-service`'s
   `a_call_past_the_mounts_room_waits_until_its_peer_closes` ends it by its
   peer's close.
+- **Departs:** 4.3, 4.6: the tier holds 13 tests, one past the cap, and 4.6 names
+  12. `browser_call_line.rs`'s `a_run_of_calls_opens_to_its_rows`, from the request
+  `chat-reading-b`, has no line there, and its file's header names the story, not what
+  only a browser shows. The request `browser-trim` has every test read against the
+  tier's rule, but that plan's calls were made before this test reached its trunk, and
+  no reading of it is recorded. 4.3 has stories that share a setup become one test
+  first: it and test 14 both start a chat on `temper box`, though it scripts its own
+  model's turns. No reason is recorded.
+- **Not yet:** 4.3: no run on record shows the tier as it stands within its budget
+  (`tools/tiers/budgets.toml`, `browser-temper`, 85 CPU s): its total with the call
+  line's test is unknown. The `browser-trim` plan's three runs, at `970302c050`, before
+  that test reached its trunk, took 78.557098, 73.801674 and 57.755442 CPU s over 12
+  tests, on one slot of a shared machine whose load rose from 6 to 31, where its request
+  has a slot as idle as can be had. Those totals are in `tools/tiers/design.md`, 7.2's
+  scope, which live sampling of the same tests read higher (that document's section 8).
+- **Not yet:** 4.6: the request `browser-trim` has a person's page slower to settle as
+  the answer most wanted. Settled chat and task pages stood still and no product cause
+  was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a
+  wait that plan located and did not split, and test 2 has since lost the step (section
+  5).
+- **Design departs:** 4.3, 4.6, from the request `browser-trim` of 2026-11-06, decided
+  by its plan's cut. Goals' link's target is held by the view's
+  `the_link_shows_with_a_tracked_template`, where the request has the client world,
+  because the view is the lowest tier that shows it. Story A's download is compressed
+  by the machine's `gzip`, where the request looks in the playground for a missing cache
+  or a needless rebuild alone, because `skein_http::gzip::encode` in the dev profile
+  took 4.85 CPU s of the story; so the printed figure's bytes changed (`../playground.md`,
+  9).
 - **Departs:** 7.2: `start-goal` is Chats with no sheet and no filter,
   `Chats { filter: All }`, since that is where Goals' entry goes and `OpenStart`
   opens nothing without both a draft and a chat; `start-goal-draft` and

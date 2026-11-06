@@ -1642,3 +1642,8 @@ the suites (testing.md, section 6).
   where programming-model.md, section 10.3 has no `_` on an own enum, and a new
   `d::Document` kind goes silent there. Decided under the user's standing word,
   for the user's later review (`forge.status.md`). Default: so.
+- **A decoder's first demand** (5.3, 7): Forgejo's `client::first`,
+  `client::delivery::first` and `server::body_first`, and GitHub's
+  `delivery::first`, ignore their decoder and return `tokenizer::Request::Next`.
+  Whether the fakes and tests that call them ask for `Next` themselves, so that
+  they go. Default: as they stand, until a debt item names them.

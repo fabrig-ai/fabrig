@@ -62,7 +62,7 @@ impl Referee<NativeClient> for Judge {
             Page::Ready => {
                 let model = client.tree().nodes().iter().any(|node| {
                     node.role == Role::Paragraph
-                        && node.name.as_deref().is_some_and(|name| name.starts_with(b"Model ChatGPT plan"))
+                        && node.name.as_deref().is_some_and(|name| name.starts_with(b"ChatGPT plan"))
                 });
                 let create = named(client, Role::Button, b"Create your project")
                     .is_some_and(|node| !node.states.as_slice().contains(&State::Disabled));
@@ -75,7 +75,7 @@ impl Referee<NativeClient> for Judge {
         }
         assert!(
             matches!(self.page, Page::Done) || now < self.until,
-            "Ready missing Model ChatGPT plan and enabled Create your project at {:?}; tree names: {:?}",
+            "Ready missing ChatGPT plan and enabled Create your project at {:?}; tree names: {:?}",
             self.page,
             client
                 .tree()

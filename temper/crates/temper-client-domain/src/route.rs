@@ -515,14 +515,15 @@ fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out
     consumed
 }
 
-/// Complete a held sign-in or pressed Claude check from the accounts observation (client/README.md, 3.5).
+/// Settle the host check and advance a held sign-in or added key once usable (client/README.md, 3.5).
 pub(crate) fn welcome_model_progress(root: &mut Domain, out: &mut Queue<Request>) {
     use crate::pages::{accounts::SignInState, connect_model::ProgramCheck};
-    let Address::Welcome { step: crate::Step::Model { way: Some(way) } } = root.pages.address() else { return };
-    let kind = way.kind;
     let usable = crate::pages::welcome::model_usable(root) == Some(true);
+    let address = root.pages.address().clone();
     let Some(page) = &mut root.pages.connect_model else { return };
-    if kind == crate::WayKind::SignIn {
+    if let Address::Welcome { step: crate::Step::Model { way: Some(way) } } = &address
+        && way.kind == crate::WayKind::SignIn
+    {
         let held = match page.request.sign_in_state(&root.client) {
             SignInState::Signing { .. } | SignInState::Ended { .. } => true,
             SignInState::Unknown | SignInState::Started { .. } => false,
@@ -532,15 +533,28 @@ pub(crate) fn welcome_model_progress(root: &mut Domain, out: &mut Queue<Request>
         }
         return;
     }
-    if kind != crate::WayKind::Program {
-        return;
+    if let Address::Welcome { step: crate::Step::Model { way: Some(way) } } = address
+        && way.kind == crate::WayKind::Key
+        && let Some(pending) = &page.request.pending
+        && let jig_client::contract::Ask::AccountChange {
+            change: jig_client::contract::AccountChange::AddKey { .. },
+            ..
+        } = &pending.ask
+        && usable
+    {
+        if let Some(outcome) = &pending.outcome
+            && !crate::pages::seen_answered(outcome)
+        {
+            return;
+        }
+        page.request.pending = None;
+        out.push(Request::Show { address: Address::Welcome { step: crate::Step::Ready }, replace: true });
     }
     if page.check == ProgramCheck::Idle {
         return;
     }
     if usable {
         page.check = ProgramCheck::Idle;
-        out.push(Request::Show { address: Address::Welcome { step: crate::Step::Ready }, replace: true });
         return;
     }
     if let ProgramCheck::Checking { .. } = page.check
