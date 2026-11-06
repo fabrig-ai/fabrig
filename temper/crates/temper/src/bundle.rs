@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use temper_service::{
-    clients::bundle::{Bundle, File, NAME_BYTES, kind},
+    clients::bundle::{Bundle, File, NAME_BYTES, compressed_of, kind},
     limits::Clients,
 };
 
@@ -34,6 +34,8 @@ fn entries(shown: &Path, directory: &Path, count: &mut u32, limits: Clients) -> 
     found.sort_by_key(fs::DirEntry::file_name);
     Ok(found)
 }
+type Forms = Vec<(Box<[u8]>, Box<[u8]>)>;
+
 struct Files {
     limits: Clients,
     bytes: u32,
@@ -100,6 +102,7 @@ pub fn read(configured: &[u8], limits: Clients) -> Result<Bundle, String> {
     let tree = std::ffi::OsStr::from_bytes(&digest);
     let (shown_tree, root_tree) = (shown.join(tree), root.join(tree));
     let mut files = Map::with_capacity(limits.bundle_files);
+    let mut forms = Forms::new();
     let mut pending = vec![PathBuf::new()];
     let mut count = 0;
     while let Some(relative) = pending.pop() {
@@ -113,16 +116,34 @@ pub fn read(configured: &[u8], limits: Clients) -> Result<Bundle, String> {
                 directories.push(name);
             } else if file_type.is_file() {
                 let key = name.to_str().ok_or_else(|| refusal(&at, "path is not UTF-8"))?.as_bytes();
-                let typed = file_kind(&at, key)?;
+                let typed = file_kind(&at, compressed_of(key).unwrap_or(key))?;
                 let content = state.read(&at, &root_tree.join(&name))?;
-                files.insert(Box::from(key), File { kind: typed, bytes: content }).expect("file bound checked");
+                if compressed_of(key).is_some() {
+                    forms.push((Box::from(key), content));
+                } else {
+                    files
+                        .insert(Box::from(key), File { kind: typed, bytes: content, gzip: None })
+                        .expect("file bound checked");
+                }
             } else {
                 return Err(refusal(&at, "entry must be a regular file or directory"));
             }
         }
         pending.extend(directories.into_iter().rev());
     }
+    pair(&shown_tree, &mut files, forms)?;
     Ok(finish(page, digest, files))
+}
+
+/// Attach forms only after all plain files have been read, independent of entry order.
+fn pair(shown: &Path, files: &mut Map<Box<[u8]>, File>, forms: Forms) -> Result<(), String> {
+    for (name, bytes) in forms {
+        let at = shown.join(std::ffi::OsStr::from_bytes(&name));
+        let plain = compressed_of(&name).expect("a gathered compressed form");
+        let file = files.get_mut(plain).ok_or_else(|| refusal(&at, "a compressed form with no file"))?;
+        file.gzip = Some(bytes);
+    }
+    Ok(())
 }
 
 fn finish(page: Box<[u8]>, digest: Box<[u8]>, files: Map<Box<[u8]>, File>) -> Bundle {
@@ -190,15 +211,21 @@ fn embedded_read(files: &[(&str, &[u8])], limits: Clients) -> Result<Bundle, Str
     }
     let digest = digest.ok_or_else(|| refusal(shown, "no digest directory"))?;
     let mut contents = Map::with_capacity(limits.bundle_files);
+    let mut forms = Forms::new();
     for (name, bytes) in files {
         let Some((_, relative)) = name.split_once('/') else { continue };
         let at = shown.join(name);
         let key = relative.as_bytes();
         plain(&at, key)?;
-        let typed = file_kind(&at, key)?;
+        let typed = file_kind(&at, compressed_of(key).unwrap_or(key))?;
         let bytes = state.copy(&at, bytes)?;
-        contents.insert(Box::from(key), File { kind: typed, bytes }).expect("file bound checked");
+        if compressed_of(key).is_some() {
+            forms.push((Box::from(key), bytes));
+        } else {
+            contents.insert(Box::from(key), File { kind: typed, bytes, gzip: None }).expect("file bound checked");
+        }
     }
+    pair(&shown.join(std::ffi::OsStr::from_bytes(&digest)), &mut contents, forms)?;
     Ok(finish(page, digest, contents))
 }
 

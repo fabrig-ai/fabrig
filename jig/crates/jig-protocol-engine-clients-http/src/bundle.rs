@@ -9,6 +9,17 @@ use skein_lib::{List, Map, Queue, Token, bytes};
 pub struct File {
     pub kind: &'static [u8],
     pub bytes: Box<[u8]>,
+    pub gzip: Option<Box<[u8]>>,
+}
+/// The file a compressed form belongs to (skein/docs/design/ui-web.md, 4.4).
+#[must_use]
+pub fn compressed_of(path: &[u8]) -> Option<&[u8]> {
+    let plain = path.strip_suffix(b".gz")?;
+    if plain.ends_with(b".wasm") || plain.ends_with(b".js") || plain.ends_with(b".css") || plain.ends_with(b".svg") {
+        Some(plain)
+    } else {
+        None
+    }
 }
 #[must_use]
 pub fn kind(path: &[u8]) -> Option<&'static [u8]> {

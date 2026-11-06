@@ -17,14 +17,12 @@ fn header(name: &str, value: &str) -> Header {
     Header { name: Box::from(name.as_bytes()), value: Box::from(value.as_bytes()) }
 }
 fn answer(status: u16, body: Box<[u8]>, kind: &str, cache: Option<(&str, &str)>) -> Answer {
-    let mut headers = vec![
-        header("Content-Security-Policy", POLICY),
-        header("X-Content-Type-Options", "nosniff"),
-        header("Content-Type", kind),
-    ];
+    let mut headers = vec![header("Content-Type", kind)];
     if let Some((name, value)) = cache {
         headers.push(header(name, value));
     }
+    headers.push(header("Content-Security-Policy", POLICY));
+    headers.push(header("X-Content-Type-Options", "nosniff"));
     let length = skein_lib::len_u64(body.len());
     Answer {
         head: Response {
@@ -61,10 +59,21 @@ pub fn route(state: &mut State, bundle: &Bundle, call: &Call, body: &[u8]) -> An
         if let Ok(path) = core::str::from_utf8(path)
             && let Some((digest, name)) = path.split_once('/')
             && digest == bundle.digest
-            && let Some(bytes) = bundle.files.get(name)
+            && let Some(file) = bundle.files.get(name)
         {
             let kind = bundle::of(Path::new(name)).expect("startup checked the type");
-            return answer(200, bytes.clone(), kind, Some(("Cache-Control", "public, max-age=31536000, immutable")));
+            let compressed = file.gzip.as_ref().filter(|_| call.accepts_gzip());
+            let bytes = compressed.unwrap_or(&file.bytes).clone();
+            let mut result = answer(200, bytes, kind, Some(("Cache-Control", "public, max-age=31536000, immutable")));
+            let mut headers = result.head.headers.into_vec();
+            if file.gzip.is_some() {
+                headers.insert(1, header("Vary", "Accept-Encoding"));
+            }
+            if compressed.is_some() {
+                headers.insert(1, header("Content-Encoding", "gzip"));
+            }
+            result.head.headers = headers.into_boxed_slice();
+            return result;
         }
         return answer(404, Box::from(&b"not found"[..]), "text/plain; charset=utf-8", None);
     }

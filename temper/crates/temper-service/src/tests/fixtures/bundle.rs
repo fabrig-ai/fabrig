@@ -28,16 +28,24 @@ pub fn bundle() -> Bundle {
     files
         .insert(
             Box::from(b"boot.js".as_slice()),
-            File { kind: b"text/javascript", bytes: Box::from(b"boot();".as_slice()) },
+            File {
+                kind: b"text/javascript",
+                bytes: Box::from(b"boot();".as_slice()),
+                gzip: Some(Box::from(b"compressed boot".as_slice())),
+            },
         )
         .expect("boot file");
     files
-        .insert(Box::from(b"module.wasm".as_slice()), File { kind: b"application/wasm", bytes: wasm() })
+        .insert(Box::from(b"module.wasm".as_slice()), File { kind: b"application/wasm", bytes: wasm(), gzip: None })
         .expect("module file");
     files
         .insert(
             Box::from(b"files/robots.txt".as_slice()),
-            File { kind: b"text/plain; charset=utf-8", bytes: Box::from(b"User-agent: *\nDisallow: /\n".as_slice()) },
+            File {
+                kind: b"text/plain; charset=utf-8",
+                bytes: Box::from(b"User-agent: *\nDisallow: /\n".as_slice()),
+                gzip: None,
+            },
         )
         .expect("root file");
     Bundle {

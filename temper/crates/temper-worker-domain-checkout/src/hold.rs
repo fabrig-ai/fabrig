@@ -11,8 +11,10 @@
 //! head and commits each new merge in order before it is ready. Its last
 //! commit is the save baseline; its merges are delivered by the first push.
 //! A producer's merge start compares its base with the checked-out branch.
-//! A contained base resumes as branch or saved work without a merge; other
-//! merge starts leave the merge in progress for the run to settle.
+//! A contained base resumes as branch or saved work without a merge. A clean
+//! producer merge is committed and checked out before ready; its save baseline
+//! stays the producer's starting commit. A producer's conflict and other merge
+//! starts leave the merge in progress for the run to settle.
 //! A base branch the forge does not have is
 //! created there from the default branch, for a repository that may be
 //! written, and only created: if another party created it meanwhile, it is
@@ -49,6 +51,8 @@
 //!             done, merge checked out   Preparing   io: compare base/head, or merge
 //!             done, base contained      Preparing   io: fetch landing or push branch
 //!             done, base absent         Preparing   io: merge
+//!             done, producer merged     Preparing   io: commit merge with both parents
+//!             done, merge committed     Preparing   io: check out merge, clearing its state
 //!             done, all checked out     Ready       prepared: ready
 //!             done, failed              Unprepared  prepared: failed
 //!             done, aborting            Unprepared  prepared: aborted
@@ -235,6 +239,13 @@ enum PrepareStep {
     CheckOutHead {
         repository: u32,
         head: u32,
+    },
+    CommitMerge {
+        repository: u32,
+        theirs: Commit,
+    },
+    CheckOutMerged {
+        repository: u32,
     },
 }
 
@@ -786,7 +797,9 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
         | PrepareStep::CompareBase { .. }
         | PrepareStep::CompareHead { .. }
         | PrepareStep::CommitHead { .. }
-        | PrepareStep::CheckOutHead { .. }) => prepared_merge(holding, merge, done, limits),
+        | PrepareStep::CheckOutHead { .. }
+        | PrepareStep::CommitMerge { .. }
+        | PrepareStep::CheckOutMerged { .. }) => prepared_merge(holding, merge, done, limits),
     }
 }
 
@@ -826,6 +839,9 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
         PrepareStep::Merge { repository, theirs, head } => match done {
             Done::Merged => match head {
                 Some(head) => Next::Step(PrepareStep::CommitHead { repository, head }),
+                None if nth(holding, repository).landing.is_some() => {
+                    Next::Step(PrepareStep::CommitMerge { repository, theirs })
+                }
                 None => after_merged(repository, last),
             },
             Done::Conflicted { files } => {
@@ -895,6 +911,38 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Looked { .. }
             | Done::IsAncestor { .. }
             | Done::Merged => unreachable!("explicit merge commit has its own terminals"),
+        },
+        PrepareStep::CommitMerge { repository, .. } => match done {
+            Done::Committed { commit } => {
+                let tips = tips_mut(holding, repository);
+                tips.head = commit;
+                tips.merging = None;
+                Next::Step(PrepareStep::CheckOutMerged { repository })
+            }
+            Done::Conflicted { .. } | Done::Failed { .. } | Done::FailedWithOutput { .. } => {
+                Next::Failed(Failure::Transient)
+            }
+            Done::Succeeded
+            | Done::Fetched { .. }
+            | Done::Unchanged
+            | Done::Exists
+            | Done::Rejected
+            | Done::Looked { .. }
+            | Done::IsAncestor { .. }
+            | Done::Merged => unreachable!("explicit merge commit has its own terminals"),
+        },
+        PrepareStep::CheckOutMerged { repository } => match done {
+            Done::Succeeded => after_merged(repository, last),
+            Done::Failed { .. } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
+            Done::Fetched { .. }
+            | Done::Committed { .. }
+            | Done::Unchanged
+            | Done::Exists
+            | Done::Rejected
+            | Done::Looked { .. }
+            | Done::IsAncestor { .. }
+            | Done::Merged
+            | Done::Conflicted { .. } => unreachable!("io ends a checkout with its own terminals"),
         },
         PrepareStep::CheckOutHead { repository, head } => match done {
             Done::Succeeded => next_head(holding, repository, head, last),
@@ -1169,8 +1217,11 @@ fn prepare_step(
         PrepareStep::Merge { repository, theirs, .. } => {
             Op::Merge { at: place(workspace, nth(holding, repository)), theirs }
         }
-        PrepareStep::CommitHead { repository, head } => commit_head(holding, workspace, repository, head),
-        PrepareStep::CheckOutHead { repository, .. } => Op::CheckOut {
+        PrepareStep::CommitHead { repository, head } => {
+            commit_merge(holding, workspace, repository, merged_head(holding, repository, head))
+        }
+        PrepareStep::CommitMerge { repository, theirs } => commit_merge(holding, workspace, repository, theirs),
+        PrepareStep::CheckOutHead { repository, .. } | PrepareStep::CheckOutMerged { repository } => Op::CheckOut {
             at: place(workspace, nth(holding, repository)),
             commit: tips(holding, repository).head,
             clean: true,
@@ -1180,9 +1231,8 @@ fn prepare_step(
     State::Preparing { step, asked: Asked::Nothing }
 }
 
-fn commit_head(holding: &Holding, workspace: Token, repository: u32, head: u32) -> Op {
+fn commit_merge(holding: &Holding, workspace: Token, repository: u32, theirs: Commit) -> Op {
     let spec = nth(holding, repository);
-    let theirs = merged_head(holding, repository, head);
     Op::Commit {
         at: place(workspace, spec),
         parent: tips(holding, repository).head,
