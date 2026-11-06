@@ -3882,6 +3882,12 @@ it checks of this document:
 
 Each is intended; what it needs is named with it.
 
+- **Models kept beyond init** (8.3): the catalogue's store step moves
+  models out of both generated configuration documents, keeping the seven
+  as release defaults; the list step adds discovery per usable account
+  (`../draft/model-catalogue.md`, section 7). Until then offering another
+  model edits both documents.
+
 - **A box killed outright on macOS** (7.1): its steps have no parent-death
   signal, so they can keep running and hold the next start's ports. A
   lifetime guard on macOS needs a mechanism of its own; until one is
@@ -3975,9 +3981,6 @@ Each is intended; what it needs is named with it.
 - **The person's `claude` installed after init** (6.6, 8.2): taken in
   place of the fetched build, or not; for now init's choice holds until
   the box is made again (`../draft/claude-provider.md`, 6).
-- **Choosing Claude's model and effort** (8.3): init writes Opus alone;
-  choosing is the work the user asked for apart, for ChatGPT and Claude
-  alike (`../draft/claude-provider.md`, 4).
 - **The other fake peers' refused connections** (7.5): the issuer's log
   takes a line for each connection it turns away at its cap, from skein's
   OAuth peer's count; `fake github`, `fake forgejo` and `fake model` turn

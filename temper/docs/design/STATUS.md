@@ -40,7 +40,15 @@ worker slots it is to size temper's own way by, no story that runs has an owner 
 its proposal under Needs you, with `temper help proposal` still saying that press fails,
 and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
-settings family (`protocol/configuration.md`). The limits' check
+settings family (`protocol/configuration.md`). Seven stock models and their
+default efforts, the per-project offer and per-template previews, ctl's offer
+listing and the configuring chat's chooser are built. Account groups and
+"All models" await the separate picker look; an unusable account's fix is
+hidden beside a usable one of the same provider (`client/README.md`). The
+configuring inventory is filtered, but whole charter reads still name models
+outside the offer and only instructions restrict proposals to it
+(`domain/agent.md`, `draft/model-catalogue.md`). Model settings and provider
+list reads remain the catalogue's later steps. The limits' check
 leaves temper's kinds out of the settings answer's bound
 (`domain/root.md`), and a change's refusal omits what authority it
 lacked and which model its charter refused (`domain/agent.md`). A

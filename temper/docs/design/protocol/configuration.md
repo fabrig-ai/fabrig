@@ -1300,6 +1300,16 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **The model catalogue's store and list steps** (13.4): model settings,
+  additions by name and per-account provider lists replace the model tables
+  in `temper.json` and `agent.json` together
+  (`../draft/model-catalogue.md`, sections 4 to 7). Until then the stock is
+  seven declared models, with no provider discovery. Changing init's table
+  changes a fresh box; an existing box keeps its documents and a changed
+  charter keeps its stored value. A saved charter whose copied model prices
+  or efforts differ from a fresh box's is refused: it must be rebuilt from
+  that box's settings before being proposed there.
+
 - **A party's fair share of the watch rooms.** A party's room is the
   deployment's (section 7), so one person with every stream leaves another
   none, and the refusal they meet is the streams'. Nothing has asked for

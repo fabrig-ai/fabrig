@@ -2299,6 +2299,11 @@ contract's reads, watches and requests, they take:
 
 ## 14. Later
 
+- **Model catalogue changes** (5.5, area 5): `model list` reads the
+  offer; it fetches no provider list and adds no model. Catalogue settings,
+  adding by name and refreshing an account's list follow the store and list
+  steps (`../draft/model-catalogue.md`, section 7).
+
 Each is named here and designed when it comes.
 
 - **An MCP endpoint of the engine,** for agents with no shell:

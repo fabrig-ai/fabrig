@@ -6480,6 +6480,15 @@ own tests:
 
 ## 11. Open questions
 
+- **Account groups and "All models"** (3.5): the `model-picker` look takes
+  the offer's account ids and `picker` flags to group by what pays and expose
+  every offered model, including those outside the short picker. A stopped
+  account keeps its own fix beside another usable account of that provider.
+  Until that look, the chooser groups by provider and shows `picker` models.
+  Settings, Models, its switches and adding by name belong to the catalogue's
+  store step; reading providers' lists and "Read again" to its lists step
+  (`../draft/model-catalogue.md`, section 7).
+
 - **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
   signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),
   while `temper open`'s refusals, the terminal's link instructions and the

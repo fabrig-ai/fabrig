@@ -2,6 +2,12 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
+  the offer, effort choice, configuring chat's chooser and connected-account
+  starters. Tree and domain stories exercise these facts, including a
+  simulated plan sign-in; they do not prove the browser's geometry or a real
+  provider's response. The plan's slices deliberately have `walk = false`.
+
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
   request `ui-pause-close`.
