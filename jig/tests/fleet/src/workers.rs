@@ -8,7 +8,7 @@
 //! tells facts; keeps each answer until it is acknowledged; and,
 //! out of contact past its own grace, cancels its runs itself.
 
-use jig_domain_fleet::Phase;
+use jig_domain_link::Phase;
 
 use crate::referee::{Kind, Said, Seen};
 use crate::world::{Back, Channel, Delivery, Hosting, Message, Up, World};

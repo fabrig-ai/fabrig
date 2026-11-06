@@ -1,12 +1,12 @@
 //! The scripted host hears grants in journal release order.
-use super::{World, accounts, core, fleet, root, tasks};
-use jig_domain_link::Form;
+use super::{World, accounts, core, root, tasks};
+use jig_domain_link::{Form, Grant};
 use skein_lib::{Duration, Token};
 
 impl World {
     /// The last grant received by the host, with its fenced destination.
     #[must_use]
-    pub fn received_grant(&self) -> Option<(Token, Token, Token, fleet::Grant)> {
+    pub fn received_grant(&self) -> Option<(Token, Token, Token, Grant)> {
         self.received_grant
     }
 
@@ -39,7 +39,7 @@ impl World {
         }
     }
 
-    pub(super) fn grant_delivered(&mut self, channel: Token, run: Token, attempt: Token, grant: fleet::Grant) {
+    pub(super) fn grant_delivered(&mut self, channel: Token, run: Token, attempt: Token, grant: Grant) {
         self.grant_follows_assignment = self.assignments.contains(&(run.raw(), attempt.raw()));
         self.received_grant = Some((channel, run, attempt, grant));
     }

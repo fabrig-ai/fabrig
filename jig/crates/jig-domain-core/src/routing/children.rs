@@ -9,6 +9,7 @@ use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
 use jig_domain_fleet as fleet;
+use jig_domain_link::GrantTable;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token};
@@ -644,12 +645,12 @@ pub(crate) fn route_fleet(
     if let fleet::Event::Start { grants, .. } = &mut event {
         for grant in &mut **grants {
             match grant.form.table() {
-                fleet::GrantTable::Accounts | fleet::GrantTable::Name => {
+                GrantTable::Accounts | GrantTable::Name => {
                     if let Some(current) = core.accounts.source_grant(grant.account, env.now) {
                         *grant = super::sibling_routes::fleet_grant(current);
                     }
                 }
-                fleet::GrantTable::Application => {
+                GrantTable::Application => {
                     if let Some(current) = core.accounts.credential_grant(grant.account, env.now) {
                         *grant = super::sibling_routes::fleet_grant(current);
                     }

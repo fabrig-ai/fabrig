@@ -1,5 +1,5 @@
 use crate::tests::*;
-use jig_domain_link::{Form, Scheme};
+use jig_domain_link::{Form, Hello, Scheme};
 
 #[test]
 fn a_run_waits_while_a_credential_it_needs_is_unusable() {
@@ -12,7 +12,7 @@ fn a_run_waits_while_a_credential_it_needs_is_unusable() {
         fleet::Event::Hello {
             worker: 0,
             channel: Token::new(1),
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
