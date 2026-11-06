@@ -15,6 +15,10 @@ pub const JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/desi
 #[derive(Debug)]
 pub enum Refusal {
     Name(String),
+    SetupUnreadable { name: String, unreadable: journey::Unreadable },
+    SetupAfter { name: String, after: String, why: &'static str },
+    SetupTimeout { name: String, setup: String, line: u32, sought: String },
+    MarkTimeout { name: String, mark: u32, text: Box<[u8]> },
     Undecoded { name: String, line: u32 },
     Found { name: String, line: u32, record: &'static str, place: journey::Place, what: journey::What },
     FoundDrawn { name: String, turn: u32, what: journey::What },

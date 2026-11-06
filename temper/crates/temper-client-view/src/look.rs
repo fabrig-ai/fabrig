@@ -560,9 +560,7 @@ pub const MODEL_DESCRIPTION: Style = Style { owner: owner(), token: 145 };
 pub const MODEL_FACT: Style = Style { owner: owner(), token: 146 };
 /// The Model sign-in’s external address and folded paste.
 pub const MODEL_SIGN_IN: Style = Style { owner: owner(), token: 147 };
-/// Ready’s evenly spaced checklist.
-pub const WELCOME_CHECKLIST: Style = Style { owner: owner(), token: 148 };
-/// Ready’s sign-in ending aligned with the checklist edge.
+/// Ready’s sign-in ending below Model’s line.
 pub const WELCOME_END: Style = Style { owner: owner(), token: 149 };
 /// The small note below Ready’s disabled action.
 pub const WELCOME_TINY: Style = Style { owner: owner(), token: 150 };
@@ -665,8 +663,6 @@ pub const WELCOME_CMD_BOX: Style = Style { owner: owner(), token: 121 };
 pub const WELCOME_COPY: Style = Style { owner: owner(), token: 367 };
 /// The welcome’s terminal command (client/README.md, 3.5).
 pub const WELCOME_CMD: Style = Style { owner: owner(), token: 369 };
-/// A checklist line under way (client/README.md, 3.5, Ready).
-pub const WELCOME_CURRENT: Style = Style { owner: owner(), token: 370 };
 /// The forge's spinning status marker.
 pub const WELCOME_SPIN: Style = Style { owner: owner(), token: 361 };
 /// The welcome's primary continuation.
@@ -828,7 +824,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-model-description",
         b"temper-model-fact",
         b"temper-model-sign-in",
-        b"temper-welcome-checklist",
+        b"temper-reserved-148",
         b"temper-welcome-end",
         b"temper-welcome-tiny",
         b"temper-welcome-status",
@@ -1050,7 +1046,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-copy",
         b"temper-welcome-field",
         b"temper-welcome-cmd",
-        b"temper-welcome-current",
+        b"temper-reserved-370",
         b"temper-home-copy",
         b"temper-home-small",
         b"temper-welcome-forge-status",
@@ -1136,10 +1132,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-doc-sub",
         b"temper-doc-flow",
         b"temper-doc-figures",
-        b"temper-welcome-check",
-        b"temper-welcome-check-stopped",
-        b"temper-welcome-check-failed",
-        b"temper-welcome-check-why",
+        b"temper-reserved-456",
+        b"temper-reserved-457",
+        b"temper-reserved-458",
+        b"temper-reserved-459",
         b"temper-welcome-again",
         b"temper-welcome-paste",
         b"temper-rail-person",
@@ -1157,6 +1153,47 @@ pub const NAMES: Names<'static> = Names {
         b"temper-work-out",
         b"temper-latest",
         b"temper-thread-loading",
+        b"temper-reserved-477",
+        b"temper-reserved-478",
+        b"temper-reserved-479",
+        b"temper-reserved-480",
+        b"temper-reserved-481",
+        b"temper-reserved-482",
+        b"temper-reserved-483",
+        b"temper-reserved-484",
+        b"temper-reserved-485",
+        b"temper-reserved-486",
+        b"temper-reserved-487",
+        b"temper-reserved-488",
+        b"temper-reserved-489",
+        b"temper-reserved-490",
+        b"temper-reserved-491",
+        b"temper-reserved-492",
+        b"temper-reserved-493",
+        b"temper-reserved-494",
+        b"temper-reserved-495",
+        b"temper-reserved-496",
+        b"temper-reserved-497",
+        b"temper-reserved-498",
+        b"temper-reserved-499",
+        b"temper-reserved-500",
+        b"temper-reserved-501",
+        b"temper-reserved-502",
+        b"temper-reserved-503",
+        b"temper-reserved-504",
+        b"temper-reserved-505",
+        b"temper-reserved-506",
+        b"temper-reserved-507",
+        b"temper-reserved-508",
+        b"temper-reserved-509",
+        b"temper-reserved-510",
+        b"temper-reserved-511",
+        b"temper-reserved-512",
+        b"temper-reserved-513",
+        b"temper-reserved-514",
+        b"temper-reserved-515",
+        b"temper-welcome-status-why",
+        b"temper-welcome-status-acts",
     ],
     regions: &[b"temper-link"],
 };
@@ -1331,11 +1368,6 @@ pub const STARTER_OWN_ACTS: Style = Style { owner: owner(), token: 452 };
 pub const DOC_SUB: Style = Style { owner: owner(), token: 453 };
 pub const DOC_FLOW: Style = Style { owner: owner(), token: 454 };
 pub const DOC_FIGURES: Style = Style { owner: owner(), token: 455 };
-// The try’s status box (temper/docs/design/client/README.md, 3.5).
-pub const WELCOME_CHECK: Style = Style { owner: owner(), token: 456 };
-pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 457 };
-pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 458 };
-pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 459 };
 
 /// The last word of a turn being written (client/README.md, 3.5).
 pub const WRITING_END: Style = Style { owner: owner(), token: 469 };
@@ -1374,6 +1406,11 @@ pub const LATEST: Style = Style { owner: owner(), token: 475 };
 
 /// The conversation’s call runs and reading position (client/README.md, 3.5).
 pub const THREAD_LOADING: Style = Style { owner: owner(), token: 476 };
+
+/// Ready’s model line (client/README.md, 3.5, The try).
+pub const WELCOME_STATUS_WHY: Style = Style { owner: owner(), token: 516 };
+/// Ready’s model controls (client/README.md, 3.5, The try).
+pub const WELCOME_STATUS_ACTS: Style = Style { owner: owner(), token: 517 };
 
 #[cfg(test)]
 mod tests {

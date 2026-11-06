@@ -42,6 +42,20 @@ impl Walk {
         walk
     }
 
+    /// Reopens on short forge paces after a first run has prepared the box (client's wait: testing.md, 2.6).
+    fn short_paces(&self) {
+        self.run(vec![]);
+        let config = self.sandbox().join("config/temper.json");
+        let mut document: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&config).expect("public configuration")).expect("JSON");
+        // Leave room for the journal to commit between forge reads.
+        let limits = &mut document["application"]["limits"]["overrides"];
+        for (name, millis) in [("poll_ms", 1000), ("poll_max_ms", 1000), ("slow_ms", 1000), ("hinted_ms", 100)] {
+            limits[format!("forge.client.{name}")] = millis.into();
+        }
+        super::write(&config, &serde_json::to_vec(&document).expect("configuration JSON"));
+    }
+
     fn sandbox(&self) -> PathBuf {
         self.paths[1].join("box/fake-backends")
     }

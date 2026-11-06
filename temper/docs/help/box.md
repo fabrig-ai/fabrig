@@ -119,12 +119,14 @@ Expect:
 ```text
 Open this link in a browser on this machine.
 
-http://127.0.0.1:8367/jig/v1/sign-in/link?secret=...
+http://127.0.0.1:PORT/jig/v1/sign-in/link?secret=...
 
 It signs you in as this temper's owner, once, within 2 hours.
 Opened after that, it prints a fresh one here.
 ```
 
+For a fresh fake box, the kernel chooses `PORT` and its four other ports,
+leaving 8367–8371 to a person's box. The sandbox keeps its chosen ports on restart.
 The link alone is on stdout; the other lines are on stderr. Fake backends
 follow the block with
 `box: effective configuration DATA/box/fake-backends/config`, then
