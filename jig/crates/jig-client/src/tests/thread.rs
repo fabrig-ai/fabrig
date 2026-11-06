@@ -634,3 +634,40 @@ fn a_persons_words_stay_bounded_by_text_beside_a_larger_live_bound() {
     assert!(thread.sending(fixtures::STOP, fixtures::PARTY, text(b"ab"), 0));
     assert_eq!(thread.words.rows.get(0).unwrap().words.bytes(), b"ab");
 }
+
+// "ab" and "é" fill four bytes; three rows leave room for a refused third send.
+const KEPT_WORD_BYTES: u64 = 4;
+const KEPT_WORD_LINES: u32 = 3;
+const EXTRA_WORDS: crate::Key = crate::Key { asker: crate::Asker::JIG, number: 78 };
+
+#[test]
+fn kept_words_stop_at_the_threads_bytes() {
+    let mut thread = bounded_window(KEPT_WORD_BYTES, KEPT_WORD_LINES);
+    assert_eq!(thread.words.bytes(), 0);
+    assert!(thread.sending(fixtures::STOP, fixtures::PARTY, text(b"ab"), 0));
+    assert!(thread.sending(ARCHIVE_WORDS, fixtures::PARTY, text("é".as_bytes()), 0));
+    assert!(!thread.sending(EXTRA_WORDS, fixtures::PARTY, text(b"x"), 0));
+    assert_eq!(thread.words.rows.len(), 2);
+    assert_eq!(thread.words.rows.get(0).unwrap().words.bytes(), b"ab");
+    assert_eq!(thread.words.rows.get(1).unwrap().words.bytes(), "é".as_bytes());
+    assert_eq!(thread.words.bytes(), KEPT_WORD_BYTES);
+}
+
+#[test]
+fn words_read_free_their_bytes() {
+    let mut thread = bounded_window(KEPT_WORD_BYTES, KEPT_WORD_LINES);
+    assert!(thread.sending(fixtures::STOP, fixtures::PARTY, text(b"abcd"), 0));
+    thread.answered(
+        fixtures::STOP,
+        &Answer::Done(Outcome::Document(DocumentOutcome::Said { task: fixtures::SUBJECT_TASK, message: MESSAGE })),
+    );
+    let mut read = page(&[1], None, None);
+    read.rows.get_mut(0).unwrap().source.line =
+        Activity::Turn { reply: 1, attempt: ATTEMPT, turn: TURN, read: Some(MESSAGE) };
+    assert!(thread.moved(1).is_some());
+    assert_eq!(thread.page(read), None);
+    assert!(thread.sending(ARCHIVE_WORDS, fixtures::PARTY, text(b"next"), 0));
+    assert_eq!(thread.words.rows.len(), 1);
+    assert_eq!(thread.words.rows.get(0).unwrap().words.bytes(), b"next");
+    assert_eq!(thread.words.bytes(), KEPT_WORD_BYTES);
+}

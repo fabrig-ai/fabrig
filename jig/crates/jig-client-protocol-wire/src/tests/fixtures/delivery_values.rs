@@ -16,7 +16,7 @@ macro_rules! value {
 pub fn delivery_values(limits: &Limits) -> List<(&'static str, DeliveryValue)> {
     let mut values = List::with_capacity(16);
     value!(values, limits, Project, Project, 116);
-    value!(values, limits, Me, Me, 79);
+    value!(values, limits, Me, Me, 83);
     value!(values, limits, Task, Task, 270, Box::new);
     value!(values, limits, Proposal, Proposal, 61);
     value!(values, limits, Tree, Tree, 17);

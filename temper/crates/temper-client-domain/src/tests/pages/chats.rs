@@ -406,7 +406,7 @@ fn starting_a_chat_waits_for_the_first_words() {
 fn a_started_chat_opens_its_conversation_activity() {}
 
 #[test]
-fn new_chats_and_cues_keep_the_send_bound_when_receiving_grows() {
+fn suggestions_and_configuring_chats_keep_the_cue_bound_when_receiving_grows() {
     let mut limits = fixtures::limits();
     limits.client.domain.text = 2048;
     limits.client.domain.long_text = 2048;
@@ -431,13 +431,11 @@ fn new_chats_and_cues_keep_the_send_bound_when_receiving_grows() {
                     &mut out,
                 );
             } else {
-                chats.write(words.clone(), &limits);
-                chats.start(
+                chats.configure_chat(
                     &fixtures::env(&limits),
                     Some(&me),
                     Some(fixtures::PROJECT),
-                    &crate::pages::choice::Draft::default(),
-                    false,
+                    words.clone(),
                     &mut serial,
                     &mut out,
                 );
@@ -969,19 +967,40 @@ fn a_suggested_request_takes_no_draft() {
     assert!(!page.pages.chat().unwrap().writing);
 }
 #[test]
-fn a_drafts_first_message_stays_within_the_cue_bound() {
-    let bound = usize::try_from(temper_client_protocol_wire::CUE_BYTES).unwrap();
-    let suffix = crate::pages::chat::document::WRITE_THIS_UP.len() + 2;
-    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: true });
-    let mut words = skein_lib::bytes::zeroed(bound);
-    words.fill(b'a');
-    page.words(words.get(..bound - suffix + 1).unwrap());
-    page.act(crate::pages::Act::StartChat);
-    assert!(page.pages.chats().unwrap().start.is_none());
-    assert!(fixtures::acts::sent(&mut page.out).is_empty());
-    page.words(words.get(..bound - suffix).unwrap());
-    page.act(crate::pages::Act::StartChat);
-    assert_eq!(page.task().spec.words.bytes().len(), bound);
+fn a_drafts_first_message_bounds_only_what_was_typed() {
+    let words = super::composer::words(super::composer::BOUND + 1);
+    let (mut chats, me, mut limits, mut out) = composer_chats(words.clone());
+    chats.start(
+        &fixtures::env(&limits),
+        Some(&me),
+        Some(fixtures::PROJECT),
+        &crate::pages::choice::Draft::default(),
+        true,
+        &mut { SERIAL },
+        &mut out,
+    );
+    assert!(chats.start.is_none());
+    assert!(fixtures::acts::sent(&mut out).is_empty());
+    assert_eq!(chats.words, words);
+    // The instruction is appended even when the typed words fill long_text.
+    limits.client.domain.long_text = super::composer::BOUND;
+    let words = super::composer::words(super::composer::BOUND);
+    chats.write(words.clone(), &limits);
+    chats.start(
+        &fixtures::env(&limits),
+        Some(&me),
+        Some(fixtures::PROJECT),
+        &crate::pages::choice::Draft::default(),
+        true,
+        &mut { SERIAL },
+        &mut out,
+    );
+    let sent = fixtures::acts::sent(&mut out);
+    let [Ask::Create { tasks, .. }] = sent.as_ref() else { panic!("one chat") };
+    let sent = tasks.get(0).unwrap().spec.words.bytes();
+    let bound = usize::try_from(super::composer::BOUND).unwrap();
+    assert_eq!(sent.get(..bound), Some(&*words));
+    assert_eq!(sent.get(bound..), Some(b"\n\nWrite this up as a draft beside us.".as_slice()));
 }
 
 #[test]
@@ -1250,6 +1269,69 @@ fn the_chats_list_excludes_working_notes_from_documents() {
     );
     assert_eq!(chats.documents.get(&4).unwrap().bytes(), b"Visible document");
     assert!(!chats.documents.contains_key(&8), "a working note is not a draft");
+}
+
+fn composer_chats(words: Box<[u8]>) -> (Chats, Me, crate::Limits, Queue<Request>) {
+    let limits = super::composer::limits();
+    let mut me = fixtures::chats::me();
+    me.words_bytes = super::composer::BOUND;
+    let mut chats = Chats::new(FIRST);
+    chats.write(words, &limits);
+    (chats, me, limits, Queue::uncapped())
+}
+fn composer_start(chats: &mut Chats, me: &Me, limits: &crate::Limits, out: &mut Queue<Request>) {
+    chats.start(
+        &fixtures::env(limits),
+        Some(me),
+        Some(fixtures::PROJECT),
+        &crate::pages::choice::Draft::default(),
+        false,
+        &mut { SERIAL },
+        out,
+    );
+}
+#[test]
+fn a_kilobyte_pasted_is_sent_whole() {
+    let words = super::composer::words(super::composer::BOUND);
+    let (mut chats, me, limits, mut out) = composer_chats(words.clone());
+    assert_eq!(chats.words, words);
+    composer_start(&mut chats, &me, &limits, &mut out);
+    assert_eq!(
+        fixtures::acts::sent(&mut out).as_ref(),
+        [jig_client::shapes::chat(&me, fixtures::PROJECT, Text::new(words, super::composer::HOLD).unwrap()).unwrap()]
+    );
+    let key = chats.start.unwrap();
+    let tasks = List::from_boxed(Box::new([fixtures::acts::TASK]));
+    chats.told(
+        Told::Answered {
+            key,
+            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
+                what: Made::Tasks { tasks },
+            }))),
+        },
+        &crate::Address::NewChat { draft: false },
+        &mut out,
+    );
+    assert!(chats.words.is_empty());
+    assert_eq!(chats.beyond, 0);
+}
+#[test]
+fn a_paste_past_the_bound_stays_and_sends_nothing() {
+    for &(typed, kept, beyond, excess) in super::composer::PAST {
+        let (mut chats, me, limits, mut out) = composer_chats(super::composer::words(typed));
+        let words = super::composer::words(kept);
+        assert_eq!(chats.words, words);
+        assert_eq!(chats.beyond, beyond);
+        composer_start(&mut chats, &me, &limits, &mut out);
+        assert!(fixtures::acts::sent(&mut out).is_empty());
+        assert!(chats.start.is_none());
+        assert_eq!(chats.words, words);
+        assert_eq!(crate::pages::composer::over(&chats.words, chats.beyond, super::composer::BOUND), excess);
+        chats.write(Box::from(*b"short"), &limits);
+        assert_eq!(chats.beyond, 0);
+        composer_start(&mut chats, &me, &limits, &mut out);
+        assert_eq!(fixtures::acts::sent(&mut out).len(), 1);
+    }
 }
 
 #[test]

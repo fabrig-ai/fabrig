@@ -501,13 +501,13 @@ record MessageKindNews { subscription: u64 class: NewsClass }
 record MessageKindResult { value: WordResult }
 record MessageKindMet { dependency: u64 removed: bool }
 enum MessageKind { escalation: MessageKindEscalation, proposal: MessageKindProposal, person_stalled: MessageKindPersonStalled, proposal_decision: MessageKindProposalDecision, words, effect_not_made: MessageKindEffectNotMade, amendment: MessageKindAmendment, question, answer: MessageKindAnswer, notice: MessageKindNotice, timer: MessageKindTimer, news: MessageKindNews, result: MessageKindResult, met: MessageKindMet, settings_decision: MessageKindSettingsDecision, question_ended: MessageKindAnswer, question_answered: MessageKindAnswer, question_owed, nothing_awaited }
-record Word { number: u64 from: Requester kind: MessageKind words: text 65536 at: u64 hits: u32 eligible: bool }
+record Word { number: u64 from: Requester kind: MessageKind words: text 262144 at: u64 hits: u32 eligible: bool }
 record RunWhyMessage { message: u64 }
 record RunWhyRetry { tries: FailureTries }
 enum RunWhy { made, ready, message: RunWhyMessage, released, retry: RunWhyRetry, narrowed, changed }
 record RunEndFailed { class: HoldFailure }
 enum RunEnd { parked, finished, cancelled, failed: RunEndFailed, refused }
-record ActivityWords { message: u64 by: Requester kind: MessageKind words: text 65536 }
+record ActivityWords { message: u64 by: Requester kind: MessageKind words: text 262144 }
 record ActivityHeard { value: Word }
 record ActivityNotified { recipient: Requester word: Word }
 record ActivityRunBegan { attempt: u64 why: RunWhy resumed: bool }
@@ -653,7 +653,7 @@ record MePrices { input: u64 cached: u64 cache_write: option u64 output: u64 uni
 record MeModel { name: text 4096 provider: option u32 window: u32 output: u32 efforts: list 16 text 32 prices: MePrices description: option text 512 }
 record ProviderOffer { provider: u32 name: DocumentText sign_in: bool key: bool programs: list 32 text 32 programs_cut: bool none: bool signed_in_plan: bool manage_usage: option bytes 2048 key_bytes: u32 }
 enum Readiness { usable, unavailable, unknown }
-record Me { party: MeParty projects: bytes 16777216 needs: Needs needs_total: u32 updates: Count results_seen: u64 cut: bool retention: duration deployment_role: option HeldRole providers: bytes 16777216 providers_cut: bool key_bytes: u32 redirect_bytes: u32 }
+record Me { party: MeParty projects: bytes 16777216 needs: Needs needs_total: u32 updates: Count results_seen: u64 cut: bool retention: duration deployment_role: option HeldRole providers: bytes 16777216 providers_cut: bool key_bytes: u32 redirect_bytes: u32 words_bytes: u32 }
 record LiveDelegate { chip: Chip takeover_budget: u64 }
 record TaskContext { parts: bytes 16777216 closing: option Closing spend: list 32 SpendLine runtime: Runtime impact: Impact writer_slots: bytes 16777216 }
 record TaskResultDocument { value: ResultDocument }
