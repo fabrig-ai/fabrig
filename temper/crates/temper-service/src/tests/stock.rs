@@ -184,10 +184,10 @@ fn assert_reference_authority(old: &jig_domain_authority::Authority, new: &jig_d
 
 fn reference_requirements() -> settings_form::view::Authority {
     use settings_form::view::{SettingEdit, SettingValue};
-    let help = include_str!("../../../../docs/help/configure.md");
-    let json = help
+    let readme = include_str!("../../../../docs/examples/reference/README.md");
+    let json = readme
         .split_once("cat > reference-authority.json <<'JSON'\n")
-        .expect("configure documents reference authority")
+        .expect("the reference's README documents its authority")
         .1
         .split_once("\nJSON")
         .unwrap()
@@ -294,7 +294,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 5551);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 5661);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -1243,6 +1243,21 @@ fn configuring_txt_tells_it_how_project_works() {
     assert!(words.contains("Use note:"));
     assert!(words.contains("Change nothing yourself."));
     assert_document_rule(words);
+}
+
+#[test]
+fn configuring_txt_starts_from_temper_own_way() {
+    let words = include_str!("../stock/configuring.txt");
+    assert_eq!(
+        words.rsplit("\n\n").nth(1).expect("the penultimate paragraph gives temper's own way"),
+        concat!(
+            "To set a project up as temper builds itself, first read_docs, topic how-temper-builds-temper. ",
+            "Size settings for this deployment's worker slots and account models. ",
+            "Say what it cannot do yet and leave it out. ",
+            "In \"How PROJECT works\", keep temper's own values in a column beside the project's, each difference a sentence the person can change.",
+        )
+    );
+    assert!(temper_docs::find(b"how-temper-builds-temper").is_some());
 }
 
 #[test]

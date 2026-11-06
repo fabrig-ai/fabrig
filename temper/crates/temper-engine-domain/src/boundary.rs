@@ -561,9 +561,11 @@ pub enum ApplicationAnswer {
     SetAway(forge::SetAwayAnswer),
     Overturn(forge::OverturnAnswer),
 }
-/// Forge-owned settings reads (temper/docs/design/client/forge.md, 9).
+/// Forge reads through party authorization (temper/docs/design/client/README.md, 4.6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ForgeRead {
+    /// The owner's program-login environment (temper/docs/design/client/README.md, 4.6).
+    ProgramEnvironment,
     /// The explicit value set in a retained revision.
     RevisionSetting {
         kind: u32,
@@ -580,9 +582,10 @@ pub enum ForgeRead {
         key: u64,
     },
 }
-/// Typed answers from the forge's held settings, encoded at the clients' boundary.
+/// Typed forge read answers, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ForgeReadAnswer {
+    ProgramEnvironment,
     Setting(Option<forge::settings::SizedValue>),
     ProposalItems(Box<[(forge::settings::SettingKey, forge::settings::Edit)]>),
 }

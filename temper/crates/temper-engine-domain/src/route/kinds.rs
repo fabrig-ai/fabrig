@@ -19,7 +19,7 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
             let bounds = bounds(&env.limits);
             let mut judged = List::uncapped();
             for item in &items {
-                let answer = judge(domain, &bounds, proposal, item);
+                let answer = judge(domain, &bounds, owner, proposal, item);
                 judged.push(answer).expect("one judgement per asked item");
             }
             domain.work.push(Work::Core(Event::EffectConnector(connector::Event::SettingsJudged {
@@ -70,7 +70,7 @@ fn restore(
     let mut refused = false;
     for (key, edit) in kept {
         let asked = settings::Asked { kind: key.kind, scope: key.scope, number: key.number, edit };
-        if way_refusal(domain, &asked).is_some() {
+        if way_refusal(domain, None, &asked).is_some() {
             for (item, answer) in items.iter().zip(answers.iter_mut()) {
                 if (item.kind, item.scope, item.number) == (key.kind, key.scope, key.number) {
                     *answer = settings::Judged::Refuse(settings::Refusal::Way);
@@ -105,6 +105,7 @@ fn judgement(answer: settings::Judged) -> connector::Judged {
 fn judge(
     domain: &Domain,
     bounds: &settings::Bounds,
+    owner: skein_lib::Token,
     proposal: Option<u64>,
     item: &application::Item,
 ) -> connector::Judged {
@@ -116,7 +117,7 @@ fn judge(
     match answer {
         settings::Judged::Refuse(_) => judgement(answer),
         settings::Judged::Accept { .. } | settings::Judged::Same => {
-            match way_refusal(domain, &asked).or(approval_refusal(domain, &asked)) {
+            match way_refusal(domain, Some(owner), &asked).or(approval_refusal(domain, &asked)) {
                 Some(why) => connector::Judged::Refuse { why },
                 None => judgement(answer),
             }
@@ -124,7 +125,7 @@ fn judge(
     }
 }
 
-fn way_refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u8]>> {
+fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &settings::Asked) -> Option<Box<[u8]>> {
     let value = match &asked.edit {
         settings::Edit::Set(value) => &value.value,
         settings::Edit::Remove | settings::Edit::Reset => return None,
@@ -136,12 +137,23 @@ fn way_refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u8]>> {
     if ways.way == 0 {
         return None;
     }
-    for template in domain.core.project_templates(asked.scope) {
+    let templates = match owner {
+        Some(owner) => domain.core.settings_project_templates(owner, asked.scope),
+        None => domain.core.project_templates(asked.scope),
+    };
+    for template in templates {
         if template.number == ways.way {
             return None;
         }
     }
-    Some(settings::Refusal::Way.words().into())
+    let number = Decimal::of(u64::from(ways.way));
+    let mut words = List::uncapped();
+    for part in [b"way ".as_slice(), number.as_bytes(), b" is not a template the project offers after this decision"] {
+        for &byte in part {
+            words.push(byte).expect("bounded way refusal");
+        }
+    }
+    Some(words.into_boxed())
 }
 
 // temper/docs/design/domain/forge.md, 8.9: eligibility joins the forge's rule with the core's people.
@@ -312,6 +324,7 @@ pub(super) fn read(
         Some(why) => crate::Delivery::Read { reply, answer: Answer::None(why) },
         None => {
             let answer = match query {
+                crate::ForgeRead::ProgramEnvironment => crate::ForgeReadAnswer::ProgramEnvironment,
                 crate::ForgeRead::Setting { kind, scope, number } => {
                     crate::ForgeReadAnswer::Setting(domain.forge.setting(kind, scope, number).cloned())
                 }
@@ -340,14 +353,21 @@ fn read_refusal(
         None => Some(if domain.core.people.ready() { Why::SignedOut } else { Why::Unknown }),
         Some(party) => {
             let permitted = match scope {
-                ApplicationScope::Deployment => domain.core.people.role(party, DEPLOYMENT).is_some(),
+                ApplicationScope::Deployment => match query {
+                    crate::ForgeRead::ProgramEnvironment => {
+                        domain.core.people.role(party, DEPLOYMENT) == Some(jig_domain_people::Role::Owner)
+                    }
+                    crate::ForgeRead::Setting { .. }
+                    | crate::ForgeRead::RevisionSetting { .. }
+                    | crate::ForgeRead::ProposalItems { .. } => domain.core.people.role(party, DEPLOYMENT).is_some(),
+                },
                 ApplicationScope::Project(project) => {
                     let own_kind = match query {
                         crate::ForgeRead::Setting { kind, scope, .. }
                         | crate::ForgeRead::RevisionSetting { kind, scope, .. } => {
                             (*kind == 2 || *kind == 6 || *kind == 7) && *scope == project
                         }
-                        crate::ForgeRead::ProposalItems { .. } => false,
+                        crate::ForgeRead::ProposalItems { .. } | crate::ForgeRead::ProgramEnvironment => false,
                     };
                     project != DEPLOYMENT && own_kind && domain.core.people.role(party, project).is_some()
                 }

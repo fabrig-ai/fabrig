@@ -175,6 +175,10 @@ impl Service {
         let forges = crate::forge::prepare(&settings, forges)?;
         Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None)
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "startup composes the engine and its client facts in one checked sequence"
+    )]
     pub(crate) fn prepared(
         mut settings: settings::Engine,
         seeds: &settings::Seeds,
@@ -187,6 +191,7 @@ impl Service {
         let mut limits =
             limits::engine(&settings.jig.limits, &settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
         limits.memory_bytes = settings.jig.memory;
+        limits.host_reply_bytes = settings.host_reply_bytes;
         if !temper_engine_domain::valid(&limits) {
             return Err(start_problem(b"memory_bytes", What::Bound));
         }
@@ -222,6 +227,7 @@ impl Service {
             settings.sign_in.as_ref(),
             settings.files.entries.as_slice(),
         )?;
+        clients.program_environment.clone_from(&settings.program_environment);
         clients.deployment = crate::family::Deployment {
             welcome: settings.welcome,
             owned: deployment_owned(settings.machine.owned.is_some(), box_line_bytes.is_some()),
@@ -263,7 +269,6 @@ impl Service {
             values,
             first_periods,
         )?;
-        engine.host_reply_bytes = settings.host_reply_bytes;
         if let Some(line_bytes) = box_line_bytes {
             engine.box_link = box_link::Link::new(line_bytes, false);
         }

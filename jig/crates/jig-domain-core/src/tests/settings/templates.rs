@@ -432,3 +432,45 @@ fn startup_rejects_an_incompatible_merged_template() {
     }
     drop(seeded_core(config, &limits).expect("fixture core configuration"));
 }
+
+#[test]
+fn prospective_templates_follow_set_removal_and_reset_without_publishing() {
+    use crate::settings::{self as s, Edit, Item, Setting, Value};
+    let (mut core, _) = make_tree();
+    core.current.test_templates(Box::new([template()]));
+    let changed = Template { name: Box::from(b"changed".as_slice()), ..template() };
+    let added = Template { number: 2, ..template() };
+    let set = |value: Template| Item {
+        setting: Setting::Template(value.number),
+        edit: Edit::Set(Value::Template(Box::new(value))),
+    };
+    drop(s::apply(&mut core.current, &[set(changed.clone()), set(added.clone())], 2));
+    let before = core.project_templates(PROJECT);
+    for (name, items, expected) in [
+        ("unchanged", Box::<[Item]>::from([]), Box::<[Template]>::from([changed.clone(), added.clone()])),
+        ("set", Box::<[Item]>::from([set(template())]), Box::<[Template]>::from([template(), added.clone()])),
+        (
+            "remove default",
+            Box::<[Item]>::from([Item { setting: Setting::Template(PROJECT), edit: Edit::Removed }]),
+            Box::<[Template]>::from([added.clone()]),
+        ),
+        (
+            "reset default",
+            Box::<[Item]>::from([Item { setting: Setting::Template(PROJECT), edit: Edit::Reset }]),
+            Box::<[Template]>::from([template(), added]),
+        ),
+        (
+            "reset addition",
+            Box::<[Item]>::from([Item { setting: Setting::Template(2), edit: Edit::Reset }]),
+            Box::<[Template]>::from([changed.clone()]),
+        ),
+        (
+            "remove addition",
+            Box::<[Item]>::from([Item { setting: Setting::Template(2), edit: Edit::Removed }]),
+            Box::<[Template]>::from([changed]),
+        ),
+    ] {
+        assert_eq!(s::check::templates(&core.current, &items).as_ref(), expected.as_ref(), "{name}");
+        assert_eq!(core.project_templates(PROJECT), before, "{name} leaves accepted settings alone");
+    }
+}

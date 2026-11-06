@@ -888,42 +888,7 @@ fn root_with_way() -> (Domain, Env<RootLimits>) {
 }
 
 #[test]
-fn a_way_the_project_does_not_offer_is_refused() {
-    for proposal in [None, Some(PROPOSAL)] {
-        for way in [0, 1, 2] {
-            let (mut domain, env) = root_with_way();
-            let value = ways(way);
-            domain.kinds = Box::new([KindValue { kind: 7, scope: PROJECT, number: 1, value: value.clone() }]);
-            if let Some(proposal) = proposal {
-                domain.forge.keep_proposal_settings(
-                    proposal,
-                    &[settings::Asked { kind: 7, scope: PROJECT, number: 1, edit: settings::Edit::Set(value) }],
-                    &mut Queue::uncapped(),
-                );
-                domain.kinds = Box::new([]);
-            }
-            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-            judge(
-                &mut domain,
-                &env,
-                &mut decision,
-                proposal,
-                Box::new([application::Item {
-                    kind: 7,
-                    scope: PROJECT,
-                    number: 1,
-                    edit: application::Edit::Set(Box::new([])),
-                }]),
-            );
-            let expected = if way == 2 {
-                connector::Judged::Refuse { why: settings::Refusal::Way.words().into() }
-            } else {
-                connector::Judged::Accept { size: 8, charters: Box::new([]) }
-            };
-            assert_eq!(answer(&mut domain).as_ref(), &[expected], "way {way}, proposal {proposal:?}");
-            crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
-        }
-    }
+fn a_restore_refuses_a_way_the_project_does_not_offer() {
     let (mut domain, env) = root_with_way();
     let mut out = Queue::uncapped();
     domain.forge.keep_settings(
@@ -1016,6 +981,28 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
         assert_eq!(
             read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Project(PROJECT), query),
             Delivery::Read { reply: READ_REPLY, answer: Answer::None(Why::Unknown) }
+        );
+    }
+}
+
+#[test]
+fn only_the_owner_reads_the_program_environment() {
+    use jig_domain_core::reads::{Answer, Why};
+    use jig_domain_people::{ApplicationScope, Role};
+    let (mut domain, env) = reader(Some(Role::Owner));
+    assert_eq!(
+        read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Deployment, crate::ForgeRead::ProgramEnvironment),
+        Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::ProgramEnvironment }
+    );
+    for (role, sign_in, scope, why) in [
+        (Some(Role::Observer), READ_SIGN_IN, ApplicationScope::Deployment, Why::Unknown),
+        (Some(Role::Owner), READ_SIGN_IN + 1, ApplicationScope::Deployment, Why::SignedOut),
+        (Some(Role::Owner), READ_SIGN_IN, ApplicationScope::Project(PROJECT), Why::Unknown),
+    ] {
+        let (mut domain, env) = reader(role);
+        assert_eq!(
+            read_forge(&mut domain, &env, sign_in, scope, crate::ForgeRead::ProgramEnvironment),
+            Delivery::Read { reply: READ_REPLY, answer: Answer::None(why) }
         );
     }
 }

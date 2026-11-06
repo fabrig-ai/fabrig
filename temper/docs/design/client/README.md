@@ -463,7 +463,8 @@ keeps (`../protocol/configuration.md`, section 2).
     conversation says nothing of what was cut: no notice, at a text's end,
     a turn's or a window's;
   - *the words being written,* the turn being written, under "Temper",
-    whole from its start up to `long_text` (5.4), read by `skein-ui`'s
+    whole from its start up to `long_text` (5.4), a page opened late
+    from what the engine retains (section 11), read by `skein-ui`'s
     `read_growing` (skein's `ui.md`, section 10): a block a blank line
     has closed stays on the page as it was, only the last changes as
     words arrive, and no marker shows being written. A small block,
@@ -1313,7 +1314,8 @@ keeps (`../protocol/configuration.md`, section 2).
       this machine in an environment of its own: its settings, sessions
       and sign-in stay apart from your own Claude Code. In a terminal
       here:"; the command `temper program-login NAME`, NAME the program's
-      default name (5.5), with no field for it; the muted "It makes that
+      default name (5.5), with no field for it, after the words of
+      `program_environment` (4.6) where it has any; the muted "It makes that
       environment, then Claude Code asks you to sign in to your
       subscription there. temper never reads its login."; the primary "I’ve
       signed in"; "All ways". "I’ve signed in" sends `DeclareProgram` under
@@ -1901,6 +1903,17 @@ keeps (`../protocol/configuration.md`, section 2).
     nothing and the question stays open. Accept, Reject, Release, Leave
     held, Take and Hand back send at once, with no Undo, and leave no
     answered line.
+  - *A press stays under the finger.* When the inbox's document changes,
+    a card still in it keeps the page it shows until its new read answers,
+    and keeps it if that read fails. At a filtered address the cards stay
+    as they are until the section reads have answered, a section whose read
+    failed keeping its own. So a choice on the page stays pressable, in the
+    same element, through the read: nothing a change of the inbox does draws
+    a card without its choices, or takes one away, but the card leaving the
+    rows. A press of a drawn choice that a bound refuses (its words, or 64
+    answers already held) moves nothing and says so, in the toast "That
+    answer wasn't sent. Press it again.": an answer never goes unsent with
+    nothing shown.
   - *The toast,* one at a time, 4.5 seconds, with one optional act; drawn
     with the status role at the end of the frame, in the mock's `.toast`:
     fixed, centred, bottom 28 (88 on a phone), an ink ground.
@@ -2247,7 +2260,7 @@ keeps (`../protocol/configuration.md`, section 2).
     kind, as Ready's model line chooses it, and the first model `me`
     serves for the project.
   - *The conversation,* a region named "Conversation", its opening a
-    page as `Home` is, starting at the conversation's top, with no
+    page as `Home` is, starting 28 pixels from the conversation's top, with no
     kicker: the level-2 heading "How should temper run PROJECT?", drawn
     as Home's headline; the lede "Tell it how you work, in your own
     words or by pointing at a document."; a list named "What it sets",
@@ -2255,11 +2268,11 @@ keeps (`../protocol/configuration.md`, section 2).
     work runs: how chats and goals start, are checked and land",
     "Models: which plan or model each role runs on" and "Approvals: what
     waits for you, and what lands on its own"; the note "It proposes the
-    settings; nothing changes until you accept.", small and muted; then
-    the section "Ways to begin", headed as Home's sections: its starters
-    as cards, as the welcome's choices, three to a row where they fit and
-    one a row on a phone, the whole card the button, its title over a
-    line in grey:
+    settings; nothing changes until you accept.", small and muted; then,
+    30 pixels under the note, the section "Ways to begin", headed as Home's
+    sections: its starters as cards, as the welcome's choices, three to a
+    row where they fit and one a row on a phone, the whole card the button,
+    its padding 14 and 16 pixels, its title over a line in grey:
 
     | Title | Line | The words it sends |
     |---|---|---|
@@ -2267,11 +2280,23 @@ keeps (`../protocol/configuration.md`, section 2).
     | "A design draft first" | "Agents plan its tasks; they land together." | "I write a design draft first; agents plan its tasks and land them together once checked." |
     | "Models by role" | "Claude for reviews, my ChatGPT plan for the rest." | "Use Claude for reviews and my ChatGPT plan for everything else." |
 
-    Under them a fourth starter, a button drawn as a link, "Not sure yet?
-    Ask what temper can do.", which sends "Not sure yet. What can temper
-    do?". The terminal has no style to tell a term from its line: each
-    item and each card is one line of words, "TERM: LINE", and "Ways to
-    begin" is its section's name, once.
+    A fourth starter, a button drawn as a link, "Not sure yet? Ask what
+    temper can do.", which sends "Not sure yet. What can temper do?",
+    stands in the section's head, at its right. Under the cards, a wide
+    card of temper's own way (`../draft/own-way.md`, 2), a group named
+    "temper’s own way": its title, "At scale, as temper builds itself";
+    under it its steps in small grey, a list named "Its steps: designers
+    cut a draft into parts, coding agents make them in parallel, the goal
+    lands whole", "Draft", "The cut", "Coding agents", "Goal’s branch" and
+    "main", an arrow ending each line where they wrap; at its right two
+    outlined buttons, "See how it works" (*temper's own way, beside the
+    page,* below) and "Start from it", a starter that sends "Set PROJECT
+    up the way temper builds itself, sized for this machine."; on a phone
+    the buttons stand under the words, each half the width. The terminal
+    has no style to tell a term from its line: each item and each card of
+    the three is one line of words, "TERM: LINE", and "Ways to begin" is
+    its section's name, once; the wide card's title, steps and buttons
+    follow in that order, the steps a list with no arrows.
   - *The composer,* a form named "Configure temper", at the
     foot, focused as the page opens: its text area "Describe how you
     work, or what to change", that its placeholder too, its text 14
@@ -2291,17 +2316,58 @@ keeps (`../protocol/configuration.md`, section 2).
   shifted by half a scrollbar where the platform's scrollbars take room. On
   a phone
   neither keeps a gutter and both stand 16 pixels in, the conversation
-  scrolling with no scrollbar drawn, the question at 26 pixels and the
-  cards tighter. At 1366 by 680 the whole opening and the
+  scrolling with no scrollbar drawn, the opening 20 pixels from the top,
+  the question at 26 pixels and the cards keeping their 14 and 16 pixel
+  padding. At 1366 by 680 the whole opening and the
   composer show with no scrolling.
 
   A starter or "Send" starts the chat, the words it sends the first
   message, as a suggested request does: one act, one request (3.6), from template 3
   (`../protocol/configuration.md`, 13.4) while `me` lists it among the
   project's templates, else template 1, with its template's own models.
-  While it is out, the four starters and "Send" are disabled and the words
-  stay; made, the chat's page opens; refused, jig's words stay under the
+  While it is out, the four starters, "Start from it" and "Send" are disabled
+  and the words stay; "See how it works" starts nothing, and stays enabled;
+  made, the chat's page opens; refused, jig's words stay under the
   composer, the words kept. The chat names no repository.
+- **temper's own way, beside the page** (`../draft/own-way.md`, 2 and 3):
+  "See how it works" opens the reference, "How temper builds temper", in
+  the pane of *A chat's document* (below), in Split, the rail folded, the
+  page's main carrying that mode's style. No chat is made and nothing
+  changes. Every project offers it: no project way hides the card or the
+  pane, so a fresh project's page, Goals and drafts hidden, has both.
+  - *The bar* gains the mode group at its right, after the line of what the
+    runs use, once the reference has opened: "Chat", "Split" and "Draft", a
+    group named "How temper builds temper, beside the chat", with a chat's
+    document's shortcut, and the composer's hint is a document's. "Chat"
+    folds the pane, the group staying. The mode is the page's, in no address
+    and kept nowhere: leaving the page or a reload closes the reference.
+  - *In Split,* the ways to begin are one a row, each title and its line on
+    one line where they fit, wrapping at a narrower width, the wide card's
+    buttons under its words. *On a phone* there is
+    no Split: the reference alone, as Draft, the composer under it, as a
+    chat's document is.
+  - *The pane:* its line, in small mono, "temper’s own way · a reference"
+    and "changes nothing"; the page's title, as a document's level-2
+    heading; its summary in grey; then its sections, read by skein-ui's
+    reader (`skein/docs/design/ui.md`, section 10). The reference is the
+    stock page `how-temper-builds-temper`
+    (`../protocol/documentation.md`, 2.2), compiled into the client, so
+    that opening it reads nothing and fetches nothing.
+  - *Its parts:* section 1, the picture, is a numbered list of the flow's six
+    steps, a name in ink and its caption, with one number and no bullet.
+    Section 5's table has a row name in ink over the reader's cells. A
+    section's closing note, under the table and under the figures, is muted.
+    Section 6's figures are three pale boxes in a row where they fit, a
+    term over its value, made from the bullets `- TERM: VALUE` that open the
+    section, so that the file alone holds their values. They are "—" until
+    the user fills them; the deployment fetches nothing.
+  - *The terminal* prints the pane after the composer, as it prints a chat's
+    document: the line, the title, the summary, each section with its
+    heading, the figures as terms and descriptions.
+  - *A chat started beside it,* by a starter or "Send", opens the chat's page
+    as from the page alone, and the reference closes; the chat's own document
+    comes when it writes one. The configuring agent reads the same page
+    (`../domain/agent.md`, 8.1).
 - **A configuring chat** is a chat whose chip's executor is the charter
   of template 3 as `me` lists it (*Home,* above). In `Chats` it is listed
   with the others, tagged "Configuring". Its `Chat { task }`, opened from
@@ -3001,6 +3067,21 @@ for its kind, its user's login and its installations. Its nodes:
   (`../protocol/setup.md`, 7.4). A first run's store keeps no forge, so
   no row of the `forges` watch can say so (`forge.md`, 5.4). On the
   wire it is `Reading`'s `deployment`, beside `playground`.
+- **The program's environment, `program_environment`:** of the deployment's
+  scope, with no fields and no subject: what `temper program-login` needs set
+  to act on this deployment. It is the party's read, and only the deployment's
+  owner has it, the one person who is shown the command during set up; anyone
+  else's is refused, and sees the plain command. Its answer is the record
+  `ProgramEnvironmentAnswer`: `environment` (bytes), empty when each of the
+  three directories (`../protocol/configuration.md`, 12) is the one the command
+  finds by itself in the environment the engine started in, and otherwise
+  `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…`, all three, each value a POSIX
+  shell word. It is one string, composed where the directories are known, so
+  that the client holds no path as a fact, quotes nothing and decides no
+  default; it is a read of its own, not a member of `DeploymentAnswer`, since
+  that one is answered before any party is known, the same to every visitor.
+  A page asks when its address names a program's way, the only place that
+  draws the command. On the wire it is `Reading`'s `program_environment`.
 - **A change's panel, the subject `change`** (`forge.md`, 9.2): of a
   project's scope, its window unused, naming the change task's number
   (u64). On the wire it is `Watching`'s `change`, `Watching` naming
@@ -6055,7 +6136,7 @@ own tests:
   in the same loop as the service, driven by a typist that types
   commands and reads printed pages, with a fake LLM, forge and git. Its
   live-text story: a reply held after its first piece is read printed
-  under "Writing…", then replaced by the committed turn.
+  before its "▍", then replaced by the committed turn.
 - **The process tier** (`../domain/testing.md`, 2.6): the real `temper`
   binary; skein's fake person through temper's client signs in by the
   printed link, adds the deployment's key on `ConnectModel`, and
@@ -6163,6 +6244,15 @@ own tests:
   project's `by` (`../domain/landing.md`, 13.1). A new fact of a protocol,
   the user's. Default: "Chats can change its code now." on every project,
   which names no way of landing.
+- **An answer past what the engine retains** (3.5, *the words being written*;
+  `../draft/chat-reading.md`, 3): a page following it from its start shows it whole
+  up to `long_text`. One opened later shows the end the engine retains, 65,536
+  bytes, until the turn commits, since one delivery stops at the same bound (jig's
+  `client/domain/client.md`, section 18). Default: as it stands.
+- **A turn too large for a page** (5.4; `../draft/chat-reading.md`, 4): a turn past
+  `document_bytes` on the wire, 1,048,576 bytes, reads as too large, with no calls'
+  names (jig's `client/domain/client.md`, section 18). Default: its line says so,
+  and the tools read it by its parts.
 - **A project's home in the switcher** (5.3, 4.4): `me` does not say
   which repository is a project's home, so the first listed stands in
   for it, and a row with several repositories never reads "3
@@ -6584,3 +6674,13 @@ own tests:
   alone, the card then refused "not under the box"; or have the engine
   list an offered owned row from the machine at a first run, which
   changes what `forges` answers and what a first run's store reads as.
+
+- **A command on Accounts, and for anyone but the owner** (3.5, 4.6): Accounts'
+  "On each host, run: temper program-login NAME" names many hosts, each with
+  its own directories, and a person who isn't the owner gets no paths. Both
+  stay plain, and on a box with custom directories they don't run as shown.
+  Default: so, until a deployment says otherwise.
+- **A directory that isn't UTF-8** (4.6): `program_environment` carries its
+  bytes as they are, and the page draws text. Default: the command isn't
+  drawn as it would run; the flags `../../help/box.md`, section 5, shows
+  still do.

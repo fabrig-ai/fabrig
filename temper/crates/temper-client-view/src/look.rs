@@ -654,9 +654,9 @@ pub const WELCOME_PANEL: Style = Style { owner: owner(), token: 365 };
 /// A Model sign-in’s note (client/README.md, 3.5).
 pub const WELCOME_AWAY: Style = Style { owner: owner(), token: 366 };
 /// The waiting note’s external link (client/README.md, 3.5).
-pub const WELCOME_AGAIN: Style = Style { owner: owner(), token: 447 };
+pub const WELCOME_AGAIN: Style = Style { owner: owner(), token: 460 };
 /// The waiting page’s folded paste (client/README.md, 3.5).
-pub const WELCOME_PASTE: Style = Style { owner: owner(), token: 448 };
+pub const WELCOME_PASTE: Style = Style { owner: owner(), token: 461 };
 /// A Model panel’s full-width secret field (client/README.md, 3.5).
 pub const WELCOME_FIELD: Style = Style { owner: owner(), token: 368 };
 /// The welcome’s terminal command (client/README.md, 3.5).
@@ -1123,20 +1123,21 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decision-why",
         b"temper-decision-late",
         b"temper-decision-overturned",
-        b"temper-welcome-again",
-        b"temper-welcome-paste",
+        b"temper-starter-head",
+        b"temper-starter-own",
+        b"temper-starter-own-text",
+        b"temper-starter-own-title",
+        b"temper-starter-own-steps",
+        b"temper-starter-own-acts",
+        b"temper-doc-sub",
+        b"temper-doc-flow",
+        b"temper-doc-figures",
         b"temper-welcome-check",
         b"temper-welcome-check-stopped",
         b"temper-welcome-check-failed",
         b"temper-welcome-check-why",
-        b"temper-work-run",
-        b"temper-work-running",
-        b"temper-work-failed",
-        b"temper-work-calls",
-        b"temper-work-out",
-        b"temper-writing-end",
-        b"temper-latest",
-        b"temper-thread-loading",
+        b"temper-welcome-again",
+        b"temper-welcome-paste",
         b"temper-rail-person",
         b"temper-settings-sign-out",
         b"temper-confirm",
@@ -1144,6 +1145,14 @@ pub const NAMES: Names<'static> = Names {
         b"temper-confirm-acts",
         b"temper-confirm-do",
         b"temper-confirm-choices",
+        b"temper-writing-end",
+        b"temper-work-run",
+        b"temper-work-running",
+        b"temper-work-failed",
+        b"temper-work-calls",
+        b"temper-work-out",
+        b"temper-latest",
+        b"temper-thread-loading",
     ],
     regions: &[b"temper-link"],
 };
@@ -1306,43 +1315,61 @@ pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
 
-/// A call run (temper/docs/design/client/README.md, 3.5).
-pub const WORK_RUN: Style = Style { owner: owner(), token: 453 };
-/// A call run (temper/docs/design/client/README.md, 3.5).
-pub const WORK_RUNNING: Style = Style { owner: owner(), token: 454 };
-/// A call run (temper/docs/design/client/README.md, 3.5).
-pub const WORK_FAILED: Style = Style { owner: owner(), token: 455 };
-/// A call run (temper/docs/design/client/README.md, 3.5).
-pub const WORK_CALLS: Style = Style { owner: owner(), token: 456 };
-/// A call run (temper/docs/design/client/README.md, 3.5).
-pub const WORK_OUT: Style = Style { owner: owner(), token: 457 };
+/// The configuring page’s own way card (temper/docs/design/client/README.md, 3.5).
+pub const STARTER_HEAD: Style = Style { owner: owner(), token: 447 };
+pub const STARTER_OWN: Style = Style { owner: owner(), token: 448 };
+pub const STARTER_OWN_TEXT: Style = Style { owner: owner(), token: 449 };
+pub const STARTER_OWN_TITLE: Style = Style { owner: owner(), token: 450 };
+pub const STARTER_OWN_STEPS: Style = Style { owner: owner(), token: 451 };
+pub const STARTER_OWN_ACTS: Style = Style { owner: owner(), token: 452 };
 
-/// The words being written end here (temper/docs/design/client/README.md, 3.5).
-pub const WRITING_END: Style = Style { owner: owner(), token: 458 };
+/// The stock reference beside Configure (temper/docs/design/client/README.md, 3.5).
+pub const DOC_SUB: Style = Style { owner: owner(), token: 453 };
+pub const DOC_FLOW: Style = Style { owner: owner(), token: 454 };
+pub const DOC_FIGURES: Style = Style { owner: owner(), token: 455 };
 // The try’s status box (temper/docs/design/client/README.md, 3.5).
-pub const WELCOME_CHECK: Style = Style { owner: owner(), token: 449 };
-pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 450 };
-pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 451 };
-pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 452 };
+pub const WELCOME_CHECK: Style = Style { owner: owner(), token: 456 };
+pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 457 };
+pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 458 };
+pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 459 };
 
-/// Return to the conversation's end (client/README.md, 3.5).
-pub const LATEST: Style = Style { owner: owner(), token: 459 };
-/// An older activity read is out (client/README.md, 3.5).
-pub const THREAD_LOADING: Style = Style { owner: owner(), token: 460 };
-/// The browser's person menu (client/README.md, 5.3).
-pub const RAIL_PERSON: Style = Style { owner: owner(), token: 461 };
-/// The Accounts tab's sign-out row (client/README.md, 3.5).
-pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 462 };
+/// The last word of a turn being written (client/README.md, 3.5).
+pub const WRITING_END: Style = Style { owner: owner(), token: 469 };
 /// A confirmation sheet (client/README.md, 3.6, The sheet).
-pub const CONFIRM: Style = Style { owner: owner(), token: 463 };
+pub const CONFIRM: Style = Style { owner: owner(), token: 464 };
 /// A confirmation sheet (client/README.md, 3.6, The sheet).
-pub const CONFIRM_FATES: Style = Style { owner: owner(), token: 464 };
+pub const CONFIRM_FATES: Style = Style { owner: owner(), token: 465 };
 /// A confirmation sheet (client/README.md, 3.6, The sheet).
-pub const CONFIRM_ACTS: Style = Style { owner: owner(), token: 465 };
+pub const CONFIRM_ACTS: Style = Style { owner: owner(), token: 466 };
 /// A confirmation sheet (client/README.md, 3.6, The sheet).
-pub const CONFIRM_DO: Style = Style { owner: owner(), token: 466 };
+pub const CONFIRM_DO: Style = Style { owner: owner(), token: 467 };
 /// An uncertain release's choices (client/README.md, 3.6, The sheet).
-pub const CONFIRM_CHOICES: Style = Style { owner: owner(), token: 467 };
+pub const CONFIRM_CHOICES: Style = Style { owner: owner(), token: 468 };
+/// The browser's person menu (client/README.md, 5.3).
+pub const RAIL_PERSON: Style = Style { owner: owner(), token: 462 };
+/// The Accounts tab's sign-out row (client/README.md, 3.5).
+pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 463 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const WORK_RUN: Style = Style { owner: owner(), token: 470 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const WORK_RUNNING: Style = Style { owner: owner(), token: 471 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const WORK_FAILED: Style = Style { owner: owner(), token: 472 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const WORK_CALLS: Style = Style { owner: owner(), token: 473 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const WORK_OUT: Style = Style { owner: owner(), token: 474 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const LATEST: Style = Style { owner: owner(), token: 475 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const THREAD_LOADING: Style = Style { owner: owner(), token: 476 };
 
 #[cfg(test)]
 mod tests {

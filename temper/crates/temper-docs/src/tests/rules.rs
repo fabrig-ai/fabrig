@@ -192,8 +192,28 @@ fn capacity_help_names_members_and_dependencies() {
 }
 
 #[test]
-fn configure_help_grants_reference_tools_and_note_scopes() {
+fn configure_help_says_how_authority_widens_and_holds_no_recipe_of_the_reference() {
     let text = find(b"configure").expect("configure page").text;
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "Installing charters alone grants no task authority",
+        "rules ceiling, policy 1's ceiling and the creator-role authority",
+        "Policy 1 affects future projects. Existing projects need project-policy",
+        "saved whole current `project-policy` settings item",
+        "Existing tasks do not gain widened authority automatically",
+        "amend or allot their authority explicitly",
+        "`temper/docs/examples/reference/README.md`",
+    ] {
+        assert!(text.contains(instruction), "configure help must explain: {instruction}");
+    }
+    for recipe in ["reference charters", "tools 1983", "coordinator charter 5", "reference-authority"] {
+        assert!(!text.contains(recipe), "the binary's help must hold no recipe of the reference: {recipe}");
+    }
+}
+
+#[test]
+fn the_reference_readme_grants_its_tools_and_note_scopes() {
+    let text = include_str!("../../../../docs/examples/reference/README.md");
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
     for instruction in [
         "Installing charters alone grants no task authority",
@@ -214,7 +234,7 @@ fn configure_help_grants_reference_tools_and_note_scopes() {
         "Existing tasks do not gain widened authority automatically",
         "amend or allot their authority explicitly",
     ] {
-        assert!(text.contains(instruction), "configure help must explain: {instruction}");
+        assert!(text.contains(instruction), "the reference's README must explain: {instruction}");
     }
     for command in [
         "settings show rules --json",
@@ -224,7 +244,7 @@ fn configure_help_grants_reference_tools_and_note_scopes() {
         ".set.ceiling |= widen",
         ".notes |= grant($required[0].notes)",
     ] {
-        assert!(text.contains(command), "configure recipe must use: {command}");
+        assert!(text.contains(command), "the reference's recipe must use: {command}");
     }
 }
 
@@ -266,6 +286,7 @@ fn a_page_at_its_kinds_bound_passes_and_one_byte_more_fails() {
             Kind::Concept => CONCEPT,
             Kind::Walk => WALK,
             Kind::Recipe => RECIPE,
+            Kind::Way => "## 1. First\n",
             Kind::Index | Kind::Reference => "",
         };
         let mut padded = String::from(text);
@@ -450,4 +471,34 @@ fn approval_help_names_the_forge_and_project_policy_route() {
         }
         assert!(text.contains("writer") && text.contains("counts") || text.contains("writer is excluded"));
     }
+}
+
+#[test]
+fn a_way_numbers_its_sections_from_one() {
+    template(&fixture(Kind::Way, "## 1. First\n## 2. Next\n")).expect("numbered sections");
+    for text in ["", "## 2. First\n", "## 1. First\n## 3. Next\n", "## First\n", "## 1. \n"] {
+        fails(template, &fixture(Kind::Way, text), "headings");
+    }
+}
+
+#[test]
+fn the_way_shows_placeholder_figures_and_no_address() {
+    let text = HOW_TEMPER_BUILDS_TEMPER.text;
+    for line in ["- Merges: —", "- Agent runs: —", "- Workers: —", "Figures to come."] {
+        assert!(text.lines().any(|found| found == line), "{line}");
+    }
+    assert!(!text.contains("://"));
+    let note = Path::new(&std::env::var("CARGO_MANIFEST_DIR").expect("package path at test time"))
+        .join("../../docs/plan/look-round-8/notes/how-temper-builds-temper.md");
+    assert_eq!(text.as_bytes(), fs::read(note).expect("source note"));
+}
+
+#[test]
+fn the_const_is_the_tables_row() {
+    let row = find(b"how-temper-builds-temper").expect("way in table");
+    let page = HOW_TEMPER_BUILDS_TEMPER;
+    assert_eq!(
+        (row.name, row.kind, row.title, row.summary, row.text),
+        (page.name, page.kind, page.title, page.summary, page.text)
+    );
 }

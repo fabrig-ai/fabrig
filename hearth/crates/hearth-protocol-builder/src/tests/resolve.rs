@@ -110,6 +110,36 @@ fn a_deadline_during_an_index_keep_waits_then_fails_timed_out() {
     assert_eq!((&tool.ended, cause.as_ref()), (&Ended::Timeout, None));
 }
 #[test]
+fn a_store_event_that_answers_nothing_leaves_the_index_unsettled() {
+    use crate::builder::store::vocabulary::{Event as StoreEvent, Origin, Request as StoreRequest};
+    let (mut layer, _) = Layer::index_arriving();
+    let record = fixtures::cache_record(Origin::Index { resolution: KEY });
+    layer.client(RootRequest::Store(StoreRequest::Keep { arrival: crate::resolve::OWNER, record }));
+    let Some(Asked::Beneath(crate::Beneath::Rename { owner, .. })) = layer.asked() else { panic!("keep") };
+    let (mut protocol, env) = layer.into_protocol();
+    let mut above = skein_lib::Queue::uncapped();
+    let mut below = skein_lib::Queue::uncapped();
+    // The queue already holds an earlier event, as an uncapped calls queue can.
+    above.push(RootEvent::Store(StoreEvent::Done));
+
+    // A keep's Renamed asks for its sync and gives nothing above.
+    crate::up(&mut protocol, &env, crate::Told::File(file::Event::Renamed { owner }), &mut above, &mut below);
+
+    assert_eq!(
+        protocol.current.resolving().expect("resolving").index(),
+        Some((fixtures::INDEX_DIRECTORY, fixtures::RESOLVE_INRELEASE_NAME.into())),
+        "the unanswered store step leaves the index at its arrival"
+    );
+    assert_eq!(
+        below.pop(),
+        Some(Asked::File(file::Request::SyncDirectory { owner, root: fixtures::roots().cache.fd }))
+    );
+    crate::resume(&mut protocol, &env, &mut above, &mut below);
+    assert_eq!(below.pop(), None, "the next index waits for the store's answer");
+    assert_eq!(above.pop(), Some(RootEvent::Store(StoreEvent::Done)), "only the earlier event remains");
+    assert_eq!(above.pop(), None, "the store step answered nothing");
+}
+#[test]
 fn a_failed_run_answers_its_cause_and_stderrs_tail() {
     let mut layer = Layer::resolution();
     layer.down(fixtures::resolve(KEY, &[]));

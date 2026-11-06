@@ -51,9 +51,11 @@ journeys, 10 what is open.
   kept on `main` by `scripts/look-refresh.sh` and never landed. A
   landing that carries a request's name moves it into the shell's
   stylesheets and the view, and reprints (section 7).
-- **Fake only.** A recording keeps what the page was given as it was,
-  the fake box's dummies included; none is made against real accounts
-  (3.5).
+- **Fake, or real and redacted.** A recording keeps what the page was
+  given as it was. On a real box `add` first takes out what must not be
+  committed, proves the rest, and writes nothing until a last scan has
+  passed; the scan knows what it knows, and the person reads the pages
+  for the rest (3.5 to 3.8).
 
 ## 2. The host on native
 
@@ -207,15 +209,145 @@ comment, no blank.
   banner's "Menu" is a disclosure, the browser's own); a journey that
   does will need the page's events recorded too (section 10).
 
-### 3.5 Fake only
+### 3.5 Fake, or real and redacted
 
 A recording is made on a fresh `temper box --fake-backends`, started
 as the help's `box` page starts one on fake backends (`temper help
 box`), its printed sign-in link opened in the browser, and keeps what
 the page was given as it was: the printed link's secret, a
 typed value, the fakes' loopback addresses, all of them the fake box's
-dummies, spent or gone with the box. Recording against real accounts
-is not designed (section 10).
+dummies, spent or gone with the box.
+
+Or by hand on a fresh box with real accounts, where a few things are
+hard to show without real models (section 9 names such a journey real).
+The box serves the recording bundle with `application.clients.bundle`
+set in its configuration; it takes no flag and says nothing more. The
+person uses public repositories and writes nothing private into the
+chats: the model's words are kept as they were given. `add` redacts
+every recording alike, fake or real (3.6).
+
+### 3.6 Redaction
+
+`add` redacts before its first replay's proof (4.3). It reads the
+recording as its lines (3.2), and every byte field of each. It writes
+nothing and prints no original.
+
+- **The originals:**
+  - *link:* the `secret` record's value;
+  - *stored:* each `stored` record's value, and each `save` of the
+    stream's record (jig's `STREAM_KEY`), the same credential as it is
+    issued. Such a value is a `Kept`: its head stands, so that the host
+    still reads it, and its `record` is the original. A value that isn't
+    one is an original whole;
+  - *typed:* each value of an act whose event shows a secret's length
+    (`Secret { len: N }`, 3.3), such as a typed key or a pasted sign-in;
+  - *given:* each `--redact TEXT`.
+- **The placeholder** is `x`s, one for each byte, so that every frame,
+  length prefix and base64 run keeps its size. Surrounding spaces, tabs,
+  CRs and LFs of an original stand, outside it, since the client trims
+  them from a paste before it carries the value.
+- **Where:** every original is sought in every field, longest first, in
+  these forms: its bytes; percent-encoded, either hex case, for a URL's
+  query; `dom::print`'s escapes, for a mark's html; and Rust's Debug
+  escapes, for an event's print. Its sha-256 is sought as well and
+  becomes the placeholder's: `AddKey`, `ReplaceKey` and `FinishSignIn`
+  carry the digest of the value they carry.
+- **A form's size:** in a framed field (a `heard answered` body, a
+  stream's record, an `exchange` body, a `save` or `stored` key or
+  value, and `written`, `unwritten` and `erase`) a form becomes `x`s of
+  its own length. In any other field, which no length prefix counts, it
+  becomes the placeholder.
+- **Typing:** typing is given an act at a time (8.1), so a typed value
+  shorter than 4 bytes, or the head of a longer typed value, is replaced
+  in its own act alone, and sought nowhere else. The view draws a secret
+  field's value empty, so no mark holds it.
+- **A stream's pieces are joined first.** A `heard piece` is a fetch's
+  chunk: it may end in the middle of a `data:` line, an original or a
+  base64 group. Between an `open` or `heard opened` and the next, the
+  pieces are one stream of bytes, cut into its lines; each `data:` line's
+  canonical base64 is decoded to its record, replaced there, encoded
+  back, and the bytes cut again where the pieces ended, so that the
+  replay is given the chunks it was given. A `data:` line that doesn't
+  decode refuses the recording, by the line of the piece it starts on. A
+  last line that the recording's end cuts short is decoded by its whole
+  groups, the rest kept as text.
+- **The rest is the proof's:** the host derives what it asks from what
+  it heard, so a consistent replacement replays as the original did. An
+  ask is proved, then: what is left of a typed value in an exchange
+  differs from what the replay asks, and is stale (4.2). A report is
+  only replaced and scanned (3.7).
+- **What `add` prints:** the count of each kind of original, and of the
+  places replaced.
+- **Not done, the user's word, 2026-11-05:** `temper box --bundle` on
+  real backends and its line under the sign-in block, since a real box
+  already serves the recording bundle; email addresses, neither replaced
+  nor refused, since the account's email may stand in a committed
+  journey.
+
+### 3.7 The last scan
+
+Before anything is written, `add` scans what it would write, and what
+the replay drew on the way.
+
+- **Where it looks:** every field of each line, a stream's records
+  decoded and its other text among them; each run's text and its
+  writing call's input, joined by their offsets (`RunText`,
+  `WritingCall`; `jig/docs/design/protocol/client.md`, 7), since a
+  model's stream splits a token across deliveries that no one line
+  shows; the page the
+  replay drew at each turn's end, its escapes read back, so that what a
+  page joins is seen, and each printed page.
+- **What it refuses:**
+  - *an original:* any form of a sought original (3.6), or its sha-256;
+  - *a key:* `sk-`, then at least 20 of `[A-Za-z0-9_-]`;
+  - *a JWT:* three base64url parts joined by `.`, the first beginning
+    `eyJ`, each at least 8 long;
+  - *a bearer:* `Bearer `, any case, then at least 16 of
+    `[A-Za-z0-9._~+/=-]`;
+  - *a code:* `code=`, not after a letter or digit, then at least 8 of
+    `[A-Za-z0-9._~%+/-]`;
+  - *a refresh token:* `refresh_token`, up to four of `"`, `\`, `:`, `=`
+    and spaces, then at least 8 of `[A-Za-z0-9._~%+/-]`.
+- **A value of `x`s alone is a placeholder,** and passes.
+- **A key inside a word is none:** `sk-` after two bytes of
+  `[A-Za-z0-9_-]` (`task-pages`) doesn't match. One such byte may be a
+  field's length prefix, which reads as a letter or a digit: a 51-byte
+  key's reads `3`.
+- **A refusal** names the record and the kind, never the bytes:
+  the line and its record's kind, and where in it (a field, a stream's
+  record, a run's text) or the turn or page that drew it. Nothing is
+  written, a journey of that name stands as it was, and no temporary file
+  is made. An original is taken out by `add`, so a refusal of one is a
+  split or a fault; a shape is taken out by a `--redact`, and `add` run
+  again.
+
+### 3.8 What is left to the person
+
+The scan's shapes aren't all a secret could be. `--help` says so, and
+`add` says it again after its counts. Stated here so that a person knows
+before they record:
+
+- **Any other private text** (a name, a host, a token of another shape)
+  stands unless a `--redact` names it: read the pages before committing.
+- **Split across deliveries:** a run's text or a writing call's input is
+  seen, joined, and refused, but not replaced: a `--redact` can't reach
+  it, and the journey is walked again. Text split over any other records
+  is seen only where a page draws it whole at some turn's end; if none
+  does, it isn't seen.
+- **Part of a secret** isn't sought: a key's last four on a page, or an
+  original's head cut off by the recording's own end.
+- **Other encodings** aren't sought: an original base64-encoded inside a
+  field, say. No client exchange compresses what it carries.
+- **A value the client reshapes** before it carries it isn't found whole.
+  A GitHub App's key has its armour's line breaks restored, so its
+  exchange is stale and the recording refused: such a step stays out of
+  a real journey.
+- **A `stored` request:** a request's `Kept` record, in flight at a
+  reload, doesn't read as `x`s, so the replay goes stale and the
+  recording is refused: reload a settled page.
+- **What the person holds:** the saved FILE keeps every original, so it
+  stays out of the repository and goes once it is added; a `--redact
+  TEXT` stands in the shell's history.
 
 ## 4. Replay
 
@@ -244,12 +376,16 @@ and, for an act's mark, every node on it that gives the act's event.
 
 ### 4.3 The first replay's proof
 
-`add` replays with the live prints: at each mark the replay's
-`Page::html()` is the recorded one, or the recording is refused,
-naming the mark and the first byte that differs. Such a replay is not
-faithful, and the defect is fixed in the seam or the replay, never
-recorded around. Once every mark matches, the live prints are dropped:
-the print is the replay's from then on.
+`add` replays the redacted recording (3.6) with its redacted live
+prints: at each mark the replay's `Page::html()` is the recorded one,
+or the recording is refused, naming the mark and the first byte that
+differs. Such a replay is not faithful, and the defect is fixed in the
+seam or the replay, never recorded around. Once every mark matches, the
+live prints are dropped: the print is the replay's from then on.
+
+A refusal of `add`'s names the turn, the line and each record's kind:
+never a line's text, which may hold what the redaction missed. The
+reprint names them whole (5.1), its recordings having passed the scan.
 
 ## 5. The print
 
@@ -258,9 +394,12 @@ the print is the replay's from then on.
 `temper-client-journeys` (`tools/journeys`), a program of temper's
 workspace beside the gallery (`browser.md`, section 7):
 
-- `cargo run -p temper-client-journeys -- add NAME FILE` takes a saved
-  recording as the journey NAME, replacing one of that name, proves it
-  (4.3) and prints it. A NAME is `[a-z][a-z0-9-]*`.
+- `cargo run -p temper-client-journeys -- add [--redact TEXT]... NAME
+  FILE` takes a saved recording as the journey NAME, replacing one of
+  that name, redacts it (3.6), proves it (4.3), scans it (3.7) and prints
+  it, in memory until the scan has passed. A NAME is `[a-z][a-z0-9-]*`.
+- `cargo run -p temper-client-journeys -- --help` says what `add` takes
+  out and what it leaves to the person (3.8).
 - `cargo run -p temper-client-journeys` reprints every journey from its
   recording. A stale one is named with its turn and line, its print
   left as it was, and the program exits 1 once the others are printed.
@@ -381,6 +520,20 @@ python3 -m http.server 8766
   leaves the recording going on is the recorder's, tested natively: two
   saves of one walk, the first a whole recording that the second
   extends.
+- **The redaction, natively:** each kind of original (3.6) in each place
+  it can appear: a plain field, a piece's base64, split across two pieces
+  at every byte, and a URL's query, each failing first. The host's world
+  walks a typed key, pressed, through `add`'s steps, so that its digest
+  and its stream's name go and the replay holds. A committed journey
+  redacted replays as it stands. Test data is fake, a token's shape built
+  in the test from pieces. No test reaches a real host or account.
+- **The scan, natively:** each shape in each place, a run's text split
+  across deliveries among them; a length prefix of every byte before a
+  key; and what must pass: `x`s, `task-` words, `code_challenge=`, and
+  the committed journeys.
+- **The refusal, as a process:** no original's bytes on stdout or stderr,
+  a failed proof's among them, and nothing written on any path; in the
+  print's tests, a refused `add` leaves its root as it was.
 - **Their cost:** the journeys' reprint together at most 1 s of the
   default suite, as the gallery's states (`browser.md`, 7.3); no fuzzy
   test.
@@ -439,6 +592,8 @@ reprint carries, since its acts are events, not controls.
 
 - **While its acts hold,** `again NAME` records it again (8.1). No
   person walks it.
+- **A real journey** (section 9) is never walked by `again`, which starts
+  fake boxes alone: its person records it again by hand (3.5).
 - **When the walk itself changes** (a step gone, another added), the
   journey is walked anew in a browser on a fresh fake box (3.5), from
   its `README.md` and the change that moved it, then added (`add NAME
@@ -515,12 +670,18 @@ over skein's harness.
 | `project-landing` | on a fresh `temper box --fake-backends` (3.5): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts, and the settled Home saved | `01.html`, Home in Hello with the ChatGPT plan, Forgejo, "work/hello is in Hello" and To begin's two steps left; the recording holds no act; its `README.md` says so |
 | `chat-draft` | on a fresh `temper box --fake-backends` (3.5): "Chats can write drafts" enabled in Settings, a chat started, "+ Draft" pressed, two turns of the fake model writing and changing its document (`../domain/testing.md`, 2.4), Split, Draft, then "Start goal…" and its goal's page, then its Draft link back to the chat | a chat in Chat, Split and Draft, the sheet, the goal's page and the return to the chat (`../domain/agent.md`, 8.3; `README.md`, 3.5) |
 
+A journey recorded on a real box says so in its walk here, as `real`,
+and in its `README.md`; none is yet (3.5).
+
 The `configure-chat-draft` request's hand-made `configure-chat/02.html`
 through `04.html` and its README are not journeys to reprint or land
 (section 7). Its document pane and modes are shared with `chat-draft`;
 the configuring proposal states, Start over and the rail strip are also
 drawn by the gallery (`browser.md`, 7.2). Its drawing and figure wait on
 `skein/docs/design/draft/diagrams.md`.
+The `configure-temper-own-way` request's hand-made `configure-own-way/`
+pages are not journeys to reprint or land either; the gallery draws those
+states, including the card and the stock reference beside the page.
 
 The hand-made `chat-work/01.html` through `04.html` are the look request's,
 not journeys to reprint or land (section 7). The gallery's isolated
@@ -568,6 +729,7 @@ Release, with its uncertain pair. These add no recorded journey or page.
   the harness's horizon set by its setup, skein's.
 - **Later, if wanted:** the one-tag-per-line print as skein-ui-web's,
   for another application's journeys.
-- **Real accounts:** a recording against a box with real accounts would
-  need its secrets kept out (the printed link's, a typed key's); not
-  designed.
+- **The recorded box:** the stream's credential is a loopback session of
+  a box the person stops; whether `add` also asks them to stop it.
+- **Usage and spend figures** the page was given stay as they were, on a
+  real journey too; whether they should.

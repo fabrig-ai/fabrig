@@ -135,10 +135,14 @@ fn decoded_task_call(
 }
 
 fn coordinator() -> (Driver, engine::Assignment) {
+    coordinator_within(super::added_deps::limits())
+}
+
+#[expect(clippy::large_types_passed_by_value, reason = "the fixture takes Copy limits for one configured coordinator")]
+fn coordinator_within(bounds: engine::Limits) -> (Driver, engine::Assignment) {
     use temper_engine_domain_world::{protocol, store::Store};
-    let bounds = super::added_deps::limits();
     let mut driver = Driver::configured(
-        Store::new(),
+        Store::with_limits(&bounds),
         [super::added_deps::configuration(), super::added_deps::configuration()],
         &bounds,
     );
@@ -577,7 +581,7 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
 
 fn reference_person_authority(authority: &mut jig_domain_authority::Authority) {
     use jig_domain_authority::Executor;
-    let recipe = include_str!("../../../../../docs/help/configure.md")
+    let recipe = include_str!("../../../../../docs/examples/reference/README.md")
         .split_once("cat > reference-authority.json <<'JSON'\n")
         .expect("recipe")
         .1
@@ -996,4 +1000,102 @@ fn person_fallback_refusals(world: &mut PersonWorld, goal: &engine::Assignment) 
     let text = settled_host_refusal(world, goal, 75, b"message", call);
     assert!(text.contains("task reference"), "requester person is not a task reference: {text}");
     assert_eq!(person_needs(world), 0, "neither refused fallback creates a person task");
+}
+
+// temper/docs/design/domain/root.md, 5.2.
+const WINDOW: u32 = 512;
+const REPLY: u32 = 2048;
+
+fn read_room_bounds(reply: Option<u32>) -> engine::Limits {
+    let mut bounds = super::added_deps::limits();
+    bounds.documents.text_bytes = WINDOW;
+    bounds.host_reply_bytes = reply;
+    bounds.tasks.spec_bytes = 5000;
+    bounds.journal.transcript_bytes = 32_768;
+    bounds.brief.budgets.task = 6000;
+    bounds.brief.brief_bytes = 7000;
+    bounds.journal.result_bytes = 7000;
+    bounds
+}
+
+fn read_whole(driver: &mut Driver, run: &engine::Assignment, child: u64) -> (Vec<u8>, u32) {
+    let mut words = Vec::new();
+    let mut calls = 0;
+    loop {
+        let from = words.len();
+        let input = format!("{{\"task\":{child},\"from\":{from}}}");
+        let answer = decoded_task_call(driver, run, 100 + u64::from(calls), b"read_task", input.as_bytes());
+        let engine::CallAnswer::TaskRead(result) = &answer else { panic!("task read") };
+        let read = result.as_ref().as_ref().expect("successful read through the journal door");
+        let counted = u64::try_from(size_of_val(result.as_ref())).expect("task-read carrier fits u64")
+            + jig_domain_core::reads::run_task::owned_bytes(read);
+        assert!(counted <= u64::from(driver.env.limits.journal.transcript_bytes));
+        let rendered = temper_engine_smith::answer_bounded(&answer, REPLY);
+        assert!(!rendered.error(), "{}", String::from_utf8_lossy(rendered.text()));
+        assert!(rendered.text().len() <= usize::try_from(REPLY).expect("reply fits usize"));
+        let rendered = std::str::from_utf8(rendered.text()).expect("rendered UTF-8");
+        let label = format!("Words from {from}:\n");
+        let body = rendered.split_once(&label).expect("words offset").1;
+        calls += 1;
+        if let Some((piece, next)) = body.rsplit_once("\nnext: ") {
+            words.extend_from_slice(piece.as_bytes());
+            assert_eq!(next.parse::<usize>().expect("next byte offset"), words.len(), "follow the printed next");
+        } else {
+            words.extend_from_slice(body.as_bytes());
+            return (words, calls);
+        }
+        assert!(calls < 20, "read makes progress");
+    }
+}
+
+#[test]
+fn a_run_reads_a_spec_past_the_clients_window_in_one_call() {
+    let (mut driver, run) = coordinator_within(read_room_bounds(Some(REPLY)));
+    let spec = vec![b's'; 1500];
+    let child = coordinator_delegates(&mut driver, &run, 10, &[&spec], None)[0];
+    let (words, calls) = read_whole(&mut driver, &run, child);
+    assert_eq!(words, spec);
+    assert_eq!(calls, 1, "a spec within the reply comes back whole");
+}
+
+#[test]
+fn a_spec_past_the_room_continues_by_offset_and_comes_back_whole() {
+    let (mut driver, run) = coordinator_within(read_room_bounds(Some(REPLY)));
+    let spec = b"the specification ".repeat(278);
+    let spec = &spec[..5000];
+    let child = coordinator_delegates(&mut driver, &run, 10, &[spec], None)[0];
+    let (words, calls) = read_whole(&mut driver, &run, child);
+    assert_eq!(words, spec);
+    assert_eq!(calls, 3);
+    let (mut driver, run) = coordinator_within(read_room_bounds(None));
+    let child = coordinator_delegates(&mut driver, &run, 10, &[spec], None)[0];
+    let (words, calls) = read_whole(&mut driver, &run, child);
+    assert_eq!(words, spec);
+    assert_eq!(calls, 10);
+}
+
+#[test]
+fn without_a_local_agents_reply_a_read_stays_in_the_documents_window() {
+    let (mut driver, run) = coordinator_within(read_room_bounds(None));
+    let spec = vec![b's'; 1500];
+    let child = coordinator_delegates(&mut driver, &run, 10, &[&spec], None)[0];
+    let input = format!("{{\"task\":{child}}}");
+    let answer = decoded_task_call(&mut driver, &run, 100, b"read_task", input.as_bytes());
+    let engine::CallAnswer::TaskRead(result) = answer else { panic!("task read") };
+    let read = result.expect("task read succeeds");
+    assert_eq!(read.words.bytes.len(), usize::try_from(WINDOW).unwrap());
+    assert_eq!(read.words.next, Some(u64::from(WINDOW)));
+}
+
+#[test]
+fn a_read_stays_within_the_journal_bound() {
+    let mut bounds = read_room_bounds(Some(REPLY));
+    // The local reply exceeds the journal; each typed answer must fit the door.
+    bounds.host_reply_bytes = Some(65_536);
+    assert!(bounds.journal.transcript_bytes < bounds.host_reply_bytes.unwrap());
+    let (mut driver, run) = coordinator_within(bounds);
+    let spec = vec![b's'; 5000];
+    let child = coordinator_delegates(&mut driver, &run, 10, &[&spec], None)[0];
+    let (words, _) = read_whole(&mut driver, &run, child);
+    assert_eq!(words, spec);
 }

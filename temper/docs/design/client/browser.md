@@ -682,8 +682,8 @@ replay says the same clocks (`README.md`, 5.12).
   (`field-sizing: content`, from one line to a bound), with no
   component and no script of temper's; a browser without it shows an
   area of fixed height that scrolls.
-- **A run's live text** is a patch like any other: the chat's
-  provisional turn ("Writing…", `README.md`, 3.5) changes in place;
+- **A run's live text** is a patch like any other: the chat's words
+  being written (`README.md`, 3.5) change in place;
   skein's page keeps focus, caret and scroll across it, and the
   conversation, a log, keeps its end in view while the person has not
   scrolled away (skein's `ui-web.md`, section 7).

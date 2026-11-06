@@ -516,7 +516,9 @@ pub(crate) fn rail(
     w.text(b, Word::Brand, &[]);
     b.close();
     if w.shell == Shell::Browser
-        && (root.pages().chat().is_some() || root.pages().address() == &(Address::NewChat { draft: true }))
+        && (root.pages().chat().is_some()
+            || root.pages().address() == &(Address::NewChat { draft: true })
+            || crate::pages::configure::reference(root).is_some())
     {
         b.open(Role::Disclosure);
         b.name(&w.say(Word::RailUnfold, &[]));
@@ -1095,6 +1097,7 @@ pub(crate) fn toast(
             (w.say(Word::ToastAnswered, &[skein_ui::phrases::Hole::Name(label)]), Some(*object))
         }
         Toasted::Later => (w.say(Word::ToastLater, &[]), None),
+        Toasted::NotSent => (w.say(Word::ToastNotSent, &[]), None),
         Toasted::Paused => (w.say(Word::ToastPaused, &[]), None),
         Toasted::Resumed => (w.say(Word::ToastResumed, &[]), None),
         Toasted::AwayOn { project, until } => {
@@ -1143,6 +1146,7 @@ pub(crate) fn toast(
         | Toasted::OverturnAlready
         | Toasted::Answered { .. }
         | Toasted::Later
+        | Toasted::NotSent
         | Toasted::Paused
         | Toasted::Resumed => b.text(Run::Plain, &said),
     }

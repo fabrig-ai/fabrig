@@ -4872,6 +4872,7 @@ dependencies = [
 name = "temper-client-journeys"
 version = "0.0.0"
 dependencies = [
+ "jig-client-protocol-wire",
  "skein-browser",
  "skein-fail-stop",
  "skein-fake-person",
@@ -5004,6 +5005,7 @@ dependencies = [
  "skein-ui-text",
  "temper-client-domain",
  "temper-client-protocol-wire",
+ "temper-docs",
  "temper-fixtures",
 ]
 
@@ -5793,6 +5795,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-tools",
+ "temper-docs",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",

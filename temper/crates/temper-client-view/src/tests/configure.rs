@@ -13,11 +13,12 @@ use temper_client_domain::{self as d, Address, pages};
 
 const TITLE: &[u8] = b"Configure temper";
 const ENTRY: &[u8] = b"Describe how you work, or what to change";
-const STARTERS: [&[u8]; 4] = [
+const STARTERS: [&[u8]; 5] = [
+    b"Not sure yet. What can temper do?",
     b"I work alone on small changes: one chat per change, landed once CI passes.",
     b"I write a design draft first; agents plan its tasks and land them together once checked.",
     b"Use Claude for reviews and my ChatGPT plan for everything else.",
-    b"Not sure yet. What can temper do?",
+    b"Set Shop up the way temper builds itself, sized for this machine.",
 ];
 const QUESTION: &str = "How should temper run Shop?";
 const LEDE: &str = "Tell it how you work, in your own words or by pointing at a document.";
@@ -72,7 +73,10 @@ fn disabled(node: &Node) -> bool {
 }
 
 fn starters(tree: &Tree) -> Vec<&Node> {
-    styled(tree, look::STARTER_WAYS).iter().filter(|n| n.role == Role::Button).collect()
+    styled(tree, look::STARTER_WAYS)
+        .iter()
+        .filter(|n| n.role == Role::Button && n.name.as_deref() != Some(b"See how it works"))
+        .collect()
 }
 fn subtree<'a>(tree: &'a Tree, node: &Node) -> &'a [Node] {
     let at = tree.nodes().iter().position(|n| n.id == node.id).unwrap();
@@ -90,6 +94,7 @@ fn leaves(tree: &Tree, node: &Node) -> Vec<Vec<u8>> {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the requested page order is checked in both shells as one tree")]
 fn requested_main_keeps_order_classes_and_phone_parts() {
     let root = root();
     for (view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
@@ -122,16 +127,30 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
             (look::STARTER_SETS, vec![(Role::Item, vec![]); 3]),
             (
                 look::STARTER_WAYS,
+                vec![
+                    (Role::Slot, vec![look::STARTER_HEAD]),
+                    (Role::List, vec![look::STARTERS]),
+                    (Role::Group, vec![look::STARTER_OWN]),
+                ],
+            ),
+            (
+                look::STARTER_HEAD,
                 if browser {
-                    vec![
-                        (Role::Heading { level: 3 }, vec![]),
-                        (Role::List, vec![look::STARTERS]),
-                        (Role::Button, vec![look::STARTER_UNSURE]),
-                    ]
+                    vec![(Role::Heading { level: 3 }, vec![]), (Role::Button, vec![look::STARTER_UNSURE])]
                 } else {
-                    vec![(Role::List, vec![look::STARTERS]), (Role::Button, vec![look::STARTER_UNSURE])]
+                    vec![(Role::Button, vec![look::STARTER_UNSURE])]
                 },
             ),
+            (
+                look::STARTER_OWN,
+                vec![(Role::Slot, vec![look::STARTER_OWN_TEXT]), (Role::Slot, vec![look::STARTER_OWN_ACTS])],
+            ),
+            (
+                look::STARTER_OWN_TEXT,
+                vec![(Role::Paragraph, vec![look::STARTER_OWN_TITLE]), (Role::List, vec![look::STARTER_OWN_STEPS])],
+            ),
+            (look::STARTER_OWN_STEPS, vec![(Role::Item, vec![]); 5]),
+            (look::STARTER_OWN_ACTS, vec![(Role::Button, vec![]); 2]),
             (look::STARTERS, vec![(Role::Item, vec![]), (Role::Item, vec![]), (Role::Item, vec![])]),
             (
                 look::SESSION_FOOT,
@@ -180,7 +199,7 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
             styled(tree, look::SESSION_HINT)[0].name.as_deref(),
             Some(b"Enter sends \xc2\xb7 Shift+Enter for a new line".as_slice())
         );
-        assert_eq!(starters(tree).len(), 4);
+        assert_eq!(starters(tree).len(), 5);
         for node in starters(tree) {
             assert!(!disabled(node));
         }
@@ -255,10 +274,14 @@ fn pending_starts_disable_starters_and_send_keep_the_words() {
                     n.id
                 })
                 .collect();
-            assert_eq!(buttons.len(), 4);
+            assert_eq!(buttons.len(), 5);
             for id in buttons {
                 assert_eq!(crate::act(&mut view, id, Act::Press), None);
             }
+            let see = named(view.tree(), Role::Button, b"See how it works");
+            assert!(!disabled(see));
+            let id = see.id;
+            assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(pages::Act::ShowReference)));
             let send = named(view.tree(), Role::Button, b"Send");
             assert!(disabled(send));
             let id = send.id;
@@ -331,7 +354,7 @@ fn browser_pairs_are_two_leaves_and_terminal_pairs_are_one_line() {
     for (view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
         let tree = view.tree();
         let items = children(styled(tree, look::STARTER_SETS));
-        let buttons = starters(tree);
+        let buttons: Vec<_> = styled(tree, look::STARTERS).iter().filter(|n| n.role == Role::Button).collect();
         for (node, (term, line)) in items.into_iter().zip(SETS).chain(buttons.into_iter().zip(CARDS)) {
             assert_eq!(node.name, None);
             let expected = if browser {
@@ -348,9 +371,16 @@ fn browser_pairs_are_two_leaves_and_terminal_pairs_are_one_line() {
 fn question_uses_the_project_name() {
     for name in [b"Hello".as_slice(), b"Another project"] {
         let (root, _, _, _, _) = f::root_at_full(Address::Configure { project: f::PROJECT }, &f::domain_limits(), name);
-        for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            let question = format!("How should temper run {}?", String::from_utf8_lossy(name));
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let name = String::from_utf8_lossy(name);
+            let question = format!("How should temper run {name}?");
             named(view.tree(), Role::Heading { level: 2 }, question.as_bytes());
+            let start = named(view.tree(), Role::Button, b"Start from it").id;
+            let words = format!("Set {name} up the way temper builds itself, sized for this machine.");
+            assert_eq!(
+                crate::act(&mut view, start, Act::Press),
+                Some(d::Action::Pages(pages::Act::Starter { words: words.as_bytes().into() }))
+            );
         }
     }
 }
@@ -373,10 +403,18 @@ fn terminal_prints_the_path_opening_starters_and_composer_in_order() {
     expected.extend(["Conversation:", QUESTION, LEDE, "What it sets:"].map(str::to_owned));
     expected.extend(SETS.map(|(term, line)| format!("{term}: {line}")));
     expected.extend([NOTE, "Ways to begin:"].map(str::to_owned));
-    for (node, (title, line)) in starters(view.tree()).into_iter().zip(CARDS) {
+    expected.push(numbered(named(view.tree(), Role::Button, UNSURE.as_bytes()), UNSURE));
+    let cards = styled(view.tree(), look::STARTERS).iter().filter(|n| n.role == Role::Button);
+    for (node, (title, line)) in cards.zip(CARDS) {
         expected.push(numbered(node, &format!("{title}: {line}")));
     }
-    expected.push(numbered(named(view.tree(), Role::Button, UNSURE.as_bytes()), UNSURE));
+    expected.extend(
+        ["At scale, as temper builds itself", "Draft", "The cut", "Coding agents", "Goal’s branch", "main"]
+            .map(str::to_owned),
+    );
+    for words in ["See how it works", "Start from it"] {
+        expected.push(numbered(named(view.tree(), Role::Button, words.as_bytes()), words));
+    }
     expected.extend([String::from_utf8_lossy(ENTRY).into_owned(), "Send".to_owned()]);
     let mut remaining = text.as_ref();
     for words in expected {
@@ -468,6 +506,48 @@ fn byline_joins_only_the_first_usable_account_and_project_model() {
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             let line = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&look::BYLINE));
             assert_eq!(line.and_then(|n| n.name.as_deref()), expected.map(str::as_bytes));
+        }
+    }
+}
+
+#[test]
+fn the_own_way_card_offers_its_two_acts() {
+    let stock = f::root_with_ways(Address::Configure { project: f::PROJECT }, Some(d::forge::ways::Ways::STOCK));
+    let populated = root();
+    for root in [&populated, &stock] {
+        for mut view in [f::page_view(root), f::browser_page_view(root)] {
+            let card = &styled(view.tree(), look::STARTER_OWN)[0];
+            assert_eq!(card.role, Role::Group);
+            assert_eq!(card.name.as_deref(), Some("temper’s own way".as_bytes()));
+            assert_eq!(
+                leaves(view.tree(), &styled(view.tree(), look::STARTER_OWN_TITLE)[0]),
+                [b"At scale, as temper builds itself"]
+            );
+            let steps = &styled(view.tree(), look::STARTER_OWN_STEPS)[0];
+            assert_eq!(steps.name.as_deref(), Some(b"Its steps: designers cut a draft into parts, coding agents make them in parallel, the goal lands whole".as_slice()));
+            let steps: Vec<_> = children(styled(view.tree(), look::STARTER_OWN_STEPS))
+                .into_iter()
+                .map(|n| leaves(view.tree(), n))
+                .collect();
+            assert_eq!(
+                steps,
+                ["Draft", "The cut", "Coding agents", "Goal’s branch", "main"]
+                    .map(|step| vec![step.as_bytes().to_vec()])
+            );
+            for (label, act) in [
+                (b"See how it works".as_slice(), pages::Act::ShowReference),
+                (
+                    b"Start from it",
+                    pages::Act::Starter {
+                        words: b"Set Shop up the way temper builds itself, sized for this machine.".as_slice().into(),
+                    },
+                ),
+            ] {
+                let button = named(view.tree(), Role::Button, label);
+                assert!(!disabled(button));
+                let id = button.id;
+                assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(act)));
+            }
         }
     }
 }

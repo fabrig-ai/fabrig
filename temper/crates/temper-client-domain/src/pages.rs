@@ -158,6 +158,8 @@ pub enum Act {
     Starter {
         words: Box<[u8]>,
     },
+    /// "See how it works": the stock reference beside Configure (client/README.md, 3.5).
+    ShowReference,
     Suggest {
         cue: u8,
     },
@@ -595,6 +597,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 }
             }
         }
+        Event::Act { act: Act::ShowReference } => {
+            if let Address::Configure { .. } = pages.address
+                && let Some(chats) = &mut pages.chats
+            {
+                chats.reference = Some(chat::document::Mode::Split);
+            }
+        }
         Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::RetryPlayground } => {
             unreachable!("suggestions are resolved by the root")
         }
@@ -611,7 +620,16 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::ClosedChats } => closed_chats(pages, out),
         Event::Act { act: Act::ChatFilter { filter } } => chat_filter(pages, filter, out),
         Event::Act { act: Act::Filter { filter } } => out.push(Request::Show { address: Address::Inbox { filter } }),
-        Event::Act { act: act @ (Act::Mode { .. } | Act::ShowSection { .. } | Act::AddDraft | Act::Latest) } => {
+        Event::Act { act: Act::Mode { mode } } => {
+            if let Some(chats) = &mut pages.chats {
+                if chats.reference.is_some() {
+                    chats.reference = Some(mode);
+                }
+            } else if let Some(chat) = &mut pages.chat {
+                chat.act(env, client, Act::Mode { mode }, &mut pages.serial, out);
+            }
+        }
+        Event::Act { act: act @ (Act::ShowSection { .. } | Act::AddDraft | Act::Latest) } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
             }
@@ -800,6 +818,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 return;
             }
         }
+    }
+    if let Some(page) = &mut pages.connect_model {
+        page.read_environment(&pages.address, client.link().state, &mut pages.next, out);
     }
     default_chosen(pages, client);
     switcher_chosen(pages, client, out);
@@ -1261,9 +1282,12 @@ pub(crate) fn account_request_name(serial: u64) -> skein_lib::RequestKey {
     name
 }
 
-#[expect(clippy::too_many_lines, reason = "page replies keep the sheet outcome and route the other page families")]
+#[expect(clippy::too_many_lines, reason = "one dispatch keeps page replies beside their request owners")]
 fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
     if let Some(page) = &mut pages.connect_model {
+        if page.environment_told(&told) {
+            return true;
+        }
         if let Told::Kept { key, request: jig_client::Ask::Jig(ask) } = &told
             && let jig_client::contract::Ask::AccountChange {
                 change: jig_client::contract::AccountChange::FinishSignIn { .. },
@@ -1543,6 +1567,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::SignOut
         | Act::ChatWords { .. }
         | Act::StartChat
+        | Act::ShowReference
         | Act::Starter { .. }
         | Act::SkipToBegin
         | Act::Playground

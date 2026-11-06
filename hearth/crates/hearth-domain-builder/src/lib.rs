@@ -12,10 +12,6 @@ pub mod vocabulary;
 use render::vocabulary::{Answer as RenderAnswer, Event as RenderEvent, Output};
 use skein_lib::{Env, Queue, ReplyTo, Time, Token};
 use vocabulary::{Answer, Call, Event, Request};
-/// A notice or store error before render forwards its output.
-pub const MAX_OUT: u32 = 2;
-/// A store error and a render answer may become ready together.
-pub const MAX_OUT_RESUME: u32 = 2;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub render: render::limits::Limits,
@@ -68,16 +64,16 @@ impl Builder {
             index: None,
             build: build::Build::new(),
             staging: None,
-            build_output: Queue::with_capacity(build::MAX_OUT),
+            build_output: Queue::uncapped(),
             building: None,
             resolved: None,
             held: None,
             render: render::Render::new(&limits.render),
             store: store::Store::new(&limits.store, uid),
             call: None,
-            store_output: Queue::with_capacity(2),
+            store_output: Queue::uncapped(),
             reply: None,
-            output: Queue::with_capacity(2),
+            output: Queue::uncapped(),
         }
     }
     #[must_use]
@@ -249,7 +245,7 @@ fn store_step(builder: &mut Builder, env: &Env<Limits>, event: store::vocabulary
     store_forward(builder, env, out);
 }
 fn store_forward(builder: &mut Builder, env: &Env<Limits>, out: &mut Queue<Request>) {
-    for _ in 0..store::MAX_OUT {
+    for _ in 0..builder.store_output.len() {
         store_one(builder, env, out);
     }
 }

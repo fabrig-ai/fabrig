@@ -646,7 +646,8 @@ nodes by a bounded reader of skein-ui's own:
     the line above it reads as a paragraph's until the delimiter holds;
   - *its end:* once the text holds a word, the caller's `end` adds its
     nodes after the last word, inside the paragraph, heading, list item,
-    quote, cell or code that holds it. A text that ends closed reads as
+    quote, cell or code that holds it; a last cell with no word yet holds
+    them, where its next word goes. A text that ends closed reads as
     `read` reads it, with `end`'s nodes added, so its committed text
     draws the same blocks;
 - **numbered lists,** whose items' markers are a number, a dot and a
@@ -1207,6 +1208,9 @@ to 7 and 11 settle.
   ends the list (section 10), so one list written with them is several
   on the page, its numbers still as written. Read into the item, one list
   would hold them; it waits for a reply a reader cannot follow that way.
+- **A block kept read:** `read_growing` reads its whole text at each call,
+  and a closed block's nodes come out the same (section 10). Keeping them,
+  so a block is read once, waits for a text whose reading a person can see.
 - **The file picker part** (ui-web.md, section 15): an effect's part in a
   browser, waiting for its first application.
 - **Parts for a phone or a desktop,** as `skein-ui-web`'s are a
