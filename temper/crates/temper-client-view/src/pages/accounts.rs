@@ -565,7 +565,7 @@ pub(super) fn outcome(
                 c::DocumentOutcome::AccountProgramDeclared { source, name },
             ))))) => {
                 fact(b, w, W::Source, u64::from(*source));
-                crate::cards::text(b, Role::Paragraph, &named(w, W::ProgramCommand, name));
+                crate::cards::text(b, Role::Paragraph, &super::connect_model::command_line(root, w, name));
             }
             Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal, .. }))) => {
                 crate::cards::refusal(b, w, refusal);

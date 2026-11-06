@@ -143,7 +143,7 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
     {
         let _act = page.act(skein_ui_web::page::Event::Click { node: node.id, modifier: false }, &mut ops);
     }
-    if sample.name == "chat-work-reading" {
+    if sample.name == "chat-work-reading" || sample.name == "agent-work" {
         let log = view.tree().nodes().iter().find(|node| node.role == Role::Log).expect("conversation log");
         let _act = page
             .act(skein_ui_web::page::Event::Scrolled { node: log.id, top: 100, height: 1000, viewport: 200 }, &mut ops);

@@ -50,7 +50,7 @@ fn single_model() -> Box<[u8]> {
     }
     fixtures::with(&document, b"application.demo", b"null")
 }
-fn engine(document: &[u8]) -> config::Engine {
+pub(super) fn engine(document: &[u8]) -> config::Engine {
     fixtures::parse_engine(&fixtures::value(document, b"engine"))
 }
 fn without_projects() -> Box<[u8]> {

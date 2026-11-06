@@ -952,7 +952,7 @@ fn task_with_lineage(
             }
             tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => None,
         },
-        llm: row.llm.clone(),
+        llm: core.next_llm(row),
         kept_account: row.kept_account,
         run_wait: super::task_wait::waiting(core, row),
         resources,
