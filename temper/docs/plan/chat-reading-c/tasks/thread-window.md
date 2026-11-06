@@ -77,3 +77,16 @@ Not this task: `pages::chat::LINES`, `thread_limits`, `fill`, any new act or dra
 ## Report
 
 As the implementer's text asks, with the weight of a typical turn against its text's bytes, and every test moved to `## Left`.
+
+## Rebase (2026-11-06, step merge, foreman chat-reading-c/thread-window/foreman-1)
+
+rebase the Line::Left removal onto main’s conversation rendering and tests
+The merge conflicts in `temper/crates/temper-client-view/src/pages/chat.rs` and `temper/crates/temper-client-view/src/tests/chat.rs`.
+Main’s `399a6b55d4` (“Keep a chat's end reachable while reading back”) suppresses omission markers; `17e35d0c27` adds grouped call rendering.
+In `pages/chat.rs`, preserve main’s grouped calls, flushing, reading controls and live text behavior.
+Remove every `Line::Left` reference, including main’s early `continue`, proposal-time match alternative and unreachable drawing arm, plus the `line_time` and `hidden_line` alternatives.
+In `tests/chat.rs`, retain main’s updated call assertions and reading-control tests; remove `thread.left = 1` from `structured_thread`.
+Main deleted `only_omission_markers_keep_the_turn_region`; keep that deletion rather than restoring its renamed replacement `no_line_loss_marker_is_drawn`.
+Delete main’s `no_line_is_drawn_for_lines_left` test: it constructs the removed `Thread.left` field, and the spec explicitly permits removing such tests.
+Check the merged readers for remaining `Line::Left` and `thread.left` references.
+Run the spec’s reader-package tests through heavy, including `temper-client-view`, and report the preserved main changes.
