@@ -449,6 +449,9 @@ pub enum Ask {
     SettleOutbox,
 }
 
+const _: () =
+    assert!(authority::NO_PROJECT == people::DEPLOYMENT, "projectless authority and people use the same number");
+
 impl Core {
     /// Whether a project or deployment effect requirement names this
     /// connector's landing gate on the resource.
