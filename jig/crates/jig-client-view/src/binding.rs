@@ -206,7 +206,7 @@ pub fn decode(view: &mut JigBindings, token: Token, act: Act) -> Option<crate::s
                             budget: number(&value)?,
                         }))
                     }
-                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => None,
+                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => None,
                 },
                 JigMeaning::ProjectServiceName { project, role } => match act {
                     Act::Input { value } => {
@@ -216,17 +216,17 @@ pub fn decode(view: &mut JigBindings, token: Token, act: Act) -> Option<crate::s
                             name: jig_client::contract::Text::new(value, view.text_limit).ok()?,
                         }))
                     }
-                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => None,
+                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => None,
                 },
                 JigMeaning::ProjectSetting { ask, field } => match act {
                     Act::Input { value } => {
                         crate::tree::sections::project::owner::edit(ask, *field, value, view.text_limit)
                     }
-                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => None,
+                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => None,
                 },
                 JigMeaning::GoalField { form, field } => match act {
                     Act::Input { value } => crate::tree::sections::project::goals::edit(*form, *field, &value),
-                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => None,
+                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => None,
                 },
                 JigMeaning::NoteSearch { filter } => match act {
                     Act::Input { value } => Some(crate::state::action::Act::FilterNotes {
@@ -239,23 +239,23 @@ pub fn decode(view: &mut JigBindings, token: Token, act: Act) -> Option<crate::s
                             },
                         },
                     }),
-                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => None,
+                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => None,
                 },
                 JigMeaning::Priority => match act {
                     Act::Input { value } => {
                         Some(crate::state::action::Act::Priority { priority: u32::try_from(number(&value)?).ok()? })
                     }
-                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => None,
+                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => None,
                 },
                 JigMeaning::Amendment { before, change, field } => match act {
                     Act::Input { value } => {
                         crate::tree::confirmation::amendment::edit(before, change, *field, value, view.text_limit)
                     }
-                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => None,
+                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => None,
                 },
                 JigMeaning::Action(action) => match act {
                     Act::Press | Act::Submit | Act::Toggle => Some(action.clone()),
-                    Act::Input { .. } | Act::Drawing { .. } => None,
+                    Act::Input { .. } | Act::Drawing { .. } | Act::Near { .. } => None,
                 },
                 JigMeaning::Field(field) => match act {
                     Act::Input { value } => {
@@ -263,7 +263,7 @@ pub fn decode(view: &mut JigBindings, token: Token, act: Act) -> Option<crate::s
                         Some(crate::state::action::Act::Edit { field: *field, text })
                     }
                     Act::Submit => Some(crate::state::action::Act::Submit { field: *field }),
-                    Act::Press | Act::Toggle | Act::Drawing { .. } => None,
+                    Act::Press | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => None,
                 },
                 JigMeaning::TaskNumber => match act {
                     Act::Input { value } => {
@@ -273,7 +273,7 @@ pub fn decode(view: &mut JigBindings, token: Token, act: Act) -> Option<crate::s
                     Act::Submit => Some(crate::state::action::Act::Go {
                         address: crate::state::address::Address::task(view.task?),
                     }),
-                    Act::Press | Act::Toggle | Act::Drawing { .. } => None,
+                    Act::Press | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => None,
                 },
             };
         }

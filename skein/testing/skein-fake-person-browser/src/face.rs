@@ -603,6 +603,7 @@ impl<'a> BrowserFace<'a> {
                 }
             }
             Act::Submit => Request::Key { page: self.page, op, key: Key::Enter, shift: false },
+            Act::Near { .. } => return Err("a person scrolls a log; its `Near` is the page part's".into()),
             Act::Drawing { .. } => return Err("a person cannot press a drawing mark".into()),
         };
         Ok(Some(request))
