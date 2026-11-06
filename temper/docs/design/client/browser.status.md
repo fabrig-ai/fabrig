@@ -103,30 +103,23 @@ keeps it; publication is not a cutoff on a handed change's commit.
 - **Departs:** 2.5, *The first paint*: "no byte for 15 s" holds only once the module's
   answer has begun: a stall before that answer draws the mark and an empty bar, with no
   line (skein's `ui-web.status.md`, 4.3).
-- **Departs:** 4.3, 4.6: the tier holds 17 tests, five past the cap, and 4.6 names
-  12. `browser_pages.rs`'s `a_short_chat_opens_whole_without_a_reading_status`,
-  `a_long_chat_opens_at_its_end_and_reads_back_from_the_composer` and
-  `earlier_words_stay_put_without_browser_scroll_anchoring`, from the plan `chat-reading-c`,
-  have no line there: its answers keep the short story and the unanchored one apart, as they
-  expect different things and the second takes a bundle of its own, and none speaks of the cap
-  (that plan's `reading-browser` task, at `29d0deb002`). `browser_call_line.rs`'s `a_run_of_calls_opens_to_its_rows`, from the request
-  `chat-reading-b`, has no line there, and its file's header names the story, not what
-  only a browser shows. The request `browser-trim` has every test read against the
-  tier's rule, but that plan's calls were made before this test reached its trunk, and
-  no reading of it is recorded. `browser_accounts.rs`'s
-  `the_welcome_sign_in_opens_a_tab_and_moves_on_to_ready`, which 4.2 names at the
-  request `sign-in-new-tab`, has no line there either. 4.3 has stories that share a
-  setup become one test first: the call line's and test 14 both start a chat on
-  `temper box`, though it scripts its own model's turns, and the welcome's and test 9
-  both sign in on `Tier::accounts_sign_in`. No reason is recorded for either.
+- **Not yet:** 4.3, 4.2, 4.6: the merged forms of tests 2, 4, 9 and 14 are compiled,
+  and have not run in Chromium, under the user's rule that plans run focused and
+  fuzzy alone: nothing has yet seen a step change anchoring on a live page (4.3), or
+  a second sign-in after the welcome's in one browser (4.2). Whether reading's four
+  stories fit one run's forty seconds is unmeasured: apart, their wall medians add to
+  25.761 s (`temper/docs/development/browser-budget.md`), each with a setup they now
+  share. The long story's replies are smaller than those figures' by the bytes that
+  leave room for the position story's in the fake's joint allowance, with no line
+  fewer; its bytes alone changed.
 - **Not yet:** 4.3: no whole-tier run on record establishes that the repaired
-  17-test tier fits its unchanged 85 CPU-second budget. The flagged run was
+  tier fits its unchanged 85 CPU-second budget. The flagged run, of 17 tests, was
   129.4 CPU s, 70.8 s wall. With ctl history and the 131,072-byte window,
   all twelve final comparison runs passed, but the CPU medians remain
   20.858273 s for long, 9.178371 s for Latest and 8.399148 s for unanchored,
   above the request's targets of about 12, 6 and 5. Short rose to 6.414108 s
-  from the baseline's 4.193832 s. The four sum to 44.849900 s, leaving
-  40.150100 s for the other thirteen; their final cost awaits after-landing.
+  from the baseline's 4.193832 s. Those four sum to 44.849900 s, leaving
+  40.150100 s for the rest of the tier; the final cost awaits after-landing.
   Loads, all samples and the limits of the comparison are in
   `temper/docs/development/browser-budget.md`. Backoff failed its CPU and wall
   criteria and is absent; the smaller window alone establishes no CPU saving.

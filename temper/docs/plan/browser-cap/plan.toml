@@ -1,3 +1,22 @@
 draft = "browser-cap"
 repo = "fabrig"
 sources = ["temper/docs/plan/browser-cap/inputs/request.md", "temper/tests/client-browser/tests/browser_all/browser_pages.rs", "temper/tests/client-browser/tests/browser_all/browser_accounts.rs", "temper/tests/client-browser/tests/browser_all/browser_call_line.rs", "temper/tests/client-browser/src/lib.rs", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "steps"
+title = "A merged test names its stories, and a deployment's history holds several chats"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 4.3"
+
+[[slice]]
+id = 1
+story = "A failed step of a test of several stories names its story"
+parts = ["steps"]
+walk = false

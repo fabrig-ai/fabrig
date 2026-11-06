@@ -152,8 +152,9 @@ the board says so; a stock queue's merges read as public landings within the
 landing log and jig's public index, including a pre-publication merge whose
 change is handed from a live goal. The public geometry story checks a wrapped text by its first quad alone
 (`client/browser.md`, `client/forge.md`).
-The browser tier holds 17 tests, five past its cap. The four reading stories
-pass with ctl history and a 131,072-byte window, but their CPU medians sum to
+The browser tier holds its twelve tests, four of them merged and compiled, with
+no run in Chromium yet. Reading's four stories, apart, passed with ctl history
+and a 131,072-byte window, but their CPU medians sum to
 44.849900 s and the three targets remain unmet; no whole-tier run proves the
 repair within 85 CPU s. The listener-full ctl failure is repaired; the public
 visibility-command failure remains unverified. A whole-bound manual reading
