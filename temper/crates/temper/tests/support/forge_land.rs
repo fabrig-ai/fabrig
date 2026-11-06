@@ -1367,12 +1367,6 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     endpoint["program"] = "claude_code".into();
     endpoint["address"] = "api.anthropic.com:443".into();
     endpoint["server_name"] = "api.anthropic.com".into();
-    let mut agent_model = endpoint["models"][0].clone();
-    agent_model["name"] = model.name().into();
-    for member in ["efforts", "effort"] {
-        agent_model.as_object_mut().expect("agent model").remove(member);
-    }
-    endpoint["models"] = serde_json::json!([agent_model]);
     let mut declared = value["engine"]["llm"]["models"]
         .as_array()
         .expect("engine models")

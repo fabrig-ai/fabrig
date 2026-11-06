@@ -243,18 +243,6 @@ fn setting_key(models: &[Model], name: LimitName) -> String {
                 .expect("native endpoint is selected");
             format!("endpoints.{}.{}", super::super::name(endpoint), name.field)
         }
-        Per::Model { endpoint, model } => {
-            let endpoint = endpoints
-                .iter()
-                .nth(usize::try_from(endpoint).expect("endpoint fits usize"))
-                .expect("native endpoint is selected");
-            let model = models
-                .iter()
-                .filter(|entry| entry.endpoint.as_str() == *endpoint)
-                .nth(usize::try_from(model).expect("model fits usize"))
-                .expect("native model is selected");
-            input::model_key(&model.full, name.field)
-        }
     }
 }
 

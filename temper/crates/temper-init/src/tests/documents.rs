@@ -92,7 +92,7 @@ fn the_owned_example_offers_openai_keys_and_chatgpts_sign_in() {
     assert_eq!(endpoint["transport"], "tls");
     assert_eq!(endpoint["server_name"], "api.openai.com");
     assert_eq!(endpoint["headers"], parse(b"[]"));
-    assert_eq!(endpoint["models"][0]["reasoning_item"], 65_536_u32);
+    assert_eq!(endpoint["limits"]["reasoning_item"], 65_536_u32);
 }
 
 #[test]
@@ -416,9 +416,8 @@ fn demo_agent(port: u16) -> Value {
     json!({"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "openai",
            "address": format!("127.0.0.1:{port}"), "transport": "plaintext",
            "connect": 10_000_u64, "handshake": 10_000_u64, "headers": parse(b"[]"),
-           "models": [{"name": "demo", "window": 1_048_576_u64, "output": 8_192_u64,
-                       "prices": {"input": 1_u64, "cached": 1_u64, "output": 1_u64, "unit": 1_000_u64},
-                       "reasoning_item": 2_048_u64, "head": 60_000_u64, "idle": 30_000_u64}]})
+           "limits": { "window": 1_048_576_u64, "output": 8_192_u64,
+                       "reasoning_item": 2_048_u64, "head": 60_000_u64, "idle": 30_000_u64}})
 }
 
 #[test]
@@ -445,7 +444,7 @@ fn the_agent_configuration_is_the_owned_examples_but_its_programs() {
             "/endpoints",
             json!([owned["endpoints"][0], anthropic_agent(), demo_agent(facts.ports.llm.get())]),
         );
-        expected["endpoints"][0]["models"] = json!(agent_models("openai"));
+        expected["endpoints"][0]["limits"] = agent_limits("openai");
         assert_eq!(parse(content(&answered, b"agent.json")), expected, "{row}");
     }
 }
@@ -657,22 +656,11 @@ fn stock_models() -> List<Value> {
     models
 }
 
-fn agent_models(endpoint: &str) -> Box<[Value]> {
-    let mut models = List::with_capacity(7);
-    for mut model in stock_models().into_boxed() {
-        if model["endpoint"] == endpoint {
-            let object = model.as_object_mut().unwrap();
-            for member in ["endpoint", "shown", "effort"] {
-                object.remove(member);
-            }
-            model["reasoning_item"] = json!(65_536_u32);
-            model["head"] = json!(60_000_u32);
-            model["idle"] = json!(if endpoint == "openai" { 300_000_u32 } else { 120_000_u32 });
-            models.push(model).expect("one endpoint's stock models fit");
-        }
-    }
-    models.into_boxed()
+fn agent_limits(endpoint: &str) -> Value {
+    json!({"window":1_048_576_u32,"output":8192,"reasoning_item":65_536_u32,
+        "head":60_000_u32,"idle":if endpoint == "openai" {300_000_u32} else {120_000_u32}})
 }
+
 fn anthropic(member: &str) -> Value {
     match member {
         "providers" => {
@@ -692,7 +680,7 @@ fn anthropic_agent() -> Value {
         let value = object.remove(old).unwrap();
         object.insert(new.into(), value);
     }
-    endpoint["models"] = json!(agent_models("anthropic"));
+    endpoint["limits"] = agent_limits("anthropic");
     endpoint
 }
 #[test]

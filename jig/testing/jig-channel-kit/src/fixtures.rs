@@ -254,7 +254,7 @@ fn agent_configuration_for(llm: skein_llm::Endpoint) -> smith_agent_service::Con
             destination,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            models: Box::default(),
+            oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
         }]),
         1,
     )

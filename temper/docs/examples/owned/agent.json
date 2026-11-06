@@ -6,7 +6,8 @@
       "tool_payload": 10662,
       "read_window": 256,
       "conversations": 26,
-      "calls_per_response": 48
+      "calls_per_response": 48,
+      "charter_models": 64
     },
     "policy": {
       "max_turns": 800,
@@ -28,22 +29,13 @@
       "connect": 10000,
       "handshake": 10000,
       "headers": [],
-      "models": [
-        {
-          "name": "gpt-6.1-sol",
-          "prices": {
-            "input": 1,
-            "cached": 1,
-            "output": 1,
-            "unit": 1000000
-          },
+      "limits": {
           "window": 1048576,
           "output": 8192,
           "reasoning_item": 65536,
           "head": 60000,
           "idle": 300000
         }
-      ]
     }
   ],
   "programs": {

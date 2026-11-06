@@ -141,7 +141,7 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
     agent["profile"]["policy"]["max_turns"] = 800.into();
     agent["profile"]["policy"]["check_timeout"] = 1000.into();
     for endpoint in agent["endpoints"].as_array_mut().expect("endpoints") {
-        endpoint["models"][0]["output"] = 8192.into();
+        endpoint["limits"]["output"] = 8192.into();
     }
     admit(value);
 }

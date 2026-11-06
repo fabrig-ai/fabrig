@@ -8,18 +8,19 @@ use skein_llm as shared;
 use skein_llm_connection as connection;
 use skein_tls as tls;
 use smith_agent_service as service;
+use smith_agent_service::profile::Limits as DeclaredLimits;
 use smith_agent_service::profile::{ENDPOINTS, Layer, LimitName, Per, Refusal};
 use smith_domain::{self as domain, run};
 use smith_protocol_llm as llm;
 use std::net::SocketAddr;
 
-use super::{ConfigurationRefusal, Endpoint, ModelDocument, document, duration};
+use super::{ConfigurationRefusal, Endpoint, document, duration};
 
 pub(super) struct PreparedEndpoints {
     pub(super) domain: Box<[run::charter::Endpoint]>,
     pub(super) channel: smith_protocol_translate::Endpoints,
     pub(super) llm: Box<[PreparedEndpoint]>,
-    pub(super) models: Box<[domain::ConfiguredModel]>,
+    pub(super) limits: Box<[domain::EndpointLimits]>,
 }
 
 pub(super) struct PreparedEndpoint {
@@ -31,7 +32,7 @@ pub(super) struct PreparedEndpoint {
     pub(super) name: domain::llm::Endpoint,
     pub(super) connect: Duration,
     pub(super) handshake: Duration,
-    pub(super) models: Box<[llm::ConfiguredModel]>,
+    pub(super) oversized_reasoning: llm::OversizedReasoning,
 }
 
 pub(super) enum EndpointTransport {
@@ -59,7 +60,7 @@ pub(super) fn build_endpoints(
     let mut domain_endpoints = Vec::with_capacity(endpoints.len());
     let mut channel_endpoints = List::with_capacity(ENDPOINTS);
     let mut llm_endpoints = Vec::with_capacity(endpoints.len());
-    let mut models = Vec::new();
+    let mut endpoint_limits = Vec::new();
     let mut names = std::collections::BTreeSet::new();
     let mut numbers = std::collections::BTreeSet::new();
     for (mut endpoint, declared) in endpoints.into_iter().zip(&declarations.endpoints) {
@@ -115,7 +116,14 @@ pub(super) fn build_endpoints(
             .map_err(|_| "too many channel endpoints")?;
         let protocol_allowance = service::profile::endpoint_allowance(profile, declared, &limits.domain.session.tools)
             .map_err(ConfigurationRefusal::Profile)?;
-        configure_models(declared, &endpoint.models, protocol_allowance, &mut models);
+        endpoint_limits.push(domain::EndpointLimits {
+            endpoint: run::charter::Endpoint(declared.number),
+            window: declared.limits.window,
+            output: declared.limits.output,
+            protocol_allowance,
+            head: declared.limits.head,
+            idle: declared.limits.idle,
+        });
         let credential = credential_limits(&limits.llm);
         let head = shared::client::request_head(&llm_endpoint, &credential, &client).map_err(|error| {
             ConfigurationRefusal::Profile(Refusal::Connection(connection::EndpointError::Client(error)))
@@ -132,36 +140,15 @@ pub(super) fn build_endpoints(
             name: domain::llm::Endpoint(endpoint.number),
             connect: declared.connect,
             handshake: declared.handshake,
-            models: endpoint_models(&endpoint.models)?,
+            oversized_reasoning: declared.limits.oversized_reasoning,
         });
     }
     Ok(PreparedEndpoints {
         domain: domain_endpoints.into_boxed_slice(),
         channel: smith_protocol_translate::Endpoints::new(channel_endpoints),
         llm: llm_endpoints.into_boxed_slice(),
-        models: models.into_boxed_slice(),
+        limits: endpoint_limits.into_boxed_slice(),
     })
-}
-
-fn configure_models(
-    declared: &service::profile::Endpoint,
-    inputs: &[ModelDocument],
-    protocol_allowance: u64,
-    models: &mut Vec<domain::ConfiguredModel>,
-) {
-    for (model, input) in declared.models.iter().zip(inputs) {
-        models.push(domain::ConfiguredModel {
-            prices: input.prices.rates(),
-            endpoint: run::charter::Endpoint(declared.number),
-            model: model.name.clone(),
-            efforts: model.efforts.clone(),
-            window: model.window,
-            output: model.output,
-            protocol_allowance,
-            head: model.head,
-            idle: model.idle,
-        });
-    }
 }
 
 fn endpoint_transport(endpoint: &mut Endpoint) -> Result<EndpointTransport, ConfigurationRefusal> {
@@ -194,17 +181,6 @@ fn endpoint_transport(endpoint: &mut Endpoint) -> Result<EndpointTransport, Conf
     }
 }
 
-fn endpoint_models(models: &[ModelDocument]) -> Result<Box<[llm::ConfiguredModel]>, ConfigurationRefusal> {
-    let mut configured = Vec::with_capacity(models.len());
-    for model in models {
-        configured.push(llm::ConfiguredModel {
-            name: model.name.as_bytes().into(),
-            oversized_reasoning: reasoning_policy(model.oversized_reasoning.as_deref())?,
-        });
-    }
-    Ok(configured.into_boxed_slice())
-}
-
 fn endpoint_duration(millis: u64, endpoint: u32, field: &'static str) -> Result<Duration, ConfigurationRefusal> {
     duration(millis, LimitName { layer: Layer::Policy, field, per: Per::Endpoint(endpoint) })
 }
@@ -213,13 +189,13 @@ fn reasoning_policy(value: Option<&str>) -> Result<llm::OversizedReasoning, Conf
     match value {
         None | Some("fail") => Ok(llm::OversizedReasoning::Fail),
         Some("drop") => Ok(llm::OversizedReasoning::Drop),
-        Some(_) => Err("model oversized_reasoning must be fail or drop".into()),
+        Some(_) => Err("endpoint oversized_reasoning must be fail or drop".into()),
     }
 }
 
-pub(super) fn build_models(endpoint: &Endpoint) -> Result<service::profile::Endpoint, ConfigurationRefusal> {
+pub(super) fn build_limits(endpoint: &Endpoint) -> Result<service::profile::Endpoint, ConfigurationRefusal> {
     let number = endpoint.number;
-    let models = &endpoint.models;
+    let declared = &endpoint.limits;
     let (provider, dialect) = match endpoint.provider.as_str() {
         "openai" => (shared::Provider::OpenAi, 3),
         "anthropic" => (shared::Provider::Anthropic, 2),
@@ -236,58 +212,25 @@ pub(super) fn build_models(endpoint: &Endpoint) -> Result<service::profile::Endp
             limit: LimitName { layer: Layer::Service, field: "endpoint_own", per: Per::Endpoint(number) },
         })
     })?;
-    if models.is_empty() {
-        return Err(ConfigurationRefusal::Profile(Refusal::Field {
-            limit: LimitName { layer: Layer::Declared, field: "models", per: Per::Endpoint(number) },
-        }));
+    if declared.window == 0 || declared.output == 0 || declared.reasoning_item == 0 {
+        return Err("endpoint limits contain a zero quantity".into());
     }
-    let mut names = std::collections::BTreeSet::new();
-    let mut prepared = Vec::with_capacity(models.len());
-    for (index, model) in models.iter().enumerate() {
-        if model.efforts.iter().any(|name| {
-            name.is_empty()
-                || name.len()
-                    > usize::try_from(smith_charter::CEILINGS.llm_effort_some).expect("effort bound fits usize")
-        }) {
-            return Err("model efforts must be names within 32 bytes".into());
-        }
-        let index = u32::try_from(index).map_err(|_| {
-            ConfigurationRefusal::Profile(Refusal::Derived {
-                limit: LimitName::deployment(Layer::Service, "configured_models"),
-            })
-        })?;
-        let per = Per::Model { endpoint: number, model: index };
-        if model.name.is_empty()
-            || model.name.len()
-                > usize::try_from(smith_charter::CEILINGS.llm_model).expect("model name bound fits usize")
-            || model.window == 0
-            || model.output == 0
-            || model.reasoning_item == 0
-        {
-            return Err("model declaration contains an empty or zero quantity".into());
-        }
-        if !names.insert(model.name.clone()) {
-            return Err("duplicate declared model".into());
-        }
-        model.prices.rates().check().map_err(|_| "model prices must be positive")?;
-        prepared.push(service::profile::Model {
-            name: model.name.as_bytes().into(),
-            efforts: model.efforts.iter().map(|name| name.as_bytes().into()).collect(),
-            window: model.window,
-            output: model.output,
-            reasoning_item: model.reasoning_item,
-            oversized_reasoning: reasoning_policy(model.oversized_reasoning.as_deref())?,
-            head: duration(model.head, LimitName { layer: Layer::Declared, field: "head", per })?,
-            idle: duration(model.idle, LimitName { layer: Layer::Declared, field: "idle", per })?,
-        });
-    }
+    let per = Per::Endpoint(number);
+    let limits = DeclaredLimits {
+        window: declared.window,
+        output: declared.output,
+        reasoning_item: declared.reasoning_item,
+        oversized_reasoning: reasoning_policy(declared.oversized_reasoning.as_deref())?,
+        head: duration(declared.head, LimitName { layer: Layer::Declared, field: "head", per })?,
+        idle: duration(declared.idle, LimitName { layer: Layer::Declared, field: "idle", per })?,
+    };
     Ok(service::profile::Endpoint {
         number,
         provider,
         option_bytes,
         connect: endpoint_duration(endpoint.connect, number, "connect")?,
         handshake: endpoint_duration(endpoint.handshake, number, "handshake")?,
-        models: prepared.into_boxed_slice(),
+        limits,
     })
 }
 

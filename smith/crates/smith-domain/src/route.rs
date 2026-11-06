@@ -987,21 +987,13 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
         }
         None => (None, Box::default()),
     };
-    let window_llm = match resumed_model(&domain.config, &opening.llm, dialect, transcript.as_ref()) {
-        Ok(llm) => llm,
-        Err(reason) => {
-            return run_step(
-                domain,
-                env,
-                run::Event::Ended {
-                    conversation,
-                    end: run::End::TranscriptRefused { reason },
-                    spend: Spend::ZERO,
-                    detail: Box::default(),
-                },
-            );
-        }
-    };
+    let window_llm = resumed_model(
+        &domain.config,
+        run::conversation_charter(&domain.run, conversation).expect("run owns its conversation"),
+        &opening.llm,
+        dialect,
+        transcript.as_ref(),
+    );
     let Some((mut spec, offered)) =
         translate::spec(opening, env.limits.session.budget, progress, domain.config.program(endpoint))
     else {
@@ -1057,18 +1049,19 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
     session_step(domain, env, event);
 }
 
-/// Select the configured model of a saved window only when main changes model.
+/// Select charter quantities for a saved window, falling back to main for an unnamed model.
 fn resumed_model(
     config: &crate::Config,
+    charter: &run::Charter,
     main: &run::charter::Llm,
     dialect: u32,
     transcript: Option<&session::record::Transcript>,
-) -> Result<Option<session::record::Llm>, run::TranscriptRefusal> {
+) -> Option<session::record::Llm> {
     let last = match transcript {
         Some(history) => {
-            let Some(first) = history.turns.first() else { return Ok(None) };
+            let first = history.turns.first()?;
             if history.endpoint != Some(session::llm::Endpoint(main.endpoint.0)) || history.dialect != dialect {
-                return Ok(None);
+                return None;
             }
             match &first.kind {
                 session::record::Kind::First(opener) | session::record::Kind::Window(opener) => {
@@ -1081,24 +1074,33 @@ fn resumed_model(
                             },
                         }
                     {
-                        return Ok(None);
+                        return None;
                     }
                 }
-                session::record::Kind::Ordinary => return Ok(None),
+                session::record::Kind::Ordinary => return None,
             }
             history.turns.last()
         }
         None => None,
     };
     match last {
-        Some(turn) if turn.model != main.model => match config.window_llm(main.endpoint, &turn.model) {
-            Some(mut llm) => {
-                llm.effort.clone_from(&turn.effort);
-                Ok(Some(llm))
+        Some(turn) if turn.model != main.model => {
+            let mut quantities = &charter.llm;
+            for candidate in core::iter::once(&charter.llm).chain(charter.models.iter()) {
+                if candidate.endpoint == main.endpoint && candidate.model == turn.model {
+                    quantities = candidate;
+                    break;
+                }
             }
-            None => Err(run::TranscriptRefusal::Malformed),
-        },
-        Some(_) | None => Ok(None),
+            Some(session::record::Llm {
+                model: turn.model.clone(),
+                effort: turn.effort.clone(),
+                window: quantities.window,
+                output: quantities.output,
+                prices: translate::prices(quantities.prices),
+            })
+        }
+        Some(_) | None => None,
     }
 }
 

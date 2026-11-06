@@ -1,7 +1,7 @@
 //! Declared quantities either refuse by name or satisfy the startup relationships.
 
 use skein_lib::{Duration, Rng};
-use smith_agent_service::profile::{self, Configuration, Endpoint, Model, OversizedReasoning};
+use smith_agent_service::profile::{self, Configuration, Endpoint, Limits as DeclaredLimits, OversizedReasoning};
 
 #[test]
 fn seeded_profiles_refuse_without_wrapping_or_keep_the_checked_relationships() {
@@ -28,16 +28,14 @@ fn seeded_profiles_refuse_without_wrapping_or_keep_the_checked_relationships() {
                     number: 7,
                     connect: Duration::from_secs(2),
                     handshake: Duration::from_secs(3),
-                    models: Box::new([Model {
-                        efforts: Box::new([]),
-                        name: Box::from(b"one".as_slice()),
+                    limits: DeclaredLimits {
                         window,
                         output,
                         reasoning_item: 2048,
                         oversized_reasoning: OversizedReasoning::Fail,
                         head: Duration::from_secs(5),
                         idle: Duration::from_secs(11),
-                    }]),
+                    },
                 }]),
             };
             match profile::derive(&profile, &configuration) {

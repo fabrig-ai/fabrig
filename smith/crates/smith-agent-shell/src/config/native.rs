@@ -63,7 +63,7 @@ pub(super) fn endpoints(
             destination,
             connect: endpoint.connect,
             handshake: endpoint.handshake,
-            models: endpoint.models,
+            oversized_reasoning: endpoint.oversized_reasoning,
         });
     }
     Ok(configured.into_boxed_slice())

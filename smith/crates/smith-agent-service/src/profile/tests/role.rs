@@ -44,8 +44,8 @@ fn the_standard_profile_holds_the_role_and_one_whole_guide_with_four_directories
     let selected = crate::profile::standard();
     let mut configuration = declarations();
     configuration.role_bound = Some(ROLE_BOUND);
-    configuration.endpoints[0].models[0].window = 272_000;
-    configuration.endpoints[0].models[0].output = 32_000;
+    configuration.endpoints[0].limits.window = 272_000;
+    configuration.endpoints[0].limits.output = 32_000;
     let limits = crate::profile::derive(&selected, &configuration).expect("standard role and guide").domain.run;
     assert_eq!(limits.directories, 4);
     assert_eq!(limits.guide_bytes, selected.declared.guide);

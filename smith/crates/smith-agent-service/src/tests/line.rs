@@ -339,7 +339,7 @@ fn endpoints(limits: &adapter::ComponentLimits, provider: skein_llm::Provider) -
             },
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            models: Box::new([]),
+            oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
         }]),
         limits.connection.endpoints,
     )

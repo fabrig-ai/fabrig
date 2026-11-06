@@ -1,6 +1,6 @@
-//! A declared model's room and the host and message parts derived from it.
+//! A declared endpoint's room and the host and message parts derived from it.
 //! Only numeric bounds are retained; no charter, provider destination or
-//! transcript is known. `room` checks every declared model before returning
+//! transcript is known. `room` checks every declared endpoint before returning
 //! one set of receiving bounds. Contract: smith/docs/design/protocol/limits.md, sections 3.9 and 4.
 
 #[cfg(test)]
@@ -43,11 +43,11 @@ pub fn compaction_material(calls_per_response: u32, summary_bytes: u64) -> Optio
         .checked_add(summary_bytes)
 }
 
-/// Check all declared models and split their smallest room after Smith's own part.
+/// Check all declared endpoints and split their smallest room after Smith's own part.
 /// `summary_bytes` is the measured instruction that compaction adds above the
 /// threshold; it is already included in `own`. A byte counts as a token.
 pub fn room(profile: &Profile, configuration: &Configuration, own: u64, summary_bytes: u64) -> Result<Room, Refusal> {
-    super::validate::configured_models(configuration)?;
+    super::validate::configured_endpoints(configuration)?;
     let threshold = profile.policy.compaction_threshold;
     if threshold.numerator == 0 || threshold.numerator >= threshold.denominator {
         return Err(Refusal::Broken {
@@ -63,52 +63,48 @@ pub fn room(profile: &Profile, configuration: &Configuration, own: u64, summary_
     for endpoint in &configuration.endpoints {
         let endpoint_own = own.checked_add(endpoint.option_bytes).ok_or(derived("fresh_window"))?;
         largest_own = largest_own.max(endpoint_own);
-        for (index, model) in endpoint.models.iter().enumerate() {
-            let per = Per::Model {
-                endpoint: endpoint.number,
-                model: u32::try_from(index).or(Err(derived("configured_models")))?,
-            };
-            let window = u64::from(model.window);
-            let output = u64::from(model.output);
-            let within = window
-                .checked_mul(u64::from(threshold.numerator))
-                .ok_or(derived("window_at_threshold"))?
-                .checked_div(u64::from(threshold.denominator))
-                .ok_or(derived("window_at_threshold"))?;
-            let reserved = output.checked_mul(2).ok_or(derived("fresh_window"))?;
-            let required = reserved.checked_add(endpoint_own).ok_or(derived("fresh_window"))?;
-            if required >= within {
-                return Err(Refusal::Broken {
-                    check: Check::FreshWindow,
-                    left: model_value(Layer::Session, "fresh_window", per, required),
-                    right: model_value(Layer::Declared, "window_at_threshold", per, within),
-                });
-            }
-            let headroom = window.checked_sub(within).expect("proper threshold within the window");
-            let material = compaction_material(profile.declared.calls_per_response, summary_bytes)
-                .ok_or(derived("compaction_headroom"))?;
-            let required = output.checked_add(material).ok_or(derived("compaction_headroom"))?;
-            if required > headroom {
-                return Err(Refusal::Broken {
-                    check: Check::CompactionHeadroom,
-                    left: model_value(Layer::Session, "compaction_headroom", per, required),
-                    right: model_value(Layer::Declared, "window_above_threshold", per, headroom),
-                });
-            }
-            let room = within.checked_sub(reserved).expect("fresh window holds both outputs");
-            let remaining = room.checked_sub(endpoint_own).expect("fresh window leaves room after own part");
-            smallest_remaining = Some(match smallest_remaining {
-                Some(current) => remaining.min(current),
-                None => remaining,
-            });
-            smallest = Some(match smallest {
-                Some(current) => room.min(current),
-                None => room,
+        let limits = &endpoint.limits;
+        let per = Per::Endpoint(endpoint.number);
+        let window = u64::from(limits.window);
+        let output = u64::from(limits.output);
+        let within = window
+            .checked_mul(u64::from(threshold.numerator))
+            .ok_or(derived("window_at_threshold"))?
+            .checked_div(u64::from(threshold.denominator))
+            .ok_or(derived("window_at_threshold"))?;
+        let reserved = output.checked_mul(2).ok_or(derived("fresh_window"))?;
+        let required = reserved.checked_add(endpoint_own).ok_or(derived("fresh_window"))?;
+        if required >= within {
+            return Err(Refusal::Broken {
+                check: Check::FreshWindow,
+                left: endpoint_value(Layer::Session, "fresh_window", per, required),
+                right: endpoint_value(Layer::Declared, "window_at_threshold", per, within),
             });
         }
+        let headroom = window.checked_sub(within).expect("proper threshold within the window");
+        let material = compaction_material(profile.declared.calls_per_response, summary_bytes)
+            .ok_or(derived("compaction_headroom"))?;
+        let required = output.checked_add(material).ok_or(derived("compaction_headroom"))?;
+        if required > headroom {
+            return Err(Refusal::Broken {
+                check: Check::CompactionHeadroom,
+                left: endpoint_value(Layer::Session, "compaction_headroom", per, required),
+                right: endpoint_value(Layer::Declared, "window_above_threshold", per, headroom),
+            });
+        }
+        let room = within.checked_sub(reserved).expect("fresh window holds both outputs");
+        let remaining = room.checked_sub(endpoint_own).expect("fresh window leaves room after own part");
+        smallest_remaining = Some(match smallest_remaining {
+            Some(current) => remaining.min(current),
+            None => remaining,
+        });
+        smallest = Some(match smallest {
+            Some(current) => room.min(current),
+            None => room,
+        });
     }
-    let room = smallest.expect("validated configuration declares at least one model");
-    let remaining = smallest_remaining.expect("validated models leave measured room");
+    let room = smallest.expect("validated configuration declares at least one endpoint");
+    let remaining = smallest_remaining.expect("validated endpoints leave measured room");
     let host = remaining.checked_div(2).expect("nonzero fixed divisor");
     let messages = remaining.checked_sub(host).expect("host takes at most half the remainder");
     let offer = messages.checked_div(2).expect("nonzero fixed divisor");
@@ -117,7 +113,7 @@ pub fn room(profile: &Profile, configuration: &Configuration, own: u64, summary_
     Ok(Room { room, own: largest_own, host, messages, offer, message })
 }
 
-fn model_value(layer: Layer, field: &'static str, per: Per, value: u64) -> super::Limit {
+fn endpoint_value(layer: Layer, field: &'static str, per: Per, value: u64) -> super::Limit {
     LimitName { layer, field, per }.value(Value::Tokens(value))
 }
 

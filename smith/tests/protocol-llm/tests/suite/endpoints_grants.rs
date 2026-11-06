@@ -30,7 +30,7 @@ fn destination(name: u32, provider: shared::Provider) -> ConfiguredEndpoint {
             },
             llm,
         },
-        models: Box::new([]),
+        oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
     }
 }
 
@@ -92,19 +92,15 @@ fn a_refresh_preserves_the_first_call_then_evicts_the_oldest_generation() {
 }
 
 #[test]
-fn reasoning_drop_is_selected_per_declared_model() {
-    use smith_protocol_llm::{ConfiguredModel, OversizedReasoning};
-    let mut endpoint = destination(1, shared::Provider::OpenAi);
-    endpoint.models = Box::new([
-        ConfiguredModel { name: b"strict".as_slice().into(), oversized_reasoning: OversizedReasoning::Fail },
-        ConfiguredModel { name: b"optional".as_slice().into(), oversized_reasoning: OversizedReasoning::Drop },
-    ]);
-    let endpoints = Endpoints::new(Box::new([endpoint]), 1).expect("named models");
-    let options = endpoints.resolve(llm::Endpoint(1)).expect("endpoint");
-    assert!(!options.drop_reasoning(b"strict"));
-    assert!(options.drop_reasoning(b"optional"));
-    assert!(!options.drop_reasoning(b"undeclared"));
-    assert!(!options.drop_reasoning(b"strict"));
+fn reasoning_drop_is_selected_per_endpoint() {
+    use smith_protocol_llm::OversizedReasoning;
+    for (policy, expected) in [(OversizedReasoning::Fail, false), (OversizedReasoning::Drop, true)] {
+        let mut endpoint = destination(1, shared::Provider::OpenAi);
+        endpoint.oversized_reasoning = policy;
+        let endpoints = Endpoints::new(Box::new([endpoint]), 1).expect("named endpoint");
+        let options = endpoints.resolve(llm::Endpoint(1)).expect("endpoint");
+        assert_eq!(options.drop_reasoning(), expected);
+    }
 }
 
 // profile::ACCOUNTS admits four distinct names, independent of their numeric value.

@@ -15,8 +15,8 @@ pub struct Limits {
     pub accounts: u32,
     /// Maximum endpoint names in the agent configuration.
     pub endpoints: u32,
-    /// Owned configured model cells and names, derived from startup declarations.
-    pub configured_model_bytes: u64,
+    /// Owned endpoint limits and program declarations, derived from startup declarations.
+    pub configured_endpoint_bytes: u64,
 
     /// Aggregate decoded application-call bytes admitted from one completion.
     /// The adapter includes these owning call fields in its translated completion

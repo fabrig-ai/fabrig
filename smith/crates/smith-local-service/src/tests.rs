@@ -835,9 +835,9 @@ fn colocated_config() -> Config {
     config.local.models[0].account = Some(0);
     config.local.models[0].endpoint = Endpoint(0);
     config.local.models[0].prices = run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 };
-    config.local.models[0].window = lower.domain.models[0].window;
-    config.local.models[0].output = lower.domain.models[0].output;
-    config.local.protocol_allowances[0] = lower.domain.models[0].protocol_allowance;
+    config.local.models[0].window = lower.domain.limits[0].window;
+    config.local.models[0].output = lower.domain.limits[0].output;
+    config.local.protocol_allowances[0] = lower.domain.limits[0].protocol_allowance;
     config.local.budget.turns = 1;
     config.local.budget.spend = 1000;
     config.local.models[0].model = Box::from(b"fake".as_slice());

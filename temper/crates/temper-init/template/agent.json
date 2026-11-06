@@ -6,7 +6,8 @@
       "tool_payload": 10662,
       "read_window": 256,
       "conversations": 26,
-      "calls_per_response": 48
+      "calls_per_response": 48,
+      "charter_models": 64
     },
     "policy": {
       "max_turns": 800,
@@ -28,94 +29,13 @@
       "connect": 10000,
       "handshake": 10000,
       "headers": [],
-      "models": [
-        {
-          "name": "gpt-6.1-sol",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 2000,
-            "cached": 2000,
-            "output": 10000,
-            "unit": 1000000
-          },
-          "reasoning_item": 65536,
-          "head": 60000,
-          "idle": 300000
-        },
-        {
-          "name": "gpt-6-astra",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 10000,
-            "cached": 10000,
-            "output": 50000,
-            "unit": 1000000
-          },
-          "reasoning_item": 65536,
-          "head": 60000,
-          "idle": 300000
-        },
-        {
-          "name": "gpt-6.1-terra",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "none",
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 1000,
-            "cached": 1000,
-            "output": 5000,
-            "unit": 1000000
-          },
-          "reasoning_item": 65536,
-          "head": 60000,
-          "idle": 300000
-        },
-        {
-          "name": "gpt-6-luna",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "none",
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 100,
-            "cached": 100,
-            "output": 500,
-            "unit": 1000000
-          },
-          "reasoning_item": 65536,
-          "head": 60000,
-          "idle": 300000
-        }
-      ]
+      "limits": {
+        "window": 1048576,
+        "output": 8192,
+        "reasoning_item": 65536,
+        "head": 60000,
+        "idle": 300000
+      }
     },
     {
       "name": "anthropic",
@@ -129,71 +49,13 @@
       "server_name": "api.anthropic.com",
       "connect": 10000,
       "handshake": 10000,
-      "models": [
-        {
-          "name": "claude-opus-5-5",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 4000,
-            "cached": 4000,
-            "output": 20000,
-            "unit": 1000000
-          },
-          "reasoning_item": 65536,
-          "head": 60000,
-          "idle": 120000
-        },
-        {
-          "name": "claude-sonnet-5-5",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 2000,
-            "cached": 2000,
-            "output": 10000,
-            "unit": 1000000
-          },
-          "reasoning_item": 65536,
-          "head": 60000,
-          "idle": 120000
-        },
-        {
-          "name": "claude-fable-5-1",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 10000,
-            "cached": 10000,
-            "output": 50000,
-            "unit": 1000000
-          },
-          "reasoning_item": 65536,
-          "head": 60000,
-          "idle": 120000
-        }
-      ]
+      "limits": {
+        "window": 1048576,
+        "output": 8192,
+        "reasoning_item": 65536,
+        "head": 60000,
+        "idle": 120000
+      }
     },
     {
       "name": "demo",
@@ -205,22 +67,13 @@
       "connect": 10000,
       "handshake": 10000,
       "headers": [],
-      "models": [
-        {
-          "name": "demo",
-          "prices": {
-            "input": 1,
-            "cached": 1,
-            "output": 1,
-            "unit": 1000
-          },
-          "window": 1048576,
-          "output": 8192,
-          "reasoning_item": 2048,
-          "head": 60000,
-          "idle": 30000
-        }
-      ]
+      "limits": {
+        "window": 1048576,
+        "output": 8192,
+        "reasoning_item": 2048,
+        "head": 60000,
+        "idle": 30000
+      }
     }
   ],
   "programs": "$programs",

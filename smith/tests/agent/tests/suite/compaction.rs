@@ -191,3 +191,22 @@ fn unnamed_window() -> smith_domain::Transcript {
     ]);
     saved
 }
+
+#[test]
+fn a_saved_windows_model_the_charter_doesnt_name_compacts_at_mains_quantities() {
+    let mut saved = history(6_000);
+    saved.turns[0].model = b"fake-3".as_slice().into();
+    let mut world = world_with_history(false, true, saved);
+    world.run(ITERATIONS);
+    let first = world.prompts().first().expect("saved model's compaction reaches the provider");
+    assert_eq!(first.model.as_ref(), b"fake-3");
+    assert_eq!(first.max_tokens, 256, "the compaction takes main's output");
+    assert_eq!(first.choice, skein_fake_llm_domain::api::ToolChoice::None);
+    assert!(matches!(world.answer(), run::Answer::Accepted { .. }), "{:?}", world.answer());
+    assert!(matches!(world.turns().first().expect("compacted window").kind, record::Kind::Window(_)));
+    assert_eq!(
+        world.turn_metadata().first().expect("priced compaction").2.units,
+        1,
+        "main's prices charge the saved window"
+    );
+}

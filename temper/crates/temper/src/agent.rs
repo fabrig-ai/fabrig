@@ -31,8 +31,8 @@ pub(crate) fn read(configuration: &Path) -> Result<Agent, String> {
         .iter()
         .map(|endpoint| EndpointBound {
             endpoint: endpoint.number,
-            window: endpoint.models.iter().map(|model| model.window).max().unwrap_or(0),
-            output: endpoint.models.iter().map(|model| model.output).max().unwrap_or(0),
+            window: endpoint.limits.window,
+            output: endpoint.limits.output,
         })
         .collect();
     let policy = configuration.profile.policy;

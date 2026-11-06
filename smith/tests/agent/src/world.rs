@@ -324,6 +324,7 @@ pub struct World<B: Backend = Typed> {
     prompts: Vec<provider::api::Query>,
     completions: Vec<CompletionObservation>,
     model_prices: BTreeMap<Box<[u8]>, run::Prices>,
+    main_prices: run::Prices,
     turns: Vec<agent::Turn>,
     messages_seen: Vec<(Time, crate::messages_referee::Seen)>,
     turn_metadata: Vec<(u32, Option<Token>, run::Spend)>,
@@ -455,6 +456,7 @@ impl<B: Backend> World<B> {
                 Job::Coding | Job::Delegating | Job::Wandering | Job::MidReport | Job::MidChange | Job::MarkerReport
             );
         let within = charter.budget.time.saturating_add(Duration::from_secs(120));
+        let main_prices = charter.llm.prices;
         let mut model_prices = BTreeMap::new();
         model_prices.insert(charter.llm.model.clone(), charter.llm.prices);
         for model in &charter.models {
@@ -515,6 +517,7 @@ impl<B: Backend> World<B> {
             prompts: Vec::new(),
             completions: Vec::new(),
             model_prices,
+            main_prices,
             turns: Vec::new(),
             messages_seen,
             turn_metadata: Vec::new(),
@@ -1483,7 +1486,7 @@ impl<B: Backend> World<B> {
             Event::Below(smith_domain::Below::Completed { completion, .. }) => {
                 self.observe_host_call(completion, flight.completion_message);
                 let index = flight.completion_index.expect("completion observation");
-                let prices = self.model_prices[&self.completions[index].model];
+                let prices = self.model_prices.get(&self.completions[index].model).copied().unwrap_or(self.main_prices);
                 let usage = completion.usage;
                 let units = observed_price(prices, usage).unwrap_or(0);
                 self.observe(Seen::Completed {
@@ -1961,26 +1964,14 @@ fn configuration(window: u32) -> agent::Config {
     agent::Config {
         programs: Box::new([]),
         endpoints: Box::new([run::charter::Endpoint(0)]),
-        models: [b"fake-1".as_slice(), b"fake-2".as_slice(), b"fake-3".as_slice()]
-            .iter()
-            .map(|name| smith_domain::ConfiguredModel {
-                efforts: Box::new([]),
-                prices: smith_domain::run::Prices {
-                    input: 1,
-                    cached: 1,
-                    cache_write: None,
-                    output: 1,
-                    unit: 1_000_000,
-                },
-                protocol_allowance: 0,
-                endpoint: run::charter::Endpoint(0),
-                model: (*name).into(),
-                window,
-                output: 4096,
-                head: Duration::from_secs(60),
-                idle: Duration::from_secs(30),
-            })
-            .collect(),
+        limits: Box::new([smith_domain::EndpointLimits {
+            protocol_allowance: 0,
+            endpoint: run::charter::Endpoint(0),
+            window,
+            output: 4096,
+            head: Duration::from_secs(60),
+            idle: Duration::from_secs(30),
+        }]),
     }
 }
 

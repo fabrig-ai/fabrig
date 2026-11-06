@@ -42,15 +42,15 @@ fn drawn_declarations_preserve_capacities_or_name_their_refusal() {
         // Positive memory declarations are carried independently of the
         // capacities and relationships drawn here.
         declared["memory"] = if sample % 6 == 1 { 1_u64.into() } else { 2_147_483_648_u64.into() };
-        let model = &mut document["endpoints"][0]["models"][0];
+        let model = &mut document["endpoints"][0]["limits"];
         let window = rng.next_u64() % 272_000 + 272_000;
         let output = rng.next_u64() % 32_000 + 32_000;
         model["window"] = window.into();
         model["output"] = output.into();
         let profile = config::profile_from_value(document["profile"].clone()).expect("positive drawn declarations");
         let mut declarations = baseline.clone();
-        declarations.endpoints[0].models[0].window = u32::try_from(window).unwrap();
-        declarations.endpoints[0].models[0].output = u32::try_from(output).unwrap();
+        declarations.endpoints[0].limits.window = u32::try_from(window).unwrap();
+        declarations.endpoints[0].limits.output = u32::try_from(output).unwrap();
         let limits = match service::profile::derive(&profile, &declarations) {
             Ok(limits) => limits,
             Err(refusal) => {

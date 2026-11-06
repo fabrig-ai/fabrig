@@ -6,7 +6,9 @@ use smith_session_world::said;
 use smith_session_world::bytes;
 
 use skein_lib::{Duration, Queue, Token};
-use smith_agent_service::profile::{self, Check, Configuration, Endpoint, Model, OversizedReasoning, Refusal, Value};
+use smith_agent_service::profile::{
+    self, Check, Configuration, Endpoint, Limits as DeclaredLimits, OversizedReasoning, Refusal, Value,
+};
 use smith_domain_session::{self as session, llm};
 use smith_session_world::recorded::{Scripted, opening};
 
@@ -27,16 +29,14 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
             option_bytes: 3,
             connect: Duration::from_secs(30),
             handshake: Duration::from_secs(30),
-            models: Box::new([Model {
-                efforts: Box::new([]),
-                name: bytes(b"gpt-6-luna"),
+            limits: DeclaredLimits {
                 window: 131_072,
                 output: 4096,
                 reasoning_item: 65_536,
                 oversized_reasoning: OversizedReasoning::Fail,
                 head: Duration::from_secs(60),
                 idle: Duration::from_secs(120),
-            }]),
+            },
         }]),
     };
     let limits = match profile::derive(&profile, &configuration) {

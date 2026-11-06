@@ -305,10 +305,6 @@ pub fn fixture() -> forge::Fixture {
             model["efforts"] = json!([OWNER_EFFORT]);
             value["engine"]["llm"]["models"].as_array_mut().expect("models").push(model);
             value["engine"]["llm"]["providers"][0]["models"] = json!(["fake", OWNER_MODEL]);
-            let mut model = agent["endpoints"][0]["models"][0].clone();
-            model["name"] = OWNER_MODEL.into();
-            model["efforts"] = json!([OWNER_EFFORT]);
-            agent["endpoints"][0]["models"].as_array_mut().expect("agent models").push(model);
             // The director delegates, messages, amends and keeps project notes.
             // The extra owner adds one delegation level before the change procedure.
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
@@ -366,9 +362,7 @@ fn small_two_call_window(value: &mut Value, agent: &mut Value) {
     for model in value["engine"]["llm"]["models"].as_array_mut().expect("engine models") {
         model["window"] = 262_144.into();
     }
-    for model in agent["endpoints"][0]["models"].as_array_mut().expect("agent models") {
-        model["window"] = 262_144.into();
-    }
+    agent["endpoints"][0]["limits"]["window"] = 262_144.into();
 }
 
 #[must_use]
@@ -1031,7 +1025,6 @@ pub fn fixture_6_5() -> forge::Fixture {
         configure: |value, agent, forge| {
             (fixture().configure)(value, agent, forge);
             value["engine"]["llm"]["models"][0]["efforts"] = json!([BUDGET_MEDIUM, BUDGET_HIGH]);
-            agent["endpoints"][0]["models"][0]["efforts"] = json!([BUDGET_MEDIUM, BUDGET_HIGH]);
             // Small profile; default engine/agent model efforts [medium, high].
             // Singleton delegations, five tasks, parked owners and investigator.
             // Two calls carry a tool and wait in one completion; three fleet

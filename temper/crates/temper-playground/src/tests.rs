@@ -92,7 +92,7 @@ fn the_owned_values_equal_the_test_kits_values() {
     profile.policy.sections = 8;
     assert_eq!(documents::agent_profile(), profile);
     let mut declarations = smith_agent_process_world::declarations(0);
-    declarations.endpoints[0].models[0].output = 2048;
+    declarations.endpoints[0].limits.output = 2048;
     assert_eq!(documents::agent_declarations(), declarations);
     let owned = fakes::llm_peer_limits();
     let source = smith_agent_process_world::fake::limits();
