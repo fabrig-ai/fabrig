@@ -69,6 +69,16 @@
   ended by the stall deadline: `temper-service`'s
   `a_call_past_the_mounts_room_waits_until_its_peer_closes` ends it by its
   peer's close.
+- **Departs:** 2.5, *The first paint*: handing over fades in 160 ms, where this section
+  has 200: `loading.css` takes `transition: opacity .16s` from the request
+  `bundle-loading`'s own stylesheet, whose message says 200 ms, because
+  `../draft/look-requests.md`, 3 lands a request's rules as its stylesheet has them. The
+  loader removes the placeholder at 200 ms all the same. `#boot` also sets
+  `letter-spacing: normal`, beyond that stylesheet, since an arriving `temper.css` would
+  otherwise move its words by -0.18 px.
+- **Departs:** 2.5, *The first paint*: "no byte for 15 s" holds only once the module's
+  answer has begun: a stall before that answer draws the mark and an empty bar, with no
+  line (skein's `ui-web.status.md`, 4.3).
 - **Departs:** 4.3, 4.6: the tier holds 14 tests, two past the cap, and 4.6 names
   12. `browser_call_line.rs`'s `a_run_of_calls_opens_to_its_rows`, from the request
   `chat-reading-b`, has no line there, and its file's header names the story, not what
@@ -88,6 +98,18 @@
   tests, on one slot of a shared machine whose load rose from 6 to 31, where its request
   has a slot as idle as can be had. Those totals are in `tools/tiers/design.md`, 7.2's
   scope, which live sampling of the same tests read higher (that document's section 8).
+  The `bundle-loading` plan's run of 13 tests, one fewer than the tier holds, with the
+  placeholder on every page but the playground's, took 83.069911 CPU s with one red, against 61.048855 with
+  none before it, and no figure splits the page's cost from the machine's load
+  (that plan's figures on the browser tier, at `668f7cd3e5`). The red is
+  `browser_public`'s `a_visitor_reads_a_public_project_and_loses_it_when_made_private`:
+  `temper ctl`'s `project amend --visibility public` outlasts its ten-second deadline
+  with the page at Ready and the placeholder gone, in that run and alone. Focused tests
+  of the bundle's answers, the mapping's room and ctl's wait for its `Me` pass and don't
+  reproduce it; the listener's eight connections, which a page's parallel files share,
+  are a hypothesis, no cause observed (the same figures, on the ctl wait).
+  Its repair waits on the tier's run after landing (the user, 2026-11-06), and no later
+  run is recorded here.
 - **Not yet:** 4.6: the request `browser-trim` has a person's page slower to settle as
   the answer most wanted. Settled chat and task pages stood still and no product cause
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a
