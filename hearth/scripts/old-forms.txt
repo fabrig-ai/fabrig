@@ -1,6 +1,6 @@
 # Uses of the old forms (skein/docs/foundation/programming-model.md, 6.3, and component-kit.md, 4): each count may only fall.
 # Lower them with `python3 -I -B scripts/old_forms.py --write`; a count rises only with a `# Raised:` line saying who and why.
-max_out 24
+max_out 0
 worst_case 0
 # The component kit's counts (skein/docs/design/draft/component-kit.md, 4).
 io_resume 0
