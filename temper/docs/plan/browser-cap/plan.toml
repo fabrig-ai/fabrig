@@ -1,0 +1,3 @@
+draft = "browser-cap"
+repo = "fabrig"
+sources = ["temper/docs/plan/browser-cap/inputs/request.md", "temper/tests/client-browser/tests/browser_all/browser_pages.rs", "temper/tests/client-browser/tests/browser_all/browser_accounts.rs", "temper/tests/client-browser/tests/browser_all/browser_call_line.rs", "temper/tests/client-browser/src/lib.rs", "AGENTS.md", "DESIGN.md"]
