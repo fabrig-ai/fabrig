@@ -340,6 +340,28 @@ fn load_with(
         };
     load_document(&document, directories, check_start, given)
 }
+// Refuse obsolete room settings and diagnose unrepresentable rooms before transport or store sizing.
+fn watch_rooms(document: &skein_json::Document, engine: u32, problems: &mut Problems) {
+    let Some(limits) = member(document, engine, b"limits") else { return };
+    let Some(overrides) = member(document, limits, b"overrides") else { return };
+    for name in [b"views.watchers".as_slice(), b"views.watchers_per_party"] {
+        if member(document, overrides, name).is_some() {
+            problems.push(
+                Path::root().member(b"engine").member(b"limits").member(b"overrides").member(name),
+                What::Against { other: b"engine.limits.overrides.clients.streams, which sizes both watch rooms" },
+            );
+        }
+    }
+    let Some(at) = member(document, overrides, b"clients.streams") else { return };
+    let Ok(streams) = read::integer(document, at, u64::from(u32::MAX)) else { return };
+    let streams = u32::try_from(streams).expect("checked stream count");
+    if !jig_domain_views::valid(&temper_engine_domain::views_for(streams)) {
+        problems.push(
+            Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"clients.streams"),
+            What::Against { other: b"representable watch rooms (clients.streams times 17, with two slots per watch)" },
+        );
+    }
+}
 // Temper seeds name settings; jig also serves callers that accept inline policies.
 fn inline_seed_policies(document: &skein_json::Document, engine: u32, problems: &mut Problems) {
     let Some(projects) = member(document, engine, b"projects") else { return };
@@ -390,6 +412,7 @@ fn load_document(
     problems.append(found, &root);
     if let Some(at) = engine_at {
         let before = problems.problems.len();
+        watch_rooms(document, at, &mut problems);
         inline_seed_policies(document, at, &mut problems);
         if problems.problems.len() != before {
             return Err(problems);

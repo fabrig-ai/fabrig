@@ -39,6 +39,7 @@ mod root_routes;
 mod settings;
 mod switch;
 mod walking;
+mod watch_room;
 
 mod fuzzy {
     mod endings;

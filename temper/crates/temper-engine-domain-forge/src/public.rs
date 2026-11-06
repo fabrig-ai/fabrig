@@ -175,20 +175,6 @@ impl Domain {
         }
         Some(writer.finish())
     }
-    fn public_pull(&self, row: &ChangeRow) -> Option<Box<[u8]>> {
-        let number = row.pull?;
-        let repo = self.repositories.get(&row.repository)?;
-        let Some(forge) = self.configured.get(&row.repository.forge) else {
-            return Some(Box::default());
-        };
-        if forge.mode == crate::Mode::Fake {
-            return Some(Box::default());
-        }
-        Some(
-            crate::pull_address(forge.kind, &forge.git, forge.web.as_deref(), &repo.owner, &repo.name, number)
-                .unwrap_or_default(),
-        )
-    }
 }
 fn phase(phase: &policy::Phase) -> w::PublicLandingPhase {
     match phase {
