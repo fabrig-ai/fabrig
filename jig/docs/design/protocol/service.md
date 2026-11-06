@@ -710,15 +710,6 @@ and the page policy. It knows no route: what a call means is its owner's.
   holds.
 - **Amounts are `Limits`:** the connections, skein's HTTP limits and the
   stall. `valid` says whether limits can run at all.
-- **Idle room admits a fresh client.** At the connection bound, a socket
-  waiting for a head, with no call, no bytes of that head and no queued
-  transitions, yields its room. The server
-  closes it after queued writes and retains one accepted socket, unread,
-  until the closed event reclaims the room; only then is the new socket
-  bound. Further arrivals are rejected while that socket waits. A partial
-  head and an active call retain their connections. Stopping or aborting
-  rejects the waiting socket. The bound on admitted connections stays the
-  same, and the stall is unchanged.
 - **A peer's end is a value.** `Limits`' `peer_end` says what a peer's
   end does while a call is unfinished. `PeerEnd::Connection` ends the
   connection and tells the owner the call's connection closed, as

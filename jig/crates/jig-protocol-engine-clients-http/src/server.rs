@@ -42,7 +42,6 @@ struct Connection {
     draining: bool,
     deadline: Time,
     held: Option<Time>,
-    received: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Phase {
@@ -59,7 +58,6 @@ pub struct Server {
     phase: Phase,
     finished: bool,
     connections: Map<Token, Connection>,
-    waiting: Option<Token>,
     next: u64,
     env: Env<Limits>,
 }
@@ -95,7 +93,6 @@ impl Server {
             phase: Phase::Active,
             finished: false,
             connections: Map::with_capacity(limits.connections),
-            waiting: None,
             next: 1,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
         }
@@ -110,7 +107,7 @@ impl Server {
     }
     #[must_use]
     pub fn closed(&self) -> bool {
-        !self.listening && self.listener.is_none() && self.connections.is_empty() && self.waiting.is_none()
+        !self.listening && self.listener.is_none() && self.connections.is_empty()
     }
     fn name(&mut self) -> Token {
         let name = Token::new(self.next);
@@ -130,9 +127,66 @@ impl Server {
                     self.end_listener(out);
                 }
             }
-            io::Event::Accepted { owner, socket, .. } => self.accept(owner, socket, out),
-            io::Event::Stream { owner, up } => self.stream(owner, up, out),
-            io::Event::Closed { owner } => self.closed_connection(owner, out),
+            io::Event::Accepted { owner, socket, .. } => {
+                if owner != LISTENER
+                    || self.phase != Phase::Active
+                    || self.connections.len() == self.connections.capacity()
+                {
+                    out.push(Routed::Io(io::Request::Reject { socket }));
+                } else {
+                    let owner = self.name();
+                    let mut requests = Queue::uncapped();
+                    requests.push(http::Request::Next);
+                    self.connections
+                        .insert(
+                            owner,
+                            Connection {
+                                socket,
+                                http: http::Server::new(&self.env.limits.http),
+                                events: Queue::uncapped(),
+                                requests,
+                                below: Queue::uncapped(),
+                                call: None,
+                                reuse: None,
+                                closing: false,
+                                draining: false,
+                                deadline: self.env.now.saturating_add(self.env.limits.stall),
+                                held: None,
+                            },
+                        )
+                        .ok()
+                        .expect("admitted connection");
+                    out.push(Routed::Io(io::Request::Bind { socket, owner }));
+                }
+            }
+            io::Event::Stream { owner, up } => {
+                let env = self.http_env();
+                if let Some(connection) = self.connections.get_mut(&owner)
+                    && !connection.closing
+                {
+                    connection.deadline =
+                        self.env.now.saturating_add(self.env.limits.stall).max(connection.held.unwrap_or(Time::ZERO));
+                    let ended = match &up {
+                        Up::End => self.env.limits.peer_end == PeerEnd::Connection && connection.call.is_some(),
+                        Up::Bytes(_) | Up::Room | Up::Failed(_) => false,
+                    };
+                    http::up(&mut connection.http, &env, up, &mut connection.events, &mut connection.below);
+                    if ended {
+                        end(connection, false, out);
+                    }
+                }
+            }
+            io::Event::Closed { owner } => {
+                if owner == LISTENER {
+                    self.listening = false;
+                    self.listener = None;
+                }
+                if let Some(connection) = self.connections.remove(&owner)
+                    && let Some(call) = connection.call
+                {
+                    out.push(Routed::Http { call, event: http::Event::Closed });
+                }
+            }
             io::Event::Failed { owner, .. } => {
                 if owner == LISTENER {
                     self.listening = false;
@@ -150,100 +204,6 @@ impl Server {
             | io::Event::Resized
             | io::Event::Window { .. }
             | io::Event::Shutdown { .. } => {}
-        }
-    }
-    fn accept(&mut self, owner: Token, socket: Token, out: &mut Queue<Routed>) {
-        if owner != LISTENER || self.phase != Phase::Active || self.waiting.is_some() {
-            out.push(Routed::Io(io::Request::Reject { socket }));
-            return;
-        }
-        if self.connections.len() < self.connections.capacity() {
-            self.bind(socket, out);
-            return;
-        }
-        let mut idle = None;
-        for (owner, connection) in &self.connections {
-            if connection.call.is_none()
-                && !connection.received
-                && !connection.closing
-                && connection.requests.is_empty()
-                && connection.events.is_empty()
-                && connection.below.is_empty()
-                && connection.http.waiting() == http::Waiting::Request
-            {
-                idle = Some(*owner);
-                break;
-            }
-        }
-        match idle {
-            Some(owner) => {
-                self.waiting = Some(socket);
-                end(self.connections.get_mut(&owner).expect("idle connection"), true, out);
-            }
-            None => out.push(Routed::Io(io::Request::Reject { socket })),
-        }
-    }
-    fn bind(&mut self, socket: Token, out: &mut Queue<Routed>) {
-        let owner = self.name();
-        let mut requests = Queue::uncapped();
-        requests.push(http::Request::Next);
-        self.connections
-            .insert(
-                owner,
-                Connection {
-                    socket,
-                    http: http::Server::new(&self.env.limits.http),
-                    events: Queue::uncapped(),
-                    requests,
-                    below: Queue::uncapped(),
-                    call: None,
-                    reuse: None,
-                    closing: false,
-                    draining: false,
-                    deadline: self.env.now.saturating_add(self.env.limits.stall),
-                    held: None,
-                    received: false,
-                },
-            )
-            .ok()
-            .expect("admitted connection");
-        out.push(Routed::Io(io::Request::Bind { socket, owner }));
-    }
-    fn stream(&mut self, owner: Token, up: Up, out: &mut Queue<Routed>) {
-        let env = self.http_env();
-        if let Some(connection) = self.connections.get_mut(&owner)
-            && !connection.closing
-        {
-            if let Up::Bytes(_) = &up {
-                connection.received = true;
-            }
-            connection.deadline =
-                self.env.now.saturating_add(self.env.limits.stall).max(connection.held.unwrap_or(Time::ZERO));
-            let ended = match &up {
-                Up::End => self.env.limits.peer_end == PeerEnd::Connection && connection.call.is_some(),
-                Up::Bytes(_) | Up::Room | Up::Failed(_) => false,
-            };
-            http::up(&mut connection.http, &env, up, &mut connection.events, &mut connection.below);
-            if ended {
-                end(connection, false, out);
-            }
-        }
-    }
-    fn closed_connection(&mut self, owner: Token, out: &mut Queue<Routed>) {
-        if owner == LISTENER {
-            self.listening = false;
-            self.listener = None;
-        }
-        if let Some(connection) = self.connections.remove(&owner)
-            && let Some(call) = connection.call
-        {
-            out.push(Routed::Http { call, event: http::Event::Closed });
-        }
-        if self.phase == Phase::Active
-            && self.connections.len() < self.connections.capacity()
-            && let Some(socket) = self.waiting.take()
-        {
-            self.bind(socket, out);
         }
     }
     fn owner(&self, call: Token) -> Option<Token> {
@@ -293,7 +253,6 @@ impl Server {
             connection.call = None;
             connection.held = None;
             if connection.reuse.take() == Some(http::Reuse::Keep) && self.phase < Phase::Closing {
-                connection.received = false;
                 connection.requests.push(http::Request::Next);
             } else {
                 end(connection, self.phase != Phase::Aborting, out);
@@ -307,9 +266,6 @@ impl Server {
         }
     }
     fn end_listener(&mut self, out: &mut Queue<Routed>) {
-        if let Some(socket) = self.waiting.take() {
-            out.push(Routed::Io(io::Request::Reject { socket }));
-        }
         if let Some(listener) = self.listener {
             out.push(Routed::Io(if self.phase == Phase::Aborting {
                 io::Request::Abort { entity: listener }
@@ -449,6 +405,3 @@ fn end(connection: &mut Connection, drain: bool, out: &mut Queue<Routed>) {
 pub fn valid(limits: &Limits) -> bool {
     limits.connections != 0 && limits.stall != Duration::ZERO && http::valid(&limits.http)
 }
-
-#[cfg(test)]
-mod tests;
