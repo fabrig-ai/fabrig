@@ -129,7 +129,16 @@ mod tests {
 
     fn limits() -> Limits {
         Limits {
-            io: io::Limits { intake: 18_432, output: 18_432, ..io::Limits::TEST },
+            io: io::Limits {
+                intake: 18_432,
+                output: 18_432,
+                sockets: 8,
+                receive: 4096,
+                sends: 8,
+                backlog: 2,
+                retry: skein_lib::Duration::from_millis(1),
+                ..io::Limits::TEST
+            },
             connections: 1,
             queue: 64,
             plaintext: 1024,

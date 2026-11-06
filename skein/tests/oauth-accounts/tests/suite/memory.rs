@@ -517,16 +517,10 @@ fn shared_memory_limits() -> Limits {
         tls: skein_tls::client::Limits { read: 2048, send: 2048, records: 131_072 },
         io: skein_io::Limits {
             sockets: 4,
-            refusals: 1,
-            intake: 32_768,
-            receive: 1024,
-            output: 32_768,
             sends: 4,
-            accepts: 1,
             backlog: 2,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
             retry: Duration::from_millis(1),
+            ..skein_io::Limits::TEST
         },
         refresh_lead: Duration::from_secs(10),
         client: ClientLimits {
