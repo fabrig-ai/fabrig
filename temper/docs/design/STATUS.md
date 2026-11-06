@@ -54,7 +54,13 @@ CI or tiers' workflows, and no walk applies the case's project file
 user's request of 2026-11-03 but for a message, a report, a person's
 spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
-with has not passed (`protocol/setup.md`). `temper init`'s documents hold
+with has not passed (`protocol/setup.md`). The box's hour-long Forgejo
+session, source-address refresh, refused public/sign-in pair, empty
+repository-name handling and Linux lifetime wrapper are built. The
+combined default-runner, restart, moved-port and terminal-hangup walk
+has no outcome in the supplied inventory, and the real-box sign-in
+story awaits its after-landing run (`protocol/setup.md`,
+`protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in

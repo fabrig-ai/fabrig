@@ -3880,6 +3880,11 @@ it checks of this document:
 
 Each is intended; what it needs is named with it.
 
+- **A box killed outright on macOS** (7.1): its steps have no parent-death
+  signal, so they can keep running and hold the next start's ports. A
+  lifetime guard on macOS needs a mechanism of its own; until one is
+  designed, the box's ordered stop, including a hangup, is its cleanup.
+
 - **A start holding the engine's documents to temper's clients** (8.1):
   no start compares `documents.text_bytes` with what the web and terminal
   clients receive, so a deployment past 512 starts, and those clients

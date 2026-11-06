@@ -2758,6 +2758,14 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **A default box's combined browser and terminal proof** (2.6;
+  `../protocol/setup.md`, 7.1, 7.2 and 13.4): one 1440-pixel walk with the
+  default runner and separate configuration, data and cache directories,
+  signing in by one click on a fresh start, after a restart and after a
+  moved temper port, then closing its pseudo-terminal and checking that
+  its processes and ports are free for another start. A runner-disabled
+  browser walk and separate lifetime tests do not replace this sequence.
+
 - **The process tier's concurrency proof.** Three tests at a time (2.6)
   are proved by the next after-landing run on main, per the request
   `process-threads` of 2026-11-06, in place of `test-speed`'s three whole
