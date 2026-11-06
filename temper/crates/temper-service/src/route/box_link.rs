@@ -27,6 +27,8 @@ pub(crate) enum Out {
     SettingUp { forge: u16, step: Option<Step> },
     /// `fetched FORGE BINARY DONE TOTAL`.
     Fetched { forge: u16, fetched: SetUpFetched },
+    /// The source outcome; its diagnostic belongs to the box log alone.
+    Source { forge: u16, added: bool },
     /// `started FORGE`: the ask ended, the group started.
     Started { forge: u16 },
     /// `failed FORGE WHY`.
@@ -213,6 +215,7 @@ fn start(forge: u16, kind: Option<BoxKind>) -> Box<[u8]> {
 enum Reply {
     Step(u16, Step),
     Fetched(u16, SetUpFetched),
+    Source(u16, bool),
     Started(u16),
     Stopped(u16),
     Removed(u16),
@@ -223,6 +226,7 @@ impl Reply {
         match self {
             Self::Step(forge, _)
             | Self::Fetched(forge, _)
+            | Self::Source(forge, _)
             | Self::Started(forge)
             | Self::Stopped(forge)
             | Self::Removed(forge)
@@ -233,6 +237,7 @@ impl Reply {
         match self {
             Self::Step(..) => b"step",
             Self::Fetched(..) => b"fetched",
+            Self::Source(..) => b"source",
             Self::Started(_) => b"started",
             Self::Stopped(_) => b"stopped",
             Self::Removed(_) => b"removed",
@@ -247,7 +252,7 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
     };
     let forge = reply.forge();
     let matches = match (*asked, &reply) {
-        (Some(Ask::Start(active)), Reply::Step(..) | Reply::Fetched(..) | Reply::Started(_) | Reply::Failed(..))
+        (Some(Ask::Start(active)), Reply::Step(..) | Reply::Fetched(..) | Reply::Source(..) | Reply::Started(_) | Reply::Failed(..))
         | (Some(Ask::End(End::Remove(active))), Reply::Removed(_) | Reply::Failed(..)) => active == forge,
         _ => false,
     };
@@ -264,6 +269,7 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
     match reply {
         Reply::Step(_, step) => out.push(Out::SettingUp { forge, step: Some(step) }),
         Reply::Fetched(_, fetched) => out.push(Out::Fetched { forge, fetched }),
+        Reply::Source(_, added) => out.push(Out::Source { forge, added }),
         Reply::Started(_) => {
             *asked = None;
             out.push(Out::Started { forge });
@@ -304,6 +310,20 @@ fn decoded(line: &[u8]) -> Option<Reply> {
     }
     if let Some(digits) = line.strip_prefix(b"removed ") {
         return Some(Reply::Removed(number(digits)?));
+    }
+    if let Some(rest) = line.strip_prefix(b"source ") {
+        let (forge, outcome) = word(rest)?;
+        let forge = number(forge)?;
+        let added = if outcome == b"added" {
+            true
+        } else {
+            let why = outcome.strip_prefix(b"failed ")?;
+            if why.is_empty() || why.iter().any(|byte| byte.is_ascii_control()) {
+                return None;
+            }
+            false
+        };
+        return Some(Reply::Source(forge, added));
     }
     if let Some(rest) = line.strip_prefix(b"fetched ") {
         let (forge, rest) = word(rest)?;
@@ -424,6 +444,10 @@ pub(crate) fn drain(engine: &mut crate::engine::Engine, out: &mut Queue<Out>) {
                 state(engine, forge, Connection::SettingUp { step });
             }
             Out::Failed { forge, why } => state(engine, forge, Connection::SetUpFailed { why }),
+            Out::Source { forge, added } => {
+                engine.clients.forge_sign_in.source(forge, added);
+                crate::clients::forge_sign_in::refresh(engine);
+            }
             Out::Started { forge } => {
                 crate::setup::lifecycle::started(engine, forge);
             }

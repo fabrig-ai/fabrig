@@ -17,6 +17,7 @@ pub struct Forge {
 #[derive(Debug)]
 pub struct Forges {
     entries: List<Forge>,
+    off: List<u16>,
 }
 impl Default for Forges {
     fn default() -> Self {
@@ -26,10 +27,14 @@ impl Default for Forges {
 impl Forges {
     #[must_use]
     pub fn new() -> Self {
-        Self { entries: List::with_capacity(FORGES) }
+        Self { entries: List::with_capacity(FORGES), off: List::with_capacity(FORGES) }
     }
     /// Malformed, oversized and repeated entries are dropped.
     pub fn read(&mut self, content: &str) {
+        if let Some(number) = content.strip_prefix("off ") {
+            self.read_off(number);
+            return;
+        }
         if self.entries.len() == FORGES || content.len() > META_BYTES {
             return;
         }
@@ -61,6 +66,21 @@ impl Forges {
         self.entries
             .push(Forge { number, client: client.as_bytes().into(), root: root.as_bytes().into(), owned })
             .expect("forge facts bounded");
+    }
+    /// A page fact names only the affected forge, never its failure's diagnostic.
+    pub fn read_off(&mut self, content: &str) {
+        if content.len() > 5 {
+            return;
+        }
+        let Some(number) = skein_ui::number(content.as_bytes()) else { return };
+        let Ok(number) = u16::try_from(number) else { return };
+        if number != 0 && !self.off.as_slice().contains(&number) && self.off.room() > 0 {
+            self.off.push(number).expect("bounded off facts");
+        }
+    }
+    #[must_use]
+    pub fn off(&self, number: u16) -> bool {
+        self.off.as_slice().contains(&number)
     }
     #[must_use]
     pub fn entries(&self) -> &List<Forge> {

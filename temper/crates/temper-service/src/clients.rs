@@ -147,6 +147,7 @@ impl Clients {
         seeds: &Seeds,
         journal: &root::JournalLimits,
         sign_in: Option<&crate::settings::SignIn>,
+        owned: Option<&temper_forge_setup::machine::OwnedMachine>,
         files: &[(Box<[u8]>, skein_lib::Secret)],
     ) -> Result<Self, Problems> {
         if !crate::server::valid(&crate::limits::server(&config.limits)) {
@@ -167,7 +168,10 @@ impl Clients {
                 login: match sign_in {
                     Some(sign_in) => google::member_login(sign_in, &owner.identity.subject)
                         .ok_or(config::clients::invalid(What::Refers))?,
-                    None => Box::from(b"owner".as_slice()),
+                    None => match owned {
+                        Some(owned) if owned.sign_in.is_some() => owned.person.login.clone(),
+                        Some(_) | None => Box::from(b"owner".as_slice()),
+                    },
                 },
                 name: match sign_in {
                     Some(sign_in) => google::member_login(sign_in, &owner.identity.subject)
@@ -259,7 +263,7 @@ impl Clients {
             query_bytes: 2048,
             send: crate::limits::server(&config.limits).http.send,
             bundle: None,
-            forge_sign_in: forge_sign_in::Entries::new(&[], &[], None, 0),
+            forge_sign_in: forge_sign_in::Entries::new(&[], &[], None, None, 0),
             pending_forge_metas: None,
             component_closed: false,
             stopping: None,

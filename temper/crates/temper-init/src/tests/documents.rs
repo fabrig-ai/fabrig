@@ -152,6 +152,12 @@ fn the_default_is_the_owned_example_so_edited() {
         expected["application"]["limits"]["overrides"]["forge.repositories"] = json!(3_u32);
         expected["application"]["limits"]["overrides"]["forge.output"] = json!(82_u32);
         expected["application"]["welcome"] = json!(true);
+        expected["engine"]["owners"][0]["subject"] = json!("ada@localhost");
+        expected["engine"]["clients"]["provider"] = json!({
+            "key": "provider.key", "addresses": [1],
+            "clients": [{"id": "forgejo", "secret": null,
+                "redirect_uri": format!("http://127.0.0.1:{}/user/oauth2/temper/callback", facts.ports.owned)}]
+        });
         let mut openai = owned["engine"]["llm"]["providers"][0].clone();
         openai["models"] = json!(["gpt-6.1-sol", "gpt-6-luna"]);
         for (path, value) in [
@@ -192,7 +198,7 @@ fn the_default_is_the_owned_example_so_edited() {
                             "path": "/usr/local/bin:/usr/bin:/bin"},
                         "listen": {"socket": format!("127.0.0.1:{}", facts.ports.owned)},
                         "remote": format!("http://127.0.0.1:{}", facts.ports.owned),
-                        "person": {"login": "ada", "email": "ada@localhost"}
+                        "person": {"login": "ada", "email": "ada@localhost"}, "sign_in": "forgejo"
                     },
                     "fake": {
                         "listen": {"socket": format!("127.0.0.1:{}", facts.ports.forge)},
@@ -508,7 +514,9 @@ fn no_placeholder_is_left() {
                 (b"\"$owned\"".as_slice(), 1),
                 (b"\"$owned_git\"".as_slice(), 1),
                 (b"\"$login\"".as_slice(), 1),
-                (b"\"$email\"".as_slice(), 1),
+                (b"\"$email\"".as_slice(), 2),
+                (b"\"$provider\"".as_slice(), 1),
+                (b"\"$owned_sign_in\"".as_slice(), 1),
                 (b"\"$llm\"".as_slice(), 2),
                 (b"\"$webhooks\"".as_slice(), 1),
             ]
@@ -600,6 +608,8 @@ fn the_bare_document_is_the_box_less_its_parts() {
         expected["application"].as_object_mut().unwrap().remove("welcome");
         expected["application"]["machine"] = json!({"github": null});
         expected["application"]["demo"] = Value::Null;
+        expected["engine"]["clients"].as_object_mut().unwrap().remove("provider");
+        expected["engine"]["owners"][0]["subject"] = json!("owner-a");
         expected["engine"].as_object_mut().unwrap().remove("acts");
         for member in ["providers", "endpoints", "models"] {
             expected["engine"]["llm"][member].as_array_mut().unwrap().retain(|item| item["name"] != "demo");
@@ -689,4 +699,29 @@ fn every_deployment_offers_claude_found_or_fetched() {
 fn file_bytes<'a>(files: &'a [crate::File], name: &[u8]) -> &'a [u8] {
     let crate::Content::Bytes { bytes, .. } = &fixtures::file(files, name).content else { panic!("document bytes") };
     bytes
+}
+
+#[test]
+fn a_box_signs_its_person_in_with_a_public_forgejo_client() {
+    let facts = fixtures::facts();
+    let answer = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
+    let document = parse(content(&answer, b"temper.json"));
+    assert_eq!(document["engine"]["owners"][0]["subject"], "ada@localhost");
+    assert_eq!(document["engine"]["clients"]["provider"], json!({
+        "key": "provider.key", "addresses": [1],
+        "clients": [{"id": "forgejo", "secret": null,
+            "redirect_uri": format!("http://127.0.0.1:{}/user/oauth2/temper/callback", facts.ports.owned)}]
+    }));
+    assert_eq!(document["application"]["machine"]["owned"]["sign_in"], "forgejo");
+    assert!(document["application"]["sign_in"].is_null());
+}
+
+#[test]
+fn a_box_without_a_key_keeps_its_provider_and_source_null() {
+    let facts = crate::Facts { sign_in: false, ..fixtures::facts() };
+    let answer = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
+    let document = parse(content(&answer, b"temper.json"));
+    assert!(document["engine"]["clients"]["provider"].is_null());
+    assert!(document["application"]["machine"]["owned"]["sign_in"].is_null());
+    assert_eq!(document["engine"]["owners"][0]["subject"], "ada@localhost");
 }

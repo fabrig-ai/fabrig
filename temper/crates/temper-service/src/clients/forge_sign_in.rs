@@ -10,9 +10,10 @@ pub enum Unserved {
     NotForgejo,
     Origin { origin: Box<[u8]> },
     NoRoom,
+    NoSource,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Entry {
     forge: u16,
     client: Box<[u8]>,
@@ -23,6 +24,9 @@ struct Entry {
 #[derive(Debug)]
 pub(crate) struct Entries {
     rows: List<Entry>,
+    owned: Option<Entry>,
+    box_owned: bool,
+    source: Option<u16>,
     public: Option<temper_forge_setup::setup::Origin>,
     limit: usize,
     named: Map<u16, Unserved>,
@@ -33,6 +37,7 @@ impl Entries {
         rows: &[crate::startup::application::sign_in::ForgeSignIn],
         clients: &[jig_protocol_config::clients::ProviderClient],
         public: Option<&temper_forge_setup::setup::Origin>,
+        owned: Option<&temper_forge_setup::machine::OwnedMachine>,
         limit: u32,
     ) -> Self {
         let capacity = u32::try_from(rows.len()).expect("document bounds entries");
@@ -53,13 +58,52 @@ impl Entries {
                 })
                 .expect("one joined entry per row");
         }
+        let mut owned_entry = None;
+        if let Some(owned) = owned
+            && let Some(id) = &owned.sign_in
+        {
+            for client in clients {
+                if client.id == *id {
+                    owned_entry = Some(Entry { forge: 0, client: client.id.clone(), redirect_uri: client.redirect_uri.clone() });
+                }
+            }
+        }
         Self {
             rows: entries,
+            owned: owned_entry,
+            box_owned: owned.is_some(),
+            source: None,
             public: public.cloned(),
             limit: usize::try_from(limit).expect("bundle limit fits usize"),
             named: Map::with_capacity(capacity),
             waiting: false,
         }
+    }
+    pub(crate) fn source(&mut self, forge: u16, added: bool) {
+        if added {
+            self.source = Some(forge);
+        } else if self.source == Some(forge) {
+            self.source = None;
+        }
+    }
+    fn rows(&self, forges: &crate::forges::Forges) -> List<Entry> {
+        let capacity = self.rows.len().checked_add(forges.len()).expect("bounded forge entries");
+        let mut rows = List::with_capacity(capacity);
+        for row in &self.rows {
+            rows.push(row.clone()).expect("configured entries counted");
+        }
+        if let Some(owned) = &self.owned {
+            for forge in forges.iter() {
+                if forge.mode == Mode::Owned {
+                    let mut row = owned.clone();
+                    row.forge = forge.number;
+                    if !rows.iter().any(|entry| entry.forge == row.forge) {
+                        rows.push(row).expect("kept forges counted");
+                    }
+                }
+            }
+        }
+        rows
     }
     pub(crate) fn waiting(&self) -> bool {
         self.waiting
@@ -80,7 +124,8 @@ impl super::Clients {
             Some(owned) => owned.public.as_ref(),
             None => None,
         };
-        self.forge_sign_in = Entries::new(rows, clients, public, settings.limits.clients.bundle_bytes);
+        let owned = settings.machine.owned.as_ref().filter(|owned| self.deployment.owned || owned.sign_in.is_some());
+        self.forge_sign_in = Entries::new(rows, clients, public, owned, settings.limits.clients.bundle_bytes);
     }
 }
 
@@ -139,6 +184,9 @@ fn serving(entries: &Entries, row: &Entry, forges: &crate::forges::Forges) -> Re
     if row.redirect_uri.strip_prefix(origin.as_ref()) != Some(b"/user/oauth2/temper/callback".as_slice()) {
         return Err(Unserved::Origin { origin });
     }
+    if entries.box_owned && forge.mode == Mode::Owned && entries.source != Some(row.forge) {
+        return Err(Unserved::NoSource);
+    }
     Ok(meta(row, &origin, mode))
 }
 
@@ -150,10 +198,12 @@ fn decide(
     page: usize,
     files: usize,
 ) -> (Box<[u8]>, List<(u16, Box<[u8]>, Unserved)>) {
-    let mut metas = List::with_capacity(entries.rows.len());
-    let mut unserved = List::with_capacity(entries.rows.len());
+    let rows = entries.rows(forges);
+    let capacity = rows.len().checked_add(forges.len()).expect("bounded facts");
+    let mut metas = List::with_capacity(capacity);
+    let mut unserved = List::with_capacity(rows.len());
     let mut length = 0_usize;
-    for row in &entries.rows {
+    for row in &rows {
         let answer = match serving(entries, row, forges) {
             Ok(meta) => match total(page, files, length, meta.len()) {
                 Some(total) if total <= entries.limit => Ok(meta),
@@ -169,6 +219,18 @@ fn decide(
             Err(why) => unserved.push((row.forge, row.client.clone(), why)).expect("one verdict per entry"),
         }
     }
+    if entries.box_owned {
+        for forge in forges.iter() {
+            if forge.mode == Mode::Owned && (entries.owned.is_none() || entries.source != Some(forge.number)) {
+                let number = Decimal::of(u64::from(forge.number));
+                let fact = [b"<meta name=\"temper-forge-sign-in-off\" content=\"".as_slice(), number.as_bytes(), b"\">"].concat();
+                if total(page, files, length, fact.len()).is_some_and(|total| total <= entries.limit) {
+                    length = length.checked_add(fact.len()).expect("bounded fact");
+                    metas.push(fact.into_boxed_slice()).expect("kept forges counted");
+                }
+            }
+        }
+    }
     let mut out = Writer::new(length);
     for meta in metas.into_boxed() {
         out.put(&meta).expect("measured metas");
@@ -182,7 +244,7 @@ fn total(page: usize, files: usize, metas: usize, meta: usize) -> Option<usize> 
 
 /// Decide again, set the page's metas, and name each entry newly not serving.
 pub(crate) fn refresh(engine: &mut crate::engine::Engine) {
-    if !engine.forge_records.done() || engine.clients.forge_sign_in.rows.is_empty() {
+    if !engine.forge_records.done() || (engine.clients.forge_sign_in.rows.is_empty() && !engine.clients.forge_sign_in.box_owned) {
         return;
     }
     let (page, files) = match &engine.clients.bundle {
@@ -197,7 +259,7 @@ pub(crate) fn refresh(engine: &mut crate::engine::Engine) {
     };
     let (metas, unserved) = decide(&engine.clients.forge_sign_in, &engine.workers.forges, page, files);
     let entries = &mut engine.clients.forge_sign_in;
-    let mut named = Map::with_capacity(entries.rows.len());
+    let mut named = Map::with_capacity(entries.rows.len().checked_add(engine.workers.forges.len()).expect("bounded entries"));
     entries.waiting = false;
     for (number, client, why) in unserved.into_boxed() {
         if entries.named.get(&number) != Some(&why)

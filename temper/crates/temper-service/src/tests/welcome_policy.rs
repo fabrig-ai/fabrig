@@ -19,6 +19,7 @@ fn generated_files() -> temper_init::Answer {
     let port = |value| NonZeroU16::new(value).expect("nonzero synthetic port");
     temper_init::files(
         &temper_init::Facts {
+            sign_in: false,
             binary: b"/bin/temper",
             git: Some(b"/bin/git"),
             claude: None,
