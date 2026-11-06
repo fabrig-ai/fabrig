@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 5.4, *A line of a conversation*: a line's words past `text`, 512, fail their page, so the chat never reads it, and the view prices a person's words waiting to be read at `text` each.
 - **Not yet:** 5.4, *A composer*: an edit past `CUE_BYTES`, 256, on a chat or a new chat, or past `text` on an agent's, a goal's or a reply, is dropped and the old words kept, with nothing said; `Me` names no bound.
 - **Not yet:** 5.4, *A chat's first message*: the chat's page draws its spec as the engine cut it.
 - **Not yet:** 5.15, *An answer the client cannot decode*: it ends unreachable, and so is asked again for as long as the page is open; a chat's first read, failed, says nothing.

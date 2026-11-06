@@ -3512,12 +3512,22 @@ pub(super) fn assert_long_line(
         let mut view = crate::View::new(&bounds, domain, words, fixtures::FORGE);
         let tree = fixtures::build(&mut view, root);
         let mut whole = false;
+        let mut sent = None;
         for (index, node) in tree.nodes().iter().enumerate() {
             if node.role == Role::Text && fixtures::node_text(tree, index).as_ref() == bytes {
                 whole = true;
             }
+            if node.styles.as_slice().contains(&crate::look::GOAL_SENT) {
+                sent = Some(index);
+            }
         }
         assert!(whole, "the line's whole words are a tree text");
+        if let Some(page) = root.pages().task()
+            && page.shape == temper_client_domain::pages::task::Shape::Tracked
+        {
+            let sent = sent.expect("the goal's sent words");
+            assert_eq!(fixtures::node_text(tree, sent).as_ref(), bytes, "the reader's words draw in .sent");
+        }
     }
 }
 
