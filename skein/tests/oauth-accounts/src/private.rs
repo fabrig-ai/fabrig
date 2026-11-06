@@ -331,14 +331,8 @@ pub struct Judge {
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, processes: &mut [Process]) {
-        let address = match &processes[0] {
-            Process::Issuer(peer) => peer.address(),
-            Process::Client(_) => unreachable!("issuer process"),
-        };
-        let client = match &mut processes[1] {
-            Process::Client(client) => client,
-            Process::Issuer(_) => unreachable!("owner process"),
-        };
+        let address = processes[0].issuer().expect("issuer process").address();
+        let client = processes[1].client_mut().expect("client process");
         if !self.delivered
             && let Some(address) = address
         {
@@ -347,21 +341,12 @@ impl Referee<Process> for Judge {
         }
         if client.is_empty() && !self.shutdown {
             self.shutdown = true;
-            match &mut processes[0] {
-                Process::Issuer(peer) => peer.shutdown(),
-                Process::Client(_) => unreachable!("issuer process"),
-            }
+            processes[0].issuer_mut().expect("issuer process").shutdown();
         }
     }
     fn observe(&mut self, now: Time, processes: &[Process]) {
-        let client = match &processes[1] {
-            Process::Client(client) => client,
-            Process::Issuer(_) => unreachable!("owner process"),
-        };
-        let address_ready = match &processes[0] {
-            Process::Issuer(peer) => peer.address().is_some(),
-            Process::Client(_) => false,
-        };
+        let client = processes[1].client().expect("client process");
+        let address_ready = processes[0].issuer().is_some_and(|peer| peer.address().is_some());
         self.wake = ((!self.delivered && address_ready) || (client.is_empty() && !self.shutdown)).then_some(now);
         self.passed = self.shutdown && processes.iter().all(Host::is_empty);
     }
@@ -470,8 +455,5 @@ pub fn run(seed: u64, story: Story) -> skein_world::Outcome<Process, FileSystem>
 /// Content-free owner facts, retained for terminal and replay checks.
 #[must_use]
 pub fn facts(processes: &[Process]) -> &[Fact] {
-    match &processes[1] {
-        Process::Client(client) => &client.facts,
-        Process::Issuer(_) => unreachable!("owner process"),
-    }
+    &processes[1].client().expect("client process").facts
 }

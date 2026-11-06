@@ -241,6 +241,7 @@ impl Contracts {
 pub struct Client {
     pub(crate) accounts: Option<crate::accounts::Owner>,
     pub(crate) shared: Option<crate::shared::Owner>,
+    pub(crate) sign_in: Option<crate::sign_in::Owner>,
     pub(crate) sign_out: Option<crate::sign_out::Owner>,
     pub(crate) terms: Option<oauth::Terms>,
     io: io::Io,
@@ -278,6 +279,7 @@ impl Client {
         Client {
             accounts: None,
             shared: None,
+            sign_in: None,
             sign_out: None,
             terms: None,
             io: io::Io::new(&limits.io),
@@ -330,7 +332,12 @@ impl Client {
     pub(crate) fn unstarted(&self) -> bool {
         self.component.is_none()
     }
+    #[expect(clippy::too_many_lines, reason = "dispatches sub-owners before configuring the refresh story")]
     pub(crate) fn start(&mut self, env: &Env<accounts::Limits>) {
+        if self.sign_in.is_some() {
+            crate::sign_in::start(self, env);
+            return;
+        }
         if self.shared.is_some() {
             crate::shared::start(self, env);
             return;
@@ -446,6 +453,10 @@ impl Client {
         }
     }
     fn observe_story(&mut self, env: &Env<accounts::Limits>) -> bool {
+        if self.sign_in.is_some() {
+            crate::sign_in::observe(self, env);
+            return true;
+        }
         if self.shared.is_some() {
             crate::shared::observe(self, env);
             return true;
@@ -567,8 +578,12 @@ impl Client {
                     if let io::file::Request::Store { owner, bytes, .. } = &request {
                         let record =
                             oauth::decode_record(bytes, &env.limits.client.document).expect("candidate record");
-                        self.contracts.keep(record.generation);
-                        self.facts.push(Fact::Keep(record.generation));
+                        if let Some(owner) = &mut self.sign_in {
+                            crate::sign_in::keeping(owner, record.generation);
+                        } else {
+                            self.contracts.keep(record.generation);
+                            self.facts.push(Fact::Keep(record.generation));
+                        }
                         assert!(self.file_keep.is_none());
                         self.file_keep = Some((*owner, record));
                         if let Some(abort) = self.stop_at_store.take() {
@@ -601,7 +616,11 @@ impl Client {
             if event.owner() == skein_lib::Token::new(u64::MAX) {
                 continue;
             }
-            if let io::file::Event::Loaded { bytes, .. } = &event
+            if self.sign_in.is_some() {
+                crate::sign_in::file_event(self, env.now, &event);
+            }
+            if self.sign_in.is_none()
+                && let io::file::Event::Loaded { bytes, .. } = &event
                 && let Ok(record) = oauth::decode_record(bytes, &env.limits.client.document)
             {
                 if !self.contracts.kept.contains(&record.generation) {
@@ -611,8 +630,13 @@ impl Client {
             }
             if self.file_keep.as_ref().is_some_and(|(owner, _)| *owner == event.owner()) {
                 let (_, record) = self.file_keep.take().expect("matching keep");
-                self.contracts.kept(record.generation, matches!(event, io::file::Event::Stored { .. }));
-                self.records.push(record);
+                let yes = matches!(event, io::file::Event::Stored { .. });
+                if let Some(owner) = &mut self.sign_in {
+                    crate::sign_in::kept(owner, record, yes);
+                } else {
+                    self.contracts.kept(record.generation, yes);
+                    self.records.push(record);
+                }
             }
             self.component.as_mut().expect("started component").filed(
                 env,
@@ -631,8 +655,14 @@ impl Client {
 impl Host for Client {
     fn iterate(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits };
+        if self.sign_in.is_some() {
+            crate::sign_in::restart(self, &env);
+        }
         if self.component.is_none() && self.address.is_some() {
             self.start(&env);
+        }
+        if self.sign_in.is_some() {
+            crate::sign_in::redirected(self, &env);
         }
         let io_env = Env { now, wall, limits: self.limits.io };
         self.private_io(&env);
@@ -649,6 +679,9 @@ impl Host for Client {
         io::stage::up(&mut self.io, &io_env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         for _ in 0..ROOM {
             let Some(event) = self.events.pop() else { break };
+            if self.sign_in.is_some() {
+                crate::sign_in::accepted(self, &event);
+            }
             self.component.as_mut().expect("io follows started component").up(
                 &env,
                 event,
@@ -711,16 +744,21 @@ impl Host for Client {
             || !self.requests.is_empty()
             || !self.above.is_empty()
             || !self.completions.is_empty()
+            || self.sign_in.as_ref().is_some_and(crate::sign_in::work_pending)
             || (self.component.is_none() && self.address.is_some())
             || self.component.as_ref().is_some_and(|component| {
                 component.has_work() || component.next_deadline().is_some_and(|due| due <= now)
             })
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
-        [self.io.next_deadline(), self.file_driver.as_ref().and_then(skein_world::files::Driver::next_deadline)]
-            .into_iter()
-            .flatten()
-            .min()
+        [
+            self.io.next_deadline(),
+            self.file_driver.as_ref().and_then(skein_world::files::Driver::next_deadline),
+            self.sign_in.as_ref().and_then(crate::sign_in::next_deadline),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -750,12 +788,57 @@ impl Host for Client {
     }
 }
 
-/// The two actual processes of a component world.
+/// The owner and independent peers of a component world.
 pub enum Process {
     /// The owner-driven component with its own io loop.
     Client(Box<Client>),
     /// The independent scripted issuer, which stays live until the owner settles.
     Issuer(Box<peer::Peer>),
+    /// The browser receives the authorization redirect and callback page.
+    Browser(Box<crate::sign_in::Browser>),
+}
+
+impl Process {
+    /// Returns the client process, when present.
+    #[must_use]
+    pub fn client(&self) -> Option<&Client> {
+        match self {
+            Self::Client(host) => Some(host),
+            Self::Issuer(_) | Self::Browser(_) => None,
+        }
+    }
+    /// Returns the client process, when present.
+    #[must_use]
+    pub fn client_mut(&mut self) -> Option<&mut Client> {
+        match self {
+            Self::Client(host) => Some(host),
+            Self::Issuer(_) | Self::Browser(_) => None,
+        }
+    }
+    /// Returns the issuer process, when present.
+    #[must_use]
+    pub fn issuer(&self) -> Option<&peer::Peer> {
+        match self {
+            Self::Issuer(host) => Some(host),
+            Self::Client(_) | Self::Browser(_) => None,
+        }
+    }
+    /// Returns the issuer process, when present.
+    #[must_use]
+    pub fn issuer_mut(&mut self) -> Option<&mut peer::Peer> {
+        match self {
+            Self::Issuer(host) => Some(host),
+            Self::Client(_) | Self::Browser(_) => None,
+        }
+    }
+    /// Returns the browser process, when present.
+    #[must_use]
+    pub fn browser(&self) -> Option<&crate::sign_in::Browser> {
+        match self {
+            Self::Browser(host) => Some(host),
+            Self::Client(_) | Self::Issuer(_) => None,
+        }
+    }
 }
 
 impl Delegate for Process {
@@ -763,6 +846,7 @@ impl Delegate for Process {
         match self {
             Process::Client(host) => host.as_ref(),
             Process::Issuer(host) => host.as_ref(),
+            Process::Browser(host) => host.as_ref(),
         }
     }
 
@@ -770,6 +854,7 @@ impl Delegate for Process {
         match self {
             Process::Client(host) => host.as_mut(),
             Process::Issuer(host) => host.as_mut(),
+            Process::Browser(host) => host.as_mut(),
         }
     }
 }
@@ -786,10 +871,7 @@ impl Referee<Process> for Judge {
         if self.deadline.is_none() {
             self.deadline = Some(now.saturating_add(Duration::from_secs(120)));
         }
-        let address = processes.iter().find_map(|process| match process {
-            Process::Issuer(peer) => peer.address(),
-            Process::Client(_) => None,
-        });
+        let address = processes.iter().find_map(|process| process.issuer().and_then(peer::Peer::address));
         let settled = processes.iter().any(|process| matches!(process, Process::Client(client) if client.is_empty()));
         for process in processes {
             match process {
@@ -798,32 +880,20 @@ impl Referee<Process> for Judge {
                     peer.shutdown();
                     self.shutdown = true;
                 }
-                Process::Issuer(_) => {}
+                Process::Issuer(_) | Process::Browser(_) => {}
             }
         }
     }
     fn observe(&mut self, now: Time, processes: &[Process]) {
-        let client = processes
-            .iter()
-            .find_map(|process| match process {
-                Process::Client(client) => Some(client),
-                Process::Issuer(_) => None,
-            })
-            .expect("client");
+        let client = processes.iter().find_map(Process::client).expect("client");
         self.wake = ((client.component.is_none()
-            && processes.iter().any(|process| match process {
-                Process::Issuer(peer) => peer.address().is_some(),
-                Process::Client(_) => false,
-            }))
+            && processes.iter().any(|process| process.issuer().is_some_and(|peer| peer.address().is_some())))
             || (client.is_empty() && !self.shutdown))
             .then_some(now);
         let posts = processes
             .iter()
-            .filter_map(|process| match process {
-                Process::Issuer(peer) => Some(peer),
-                Process::Client(_) => None,
-            })
-            .flat_map(|peer| peer.observations())
+            .filter_map(Process::issuer)
+            .flat_map(peer::Peer::observations)
             .filter(|event| matches!(event, peer::Observation::Post { .. }))
             .count();
         assert!(posts <= if self.story == Story::Retry { 2 } else { 1 }, "bounded refresh attempts per generation");
@@ -1004,7 +1074,7 @@ pub fn assert_replay(first: &Outcome<Process>, second: &Outcome<Process>) {
             (Process::Issuer(first), Process::Issuer(second)) => {
                 assert!(first.observations() == second.observations(), "outside issuer facts replay");
             }
-            (Process::Client(_), Process::Issuer(_)) | (Process::Issuer(_), Process::Client(_)) => {
+            _ => {
                 panic!("process order replays")
             }
         }

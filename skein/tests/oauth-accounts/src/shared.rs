@@ -162,11 +162,5 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
 /// Reads content-free facts from the simulated owner.
 #[must_use]
 pub fn facts(processes: &[world::Process]) -> &[Fact] {
-    processes
-        .iter()
-        .find_map(|process| match process {
-            world::Process::Client(client) => Some(client.facts.as_slice()),
-            world::Process::Issuer(_) => None,
-        })
-        .expect("client")
+    processes.iter().find_map(|process| process.client().map(|client| client.facts.as_slice())).expect("client")
 }

@@ -284,10 +284,7 @@ impl Judge {
 }
 impl Referee<world::Process> for Judge {
     fn act(&mut self, _now: Time, processes: &mut [world::Process]) {
-        let address = processes.iter().find_map(|p| match p {
-            world::Process::Issuer(peer) => peer.address(),
-            world::Process::Client(_) => None,
-        });
+        let address = processes.iter().find_map(|p| p.issuer().and_then(skein_fake_peers::oauth::Peer::address));
         for process in processes.iter_mut() {
             if let world::Process::Client(client) = process {
                 if !self.delivered
@@ -310,14 +307,9 @@ impl Referee<world::Process> for Judge {
         }
     }
     fn observe(&mut self, now: Time, processes: &[world::Process]) {
-        let address_ready = processes.iter().any(|process| match process {
-            world::Process::Issuer(peer) => peer.address().is_some(),
-            world::Process::Client(_) => false,
-        });
-        let settled = processes.iter().any(|process| match process {
-            world::Process::Client(client) => client.is_empty(),
-            world::Process::Issuer(_) => false,
-        });
+        let address_ready =
+            processes.iter().any(|process| process.issuer().is_some_and(|peer| peer.address().is_some()));
+        let settled = processes.iter().any(|process| process.client().is_some_and(Host::is_empty));
         self.wake = ((!self.delivered && address_ready) || (settled && !self.shutdown)).then_some(now);
         self.passed = self.shutdown && processes.iter().all(Host::is_empty);
     }
@@ -373,10 +365,7 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
 pub fn facts(processes: &[world::Process]) -> &[Fact] {
     processes
         .iter()
-        .find_map(|process| match process {
-            world::Process::Client(client) => Some(client.accounts.as_ref().expect("story").facts.as_slice()),
-            world::Process::Issuer(_) => None,
-        })
+        .find_map(|process| process.client().map(|client| client.accounts.as_ref().expect("story").facts.as_slice()))
         .expect("client")
 }
 /// Reuses a removed name with its last keeper record in both worlds.
