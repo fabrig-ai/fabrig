@@ -130,12 +130,6 @@ pub(super) fn choice(
     b.open(Role::Slot);
     b.style(crate::look::FLOW_ACTIONS);
     flow::control(b, control);
-    if let Way::SignIn { .. } = way
-        && let Some(to) =
-            bindings.insert(Meaning::Model(Act::SignInElsewhere { name: root.pages().account_name(), way }))
-    {
-        flow::control(b, Control::Button { name: &say(w, W::Elsewhere), to });
-    }
     b.close();
     b.close();
 }
@@ -430,6 +424,20 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         flow::details(b, &ending_heading(root, w, way));
         ready_body(b, root, w, bindings, way, &ways);
         b.close();
+        return;
+    }
+    if request_for_way(page, way)
+        && let SignInState::Started { .. } | SignInState::Signing { .. } = page.request.sign_in_state(root.client())
+    {
+        super::sign_in_wait::waiting(
+            b,
+            root,
+            w,
+            bindings,
+            &page.request,
+            super::sign_in_wait::tab_refused(),
+            text_per_node,
+        );
         return;
     }
     match way {

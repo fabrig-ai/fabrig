@@ -1,5 +1,5 @@
 //! The welcome's Model shapes (temper/docs/design/client/README.md, 3.5).
-use super::{accounts, connect_model as model};
+use super::{accounts, connect_model as model, sign_in_wait};
 use crate::{
     accounts::{Bindings, Meaning},
     flow::{self, Control},
@@ -11,23 +11,15 @@ use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::{
     Address, Domain, Step,
     pages::{
-        accounts::{self as domain_accounts, SignInState, Way},
+        accounts::{self as domain_accounts, Way},
         connect_model::{Act, ProgramCheck},
         welcome::{self, ModelStep},
     },
 };
 
-fn said(w: &Words, root: &Domain, word: Word) -> Box<[u8]> {
+pub(super) fn said(w: &Words, root: &Domain, word: Word) -> Box<[u8]> {
     let Some(page) = root.pages().connect_model() else { return w.say(word, &[]) };
-    if [
-        Word::WelcomePasteTitle,
-        Word::WelcomePasteOpen,
-        Word::WelcomePasteCopy,
-        Word::WelcomeAwayTitle,
-        Word::WelcomeAwayBody,
-    ]
-    .contains(&word)
-    {
+    if [Word::WelcomePasteOpen, Word::WelcomeAwayTitle, Word::WelcomeAwayOwn].contains(&word) {
         w.say(word, &[Hole::Name(crate::choice::shown(accounts::paste_plan(root, &page.request), w))])
     } else {
         w.say(word, &[])
@@ -55,7 +47,7 @@ fn panel(b: &mut Builder) {
     b.open(Role::Slot);
     b.style(look::WELCOME_PANEL);
 }
-fn note(b: &mut Builder, root: &Domain, w: &Words, finishing: bool) {
+fn note(b: &mut Builder, root: &Domain, w: &Words) {
     b.open(Role::Slot);
     b.style(look::WELCOME_AWAY);
     if w.shell == Shell::Browser {
@@ -64,21 +56,13 @@ fn note(b: &mut Builder, root: &Domain, w: &Words, finishing: bool) {
         b.close();
     }
     b.open(Role::Slot);
-    let title = said(w, root, if finishing { Word::WelcomeFinishing } else { Word::WelcomeAwayTitle });
+    let title = said(w, root, Word::WelcomeFinishing);
     b.open(Role::Status);
     b.name(&title);
     b.open(Role::Text);
     b.run(Run::Strong, &title);
     b.close();
     b.close();
-    if !finishing {
-        b.open(Role::Paragraph);
-        b.style(look::FLOW_MUTED);
-        let body = said(w, root, Word::WelcomeAwayBody);
-        b.name(&body);
-        b.text(Run::Plain, &body);
-        b.close();
-    }
     b.close();
     b.close();
 }
@@ -154,62 +138,6 @@ fn key(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_
     w.text(b, Word::WelcomeKeyFacts, &[]);
     b.close();
     accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
-    b.close();
-}
-fn numbered(b: &mut Builder, root: &Domain, w: &Words) {
-    let Some(page) = root.pages().connect_model() else { return };
-    b.open(Role::List);
-    b.style(look::WELCOME_NUMBERED);
-    b.open(Role::Item);
-    b.open(Role::Paragraph);
-    if let Some(address) = page.request.sign_in_address(root.client())
-        && skein_ui::markdown::safe_url(address)
-    {
-        b.open(Role::Link);
-        b.external(address);
-        let label = said(w, root, Word::WelcomePasteOpen);
-        b.name(&label);
-        b.text(Run::Plain, &label);
-        b.close();
-    }
-    w.text(b, Word::WelcomePasteOpenRest, &[]);
-    b.close();
-    b.close();
-    for word in [Word::WelcomePasteCopy, Word::WelcomePasteHere] {
-        b.open(Role::Item);
-        text(b, root, w, Role::Paragraph, word);
-        b.close();
-    }
-    b.close();
-}
-fn paste(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, way: Way) {
-    let Some(page) = root.pages().connect_model() else { return };
-    text(b, root, w, Role::Heading { level: 1 }, Word::WelcomePasteTitle);
-    panel(b);
-    if let SignInState::Ended { source } = page.request.sign_in_state(root.client())
-        && let Some(doc) = domain_accounts::document(root.client())
-        && let Some(last) = &doc.last_end
-        && last.source == source
-    {
-        let Some(me) = domain_accounts::current_me(root.client()) else { return };
-        let ways = domain_accounts::ways(&me.providers, root.forge().playground_provider(), page.holder);
-        model::ready_body(b, root, w, bindings, way, &ways);
-    } else {
-        numbered(b, root, w);
-    }
-    let ended = accounts::paste_ending(b, root, w, bindings, &page.request);
-    if !ended {
-        b.open(Role::Form);
-        b.style(look::WELCOME_FIELD);
-        accounts::paste_field(b, root, w, bindings, &page.request, true);
-        b.close();
-    }
-    acts(b);
-    if !ended {
-        accounts::paste_finish(b, root, w, bindings, &page.request, true);
-    }
-    all_ways(b, w, bindings);
-    b.close();
     b.close();
 }
 fn sign_in(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, way: Way, text_per_node: u32) {
@@ -298,14 +226,12 @@ pub(super) fn step(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         }
         ModelStep::Away { .. } => {
             text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
-            note(b, root, w, false);
-            accounts::paste(b, root, w, bindings, &page.request, true);
+            sign_in_wait::waiting(b, root, w, bindings, &page.request, sign_in_wait::tab_refused(), text_per_node);
         }
         ModelStep::Finishing { .. } => {
             text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
-            note(b, root, w, true);
+            note(b, root, w);
         }
-        ModelStep::Paste { way } => paste(b, root, w, bindings, way),
         ModelStep::Key { .. } => key(b, root, w, bindings, text_per_node),
         ModelStep::SignIn { way } => sign_in(b, root, w, bindings, way, text_per_node),
         ModelStep::Program { way } => program(b, root, w, bindings, way, text_per_node),

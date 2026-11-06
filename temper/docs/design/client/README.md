@@ -1237,14 +1237,7 @@ keeps (`../protocol/configuration.md`, section 2).
       field "Key, pasted once", the panel's width; "Add key", disabled
       until typed; "All ways"; and "Nothing checks a key when it is added:
       a wrong one shows once OpenAI refuses a run."
-    - *Paste,* a sign-in `elsewhere`, "Signing in to ChatGPT from another
-      computer": a numbered list, "Open ChatGPT’s sign-in › and approve
-      temper.", its first words the sign-in's link, "When ChatGPT is done,
-      its tab shows a page that can’t be reached. Copy that page’s whole
-      address from the address bar." and "Paste it here."; the field
-      "Address of the page that couldn’t be reached", a secret's entry;
-      "Finish connecting", disabled until typed; "All ways". Its refusals
-      and endings keep their words (5.5, A sign-in), in the panel.
+    - *A held sign-in,* including `elsewhere`, takes *The sign-in under way*, below.
     - *Claude,* "Your Claude subscription": "temper sets Claude Code up on
       this machine in an environment of its own: its settings, sessions
       and sign-in stay apart from your own Claude Code. In a terminal

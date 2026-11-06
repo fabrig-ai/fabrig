@@ -1405,7 +1405,7 @@ from the engine's own answers, is where the look is tuned.
 | `welcome-model-signing-in` | the same note while signing in to ChatGPT inside the welcome |
 | `welcome-model-signin-ready` | the connected state after signing in to ChatGPT |
 | `welcome-model-declined`, `welcome-model-renewed`, `welcome-model-refused` | the other sign-in endings inside the welcome |
-| `welcome-paste-waiting`, `welcome-paste-written` | the elsewhere entry, with an empty or supplied secret address |
+| `welcome-paste-waiting`, `welcome-paste-written` | the waiting page’s folded paste, with an empty or supplied secret address |
 | `welcome-paste-too-long`, `welcome-paste-address`, `welcome-paste-state` | the length and address refusals, ready for a fresh paste |
 | `welcome-paste-sending`, `welcome-paste-finishing` | the finish request in flight, then accepted |
 | `welcome-paste-too-many`, `welcome-paste-ended`, `welcome-paste-expired` | the restart endings, with no paste field |
@@ -1446,7 +1446,7 @@ from the engine's own answers, is where the look is tuned.
 | `connect-model-choose` | the offered ways and the owner's holder choice |
 | `connect-model-key-details` | a key's secret field and Add key |
 | `connect-model-program-details` | a program's name, command and Declare |
-| `connect-model-signing-in` | a sign-in started, its address an external link |
+| `connect-model-signing-in` | the waiting note, "Open it again" and folded paste |
 | `connect-model-key-ready` | a key kept, Ready with Start a chat |
 | `connect-model-signin-ready` | a sign-in made an account, Ready |
 | `connect-model-declined` | plan usage declined, with another sign-in and a key way |
