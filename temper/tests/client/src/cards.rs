@@ -109,12 +109,15 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
 pub fn decision(ask: &jig_client::contract::Ask) -> Option<&jig_client::contract::Ask> {
     use jig_client::contract::{Ask, DecideOn, Decision, Operation};
     let sheet = match ask {
-        Ask::Cancel { .. }
-        | Ask::Stop { .. }
+        // Pause and Resume are immediate bar acts. Their status replaces a sheet's
+        // facts; the request observer still checks Resume's delivered hold revision.
+        Ask::Stop { .. }
         | Ask::Release { .. }
+        | Ask::Cancel { .. }
         | Ask::Decide { on: DecideOn::Proposal { decision: Decision::Rejected { .. }, .. }, .. } => true,
         Ask::Compound { operations, .. } => {
-            operations.iter().any(|operation| matches!(operation, Operation::Cancel { .. } | Operation::Release { .. }))
+            operations.iter().any(|operation| matches!(operation, Operation::Cancel { .. }))
+                || matches!(operations.as_slice(), [Operation::Message { .. }, Operation::Release { .. }])
         }
         _ => false,
     };

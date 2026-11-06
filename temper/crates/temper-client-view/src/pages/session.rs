@@ -86,10 +86,18 @@ pub(crate) fn foot(b: &mut Builder, name: &[u8]) {
     b.open(Role::Slot);
     b.style(look::SESSION_COMPOSER);
 }
-/// Closes the entry and follows it with the shared keyboard hint.
+/// Closes the entry and follows it with its hint; message effects also stay visible on phones.
 pub(crate) fn hint(b: &mut Builder, w: &Words, hint: Word) {
     b.close();
-    text(b, Role::Paragraph, &w.say(hint, &[]), Some(look::SESSION_HINT));
+    b.open(Role::Paragraph);
+    b.style(look::SESSION_HINT);
+    if hint == Word::ChatSendResumes {
+        b.style(look::HINT);
+    }
+    let words = w.say(hint, &[]);
+    b.name(&words);
+    b.text(Run::Plain, &words);
+    b.close();
 }
 
 fn text(b: &mut Builder, role: Role, words: &[u8], style: Option<skein_ui::Style>) {

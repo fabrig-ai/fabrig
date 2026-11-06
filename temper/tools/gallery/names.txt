@@ -44,6 +44,7 @@ chat-new
 chat-new-draft
 chat-new-first-run-1
 chat-new-no-repository
+chat-paused
 chat-reference-T1
 chat-rejecting
 chat-solo-T1
