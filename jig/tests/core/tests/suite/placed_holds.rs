@@ -2,6 +2,7 @@ use jig_core_world::fixtures::{ask_as, delegate, inbox_objects, live_row, member
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
+use jig_domain_link::{Form, Scheme};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -295,7 +296,7 @@ fn pending_release_proposals_and_placed_holds_survive_a_restart() {
     })));
     s.world.send(root::Event::Core(core::Event::Account(jig_domain_accounts::Event::Component(
         jig_domain_accounts::FromComponent::Granted {
-            form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 2,
             valid: skein_lib::Duration::from_secs(60),

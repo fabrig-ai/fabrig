@@ -6,6 +6,7 @@
     reason = "unit tests build fixtures and inspect selected child events"
 )]
 use crate::tests::*;
+use jig_domain_link::{Form, Scheme};
 const TASK: u64 = 1;
 const FIRST: Token = Token::new(7);
 const SECOND: Token = Token::new(11);
@@ -24,7 +25,7 @@ pub(in crate::tests) fn granted(core: &mut Core, limits: &Limits, source: u32) {
         core,
         limits,
         accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: source,
             generation: 1,
             valid: Duration::from_secs(60),

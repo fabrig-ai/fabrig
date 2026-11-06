@@ -2,6 +2,7 @@
 //! root outputs, and the component's answers reach the accounts child and the party's outcome
 //! (`domain/people.md`, 5.1; `domain/accounts.md`, 3.3 and section 5).
 use crate::tests::*;
+use jig_domain_link::{Form, Scheme};
 
 const PARTY: accounts::Holder = accounts::Holder::Party(1);
 const SIGN_IN: u64 = 9;
@@ -186,7 +187,7 @@ fn a_value_is_in_no_committed_row() {
             account: source,
             generation: 1,
             valid: accounts::KEY_VALID,
-            form: accounts::Form::Credential(accounts::Scheme::Key),
+            form: Form::Credential(Scheme::Key),
         })),
     );
     let mut saved = 0_u32;

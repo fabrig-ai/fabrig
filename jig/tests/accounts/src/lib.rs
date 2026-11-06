@@ -4,6 +4,7 @@ use jig_domain_accounts::{
     self as accounts, Answer, Domain, Ended, Event, Fact, Holder, Key, Kind, Limits, Offers, Provider, Providers,
     Refusal, Request, Stored, ToComponent,
 };
+use jig_domain_link::Worker;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use std::collections::BTreeMap;
 pub const ANALYST: u32 = 7;
@@ -162,7 +163,7 @@ fn drain(out: &mut Queue<Request>) -> Vec<Request> {
 
 /// A configured position for account lifecycle inputs; no channel observation is invented.
 #[must_use]
-pub fn worker(number: u32) -> accounts::Worker {
+pub fn worker(number: u32) -> Worker {
     let count = accounts::programs::PROGRAM_HOSTS;
     let names = (0..count).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
     let membership = jig_domain_link::Membership::new(names, count, 32).expect("fixture membership");

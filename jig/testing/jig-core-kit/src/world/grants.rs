@@ -1,5 +1,6 @@
 //! The scripted host hears grants in journal release order.
 use super::{World, accounts, core, fleet, root, tasks};
+use jig_domain_link::Form;
 use skein_lib::{Duration, Token};
 
 impl World {
@@ -16,7 +17,7 @@ impl World {
     }
 
     /// Let the component renew when placement submits its still-held assignment.
-    pub fn renew_on_assignment(&mut self, account: u32, generation: u64, form: accounts::Form) {
+    pub fn renew_on_assignment(&mut self, account: u32, generation: u64, form: Form) {
         self.renew_on_running =
             Some(accounts::FromComponent::Granted { form, account, generation, valid: Duration::from_secs(60) });
         self.store_delay = 5;
@@ -46,7 +47,7 @@ impl World {
 
 impl World {
     /// Announce the source's form before placement starts its run.
-    pub fn announce_grant(&mut self, account: u32, generation: u64, form: accounts::Form) {
+    pub fn announce_grant(&mut self, account: u32, generation: u64, form: Form) {
         self.account_generations.insert(account, generation);
         self.send(root::Event::Core(core::Event::Account(accounts::Event::Component(
             accounts::FromComponent::Granted { account, generation, valid: Duration::from_secs(60), form },

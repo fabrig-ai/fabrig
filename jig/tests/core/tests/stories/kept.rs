@@ -2,6 +2,7 @@
 //! tasks.md, section 5.7). Assertions observe durable rows and party deliveries.
 use super::*;
 use jig_core_world::world::Setup;
+use jig_domain_link::{Form, Scheme};
 use jig_test_profile::fixtures::unchanged;
 
 fn amend_dependency(world: &mut World, parent: (u64, u64), target: u64, dependency: u64) {
@@ -169,7 +170,7 @@ fn a_kept_delegate_restarts_then_wakes_and_finishes_after_its_dependency_is_done
     })));
     world.send(root::Event::Core(core::Event::Account(jig_domain_accounts::Event::Component(
         jig_domain_accounts::FromComponent::Granted {
-            form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: skein_lib::Duration::from_secs(60),

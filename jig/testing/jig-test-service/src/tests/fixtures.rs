@@ -366,8 +366,8 @@ pub fn workers(config: &jig_protocol_config::Engine) -> crate::workers::Workers 
     crate::workers::Workers::new(config, &files(&[]), seeds().deployment, &limits).expect("fixture workers")
 }
 pub fn assignment(config: &jig_protocol_config::Engine) -> jig_test_domain::Assignment {
-    use jig_domain_accounts::{Form, Grant, Scheme};
     use jig_domain_brief::{Core, GatherPlaced};
+    use jig_domain_link::{Form, Grant, Scheme};
     use skein_lib::Duration;
     jig_test_domain::Assignment {
         live: core::LiveAsk::NONE,

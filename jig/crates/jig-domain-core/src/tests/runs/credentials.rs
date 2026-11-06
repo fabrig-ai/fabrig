@@ -1,4 +1,5 @@
 use crate::tests::*;
+use jig_domain_link::{Form, Scheme};
 
 #[test]
 fn a_run_waits_while_a_credential_it_needs_is_unusable() {
@@ -36,7 +37,7 @@ fn a_run_waits_while_a_credential_it_needs_is_unusable() {
         &mut core.accounts,
         &env,
         accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(60),

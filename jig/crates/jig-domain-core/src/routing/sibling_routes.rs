@@ -14,7 +14,7 @@ use crate::{
     CallKey, Core, Family, GoalRoute, Limits, PersonProposalRoute, RoutedCall, fresh, routing::flight::Flight,
 };
 
-pub(crate) fn fleet_grant(grant: accounts::Grant) -> fleet::Grant {
+pub(crate) fn fleet_grant(grant: jig_domain_link::Grant) -> fleet::Grant {
     fleet::Grant {
         form: fleet_form(grant.form),
         account: grant.account,
@@ -566,13 +566,13 @@ impl Core {
     }
 }
 
-fn fleet_form(form: accounts::Form) -> fleet::Form {
+fn fleet_form(form: jig_domain_link::Form) -> fleet::Form {
     match form {
-        accounts::Form::Credential(scheme) => fleet::Form::Credential(match scheme {
-            accounts::Scheme::Bearer => fleet::Scheme::Bearer,
-            accounts::Scheme::Key => fleet::Scheme::Key,
+        jig_domain_link::Form::Credential(scheme) => fleet::Form::Credential(match scheme {
+            jig_domain_link::Scheme::Bearer => fleet::Scheme::Bearer,
+            jig_domain_link::Scheme::Key => fleet::Scheme::Key,
         }),
-        accounts::Form::Application => fleet::Form::Application,
-        accounts::Form::Program(name) => fleet::Form::Program(name),
+        jig_domain_link::Form::Application => fleet::Form::Application,
+        jig_domain_link::Form::Program(name) => fleet::Form::Program(name),
     }
 }
