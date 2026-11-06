@@ -8,7 +8,7 @@ use jig_store_world::root;
 use jig_test_patches_jig::{frames, patches as jig};
 use jig_test_patches_smith::patches as smith;
 use skein_io::{file, kernel::Fd};
-use skein_lib::{Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token, Wall, length::len_u64};
 
 const OWNER: Token = Token::new(9);
 const COMMITTED: u64 = 1024;
@@ -184,7 +184,7 @@ pub(crate) fn decode(
         }
         let event = match below.transcripts.pop().expect("read or stop") {
             file::Request::OpenRead { owner, .. } => {
-                file::Event::Opened { owner, file: Token::new(2), len: u64::try_from(raw.len()).expect("raw") }
+                file::Event::Opened { owner, file: Token::new(2), len: len_u64(raw.len()) }
             }
             file::Request::ReadAt { owner, offset, max, .. } => {
                 let start = usize::try_from(offset).expect("offset");

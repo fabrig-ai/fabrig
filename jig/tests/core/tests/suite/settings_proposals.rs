@@ -11,6 +11,7 @@ use jig_domain_core::{self as core, documents, reads, settings};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
+use skein_lib::length::len_u64;
 use std::fmt::Write as _;
 use support::*;
 
@@ -557,6 +558,7 @@ fn the_pending_settings_bound_admits_two_and_names_the_thirds_refusal() {
 }
 #[test]
 fn entrance_refusals_keep_nothing_and_only_deployment_owners_accept() {
+    use settings::{Fault, Setting};
     let mut world = start(64);
     let owner = sign_in(&mut world);
     let (project_owner, signed) = party(&mut world, b"project owner", Some((1, people::Role::Owner)));
@@ -577,7 +579,7 @@ fn entrance_refusals_keep_nothing_and_only_deployment_owners_accept() {
             Box::new([settings::Item { setting: settings::Setting::Rules, edit: settings::Edit::Removed }]),
             people::Refusal::NotWellFormed {
                 at: 0,
-                why: people::Malformed::Settings { setting: settings::Setting::Rules, fault: settings::Fault::Shape },
+                why: people::Malformed::Settings { setting: Setting::Rules, fault: Fault::Shape, detail: None },
             },
         ),
     ];
@@ -912,7 +914,10 @@ fn run_propose(world: &mut World, against: u32, items: Box<[settings::Item]>) ->
     run_propose_reason(world, against, items, "Please review these settings")
 }
 fn run_propose_reason(world: &mut World, against: u32, items: Box<[settings::Item]>, reason: &str) -> core::CallPart {
-    let (config, limits) = run_configuration();
+    let (config, mut limits) = run_configuration();
+    // The fake transport carries names up to its schema ceiling; admission is the core's.
+    limits.core.authority.segments = jig_protocol_store::settings_v1::CEILINGS.document_name;
+    limits.core.authority.segment_bytes = jig_protocol_store::settings_v1::CEILINGS.segment_bytes;
     let models = settings::model_names(&config.core.settings.models);
     let bytes = jig_protocol_store::codec::settings::encode(
         &settings::Record::Proposal {
@@ -1014,7 +1019,7 @@ fn run_charter_review(world: &mut World, signed: u64, task: u64, proposal: u64, 
         panic!("settings review")
     };
     let settings::Value::Charter(charter) = expected else { panic!("proposed charter") };
-    assert!(u64::try_from(charter.policy.instructions.len()).expect("instructions size") > review.value_bytes);
+    assert!(len_u64(charter.policy.instructions.len()) > review.value_bytes);
     let item = review.items.get(0).expect("reviewed charter");
     assert_eq!(item.setting, settings::Setting::Charter(charter.number));
     assert_eq!(item.would_be.as_ref(), Some(expected));
@@ -1647,4 +1652,120 @@ fn a_crash_after_the_releases_commit_leaves_the_withdrawal_done() {
     world.turn(1, 0, Some(outcome.number), b"The proposal was withdrawn");
     world.park_for_message(0);
     world.close();
+}
+
+// One document admitted, two carried by the proposal codec's Small profile.
+const DOCUMENT_LIMIT: u32 = 1;
+fn document_run() -> (World, u64, u64) {
+    document_run_with_limit(DOCUMENT_LIMIT)
+}
+fn document_run_with_limit(bound: u32) -> (World, u64, u64) {
+    let mut limits = run_configuration().1;
+    limits.core.tasks.charter_documents = bound;
+    let (mut world, signed, task) = settings_run_with_limits(true, None, limits);
+    // The fake wire accepts Small's bounds independently of the core's admission bounds.
+    let (config, mut wire) = run_configuration();
+    wire.core.authority.segments = jig_protocol_store::settings_v1::CEILINGS.document_name;
+    wire.core.authority.segment_bytes = jig_protocol_store::settings_v1::CEILINGS.segment_bytes;
+    world.settings_input_limits(wire.core, &config.core.settings.models);
+    (world, signed, task)
+}
+fn document_item(world: &World, count: usize) -> settings::Item {
+    let mut item = run_charter(world, b"Read the rules");
+    let settings::Edit::Set(settings::Value::Charter(charter)) = &mut item.edit else { panic!("charter") };
+    charter.documents = vec![charter_rule_document(); count].into_boxed_slice();
+    item
+}
+#[test]
+fn run_proposal_document_refusal_names_member_and_bound() {
+    let (mut world, _, task) = document_run();
+    let before = settings_rows(&world);
+    let item = document_item(&world, 2);
+    let answer = run_propose(&mut world, 1, Box::new([item]));
+    assert_eq!(
+        answer,
+        document_refusal(people::SettingDetail {
+            member: people::SettingMember::Documents,
+            document: 0,
+            segment: 0,
+            rule: people::SettingRule::Maximum,
+            supplied: 2,
+            bound: DOCUMENT_LIMIT,
+        })
+    );
+    assert_eq!(settings_rows(&world), before);
+    assert!(fixtures::live_row(&world, task).proposal.is_none());
+    world.broken();
+}
+
+fn document_refusal(detail: people::SettingDetail) -> core::CallPart {
+    core::CallPart::SettingsRefused(people::Refusal::NotWellFormed {
+        at: 0,
+        why: people::Malformed::Settings {
+            setting: settings::Setting::Charter(1),
+            fault: settings::Fault::Shape,
+            detail: Some(detail),
+        },
+    })
+}
+#[test]
+fn run_proposal_documents_at_the_bound_are_admitted() {
+    let (mut world, _, task) = document_run();
+    let item = document_item(&world, usize::try_from(DOCUMENT_LIMIT).unwrap());
+    let proposal = run_proposed(&run_propose(&mut world, 1, Box::new([item])));
+    assert_eq!(fixtures::live_row(&world, task).proposal.as_ref().expect("pending proposal").number, proposal);
+    world.broken();
+}
+#[test]
+fn run_proposal_document_members_keep_the_failed_rule() {
+    use people::{SettingDetail as D, SettingMember as M, SettingRule as R};
+    let (_, bounds) = run_configuration();
+    let document = charter_rule_document();
+    let mut path = document.clone();
+    path.path = Box::default();
+    let mut heading = document.clone();
+    heading.heading = Some(Box::default());
+    let mut names = document.clone();
+    names.name.segments =
+        vec![b"rules".as_slice().into(); usize::try_from(bounds.core.authority.segments + 1).unwrap()].into();
+    let mut segment = document.clone();
+    segment.name.segments =
+        Box::new([vec![b'n'; usize::try_from(bounds.core.authority.segment_bytes + 1).unwrap()].into()]);
+    let mut connector = document;
+    connector.connector = u16::MAX;
+    for (document, member, rule, supplied, bound) in [
+        (path, M::Path, R::Minimum, 0, 1),
+        (heading, M::Heading, R::Minimum, 0, 1),
+        (names, M::NameSegments, R::Maximum, bounds.core.authority.segments + 1, bounds.core.authority.segments),
+        (
+            segment,
+            M::NameSegmentBytes,
+            R::Maximum,
+            bounds.core.authority.segment_bytes + 1,
+            bounds.core.authority.segment_bytes,
+        ),
+        (connector, M::Connector, R::Registered, u32::from(u16::MAX), 0),
+    ] {
+        let (mut world, _, task) = document_run_with_limit(2);
+        let before = settings_rows(&world);
+        let mut item = document_item(&world, 1);
+        let settings::Edit::Set(settings::Value::Charter(charter)) = &mut item.edit else { panic!("charter") };
+        charter.documents = Box::new([charter_rule_document(), document]);
+        assert_eq!(
+            run_propose(&mut world, 1, Box::new([item])),
+            document_refusal(D { member, document: 1, segment: 0, rule, supplied, bound })
+        );
+        assert_eq!(settings_rows(&world), before);
+        assert!(fixtures::live_row(&world, task).proposal.is_none());
+        world.broken();
+    }
+}
+
+fn charter_rule_document() -> core::Document {
+    core::Document {
+        connector: 1,
+        name: jig_domain_authority::Name { segments: Box::new([b"rules".as_slice().into()]) },
+        path: b"RULES.md".as_slice().into(),
+        heading: None,
+    }
 }

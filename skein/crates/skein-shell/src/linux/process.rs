@@ -14,6 +14,8 @@
     reason = "OwnedFd closes temporary spawn descriptors on failure; Command is consumed only by child-side exec"
 )]
 
+use crate::posix::process::{action, cpu, cstring};
+pub(crate) use crate::posix::process::{block_sigpipe, map_error, signal_number};
 use std::ffi::CString;
 use std::mem::MaybeUninit;
 use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd};
@@ -43,14 +45,6 @@ fn fd(raw: i32) -> Result<OwnedFd, i32> {
     }
 }
 
-fn cstring(bytes: &[u8]) -> Result<CString, i32> {
-    CString::new(bytes).map_err(|_| libc::EINVAL)
-}
-
-fn action(rc: i32) -> Result<(), i32> {
-    if rc == 0 { Ok(()) } else { Err(rc) }
-}
-
 pub(crate) fn exec_dying_with_parent(
     mut command: std::process::Command,
     parent: u32,
@@ -69,20 +63,6 @@ pub(crate) fn exec_dying_with_parent(
         return std::io::Error::new(std::io::ErrorKind::NotFound, "parent changed before exec");
     }
     command.exec()
-}
-
-/// A pipe write after the child closes its read end returns EPIPE instead of
-/// terminating the service with SIGPIPE. The kernel is tied to this thread.
-pub(crate) fn block_sigpipe() -> Result<(), i32> {
-    // SAFETY: sigset_t is a C signal set that sigemptyset initializes.
-    let mut set: libc::sigset_t = unsafe { std::mem::zeroed() };
-    // SAFETY: `set` is a valid writable signal set for both calls.
-    action(unsafe { libc::sigemptyset(ptr::from_mut(&mut set)) })?;
-    // SAFETY: `set` remains live and writable.
-    action(unsafe { libc::sigaddset(ptr::from_mut(&mut set), libc::SIGPIPE) })?;
-    // SAFETY: only this kernel thread's mask is changed; a child gets a
-    // cleared mask through its spawn attributes below.
-    action(unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, ptr::from_ref(&set), ptr::null_mut()) })
 }
 
 /// Blocks SIGINT and SIGTERM on the service thread and opens the signalfd
@@ -357,21 +337,6 @@ pub(crate) fn signal_child(pidfd: Fd, signal: Signal, to: Target) -> Result<Done
     if sent == 0 { Ok(Done::Nothing) } else { Err(map_error(super::last_errno())) }
 }
 
-pub(super) fn map_error(errno: i32) -> Error {
-    match errno {
-        libc::ENOENT => Error::NotFound,
-        libc::EACCES | libc::EPERM => Error::Permission,
-        libc::ENOTDIR => Error::NotADirectory,
-        libc::ELOOP => Error::TooManyLinks,
-        libc::ENAMETOOLONG => Error::NameTooLong,
-        libc::EXDEV => Error::Escape,
-        libc::EMFILE | libc::ENFILE => Error::TooManyOpenFiles,
-        libc::ENOMEM | libc::ENOBUFS => Error::NoBufferSpace,
-        libc::EINVAL => Error::InvalidArgument,
-        other => Error::Other(other),
-    }
-}
-
 /// Descriptors made for a service hosted by a real-world harness.
 #[derive(Debug)]
 pub struct HostedPipes {
@@ -541,16 +506,6 @@ fn resources(who: i32) -> Result<Resources, Error> {
     })
 }
 
-fn cpu(value: libc::timeval) -> Result<skein_lib::Duration, Error> {
-    let seconds = u64::try_from(value.tv_sec).map_err(|_| Error::Other(libc::EOVERFLOW))?;
-    let micros = u64::try_from(value.tv_usec).map_err(|_| Error::Other(libc::EOVERFLOW))?;
-    let nanos = seconds
-        .checked_mul(1_000_000_000)
-        .and_then(|base| micros.checked_mul(1000).and_then(|tail| base.checked_add(tail)))
-        .ok_or(Error::Other(libc::EOVERFLOW))?;
-    Ok(skein_lib::Duration::from_nanos(nanos))
-}
-
 /// Makes orphaned descendants children of the end-to-end observer (examples.md, section 6).
 pub(crate) fn make_subreaper() -> Result<(), Error> {
     set_subreaper(true)
@@ -676,16 +631,6 @@ pub(crate) fn wait_cgroup_change(descriptor: Fd, millis: u32) -> Result<(), Erro
         libc::poll(ptr::from_mut(&mut watched), 1, i32::try_from(millis).map_err(|_| Error::InvalidArgument)?)
     };
     if result < 0 { Err(Error::Other(super::last_errno())) } else { Ok(()) }
-}
-
-pub(super) fn signal_number(signal: Signal) -> i32 {
-    match signal {
-        Signal::Interrupt => libc::SIGINT,
-        Signal::Terminate => libc::SIGTERM,
-        Signal::Kill => libc::SIGKILL,
-        Signal::Stop => libc::SIGSTOP,
-        Signal::Continue => libc::SIGCONT,
-    }
 }
 
 pub(crate) fn forget(_handle: Fd) {}

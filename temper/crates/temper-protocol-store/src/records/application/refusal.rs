@@ -786,7 +786,7 @@ mod settings_boundary_tests {
             p::Refusal::Full { revision: 1, tasks: Box::new([]), more: 0 },
             p::Refusal::NotWellFormed {
                 at: 0,
-                why: p::Malformed::Settings { setting: p::Setting::Rules, fault: p::SettingFault::Shape },
+                why: p::Malformed::Settings { setting: p::Setting::Rules, fault: p::SettingFault::Shape, detail: None },
             },
             p::Refusal::NotWellFormed { at: 0, why: p::Malformed::SettingsUnchanged },
         ] {

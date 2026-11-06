@@ -4,7 +4,7 @@ use crate::{Cursor, Restore, Row, Store, codec, intervals, keys, pages};
 use alloc::boxed::Box;
 use jig_domain_core::{Key, Record, RestoreRange};
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Queue, Token};
+use skein_lib::{List, Queue, Token, length::len_u64};
 
 #[derive(Debug)]
 pub struct Loaded {
@@ -87,10 +87,8 @@ fn ranges(store: &Store, range: Restore) -> Result<Box<[skein_kv::Range]>, Failu
 
 pub(crate) fn decode_row(store: &Store, row: skein_kv::Row, source: &RowSite) -> Result<(Row, u64), Failure> {
     if let Some(key) = keys::of_application(&row.key) {
-        let key_bytes = u64::try_from(key.len()).ok();
-        let value_bytes = u64::try_from(row.value.len()).ok();
-        let key_bytes = key_bytes.ok_or(Failure::at(Cause::Arithmetic(Arithmetic::RowBytes), source.clone()))?;
-        let value_bytes = value_bytes.ok_or(Failure::at(Cause::Arithmetic(Arithmetic::RowBytes), source.clone()))?;
+        let key_bytes = len_u64(key.len());
+        let value_bytes = len_u64(row.value.len());
         let size = key_bytes
             .checked_add(value_bytes)
             .ok_or(Failure::at(Cause::Arithmetic(Arithmetic::RowBytes), source.clone()))?;
@@ -102,9 +100,7 @@ pub(crate) fn decode_row(store: &Store, row: skein_kv::Row, source: &RowSite) ->
         Ok(record) => record,
         Err(failure) => return Err(Failure::at(Cause::Decode(failure), source.clone())),
     };
-    let size = u64::try_from(row.value.len())
-        .ok()
-        .ok_or(Failure::at(Cause::Arithmetic(Arithmetic::RowBytes), source.clone()))?;
+    let size = len_u64(row.value.len());
     Ok((Row::Jig(record), size))
 }
 
@@ -173,9 +169,7 @@ pub(crate) fn ended(store: &mut Store, key: &Key, source: &RowSite) -> Result<Op
             return Err(Failure::at(Cause::Join { target, failure: JoinFailure::Decode(failure) }, source.clone()));
         }
     };
-    let size = u64::try_from(value.len())
-        .ok()
-        .ok_or(Failure::at(Cause::Arithmetic(Arithmetic::JoinedBytes), source.clone()))?;
+    let size = len_u64(value.len());
     Ok(Some((record, size)))
 }
 

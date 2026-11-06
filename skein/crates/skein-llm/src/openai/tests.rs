@@ -587,7 +587,14 @@ fn server_refuses_request_limit_even_when_document_limit_is_larger() {
 
 #[test]
 fn fake_completion_echo_exercises_large_event_without_keeping_request() {
-    let bytes = crate::openai::encode_completion(Stop::EndTurn, Usage::NONE, &request(), &LIMITS).unwrap();
+    // The client decoder deliberately ignores the request echo.
+    let bytes = crate::openai::encode_peer_event(
+        &Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE },
+        Some(&request()),
+        crate::openai::Echo::REQUEST,
+        &LIMITS,
+    )
+    .unwrap();
     assert!(bytes::find(&bytes, b"instructions").is_some());
     assert!(bytes::find(&bytes, b"parameters").is_some());
     assert_eq!(

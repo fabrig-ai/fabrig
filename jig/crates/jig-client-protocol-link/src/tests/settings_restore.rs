@@ -45,6 +45,7 @@ fn a_project_policy_setting_round_trips_in_items_reviews_and_refusals() {
                         w::MalformedSettingsParts {
                             setting: t::wire_setting(&setting, limits.wire()).unwrap(),
                             fault: w::SettingFault::Shape,
+                            detail: None,
                         },
                     )
                     .unwrap(),
@@ -57,7 +58,7 @@ fn a_project_policy_setting_round_trips_in_items_reviews_and_refusals() {
         answers::refusal(&refusal, &limits).unwrap(),
         c::Refusal::Malformed {
             at: 2,
-            why: c::Malformed::Settings(c::MalformedSettings { setting, fault: c::SettingFault::Shape })
+            why: c::Malformed::Settings(c::MalformedSettings { setting, fault: c::SettingFault::Shape, detail: None })
         }
     );
 }

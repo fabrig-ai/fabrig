@@ -139,9 +139,7 @@ pub(crate) fn edit_reach(
     if installed.account != row.owner_id {
         return Outcome::Reply(answers::missing(&service.limits));
     }
-    let Some(path) = reads::full(row) else {
-        return Outcome::Reply(answers::failed());
-    };
+    let path = reads::full(row);
     Outcome::Call(
         Pending { rate: None, kind: PendingKind::EditReach { installation, repository, add } },
         fake::Event::Call { reply_to, user, repository: path, op: Op::Read(Read::Permission { user }) },

@@ -175,7 +175,7 @@ fn decision(number: u64) -> people::Ask {
 fn malformed(setting: s::Setting, fault: s::Fault) -> people::Outcome {
     people::Outcome::Refused(people::Refusal::NotWellFormed {
         at: 0,
-        why: people::Malformed::Settings { setting, fault },
+        why: people::Malformed::Settings { setting, fault, detail: None },
     })
 }
 fn writes(requests: &[Request]) -> u32 {
@@ -571,7 +571,7 @@ fn distinct_projects_still_allow_only_one_policy_item() {
     second.setting = s::Setting::ProjectPolicy { project: PROJECT + 1 };
     assert_eq!(
         s::change_shape(&[first, second.clone()], &limits),
-        Err(s::Failure { setting: second.setting, fault: s::Fault::Shape })
+        Err(s::Failure { setting: second.setting, fault: s::Fault::Shape, detail: None })
     );
 }
 

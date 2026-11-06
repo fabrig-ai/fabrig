@@ -55,6 +55,7 @@ pub(super) fn language() -> Language {
 }
 
 impl Word {
+    #[expect(clippy::too_many_lines, reason = "the closed enum vocabulary shares one phrase table")]
     pub(super) const fn data(self) -> (u16, &'static [u8], &'static [HoleKind]) {
         match self {
             Self::Decision(value) => value.data(),
@@ -144,6 +145,9 @@ impl Word {
             Self::Waiting(WaitingWord::News) => (46, b"Waiting for news", &[]),
             Self::Waiting(WaitingWord::Nothing) => (47, b"Nothing awaited", &[]),
             Self::Status(StatusWord::HostRefused) => (96, b"Cannot start yet", &[]),
+            Self::Status(StatusWord::WaitingForAccount) => (124, b"Waiting for an account", &[]),
+            Self::Status(StatusWord::WaitingForCredential) => (125, b"Waiting for a credential", &[]),
+            Self::Status(StatusWord::WaitingForHost) => (126, b"Waiting for a host", &[]),
             Self::Status(StatusWord::Starting) => (48, b"Starting", &[]),
             Self::Status(StatusWord::Writing) => (49, b"Writing", &[]),
             Self::Status(StatusWord::Tool) => (50, b"Using tool ", &[HoleKind::Name]),

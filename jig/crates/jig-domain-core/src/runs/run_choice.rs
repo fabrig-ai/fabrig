@@ -28,6 +28,8 @@ pub struct RunAllowance {
 impl Core {
     /// Probing retains no state or grants. At most accounts × (hosts + 1) probes build
     /// at most one fact per source, joining each host's kept logins to issued holders.
+    /// Default readiness also joins at most models × accounts × hosts, without reserving slots.
+    #[expect(clippy::too_many_lines, reason = "one joint check preserves account, source and host order and its wait")]
     #[must_use = "retain the checked choice or its waiting reason"]
     pub fn run_choice(&self, task: u64) -> Result<RunChoice, RunWait> {
         let row = self.tasks.task(task).ok_or(RunWait::Host)?;
@@ -64,6 +66,7 @@ impl Core {
         );
         let mut waiting = None;
         let mut host_wait = false;
+        let mut login_wait = None;
         let kinds = self.charter_of(task).hosts;
         let main = crate::settings::fleet_needs::model(&policy.model);
         let models = core::slice::from_ref(&main);
@@ -88,7 +91,11 @@ impl Core {
                 );
                 let source = match selection {
                     accounts::Selection::Chosen { source, .. } => source,
-                    accounts::Selection::Wait { why: accounts::WaitWhy::Host, .. } => {
+                    accounts::Selection::Wait { account, source, why: accounts::WaitWhy::Host } => {
+                        if login_wait.is_none() {
+                            login_wait =
+                                Some(RunWait::Account { account: Some(account), source, why: accounts::WaitWhy::Host });
+                        }
                         host_wait = true;
                         tried.push(placement.channel).expect("one rejected channel per host");
                         continue;
@@ -123,7 +130,17 @@ impl Core {
                 tried.push(placement.channel).expect("one rejected channel per host");
             }
         }
-        if host_wait { Err(RunWait::Host) } else { Err(waiting.unwrap_or(account_wait(None))) }
+        if host_wait {
+            if let Some(wait) = login_wait
+                && self.model_readiness(payer, coverage.as_slice(), &policy.model).0
+                    != crate::documents::Readiness::Usable
+            {
+                return Err(wait);
+            }
+            Err(RunWait::Host)
+        } else {
+            Err(waiting.unwrap_or(account_wait(None)))
+        }
     }
 
     /// Retain alternatives with compatible grants and check their host support.

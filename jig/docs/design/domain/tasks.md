@@ -158,15 +158,17 @@ it is live:
 
   Its creator gives it, or a template does
   (`../protocol/configuration.md`, 3.1), each model within the task's
-  authority (authority.md, section 3). A task given none takes its
-  charter's default as its batch is checked: the first of the charter's
-  models, in its order, whose LLM provider has an account usable now and
-  serving its payer, or the charter's first when none has, its run then
-  waiting for an account (accounts.md, 4.3); each model the default
-  names takes the first effort it declares, or none where it declares
-  none, which leaves its LLM provider's default.
-  The task keeps the choice it was given, and only an amendment changes
-  it (section 7).
+  authority (authority.md, section 3). A task given none keeps none: each
+  of its runs' checks takes its models from its charter, within its
+  authority, the first it can use its main and the others its sub-agents'
+  (accounts.md, 4.3); each takes the effort its charter selects, or else
+  the first it declares, or none where it declares none, which leaves its
+  LLM provider's default. Its document shows what its next run would take
+  (`../client/domain/contract.md`, 5.1). A batch or an amendment that
+  leaves such a task with an authority allowing none of its charter's
+  models is refused, naming the charter's first.
+  A task keeps the choice it was given, and only an amendment changes it
+  (section 7).
   Configuration templates choose models and efforts; they never name an
   account. Runtime requests supply the optional account preference.
 - **Its account:** the LLM account its runs use for its main model's LLM

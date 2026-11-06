@@ -8,7 +8,7 @@ use jig_store_world::{World, patches, root};
 use jig_test_patches_jig::frames;
 use jig_test_patches_smith::patches as smith;
 use skein_codec::patch::Halt;
-use skein_lib::Token;
+use skein_lib::{Token, length::len_u64};
 
 const READER: Token = Token::new(712);
 const OTHER: Token = Token::new(713);
@@ -134,7 +134,7 @@ fn empty_sets_keep_the_opaque_turn_path() {
 #[test]
 fn patched_frames_past_bounds_match_current_boundaries() {
     let expected = frame_reads::turn(2, b"said", &[], 19);
-    let charge = u64::try_from(frames::frame(6, &expected).len()).expect("frame charge");
+    let charge = len_u64(frames::frame(6, &expected).len());
     let behind_transcript = frame_reads::turn(1, b"said", b"x", 0);
     let mut behind = fixture(frame_reads::SETS, &behind_transcript);
     let mut current = fixture(frame_reads::SETS, &expected);
@@ -411,7 +411,7 @@ fn a_stray_site_stops_patching_idle_and_waiting_reads() {
 fn several_frames_suspend_at_their_own_offsets_in_both_directions() {
     const COUNT: u32 = 3;
     let transcript = frame_reads::turn(1, b"said", b"replay", 0);
-    let stride = u64::try_from(frames::frame(6, &transcript).len()).expect("fixture frame");
+    let stride = len_u64(frames::frame(6, &transcript).len());
     let mut world = fixture(frame_reads::SETS, &transcript);
     for turn in 2..=COUNT {
         assert_eq!(
@@ -571,7 +571,7 @@ fn party_read(bytes: u64) -> Request {
 #[test]
 fn party_turn_too_large_names_the_patched_charge() {
     let expected = frame_reads::turn(2, b"said", &[], 19);
-    let charge = u64::try_from(frames::frame(6, &expected).len()).expect("frame charge");
+    let charge = len_u64(frames::frame(6, &expected).len());
     // This admitted request has no room for the turn after its owner's join.
     let bound = u64::from(patches::limits().store.page.bytes);
     for transcript in [frame_reads::turn(1, b"said", b"x", 0), expected] {
@@ -587,7 +587,7 @@ fn party_turn_too_large_names_the_patched_charge() {
 #[test]
 fn old_and_current_frames_fit_exactly_the_patched_charge() {
     let expected = frame_reads::turn(2, b"said", &[], 19);
-    let charge = u64::try_from(frames::frame(6, &expected).len()).expect("frame charge");
+    let charge = len_u64(frames::frame(6, &expected).len());
     for transcript in [frame_reads::turn(1, b"said", b"x", 0), expected.clone()] {
         let mut world = fixture(frame_reads::SETS, &transcript);
         let before = world.contents();

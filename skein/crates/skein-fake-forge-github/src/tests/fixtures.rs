@@ -13,6 +13,7 @@ use skein_forge::github::{
     request::Method,
 };
 use skein_json::tokenizer;
+use skein_lib::bytes::concat;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes};
 
 pub const VIEWER: &[u8] = br#"{"query":"query { viewer { login databaseId } }"}"#;
@@ -49,7 +50,7 @@ pub fn authorization_for(id: u64, key: &[u8], issued: u64, expires: u64) -> Secr
     bearer(token.expose())
 }
 pub fn bearer(token: &[u8]) -> Secret {
-    Secret::new(service::joined(b"Bearer ", token).expect("fixture header"))
+    Secret::new(concat(&[b"Bearer ", token]))
 }
 
 pub struct Harness {

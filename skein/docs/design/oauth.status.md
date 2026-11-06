@@ -12,3 +12,7 @@
   per cell; `skein-oauth-accounts/src/exchange.rs` keeps `pending_grant`,
   `aborted` and `file_active` beside `Exchange::stage`, and neither
   crate's machine keeps one handler per cell; no reason is recorded.
+  `skein-oauth/src/machine/fetch.rs`'s sign-in start holds its URL in a
+  `(visit, url)` pair of `Option`s, with a `url.expect`, which the `debt-26`
+  request's leftovers name: by reading, taking it from `Grant::SignIn` on the
+  path with no fetch needs a new `unreachable!`, which that plan's task ruled out.

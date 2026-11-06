@@ -663,7 +663,7 @@ fn reader_in(role: Option<jig_domain_people::Role>, project: u32) -> (Domain, En
     ] {
         people::step(&mut domain.core.people, &people_env, people::Event::Restore { record }, &mut out);
     }
-    assert!(domain.core.people.start_link(&people_env));
+    assert!(domain.core.people.start_link());
     domain.core.people.start_sweep();
     assert!(domain.core.people.start_complete(&people_env));
     (domain, env)

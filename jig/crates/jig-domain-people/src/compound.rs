@@ -1,7 +1,7 @@
 //! A compound carries the same bounded task operations as standalone asks.
 use crate::{Amendment, Ask, LimitKind, Limits, Refusal};
 use alloc::boxed::Box;
-use skein_lib::{Duration, List};
+use skein_lib::{Duration, List, length::len_u64};
 
 /// One task operation, whose project is named once by its compound.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -37,9 +37,9 @@ pub(crate) fn refusal(limits: &Limits, operations: &List<Operation>) -> Option<R
         // Bound the temporary standalone ask before copying any of its owned payload.
         let (bytes, maximum, which) = match operation {
             Operation::Cancel { reason, .. } | Operation::Move { reason, .. } => {
-                (u64::try_from(reason.len()).ok(), limits.words, LimitKind::Words)
+                (Some(len_u64(reason.len())), limits.words, LimitKind::Words)
             }
-            Operation::Message { words, .. } => (u64::try_from(words.len()).ok(), limits.words, LimitKind::Words),
+            Operation::Message { words, .. } => (Some(len_u64(words.len())), limits.words, LimitKind::Words),
             Operation::Amend { amendment, .. } => {
                 (crate::amendment_bytes(amendment), limits.amendment_bytes, LimitKind::Spec)
             }

@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Queue, Time, Token, Wall};
+use skein_lib::{List, Queue, Time, Token, Wall, length::len_u64};
 
 use crate::{runs::transcript_text::TranscriptText, translate};
 
@@ -53,9 +53,7 @@ impl Core {
             if transcript.loaded {
                 bytes = bytes.checked_add(transcript.text_kept).expect("retained transcript text bytes fit u64");
                 for body in &transcript.turns {
-                    bytes = bytes
-                        .checked_add(u64::try_from(body.len()).expect("turn body length fits u64"))
-                        .expect("retained transcript body bytes fit u64");
+                    bytes = bytes.checked_add(len_u64(body.len())).expect("retained transcript body bytes fit u64");
                 }
             } else {
                 bytes = bytes
@@ -223,7 +221,7 @@ impl Core {
         {
             return false;
         }
-        let length = u64::try_from(turn.transcript.len()).expect("stored turn size fits u64");
+        let length = len_u64(turn.transcript.len());
         let Some(framed) = length.checked_add(4) else { return false };
         let Some(total) = transcript.bytes.checked_add(framed) else { return false };
         transcript.bytes = total;
@@ -247,8 +245,7 @@ impl Core {
         } else {
             turn.transcript
         };
-        let body_len =
-            u64::try_from(body.len()).expect("bounded turn fits u64").checked_add(4).expect("bounded framed turn");
+        let body_len = len_u64(body.len()).checked_add(4).expect("bounded framed turn");
         for _ in 0..transcript.turns.len() {
             if transcript.kept.checked_add(body_len).expect("two bounded tails") <= bound {
                 break;
@@ -256,9 +253,7 @@ impl Core {
             let old = transcript.turns.pop().expect("overfull transcript has an older turn");
             transcript.kept = transcript
                 .kept
-                .checked_sub(
-                    u64::try_from(old.len()).expect("bounded old turn").checked_add(4).expect("bounded old frame"),
-                )
+                .checked_sub(len_u64(old.len()).checked_add(4).expect("bounded old frame"))
                 .expect("old turn was counted");
         }
         transcript.turns.push(body);
