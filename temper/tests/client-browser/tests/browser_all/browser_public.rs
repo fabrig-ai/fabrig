@@ -371,7 +371,8 @@ impl Play for Walk {
     }
 }
 
-const LONG_TITLE: &str = "Export widget's table as CSV with visible columns, localized headings and a readable filename for monthly reports";
+const LONG_TITLE: &str =
+    "Export widget's table as CSV with visible columns, localized headings and a readable filename for monthly reports";
 
 struct TextBoxes {
     at: u32,
