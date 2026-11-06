@@ -156,7 +156,9 @@ both do. `--until changed` returns at the subject's next change.
 
 - ctl reaches an engine on loopback alone: `127.0.0.0/8` or `[::1]`.
 - The link's deadline is 30 seconds: no engine answer by then fails
-  the call (exit 1).
+  the call (exit 1), and its line says what it waited for: the link,
+  the stream, a read or an act's outcome. An act's line says whether
+  it is kept, and whether the same key may be tried again.
 - A wrong argument prints one line naming its tool, the argument and
   what it takes, such as `temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity`.
   Naming no tool prints usage: `temper ctl: usage: temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB prints one tool`.

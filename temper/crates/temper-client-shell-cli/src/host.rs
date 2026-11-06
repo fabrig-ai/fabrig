@@ -7,6 +7,7 @@ use crate::{
     recovery::Recovery,
     signing::{Credential, Signing},
     transport::Memory,
+    waited::{self, Act},
 };
 use jig_client_shell_native::Shell;
 use skein_io::{
@@ -66,6 +67,8 @@ pub struct OneShot {
     until: Option<Time>,
     link: jig_client::Link,
     heard: Option<()>,
+    connected: Option<()>,
+    act: Act,
     connection_refused: Option<()>,
     io: io::Io,
     env: Env<io::Limits>,
@@ -156,6 +159,8 @@ impl OneShot {
             until: None,
             link: jig_client::Link::SignedOut,
             heard: None,
+            connected: None,
+            act: if class == Class::Act { Act::NotSent } else { Act::None },
             connection_refused: None,
             io,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.io },
@@ -403,6 +408,9 @@ impl OneShot {
                 && let Some(Parsed::Call { call, json }) = self.call.take()
             {
                 self.until = Some(self.env.now.saturating_add(limits::DEADLINE));
+                let named = call.key.is_some();
+                self.act =
+                    if self.value.is_some() || self.exporting { Act::Once { named } } else { Act::Kept { named } };
                 root::step(
                     &mut self.root,
                     &self.root_env,
@@ -520,6 +528,7 @@ impl OneShot {
                 root::Request::Progress { line } => {
                     // The first-repository act has answered and now owns a bounded
                     // watch. Keep its allowance while the engine link is live.
+                    self.act = Act::None;
                     self.waiting = Waiting::Condition;
                     if self.root.client().link().state == jig_client::Link::Live {
                         self.until = None;
@@ -570,7 +579,10 @@ impl OneShot {
         }
     }
     fn link_progress(&mut self, now: Time, wall: Wall) {
-        if let Some(shell) = self.signing.as_mut().and_then(|s| s.shell.as_mut()) {
+        // The call's deadline names its wait before a simultaneous transport
+        // timeout can turn a sent-once act into a lost answer (client/tools.md, 6.3).
+        let deadline = self.status.is_none() && self.class == Class::Act && self.until.is_some_and(|at| now >= at);
+        if !deadline && let Some(shell) = self.signing.as_mut().and_then(|s| s.shell.as_mut()) {
             shell.iterate(now, wall);
             while self.submit.room() > 0 {
                 let Some(submit) = shell.submissions().pop() else { break };
@@ -601,7 +613,23 @@ impl OneShot {
                 self.fail(format!("the engine's {} streams are all in use, by waits and open clients; end one, or wait and call again", full.size).as_bytes());
                 return;
             }
-            self.fail(format!("the engine at {address} did not answer within 30 s").as_bytes());
+            let line = if matches!(self.class, Class::SignIn | Class::SignOut) {
+                format!("the engine at {address} did not answer within 30 s")
+            } else {
+                let connected = self.connected.is_some() || self.transport.as_ref().is_some_and(Memory::connected);
+                let waited = waited::waited(
+                    self.root.client().link().state,
+                    connected,
+                    self.heard.is_some(),
+                    self.class == Class::Act && self.waiting == Waiting::Answer,
+                );
+                let act = match self.act {
+                    Act::Kept { .. } if self.recovery.saving() => Act::NotSent,
+                    Act::None | Act::NotSent | Act::Kept { .. } | Act::Once { .. } => self.act,
+                };
+                waited::line(address, waited, act)
+            };
+            self.fail(line.as_bytes());
         }
     }
     fn events(&mut self, now: Time) {
@@ -666,6 +694,9 @@ impl OneShot {
     fn complete(&mut self, mut complete: Complete) {
         if complete.op.raw() & (TAG | FILES) == 0 {
             // The native shell owns the act and sign-in sockets (client/tools.md, 6.3).
+            if matches!(complete.kind, Op::Connect { .. }) && complete.result.is_ok() {
+                self.connected = Some(());
+            }
             if matches!(complete.kind, Op::Connect { .. }) && complete.result == Err(io::kernel::Error::Refused) {
                 self.connection_refused = Some(());
             }
