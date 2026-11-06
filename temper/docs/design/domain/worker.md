@@ -191,7 +191,9 @@ temper's workspace items beside it:
     names one (section 5);
   - an optional landing branch for an inherited writable change producer
     that starts on its push branch: the comparison for existing work,
-    separate from the checkout start and the push's expected head;
+    separate from the checkout start and the push's expected head; or from
+    a merge in progress, whose landing branch marks it a producer's start
+    (section 5);
   - the identity for every git operation on it: one of temper's
     application credentials (jig's `domain/engine.md`, 12.1), granted
     with the assignment, which the protocol layer maps to a token and a
@@ -207,8 +209,8 @@ temper's workspace items beside it:
   attempt starts from the saved work: the tree follows the transcript,
   so a retry that remembers a write finds the file it wrote, and a run
   that starts fresh from its brief starts from a clean checkout. A run
-  that ended with its change landed, or from a merge in progress, saves
-  nothing (step 7).
+  that ended with its change landed saves nothing, and one from a merge
+  in progress saves it as a merge commit (step 7).
 - **Charter.** smith's, as the engine wrote it (agent.md, section 4),
   carried as bytes. The worker gives it to the agent with the workspace
   it prepared: where the repositories sit, which may be written, and for
