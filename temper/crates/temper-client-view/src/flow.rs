@@ -19,6 +19,7 @@ pub(crate) enum Mark {
     Done,
     UnderWay,
     Failed,
+    Stopped,
     ToCome,
 }
 /// The list along the top, named Steps, with earlier items styled done.
@@ -66,13 +67,14 @@ pub(crate) fn progress(b: &mut Builder, w: &Words, name: &[u8], lines: &[(&[u8],
             Mark::Done => b.style(look::FLOW_DONE),
             Mark::UnderWay => b.state(State::Current),
             Mark::Failed => b.style(look::FLOW_FAILED),
+            Mark::Stopped => b.style(look::WELCOME_CHECK_FAILED),
             Mark::ToCome => {}
         }
         b.text(Run::Plain, line);
         let word = match mark {
             Mark::Done => Some(Word::FlowDone),
             Mark::UnderWay => Some(Word::FlowUnderWay),
-            Mark::Failed => Some(Word::FlowFailed),
+            Mark::Failed | Mark::Stopped => Some(Word::FlowFailed),
             Mark::ToCome => None,
         };
         if let Some(word) = word {

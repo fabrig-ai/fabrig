@@ -305,7 +305,29 @@ fn welcome_claude_checks_on_the_wire_and_reaches_ready_after_the_host_answers() 
     accounts::program_checked(&mut front, &mut root, false);
     assert_eq!(root.person().pages().address(), &address);
     assert!(text(&root).contains("Claude Code isn’t signed in here yet."));
+    press(&mut front, &mut root, Role::Button, "Try again".as_bytes(), skein_ui::Act::Press);
+    accounts::program_checked(&mut front, &mut root, false);
+    press(&mut front, &mut root, Role::Button, b"Sign in again", skein_ui::Act::Press);
+    assert!(text(&root).contains("temper program-login claude-person"));
+    assert!(!text(&root).contains("Claude didn’t answer"));
     press(&mut front, &mut root, Role::Button, "I’ve signed in".as_bytes(), skein_ui::Act::Press);
     accounts::program_checked(&mut front, &mut root, true);
     assert_eq!(root.person().pages().address(), &Address::Welcome { step: d::Step::Ready });
+}
+
+#[test]
+fn a_stopped_welcome_check_can_continue_without_a_model() {
+    let (mut front, mut root) = accounts::empty_program_fixture(fixtures::SEED);
+    front.deployment = (true, true);
+    let address = Address::Welcome {
+        step: d::Step::Model {
+            way: Some(d::ModelWay { provider: accounts::PROVIDER, kind: d::WayKind::Program, source: None }),
+        },
+    };
+    accounts::reopen(&mut front, &mut root, address, false);
+    press(&mut front, &mut root, Role::Button, "I’ve signed in".as_bytes(), skein_ui::Act::Press);
+    accounts::program_checked(&mut front, &mut root, false);
+    press(&mut front, &mut root, Role::Link, b"Continue anyway", skein_ui::Act::Press);
+    assert_eq!(root.person().pages().address(), &Address::Welcome { step: d::Step::Ready });
+    assert_eq!(d::pages::welcome::model_usable(root.person()), Some(false));
 }
