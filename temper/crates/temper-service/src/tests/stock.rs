@@ -294,7 +294,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 5555);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 5961);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -1255,9 +1255,15 @@ fn configuring_txt_speaks_the_persons_terms() {
         "the owner's acceptance checks",
         "Say that nothing has changed once",
         "not in every reply",
-        "you (ada on the forge), or someone else?",
+        "without equating requester and forge account",
+        "configured owned-forge account is separate",
+        "existing verified project role",
+        "read the current project-policy permission mapping",
+        "admin seeds maintainer (1), never owner (0)",
+        "Never promise that admin makes a role-0 proposal acceptable",
+        "adopt again, reread inventory and propose afresh",
         "read_permission names a forge user's login",
-        "propose the rule naming the approver",
+        "An unknown forge identity cannot count for approvals",
         "never report it as a setting",
         "each read with project and no number",
     ] {
