@@ -1,6 +1,6 @@
 # git: status
 
-2026-11-05. Where temper's code lags or departs from [git.md](git.md).
+2026-11-06. Where temper's code lags or departs from [git.md](git.md).
 
 - **Not yet:** 4.10: `Rewrite`, the lease-guarded move of a prepare job's candidate: neither `temper-worker-domain-checkout`'s `git::Op` nor `temper-worker-protocol-git` has it. 4.5: no test runs real git on a dirty workspace: `temper/tests/worker/checkout/tests/suite/reuse.rs` proves the worker's operations and, on the fake git, the two commands' state, where the fake's checkout replaces the whole tree whether or not `clean` ran, and `temper/tools/git-transcripts/src/cases.rs`, `locals`, records `checkout --force --detach` over no staged file or merge in progress. What 4.5 says of those rests on one run by hand, git 2.47.3, 2026-11-05 (section 10).
 - **Design departs:** 4.5, from the request `first-goal-fixes` of 2026-11-05, item 3, decided by its plan's cut: the next hold sees the commit's tree with nothing staged, the index equal to that tree, where the request says "an empty index", which would contradict the commit's tree. What the run that request tells of saw stays unexplained: the world proves the worker's commands and the fake's state, not what that run's checkout held.

@@ -344,7 +344,7 @@ Other facts the comparison found absent:
   reference T1 drawing has 142 older turns and nine calls; the fake
   client's delivered window has no such total and carries three
   calls. The gallery keeps the browser's shipped bounds (browser.md
-  7.2), reports omitted text, and offers the existing older-page act
+  7.2), says nothing of what they cut, and offers the existing older-page act
   where supplied, rather than inventing history or widening limits.
 
 Where a word or shape was otherwise open, the client keeps its

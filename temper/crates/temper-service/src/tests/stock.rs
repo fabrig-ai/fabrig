@@ -1035,6 +1035,12 @@ fn the_coders_words_put_its_report_in_finish() {
 }
 
 #[test]
+fn the_coders_words_explain_what_a_delivery_keeps() {
+    let words = include_str!("../stock/coding.txt");
+    assert!(words.contains("Your checkout is detached: deliver commits the tree as it stands on the host's own head and names what it pushed. Your own commits, resets and rebases keep their files, not their history, so name no commit from an earlier run: it may not be on the branch."));
+}
+
+#[test]
 fn the_coders_words_wait_after_asking() {
     let engine = engine(&single_model());
     let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
