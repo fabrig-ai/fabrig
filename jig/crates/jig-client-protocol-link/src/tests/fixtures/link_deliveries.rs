@@ -119,6 +119,7 @@ pub fn inbox_row() -> w::InboxEntry {
     w::InboxEntry::new(
         &lim,
         w::InboxEntryParts {
+            projects: List::with_capacity(0),
             reply: None,
             task,
             project: Some(7),
@@ -138,6 +139,7 @@ pub fn inbox_cursor() -> w::InboxCursor {
 }
 pub fn inbox_row_expected() -> c::InboxEntry {
     c::InboxEntry {
+        projects: List::with_capacity(0),
         reply: None,
         task: c::TaskLink::Stored { number: 41, status: None },
         project: Some(7),

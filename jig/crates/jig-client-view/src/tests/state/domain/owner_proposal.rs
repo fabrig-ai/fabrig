@@ -23,6 +23,7 @@ use skein_lib::{List, Time, Wall};
 fn value(maker: Proposer, offered: ActKind) -> Proposal {
     let acts = crate::tests::kit::list_in(2, [Offered { effect: None, act: offered, admission: Admission::Allowed }]);
     Proposal {
+        projects: List::with_capacity(0),
         key: ProposalKey { proposer: maker, number: u64::MAX },
         project: u32::MAX,
         reason: DocumentText { bytes: text(UTF8_TEXTS[1]), cut: true },
