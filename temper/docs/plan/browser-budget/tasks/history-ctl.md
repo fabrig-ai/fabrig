@@ -8,6 +8,9 @@ files = [
   "temper/tests/client-browser/src/lib.rs",
   "temper/tests/client-browser/tests/browser_all/browser_pages.rs",
   "temper/docs/plan/browser-budget/figures/history-ctl.md",
+  "jig/crates/jig-protocol-engine-clients-http/src/server.rs",
+  "jig/crates/jig-protocol-engine-clients-http/src/tests.rs",
+  "jig/docs/design/protocol/service.md",
 ]
 effort = "high"
 minutes = 70
@@ -72,3 +75,15 @@ Options, each decided:
 ## Report
 
 The before-and-after medians with their load, the steps that went and what proves them now, what the split says is left, and your implementation and check minutes apart.
+
+## Answers
+
+2026-11-06. **Who repairs `temper ctl` beside an open page: a separate repair first, or this task?**
+
+**This task, on the pushed branch: keep `64dafc5857` and `95feff7388`, and go on from them.** Acceptance can't hold without it, since `INCOMING` through `Tier::ctl` with the page open is this task's own call and the plan's only one of the kind. The second tab doesn't come back, and `WITHIN`, the listener's 30-second `stall` and every budget stay as they are.
+
+1. **See the cause first; it isn't known yet.** What the code says, unobserved: `temper-service`'s `limits::server` gives the listener eight connections; `jig-protocol-engine-clients-http`'s `Server::up` rejects a connection when they're all held; an idle one holds its place until the 30-second `stall`; and ctl needs its own connections while two faces' pages hold theirs. Run `latest_returns` by name, alone, with a throwaway count of connections held and rejected, in `Server::up` or by `ss` while ctl waits. It goes before the push. That makes the run a changed one, not an unchanged rerun. Write what you saw and the load into the figures.
+2. **If the listener is full,** a full listener ends an idle connection, one with no call and no request begun, and admits the new one; it rejects only when none is idle. HTTP lets a server close an idle connection, and a page reconnects. Don't raise the eight: a person with two tabs and an agent can fill any number. It takes a focused test beside the crate's in `src/tests.rs`: a full listener with an idle connection admits the next, a full one with every connection in a call rejects it, and a call in progress is never ended. Add a line to `jig/docs/design/protocol/service.md`, 11.4. skein and jig stay in their order: this names no temper.
+3. **If it's something else,** repair it in the lowest tier that shows it, when the repair is small: a few files, named in your report as a small edit outside the list. A cause in this task's own harness steps is yours too. If the repair is a new mechanism or reaches past that, push what you have and report `Question:` with what you observed. Don't paper over it in the story, by retries, a sleep or a longer deadline.
+4. **Latest's *before* arm** is `figures/story-baseline.md`'s three passing runs, median 12.480270 CPU s and 5.329647 wall s. Don't run the two missing repetitions. Keep your failed baseline run in the table: a second tab's story that fails on the base is a finding for your report, not yours to repair, as that tab goes.
+5. **The rest of acceptance stands:** three *after* runs of each story, the long story's split, and the status entry's removal. In `temper/docs/design/client/browser.status.md`, 4.3, the `browser_public` red's "no cause observed" may say what you saw, as a reading of that story: it isn't run here, so don't call it repaired.
