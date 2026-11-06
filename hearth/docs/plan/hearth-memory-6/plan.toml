@@ -41,3 +41,50 @@ id = 1
 story = "the service drives io as skein does, and every order a room check sits beside has its holder and its test"
 parts = ["before", "lists", "stage", "orders"]
 walk = false
+
+[[part]]
+id = "queues"
+title = "The queues between the layers are uncapped, a watermark holds render, and a pass is paced"
+mode = "direct"
+needs = ["stage", "orders"]
+design = "hearth/docs/design/domain/render.md, 8.4"
+
+[[part]]
+id = "constants"
+title = "No hearth step crate defines a MaxOut or a MAX_OUT"
+mode = "direct"
+needs = ["queues"]
+design = "hearth/docs/design/domain/render.md, 8.4"
+
+[[part]]
+id = "resumed"
+title = "Resumed work's order gets a biting test, or a debt item with its search"
+mode = "direct"
+needs = ["queues"]
+design = "hearth/docs/design/domain/render.md, 8.5"
+
+[[slice]]
+id = 2
+story = "the builder runs uncapped with only the kernel's edge refusing, and a stuck client holds render at the watermark"
+parts = ["queues", "constants", "resumed"]
+walk = false
+
+[[part]]
+id = "close"
+title = "D001 and D004 are deleted, and the status files say what is true"
+mode = "direct"
+needs = ["constants", "resumed", "lists"]
+design = "hearth/docs/design/domain/render.md, 8.5"
+
+[[part]]
+id = "after"
+title = "The gate's figures after this round, and whether the focused suite is under 30 CPU s"
+mode = "direct"
+needs = ["close"]
+design = "hearth/docs/design/domain/testing.md, 9.1"
+
+[[slice]]
+id = 3
+story = "both debt items are paid and their files gone, and the figures say what the round cost"
+parts = ["close", "after"]
+walk = false
