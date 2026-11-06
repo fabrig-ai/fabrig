@@ -1923,10 +1923,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-doc-inner td > strong,
 #app > .temper-session .temper-doc-inner td > span > strong { font-size: 14.5px; font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--gf-ink); white-space: nowrap; }
 #app > .temper-session .temper-doc-inner td { color: var(--gf-ink-2); }
-#app > .temper-session .temper-doc-figures { margin: 4px 0 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-#app > .temper-session .temper-doc-figures > div { padding: 12px 14px; border: 1px solid var(--gf-line); border-radius: 10px; background: var(--gf-paper); }
-#app > .temper-session .temper-doc-figures [role=term] { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--gf-muted); }
-#app > .temper-session .temper-doc-figures [role=definition] { margin: 2px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--gf-ink); }
 #app > .temper-session .temper-doc-flow ul { padding-left: 0; list-style: none; }
 #app > .temper-session .temper-doc-flow ol { padding-left: 20px; }
 

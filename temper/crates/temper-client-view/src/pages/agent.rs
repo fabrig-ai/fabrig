@@ -212,6 +212,9 @@ fn composer(
             b.style(look::ENTRY);
             b.open(Role::TextArea);
             b.name(&words.say(Word::Message, &[]));
+            if page.composer_focus != 0 && root.pages().switcher().renaming().is_none() {
+                b.focus(page.composer_focus);
+            }
             b.state(State::SubmitsOnEnter);
             b.style(look::COMPOSER);
             b.value(&page.words, temper_client_domain::pages::shown(root.pages()));

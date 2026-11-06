@@ -58,8 +58,8 @@ fn main() {
             let target = if selection == "legacy" {
                 std::os::unix::process::parent_id().to_string()
             } else if let Some(descriptor) = intended_parent(parent) {
-                let target = skein_shell::child_id(descriptor).expect("validated parent").to_string();
-                skein_shell::close_keeper_fd(descriptor);
+                let target = skein_shell::keeper::child_id(descriptor).expect("validated parent").to_string();
+                skein_shell::keeper::close_keeper_fd(descriptor);
                 target
             } else {
                 "refused".into()
@@ -73,8 +73,8 @@ fn main() {
             let _mode = args.next();
             let parent: u32 = args.next().expect("intended parent").parse().expect("parent PID");
             if let Some(descriptor) = intended_parent(parent) {
-                let sent = skein_shell::signal_kept_child(descriptor, Signal::Terminate, Target::Child);
-                skein_shell::close_keeper_fd(descriptor);
+                let sent = skein_shell::keeper::signal_kept_child(descriptor, Signal::Terminate, Target::Child);
+                skein_shell::keeper::close_keeper_fd(descriptor);
                 // The intended parent can exit after validation. ESRCH is a safe refusal.
                 if sent.is_ok() {
                     let mut line = String::new();
@@ -101,16 +101,12 @@ fn main() {
     // sender live until the parent has consumed its signal (io.md, 7).
     let limits = io::Limits {
         sockets: 3,
-        names: 0,
-        refusals: 1,
         intake: 8,
         receive: 4,
         output: 8,
         sends: 1,
-        accepts: 1,
-        backlog: 1,
-        close_timeout: Duration::from_secs(1),
         retry: Duration::from_millis(1),
+        ..io::Limits::TEST
     };
     let mut state = io::Io::new(&limits);
     let source = state.adopt_signals(signals).expect("source entity");
@@ -179,7 +175,7 @@ fn main() {
                     child = Some(token);
                     input = Some(*pipes.first().expect("the child input pipe"));
                     if !from_child {
-                        skein_shell::signal_current_thread(ServiceSignal::Terminate).expect("self signal");
+                        skein_shell::keeper::signal_current_thread(ServiceSignal::Terminate).expect("self signal");
                     }
                 }
                 Event::Shutdown { signal, from, .. } => {
@@ -218,7 +214,7 @@ fn main() {
         if state.is_empty() {
             assert!(heard, "the service heard its signal");
             assert_eq!(kernel.in_flight(), 0);
-            skein_shell::close_keeper_fd(root);
+            skein_shell::keeper::close_keeper_fd(root);
             return;
         }
         if now.now >= deadline {
@@ -238,7 +234,7 @@ fn main() {
                             &owned,
                         );
                         drop(kernel);
-                        skein_shell::close_keeper_fd(root);
+                        skein_shell::keeper::close_keeper_fd(root);
                         starved.pass();
                     }
                     skein_world::Expired::Failed(figures) => {
@@ -261,11 +257,11 @@ fn main() {
 // then reject an exited handle so a proc observation cannot validate a replacement.
 #[cfg(target_os = "linux")]
 fn intended_parent(parent: u32) -> Option<skein_io::kernel::Fd> {
-    let descriptor = skein_shell::open_pidfd(parent).ok()?;
-    if std::os::unix::process::parent_id() == parent && skein_shell::pidfd_exited(descriptor) == Ok(false) {
+    let descriptor = skein_shell::keeper::open_pidfd(parent).ok()?;
+    if std::os::unix::process::parent_id() == parent && skein_shell::keeper::pidfd_exited(descriptor) == Ok(false) {
         Some(descriptor)
     } else {
-        skein_shell::close_keeper_fd(descriptor);
+        skein_shell::keeper::close_keeper_fd(descriptor);
         None
     }
 }

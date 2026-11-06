@@ -217,16 +217,11 @@ impl World {
         let peer_limits = skein_fake_peers::Limits {
             io: skein_io::Limits {
                 sockets: 10,
-                refusals: 1,
-                intake: 32768,
                 receive: 4096,
                 output: 1_048_576,
-                sends: 2,
-                accepts: 1,
                 backlog: 4,
-                close_timeout: Duration::from_secs(1),
-                names: 0,
                 retry: Duration::from_millis(1),
+                ..skein_io::Limits::TEST
             },
             connections: 4,
             queue: 512,

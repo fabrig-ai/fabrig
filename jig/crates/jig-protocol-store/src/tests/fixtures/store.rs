@@ -7,6 +7,7 @@ use crate::{Arrived, Below, Io, Root, SecretOwner, Secrets};
 use crate::{Event, Limits, Request, Store, Stores, Write, codec, format, keys};
 use alloc::boxed::Box;
 use jig_domain_core::{CoreKey, CoreRecord, Key, Record};
+use skein_io::file_layer::{FileIo, Limits as FileLimits};
 use skein_io::{file, kernel::Fd};
 use skein_lib::{Duration, Env, List, Queue, Token};
 
@@ -251,8 +252,8 @@ pub fn env() -> Env<Limits> {
 pub fn below() -> Below {
     Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() }
 }
-fn unseeded_driver() -> skein_io::file_layer::FileIo {
-    skein_io::file_layer::FileIo::new(8, 1, 32, limits().store.deadline)
+fn unseeded_driver() -> FileIo {
+    FileIo::with_limits(&FileLimits { read: 1, whole: 1, ..super::disk::file_limits() })
 }
 pub fn directory() -> (Store, Below) {
     let mut drivers = [unseeded_driver(), unseeded_driver(), unseeded_driver()];

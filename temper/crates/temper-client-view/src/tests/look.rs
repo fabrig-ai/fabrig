@@ -600,7 +600,6 @@ fn configuring_opening_and_needs_have_their_css_names() {
         (STARTER_OWN_ACTS, b"temper-starter-own-acts"),
         (DOC_SUB, b"temper-doc-sub"),
         (DOC_FLOW, b"temper-doc-flow"),
-        (DOC_FIGURES, b"temper-doc-figures"),
         (TOAST, b"temper-toast"),
         (NEEDS, b"temper-needs"),
     ] {

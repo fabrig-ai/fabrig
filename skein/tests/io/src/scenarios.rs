@@ -24,19 +24,7 @@ use crate::world::World;
 /// reach.
 #[must_use]
 pub const fn limits(sockets: u32) -> Limits {
-    Limits {
-        sockets,
-        refusals: 2,
-        intake: 16,
-        receive: 7,
-        output: 32,
-        sends: 2,
-        accepts: 1,
-        backlog: 2,
-        close_timeout: Duration::from_secs(1),
-        names: 2,
-        retry: Duration::from_millis(10),
-    }
+    Limits { sockets, refusals: 2, intake: 16, receive: 7, output: 32, backlog: 2, names: 2, ..Limits::TEST }
 }
 
 /// When every scenario must be over, in simulated time.

@@ -14,17 +14,10 @@ use super::{Limits, Transport, Wire, config};
 fn limits() -> Limits {
     Limits {
         io: skein_io::Limits {
-            sockets: 2,
-            refusals: 1,
-            intake: 32_768,
             receive: 4096,
-            output: 32_768,
             sends: 4,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: skein_lib::Duration::from_secs(1),
-            names: 0,
             retry: skein_lib::Duration::from_millis(1),
+            ..skein_io::Limits::TEST
         },
         connections: 1,
         queue: 64,

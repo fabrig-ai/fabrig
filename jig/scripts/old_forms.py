@@ -11,6 +11,7 @@ FORMS = {
     'JournalRoom': re.compile(r'\bJournalRoom\b'),
     'takes': re.compile(r'\.takes\(&'),
     'worst_case': re.compile(r'\b\w*worst_case\w*\b'),
+    'inner_allow': re.compile(r'#!\[allow\b'),
 }
 EXEMPT = {
     'max_out': {
@@ -28,11 +29,13 @@ HEADER = (
 RULE = (
     "Uses of the old forms may only fall (skein's docs/foundation/programming-model.md, 6.3): "
     'new code takes the new forms (Queue::uncapped, Journal::uncapped, decide, backlog), '
-    'or removes as many old uses as it adds.'
+    'or removes as many old uses as it adds. '
+    'A lint exception is a scoped #[expect], never an inner allow (AGENTS.md, 2).'
 )
 MARKERS = {
     'max_out': ('max_out', 'MAX_OUT'), 'JournalRoom': ('JournalRoom',),
     'takes': ('takes',), 'worst_case': ('worst_case',),
+    'inner_allow': ('#![allow',),
 }
 WORDS = ('max_out', 'JournalRoom', 'worst_case')
 COMMENT_FORMS = {

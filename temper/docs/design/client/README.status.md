@@ -163,7 +163,7 @@
   follow them.
 - **Design departs:** 3.5, *The configuring chat's page* and *temper's own way, beside the page*,
   from the request `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
-  request's plan's cut. The picture, the figures and the table's Workers and QA stand in
+  request's plan's cut. The picture and the table's Workers and QA stand in
   `../draft/own-way.status.md`. Beside them:
   - the reference's title is level 2 at 28 px over level 3 sections at 17 px, as a chat's document
     has them, where the request's page has a small level 3 title over large level 2 sections;
@@ -307,6 +307,8 @@
   that can't start, where the request has a run that isn't about to start say why,
   because a row holds no run wait and its query carries no run's check per row
   (jig's `client/domain/client.md`, 19.1). The chat's own page says why.
+- **Not yet:** 3.5, *Where the focus stands on a chat*, 5.3 and 5.11: a chat started by sending opens on its
+  heading, and after a send a composer asks for no focus: a press of "Send" leaves it on a button that disables.
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. Until it
