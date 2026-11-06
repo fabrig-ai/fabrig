@@ -81,10 +81,14 @@ impl Sample {
     /// Opens the rail menu through the page part in the static print (client/browser.md, 7).
     #[must_use]
     pub fn open_menu(&self) -> Option<&[u8]> {
-        if self.name == "rail-new-menu" { Some(b"More ways to start work") } else { None }
+        match self.name {
+            "rail-new-menu" => Some(b"More ways to start work"),
+            "rail-person-menu" => Some(b"Robin"),
+            _ => None,
+        }
     }
 }
-pub const N: usize = 257;
+pub const N: usize = 258;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -502,6 +506,7 @@ pub fn samples() -> [Sample; N] {
             address: Address::Home { project: 1 },
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
         },
+        Sample { name: "rail-person-menu", world: Solo, address: Address::Home { project: 1 }, then: Shown },
         Sample { name: "repositories", world: Solo, address: Address::Repositories { project: 1 }, then: Shown },
         Sample { name: "repositories-none", world: Bare, address: Address::Repositories { project: 1 }, then: Shown },
         Sample { name: "forges-empty", world: Bare, address: Address::Forges, then: Shown },

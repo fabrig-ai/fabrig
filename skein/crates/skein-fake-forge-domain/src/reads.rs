@@ -137,7 +137,11 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
             }
             Ok(Answer::Statuses(pulls::statuses(repository, limits, *commit)))
         }
-        Read::Permission { user } => Ok(Answer::Permission(repository.permission(*user))),
+        Read::Permission { user } => Ok(Answer::Permission(crate::api::UserPermission {
+            user: *user,
+            login: Box::new([]),
+            permission: repository.permission(*user),
+        })),
         Read::Branch { branch } => match repository.branches.get(&**branch) {
             Some(&commit) => Ok(Answer::Commit(commit)),
             None => Err(Error::Missing(What::Branch)),

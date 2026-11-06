@@ -118,7 +118,7 @@ pub fn start_playground_chat(words: &[u8]) -> Vec<Step> {
     ]
 }
 fn live() -> Find {
-    Find::exactly_named(Role::Status, b"Owner")
+    Find::exactly_named(Role::Button, b"Owner")
 }
 /// Read the positive Live DOM marker, which the project rail hides from accessibility
 /// (temper/docs/design/client/README.md, 5.3), after the page's readiness observation.

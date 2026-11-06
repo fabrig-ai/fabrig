@@ -197,6 +197,14 @@ fn labelled(mut e: Element, made: &Made) -> Element {
 
 fn collection(e: &mut Element, made: &Made) {
     let a = &made.attribute;
+    if let Some(first) = a.ordered {
+        if e.tag == "ul" {
+            e.tag = "ol".into();
+        }
+        if e.tag == "ol" {
+            e.set("start", &first.to_string());
+        }
+    }
     if let Some(count) = a.count
         && a.role == Role::Table
     {

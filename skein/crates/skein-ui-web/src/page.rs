@@ -545,9 +545,11 @@ fn focusable(role: Role) -> bool {
 }
 
 /// Platform events as data; shortcut interpretation belongs to the page.
+/// For an unmapped press, `focus_taken` preserves an outside control's focus.
 #[derive(Clone, Debug)]
 pub enum Event {
     Click { node: NodeId, modifier: bool },
+    PressOutside { focus_taken: bool },
     Input { node: NodeId, value: Box<[u8]>, composing: bool },
     CompositionEnd { node: NodeId, value: Box<[u8]> },
     Enter { node: NodeId, shift: bool, composing: bool },
@@ -587,9 +589,14 @@ impl Page<'_> {
         self.held(node).made.attribute.bound.then_some((node, Act::Press))
     }
 
+    #[expect(clippy::too_many_lines, reason = "The page dispatches each platform event in one exhaustive match.")]
     fn event(&mut self, event: Event, ops: &mut Vec<Op>) -> Option<(NodeId, Act)> {
         match event {
             Event::Click { node, modifier } => self.click(node, modifier, ops),
+            Event::PressOutside { focus_taken } => {
+                self.close_menu_outside(None, focus_taken, ops);
+                None
+            }
             Event::Input { node, value, composing } => {
                 if self.composition_end.take().is_some_and(|(ended, text)| ended == node && text == value) {
                     return None;
@@ -639,7 +646,7 @@ impl Page<'_> {
                 self.held(dialog);
                 ops.push(Op::Attributes { node: dialog, element: self.own_element(dialog) });
                 if self.menu.is_some() {
-                    self.close_menu(ops);
+                    self.close_menu(true, ops);
                     return None;
                 }
                 let mut order = Vec::new();
@@ -669,6 +676,7 @@ impl Page<'_> {
                 None
             }
             Event::Drawing { node, under, x, y } => {
+                self.close_menu_outside(Some(node), false, ops);
                 let a = &self.held(node).made.attribute;
                 if !enabled(a) || !a.bound || a.role != Role::Drawing || self.held(node).size.is_none() {
                     return None;
@@ -723,6 +731,7 @@ impl Page<'_> {
     }
 
     fn click(&mut self, node: NodeId, modifier: bool, ops: &mut Vec<Op>) -> Option<(NodeId, Act)> {
+        self.close_menu_outside(Some(node), false, ops);
         let node = self.pressed(node);
         let a = &self.held(node).made.attribute;
         if !enabled(a) {
@@ -730,7 +739,7 @@ impl Page<'_> {
         }
         if a.role == Role::Menu {
             let open = self.menu != Some(node);
-            self.close_menu(ops);
+            self.close_menu(true, ops);
             if open {
                 self.menu = Some(node);
                 menu_element(&mut self.nodes.get_mut(&node).expect("held menu").element, true);
@@ -748,7 +757,7 @@ impl Page<'_> {
             && [Role::Button, Role::Link, Role::Tab, Role::MenuItem].contains(&a.role)
         {
             if a.role == Role::MenuItem {
-                self.close_menu(ops);
+                self.close_menu(true, ops);
             }
             Some((node, Act::Press))
         } else {
@@ -844,7 +853,7 @@ impl Page<'_> {
             return false;
         };
         if key == b"Escape" {
-            self.close_menu(ops);
+            self.close_menu(true, ops);
             return true;
         }
         let items = self.menu_items(menu);
@@ -863,11 +872,26 @@ impl Page<'_> {
         true
     }
 
-    fn close_menu(&mut self, ops: &mut Vec<Op>) {
+    fn close_menu_outside(&mut self, node: Option<NodeId>, focus_taken: bool, ops: &mut Vec<Op>) {
+        let Some(menu) = self.menu else {
+            return;
+        };
+        let mut inside = Vec::new();
+        self.preorder(menu, &mut inside);
+        if node.is_some_and(|node| inside.contains(&node)) {
+            return;
+        }
+        let restore_focus = !focus_taken && self.focused.is_none_or(|node| inside.contains(&node));
+        self.close_menu(restore_focus, ops);
+    }
+
+    fn close_menu(&mut self, restore_focus: bool, ops: &mut Vec<Op>) {
         if let Some(node) = self.menu.take() {
             menu_element(&mut self.nodes.get_mut(&node).expect("held menu").element, false);
             ops.push(Op::Attributes { node, element: self.own_element(node) });
-            ops.push(Op::Focus { node });
+            if restore_focus {
+                ops.push(Op::Focus { node });
+            }
         }
     }
 }

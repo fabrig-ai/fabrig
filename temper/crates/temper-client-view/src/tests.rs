@@ -19,6 +19,7 @@ mod home;
 mod inbox;
 mod look;
 mod needs;
+mod person_menu;
 mod playground;
 mod playground_start;
 mod public;

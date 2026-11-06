@@ -1904,6 +1904,16 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* ==== ui: settings ==== */
 
+/* The person's menu opens above the rail's foot (client/README.md, 5.3). */
+#app > .temper-rail > .temper-rail-foot > .temper-rail-person { position: relative; }
+#app > .temper-rail > .temper-rail-foot > .temper-rail-person > [aria-haspopup] { width: 100%; padding: 6px 10px; border: 0; border-radius: 6px; background: none; color: var(--gf-muted); font: inherit; text-align: left; }
+#app > .temper-rail > .temper-rail-foot > .temper-rail-person > [aria-haspopup]:is(:hover, [aria-expanded=true]) { background: #f0f0ee; color: var(--gf-ink); }
+#app > .temper-rail > .temper-rail-foot > .temper-rail-person > [role=menu] { position: absolute; bottom: calc(100% + 6px); left: 0; right: 0; z-index: 30; display: flex; flex-direction: column; padding: 6px; border: 1px solid var(--gf-line); border-radius: 10px; background: var(--gf-surface); box-shadow: 0 12px 32px rgba(24, 24, 27, .12); }
+#app > .temper-rail > .temper-rail-foot > .temper-rail-person > [role=menu][hidden] { display: none; }
+@media (min-width: 761px) {
+  .temper-settings-setting.temper-settings-sign-out { display: none; }
+}
+
 /* Settings proposal cards, from greenfield/mock.css's .proposal rules. */
 .temper-settings-proposal { display: flex; flex-direction: column; gap: 14px; padding: 20px 22px; border-radius: 12px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
 .temper-settings-proposal.temper-settings-proposal-superseded { opacity: .5; }

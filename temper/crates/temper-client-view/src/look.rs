@@ -1137,6 +1137,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-writing-end",
         b"temper-latest",
         b"temper-thread-loading",
+        b"temper-rail-person",
+        b"temper-settings-sign-out",
     ],
     regions: &[b"temper-link"],
 };
@@ -1322,6 +1324,10 @@ pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 452 };
 pub const LATEST: Style = Style { owner: owner(), token: 459 };
 /// An older activity read is out (client/README.md, 3.5).
 pub const THREAD_LOADING: Style = Style { owner: owner(), token: 460 };
+/// The browser's person menu (client/README.md, 5.3).
+pub const RAIL_PERSON: Style = Style { owner: owner(), token: 461 };
+/// The Accounts tab's sign-out row (client/README.md, 3.5).
+pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 462 };
 
 #[cfg(test)]
 mod tests {

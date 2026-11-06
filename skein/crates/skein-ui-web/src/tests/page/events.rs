@@ -1,4 +1,4 @@
-use super::{DRAWING, button, drawing, end, main, page};
+use super::{DRAWING, MAIN, button, drawing, end, main, page};
 use crate::{
     mapping::Primary,
     page::{Event, Op, Page},
@@ -280,6 +280,8 @@ fn a_menu_opens_without_a_step() {
     page.apply(&fixtures::patches(&mut view, 0, menu), &mut Vec::new());
     page.act(Event::Click { node: MENU, modifier: false }, &mut Vec::new());
     assert_eq!(page.html(), include_str!("../golden/menu-open.html").trim_end());
+    page.act(Event::Click { node: MENU, modifier: false }, &mut Vec::new());
+    assert_eq!(page.html(), include_str!("../golden/menu-closed.html").trim_end());
 }
 
 #[test]
@@ -306,8 +308,110 @@ fn pressing_a_menu_item_closes_the_menu() {
     let (mut page, mut view) = (page(), View::new(&LIMITS));
     page.apply(&fixtures::patches(&mut view, 0, menu), &mut Vec::new());
     page.act(Event::Click { node: MENU, modifier: false }, &mut Vec::new());
-    page.act(Event::Click { node: FIRST_MENU_ITEM, modifier: false }, &mut Vec::new());
+    assert_eq!(
+        page.act(Event::Click { node: FIRST_MENU_ITEM, modifier: false }, &mut Vec::new()),
+        Some((FIRST_MENU_ITEM, Act::Press))
+    );
     assert_eq!(page.html(), include_str!("../golden/menu-closed.html").trim_end());
+}
+
+// Preorder: page, main, outside button, menu, item, drawing.
+const OUTSIDE_BUTTON: NodeId = NodeId(3);
+const BESIDE_MENU: NodeId = NodeId(4);
+fn menu_with_button(builder: &mut Builder) {
+    main(builder);
+    button(builder, b"Outside");
+    builder.open(Role::Menu);
+    builder.name(b"Actions");
+    builder.open(Role::MenuItem);
+    builder.name(b"Item");
+    builder.bind(fixtures::binding(1));
+    builder.close();
+    builder.close();
+    builder.drawing(DrawingKind { owner: fixtures::OWNER, kind: 0 }, b"Chart", b"", 128);
+    builder.close();
+    end(builder);
+}
+
+#[test]
+fn a_press_outside_closes_an_open_menu_and_returns_the_focus() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, menu), &mut Vec::new());
+    page.act(Event::Click { node: MENU, modifier: false }, &mut Vec::new());
+    page.focused(FIRST_MENU_ITEM);
+    assert_eq!(page.act(Event::Click { node: MAIN, modifier: false }, &mut ops), None);
+    assert_eq!(page.html(), include_str!("../golden/menu-closed.html").trim_end());
+    assert_eq!(ops.last(), Some(&Op::Focus { node: MENU }));
+}
+
+#[test]
+fn a_press_outside_goes_on_to_what_it_lands_on_and_keeps_its_focus() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, menu_with_button), &mut Vec::new());
+    let closed = page.html();
+    page.act(Event::Click { node: BESIDE_MENU, modifier: false }, &mut Vec::new());
+    page.focused(OUTSIDE_BUTTON);
+    assert_eq!(
+        page.act(Event::Click { node: OUTSIDE_BUTTON, modifier: false }, &mut ops),
+        Some((OUTSIDE_BUTTON, Act::Press))
+    );
+    assert_eq!(page.html(), closed);
+    assert!(!ops.iter().any(|op| matches!(op, Op::Focus { .. })));
+}
+
+#[test]
+fn a_press_past_the_page_closes_an_open_menu() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, menu), &mut Vec::new());
+    page.act(Event::Click { node: MENU, modifier: false }, &mut Vec::new());
+    assert_eq!(page.act(Event::PressOutside { focus_taken: false }, &mut ops), None);
+    assert_eq!(page.html(), include_str!("../golden/menu-closed.html").trim_end());
+    assert_eq!(ops.last(), Some(&Op::Focus { node: MENU }));
+}
+
+#[test]
+fn a_press_past_the_page_keeps_the_focus_it_took() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, menu), &mut Vec::new());
+    page.act(Event::Click { node: MENU, modifier: false }, &mut Vec::new());
+    page.focused(FIRST_MENU_ITEM);
+    assert_eq!(page.act(Event::PressOutside { focus_taken: true }, &mut ops), None);
+    assert_eq!(page.html(), include_str!("../golden/menu-closed.html").trim_end());
+    assert!(!ops.iter().any(|op| matches!(op, Op::Focus { .. })));
+}
+
+#[test]
+fn a_press_with_no_open_menu_moves_nothing() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, menu), &mut Vec::new());
+    page.focused(MAIN);
+    assert_eq!(page.act(Event::Click { node: MAIN, modifier: false }, &mut ops), None);
+    assert_eq!(page.act(Event::PressOutside { focus_taken: false }, &mut ops), None);
+    assert!(ops.is_empty());
+    assert_eq!(page.html(), include_str!("../golden/menu-closed.html").trim_end());
+}
+
+#[test]
+fn a_press_on_a_disabled_item_leaves_the_menu_open() {
+    const DISABLED_ITEM: NodeId = NodeId(5);
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, menu), &mut Vec::new());
+    page.act(Event::Click { node: MENU, modifier: false }, &mut Vec::new());
+    assert_eq!(page.act(Event::Click { node: DISABLED_ITEM, modifier: false }, &mut ops), None);
+    assert!(ops.is_empty());
+    assert_eq!(page.html(), include_str!("../golden/menu-open.html").trim_end());
+}
+
+#[test]
+fn a_drawing_press_outside_closes_the_menu() {
+    const BESIDE_DRAWING: NodeId = NodeId(6); // page, main, button, menu, item, drawing
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, menu_with_button), &mut Vec::new());
+    let closed = page.html();
+    page.act(Event::Click { node: BESIDE_MENU, modifier: false }, &mut Vec::new());
+    assert_eq!(page.act(Event::Drawing { node: BESIDE_DRAWING, under: Box::new([]), x: 0, y: 0 }, &mut ops), None);
+    assert_eq!(page.html(), closed);
+    assert_eq!(ops.last(), Some(&Op::Focus { node: BESIDE_MENU }));
 }
 
 const LOG: NodeId = NodeId(3); // page, main, log, text

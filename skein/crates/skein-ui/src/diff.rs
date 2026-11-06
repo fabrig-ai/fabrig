@@ -30,6 +30,7 @@ pub struct Attribute {
     pub entry: Option<EntryKind>,
     pub focus: Option<u64>,
     pub count: Option<u32>,
+    pub ordered: Option<u32>,
     pub position: Option<u32>,
     pub spans: Option<Spans>,
     pub sort: Option<Sort>,
@@ -56,6 +57,7 @@ impl Attribute {
             entry: node.entry,
             focus: node.focus,
             count: node.count,
+            ordered: node.ordered,
             position: node.position,
             spans: node.spans,
             sort: node.sort,
@@ -285,6 +287,7 @@ fn attributes(old: &Node, new: &Node, out: &mut Queue<Patch>) {
         || old.entry != new.entry
         || old.focus != new.focus
         || old.count != new.count
+        || old.ordered != new.ordered
         || old.position != new.position
         || old.spans != new.spans
         || old.sort != new.sort

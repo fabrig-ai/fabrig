@@ -38,7 +38,11 @@ impl Plan {
         if self.stage != Stage::Permission {
             return Err(api::Error::InvalidAnswer);
         }
-        self.terminal(api::Answer::Permission(value), bounds)
+        let Read::Permission { user } = self.read else {
+            return Err(api::Error::InvalidAnswer);
+        };
+        let login = self.login.take().ok_or(api::Error::InvalidAnswer)?;
+        self.terminal(api::Answer::Permission(api::UserPermission { user, login, permission: value }), bounds)
     }
 }
 
