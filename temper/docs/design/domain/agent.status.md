@@ -5,7 +5,7 @@ The remaining gaps concern verdict follow-up tasks,
 what a delivery keeps of a run's history, change-refusal model wording, shell authority for runs that cannot deliver,
 the fake's goal script, who is offered `decided`, what the configuring agent
 can read to size temper's own way, and what no real model has
-shown: the configuring agent's words and a document built in parts.
+shown: the configuring agent's words, a document built in parts and a receipt's words.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
 Section 4.3 has no gap in file, pull-file and compare fitting to the checked
 local receiving-agent allowance, size feedback, recovery and settled-call replay.
@@ -19,6 +19,7 @@ Section 8.1 has no gap in discovery of project repository identities for
 charter documents.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks.
+- **Not yet:** 6: a receipt's words are held by tests alone (`a_landed_receipt_says_pushed_at_which_head_on_which_branch`, `temper-worker-domain/src/tests/entrance.rs`): no real run has read them, so whether a run that finds its checkout detached still takes a good delivery for a failure is unobserved. The request `landing-fixes` of 2026-11-06 has its proof in the next landing plan on a real deployment, and no record shows one.
 - **Design departs:** 6, from the request `parallel-faults` of 2026-11-06, item 4, decided by its plan's cut: a run's local commits still don't reach its next run, and a fold on a saved start is still lost, where the request reports both as faults, because a delivery commits the tree on the worker's own record of the head (`../protocol/git.md`, 4.7), and its receipt names what it pushed. That a run's words name no commit off the branch is asked by the coding charter alone, since those names come from its own transcript or summary, not the host's resume words: nothing refuses such a word, and no walk on record has run a real model on the sentence.
 - **Not yet:** 8.1: the configuring agent's words have phrase assertions and scripted context coverage (`configuring_txt_speaks_the_persons_terms`, `temper-service/src/tests/stock.rs`): no walk on record has run a real model on them, so whether it answers in the person's terms, keeps back the `temper ctl` of the pages it reads, which still speak it, starts who approves from the person and says that nothing has changed once is unobserved. The request `configuring-words` of 2026-11-06 has that walk follow its landing.
 - **Not yet:** 8.1, *temper's own way*: `configuring.txt` has it size its settings for the deployment's worker slots and account models, but nothing a configuring run is offered reads them: `settings`' inventory (`temper-client-tools`'s `jig/render/document/settings.rs`, `inventory_text`), the forge's reads and `read_docs` name no worker's slots and no model an account reaches, so those facts can only come from the person. Seen by reading. `configuring_txt_starts_from_temper_own_way` (`temper-service/src/tests/stock.rs`) holds the words alone, and no walk on record has run a real model on them, so whether it reads the page, says what the deployment cannot do and keeps temper's own column in "How PROJECT works" is unobserved: the gallery's `configure-chat-document-split` is a script's document.

@@ -64,7 +64,16 @@ request has as its proof, nor why its hold came about 57 minutes in, and a no-ch
 under another hold is said only once a release holds it again (`domain/forge.md`). A
 merged start has no real run on record (`domain/worker.md`), a commit leaves out a
 stray by the name `.*.log` alone (`protocol/git.md`), and the coding charter alone
-asks a run to name no commit off its branch (`domain/agent.md`). A green head ends a CI repair
+asks a run to name no commit off its branch (`domain/agent.md`). A head already behind
+takes its base first, a receipt says what it pushed, a producer is told which task to ask
+and a resume holding the landing tip makes no merge, but no record shows the next landing
+plan on a real deployment, which the `landing-fixes` request has as their proof. The first
+saves a change's wait and not a run the forge started (`domain/forge.md`), and a resume on
+saved work whose save changes nothing leaves the engine's saved set
+(`domain/worker.md`, `protocol/channel.md`). That request's other items stand open: a
+task's saved work outlives its close and a repair's brief with no cause is untraced
+(`domain/forge.md`), a refused worker hears no why (`domain/worker.md`), and a unit test's
+port reservation flakes (`domain/testing.md`). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s
