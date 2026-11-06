@@ -1330,6 +1330,16 @@ keeps (`../protocol/configuration.md`, section 2).
       try* stopped at its first step, its why "Claude Code isn’t signed in
       here yet. Sign in again, then try again.": "Try again" checks again,
       and "Sign in again" brings the panel back.
+    - *The command's Copy,* on each of the welcome's command blocks, in a
+      browser alone: a quiet "Copy" in the block's top right corner, whose
+      right padding keeps the text from running under it at every width. A
+      press writes the command's exact text, as one line, an effect asked in
+      the press's own turn (skein's `ui.md`, section 13; `ui-web.md`, section
+      11). It reads "Copied" for 2 s. On plain http, where a browser has no
+      clipboard, and on any refusal or failure, it reads "Couldn’t copy" for
+      2 s, and the text stays selectable. A press within the 2 s writes again,
+      and an answer to an earlier press says nothing. The terminal has no
+      button.
     - *A plan's sign-in,* its way at its address with none asked, or one
       ended with no model usable, "Signing in to PLAN": `ConnectModel`'s card
       for the way, or its ending's words and acts, in the panel; "All ways".

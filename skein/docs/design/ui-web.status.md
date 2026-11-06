@@ -2,6 +2,7 @@
 
 2026-11-06. Where skein's code lags or departs from [ui-web.md](ui-web.md).
 
+- **Not yet:** 5.1, 11, *The clipboard*; 14.3, *A clipboard write*: `skein-ui-web` has no such part.
 - **Departs:** 7: a press outside an open menu returns the focus to its button
   unless that press took it to another control, where the code asks only whether
   the focus left the menu (`skein-ui-web`'s `page.rs`, `close_menu_outside`, and
