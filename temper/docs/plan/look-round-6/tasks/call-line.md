@@ -113,3 +113,12 @@ Not this task: `Opaque`, `TurnCut`, `Provisional`, `markdown`, "Older", `Line::L
 ## Report
 
 As the implementer's text asks, with these for the account: each overlay rule of *The line*, landed or how it differs; each state of the message this task reaches and the test holding it; what the view lacks a fact for (a run of one turn's time; an agent's page's running state; any tool beyond the table), named as deferred to `chat-reading`.
+
+## Rebase (2026-11-06, step merge, foreman look-round-6/call-line/foreman-1)
+
+resolve README.status.md by preserving answer/reading gaps and removing only the call-line gap
+The merge failed in `temper/docs/design/client/README.status.md`.
+Integration commit `30cd77f708` adds two adjacent **Not yet** entries for the agent's words/While it works and Reading back/loading earlier messages.
+Task commit `be939c434f` removes the following **Not yet** entry for *its calls*, *A call's line*, *The tool line*, and 5.9.
+Rebase onto the landing target; retain both added entries and remove only the completed call-line entry. Preserve all remaining status text.
+The log reports automatic merges for the other paths; it reports no test or gate failure requiring another change.
