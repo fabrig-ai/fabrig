@@ -20,3 +20,23 @@ id = 1
 story = "what each capped queue beside the printer keeps is listed and held by a test, before any cap goes"
 parts = ["orders"]
 walk = false
+
+[[part]]
+id = "machine"
+title = "hearth-client-protocol-records has no MaxOut and the queues beside its printer are uncapped"
+mode = "direct"
+needs = ["orders"]
+design = "hearth/docs/design/domain/render.md, 8.5"
+
+[[part]]
+id = "close"
+title = "D001 says what is true after this round, and stays open"
+mode = "direct"
+needs = ["machine"]
+design = "hearth/docs/design/domain/render.md, 8.5"
+
+[[slice]]
+id = 2
+story = "the records machine runs uncapped with only its edges refusing, and what hearth does is unchanged"
+parts = ["machine", "close"]
+walk = false
