@@ -26,6 +26,8 @@ pub enum ProgramCheck {
 pub struct ConnectModel {
     pub holder: c::AskAccountHolder,
     pub check: ProgramCheck,
+    /// The way last pressed, for Ready’s retry and return to sign-in.
+    pub tried: Option<Way>,
     pub program: Option<Box<[u8]>>,
     pub request: Request,
     /// Whether the scripted model was serving when this connection was sent.
@@ -44,7 +46,6 @@ pub enum Act {
     Finish { name: RequestKey },
     ProgramName { value: Box<[u8]> },
     Submit { name: RequestKey },
-    SignInAgain,
     Cancel,
 }
 #[must_use]
@@ -210,8 +211,14 @@ impl ConnectModel {
             self.program = None;
         }
         let old_way = chosen_way(current);
-        if old_way != chosen_way(next) {
+        let ready = Address::Welcome { step: Step::Ready };
+        let choose = Address::Welcome { step: Step::Model { way: None } };
+        if *next != ready && !(*current == ready && *next == choose) && old_way != chosen_way(next) {
             self.check = ProgramCheck::Idle;
+        }
+        if *current == ready && chosen_way(next).is_some() {
+            self.check = ProgramCheck::Idle;
+            self.request.cancel();
         }
         if let Address::ConnectModel { way: Some(old) } | Address::Welcome { step: Step::Model { way: Some(old) } } =
             current
@@ -276,7 +283,6 @@ impl ConnectModel {
             | Act::ProgramName { .. }
             | Act::Submit { .. }
             | Act::Finish { .. }
-            | Act::SignInAgain
             | Act::Cancel => false,
         };
         let Some(me) = accounts::current_me(client) else { return };
@@ -300,12 +306,6 @@ impl ConnectModel {
             }
             Act::Finish { name } => self.request.finish(client, name, serial, out),
             Act::Cancel => self.request.cancel(),
-            Act::SignInAgain => {
-                if matches_welcome_program(current) && self.check == ProgramCheck::NotYet {
-                    self.check = ProgramCheck::Idle;
-                    self.request.cancel();
-                }
-            }
             Act::SignIn { name, way } | Act::SignInElsewhere { name, way } => {
                 if model_way(way).kind != WayKind::SignIn
                     || !accounts::ways(&me.providers, playground, self.holder).as_slice().contains(&way)
@@ -323,8 +323,8 @@ impl ConnectModel {
                 out.push(Output::Show { address: address(current, Some(model_way(way))) });
             }
             Act::SignedIn { name, way } => {
-                if !matches_welcome_program(current)
-                    || chosen != Some(way)
+                if !(matches_welcome_program(current) && chosen == Some(way)
+                    || *current == (Address::Welcome { step: Step::Ready }) && self.tried == Some(way))
                     || model_way(way).kind != WayKind::Program
                     || self.check == ProgramCheck::Declaring
                 {
@@ -361,6 +361,10 @@ impl ConnectModel {
                         serial,
                         out,
                     );
+                }
+                self.tried = Some(way);
+                if matches_welcome_program(current) {
+                    out.push(Output::Replace { address: Address::Welcome { step: Step::Ready } });
                 }
             }
             Act::Submit { name } => {
@@ -529,6 +533,7 @@ impl Default for ConnectModel {
         Self {
             holder: c::AskAccountHolder::Own,
             check: ProgramCheck::Idle,
+            tried: None,
             program: None,
             request: Request::default(),
             playground: false,

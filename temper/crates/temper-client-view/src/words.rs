@@ -1260,8 +1260,10 @@ pub enum Word {
     WelcomeClaudeBody,
     WelcomeClaudeNote,
     WelcomeClaudeSignedIn,
-    WelcomeTrying,
-    WelcomeTryShort,
+    FlowStopped,
+    WelcomeForgeAndModel,
+    WelcomeTryStep,
+    WelcomeTryLine,
     WelcomeTryAnswered,
     WelcomeTryNoAnswer,
     WelcomeTrySubscription,
@@ -1271,8 +1273,6 @@ pub enum Word {
     WelcomeTryAnswers,
     WelcomeTryAgain,
     WelcomeSignInAgain,
-    WelcomeContinueAnyway,
-    WelcomeTryFailed,
     WelcomeClaudeNotYet,
 
     WelcomeForgeStillSettingUp,
@@ -1372,6 +1372,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Last landing adds two phrases (client/README.md, 3.5).
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
+// The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 const PHRASES: u32 = 1851;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
@@ -1397,9 +1398,9 @@ const PHRASES: u32 = 1851;
 // Last landing adds four segments (client/README.md, 3.5).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3230;
+const SEGMENTS: u32 = 3234;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45171;
+const ENGLISH_BYTES: u32 = 45143;
 const ALL: [Word; 1258] = [
     Word::CloseTitle,
     Word::CloseChat,
@@ -2618,8 +2619,10 @@ const ALL: [Word; 1258] = [
     Word::WelcomeClaudeBody,
     Word::WelcomeClaudeNote,
     Word::WelcomeClaudeSignedIn,
-    Word::WelcomeTrying,
-    Word::WelcomeTryShort,
+    Word::FlowStopped,
+    Word::WelcomeForgeAndModel,
+    Word::WelcomeTryStep,
+    Word::WelcomeTryLine,
     Word::WelcomeTryAnswered,
     Word::WelcomeTryNoAnswer,
     Word::WelcomeTrySubscription,
@@ -2629,8 +2632,6 @@ const ALL: [Word; 1258] = [
     Word::WelcomeTryAnswers,
     Word::WelcomeTryAgain,
     Word::WelcomeSignInAgain,
-    Word::WelcomeContinueAnyway,
-    Word::WelcomeTryFailed,
     Word::WelcomeClaudeNotYet,
     Word::WelcomeForgeStillSettingUp,
     Word::WelcomeProgramAccount,
@@ -3889,8 +3890,10 @@ impl Word {
             Self::WelcomeClaudeBody => 3377,
             Self::WelcomeClaudeNote => 3378,
             Self::WelcomeClaudeSignedIn => 3379,
-            Self::WelcomeTrying => 3726,
-            Self::WelcomeTryShort => 3727,
+            Self::FlowStopped => 3866,
+            Self::WelcomeForgeAndModel => 3867,
+            Self::WelcomeTryStep => 3868,
+            Self::WelcomeTryLine => 3869,
             Self::WelcomeTryAnswered => 3728,
             Self::WelcomeTryNoAnswer => 3729,
             Self::WelcomeTrySubscription => 3730,
@@ -3900,8 +3903,6 @@ impl Word {
             Self::WelcomeTryAnswers => 3734,
             Self::WelcomeTryAgain => 3735,
             Self::WelcomeSignInAgain => 3736,
-            Self::WelcomeContinueAnyway => 3737,
-            Self::WelcomeTryFailed => 3738,
             Self::WelcomeClaudeNotYet => 3381,
             Self::WelcomeForgeStillSettingUp => 3382,
             Self::WelcomeProgramAccount => 3383,
@@ -4527,8 +4528,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeClaudeBody => (&[b"temper sets Claude Code up on this machine in an environment of its own: its settings, sessions and sign-in stay apart from your own Claude Code. In a terminal here:"], &[]),
         Word::WelcomeClaudeNote => (&[b"It makes that environment, then Claude Code asks you to sign in to your subscription there. temper never reads its login."], &[]),
         Word::WelcomeClaudeSignedIn => (&[b"I\xe2\x80\x99ve signed in"], &[]),
-        Word::WelcomeTrying => (&[b"Trying your ", b""], &[Name]),
-        Word::WelcomeTryShort => (&[b"one short message"], &[]),
+        Word::FlowStopped => (&[b"stopped"], &[]),
+        Word::WelcomeForgeAndModel => (&[b"Forge and model"], &[]),
+        Word::WelcomeTryStep => (&[b"Trying: ", b""], &[Name]),
+        Word::WelcomeTryLine => (&[b"", b" \xc2\xb7 trying: ", b""], &[Name, Name]),
         Word::WelcomeTryAnswered => (&[b"answered in ", b" s"], &[Number]),
         Word::WelcomeTryNoAnswer => (&[b"", b" didn\xe2\x80\x99t answer"], &[Name]),
         Word::WelcomeTrySubscription => (&[b"Signed in to your subscription"], &[]),
@@ -4538,8 +4541,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeTryAnswers => (&[b"", b" answers"], &[Name]),
         Word::WelcomeTryAgain => (&[b"Try again"], &[]),
         Word::WelcomeSignInAgain => (&[b"Sign in again"], &[]),
-        Word::WelcomeContinueAnyway => (&[b"Continue anyway"], &[]),
-        Word::WelcomeTryFailed => (&[b"didn\xe2\x80\x99t answer when tried"], &[]),
         Word::WelcomeClaudeNotYet => (&[b"Claude Code isn\xe2\x80\x99t signed in here yet. Sign in again, then try again."], &[]),
         Word::WelcomeFinishing => (&[b"Finishing your sign-in\xe2\x80\xa6"], &[]),
         Word::WelcomeModelProgramTime => (&[b"One command in a terminal, on this machine"], &[]),
