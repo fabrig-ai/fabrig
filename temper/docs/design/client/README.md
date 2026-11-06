@@ -6443,6 +6443,11 @@ own tests:
   draw the same page. Candidate: the accounts document gives a sign-in's
   holder its address, which jig's `protocol/llm.md`, 5.2 keeps as an
   answer alone. Default: no link, the paste still offered.
+- **The person's login over 760 px** (3.5, *Sign out*; 5.3; the request
+  `ui-owner-menu`): the sheet hides the `Accounts` tab's row whole, so a browser
+  that wide reads the person's name on the rail's foot, and their login on no tab
+  of `Settings`. Candidate: the sheet hides the row's button alone, its words
+  staying. Default: the whole row.
 - **Which tasks hold a revision, and which could move** (5.13). jig's
   `settings` document counts the live tasks holding each revision, but
   a task query has no revision among its keys (jig's

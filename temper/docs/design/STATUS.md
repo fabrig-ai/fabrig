@@ -167,7 +167,10 @@ over the host's check alone, no trial being built, and departs from the request
 `sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
 until that draft is built; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
-(`client/README.md`). The rename's form asks the focus beside an
+(`client/README.md`). The rail's person's menu departs from the request
+`ui-owner-menu` in a press outside that took the focus, which keeps it, a project-less
+`Accounts` page's "Sign out", which stays the banner's, and the tab's whole row leaving
+over 760 px, the login with it (`client/README.md`). The rename's form asks the focus beside an
 open reply, where a tree holds one request, seen by reading (`client/README.md`),
 and no test measures a long chat's document against its window, where the user's
 answer of 2026-11-06 asks one (`client/browser.md`). A document
