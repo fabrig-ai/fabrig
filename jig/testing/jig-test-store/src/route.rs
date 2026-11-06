@@ -267,6 +267,7 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
                         messages: u32::MAX,
                         blocks: u32::MAX,
                         text: u32::try_from(turn.transcript.len()).expect("stored turn bound"),
+                        outcome: u32::try_from(turn.transcript.len()).expect("stored turn bound"),
                     },
                 );
                 let text = jig_protocol_transcript::brief_text(&limits, &turn.transcript).ok();

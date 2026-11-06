@@ -441,8 +441,9 @@ replay says the same clocks (`README.md`, 5.12).
   Keep precedes the named primary act in a separate group. An uncertain
   release's choices have a wrapping group of their own, with the same
   secondary buttons; those and the acts keep 44 px phone targets.
-  Progress and refusal stay above the acts. A requester-closed chat's end
-  line is 12.5 px between two hairlines, and the bar has no clock.
+  Progress and refusal stay above the acts. A chat's end line, whichever
+  its words (`README.md`, 3.5), is 12.5 px between two hairlines, and the
+  bar has no clock.
 - **Connection flows:** standalone connection cards use 5 px corners;
   the welcome's steps have a look of their own (The welcome's look,
   below). The
