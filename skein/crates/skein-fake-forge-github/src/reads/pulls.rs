@@ -7,6 +7,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api as a;
 use skein_forge::github::document as d;
+use skein_lib::bytes::concat;
 use skein_lib::{List, usize_of};
 
 pub(super) fn commits(answer: a::Answer, target: &[u8], page: u32, size: u32, limits: &Limits) -> Response {
@@ -142,9 +143,12 @@ pub(super) fn graphql(answer: a::Answer, repository: u32, number: u64, limits: &
 }
 
 pub(super) fn node_id(repository: u32, number: u64, limits: &Limits) -> Option<Box<[u8]>> {
-    let prefix = crate::service::joined(b"PR_", skein_lib::Decimal::of(u64::from(repository)).as_bytes())?;
-    let prefix = crate::service::joined(&prefix, b"_")?;
-    let id = crate::service::joined(&prefix, skein_lib::Decimal::of(number).as_bytes())?;
+    let id = concat(&[
+        b"PR_",
+        skein_lib::Decimal::of(u64::from(repository)).as_bytes(),
+        b"_",
+        skein_lib::Decimal::of(number).as_bytes(),
+    ]);
     if skein_lib::len_u64(id.len()) > u64::from(limits.github.string_bytes) {
         return None;
     }
