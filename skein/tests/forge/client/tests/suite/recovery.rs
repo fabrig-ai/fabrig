@@ -121,6 +121,109 @@ use skein_fake_forge_domain::api as raw;
 use skein_forge::api::{self, Answer, Read, Write};
 use skein_lib::Duration;
 
+fn behind_base() -> (World, u64, u64, u64) {
+    let mut world = World::new(Settings::calm(53));
+    let pull = world.historical_pull();
+    let head = world.pull_head(pull);
+    let base = world.outside_push(b"main", b"base", b"ahead");
+    assert!(!world.is_ancestor(base, head), "the update has work to do");
+    (world, pull, head, base)
+}
+
+fn updated(world: &World, pull: u64, base: u64) -> u64 {
+    let head = world.pull_head(pull);
+    // Updates settle through a comparison, including after an answered send.
+    assert_eq!(
+        world.outcomes().last(),
+        Some(&(
+            1,
+            Outcome::Made { made: Made::Updated(skein_forge_client_world::translate::commit(head)), found: true }
+        ))
+    );
+    assert!(world.is_ancestor(base, head), "the head holds the requested base");
+    assert!(!world.outcomes().contains(&(1, Outcome::Held)));
+    head
+}
+
+#[test]
+fn a_lost_update_is_found_if_its_copy_lands_within_its_lifetime() {
+    for style in [api::UpdateStyle::Merge, api::UpdateStyle::Rebase] {
+        let (mut world, pull, head, base) = behind_base();
+        world.land_writes_late(Duration::from_secs(5));
+        world.make(fixtures::update_entry(pull, head, base, style));
+        world.run_for(1);
+        world.calm();
+        world.run_for(12);
+        updated(&world, pull, base);
+        assert_eq!(world.stats().writes, 1);
+        assert_eq!(world.stats().late_landings, 1);
+        world.finish();
+    }
+}
+
+#[test]
+fn a_lost_update_is_made_again_if_no_copy_lands_within_its_lifetime() {
+    for style in [api::UpdateStyle::Merge, api::UpdateStyle::Rebase] {
+        let (mut world, pull, head, base) = behind_base();
+        world.land_writes_past_lifetime(Duration::from_secs(25));
+        world.make(fixtures::update_entry(pull, head, base, style));
+        world.run_for(1);
+        world.calm();
+        world.run_for(13);
+        let remade = updated(&world, pull, base);
+        assert_eq!(world.stats().writes, 2);
+        assert_eq!(world.stats().late_landings, 0);
+        world.run_for(15);
+        assert_eq!(world.stats().late_landings, 1);
+        assert_eq!(world.pull_head(pull), remade, "a copy holding the same base changes nothing");
+        assert!(world.is_ancestor(base, remade));
+        world.finish();
+    }
+}
+
+#[test]
+fn a_copy_past_its_lifetime_after_the_base_went_on_moves_the_head_and_keeps_the_base() {
+    for style in [api::UpdateStyle::Merge, api::UpdateStyle::Rebase] {
+        let (mut world, pull, head, base) = behind_base();
+        world.land_writes_past_lifetime(Duration::from_secs(25));
+        world.make(fixtures::update_entry(pull, head, base, style));
+        world.run_for(1);
+        world.calm();
+        world.run_for(13);
+        let remade = updated(&world, pull, base);
+        assert_eq!(world.stats().writes, 2);
+        assert_eq!(world.stats().late_landings, 0);
+        let newer_base = world.outside_push(b"main", b"base", b"ahead again");
+        world.run_for(15);
+        let copied = world.pull_head(pull);
+        assert_eq!(world.stats().late_landings, 1);
+        assert_ne!(copied, remade, "the late copy incorporates the newer base");
+        assert!(world.is_ancestor(base, copied));
+        assert!(world.is_ancestor(newer_base, copied));
+        assert_eq!(world.is_ancestor(remade, copied), style == api::UpdateStyle::Merge);
+        world.finish();
+    }
+}
+
+#[test]
+fn a_lost_update_fails_timeout_when_no_copy_lands_in_its_attempts() {
+    for style in [api::UpdateStyle::Merge, api::UpdateStyle::Rebase] {
+        let (mut world, pull, head, base) = behind_base();
+        world.make(fixtures::update_entry(pull, head, base, style));
+        for _ in 0..skein_forge_client_world::LIMITS.write_attempts {
+            world.lose_next_update();
+        }
+        world.run_for(12);
+        assert_eq!(world.stats().writes, skein_forge_client_world::LIMITS.write_attempts);
+        assert_eq!(world.stats().late_landings, 0);
+        assert_eq!(world.outcomes().last(), Some(&(1, Outcome::Failed(api::Error::Timeout))));
+        assert!(!world.outcomes().contains(&(1, Outcome::Held)));
+        assert!(world.entry(1).is_none());
+        assert_eq!(world.pull_head(pull), head);
+        world.finish();
+    }
+}
+
 fn dispatch_world() -> World {
     World::with_workflows(
         Settings::calm(47),
