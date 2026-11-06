@@ -35,7 +35,8 @@ built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but no walk
-on record has run a real model on its words (`domain/agent.md`), and a
+on record has run a real model on its words, nothing it reads names the
+worker slots it is to size temper's own way by (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
@@ -54,7 +55,10 @@ them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
-reads a spec in pieces of it (`protocol/setup.md`). A green head ends a CI repair
+reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
+its reply's room, but in those pieces where its process has no local agent, by the
+`read-task-room` plan's cut, and no goal on record has counted what the room saves
+(`domain/root.md`). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s
@@ -100,10 +104,7 @@ request of 2026-11-05 has a restart too
 (`protocol/sign-in.md`); a connected Forgejo, its connect with its
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
-managed (`protocol/setup.md`); a Forgejo connected as its admin polls,
-with no hook, where `draft/github.md` and the `adopt-access` request of
-2026-11-05 have one, which the user has not answered, and on a real
-Forgejo no story shows a plan making a hook (`protocol/setup.md`); a
+managed (`protocol/setup.md`); a
 managed row set up failed offers Connect to ctl alone
 (`client/forge.md`), and the adoption form draws no read-only line
 (`client/README.md`); `temper forge sign-in` prints an owned
@@ -158,11 +159,9 @@ off in the stock, where that request has them follow a tracked template
 has it keep no notes (`domain/agent.md`). A proposal of settings reaches a
 project's Needs you and rail's count, but its live card lists no item of temper's
 kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
-"Decision made" while it waits; the Claude way's command refuses on a box
-with directories of its own, and a choice pressed just after Undo stayed
-unanswered once (`client/README.md`). `again` can't record a journey that begins
-past the welcome (`client/journeys.md`). The welcome's try of a model draws its box
-over the host's check alone, no trial being built, and departs from the request
+"Decision made" while it waits (`client/README.md`). `again` can't record a journey
+that begins past the welcome (`client/journeys.md`). The welcome's try of a model
+draws its box over the host's check alone, no trial being built, and departs from the request
 `model-check` in its list's names and a few of its acts and words
 (`client/README.md`). A plan's sign-in draws the waiting page of the request
 `sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
@@ -176,7 +175,10 @@ open reply, where a tree holds one request, seen by reading (`client/README.md`)
 and no test measures a long chat's document against its window, where the user's
 answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
 numbers in a chat's card, whose items the sheet makes flex, and a document page's
-takes the browser's margins (`client/browser.md`). The words being written draw an
+takes the browser's margins (`client/browser.md`). temper's own way stands on
+Configure, departing from the request `configure-temper-own-way` in its reference's
+words and look (`client/README.md`), but no walk on record presses its acts and no
+render has drawn its picture as a numbered list (`client/browser.md`). The words being written draw an
 empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, a last block still open changes as it commits, and no browser test draws them
 (`client/README.md`). Every confirmation of a chat, a

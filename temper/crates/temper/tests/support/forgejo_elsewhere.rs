@@ -28,6 +28,10 @@ const STORY: &str = "a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_
 const CHILD: &str = "TEMPER_E4_LIFE";
 const EDIT: &[u8] = b"Changed by the elsewhere chat.\n";
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one process story keeps adoption, deleted hooks and restart observations together"
+)]
 pub fn restart() {
     if let Some(root) = std::env::var_os(CHILD) {
         life(Path::new(&root), std::env::var_os("TEMPER_E4_RESTART").is_some());
@@ -98,14 +102,16 @@ pub fn restart() {
         forge.repository_observation("elsewhere", "first", "pulls?state=all&limit=50").as_array().expect("pulls").len(),
         1
     );
+    let url = hook_url(scratch.path());
+    assert_hook(&forge, "elsewhere", "first", &url);
     for name in ["open", "closed"] {
         assert_eq!(
             forge.repository_observation("other", name, "collaborators/elsewhere-bot/permission")["permission"],
             "write"
         );
-        // temper/docs/design/protocol/setup.md, 5.5: managed forges poll.
-        assert_eq!(forge.repository_observation("other", name, "hooks").as_array().expect("hooks").len(), 0);
+        assert_hook(&forge, "other", name, &url);
         forge.remove_adoption_collaborator(name);
+        forge.remove_adoption_hooks(name);
     }
     fs::remove_file(&paste).expect("delete paste before restart");
     child(scratch.path(), true, &token);
@@ -128,11 +134,27 @@ pub fn restart() {
             forge.repository_observation("other", name, "collaborators/elsewhere-bot/permission")["permission"],
             "write"
         );
+        assert_hook(&forge, "other", name, &url);
     }
     forge.stop();
     scratch.remove();
     elsewhere.remove();
     eprintln!("elsewhere story: {:?}", clock.now().now.saturating_since(began));
+}
+
+fn hook_url(root: &Path) -> String {
+    let value: Value =
+        serde_json::from_slice(&fs::read(root.join("config/temper.json")).expect("configuration")).expect("JSON");
+    let socket =
+        value.pointer("/application/webhooks/listener/socket").and_then(Value::as_str).expect("listener socket");
+    format!("http://{socket}/hooks/1")
+}
+
+fn assert_hook(forge: &Throwaway, owner: &str, name: &str, url: &str) {
+    let value = forge.repository_observation(owner, name, "hooks");
+    let hooks = value.as_array().expect("repository hooks");
+    assert_eq!(hooks.len(), 1, "one hook on {owner}/{name}");
+    assert_eq!(hooks[0]["config"]["url"], url, "hook at the listener");
 }
 
 fn child(root: &Path, restarted: bool, token: &[u8]) {
@@ -159,7 +181,7 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     let mut value: Value = serde_json::from_str(&bytes).expect("JSON");
     assert!(
         value.pointer("/application/webhooks/listener/socket").and_then(Value::as_str).is_some(),
-        "listener configured for no-hook observation"
+        "listener configured for the hooks' URL"
     );
     // The first repository and both outside adoptions are retained across restart.
     value["application"]["limits"]["overrides"]["forge.repositories"] = 3.into();
