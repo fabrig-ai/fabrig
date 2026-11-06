@@ -14,7 +14,7 @@ mod store;
 mod systems;
 
 use jig_conformance::referee as r;
-use jig_conformance::{Application, Clock, Input, Output};
+use jig_conformance::{Application, Clock, Input, Output, core::peers};
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -182,12 +182,9 @@ fn env(config: &Config, clock: Clock) -> Env<root::Limits> {
 impl Application for Ops {
     type Domain = root::Domain;
     type Store = Store;
-    type Write = root::Write;
     type Config = Config;
     type Systems = Systems;
     type Peers = Peers;
-    type Key = root::Key;
-    type Record = root::Record;
     type Event = root::Event;
     type Delivery = Delivery;
 
@@ -269,16 +266,6 @@ impl Application for Ops {
     fn policy(peers: &Peers) -> &r::Policy {
         &peers.observer.referee.policy
     }
-    fn policy_generation(peers: &Peers) -> u64 {
-        peers.observer.policy_generation()
-    }
-    fn recovery(_: &Config, connector: u16, kind: u16) -> r::Recovery {
-        match (connector, kind) {
-            (2, 1 | 4) => r::Recovery::Keyed,
-            (2, 2 | 5) => r::Recovery::Conditional,
-            _ => panic!("declared story kinds"),
-        }
-    }
     fn start(config: &Config, store: &mut Store) -> Vec<root::Event> {
         if store.rows.is_empty() {
             let configuration = config::root_for(config.seed, config.story == Story::Environment).0;
@@ -313,12 +300,11 @@ impl Application for Ops {
             root::Event::TurnTimer,
         ]
     }
-    fn step(domain: &mut root::Domain, config: &Config, clock: Clock, input: Input<root::Event, root::Record>) {
+    fn step(domain: &mut root::Domain, config: &Config, clock: Clock, input: Input<root::Event>) {
         let event = match input {
             Input::Event(event) => event,
             Input::Committed(number) => root::Event::Store(root::Store::Committed { number, fill: 0 }),
             Input::Failed(number) => root::Event::Store(root::Store::Failed { number }),
-            Input::Restore(row) => root::Event::Store(root::Store::Restore(row)),
         };
         root::step(domain, &env(config, clock), event);
     }
@@ -406,7 +392,7 @@ impl Application for Ops {
         store: &mut Store,
         clock: Clock,
         delivery: Delivery,
-    ) -> Vec<Input<root::Event, root::Record>> {
+    ) -> Vec<Input<root::Event>> {
         let delivery = match delivery {
             Delivery::Root(mut root) => {
                 if let root::Output::Core(held) = root.as_mut() {
@@ -479,7 +465,7 @@ impl Application for Ops {
             }
             root::Output::Switch => vec![Input::Event(root::Event::Store(root::Store::Switched))],
             root::Output::Load { phase, range } => {
-                if let Some(position) = jig_conformance::core::peers::restart_position(phase, 2) {
+                if let Some(position) = peers::restart_position(phase, 2) {
                     peers.observed.push(r::Observed::RestartStage { position });
                 }
                 let rows: Vec<_> = if range == root::Range::Core {
@@ -520,7 +506,8 @@ impl Application for Ops {
                 } else {
                     rows
                 };
-                let mut events: Vec<_> = rows.into_iter().map(Input::Restore).collect();
+                let mut events: Vec<_> =
+                    rows.into_iter().map(|row| Input::Event(root::Event::Store(root::Store::Restore(row)))).collect();
                 events.push(Input::Event(root::Event::Store(root::Store::Restored(phase))));
                 events
             }
@@ -684,7 +671,7 @@ impl Application for Ops {
                 vec![Input::Event(root::Event::ResultRead { payload, end: crate::protocol::result(&outcome) })]
             }
             root::Output::Now(core::Now::Account(accounts::Request::Component(request))) => {
-                jig_conformance::core::peers::account(request, Duration::from_secs(7200))
+                peers::account(request, Duration::from_secs(7200))
                     .into_iter()
                     .map(|event| Input::Event(root::Event::Core(event)))
                     .collect()
@@ -721,15 +708,11 @@ impl Application for Ops {
                 Vec::new()
             }
             root::Output::Core(core::Held::NotesLoad { owner, .. }) => {
-                vec![Input::Event(root::Event::Core(jig_conformance::core::peers::notes_loaded(
-                    owner,
-                    List::with_capacity(0),
-                    false,
-                )))]
+                vec![Input::Event(root::Event::Core(peers::notes_loaded(owner, List::with_capacity(0), false)))]
             }
             root::Output::CoreLoad(core::Now::StartPreparation { task, from, .. }) => {
                 let records = observations::core_store(store).rows;
-                let rows = match jig_conformance::core::peers::transcript(&records, task, from) {
+                let rows = match peers::transcript(&records, task, from) {
                     Ok(rows) => rows,
                     Err(event) => return vec![Input::Event(root::Event::Core(*event))],
                 };
@@ -785,7 +768,7 @@ impl Application for Ops {
         store: &mut Store,
         clock: Clock,
         ready: bool,
-    ) -> Vec<Input<root::Event, root::Record>> {
+    ) -> Vec<Input<root::Event>> {
         let now = clock.now / 1_000_000_000;
         if now > systems.now {
             systems.production.advance(now - systems.now);
@@ -805,14 +788,11 @@ impl Application for Ops {
                     next: None,
                 })));
             }
-            events.push(Input::Event(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                accounts::FromComponent::Granted {
-                    form: accounts::Form::Credential(accounts::Scheme::Bearer),
-                    account: 1,
-                    generation: 1,
-                    valid: Duration::from_secs(7200),
-                },
-            )))));
+            events.extend(
+                peers::account(accounts::ToComponent::Want { account: 1 }, Duration::from_secs(7200))
+                    .into_iter()
+                    .map(|event| Input::Event(root::Event::Core(event))),
+            );
         }
         if ready && let Some(up) = peers.party.tick(Time::from_nanos(clock.now)) {
             match up {
@@ -898,7 +878,9 @@ impl Application for Ops {
         }
     }
     fn observed(peers: &mut Peers, _: &Systems, store: &Store, clock: Clock) -> Vec<r::Observed> {
-        peers.observer.durable(clock.now, &observations::core_store(store));
+        if store.applied != peers.observer.applied() {
+            peers.observer.durable(clock.now, &observations::core_store(store));
+        }
         let mut observed = Vec::new();
         let mut answers = Vec::new();
         for evidence in std::mem::take(&mut peers.application_observed) {

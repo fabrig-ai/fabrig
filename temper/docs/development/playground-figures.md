@@ -11,7 +11,7 @@ playground figures: download raw 19854021 B gzip 7026541 B; memory high water 61
 | Figure | Measured | Bar | Result |
 | --- | ---: | --- | --- |
 | Download, raw | 19,854,021 B | No separate raw bar | Reported |
-| Download, gzip | 7,026,541 B | 6 MB (6,000,000 B) gzip | Over by 1,026,541 B |
+| Download, gzip | 7,026,541 B | 8 MB (8,000,000 B) gzip | Under by 973,459 B |
 | Memory high water | 6,186,598 B (frame: 5.9 MiB) | the user's, Open | Reported |
 | Longest slice | 117.799 ms | the user's, Open | Reported |
 

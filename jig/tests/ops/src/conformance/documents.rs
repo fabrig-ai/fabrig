@@ -75,7 +75,7 @@ pub fn delivered(peers: &mut Peers, store: &Store, document: root::ClientDocumen
     peers.documents.push((commit, document));
 }
 
-pub fn poll(peers: &mut Peers, store: &Store) -> Vec<Input<root::Event, root::Record>> {
+pub fn poll(peers: &mut Peers, store: &Store) -> Vec<Input<root::Event>> {
     let Some(sign_in) = peers.sign_in else { return Vec::new() };
     let mut events = Vec::new();
     for row in store.rows.values() {

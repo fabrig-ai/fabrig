@@ -1,6 +1,7 @@
 //! Configuration seeds project policies and first owners once (configuration.md, 3).
 
 use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::store_peer::with_start_mark;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
@@ -23,15 +24,7 @@ fn cold() -> World {
 }
 
 fn sign_in(world: &mut World, subject: u64) -> (u64, u64) {
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(11_001)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: subject.to_be_bytes().into() },
-            login: b"owner".as_slice().into(),
-            name: b"First owner".as_slice().into(),
-        },
-    }));
+    world.send(signin(Token::new(11_001), 0, &subject.to_be_bytes(), b"owner", b"First owner"));
     let (
         _,
         root::Delivery::Core(core::Held::PeopleReply {
