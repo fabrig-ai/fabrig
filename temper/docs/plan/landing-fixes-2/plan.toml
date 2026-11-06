@@ -1,0 +1,3 @@
+draft = "landing-fixes-2"
+repo = "fabrig"
+sources = ["temper/docs/plan/landing-fixes-2/inputs/request.md", "AGENTS.md", "DESIGN.md"]
