@@ -67,7 +67,7 @@ pub(crate) fn section(
     crate::tree::pages::cut(b, words, conversation_rows.cut);
     let earlier = match conversation_rows.edges.after {
         jig_client::thread::window::Edge::More(_) => true,
-        jig_client::thread::window::Edge::End => client.chats().more,
+        jig_client::thread::window::Edge::End | jig_client::thread::window::Edge::Dropped => client.chats().more,
     };
     words.text(b, JigPhrase::WindowEnd, &[]);
     if earlier {

@@ -172,7 +172,7 @@ pub(crate) fn logins(
     }
 }
 fn fault(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: &mut Queue<Request>) {
-    out.push(Request::Refuse { channel });
+    out.push(Request::Refuse { channel, hello: None });
     crate::channel::lost(domain, env, channel, out);
 }
 pub(crate) fn check(domain: &Domain, channel: Token, name: SourceName, out: &mut Queue<Request>) {

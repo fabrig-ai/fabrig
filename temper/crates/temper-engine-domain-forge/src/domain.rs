@@ -1605,6 +1605,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         }
         Event::ReleaseChange { task } => release_change(d, env, task, out),
         Event::SettleEffects { task, root, ending } => settle_effects(d, env, task, root, ending, out),
+        Event::SavedWork { task, branches } => saved_work(d, env, task, &branches, out),
         Event::Release { task, root, ending, reason, entry } => release(d, env, task, root, ending, reason, entry, out),
         Event::ContinueRelease { task, entry } => continue_release(d, env, task, entry, out),
         Event::ReleaseProjection { goal } => release_projection(d, goal, out),
@@ -2062,6 +2063,19 @@ pub(crate) fn emit(out: &mut Queue<Request>, request: Request) {
 fn save_hold(out: &mut Queue<Request>, hold: Hold) {
     let read_afresh = if hold.writer.is_none() { Some(hold.name.clone()) } else { None };
     emit(out, Request::Save { record: Stored::Hold(hold), release: None, read_afresh });
+}
+
+// Saved-work branches join their task's release without a hub holding or a head read
+// (temper/docs/design/domain/forge.md, 11).
+fn saved_work(d: &mut Domain, env: &Env<Limits>, task: u64, branches: &[Name], out: &mut Queue<Request>) {
+    for name in branches {
+        if !valid_name(d, &env.limits, name) || d.holds.contains_key(name) || d.holds.len() == env.limits.holds {
+            continue;
+        }
+        let row = Hold { name: name.clone(), task, writer: None, drift: None };
+        d.holds.insert(name.clone(), row.clone()).expect("saved-work hold capacity checked");
+        emit(out, Request::Save { record: Stored::Hold(row), release: None, read_afresh: None });
+    }
 }
 
 fn valid_name(d: &Domain, l: &Limits, name: &Name) -> bool {

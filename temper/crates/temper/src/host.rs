@@ -295,6 +295,9 @@ pub(crate) fn note_line(note: temper_service::Note) -> String {
             &diagnostic.detail,
         ),
         temper_service::Note::RunRefused(diagnostic) => run_refusal_line(diagnostic),
+        temper_service::Note::HelloRefused { channel, text } => {
+            format!("temper serve: hello refused channel={channel}: {}\n", String::from_utf8_lossy(&text))
+        }
         temper_service::Note::ReadRefused { task, attempt, tool, layer, reason, findings, error } => {
             format!(
                 "temper serve: read refused task={task} attempt={attempt} tool={} layer={layer} reason={reason} error={error:?} findings={findings:?}\n",
@@ -684,6 +687,17 @@ fn listening_notes_print_each_listener_and_socket_address_exactly() {
             assert_eq!(note_line(Note::Listening { listener, addr }), format!("listening {name} {printed}\n"));
         }
     }
+}
+
+#[test]
+fn hello_refusal_notes_print_the_channel_and_words_exactly() {
+    assert_eq!(
+        note_line(temper_service::Note::HelloRefused {
+            channel: 7,
+            text: b"charter 3: needs 64 turns; the agent's profile.policy.max_turns allows 32".as_slice().into(),
+        }),
+        "temper serve: hello refused channel=7: charter 3: needs 64 turns; the agent's profile.policy.max_turns allows 32\n",
+    );
 }
 
 #[test]

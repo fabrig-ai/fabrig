@@ -83,12 +83,29 @@ fn a_port_another_init_listens_on_between_bind_and_listen_gets_a_kernel_port() {
     let (other, address) = bind(&mut io, 0);
     let (late, _) = bind(&mut io, address.port());
     io.perform(Op::Listen { fd: other, backlog: 1 }).expect("the other reservation listens");
-    let (fd, port) = io.listened(late, address, true).expect("a kernel-chosen reservation");
+    let (fd, port) = io.listened(late, address).expect("a kernel-chosen reservation");
     assert_ne!(port.get(), address.port(), "the lost port is not reported");
     assert!(TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port.get())).is_err(), "the chosen port is held");
     io.close(fd);
     io.close(other);
 }
+#[test]
+fn a_kernel_chosen_port_another_takes_before_listen_gets_another() {
+    let mut io = Io::open().expect("startup io");
+    let late = io.socket().expect("kernel-chosen socket");
+    let Ok(Done::Bound(address)) = io.perform(Op::Bind { fd: late, addr: ([127, 0, 0, 1], 0).into() }) else {
+        panic!("kernel-chosen bind")
+    };
+    let other = io.socket().expect("competing socket");
+    io.perform(Op::Bind { fd: other, addr: address }).expect("both sockets bind under SO_REUSEADDR");
+    io.perform(Op::Listen { fd: other, backlog: 1 }).expect("the other reservation listens first");
+    let (fd, port) = io.listened(late, address).expect("another kernel-chosen reservation");
+    assert_ne!(port.get(), address.port(), "the lost port is not reported");
+    assert!(TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port.get())).is_err(), "the chosen port is held");
+    io.close(fd);
+    io.close(other);
+}
+
 #[test]
 fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
     let mut rows = Vec::new();

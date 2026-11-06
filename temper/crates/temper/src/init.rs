@@ -76,14 +76,18 @@ impl Io {
         Ok(fd)
     }
     fn port(&mut self, preferred: u16) -> Result<(Fd, NonZeroU16), String> {
+        let (fd, address) = self.bound_port(preferred)?;
+        self.listened(fd, address)
+    }
+    fn bound_port(&mut self, preferred: u16) -> Result<(Fd, std::net::SocketAddr), String> {
         let fd = self.socket()?;
         let preferred = ([127, 0, 0, 1], preferred).into();
-        let (bound, taken) = match self.perform(Op::Bind { fd, addr: preferred }) {
-            Ok(bound) => (Ok(bound), false),
-            Err(_) => (self.perform(Op::Bind { fd, addr: ([127, 0, 0, 1], 0).into() }).map_err(io_error), true),
+        let bound = match self.perform(Op::Bind { fd, addr: preferred }) {
+            Ok(bound) => Ok(bound),
+            Err(_) => self.perform(Op::Bind { fd, addr: ([127, 0, 0, 1], 0).into() }).map_err(io_error),
         };
         match bound {
-            Ok(Done::Bound(address)) => self.listened(fd, address, !taken && preferred.port() != 0),
+            Ok(Done::Bound(address)) => Ok((fd, address)),
             Ok(_) => unreachable!("bind answers an address"),
             Err(why) => {
                 self.close(fd);
@@ -93,17 +97,24 @@ impl Io {
     }
     /// skein sets `SO_REUSEADDR` on bind: two merely bound sockets can share a
     /// port, and listening makes a reservation exclusive. Another init that
-    /// listened first between this one's bind and listen leaves it a
-    /// kernel-chosen port, as a taken port does.
-    fn listened(&mut self, fd: Fd, address: std::net::SocketAddr, preferred: bool) -> Result<(Fd, NonZeroU16), String> {
+    /// listened first between this one's bind and listen spends a try; a
+    /// replacement asks the kernel for another port, as a taken port does.
+    fn listened(&mut self, mut fd: Fd, mut address: std::net::SocketAddr) -> Result<(Fd, NonZeroU16), String> {
         let backlog = jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.backlog;
-        match self.perform(Op::Listen { fd, backlog }) {
-            Ok(_) => Ok((fd, NonZeroU16::new(address.port()).expect("bound port"))),
-            Err(why) => {
-                self.close(fd);
-                if preferred { self.port(0) } else { Err(io_error(why)) }
+        for attempt in 1..=crate::fake_backends::PORT_ATTEMPTS {
+            match self.perform(Op::Listen { fd, backlog }) {
+                Ok(_) => return Ok((fd, NonZeroU16::new(address.port()).expect("bound port"))),
+                Err(Error::AddressInUse) if attempt < crate::fake_backends::PORT_ATTEMPTS => {
+                    self.close(fd);
+                    (fd, address) = self.bound_port(0)?;
+                }
+                Err(why) => {
+                    self.close(fd);
+                    return Err(io_error(why));
+                }
             }
         }
+        unreachable!("the last listen succeeds or refuses")
     }
     fn ports(&mut self, preferred: &[u16]) -> Result<Vec<(Fd, NonZeroU16)>, String> {
         let mut held = Vec::with_capacity(preferred.len());
