@@ -3,7 +3,7 @@ use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{List, Reader, Wall, Writer, bytes};
+use skein_lib::{List, Reader, Wall, Writer, bytes, length::len_u64};
 pub fn wire_setting_number(value: &c::SettingNumber, limits: &w::Limits) -> Result<w::SettingNumber, w::Problem> {
     w::SettingNumber::new(limits, w::SettingNumberParts { number: value.number })
 }
@@ -427,6 +427,10 @@ pub fn restore_malformed_settings(value: &w::MalformedSettings) -> Result<c::Mal
     Ok(c::MalformedSettings {
         setting: restore_setting(value.setting())?,
         fault: restore_setting_fault(value.fault())?,
+        detail: match value.detail() {
+            Some(value) => Some(restore_setting_detail(value)),
+            None => None,
+        },
     })
 }
 pub fn wire_read_setting(value: &c::ReadSetting, limits: &w::Limits) -> Result<w::ReadSetting, w::Problem> {
@@ -855,7 +859,7 @@ fn wire_owner_part(value: &c::Part, limits: &w::Limits) -> Result<w::Part, w::Pr
 
 // Count the bounded pieces before reserving the actual rows; an empty change allocates no rows.
 fn item_count(values: &[u8], limits: &Limits) -> Result<u32, w::Problem> {
-    if u64::try_from(values.len()).expect("piece bytes fit u64") > limits.client().document_bytes {
+    if len_u64(values.len()) > limits.client().document_bytes {
         return Err(super::too_large());
     }
     let mut reader = Reader::new(values);
@@ -907,4 +911,27 @@ pub fn restore_revision_replaced(
         w::RevisionReplaced::NotOffered => c::RevisionReplaced::NotOffered,
         w::RevisionReplaced::Application(v) => c::RevisionReplaced::Application { size: v.size() },
     })
+}
+
+/// Translate the document refusal facts without checking the settings again.
+fn restore_setting_detail(value: &w::SettingDetail) -> c::SettingDetail {
+    c::SettingDetail {
+        member: match value.member() {
+            w::SettingMember::Documents => c::SettingMember::Documents,
+            w::SettingMember::NameSegments => c::SettingMember::NameSegments,
+            w::SettingMember::NameSegmentBytes => c::SettingMember::NameSegmentBytes,
+            w::SettingMember::Path => c::SettingMember::Path,
+            w::SettingMember::Heading => c::SettingMember::Heading,
+            w::SettingMember::Connector => c::SettingMember::Connector,
+        },
+        rule: match value.rule() {
+            w::SettingRule::Maximum => c::SettingRule::Maximum,
+            w::SettingRule::Minimum => c::SettingRule::Minimum,
+            w::SettingRule::Registered => c::SettingRule::Registered,
+        },
+        document: value.document(),
+        segment: value.segment(),
+        supplied: value.supplied(),
+        bound: value.bound(),
+    }
 }

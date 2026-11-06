@@ -2,6 +2,7 @@
 use skein_forge::api::{self, Answer, Op, Read};
 use skein_forge_connection::{Change, Event, Fact, Limits, Request, Stopped, seam::State};
 use skein_forge_machine_world::hand::{self as f, self as start};
+use skein_lib::bytes::concat;
 use skein_lib::{Decimal, Duration, List, Time, Wall, Writer};
 use std::boxed::Box;
 
@@ -14,20 +15,9 @@ const LOG_REPO: api::Repository = api::Repository { forge: f::FORGE, repository:
 const ISSUE: &[u8] = br#"{"action":"opened","issue":{"number":3,"body":"hello"},"repository":{"id":7}}"#;
 const REPOSITORIES: &[u8] = br#"{"action":"added","installation":{"id":1,"account":{"id":22,"login":"acme"}}}"#;
 
-fn joined(parts: &[&[u8]]) -> Box<[u8]> {
-    let mut size = 0_usize;
-    for part in parts {
-        size = size.checked_add(part.len()).expect("fixture size");
-    }
-    let mut out = Writer::new(size);
-    for part in parts {
-        out.put(part).expect("measured fixture");
-    }
-    out.finish()
-}
 fn row(id: u8, event: &[u8], redelivery: bool) -> Box<[u8]> {
     let digit = b"0123456789abcdef".get(usize::from(id)).expect("fixture guid digit");
-    joined(&[
+    concat(&[
         b"{\"id\":",
         Decimal::of(u64::from(id)).as_bytes(),
         b",\"guid\":\"00000000-0000-0000-0000-00000000000",
@@ -59,7 +49,7 @@ fn page(rows: &[Box<[u8]>], fields: &[u8]) -> Box<[u8]> {
 }
 fn delivery(event: &[u8], payload: &[u8]) -> Box<[u8]> {
     // The row's event starts the streaming decoder before the envelope's event fields.
-    f::ok(&joined(&[
+    f::ok(&concat(&[
         b"{\"request\":{\"payload\":",
         payload,
         b",\"headers\":{\"X-GitHub-Event\":\"",
@@ -113,7 +103,7 @@ fn next_poll(h: &mut f::Harness) {
 }
 
 fn issue_path(owner: &[u8], name: &[u8]) -> Box<[u8]> {
-    joined(&[
+    concat(&[
         br#"{"action":"opened","issue":{"number":3,"body":"hello"},"repository":{"id":7,"owner":{"login":""#,
         owner,
         br#""},"name":""#,
@@ -186,7 +176,7 @@ fn logged_path_leaves_a_missing_repository_row_absent() {
 
 #[test]
 fn absent_paths_oversized_and_unhinted_deliveries_leave_rows_alone() {
-    let oversized = joined(&[
+    let oversized = concat(&[
         br#"{"repository":{"id":7,"owner":{"login":"team"},"name":"gadgets"},"issue":{"number":3,"body":""#,
         &f::filled(600, b'b'),
         br#""}}"#,
@@ -553,7 +543,7 @@ fn puller_holding_a_hint_stays_under_the_growth_ceiling() {
     let count = h.env.limits.inner.min(skein_forge::github::pin::PAGE_CAP);
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
-        rows.push(joined(&[
+        rows.push(concat(&[
             b"{\"id\":2,\"guid\":\"00000000-0000-0000-0000-000000000002\",\"event\":\"issues\",\"action\":\"",
             &action,
             b"\",\"status_code\":200,\"delivered_at\":\"",
@@ -566,7 +556,7 @@ fn puller_holding_a_hint_stays_under_the_growth_ceiling() {
     let body = f::filled(usize::try_from(h.env.limits.body_bytes).expect("body bytes"), b'b');
     let response = delivery(
         b"issues",
-        &joined(&[
+        &concat(&[
             br#"{"action":"opened","issue":{"number":3,"body":""#,
             &body,
             br#""},"repository":{"id":7,"owner":{"login":""#,
@@ -669,7 +659,7 @@ fn an_overlong_repository_path_hints_nothing_and_the_next_row_hints() {
         );
         let owner = f::filled(owner_len, b'a');
         let name = f::filled(name_len, b'w');
-        let bad = joined(&[
+        let bad = concat(&[
             br#"{"action":"opened","issue":{"number":3,"body":"hello"},"repository":{"id":7,"owner":{"login":""#,
             &owner,
             br#""},"name":""#,

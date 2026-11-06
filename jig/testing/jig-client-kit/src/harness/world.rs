@@ -7,7 +7,7 @@ mod words_tests;
 use super::{App, CardKey, Duty, Fault, Front, FrontFault, Observation, StoreWrite};
 use crate::model::Model;
 use skein_fake_person::{Doing, Next, Person, RandomDoing, RandomPerson, Step, TreeFace};
-use skein_lib::{Duration, Env, Queue, Rng, Time, Wall};
+use skein_lib::{Duration, Env, Queue, Rng, Time, Wall, length::len_u64};
 use skein_ui::Act;
 use skein_ui::{NodeId, Tree};
 use skein_world::domain::{Referee, Schedule, Span, Trace, Verdict};
@@ -417,9 +417,7 @@ impl<A: App, F: Front<A>> World<A, F> {
         {
             return;
         }
-        let client = ClientId(
-            usize::try_from(self.rng.below(u64::try_from(self.clients.len()).expect("clients"))).expect("client index"),
-        );
+        let client = ClientId(usize::try_from(self.rng.below(len_u64(self.clients.len()))).expect("client index"));
         let fault = match self.rng.below(14) {
             0 => Fault::Front(FrontFault::Busy),
             1 => Fault::Front(FrontFault::NotReady),

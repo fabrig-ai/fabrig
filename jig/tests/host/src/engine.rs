@@ -27,7 +27,7 @@ use jig_domain_host::{
     AgentFailure, Assignment, Ending, Event, Failure, Hosting, Invalid, Limits, MessageRefusal, Preparation, Reason,
     Refusal, Request, RunAssignment, RunFailure, Workspace,
 };
-use skein_lib::{Duration, Rng, Token};
+use skein_lib::{Duration, Rng, Token, length::len_u64};
 use skein_world::domain::Span;
 
 /// How the engine behaves.
@@ -260,7 +260,7 @@ impl Engine {
         }
         let in_flight: Vec<Token> = self.open.keys().map(|(run, _)| *run).collect();
         let run = if !in_flight.is_empty() && self.rng.chance(self.script.repeats) {
-            let count = u64::try_from(in_flight.len()).expect("fits");
+            let count = len_u64(in_flight.len());
             in_flight[usize::try_from(self.rng.below(count)).expect("fits")]
         } else {
             self.name()

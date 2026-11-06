@@ -1,7 +1,7 @@
 //! Agent admission and model eligibility for configured charters (domain/engine.md, section 8).
 use crate::{Bounds, HostKind, Kinds};
 use alloc::boxed::Box;
-use skein_lib::{Duration, List};
+use skein_lib::{Duration, List, length::len_u64};
 
 /// A charter version's name (engine.md, 17.3).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -50,14 +50,12 @@ pub enum AgentShortfall {
 }
 
 pub(crate) fn owned_bytes(needs: &Needs) -> Option<u64> {
-    let mut bytes =
-        u64::try_from(needs.charters.len()).ok()?.checked_mul(u64::try_from(size_of::<CharterNeeds>()).ok()?)?;
+    let mut bytes = len_u64(needs.charters.len()).checked_mul(u64::try_from(size_of::<CharterNeeds>()).ok()?)?;
     for charter in &needs.charters {
-        bytes = bytes.checked_add(
-            u64::try_from(charter.models.len()).ok()?.checked_mul(u64::try_from(size_of::<ModelNeed>()).ok()?)?,
-        )?;
+        bytes = bytes
+            .checked_add(len_u64(charter.models.len()).checked_mul(u64::try_from(size_of::<ModelNeed>()).ok()?)?)?;
         for model in &charter.models {
-            bytes = bytes.checked_add(u64::try_from(model.name.len()).ok()?)?;
+            bytes = bytes.checked_add(len_u64(model.name.len()))?;
         }
     }
     Some(bytes)

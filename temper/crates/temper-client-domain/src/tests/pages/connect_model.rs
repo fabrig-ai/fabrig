@@ -598,6 +598,7 @@ fn a_refusal_leaves_the_words_empty() {
         let Some(pages::Request::Client(C::Read { handle, .. })) = out.pop() else { panic!("read") };
         assert!(page.environment_told(&Told::Page { handle, page: answer }));
         assert_eq!(page.program_environment(), b"");
+        assert!(!page.program_environment_answered());
     }
 }
 
@@ -700,4 +701,23 @@ fn assert_no_moves(out: &Queue<crate::Request>) {
             panic!("a key moves once; a refusal stays said");
         }
     }
+}
+
+#[test]
+fn an_empty_environment_answer_confirms_the_default_directories() {
+    use jig_client::{Event as C, Link, Readout, Told};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut page = connect_model::ConnectModel::default();
+    assert!(!page.program_environment_answered());
+    let mut out = environment_read(&mut page, &program_address(false), Link::Live, &mut 0);
+    let Some(pages::Request::Client(C::Read { handle, .. })) = out.pop() else { panic!("read") };
+    let answer =
+        w::ProgramEnvironmentAnswer::new(&w::CEILINGS, w::ProgramEnvironmentAnswerParts { environment: Box::new([]) })
+            .unwrap();
+    assert!(page.environment_told(&Told::Page {
+        handle,
+        page: Readout::Family { family: wire::FORGE, record: Some(wire::program_environment_answer(&answer)) },
+    }));
+    assert_eq!(page.program_environment(), b"");
+    assert!(page.program_environment_answered());
 }

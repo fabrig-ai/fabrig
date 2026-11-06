@@ -127,10 +127,7 @@ fn every_operational_entrance_prevents_late_start() {
         Entrance {
             name: "refuse_settings",
             input: |core, _| {
-                let _refused = core.refuse_settings(crate::settings::Failure {
-                    setting: crate::settings::Setting::Rules,
-                    fault: crate::settings::Fault::Shape,
-                });
+                let _refused = core.refuse_settings(malformed_rules());
             },
         },
         Entrance {
@@ -695,5 +692,13 @@ fn finish_core_load(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<R
             step_phase(core.start_resume(env, token, out), Phase::LoadInbox);
         }
         action @ (Action::Step(_) | Action::Idle | Action::Refused(_)) => step_phase(action, Phase::LoadInbox),
+    }
+}
+
+fn malformed_rules() -> crate::settings::Failure {
+    crate::settings::Failure {
+        setting: crate::settings::Setting::Rules,
+        fault: crate::settings::Fault::Shape,
+        detail: None,
     }
 }

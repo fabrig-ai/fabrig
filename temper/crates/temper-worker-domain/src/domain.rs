@@ -256,16 +256,16 @@ impl Domain {
         self.host.turns_abandoned().saturating_add(self.answers_abandoned)
     }
 
-    /// When the earliest alarm falls due: an agent's.
+    /// When the earliest agent or source-check alarm falls due.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        self.agent.next_deadline()
+        [self.agent.next_deadline(), self.host.next_deadline()].into_iter().flatten().min()
     }
 
     /// Whether an alarm is due at `now`. The loop calls [`fire`] while one is.
     #[must_use]
     pub fn is_due(&self, now: Time) -> bool {
-        self.agent.is_due(now)
+        self.agent.is_due(now) || host::sources_due(&self.host, now)
     }
 
     /// Whether the domain has work of its own: the host has runs to cancel,
@@ -342,14 +342,15 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     settle(domain, env, out);
 }
 
-/// Fires an agent's alarm due at `env.now`, completing its hand-offs before
-/// returning. A stage fires its alarms after its input events, so
+/// Fires agent and source-check alarms due at `env.now`, completing their
+/// hand-offs before returning. A stage fires its alarms after its input events, so
 /// progress that arrived in the same iteration wins over a deadline that
 /// passed while the loop waited.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if domain.agent.is_due(env.now) {
         agent::fire(&mut domain.agent, &route::agent_env(env), &mut domain.agent_out);
     }
+    host::fire_sources(&mut domain.host, &route::host_env(env), &mut domain.host_out);
     settle(domain, env, out);
 }
 

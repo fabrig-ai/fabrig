@@ -1,6 +1,6 @@
 //! Total, bounded moved-record decoding (protocol/llm.md, 5.6 and 8).
 use jig_protocol_accounts::moved::{self, Moved};
-use skein_lib::{Rng, Wall, bytes};
+use skein_lib::{Rng, Wall, bytes, length::len_u64};
 use skein_oauth::{Limits, SavedToken};
 
 fn limits() -> Limits {
@@ -24,7 +24,7 @@ fn check(input: &[u8], limits: &Limits, seed: u64, case: u32) -> bool {
     if let Ok(decoded) = moved::decode(input, limits) {
         let encoded = moved::encode(&decoded, limits).expect("decoded parts fit");
         assert!(encoded.expose() == input, "round trip: seed {seed:#x}, case {case}");
-        assert!(u64::try_from(encoded.len()).expect("size fits") <= moved::bound(limits));
+        assert!(len_u64(encoded.len()) <= moved::bound(limits));
         true
     } else {
         false
@@ -39,10 +39,8 @@ fn arbitrary_moved_files_never_panic_and_round_trip_when_they_decode() {
     for seed in [0x6d6f_7665_0001, 0x6d6f_7665_0002] {
         let mut rng = Rng::new(seed);
         for case in 0..2_000_u32 {
-            let length = usize::try_from(
-                rng.below(u64::try_from(buffer.len()).expect("small buffer").checked_add(1).expect("inclusive length")),
-            )
-            .expect("small length");
+            let length = usize::try_from(rng.below(len_u64(buffer.len()).checked_add(1).expect("inclusive length")))
+                .expect("small length");
             for byte in buffer.get_mut(..length).expect("chosen length") {
                 *byte = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
             }
@@ -82,8 +80,7 @@ fn single_byte_mutations_never_panic_and_round_trip_when_they_decode() {
     let mut refused = 0_u32;
     for case in 0..10_000_u32 {
         let mut changed = bytes::copy_of(valid.expose());
-        let index =
-            usize::try_from(rng.below(u64::try_from(changed.len()).expect("small fixture"))).expect("index fits");
+        let index = usize::try_from(rng.below(len_u64(changed.len()))).expect("index fits");
         let mask = u8::try_from(rng.below(255).checked_add(1).expect("nonzero byte")).expect("byte");
         *changed.get_mut(index).expect("chosen byte") ^= mask;
         if check(&changed, &limits, seed, case) {

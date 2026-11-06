@@ -29,6 +29,8 @@ pub(crate) mod group;
 #[path = "listener_calls.rs"]
 pub(crate) mod listener_calls;
 
+pub use crate::posix::wait_readable;
+pub(crate) use crate::posix::{retry, shutdown, status, terminal};
 use std::{mem, ptr};
 
 use skein_io::kernel::{Addr, Family, Fd};
@@ -39,7 +41,6 @@ pub(crate) mod ring;
 mod roots;
 mod startup;
 mod sync;
-pub(crate) mod terminal;
 
 pub use roots::make_root;
 pub(crate) use startup::{read_file, read_private_file};
@@ -49,20 +50,6 @@ pub(crate) use sync::{
 };
 pub(crate) use sync::{close as close_unchecked, local_addr as getsockname, set_option as setsockopt};
 pub use sync::{directory_access, effective_user, open_append, open_root, prepare_output, process_id};
-
-/// Interrupted calls have made no progress; retry without changing counts.
-pub(crate) fn retry<T>(mut call: impl FnMut() -> Result<T, i32>) -> Result<T, i32> {
-    loop {
-        match call() {
-            Err(libc::EINTR) => {}
-            result => return result,
-        }
-    }
-}
-
-fn status(result: i32) -> Result<(), i32> {
-    if result < 0 { Err(last_errno()) } else { Ok(()) }
-}
 
 /// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn socket(family: Family) -> Result<Fd, i32> {
@@ -79,44 +66,6 @@ pub(crate) fn bind(fd: Fd, addr: &Addr) -> Result<(), i32> {
     let len = encode(addr, &mut storage);
     // SAFETY: encode initialized len bytes of storage, which lives across bind.
     status(unsafe { libc::bind(fd.raw(), ptr::from_ref(&storage).cast(), len) })
-}
-
-/// Waits up to `bound` for `POLLIN`, without consuming input or driving a
-/// `Kernel`. Returns false on timeout and an errno on descriptor or poll
-/// errors. Interrupted waits keep the same monotonic deadline.
-pub fn wait_readable(fd: Fd, bound: skein_lib::Duration) -> Result<bool, i32> {
-    if fd.raw() < 0 {
-        return Err(libc::EBADF);
-    }
-    let clock = crate::Clock::new();
-    let deadline = clock.now().now.saturating_add(bound);
-    loop {
-        let left = deadline.saturating_since(clock.now().now);
-        let millis = i32::try_from(left.as_nanos().div_ceil(1_000_000)).unwrap_or(i32::MAX);
-        let mut watched = libc::pollfd { fd: fd.raw(), events: libc::POLLIN, revents: 0 };
-        // SAFETY: watched is one initialized, exclusive pollfd, writable until
-        // poll returns. The call retains no pointer and takes no ownership of fd.
-        let result = unsafe { libc::poll(ptr::from_mut(&mut watched), 1, millis) };
-        if result < 0 {
-            let errno = last_errno();
-            if errno == libc::EINTR && clock.now().now < deadline {
-                continue;
-            }
-            return Err(errno);
-        }
-        if watched.revents & libc::POLLNVAL != 0 {
-            return Err(libc::EBADF);
-        }
-        if watched.revents & (libc::POLLERR | libc::POLLHUP) != 0 {
-            return Err(libc::EIO);
-        }
-        if watched.revents & libc::POLLIN != 0 {
-            return Ok(true);
-        }
-        if clock.now().now >= deadline {
-            return Ok(false);
-        }
-    }
 }
 
 /// An `EINTR` is returned, not retried (shell.md, 7.4).
@@ -170,12 +119,6 @@ pub(crate) fn send(fd: Fd, bytes: &[u8]) -> Result<u32, i32> {
         };
         if result < 0 { Err(last_errno()) } else { Ok(u32::try_from(result).expect("a valid Send's count fits u32")) }
     })
-}
-
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
-pub(crate) fn shutdown(fd: Fd) -> Result<(), i32> {
-    // SAFETY: shutdown takes only integers.
-    status(unsafe { libc::shutdown(fd.raw(), libc::SHUT_WR) })
 }
 
 pub(crate) fn close(fd: Fd) -> Result<(), i32> {

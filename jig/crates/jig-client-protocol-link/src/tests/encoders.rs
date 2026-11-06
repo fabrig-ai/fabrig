@@ -75,6 +75,7 @@ pub fn wire_malformed_settings(
         w::MalformedSettingsParts {
             setting: wire_setting(&value.setting, limits)?,
             fault: wire_setting_fault(&value.fault)?,
+            detail: None,
         },
     )
 }
