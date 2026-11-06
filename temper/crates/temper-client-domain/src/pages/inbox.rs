@@ -32,6 +32,8 @@ pub struct Inbox {
     pub cards: List<Card>,
     /// Incomplete source documents, for needs and updates respectively.
     pub cut: [bool; 2],
+    answered: [bool; 2],
+    known: bool,
     previous: List<Card>,
     pending: Set<Handle>,
     /// The filtered reads' answers, applied together when both have answered.
@@ -64,6 +66,8 @@ impl Inbox {
             cards: List::with_capacity(cards),
             previous: List::with_capacity(cards),
             arrived: [None, None],
+            answered: [false; 2],
+            known: false,
             pending: Set::with_capacity(limits.client.domain.reads.checked_add(2).expect("inbox reads fit")),
         };
         client(
@@ -118,6 +122,7 @@ impl Inbox {
             None => None,
         };
         if let Some(Latest::Jig(Delivery::Inbox(inbox))) = latest {
+            self.answered = [true, self.filter.kind.is_none()];
             self.cut = [inbox.next.is_some(); 2];
             for rows in [&inbox.needs, &inbox.updates] {
                 for row in rows {
@@ -144,6 +149,7 @@ impl Inbox {
         self.replace(out);
         for index in 0..2 {
             if let Some(page) = self.arrived.get_mut(index).expect("inbox section").take() {
+                *self.answered.get_mut(index).expect("inbox section") = true;
                 *self.cut.get_mut(index).expect("inbox section") = page.cut;
                 for row in &page.rows {
                     self.add(row, out);
@@ -236,7 +242,27 @@ impl Inbox {
         self.pending.insert(handle).expect("inbox card reads fit");
         client(out, jig_client::Event::Read { handle, read: Readable::Jig(read) });
     }
+    /// Whether this section's read has answered with its value since the page opened
+    /// (temper/docs/design/client/README.md, 3.5).
+    #[must_use]
+    pub const fn answered(&self, group: InboxReadGroup) -> bool {
+        match group {
+            InboxReadGroup::Needs => *self.answered.first().expect("needs section"),
+            InboxReadGroup::Updates => *self.answered.last().expect("updates section"),
+        }
+    }
+    /// The needs' read has answered and every card read it sent has: what the cards say
+    /// stands, through each later refresh, until the next answer changes it.
+    #[must_use]
+    pub const fn known(&self) -> bool {
+        self.known
+    }
     pub(super) fn told(&mut self, source: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+        let changed = self.receive(source, told, out);
+        self.known |= self.answered(InboxReadGroup::Needs) && self.delivered(source);
+        changed
+    }
+    fn receive(&mut self, source: &Client, told: Told, out: &mut Queue<Request>) -> bool {
         if let Told::Changed { handle } = &told
             && *handle == self.entries
         {
