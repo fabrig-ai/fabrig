@@ -629,12 +629,14 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 chat.act(env, client, Act::Mode { mode }, &mut pages.serial, out);
             }
         }
-        Event::Act { act: act @ (Act::ShowSection { .. } | Act::AddDraft | Act::Latest) } => {
+        Event::Act { act: act @ (Act::ShowSection { .. } | Act::AddDraft) } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
             }
         }
-        Event::Act { act: act @ (Act::FocusComposer | Act::MessageWords { .. } | Act::Send | Act::Older) } => {
+        Event::Act {
+            act: act @ (Act::FocusComposer | Act::MessageWords { .. } | Act::Send | Act::Older | Act::Latest),
+        } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
             } else if let Some(task) = &mut pages.task {

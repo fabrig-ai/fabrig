@@ -165,10 +165,12 @@ fn trust_sources(sources: &[skein_shell::Trust], errors: &mut dyn Write) -> Resu
     }
     let (config, parsed) =
         tls::Config::from_der(&certificates, &[]).map_err(|why| format!("TLS trust {}: {why:?}", paths.join(", ")))?;
-    drop(writeln!(
-        errors,
-        "smith: trust roots: {} taken, {} skipped, {} malformed blocks, {} other blocks",
-        parsed.taken, parsed.skipped, malformed, other_blocks
-    ));
+    if malformed > 0 {
+        drop(writeln!(
+            errors,
+            "smith: trust roots: {} taken, {} skipped, {} malformed blocks, {} other blocks",
+            parsed.taken, parsed.skipped, malformed, other_blocks
+        ));
+    }
     Ok(config)
 }

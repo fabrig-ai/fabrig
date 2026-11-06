@@ -36,3 +36,46 @@ pub enum Running {
     Stays,
     Moves,
 }
+
+/// The charter document member rejected by the settings check (engine.md, 17.9).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum SettingMember {
+    /// The charter's document count.
+    Documents,
+    /// A document resource name's segment count.
+    NameSegments,
+    /// One segment's byte length in a document resource name.
+    NameSegmentBytes,
+    /// The document path's byte length.
+    Path,
+    /// The optional heading's byte length.
+    Heading,
+    /// The document connector's registration.
+    Connector,
+}
+/// The failed document rule; scalar bounds are carried beside it.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum SettingRule {
+    /// The supplied count or length exceeds the configured maximum.
+    Maximum,
+    /// The supplied length falls below the required minimum.
+    Minimum,
+    /// The supplied connector number is not registered.
+    Registered,
+}
+/// Bounded refusal facts, without copying any of the rejected document's bytes.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct SettingDetail {
+    /// The member relative to the charter's documents.
+    pub member: SettingMember,
+    /// Document index; zero for the whole documents member.
+    pub document: u32,
+    /// Name segment index; zero for members other than `NameSegmentBytes`.
+    pub segment: u32,
+    /// The failed check, interpreted with the member and bound.
+    pub rule: SettingRule,
+    /// The supplied count, byte length or connector number.
+    pub supplied: u32,
+    /// The minimum or maximum; zero for `Registered`.
+    pub bound: u32,
+}

@@ -1032,7 +1032,7 @@ fn person_words_keep_their_shell_and_only_assistant_calls_keep_work() {
     for hidden in [look::BY_TOOL, look::BY_SYSTEM, look::BY_AGENT] {
         assert!(style_position(tree.nodes(), hidden).is_none(), "inputs and call-only assistant have no shell");
     }
-    assert_run_line(&tree, b"Read", b"", &[b"Read: Done"]);
+    assert_run_line(&tree, b"Read 1 file", b"", &[b"Read: Done"]);
 }
 
 fn chat_event(
@@ -1381,7 +1381,7 @@ fn repeated_calls_fold_in_first_name_order_with_each_outcome_inside() {
     ]);
     assert_run_line(
         &tree,
-        "read ×2, wait".as_bytes(),
+        "Read 2 files, wait".as_bytes(),
         b"",
         &[b"read: Read the first file", b"wait", b"read: Read the second file"],
     );
@@ -1390,7 +1390,9 @@ fn repeated_calls_fold_in_first_name_order_with_each_outcome_inside() {
 #[test]
 fn a_fold_names_two_repeated_calls_and_two_distinct_calls() {
     use fixtures::first_run as run;
-    for (tool, description) in [(b"read".as_slice(), "read ×2"), (b"edit".as_slice(), "read, edit")] {
+    for (tool, description) in
+        [(b"read".as_slice(), "Read 2 files"), (b"edit".as_slice(), "Read 1 file, edited 1 file")]
+    {
         let tree = assistant_blocks(&[run::call(1, b"read", b"{}", None), run::call(2, tool, b"{}", None)]);
         assert_run_line(&tree, description.as_bytes(), b"", &[b"read", tool]);
     }
@@ -2241,7 +2243,7 @@ fn a_proposals_fold_precedes_its_card_after_the_message() {
     assert!(fold + usize::try_from(tree.nodes()[fold].size).unwrap() <= card, "run before proposal card");
     assert!(turn < fold);
     assert_eq!(named_count(&tree, Role::Button, b"Accept"), 1);
-    assert_run_line(&tree, "read ×2".as_bytes(), b"", &[b"read", b"read"]);
+    assert_run_line(&tree, "Read 2 files".as_bytes(), b"", &[b"read", b"read"]);
     let said = fixtures::text(&tree);
     assert!(skein_lib::bytes::find(&said, b"propose").is_none());
 }
@@ -2363,7 +2365,9 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         let thread = styled(tree, look::THREAD);
         let foot = styled(tree, look::SESSION_FOOT);
         assert_eq!(thread, convo + 1);
-        assert_eq!(foot, thread + usize::try_from(tree.nodes()[thread].size).unwrap());
+        let feedback = styled(tree, look::CHOICE);
+        assert_eq!(feedback, thread + usize::try_from(tree.nodes()[thread].size).unwrap());
+        assert_eq!(foot, feedback + usize::try_from(tree.nodes()[feedback].size).unwrap());
         assert!(foot < convo + usize::try_from(tree.nodes()[convo].size).unwrap());
         assert_eq!(tree.nodes()[foot].role, Role::Form);
         let entry = styled(tree, look::SESSION_COMPOSER);
@@ -2383,7 +2387,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
             tree.nodes()[hint].name.as_deref(),
             Some(b"Enter sends \xc2\xb7 Shift+Enter for a new line".as_slice())
         );
-        for style in [look::ACCOUNT_LINE, look::CHOICE, look::COMPOSER_AREA, look::STARTERS] {
+        for style in [look::ACCOUNT_LINE, look::COMPOSER_AREA, look::STARTERS] {
             assert_eq!(style_position(tree.nodes(), style), None);
         }
         assert_eq!(crate::act(&mut view, area_id, skein_ui::Act::Submit), Some(d::Action::Pages(Act::Send)));
@@ -2433,7 +2437,7 @@ fn only_a_delivered_template_three_executor_changes_chat_path_and_navigation() {
                 }
             }
             assert!(style_position(tree.nodes(), look::SESSION_FOOT).is_some());
-            assert_eq!(style_position(tree.nodes(), look::CHOICE).is_none(), configuring);
+            assert!(style_position(tree.nodes(), look::CHOICE).is_some());
         }
     }
     let (root, _, _) =
@@ -2465,10 +2469,7 @@ fn every_chat_omits_the_foot_when_ended_or_message_is_not_offered() {
                 assert_eq!(style_position(view.tree().nodes(), crate::look::SESSION_FOOT), None);
                 assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
                 assert!(fixtures::find(view.tree(), Role::Button, b"Send").is_none());
-                assert_eq!(
-                    style_position(view.tree().nodes(), crate::look::CHOICE).is_some(),
-                    !configuring && !ended && !result
-                );
+                assert_eq!(style_position(view.tree().nodes(), crate::look::CHOICE).is_some(), !ended && !result);
             }
         }
     }
@@ -2560,7 +2561,7 @@ fn configuring_chats_keep_the_conversation_and_proposals_whole() {
         assert!(style_position(configuring_tree.nodes(), crate::look::TASK_CARD).is_some());
         assert!(skein_lib::bytes::find(&fixtures::text(configuring_tree), b"Delegated work").is_some());
         assert_eq!(named_count(configuring_tree, Role::Button, b"Accept"), 1);
-        assert!(fixtures::find(configuring_tree, Role::Disclosure, b"read").is_some());
+        assert!(fixtures::find(configuring_tree, Role::Disclosure, b"Read 1 file").is_some());
         assert!(skein_lib::bytes::find(&fixtures::text(configuring_tree), b"Here is my proposal").is_some());
     }
 }
@@ -3101,4 +3102,53 @@ fn a_closed_chat_ends_on_one_line() {
     let text = fixtures::text(tree);
     assert!(skein_lib::bytes::find(&text, b"Applied").is_none());
     assert!(skein_lib::bytes::find(&text, b"Decision made").is_none());
+}
+
+#[test]
+fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
+    use crate::look;
+    for (wait, reason) in [
+        (
+            c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty },
+            b"No account can run Scripted model yet.".as_slice(),
+        ),
+        (
+            c::TaskRunWait::Account { account: Some(7), source: Some(8), why: c::TaskWaitWhy::Host },
+            b"LLM account's login isn't signed in on a host that can run this.",
+        ),
+        (c::TaskRunWait::Credential, b"This work needs a credential from its forge."),
+        (c::TaskRunWait::Host, b"No host has room for this, or none is connected. It starts when one does."),
+    ] {
+        for configuring in [false, true] {
+            let mut task = configuring_task();
+            task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Due);
+            task.run_wait = Some(wait);
+            task.llm = Some(c::LlmChoice {
+                account: None,
+                main: c::ModelEffort { model: fixtures::first_run::text(b"demo"), effort: None },
+                subagents: List::with_capacity(0),
+            });
+            let root = configuring_task_root(task, true, if configuring { 37 } else { 1 });
+            for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+                let tree = view.tree();
+                let feedback = named_position(tree.nodes(), Role::Paragraph, Some(reason)).expect("wait reason");
+                let composer = styled(tree, look::SESSION_COMPOSER);
+                assert!(feedback < composer);
+                assert!(style_position(tree.nodes(), look::TYPING).is_none());
+                if wait == c::TaskRunWait::Credential {
+                    let link = fixtures::find(tree, Role::Link, b"Forges").expect("forge action");
+                    assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/forges".as_slice()));
+                }
+                if let c::TaskRunWait::Account { why: c::TaskWaitWhy::Empty, .. } = wait {
+                    let link = fixtures::find(view.tree(), Role::Link, b"Connect a model").expect("connect action");
+                    assert_eq!(
+                        crate::act(&mut view, link, skein_ui::Act::Press),
+                        Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
+                            address: temper_client_domain::Address::ConnectModel { way: None }
+                        }))
+                    );
+                }
+            }
+        }
+    }
 }

@@ -24,6 +24,10 @@ pub(super) fn encode_malformed(value: jig_client::contract::Malformed, out: &mut
             super::settings::encode_setting(value.setting, out);
             out.key(b"fault");
             out.string(super::settings::fault_word(value.fault));
+            if let Some(detail) = value.detail {
+                out.key(b"detail");
+                encode_setting_detail(detail, out);
+            }
             out.object_end();
             out.object_end();
         }
@@ -230,5 +234,34 @@ pub(super) fn encode_owner_authority(
         super::encode_owner_resource_scope(item_3, out, budget);
     }
     out.array_end();
+    out.object_end();
+}
+
+fn encode_setting_detail(value: jig_client::contract::SettingDetail, out: &mut Encoder) {
+    use jig_client::contract::{SettingMember as M, SettingRule as R};
+    out.object_start();
+    out.key(b"member");
+    out.string(match value.member {
+        M::Documents => b"documents",
+        M::NameSegments => b"name_segments",
+        M::NameSegmentBytes => b"name_segment_bytes",
+        M::Path => b"path",
+        M::Heading => b"heading",
+        M::Connector => b"connector",
+    });
+    out.key(b"rule");
+    out.string(match value.rule {
+        R::Maximum => b"maximum",
+        R::Minimum => b"minimum",
+        R::Registered => b"registered",
+    });
+    out.key(b"document");
+    out.unsigned(u64::from(value.document));
+    out.key(b"segment");
+    out.unsigned(u64::from(value.segment));
+    out.key(b"supplied");
+    out.unsigned(u64::from(value.supplied));
+    out.key(b"bound");
+    out.unsigned(u64::from(value.bound));
     out.object_end();
 }

@@ -1005,7 +1005,7 @@ The owner's domain owes:
   `304`s, and a job log's redirect followed to its configured origin
   alone, another origin said once per connect as a fact.
 - **By hand.** The machine world's `hand` steers the same component one exchange at a time: a connect completes when the test says, an answer is written when it says, in the literal bytes the test holds, whatever fault they carry. What plays the fake goes through `skein_fake_forge_github::inline` (fake-forge.md, 10.6); no second HTTP face stands in for it.
-- **The seam.** A machine-world test that reads the component's installation rows, jobs or connections does so through the crate's `seam` feature, which only that world turns on. No service builds it, and the crate's own tests don't need it. The fixtures the crate's tests and the machine world's hand both read are the crate's fixtures module, built for either.
+- **The seam.** A machine-world test that reads the component's installation rows, jobs or connections does so through the crate's `seam` feature, which only that world turns on, as `tests/boundary/tests/skein_worlds.rs` holds. No service builds it, and the crate's own tests don't need it. The fixtures the crate's tests and the machine world's hand both read are the crate's fixtures module, built for either.
 - **Over TLS, boundary and every-byte sweeps in fuzzy.** Each fault runs
   its own world and a real handshake drawing the kernel's entropy
   (testing-strategy.md, 4.4); its flight belongs to its hello. Both sweeps
@@ -1077,12 +1077,16 @@ The owner's domain owes:
   the entry. Whether the variant can reach them with no second match, so that
   the dialect is read once. Default: as it stands, until a debt item names it.
 - **Who sets a connection's deadline** (8.1): a state holds its `until`, a holder
-  passes its own to `exchange.start`, and six `until` calls across the component
-  set it otherwise, where 8.1 has one place after each transition. Whether a
-  transition can take it from its holder. Default: as they stand, until a debt
-  item names them.
+  sets its own above `exchange.start`, and six more `until` calls across the
+  component set it otherwise, where 8.1 has one place after each transition.
+  Whether a transition can take it from its holder. Default: as they stand, until
+  a debt item names them.
 - **A JSON body's state** (8.1): `Exchange` keeps the body and its next request
   beside `receive`, not in `Receiving::Json` (programming-model.md, section
   5.4), since a demand can reach them after `discard`. Whether `discard` clears
   that demand, so that they move. Default: as they stand, until a debt item
   names them.
+- **The forge kit's fixtures beside the crate's** (10):
+  `skein_forge_kit::fixtures` keeps its own `limits`, `shared` and `settings`,
+  near-copies of the crate's `fixtures`, because temper's and other worlds read
+  the kit, and only the machine world may turn `seam` on. Default: the copy stays.
