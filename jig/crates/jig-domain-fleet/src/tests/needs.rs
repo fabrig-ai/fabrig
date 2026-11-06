@@ -1,12 +1,12 @@
 use super::*;
-use crate::{AgentShortfall, Bounds, CharterNeeds, ModelBound, ModelNeed, Needs};
+use crate::{AgentShortfall, Bounds, CharterNeeds, EndpointBound, ModelNeed, Needs};
 
 fn needs_window(window: u32) -> Needs {
     Needs {
         charters: Box::new([CharterNeeds {
             version: crate::Version { charter: 1, revision: 1 },
             kinds: Kinds::Workers,
-            models: Box::new([ModelNeed { name: b"model".as_slice().into(), window, output: 1024 }]),
+            models: Box::new([ModelNeed { endpoint: 1, name: b"model".as_slice().into(), window, output: 1024 }]),
             turns: 8,
             time: Duration::from_secs(60),
             waiting: Duration::from_secs(10),
@@ -21,7 +21,7 @@ fn needs_window(window: u32) -> Needs {
 fn bounds_window(window: u32) -> Bounds {
     Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([ModelBound { name: b"model".as_slice().into(), window, output: 1024 }]),
+        endpoints: Box::new([EndpointBound { endpoint: 1, window, output: 1024 }]),
         turns: 8,
         spend: 100,
         time: Duration::from_secs(60),
@@ -58,19 +58,36 @@ fn rejected(needs: Needs, bounds: Bounds) -> HelloRefusal {
     actual
 }
 #[test]
-fn a_worker_whose_model_window_is_smaller_is_refused_naming_it() {
-    assert_eq!(
-        rejected(needs_window(8192), bounds_window(4096)),
-        HelloRefusal::Agent { why: AgentShortfall::Window { charter: 1, model: 0 } }
-    );
+fn a_need_past_its_endpoints_window_or_output_falls_short() {
+    for (window, output, why) in [
+        (8191, 1024, AgentShortfall::Window { charter: 1, model: 0 }),
+        (8192, 1023, AgentShortfall::Output { charter: 1, model: 0 }),
+    ] {
+        let mut bounds = bounds_window(window);
+        bounds.endpoints[0].output = output;
+        assert_eq!(rejected(needs_window(8192), bounds), HelloRefusal::Agent { why });
+    }
 }
 #[test]
-fn a_worker_lacking_a_charters_model_is_admitted() {
+fn a_need_on_no_served_endpoint_leaves_the_charter_ineligible() {
     let mut bounds = bounds_window(8192);
-    bounds.models = Box::new([]);
+    bounds.endpoints[0].endpoint = 2;
     let mut h = Harness::with_needs(LIMITS, needs_window(8192));
     assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) }).is_empty());
     assert_eq!(h.domain.workers(), 1);
+    assert_eq!(h.domain.free_kind(Kinds::Workers, 1, crate::Version { charter: 1, revision: 1 }), None);
+    assert_eq!(
+        h.domain.probe(
+            Kinds::Workers,
+            1,
+            crate::Version { charter: 1, revision: 1 },
+            &needs_window(8192).charters[0].models,
+            &[]
+        ),
+        None
+    );
+    assert!(h.start(R1, A1, 1).is_empty());
+    assert!(h.settle().is_empty());
 }
 #[test]
 fn a_worker_whose_inbox_holds_fewer_than_a_start_is_refused() {
@@ -93,15 +110,19 @@ fn a_charter_for_the_engine_only_needs_nothing_of_workers() {
     needs.charters[0].kinds = Kinds::Engine;
     let mut h = Harness::with_needs(LIMITS, needs);
     let mut bounds = bounds_window(0);
-    bounds.models = Box::new([]);
+    bounds.endpoints = Box::new([]);
     assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) }).is_empty());
     assert_eq!(h.domain.workers(), 1);
 }
 #[test]
-fn a_worker_holding_every_charter_is_admitted() {
-    let mut h = Harness::with_needs(LIMITS, needs_window(8192));
+fn a_model_on_a_served_endpoint_is_admitted_by_any_name() {
+    let mut needs = needs_window(8192);
+    needs.charters[0].models[0].name = b"new-model".as_slice().into();
+    let mut h = Harness::with_needs(LIMITS, needs.clone());
     assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds_window(8192)) }).is_empty());
     assert_eq!(h.domain.workers(), 1);
+    assert_eq!(h.place(R1, A1, 1), C1);
+    assert!(h.domain.probe(Kinds::Workers, 1, needs.charters[0].version, &needs.charters[0].models, &[]).is_some());
 }
 #[test]
 fn the_engines_first_hello_is_checked_against_its_charters() {
@@ -141,13 +162,13 @@ fn refusal(h: &Harness) -> HelloRefusal {
 #[test]
 #[should_panic(expected = "configured agent needs fit their byte bound")]
 fn needs_past_their_byte_bound_fail_construction() {
-    core::mem::drop(Domain::new(&Limits { needs_bytes: 0, ..LIMITS }, 0, needs_window(8192), Box::new([])));
+    core::mem::drop(Domain::new(&Limits { needs_bytes: 0, ..LIMITS }, 0, needs_window(8192)));
 }
 
 #[test]
 fn a_worker_whose_model_output_is_smaller_is_refused() {
     let mut bounds = bounds_window(8192);
-    bounds.models[0].output = 1023;
+    bounds.endpoints[0].output = 1023;
     assert_eq!(
         rejected(needs_window(8192), bounds),
         HelloRefusal::Agent { why: AgentShortfall::Output { charter: 1, model: 0 } }
@@ -197,13 +218,11 @@ fn a_smaller_alternative_names_its_position() {
     let mut needs = needs_window(8192);
     needs.charters[0].models = Box::new([
         needs.charters[0].models[0].clone(),
-        ModelNeed { name: b"alternative".as_slice().into(), window: 8192, output: 1024 },
+        ModelNeed { endpoint: 2, name: b"alternative".as_slice().into(), window: 8192, output: 1024 },
     ]);
     let mut bounds = bounds_window(8192);
-    bounds.models = Box::new([
-        bounds.models[0].clone(),
-        ModelBound { name: b"alternative".as_slice().into(), window: 4096, output: 1024 },
-    ]);
+    bounds.endpoints =
+        Box::new([bounds.endpoints[0].clone(), EndpointBound { endpoint: 2, window: 4096, output: 1024 }]);
     assert_eq!(rejected(needs, bounds), HelloRefusal::Agent { why: AgentShortfall::Window { charter: 1, model: 1 } });
 }
 
@@ -292,14 +311,13 @@ fn endpoint_numbers(count: u32) -> Box<[u32]> {
 }
 
 #[test]
-fn replacing_needs_keeps_running_attempts_and_rebuilds_placement_from_the_catalogue() {
-    let catalogue = Box::new([b"model".as_slice().into(), b"future".as_slice().into()]);
-    let mut h = Harness::with_catalogue(LIMITS, 0, needs_window(4096), catalogue);
+fn replacing_needs_keeps_running_attempts_and_rebuilds_placement_from_endpoints() {
+    let mut h = Harness::with_needs(LIMITS, needs_window(4096));
     let mut bounds = bounds_window(8192);
-    bounds.models = Box::new([
-        bounds.models[0].clone(),
-        ModelBound { name: b"future".as_slice().into(), window: 8192, output: 1024 },
-        ModelBound { name: b"unconfigured".as_slice().into(), window: 8192, output: 1024 },
+    bounds.endpoints = Box::new([
+        bounds.endpoints[0].clone(),
+        EndpointBound { endpoint: 2, window: 8192, output: 1024 },
+        EndpointBound { endpoint: 3, window: 8192, output: 1024 },
     ]);
     assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) }).is_empty());
     assert_eq!(h.place(R1, A1, 1), C1);
@@ -308,17 +326,15 @@ fn replacing_needs_keeps_running_attempts_and_rebuilds_placement_from_the_catalo
     assert_eq!(h.domain.workers(), 1);
     assert_eq!(h.domain.attempts.len(), before);
     let id = *h.domain.tokens.get(&C1).unwrap();
-    assert_eq!(h.domain.channels.get(id).unwrap().evidence.models.len(), 2, "only catalogue evidence retained");
+    assert_eq!(h.domain.channels.get(id).unwrap().evidence.endpoints.len(), 3, "every declared endpoint retained");
     assert!(!h.domain.channels.get(id).unwrap().eligible[0]);
     assert!(h.start(R2, A2, 2).is_empty());
     assert!(h.settle().is_empty(), "new work waits while needs exceed the hello");
     let mut needs = needs_window(4096);
     needs.charters[0].models[0].name = b"future".as_slice().into();
+    needs.charters[0].models[0].endpoint = 2;
     assert!(h.step(Event::Needs(needs)).is_empty());
-    assert!(
-        h.domain.channels.get(id).unwrap().eligible[0],
-        "evidence for a previously unused catalogue model survives"
-    );
+    assert!(h.domain.channels.get(id).unwrap().eligible[0], "evidence for a previously unused endpoint survives");
     assert!(!h.settle().is_empty(), "the waiting attempt can now be placed");
 }
 
@@ -350,7 +366,7 @@ fn start_version(run: Token, attempt: Token, revision: u32) -> Event {
 #[test]
 fn a_run_of_an_older_version_is_placed_by_its_own_needs() {
     let limits = Limits { engine_slots: 1, ..LIMITS };
-    let mut h = Harness::with_catalogue(limits, 1, versioned_needs(), Box::new([]));
+    let mut h = Harness::with_versions(limits, 1, versioned_needs());
     let engine = Token::new(0);
     assert!(h.step(Event::Hello { worker: 0, channel: engine, hello: hello(bounds_window(8192)) }).is_empty());
     assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds_window(8192)) }).is_empty());
@@ -374,7 +390,7 @@ fn a_run_of_an_older_version_is_placed_by_its_own_needs() {
 #[test]
 fn a_dropped_version_leaves_the_table_and_live_attempts_keep_theirs() {
     let limits = Limits { engine_slots: 1, ..LIMITS };
-    let mut h = Harness::with_catalogue(limits, 1, versioned_needs(), Box::new([]));
+    let mut h = Harness::with_versions(limits, 1, versioned_needs());
     let engine = Token::new(0);
     h.step(Event::Hello { worker: 0, channel: engine, hello: hello(bounds_window(8192)) });
     h.step(start_version(R1, A1, 1));
@@ -430,16 +446,16 @@ fn a_queued_old_version_keeps_its_models_when_the_newest_changes() {
     let mut old = needs_window(8192).charters[0].clone();
     old.models[0].name = b"old".as_slice().into();
     let needs = Needs { charters: Box::new([old.clone()]), ..needs_window(8192) };
-    let mut h =
-        Harness::with_catalogue(LIMITS, 0, needs, Box::new([b"old".as_slice().into(), b"new".as_slice().into()]));
+    let mut h = Harness::with_needs(LIMITS, needs);
     h.step(start_version(R1, A1, 1));
     assert!(h.settle().is_empty());
     let mut newest = old.clone();
     newest.version.revision = 2;
     newest.models[0].name = b"new".as_slice().into();
+    newest.models[0].endpoint = 2;
     h.step(Event::Needs(Needs { charters: Box::new([old, newest]), ..needs_window(8192) }));
     let mut bounds = bounds_window(8192);
-    bounds.models[0].name = b"old".as_slice().into();
+    bounds.endpoints[0].endpoint = 1;
     h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) });
     let placed = h.settle();
     let [Request::Assign { channel, run, .. }, Request::Placed { .. }] = &placed[..] else {
@@ -458,7 +474,7 @@ fn a_refused_hello_says_why_and_what_each_side_holds() {
     for (bounds, why, required, offered) in [
         (
             Bounds {
-                models: Box::new([ModelBound { window: 4096, ..adequate.models[0].clone() }]),
+                endpoints: Box::new([EndpointBound { window: 4096, ..adequate.endpoints[0].clone() }]),
                 ..adequate.clone()
             },
             AgentShortfall::Window { charter: 1, model: 0 },
@@ -467,7 +483,7 @@ fn a_refused_hello_says_why_and_what_each_side_holds() {
         ),
         (
             Bounds {
-                models: Box::new([ModelBound { output: 1023, ..adequate.models[0].clone() }]),
+                endpoints: Box::new([EndpointBound { output: 1023, ..adequate.endpoints[0].clone() }]),
                 ..adequate.clone()
             },
             AgentShortfall::Output { charter: 1, model: 0 },
@@ -543,7 +559,7 @@ fn a_bound_set_after_the_start_refuses_with_its_figures() {
 fn a_model_the_agent_does_not_declare_has_no_figures() {
     let needs = needs_window(8192);
     let mut bounds = bounds_window(8192);
-    bounds.models = Box::new([]);
+    bounds.endpoints = Box::new([]);
     for why in [
         AgentShortfall::Model { charter: 1, model: 0 },
         AgentShortfall::Window { charter: 1, model: 0 },
@@ -667,4 +683,31 @@ fn a_refused_hello_uses_the_first_short_versions_figures() {
             })
         }]
     );
+}
+
+#[test]
+fn evidence_keeps_every_endpoint_a_hello_declared() {
+    let mut h = Harness::with_needs(LIMITS, needs_window(8192));
+    let mut bounds = bounds_window(8192);
+    bounds.endpoints = endpoint_bounds(crate::CATALOGUE_MODELS);
+    let expected = bounds.clone();
+    h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) });
+    let id = *h.domain.tokens.get(&C1).unwrap();
+    assert_eq!(h.domain.channels.get(id).unwrap().evidence, expected);
+    let mut oversized = expected;
+    oversized.endpoints = endpoint_bounds(crate::CATALOGUE_MODELS.checked_add(1).expect("one past endpoint cap"));
+    let mut h = Harness::with_needs(LIMITS, needs_window(8192));
+    assert_eq!(
+        &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(oversized) }),
+        &[Request::Refuse { channel: C1, hello: None }]
+    );
+    assert_eq!(h.domain.workers(), 0);
+}
+
+fn endpoint_bounds(count: u32) -> Box<[EndpointBound]> {
+    let mut endpoints = List::with_capacity(count);
+    for endpoint in 0..count {
+        endpoints.push(EndpointBound { endpoint, window: 8192, output: 1024 }).expect("bounded test endpoints");
+    }
+    endpoints.into_boxed()
 }

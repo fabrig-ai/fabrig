@@ -7,7 +7,7 @@
 )]
 use super::run_choice::{account, granted, host_with_endpoints, inventory, login, placement_fleet};
 use crate::tests::*;
-use jig_domain_link::{Bounds, Hello, Hosting, LoginState, ModelBound, Phase, SourceName};
+use jig_domain_link::{Bounds, EndpointBound, Hello, Hosting, LoginState, Phase, SourceName};
 
 const TASK: u64 = 1;
 const HOST: Token = Token::new(7);
@@ -307,9 +307,10 @@ fn a_busy_login_host_is_a_host_wait() {
                 jobs: Box::default(),
                 bounds: Bounds {
                     program_endpoints: Box::new([PROGRAM_ENDPOINT]),
-                    models: NAMES
+                    endpoints: NAMES
                         .iter()
-                        .map(|name| ModelBound { name: (*name).into(), window: 8192, output: 1024 })
+                        .filter_map(|name| core.settings.models.iter().find(|model| model.name.as_ref() == *name))
+                        .map(|model| EndpointBound { endpoint: model.endpoint, window: 8192, output: 1024 })
                         .collect(),
                     ..fixtures::bounds()
                 },

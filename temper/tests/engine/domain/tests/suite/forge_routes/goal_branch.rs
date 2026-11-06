@@ -2,7 +2,7 @@
 //! (temper/docs/design/domain/forge.md, 2 and 11.1;
 //! jig/docs/design/domain/tasks.md, 6.1–6.3).
 use super::*;
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 
 const FORGE_CONNECTOR: u16 = 0;
 const OWN_GOAL_BRANCH: u16 = 1; // forge.md, 2, Symbols.
@@ -137,7 +137,8 @@ fn reference_template_four_starts_on_the_configured_forge() {
     hello.bounds = jig_test_profile::fixtures::bounds();
     hello.bounds.time = Duration::from_secs(28_800);
     let model = stock::box_model();
-    hello.bounds.models = Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]);
+    hello.bounds.endpoints =
+        Box::new([EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output }]);
     world.send(event);
     let template = defaults.templates.iter().find(|template| template.number == 4).expect("template 4");
     let request = reference_request(&world, template);

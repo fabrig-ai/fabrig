@@ -4,7 +4,7 @@
 //! The fake store and person remain outside both domains.
 
 use jig_domain_host as host;
-use jig_domain_link::{Bounds, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound};
 use jig_domain_people as people;
 use skein_fake_checkout::{Checkout, Exit, Program};
 use skein_fake_llm_domain::api::Script;
@@ -89,7 +89,7 @@ pub fn bounds() -> Bounds {
     let model = charter().policy.model;
     Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]),
+        endpoints: Box::new([EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output }]),
         turns: 64,
         spend: 1000,
         time: Duration::from_secs(3600),

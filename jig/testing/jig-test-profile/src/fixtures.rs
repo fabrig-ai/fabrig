@@ -1,7 +1,7 @@
 //! Test application records and request fixtures (`jig/docs/design/domain/testing.md`, 2).
 use jig_domain_authority as authority;
 use jig_domain_core as core;
-use jig_domain_link::{Bounds, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -15,10 +15,7 @@ pub fn bounds() -> Bounds {
     use skein_lib::Duration;
     Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([
-            ModelBound { name: b"scripted".as_slice().into(), window: 8192, output: 1024 },
-            ModelBound { name: b"research".as_slice().into(), window: 8192, output: 1024 },
-        ]),
+        endpoints: Box::new([EndpointBound { endpoint: 1, window: 8192, output: 1024 }]),
         turns: u32::MAX,
         spend: u64::MAX,
         time: Duration::from_secs(3600),

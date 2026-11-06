@@ -10,7 +10,7 @@ use jig_client_kit::{
     harness::{ClientId, Front, FrontFault, Observed},
     joint::transport::Transport,
 };
-use jig_domain_link::{ModelBound, Phase};
+use jig_domain_link::{EndpointBound, Phase};
 use skein_lib::{Duration, RequestEnvelope, Time, Token, Wall};
 use smith_domain_session::llm::Block;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -1148,7 +1148,7 @@ impl Joint {
             .settings
             .models
             .iter()
-            .map(|model| ModelBound { name: model.name.clone(), window: model.window, output: model.output })
+            .map(|model| EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output })
             .collect();
         let mut hello =
             temper_engine_domain_world::protocol::hello_slots(fixtures::QUESTION_WORKER, slots, Box::new([]));
@@ -1158,7 +1158,7 @@ impl Joint {
         else {
             unreachable!("worker hello")
         };
-        value.bounds.models = worker_models;
+        value.bounds.endpoints = worker_models;
         value.bounds.message_bytes = engine_limits.tasks.message_bytes;
         if refuse_hello {
             // The fixture configures only worker zero.

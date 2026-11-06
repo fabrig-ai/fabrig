@@ -1,6 +1,6 @@
 //! The director, P and its implementers (temper/docs/design/domain/testing.md, 2.2).
 use super::*;
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 
 struct Cast {
     director: engine::Assignment,
@@ -40,11 +40,7 @@ fn opening() -> (Driver, Cast) {
     else {
         unreachable!("worker hello")
     };
-    hello.bounds.models = Box::new([b"claude".as_slice(), b"gpt".as_slice()].map(|name| ModelBound {
-        name: name.into(),
-        window: 1024,
-        output: 1024,
-    }));
+    hello.bounds.endpoints = Box::new([EndpointBound { endpoint: 1, window: 1024, output: 1024 }]);
     driver.send(event);
     driver.settle();
     driver.sign_in();

@@ -433,8 +433,8 @@ fn claude_offer_world() -> World {
         .settings
         .models
         .iter()
-        .map(|model| jig_domain_link::ModelBound {
-            name: model.name.clone(),
+        .map(|model| jig_domain_link::EndpointBound {
+            endpoint: model.endpoint,
             window: model.window,
             output: model.output,
         })
@@ -463,7 +463,7 @@ fn claude_offer_world() -> World {
     let Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut greeting else {
         panic!("hello")
     };
-    hello.bounds.models = capabilities;
+    hello.bounds.endpoints = capabilities;
     hello.bounds.program_endpoints = Box::new([1]);
     hello.bounds.time = skein_lib::Duration::from_secs(28_800);
     hello.bounds.turns = 800;

@@ -51,7 +51,7 @@ pub(crate) fn current(core: &crate::Core, limits: &Limits) -> Needs {
     }
 }
 pub(crate) fn model(value: &crate::Model) -> ModelNeed {
-    ModelNeed { name: value.name.clone(), window: value.window, output: value.output }
+    ModelNeed { endpoint: value.endpoint, name: value.name.clone(), window: value.window, output: value.output }
 }
 
 fn one(charter: &crate::Charter, revision: u32) -> CharterNeeds {

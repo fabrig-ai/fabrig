@@ -231,7 +231,7 @@ fn worker_limits() -> worker::Limits {
     limits.agent.path_bytes = 64;
     limits.agent.no_progress = Duration::from_secs(120);
     limits.bounds = crate::world::bounds();
-    limits.bounds.models[0].window = 1_048_576;
+    limits.bounds.endpoints[0].window = 1_048_576;
     limits.bounds.inbox = 4;
     limits.bounds.message_bytes = 1024;
     limits.bounds.unacknowledged = 2;

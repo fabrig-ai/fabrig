@@ -127,7 +127,7 @@ pub fn link_limits(worker: &config::Worker, payload: &v1::Limits, forges: u32) -
         grant: grant_bytes(credential_bytes(jig.token), largest.grant)?,
         name: profile.name,
         secret: profile.secret,
-        model_name: ceilings.model_bound_name,
+
         items: largest.items,
         left: largest.left,
         saved: largest.saved,
@@ -138,7 +138,7 @@ pub fn link_limits(worker: &config::Worker, payload: &v1::Limits, forges: u32) -
         turns: hub.turns,
         inbox: core.tasks.run_inbox,
         answered: core.call_records,
-        models: ceilings.bounds_models,
+        models: ceilings.bounds_endpoints,
         workstreams: core.fleet.workstreams,
         accounts: core.accounts.accounts,
         credentials: forges,

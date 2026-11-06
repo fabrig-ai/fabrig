@@ -21,20 +21,20 @@ pub(crate) fn hello(hello: Hello, limits: &wire::v9::Limits) -> Option<Frame> {
     for endpoint in bounds.program_endpoints {
         program_endpoints.push(endpoint).ok()?;
     }
-    let mut models = List::with_capacity(limits.bounds_models);
-    for model in bounds.models {
-        let model = wire::ModelBound::new(
+    let mut endpoints = List::with_capacity(limits.bounds_endpoints);
+    for model in bounds.endpoints {
+        let model = wire::EndpointBound::new(
             limits,
-            wire::ModelBoundParts { name: model.name, window: model.window, output: model.output },
+            wire::EndpointBoundParts { endpoint: model.endpoint, window: model.window, output: model.output },
         )
         .ok()?;
-        models.push(model).ok()?;
+        endpoints.push(model).ok()?;
     }
     let bounds = wire::Bounds::new(
         limits,
         wire::BoundsParts {
             program_endpoints,
-            models,
+            endpoints,
             turns: bounds.turns,
             spend: bounds.spend,
             time: bounds.time,

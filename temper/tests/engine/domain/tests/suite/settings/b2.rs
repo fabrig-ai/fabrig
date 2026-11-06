@@ -185,9 +185,9 @@ fn chat_in(config: [engine::Config; 2]) -> (Driver, engine::Assignment) {
         unreachable!("hello")
     };
     let model = box_model();
-    hello.bounds.models[0].name = model.name;
-    hello.bounds.models[0].window = model.window;
-    hello.bounds.models[0].output = model.output;
+    hello.bounds.endpoints[0].endpoint = model.endpoint;
+    hello.bounds.endpoints[0].window = model.window;
+    hello.bounds.endpoints[0].output = model.output;
     hello.bounds.turns = 800;
     hello.bounds.time = Duration::from_secs(28_800);
     hello.bounds.spend = K;
