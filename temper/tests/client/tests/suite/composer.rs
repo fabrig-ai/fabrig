@@ -143,3 +143,74 @@ fn a_long_reply_is_answered() {
         .collect();
     assert_eq!(answers, [edited.as_slice()]);
 }
+
+#[test]
+fn a_new_chats_kilobyte_reads_back_whole() {
+    let mut world = first_message_world();
+    world.front().reply_in_pieces(&[b"Working"]);
+    let mut limits = f::whole_turn_limits();
+    limits.client.domain.text = 512;
+    world.front().next_client_limits(limits);
+    let client = world.client_with(f::PARTY, Address::NewChat { draft: false }, limits, first_message_root);
+    let words = vec![b'w'; 1024];
+    follow(
+        &mut world,
+        client,
+        vec![
+            see(b"Live"),
+            Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: f::WITHIN },
+            type_words(b"What do you want done?", &words),
+            Step::Press { find: Find::named(Role::Button, b"Send") },
+            see(&words),
+        ],
+    );
+}
+
+fn first_message_root(seed: u64) -> (temper_client_world::app::Root, temper_client_world::app::View) {
+    let mut limits = f::whole_turn_limits();
+    limits.client.domain.text = 512;
+    let mut words = f::phrasebooks(&limits);
+    words.shell = temper_client_view::words::Shell::Browser;
+    let bounds = f::view_bounds(&limits, &words);
+    (
+        temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, seed))),
+        temper_client_world::app::View::Person(Box::new(temper_client_view::View::new(
+            &bounds,
+            &limits,
+            words,
+            f::FORGE,
+        ))),
+    )
+}
+
+fn first_message_world() -> Pages {
+    use jig_client_kit::harness::Settings;
+    use temper_engine_domain_world::{store::Store, walking};
+    let mut limits = f::whole_turn_limits();
+    limits.client.domain.text = 512;
+    let small = Joint::with_reading_pages(f::SEED, &limits);
+    let mut engine_limits = small.engine.env.limits;
+    drop(small);
+    engine_limits.documents.text_bytes = 512;
+    engine_limits.people.words = 8192;
+    engine_limits.people.spec_bytes = 8192;
+    engine_limits.people.amendment_bytes = 8192;
+    engine_limits.tasks.spec_bytes = 8192;
+    engine_limits.tasks.message_bytes = 8192;
+    engine_limits.tasks.inbox_bytes = 8192;
+    engine_limits.journal.result_bytes = 8192;
+    let front = Joint::with_engine(
+        f::SEED,
+        &limits,
+        Store::with_limits(&engine_limits),
+        [walking::config(f::SEED), walking::config(f::SEED)],
+        &engine_limits,
+        1,
+    );
+    let mut world = World::new(
+        Settings { seed: f::SEED, words: f::decision_words(), iterations: 4096, ..Settings::default() },
+        front,
+    );
+    world.randomness(2, 0, 0);
+    world
+}

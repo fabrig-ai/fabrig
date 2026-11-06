@@ -1061,18 +1061,20 @@ fn a_conversation_past_its_rows_says_nothing_of_what_was_cut() {
 }
 
 #[test]
-fn a_cut_request_says_nothing_of_what_was_cut() {
+fn a_request_being_read_ends_in_the_mark() {
     let thread = owner_words_thread();
-    let mut request = c::SpecificationDocument::complete(c::Specification {
-        asks: false,
-        words: fixtures::first_run::text(b"Kept request"),
-        parameters: List::with_capacity(0),
-        inputs: List::with_capacity(0),
-    });
-    request.specification.words.cut = true;
-    let drawn = fixtures::chat::requested_tree(&thread, &request);
-    assert!(fixtures::find(&drawn, Role::Paragraph, b"Kept request").is_some());
-    assert!(skein_lib::bytes::find(&fixtures::text(&drawn), b"Earlier text omitted").is_none());
+    for (kept, marked) in [(b"Kept request".as_slice(), "Kept request…"), (b"".as_slice(), "…")] {
+        let mut request = c::SpecificationDocument::complete(c::Specification {
+            asks: false,
+            words: fixtures::first_run::text(kept),
+            parameters: List::with_capacity(0),
+            inputs: List::with_capacity(0),
+        });
+        request.specification.words.cut = true;
+        let drawn = fixtures::chat::requested_tree(&thread, &request);
+        assert!(fixtures::find(&drawn, Role::Paragraph, marked.as_bytes()).is_some());
+        assert!(skein_lib::bytes::find(&fixtures::text(&drawn), b"Earlier text omitted").is_none());
+    }
 }
 
 #[test]
@@ -3942,4 +3944,17 @@ fn no_me_no_line() {
     assert!(composer_node(view.tree(), Role::TextArea).value.is_some());
     assert!(root.pages().me(root.client()).is_none());
     assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"over what one message holds").is_none());
+}
+
+#[test]
+fn a_whole_request_draws_whole() {
+    let request = c::SpecificationDocument::complete(c::Specification {
+        asks: false,
+        words: fixtures::first_run::text(b"Whole request"),
+        parameters: List::with_capacity(0),
+        inputs: List::with_capacity(0),
+    });
+    let drawn = fixtures::chat::requested_tree(&owner_words_thread(), &request);
+    assert!(fixtures::find(&drawn, Role::Paragraph, b"Whole request").is_some());
+    assert!(skein_lib::bytes::find(&fixtures::text(&drawn), "…".as_bytes()).is_none());
 }

@@ -2307,3 +2307,181 @@ fn a_paused_chat_reports_thread_refusal_and_keeps_its_words() {
     assert_eq!(f.chat.outcome, Some(jig_client::Outcome::Limit));
     assert_eq!(f.chat.outcome_kind, Some(Sending::Message));
 }
+
+fn request_fixture(cut: bool) -> f::Fixture {
+    let mut f = f::opened();
+    while f.out.pop().is_some() {}
+    let mut task = f::task();
+    task.spec.specification.words = f::document_text(b"Kept");
+    task.spec.specification.words.cut = cut;
+    f::deliver(&mut f.client, f.watch, task);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    f
+}
+fn request_read(out: &mut Queue<Request>, from: u64) -> jig_client::Handle {
+    while let Some(request) = out.pop() {
+        if let Request::Client(Event::Read {
+            handle,
+            read: Readable::Jig(c::Read::TaskText { task: f::TASK, field: c::TaskTextField::Specification, from: at }),
+        }) = request
+        {
+            assert_eq!(at, from);
+            return handle;
+        }
+    }
+    panic!("a cut request reads its specification from {from}")
+}
+fn request_piece(f: &mut f::Fixture, handle: jig_client::Handle, from: u64, bytes: &[u8], next: Option<u64>) {
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page {
+            handle,
+            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::TaskText(Box::new(c::TaskText {
+                task: f::TASK,
+                field: c::TaskTextField::Specification,
+                from,
+                total: 11,
+                next,
+                text: fixtures::acts::text(bytes),
+            })))),
+        },
+        &mut f.out,
+    );
+}
+#[test]
+fn a_cut_request_is_read_whole() {
+    let mut f = request_fixture(true);
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept".as_slice(), false)));
+    let handle = request_read(&mut f.out, 0);
+    request_piece(&mut f, handle, 0, b"Kept ", Some(5));
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept ".as_slice(), false)));
+    assert_eq!(request_read(&mut f.out, 5), handle);
+    request_piece(&mut f, handle, 5, b"whole!", None);
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept whole!".as_slice(), true)));
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    assert!(f.out.is_empty(), "a repeated task delivery does not restart the read");
+    f.chat.leave(&mut f.out);
+    assert!(f::handles(&mut f.out).contains(&handle), "leaving releases the read handle");
+}
+#[test]
+fn an_uncut_request_asks_nothing() {
+    let f = request_fixture(false);
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept".as_slice(), true)));
+    assert!(f.out.is_empty());
+}
+#[test]
+fn a_request_read_that_ends_keeps_what_it_has() {
+    let mut f = request_fixture(true);
+    let handle = request_read(&mut f.out, 0);
+    request_piece(&mut f, handle, 0, b"Kept ", Some(5));
+    request_read(&mut f.out, 5);
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Gone)) },
+        &mut f.out,
+    );
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept ".as_slice(), false)));
+    assert_eq!(f.chat.next_deadline(), None);
+    f.chat.fire(Time::from_nanos(60_000_000_000), &mut f.out);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    assert!(f.out.is_empty(), "a lasting end never restarts");
+}
+
+#[test]
+fn a_transient_request_end_retries_with_activitys_waits() {
+    let mut f = request_fixture(true);
+    let handle = request_read(&mut f.out, 0);
+    request_piece(&mut f, handle, 0, b"Kept ", Some(5));
+    request_read(&mut f.out, 5);
+    let mut now = Time::ZERO;
+    for (why, delay) in [(c::ReadNone::Busy, 1), (c::ReadNone::Unreachable, 2)] {
+        f.chat.told(
+            now,
+            &f.client,
+            Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::None(why)) },
+            &mut f.out,
+        );
+        let due = now.saturating_add(Duration::from_secs(delay));
+        assert_eq!(f.chat.next_deadline(), Some(due));
+        assert_eq!(f.chat.request(&f.client), Some((b"Kept ".as_slice(), false)));
+        f.chat.fire(Time::from_nanos(due.as_nanos() - 1), &mut f.out);
+        assert!(f.out.is_empty());
+        f.chat.fire(due, &mut f.out);
+        assert_eq!(request_read(&mut f.out, 5), handle);
+        now = due;
+    }
+    request_piece(&mut f, handle, 5, b"whole!", None);
+    assert_eq!(f.chat.next_deadline(), None);
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept whole!".as_slice(), true)));
+}
+
+#[test]
+fn a_request_rejects_pieces_that_do_not_follow() {
+    let good = c::TaskText {
+        task: f::TASK,
+        field: c::TaskTextField::Specification,
+        from: 5,
+        total: 11,
+        next: None,
+        text: fixtures::acts::text(b"whole!"),
+    };
+    for (rule, piece) in [
+        ("task", c::TaskText { task: f::TASK + 1, ..good.clone() }),
+        ("field", c::TaskText { field: c::TaskTextField::Instructions, ..good.clone() }),
+        ("overlap", c::TaskText { from: 4, total: 11, next: Some(10), ..good.clone() }),
+        ("gap", c::TaskText { from: 6, text: fixtures::acts::text(b"hole!"), ..good.clone() }),
+        ("changed total", c::TaskText { total: 12, next: Some(11), ..good.clone() }),
+        ("past total", c::TaskText { text: fixtures::acts::text(b"too long"), ..good.clone() }),
+        ("wrong next", c::TaskText { text: fixtures::acts::text(b"whole"), next: Some(9), ..good.clone() }),
+        ("no progress", c::TaskText { text: fixtures::acts::text(b""), next: Some(5), ..good.clone() }),
+        ("next at total", c::TaskText { next: Some(11), ..good.clone() }),
+        ("unfinished end", c::TaskText { text: fixtures::acts::text(b"whole"), ..good.clone() }),
+        ("overflow", c::TaskText { from: u64::MAX, ..good.clone() }),
+    ] {
+        let mut f = request_fixture(true);
+        let handle = request_read(&mut f.out, 0);
+        request_piece(&mut f, handle, 0, b"Kept ", Some(5));
+        request_read(&mut f.out, 5);
+        f.chat.told(
+            Time::ZERO,
+            &f.client,
+            Told::Page {
+                handle,
+                page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::TaskText(Box::new(piece)))),
+            },
+            &mut f.out,
+        );
+        assert_eq!(f.chat.request(&f.client), Some((b"Kept ".as_slice(), false)), "{rule}");
+        assert_eq!(f.chat.next_deadline(), None, "{rule}");
+        request_piece(&mut f, handle, 5, b"whole!", None);
+        assert_eq!(f.chat.request(&f.client), Some((b"Kept ".as_slice(), false)), "{rule}: stopped");
+        assert!(f.out.is_empty(), "{rule}");
+    }
+}
+
+#[test]
+fn a_request_past_long_text_stops_before_keeping_a_piece() {
+    let mut f = request_fixture(true);
+    let handle = request_read(&mut f.out, 0);
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page {
+            handle,
+            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::TaskText(Box::new(c::TaskText {
+                task: f::TASK,
+                field: c::TaskTextField::Specification,
+                from: 0,
+                total: u64::from(fixtures::limits().client.domain.long_text) + 1,
+                next: Some(5),
+                text: fixtures::acts::text(b"Other"),
+            })))),
+        },
+        &mut f.out,
+    );
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept".as_slice(), false)));
+    assert_eq!(f.chat.next_deadline(), None);
+    assert!(f.out.is_empty());
+}
