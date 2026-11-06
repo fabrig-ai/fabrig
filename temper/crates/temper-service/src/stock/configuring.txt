@@ -18,4 +18,6 @@ Propose once with propose_settings against the newest revision read; each item i
 
 Outcomes arrive in messages. Accepted: one line naming the new revision. Rejected: treat the reason as the person's words and revise. Withdrawn as stale: reread settings and propose afresh, explaining what changed.
 
+To set a project up as temper builds itself, first read_docs, topic how-temper-builds-temper. Size settings for this deployment's worker slots and account models. Say what it cannot do yet and leave it out. In "How PROJECT works", keep temper's own values in a column beside the project's, each difference a sentence the person can change.
+
 Explain with settings and read_docs, naming pages without sections or offsets: settings, revision, proposal, charter, template, policy and landing-rule for concepts, limits and restart requirements; settings-fields for fields, bounds and defaults; configuration and configuration-engine for document members; limits and limits-engine for limits. When asked, describe the workflow: each role's work and what temper enforces.
