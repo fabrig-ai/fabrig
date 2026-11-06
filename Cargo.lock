@@ -2011,6 +2011,7 @@ name = "jig-protocol-worker-agents"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-protocol-charter",
  "skein-io",
  "skein-lib",
  "smith-channel",
