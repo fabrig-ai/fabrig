@@ -261,20 +261,6 @@ pub(crate) fn byline(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: 
     b.close();
 }
 
-/// The composer's line's words for a byline with nothing behind it (client/README.md, 3.5).
-pub(crate) fn byline_words(root: &Domain, task: Option<&c::Task>, project: u32, w: &Words) -> Box<[u8]> {
-    if task.is_none() {
-        let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else {
-            return Box::default();
-        };
-        let Some(models) = choice::offer(me, project) else { return Box::default() };
-        if models.is_empty() {
-            return Box::default();
-        }
-    }
-    using_words(root, task, Some(project), w, LineForm::Byline).text
-}
-
 /// Feedback and the no-model offer stay above the composer (client/README.md, 5.5).
 pub(crate) fn above_composer(
     b: &mut Builder,
