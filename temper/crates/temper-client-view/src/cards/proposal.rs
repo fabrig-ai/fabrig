@@ -457,14 +457,24 @@ pub(crate) fn settings(
     b.text(skein_ui::Run::Plain, &title);
     b.close();
     settings_lines(b, root, proposal, words);
-    if accepted || superseded {
+    let ending = if accepted {
+        Some(Word::SettingsProposalAccepted)
+    } else {
+        match state {
+            SettingsState::Rejected => Some(Word::SettingsProposalRejected),
+            SettingsState::Withdrawn => {
+                Some(if superseded { Word::SettingsProposalReplaced } else { Word::SettingsProposalWithdrawn })
+            }
+            SettingsState::Reading | SettingsState::Pending | SettingsState::Accepted | SettingsState::Other => None,
+        }
+    };
+    if let Some(ending) = ending {
         b.open(Role::Paragraph);
         b.style(crate::look::SETTINGS_PROPOSAL_STATE);
         if accepted {
             b.style(crate::look::SETTINGS_PROPOSAL_OK);
         }
-        let said =
-            words.say(if accepted { Word::SettingsProposalAccepted } else { Word::SettingsProposalReplaced }, &[]);
+        let said = words.say(ending, &[]);
         b.name(&said);
         b.text(skein_ui::Run::Plain, &said);
         b.close();
@@ -533,8 +543,10 @@ pub(crate) fn settings_proposal<'a>(
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SettingsState {
+    Reading,
     Pending,
     Accepted,
+    Rejected,
     Withdrawn,
     Other,
 }
@@ -544,8 +556,9 @@ fn settings_state(card: &temper_client_domain::pages::inbox::Card) -> SettingsSt
     {
         return match proposal.state {
             c::ProposalHistoryState::Accepted { .. } => SettingsState::Accepted,
-            c::ProposalHistoryState::Rejected { .. } | c::ProposalHistoryState::Withdrawn => SettingsState::Withdrawn,
-            c::ProposalHistoryState::Pending { .. } => SettingsState::Pending,
+            c::ProposalHistoryState::Rejected { .. } => SettingsState::Rejected,
+            c::ProposalHistoryState::Withdrawn => SettingsState::Withdrawn,
+            c::ProposalHistoryState::Pending { .. } => SettingsState::Reading,
         };
     }
     if let Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
@@ -560,12 +573,16 @@ fn settings_state(card: &temper_client_domain::pages::inbox::Card) -> SettingsSt
     {
         return match choice {
             c::ProposalChoice::Accepted => SettingsState::Accepted,
-            c::ProposalChoice::Rejected | c::ProposalChoice::Withdrawn => SettingsState::Withdrawn,
+            c::ProposalChoice::Rejected => SettingsState::Rejected,
+            c::ProposalChoice::Withdrawn => SettingsState::Withdrawn,
             c::ProposalChoice::Stale => SettingsState::Other,
-            c::ProposalChoice::Passed => SettingsState::Pending,
+            c::ProposalChoice::Passed => settings_read_state(card),
         };
     }
-    SettingsState::Pending
+    settings_read_state(card)
+}
+fn settings_read_state(card: &temper_client_domain::pages::inbox::Card) -> SettingsState {
+    if let Some(c::ReadValue::Proposal(_)) = &card.page { SettingsState::Pending } else { SettingsState::Reading }
 }
 fn settings_button(
     b: &mut Builder,

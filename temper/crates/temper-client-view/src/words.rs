@@ -92,6 +92,8 @@ pub enum Word {
     SettingsProposalOwners,
     SettingsProposalAccepted,
     SettingsProposalReplaced,
+    SettingsProposalRejected,
+    SettingsProposalWithdrawn,
 
     AwaySettingsTitle,
     AwayKinds,
@@ -1378,7 +1380,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1863;
+const PHRASES: u32 = 1865;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1404,10 +1406,10 @@ const PHRASES: u32 = 1863;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3258;
+const SEGMENTS: u32 = 3260;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45461;
-const ALL: [Word; 1262] = [
+const ENGLISH_BYTES: u32 = 45516;
+const ALL: [Word; 1264] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1487,6 +1489,8 @@ const ALL: [Word; 1262] = [
     Word::SettingsProposalOwners,
     Word::SettingsProposalAccepted,
     Word::SettingsProposalReplaced,
+    Word::SettingsProposalRejected,
+    Word::SettingsProposalWithdrawn,
     Word::AwaySettingsTitle,
     Word::AwayKinds,
     Word::AwayKindsLine,
@@ -2792,6 +2796,8 @@ impl Word {
             Self::SettingsProposalOwners => 3431,
             Self::SettingsProposalAccepted => 3432,
             Self::SettingsProposalReplaced => 3433,
+            Self::SettingsProposalRejected => 3873,
+            Self::SettingsProposalWithdrawn => 3874,
             Self::AwaySettingsTitle => 3658,
             Self::AwayKinds => 3659,
             Self::AwayKindsLine => 3660,
@@ -5317,6 +5323,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsProposalOwners => (&[b"Owners of project ", b""], &[Name]),
         Word::SettingsProposalAccepted => (&[b"\xe2\x9c\x93 Accepted \xc2\xb7 new work follows it"], &[]),
         Word::SettingsProposalReplaced => (&[b"Replaced by the proposal below"], &[]),
+        Word::SettingsProposalRejected => (&[b"Rejected \xc2\xb7 nothing changes"], &[]),
+        Word::SettingsProposalWithdrawn => (&[b"Withdrawn \xc2\xb7 nothing changes"], &[]),
         Word::SettingsOn => (&[b"On"], &[]),
         Word::SettingsOff => (&[b"Off"], &[]),
         Word::SettingsShown => (&[b"Shown"], &[]),

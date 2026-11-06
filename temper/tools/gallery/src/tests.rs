@@ -15,6 +15,13 @@ fn names_are_the_promised_ones() {
 }
 
 #[test]
+fn a_later_settings_card_replaces_a_withdrawn_one_without_call_objects() {
+    let sample = samples::samples().into_iter().find(|sample| sample.name == "configure-chat-replaced").unwrap();
+    let view = view(&sample);
+    assert!(view.tree().nodes().iter().any(|node| node.role == Role::Paragraph && node.name.as_deref() == Some(b"Replaced by the proposal below")));
+}
+
+#[test]
 fn retired_chat_style_slots_stay_reserved() {
     let names = &temper_client_view::look::NAMES;
     for (token, expected) in [
@@ -1960,6 +1967,34 @@ const HOLDS: [Holds; samples::N] = [
             Part::Text { text: "Way: Plan, tasks, land whole" },
             Part::Named { role: Role::Paragraph, name: "✓ Accepted · new work follows it" },
             Part::Absent { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-rejected",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally" },
+            Part::Text { text: "Drafts: on" },
+            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Way: Plan, tasks, land whole" },
+            Part::Named { role: Role::Paragraph, name: "Rejected · nothing changes" },
+            Part::Absent { role: Role::Paragraph, name: "Waiting for an owner" },
+            Part::Absent { role: Role::Button, name: "Accept" },
+            Part::Absent { role: Role::Button, name: "Change something" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-withdrawn",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally" },
+            Part::Text { text: "Drafts: on" },
+            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Way: Plan, tasks, land whole" },
+            Part::Named { role: Role::Paragraph, name: "Withdrawn · nothing changes" },
+            Part::Absent { role: Role::Paragraph, name: "Waiting for an owner" },
+            Part::Absent { role: Role::Button, name: "Accept" },
+            Part::Absent { role: Role::Button, name: "Change something" },
         ],
     },
     Holds {

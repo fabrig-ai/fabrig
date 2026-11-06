@@ -499,20 +499,15 @@ fn a_deployments_proposal_shows_in_each_project_its_owner_owns() {
     assert!(inbox.contains("\"projects\":[1,2]"), "{inbox}");
 }
 
-#[test]
-#[ignore = "settings rejection carries running; jig refuses it as NotWellFormed(Running) before committing a decision"]
-fn an_owner_rejects_a_chats_pending_proposal_under_needs_you() {
+fn reject_under_needs(world: &mut ClientWorld, person: ClientId, reason: &[u8]) {
     use skein_fake_person::{Find, Step, Target};
     use skein_ui::Role;
-    let (mut world, agent, task, proposal) = propose(false, None);
-    let person = world.client(fixtures::PARTY, Address::Home { project: PROJECT });
-    let reason = b"Keep chats waiting one second.";
     world.person(
         person,
         vec![
             Step::See { find: Find::named(Role::Region, b"Needs you"), within: fixtures::WITHIN },
             Step::See { find: Find::named(Role::Disclosure, b"Reject with reason"), within: fixtures::WITHIN },
-            Step::Type { find: Find::named(Role::TextArea, b"Reason"), words: reason.as_slice().into() },
+            Step::Type { find: Find::named(Role::TextArea, b"Reason"), words: reason.into() },
             Step::Press { find: Find::exactly_named(Role::Button, b"Reject") },
         ],
     );
@@ -530,6 +525,14 @@ fn an_owner_rejects_a_chats_pending_proposal_under_needs_you() {
     );
     let outcome = world.run(jig_client_kit::harness::Until::Done);
     assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
+}
+
+#[test]
+fn an_owner_rejects_a_chats_pending_proposal_under_needs_you() {
+    let (mut world, agent, task, proposal) = propose(false, None);
+    let person = world.client(fixtures::PARTY, Address::Home { project: PROJECT });
+    let reason = b"Keep chats waiting one second.";
+    reject_under_needs(&mut world, person, reason);
     let review = text(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
     assert!(review.contains("rejected"), "{review}");
     let run = world.front().engine.task(task).expect("configuring chat").clone();
@@ -577,4 +580,36 @@ fn change_something_asks_in_the_composer_until_a_message_goes_out() {
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     assert_eq!(world.root(person).person().pages().chat().expect("chat page").change_asked, None);
+}
+
+#[test]
+fn a_decision_from_needs_you_reaches_an_open_chats_card() {
+    use jig_client_kit::harness::Until;
+    use skein_fake_person::{Find, Step};
+    use skein_ui::Role;
+    use skein_world::domain::Verdict;
+    let (mut world, _, task, _) = propose(false, None);
+    let chat = world.client(fixtures::PARTY, Address::Chat { task });
+    world
+        .person(chat, vec![Step::See { find: Find::exactly_named(Role::Button, b"Accept"), within: fixtures::WITHIN }]);
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    let owner = world.client(fixtures::PARTY, Address::Home { project: PROJECT });
+    reject_under_needs(&mut world, owner, b"Keep chats waiting one second.");
+    world.person(
+        chat,
+        vec![
+            Step::See {
+                find: Find::exactly_named(Role::Paragraph, "Rejected · nothing changes".as_bytes()),
+                within: fixtures::WITHIN,
+            },
+            Step::Gone {
+                find: Find::exactly_named(Role::Paragraph, b"Waiting for an owner"),
+                within: fixtures::WITHIN,
+            },
+            Step::Gone { find: Find::exactly_named(Role::Button, b"Accept"), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    assert_eq!(world.root(chat).person().pages().address(), &Address::Chat { task });
 }
