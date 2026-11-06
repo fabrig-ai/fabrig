@@ -18,7 +18,6 @@ pub enum Line<'a> {
     Undecoded { name: TurnName, why: TurnProblem, at: Wall },
     Provisional { name: ProvisionalTurnName, text: &'a [u8], cut: bool },
     Activity { line: &'a DecodedActivityLine },
-    Left { lines: u32 },
 }
 impl Thread {
     /// A task document announces the committed activity position.
@@ -72,7 +71,6 @@ impl Thread {
         }
         if !found {
             if self.live.len() == self.live.capacity() {
-                self.left = self.left.saturating_add(1);
                 let mut retained = List::with_capacity(self.live.capacity());
                 let old = core::mem::replace(&mut self.live, List::with_capacity(0));
                 for (at, turn) in old.into_boxed().into_iter().enumerate() {
@@ -106,7 +104,6 @@ impl Thread {
                 from = at;
             } else {
                 full = true;
-                self.left = self.left.saturating_add(1);
             }
         }
         let mut live = List::with_capacity(self.live.capacity());
@@ -186,6 +183,9 @@ impl Thread {
             };
             lines.push(line).expect("thread projection fits its three bounded sets");
         }
+        if !self.lines.edges.reaches(super::window::End::Before) {
+            return lines;
+        }
         for row in &self.words.rows {
             let mut held = false;
             for line in &self.lines.rows {
@@ -208,11 +208,7 @@ impl Thread {
                 .expect("live projection fits");
         }
         let dropped = lines.len().saturating_sub(self.limits.lines);
-        let mut kept = List::with_capacity(self.limits.lines.saturating_add(1));
-        let left = self.left.saturating_add(dropped);
-        if left > 0 {
-            kept.push(Line::Left { lines: left }).expect("loss marker fits");
-        }
+        let mut kept = List::with_capacity(self.limits.lines);
         for (at, line) in lines.into_boxed().into_iter().enumerate() {
             if u32::try_from(at).expect("bounded projection index fits") >= dropped {
                 kept.push(line).expect("retained projection fits");

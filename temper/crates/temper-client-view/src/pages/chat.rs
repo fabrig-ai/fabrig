@@ -666,10 +666,6 @@ pub(crate) fn conversation_with_times(
             Line::Provisional { text, .. } => provisional(b, text, words),
             Line::Undecoded { why, .. } => undecoded(b, why, words, clock.as_deref()),
 
-            Line::Left { lines } => {
-                b.style(look::MARKER);
-                text(b, Role::Status, &words.say(Word::LinesLeft, &[Hole::Number(u64::from(lines))]));
-            }
             Line::Activity { line } => {
                 owner_line(b, &line.source.line, projected, speakers.person, words, clock.as_deref());
             }
@@ -746,7 +742,7 @@ fn line_time(line: &Line<'_>) -> Option<skein_lib::Wall> {
             | c::Activity::Milestone { .. }
             | c::Activity::Kept { .. } => None,
         },
-        Line::Provisional { .. } | Line::Left { .. } => None,
+        Line::Provisional { .. } => None,
     }
 }
 fn turn_time(
@@ -889,11 +885,7 @@ fn hidden_line(line: &Line<'_>, projected: bool, delegations: Option<(&Chat, &ji
             }
             hidden(line, projected, delegations)
         }
-        Line::Words { .. }
-        | Line::Turn { .. }
-        | Line::Undecoded { .. }
-        | Line::Provisional { .. }
-        | Line::Left { .. } => false,
+        Line::Words { .. } | Line::Turn { .. } | Line::Undecoded { .. } | Line::Provisional { .. } => false,
     }
 }
 

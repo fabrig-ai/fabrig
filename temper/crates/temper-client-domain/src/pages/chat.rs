@@ -538,7 +538,7 @@ impl Chat {
     #[must_use]
     pub fn offers_older(&self) -> bool {
         match self.thread.lines.edges.after {
-            jig_client::thread::window::Edge::More(_) => !self.room(),
+            jig_client::thread::window::Edge::More(_) | jig_client::thread::window::Edge::Dropped => !self.room(),
             jig_client::thread::window::Edge::End => false,
         }
     }
@@ -642,8 +642,7 @@ impl Chat {
                 }
                 jig_client::thread::Line::Words { .. }
                 | jig_client::thread::Line::Undecoded { .. }
-                | jig_client::thread::Line::Provisional { .. }
-                | jig_client::thread::Line::Left { .. } => continue,
+                | jig_client::thread::Line::Provisional { .. } => continue,
             };
             for message in turn.messages.iter().rev() {
                 for block in message.blocks.iter().rev() {

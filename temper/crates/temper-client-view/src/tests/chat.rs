@@ -981,7 +981,6 @@ pub(super) fn structured_thread() -> Thread {
         before: Some(c::Cursor::new(Box::from(*b"older"), TEXT).expect("cursor")),
         cut: true,
     });
-    thread.left = 1;
     thread
 }
 #[test]
@@ -1017,17 +1016,11 @@ fn person_words_keep_their_shell_and_only_assistant_calls_keep_work() {
     assert_call_fold(&tree, b"1 tool call", b"Read", &[b"Read"]);
 }
 #[test]
-fn only_omission_markers_keep_the_turn_region() {
+fn no_line_loss_marker_is_drawn() {
     let tree = tree(&structured_thread());
-    let mut markers = 0_u32;
     for node in tree.nodes() {
-        if node.styles.as_slice().contains(&crate::look::MARKER) {
-            assert_eq!(node.role, Role::Region);
-            assert!(node.styles.as_slice().contains(&crate::look::TURN));
-            markers = markers.checked_add(1).expect("marker count");
-        }
+        assert!(!node.styles.as_slice().contains(&crate::look::MARKER));
     }
-    assert_eq!(markers, 1);
 }
 
 fn chat_event(
