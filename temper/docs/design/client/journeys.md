@@ -691,8 +691,9 @@ not journeys to reprint or land (section 7). The gallery's isolated
 `chat-work-*` states draw their conversation and their additional states
 through the view (`browser.md`, 7.2). Their summary follows the first
 appearance of a tool, so settings precedes docs where it was called first.
-The growing text, ordered lists and scrolling beyond the pill and loading
-status are tracked in `../draft/chat-reading.status.md`, sections 3, 5 and 6.
+The growing text and scrolling beyond the pill and loading status are
+tracked in `../draft/chat-reading.status.md`, sections 3 and 5, and a numbered
+list's look in `browser.status.md`, 2.5.
 
 The `close-chat` request's hand-made `close-chat/01.html` through `03.html`
 are not journeys to reprint or land (section 7). Their states are the gallery's
@@ -726,6 +727,9 @@ Release, with its uncertain pair. These add no recorded journey or page.
   which must not collide when several record at once, and a fixed start
   for its clock and the browser's, so that a recording made again
   differs from the last only where the client does.
+- **A prepared box for `again`:** a journey that begins past the welcome needs
+  its project and account made before its first act, and `again` has no such
+  stage (8.1). Default: such a journey is walked anew and added (section 8).
 - **A longer walk for `again`:** skein's harness ends its whole run at
   40 seconds, which holds the box's start and every step's saves;
   `welcome-set-up`'s fits in about 10. A journey that doesn't would need

@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use skein_http::server as http;
 use skein_lib::{
     Env, Intake, Queue, Token, bytes,
+    length::len_u64,
     stream::{Down, Read},
 };
 #[derive(Debug)]
@@ -82,12 +83,7 @@ impl Call {
             Some(cookie) => Box::from([content, cache, nosniff, cookie]),
             None => Box::from([content, cache, nosniff]),
         };
-        let response = http::Response {
-            status,
-            headers,
-            body: http::Body::Length(u64::try_from(body.len()).expect("bounded response")),
-            close: false,
-        };
+        let response = http::Response { status, headers, body: http::Body::Length(len_u64(body.len())), close: false };
         self.respond_with(response, body, limits);
     }
     pub fn respond_with(&mut self, response: http::Response, body: Box<[u8]>, limits: &Limits) {
@@ -135,7 +131,7 @@ impl Call {
         use skein_lib::stream::Up;
         match event {
             http::Event::Body(Up::Bytes(bytes)) => {
-                if u64::from(self.body.len()).saturating_add(u64::try_from(bytes.len()).expect("body bytes"))
+                if u64::from(self.body.len()).saturating_add(len_u64(bytes.len()))
                     > u64::from(crate::dispatch::body_bound(&self.route, env.limits.body))
                     || self.body.append(&bytes).is_err()
                 {

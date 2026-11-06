@@ -5,7 +5,7 @@ use jig_domain_core::{Charter, Model, RunPolicy};
 use jig_domain_fleet::Kinds;
 use jig_domain_tasks::{ResultsWake, WakePolicy, WakeRule};
 use skein_json::Document;
-use skein_lib::{Duration, List};
+use skein_lib::{Duration, List, length::len_u64};
 pub(crate) fn parse(
     document: &Document,
     at: u32,
@@ -51,9 +51,7 @@ pub(crate) fn files(engine: &crate::Engine, files: &mut List<crate::File>) {
     for (index, charter) in engine.charters.iter().enumerate() {
         let path = &charter.policy.instructions;
         let policy = jig_domain_core::policy_owned_bytes(&charter.policy).expect("validated policy size");
-        let overhead = policy
-            .checked_sub(u64::try_from(path.len()).expect("instruction path fits u64"))
-            .expect("policy includes its instructions");
+        let overhead = policy.checked_sub(len_u64(path.len())).expect("policy includes its instructions");
         let max =
             u64::from(engine.limits.core.run_bytes).checked_sub(overhead).expect("validated policy fits run bound");
         let at = check::index(&Path::root().member(b"charters"), index).member(b"instructions");

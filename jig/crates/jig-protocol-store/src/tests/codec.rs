@@ -1183,7 +1183,7 @@ fn tasks_named_all_64_keeps_its_names_and_literal_all_keeps_none() {
         let bytes = crate::codec::tasks::encode(&row, &limits, &names).unwrap();
         let wire = crate::tasks_v9::Row::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
         assert_eq!(wire.models().len(), if selector.is_all() { 0 } else { 64 });
-        assert!(u64::try_from(bytes.len()).unwrap() <= crate::tasks_v9::Row::encoded_bound(&limits).unwrap());
+        assert!(skein_lib::length::len_u64(bytes.len()) <= crate::tasks_v9::Row::encoded_bound(&limits).unwrap());
         assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &names), Ok(row));
         let now = Box::new([
             names[0].clone(),

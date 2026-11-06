@@ -1,7 +1,7 @@
 //! Arbitrary and mutated client bytes (skein's codec.md, section 6).
 //! Job arms follow jig/docs/design/client/domain/contract.md, 5.7.
 use jig_client_protocol_wire::v19::*;
-use skein_lib::{Reader, Rng, Writer};
+use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::{fs, path::Path};
 
 macro_rules! check {
@@ -710,8 +710,7 @@ fn mutated(rng: &mut Rng) {
         for _ in 0..1 {
             let mut bytes = golden.clone();
             if !bytes.is_empty() {
-                let index =
-                    usize::try_from(rng.below(u64::try_from(bytes.len()).expect("length fits"))).expect("index fits");
+                let index = usize::try_from(rng.below(len_u64(bytes.len()))).expect("index fits");
                 *bytes.get_mut(index).expect("chosen byte") = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
             }
             decoders(&bytes);

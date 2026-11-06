@@ -319,8 +319,10 @@ fn settings_refusals_name_each_setting_fault_and_retained_holder_fact() {
             SettingFault::Grace,
             SettingFault::Owner,
         ] {
-            let tree =
-                render(Refusal::Malformed { at: 0, why: Malformed::Settings(MalformedSettings { setting, fault }) });
+            let tree = render(Refusal::Malformed {
+                at: 0,
+                why: Malformed::Settings(MalformedSettings { setting, fault, detail: None }),
+            });
             goldens.check(&tree);
         }
     }

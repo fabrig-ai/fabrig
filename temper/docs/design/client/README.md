@@ -620,8 +620,7 @@ keeps (`../protocol/configuration.md`, section 2).
   - *"Older"* is a `.btn.quiet.small`, centred, at the head while an older
     page remains and the window has filled. It is replaced by the loading
     status while that read is out; the agent's page uses the same head,
-    with "Older" whenever an older page remains. An agent's page has no
-    Latest pill. *Its end* has
+    with "Older" whenever an older page remains. *Its end* has
     `.meta-line`'s look, and an ended chat has no composer.
 - **A new chat** (the greenfield mock's `chat.html?id=new`): `NewChat`,
   at `/chats/new`, for the open project. The domain's `Chats` state holds
@@ -1899,8 +1898,8 @@ keeps (`../protocol/configuration.md`, section 2).
 - **What the client keeps** of what needs the person: in `Pages`, not on
   a page, for this session, gone on reload or on sign-out, none of it a
   stored record, and at most 64 each of the cards marked later, the answered
-  lines and the refused answers, the oldest going first, a line still held
-  never:
+  lines, the refused answers and the proposals of settings, the oldest going
+  first, a line still held never:
   - *Later,* the cards marked later. *The open cards* are the needs'
     groups as `Inbox` reads them, less those answered, in the inbox's
     order, those marked later last.
@@ -1911,6 +1910,9 @@ keeps (`../protocol/configuration.md`, section 2).
     leaves the open ones at once.
   - *At,* the card a Home row asked for, until it is answered or marked
     later, or the person leaves the page.
+  - *Proposals of settings,* each document as the session read it, so that a
+    return to its chat, once it is decided and jig reads it ended, draws its card
+    from it, with no acts, and its state from that read (5.13).
   - *The held send.* jig has no retraction, so a choice or a reply is
     held in the client for 5 seconds, a deadline of the domain's as
     `next_deadline` has. The card moves to answered at once, with the
@@ -4627,9 +4629,9 @@ acts on it as its document offers (5.11).
     mockup names the charter (3.5);
   - the playground's banner stays where the frame draws it, before the page,
     where the mockup draws it under the taskbar (5.1);
-  - a message's calls folded as the mockup folds them ("7 tool calls",
-    then "read ×6 · recall") and as a chat does (3.5), its results still
-    work lines (section 11);
+  - its calls in runs, as a chat's (3.5), where the mockup folds them
+    by message ("7 tool calls", then "read ×6 · recall"), and its results
+    its rows' outcomes;
   - not drawn, since no document supplies them: the charter's, model's,
     account's, worker's and pool's names ("Implementer · Sonnet ·
     medium", "on s1", "holds a slot of T12's pool"); whose
@@ -5110,7 +5112,8 @@ section 5.
   something", quiet, focusing the composer. Replaced by a later proposal, it is
   dimmed, "Replaced by the proposal below"; accepted, "✓ Accepted · new work
   follows it". A person who may not accept it sees neither act: "Waiting for an
-  owner", the parties it waits for as jig's proposal names them. Nothing of it
+  owner", the parties it waits for as jig's proposal names them, "Owners of this
+  deployment" for a holder that is the deployment's policy. Nothing of it
   says which items temper enforces and which agents follow: that is the review
   page's, below, once it is built. In the inbox, its card shows the same lines
   (3.5).
@@ -6224,6 +6227,17 @@ own tests:
 - **A fresh configuring chat from its composer** (3.5, *The configuring chat's
   page*): a command ("/clear") once the composer takes commands. Default: "Start
   over" in its bar.
+- **The line's words** (3.5, *its calls*; `../draft/chat-reading.md`, 7): the user
+  reads the table's verbs on a real chat. `read_file` and the forge's other reads
+  stay their names, as the draft's example has it, and so do `recall` and `message`,
+  whose first members are a number or a body, which read badly as an argument.
+  Default: the table as 3.5 has it.
+- **A run's time** (3.5, *its calls*; `../draft/chat-reading.md`, 7): a committed
+  turn says only when it ended. Storing when it began would change a stored format
+  and a protocol, for a figure the line before it gives nearly as well: it holds the
+  model's writing of any text that opened the turn, and at a window's head or for a
+  turn's second run is often no time at all. The user reads it on a real chat.
+  Default: from the line before, as 3.5 has it.
 - **The sheet the request `ui-chat-draft` of 2026-11-05 draws** (3.5, 5.14): its
   "Budget", in the deployment's unit, and its ways by their fixed words, "Plan, tasks,
   land whole", "Task by task" and "Plan, then wait for me", the last sent by
@@ -6370,14 +6384,16 @@ own tests:
   the goal hearing those words, whose scripts are throwaway. No world keeps it:
   the parser, the stock sentence, the session and the view each hold their own
   side. Default: those tests.
-- **A brief refused, on Home** (3.5, *Home on any project*; the request
-  `ui-final-walk` of 2026-11-05): a status
-  run refused for want of funding leaves Home its computed sentence, with no byline
-  and nothing saying why. How a person sees that goes with what funds the run
-  (`../domain/forge.md`, 20). Default: nothing said.
-- **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; that
-  request): the pinned Claude Code fetch and a real browser's Sign out ran by hand,
-  on fresh loopback deployments, and no test keeps them. Not shown: a provider's
+- **A decided proposal of settings' card, past the session** (5.13; 3.5, *What the
+  client keeps*; the request `ui-walk-large` of 2026-11-06, which has the chat's card
+  stay): a return to the chat draws the card, accepted, from what the session keeps;
+  a reload or another device loses it, since an ended proposal asks no card and jig
+  names no `projects` on one. A card from the ended proposal, or a stored record, would
+  keep it. Default: this session's alone.
+- **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; the
+  request `ui-final-walk` of 2026-11-05): the pinned Claude Code fetch and a real
+  browser's Sign out ran by hand, on fresh loopback deployments, and no test keeps
+  them. Not shown: a provider's
   sign-in or a paid call; TLS, a proxy or a browser on another machine; Accounts
   with a project or an account on it; the small engine profile whole, whose client
   limits alone ran; another platform's build, a failed or corrupt download, two
@@ -6521,6 +6537,15 @@ own tests:
   time under 12 hours old prints again each minute while it is shown.
   Default: as printed; a terminal shell that says every time as its
   moment, with no wake, is the candidate.
+- **Reading a chat by scrolling** (3.5, 5.4; `../draft/chat-reading.md`, 5):
+  earlier lines loading as a log's head nears (skein's `ui.md`, section 18), PgUp and
+  PgDn from anywhere, a window bounded by size that never loses the newest, and Latest
+  on the person sending and across all the window let go. Default: "Older" at the
+  head, a window of 16 lines, Latest reading one page and sending leaving the view.
+- **The rest of a run's line** (3.5, 5.9; `../draft/chat-reading.md`, 2 and 7): words
+  for tools past the table, which are the user's to read on a real chat. Default: any
+  other tool is its name. A run of one turn has its time as *A run's time* says, and an
+  agent's page has a running run and Latest as a chat's, sending not pressing it.
 - **An agent's conversation drawn as a chat's** (5.9): the agent's
   page draws runs as a chat does, and keeps the run markers
   as work lines, which a chat hides (3.5).

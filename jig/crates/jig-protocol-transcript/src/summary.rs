@@ -2,7 +2,7 @@
 //! Provider text results remain verbatim; opaque payloads never enter a summary.
 use alloc::boxed::Box;
 use skein_lib::stream::Read;
-use skein_lib::{Decimal, Intake, Reader};
+use skein_lib::{Decimal, Intake, Reader, length::len_u64};
 use smith_transcript::v6 as smith;
 
 use crate::Undecodable;
@@ -314,10 +314,7 @@ impl Builder {
     }
     fn output(&mut self, head: &[u8], last: &[u8], dropped: u64) {
         self.put(b"; output bytes ");
-        let length = u64::try_from(head.len())
-            .expect("schema bounded bytes")
-            .checked_add(u64::try_from(last.len()).expect("schema bounded bytes"))
-            .expect("schema bounded bytes");
+        let length = len_u64(head.len()).checked_add(len_u64(last.len())).expect("schema bounded bytes");
         self.number(length);
         self.put(b"; dropped ");
         self.number(dropped);

@@ -6,6 +6,7 @@
 
 use alloc::boxed::Box;
 
+use skein_lib::length::Measure;
 use skein_lib::{Civil, Decimal, Wall, Writer, usize_of};
 
 use super::{Body, Limits, Rejection, Response};
@@ -123,7 +124,7 @@ pub(super) fn write(
         (true, Version::Http10) => Some(KEEP_ALIVE),
         (true, Version::Http11) => None,
     };
-    let mut len = Measure(Some(0));
+    let mut len = Measure::ZERO;
     len.add(VERSION.len());
     len.add(status.as_bytes().len());
     len.add(1);
@@ -148,7 +149,7 @@ pub(super) fn write(
         len.add(connection.len());
     }
     len.add(CRLF.len());
-    let len = match len.0 {
+    let len = match len.total_u32() {
         Some(len) if len <= limits.response => len,
         Some(_) | None => return Err(Refusal::TooLong),
     };
@@ -406,19 +407,6 @@ pub(super) fn chunk(bytes: &[u8]) -> Box<[u8]> {
 fn hex_digits(n: u32) -> u32 {
     let bits = u32::BITS.saturating_sub(n.leading_zeros());
     bits.div_ceil(4).max(1)
-}
-
-/// A head's length, added up with checks: `None` past a `u32`.
-struct Measure(Option<u32>);
-
-impl Measure {
-    fn add(&mut self, len: usize) {
-        let Some(sum) = self.0 else { return };
-        self.0 = match u32::try_from(len) {
-            Ok(len) => sum.checked_add(len),
-            Err(_) => None,
-        };
-    }
 }
 
 /// Puts what was measured to fit.

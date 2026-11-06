@@ -110,7 +110,7 @@ fn observations_and_maintenance_allow_selection() {
     assert_eq!(domain.pop_fact(), None);
     assert_eq!(out.pop(), None);
     domain.start_restore(Wall::EPOCH);
-    assert!(domain.start_link(&env()));
+    assert!(domain.start_link());
     domain.start_sweep();
     assert!(domain.start_complete(&env()));
 }
@@ -132,7 +132,7 @@ fn the_start_preserves_direct_noop_and_refusal_behavior() {
     assert!(out.is_empty());
     assert_eq!(domain.restore_failure(), None);
     assert!(!domain.ready());
-    assert!(domain.start_link(&env));
+    assert!(domain.start_link());
     domain.start_sweep();
     assert!(domain.start_complete(&env));
     domain.restore_ended_conversation(1);
@@ -174,7 +174,7 @@ fn explicit_start_keeps_fixed_expiry_through_forward_and_backward_clock_changes(
         assert!(domain.identity(1).is_some());
         assert!(!domain.ready());
         env.wall = Wall::from_nanos(Duration::from_secs(if later == 0 { 500 } else { 0 }).as_nanos());
-        assert!(domain.start_link(&env));
+        assert!(domain.start_link());
         domain.start_sweep();
         env.wall = Wall::from_nanos(Duration::from_secs(later).as_nanos());
         for row in &rows {
@@ -224,7 +224,7 @@ fn explicit_start_skips_all_expired_families_before_live_fit() {
         }
         assert!(out.is_empty());
     }
-    assert!(domain.start_link(&env));
+    assert!(domain.start_link());
     domain.start_sweep();
     let row = Stored::SignIn { number: 1, person: 999, expires: start };
     env.wall = Wall::EPOCH;
@@ -246,7 +246,7 @@ fn explicit_start_asserts_required_links_with_keys() {
         Stored::SignIn { number: 7, person: 99, expires: Wall::from_nanos(1) },
         &mut Queue::uncapped(),
     );
-    domain.start_link(&env);
+    domain.start_link();
 }
 
 fn person(number: u64) -> Stored {
@@ -297,7 +297,7 @@ fn explicit_start_live_fit_failure_is_sticky_and_does_not_erase() {
     assert_eq!(domain.persons(), u32::MAX);
     assert!(!domain.start_project(&env.limits, RestoreProjection::Waiting { task: 1, entries: Box::new([]) }));
     assert_eq!(domain.restore_failure(), failure);
-    assert!(!domain.start_link(&env));
+    assert!(!domain.start_link());
     assert_eq!(domain.restore_failure(), failure);
     assert!(!domain.ready());
     fire(&mut domain, &env, &mut out);
@@ -325,11 +325,11 @@ fn explicit_start_phases_reject_repeated_late_and_mixed_calls() {
                     domain.start_complete(&env);
                 }
                 6 => {
-                    assert!(domain.start_link(&env));
-                    domain.start_link(&env);
+                    assert!(domain.start_link());
+                    domain.start_link();
                 }
                 7 => {
-                    assert!(domain.start_link(&env));
+                    assert!(domain.start_link());
                     load(&mut domain, &env, person(1), &mut out);
                 }
                 8 => {
@@ -348,7 +348,7 @@ fn explicit_empty_start_blocks_admission_and_roles_until_completion() {
     let (mut domain, mut out) = new_start(&env);
     for phase in 0_u8..3 {
         if phase == 1 {
-            assert!(domain.start_link(&env));
+            assert!(domain.start_link());
         }
         if phase == 2 {
             domain.start_sweep();
@@ -392,7 +392,7 @@ fn explicit_start_fits_names_without_canonical_or_selector_judgments() {
     };
     load(&mut domain, &env, row, &mut out);
     assert!(out.is_empty());
-    assert!(domain.start_link(&env));
+    assert!(domain.start_link());
     domain.start_sweep();
     assert!(domain.start_complete(&env));
 }
@@ -429,7 +429,7 @@ fn explicit_start_checks_nested_bytes_and_shared_request_capacity() {
             out.pop(),
             Some(Request::RestoreRefused { key, refusal: Refusal::Limit { which: LimitKind::Restore } })
         );
-        assert!(!domain.start_link(&env));
+        assert!(!domain.start_link());
     }
 }
 
@@ -473,7 +473,7 @@ fn explicit_start_all_families_use_equality_and_keep_identity_after_signin_expir
     }
     assert!(out.is_empty());
     env.wall = Wall::EPOCH;
-    assert!(domain.start_link(&env));
+    assert!(domain.start_link());
     assert!(domain.identity(1).is_some());
     domain.start_sweep();
     for row in &rows {
@@ -507,7 +507,7 @@ fn explicit_start_live_answer_and_act_expire_only_through_timers_after_open() {
             load(&mut domain, &env, row.clone(), &mut out);
         }
         assert_eq!(domain.next_deadline(), None);
-        assert!(domain.start_link(&env));
+        assert!(domain.start_link());
         domain.start_sweep();
         for row in &rows {
             domain.start_sweep_row(&env, row, &mut out);
@@ -555,7 +555,7 @@ fn explicit_start_asserts_each_required_local_link_before_sweep() {
         load(&mut domain, &env, row, &mut out);
         assert!(out.is_empty());
         let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-            domain.start_link(&env);
+            domain.start_link();
         }));
         assert!(result.is_err());
         assert!(out.is_empty(), "link panic erases no row");
@@ -569,14 +569,14 @@ fn explicit_start_asserts_each_required_local_link_before_sweep() {
     assert_eq!(domain.project_members(9), Some([].as_slice()));
     assert!(!domain.ready());
     let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-        domain.start_link(&env);
+        domain.start_link();
     }));
     assert!(result.is_err());
     assert!(out.is_empty());
     let (mut domain, mut out) = new_start(&env);
     load(&mut domain, &env, person(1), &mut out);
     load(&mut domain, &env, answer(1, roster_ask, Outcome::Refused(Refusal::Unknown)), &mut out);
-    assert!(domain.start_link(&env), "refused targets create no restart obligations");
+    assert!(domain.start_link(), "refused targets create no restart obligations");
 }
 
 fn copies<T: Clone + core::fmt::Debug>(value: T, count: u32) -> Box<[T]> {
@@ -657,7 +657,7 @@ fn explicit_start_nested_representation_bounds_are_exact() {
             if extra == 0 {
                 assert!(out.is_empty(), "field {field} exactly fits");
                 assert_eq!(domain.restore_failure(), None);
-                assert!(domain.start_link(&env));
+                assert!(domain.start_link());
             } else {
                 assert_eq!(
                     out.pop(),
@@ -681,7 +681,7 @@ fn explicit_start_nested_representation_bounds_are_exact() {
                         cause: RestoreCause::Bound { which, held: u64::from(limit) + 1, limit: u64::from(limit) },
                     })
                 );
-                assert!(!domain.start_link(&env));
+                assert!(!domain.start_link());
             }
         }
     }
@@ -694,7 +694,7 @@ fn loading_ended_witness_preserves_missing_person_until_link() {
     load(&mut domain, &env, Stored::ReadConversation { party: 99, task: 7, through: 2 }, &mut out);
     assert!(domain.start_project(&env.limits, RestoreProjection::EndedConversation { task: 7 }));
     assert_eq!(domain.read_conversations().get(&(99, 7)), Some(&2));
-    let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| domain.start_link(&env)));
+    let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| domain.start_link()));
     let error = result.expect_err("missing person must still assert");
     let message = error.downcast_ref::<String>().expect("formatted link panic");
     assert_eq!(message, "ReadConversation { party: 99, task: 7 } links missing person 99");
@@ -733,7 +733,7 @@ fn projection_phase_and_operational_doors_assert() {
                 ),
                 3 => domain.restore_ended_conversation(7),
                 4..=6 => {
-                    assert!(domain.start_link(&env));
+                    assert!(domain.start_link());
                     if bad >= 5 {
                         domain.start_sweep();
                     }
@@ -773,7 +773,7 @@ fn successful_start_retains_no_fit_detail() {
     domain.start_restore(env.wall);
     load(&mut domain, &env, person(1), &mut out);
     assert_eq!(domain.restore_failure(), None);
-    assert!(domain.start_link(&env));
+    assert!(domain.start_link());
     domain.start_sweep();
     assert!(domain.start_complete(&env));
     assert_eq!(domain.restore_failure(), None);
@@ -1055,7 +1055,7 @@ fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
                 );
                 let first = domain.restore_failure();
                 load(&mut domain, &env, person(2), &mut out);
-                assert!(!domain.start_link(&env));
+                assert!(!domain.start_link());
                 assert_eq!(domain.restore_failure(), first);
                 assert_eq!(out.len(), 1);
             }
@@ -1090,7 +1090,7 @@ fn selected_adoption_owned_bytes_keep_answer_and_act_keys_at_the_bound() {
             load(&mut domain, &env, row, &mut out);
             if extra == 0 {
                 assert_eq!(domain.restore_failure(), None);
-                assert!(domain.start_link(&env));
+                assert!(domain.start_link());
             } else {
                 assert_eq!(
                     domain.restore_failure(),
@@ -1107,7 +1107,7 @@ fn selected_adoption_owned_bytes_keep_answer_and_act_keys_at_the_bound() {
                     out.pop(),
                     Some(Request::RestoreRefused { key, refusal: Refusal::Limit { which: LimitKind::Restore } })
                 );
-                assert!(!domain.start_link(&env));
+                assert!(!domain.start_link());
             }
             assert!(out.is_empty());
         }
@@ -1164,7 +1164,7 @@ fn selected_note_and_policy_owned_bytes_keep_the_outer_key_at_the_bound() {
             load(&mut domain, &env, row, &mut out);
             if extra == 0 {
                 assert_eq!(domain.restore_failure(), None);
-                assert!(domain.start_link(&env));
+                assert!(domain.start_link());
             } else {
                 assert_eq!(
                     domain.restore_failure(),
@@ -1181,7 +1181,7 @@ fn selected_note_and_policy_owned_bytes_keep_the_outer_key_at_the_bound() {
                     out.pop(),
                     Some(Request::RestoreRefused { key, refusal: Refusal::Limit { which: LimitKind::Restore } })
                 );
-                assert!(!domain.start_link(&env));
+                assert!(!domain.start_link());
             }
             assert!(out.is_empty());
         }
@@ -1208,7 +1208,7 @@ fn selected_account_use_owned_bytes_fit_exactly_or_name_the_outer_answer() {
         load(&mut domain, &env, row, &mut out);
         if extra == 0 {
             assert_eq!(domain.restore_failure(), None);
-            assert!(domain.start_link(&env));
+            assert!(domain.start_link());
         } else {
             assert_eq!(
                 domain.restore_failure(),
@@ -1225,7 +1225,7 @@ fn selected_account_use_owned_bytes_fit_exactly_or_name_the_outer_answer() {
                 out.pop(),
                 Some(Request::RestoreRefused { key, refusal: Refusal::Limit { which: LimitKind::Restore } })
             );
-            assert!(!domain.start_link(&env));
+            assert!(!domain.start_link());
         }
         assert!(out.is_empty());
     }
@@ -1266,7 +1266,7 @@ fn never_started_domain_accepts_roles() {
 #[should_panic(expected = "people start begins once before input")]
 fn an_open_start_cannot_begin_again() {
     let (mut domain, _) = new_start(&env());
-    assert!(domain.start_link(&env()));
+    assert!(domain.start_link());
     domain.start_sweep();
     assert!(domain.start_complete(&env()));
     domain.start_restore(Wall::EPOCH);
@@ -1292,5 +1292,5 @@ fn restored_task_words_use_the_spec_bound() {
         &mut out,
     );
     assert!(out.is_empty(), "a retained task spec past message words fits");
-    assert!(domain.start_link(&env));
+    assert!(domain.start_link());
 }

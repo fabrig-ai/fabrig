@@ -157,7 +157,8 @@ fn a_stored_charter_with_an_unconfigured_model_refuses_the_start_naming_the_chan
             core::start::Failure::Settings {
                 failure: settings::Failure {
                     setting: settings::Setting::Charter(1),
-                    fault: settings::Fault::Reference
+                    fault: settings::Fault::Reference,
+                    detail: None
                 },
                 changed: true
             }
@@ -225,7 +226,8 @@ fn changes_past_their_kinds_bound_refuse_before_the_overflow_value_is_retained()
             core::start::Failure::Settings {
                 failure: settings::Failure {
                     setting: settings::Setting::Charter(extra),
-                    fault: settings::Fault::Count
+                    fault: settings::Fault::Count,
+                    detail: None
                 },
                 changed: true
             }
@@ -435,6 +437,7 @@ fn refused_changes_preserve_all_settings_rows_and_the_newest() {
                 why: people::Malformed::Settings {
                     setting: settings::Setting::Template(1),
                     fault: settings::Fault::Reference,
+                    detail: None,
                 },
             },
         ),
