@@ -876,3 +876,8 @@ fn an_input_that_fills_the_budget_leaves_its_outcomes_line() {
     assert!(call.input.bytes().len() < input.len());
     assert!(turn.cut);
 }
+
+#[test]
+fn the_clients_call_name_bound_matches_the_transcript_ceiling() {
+    assert_eq!(jig_client_domain::contract::CALL_NAME, CEILINGS.call_name);
+}
