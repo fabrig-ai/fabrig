@@ -1,0 +1,36 @@
+draft = "debt-26"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-26/inputs/request.md", "temper/docs/plan/debt-26/inputs/debt22-review.md", "temper/docs/plan/debt-26/inputs/debt24-review.md", "jig/docs/development/debt/D004-ops-root-jig-wiring.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "records"
+title = "Records of the user's decisions: D004 kept, the plaintext shim's Departs entry"
+mode = "direct"
+needs = []
+design = "skein/docs/design/link.md, 1"
+
+[[part]]
+id = "forgejo-kinds"
+title = "Forgejo's plans: one rule for a decoded kind, Some(_) | None and its wrappers gone"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge.md, 4.2"
+
+[[part]]
+id = "world-kits-item"
+title = "jig's new item for worlds that are shims; the gate's real reach in testing.md"
+mode = "direct"
+needs = []
+design = "skein/docs/design/testing.md, 6"
+
+[[slice]]
+id = 1
+story = "The user's decisions are recorded, the Forgejo plans hold one written rule, and jig's item and skein's gate say what is true"
+parts = ["records", "forgejo-kinds", "world-kits-item"]
+walk = false
