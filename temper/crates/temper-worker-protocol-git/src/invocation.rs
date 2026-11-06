@@ -4,6 +4,9 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer, base64};
 use temper_worker_domain_checkout::git;
 
+// protocol/git.md, 4.7: a hidden log at any depth is never staged.
+const HIDDEN_LOG_EXCLUSION: &[u8] = b":(exclude,glob)**/.*.log";
+
 /// Settings precede every command, in this order, each with `-c`.
 pub const SETTINGS: [&[u8]; 13] = [
     b"core.hooksPath=/dev/null",
@@ -180,7 +183,7 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
         Command::Clean => words(&mut out, &[b"clean", b"-ffdxq"]),
         Command::Merge { theirs } => words(&mut out, &[b"merge", b"--no-commit", b"--no-ff", b"--", &hex(*theirs)]),
         Command::Unmerged => words(&mut out, &[b"diff-files", b"--name-only", b"-z", b"--diff-filter=U"]),
-        Command::Add => words(&mut out, &[b"add", b"--all"]),
+        Command::Add => words(&mut out, &[b"add", b"--all", b"--", b".", HIDDEN_LOG_EXCLUSION]),
         Command::DiffIndex { parent } => {
             words(&mut out, &[b"diff-index", b"--cached", b"--quiet", &hex(*parent), b"--"]);
         }

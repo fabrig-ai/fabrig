@@ -430,10 +430,14 @@ fn waiting(change: Change, now: Wall, limits: &Limits) -> Stepped {
     }
 }
 
-fn waiting_on_agent(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+fn waiting_on_agent(mut change: Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     if facts.asking {
         change.since = now;
         Stepped { change, decision: Decision::Wait { until: None } }
+    } else if standing.delegate_live {
+        change.since = now;
+        let until = Wall::from_nanos(now.as_nanos().saturating_add(limits.stall.as_nanos()));
+        Stepped { change, decision: Decision::Wait { until: Some(until) } }
     } else {
         waiting(change, now, limits)
     }
@@ -484,7 +488,7 @@ fn producing(
             }
             match standing.delegate {
                 Status::Failed => return hold(change, Hold::Failed),
-                Status::Unknown | Status::Pending => return waiting_on_agent(change, facts, now, limits),
+                Status::Unknown | Status::Pending => return waiting_on_agent(change, facts, standing, now, limits),
                 Status::Passed => {}
             }
         }
@@ -502,7 +506,7 @@ fn producing(
             Stepped { change, decision: Decision::None }
         }
         Some(_) if !requested => request_producer(change, facts, standing, now),
-        Some(_) => waiting_on_agent(change, facts, now, limits),
+        Some(_) => waiting_on_agent(change, facts, standing, now, limits),
         None if !requested => {
             if let Some(commit) = facts.catch_up {
                 return catch_up_due(change, commit, facts, now, limits);
@@ -522,7 +526,7 @@ fn producing(
                 | None => waiting(change, now, limits),
             },
             Status::Failed => hold(change, Hold::Failed),
-            Status::Unknown | Status::Pending => waiting_on_agent(change, facts, now, limits),
+            Status::Unknown | Status::Pending => waiting_on_agent(change, facts, standing, now, limits),
         },
     }
 }
@@ -1140,11 +1144,11 @@ fn delegated(
     }
     match standing.delegate {
         Status::Passed => {
-            let Some(head) = facts.branch else { return waiting_on_agent(change, facts, now, limits) };
+            let Some(head) = facts.branch else { return waiting_on_agent(change, facts, standing, now, limits) };
             take_pushed_head(change, head, now)
         }
         Status::Failed => hold(change, Hold::Failed),
-        Status::Unknown | Status::Pending => waiting_on_agent(change, facts, now, limits),
+        Status::Unknown | Status::Pending => waiting_on_agent(change, facts, standing, now, limits),
     }
 }
 

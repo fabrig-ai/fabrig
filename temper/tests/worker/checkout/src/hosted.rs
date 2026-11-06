@@ -327,6 +327,10 @@ fn command_case(case: &str, scenario: &mut Scenario) -> Command {
             Command::Clean
         }
         "merge-clean" => Command::Merge { theirs: commit(scenario.topic) },
+        "merge-in-progress" => {
+            apply(scenario, &Command::Merge { theirs: commit(scenario.topic) });
+            Command::Merge { theirs: base }
+        }
         "merge-up-to-date" => Command::Merge { theirs: base },
         "merge-conflict" => {
             let ours = ours(scenario);
