@@ -753,10 +753,13 @@ for; and that nothing is live once it settles.
 
 - **A park with markers left.** A save refuses a tree whose merge still holds
   a conflict marker, so a run that parks so keeps none of that run's edits,
-  and its charter tells it to settle first (`temper help change`). Keeping
-  them would need the list of files in conflict to outlive the hold: without
+  while earlier saved work stands. Its charter tells it to settle first
+  (`temper help change`). Keeping them would need the list of files in conflict
+  to outlive the hold: without
   it a saved tree's markers could be delivered, since the refusal at push
   reads that list. That list would be stored, so this is the user's.
+  Default: settle before parking; keeping an unresolved tree waits for a
+  deployment replay showing that need.
 - **A push's message:** the worker commits the run's title and body; how
   a change's pull request takes them, and whether a squash keeps them.
 - **An assignment naming an expected head.** The worker enforces one when
@@ -804,9 +807,9 @@ for; and that nothing is live once it settles.
   last failure's bounded text with the hold. No LLM is shown this detail,
   while a hold's words reach the LLM's task read
   (`temper-engine-smith/src/answers.rs`), so it takes a field of its own
-  or a path to clients alone. Default: the line alone, which `temper help
-  server` says how to read, until that proves too little. The user's to
-  decide.
+  or a path to clients alone. Default: the line alone, which `task show`'s
+  way out points to and `temper help hold` and `temper help server` say how
+  to read, until that proves too little. The user's to decide.
 - **What a deployment's operators may read of a run's prompts.** A run's
   prompts hold repository text and anything an agent read, and a real
   design of keeping them starts from who may read them

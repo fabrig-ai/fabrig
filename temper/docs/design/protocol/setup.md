@@ -1940,8 +1940,9 @@ without it, that configured bundle is used. Missing both refuses with the
 bundle command and --bundle. Empty C stays untouched: init writes directly
 into the effective sandbox. Box startup performs no build or fetch.
 
-A sandbox init writes takes the kernel's ports, a bind of port 0 for each
-of its five, never the 8367 to 8371 a person's box prefers (8.2). So a
+Without the test override below, a sandbox written by init takes the
+kernel's ports, a bind of port 0 for each of its five, never the 8367 to
+8371 a person's box prefers (8.2). So a
 fake box leaves those to the box a person starts after it, and no two fake
 boxes ask for one port. They are written fixed and held as init's are, and
 the printed link names them. A stopped box holds none, so a port the kernel
@@ -3899,6 +3900,12 @@ it checks of this document:
 ## 15. Later
 
 Each is intended; what it needs is named with it.
+
+- **The fake box's retained ports under concurrent stories** (7.5):
+  prove the story-supplied ports across a stopped box's restart in the
+  after-landing tiers (`../domain/testing.md`, 11), beside other test
+  processes drawing their own ports. Focused proof holds the choice and
+  retention rules; the process and browser walks hold the running box.
 
 - **Models kept beyond init** (8.3): the catalogue's store step moves
   models out of both generated configuration documents, keeping the seven

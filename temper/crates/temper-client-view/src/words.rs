@@ -88,10 +88,13 @@ pub enum Word {
     SettingsProposalUp,
     SettingsProposalNone,
     SettingsProposalChange,
+    SettingsProposalChangeAsks,
     SettingsProposalWaiting,
     SettingsProposalOwners,
     SettingsProposalAccepted,
     SettingsProposalReplaced,
+    SettingsProposalRejected,
+    SettingsProposalWithdrawn,
 
     AwaySettingsTitle,
     AwayKinds,
@@ -1411,7 +1414,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1894;
+const PHRASES: u32 = 1897;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1437,10 +1440,10 @@ const PHRASES: u32 = 1894;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3327;
+const SEGMENTS: u32 = 3330;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46419;
-const ALL: [Word; 1293] = [
+const ENGLISH_BYTES: u32 = 46493;
+const ALL: [Word; 1296] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1515,10 +1518,13 @@ const ALL: [Word; 1293] = [
     Word::SettingsProposalUp,
     Word::SettingsProposalNone,
     Word::SettingsProposalChange,
+    Word::SettingsProposalChangeAsks,
     Word::SettingsProposalWaiting,
     Word::SettingsProposalOwners,
     Word::SettingsProposalAccepted,
     Word::SettingsProposalReplaced,
+    Word::SettingsProposalRejected,
+    Word::SettingsProposalWithdrawn,
     Word::AwaySettingsTitle,
     Word::AwayKinds,
     Word::AwayKindsLine,
@@ -2851,10 +2857,13 @@ impl Word {
             Self::SettingsProposalUp => 3427,
             Self::SettingsProposalNone => 3428,
             Self::SettingsProposalChange => 3429,
+            Self::SettingsProposalChangeAsks => 3919,
             Self::SettingsProposalWaiting => 3430,
             Self::SettingsProposalOwners => 3431,
             Self::SettingsProposalAccepted => 3432,
             Self::SettingsProposalReplaced => 3433,
+            Self::SettingsProposalRejected => 3920,
+            Self::SettingsProposalWithdrawn => 3921,
             Self::AwaySettingsTitle => 3658,
             Self::AwayKinds => 3659,
             Self::AwayKindsLine => 3660,
@@ -2935,9 +2944,9 @@ impl Word {
             Self::ModelsSubscription => 3926,
             Self::ModelsPlan => 3927,
             Self::ModelsKey => 3928,
-            Self::ModelsDefault => 3919,
-            Self::ModelsAsk => 3920,
-            Self::ModelsConfigure => 3921,
+            Self::ModelsDefault => 3929,
+            Self::ModelsAsk => 3930,
+            Self::ModelsConfigure => 3931,
             Self::SettingsBuildersTab => 3467,
             Self::SettingsBuildersHeading => 3468,
             Self::SettingsBuildersLede => 3469,
@@ -5423,10 +5432,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsProposalUp => (&[b"Questions: asked of me too"], &[]),
         Word::SettingsProposalNone => (&[b"Questions: not asked"], &[]),
         Word::SettingsProposalChange => (&[b"Change something"], &[]),
+        Word::SettingsProposalChangeAsks => (&[b"What should change?"], &[]),
         Word::SettingsProposalWaiting => (&[b"Waiting for an owner"], &[]),
         Word::SettingsProposalOwners => (&[b"Owners of project ", b""], &[Name]),
         Word::SettingsProposalAccepted => (&[b"\xe2\x9c\x93 Accepted \xc2\xb7 new work follows it"], &[]),
         Word::SettingsProposalReplaced => (&[b"Replaced by the proposal below"], &[]),
+        Word::SettingsProposalRejected => (&[b"Rejected \xc2\xb7 nothing changes"], &[]),
+        Word::SettingsProposalWithdrawn => (&[b"Withdrawn \xc2\xb7 nothing changes"], &[]),
         Word::SettingsOn => (&[b"On"], &[]),
         Word::SettingsOff => (&[b"Off"], &[]),
         Word::SettingsShown => (&[b"Shown"], &[]),

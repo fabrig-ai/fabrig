@@ -1372,7 +1372,11 @@ fn a_withdrawn_settings_proposal_is_read_as_its_retained_state() {
     let history = c::ReadValue::Ended(Box::new(c::Ended {
         key: c::ObjectKey::Proposal(key),
         value: c::EndedValue::Proposal(c::ProposalHistory {
+            reason: c::DocumentText::complete(
+                c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+            ),
             action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                projects: List::with_capacity(0),
                 against: 5,
                 items: list([c::RevisionItemHead { setting: c::Setting::Rules, edit: c::RevisionItemEdit::Reset }]),
                 made: None,
@@ -1418,6 +1422,9 @@ fn retained_proposal(key: c::ProposalKey, action: c::RetainedAction) -> c::ReadV
     c::ReadValue::Ended(Box::new(c::Ended {
         key: c::ObjectKey::Proposal(key),
         value: c::EndedValue::Proposal(c::ProposalHistory {
+            reason: c::DocumentText::complete(
+                c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+            ),
             action,
             number: key.number,
             proposer,
@@ -1448,7 +1455,12 @@ fn retained_settings_preserves_task_or_party_keys_and_its_revision_details() {
         let key = c::ProposalKey { proposer, number: 7 };
         let history = retained_proposal(
             key,
-            c::RetainedAction::Settings(c::RetainedActionSettings { against: 5, items: list([]), made: Some(6) }),
+            c::RetainedAction::Settings(c::RetainedActionSettings {
+                projects: List::with_capacity(0),
+                against: 5,
+                items: list([]),
+                made: Some(6),
+            }),
         );
         for json in [false, true] {
             let argv = if json { vec!["proposal", "show", name, "--json"] } else { vec!["proposal", "show", name] };
@@ -1827,6 +1839,7 @@ fn repeated_settings_decisions_send_the_given_key_and_print_the_engine_answer() 
                 let mut history = retained_proposal(
                     proposal,
                     c::RetainedAction::Settings(c::RetainedActionSettings {
+                        projects: List::with_capacity(0),
                         against: 5,
                         items: list([]),
                         made: if accepted { Some(6) } else { None },
@@ -3054,5 +3067,191 @@ fn revision_show_preserves_unavailable_and_oversized_replaced_values() {
         let text = core::str::from_utf8(&answer.stdout).unwrap();
         assert!(text.contains(expected), "{text}");
         assert!(!text.contains("\"ci\":"), "must not read today's value: {text}");
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum EffortPlace {
+    Main,
+    Subagent,
+    Charter,
+    Alternative,
+}
+
+fn effort_file(place: EffortPlace, name: &str, effort: Option<&str>) -> Vec<u8> {
+    let choice = fixtures::model_effort(name.as_bytes(), effort.map(str::as_bytes));
+    let valid = fixtures::model_effort(fixtures::MODEL_NAME, Some(fixtures::EFFORT_NAME));
+    let (setting, value) = match place {
+        EffortPlace::Main | EffortPlace::Subagent => {
+            let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else {
+                panic!("template fixture")
+            };
+            template.llm = Some(match place {
+                EffortPlace::Main => c::LlmChoice { account: None, main: choice, subagents: list([]) },
+                EffortPlace::Subagent => c::LlmChoice { account: None, main: valid, subagents: list([choice]) },
+                EffortPlace::Charter | EffortPlace::Alternative => unreachable!("template position"),
+            });
+            (setting, c::SettingValue::Template(template))
+        }
+        EffortPlace::Charter | EffortPlace::Alternative => {
+            let (setting, c::SettingValue::Charter(mut charter)) = values().remove(0) else {
+                panic!("charter fixture")
+            };
+            let mut selected = model();
+            selected.name = choice.model;
+            selected.effort = choice.effort;
+            let mut valid_model = model();
+            valid_model.name = valid.model;
+            valid_model.effort = valid.effort;
+            match place {
+                EffortPlace::Charter => {
+                    charter.model = selected;
+                    charter.alternatives = list([]);
+                }
+                EffortPlace::Alternative => {
+                    charter.model = valid_model.clone();
+                    charter.alternatives = list([valid_model, selected]);
+                }
+                EffortPlace::Main | EffortPlace::Subagent => unreachable!("charter position"),
+            }
+            (setting, c::SettingValue::Charter(charter))
+        }
+    };
+    file_from_setting(&setting_json(setting, value))
+}
+
+fn effort_me() -> c::Me {
+    let mut me = fixtures::choice_me(fixtures::CHAT_BUDGET);
+    let mut elsewhere = me.projects.get(0).expect("project").clone();
+    elsewhere.project = 99;
+    let chosen = elsewhere.models.get_mut(0).expect("chosen model");
+    chosen.efforts = list([words("high"), words("medium")]);
+    me.projects.get_mut(0).expect("first project").models = list([]);
+    me.projects = list([me.projects.get(0).expect("first project").clone(), elsewhere]);
+    me
+}
+
+fn effort_call(file: &[u8], propose: bool, me: c::Me, json: bool) -> (fixtures::Harness, u32) {
+    let mut root = fixtures::choice_root(me);
+    let argv = if propose {
+        vec!["settings", "propose", "FILE", "Choose effort", "--against", "5", "--key", "effort-file"]
+    } else {
+        vec!["settings", "apply", "FILE", "--against", "5", "--key", "effort-file"]
+    };
+    let mut call = fixtures::call(&argv);
+    *call.values.get_mut(0).expect("file") = Some(Values::One(Value::Text(file.into())));
+    let number = root.submit_prepared(call, json, None);
+    (root, number)
+}
+
+#[test]
+fn settings_efforts_are_refused_at_every_choice_before_apply_or_propose_sends() {
+    for place in [EffortPlace::Main, EffortPlace::Subagent, EffortPlace::Charter, EffortPlace::Alternative] {
+        for propose in [false, true] {
+            for (name, offered) in [("chosen-model", "high, medium"), ("plain-model", "none")] {
+                let file = effort_file(place, name, Some("xhigh"));
+                // Removed and reset items have no effort; the later item is numbered from one.
+                let file = String::from_utf8(file).expect("file UTF-8").replace(
+                    "\"items\":[",
+                    r#""items":[{"setting":{"kind":"charter","number":7},"edit":"removed"},{"setting":{"kind":"rules"},"edit":"reset"},"#,
+                );
+                let (mut root, call) = effort_call(file.as_bytes(), propose, effort_me(), false);
+                assert!(root.sends.is_empty(), "{place:?}, propose {propose}");
+                assert!(root.saved.is_empty(), "a local refusal keeps no request");
+                let answer = root.answer(call).expect("local effort refusal");
+                assert_eq!(answer.status, 1);
+                assert_eq!(
+                    answer.stderr.as_ref(),
+                    format!("settings file item 3: model {name} offers no effort xhigh; it offers {offered}\n")
+                        .as_bytes(),
+                    "{place:?}, propose {propose}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn settings_offered_absent_and_unshown_efforts_send_unchanged() {
+    for place in [EffortPlace::Main, EffortPlace::Subagent, EffortPlace::Charter, EffortPlace::Alternative] {
+        for propose in [false, true] {
+            for (name, effort) in [
+                ("chosen-model", Some("high")),
+                ("chosen-model", Some("medium")),
+                ("chosen-model", None),
+                ("plain-model", None),
+                ("unshown-model", Some("xhigh")),
+            ] {
+                let file = effort_file(place, name, effort);
+                let items = settings_file::decode(&file, &crate::limits::tools()).expect("items");
+                let (mut root, call) = effort_call(&file, propose, effort_me(), false);
+                let ask = fixtures::act_ask(&root, call);
+                let expected = if propose {
+                    c::Ask::Propose {
+                        project: 0,
+                        reason: words("Choose effort"),
+                        action: c::ProposeAction::Settings(c::ProposeSettings { against: 5, items }),
+                    }
+                } else {
+                    c::Ask::ChangeSettings(c::ChangeSettings { against: 5, items, running: c::Running::Stays })
+                };
+                assert_eq!(ask, &expected, "{place:?}, propose {propose}");
+                if name == "unshown-model" {
+                    root.answered(
+                        call,
+                        c::Answer::Refused {
+                            refusal: c::Refusal::Llm { model: words(name), why: c::LlmWhy::Effort },
+                            at: None,
+                        },
+                    );
+                    let answer = root.answer(call).expect("engine refusal");
+                    let verb = if propose { "propose" } else { "apply" };
+                    assert_eq!(answer.status, 2);
+                    assert_eq!(
+                        answer.stderr.as_ref(),
+                        format!("settings {verb}: This model cannot be chosen: {name}\n").as_bytes()
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn settings_effort_names_use_the_terminal_name_cut() {
+    for (name, cut) in [
+        ("safe\u{1b}unsafe".to_owned(), "safe...".to_owned()),
+        ("safe\u{7f}unsafe".to_owned(), "safe...".to_owned()),
+        ("safe\u{80}unsafe".to_owned(), "safe...".to_owned()),
+        (format!("{}é", "x".repeat(255)), format!("{}...", "x".repeat(255))),
+    ] {
+        for propose in [false, true] {
+            for json in [false, true] {
+                let mut me = effort_me();
+                let model = me.projects.get_mut(1).expect("other project").models.get_mut(0).expect("model");
+                model.name = words(&name);
+                model.efforts = list([words(&name)]);
+                let file = effort_file(EffortPlace::Main, &name, Some("xhigh"));
+                let (mut root, call) = effort_call(&file, propose, me, json);
+                assert!(root.sends.is_empty());
+                let answer = root.answer(call).expect("cut name refusal");
+                let text = format!("settings file item 1: model {cut} offers no effort xhigh; it offers {cut}");
+                let expected = if json { format!(r#"{{"error":"{text}"}}"#) } else { format!("{text}\n") };
+                assert_eq!(answer.status, 1);
+                assert_eq!(answer.stderr.as_ref(), expected.as_bytes());
+                // Supplied efforts have a 32-byte file bound; model names reach the echo bound.
+                if name.len() > 32 {
+                    continue;
+                }
+                let file = effort_file(EffortPlace::Main, "chosen-model", Some(&name));
+                let (mut root, call) = effort_call(&file, propose, effort_me(), json);
+                assert!(root.sends.is_empty());
+                let answer = root.answer(call).expect("cut effort refusal");
+                let text =
+                    format!("settings file item 1: model chosen-model offers no effort {cut}; it offers high, medium");
+                let expected = if json { format!(r#"{{"error":"{text}"}}"#) } else { format!("{text}\n") };
+                assert_eq!(answer.stderr.as_ref(), expected.as_bytes());
+            }
+        }
     }
 }
