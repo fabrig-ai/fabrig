@@ -139,10 +139,6 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
             host::Event::Agent(host::FromAgent::AccountRefused { owner: client, account, code, reason })
         }
         smith::parent::Request::Faulted { client, fault } => {
-            // Before its run is admitted, the agent's end answers for it.
-            if !admitted(domain, client) {
-                return;
-            }
             host::Event::Agent(host::FromAgent::Faulted { owner: client, fault: translate::fault(fault) })
         }
         smith::parent::Request::MessageRefused { client, name, reason } => {
