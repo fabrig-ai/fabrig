@@ -1,4 +1,5 @@
 //! temper's frame and forge words as checked English data.
+//! Trial endings: temper/docs/design/domain/trial.md, 6.4.
 //! Playground and forge setup words (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 5.6).
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -1272,6 +1273,12 @@ pub enum Word {
     WelcomeTryKey,
     WelcomeTryStarts,
     WelcomeTryAnswers,
+    WelcomeTryBusy,
+    WelcomeTryRefused,
+    WelcomeTryRun,
+    WelcomeTryLost,
+    WelcomeTryCouldNotStart,
+    WelcomeTryWaited,
     WelcomeTryAgain,
     WelcomeSignInAgain,
     WelcomeClaudeNotYet,
@@ -1374,7 +1381,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1858;
+const PHRASES: u32 = 1864;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1399,10 +1406,10 @@ const PHRASES: u32 = 1858;
 // Last landing adds four segments (client/README.md, 3.5).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3249;
+const SEGMENTS: u32 = 3263;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45402;
-const ALL: [Word; 1259] = [
+const ENGLISH_BYTES: u32 = 45612;
+const ALL: [Word; 1265] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2632,6 +2639,12 @@ const ALL: [Word; 1259] = [
     Word::WelcomeTryKey,
     Word::WelcomeTryStarts,
     Word::WelcomeTryAnswers,
+    Word::WelcomeTryBusy,
+    Word::WelcomeTryRefused,
+    Word::WelcomeTryRun,
+    Word::WelcomeTryLost,
+    Word::WelcomeTryCouldNotStart,
+    Word::WelcomeTryWaited,
     Word::WelcomeTryAgain,
     Word::WelcomeSignInAgain,
     Word::WelcomeClaudeNotYet,
@@ -3904,6 +3917,12 @@ impl Word {
             Self::WelcomeTryKey => 3732,
             Self::WelcomeTryStarts => 3733,
             Self::WelcomeTryAnswers => 3734,
+            Self::WelcomeTryBusy => 3870,
+            Self::WelcomeTryRefused => 3871,
+            Self::WelcomeTryRun => 3872,
+            Self::WelcomeTryLost => 3873,
+            Self::WelcomeTryCouldNotStart => 3874,
+            Self::WelcomeTryWaited => 3875,
             Self::WelcomeTryAgain => 3735,
             Self::WelcomeSignInAgain => 3736,
             Self::WelcomeClaudeNotYet => 3381,
@@ -4542,6 +4561,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeTryKey => (&[b"Key added"], &[]),
         Word::WelcomeTryStarts => (&[b"Claude Code starts on this machine"], &[]),
         Word::WelcomeTryAnswers => (&[b"", b" answers"], &[Name]),
+        Word::WelcomeTryBusy => (&[b"", b" was busy or out of reach just now."], &[Name]),
+        Word::WelcomeTryRefused => (&[b"", b" refused the request. Its account may need attention."], &[Name]),
+        Word::WelcomeTryRun => (&[b"The run stopped before ", b" answered."], &[Name]),
+        Word::WelcomeTryLost => (&[b"The machine running it went away."], &[]),
+        Word::WelcomeTryCouldNotStart => (&[b"The try couldn't start."], &[]),
+        Word::WelcomeTryWaited => (&[b"", b" didn\xe2\x80\x99t answer within a minute."], &[Name]),
         Word::WelcomeTryAgain => (&[b"Try again"], &[]),
         Word::WelcomeSignInAgain => (&[b"Sign in again"], &[]),
         Word::WelcomeClaudeNotYet => (&[b"Claude Code isn\xe2\x80\x99t signed in here yet. Sign in again, then try again."], &[]),

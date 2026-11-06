@@ -47,6 +47,7 @@ pub enum Act {
     SetUpAtOnce { forge: u16 },
     SetupWrite { field: super::forges::SetupField, text: Box<[u8]> },
     CopiesWrite { text: Box<[u8]> },
+    TryAccount { account: u32, again: bool },
     StartPlayground,
     EndPlayground,
     AdminWrite { field: super::admin::Field, text: Box<[u8]> },

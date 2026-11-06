@@ -10,6 +10,7 @@ pub(crate) mod words;
 pub(crate) enum Meaning {
     Action(AccountAct),
     Model(pages::connect_model::Act),
+    Try { account: u32 },
     Go(temper_client_domain::Address),
     Key,
     SignInAddress,
@@ -56,6 +57,14 @@ impl Bindings {
                 continue;
             }
             match (meaning, &act) {
+                (Meaning::Try { account }, Act::Press) => {
+                    return Some(Event::Act {
+                        action: Action::Forge(temper_client_domain::forge::Act::TryAccount {
+                            account: *account,
+                            again: true,
+                        }),
+                    });
+                }
                 (Meaning::Model(action), Act::Press) => {
                     return Some(Event::Act { action: Action::Pages(pages::Act::ConnectModel(action.clone())) });
                 }
@@ -69,7 +78,7 @@ impl Bindings {
                         })),
                     });
                 }
-                (Meaning::Model(_) | Meaning::Go(_), _) => return None,
+                (Meaning::Try { .. } | Meaning::Model(_) | Meaning::Go(_), _) => return None,
                 _ => {}
             }
             let action = match (meaning, act) {
@@ -79,9 +88,17 @@ impl Bindings {
                 (Meaning::Key, Act::Input { value }) => return Some(Event::AccountKey { value: Secret::new(value) }),
                 (Meaning::Action(action), Act::Press) => action.clone(),
                 (_, Act::Submit | Act::Toggle | Act::Drawing { .. })
-                | (Meaning::Action(_) | Meaning::Model(_) | Meaning::Go(_) | Meaning::Program, Act::Input { .. })
                 | (
-                    Meaning::Key | Meaning::SignInAddress | Meaning::Program | Meaning::Model(_) | Meaning::Go(_),
+                    Meaning::Action(_) | Meaning::Try { .. } | Meaning::Model(_) | Meaning::Go(_) | Meaning::Program,
+                    Act::Input { .. },
+                )
+                | (
+                    Meaning::Key
+                    | Meaning::SignInAddress
+                    | Meaning::Program
+                    | Meaning::Try { .. }
+                    | Meaning::Model(_)
+                    | Meaning::Go(_),
                     Act::Press,
                 ) => return None,
             };

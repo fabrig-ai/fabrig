@@ -123,15 +123,15 @@ pub(crate) fn environment_core(env: &Env<Limits>) -> Env<jig_domain_core::Limits
 /// jig's `crates/jig-protocol-config/src/profile/small.rs` sets it until
 /// temper's configuration names its own (domain/root.md, 10).
 pub const FILL_MARK: u64 = 268_435_456;
-/// Streams use temper's client's own bound of 17, above jig's small
+/// Streams use temper's client's own bound of 19, above jig's small
 /// profile's 4 (`small.rs`, clients; protocol/configuration.md, 7).
-pub const WATCHES_PER_STREAM: u32 = 17;
+pub const WATCHES_PER_STREAM: u32 = 19;
 /// Watches use the client's bound above jig's small profile's 4 (`small.rs`, views).
 /// Live runs and provisional text retain jig's small profile's limits.
 pub const VIEWS: views::Limits = views::Limits {
     runs: 4,
-    watchers: 17,
-    watchers_per_party: 17,
+    watchers: 19,
+    watchers_per_party: 19,
     subjects_per_change: 32,
     text_bytes: 65_536,
     facts: 32,

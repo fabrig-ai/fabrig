@@ -1043,8 +1043,8 @@ Startup also checks the seed policy after enforced landing requirements are join
   watermark (its commits in flight and the door's outputs), so pacing
   stays close to it: at the commits alone, a person's watch waited
   twice as many offers behind admitted work.
-- **The watches' rooms are temper's:** 17 a party, 17 a stream and 17 in
-  all, above jig's profiles' 4, since temper's client opens 17
+- **The watches' rooms are temper's:** 19 a party, 19 a stream and 19 in
+  all, above jig's profiles' 4, since temper's client opens 19
   (`../protocol/configuration.md`, section 7). The rest of the views'
   limits are jig's small profile's: 4 runs watched, 65,536 bytes of a
   run's text, 32 subjects marked per change, 32 facts.
