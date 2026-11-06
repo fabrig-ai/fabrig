@@ -152,13 +152,16 @@ the board says so; a stock queue's merges read as public landings within the
 landing log and jig's public index, including a pre-publication merge whose
 change is handed from a live goal. The public geometry story checks a wrapped text by its first quad alone
 (`client/browser.md`, `client/forge.md`).
-The browser tier holds 17 tests, five past its cap, its CPU
-measured within its budget on the 12 without the call line's and the welcome's
-sign-in's, at 83.069911 of its 85 on a run of 13 with one red, a public project's
-`temper ctl` visibility command past its deadline, its cause not found, and at
-128.618150 to 143.808163 on three runs with a chat's reading stories, a closed
-chat's wait is located but not split, and no test shows a head waiting for room
-ended by the stall deadline (`client/browser.md`). The bundle travels gzipped and a
+The browser tier holds 17 tests, five past its cap. The four reading stories
+pass with ctl history and a 131,072-byte window, but their CPU medians sum to
+44.849900 s and the three targets remain unmet; no whole-tier run proves the
+repair within 85 CPU s. The listener-full ctl failure is repaired; the public
+visibility-command failure remains unverified. A whole-bound manual reading
+check, the closed-chat wait's split and a head's stall-deadline story remain
+(`client/browser.md`). A stale view still rereads held Markdown and rebuilds
+and compares the semantic tree, preserving DOM nodes through the diff; retaining
+parsed blocks and timing away-reader scans remain open (`client/README.md`,
+`draft/chat-reading.md`). The bundle travels gzipped and a
 placeholder paints first, but its fade takes 160 ms where the design has 200, and a
 stall before the module's answer draws no words (`client/browser.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison

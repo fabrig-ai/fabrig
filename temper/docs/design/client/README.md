@@ -5582,6 +5582,12 @@ measures it (skein's `ui-web.md`, section 7).
 - **While a window has let its newest go** the log *continues* (skein's
   `ui.md`, 3.2), so it isn't followed and "Latest" shows, even at its foot.
   New words and a run's live text wait: they show when the end is back.
+- **A delivery that makes the view stale** rebuilds the semantic page tree,
+  rereads the held Markdown and compares the old and new trees across the
+  window. Unchanged builds are gated; the diff patches changed DOM nodes in
+  place. No parsed Markdown or conversation subtree is retained. Following
+  reads aggregate log geometry; holding an away reader can scan entries for
+  its anchors, including on a patch outside that log (skein's `ui-web.md`, 7).
 - **Each line's outer node is keyed,** a turn by its name, a run of calls by
   its first turn's, a person's words by their message, an activity line by its
   position. So a page read in above is an insert, nothing already drawn is
@@ -6921,6 +6927,14 @@ own tests:
   time under 12 hours old prints again each minute while it is shown.
   Default: as printed; a terminal shell that says every time as its
   moment, with no wake, is the candidate.
+- **A delivery beside a long conversation** (5.15;
+  `../draft/chat-reading.md`, 3): retaining parsed closed blocks or a conversation
+  subtree needs invalidation rules and proofs; reducing page bookkeeping and
+  away-reader anchor scans needs the same. Default: rebuild and diff, keeping
+  DOM identities. The measured whole-bound delivery cost is in
+  `temper/docs/development/browser-budget.md`; the away-reader scan's share
+  remains untimed. The browser tier's smaller window leaves a person's cost
+  at the whole bound in place.
 - **Reading a conversation in every browser** (5.15; `../draft/chat-reading.md`, 5):
   the position staying put when lines load above is for the user to read on a
   real chat. Default: the browser tier runs Chromium, including with
