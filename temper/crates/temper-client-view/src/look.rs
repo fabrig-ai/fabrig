@@ -1131,6 +1131,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-doc-sub",
         b"temper-doc-flow",
         b"temper-doc-figures",
+        b"temper-welcome-check",
+        b"temper-welcome-check-stopped",
+        b"temper-welcome-check-failed",
+        b"temper-welcome-check-why",
     ],
     regions: &[b"temper-link"],
 };
@@ -1305,6 +1309,11 @@ pub const STARTER_OWN_ACTS: Style = Style { owner: owner(), token: 452 };
 pub const DOC_SUB: Style = Style { owner: owner(), token: 453 };
 pub const DOC_FLOW: Style = Style { owner: owner(), token: 454 };
 pub const DOC_FIGURES: Style = Style { owner: owner(), token: 455 };
+// The try’s status box (temper/docs/design/client/README.md, 3.5).
+pub const WELCOME_CHECK: Style = Style { owner: owner(), token: 456 };
+pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 457 };
+pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 458 };
+pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 459 };
 
 #[cfg(test)]
 mod tests {

@@ -647,9 +647,14 @@ replay says the same clocks (`README.md`, 5.12).
   `--gf-*` variables, as Home's are, on tokens of its own, `temper-goals*`.
   A row's top line is `--gf-mono`, 12 px, faint: IBM Plex Mono 400 and 500,
   bundled as the sans is, then JetBrains Mono, `ui-monospace`, `monospace`.
-- **A page target draws no ring:** `main` or a level-1 heading given
-  `tabindex=-1` only to take focus, as a move gives it, draws no outline, by
-  `temper.css`; a control keeps its ring.
+- **A page target draws no ring:** anything given `tabindex=-1` only to take
+  focus (`main`, a heading, a document's section) draws no outline, by
+  `skein-ui.css` (skein's `ui-web.md`, 12), and `temper.css` says so again of
+  `main` and a level-1 heading; a control keeps its ring.
+- **A scrolling pane holds its hidden parts:** a chat's log and its draft pane are
+  positioned, so a visually hidden absolute part (a who-line) is clipped by the
+  pane's overflow and does not lengthen the page: a long chat's document never
+  exceeds its window.
 - **Light only:** the mockups' palette is light, and `temper.css` sets
   `color-scheme: light`, where `skein-ui.css` follows the system's dark
   preference. A dark palette is open (section 5).
@@ -1404,8 +1409,8 @@ from the engine's own answers, is where the look is tuned.
 | `welcome-model-forge-done` | Model at first run step 7, Forgejo connected, its marked Forge pane without Each step |
 | `welcome-model-forge-failed` | Model at first run step 9, Forgejo failed, its Forge pane and Each step |
 | `welcome-model-claude` | Claude’s welcome command and I’ve signed in, with no Name field |
-| `welcome-model-claude-checking` | the declaration or host check under way, its note and spinner |
-| `welcome-model-claude-not-yet` | the settled check without a usable login, its alert and another check |
+| `welcome-model-claude-checking` | the declaration or host check under way, the try's box at its first step |
+| `welcome-model-claude-not-yet` | the settled check without a usable login, the try's box stopped at its first step, Try again, Sign in again and Continue anyway |
 | `welcome-model-key-details` | the welcome's API key form, without an unsupported display-name field |
 | `welcome-model-connected` | a usable ChatGPT plan, its ticked status and Continue to Ready |
 | `welcome-model-away` | ChatGPT’s sign-in in this tab, its note and folded paste |

@@ -156,10 +156,10 @@ off in the stock, where that request has them follow a tracked template
 has it keep no notes (`domain/agent.md`). A proposal of settings shows on no
 project's Needs you or rail's count, the Claude way's command refuses on a box
 with directories of its own, and a choice pressed just after Undo stayed
-unanswered once (`client/README.md`). The rename keeps its form below the rows,
-its "Cancel" and no focus given back, and a section's heading takes a ring, where
-the user's answer of 2026-11-06 has the mock's form and no ring
-(`client/README.md`, `client/browser.md`). A document
+unanswered once (`client/README.md`). The rename's form asks the focus beside an
+open reply, where a tree holds one request, seen by reading (`client/README.md`),
+and no test measures a long chat's document against its window, where the user's
+answer of 2026-11-06 asks one (`client/browser.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
