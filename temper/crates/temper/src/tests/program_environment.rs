@@ -26,7 +26,10 @@ fn each_directory_is_named_only_off_its_own_default() {
         (vec!["TEMPER_CONFIG", "TEMPER_DATA"], "TEMPER_CONFIG=/moved TEMPER_DATA=/moved temper"),
         (vec!["TEMPER_CONFIG", "TEMPER_CACHE"], "TEMPER_CONFIG=/moved TEMPER_CACHE=/moved temper"),
         (vec!["TEMPER_DATA", "TEMPER_CACHE"], "TEMPER_DATA=/moved TEMPER_CACHE=/moved temper"),
-        (vec!["TEMPER_CONFIG", "TEMPER_DATA", "TEMPER_CACHE"], "TEMPER_CONFIG=/moved TEMPER_DATA=/moved TEMPER_CACHE=/moved temper"),
+        (
+            vec!["TEMPER_CONFIG", "TEMPER_DATA", "TEMPER_CACHE"],
+            "TEMPER_CONFIG=/moved TEMPER_DATA=/moved TEMPER_CACHE=/moved temper",
+        ),
     ] {
         let mut environment = home();
         environment.extend(variables.iter().map(|name| (name.as_bytes().into(), b"/moved".as_slice().into())));
@@ -40,7 +43,12 @@ fn a_directory_off_its_default_alone_is_named() {
         (vec![("TEMPER_DATA", "/home/person/x")], vec![], "temper", "TEMPER_DATA=~/x temper"),
         (vec![("TEMPER_DATA", "/home/person/x")], vec![], "~/bin/temper", "TEMPER_DATA=~/x ~/bin/temper"),
         (vec![], vec!["--data", "/moved"], "temper", "TEMPER_DATA=/moved temper"),
-        (vec![("TEMPER_DATA", "/home/person/.local/share/temper"), ("TEMPER_CACHE", "/moved")], vec![], "temper", "TEMPER_CACHE=/moved temper"),
+        (
+            vec![("TEMPER_DATA", "/home/person/.local/share/temper"), ("TEMPER_CACHE", "/moved")],
+            vec![],
+            "temper",
+            "TEMPER_CACHE=/moved temper",
+        ),
         (vec![("XDG_DATA_HOME", "/xdg")], vec![], "temper", ""),
     ] {
         let mut environment = home();

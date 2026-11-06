@@ -1,4 +1,5 @@
 mod box_kinds;
+mod box_link_form;
 mod commands;
 mod help;
 mod init_clients;
