@@ -2364,7 +2364,8 @@ keeps (`../protocol/configuration.md`, section 2).
   - *It stays until it is answered.* The press sends the ask and the sheet stays,
     saying the ask's progress above its acts. Answered done, it goes. Any other
     outcome leaves it open, saying why above its acts, where a press sends again;
-    a press that sends nothing closes it. "Keep it" closes it at any time, and an
+    a press that sends nothing closes it, but for a rejection with no reason, which
+    keeps it open and says nothing. "Keep it" closes it at any time, and an
     ask in flight goes on, its outcome on the page as before. While the sheet is
     open, the outcome and progress of its own ask are the sheet's alone.
   - *A press stays under the finger* (`browser.md`, *A press a render can lose*):
@@ -6060,6 +6061,15 @@ own tests:
   time, as on any Home (`../draft/to-begin.md`, 2), and the step says
   "Chats can change its code now.". Supplying a creation age or a first CI
   result needs its own protocol decision.
+- **Which decision closed a chat** (3.6, *Closed ends on one line*):
+  `Activity::Decided` carries a revision alone, so the view can't tell the closing's
+  from an earlier decision. Telling them apart takes a new fact of a protocol, the
+  user's. Default: a chat its requester closed hides every "Decision made".
+- **A moved delegate's own tasks, on a close's sheet** (3.6, *The sheet*): jig's
+  impact counts every task below the chat, with no count per delegate, so "N tasks
+  below it are cancelled." takes off the delegates listed and still counts a moved
+  delegate's own tasks, which closing doesn't cancel. A count per delegate is a new
+  fact of a protocol, the user's. Default: they stay in N.
 - **A project's only goal ending while Home is open** (3.5, 5.3): kind 7
   decides the rail and the tab bar; Home reads `Domain::has_goals` to choose
   Goals or Chats. The fact reads the ended group once, so once the live watch
