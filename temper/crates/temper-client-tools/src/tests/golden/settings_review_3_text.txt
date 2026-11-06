@@ -1,4 +1,5 @@
 proposal p73/7 · settings · against revision 5, newest 6
+projects: deployment
 more time
 temper enforces
   rules · value (now and proposed below)

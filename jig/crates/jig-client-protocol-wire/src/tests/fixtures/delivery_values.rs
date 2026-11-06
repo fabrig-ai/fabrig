@@ -18,7 +18,7 @@ pub fn delivery_values(limits: &Limits) -> List<(&'static str, DeliveryValue)> {
     value!(values, limits, Project, Project, 116);
     value!(values, limits, Me, Me, 79);
     value!(values, limits, Task, Task, 270, Box::new);
-    value!(values, limits, Proposal, Proposal, 57);
+    value!(values, limits, Proposal, Proposal, 61);
     value!(values, limits, Tree, Tree, 17);
     value!(values, limits, Chips, Chips, 4);
     value!(values, limits, Inbox, Inbox, 36);

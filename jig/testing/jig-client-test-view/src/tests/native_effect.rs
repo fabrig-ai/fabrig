@@ -4,6 +4,7 @@ use jig_client_test_domain::connector_values as owner;
 
 fn proposal(part: Part) -> Proposal {
     Proposal {
+        projects: List::with_capacity(0),
         key: ProposalKey { proposer: Proposer::Task(9), number: 2 },
         project: 11,
         reason: DocumentText::complete(text(b"supplied effect")),

@@ -417,7 +417,7 @@ fn world_in_layout(
                 jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) } => {
                     let value = if let Some(name) = settings_chat {
                         match &what {
-                            c::Read::Proposal { proposal } => Some(settings_proposal(*proposal)),
+                            c::Read::Proposal { proposal } => Some(settings_proposal(*proposal, name)),
                             c::Read::Activity { .. } => Some(c::ReadValue::Activity(Box::new(settings_activity(name)))),
                             _ => read_value(w, &what, then, goals),
                         }
@@ -596,7 +596,7 @@ fn world_in_layout(
     assert!(out.is_empty(), "world fixture settles: {w:?} {settings:?} {out:?}");
     first_run_ready(&mut root, w, forge_watch, &mut out);
     if let Some(name) = settings_chat
-        && name != "configure-chat-proposal"
+        && !name.starts_with("configure-chat-proposal")
     {
         finish_settings_proposal(&mut root, settings_chat_watch.expect("settings chat watch"), name, &mut out);
     }
@@ -1223,6 +1223,7 @@ fn proposal() -> c::ReadValue {
             })
             .expect("one funding source");
         c::Proposal {
+            projects: List::with_capacity(0),
             key: PROPOSAL,
             project: PROJECT,
             reason: c::DocumentText::complete(text(JSON_WHY)),
@@ -1792,6 +1793,7 @@ fn goal_inbox(
         let at = Some(offset(w, -18));
         let cursor = c::InboxCursor::Inbox { task: 3, object, at };
         rows.push(c::InboxEntry {
+            projects: List::with_capacity(0),
             reply: None,
             task: c::TaskLink::Live(document(w, 3).chip),
             project: Some(PROJECT),
@@ -1820,6 +1822,7 @@ fn goal_inbox(
             };
             let cursor = c::InboxCursor::Inbox { task: f.number, object, at: Some(offset(w, f.at)) };
             rows.push(c::InboxEntry {
+                projects: List::with_capacity(0),
                 reply: None,
                 task: c::TaskLink::Live(goal_line(w, f).chip),
                 project: Some(PROJECT),
@@ -2165,6 +2168,7 @@ impl GoalPage {
                     let cursor = c::InboxCursor::Inbox { task, object, at: Some(goal_wall(w, -40)) };
                     let chip = if task == self.facts.number { self.document(w).chip } else { self.delegate(w, 1).chip };
                     rows.push(c::InboxEntry {
+                        projects: List::with_capacity(0),
                         reply: None,
                         task: c::TaskLink::Live(chip),
                         project: Some(PROJECT),
@@ -3639,6 +3643,7 @@ fn inbox_window(w: World, window: u32) -> c::Inbox {
         let cursor = c::InboxCursor::Inbox { task, object, at: row.at };
         let reply = if row.group() == c::InboxGroup::Replies { Some(Box::new(reply_line(w, task))) } else { None };
         let entry = c::InboxEntry {
+            projects: List::with_capacity(0),
             reply,
             task: c::TaskLink::Live(chip(w, task)),
             project: Some(PROJECT),
@@ -4285,6 +4290,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
 pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1::ProjectStatus> {
     use temper_client_protocol_wire::v1 as w;
     let (landed, seen, queued, red, previous, last) = match name {
+        "home-last-landed" => (1, 1, 0, false, Some(540), Some(6)),
         "home-computed" => (3, 1, 3, false, Some(540), Some(6)),
         "home-last-looked-none" => (3, 1, 3, false, None, Some(6)),
         "home-landing-none" => (0, 0, 0, false, Some(540), None),
@@ -4411,18 +4417,34 @@ const SETTINGS_NEXT: c::ProposalKey = c::ProposalKey { proposer: c::Proposer::Ta
 pub(super) fn settings_chat_world(name: &str) -> Domain {
     world_in_layout(Solo, Address::Chat { task: 10 }, Then::Shown, true, None, Some(name), false).0
 }
-fn settings_proposal(key: c::ProposalKey) -> c::ReadValue {
+fn settings_proposal(key: c::ProposalKey, name: &str) -> c::ReadValue {
     let c::ReadValue::Proposal(mut proposal) = proposal() else { unreachable!("proposal fixture") };
     proposal.key = key;
+    proposal.project = 0;
+    proposal.projects = List::with_capacity(2);
+    if name != "configure-chat-proposal-deployment" {
+        proposal.projects.push(PROJECT).expect("first project");
+    }
+    if name == "configure-chat-proposal-two-projects" {
+        proposal.projects.push(2).expect("second project");
+    }
     proposal.reason = doc("I work alone on small changes.\nKeep drafts beside the code.");
-    let mut items = List::with_capacity(2);
-    for kind in [7, 6] {
-        items
-            .push(c::RevisionItemHead {
-                setting: c::Setting::Application { kind, scope: PROJECT, number: 1 },
-                edit: c::RevisionItemEdit::Set,
-            })
-            .expect("settings item");
+    let mut items = List::with_capacity(3);
+    let settings = if name == "configure-chat-proposal-deployment" {
+        List::from_boxed(Box::new([c::Setting::Charter(c::SettingNumber { number: 1 })]))
+    } else if name == "configure-chat-proposal-two-projects" {
+        List::from_boxed(Box::new([
+            c::Setting::Application { kind: 7, scope: PROJECT, number: 1 },
+            c::Setting::Application { kind: 7, scope: 2, number: 1 },
+        ]))
+    } else {
+        List::from_boxed(Box::new([
+            c::Setting::Application { kind: 7, scope: PROJECT, number: 1 },
+            c::Setting::Application { kind: 6, scope: PROJECT, number: 1 },
+        ]))
+    };
+    for setting in &settings {
+        items.push(c::RevisionItemHead { setting: *setting, edit: c::RevisionItemEdit::Set }).expect("settings item");
     }
     proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
         against: 0,
@@ -4501,7 +4523,7 @@ fn finish_settings_proposal(root: &mut Domain, watch: Token, name: &str, out: &m
         }) = crate::driver::down(request)
         {
             assert_eq!(key, PROPOSAL);
-            let c::ReadValue::Proposal(proposal) = settings_proposal(key) else { unreachable!("settings") };
+            let c::ReadValue::Proposal(proposal) = settings_proposal(key, name) else { unreachable!("settings") };
             let c::ProposalAction::Settings(settings) = proposal.action else { unreachable!("settings") };
             let state = if name == "configure-chat-accepted" {
                 c::ProposalHistoryState::Accepted { by: c::Requester::Person(73) }

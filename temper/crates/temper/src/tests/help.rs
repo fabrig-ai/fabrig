@@ -220,8 +220,8 @@ fn box_walk_distinguishes_stock_policy_from_open_budgets() {
     assert!(!text.contains("Settings never resize budgets"));
     let configure = temper_docs::find(b"configure").expect("configure walk");
     let text = configure.text.split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(text.contains("project-policy `period_spend` 8200000 beside rules `period_spend` 8300000"));
-    assert!(text.contains("open period's budget is 8200000"));
+    assert!(text.contains("project-policy `period_spend` 8300000 beside rules `period_spend` 8400000"));
+    assert!(text.contains("open period's budget is 8300000"));
 }
 
 #[test]

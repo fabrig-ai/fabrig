@@ -249,6 +249,7 @@ const FORGE: forge::Limits = forge::Limits {
     },
     // Time to gather a landing queue, from the engine forge world fixture.
     queue_window: Duration::from_secs(30),
+    sitting: temper_engine_domain_forge::SITTING,
 };
 // A project of fabrig's scale (temper/docs/design/protocol/configuration.md, 13.4).
 const STANDARD_FORGE: forge::Limits = forge::Limits {

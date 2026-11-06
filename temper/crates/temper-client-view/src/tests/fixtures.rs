@@ -1294,6 +1294,7 @@ pub mod chat {
             None => c::ReadValue::Proposal(Box::new(c::Proposal {
                 key: PROPOSAL,
                 project: fixtures::PROJECT,
+                projects: List::from_boxed(Box::new([fixtures::PROJECT])),
                 reason: c::DocumentText::complete(c::Text::new(Box::from(*b"Make a goal"), TEXT).expect("reason")),
                 action: c::ProposalAction::Batch(List::with_capacity(EMPTY_BATCH)),
                 as_holder: true,
