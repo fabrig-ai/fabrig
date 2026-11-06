@@ -88,6 +88,71 @@ fn an_owners_configuring_chat_proposes_and_hears_it_accepted() {
 }
 
 #[test]
+fn a_project_with_no_ways_reads_at_their_stock() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    for (completion, kind, value) in [
+        (1, "project-ways", r#"{"drafts":false,"goals":false,"changes":false,"away":false,"way":0}"#),
+        (2, "project-questions", r#""none""#),
+    ] {
+        let input = json!({"setting":{"kind":kind,"project":PROJECT}});
+        let (body, error) = host_tool(&mut world.driver, &run, completion, b"settings", input.to_string().as_bytes());
+        let text = std::str::from_utf8(&body).expect("settings UTF-8");
+        assert!(!error, "{text}");
+        let expected = format!("{kind} {PROJECT}, revision 1\n{value}\nthe stock\nend\n");
+        assert_eq!(text, expected);
+        let input = json!({"setting":{"kind":kind,"project":PROJECT},"revision":1});
+        let (body, error) =
+            host_tool(&mut world.driver, &run, completion + 2, b"settings", input.to_string().as_bytes());
+        assert!(!error);
+        assert_eq!(body.as_ref(), expected.as_bytes(), "the named newest revision also takes the stock");
+    }
+}
+
+#[test]
+fn a_projects_stored_ways_read_as_stored() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let setting = json!({"kind":"project-ways","project":PROJECT});
+    let value = json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":1});
+    let items = json!([{"setting":setting,"set":value}]);
+    let proposal = propose(&mut world.driver, &run, 1, 1, &items);
+    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2);
+    let (text, _) = read_whole(&mut world.driver, &run, 2, json!({"setting":setting}));
+    let body = text.strip_prefix("project-ways 1, revision 2\n").expect("newest setting heading");
+    let (body, state) = body.split_once('\n').expect("value and application state");
+    assert_eq!(serde_json::from_str::<serde_json::Value>(body).expect("ways JSON"), value);
+    assert!(state.starts_with("changed at revision 2, "), "{text}");
+    assert!(!text.contains("the stock"), "{text}");
+}
+
+#[test]
+fn a_read_that_finds_nothing_says_it_was_not_read() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    world.change(1, 21, Box::new([owner_charter(b"Keep commits small.")]));
+    for (completion, input) in [
+        (1, json!({"setting":{"kind":"project-ways","project":999}})),
+        (2, json!({"setting":{"kind":"project-questions","project":999}})),
+        (3, json!({"setting":{"kind":"charter","number":REMOVED}})),
+        (4, json!({"setting":{"kind":"project-ways","project":PROJECT},"revision":1})),
+        (5, json!({"setting":{"kind":"project-questions","project":PROJECT},"revision":1})),
+    ] {
+        let (body, error) = host_tool(&mut world.driver, &run, completion, b"settings", input.to_string().as_bytes());
+        let text = std::str::from_utf8(&body).expect("settings UTF-8");
+        assert!(error, "{input}: {text}");
+        assert_eq!(
+            text,
+            "not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\nend\n"
+        );
+    }
+}
+
+#[test]
 fn a_members_proposal_waits_for_an_owner() {
     let mut world = World::new(member_config());
     let member = world.member();
@@ -352,6 +417,21 @@ fn a_chat_is_offered_no_settings_tools() {
     assert!(!offered.grants.host_tools.is_empty(), "the chat is offered its other host tools");
     for name in [b"settings".as_slice(), b"propose_settings"] {
         assert!(!offered.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name));
+    }
+    let mut ask = world.driver.chat_ask(PROJECT, b"Read without settings authority");
+    let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat creation") };
+    batch[0].authority.tools &= !core::ToolFamilies::JIG.settings;
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(128) };
+    world.ask(world.owner, 21, ask);
+    let run = world.driver.last_assignment();
+    assert_eq!(run.charter, CHAT);
+    assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
+    for (completion, kind) in [(1, "project-ways"), (2, "project-questions")] {
+        let input = serde_json::json!({"setting":{"kind":kind,"project":PROJECT}});
+        let (_, error) = host_tool(&mut world.driver, &run, completion, b"settings", input.to_string().as_bytes());
+        assert!(error, "the stock cannot bypass the settings family");
+        let (_, answer) = world.driver.protocol.answers.last().expect("family denial");
+        assert!(matches!(answer, engine::CallAnswer::ToolDenied { .. }));
     }
 }
 

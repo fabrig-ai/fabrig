@@ -75,7 +75,7 @@ pub(crate) enum FlightRender {
     Plain,
     TaskRead,
     ForgeRead,
-    Settings { from: u32, requested: Option<u64> },
+    Settings { from: u32, requested: Option<u64>, asked: Option<(jig_domain_core::settings::Setting, u32)> },
     Amended(crate::Changed),
     Change(Box<ChangeChoice>),
     PersonRoles(Box<[u32]>),
@@ -142,7 +142,13 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
             | jig_domain_core::SettingsRead::Setting { .. }
             | jig_domain_core::SettingsRead::Revisions { .. } => None,
         };
-        FlightRender::Settings { from: *from, requested }
+        let asked = match read {
+            jig_domain_core::SettingsRead::Setting { setting, revision } => Some((*setting, *revision)),
+            jig_domain_core::SettingsRead::Inventory
+            | jig_domain_core::SettingsRead::Revision { .. }
+            | jig_domain_core::SettingsRead::Revisions { .. } => None,
+        };
+        FlightRender::Settings { from: *from, requested, asked }
     } else if let crate::Tool::Change { changes } = &body.tool {
         change_choice(domain, key.task, changes)
     } else if let crate::Tool::Delegate { batch } = &body.tool {
@@ -567,11 +573,33 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
     let right = to.into_token();
     let to = ReplyTo::new(right);
     let flight = domain.call_renders.get(&right).expect("settings read flight");
-    let FlightRender::Settings { from, requested } = flight.render else { unreachable!("settings rendering context") };
+    let FlightRender::Settings { from, requested, asked } = flight.render else {
+        unreachable!("settings rendering context")
+    };
+    let mut application = super::tools::settings_value(domain, &answer);
+    let mut answer = answer;
+    let newest = domain.core.current.newest();
+    if let jig_domain_core::SettingsAnswer::Unknown = answer.as_ref()
+        && let Some((
+            setting @ jig_domain_core::settings::Setting::Application { kind: kind @ (6 | 7), scope, number: 1 },
+            revision,
+        )) = asked
+        && (revision == 0 || revision == newest)
+        && domain.core.people.project_members(scope).is_some()
+    {
+        application = temper_engine_domain_forge::settings::project_stock(kind);
+        answer = Box::new(jig_domain_core::SettingsAnswer::Setting(jig_domain_core::reads::SettingDocument {
+            setting,
+            revision: newest,
+            value: None,
+            application: None,
+            proposed: None,
+        }));
+    }
     let request = crate::boundary::delivery_output(Delivery::Host(Box::new(HostDelivery::Settings {
         to,
         repositories: settings_repositories(domain, flight, &answer),
-        application: super::tools::settings_value(domain, &answer),
+        application,
         answer,
         from,
         requested,
