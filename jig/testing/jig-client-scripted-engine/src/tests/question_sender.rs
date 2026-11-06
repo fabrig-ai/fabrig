@@ -1,4 +1,4 @@
-use super::{script, task, text};
+use super::{PROJECT, script, task, text};
 use crate::{Engine, Invalid};
 use jig_client_domain::contract::*;
 use skein_lib::{List, Wall};
@@ -15,7 +15,7 @@ fn question_offer_admission_checks_encoded_entries() {
     };
     let key = ObjectKey::Question { task: supplied.task.task, message: supplied.message };
     let mut setup = script();
-    setup.truth.object_projects.insert(key, 1);
+    setup.truth.object_projects.insert(key, PROJECT);
     setup.truth.objects.insert(key, ReadValue::Question(Box::new(supplied.clone())));
     assert!(Engine::new(setup.clone(), 1).is_ok());
     supplied.acts = List::with_capacity(33);

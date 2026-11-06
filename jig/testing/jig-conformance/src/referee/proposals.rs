@@ -2,7 +2,7 @@
 use super::{Promise, Snapshot, Source, Violation};
 use std::collections::{BTreeMap, BTreeSet};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct Proposals {
     credits: BTreeMap<Source, u32>,
     seen: BTreeSet<u64>,

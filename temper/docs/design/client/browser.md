@@ -609,7 +609,9 @@ replay says the same clocks (`README.md`, 5.12).
   `/* ==== ui: chats ==== */` marker, in the `--gf-*` tokens, with
   `--gf-hint: #8a8a93`, `--gf-signal-ink: #9a3412` and
   `--gf-signal-line: #f1d5bd`; the mock's phone rules for those selectors
-  come from its last `@media (max-width: 760px)` block. The tokens:
+  come from its last `@media (max-width: 760px)` block. At that width the
+  session's keyboard hint is hidden, as the configure-chat look request
+  draws it. The tokens:
   `CHATS_PAGE` on the Chats page's main and `SESSION` on every chat's and
   `NewChat`'s. An agent's task's page keeps its own look, `AGENT_PAGE` and
   `TASKBAR`, with `ENTRY`, `COMPOSER_AREA`, `COMPOSER` and `HINT` for its
@@ -645,6 +647,9 @@ replay says the same clocks (`README.md`, 5.12).
   `--gf-*` variables, as Home's are, on tokens of its own, `temper-goals*`.
   A row's top line is `--gf-mono`, 12 px, faint: IBM Plex Mono 400 and 500,
   bundled as the sans is, then JetBrains Mono, `ui-monospace`, `monospace`.
+- **A page target draws no ring:** `main` or a level-1 heading given
+  `tabindex=-1` only to take focus, as a move gives it, draws no outline, by
+  `temper.css`; a control keeps its ring.
 - **Light only:** the mockups' palette is light, and `temper.css` sets
   `color-scheme: light`, where `skein-ui.css` follows the system's dark
   preference. A dark palette is open (section 5).
@@ -1136,7 +1141,9 @@ Not in the tier, each in the lowest world that shows it:
 - **A phone's width in a test** (2.5): the sweep, the walk and the renders of
   the request `ui-phone` of 2026-11-05 are throwaways by its own words, and the
   browser tier cannot open a phone's width: `skein-browser` sets every page to
-  1280 by 800. So nothing holds the phone's rules when the sheet next moves.
+  1280 by 800. So nothing holds how the phone's rules draw when the sheet next
+  moves: `temper-client-shell-web`'s suite reads one rule as text, and the CDP
+  walk of the request `ui-final-walk`, which sets the width, goes with its plan.
   Default: none, until a phone's rule breaks unseen.
 - **The rail's foot on a phone** (2.5; `README.md`, 5.3): the top bar holds the
   switcher alone, as the mock's does, so a project's page on a phone shows no

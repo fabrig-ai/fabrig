@@ -66,19 +66,27 @@ pub fn activity_rows(rows: &[w::DecodedActivityLine]) -> w::ActivityPage {
     .expect("literal fixture fits")
 }
 
+// jig-client-protocol-link/src/tests/fixtures/turns.rs pins these positions, timestamps and turn numbers.
+fn first_turn(bytes: &[u8]) -> w::DecodedActivityLine {
+    turn_line(10, 20, 1, bytes)
+}
+fn second_turn(bytes: &[u8]) -> w::DecodedActivityLine {
+    turn_line(11, 21, 2, bytes)
+}
+
 #[must_use]
 pub fn decoded_activity_record() -> w::ActivityPage {
-    activity_rows(&[turn_line(10, 20, 1, FULL_TURN), turn_line(11, 21, 2, FULL_TURN)])
+    unread_activity_record(FULL_TURN)
 }
 
 #[must_use]
 pub fn unread_activity_record(bytes: &[u8]) -> w::ActivityPage {
-    activity_rows(&[turn_line(10, 20, 1, bytes), turn_line(11, 21, 2, FULL_TURN)])
+    activity_rows(&[first_turn(bytes), second_turn(FULL_TURN)])
 }
 
 #[must_use]
 pub fn cut_activity_record() -> w::ActivityPage {
-    activity_rows(&[turn_line(10, 20, 1, FULL_TURN)])
+    activity_rows(&[first_turn(FULL_TURN)])
 }
 
 fn owner_turn_source() -> w::ActivityLine {

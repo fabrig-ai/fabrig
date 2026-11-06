@@ -1,7 +1,7 @@
 use jig_domain_tasks::{
     self as tasks, Accepted, Cause, End, Event, Funder, Key, Numbers, Party, Refusal, Stored, TaskResult,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY, Reply, World, task};
 use skein_lib::ReplyTo;
 
 fn send(world: &mut World, build: impl FnOnce(ReplyTo) -> Event) -> Reply {
@@ -72,18 +72,18 @@ fn finite_pool_carves_reserves_and_posts_to_its_original_period_atomically() {
     w.open_period(1, 300);
     w.carve_pool(1, 200);
     let period = Funder::Period { project: 1, period: 1 };
-    let pool = Funder::Pool { project: 1, person: 9, period: 1 };
+    let pool = Funder::Pool { project: 1, person: PERSON, period: 1 };
     assert_eq!(ledger(&w, pool).parent, Some(period));
     let mut first = task(1, &[]);
     first.funder = pool;
     let mut second = task(2, &[]);
     second.funder = pool;
-    w.make(Party::Person(9), vec![first]);
+    w.make(PERSON_PARTY, vec![first]);
     assert_eq!(ledger(&w, pool).numbers.reserved, 100);
     let before = w.records.clone();
     let mut third = second.clone();
     third.number = 3;
-    let reply = w.make(Party::Person(9), vec![second, third]);
+    let reply = w.make(PERSON_PARTY, vec![second, third]);
     assert!(matches!(reply,Reply::Refused(problem) if problem.why==Refusal::Funding));
     assert_eq!(w.records, before);
     w.claim_task(1);
@@ -114,10 +114,10 @@ fn a_period_retires_once_its_last_reservation_closes() {
     w.open_period(1, 300);
     w.carve_pool(1, 200);
     let period = Funder::Period { project: 1, period: 1 };
-    let pool = Funder::Pool { project: 1, person: 9, period: 1 };
+    let pool = Funder::Pool { project: 1, person: PERSON, period: 1 };
     let mut first = task(1, &[]);
     first.funder = pool;
-    w.make(Party::Person(9), vec![first]);
+    w.make(PERSON_PARTY, vec![first]);
     w.open_period(2, 300);
     assert!(!ledger(&w, period).closed);
     assert!(!ledger(&w, pool).closed);
@@ -146,11 +146,11 @@ fn a_new_period_funds_new_work_while_the_old_one_settles() {
     let fresh = Funder::Period { project: 1, period: 2 };
     let mut first = task(1, &[]);
     first.funder = old;
-    w.make(Party::Person(9), vec![first]);
+    w.make(PERSON_PARTY, vec![first]);
     w.open_period(2, 100);
     let mut second = task(2, &[]);
     second.funder = fresh;
-    w.make(Party::Person(9), vec![second]);
+    w.make(PERSON_PARTY, vec![second]);
     assert!(!ledger(&w, old).closed);
     assert_eq!(ledger(&w, fresh).numbers.reserved, 100);
     w.claim_task(1);
@@ -167,7 +167,7 @@ fn a_new_period_funds_new_work_while_the_old_one_settles() {
 #[test]
 fn priced_admissions_refuse_before_spending_and_adoption_carries_kept_turns() {
     let mut w = World::new(72, LIMITS);
-    w.make(Party::Person(9), vec![task(1, &[])]);
+    w.make(PERSON_PARTY, vec![task(1, &[])]);
     w.claim_task(1);
     for (attempt, read, why) in [(2, None, Refusal::Attempt), (1, Some(999), Refusal::Read)] {
         let before = w.records.clone();
@@ -191,7 +191,7 @@ fn priced_admissions_refuse_before_spending_and_adoption_carries_kept_turns() {
 #[test]
 fn priced_invalid_terminals_charge_but_live_delegate_refusals_do_not() {
     let mut w = World::new(73, LIMITS);
-    w.make(Party::Person(9), vec![task(1, &[])]);
+    w.make(PERSON_PARTY, vec![task(1, &[])]);
     w.make(Party::Task(1), vec![task(2, &[])]);
     w.claim_task(1);
     let before = w.records.clone();
@@ -224,7 +224,7 @@ fn priced_invalid_terminals_charge_but_live_delegate_refusals_do_not() {
 #[test]
 fn priced_turns_cannot_spend_beyond_the_claimed_allowance() {
     let mut w = World::new(75, LIMITS);
-    w.make(Party::Person(9), vec![task(1, &[])]);
+    w.make(PERSON_PARTY, vec![task(1, &[])]);
     w.claim_task(1);
     assert_eq!(w.record(1).run_reserved, 100);
     let before = w.records.clone();
@@ -241,7 +241,7 @@ fn priced_turns_cannot_spend_beyond_the_claimed_allowance() {
 #[test]
 fn a_claim_holds_only_its_capped_allowance_and_returns_the_unused_part() {
     let mut w = World::new(76, LIMITS);
-    w.make(Party::Person(9), vec![task(1, &[])]);
+    w.make(PERSON_PARTY, vec![task(1, &[])]);
     w.claim_budget(1, 1, 40);
     assert_eq!(w.record(1).numbers, Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 40 });
     assert_eq!(turn(&mut w, 1, 1, 1, None, 10), Reply::Turn(Accepted::New));
@@ -277,7 +277,7 @@ fn oversized_terminal_does_not_charge_or_copy_and_sources_refuse_at_capacity() {
         },
     ] {
         let mut w = World::new(77, LIMITS);
-        w.make(Party::Person(9), vec![task(1, &[])]);
+        w.make(PERSON_PARTY, vec![task(1, &[])]);
         w.claim_task(1);
         let before = w.records.clone();
         let answer = end(&mut w, 1, 1, End::Finished { result, cancel_delegates: false }, 2);
@@ -298,7 +298,7 @@ fn independent_referee_detects_omitted_ledger_save_and_settlement_posting() {
     use jig_tasks_world::accounting_referee::Accounting;
     let mut w = World::new(79, LIMITS);
     let before = w.records.clone();
-    w.make(Party::Person(9), vec![task(1, &[])]);
+    w.make(PERSON_PARTY, vec![task(1, &[])]);
     let source = Funder::Period { project: 1, period: 0 };
     let mut good = Accounting::default();
     good.reset(&before);
@@ -383,7 +383,7 @@ fn accepted_amendment(world: &mut World, funder: Funder, budget: u64) -> Reply {
         },
         places: Box::new([]),
         reply_to,
-        by: Party::Person(9),
+        by: PERSON_PARTY,
         funder: Some(funder),
     })
 }
@@ -395,7 +395,7 @@ const AMENDMENT_FUNDERS: [Funder; 4] =
 fn an_amendments_funder_must_be_in_its_project_and_above_its_requester() {
     for source in AMENDMENT_FUNDERS {
         let mut world = World::new(347, LIMITS);
-        assert_eq!(world.make(Party::Person(9), vec![task(1, &[]), task(2, &[])]), Reply::Made(vec![1, 2]));
+        assert_eq!(world.make(PERSON_PARTY, vec![task(1, &[]), task(2, &[])]), Reply::Made(vec![1, 2]));
         send(&mut world, |reply_to| Event::OpenPeriod { reply_to, project: 2, period: 1, budget: 200 });
         send(&mut world, |reply_to| Event::CarvePool { reply_to, project: 2, person: 8, period: 1, budget: 100 });
         assert_eq!(ledger(&world, AMENDMENT_FUNDERS[3]).numbers.budget, 100);
@@ -414,13 +414,13 @@ fn an_amendment_accepted_by_another_funder_funds_its_task_anew() {
     world.open_period(1, 100);
     world.carve_pool(1, 30);
     send(&mut world, |reply_to| Event::CarvePool { reply_to, project: 1, person: 8, period: 1, budget: 30 });
-    let first = Funder::Pool { project: 1, person: 9, period: 1 };
+    let first = Funder::Pool { project: 1, person: PERSON, period: 1 };
     let second = Funder::Pool { project: 1, person: 8, period: 1 };
     let mut member = task(1, &[]);
     member.funder = first;
     member.numbers.budget = 10;
     member.authority.budget.spend = 10;
-    assert_eq!(world.make(Party::Person(9), vec![member]), Reply::Made(vec![1]));
+    assert_eq!(world.make(PERSON_PARTY, vec![member]), Reply::Made(vec![1]));
     world.claim_task(1);
     assert_eq!(turn(&mut world, 1, 1, 1, None, 3), Reply::Turn(Accepted::New));
     accepted_amendment(&mut world, second, 15);
@@ -430,7 +430,7 @@ fn an_amendment_accepted_by_another_funder_funds_its_task_anew() {
         (world.record(1).funder, world.record(1).numbers.budget, world.record(1).authority.budget.spend),
         (second, 12, 12)
     );
-    assert_eq!((world.record(1).requester, world.record(1).root, world.record(1).depth), (Party::Person(9), 1, 0));
+    assert_eq!((world.record(1).requester, world.record(1).root, world.record(1).depth), (PERSON_PARTY, 1, 0));
     accepted_amendment(&mut world, second, 14);
     assert_eq!((world.record(1).funder, world.record(1).numbers.budget), (second, 14));
     assert_eq!(ledger(&world, second).numbers.reserved, 14);

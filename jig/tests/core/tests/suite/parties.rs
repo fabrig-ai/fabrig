@@ -1,11 +1,8 @@
+use jig_core_world::fixtures::{
+    CONNECTOR, PARTY, PROJECT, ask_as, deadlines::decide, deadlines::propose, inbox_objects as inbox, live_row, refusal,
+};
 use jig_core_world::world::Setup;
 const OWNER_ROLE: u32 = 0;
-use jig_core_world::fixtures::deadlines::decide;
-use jig_core_world::fixtures::deadlines::propose;
-use jig_core_world::fixtures::inbox_objects as inbox;
-use jig_core_world::fixtures::live_row;
-use jig_core_world::fixtures::refusal;
-use jig_core_world::fixtures::{PARTY, PROJECT, ask_as};
 use jig_core_world::stories::offers::no_holder_fixture;
 use jig_core_world::stories::offers::world_with;
 use jig_core_world::world::World;
@@ -126,7 +123,6 @@ fn a_partys_batch_naming_an_unknown_charter_is_not_offered() {
 }
 
 const MEMBER_ROLE: u32 = 2;
-const CONNECTOR: u16 = 1;
 const PROCEDURE: u32 = 1;
 const CHARTER: u32 = 1;
 const OTHER_PARTY: u64 = 3;
