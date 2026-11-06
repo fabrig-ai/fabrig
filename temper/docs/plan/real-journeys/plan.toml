@@ -41,3 +41,44 @@ id = 1
 story = "the guard's pieces: a split stream read whole, the originals listed, each drawn page handed over, and a refused add that prints and writes nothing"
 parts = ["pieces", "originals", "drawn", "quiet"]
 walk = false
+
+[[part]]
+id = "redact"
+title = "the originals out of a recording, each in every place"
+mode = "direct"
+needs = ["pieces", "originals"]
+design = "temper/docs/design/client/journeys.md, 3.6"
+
+[[part]]
+id = "scan"
+title = "the last scan: originals and shapes, split tokens among them"
+mode = "direct"
+needs = ["pieces", "originals"]
+design = "temper/docs/design/client/journeys.md, 3.7"
+
+[[part]]
+id = "guard"
+title = "add redacts, proves, scans, then writes, and prints no original"
+mode = "direct"
+needs = ["quiet", "drawn", "redact", "scan"]
+design = "temper/docs/design/client/journeys.md, 5.1"
+
+[[part]]
+id = "walk"
+title = "a typed key through the shipped host, redacted, and the replay holds"
+mode = "direct"
+needs = ["redact", "scan", "drawn"]
+design = "temper/docs/design/client/journeys.md, 3.6"
+
+[[part]]
+id = "close"
+title = "the status says what stands"
+mode = "direct"
+needs = ["guard", "walk"]
+design = "temper/docs/design/client/journeys.md, 3.8"
+
+[[slice]]
+id = 2
+story = "a recording from a real box goes through add with its secrets out and its replay holding, or is refused with nothing printed or written"
+parts = ["redact", "scan", "guard", "walk", "close"]
+walk = false

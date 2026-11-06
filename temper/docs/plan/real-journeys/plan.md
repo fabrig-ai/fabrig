@@ -20,18 +20,23 @@ The draft's "a consistent replacement replays" needs more than a replace:
 
 ## Parts and tasks
 
-| Part | Task | Needs |
-|---|---|---|
-| pieces | `stream-fields` | |
-| originals | `originals` | |
-| drawn | `replay-drawn` | |
-| quiet | `add-writes-last` | |
+| Part | Task | Needs | Who it is for |
+|---|---|---|---|
+| pieces | `stream-fields` | | a stream read whole; one list of fields |
+| originals | `originals` | | what is taken out |
+| drawn | `replay-drawn` | | each drawn page, for the scan |
+| quiet | `add-writes-last` | | nothing at the output path; no line printed |
+| redact | `redact` | `stream-fields`, `originals` | every kind out of every place |
+| scan | `scan` | `stream-fields`, `originals` | shapes and originals; split tokens |
+| guard | `add-guard` | `add-writes-last`, `replay-drawn`, `redact`, `scan` | the program's whole path, and its refusals |
+| walk | `real-walk` | `redact`, `scan`, `replay-drawn` | the real host replays what was redacted |
+| close | `journeys-close` | `add-guard`, `real-walk` | the status |
 
-Later batches: `redact` and `scan` on the first two; `add-guard` on all of them; `real-walk`, the host's world, on `redact`, `scan` and `replay-drawn`; `journeys-close` last.
+`real-walk` is the meeting point: it runs the redaction against the real host and view, and goes out as soon as `redact`, `scan` and `replay-drawn` have merged.
 
 ## The critical path
 
-`stream-fields` or `originals`, then `scan` (the longest), then `add-guard`, then `journeys-close`.
+`stream-fields` or `originals`, then `scan` (the longest), then `add-guard`, then `journeys-close`: about 3 hours of implementer time.
 
 ## Overlaps
 
