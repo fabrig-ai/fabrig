@@ -2,10 +2,10 @@
 use skein_fake_machine::{Machine as Files, Opened};
 use skein_io::{
     file,
-    file_layer::{self, FileIo},
+    file_layer::{self, FileIo, step},
     kernel::{self, Complete, Fd, Op, Submit},
 };
-use skein_lib::{Duration, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_shell::Host;
 use skein_sim::{Answer, Call, Handle};
 use skein_world::{Cut, Inherited, Machine, Memory, Referee, StartupRoot, World};
@@ -19,6 +19,7 @@ fn limits() -> StoreLimits {
 struct Owner {
     store: Store,
     io: FileIo,
+    file_limits: file_layer::Limits,
     signal: Fd,
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
@@ -34,7 +35,9 @@ struct Owner {
 }
 fn make(inherited: &Inherited) -> Owner {
     let fd = inherited.roots[0].1;
-    let mut io = FileIo::with_whole_limit(2, 4096, 8, 4096, Duration::from_secs(30));
+    let file_limits =
+        file_layer::Limits { files: 2, read: 4096, entries: 8, whole: 4096, timeout: Duration::from_secs(30) };
+    let mut io = FileIo::with_limits(&file_limits);
     io.seed_randomness(19);
     let root = io.adopt_root(fd).unwrap();
     let mut store = Store::new(
@@ -50,6 +53,7 @@ fn make(inherited: &Inherited) -> Owner {
     Owner {
         store,
         io,
+        file_limits,
         signal: inherited.signal,
         completions: Queue::with_capacity(4),
         submissions: Queue::with_capacity(4),
@@ -66,6 +70,7 @@ fn make(inherited: &Inherited) -> Owner {
 }
 impl Owner {
     fn actions(&mut self, now: Time) {
+        let env = Env { now, wall: Wall::EPOCH, limits: self.file_limits };
         for _ in 0..3 {
             if !self.io.takes() || self.submissions.room() < 2 {
                 break;
@@ -82,7 +87,7 @@ impl Owner {
                             "older root requested mutation: {request:?}"
                         );
                     }
-                    file_layer::down_until(&mut self.io, deadline, request, &mut self.events, &mut self.submissions)
+                    step::down_until(&mut self.io, &env, deadline, request, &mut self.events, &mut self.submissions)
                 }
                 Action::Domain(local::Event::Loaded { state, .. }) => {
                     assert!(!self.expects_old, "an older root must never load");
@@ -120,17 +125,18 @@ impl Owner {
     }
 }
 impl Host for Owner {
-    fn iterate(&mut self, now: Time, _: Wall) {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        let env = Env { now, wall, limits: self.file_limits };
         while let Some(complete) = self.completions.pop() {
             if complete.op == SIGNAL {
                 assert!(complete.result.is_ok());
                 self.settled = true;
             } else {
-                file_layer::up(&mut self.io, complete, &mut self.events, &mut self.submissions);
+                step::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
             }
         }
         if self.io.is_due(now) {
-            file_layer::expire(&mut self.io, now, &mut self.submissions);
+            step::expire(&mut self.io, &env, &mut self.submissions);
         }
         for _ in 0..4 {
             self.actions(now);

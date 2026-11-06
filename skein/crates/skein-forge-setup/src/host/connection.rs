@@ -343,7 +343,7 @@ impl Connection {
                         Speech::Forgejo { request, decoder, .. } => {
                             *decoder = documents::decoder(request, &limits::documents(&env.limits));
                             match decoder {
-                                Some(decoder) => self.json_next = Some(documents::first(decoder)),
+                                Some(_) => self.json_next = Some(tokenizer::Request::Next),
                                 None => self.finish(Reply::Empty),
                             }
                         }

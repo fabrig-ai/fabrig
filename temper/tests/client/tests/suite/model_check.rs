@@ -1,7 +1,8 @@
 //! A usable account's trial through the joined client and engine
 //! (temper/docs/design/domain/trial.md, 6; temper/docs/design/domain/testing.md, 6.3).
 use jig_client_kit::harness::{App, Front, FrontFault};
-use jig_domain_host::{AgentActivity, LinkUp, Phase};
+use jig_domain_host::{AgentActivity, LinkUp};
+use jig_domain_link::Phase;
 use skein_lib::{Duration, Queue, Token};
 use skein_ui::{Act, Role, State};
 use temper_client_domain::{Address, ModelWay, Step, WayKind, forge::trials};
@@ -70,7 +71,6 @@ fn the_success_story() {
         Address::Welcome {
             step: Step::Model { way: Some(ModelWay { provider: h::PROVIDER, kind: WayKind::Program, source: None }) },
         },
-        false,
     );
     let mut view = drawn(&root);
     let button = Temper::tree(&view)
@@ -167,7 +167,6 @@ fn begin_check(front: &mut Joint, root: &mut Root, provider: u32) {
         Address::Welcome {
             step: Step::Model { way: Some(ModelWay { provider, kind: WayKind::Program, source: None }) },
         },
-        false,
     );
     let now = front.engine.env.now;
     front.fault(now, FrontFault::Slow { span: Duration::from_millis(1) });
@@ -336,7 +335,7 @@ fn a_restart_spends_no_second_turn() {
     assert!(root.person().forge().trials().is_empty(), "no trial fact survives");
     assert!(!has(&root, Role::Disclosure, b"Each step"));
     assert!(!shown(&root).contains("didn’t answer"));
-    h::reopen(&mut front, &mut root, Address::Welcome { step: Step::Ready }, false);
+    h::reopen(&mut front, &mut root, Address::Welcome { step: Step::Ready });
     h::elapse(&mut front, &mut root, Duration::from_millis(100));
     ready(&root, true);
     assert!(root.person().forge().trials().is_empty(), "a reload on the usable account asks nothing");
@@ -376,7 +375,6 @@ fn no_model_is_named() {
         Address::ConnectModel {
             way: Some(ModelWay { provider: h::PROVIDER + 1, kind: WayKind::Program, source: None }),
         },
-        false,
     );
     press(&mut front, &mut root, Role::Button, b"Use your Second subscription");
     login(&mut front, &mut root, true);
@@ -407,12 +405,12 @@ fn login(front: &mut Joint, root: &mut Root, usable: bool) {
     front.engine.send(temper_engine_domain_world::protocol::up(
         WORKER,
         LinkUp::Logins {
-            logins: Box::new([jig_domain_host::Login {
-                name: jig_domain_host::SourceName::new(b"claude-person").expect("fixture login"),
+            logins: Box::new([jig_domain_link::Login {
+                name: jig_domain_link::SourceName::new(b"claude-person").expect("fixture login"),
                 state: if usable {
-                    jig_domain_host::LoginState::Usable
+                    jig_domain_link::LoginState::Usable
                 } else {
-                    jig_domain_host::LoginState::NotSignedIn
+                    jig_domain_link::LoginState::NotSignedIn
                 },
             }]),
         },

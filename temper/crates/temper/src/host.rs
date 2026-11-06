@@ -4,6 +4,7 @@ use crate::directories::Directories;
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{Queue, Time, Wall};
 use std::io::{self, Write};
+use temper_service::long_pass::{LONG_PASS, LongPass, Part, Watch};
 use temper_service::{End, Service, Stop};
 
 pub struct Host {
@@ -14,6 +15,8 @@ pub struct Host {
     output_failed: bool,
     wait_check: bool,
     now: Time,
+    watch: Watch,
+    clock: skein_shell::Clock,
 }
 impl Host {
     #[must_use]
@@ -29,19 +32,26 @@ impl Host {
             // always check; release programs can opt in with the same flag.
             wait_check: cfg!(debug_assertions) || std::env::var_os("TEMPER_R8_WAIT_CHECK").is_some(),
             now: Time::ZERO,
+            watch: Watch::new(),
+            clock: skein_shell::Clock::new(),
         }
     }
 }
 impl skein_shell::Host for Host {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
-        temper_service::iterate(&mut self.service, now, wall);
+        self.watch.begin(now);
+        for stage in temper_service::STAGES {
+            temper_service::iterate_stage(&mut self.service, stage, now, wall);
+            self.watch.ended(Part::Service(stage), self.clock.now().now);
+        }
         for (forge, name, port) in self.service.unresolved() {
             let address = std::str::from_utf8(&name)
                 .ok()
                 .and_then(|name| std::net::ToSocketAddrs::to_socket_addrs(&(name, port)).ok()?.next());
             self.service.resolved(forge, address);
         }
+        self.watch.ended(Part::Names, self.clock.now().now);
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
         self.service.completions()
@@ -67,6 +77,9 @@ impl skein_shell::Host for Host {
     fn exit(&self) -> Option<Exit> {
         if !self.service.is_empty() {
             return None;
+        }
+        if let Some(long) = self.watch.held() {
+            eprint!("{}", long_pass_line(long));
         }
         let (lines, code) =
             ending(self.service.end(), self.output_failed, &self.directories, &self.store, self.service.unsettled());
@@ -109,6 +122,10 @@ impl skein_shell::Host for Host {
         }
         if self.wait_check {
             self.service.check_wait_boundary(self.now);
+        }
+        self.watch.ended(Part::Drain, self.clock.now().now);
+        if let Some(long) = self.watch.pass_ended() {
+            eprint!("{}", long_pass_line(long));
         }
     }
 }
@@ -285,6 +302,22 @@ fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> Strin
     line
 }
 
+fn long_pass_line(long: LongPass) -> String {
+    use std::fmt::Write as _;
+    let mut line = format!(
+        "temper serve: long pass: {} ms, {} {} ms of it, past the {} ms bound",
+        long.took.as_millis(),
+        long.part.name(),
+        long.part_took.as_millis(),
+        LONG_PASS.as_millis(),
+    );
+    if long.more != 0 {
+        write!(line, "; {} more since the last line", long.more).expect("format long pass count");
+    }
+    line.push('\n');
+    line
+}
+
 pub(crate) fn note_line(note: temper_service::Note) -> String {
     match note {
         temper_service::Note::RunFailed(diagnostic) => run_failure_line(
@@ -295,6 +328,9 @@ pub(crate) fn note_line(note: temper_service::Note) -> String {
             &diagnostic.detail,
         ),
         temper_service::Note::RunRefused(diagnostic) => run_refusal_line(diagnostic),
+        temper_service::Note::HelloRefused { channel, text } => {
+            format!("temper serve: hello refused channel={channel}: {}\n", String::from_utf8_lossy(&text))
+        }
         temper_service::Note::ReadRefused { task, attempt, tool, layer, reason, findings, error } => {
             format!(
                 "temper serve: read refused task={task} attempt={attempt} tool={} layer={layer} reason={reason} error={error:?} findings={findings:?}\n",
@@ -364,6 +400,7 @@ pub(crate) fn note_line(note: temper_service::Note) -> String {
                     String::from_utf8_lossy(&origin),
                     String::from_utf8_lossy(&client)
                 ),
+                Unserved::NoSource => "the temper sign-in source is not ready".into(),
                 Unserved::NoRoom => "no room for its meta within clients.bundle_bytes".into(),
             };
             format!("temper serve: forge {number}: no sign-in through temper: {why}\n")
@@ -683,6 +720,17 @@ fn listening_notes_print_each_listener_and_socket_address_exactly() {
             assert_eq!(note_line(Note::Listening { listener, addr }), format!("listening {name} {printed}\n"));
         }
     }
+}
+
+#[test]
+fn hello_refusal_notes_print_the_channel_and_words_exactly() {
+    assert_eq!(
+        note_line(temper_service::Note::HelloRefused {
+            channel: 7,
+            text: b"charter 3: needs 64 turns; the agent's profile.policy.max_turns allows 32".as_slice().into(),
+        }),
+        "temper serve: hello refused channel=7: charter 3: needs 64 turns; the agent's profile.policy.max_turns allows 32\n",
+    );
 }
 
 #[test]
@@ -1093,5 +1141,33 @@ fn refused_run_stderr_names_reason_and_bounds_start_words() {
     assert_eq!(
         note_line(refused_run_note(Refusal::Invalid(Invalid::Start { cause: StartCause::Other, why: why.into() }))),
         format!("{prefix}Invalid(Start(Other)): {}\n", "x".repeat(4096))
+    );
+}
+
+#[test]
+fn long_pass_line_names_the_pass_its_longest_part_and_the_bound() {
+    let long = LongPass {
+        took: skein_lib::Duration::from_millis(1250),
+        part: Part::Service(temper_service::Stage::Engine),
+        part_took: skein_lib::Duration::from_millis(1200),
+        more: 0,
+    };
+    assert_eq!(
+        long_pass_line(long),
+        "temper serve: long pass: 1250 ms, engine 1200 ms of it, past the 1000 ms bound\n"
+    );
+}
+
+#[test]
+fn long_pass_line_counts_the_other_long_passes() {
+    let long = LongPass {
+        took: skein_lib::Duration::from_millis(1250),
+        part: Part::Service(temper_service::Stage::Engine),
+        part_took: skein_lib::Duration::from_millis(1200),
+        more: 3,
+    };
+    assert_eq!(
+        long_pass_line(long),
+        "temper serve: long pass: 1250 ms, engine 1200 ms of it, past the 1000 ms bound; 3 more since the last line\n"
     );
 }

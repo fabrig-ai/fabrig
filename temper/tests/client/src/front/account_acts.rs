@@ -6,6 +6,7 @@ use crate::{
 };
 use jig_client_kit::harness::{App, ClientId, Duty, Front, FrontFault};
 use jig_domain_accounts as a;
+use jig_domain_link::{Form, Scheme, SourceName};
 use skein_lib::{Duration, Env, Queue, Wall};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{store::Store, walking};
@@ -125,9 +126,9 @@ pub fn restart_trial(front: &mut Joint, root: &mut Root) {
         .iter()
         .flat_map(|account| account.sources.iter())
         .filter(|source| source.kind == jig_client::contract::AccountKind::Program)
-        .map(|source| jig_domain_host::Login {
-            name: jig_domain_host::SourceName::new(source.name.as_deref().expect("program name")).expect("source name"),
-            state: jig_domain_host::LoginState::Usable,
+        .map(|source| jig_domain_link::Login {
+            name: jig_domain_link::SourceName::new(source.name.as_deref().expect("program name")).expect("source name"),
+            state: jig_domain_link::LoginState::Usable,
         })
         .collect();
     let config = front.trial_config.take().expect("trial fixture configuration");
@@ -187,7 +188,8 @@ pub fn elapse(front: &mut Joint, root: &mut Root, span: Duration) {
 
 /// Supply the configured worker's observation of the explicit check it received.
 pub fn program_checked(front: &mut Joint, root: &mut Root, usable: bool) {
-    use jig_domain_host::{LinkUp, Login, LoginState};
+    use jig_domain_host::LinkUp;
+    use jig_domain_link::{Login, LoginState};
     let pending =
         root.person().pages().connect_model().expect("model page").request.pending.as_ref().expect("check request");
     let jig_client::contract::Ask::AccountChange {
@@ -205,7 +207,7 @@ pub fn program_checked(front: &mut Joint, root: &mut Root, usable: bool) {
         .find(|s| s.number == source)
         .and_then(|s| s.name.as_deref())
         .expect("declared login name");
-    let name = jig_domain_host::SourceName::new(name).expect("valid declaration");
+    let name = SourceName::new(name).expect("valid declaration");
     let channel = fixtures::QUESTION_WORKER;
     front.engine.send(temper_engine_domain_world::protocol::up(
         channel,
@@ -513,6 +515,13 @@ fn fixture_root(
 pub fn event(front: &mut Joint, root: &mut Root, event: Event) {
     event_traced(front, root, event);
 }
+/// Carry one press without delivering any engine callbacks.
+pub fn press_turn(front: &mut Joint, root: &mut Root, event: Event) {
+    let env = Env { now: front.now, wall: Wall::EPOCH, limits: front.limits };
+    let mut out = Queue::uncapped();
+    Temper::step(root, &env, event, &mut out);
+    flush(front, root, &env, &mut out, &mut Vec::new());
+}
 /// Account requests in transport order, including sends chained from an answer.
 pub fn event_traced(front: &mut Joint, root: &mut Root, event: Event) -> Vec<jig_client::contract::Ask> {
     let env = Env { now: front.now, wall: Wall::EPOCH, limits: front.limits };
@@ -541,13 +550,20 @@ fn flush(
         {
             sent.push(*ask.clone());
         }
+        if let temper_client_domain::Request::Tab { tab } = request {
+            front.tabs.push(tab);
+            continue;
+        }
         if let temper_client_domain::Request::Leave { to, .. } = request {
             front.leaves.push(to);
             continue;
         }
         match Temper::duty(request) {
             Duty::Wire(request) => front.wire(CLIENT, env.now, env.wall, request),
-            Duty::Show { address, .. } => Temper::step(root, env, Temper::went(address), out),
+            Duty::Show { address, replace } => {
+                front.shows.push((address.clone(), replace));
+                Temper::step(root, env, Temper::went(address), out);
+            }
             Duty::Store(_) | Duty::SignIn { .. } | Duty::SignOut | Duty::Fact => {}
         }
     }
@@ -600,6 +616,44 @@ pub fn lost(front: &mut Joint, root: &mut Root) {
         .into(),
     );
 }
+/// Refuse the fake transport's sign-in answer before the client reads it.
+pub fn refused_answer(front: &mut Joint, root: &mut Root) {
+    let callbacks = front.poll(front.now, Wall::EPOCH);
+    let mut replaced = 0;
+    for (who, mut event) in callbacks {
+        assert_eq!(who, CLIENT);
+        if let Event::Root(temper_client_domain::Event::Client {
+            event: jig_client::Event::Up { up: jig_client::Up::Answer { answer, .. } },
+        }) = &mut event
+            && matches!(
+                answer,
+                Some(jig_client::Answered::Jig(jig_client::contract::Answer::Done(
+                    jig_client::contract::Outcome::Document(
+                        jig_client::contract::DocumentOutcome::AccountSignInStarted { .. }
+                    )
+                )))
+            )
+        {
+            *answer = Some(jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
+                refusal: jig_client::contract::Refusal::NotOffered,
+                at: None,
+            }));
+            replaced += 1;
+        }
+        press_turn(front, root, event);
+    }
+    assert_eq!(replaced, 1, "one final sign-in answer refused");
+    settle(front, root);
+}
+/// A durable answer lost until its retention ends becomes unknown.
+pub fn expire_answer(front: &mut Joint, root: &mut Root) {
+    let retention = temper_client_domain::pages::accounts::current_me(root.person().client()).expect("me").retention;
+    front.now = front.now.saturating_add(retention);
+    let env = Env { now: front.now, wall: Wall::EPOCH, limits: front.limits };
+    let mut out = Queue::uncapped();
+    Temper::fire(root, &env, &mut out);
+    flush(front, root, &env, &mut out, &mut Vec::new());
+}
 /// The fake secrets store acknowledges the key under its source after moving the carrier.
 pub fn kept(front: &mut Joint) -> u32 {
     let (source, carried) = front
@@ -622,7 +676,7 @@ pub fn kept(front: &mut Joint) -> u32 {
         account: source,
         generation: 1,
         valid: Duration::from_secs(3600),
-        form: a::Form::Credential(a::Scheme::Bearer),
+        form: Form::Credential(Scheme::Bearer),
     })));
     front.engine.settle();
     source
@@ -719,16 +773,12 @@ pub(super) fn playground_answer(running: bool) -> temper_client_protocol_wire::v
     .expect("playground fixture")
 }
 
-/// Fresh page on the same engine and person, with an explicit departure policy.
-pub fn reopen(front: &mut Joint, root: &mut Root, address: temper_client_domain::Address, departing: bool) {
+/// Fresh page on the same engine and person.
+pub fn reopen(front: &mut Joint, root: &mut Root, address: temper_client_domain::Address) {
     let seed = fixtures::SEED.wrapping_add(1);
     // Close the previous client's watches before replacing its root.
     front.detach(CLIENT);
     front.hello(CLIENT);
-    *root = Root::Person(Box::new(if departing {
-        temper_client_domain::unlinked_departing(&front.limits, seed)
-    } else {
-        temper_client_domain::unlinked(&front.limits, seed)
-    }));
+    *root = Root::Person(Box::new(temper_client_domain::unlinked(&front.limits, seed)));
     event(front, root, Temper::start(address, Vec::new(), 0));
 }

@@ -92,7 +92,7 @@ impl Bindings {
                 }
                 (Meaning::Key, Act::Input { value }) => return Some(Event::AccountKey { value: Secret::new(value) }),
                 (Meaning::Action(action), Act::Press) => action.clone(),
-                (_, Act::Submit | Act::Toggle | Act::Drawing { .. })
+                (_, Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. })
                 | (
                     Meaning::Action(_)
                     | Meaning::Try { .. }

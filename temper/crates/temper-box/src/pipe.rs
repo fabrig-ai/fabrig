@@ -153,3 +153,18 @@ pub fn not_started(name: &[u8]) -> Box<[u8]> {
 pub fn not_written() -> &'static [u8] {
     b"record not written"
 }
+
+/// Source status precedes started, including when the group was already standing.
+#[must_use]
+pub fn source(forge: u16, outcome: &temper_forge_setup::sign_in::Source) -> Box<[u8]> {
+    use temper_forge_setup::sign_in::Source;
+    let prefix = joined(&[b"source ", Decimal::of(u64::from(forge)).as_bytes(), b" "]);
+    match outcome {
+        Source::Added => joined(&[&prefix, b"added\n"]),
+        Source::Failed(why) => {
+            // Every configuration admits 64-byte lines; the box log retains the whole reason.
+            let room = 64_usize.saturating_sub(prefix.len()).saturating_sub(b"failed ".len()).saturating_sub(1);
+            joined(&[&prefix, b"failed ", why.get(..why.len().min(room)).expect("bounded reason"), b"\n"])
+        }
+    }
+}

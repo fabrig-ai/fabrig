@@ -38,8 +38,8 @@ pub(crate) fn pane(b: &mut Builder, w: &Words) {
                 b.style(look::DOC_FLOW);
                 skein_ui::markdown::read(section.bytes, 1, b);
                 b.close();
-            } else if section.heading.starts_with(b"5. ") || section.heading.starts_with(b"6. ") {
-                closing(b, section.bytes, section.heading.starts_with(b"6. "));
+            } else if section.heading.starts_with(b"5. ") {
+                closing(b, section.bytes);
             } else {
                 skein_ui::markdown::read(section.bytes, 1, b);
             }
@@ -54,19 +54,13 @@ pub(crate) fn pane(b: &mut Builder, w: &Words) {
     clippy::disallowed_methods,
     reason = "the shared document reader splits the compiled UTF-8 page into byte sections"
 )]
-pub(crate) fn closing(b: &mut Builder, bytes: &[u8], numbers: bool) {
+pub(crate) fn closing(b: &mut Builder, bytes: &[u8]) {
     let text = core::str::from_utf8(bytes).expect("stock page is UTF-8").trim_end();
     if let Some((body, note)) = text.rsplit_once("\n\n")
         && !note.is_empty()
         && !note.starts_with(['#', '-', '|', '`'])
     {
-        if numbers && !figures(b, body) {
-            skein_ui::markdown::read(bytes, 1, b);
-            return;
-        }
-        if !numbers {
-            skein_ui::markdown::read(body.as_bytes(), 1, b);
-        }
+        skein_ui::markdown::read(body.as_bytes(), 1, b);
         b.open(Role::Paragraph);
         b.style(look::DOC_MUTED);
         b.text(Run::Plain, note.as_bytes());
@@ -74,35 +68,4 @@ pub(crate) fn closing(b: &mut Builder, bytes: &[u8], numbers: bool) {
     } else {
         skein_ui::markdown::read(bytes, 1, b);
     }
-}
-
-fn figures(b: &mut Builder, text: &str) -> bool {
-    let Some((heading, bullets)) = text.split_once("\n\n") else { return false };
-    if bullets.is_empty() {
-        return false;
-    }
-    for line in bullets.lines() {
-        let Some(line) = line.strip_prefix("- ") else { return false };
-        let Some((term, value)) = line.split_once(": ") else { return false };
-        if term.is_empty() || value.is_empty() {
-            return false;
-        }
-    }
-    skein_ui::markdown::read(heading.as_bytes(), 1, b);
-    b.open(Role::Slot);
-    b.style(look::DOC_FIGURES);
-    for line in bullets.lines() {
-        let (term, value) =
-            line.strip_prefix("- ").expect("validated bullet").split_once(": ").expect("validated figure");
-        b.open(Role::Slot);
-        b.open(Role::Term);
-        b.text(Run::Plain, term.as_bytes());
-        b.close();
-        b.open(Role::Description);
-        b.text(Run::Plain, value.as_bytes());
-        b.close();
-        b.close();
-    }
-    b.close();
-    true
 }

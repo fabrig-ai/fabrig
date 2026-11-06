@@ -1,5 +1,6 @@
 use alloc::boxed::Box;
-use jig_domain_host::{self as jig, sources};
+use jig_domain_host::sources;
+use jig_domain_link::{LoginState, SignOutResult, SourceFailure, SourceName};
 use skein_io::kernel::Fd;
 use skein_lib::{Queue, Time, Token};
 
@@ -52,21 +53,21 @@ fn a_configured_component_formats_without_the_environment() {
 fn a_stored_name_smith_refuses_answers_unconfigured() {
     let mut component = crate::sources::Component::new(64);
     component.configure(resources()).expect("idle component accepts resources");
-    let name = jig::SourceName::from_stored(b"Upper-Case").expect("stored name fits");
+    let name = SourceName::from_stored(b"Upper-Case").expect("stored name fits");
     let owner = Token::new(1);
     let io_owner = Token::new(2);
     for (operation, expected) in [
         (
             sources::Operation::Check,
-            sources::Answer::Checked(jig::LoginState::Failed {
-                reason: jig::SourceFailure::Unconfigured,
+            sources::Answer::Checked(LoginState::Failed {
+                reason: SourceFailure::Unconfigured,
                 detail: Box::from(b"invalid source name".as_slice()),
             }),
         ),
         (
             sources::Operation::SignOut,
-            sources::Answer::SignedOut(jig::SignOutResult::Failed {
-                reason: jig::SourceFailure::Unconfigured,
+            sources::Answer::SignedOut(SignOutResult::Failed {
+                reason: SourceFailure::Unconfigured,
                 detail: Box::from(b"invalid source name".as_slice()),
             }),
         ),
@@ -92,7 +93,7 @@ fn an_unavailable_programs_parent_answers_without_io() {
         .start(
             Token::new(1),
             Token::new(2),
-            jig::SourceName::new(b"alice").expect("source name"),
+            SourceName::new(b"alice").expect("source name"),
             sources::Operation::Check,
             Fd::new(9),
             Time::ZERO,
@@ -101,10 +102,10 @@ fn an_unavailable_programs_parent_answers_without_io() {
         )
         .expect("unconfigured answer");
     assert_eq!(owner, Token::new(1));
-    let sources::Answer::Checked(jig::LoginState::Failed { reason, detail }) = answer else {
+    let sources::Answer::Checked(LoginState::Failed { reason, detail }) = answer else {
         panic!("missing parent is unconfigured");
     };
-    assert_eq!(reason, jig::SourceFailure::Unconfigured);
+    assert_eq!(reason, SourceFailure::Unconfigured);
     assert_eq!(detail.as_ref(), b"programs");
     assert!(below.is_empty() && files.is_empty(), "no child and no file creation");
     assert!(component.settled());
@@ -125,7 +126,7 @@ fn an_inspection_deadline_cancels_in_the_workers_namespace() {
             .start(
                 Token::new(1),
                 Token::new(2),
-                jig::SourceName::new(b"alice").expect("source name"),
+                SourceName::new(b"alice").expect("source name"),
                 sources::Operation::Check,
                 Fd::new(9),
                 deadline,
@@ -145,8 +146,8 @@ fn an_inspection_deadline_cancels_in_the_workers_namespace() {
     stage.complete(Complete { op: opening.op, kind: opening.kind, result: Err(Error::Cancelled) }).expect("owned open");
     let (owner, answer) = stage.step(deadline, &mut component, &mut below, &mut submitted).expect("settled deadline");
     assert_eq!(owner, Token::new(1));
-    let sources::Answer::Checked(jig::LoginState::Failed { reason, .. }) = answer else { panic!("deadline answer") };
-    assert_eq!(reason, jig::SourceFailure::Deadline);
+    let sources::Answer::Checked(LoginState::Failed { reason, .. }) = answer else { panic!("deadline answer") };
+    assert_eq!(reason, SourceFailure::Deadline);
     assert!(below.is_empty() && submitted.is_empty());
     assert!(component.settled() && stage.settled());
 }

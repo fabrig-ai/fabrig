@@ -96,7 +96,7 @@ fn spawn_and_exit(
             match deadline.expired() {
                 Expired::Starved(starved) => {
                     deadlines::end_io(kernel, state, limits, &mut submissions, &mut completions, &mut events, &owned);
-                    skein_shell::close_keeper_fd(root);
+                    skein_shell::keeper::close_keeper_fd(root);
                     drop(client);
                     starved.pass();
                 }
@@ -123,7 +123,7 @@ fn given_listener(backend: Backend) {
     }
     let _client = TcpStream::connect(address).expect("parent copy accepts after both children exit");
     support::claim_and_accept(&mut kernel, &mut state, held, address);
-    skein_shell::close_keeper_fd(root);
+    skein_shell::keeper::close_keeper_fd(root);
 }
 
 #[test]
@@ -175,17 +175,20 @@ fn cleanup_aborts_a_child_discovered_while_draining() {
                     _ => None,
                 })
                 .expect("the synchronous spawn completed");
-            skein_shell::open_child_pidfd(skein_shell::child_id(pidfd).expect("spawn PID"), std::process::id())
-                .expect("retain the child's identity for its reap check")
+            skein_shell::keeper::open_child_pidfd(
+                skein_shell::keeper::child_id(pidfd).expect("spawn PID"),
+                std::process::id(),
+            )
+            .expect("retain the child's identity for its reap check")
         };
         deadlines::end_io(&mut kernel, &mut state, limits, &mut submissions, &mut completions, &mut events, &[]);
-        skein_shell::close_keeper_fd(root);
+        skein_shell::keeper::close_keeper_fd(root);
         assert!(state.is_empty(), "cleanup aborts the child and its pipe");
         assert_eq!(kernel.in_flight(), 0, "cleanup drains every kernel record");
         #[cfg(target_os = "linux")]
         {
-            let reaped = skein_shell::poll_child(keeper, false);
-            skein_shell::close_keeper_fd(keeper);
+            let reaped = skein_shell::keeper::poll_child(keeper, false);
+            skein_shell::keeper::close_keeper_fd(keeper);
             assert_eq!(reaped, Err(skein_io::kernel::Error::Other(libc::ECHILD)), "cleanup reaps the child");
         }
     }

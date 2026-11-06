@@ -11,6 +11,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::Core;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Membership, Problem};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Id, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
@@ -98,7 +99,6 @@ pub struct Domain {
     pub(crate) playground_provider: Option<u32>,
     pub(crate) playground_policy: Option<u32>,
     pub(crate) next_application_owner: u64,
-    pub(crate) returns: Map<Token, (Time, Wall)>,
     pub(crate) try_answers: Map<Token, (crate::TryAnswer, Time, Wall)>,
     pub(crate) adoption_restore: Map<Token, (Token, Option<forge::Repository>)>,
     pub(crate) making_replies: Map<Token, forge::MakingKey>,
@@ -284,7 +284,7 @@ impl Domain {
     /// # Errors
     /// A configured worker count or name exceeds its priced membership bound.
     #[expect(clippy::too_many_lines, reason = "the root allocates every child and bounded handoff table together")]
-    pub fn new(mut config: Config, limits: &Limits) -> Result<Domain, fleet::WorkerProblem> {
+    pub fn new(mut config: Config, limits: &Limits) -> Result<Domain, Problem> {
         assert!(valid(limits), "root limits are valid");
         assert!(
             config.core.settings.deployment_provider != 0,
@@ -487,7 +487,6 @@ impl Domain {
             playground_provider,
             playground_policy,
             next_application_owner: 1,
-            returns: Map::with_capacity(limits.people.requests),
             try_answers: Map::with_capacity(limits.people.requests),
             trials: temper_engine_domain_trials::Trials::new(&crate::limits::trial_limits(limits)),
             adoption_restore: Map::with_capacity(limits.forge.adoptions),
@@ -847,7 +846,6 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::MakingCopied { .. }
             | Request::SetUp { .. }
             | Request::Bound { .. }
-            | Request::Return { .. }
             | Request::Forge { .. }
             | Request::Store(
                 crate::StoreRequest::Switch | crate::StoreRequest::Load { .. } | crate::StoreRequest::Read { .. },
@@ -1191,7 +1189,7 @@ fn released_into(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refused {
     /// Configured worker membership exceeds its priced count or name bound.
-    Workers(fleet::WorkerProblem),
+    Workers(Problem),
     /// The charter at this index: its run policy's bytes, `None` past `u64`,
     /// beyond `journal.run_bytes`.
     Run { charter: usize, bytes: Option<u64> },
@@ -1246,11 +1244,9 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         .saturating_add(config.landings.len())
         .saturating_add(7);
     let mut refused = List::with_capacity(room);
-    if let Err(problem) = fleet::Membership::check(
-        &config.core.worker_names,
-        limits.fleet.configured_workers,
-        limits.fleet.worker_name_bytes,
-    ) {
+    if let Err(problem) =
+        Membership::check(&config.core.worker_names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes)
+    {
         refused.push(Refused::Workers(problem)).expect("counted refusals");
     }
     for (charter, configured) in config.core.defaults.charters.iter().enumerate() {

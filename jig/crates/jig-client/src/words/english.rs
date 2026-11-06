@@ -145,6 +145,7 @@ impl Word {
             Self::Waiting(WaitingWord::News) => (46, b"Waiting for news", &[]),
             Self::Waiting(WaitingWord::Nothing) => (47, b"Nothing awaited", &[]),
             Self::Waiting(WaitingWord::Held) => (127, b"held", &[]),
+            Self::Waiting(WaitingWord::Account) => (128, b"an account", &[]),
             Self::Status(StatusWord::HostRefused) => (96, b"Cannot start yet", &[]),
             Self::Status(StatusWord::WaitingForAccount) => (124, b"Waiting for an account", &[]),
             Self::Status(StatusWord::WaitingForCredential) => (125, b"Waiting for a credential", &[]),

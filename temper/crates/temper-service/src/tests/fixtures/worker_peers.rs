@@ -2,6 +2,7 @@
 use super::super::fixtures;
 use crate::worker_settings;
 use jig_domain_host as hub;
+use jig_domain_link::Grant;
 use jig_protocol_engine_workers as engine_link;
 use jig_protocol_worker_link as link;
 use jig_protocol_worker_wire::Part;
@@ -295,21 +296,8 @@ impl AgentPeer {
                 deadline: Time::from_nanos(u64::MAX),
             })));
         }
-        let mut spawned = None;
-        for _ in 0..worker.io().len() {
-            let request = worker.io().pop().expect("queued IO");
-            if let io::Request::Spawn { owner, .. } = request {
-                spawned = Some(owner);
-                break;
-            }
-            worker.io().push(request);
-        }
-        let owner = spawned.expect("process spawn IO");
-        worker.up(
-            fixtures::NOW,
-            io::Event::Spawned { owner, child: AGENT_CHILD, pipes: Box::new([AGENT_INPUT, AGENT_OUTPUT, AGENT_ERROR]) },
-        );
-        peer.settle(worker);
+        let owner = agent_spawn(worker);
+        peer.attach(worker, owner);
         let opened = peer.events.pop();
         let Some(smith_protocol_channel::Heard::Opened { .. }) = opened else {
             panic!("agent opening: {opened:?}");
@@ -336,6 +324,50 @@ impl AgentPeer {
         peer.settle(worker);
         peer
     }
+    /// Receive a real assignment's Start without admitting the run.
+    pub(crate) fn pending(
+        worker: &mut crate::Worker,
+        agent: &crate::settings::Agent,
+        assignment: link::Request,
+    ) -> (Self, Box<smith_protocol_channel::DecodedStart>) {
+        let client = assigned_agent_with(worker, agent, assignment);
+        worker.iterate(fixtures::NOW, Wall::EPOCH);
+        let owner = agent_spawn(worker);
+        let mut peer = Self::new(agent, client);
+        peer.attach(worker, owner);
+        let mut notices = Queue::uncapped();
+        while let Some(event) = peer.events.pop() {
+            if let smith_protocol_channel::Heard::Start { start } = event {
+                return (peer, start);
+            }
+            notices.push(event);
+        }
+        panic!("assigned agent receives Start: {notices:?}");
+    }
+
+    /// End the fake channel, then return its process exit and reap terminals.
+    pub(crate) fn end_process(&mut self, worker: &mut crate::Worker, detail: &[u8]) {
+        self.finished = true;
+        self.settle(worker);
+        for event in [
+            smith_host_domain::process::Event::Exited {
+                owner: self.owner,
+                exit: Some(smith_host_domain::Exit::Code(1)),
+            },
+            smith_host_domain::process::Event::Reaped { owner: self.owner, detail: detail.into() },
+        ] {
+            worker.events.push(root::Event::Process(Box::new(event)));
+        }
+    }
+
+    fn attach(&mut self, worker: &mut crate::Worker, owner: Token) {
+        worker.up(
+            fixtures::NOW,
+            io::Event::Spawned { owner, child: AGENT_CHILD, pipes: Box::new([AGENT_INPUT, AGENT_OUTPUT, AGENT_ERROR]) },
+        );
+        self.settle(worker);
+    }
+
     pub(crate) fn send(worker: &mut crate::Worker, message: smith_host_domain::Down) {
         worker.route(root::Request::Process(Box::new(smith_host_domain::process::Request::Send {
             owner: AGENT_OWNER,
@@ -516,13 +548,17 @@ pub(crate) fn cancellation_turn(agent: &crate::settings::Agent) -> Box<[u8]> {
     turn_body(agent, 1)
 }
 pub(crate) fn turn_body(agent: &crate::settings::Agent, number: u32) -> Box<[u8]> {
+    text_turn(agent, number, b"last text")
+}
+
+/// Encode a concrete saved assistant turn, with the supplied text.
+pub(crate) fn text_turn(agent: &crate::settings::Agent, number: u32, text: &[u8]) -> Box<[u8]> {
     use smith_transcript::v6 as transcript;
     let limits = &agent.limits.transcript;
     let mut blocks = List::with_capacity(1);
     blocks
         .push(transcript::Block::Text(
-            transcript::Text::new(limits, transcript::TextParts { text: b"last text".as_slice().into(), replay: None })
-                .unwrap(),
+            transcript::Text::new(limits, transcript::TextParts { text: text.into(), replay: None }).unwrap(),
         ))
         .unwrap();
     let mut messages = List::with_capacity(1);
@@ -536,25 +572,7 @@ pub(crate) fn turn_body(agent: &crate::settings::Agent, number: u32) -> Box<[u8]
         limits,
         transcript::TurnParts {
             kind: transcript::TurnKind::Ordinary,
-            opening: if number == 1 {
-                Some(
-                    transcript::Opening::new(
-                        limits,
-                        transcript::OpeningParts {
-                            affinity: transcript::Affinity::new(
-                                limits,
-                                transcript::AffinityParts { key: [0; 16], thread: 0 },
-                            )
-                            .unwrap(),
-                            account: None,
-                            backend: transcript::Backend::Direct,
-                        },
-                    )
-                    .unwrap(),
-                )
-            } else {
-                None
-            },
+            opening: turn_opening(limits, number),
             endpoint: b"fake".as_slice().into(),
             model: b"small".as_slice().into(),
             effort: None,
@@ -582,6 +600,35 @@ pub(crate) fn turn_body(agent: &crate::settings::Agent, number: u32) -> Box<[u8]
     writer.finish()
 }
 
+fn agent_spawn(worker: &mut crate::Worker) -> Token {
+    for _ in 0..worker.io().len() {
+        let request = worker.io().pop().expect("queued IO");
+        if let io::Request::Spawn { owner, .. } = request {
+            return owner;
+        }
+        worker.io().push(request);
+    }
+    panic!("assigned process spawn");
+}
+
+fn turn_opening(limits: &smith_transcript::v6::Limits, number: u32) -> Option<smith_transcript::v6::Opening> {
+    use smith_transcript::v6 as t;
+    if number != 1 {
+        return None;
+    }
+    Some(
+        t::Opening::new(
+            limits,
+            t::OpeningParts {
+                affinity: t::Affinity::new(limits, t::AffinityParts { key: [0; 16], thread: 0 }).unwrap(),
+                account: None,
+                backend: t::Backend::Direct,
+            },
+        )
+        .unwrap(),
+    )
+}
+
 // Each peer leaves the other peer's IO queued. This lets the same concrete
 // byte drivers share one Worker without granting the other's output credit.
 fn stream_request(request: &io::Request, streams: &[Token]) -> bool {
@@ -597,11 +644,16 @@ fn stream_request(request: &io::Request, streams: &[Token]) -> bool {
 // Only fixture setup drives the root directly: capture smith's opaque process
 // owner as Spawn crosses, then hand every request to the real service adapter.
 fn assigned_agent(worker: &mut crate::Worker, agent: &crate::settings::Agent) -> Token {
-    const OUTPUTS: u32 = 256; // This chat start has fewer than a dozen requests.
     let link::Request::Down { mut down, .. } = fixtures::chat_assignment() else { panic!("chat assignment") };
     if let hub::LinkDown::Assign { assignment } = &mut down {
         assignment.assignment.live = hub::LiveAsk { text: true, reasoning: false, input: false };
     }
+    assigned_agent_with(worker, agent, link::Request::Down { down, parts: Box::new([]) })
+}
+
+fn assigned_agent_with(worker: &mut crate::Worker, agent: &crate::settings::Agent, assignment: link::Request) -> Token {
+    const OUTPUTS: u32 = 256; // A chat start's routing requests.
+    let link::Request::Down { down, .. } = assignment else { panic!("assignment") };
     let mut out = Queue::with_capacity(OUTPUTS);
     root::step(&mut worker.root, &worker.env, root::Event::Link(down), &mut out);
     let mut spawned = None;
@@ -648,4 +700,469 @@ pub(crate) fn socket_stand_with_limits(
         }
     }
     panic!("socket worker starts");
+}
+
+use jig_domain_core::{self as core, settings};
+use jig_domain_people as people;
+use jig_domain_tasks as tasks;
+use temper_engine_domain as engine;
+use temper_engine_domain_world::{direct::Driver, host_tool::host_tool, protocol, store::Store};
+
+/// QA's approximate saved byte count, in eight turns below the 65,536-byte turn bound.
+pub(crate) const CONFIGURING_HISTORY_BYTES: usize = 470_054;
+const HISTORY_TURNS: u32 = 8;
+const SAVED_TURNS: u32 = 16; // Eight saved turns and subsequent scripted replies.
+const HISTORY_TEXT_BYTES: usize = 60_000;
+/// Stand-in question for the walk's unavailable description wording.
+pub(crate) const DESCRIPTION: &[u8] = b"Describe how our work runs after accepting the proposal.";
+const CHANNEL: Token = Token::new(7);
+
+/// A stock configuring chat on the real engine and ordered fake store.
+pub(crate) struct ConfiguringChat {
+    pub(crate) driver: Driver,
+}
+
+impl ConfiguringChat {
+    /// Start stock settings, a signed-in owner, an account and a worker.
+    pub(crate) fn new() -> Self {
+        let setup = fixtures::engine();
+        let mut limits = crate::limits::engine_candidate(&setup.jig.limits, &setup.limits);
+        let mut core = jig_protocol_config::core(&setup.jig, [31; 16], 91);
+        core.kinds = crate::stock::kinds(&limits, 1);
+        core.workers_in_process = false;
+        core.settings.resume_bytes = 1_048_576;
+        core.settings.tail_bytes = 1024;
+        core.hub_turns = HISTORY_TURNS;
+        for owner in &mut core.owners {
+            owner.identity = people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() };
+        }
+        let period_budget = core.defaults.rules.period_spend;
+        limits.people.amendment_bytes = 2048;
+        limits.tasks.authority_bytes = 256;
+        limits.tasks.authority_grants = 16;
+        limits.tasks.authority_segments = 8;
+        limits.journal.transcript_bytes = 1_048_576;
+        limits.loads.transcript_bytes = 1_048_576;
+        limits.loads.bytes = 2_097_152;
+        limits.loads.reply_bytes = 2_097_152;
+        limits.loads.read_bytes = 2_097_152;
+        let config = engine::Config {
+            host_part: None,
+            kinds_stock: setup.kinds_stock,
+            period_span: crate::stock::PERIOD_SPAN,
+            core,
+            landings: setup.landings,
+            forge: skein_forge_client::Config { namespace: Box::new([31; 16]), writers: Box::new([]) },
+            identities: Box::new([]),
+            machine: None,
+            forges: Box::new([]),
+            under_box: false,
+            playground: None,
+        };
+        let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
+        driver.period_sent = true;
+        driver.settle();
+        driver.sign_in();
+        driver.settle();
+        let mut world = Self { driver };
+        world.account();
+        world.driver.send(engine::Event::Party(engine::PartyInput::Period {
+            project: 1,
+            period: 1,
+            budget: period_budget,
+            next: None,
+        }));
+        world.driver.settle();
+        world
+    }
+
+    fn account(&mut self) {
+        self.driver.send(engine::Event::Party(engine::PartyInput::Key {
+            reply_to: skein_lib::ReplyTo::new(Token::new(10)),
+            sign_in: self.driver.session(),
+            key: [10; 16],
+            ask: Box::new(people::Ask::AccountChange {
+                holder: people::AccountHolder::Deployment,
+                change: people::AccountChange::AddKey { provider: 1, join: None, digest: [10; 32] },
+            }),
+            carried: core::Carried { number: 1_u64 << 63, digest: [10; 32] },
+        }));
+        self.driver.settle();
+        let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) =
+            protocol::hello(CHANNEL, Box::new([]))
+        else {
+            panic!("hello")
+        };
+        let mut hello = hello;
+        hello.bounds = fixtures::worker_agent().bounds;
+        hello.bounds.unacknowledged = HISTORY_TURNS;
+        self.driver.send(engine::Event::Worker(engine::WorkerInput::Link {
+            channel: CHANNEL,
+            link: engine::Link::Hello { worker: 0, hello },
+        }));
+        self.driver.settle();
+    }
+
+    /// Submit a keyed owner's request and settle its durable deliveries.
+    pub(crate) fn ask(&mut self, key: u8, ask: people::Ask) {
+        self.driver.send(engine::Event::Party(engine::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: skein_lib::ReplyTo::new(Token::new(u64::from(key))),
+            sign_in: self.driver.session(),
+            key: [key; 16],
+            ask,
+        }));
+        self.driver.settle();
+    }
+
+    /// Create a standing configuring chat with stock authority.
+    pub(crate) fn chat(&mut self, key: u8) -> engine::Assignment {
+        let mut ask = self.driver.chat_ask(1, DESCRIPTION);
+        let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat") };
+        batch[0].executor = people::TaskExecutor::Agent { charter: 3 };
+        batch[0].contract = people::Contract::Report { words: 32 };
+        batch[0].budget = people::Budget::AsAllowed { cap: Some(128) };
+        batch[0].label = 3;
+        batch[0].flags.ended_by = people::EndedBy::Requester;
+        self.ask(key, ask);
+        self.driver.last_assignment()
+    }
+
+    /// Script document reads and a whole settings proposal, then accept with running work staying.
+    #[expect(
+        clippy::disallowed_methods,
+        clippy::disallowed_macros,
+        reason = "the scripted model formats whole JSON settings and reads its durable proposal"
+    )]
+    pub(crate) fn accept(&mut self, run: &engine::Assignment) {
+        let (_, error) = host_tool(&mut self.driver, run, 1, b"settings", b"{}");
+        assert!(!error);
+        let mut value = self.read_chat_charter(run);
+        value["instructions"] = serde_json::json!("Push early and report the result.");
+        let input = serde_json::json!({"against":1_u32,"reason":"Explain running work",
+            "items":[{"setting":{"kind":"charter","number":1_u32},"set":value}]});
+        let (body, error) = host_tool(&mut self.driver, run, 100, b"propose_settings", input.to_string().as_bytes());
+        assert!(!error, "proposal: {:?}", ::core::str::from_utf8(&body));
+        let proposal = self
+            .driver
+            .store
+            .rows
+            .values()
+            .find_map(|row| {
+                if let engine::Record::Core(core::Record::Core(core::CoreRecord::Settings(
+                    settings::Record::Proposal { proposal, .. },
+                ))) = row
+                {
+                    Some(u64::from(*proposal))
+                } else {
+                    None
+                }
+            })
+            .expect("scripted proposal retained");
+        self.ask(
+            21,
+            people::Ask::DecideProposal {
+                project: people::DEPLOYMENT,
+                proposer: people::Proposer::Task(run.task),
+                proposal,
+                decision: people::ProposalDecision::Accept,
+                running: Some(people::Running::Stays),
+            },
+        );
+    }
+
+    #[expect(
+        clippy::disallowed_types,
+        clippy::disallowed_methods,
+        reason = "the scripted model joins paginated UTF-8 settings into a JSON fixture"
+    )]
+    fn read_chat_charter(&mut self, run: &engine::Assignment) -> serde_json::Value {
+        let mut from = 0;
+        let mut text = Vec::new();
+        for completion in 2..100 {
+            let input = serde_json::json!({"setting":{"kind":"charter","number":1_u32},"from":from});
+            let (body, error) = host_tool(&mut self.driver, run, completion, b"settings", input.to_string().as_bytes());
+            assert!(!error, "settings page");
+            let page = ::core::str::from_utf8(&body).unwrap();
+            if let Some((body, next)) = page.rsplit_once("next: ") {
+                let next: usize = next.trim().parse().unwrap();
+                text.extend_from_slice(body.as_bytes().get(..next.checked_sub(from).unwrap()).unwrap());
+                from = next;
+            } else {
+                text.extend_from_slice(page.strip_suffix("end\n").unwrap().as_bytes());
+                let text = ::core::str::from_utf8(&text).unwrap();
+                let (_, object) = text.split_once('\n').unwrap();
+                return serde_json::from_str(object.trim()).unwrap();
+            }
+        }
+        panic!("the scripted charter read reaches its end");
+    }
+
+    /// Commit valid history at the walk's size, park, then send a stand-in description question.
+    pub(crate) fn resume(&mut self, run: &engine::Assignment) -> engine::Assignment {
+        let history = configuring_history();
+        let read = match self.driver.task(run.task).unwrap().inbox.last() {
+            Some(message) => Some(message.number),
+            None => None,
+        };
+        for (index, body) in history.iter().enumerate() {
+            let number = u32::try_from(index).unwrap().checked_add(1).unwrap();
+            self.driver.send(protocol::turn(CHANNEL, run.task, run.attempt, number, 0, read, body));
+            self.driver.settle();
+        }
+        self.driver.answer(CHANNEL, run.task, run.attempt, 0, tasks::End::Parked, engine::Parts::none());
+        self.driver.settle();
+        self.ask(22, people::Ask::Say { project: 1, task: run.task, words: DESCRIPTION.into() });
+        self.driver.last_assignment()
+    }
+
+    /// Feed the concrete worker's terminal through the engine's startup translation.
+    pub(crate) fn answer(&mut self, answer: ConfiguringAnswer) {
+        if let Some(turn) = answer.turn {
+            self.driver.send(protocol::up(CHANNEL, turn, engine::Parts::none()));
+            self.driver.settle();
+        }
+        self.driver.send(protocol::up(CHANNEL, answer.terminal, engine::Parts::none()));
+        self.driver.settle();
+    }
+
+    /// Advance only to the task's retry deadline, preserving the configured allowance.
+    pub(crate) fn retry(&mut self) -> engine::Assignment {
+        let due = self.driver.root.next_deadline(&self.driver.env).expect("retry deadline");
+        self.driver.env.now = due;
+        engine::fire(&mut self.driver.root, &self.driver.env);
+        self.driver.settle();
+        self.driver.last_assignment()
+    }
+}
+
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "the saved-history fixture sizes eight concrete turns to the walk's byte count"
+)]
+fn configuring_history() -> Box<[Box<[u8]>]> {
+    let agent = fixtures::worker_agent();
+    let mut turns = Vec::new();
+    let mut remaining = CONFIGURING_HISTORY_BYTES;
+    for number in 1..=HISTORY_TURNS {
+        let overhead = text_turn(&agent, number, b"").len();
+        let bytes = if number == HISTORY_TURNS { remaining.checked_sub(overhead).unwrap() } else { HISTORY_TEXT_BYTES };
+        let text = ::core::iter::repeat_n(b'x', bytes).collect::<Vec<_>>();
+        let turn = text_turn(&agent, number, &text);
+        remaining = remaining.checked_sub(turn.len()).unwrap();
+        turns.push(turn);
+    }
+    assert_eq!(remaining, 0, "the saved stream has the walk's approximate size");
+    turns.into_boxed_slice()
+}
+
+/// The fake agent's behavior after receiving a concrete Start.
+pub(crate) enum ResumeAttempt {
+    /// End the channel without admission.
+    Fault,
+    /// Identify unusable history without taking pending words.
+    Transcript,
+    /// Admit, answer the pending question and park.
+    Answer,
+}
+
+/// Concrete worker records, including the answer turn before its terminal.
+pub(crate) struct ConfiguringAnswer {
+    /// The attempt's terminal, decoded from the worker wire.
+    pub(crate) terminal: hub::LinkUp,
+    /// The description turn, decoded from the worker wire before its terminal.
+    pub(crate) turn: Option<hub::LinkUp>,
+}
+
+/// Start through the concrete worker/channel path with the engine's retained history.
+pub(crate) fn configuring_attempt(run: engine::Assignment, behavior: ResumeAttempt) -> ConfiguringAnswer {
+    let (settings, agent) = configuring_worker_settings();
+    let mut stand = socket_stand_with(&settings, &agent);
+    configuring_grants(&mut stand.worker, &run.grants);
+    let mut link = LinkPeer::with_settings(&settings, &agent);
+    link.open(&mut stand.worker);
+    let encoding = fixtures::encoding(&fixtures::engine());
+    let engine_link::Event::Down { down, parts, .. } = crate::assignment::down(
+        run.clone(),
+        &fixtures::forge_table(&fixtures::forges()),
+        &encoding,
+        &crate::values::Values::new(2, 4096),
+        CHANNEL,
+        fixtures::NOW,
+    )
+    .expect("configuring assignment encodes") else {
+        panic!("assignment")
+    };
+    let (mut peer, start) = AgentPeer::pending(&mut stand.worker, &agent, link::Request::Down { down, parts });
+    assert_eq!(start.transcript.is_some(), !run.transcript.is_empty(), "startup retains the history choice");
+    assert!(question_reaches(&start), "the pending question or fresh brief reaches Start");
+    let turn = match behavior {
+        ResumeAttempt::Fault => {
+            peer.end_process(&mut stand.worker, b"resume channel ended before admission");
+            None
+        }
+        ResumeAttempt::Transcript => {
+            transcript_refusal(&mut peer, &mut stand.worker);
+            None
+        }
+        ResumeAttempt::Answer => {
+            Some(scripted_description(&mut stand.worker, &mut link, &mut peer, &agent, &start, &run))
+        }
+    };
+    let (terminal, _) = link.answer(&mut stand.worker);
+    ConfiguringAnswer { terminal, turn }
+}
+
+fn question_reaches(start: &smith_protocol_channel::DecodedStart) -> bool {
+    for message in &start.messages {
+        if skein_lib::bytes::find(&message.text, DESCRIPTION).is_some() {
+            return true;
+        }
+    }
+    for section in &start.charter.brief.sections {
+        if skein_lib::bytes::find(&section.text, DESCRIPTION).is_some() {
+            return true;
+        }
+    }
+    false
+}
+
+fn configuring_worker_settings() -> (crate::settings::Worker, crate::settings::Agent) {
+    let mut settings = fixtures::worker_settings();
+    settings.jig.engine = jig_protocol_config::Address::Addr(io::Addr::Ip(([127, 0, 0, 1], 7100).into()));
+    settings.jig.limits.hub.transcript_bytes = 2_097_152;
+    settings.jig.limits.hub.turns = SAVED_TURNS;
+    settings.jig.limits.hub.turn_queue_bytes = 1_048_576;
+    let mut agent = fixtures::worker_agent();
+    agent.host_limits.transcript_bytes = 2_097_152;
+    agent.host_limits.turns = SAVED_TURNS;
+    agent.limits.bodies.start_transcript = 1_048_576;
+    agent.limits.channel.chunk = 4096;
+    agent.limits.channel.output_bytes = smith_host_protocol::output_bytes(&agent.limits).unwrap();
+    (settings, agent)
+}
+
+fn configuring_grants(worker: &mut crate::Worker, grants: &[Grant]) {
+    for grant in grants {
+        worker
+            .values
+            .granted(
+                grant.account,
+                grant.generation,
+                jig_protocol_accounts::table::Value {
+                    scheme: jig_protocol_accounts::table::Scheme::Key,
+                    token: skein_lib::Secret::new(b"fake-model-key".as_slice().into()),
+                },
+                Time::from_nanos(u64::MAX),
+            )
+            .unwrap();
+    }
+}
+
+fn scripted_description(
+    worker: &mut crate::Worker,
+    link: &mut LinkPeer,
+    peer: &mut AgentPeer,
+    agent: &crate::settings::Agent,
+    start: &smith_protocol_channel::DecodedStart,
+    run: &engine::Assignment,
+) -> hub::LinkUp {
+    peer.component.send_admitted(peer.owner, &mut peer.events, &mut peer.out).unwrap();
+    peer.settle(worker);
+    let read = match start.messages.last() {
+        Some(message) => Some(message.name),
+        None => None,
+    };
+    let sequence = description_sequence(start);
+    let body = text_turn(agent, sequence, b"Accepted settings apply to new work; running work stays on its revision.");
+    let turn =
+        smith_protocol_channel::decode_turn(&body, sequence, &agent.limits.transcript, &agent.endpoints).unwrap();
+    peer.component
+        .send_turn(
+            1,
+            read,
+            smith_domain_run::Spend::ZERO,
+            start.transcript.is_none(),
+            &turn,
+            peer.owner,
+            &mut peer.events,
+            &mut peer.out,
+        )
+        .unwrap();
+    peer.settle(worker);
+    let answer_turn = kept_description(worker, link, peer, run);
+    peer.component
+        .send_answer(
+            fixtures::NOW,
+            smith_domain_run::Answer::Parked { spent: smith_domain_run::Spend::ZERO, turns: 1 },
+            read,
+            peer.owner,
+            &mut peer.events,
+            &mut peer.out,
+        )
+        .unwrap();
+    peer.settle(worker);
+    peer.end_process(worker, b"");
+    answer_turn
+}
+
+fn description_sequence(start: &smith_protocol_channel::DecodedStart) -> u32 {
+    match &start.transcript {
+        Some(history) => match history.turns.last() {
+            Some(turn) => turn.sequence.checked_add(1).unwrap(),
+            None => 1,
+        },
+        None => 1,
+    }
+}
+
+fn kept_description(
+    worker: &mut crate::Worker,
+    link: &mut LinkPeer,
+    peer: &mut AgentPeer,
+    run: &engine::Assignment,
+) -> hub::LinkUp {
+    let mut answer_turn = None;
+    for _ in 0..PEER_STEPS {
+        peer.settle(worker);
+        if let Some(engine_link::Request::Up { up: up @ hub::LinkUp::Turn { .. }, .. }) = link.turn(worker) {
+            answer_turn = Some(up);
+            worker.link(
+                fixtures::NOW,
+                link::Request::Down {
+                    down: hub::LinkDown::TurnKept {
+                        run: Token::new(run.task),
+                        attempt: Token::new(run.attempt),
+                        turn: 1,
+                    },
+                    parts: Box::new([]),
+                },
+            );
+            break;
+        }
+    }
+    peer.settle(worker);
+    answer_turn.expect("the description answer crosses the worker wire")
+}
+
+fn transcript_refusal(peer: &mut AgentPeer, worker: &mut crate::Worker) {
+    peer.component.send_admitted(peer.owner, &mut peer.events, &mut peer.out).unwrap();
+    peer.settle(worker);
+    peer.component
+        .send_answer(
+            fixtures::NOW,
+            smith_domain_run::Answer::Failed {
+                failure: smith_domain_run::RunFailure::Transcript(smith_domain_run::TranscriptRefusal::Malformed),
+                spent: smith_domain_run::Spend::ZERO,
+                turns: 0,
+            },
+            None,
+            peer.owner,
+            &mut peer.events,
+            &mut peer.out,
+        )
+        .unwrap();
+    peer.settle(worker);
+    peer.end_process(worker, b"transcript refused");
 }

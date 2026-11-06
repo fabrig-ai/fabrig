@@ -1,6 +1,7 @@
 //! Whole job stories with the real root, hub, capability and checkout, and
 //! the fake disk and forge (temper/docs/design/domain/worker.md, 4.4).
 
+use jig_domain_link::{JobBound, JobKind};
 use std::collections::VecDeque;
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -29,7 +30,7 @@ pub enum Case {
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Report {
-    pub kinds: Box<[host::JobBound]>,
+    pub kinds: Box<[JobBound]>,
     pub answer: Option<host::JobEnding>,
     pub tree: Tree,
     pub pushes: u32,
@@ -55,7 +56,7 @@ pub(super) struct World {
 
 fn kind(delivers: bool) -> tooling::Kind {
     tooling::Kind {
-        bound: host::JobBound { kind: host::JobKind(9), spec: 128, result: 128, deadline: Duration::from_secs(10) },
+        bound: JobBound { kind: JobKind(9), spec: 128, result: 128, deadline: Duration::from_secs(10) },
         verb: Box::from(b"check".as_slice()),
         delivers,
     }
@@ -197,7 +198,7 @@ impl World {
             job: host::JobAssignment {
                 run: RUN,
                 attempt: ATTEMPT,
-                kind: host::JobKind(9),
+                kind: JobKind(9),
                 spec: b"encoded spec".as_slice().into(),
                 deadline: Duration::from_secs(5),
                 grants: Box::new([]),

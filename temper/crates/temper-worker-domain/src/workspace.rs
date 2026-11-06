@@ -67,6 +67,7 @@ pub(crate) struct Items {
     workstream: u64,
     spec: Option<wire::Workspace>,
     tags: Box<[u64]>,
+    branches: Box<[Option<Box<[u8]>>]>,
     from_saved: Box<[bool]>,
     landed: Map<u64, [u8; 32]>,
     saved: Option<Box<[wire::SavedRepository]>>,
@@ -137,13 +138,19 @@ fn stage_items(
 ) -> Option<Token> {
     let count = u32::try_from(items.repositories.len()).expect("checked item count");
     let mut tags = List::with_capacity(count);
+    let mut branches = List::with_capacity(count);
     let mut from_saved = List::with_capacity(count);
     for repository in &items.repositories {
         tags.push(repository.tag).expect("room for each item tag");
-        let saved = match repository.start {
+        let branch = match &repository.access {
+            wire::Access::Writable { push, .. } => Some(push.clone()),
+            wire::Access::ReadOnly => None,
+        };
+        branches.push(branch).expect("room for each item branch");
+        let saved = match &repository.start {
             wire::Start::Saved { .. } => true,
-            wire::Start::Merge { .. }
-            | wire::Start::Base { .. }
+            wire::Start::Merge { branch, .. } => repository.save.as_deref() == Some(&**branch),
+            wire::Start::Base { .. }
             | wire::Start::Branch { .. }
             | wire::Start::Commit { .. }
             | wire::Start::Merged { .. } => false,
@@ -154,6 +161,7 @@ fn stage_items(
         workstream,
         spec: Some(items),
         tags: tags.into_boxed(),
+        branches: branches.into_boxed(),
         from_saved: from_saved.into_boxed(),
         landed: Map::with_capacity(count),
         saved: None,
@@ -494,7 +502,7 @@ fn record_written(next: &mut Items, items: Token, landings: Box<[wire::Landing]>
                 | wire::Landing::Unchanged => {}
             }
         }
-        next.delivery = Some(crate::smith_delivery::landings(&landings));
+        next.delivery = Some(crate::smith_delivery::landings(&landings, &next.branches));
         let outcome = translate::delivery_outcome(&translate::summarize(landings));
         Written::Delivered(host::Delivery { outcome, left: items, changed })
     } else {
@@ -701,6 +709,8 @@ mod tests {
         let mut items = fixtures::items(&[b"playground", b"work"]);
         for (repository, tag) in items.repositories.iter_mut().zip(tags) {
             repository.tag = tag;
+            repository.access =
+                wire::Access::Writable { push: Box::from(b"topic".as_slice()), expected: None, landing: None };
         }
         let assignment = stage(&mut domain, fixtures::assignment(true, Box::new([])), items).expect("room");
         let workspace = assignment.assignment.workspace.expect("a workspace");

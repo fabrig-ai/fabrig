@@ -1303,3 +1303,105 @@ fn a_decided_note_proposal_replays_after_its_note_moves() {
         Delivery::Link { down: jig_domain_host::LinkDown::Relayed { call, answer:jig_domain_host::Relayed::Answer {text,error:false},.. },.. }
         if call.as_ref() == 900_u64.to_be_bytes() && *text == answer)));
 }
+
+#[test]
+fn a_pending_proposal_holds_the_next_until_an_owner_rejects_it() {
+    use serde_json::json;
+    let mut bounds = limits();
+    bounds.call_records = 4; // Three first-run answers and the fresh proposal before the next turn.
+    let mut world = World::with_limits(config(), &bounds);
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let value = read_charter(&mut world.driver, &run, 1, CHAT);
+    let items = charter_item(value, b"Push each complete change.");
+    let first = propose(&mut world.driver, &run, 2, 1, &items);
+    let review = world.review(&run, first);
+    let head = world.head().clone();
+    let input = json!({"against":1,"reason":REASON,"items":items});
+    let (answer, error) = host_tool(&mut world.driver, &run, 3, b"propose_settings", input.to_string().as_bytes());
+    let answer = String::from_utf8_lossy(&answer);
+    assert!(error, "{answer}");
+    assert!(answer.contains("it has a proposal pending (at most 1 at once)"), "{answer}");
+    world.driver.settle();
+    let (answer, error) =
+        host_tool(&mut world.driver, &run, 4, b"withdraw", json!({"proposal":first}).to_string().as_bytes());
+    assert!(error, "{}", String::from_utf8_lossy(&answer));
+    assert_eq!(world.review(&run, first), review, "the pending review is unchanged");
+    assert_eq!(world.head(), &head, "neither refusal changes the head");
+    let pending = world.driver.task(run.task).expect("configuring task").proposal.as_deref().expect("still pending");
+    assert_eq!(pending.number, first);
+    assert!(matches!(pending.state, tasks::ProposalState::Pending { .. }));
+    world.decide(
+        &run,
+        first,
+        21,
+        people::ProposalDecision::Reject { reason: b"Keep commits small too.".as_slice().into() },
+        people::Running::Stays,
+    );
+    let next = world.next(&run);
+    assert_heard(&next, b"rejected: Keep commits small too.");
+    let value = read_charter(&mut world.driver, &next, 1, CHAT);
+    let items = charter_item(value, b"Push each complete change. Keep commits small.");
+    let fresh = propose(&mut world.driver, &next, 2, 1, &items);
+    assert_ne!(fresh, first);
+    world.decide(&next, fresh, 22, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2);
+}
+
+fn says_no_empty_change(answer: &[u8]) {
+    let answer = String::from_utf8_lossy(answer).to_lowercase();
+    for forbidden in ["nothing has changed", "nothing changed", "changes nothing"] {
+        assert!(!answer.contains(forbidden), "tool or message says {forbidden}: {answer}");
+    }
+}
+
+#[test]
+fn no_answer_a_configuring_run_hears_says_nothing_changed() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let (inventory, _) = read_whole(&mut world.driver, &run, 1, json!({}));
+    says_no_empty_change(inventory.as_bytes());
+    let (charter, _) = read_whole(&mut world.driver, &run, 10, json!({"setting":{"kind":"charter","number":2}}));
+    says_no_empty_change(charter.as_bytes());
+    let input = json!({"scope":{"kind":"goal","project":PROJECT,"goal":run.task},
+        "description":"How this project works","body":"Push each complete change."});
+    let (answer, error) = host_tool(&mut world.driver, &run, 20, b"note", input.to_string().as_bytes());
+    assert!(!error, "{}", String::from_utf8_lossy(&answer));
+    says_no_empty_change(&answer);
+    let (_, value) = charter.split_once('\n').expect("charter heading");
+    let mut value: serde_json::Value = serde_json::from_str(value.trim()).expect("charter JSON");
+    value["instructions"] = json!("Push each complete change.");
+    let items = json!([{ "setting":{"kind":"charter","number":2},"set":value }]);
+    let input = json!({"against":1,"reason":REASON,"items":items});
+    let (answer, error) = host_tool(&mut world.driver, &run, 21, b"propose_settings", input.to_string().as_bytes());
+    assert!(!error, "{}", String::from_utf8_lossy(&answer));
+    says_no_empty_change(&answer);
+    let proposal = std::str::from_utf8(&answer)
+        .expect("proposal UTF-8")
+        .strip_prefix(&format!("proposed as t{}/", run.task))
+        .expect("proposal")
+        .split_once(' ')
+        .expect("proposal holder")
+        .0
+        .parse()
+        .expect("proposal number");
+    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+    let next = world.next(&run);
+    assert_heard(&next, b"accepted: revision 2 made");
+    for assignment in [&run, &next] {
+        let smith_domain::Event::Start(start) = temper_engine_smith::start(
+            assignment,
+            None,
+            None,
+            ReplyTo::new(Token::new(99)),
+            Token::new(assignment.task),
+            smith_domain::Window { turns: 1, bytes: 100_000 },
+            &smith_agent_world::LIMITS.run,
+        ) else {
+            panic!("smith start")
+        };
+        for message in start.messages {
+            says_no_empty_change(&message.text);
+        }
+    }
+}

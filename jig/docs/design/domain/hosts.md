@@ -521,6 +521,15 @@ Typed, so the engine can act on them without reading prose:
 
 Each carries bounded detail for operators; none of it is shown to an LLM.
 
+An agent fault may arrive before admission. While starting, the hub keeps
+its first typed fault and waits for the agent's `Gone`, without acknowledging
+admission, delivering held messages or sending a cancel to an agent token
+it has not received. `Gone` then answers an agent failure with that fault
+and the bounded diagnostic tail, refusing held messages as ending. Without
+a fault, disappearance while starting remains an unstarted agent failure.
+A cancel decided before the fault keeps its cancellation outcome. Smith
+refuses admission after a fault; a later `Started` cannot admit that run.
+
 **Unusable resume history** retains its own typed reason. A transcript
 that cannot be decoded, a start Smith refuses for its transcript, and a
 run reporting a transcript failure all end as a transient task failure.
@@ -828,7 +837,7 @@ engine's protocol layer calls for every run, on workers and in the
 engine alike, and which reads every run's result back by the path of
 host tools' calls (6.8).
 
-Its `assignment` assembles that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes, its checks required to pass, and the workspace tools the run's policy grants. Its `charter` translates what `assignment` assembled, decides `deliver`, and grants `modify` only to a run that can deliver: what a run writes leaves its workspace only by a delivery, so a run with no `deliver` inspects alone, whatever its policy says (a rail, not an instruction). A root calls them and decides none of it.
+Its `assignment` assembles that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes and a change's `body` at most 3584, which leaves its title and framing room within the agent's 4096-byte outcome, its checks required to pass, and the workspace tools the run's policy grants. Its `charter` translates what `assignment` assembled, decides `deliver`, and grants `modify` only to a run that can deliver: what a run writes leaves its workspace only by a delivery, so a run with no `deliver` inspects alone, whatever its policy says (a rail, not an instruction). A root calls them and decides none of it.
 
 Its `hosted` puts a run's whole hand-over together from what the hub link kept (the core's `Assignment`), and so reads the brief's placed parts: the brief's sections with their titles, the charter, the start's messages with their senders and words, and the answered calls by their names. What a root gives it is its own: its tools, its endpoints, its deployment and its bounds. A place in the brief that an application offers no section for refuses the assignment. Its `message` puts together, the same way, a task's message to a run under way, with its sender and words. So a root that calls them renders no words, titles or a call's name, and the hub receives the same assignment from each. An application with a tool vocabulary of its own, as temper is (`temper/docs/design/protocol/README.md`, 5), puts its hand-over together itself.
 

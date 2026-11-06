@@ -58,9 +58,9 @@ makes each call to a forge and hears its deliveries, is
   gives temper's user its access (4.2, 4.3). What it reads of the landing
   branch's rules, and the merge style, it says in words (4.4).
 - **Updates are lazy and mechanical.** A change takes its base when it
-  is first in line, or about to get a run, through the forge's own
-  update; an LLM only resolves a conflict, in a workspace where the
-  merge is in progress.
+  is first in line, about to get a run, or at its check with its head
+  already behind (8.2, step 3), through the forge's own update; an LLM
+  only resolves a conflict, in a workspace where the merge is in progress.
 - **Every landing is news** for every goal working in that repository;
   it wakes a goal's coordinator only when it overlaps the files of that
   goal's changes.
@@ -1209,7 +1209,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 |---|---|---|---|---|
 | 3 | open a pull request | a creation: from a branch into its landing branch, with a title, a body and a key | conditional: only while no pull request for its branches is open; Forgejo keeps it, closed or not | by its branches; the change accepts an open pull request, or one with its recorded number or pushed head |
 | 10 | edit a pull request's title, body or base | a set | idempotent | written again |
-| 11 | update a pull request from its base | a transition: the base's tip merged into its branch, by the forge | unrecoverable | its head contains the base tip it asked for |
+| 11 | update a pull request from its base | a transition: the base's tip merged into its branch, or its commits rebased onto it (`landing.md`, 5.2), by the forge | idempotent: every copy leaves its head containing the base, or changes nothing; a late copy may move the head (section 10) | its head contains the base tip it asked for |
 | 4 | merge a pull request | a transition, conditional on its exact head; or, where the forge keeps a merge queue on the base, the pull request queued there (9.1) | conditional | merged, and at which commit; or in the forge's merge queue |
 | 12 | close, reopen a pull request | a set | idempotent | written again |
 | 5 | post a review | a creation, with a key | unrecoverable | by its key, among the reviews after the entry's start |
@@ -1258,7 +1258,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   only while none of its name exists, but another hand can delete it, and
   nothing then shows it was made: its creation is unrecoverable.
 - **An unrecoverable creation is looked for first:** an uncertain review,
-  comment, issue, update or branch found by its key, or by the state it
+  comment, issue or branch found by its key, or by the state it
   leads to, is made; one not found by its deadline holds its task for a
   person, and is never sent again by temper on its own. The client makes
   the find (skein's `forge-client.md`, section 7).
@@ -1598,6 +1598,22 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    failing output. A repository without CI is checked by its checks
    (8.3). Where they ask no CI, the change goes on to its gates at once,
    and neither a check nor CI at its head holds it or asks a repair.
+   **A head already behind takes its base first.** Where its landing
+   branch's rules ask up to date (8.7), this step's fresh reads (5.3) show
+   its head lacks the base's tip, and CI read at that head has not concluded
+   (unknown or pending), the change is updated now (section 10), since its
+   turn could only replace that head. Of a head a push gave it, one such
+   update at most: the head it leads to waits for its CI though the base
+   moves again, and is updated at its turn. It counts as any update and never
+   takes the change's last, which stays for its turn, so it makes no hold of
+   its own; where it would, the change waits for CI as it would have. A
+   conclusion is kept: a green head goes on to its gates and its turn and is
+   updated there, and a red one is a repair, which takes its base first (below).
+   CI not read at that head is no conclusion, and the change waits. Under
+   rules asking none, nothing here applies. A run the forge has started on
+   the head replaced stays the forge's, since temper has no effect that stops
+   one: the change stops waiting for it, and what it spends goes by the
+   repository's own CI settings.
 4. **Gating:** each gate without a verdict valid at this head runs: a
    task at the exact head. A blocking review or check that asks for
    changes is a repair, given its remarks; a blocking approval a person
@@ -1667,7 +1683,8 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
 
 Lazy, too, for runs: before a repair or a resolution is created, the
 change takes its base if its head lacks the base's tip and its rules ask
-up to date (8.7), so a repair starts from current code. It never updates only because its base moved.
+up to date (8.7), so a repair starts from current code. Beyond that and step 3's
+head already behind, it never updates only because its base moved.
 
 A completed change waits for its live delegates to end before offering
 its result to the core. A landing observed while a resumed repair's
@@ -1775,12 +1792,14 @@ delegate's terminal wakes it to offer the landed result.
   reviews budget, 4,608 bytes on the stock, cut from their end and
   marked; and carrying why: CI's failing output on the head; a gate's
   remarks; for a clean update whose CI then fails (a semantic conflict),
-  the base merged in and what landed in it; or, for
+  CI's failing output, the base merged in and what landed in it; or, for
   a change the forge's merge queue ejected, the forge's reason, the
   pull request's `dequeued` (9.1). It pushes a new head, and the
   change is checked again. Where the head's failed checks are not
   known, its words say so, `no failed check named`, in the name's place,
-  never an empty name.
+  never an empty name. A clean update's red is CI's: its words open as a
+  CI repair's do, naming the failed check, and go on to say that no merge
+  conflict waits, so that a resolution's alone speak of a conflict.
   For each failed check, the brief carries its context, description and
   link, then the step that failed, by name, and the end of that step's
   log, where a step tells its failure; the job's whole log's end when no
@@ -2046,7 +2065,8 @@ the change reads the head afresh once the slot is freed. Otherwise:
 
 - **Its pull request closed** by someone else: held, saying who and
   when. A release reopens it; a cancel closes the change.
-- **Its branch moved** while nothing of temper's writes it, or by another
+- **Its branch moved** while nothing of temper's writes it, a late copy
+  of its own update among them (section 10), or by another
   identity, or not forward: held, the head kept as it is. Under its
   project's turn, the rewrite its own prepare made is the change's: the
   forge's rebase (`landing.md`, 5.2) or a prepare job's delivery
@@ -2378,6 +2398,14 @@ section 9): the foreman and the requester decide, and the change relays
   feedback (below). The stock coding charter tells its run the same, and
   to call `wait` after asking, never `finish`
   (`../protocol/configuration.md`, 13.4).
+- **Which target.** Its change is its requester: the number its brief's
+  `[Requested by task N]` line gives, never its own, `[This task: N]`. The
+  stock coding charter says so. A project's own charter may not, so the
+  `message` tool's refusal of a target the caller does not reference
+  (jig's `domain/tasks.md`, 8.5) says where to find it, for any run:
+  `Authority refused: task reference. Your brief's [Requested by ...] line
+  names your requester; [This task: N] is you.` An authority refusal lists
+  its findings with `; ` between them and ends without one.
 - **Bounded.** It counts the questions it takes, each as its turn comes,
   from its making or its last release, against its bound,
   `forge.change_policy.questions` (4 in `small`, 80 in `standard`, which
@@ -2539,9 +2567,12 @@ early, by these rules:
   rules ask no update (a goal's own branch, section 11 and 8.7), whose
   workspace would start from the change's pushed branch or from saved
   work, starts instead from a merge in progress: that start, with the landing branch's tip as the
-  base merged into it (`worker.md`, 4.1 and section 5). A conflict is
-  left in its checkout for it to settle; its first push commits the
-  merge. One with nothing pushed or saved starts from the landing
+  base merged into it (`worker.md`, 4.1 and section 5). A clean merge is
+  committed before its run starts, so the run finds a clean tree with the
+  tip in its head. A conflict is left in its checkout for it to settle.
+  Either way its first push delivers the merge. A tip that start already contains is no merge, so a resume with
+  nothing new adds no commit, and the head its run reported stays the
+  change's. One with nothing pushed or saved starts from the landing
   branch's tip, which now holds its dependencies' work. So a producer
   going on after an answer that added a dependency, or after an
   amendment naming a revision of the design that landed into the
@@ -2670,13 +2701,14 @@ adoption says so, 4.4) lands through that queue. Forgejo keeps none.
 Under a project's queue; by turn, a landing prepares its candidates
 instead (`landing.md`, section 5).
 
-- **Lazy:** a change takes its base when it is first in its queue, or
-  about to get a run for another reason (8.2). It never does only
-  because its base moved.
+- **Lazy:** a change takes its base when it is first in its queue, about
+  to get a run for another reason (8.2), or at its check with its head
+  already behind and CI not concluded there, once for a head a push gave
+  it (8.2, step 3). It never does only because its base moved.
 - **By its landing branch's rule:** only where the rules covering its
   landing branch ask up to date (8.7, `Requires`). Under rules asking
-  none it is never updated, first or before a run, and a conflict with
-  its base holds it (8.2, step 6).
+  none it is never updated, first, at its check or before a run, and a
+  conflict with its base holds it (8.2, step 6).
 - **Mechanical:** the update merges the base into the change's branch,
   with no LLM. The forge makes it itself (its pull request's update, by
   a merge), so it is an effect, as a merge is. A merge rather than a
@@ -2688,6 +2720,40 @@ instead (`landing.md`, section 5).
   read afresh, contains the base's tip it asked for, which is also how
   its recovery finds it (section 6), and the new head is heard as any
   push.
+- **Lost, and made again.** An update whose answer is lost is looked for
+  by that read and, not found after its lifetime, checked and made again,
+  up to `write_attempts` (skein's `forge-client.md`, 7.5). It holds no one.
+- **Let go.** An update settled `Failed` with `Timeout` or `Unavailable`,
+  or with `Stale` from its check, says nothing of the change: the forge
+  did not answer, or what it was decided on has gone, perhaps to a copy of
+  its own. The top keeps its account and reports no result, and a change
+  updating or preparing (`landing.md`, 5.2) with no result and none
+  outstanding decides again on a fresh read of its head and base:
+
+  | Its head | Holds the base | It |
+  |---|---|---|
+  | where it was | no | updates again, counted in `updates` |
+  | where it was | yes | goes on at that head |
+  | moved | yes | takes it as its update, as if made |
+  | moved | no | holds, `BranchMoved`: no update of its own shows there |
+  | any | not yet known | waits, up to `stall` |
+
+  So it never spins, each new update spending one of `updates` and up to
+  `write_attempts` lifetimes, and never waits on nothing. Past `updates` it
+  holds, `Updates`, a person told why in the last write's account
+  (`update pull request: forge timed out; ...`).
+- **Any other failure** of an update (a protection, a forbidden write) is
+  a person's: held, `Failed`, in its account. A release of it, or of
+  `Updates`, drops the result and decides again as above, its count
+  afresh.
+- **What a late copy costs.** Once the change has moved on, a copy that
+  moves the head is drift (8.5): held, and its release takes the head and
+  checks it, so a person and a CI run; gates ask again. A merge names its
+  exact head (section 6), so a copy lands nothing unchecked. A rebase's
+  copy can also drop a push made since it read the head (skein's
+  `forge-client.md`, 7.3): the same hold, and a repair so dropped finds
+  its failure again when the head is checked. A push by another hand so
+  dropped is that hand's to make again, the hold saying the branch moved.
 - **A conflict** makes the forge refuse the update, and the change is
   resolved (8.4): by the merge job, where its project names one, then
   a resolution for what the job leaves.
@@ -2770,6 +2836,18 @@ landed head equals the branch's last known tip. With no known tip or no
 matching landed change it keeps the branch; a subsequent unlanded move keeps
 it too. This uses the retained change and branch records, with no new
 ancestry read (2026-11-04).
+
+A task's saved work is named by the set its task's record keeps of the
+repositories a next attempt would resume from (`worker.md`, section 5). As
+its task's release begins, each branch of that set becomes a hold of the
+closing task, with no writer, and goes as any hold does: deleted, a branch
+already gone counting as deleted (skein's `forge-client.md`, section 7);
+or, if its task failed and is not its tree's root, kept for a person to
+read and deleted as the root closes. Such a hold has no holding in the
+hub, and no head is read for it. A branch outside that set stays until
+deleted by hand or by the deployment's retention, as does a save whose
+terminal the engine never heard, its worker lost, and a branch the forge's
+full holds left no room for at the close.
 
 ### 11.1 A branch per goal
 
@@ -3095,7 +3173,11 @@ temper did not make, the queue paused and repaired; its pull request
 closed by someone else, held, released and reopened; a landing that
 overlaps a goal's change, and one that does not; a goal's issue written,
 revised and closed; a merge whose answer is lost, found merged after a
-restart; a mergeability unsettled within the window, then settled; a
+restart; an update whose answer is lost, found, or made again and landed,
+under a queue and as a turn's prepare; one lost for good, decided again
+until its count holds it, told why, and released; one whose base went on
+while it was lost; a copy of it landing after the change moved on, held;
+a mergeability unsettled within the window, then settled; a
 forge preloaded with ten times the history, idle at the same cost. Of
 the rules as settings (8.9): a landing rule changed between two merges,
 the second judged by the new rule; a gate a rule adds asked for on a
@@ -3167,6 +3249,11 @@ whole.
   forge's repairs draw on it and a member's first spend in a period reserves it, and
   a shared project's plan doesn't serve the run. Home then keeps its computed
   sentence, and nothing tells the owners why. Default: so; they can fund the period.
+- **A late copy's hold** (10): a head moved by a late copy of the
+  change's own update, once the change has moved on, cannot be told from
+  another's move by temper's identity, and holds. Keeping the writer slot
+  past a settled update would spare it, for a time nothing bounds.
+  Default: it holds, and is measured after landing.
 - **What lands on a goal's branch and then on main** (5.6) counts twice,
   each a change landed. Default: so, said here and in the design of Home.
 - **A failed row, dismissed** (4.5; `../draft/repository-copies.md`,
@@ -3303,3 +3390,17 @@ whole.
   stored mark beside where the question stands. One that never answers hears
   nothing of it, and the question stays until the change ends. Default: so; it
   did reach someone.
+- **A forge's run on a head replaced** (8.2, step 3): the update first ends the
+  change's wait for that head's CI, not the run, since temper has no effect that
+  stops one, and a pull request must exist before the forge can update it, so a
+  run that starts at its opening starts first. Default: so; what it spends goes by
+  the repository's own CI settings.
+- **An early update against the bound** (8.2, step 3): it counts against
+  `forge.change_policy.updates` (3 in `small`, 80 in `standard`), so under a base
+  that keeps moving `Hold::Updates` comes one update sooner. Not counting it would
+  leave the bound untrue of update attempts. Default: it counts; the figure is the
+  user's.
+- **A report's head past a merge** (8.11): a next producer's start that merges a
+  tip it lacks makes a new head at its first push, so a report written before names
+  an older one, where a tip it contains no longer does. Default: so; the head
+  delivered names what is on the branch (`agent.md`, section 6).

@@ -75,6 +75,7 @@ pub struct BrowserFace<'a> {
     failure: Option<String>,
     refusal: Option<Refusal>,
     read_address: Option<Box<[u8]>>,
+    read_tabs: Option<(skein_lib::List<skein_browser::boundary::Tab>, u32)>,
     input: Option<Input>,
     trouble: Vec<Box<[u8]>>,
     downloads: Vec<Download>,
@@ -115,6 +116,7 @@ impl<'a> BrowserFace<'a> {
             failure: None,
             refusal: None,
             read_address: None,
+            read_tabs: None,
             input: None,
             trouble: Vec::new(),
             downloads: Vec::new(),
@@ -291,7 +293,8 @@ impl<'a> BrowserFace<'a> {
         self.requests.push(request);
         Ok(())
     }
-    pub(crate) fn find_boxed(&mut self, find: &Find) -> Found {
+    /// Find a semantic node and read its viewport rectangle for layout assertions.
+    pub fn find_boxed(&mut self, find: &Find) -> Found {
         if let Some(answer) = self.answer.take() {
             return answer;
         }
@@ -307,6 +310,12 @@ impl<'a> BrowserFace<'a> {
             });
         }
         self.answer.take().unwrap_or(Found::Pending)
+    }
+    pub(crate) fn rect(&self, node: NodeId) -> Option<skein_browser::boundary::Rect> {
+        self.seen.get(usize::try_from(node.0).expect("node fits"))?.0.rect
+    }
+    pub(crate) fn keep_value(&mut self, name: Box<[u8]>, value: Box<[u8]>) {
+        self.kept = Some((name, value));
     }
     pub(crate) fn height(&self, node: NodeId) -> Option<u64> {
         self.seen.get(usize::try_from(node.0).expect("node fits"))?.0.rect.map(|rect| rect.height)
@@ -328,6 +337,13 @@ impl<'a> BrowserFace<'a> {
         self.acting = Some(op);
         self.requests.push(Request::Key { page: self.page, op, key, shift });
     }
+    /// Set this page's viewport in CSS pixels, keeping desktop input behaviour.
+    pub fn viewport(&mut self, width: u32, height: u32) {
+        self.refusal = None;
+        let op = self.token();
+        self.acting = Some(op);
+        self.requests.push(Request::Viewport { page: self.page, op, width, height });
+    }
     /// Read the current whole URL; take its answer once the face is no longer pending.
     pub fn address(&mut self) {
         self.refusal = None;
@@ -336,6 +352,15 @@ impl<'a> BrowserFace<'a> {
         let op = self.token();
         self.acting = Some(op);
         self.requests.push(Request::Address { page: self.page, op });
+    }
+    pub(crate) fn tabs(&mut self) {
+        self.read_tabs = None;
+        let op = self.token();
+        self.acting = Some(op);
+        self.requests.push(Request::Tabs { page: self.page, op });
+    }
+    pub(crate) fn take_tabs(&mut self) -> Option<(skein_lib::List<skein_browser::boundary::Tab>, u32)> {
+        self.read_tabs.take()
     }
     /// Take the last address read once, after its operation completes.
     pub fn take_address(&mut self) -> Option<Box<[u8]>> {
@@ -481,6 +506,12 @@ impl<'a> BrowserFace<'a> {
                     self.choice_check();
                 }
             }
+            Event::Tabs { op, tabs, more } => {
+                if self.acting == Some(*op) {
+                    self.acting = None;
+                    self.read_tabs = Some((tabs.clone(), *more));
+                }
+            }
             Event::Address { op, url } => self.address_reported(*op, url),
             Event::Attribute { op, read } => self.attribute_reported(*op, read),
             Event::Refused { op, why, detail } => self.refused(*op, *why, detail),
@@ -603,6 +634,7 @@ impl<'a> BrowserFace<'a> {
                 }
             }
             Act::Submit => Request::Key { page: self.page, op, key: Key::Enter, shift: false },
+            Act::Near { .. } => return Err("a person scrolls a log; its `Near` is the page part's".into()),
             Act::Drawing { .. } => return Err("a person cannot press a drawing mark".into()),
         };
         Ok(Some(request))

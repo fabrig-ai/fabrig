@@ -113,7 +113,9 @@ journeys, 10 what is open.
   It keeps them in memory as the file's lines (3.2), through
   `journey::Recorder`, which is platform-independent and wraps the
   seam: `Recorder::report(host, page, report) -> Duties` gives the
-  report to the host and keeps both, and `Duties::departs()` says when
+  report to the host and keeps both, what the shell is asked to do with
+  a tab among them, and a tab the browser refused as a report (`README.md`,
+  3.5, `ConnectModel`, The sign-in's tab), and `Duties::departs()` says when
   the duties leave the page. The shell and the host's tests call it
   alike; the wasm part only reads the keys and saves.
 - **Two keys,** read by their `code` on the document before the page
@@ -127,8 +129,10 @@ journeys, 10 what is open.
   at the walk's end, and `again` saves as it goes (8.1). A key's turn that gives the host nothing, a save's, is not
   kept.
 - **One load of the page.** A recording starts with the page, at the
-  printed link's first page, and is whole at each save. A departure ends
-  it: when a report's duties ask to `navigate` or `replace`, the
+  printed link's first page, and is whole at each save. A sign-in is no
+  departure: the recording goes on through it and its end, the tab's
+  address kept as its answer's is. A departure, a forge's or an
+  authorization's, ends it: when a report's duties ask to `navigate` or `replace`, the
   recorder keeps them, marks the end as the page is drawn then, and
   saves, before the shell carries the departure out; the rest of that
   turn is not kept, and the recorder keeps nothing more. A reload starts
@@ -375,7 +379,8 @@ and, for an act's mark, every node on it that gives the act's event.
   read, another request's bytes, another deadline) would be answered
   what it never asked.
 - **Stale** is where the replay stops: at the first duty or deadline
-  that differs, a departure asked or not asked among them, or at an
+  that differs, a departure or a tab's open, point or close, asked or not
+  asked, among them, or at an
   act whose event no control on the page gives. It names the turn, the
   recorded line and what the host asked instead.
 - **Patches are not compared:** they are what the print shows.
@@ -657,9 +662,10 @@ over skein's harness.
   it draws once its recorder hears the keys.
 - **Each step once the page is still.** A save (Alt+Shift+S) is the walk
   so far, a whole recording. The page is still when a save half a second
-  after another holds no report the other lacks but dues, no exchange
-  asked but not heard, and no write asked but not carried. A page not
-  still within 30 seconds stops `again`, naming the step. Then:
+  after another (a second, before a key's mark) holds no report the other
+  lacks but dues, no exchange asked but not heard, and no write asked but
+  not carried. A page not still within 30 seconds stops `again`, naming
+  the step. Then:
   - **an act:** the still save is replayed natively to its end
     (section 4); the first node of which the view makes the step's event
     names its control by its role, its accessible name and its order,
@@ -716,7 +722,7 @@ fields, each after one space, a word bare, bytes in double quotes.
   that start in its recording, and a test holds the two together
   (section 6).
 - **Why a mark waits:** the page may stand still for seconds while a fake
-  model's turn goes on, and two saves half a second apart can't tell that
+  model's turn goes on, and two saves a second apart can't tell that
   from settled, where the person could (8.1). A `mark` names what the
   person waited for. A key mark with none falls as 8.1 has it.
 - **Its bounds:** a step of a setup not done within 60 seconds stops `again`,
@@ -751,20 +757,27 @@ The `configure-temper-own-way` request's hand-made `configure-own-way/`
 pages are not journeys to reprint or land either; the gallery draws those
 states, including the card and the stock reference beside the page.
 
+The `bundle-loading` request's hand-made `bundle-loading/01.html` through
+`04.html` are not journeys to reprint or land (section 7): they draw the
+placeholder before the client starts (`browser.md`, 2.5).
+
 The hand-made `chat-work/01.html` through `04.html` are the look request's,
 not journeys to reprint or land (section 7). The gallery's isolated
 `chat-work-*` states draw their conversation and their additional states
 through the view (`browser.md`, 7.2). Their summary follows the first
 appearance of a tool, so settings precedes docs where it was called first.
-The growing text and scrolling beyond the pill and loading status are
-tracked in `../draft/chat-reading.status.md`, sections 3 and 5, and a numbered
+The conversation is read by its log's edges (`README.md`, 5.15), with no
+Older control. `chat-draft`'s return to the chat holds its first activity
+page until browser measures read more. The remaining live text and the
+terminal and browser coverage departures are tracked in
+`../draft/chat-reading.status.md`, sections 3 and 5, and a numbered
 list's look in `browser.status.md`, 2.5.
 
 The `close-chat` request's hand-made `close-chat/01.html` through `03.html`
 are not journeys to reprint or land (section 7). Their states are the gallery's
 `chat-closing`, `chat-closing-work` and `chat-closed` (`browser.md`, 7.2).
 The other confirmations and failures use the same sheet (`README.md`, 3.6);
-their gallery states include Start over, Stop, Cancel, Accept, Reject and
+their gallery states include Start over, Close, Accept, Reject and
 Release, with its uncertain pair. These add no recorded journey or page.
 
 ## 10. Open questions
@@ -793,6 +806,11 @@ Release, with its uncertain pair. These add no recorded journey or page.
   which must not collide when several record at once, and a fixed start
   for its clock and the browser's, so that a recording made again
   differs from the last only where the client does.
+- **A tab in a setup** (8.2): `project-landing`'s setup presses "Continue with
+  ChatGPT", and the tab it opens stays beside the page. The next step's find
+  brings the page to the front (skein's `browser.md`, section 6), so a tab
+  takes no step of its own; a record for one joins 8.2's table only if one
+  needs a step. Default: none.
 - **Later, if wanted:** the one-tag-per-line print as skein-ui-web's,
   for another application's journeys.
 - **What a real journey leaves out** (3.8): a token split across a run's

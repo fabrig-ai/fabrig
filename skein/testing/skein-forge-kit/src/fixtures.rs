@@ -81,19 +81,7 @@ pub fn shared() -> Shared {
         lifetime: Duration::from_secs(10),
         name_bytes: 128,
         repositories: 2,
-        io: skein_io::Limits {
-            sockets: 8,
-            names: 0,
-            refusals: 2,
-            intake: 32_768,
-            receive: 4096,
-            output: 32_768,
-            sends: 4,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: Duration::from_secs(1),
-            retry: Duration::from_millis(10),
-        },
+        io: skein_io::Limits { sockets: 8, refusals: 2, receive: 4096, sends: 4, ..skein_io::Limits::TEST },
     }
 }
 #[must_use]
@@ -238,58 +226,12 @@ pub fn push_hook(branch: &[u8], commit: u64) -> skein_fake_forge_domain::Request
 pub fn fake_config() -> skein_fake_forge_domain::Config {
     skein_fake_forge_domain::Config {
         limits: skein_fake_forge_domain::Limits {
-            repositories: 1,
-            users: 3,
-            bypassing_users: 4,
-            labels: 2,
-            items: 64,
-            comments: 32,
-            dependencies: 2,
-            reviews: 8,
-            branches: 4,
-            commits: 16,
-            files: 4,
-            statuses: 4,
-            contexts: 4,
-            workflows: 0,
-            workflow_runs: 0,
-            pages: 1,
             // A merge queue branch, gh-readonly-queue/<base>/pr-<n>-<sha>, is
             // 68 bytes here: the bound leaves it room.
             name_bytes: 96,
-            title_bytes: 64,
-            body_bytes: 1024,
-            content_bytes: 128,
-            page_size: 2,
-            calls: 4,
-            hooks: 8,
-            observations: 64,
+            ..skein_fake_forge_domain::Limits::TEST
         },
-        latency_min: Duration::from_millis(10),
-        latency_max: Duration::from_millis(50),
-        settle_min: Duration::from_secs(2),
-        settle_max: Duration::from_secs(2),
-        late: 0,
-        late_min: Duration::from_secs(1),
-        late_max: Duration::from_secs(3),
-        unavailable: 0,
-        timeouts: 0,
-        landing: 0,
-        land_min: Duration::from_secs(1),
-        land_max: Duration::from_secs(3),
-        rate_limit: 0,
-        rate_window: Duration::from_secs(10),
-        ci: 3,
-        setup_faults: 0,
-        lost: 0,
-        hook_min: Duration::ZERO,
-        hook_max: Duration::ZERO,
-        hooks_late: 0,
-        hooks_lost: 0,
-        resolution: Duration::from_secs(1),
-        skew: skein_fake_forge_domain::Skew::Ahead(Duration::from_secs(20)),
-        status_updates: false,
-        edit_updates: false,
+        ..skein_fake_forge_domain::Config::TEST
     }
 }
 

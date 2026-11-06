@@ -824,3 +824,47 @@ fn a_press_refused_for_another_reason_fails_without_repeating() {
     face.tick(Time::ZERO.saturating_add(skein_browser::Limits::default().poll));
     assert_eq!(face.requests().count(), 0);
 }
+
+mod tabs;
+
+mod foreground;
+
+#[test]
+fn viewport_uses_requested_dimensions_and_waits_for_its_terminal() {
+    use crate::world::Fault;
+    use skein_browser::wire::decode::Document;
+    let mut world = World::new();
+    world.start();
+    world.open();
+    world.sent.clear();
+    world.fault(b"Emulation.setDeviceMetricsOverride", Fault::Delay);
+    world.ask(Request::Viewport { page: Token::new(3), op: Token::new(4), width: 420, height: 900 });
+    assert!(world.above.is_empty(), "no Done before Chromium replies");
+    let bytes = world.sent.first().expect("viewport test value").strip_suffix(&[0]).expect("viewport test value");
+    let command = Document::parse(bytes, world.env.limits.command).expect("viewport test value");
+    assert_eq!(command.root().get(b"sessionId").expect("viewport test value").raw(), br#""s1""#);
+    let params = command.root().get(b"params").expect("viewport test value");
+    assert_eq!(params.get(b"width").expect("viewport test value").raw(), b"420");
+    assert_eq!(params.get(b"height").expect("viewport test value").raw(), b"900");
+    assert_eq!(params.get(b"mobile").expect("viewport test value").raw(), b"false");
+    world.release_delayed();
+    assert!(matches!(world.above.pop(), Some(Event::Done { op }) if op == Token::new(4)));
+    world.assert_commands_settled();
+}
+
+#[test]
+fn viewport_refuses_a_missing_page_and_a_failed_command() {
+    use crate::world::Fault;
+    for (page, fault) in [(Token::new(99), false), (Token::new(3), true)] {
+        let mut world = World::new();
+        world.start();
+        world.open();
+        if fault {
+            world.fault(b"Emulation.setDeviceMetricsOverride", Fault::Error);
+        }
+        world.ask(Request::Viewport { page, op: Token::new(4), width: 1440, height: 900 });
+        assert!(matches!(world.above.pop(), Some(Event::Refused { op, .. }) if op == Token::new(4)));
+        assert!(world.above.is_empty(), "one terminal");
+        world.assert_commands_settled();
+    }
+}

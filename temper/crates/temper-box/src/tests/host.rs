@@ -18,6 +18,7 @@ fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Har
         &crate::limits::small(),
         crate::host::Echo::None,
         super::fixtures::Opening {
+            link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
             first_link: Some(crate::host::FirstLink {
                 url: bytes::copy_of(FIRST_URL),
@@ -220,6 +221,7 @@ fn startup_log_and_record_diagnostics_follow_the_block() {
         &crate::limits::small(),
         crate::host::Echo::None,
         super::fixtures::Opening {
+            link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
             first_link: Some(crate::host::FirstLink {
                 url: bytes::copy_of(FIRST_URL),
@@ -253,6 +255,7 @@ fn with_no_first_link_after_block_is_at_the_start_and_the_first_serve_link_gets_
         &crate::limits::small(),
         crate::host::Echo::None,
         super::fixtures::Opening {
+            link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
             first_link: None,
             after_block: bytes::copy_of(AFTER_BLOCK),
@@ -1920,6 +1923,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
     let link_debug = alloc::fmt::format(format_args!("{link:?}"));
     assert!(link_debug == "FirstLink { .. }", "FirstLink Debug hides both fields");
     let settings = Settings {
+        link_form: crate::terminal::LinkForm::Bare,
         first_link: Some(link),
         after_block: Box::new([]),
         log_lines: Box::new([]),
@@ -1935,7 +1939,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
         stderr: Fd::new(2),
     };
     let expected = alloc::fmt::format(format_args!(
-        "Settings {{ program: {:?}, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, log_lines: [], first_link: Some(FirstLink {{ .. }}), after_block_bytes: 0, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
+        "Settings {{ program: {:?}, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, log_lines: [], first_link: Some(FirstLink {{ .. }}), link_form: Bare, after_block_bytes: 0, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
         settings.program,
         settings.serve,
         settings.listeners,
@@ -2228,4 +2232,184 @@ fn bound_kind_labels_follow_the_number_through_start_stop_and_failure() {
             stop_fetch_box(&mut h);
         }
     }
+}
+
+#[test]
+fn each_link_reads_on_stdout_as_its_form_has_it() {
+    use crate::terminal::LinkForm;
+    for (form, first, fresh) in [
+        (LinkForm::Bare, b"http://local/first\n".as_slice(), b"http://fresh/link\n".as_slice()),
+        (
+            LinkForm::Osc8,
+            b"\x1b]8;;http://local/first\x1b\\http://local/first\x1b]8;;\x1b\\\n".as_slice(),
+            b"\x1b]8;;http://fresh/link\x1b\\http://fresh/link\x1b]8;;\x1b\\\n".as_slice(),
+        ),
+    ] {
+        let mut harness = Harness::with_terminal(
+            temper_forge_setup::Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
+            &[],
+            true,
+            16_384,
+            &crate::limits::small(),
+            crate::host::Echo::None,
+            super::fixtures::Opening {
+                link_form: form,
+                log_lines: Box::new([]),
+                first_link: Some(crate::host::FirstLink {
+                    url: bytes::copy_of(FIRST_URL),
+                    secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
+                }),
+                after_block: bytes::copy_of(AFTER_BLOCK),
+            },
+        );
+        harness.run_until_idle();
+        assert_eq!(harness.stdout().as_ref(), first);
+        let serve = harness.child_index(b"serve");
+        harness.write_child(serve, 1, b"http://fresh");
+        harness.run_until_idle();
+        assert!(harness.stdout().is_empty());
+        harness.write_child(serve, 1, b"/link\n");
+        harness.run_until_idle();
+        assert_eq!(harness.stdout().as_ref(), fresh);
+        assert_eq!(
+            harness.terminal_bytes(),
+            crate::lines::joined(&[
+                crate::terminal::PRELUDE,
+                first,
+                crate::terminal::FOOTER,
+                AFTER_BLOCK,
+                b"\n",
+                fresh,
+            ])
+        );
+        stop_first_link(&mut harness);
+    }
+}
+#[test]
+fn the_widest_link_is_whole_on_a_terminal_and_one_byte_more_is_refused() {
+    for overflow in [false, true] {
+        let mut harness = Harness::with_terminal(
+            temper_forge_setup::Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
+            &[],
+            true,
+            16_384,
+            &crate::limits::small(),
+            crate::host::Echo::None,
+            super::fixtures::Opening {
+                link_form: crate::terminal::LinkForm::Osc8,
+                log_lines: Box::new([]),
+                first_link: None,
+                after_block: Box::new([]),
+            },
+        );
+        harness.run_until_idle();
+        let serve = harness.child_index(b"serve");
+        let cap = super::fixtures::line_cap();
+        harness.write_child(serve, 1, &cap);
+        harness.run_until_idle();
+        assert!(harness.stdout().is_empty(), "a partial link prints nothing");
+        harness.write_child(serve, 1, if overflow { b"x\n" } else { b"\n" });
+        harness.run_until_idle();
+        if overflow {
+            assert!(harness.stdout().is_empty(), "none of an oversized URL is printed");
+            harness.write_child(serve, 1, b"good\n");
+            harness.run_until_idle();
+            assert_eq!(harness.stdout().as_ref(), b"\x1b]8;;good\x1b\\good\x1b]8;;\x1b\\\n");
+            assert!(Harness::contains(&harness.terminal_bytes(), b"box: serve: sign-in link too long\nOpen this link"));
+        } else {
+            let stdout = harness.stdout();
+            assert_eq!(stdout.len(), 8207);
+            assert_eq!(stdout, crate::lines::joined(&[b"\x1b]8;;", &cap, b"\x1b\\", &cap, b"\x1b]8;;\x1b\\\n"]));
+        }
+        stop_first_link(&mut harness);
+    }
+}
+
+fn source_steps() -> temper_forge_setup::Steps {
+    let mut steps = grouped_steps();
+    let mut group = List::with_capacity(u32::try_from(steps.asked[0].steps.len().checked_add(1).unwrap()).unwrap());
+    for step in &steps.asked[0].steps {
+        group.push(step.clone()).unwrap();
+    }
+    group.push((temper_forge_setup::Stage::Source, once(b"source 3", &[b"never"]).ending_ignored())).unwrap();
+    steps.asked[0].steps = group.into_boxed();
+    steps
+}
+#[test]
+fn source_outcomes_precede_started_are_replayed_and_failures_are_logged_once() {
+    for line in [b"source added\n".as_slice(), b"source failed discovery unavailable\n"] {
+        let mut h = Harness::grouped(source_steps(), &[], true);
+        h.run_until_idle();
+        h.ask(b"start 3\n");
+        h.run_until_idle();
+        let child = h.child_index(b"source 3");
+        h.write_stdout(child, line);
+        finish_child(&mut h, b"source 3", 0);
+        let outcome = crate::pipe::source(3, &temper_forge_setup::sign_in::Source::read(line).unwrap());
+        let ending = crate::lines::joined(&[&outcome, b"started 3\n"]);
+        assert!(h.reply_bytes().ends_with(&ending));
+        assert!(!Harness::contains(&h.reply_bytes(), b"failed 3"));
+        h.ask(b"start 3\n");
+        h.run_until_idle();
+        assert!(h.reply_bytes().ends_with(&crate::lines::joined(&[&ending, &ending])));
+        let count = bytes::count(&h.log(), b"no sign-in through temper:", u32::MAX);
+        assert_eq!(count, u32::from(line.starts_with(b"source failed")));
+        assert_eq!(h.spawn_times(b"source 3").len(), 1);
+        stop_fetch_box(&mut h);
+    }
+}
+
+#[test]
+fn a_restored_group_waits_for_its_source_before_reporting_started() {
+    use skein_fake_machine::Item;
+    let items =
+        [Item::directory(b"box"), Item::directory(b"box/started"), Item::file(b"box/started/3", b"").mode(0o600)];
+    let mut steps = source_steps();
+    steps.asked[0].before = 1;
+    let mut h = Harness::grouped(steps, &items, true);
+    h.run_until_idle();
+    assert_eq!(h.spawn_times(b"source 3").len(), 1, "the restored group starts without an ask");
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    assert!(!Harness::contains(&h.reply_bytes(), b"started 3"), "the source has not answered");
+    assert!(!Harness::contains(&h.log(), b"no sign-in through temper"), "no premature source failure");
+    let child = h.child_index(b"source 3");
+    h.write_stdout(child, b"source added\n");
+    finish_child(&mut h, b"source 3", 0);
+    assert!(h.reply_bytes().ends_with(b"source 3 added\nstarted 3\n"));
+    assert!(!Harness::contains(&h.log(), b"no sign-in through temper"));
+    stop_fetch_box(&mut h);
+}
+#[test]
+fn a_silent_source_ending_gets_the_boxs_failure_line_and_still_starts() {
+    for exit in [Exit::Code(0), Exit::Code(7), Exit::Signal(9)] {
+        let mut h = Harness::grouped(source_steps(), &[], true);
+        h.run_until_idle();
+        h.ask(b"start 3\n");
+        h.run_until_idle();
+        let pid = h.hosted.get(h.child_index(b"source 3")).unwrap().pid;
+        h.sim.finish_service(pid, exit);
+        h.run_until_idle();
+        assert!(Harness::contains(&h.reply_bytes(), b"source 3 failed source "));
+        assert!(h.reply_bytes().ends_with(b"started 3\n"));
+        assert_eq!(bytes::count(&h.log(), b"no sign-in through temper:", u32::MAX), 1);
+        assert_eq!(h.spawn_times(b"source 3").len(), 1);
+        stop_fetch_box(&mut h);
+    }
+}
+
+#[test]
+fn a_source_that_never_started_has_a_logged_outcome_and_never_fails_the_group() {
+    let mut h = Harness::grouped(source_steps(), &[], true);
+    h.run_until_idle();
+    h.hold_spawn = Some(b"source 3".as_slice().into());
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    assert!(h.held_spawn.is_some());
+    h.fail_spawn();
+    h.run_until_idle();
+    assert!(h.reply_bytes().ends_with(b"source 3 failed source did not start\nstarted 3\n"));
+    assert_eq!(bytes::count(&h.log(), b"no sign-in through temper:", u32::MAX), 1);
+    assert_eq!(h.spawn_times(b"source 3").len(), 1);
+    stop_fetch_box(&mut h);
 }

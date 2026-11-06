@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use skein_fake_machine::{How, Item, Machine, serve};
 use skein_io::file;
-use skein_io::file_layer::{self, FileIo};
+use skein_io::file_layer::{FileIo, Limits as FileLimits, step};
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_kv::{Event, Limits, Request, Store};
 use skein_lib::{Env, Queue, Time, Token, Wall};
@@ -16,6 +16,7 @@ pub struct World {
     pid: Pid,
     pub root: Fd,
     pub io: FileIo,
+    file_limits: FileLimits,
     store: Store,
     pub env: Env<Limits>,
     pub above: Queue<Event>,
@@ -53,12 +54,15 @@ impl World {
         let mut sim = Sim::new(1, config);
         let pid = sim.spawn_process();
         let root = sim.root(pid, Handle::new(handle.raw()));
+        let Limits { chunk, deadline, .. } = limits;
+        let file_limits = FileLimits { files: 8, read: chunk, entries: 1024, whole: chunk, timeout: deadline };
         World {
             machine,
             sim,
             pid,
             root,
-            io: FileIo::new(8, limits.chunk, 1024, limits.deadline),
+            io: FileIo::with_limits(&file_limits),
+            file_limits,
             store: Store::new(&limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             above: Queue::with_capacity(128),
@@ -116,9 +120,10 @@ impl World {
     }
 
     pub fn step(&mut self, auto_fire: bool) -> bool {
+        let env = self.env.with(self.file_limits);
         let mut progress = false;
         if self.io.is_due(self.env.now) {
-            file_layer::expire(&mut self.io, self.env.now, &mut self.subs);
+            step::expire(&mut self.io, &env, &mut self.subs);
             progress = true;
         }
         if self.io.takes()
@@ -129,7 +134,7 @@ impl World {
                 self.asked_bytes += u64::from(*max);
                 self.asked_most = self.asked_most.max(*max);
             }
-            file_layer::down(&mut self.io, self.env.now, request, &mut self.file_events, &mut self.subs);
+            step::down(&mut self.io, &env, request, &mut self.file_events, &mut self.subs);
             progress = true;
         }
         if !self.subs.is_empty() {
@@ -139,7 +144,7 @@ impl World {
         }
         self.sim.reap(self.pid, &mut self.completions);
         while let Some(complete) = self.completions.pop() {
-            file_layer::up(&mut self.io, complete, &mut self.file_events, &mut self.subs);
+            step::up(&mut self.io, &env, complete, &mut self.file_events, &mut self.subs);
             progress = true;
         }
         while let Some(event) = self.file_events.pop() {
@@ -159,7 +164,7 @@ impl World {
         self.sim = Sim::new(seed, Config { trace: self.sim.config().trace, ..Config::calm() });
         self.pid = self.sim.spawn_process();
         self.root = self.sim.root(self.pid, Handle::new(handle.raw()));
-        self.io = FileIo::new(8, self.env.limits.chunk, 1024, self.env.limits.deadline);
+        self.io = FileIo::with_limits(&self.file_limits);
         self.store = Store::new(&self.env.limits);
         self.above = Queue::with_capacity(128);
         self.below = Queue::with_capacity(128);
@@ -170,7 +175,7 @@ impl World {
 
     pub fn reopen(&mut self) {
         self.store = Store::new(&self.env.limits);
-        self.io = FileIo::new(8, self.env.limits.chunk, 1024, self.env.limits.deadline);
+        self.io = FileIo::with_limits(&self.file_limits);
         self.request(Request::Open { owner: Token::new(1), root: self.root });
     }
 

@@ -78,7 +78,7 @@ pub fn decode(request: &Request, body: &[u8]) -> Decoded {
 pub fn decode_answer(mut decoder: client::Decoder, body: &[u8], limits: &Limits) -> Decoded {
     let mut rows = Vec::new();
     let mut document = None;
-    let first = client::first(&decoder);
+    let first = tokenizer::Request::Next;
     let steps = drive(body, limits, first, |event| match client::step(&mut decoder, limits, event) {
         Step::Demand(next) => Some(next),
         Step::Row(row, next) => {
@@ -122,7 +122,7 @@ pub fn decode_refusal(method: Method, target: &[u8], body: &[u8], limits: &Limit
 }
 fn decode_body(mut decoder: server::BodyDecoder, body: &[u8], limits: &Limits) -> Result<(Request, usize), Malformed> {
     let mut result = None;
-    let first = server::body_first(&decoder);
+    let first = tokenizer::Request::Next;
     let steps = drive(body, limits, first, |event| match server::body(&mut decoder, limits, event) {
         server::BodyStep::Demand(next) => Some(next),
         server::BodyStep::Decoded(request) => {
@@ -562,7 +562,7 @@ pub fn decode_delivery_steps(
     let mut decoder = delivery::decoder(event, limits).expect("recorded delivery event");
     let mut result = None;
     let steps =
-        drive(body, limits, delivery::first(&decoder), |event| match delivery::step(&mut decoder, limits, event) {
+        drive(body, limits, tokenizer::Request::Next, |event| match delivery::step(&mut decoder, limits, event) {
             Step::Demand(next) => Some(next),
             Step::Done(value) => {
                 result = Some(Ok(value));
@@ -722,7 +722,7 @@ pub fn decode_split(request: &Request, body: &[u8], split: usize, limits: &Limit
     let steps = drive_split(
         body,
         limits,
-        client::first(&decoder),
+        tokenizer::Request::Next,
         |event| match client::step(&mut decoder, limits, event) {
             Step::Demand(next) => Some(next),
             Step::Row(row, next) => {
@@ -750,7 +750,7 @@ pub fn decode_chunks(request: &Request, body: &[u8], chunk: usize) -> Decoded {
     let mut decoder = client::decoder(request, &limits).expect("repository decoder");
     let mut rows = Vec::new();
     let mut document = None;
-    let first = client::first(&decoder);
+    let first = tokenizer::Request::Next;
     let steps = drive_chunked(
         body,
         &limits,

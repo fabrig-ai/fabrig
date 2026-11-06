@@ -1,6 +1,7 @@
 use crate::{Domain, Encodable, Event, Limits, Request};
 use alloc::boxed::Box;
 use jig_domain_host as host;
+use jig_domain_link::Bounds;
 use skein_lib::{Duration, Env, List, Queue, Reader, Time, Token, Wall, Writer};
 use smith_host_domain as smith;
 
@@ -44,7 +45,7 @@ pub fn limits() -> Limits {
         kill_after: Duration::from_secs(2),
         facts: 8,
     };
-    let bounds = host::Bounds {
+    let bounds = Bounds {
         program_endpoints: Box::new([]),
         models: Box::new([]),
         turns: 8,

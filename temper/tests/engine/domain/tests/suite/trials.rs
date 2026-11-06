@@ -242,7 +242,7 @@ fn active(driver: &mut Driver, run: &engine::Assignment) {
         host::LinkUp::Activity {
             run: Token::new(run.task),
             attempt: Token::new(run.attempt),
-            activity: host::AgentActivity::Phase(host::Phase::Active),
+            activity: host::AgentActivity::Phase(jig_domain_link::Phase::Active),
         },
         engine::Parts::none(),
     ));

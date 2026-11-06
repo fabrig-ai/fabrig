@@ -128,6 +128,13 @@ pub enum Cursor {
     Store { scope: Scope, after: Option<Position> },
 }
 
+/// Which side of an activity line to read (client/domain/contract.md, section 6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Side {
+    Earlier,
+    Later,
+}
+
 /// One document or bounded page, without a request key.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(
@@ -220,6 +227,12 @@ pub enum Read {
     Activity {
         task: u64,
         before: Option<Cursor>,
+    },
+    /// The page next to a line of a task's activity, that line left out (contract.md, section 6).
+    ActivityBeside {
+        task: u64,
+        position: u64,
+        side: Side,
     },
     /// One filtered inbox group.
     Inbox {

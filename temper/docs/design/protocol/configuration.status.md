@@ -2,6 +2,7 @@
 
 2026-11-06. Where temper's code lags or departs from [configuration.md](configuration.md).
 
+
 Section 13.2 has no gap in judging project ways against prospective templates
 or in the terminal refusal naming the item and rejected way.
 

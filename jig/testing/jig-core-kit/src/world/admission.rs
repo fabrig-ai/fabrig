@@ -1,5 +1,6 @@
 //! Explicit admission and store pacing on the core world's loop.
 use super::{ReplyTo, StoreOut, Token, World, core, fleet, people, root};
+use jig_domain_link::{Login, LoginState};
 impl World {
     /// Offer one input; count and drop any unadmitted input. Release is explicit.
     pub fn offer(&mut self, mut event: root::Event) {
@@ -85,10 +86,7 @@ impl World {
             root::Delivery::Core(core::Held::Sources { channel, sources }) => {
                 self.events.push_back(root::Event::Core(core::Event::Fleet(fleet::Event::Logins {
                     channel,
-                    logins: sources
-                        .iter()
-                        .map(|source| fleet::Login { name: *source, state: fleet::LoginState::Usable })
-                        .collect(),
+                    logins: sources.iter().map(|source| Login { name: *source, state: LoginState::Usable }).collect(),
                 })));
             }
             other @ (root::Delivery::ProjectMade { .. }

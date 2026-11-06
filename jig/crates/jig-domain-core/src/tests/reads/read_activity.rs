@@ -174,3 +174,66 @@ fn a_visible_turn_failure_keeps_its_reason_within_its_bound() {
         assert_eq!(loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Busy), None);
     }
 }
+
+#[test]
+fn earlier_beside_a_line_reads_as_a_cursor_there_does() {
+    use crate::reads::{Cursor, Position, Read, Scope, Side};
+    let task = 1;
+    let position = 3;
+    let after = Position::Owner(Key::Tasks(tasks::Key::Activity { task, position }));
+    let queries = [
+        Read::Activity {
+            task,
+            before: Some(Cursor::Store { scope: Scope::Activity { task }, after: Some(after.clone()) }),
+        },
+        Read::ActivityBeside { task, position, side: Side::Earlier },
+    ];
+    let mut answers = [None, None];
+    for (query, answer) in queries.into_iter().zip(&mut answers) {
+        let (mut core, limits) = watch_core();
+        let owner = core.tasks.task(task).unwrap().clone();
+        let Held::ReadLoad { load, range } = read_start(&mut core, &limits, 10, query) else { panic!("activity load") };
+        assert_eq!(range.scope, Scope::Activity { task });
+        assert_eq!(range.after, Some(after.clone()));
+        assert!(range.backwards);
+        let mut earlier = line();
+        earlier.position = 2;
+        let row = stored_row(Record::Tasks(tasks::Stored::Activity(earlier)), Some(owner));
+        *answer =
+            loaded_answer(&mut core, &limits, load, crate::reads::Loaded::Page { rows: Box::new([row]), next: None });
+    }
+    assert_eq!(answers.first(), answers.last());
+    let Some(Some(crate::reads::Answer::Page(page))) = answers.first() else { panic!("activity page") };
+    assert_eq!(page.rows.len(), 1);
+}
+
+#[test]
+fn later_beside_a_line_loads_the_forward_range() {
+    use crate::reads::{Position, Read, Scope, Side};
+    let (mut core, limits) = watch_core();
+    let task = 1;
+    let position = 3;
+    let Held::ReadLoad { range, .. } =
+        read_start(&mut core, &limits, 10, Read::ActivityBeside { task, position, side: Side::Later })
+    else {
+        panic!("activity load")
+    };
+    assert_eq!(range.scope, Scope::Activity { task });
+    assert_eq!(range.after, Some(Position::Owner(Key::Tasks(tasks::Key::Activity { task, position }))));
+    assert!(!range.backwards);
+}
+
+#[test]
+fn beside_a_line_of_an_invisible_task_is_unknown() {
+    use crate::reads::{Answer, Read, Side, Why};
+    for side in [Side::Earlier, Side::Later] {
+        let (mut core, limits) = watch_core();
+        watch_outputs(&mut core, &limits, Event::People(people::Event::Roles { project: 1, holdings: Box::new([]) }));
+        let Held::Read { answer, .. } =
+            read_start(&mut core, &limits, 10, Read::ActivityBeside { task: 1, position: 3, side })
+        else {
+            panic!("invisible activity must not load")
+        };
+        assert_eq!(answer, Answer::None(Why::Unknown));
+    }
+}

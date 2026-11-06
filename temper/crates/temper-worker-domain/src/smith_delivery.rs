@@ -1,11 +1,12 @@
 //! A delivery's commit fields and smith's delivery terminals (jig's
 //! `domain/hosts.md`, sections 7 and 9). The fields arrive typed; this keeps
 //! temper's policy over them, and translates a push's landings into smith's
-//! terminal, commit heads as receipts and operator tails as data.
+//! terminal, push receipts in words (`temper/docs/design/domain/agent.md`,
+//! section 6) and operator tails as data.
 
 use alloc::boxed::Box;
 use jig_domain_host as host;
-use skein_lib::List;
+use skein_lib::{List, Writer};
 use smith_host_domain as smith;
 
 use crate::{Domain, wire, workspace};
@@ -56,7 +57,7 @@ pub(crate) fn reply(domain: &Domain, reply_bytes: u32, reply: host::CallAnswer) 
     }
 }
 
-pub(crate) fn landings(landings: &[wire::Landing]) -> smith::Delivery {
+pub(crate) fn landings(landings: &[wire::Landing], branches: &[Option<Box<[u8]>>]) -> smith::Delivery {
     let mut receipts = List::with_capacity(u32::try_from(landings.len()).expect("bounded directories"));
     let mut first = None;
     let mut moved = false;
@@ -64,14 +65,14 @@ pub(crate) fn landings(landings: &[wire::Landing]) -> smith::Delivery {
         let directory = u32::try_from(directory).expect("bounded directories");
         let failure = match landing {
             wire::Landing::Landed { commit } => {
-                let mut text = skein_lib::Writer::new(64);
-                for byte in commit {
-                    let high = *b"0123456789abcdef".get(usize::from(byte >> 4_u8)).expect("hex nibble");
-                    let low = *b"0123456789abcdef".get(usize::from(byte & 15)).expect("hex nibble");
-                    text.put(&[high, low]).expect("two characters per commit byte");
-                }
+                let branch = branches
+                    .get(skein_lib::usize_of(directory))
+                    .expect("every item has a branch slot")
+                    .as_deref()
+                    .expect("a landed repository is writable");
+                let text = receipt_text(commit, branch);
                 receipts
-                    .push(smith::Receipt::new(directory, text.finish()).expect("bounded commit receipt"))
+                    .push(smith::Receipt::new(directory, text).expect("bounded commit receipt"))
                     .expect("room for changed directories");
                 None
             }
@@ -117,6 +118,48 @@ pub(crate) fn landings(landings: &[wire::Landing]) -> smith::Delivery {
             smith::Delivered::new(receipts.into_boxed()).expect("one unique receipt per changed directory"),
         )
     }
+}
+
+fn receipt_text(commit: &[u8; 32], branch: &[u8]) -> Box<[u8]> {
+    const PUSHED: &[u8] = b"pushed ";
+    const TO_BRANCH: &[u8] = b" to branch ";
+    const DETACHED: &[u8] = b"; your checkout stays detached, as expected";
+    let width = if commit.get(20..).expect("fixed id") == [0; 12] { 20_usize } else { 32 };
+    let digits = commit.get(..width).expect("fixed id");
+    let base = width
+        .checked_mul(2)
+        .expect("fixed commit digits")
+        .checked_add(PUSHED.len())
+        .expect("fixed receipt prefix")
+        .checked_add(DETACHED.len())
+        .expect("fixed receipt suffix");
+    let room = smith::Receipt::CAPACITY
+        .checked_sub(base)
+        .expect("fixed receipt fits")
+        .checked_sub(TO_BRANCH.len())
+        .expect("branch prefix fits");
+    let branch = if branch.len() <= room { Some(branch) } else { None };
+    let len = match branch {
+        Some(branch) => base
+            .checked_add(TO_BRANCH.len())
+            .expect("branch prefix fits")
+            .checked_add(branch.len())
+            .expect("checked branch fits"),
+        None => base,
+    };
+    let mut text = Writer::new(len);
+    text.put(PUSHED).expect("measured receipt prefix");
+    for byte in digits {
+        let high = *b"0123456789abcdef".get(usize::from(byte >> 4_u8)).expect("hex nibble");
+        let low = *b"0123456789abcdef".get(usize::from(byte & 15)).expect("hex nibble");
+        text.put(&[high, low]).expect("two characters per commit byte");
+    }
+    if let Some(branch) = branch {
+        text.put(TO_BRANCH).expect("measured branch prefix");
+        text.put(branch).expect("measured branch");
+    }
+    text.put(DETACHED).expect("measured receipt suffix");
+    text.finish()
 }
 
 fn failed(directory: u32, reason: smith::DeliveryReason, diagnostic: &smith::Diagnostic) -> smith::Delivery {

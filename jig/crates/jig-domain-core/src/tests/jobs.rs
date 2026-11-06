@@ -1,7 +1,7 @@
 //! Job admission (jig/docs/design/domain/engine.md, 7.5).
 use crate::runs::delegation::job_member;
 use crate::tests::*;
-use jig_domain_link::{JobBound, JobKind};
+use jig_domain_link::{Form, JobBound, JobKind};
 
 fn bound() -> JobBound {
     JobBound { kind: JobKind(7), spec: 64, result: 32, deadline: Duration::from_secs(60) }
@@ -348,7 +348,7 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
     }
     let grants = selected.expect("job start with application grant");
     assert_eq!(grants.len(), 1);
-    assert_eq!(grants[0].form, accounts::Form::Application);
+    assert_eq!(grants[0].form, Form::Application);
     assert_eq!(grants[0].account, 7);
     let proof = core.proofs.get(&1).expect("job proof");
     assert_eq!(proof.credentials.as_ref(), [7]);

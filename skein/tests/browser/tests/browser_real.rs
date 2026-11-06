@@ -6,6 +6,8 @@ use real::{Profile, Rig, Scenario, chromium};
 mod folds_away;
 #[path = "suite/log_end.rs"]
 mod log_end;
+#[path = "suite/log_reading.rs"]
+mod log_reading;
 
 #[test]
 fn chromium_opens_finds_and_presses_a_button() {
@@ -173,4 +175,30 @@ fn a_person_without_a_directory_downloads_nothing() {
 fn a_letter_with_alt_and_shift_reaches_the_page() {
     let profile = Profile::fresh();
     Rig::new(&chromium(), &profile.0, Scenario::Letter).run();
+}
+
+#[test]
+fn chromium_lists_a_pressed_tab_and_its_cut_opener_but_blocks_an_unpressed_opening() {
+    let profile = Profile::fresh();
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Tabs);
+    rig.fixed_page(br#"<!doctype html><button id="open">Open</button><button id="cut">Cut opener</button><h1>Before</h1><script src="/tabs.js"></script>"#.to_vec());
+    rig.tab_script();
+    rig.run();
+    assert!(rig.root_closed && rig.exited && rig.child_closed);
+}
+
+#[test]
+fn chromium_finds_and_presses_the_page_beside_its_loading_tab() {
+    let profile = Profile::fresh();
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::TabBeside);
+    rig.beside_page();
+    rig.run();
+}
+
+#[test]
+fn chromium_applies_each_requested_viewport_to_layout() {
+    let profile = Profile::fresh();
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Viewport);
+    rig.fixed_page(b"<!doctype html><style>body{margin:0}h1{width:100vw;margin:0}</style><h1>Viewport</h1>".to_vec());
+    rig.run();
 }

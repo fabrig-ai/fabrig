@@ -1,7 +1,8 @@
-//! Sign-in departure, return and endings through the joined world's public fakes.
+//! Sign-in holding, reload and endings through the joined world's public fakes.
 use jig_client_kit::harness::{App, Front, FrontFault};
 use jig_domain_accounts as a;
-use skein_lib::{Duration, Queue, Wall};
+use jig_domain_link::{Form, Scheme};
+use skein_lib::{Duration, Queue};
 use skein_ui::{Act, Role};
 use temper_client_domain::{Address, Place, address};
 use temper_client_world::{
@@ -12,8 +13,6 @@ use temper_client_world::{
 
 // An inert address of this world's fake issuer; never a real sign-in link.
 const ISSUER: &[u8] = b"https://issuer.example/qa-sign-in";
-// README 3.5: one Return and one departure for one answered sign-in.
-const ONE: usize = 1;
 const NONE: usize = 0;
 const SUBJECT: &[u8] = b"qa-person";
 
@@ -66,14 +65,9 @@ fn press(front: &mut Joint, root: &mut Root, name: &[u8]) {
     let event = Temper::act(&mut view, node, Act::Press).expect("bound QA button");
     h::event(front, root, event);
 }
-fn begin(departing: bool) -> (Joint, Root, u32) {
+fn begin() -> (Joint, Root, u32) {
     let (mut front, mut root) = h::plan_fixture(f::SEED);
-    if departing {
-        h::reopen(&mut front, &mut root, at(b"/accounts/connect"), true);
-    } else {
-        // Keep the fixture's seed: reopen intentionally uses one fixed fresh seed.
-        h::event(&mut front, &mut root, Temper::went(at(b"/accounts/connect")));
-    }
+    h::event(&mut front, &mut root, Temper::went(at(b"/accounts/connect")));
     press(&mut front, &mut root, b"Continue with ChatGPT");
     let source = h::signing(&front);
     (front, root, source)
@@ -97,18 +91,15 @@ fn made(front: &mut Joint, root: &mut Root, source: u32, declined: bool) {
     account_event(front, root, a::Event::SignedIn { source, subject: SUBJECT.into(), display: Box::new([]), declined });
 }
 fn established() -> (Joint, Root, u32) {
-    let (mut front, mut root, source) = begin(false);
+    let (mut front, mut root, source) = begin();
     started(&mut front, &mut root, source);
     made(&mut front, &mut root, source, false);
     (front, root, source)
 }
-fn returns(front: &Joint) -> Vec<(u32, Vec<u8>)> {
-    front.engine.protocol.returns.iter().map(|(source, path)| (*source, path.to_vec())).collect()
-}
 
 fn row_sign_in() -> (Joint, Root, u32) {
     let (mut front, mut root, source) = established();
-    h::reopen(&mut front, &mut root, Address::Accounts, false);
+    h::reopen(&mut front, &mut root, Address::Accounts);
     // The existing component event makes this source need sign-in, keeping its row.
     account_event(
         &mut front,
@@ -128,8 +119,8 @@ fn account_ending(root: &Root, expected: &str) {
 // client/README.md 3.5: a way without a source does not adopt another client's sign-in.
 #[test]
 fn a_reload_without_source_offers_the_way_again() {
-    let (mut front, mut root, _) = begin(false);
-    h::reopen(&mut front, &mut root, at(b"/accounts/connect?provider=17&way=sign-in"), true);
+    let (mut front, mut root, _) = begin();
+    h::reopen(&mut front, &mut root, at(b"/accounts/connect?provider=17&way=sign-in"));
     assert!(button(&root, b"Continue with ChatGPT"));
     assert_eq!(front.leaves.len(), NONE);
 }
@@ -137,9 +128,8 @@ fn a_reload_without_source_offers_the_way_again() {
 // client/README.md 3.5 and 10: the terminal prints a sign-in address and sends no Return.
 #[test]
 fn terminal_sign_in_never_requests_a_tab_departure() {
-    let (mut front, mut root, source) = begin(false);
+    let (mut front, mut root, source) = begin();
     started(&mut front, &mut root, source);
-    assert_eq!(returns(&front).len(), NONE);
     assert_eq!(front.leaves.len(), NONE);
     let view = shown(&root);
     assert!(
@@ -150,28 +140,10 @@ fn terminal_sign_in_never_requests_a_tab_departure() {
     );
 }
 
-// client/README.md 3.5 The tab's departure: Return lost never asks the shell to leave.
-#[test]
-fn lost_return_does_not_depart() {
-    let (mut front, mut root, source) = begin(true);
-    visited(&mut front, source);
-    let now = front.engine.env.now;
-    let callbacks = front.poll(now, Wall::EPOCH);
-    // The start's answer is already captured; lose the following Return answer.
-    h::lose_next(&mut front);
-    for (client, event) in callbacks {
-        front.received(client, &event);
-        h::event(&mut front, &mut root, event);
-    }
-    h::lost(&mut front, &mut root);
-    assert_eq!(returns(&front).len(), ONE);
-    assert_eq!(front.leaves.len(), NONE);
-}
-
 fn connect_ending(front: &mut Joint, root: &mut Root, source: u32, expected: &str) {
     has(root, expected);
     assert!(button(root, b"Continue with ChatGPT"));
-    h::reopen(front, root, returned(source), true);
+    h::reopen(front, root, returned(source));
     has(root, expected);
     assert!(button(root, b"Continue with ChatGPT"));
 }
@@ -179,7 +151,7 @@ fn connect_ending(front: &mut Joint, root: &mut Root, source: u32, expected: &st
 // client/README.md 3.5 Come back and 5.5 A sign-in: Made reaches Ready live and at the returned address.
 #[test]
 fn made_sign_in_reaches_ready_live_and_after_return() {
-    let (mut front, mut root, source) = begin(false);
+    let (mut front, mut root, source) = begin();
     started(&mut front, &mut root, source);
     made(&mut front, &mut root, source, false);
     connect_ending(&mut front, &mut root, source, "Signed in to ChatGPT");
@@ -204,7 +176,7 @@ fn renewed_sign_in_explains_the_same_account_on_connect_model() {
 // client/README.md 5.5 A sign-in: Made with declined consent has the plan-declined words.
 #[test]
 fn made_without_plan_usage_offers_sign_in_and_a_key() {
-    let (mut front, mut root, source) = begin(false);
+    let (mut front, mut root, source) = begin();
     started(&mut front, &mut root, source);
     made(&mut front, &mut root, source, true);
     connect_ending(&mut front, &mut root, source, "You signed in without plan usage.");
@@ -231,39 +203,16 @@ fn superseded_return_source_offers_the_way_again() {
     let new_source = h::signing(&front);
     started(&mut front, &mut root, new_source);
     made(&mut front, &mut root, new_source, false);
-    h::reopen(&mut front, &mut root, returned(old_source), true);
+    h::reopen(&mut front, &mut root, returned(old_source));
     assert!(button(&root, b"Continue with ChatGPT"));
     assert_eq!(printed(&root), b"/accounts/connect?provider=17&way=sign-in");
     assert!(!words(&root).contains("Signed in to ChatGPT"));
 }
 
-// client/README.md 3.5 The tab's departure: Leave waits for Return's answer.
-#[test]
-fn browser_waits_for_the_return_answer_before_leaving() {
-    // Only fake time advances while the Return answer is held.
-    const HOLD: Duration = Duration::from_secs(1);
-    let (mut front, mut root, source) = begin(true);
-    visited(&mut front, source);
-    let now = front.engine.env.now;
-    let callbacks = front.poll(now, Wall::EPOCH);
-    front.fault(now, FrontFault::Slow { span: HOLD });
-    for (client, event) in callbacks {
-        front.received(client, &event);
-        h::event(&mut front, &mut root, event);
-    }
-    assert_eq!(returns(&front).len(), ONE);
-    assert_eq!(front.leaves.len(), NONE);
-    for (client, event) in front.poll(now.saturating_add(HOLD), Wall::EPOCH) {
-        front.received(client, &event);
-        h::event(&mut front, &mut root, event);
-    }
-    assert_eq!(front.leaves.iter().map(AsRef::as_ref).collect::<Vec<&[u8]>>(), [ISSUER]);
-}
-
 // client/README.md 5.5 A sign-in and Each state: Failed Misconfigured explains registration.
 #[test]
 fn misconfigured_sign_in_explains_registration_on_connect_model() {
-    let (mut front, mut root, source) = begin(false);
+    let (mut front, mut root, source) = begin();
     started(&mut front, &mut root, source);
     account_event(&mut front, &mut root, a::Event::SignInFailed { source, failure: a::Failure::Misconfigured });
     connect_ending(
@@ -278,7 +227,7 @@ fn misconfigured_sign_in_explains_registration_on_connect_model() {
 #[test]
 #[ignore = "backlog: a sign-in ending SignInAgain reads \"Needs sign-in\", not 5.5's \"Signed out of ChatGPT.\"; off the happy path (m3 backlog 2)"]
 fn signed_out_sign_in_explains_the_ending_on_connect_model() {
-    let (mut front, mut root, source) = begin(false);
+    let (mut front, mut root, source) = begin();
     started(&mut front, &mut root, source);
     account_event(&mut front, &mut root, a::Event::SignInFailed { source, failure: a::Failure::SignInAgain });
     connect_ending(&mut front, &mut root, source, "Signed out of ChatGPT.");
@@ -288,7 +237,7 @@ fn signed_out_sign_in_explains_the_ending_on_connect_model() {
 #[test]
 #[ignore = "backlog: a sign-in ending Unloaded reads the load error, not 5.5's \"Can't be used on HOST: WHY.\"; off the happy path (m3 backlog 3)"]
 fn unloaded_sign_in_names_its_place_and_reason_on_connect_model() {
-    let (mut front, mut root, source) = begin(false);
+    let (mut front, mut root, source) = begin();
     started(&mut front, &mut root, source);
     account_event(
         &mut front,
@@ -306,9 +255,9 @@ fn unloaded_sign_in_names_its_place_and_reason_on_connect_model() {
 // client/README.md 3.5 Come back: a returned source observes the later Made ending.
 #[test]
 fn returned_sign_in_changes_to_ready_when_the_watch_ends() {
-    let (mut front, mut root, source) = begin(false);
+    let (mut front, mut root, source) = begin();
     started(&mut front, &mut root, source);
-    h::reopen(&mut front, &mut root, returned(source), true);
+    h::reopen(&mut front, &mut root, returned(source));
     made(&mut front, &mut root, source, false);
     has(&root, "Signed in to ChatGPT");
     let view = shown(&root);
@@ -319,16 +268,15 @@ fn returned_sign_in_changes_to_ready_when_the_watch_ends() {
             .any(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Start a chat"))
     );
     assert_eq!(front.leaves.len(), NONE);
-    assert_eq!(returns(&front).len(), NONE);
 }
 
 // client/README.md 3.5 Come back: a returned source observes the later Failed ending.
 #[test]
 #[ignore = "backlog: a sign-in ending SignInAgain reads \"Needs sign-in\", not 5.5's \"Signed out of ChatGPT.\"; off the happy path (m3 backlog 2)"]
 fn returned_sign_in_changes_to_failure_when_the_watch_ends() {
-    let (mut front, mut root, source) = begin(false);
+    let (mut front, mut root, source) = begin();
     started(&mut front, &mut root, source);
-    h::reopen(&mut front, &mut root, returned(source), true);
+    h::reopen(&mut front, &mut root, returned(source));
     account_event(&mut front, &mut root, a::Event::SignInFailed { source, failure: a::Failure::SignInAgain });
     has(&root, "Signed out of ChatGPT.");
     assert!(button(&root, b"Continue with ChatGPT"));
@@ -341,7 +289,7 @@ fn welcome_ready_waits_for_accounts_before_drawing_a_model_line() {
     let (mut front, mut root) = h::plan_fixture(f::SEED);
     let now = front.engine.env.now;
     front.fault(now, FrontFault::Slow { span: Duration::from_secs(1) });
-    h::reopen(&mut front, &mut root, at(b"/welcome?at=ready"), true);
+    h::reopen(&mut front, &mut root, at(b"/welcome?at=ready"));
     assert!(!words(&root).contains("Model:"), "{}", words(&root));
 }
 
@@ -349,11 +297,11 @@ fn welcome_ready_waits_for_accounts_before_drawing_a_model_line() {
 #[test]
 fn welcome_ready_names_the_sign_in_under_way() {
     let (mut front, mut root) = h::empty_plan_fixture(f::SEED);
-    h::reopen(&mut front, &mut root, at(b"/welcome?at=model"), true);
+    h::reopen(&mut front, &mut root, at(b"/welcome?at=model"));
     press(&mut front, &mut root, b"Continue with ChatGPT");
     let source = h::signing(&front);
     started(&mut front, &mut root, source);
-    h::reopen(&mut front, &mut root, at(b"/welcome?at=ready"), true);
+    h::reopen(&mut front, &mut root, at(b"/welcome?at=ready"));
     has(&root, "Model ChatGPT plan · signing in…");
 }
 
@@ -368,10 +316,10 @@ fn welcome_ready_names_the_made_account() {
             account: source,
             generation: 1,
             valid: Duration::from_secs(3600),
-            form: a::Form::Credential(a::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
         }),
     );
-    h::reopen(&mut front, &mut root, at(b"/welcome?at=ready"), true);
+    h::reopen(&mut front, &mut root, at(b"/welcome?at=ready"));
     has(&root, "ChatGPT plan");
 }
 
@@ -474,11 +422,11 @@ fn other_failures_offer_retry_on_connect_model() {
         a::Failure::MissingScope { scope: h::PROVIDER },
         a::Failure::Cancelled,
     ] {
-        let (mut front, mut root, source) = begin(false);
+        let (mut front, mut root, source) = begin();
         started(&mut front, &mut root, source);
         account_event(&mut front, &mut root, a::Event::SignInFailed { source, failure });
         assert!(button(&root, b"Continue with ChatGPT"));
-        h::reopen(&mut front, &mut root, returned(source), true);
+        h::reopen(&mut front, &mut root, returned(source));
         assert!(button(&root, b"Continue with ChatGPT"));
     }
 }

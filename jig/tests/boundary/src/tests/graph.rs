@@ -331,6 +331,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-domain-authority",
                 "jig-domain-people",
                 "jig-domain-fleet",
+                "jig-domain-link",
                 "jig-domain-accounts",
                 "jig-domain-tasks",
                 "jig-domain-views",
@@ -681,6 +682,7 @@ fn engine_worker_channels_link_only_their_boundary_configuration_and_foundation(
         dependencies,
         [
             "jig-domain-host",
+            "jig-domain-link",
             "jig-protocol-config",
             "jig-protocol-worker-wire",
             "skein-channel",
@@ -702,7 +704,7 @@ fn worker_link_links_only_its_wire_host_and_channel_vocabulary() {
     dependencies.sort();
     assert_eq!(
         dependencies,
-        ["jig-domain-host", "jig-protocol-worker-wire", "skein-channel", "skein-codec", "skein-lib"]
+        ["jig-domain-host", "jig-domain-link", "jig-protocol-worker-wire", "skein-channel", "skein-codec", "skein-lib"]
     );
 }
 

@@ -1,8 +1,7 @@
 //! Typed boundary tests through the public conversions.
 #![expect(clippy::disallowed_macros, reason = "tests assemble JSON cases from shared fields")]
-
-use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
+use jig_domain_link::{Form, Scheme};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, ReplyTo, Token};
 use smith_domain as smith;
@@ -95,8 +94,8 @@ fn assignment() -> engine::Assignment {
         transcript: Box::new([]),
         answered: Box::new([]),
         settled: Box::new([]),
-        grants: Box::new([accounts::Grant {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+        grants: Box::new([jig_domain_link::Grant {
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 2,
             valid: Duration::from_secs(30),
@@ -2408,6 +2407,52 @@ fn a_malformed_merge_is_refused_naming_it() {
 }
 
 #[test]
+fn a_refused_message_says_where_its_requester_is() {
+    use jig_domain_authority::{Answer, Finding};
+    for (findings, tool, expected) in [
+        (
+            vec![Finding::Reference],
+            b"message".as_slice(),
+            "Authority refused: task reference. Your brief's [Requested by ...] line names your requester; [This task: N] is you.",
+        ),
+        (
+            vec![Finding::Reference, Finding::Tool, Finding::Tool],
+            b"message".as_slice(),
+            "Authority refused: task reference; tool family message. Your brief's [Requested by ...] line names your requester; [This task: N] is you.",
+        ),
+        (vec![Finding::Reference], b"read_task".as_slice(), "Authority refused: task reference"),
+    ] {
+        let denied = engine::CallAnswer::ToolDenied { answer: Answer::Refuse, findings: findings.into() };
+        let rendered = crate::answer_for_tool(&denied, tool, 1024);
+        assert!(rendered.error());
+        assert_eq!(rendered.text(), expected.as_bytes());
+    }
+}
+
+#[test]
+fn an_authority_refusal_ends_with_no_separator() {
+    use jig_domain_authority::{Answer, Finding, Source};
+    for (findings, expected) in [
+        (vec![Finding::Tool], "Authority refused: tool family control"),
+        (
+            vec![Finding::Tool, Finding::Tool, Finding::Reference, Finding::Tool],
+            "Authority refused: tool family control; task reference",
+        ),
+    ] {
+        let denied = engine::CallAnswer::ToolDenied { answer: Answer::Refuse, findings: findings.into() };
+        let rendered = crate::answer_for_tool(&denied, b"release", 1024);
+        assert!(rendered.error());
+        assert_eq!(rendered.text(), expected.as_bytes());
+    }
+    let denied = engine::CallAnswer::DelegationDenied {
+        answer: Answer::Refuse,
+        findings: Box::new([Finding::Executor { source: Source::Task }]),
+    };
+    let rendered = crate::answer_for_tool(&denied, b"change", 1024);
+    assert_eq!(rendered.text(), b"Authority refused: missing executor permission (task authority.delegation.kinds). For a change to a repository, call change with what to change.");
+}
+
+#[test]
 fn a_denied_release_names_the_control_family_once() {
     use jig_domain_authority::{Answer, Finding};
     let denied = engine::CallAnswer::ToolDenied {
@@ -2416,53 +2461,164 @@ fn a_denied_release_names_the_control_family_once() {
     };
     let rendered = crate::answer_for_tool(&denied, b"release", 1024);
     assert!(rendered.error());
-    assert_eq!(rendered.text(), b"Authority refused: tool family control; ");
+    assert_eq!(rendered.text(), b"Authority refused: tool family control");
 }
 
 #[test]
+fn a_real_changes_compare_is_past_the_stocks_bounds() {
+    use skein_forge::{api, measure};
+    // Stock values: temper/docs/help/reference/limits.md.
+    const ROWS: u32 = 8;
+    const ANSWER_BYTES: u64 = 65_536;
+    const NINE: u32 = 9; // One past the stock row bound.
+    const UNCHANGED_LINES: usize = 16_499;
+    // 16,499 unchanged two-byte lines and one changed two-byte line: 33,000 bytes per side.
+    let mut before = "x\n".repeat(UNCHANGED_LINES).into_bytes();
+    before.extend_from_slice(b"a\n");
+    let mut after = "x\n".repeat(UNCHANGED_LINES).into_bytes();
+    after.extend_from_slice(b"b\n");
+    let one_line = api::File {
+        path: b"f".as_slice().into(),
+        before: Some(b"a\n".as_slice().into()),
+        after: Some(b"b\n".as_slice().into()),
+    };
+    let mut nine_files = skein_lib::List::with_capacity(NINE);
+    let mut nine_commits = skein_lib::List::with_capacity(NINE);
+    for n in 0..NINE {
+        nine_files
+            .push(api::File { path: format!("f{n}").into_bytes().into(), ..one_line.clone() })
+            .expect("nine files fit");
+        nine_commits.push([u8::try_from(n).expect("nine commits"); 32]).expect("nine commits fit");
+    }
+    for (case, files, commits, rows_fit, bytes_fit) in [
+        ("nine one-line files", nine_files.into_boxed(), [SHA1_HEAD].into(), false, true),
+        ("nine commits", Box::new([one_line]), nine_commits.into_boxed(), false, true),
+        (
+            "one line changed in a 33 KB file",
+            Box::new([api::File {
+                path: b"f".as_slice().into(),
+                before: Some(before.into()),
+                after: Some(after.into()),
+            }]),
+            Box::new([SHA1_HEAD]),
+            true,
+            false,
+        ),
+    ] {
+        let compare = compare_answer(files, commits);
+        // These are the forge client's independent row and decoded-byte checks.
+        assert_eq!(measure::answer_rows(&compare, ROWS), rows_fit, "{case}");
+        let size = measure::answer(&compare).expect("fixture measure fits");
+        assert_eq!(size <= ANSWER_BYTES, bytes_fit, "{case}: {size} bytes");
+    }
+}
+
+fn compare_answer(
+    files: Box<[skein_forge::api::File]>,
+    commits: Box<[skein_forge::api::Commit]>,
+) -> skein_forge::api::Answer {
+    skein_forge::api::Answer::Compare { before: [1; 32], after: SHA1_HEAD, contains_before: true, files, commits }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test inspects the host guidance as UTF-8 text")]
 fn read_compare_too_large_names_bounds_and_paged_fallback() {
     use skein_forge::api::Error;
-    // Recorded compares; the first has no recorded file or commit counts.
-    for reproduction in [
-        "e41fb4e126 -> b0afbc516a: 55282 JSON bytes, row counts unknown",
-        "0fd14bcd83 -> 6da0fe0e57: 6799 JSON bytes, 2 commits, 14 files",
+    let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge)));
+    let rendered = crate::answer_for_tool(&refused, b"read_compare", 2048);
+    assert!(rendered.error());
+    let text = core::str::from_utf8(rendered.text()).expect("compare guidance is UTF-8");
+    for guidance in [
+        "This comparison is too large to return whole",
+        "commit ids were read",
+        "another id won't help",
+        "Never retry with a changed or guessed id",
+        "no pages",
+        "forge.client.rows",
+        "files",
+        "commits",
+        "forge.client.answer_bytes",
+        "both whole sides of every changed file",
+        "Which bound was exceeded is unknown",
+        "read_pull",
+        "read_pull_files",
+        "head",
+        "page=1",
+        "advance page while more follows",
+        "read_file",
+        "both endpoints",
+        "directories",
+        "max_bytes",
+        "sides must fit whole",
     ] {
-        let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge)));
-        let rendered = crate::answer_for_tool(&refused, b"read_compare", 2048);
-        assert!(rendered.error(), "{reproduction}");
-        let text = rendered.text();
-        for guidance in [
-            "whole",
-            "no pages",
-            "forge.client.rows",
-            "files",
-            "commits",
-            "forge.client.answer_bytes",
-            "decoded",
-            "read_pull",
-            "read_pull_files",
-            "head",
-            "page",
-            "read_file",
-            "both endpoints",
-            "directories",
-            "max_bytes",
-            "sides must fit whole",
-        ] {
-            assert!(
-                skein_lib::bytes::find(text, guidance.as_bytes()).is_some(),
-                "{reproduction}: missing {guidance}: {text:?}"
-            );
-        }
-        for cap in [0, 32, 512, 2048] {
-            let bounded = crate::answer_for_tool(&refused, b"read_compare", cap);
-            assert!(bounded.error());
-            assert!(bounded.text().len() <= usize::try_from(cap).unwrap());
-        }
-        let unrelated = crate::answer_for_tool(&refused, b"read_pull", 2048);
-        assert_eq!(unrelated.text(), b"Forge read failed: too large");
-        let missing = engine::CallAnswer::ForgeRead(Box::new(Err(Error::Missing)));
-        assert_eq!(crate::answer_for_tool(&missing, b"read_compare", 2048).text(), b"Forge read failed: missing");
+        assert!(text.contains(guidance), "missing {guidance}: {text:?}");
+    }
+    let mut previous = 0;
+    for phrase in [
+        "too large to return whole",
+        "commit ids were read",
+        "another id won't help",
+        "Never retry",
+        "no pages",
+        "forge.client.rows",
+        "forge.client.answer_bytes",
+        "Which bound was exceeded is unknown",
+        "read_pull to",
+        "read_pull_files",
+        "read_file to",
+    ] {
+        let position = text.find(phrase).expect(phrase);
+        assert!(position > previous, "out of order: {phrase}");
+        previous = position;
+    }
+    for absent in ["core.call_answer_bytes", "host answer limit"] {
+        assert!(!text.contains(absent), "unexpected {absent}");
+    }
+    for cap in [0, 32, 512, 2048] {
+        let bounded = crate::answer_for_tool(&refused, b"read_compare", cap);
+        assert!(bounded.error());
+        assert!(bounded.text().len() <= usize::try_from(cap).unwrap());
+        assert_eq!(bounded.text(), &text.as_bytes()[..bounded.text().len()]);
+    }
+    let unrelated = crate::answer_for_tool(&refused, b"read_pull", 2048);
+    assert_eq!(unrelated.text(), b"Forge read failed: too large");
+    let missing = engine::CallAnswer::ForgeRead(Box::new(Err(Error::Missing)));
+    assert_eq!(crate::answer_for_tool(&missing, b"read_compare", 2048).text(), b"Forge read failed: missing");
+}
+
+#[test]
+fn successful_compare_over_host_bound_keeps_measured_feedback() {
+    use skein_forge::api;
+    const CAP: u32 = 2048;
+    const CONTENT_BYTES: usize = 3000; // The content alone exceeds CAP.
+    let compare = compare_answer(
+        Box::new([api::File {
+            path: b"f".as_slice().into(),
+            before: Some(vec![b'a'; CONTENT_BYTES].into()),
+            after: None,
+        }]),
+        Box::new([SHA1_HEAD]),
+    );
+    let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(compare)));
+    let whole = answer(&recorded);
+    let size = u32::try_from(whole.text().len()).expect("fixture size");
+    assert_eq!(crate::answer_for_tool(&recorded, b"read_compare", size), whole);
+    let rendered = crate::answer_for_tool(&recorded, b"read_compare", CAP);
+    assert!(rendered.error());
+    assert!(rendered.text().len() <= usize::try_from(CAP).unwrap());
+    let size = skein_lib::Decimal::of(u64::from(size));
+    assert!(skein_lib::bytes::find(rendered.text(), size.as_bytes()).is_some());
+    for phrase in [
+        "rendered size",
+        "host answer limit 2048 bytes",
+        "read_pull",
+        "read_pull_files",
+        "read_file",
+        "max_bytes",
+        "core.call_answer_bytes",
+        "agent.json",
+    ] {
+        assert!(skein_lib::bytes::find(rendered.text(), phrase.as_bytes()).is_some(), "missing {phrase}");
     }
 }
 
@@ -2892,7 +3048,7 @@ fn authority_findings_name_sources_and_dimensions() {
             assert!(rendered.error());
             assert_eq!(
                 rendered.text(),
-                format!("Authority refused: missing {dimension} ({setting}.{field}); ").as_bytes()
+                format!("Authority refused: missing {dimension} ({setting}.{field})").as_bytes()
             );
         }
         let value = engine::CallAnswer::DelegationDenied {

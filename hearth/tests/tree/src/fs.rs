@@ -1,8 +1,11 @@
 //! A filesystem in memory: nodes with inodes, devices, links and attributes of every family,
 //! answering the walk's questions the way a layer would. Directories list their names in an
 //! order of the seed's choosing, since a real directory has none.
+//! Indexed names and link counts keep each call's cost to what it touches
+//! (hearth/docs/design/domain/testing.md, 9.1).
 use hearth_domain_tree::vocabulary::{Kind, Stat};
 use skein_lib::Rng;
+use std::collections::BTreeMap;
 
 /// One inode as the fake keeps it. Two nodes may share an inode number, which no real
 /// filesystem does, and so disagree about what a hard link is.
@@ -89,6 +92,12 @@ impl Node {
 #[derive(Clone, Debug)]
 pub struct Fs {
     nodes: Vec<Node>,
+    /// Each directory's names, by name, beside `Node::names`, which keeps the listed order.
+    by_name: Vec<BTreeMap<Vec<u8>, usize>>,
+    /// How many names lead to each node.
+    named: Vec<u32>,
+    /// How many names lead to each inode number.
+    links: BTreeMap<u64, u32>,
     /// The kernel's clock for change times, which only moves forward.
     clock: u64,
 }
@@ -96,7 +105,13 @@ impl Fs {
     /// A root alone: a directory, 0755, owned by 0, as the empty layer is.
     #[must_use]
     pub fn new() -> Fs {
-        Fs { nodes: vec![Node::new(Kind::Directory, 1)], clock: 0 }
+        Fs {
+            nodes: vec![Node::new(Kind::Directory, 1)],
+            by_name: vec![BTreeMap::new()],
+            named: vec![0],
+            links: BTreeMap::new(),
+            clock: 0,
+        }
     }
     #[must_use]
     pub fn root(&self) -> &Node {
@@ -109,7 +124,13 @@ impl Fs {
     pub fn add(&mut self, path: &[u8], node: Node) -> usize {
         let (parent, name) = split(path);
         let at = self.nodes.len();
+        self.by_name.push(node.names.iter().cloned().collect());
+        self.named.push(0);
         self.nodes.push(node);
+        for (_, child) in &self.nodes[at].names {
+            self.named[*child] += 1;
+            *self.links.entry(self.nodes[*child].inode).or_default() += 1;
+        }
         self.name(parent, name, at);
         at
     }
@@ -122,6 +143,9 @@ impl Fs {
         let directory = self.lookup(parent).unwrap_or_else(|| panic!("{parent:?} exists"));
         assert_eq!(self.nodes[directory].kind, Kind::Directory, "{parent:?} is a directory");
         self.nodes[directory].names.push((name.to_vec(), at));
+        self.by_name[directory].insert(name.to_vec(), at);
+        self.named[at] += 1;
+        *self.links.entry(self.nodes[at].inode).or_default() += 1;
     }
     pub fn node_mut(&mut self, at: usize) -> &mut Node {
         &mut self.nodes[at]
@@ -138,23 +162,14 @@ impl Fs {
             return Some(at);
         }
         for part in path.split(|&byte| byte == b'/') {
-            let directory = &self.nodes[at];
-            at = directory.names.iter().find(|(name, _)| name == part)?.1;
+            at = *self.by_name[at].get(part)?;
         }
         Some(at)
     }
     /// The hard links an inode has: names that lead to a node of its number.
     #[must_use]
     pub fn links(&self, inode: u64) -> u32 {
-        let mut links = 0;
-        for node in &self.nodes {
-            for (_, at) in &node.names {
-                if self.nodes[*at].inode == inode {
-                    links += 1;
-                }
-            }
-        }
-        links.max(1)
+        self.links.get(&inode).copied().unwrap_or(0).max(1)
     }
     /// What `statx` without following a link says.
     #[must_use]
@@ -183,9 +198,9 @@ impl Fs {
     }
     /// The names of a directory, in the order it lists them.
     #[must_use]
-    pub fn list(&self, path: &[u8]) -> Option<Vec<Vec<u8>>> {
+    pub fn names(&self, path: &[u8]) -> Option<&[(Vec<u8>, usize)]> {
         let node = &self.nodes[self.lookup(path)?];
-        Some(node.names.iter().map(|(name, _)| name.clone()).collect())
+        Some(&node.names)
     }
     /// Lists the names of every directory in an order drawn from `rng`.
     pub fn shuffle(&mut self, rng: &mut Rng) {
@@ -238,7 +253,7 @@ impl Fs {
     /// The names that lead to the node.
     #[must_use]
     pub fn names_of(&self, at: usize) -> usize {
-        self.nodes.iter().map(|node| node.names.iter().filter(|(_, child)| *child == at).count()).sum()
+        usize::try_from(self.named[at]).expect("a name count fits")
     }
     /// The largest inode number the nodes have.
     #[must_use]
@@ -252,6 +267,8 @@ impl Fs {
         let directory = self.lookup(parent).unwrap_or_else(|| panic!("{parent:?} exists"));
         let place = self.nodes[directory].names.iter().position(|(found, _)| found == name).expect("the name exists");
         let (_, at) = self.nodes[directory].names.remove(place);
+        self.by_name[directory].remove(name);
+        self.unname(at);
         self.touched(directory);
         let mut gone = Vec::new();
         self.detach(at, &mut gone);
@@ -264,8 +281,19 @@ impl Fs {
     fn detach(&mut self, at: usize, gone: &mut Vec<usize>) {
         gone.push(at);
         let names = std::mem::take(&mut self.nodes[at].names);
+        self.by_name[at].clear();
         for (_, child) in names {
+            self.unname(child);
             self.detach(child, gone);
+        }
+    }
+    fn unname(&mut self, at: usize) {
+        self.named[at] -= 1;
+        let inode = self.nodes[at].inode;
+        let links = self.links.get_mut(&inode).expect("a named inode");
+        *links -= 1;
+        if *links == 0 {
+            self.links.remove(&inode);
         }
     }
 }

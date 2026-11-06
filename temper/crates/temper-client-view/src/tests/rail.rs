@@ -140,13 +140,20 @@ fn project_rows(count: u32, repository: &[u8]) -> List<temper_client_protocol_wi
 }
 
 fn switcher_rows(tree: &Tree) -> Vec<&Node> {
-    children(styled(tree, look::PROJECTS_MENU)).into_iter().filter(|n| n.role == Role::Button).collect()
+    let mut rows = Vec::new();
+    for node in children(styled(tree, look::PROJECTS_MENU)) {
+        if node.styles.as_slice().contains(&look::PROJECTS_ROW) {
+            let at = tree.nodes().iter().position(|n| n.id == node.id).unwrap();
+            rows.push(&tree.nodes()[at.checked_add(1).unwrap()]);
+        } else if node.role == Role::Button {
+            rows.push(node);
+        }
+    }
+    rows
 }
 
 #[test]
 fn switcher_rows_keep_repository_words_and_counts_in_both_shells() {
-    // Sixteen repositories leave fifteen after the displayed one.
-    const SIXTEEN: u32 = 16;
     let address = Address::Home { project: f::PROJECT };
     let mut ended = f::forge_root_watch(address.clone(), project_rows(1, b"hello"));
     f::root_event(
@@ -172,18 +179,6 @@ fn switcher_rows_keep_repository_words_and_counts_in_both_shells() {
             Some(" +2"),
             "Shop · work/hello +2",
         ),
-        (
-            f::forge_root(address.clone(), project_rows(SIXTEEN, b"hello")),
-            Some("work/hello"),
-            Some(" +15"),
-            "Shop · work/hello +15",
-        ),
-        (
-            f::forge_root(address.clone(), project_rows(2, b"customer-portal-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")),
-            Some("work/customer-portal-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),
-            Some(" +1"),
-            "Shop · work/customer-portal-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx +1",
-        ),
         (f::playground_root(address, f::PROJECT, true), Some("acme/shop"), None, "Shop · acme/shop"),
     ]
     .into_boxed_slice()
@@ -196,12 +191,11 @@ fn switcher_rows_keep_repository_words_and_counts_in_both_shells() {
             assert!(!rows[1].states.as_slice().contains(&State::Pressed));
             let id = rows[0].id;
             if browser {
-                assert_eq!(rows[0].name, None);
-                let menu = styled(view.tree(), look::PROJECTS_MENU);
-                let end = 1 + usize::try_from(rows[0].size).unwrap();
-                let parts = children(&menu[1..end]);
+                assert_eq!(rows[0].name.as_deref(), Some(b"Shop".as_slice()));
+                let row = styled(view.tree(), look::PROJECTS_ROW);
+                let parts = children(row);
                 assert_eq!(parts.len(), if repository.is_some() { 2 } else { 1 });
-                assert_eq!(parts[0].text.get(0).unwrap().text.as_ref(), b"Shop");
+                assert_eq!(parts[0].role, Role::Button);
                 if let Some(repository) = repository {
                     assert_eq!(parts[1].role, Role::Text);
                     assert_eq!(parts[1].styles.as_slice(), [look::PROJECTS_REPO]);
@@ -236,14 +230,24 @@ fn the_panel_puts_rename_its_form_new_and_settings_after_projects() {
     me.projects.get_mut(0).unwrap().role = jig_client::contract::HeldRole::Owner;
     f::deliver_me(&mut root, watch, me);
     for renaming in [false, true] {
-        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        for (browser, mut view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
             let disclosure = children(styled(view.tree(), look::PROJECTS));
             assert_eq!(disclosure.len(), 1);
             assert_eq!(disclosure[0].styles.as_slice(), [look::PROJECTS_MENU]);
             let panel = children(styled(view.tree(), look::PROJECTS_MENU));
             assert_eq!(
                 panel.iter().map(|n| n.role).collect::<Vec<_>>(),
-                [if renaming { Role::Form } else { Role::Button }, Role::Button, Role::Slot]
+                [
+                    if renaming {
+                        Role::Form
+                    } else if browser {
+                        Role::Slot
+                    } else {
+                        Role::Button
+                    },
+                    if browser { Role::Slot } else { Role::Button },
+                    Role::Slot
+                ]
             );
             if renaming {
                 assert_eq!(panel[0].name.as_deref(), Some(b"Rename Shop".as_slice()));
@@ -381,6 +385,8 @@ pub(super) fn with_goal_fact(root: &mut d::Domain, me_watch: Token, delivered: O
                 | d::Request::Leave { .. }
                 | d::Request::SignOut
                 | d::Request::Dropped { .. }
+                | d::Request::KeepSignIn { .. }
+                | d::Request::Tab { .. }
                 | d::Request::Copy { .. }
                 | d::Request::Fact { .. } => None,
             })
@@ -1114,6 +1120,7 @@ fn past_until_it_draws_off_and_asks_a_wake() {
         ),
         f::PROJECT,
         &mut times,
+        &crate::forge_sign_in::Forges::new(),
     );
     assert_eq!(times.next, Some(until), "the rail requests the expiry wake independently of page times");
     let mut view = f::view_of(f::browser_words());
@@ -1176,4 +1183,148 @@ fn in_the_terminal_it_is_numbered() {
         crate::act(&mut view, id, Act::Press),
         Some(d::Action::Pages(pages::Act::Away(pages::away::Act::Toggle { project: f::PROJECT })))
     );
+}
+
+#[test]
+fn the_row_is_a_button_and_a_link_beside_it() {
+    // The shell draws the button's name; a child text would repeat it.
+    const NAME_BUTTON_NODES: u32 = 1;
+    let root = f::forge_root(Address::Home { project: f::PROJECT }, project_rows(1, b"hello"));
+    let mut view = repository_view(&root, f::browser_words());
+    let menu = children(styled(view.tree(), look::PROJECTS_MENU));
+    assert_eq!(menu[0].role, Role::Slot);
+    let row = styled(view.tree(), look::PROJECTS_ROW);
+    let parts = children(row);
+    assert_eq!(parts.iter().map(|n| n.role).collect::<Vec<_>>(), [Role::Button, Role::Text]);
+    assert_eq!(parts[0].name.as_deref(), Some(b"Shop".as_slice()));
+    assert_eq!(parts[0].size, NAME_BUTTON_NODES);
+    let button = parts[0].id;
+    let link = f::find(view.tree(), Role::Link, "work/hello ↗".as_bytes()).expect("repository link");
+    assert_eq!(
+        crate::href(&mut view, link).as_deref(),
+        Some(b"https://forge.example/user/oauth2/temper?redirect_to=%2Fwork%2Fhello".as_slice())
+    );
+    assert_eq!(crate::act(&mut view, link, Act::Press), None);
+    assert_eq!(
+        crate::act(&mut view, button, Act::Press),
+        Some(d::Action::Pages(pages::Act::Project { project: f::PROJECT }))
+    );
+}
+
+fn repository_view(root: &d::Domain, words: crate::words::Words) -> crate::View {
+    let mut view = f::view_of(words);
+    let mut facts = crate::forge_sign_in::Forges::new();
+    facts.read("3 forgejo https://forge.example owned");
+    view.forge_sign_in(facts);
+    crate::build(&mut view, root, f::NOW, &mut Queue::uncapped());
+    view
+}
+#[test]
+fn several_repositories_keep_the_count_outside_the_link() {
+    let root = f::forge_root(Address::Home { project: f::PROJECT }, project_rows(3, b"hello"));
+    let view = repository_view(&root, f::browser_words());
+    let small = children(styled(view.tree(), look::PROJECTS_REPO));
+    assert_eq!(small.iter().map(|n| n.role).collect::<Vec<_>>(), [Role::Link, Role::Text]);
+    assert_eq!(small[0].name.as_deref(), Some("work/hello ↗".as_bytes()));
+    assert_eq!(small[1].styles.as_slice(), [look::PROJECTS_MORE]);
+    assert_eq!(small[1].text.get(0).unwrap().text.as_ref(), b" +2");
+}
+fn repository_pages() -> [Address; 4] {
+    [
+        Address::Home { project: f::PROJECT },
+        Address::Repositories { project: f::PROJECT },
+        Address::Forges,
+        Address::Welcome { step: d::Step::Forge { forge: None } },
+    ]
+}
+fn linked_rows() -> List<temper_client_protocol_wire::v1::ForgeRow> {
+    use temper_client_protocol_wire::v1 as w;
+    let rows = super::connect_forge::first_rows(super::connect_forge::connected(), super::connect_forge::made());
+    let mut row = rows.get(0).unwrap().clone().into_parts();
+    let adopted = project_rows(1, b"hello");
+    row.repositories = adopted.get(0).unwrap().clone().into_parts().repositories;
+    let mut rows = List::with_capacity(1);
+    rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+    rows
+}
+#[test]
+fn no_link_sits_inside_a_button() {
+    for address in repository_pages() {
+        let root = f::forge_root(address.clone(), linked_rows());
+        let mut view = repository_view(&root, f::browser_words());
+        let tree = view.tree();
+        for (at, node) in tree.nodes().iter().enumerate() {
+            if node.role == Role::Button {
+                let end = at.checked_add(usize::try_from(node.size).unwrap()).unwrap();
+                assert!(!tree.nodes()[at..end].iter().any(|child| child.role == Role::Link), "{address:?}");
+            }
+        }
+        if let Address::Welcome { .. } = address {
+            assert!(
+                f::find(
+                    tree,
+                    Role::Paragraph,
+                    "Forgejo on this machine · connected as temper · work/hello made".as_bytes()
+                )
+                .is_some()
+            );
+            let line = styled(tree, look::WELCOME_FORGE_STATUS);
+            let at = tree.nodes().iter().position(|node| node.id == line[0].id).unwrap();
+            assert_eq!(
+                f::node_text(tree, at).as_ref(),
+                "✓Forgejo on this machine · connected as temper · work/hello ↗ made".as_bytes()
+            );
+        }
+        let link = if let Address::Home { .. } = address {
+            f::find(tree, Role::Link, "work/hello ↗".as_bytes()).expect("switcher link")
+        } else {
+            styled(tree, look::MAIN)
+                .iter()
+                .find(|node| node.role == Role::Link && node.name.as_deref() == Some("work/hello ↗".as_bytes()))
+                .expect("body repository link")
+                .id
+        };
+        assert_eq!(
+            crate::href(&mut view, link).as_deref(),
+            Some(b"https://forge.example/user/oauth2/temper?redirect_to=%2Fwork%2Fhello".as_slice())
+        );
+        let terminal = repository_view(&root, f::words());
+        assert!(
+            !terminal
+                .tree()
+                .nodes()
+                .iter()
+                .any(|n| n.role == Role::Link
+                    && n.external.as_deref().is_some_and(|url| url.ends_with(b"%2Fwork%2Fhello"))),
+            "{address:?}"
+        );
+    }
+}
+#[test]
+fn the_playground_and_no_repository_stay_plain() {
+    for address in repository_pages() {
+        for root in vec![
+            f::playground_root(address.clone(), f::PROJECT, true),
+            f::forge_root(address.clone(), project_rows(0, b"hello")),
+        ]
+        .into_boxed_slice()
+        {
+            let view = repository_view(&root, f::browser_words());
+            assert!(
+                !view.tree().nodes().iter().any(|n| n.role == Role::Link
+                    && n.name.as_deref().is_some_and(|name| name.ends_with(" ↗".as_bytes()) && name.contains(&b'/'))),
+                "{address:?}"
+            );
+        }
+    }
+}
+#[test]
+fn the_terminal_row_is_unchanged() {
+    let root = f::forge_root(Address::Home { project: f::PROJECT }, project_rows(3, b"hello"));
+    let view = repository_view(&root, f::words());
+    let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+    skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);
+    let text = String::from_utf8_lossy(print.text.as_slice());
+    assert!(text.lines().any(|line| line.trim() == "[2] Shop · work/hello +2 (pressed)"), "{text}");
+    assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::PROJECTS_ROW)));
 }

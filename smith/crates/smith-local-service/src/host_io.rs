@@ -5,6 +5,7 @@
 //! `up` converts completions to host observations; `down` submits requested IO.
 
 use alloc::boxed::Box;
+use skein_io::file_layer::step::{self, down_until};
 use skein_io::{self as io, file, file_layer, kernel};
 use skein_lib::{Env, Map, Queue, Time, Token, Wall, stream};
 use smith_host_domain as host;
@@ -39,8 +40,12 @@ pub struct ProcessLimits {
     pub queue: u32,
 }
 
+const PROGRAM_TAG: u8 = 1;
+
 /// The one close `HostIo` itself submits, on its own tag (skein/docs/design/lib.md, 4).
-const PROGRAM_ROOT: Token = Token::new(1 << 60);
+fn program_root() -> Token {
+    Token::tagged(PROGRAM_TAG, 0).expect("program root fits namespace")
+}
 
 #[derive(Debug)]
 pub(crate) struct HostIo {
@@ -56,6 +61,7 @@ pub(crate) struct HostIo {
     delivery: DeliveryIo,
     store_io: StoreIo,
     files: file_layer::FileIo,
+    file_limits: file_layer::Limits,
     file_roots: Box<[Token]>,
     file_requests: Queue<(file::Request, Time)>,
     file_events: Queue<file::Event>,
@@ -101,8 +107,9 @@ impl HostIo {
         if !limits.io.is_usable() {
             return None;
         }
-        let mut files =
-            file_layer::FileIo::with_whole_limit(66, 4096, 8196, 64 << 20, skein_lib::Duration::from_secs(30));
+        let timeout = skein_lib::Duration::from_secs(30);
+        let file_limits = file_layer::Limits { files: 66, read: 4096, entries: 8196, whole: 64 << 20, timeout };
+        let mut files = file_layer::FileIo::with_limits(&file_limits);
         files.seed_randomness(seed);
         Some(Self {
             io: io::Io::new(&limits.io),
@@ -117,6 +124,7 @@ impl HostIo {
             delivery: DeliveryIo::new(),
             store_io: StoreIo::new(),
             files,
+            file_limits,
             file_roots: Box::new([]),
             file_requests: Queue::uncapped(),
             file_events: Queue::uncapped(),
@@ -136,6 +144,10 @@ impl HostIo {
             signals: Signals::Absent,
             close: Close::Open,
         })
+    }
+
+    fn file_env(&self, now: Time, wall: Wall) -> Env<file_layer::Limits> {
+        Env { now, wall, limits: self.file_limits }
     }
 
     // Internal handoffs count toward admission; edges never contribute.
@@ -363,10 +375,11 @@ impl HostIo {
     fn split(&mut self, complete: kernel::Complete) {
         self.signals.completed(complete.op);
         self.in_flight = self.in_flight.checked_sub(1).expect("one completion per submitted operation");
-        if complete.op == PROGRAM_ROOT {
+        if complete.op == program_root() {
             self.programs.as_mut().expect("program root close").root_closed();
         } else if file_layer::owns(complete.op) {
-            file_layer::up(&mut self.files, complete, &mut self.file_events, &mut self.file_submissions);
+            let env = self.file_env(Time::ZERO, Wall::EPOCH);
+            step::up(&mut self.files, &env, complete, &mut self.file_events, &mut self.file_submissions);
         } else {
             self.io_completions.push(complete);
         }
@@ -601,13 +614,8 @@ impl HostIo {
         if self.files.takes()
             && let Some((request, deadline)) = self.file_requests.pop()
         {
-            file_layer::down_until(
-                &mut self.files,
-                deadline,
-                request,
-                &mut self.file_events,
-                &mut self.file_submissions,
-            );
+            let env = env.with(self.file_limits);
+            down_until(&mut self.files, &env, deadline, request, &mut self.file_events, &mut self.file_submissions);
         }
         self.follow_close(now);
         self.flush_submissions();

@@ -10,7 +10,7 @@ use skein_lib::bytes::copy_of;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Domain,
-    pages::{Act, task},
+    pages::{Act, chat, task},
 };
 
 fn text(b: &mut Builder, role: Role, value: &[u8]) {
@@ -19,6 +19,10 @@ fn text(b: &mut Builder, role: Role, value: &[u8]) {
     b.text(Run::Plain, value);
     b.close();
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "the agent page keeps its taskbar, brief, run and conversation in page order"
+)]
 pub(crate) fn main(
     b: &mut Builder,
     root: &Domain,
@@ -34,6 +38,10 @@ pub(crate) fn main(
         && let Some(task) = page.document(root.client())
     {
         let me = root.pages().me(root.client());
+        let paused = match me {
+            Some(me) => chat::paused(&task.chip, me),
+            None => false,
+        };
         lineage(b, task, words, bindings);
         b.open(Role::Slot);
         b.style(look::TASKBAR);
@@ -55,7 +63,12 @@ pub(crate) fn main(
             }
         {
             super::task::act(b, task, c::ActKind::Amend, Word::Amend, Act::Amend, words, bindings);
-            super::task::act(b, task, c::ActKind::Stop, Word::Stop, Act::Stop, words, bindings);
+            if paused {
+                super::task::act(b, task, c::ActKind::Release, Word::Resume, Act::Resume, words, bindings);
+            } else {
+                super::task::act(b, task, c::ActKind::Stop, Word::Pause, Act::Pause, words, bindings);
+            }
+            super::task::act(b, task, c::ActKind::Cancel, Word::Close, Act::Close, words, bindings);
         }
         b.close();
         b.close();
@@ -66,14 +79,10 @@ pub(crate) fn main(
         if let Some(run) = task::run(task) {
             run_heading(b, run, words);
         }
-        super::task::controls(b, &task.chip, root, words, bindings, rows);
-        super::chat::older(
-            b,
-            &page.thread,
-            !page.thread.lines.edges.reaches(jig_client::thread::window::End::After),
-            words,
-            bindings,
-        );
+        if !paused {
+            super::task::controls(b, &task.chip, root, words, bindings, rows);
+        }
+        super::chat::older(b, &page.thread, words);
         super::chat::conversation(
             b,
             &page.thread,
@@ -212,6 +221,9 @@ fn composer(
             b.style(look::ENTRY);
             b.open(Role::TextArea);
             b.name(&words.say(Word::Message, &[]));
+            if page.composer_focus != 0 && root.pages().switcher().renaming().is_none() {
+                b.focus(page.composer_focus);
+            }
             b.state(State::SubmitsOnEnter);
             b.style(look::COMPOSER);
             b.value(&page.words, temper_client_domain::pages::shown(root.pages()));

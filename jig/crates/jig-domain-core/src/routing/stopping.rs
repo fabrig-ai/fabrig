@@ -77,7 +77,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::DelegateInputFailed { to, .. }
         | Event::SettledCall { to, .. } => Err(call(to)),
         Event::Fleet(fleet::Event::Hello { worker: 0, channel, .. }) => {
-            Err(answer(Some(Request::Held(Box::new(Held::Refuse { channel })))))
+            Err(answer(Some(Request::Held(Box::new(Held::Refuse { channel, hello: None })))))
         }
         Event::Fleet(event) => Ok(Event::Fleet(event)),
         Event::Stopping

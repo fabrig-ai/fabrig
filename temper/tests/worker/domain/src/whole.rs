@@ -297,11 +297,18 @@ impl World {
                 assert_eq!(receipts.receipts().len(), 1);
                 assert_eq!(receipts.receipts()[0].directory(), 0);
                 let landed = self.forge.branch(REMOTE, b"topic").expect("delivered branch");
-                let mut encoded = String::with_capacity(64);
-                for byte in translate::commit(landed).raw() {
+                let commit = translate::commit(landed).raw();
+                let width = if commit[20..] == [0; 12] { 20 } else { 32 };
+                let mut encoded = String::with_capacity(width * 2);
+                for byte in &commit[..width] {
                     write!(&mut encoded, "{byte:02x}").expect("String write");
                 }
-                assert_eq!(receipts.receipts()[0].text(), encoded.as_bytes(), "the receipt identifies the pushed head");
+                let expected = format!("pushed {encoded} to branch topic; your checkout stays detached, as expected");
+                assert_eq!(
+                    receipts.receipts()[0].text(),
+                    expected.as_bytes(),
+                    "the receipt identifies the pushed head"
+                );
                 self.deliveries += 1;
             }
             agent::Down::Cancel => self.report.cancellations += 1,
@@ -471,6 +478,9 @@ pub fn run(seed: u64, case: Case) -> Report {
 #[must_use]
 pub fn saved(seed: u64, start: wire::Start) -> wire::Work {
     let mut world = World::new(seed);
+    // A merge start admits the fixture's one possible conflicting path.
+    world.env.limits.checkout.conflicts = 1;
+    world.env.limits.checkout.path_bytes = u32::try_from(PATH.len()).expect("fixture path length");
     world.start_from(start);
     world.story(Case::ContactPast);
     assert_eq!(world.domain.agent().agents(), 0);

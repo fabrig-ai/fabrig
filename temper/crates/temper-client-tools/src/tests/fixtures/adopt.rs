@@ -80,8 +80,7 @@ impl Harness {
             .request
         {
             w::Request::Adopt(adopt) => adopt,
-            w::Request::Return(_)
-            | w::Request::SetUp(_)
+            w::Request::SetUp(_)
             | w::Request::RemoveForge(_)
             | w::Request::MakeRepository(_)
             | w::Request::StartPlayground

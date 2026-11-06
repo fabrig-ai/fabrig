@@ -115,7 +115,7 @@ fn a_later_box_refuses_a_taken_port_naming_the_port_and_document() {
 
 #[test]
 fn a_fresh_box_prints_its_block_and_nothing_else() {
-    let mut boxed = box_link::Boxed::start("first-block");
+    let mut boxed = box_link::Boxed::start("first-block", None);
     let link = boxed.link();
     boxed.wait(|boxed| crate::support::boxed::serve_listening(&boxed.root().join("data")));
     let (stdout, stderr, log) = boxed.stop();
@@ -144,8 +144,24 @@ fn a_fresh_box_prints_its_block_and_nothing_else() {
 }
 
 #[test]
+fn a_box_without_openssl_logs_sign_in_unavailable_once_and_stays_up() {
+    let mut boxed = box_link::Boxed::start("no-openssl", Some(""));
+    boxed.link();
+    boxed.wait(|boxed| crate::support::boxed::serve_listening(&boxed.root().join("data")));
+    let document: serde_json::Value =
+        serde_json::from_slice(&fs::read(boxed.root().join("config/temper.json")).expect("box document"))
+            .expect("JSON");
+    assert!(document["engine"]["clients"]["provider"].is_null());
+    assert!(document["application"]["machine"]["owned"]["sign_in"].is_null());
+    let (_, _, log) = boxed.stop();
+    let first = log.lines().next().expect("first-run log").get(10..).expect("timestamp");
+    assert_eq!(first, "First run: no sign-in through temper: openssl is not on PATH");
+    assert_eq!(log.matches("no sign-in through temper:").count(), 1);
+}
+
+#[test]
 fn the_first_link_opened_at_once_waits_and_signs_in() {
-    let mut boxed = box_link::Boxed::start("first-open");
+    let mut boxed = box_link::Boxed::start("first-open", None);
     let link = boxed.link();
     let connected = std::net::TcpStream::connect(box_link::address(&link));
     let listening = crate::support::boxed::serve_listening(&boxed.root().join("data"));

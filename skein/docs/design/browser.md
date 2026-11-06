@@ -139,7 +139,7 @@ caps, as for any machine stacked on a stream (io.md, 2).
   is decoded into its PNG's bytes.
 - **The domains used:** `Browser` and `Target` (contexts, pages,
   sessions); `Page` (navigation and its lifecycle, screenshots);
-  `Emulation` (a fixed viewport); `Accessibility` and `DOM` (finding
+  `Emulation` (a viewport set in CSS pixels); `Accessibility` and `DOM` (finding
   nodes, a scope's object, their boxes, the hit test, focus, scrolling
   into view); `Input` (mouse, keys, text, composition); and `Runtime`,
   `Log` and `Inspector` (the document's object, exceptions, console and
@@ -175,7 +175,9 @@ pub enum Request {                                       // from the test
     Compose { page: Token, op: Token, node: Node, text: Box<[u8]> },  // an IME composition, left open
     Keys   { page: Token, op: Token, node: Node, text: Box<[u8]> },  // each character a key: a native date or time field
     Key    { page: Token, op: Token, key: Key, shift: bool },  // Enter, Escape, Tab, Backspace, arrows, select-all, a letter
+    Viewport { page: Token, op: Token, width: u32, height: u32 }, // Done or Refused; desktop input
     Address { page: Token, op: Token },                  // the current address, from the history
+    Tabs   { page: Token, op: Token },                   // the tabs its person holds that the kit did not open
     Attribute { page: Token, op: Token, selector: Box<[u8]>, name: Box<[u8]> },  // of the first element a CSS selector finds
     Snapshot   { page: Token, op: Token },               // the accessibility tree, as text
     Screenshot { page: Token, op: Token },
@@ -189,11 +191,12 @@ pub enum Event {                                         // to the test
     Met     { op: Token, seen: List<Seen> },
     Missed  { op: Token, seen: List<Seen>, more: u32 },  // what was there when the deadline passed
     Warned  { op: Token },                               // a go accepted its page's closing warning
-    Done    { op: Token },                               // a navigation, a press, typing, a key
+    Done    { op: Token },                               // a navigation, a press, typing, a key, a viewport change
     Refused { op: Token, why: Refusal, detail: Box<[u8]> },  // Gone, Hidden, Covered, Disabled, Crashed; a Protocol's detail below
     Snapshot   { op: Token, text: Box<[u8]> },
     Screenshot { op: Token, png: Box<[u8]> },
     Address { op: Token, url: Box<[u8]> },               // the history's current entry
+    Tabs    { op: Token, tabs: List<Tab>, more: u32 },   // more: tabs past the limit, counted
     Attribute { op: Token, read: Read },
     Downloaded { person: Token, name: Box<[u8]>, path: Box<[u8]> },  // a file one of its pages saved, complete
     Trouble { page: Token, trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },  // an exception, a console or log error, a crash, a dialog, a download failed
@@ -209,6 +212,7 @@ pub enum Expect  { Present, Count(u32), Absent }
 pub enum Key     { Enter, Escape, Tab, Backspace, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, SelectAll,
                    Letter { letter: u8, alt: bool } }   // a to z, by its place on the keyboard
 pub enum Read    { NoElement, NoAttribute, Value(Box<[u8]>) }  // Value: whole, perhaps empty
+pub struct Tab   { url: Box<[u8]>, title: Box<[u8]>, opener: bool }  // opener: it can still reach the page that opened it
 ```
 
 - **A person is a browser context,** with its own cookies and storage.
@@ -293,6 +297,10 @@ pub enum Read    { NoElement, NoAttribute, Value(Box<[u8]>) }  // Value: whole, 
   not terminal: a go reports it at most once, before its terminal
   (section 6).
 
+A page opens at 1280 by 800 CSS pixels. `Viewport` changes its dimensions
+with desktop input behaviour (`mobile: false`); other pages keep their size.
+The browser face exposes boxed semantic finds for assertions over these layouts.
+
 ## 6. The operations
 
 Each operation is an entity with its own state, stepping from one reply
@@ -300,10 +308,11 @@ to the next command, never a closure waiting on a reply:
 
 | Operation | Its steps |
 |---|---|
+| Viewport | `Emulation.setDeviceMetricsOverride` with the requested width and height, `mobile: false`; `Done` after its reply, or `Refused` |
 | a person | a browser context created; with a downloads directory, its downloads allowed there under the browser's own names, with their events (`Browser.setDownloadBehavior`, `allowAndName`, `eventsEnabled`), else denied |
 | opening a page | create a target in the person's context, attach to it, enable the domains it reports on, set the viewport, navigate; `Opened` once the load event fires |
 | go | navigate, reload, or move through the history; the page's `beforeunload` prompt, if it opens meanwhile, accepted, and `Warned`; `Done` once the navigation commits: the load event for a new document, the same-document event for one that stays |
-| find | the accessibility nodes matching the role and the name, under the scope or the page's current document, either asked by its object in that document (below): exactly, both asked of CDP; by words, the role's nodes asked without a name, their names compared in the kit; at most `Limits::matches` kept, the rest counted in `more`; their properties; their boxes, if asked |
+| find | the page brought to the front (`Page.bringToFront`); the accessibility nodes matching the role and the name, under the scope or the page's current document, either asked by its object in that document (below): exactly, both asked of CDP; by words, the role's nodes asked without a name, their names compared in the kit; at most `Limits::matches` kept, the rest counted in `more`; their properties; their boxes, if asked |
 | await | a find, again every `Limits::poll`, until the expectation holds (`Met`) or `within` passes (`Missed`) |
 | press | the node scrolled into view, its named point with it; its box's centre, or the named point in the box; layout metrics turn the viewport point into document coordinates for the hit test; refused `Hidden` without a box or with a point outside it, `Disabled` if its accessibility node says so, `Covered` unless the hit test at that point lands on the node or inside it; then the mouse moved, pressed and released at the viewport point |
 | type | text with CR/LF first describes its node; for a single-line `input`, CR and LF are removed as on a person’s paste (CDP’s `Input.insertText` would change them to spaces). Text areas and editable content keep their line endings. Then the node is focused and the text inserted |
@@ -312,9 +321,23 @@ to the next command, never a closure waiting on a reply:
 | key | the key down and up, with the text it makes; with `shift`, Shift's modifier on both; select-all, A's key down and up with Control's modifier and no text; a letter, its code (`KeyS`), its key and Windows key code (upper case with Shift), its text unless `alt`, and with `alt` Alt's modifier on both |
 | download | not an operation: the browser-level `Browser.downloadWillBegin` names the frame, which is a page's when it is the page's target, and the suggested name, kept by the download's id; `Browser.downloadProgress` completed is `Downloaded`, its path the person's directory and the id; canceled is the page's `Trouble`; past `Limits::downloads`, `Browser.cancelDownload` |
 | address | the page's navigation history (`Page.getNavigationHistory`); its current entry's URL, `Address` |
+| tabs | the browser's targets (`Target.getTargets`), those of type `page` in the page's person's context that no `Page` request opened, in the reply's order; each one's URL, title and `canAccessOpener`, within `Limits::matches`, the rest counted; `Tabs`. No script runs in them, and the kit attaches to none: what a person's tab strip and address bar show, and the browser's own word on the opener |
 | attribute | the current document's root (`DOM.getDocument`, its root alone); the first element under it the selector finds (`DOM.querySelector`), `NoElement` if none; its attributes (`DOM.getAttributes`), the named one's value, or `NoAttribute`; refused `Protocol` for a selector Chromium cannot parse, and `Limit` for a value past `Limits::text`, which is never cut, since a test uses it whole |
-| snapshot | the accessibility tree under the document, as indented lines of role, name, value and states, cut at `Limits::snapshot` |
-| screenshot | the viewport as PNG, under `Limits::screenshot` |
+| snapshot | the page brought to the front; the accessibility tree under the document, as indented lines of role, name, value and states, cut at `Limits::snapshot` |
+| screenshot | the page brought to the front; the viewport as PNG, under `Limits::screenshot` |
+
+- **A look brings its page to the front,** as a person chooses a tab
+  before looking: each find (each poll of an await), snapshot and
+  screenshot sends `Page.bringToFront` on that page's session and waits
+  for its answer before reading. A page already in front takes the same
+  step, with no extra polling. Its other tabs keep loading; the kit
+  attaches to none of them.
+  - A story's page counts as hidden while Chromium reports it hidden:
+    after another tab takes the front, until this page is brought back.
+    Looking brings it back and makes it visible to its own
+    `visibilitychange` listener (ui-web.md, section 10). A story about a
+    hidden page leaves it without these looks for the hidden interval;
+    listing tabs and reading attributes do not bring it to the front.
 
 - **A find by words reads each name whole,** as the reply carries it,
   before a kept name is cut to `Limits::text`. Its reply holds every node
@@ -472,7 +495,10 @@ named scenario ceiling with headroom.
   and asks a confirm at another's press, a page that reloads itself, a
   page whose button saves a file through a link with `download`, and a
   page that shows the last key its document heard, by its code, its
-  modifiers and the text it made.
+  modifiers and the text it made, and a page whose press opens a tab, names
+  it and cuts its opener, and which opens another at its start, with no press;
+  and a page whose full-width heading measures 420 then 1440 CSS pixels
+  after its viewport changes.
   These tests check the facts the fake browser assumes: the framing,
   flattened sessions, what the accessibility queries match, with a name and
   without one, boxes and the hit test, on an element and on a shape of an
@@ -481,7 +507,9 @@ named scenario ceiling with headroom.
   across a reload (a page that reloads itself found again after it, a scope
   found before it `Gone`), a download (the file saved in the person's
   directory with the page's bytes, `Downloaded` naming it, and a person
-  with no directory saving none), and a letter (alone, it types; with
+  with no directory saving none), a tab (a press's listed with its title,
+  `canAccessOpener` false once its opener is cut, and an opening with no
+  press refused by Chromium's pop-up rule), and a letter (alone, it types; with
   Alt and Shift, the page hears its code, both modifiers and no text).
   The keys a native date or time field takes, and their order, are the
   face's facts, checked with its others in this suite (ui-web.md, 14.1). A

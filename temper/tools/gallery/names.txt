@@ -44,6 +44,7 @@ chat-new
 chat-new-draft
 chat-new-first-run-1
 chat-new-no-repository
+chat-paused
 chat-reference-T1
 chat-rejecting
 chat-solo-T1
@@ -117,6 +118,8 @@ github-app-details
 github-install
 github-picker
 goal-amending
+goal-closed
+goal-closing
 goal-failed
 goal-landed
 goal-landed-open
@@ -127,8 +130,6 @@ goal-paused
 goal-planning
 goal-running
 goal-sending
-goal-stop-dialog
-goal-stopped
 goal-toast
 goals-ended
 goals-filter-empty
@@ -219,8 +220,9 @@ signed-out
 start-goal
 start-goal-draft
 start-goal-refused
-task-cancelling
+task-closing
 task-held
+task-paused
 task-reference-T12
 task-reference-T24
 task-reference-T28
@@ -228,7 +230,6 @@ task-releasing
 task-releasing-uncertain
 task-solo-T3
 task-solo-T9
-task-stopping
 welcome-first-run-0
 welcome-forge-choose
 welcome-forge-connected

@@ -77,7 +77,6 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 | w::Request::Looked(_)
                 | w::Request::TryAccount(_)
                 | w::Request::Dismiss(_)
-                | w::Request::Return(_)
                 | w::Request::Replace(_)
                 | w::Request::Connect(_)
                 | w::Request::Install(_)
@@ -272,7 +271,6 @@ fn answer_words(answer: w::Outcome, end: bool) -> Option<AnswerWords> {
         | w::Outcome::Running
         | w::Outcome::StartRefused(_)
         | w::Outcome::StartFailed(_)
-        | w::Outcome::Returning
         | w::Outcome::Connecting
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)

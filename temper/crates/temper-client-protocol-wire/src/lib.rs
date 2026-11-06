@@ -141,7 +141,6 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         link_address: ADDRESS_BYTES,
         forges_forges: FORGES,
         dismissals_dismissed: DISMISSED,
-        return_path: 512,
         set_up_failed_why: SET_UP_WHY_BYTES,
         group_failed_why: SET_UP_WHY_BYTES,
         connected_login: bounds.field_bytes,
@@ -346,7 +345,6 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         v1::Request::Reachable(_)
         | v1::Request::Accept(_)
         | v1::Request::Install(_)
-        | v1::Request::Return(_)
         | v1::Request::MakeRepository(_)
         | v1::Request::Adopt(_)
         | v1::Request::TryAccount(_)

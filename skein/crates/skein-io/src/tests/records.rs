@@ -61,7 +61,15 @@ fn service_notifications_remain_ownerless_and_keep_their_sender() {
 #[test]
 fn the_test_preset_is_usable_and_allows_entrance_overrides() {
     assert!(crate::valid(&crate::Limits::TEST));
-    let changed = crate::Limits { sockets: 2, intake: 8, ..crate::Limits::TEST };
+    let changed = crate::Limits {
+        intake: 8,
+        receive: 4096,
+        output: 1_000_000,
+        sends: 8,
+        backlog: 2,
+        retry: super::Duration::from_millis(1),
+        ..crate::Limits::TEST
+    };
     assert_eq!(changed.largest_read(), 8);
     assert!(crate::valid(&changed));
 }

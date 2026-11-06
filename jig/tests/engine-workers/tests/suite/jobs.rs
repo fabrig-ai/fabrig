@@ -1,4 +1,5 @@
 use jig_domain_host as host;
+use jig_domain_link::{Form, JobBound, JobKind};
 use jig_engine_workers_world::{World, fixtures};
 use jig_protocol_engine_workers::{Event, GrantValue, Request};
 use jig_protocol_worker_wire as wire;
@@ -14,11 +15,11 @@ pub(super) fn assignment(channel: Token) -> Event {
             job: host::JobAssignment {
                 run: Token::new(8),
                 attempt: Token::new(3),
-                kind: host::JobKind(42),
+                kind: JobKind(42),
                 spec: Box::from([0, 255, 127]),
                 deadline: Duration::from_secs(4),
                 workspace: Some(host::Workspace { workstream: 9, items: Token::new(500) }),
-                grants: Box::new([fixtures::grant(host::Form::Application)]),
+                grants: Box::new([fixtures::grant(Form::Application)]),
             },
         },
         parts: fixtures::parts(),
@@ -152,7 +153,7 @@ fn a_hello_carries_its_job_kinds() {
     let Request::Hello { hello, .. } = &world.root()[0] else { panic!("hello") };
     assert_eq!(
         hello.jobs.as_ref(),
-        [host::JobBound { kind: host::JobKind(42), spec: 12, result: 13, deadline: Duration::from_nanos(123) }]
+        [JobBound { kind: JobKind(42), spec: 12, result: 13, deadline: Duration::from_nanos(123) }]
     );
 }
 

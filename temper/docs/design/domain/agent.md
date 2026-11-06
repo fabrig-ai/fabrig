@@ -272,15 +272,21 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   name.
 
 - **A compare is whole, with no pages.** Its files and commits each fit
-  `forge.client.rows`, and its decoded answer fits
-  `forge.client.answer_bytes` (skein's `forge-client.md`, 2.3, and
-  `forge.md`, 5.2 and 5.3). A `read_compare` size refusal names both
-  limits without claiming which was exceeded. It directs a run with
+  `forge.client.rows`, and its decoded answer, both whole sides of every
+  changed file, fits `forge.client.answer_bytes` (skein's
+  `forge-client.md`, 2.3, and `forge.md`, 5.2 and 5.3), so an ordinary
+  change passes them: nine files, nine commits, or a line changed in a
+  long file. A `read_compare` size refusal names both
+  limits without claiming which was exceeded. It says first that the
+  commit ids were read and that no other id helps, since a run that isn't
+  told retries with one it made up. It directs a run with
   an existing pull to `read_pull` for its head, then `read_pull_files`
   at that head, from page 1 while more follows. Pull-file sides must
   also fit whole. Otherwise, or when that page is too large, the run
   lists directories with `read_file` at both endpoints and reads
-  selected files at each within `max_bytes`. The refusal stays marked
+  selected files at each within `max_bytes`. It names no host answer bound
+  to raise: the forge client refused this, and raising one would not help.
+  The refusal stays marked
   an error and fits the host answer's byte bound. A successful comparison
   whose rendered form exceeds that bound returns measured-size feedback
   with the same recovery instead of losing its body at the worker.
@@ -655,6 +661,15 @@ smith's (smith's `domain/run.md`, 7.1):
 | a connector's result: a change landed or a successful no-change conclusion | a change, requiring the fields `title` and `body`, each within the contract's bound, its checks required; a `no_change` verdict with bounded text and no fields or items; a failure within the same bound |
 | an approval | a failure only, of at most 1,024 bytes: approvals are people's |
 
+A change's `body` holds the producer's report, what its brief asks it to
+report, whole, at most 3,584 bytes (jig's `domain/hosts.md`, 8); its `title`
+and the contract's other texts stay within 1,024. The run's contract prints
+the bound. The coding charter's words say that the report goes there, and that
+one past the bound is no question: the run cuts what can be read elsewhere and
+says under Left what it cut (`../protocol/configuration.md`, 13.4's charter 2
+row). A foreman that settles a question about it names no other form (13.4's
+charter 6 row).
+
 The `no_change` verdict becomes jig's successful `NoChange` result. It
 retains the explanation, supplies no resource or landing, and ends the
 change without a hold or escalation. The requester receives that result.
@@ -755,7 +770,7 @@ merge, with both parents. Its outcomes, in smith's terms (smith's
 
 | The push | smith's delivery |
 |---|---|
-| landed in every repository with a change, or already landed by this hold's last push | delivered, naming each head |
+| landed in every repository with a change, or already landed by this hold's last push | delivered, each receipt `pushed <head> to branch <branch>; your checkout stays detached, as expected` |
 | nothing to push | nothing |
 | a branch moved, as a fast-forward cannot take it or its head is not the one expected | stale: the run ends, and the engine decides afresh |
 | a conflicted file still holds a marker | refused, naming the file |
@@ -769,6 +784,17 @@ delivered unchanged lands the save's commit, the delivery's title and body
 unused (worker.md, section 5). The head delivered names what is on the branch,
 and the coding charter's words say so (`../protocol/configuration.md`, 13.4's
 charter 2 row), since a run can't otherwise tell.
+
+A receipt says it in words, whatever the charter, so that a run that finds its
+checkout detached does not take a good delivery for a failure: its full head,
+the branch it landed on, and that a detached checkout is expected. A branch name
+that would take a receipt past its bound (512 bytes, smith's `Receipt`) leaves
+the branch's words out and keeps the rest.
+
+A head in words is spelled as git spells it: 40 digits on SHA-1, 64 on SHA-256.
+The twelve zero bytes that fit a SHA-1 id in temper's 32 are never printed, since
+a run copies what it reads. That holds for a receipt and for every other word
+that prints a whole head, a cancel's reason among them.
 
 A push that lands is the result, even if the run was winding down. The
 answer carries what the run left on the forge (worker.md, 4.2), and the
@@ -787,6 +813,13 @@ run starts fresh, its brief carrying the tail when it is readable. If
 the saved window is unread, the first load spends a transient try; its
 retry starts fresh without the tail, keeping the person's pending words
 (jig's `domain/engine.md`, 7.2).
+
+An unidentified startup fault keeps its agent-failure classification and
+bounded operator diagnostic through cleanup (jig's `domain/hosts.md`, 6.3).
+It retains the transcript and pending words for the next attempt; it does
+not establish a transcript refusal. A persistent fault exhausts the agent
+allowance and holds the chat. An unidentified fault alone never takes
+the fresh preparation above.
 
 ## 8. The agents temper runs
 
@@ -896,7 +929,7 @@ and waits in the Needs you of each project it belongs to (jig's
   beside the page, and proposes its settings sized for the deployment: the
   slots its workers have, the models its accounts reach. What the deployment
   cannot do yet it says, and leaves out; workers stay the deployment's. Its
-  "How PROJECT works" keeps a column of temper's own values beside the
+  "How this project works" keeps a column of temper's own values beside the
   project's, so that each difference is a sentence the person can change:
   its words, not a view of the client's.
 - **Its instructions** are held in the binary, in the `stock` module's
@@ -905,7 +938,9 @@ and waits in the Needs you of each project it belongs to (jig's
     it, what must pass before a change lands, who approves and which
     model runs, naming a charter, template, revision or kind only in a
     proposal, its outcome or when asked, and answering "what is the
-    current setting" from "How PROJECT works" (8.3) or in its words;
+    current setting" from "How this project works" (8.3) or in its words;
+    and to say neither "stock settings" nor "operator", but what temper
+    starts with and who runs temper here;
   - never to send the person to a terminal, `temper ctl` or a command,
     nor to relay one from a page, whose facts it takes: what it can
     check it checks with its tools, and what it can't, an owner's
@@ -922,10 +957,18 @@ and waits in the Needs you of each project it belongs to (jig's
     review alone beside it. It never promises that adding admin makes a
     role-0 proposal acceptable: after adoption it reads inventory again and
     proposes afresh against the newest revision;
+  - whenever someone is to approve or join, before a proposal or after one is
+    accepted, to say every step and who does each: on the forge, a repository
+    admin adds the human collaborator at the mapped permission and, on
+    Forgejo, grants temper's forge user repository admin, since write isn't
+    enough; in temper, the person adopts the repository again, on Settings,
+    Repositories, "Adopt a repository", with the same options. Adopting
+    again is never someone else's side;
   - never to report a read it could not make as a fact about the
     settings;
-  - to say that nothing has changed once, where the person could think
-    something did, such as a proposal waiting for an owner;
+  - to say that nothing has changed only when it first gives a proposal's
+    number, or where the person thinks something applied; never before a
+    proposal, and never to close a reply;
   - the test for each sentence of a description: would temper's engine
     act differently without it? A sentence that changes what temper
     wakes, schedules, permits, pays for, lands or holds is structure,
@@ -946,8 +989,9 @@ and waits in the Needs you of each project it belongs to (jig's
   - to assemble settings past a few KB in a separate goal-scoped jig note,
     described `work: settings`, whose body is a whole settings file
     `{"items":[...]}`. Bounded `note` writes use `first` and `remove`,
-    and `join` to continue a line longer than one call. This note is separate
-    from "How PROJECT works" (8.3); it applies no settings;
+    and `join` to continue a line longer than one call, as `note`'s schema and
+    `propose_settings`' description say rather than these words. This note is
+    separate from "How this project works" (8.3); it applies no settings;
   - to propose once, with `propose_settings`, against the newest
     revision it read, with a reason whose first line is the
     proposal's title and whose next lines say, under "temper
@@ -985,8 +1029,10 @@ and waits in the Needs you of each project it belongs to (jig's
   1's, holds the settings, read, delegation and message families. It
   has no workspace, its instructions never delegate, and it never
   calls `withdraw`, whose family, the decide family, policy 1 does not
-  give: a proposal it no longer wants is replaced by a fresh one, and
-  the first one an owner accepts leaves the other stale.
+  give. Nor can it replace a proposal that waits: a task holds one pending
+  proposal (jig's `domain/tasks.md`, section 9), so a second is refused as
+  busy. Asked to withdraw or change one, it says so plainly: an owner rejects
+  it under Needs you, with a reason the chat hears, and it proposes afresh.
 - **The kinds it reads and proposes** are a settings file's
   (`../client/tools.md`, 5.3): `charter`, `template`, `policy`,
   `rules`, `landing-rule` (with its `project`, the deployment's when
@@ -1008,8 +1054,8 @@ and waits in the Needs you of each project it belongs to (jig's
   and proposes; only an owner's decision changes settings (jig's
   `domain/engine.md`, 17.6). A member's configuring chat proposes as
   an owner's does, and its proposal waits for an owner.
-- **It writes down how it understood the person** as the chat's document, "How
-  PROJECT works", kept current as the conversation changes it (8.3).
+- **It writes down how it understood the person** as the chat's document, "How this
+  project works", kept current as the conversation changes it (8.3).
 - **Started from ctl** with `chat start --project PROJECT --template 3
   TEXT` (`../client/tools.md`, 5.3), and from the client's `Configure`,
   which "Tell temper how you work" opens (`../client/README.md`, 3.5).
@@ -1150,7 +1196,9 @@ chat's own scope (jig's `domain/engine.md`, section 10), the lowest numbered
 whose description does not begin `work:`: there is no kind. A `work:` note, such
 as the configuring agent's `work: settings` (8.1), is never drawn, and a chat
 with only working notes has no document. Its description is its title, its body
-Markdown. The configuring chat's "How PROJECT works" is the same mechanism.
+Markdown. The configuring chat's "How this project works" is the same
+mechanism: its title is that literal, since a run knows its project's number
+and not its name.
 
 - **Who may write:** a chat's authority's note scopes hold a goal's, which for
   a root conversation is its own (`../protocol/configuration.md`, 13.4), so a
@@ -1160,15 +1208,17 @@ Markdown. The configuring chat's "How PROJECT works" is the same mechanism.
   of `chat.txt`: when the person asks for a draft, or says "write this up", keep
   one document, with `note`, scope goal, the project and its own task number,
   description its title, its body Markdown beginning with `# TITLE` and a muted
-  line "Draft, DATE, with the user.", one `##` section per topic, open questions
+  line "Draft, with the user." (no run is told the date), one `##` section per topic, open questions
   under "## Open questions". It writes a first version whole, then changes it by
   lines (jig's `domain/engine.md`, section 10), naming the note and the revision
   it read; it never rewrites it whole past a few KB, builds a long document in
   parts, and continues a line past one call with `join`. It says in a sentence
   what changed and doesn't repeat it. Mermaid isn't drawn, so it doesn't draw.
-- **The configuring agent's,** `configuring.txt` (8.1): the same, its title "How
-  PROJECT works", written once the person's way is understood, kept current as
-  the conversation changes it.
+- **The configuring agent's,** `configuring.txt` (8.1): the same, its title "How this
+  project works", written once the person's way is understood, kept current as
+  the conversation changes it. Its words leave what a write's `first`, `remove` and
+  `join` mean to `note`'s schema, and say what changed in the document, since no
+  setting did.
 - **The tool's answer** gives the client what its line says (`../client/README.md`,
   3.5): `Note N revision R written · 64 lines` for a first write, `Note N revision
   R written · +18 −6 · line 31 · 64 lines` for a later one, from jig's `lines`,
@@ -1279,7 +1329,17 @@ host:
   (4.3), and the authority refuses what it does not allow. Whether to
   declare only what the charter names for the other families too, which
   the host part's budget (4.3) may force, and how a brief teaches an LLM
-  when to delegate a task rather than a sub-agent.
+  when to delegate a task rather than a sub-agent. `withdraw`, offered to
+  charter 3 and refused by its authority (8.1), is one such tool.
+- **A way out of a proposal that waits** (8.1): the configuring agent can neither
+  withdraw nor replace one, so a person who presses "Change something"
+  (`../client/README.md`, 5.13), where `../draft/configuring.md`, 5.2 has the agent
+  revise, hears that an owner rejects it first. Letting a fresh proposal replace a
+  waiting one, or moving `withdraw` out of the decide family, would give a run its
+  own way, and each is jig's to design (jig's `domain/tasks.md`, section 9); granting
+  the decide family as it stands would also let every chat under policy 1 decide
+  proposals and escalations. Default: an owner rejects it, until a walk shows whether
+  that asks too much of the person.
 - **What sizes temper's own way** (8.1): a read of the deployment's worker slots
   and of the models its accounts reach, offered to a run with the settings
   family, or an answer from the person. Default: the person's, as nothing reads
@@ -1321,6 +1381,13 @@ host:
   the foreman's charter's, the reference setting its model there
   (`../protocol/configuration.md`, 13.9); a `foreman` role once a plan
   needs foremen of different weights.
+- **A report past 3,584 bytes.** The bound sits inside smith's fixed
+  4,096-byte outcome (`smith-domain-run`'s `Limits::outcome_bytes`) and
+  `hub.outcome_bytes`. The rest of the path is already sized for 10,660
+  (`tasks.result_bytes`, `checkout.message_bytes`, `forge.client.op_bytes`).
+  Going there means smith deriving its outcome from `tool_payload`, the
+  hub's profile value and jig's constant moving together, across three
+  trees. Default: 3,584, until a real run shows a report that a cut loses.
 - **A cancel's grace:** jig's `cancel` takes one, if the run gives it
   (jig's `domain/engine.md`, 7.3); temper's takes none.
 - **A code graph** for a workspace (worker.md, section 12), as an MCP

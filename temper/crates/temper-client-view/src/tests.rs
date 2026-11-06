@@ -18,6 +18,7 @@ mod goal;
 mod goals;
 mod home;
 mod inbox;
+mod limits;
 mod look;
 mod needs;
 mod person_menu;
@@ -172,4 +173,5 @@ mod words;
 
 mod model_check;
 
+mod repository_link;
 mod welcome_copy;

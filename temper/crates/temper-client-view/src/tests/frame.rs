@@ -36,10 +36,7 @@ fn the_running_playground_project_button_is_named_by_its_record() {
         true,
     );
     for words in [fixtures::words(), fixtures::browser_words()] {
-        let label = match words.shell {
-            crate::words::Shell::Browser => b"Shopacme/shop".as_slice(),
-            crate::words::Shell::Terminal => b"Shop",
-        };
+        let label = b"Shop";
         let mut view = fixtures::view_of(words);
         fixtures::build(&mut view, &root);
         let button = fixtures::person_find(view.tree(), Role::Button, label).expect("stored project row words");
@@ -533,7 +530,15 @@ fn the_switcher_is_named_projects_before_a_project_is_open() {
     let root = fixtures::root_in_project(None);
     let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
     let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
-    crate::frame::switcher(&mut builder, &root, &fixtures::words(), &mut bindings, None, crate::frame::Place::Banner);
+    crate::frame::switcher(
+        &mut builder,
+        &root,
+        &fixtures::words(),
+        &mut bindings,
+        None,
+        crate::frame::Place::Banner,
+        &crate::forge_sign_in::Forges::new(),
+    );
     assert_switcher(&builder.finish(), b"Projects", &[(b"Shop", false), (b"Second", false)]);
 }
 
@@ -557,12 +562,22 @@ fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)
         at = at.checked_add(1).unwrap();
     }
     for (name, pressed) in projects {
+        let row_end = if nodes[at].styles.as_slice().contains(&crate::look::PROJECTS_ROW) {
+            let end = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+            at = at.checked_add(1).unwrap();
+            Some(end)
+        } else {
+            None
+        };
         let button = &nodes[at];
         assert_eq!(button.role, Role::Button);
         assert_eq!(button.name.as_deref(), Some(*name));
         assert_eq!(button.states.as_slice().contains(&skein_ui::State::Pressed), *pressed);
         assert!(button.binding.is_some());
-        at = at.checked_add(usize::try_from(button.size).unwrap()).unwrap();
+        at = match row_end {
+            Some(end) => end,
+            None => at.checked_add(usize::try_from(button.size).unwrap()).unwrap(),
+        };
         if nodes[at].role == Role::Button && nodes[at].name.as_deref() == Some(b"Rename") {
             assert!(*pressed, "rename belongs to the open project");
             at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
@@ -1509,10 +1524,7 @@ fn goals_opens_in_its_projects_frame() {
             assert!(page.is_none(), "goals starts no page watch");
             assert_eq!(root.pages().project(), Some(fixtures::SECOND_PROJECT));
             assert_eq!(root.pages().address(), &address);
-            let project_name = match words.shell {
-                crate::words::Shell::Browser => b"Shopno repository".as_slice(),
-                crate::words::Shell::Terminal => b"Shop".as_slice(),
-            };
+            let project_name = b"Shop";
             let mut view = fixtures::view_of(words);
             fixtures::build(&mut view, &root);
             assert_rail(&view, b"Second");
@@ -1601,6 +1613,7 @@ fn renaming_replaces_the_open_project_row_in_the_banner() {
             &mut bindings,
             Some(fixtures::PROJECT),
             crate::frame::Place::Banner,
+            &crate::forge_sign_in::Forges::new(),
         );
         let tree = builder.finish();
         assert!(fixtures::find(&tree, Role::Button, b"Shop").is_none());
@@ -1640,6 +1653,54 @@ fn opening_rename_takes_focus_from_a_chat_composer() {
             assert_eq!(composer.focus, if renaming { None } else { Some(1) });
             if renaming {
                 assert_eq!(switcher_node(&view, Role::TextField, b"Rename").focus, Some(0));
+            }
+        }
+    }
+}
+
+#[test]
+fn opening_rename_takes_focus_from_a_task_composer() {
+    use temper_client_domain::{Address, Event};
+    for priority in [None, Some(1)] {
+        let mut task = fixtures::task::delegate();
+        task.priority = priority;
+        task.acts = skein_lib::List::uncapped();
+        task.acts
+            .push(jig_client::contract::Offered {
+                act: jig_client::contract::ActKind::Message,
+                admission: jig_client::contract::Admission::Allowed,
+                effect: None,
+            })
+            .unwrap();
+        let (mut root, me, watch) =
+            fixtures::root_at(Address::Task { task: task.chip.task }, &fixtures::domain_limits());
+        let mut person = root.pages().me(root.client()).unwrap().clone();
+        person.projects.get_mut(0).unwrap().role = jig_client::contract::HeldRole::Owner;
+        fixtures::deliver_me(&mut root, me, person);
+        fixtures::root_event(
+            &mut root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch: watch.unwrap(),
+                        event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Task(
+                            Box::new(task),
+                        )),
+                    },
+                },
+            },
+        );
+        fixtures::root_event(&mut root, Event::Act { action: Action::Pages(pages::Act::Send) });
+        for renaming in [false, true, false] {
+            let act = if renaming { pages::switcher::Act::Rename } else { pages::switcher::Act::Cancel };
+            fixtures::root_event(&mut root, Event::Act { action: Action::Pages(pages::Act::Switcher(act)) });
+            for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+                let at = super::chat::named_position(view.tree().nodes(), Role::TextArea, None).expect("composer");
+                let composer = &view.tree().nodes()[at];
+                assert_eq!(composer.focus, if renaming { None } else { Some(1) });
+                if renaming {
+                    assert_eq!(switcher_node(&view, Role::TextField, b"Rename").focus, Some(0));
+                }
             }
         }
     }
@@ -1704,6 +1765,7 @@ fn opening_rename_takes_focus_from_a_shown_document_section() {
                 &mut bindings,
                 Some(fixtures::PROJECT),
                 crate::frame::Place::Banner,
+                &crate::forge_sign_in::Forges::new(),
             );
             crate::pages::document::pane(
                 &mut builder,

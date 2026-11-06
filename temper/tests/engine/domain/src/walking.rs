@@ -10,6 +10,7 @@ use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::{Hosting, Phase};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
@@ -579,11 +580,11 @@ impl World {
     }
 
     fn hello(&mut self) {
-        let hosting: Box<[host::Hosting]> = match self.assignment.as_ref() {
+        let hosting: Box<[Hosting]> = match self.assignment.as_ref() {
             Some(assignment) => Box::new([protocol::hosting(
                 assignment.task,
                 assignment.attempt,
-                if self.pending_answer { host::Phase::Answered } else { host::Phase::Active },
+                if self.pending_answer { Phase::Answered } else { Phase::Active },
             )]),
             None => Box::new([]),
         };
@@ -836,7 +837,6 @@ impl World {
                 | engine::Request::MakingCopied { .. }
                 | engine::Request::SetUp { .. }
                 | engine::Request::Bound { .. }
-                | engine::Request::Return { .. }
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)

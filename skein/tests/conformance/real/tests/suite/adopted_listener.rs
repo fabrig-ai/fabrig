@@ -11,19 +11,7 @@ use skein_world::Expired;
 use super::given_listener::deadlines;
 
 fn limits() -> io::Limits {
-    io::Limits {
-        sockets: 2,
-        names: 0,
-        refusals: 1,
-        intake: 8,
-        receive: 4,
-        output: 8,
-        sends: 1,
-        accepts: 1,
-        backlog: 1,
-        close_timeout: Duration::from_secs(1),
-        retry: Duration::from_millis(1),
-    }
+    io::Limits { intake: 8, receive: 4, output: 8, sends: 1, retry: Duration::from_millis(1), ..io::Limits::TEST }
 }
 
 fn startup_listener() -> (TcpListener, std::net::SocketAddr) {

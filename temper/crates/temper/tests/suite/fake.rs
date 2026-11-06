@@ -722,9 +722,7 @@ fn forge_run() {
 }
 
 fn prepared_forge(directory: &Path) -> (SocketAddr, std::path::PathBuf, Vec<u8>) {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("available port");
-    let listen = listener.local_addr().expect("listen");
-    drop(listener);
+    let listen = support::free_addresses::<1>(&[])[0];
     document(&directory.join("temper.json"), &forge_setup(directory, &listen.to_string()));
     let prepared = support::owned::prepare(directory, 1);
     assert_eq!(prepared.status.code(), Some(0), "{}", String::from_utf8_lossy(&prepared.stderr));

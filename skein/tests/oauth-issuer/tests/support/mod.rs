@@ -17,12 +17,16 @@ const USERINFO: &[u8] = b"http://127.0.0.1:8123/userinfo";
 const KEYS: &[u8] = b"http://127.0.0.1:8123/keys";
 const DISCOVERY: &[u8] = b"http://127.0.0.1:8123/.well-known/openid-configuration";
 const REDIRECT: &[u8] = b"https://app.example.com/callback";
+fn redirect(public: bool) -> &'static [u8] {
+    if public { b"http://127.0.0.1:8124/callback" } else { REDIRECT }
+}
 const CODE_LIFE: Duration = Duration::from_secs(60);
 const ACCESS_LIFE: Duration = Duration::from_secs(300);
 
 #[derive(Clone, Copy, Debug, Hash)]
 pub enum Story {
     SignIn,
+    PublicSignIn,
     Expired,
     AnotherKey,
 }
@@ -67,10 +71,14 @@ fn issuer_limits() -> issuer::Limits {
         claim_bytes: 64,
     }
 }
-fn make_issuer(second: bool) -> issuer::Issuer {
+fn make_issuer(second: bool, public: bool) -> issuer::Issuer {
     let mut clients = List::with_capacity(1);
     clients
-        .push(issuer::Client { id: boxed(b"client"), secret: secret(b"secret"), redirect_uri: boxed(REDIRECT) })
+        .push(issuer::Client {
+            id: boxed(b"client"),
+            secret: if public { None } else { Some(secret(b"secret")) },
+            redirect_uri: boxed(redirect(public)),
+        })
         .expect("client");
     issuer::Issuer::new(
         issuer::Settings {
@@ -106,35 +114,30 @@ fn client_limits() -> oauth::ClientLimits {
     oauth::ClientLimits {
         document: documents(),
         uri_bytes: 64,
-        scope_bytes: 64,
         state_bytes: 43,
         code_bytes: 43,
-        url_bytes: 1024,
-        request_bytes: 1024,
-        parameter_bytes: 0,
-        resource_bytes: 0,
         nonce_bytes: 43,
         metadata_bytes: 2048,
         key_set_bytes: 2048,
         keys: 1,
-        modulus_bits: 2048,
         skew: Duration::from_secs(60),
         sign_in_time: Duration::from_secs(600),
         request_time: Duration::from_secs(400),
         backoff_base: Duration::from_secs(1),
         backoff_ceiling: Duration::from_secs(4),
         max_attempts: 1,
+        ..oauth::ClientLimits::TEST
     }
 }
-fn registration() -> oauth::Registration {
+fn registration(public: bool) -> oauth::Registration {
     oauth::Registration {
         authorization_url: boxed(AUTHORIZE),
         token_endpoint: boxed(TOKEN),
         client_id: boxed(b"client"),
-        redirect_uri: boxed(REDIRECT),
+        redirect_uri: boxed(redirect(public)),
         scope: boxed(b"openid profile email"),
         wire: oauth::WireFormat::Form,
-        client_secret: Some(skein_lib::Secret::new(boxed(b"secret"))),
+        client_secret: if public { None } else { Some(secret(b"secret")) },
         pkce_for_confidential: true,
         metadata_claim: None,
         terms: Some(oauth::Terms {
@@ -250,6 +253,7 @@ const CLIENT_HEAP_CEILING: u64 = 6_600;
 
 struct World {
     issuer: issuer::Issuer,
+    redirect: &'static [u8],
     issuer_live: i64,
     client: oauth::Client,
     client_live: i64,
@@ -266,7 +270,12 @@ struct World {
 impl World {
     fn new(seed: u64, story: Story) -> World {
         let mut issuer_live = 0;
-        let issuer = measured(&mut issuer_live, ISSUER_HEAP_CEILING, |_| 0, || make_issuer(false));
+        let issuer = measured(
+            &mut issuer_live,
+            ISSUER_HEAP_CEILING,
+            |_| 0,
+            || make_issuer(false, matches!(story, Story::PublicSignIn)),
+        );
         let mut client_live = 0;
         let client = measured(
             &mut client_live,
@@ -275,7 +284,7 @@ impl World {
             || oauth::Client::new(client_limits()).expect("client"),
         );
         let wrong_keys = if matches!(story, Story::AnotherKey) {
-            let second = make_issuer(true);
+            let second = make_issuer(true, false);
             let other = second.key_set();
             let source_kid = json_string(&other, b"kid");
             let signer_kid = json_string(&issuer.key_set(), b"kid");
@@ -296,6 +305,7 @@ impl World {
         };
         World {
             issuer,
+            redirect: redirect(matches!(story, Story::PublicSignIn)),
             issuer_live,
             client,
             client_live,
@@ -424,12 +434,12 @@ impl World {
             |body| body.len(),
             || self.issuer.redirect(&authorization, &value).expect("redirect"),
         );
-        assert!(location.starts_with(REDIRECT), "browser reaches registered redirect");
+        assert!(location.starts_with(self.redirect), "browser reaches registered redirect");
         location.hash(&mut self.trace);
         let at = location.iter().position(|byte| *byte == b'?').expect("redirect query");
         let (uri, query) = location.split_at(at);
         let query = &query[1..];
-        assert_eq!(uri, REDIRECT, "exact callback URL");
+        assert_eq!(uri, self.redirect, "exact callback URL");
         let state = query_value(query, b"state");
         let code = query_value(query, b"code");
         assert_eq!(state.as_ref(), authorization.state.as_deref().expect("state"));
@@ -539,7 +549,7 @@ pub fn run(seed: u64, story: Story) -> Outcome {
     let verifier = draw(&mut world.rng);
     let nonce = draw(&mut world.rng);
     let mut event = oauth::Event::SignIn {
-        registration: registration(),
+        registration: registration(matches!(story, Story::PublicSignIn)),
         key: 7,
         generation: 0,
         state: Secret::new(boxed(state.expose())),
@@ -596,7 +606,7 @@ pub fn run(seed: u64, story: Story) -> Outcome {
     assert!(world.client.is_done() && !world.pending && world.code.is_none(), "world settled");
     assert!(world.client_step(oauth::Event::Tick { now: at(1000) }).is_none(), "terminal remains last");
     match story {
-        Story::SignIn => {
+        Story::SignIn | Story::PublicSignIn => {
             assert_eq!(failure, None);
             assert_eq!(subject.as_deref(), Some(person().subject.as_ref()));
         }

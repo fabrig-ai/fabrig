@@ -69,8 +69,10 @@ mod held_change;
 mod landing;
 #[path = "forge_routes/producer_failure.rs"]
 mod producer_failure;
+mod question_target;
 #[path = "forge_routes/repair_cancel.rs"]
 mod repair_cancel;
+mod repair_cause;
 mod repair_green;
 mod stall_hold;
 
@@ -95,6 +97,7 @@ mod reviews;
 #[path = "forge_routes/b2_tree.rs"]
 mod b2_tree;
 
+mod saved_close;
 #[path = "forge_routes/saved_retry.rs"]
 mod saved_retry;
 
@@ -127,6 +130,8 @@ mod hints;
 
 #[path = "forge_routes/ci_poll.rs"]
 mod ci_poll;
+mod update_first;
+mod update_lost;
 
 #[path = "forge_routes/documents.rs"]
 mod documents;

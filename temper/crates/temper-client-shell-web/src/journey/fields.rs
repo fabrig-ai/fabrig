@@ -16,7 +16,9 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
     use Framing::{Framed, Text};
     match line {
         Line::Ways { content, origin } => vec![(content, Text), (origin, Text)],
-        Line::Forge(bytes)
+        Line::TabOpen(bytes)
+        | Line::TabPoint(bytes)
+        | Line::Forge(bytes)
         | Line::Path(bytes)
         | Line::Secret(bytes)
         | Line::Place(bytes)
@@ -39,7 +41,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         Line::Act { act, event, name } => {
             let mut fields = match act {
                 Act::Input { value } | Act::Drawing { data: value } => vec![(value, Text)],
-                Act::Press | Act::Submit | Act::Toggle => Vec::new(),
+                Act::Press | Act::Submit | Act::Toggle | Act::Near { .. } => Vec::new(),
             };
             fields.extend([(event, Text), (name, Text)]);
             fields
@@ -64,6 +66,8 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         | Line::Start
         | Line::Copied { .. }
         | Line::Due
+        | Line::TabClose
+        | Line::TabRefused
         | Line::Carried { .. }
         | Line::Lost(_)
         | Line::Close

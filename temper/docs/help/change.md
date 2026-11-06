@@ -13,7 +13,7 @@ A change is a task that writes one repository's branch and lands it: its pull re
   number for its coder, repairs and resolutions; default: the forge's change charter), `llm` (`producer` and `review`
   model and effort names; default: its charter's) and `questions` (`foreman`, `up`, or `none`, the default: how its
   producer's questions go).
-  Answered producers retain delivered work and merge the moved goal tip.
+- **A producer going on after an answer** keeps its work: what it delivered is on its branch, and what it had not was saved as a commit when it parked, so those edits are in its head and `git status` shows none of them. Only a worker's death, or parking with a conflict marker left, loses that run's own edits; earlier saved work stands. If its landing branch moved, temper merges the new tip in before the run starts. A clean merge is committed: its head is a commit titled `Merge SHA`, over a clean tree that holds other tasks' files. A conflict stays a merge in progress: `HEAD` is its work, `MERGE_HEAD` the tip, other tasks' files are staged, and its start names the files in conflict. Neither is contamination: it settles what is named and carries on, and its delivery commits the lot as the merge. Never answer it to remove or restore those files: that takes other tasks' work out of the merge.
 - **Its title:** the coder's, punctuation kept, cut on UTF-8 with “…”.
 - **Its panel:** task, repository, branch, base, pull URL, step, CI, gates, repair/update/resolution limits;
   `way: turn · landing task N`; questions' route, count, words and standing. `read_task` gives its answer number.
@@ -57,7 +57,7 @@ As `step:` prints it:
   (number, branch, base, head and address), the failed check and log end,
   or the gate's remarks (cut from their end, marked). It finishes with
   a new head; its words open with the repair
-  (`Repair CI at HEAD: CONTEXT` (`no failed check named` if unknown), `Repair gate N (KIND) at HEAD: changes requested`, `Repair the base's break at HEAD: BASE`),
+  (`Repair CI at HEAD: CONTEXT` (`no failed check named` if unknown), `Repair gate N (KIND) at HEAD: changes requested`; a clean update's red opens as CI's),
   so `task show` names it; the change is checked again;
 - `landing`, then `landed`: merged; `change show` names its commit;
   without tiers, it ends;

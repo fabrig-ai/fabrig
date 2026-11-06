@@ -68,19 +68,7 @@ pub fn shared() -> Shared {
         lifetime: Duration::from_secs(10),
         name_bytes: 128,
         repositories: 2,
-        io: skein_io::Limits {
-            sockets: 8,
-            names: 0,
-            refusals: 2,
-            intake: 32_768,
-            receive: 4096,
-            output: 32_768,
-            sends: 4,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: Duration::from_secs(1),
-            retry: Duration::from_millis(10),
-        },
+        io: skein_io::Limits { sockets: 8, refusals: 2, receive: 4096, sends: 4, ..skein_io::Limits::TEST },
     }
 }
 

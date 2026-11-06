@@ -2,6 +2,7 @@
 use super::fixtures;
 use crate::Worker;
 use jig_domain_host as hub;
+use jig_domain_link::JobKind;
 use root::tooling::{Event, Exit, Request};
 use skein_io as io;
 use skein_lib::{List, Queue, Token, Wall};
@@ -24,7 +25,7 @@ fn merge_assignment() -> root::Event {
         job: hub::JobAssignment {
             run: JOB,
             attempt: Token::new(2),
-            kind: hub::JobKind(3),
+            kind: JobKind(3),
             spec: Box::new([]),
             deadline: skein_lib::Duration::from_secs(10),
             workspace: Some(hub::Workspace { workstream: 7, items: Token::new(0) }),

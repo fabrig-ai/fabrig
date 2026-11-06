@@ -16,6 +16,10 @@ const OWNER: Token = Token::new(100);
 const ROOT_CLOSE: Token = Token::new(u64::MAX);
 const DEADLINE: Duration = Duration::from_millis(50);
 
+fn file_limits() -> file_layer::Limits {
+    file_layer::Limits { files: 1, read: 1, entries: 1, whole: 1, timeout: DEADLINE }
+}
+
 fn limits() -> io::Limits {
     io::Limits {
         sockets: 3,
@@ -67,7 +71,7 @@ impl Parent {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             source: None,
             inspection: None,
-            files: file_layer::FileIo::new(1, 1, 1, DEADLINE),
+            files: file_layer::FileIo::with_limits(&file_limits()),
             file_requests: Queue::uncapped(),
             file_events: Queue::uncapped(),
             asks: pending,
@@ -119,11 +123,12 @@ impl Parent {
                 Err(check) => self.answers.push(SourceAnswer::Check(check)),
             }
         }
-        file_layer::expire(&mut self.files, now, &mut self.submissions);
+        let env = self.env.with(file_limits());
+        file_layer::step::expire(&mut self.files, &env, &mut self.submissions);
         if self.files.takes()
             && let Some(request) = self.file_requests.pop()
         {
-            file_layer::down(&mut self.files, now, request, &mut self.file_events, &mut self.submissions);
+            file_layer::step::down(&mut self.files, &env, request, &mut self.file_events, &mut self.submissions);
         }
     }
     fn issue(&mut self, now: Time) {
@@ -156,13 +161,20 @@ impl Host for Parent {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
+        let file_env = self.env.with(file_limits());
         for _ in 0..self.completions.len() {
             let complete = self.completions.pop().expect("completion present at stage entry");
             if complete.op == ROOT_CLOSE {
                 assert!(complete.result.is_ok(), "parent root closes");
                 self.root_closed = true;
             } else if file_layer::owns(complete.op) {
-                file_layer::up(&mut self.files, complete, &mut self.file_events, &mut self.submissions);
+                file_layer::step::up(
+                    &mut self.files,
+                    &file_env,
+                    complete,
+                    &mut self.file_events,
+                    &mut self.submissions,
+                );
             } else {
                 self.completions.push(complete);
             }

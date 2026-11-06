@@ -784,8 +784,28 @@ for any presentation of a chat or of any agent task's activity.
   `Message` is pending; sent, once its answer names their message in
   the task's inbox; read, once a committed turn says it read through
   that message.
-- **Bounded:** the lines it holds, and their bytes. A window past them
-  keeps what fits, and says how many lines it left out.
+- **A window bounded by size.** A thread's `bytes` bound its lines: a
+  line weighs its bytes of words, texts, names, inputs, outcomes and
+  summaries, and `LINE_ROOM` (64) for itself and for each message, block,
+  object and part it holds, so the bytes bound what lines make of a page as
+  they do what lines hold. Its `lines` is a second bound for a presentation
+  that prices its tree by rows; one that doesn't sets it to what its bytes
+  hold, `bytes / LINE_ROOM`, where it never bites. Its live lines keep their
+  own `bytes`, as they did.
+- **The newest are never lost.** A page that takes a window past a bound
+  lets whole lines go, those furthest from what was just read: the newest
+  when reading earlier, the earliest when reading later; never the page just
+  read. Nothing says how many left. A line let go comes back, whole, when
+  read again beside the line next to it (`Thread::older`, `Thread::newer`;
+  contract.md, section 6). So each end of a window is one of three: it
+  reaches its list's end, a page's cursor says more lies there, or the window
+  let lines go there (`Edge::Dropped`). A window that let its newest go reads
+  no new tail, and shows no provisional line and no pending words until it
+  has them back: they belong at an end it doesn't hold. `Thread::latest`
+  reads the list's end again and replaces the window with it, for a person
+  sent to the end from far away.
+- **A read that failed** leaves the window as it was and says which end
+  it was for (`Thread::read_failed`), until the next read of that end.
 - **How a thread shows** (a turn's calls folded to a line each, a call to
   the engine shown as what it made) is the presentation's; the reference
   UI's is view.md, section 9.
@@ -1160,6 +1180,10 @@ with a person in front of a tree, are view.md's, 18.10.
 - **A window's turn:** how a thread shows a turn that opens a window (a
   compaction's summary of what came before it), beside the earlier
   window's turns it summarises.
+- **A thread's `lines`** (section 10): a second bound beside its `bytes`, for a
+  presentation that prices its tree by rows, as the reference UI and an
+  application's tools do. Whether they price theirs by bytes, so that it goes.
+  Default: it stays.
 - **Signing out with the engine out of reach:** whether a client should
   keep the sign-out and send it once the engine is reached, or a host
   forget its credential there, leaving the sign-in live on the engine
@@ -1317,6 +1341,10 @@ with a person in front of a tree, are view.md's, 18.10.
   `held` says what a held task waits on when it awaits nothing else:
   `WaitsOn` names no hold, so a client that reads the task's hold chooses
   the word, and no `WaitsOn` maps to it.
+  `an account` says what a task waits on when no account serves its next
+  run and it awaits nothing else: `WaitsOn` names no run wait either, so a
+  client that reads the task's `run_wait` chooses the word, and no
+  `WaitsOn` maps to it.
 - **What jig adopts.** Sugar starts in an application. jig adopts it
   when a second consumer uses it, or early when it is hard to interpret
   consistently (what "waiting for you" means, how committed turns and

@@ -228,7 +228,7 @@ pub(crate) fn welcome(
     bindings: &mut Bindings,
     forge: &mut ForgeBindings,
     choice: Option<Choice>,
-    _sign_in: &crate::forge_sign_in::Forges,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     if choice.is_none()
         && let Some(row) = connect::unfinished(connect::records(root.forges()), connect::playground(root.forge()))
@@ -238,7 +238,7 @@ pub(crate) fn welcome(
     }
     if let Some(row) = personal(root) {
         if connect::status_shown(row, connect::playground(root.forge())) {
-            forge_status(b, root, w, row);
+            forge_status(b, root, w, row, sign_in);
             b.open(Role::Slot);
             b.style(look::WELCOME_ACTS);
             flow::control(
@@ -812,7 +812,7 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
         match row.connection {
             Connection::SettingUp { step: Some(forge::forges::Step::Fetch) } => Some(0),
             Connection::SettingUp { step: Some(forge::forges::Step::Prepare) } => Some(1),
-            Connection::SettingUp { step: Some(forge::forges::Step::Run) } => Some(2),
+            Connection::SettingUp { step: Some(forge::forges::Step::Run | forge::forges::Step::Source) } => Some(2),
             Connection::Connecting => Some(3),
             Connection::Connected { .. } => Some(match &row.first {
                 Some(first) => match first.state {
@@ -844,7 +844,7 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
         fetch
     };
     let prepare = w.say(Word::ForgePrepare, &[]);
-    let run = w.say(Word::ForgeRun, &[]);
+    let run = w.say(run_word(row), &[]);
     let connecting = w.say(Word::ForgeConnectingAsTemper, &[]);
     let target = match &row.first {
         Some(first) => Some((first.org.as_ref(), first.repository.as_ref())),
@@ -875,6 +875,13 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
     flow::progress(b, w, &w.say(Word::ForgeProgress, &[]), steps);
     if connect::failed(row) {
         failure(b, w, row);
+    }
+}
+fn run_word(row: &Row) -> Word {
+    if let Connection::SettingUp { step: Some(forge::forges::Step::Source) } = row.connection {
+        Word::ForgeSource
+    } else {
+        Word::ForgeRun
     }
 }
 fn stage_mark(current: Option<usize>, failed: Option<usize>, index: usize) -> Mark {
@@ -1027,7 +1034,7 @@ pub(crate) fn welcome_target<'a>(root: &'a Domain, row: &'a Row) -> Option<(&'a 
     setup_target(root, row)
 }
 /// The Forge step's line in the column (client/README.md, 3.5, The Forge step with a forge).
-fn forge_status(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
+fn forge_status(b: &mut Builder, root: &Domain, w: &Words, row: &Row, sign_in: &crate::forge_sign_in::Forges) {
     let done = !connect::underway(row);
     let forge = name(w, row, root);
     let detail = if done { forge_done(w, row) } else { forge::words::forge_connection(row) };
@@ -1058,7 +1065,20 @@ fn forge_status(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
             b.close();
             b.open(Role::Text);
             b.style(look::FLOW_MUTED);
-            b.run(Run::Plain, &detail);
+            if done
+                && row.kind == Kind::Forgejo
+                && let Connection::Connected { login, .. } = &row.connection
+                && let Some(first) = &row.first
+                && let FirstState::Made { .. } = first.state
+                && super::repository::address(row, sign_in, &first.org, &first.repository).is_some()
+            {
+                w.text(b, Word::WelcomeForgeDoneDetail, &[Hole::Name(copy_of(login))]);
+                b.text(Run::Plain, b" \xc2\xb7 ");
+                super::repository::name(b, w, Some(row), sign_in, &first.org, &first.repository);
+                b.text(Run::Plain, b" made");
+            } else {
+                b.run(Run::Plain, &detail);
+            }
             b.close();
         }
         Shell::Terminal => {
@@ -1261,42 +1281,6 @@ pub(crate) fn app_line(b: &mut Builder, w: &Words, row: &Row, setting: bool) {
         b.close();
         b.close();
     }
-}
-
-fn github_repository_address(web: &[u8], owner: &[u8], name: &[u8]) -> Box<[u8]> {
-    let mut web = web;
-    for _ in 0..web.len() {
-        let Some(prefix) = web.strip_suffix(b"/") else { break };
-        web = prefix;
-    }
-    let mut bytes = web.len().checked_add(2).expect("address separators fit");
-    for segment in [owner, name] {
-        for byte in segment {
-            bytes = bytes
-                .checked_add(if byte.is_ascii_alphanumeric() || b"-._~".contains(byte) { 1 } else { 3 })
-                .expect("encoded address fits");
-        }
-    }
-    let mut address = skein_lib::Writer::new(bytes);
-    address.put(web).expect("web capacity");
-    for segment in [owner, name] {
-        address.put(b"/").expect("separator capacity");
-        for byte in segment {
-            if byte.is_ascii_alphanumeric() || b"-._~".contains(byte) {
-                address.put(&[*byte]).expect("plain segment capacity");
-            } else {
-                let hex = b"0123456789ABCDEF";
-                address
-                    .put(&[
-                        b'%',
-                        *hex.get(usize::from(*byte >> 4_u8)).expect("hex digit"),
-                        *hex.get(usize::from(*byte & 15)).expect("hex digit"),
-                    ])
-                    .expect("encoded segment capacity");
-            }
-        }
-    }
-    address.finish()
 }
 
 fn failure(b: &mut Builder, w: &Words, row: &Row) {
@@ -1510,10 +1494,12 @@ fn admin_ready(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
             &w.say(Word::AdminReady, &[Hole::Name(repository.clone()), Hole::Name(first.label.clone())]),
         );
         adopt(b, root, w, bindings);
-        if let Some(web) = &row.web {
+        if let Some(web) = &row.web
+            && let Some(address) = super::repository::web_address(web, &first.org, &first.repository)
+        {
             b.open(Role::Link);
             b.name(&w.say(Word::AdminRepository, &[Hole::Name(repository)]));
-            b.external(&github_repository_address(web, &first.org, &first.repository));
+            b.external(&address);
             b.close();
         }
     }

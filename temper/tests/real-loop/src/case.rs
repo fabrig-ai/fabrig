@@ -638,7 +638,7 @@ pub const PLAN_WORDS: &str = "A nearer end: this mission ends at the end-to-end 
 pub const PLAN_ANSWER: &str =
     "Green light: the nearer end, M1 and M2 approved; every ask granted, including B's files.";
 pub const SUBOWNER_REFUSAL: &str =
-    "Authority needs proposal: missing descendant depth (task authority.delegation.depth); ";
+    "Authority needs proposal: missing descendant depth (task authority.delegation.depth)";
 /// What the refusal adds when the batch also asks more spend than A1 has left.
 pub const SPEND_DEFICIT: &str = "spend allowance";
 pub const SUBOWNER_REPORT: &str = "M1's sub-owner could not delegate its own helper.";

@@ -23,9 +23,11 @@ lives, are its caller's: in jig, the clients' component's provider.
   expires both, and decides who is signed in. It serves the routes, at
   addresses of its own: the issuer knows them only as the URLs it
   publishes.
-- **One flow:** the authorization code, for confidential clients, with
-  PKCE S256 always and an exact redirect URI. A client authenticates at
-  the token endpoint by Basic or by its secret in the body, never both.
+- **One flow:** the authorization code, for confidential clients and,
+  client by client, public ones, with PKCE S256 always and an exact
+  redirect URI. A confidential client authenticates at the token endpoint
+  by Basic or by its secret in the body, never both; a public client has
+  nothing to check (section 5).
   No refresh token, no consent, no implicit or hybrid flow, no dynamic
   registration.
 - **RS256 alone,** signed by `skein_tls::sign_rs256_pkcs8` with the
@@ -57,7 +59,8 @@ pub struct Settings {
 }
 pub struct Client {
     pub id: Box<[u8]>,
-    pub secret: Secret,
+    /// `None` for a public client.
+    pub secret: Option<Secret>,
     pub redirect_uri: Box<[u8]>,
 }
 pub struct Issuer { /* the settings, checked; the key's public half and its kid */ }
@@ -75,9 +78,18 @@ impl Issuer {
   but the one of an empty path left out: `https://temper.example.com`.
 - **A client** has an id of 1 to `client_bytes` visible ASCII bytes
   (`0x21` to `0x7e`), unique among the clients; a secret of 1 to
-  `client_bytes` bytes; and one redirect URI, under the URLs' rules
+  `client_bytes` bytes, or none; and one redirect URI, under the URLs' rules
   above, compared byte for byte wherever a request names it. There are
-  1 to `limits.clients` clients. Every client is confidential.
+  1 to `limits.clients` clients.
+- **A client with a secret is confidential, one with none public.** Each is
+  so alone: one client's being public changes nothing the issuer asks of
+  another. A public client is for a peer that holds no secret worth the
+  name, where a fixed value dressed as a secret would only pretend. What
+  stands in for it are the rules every client has: S256 always, so that
+  only who began the flow can redeem its code, and the exact redirect URI, so
+  that the code goes nowhere else. It gives up what a secret would add:
+  whoever holds a code and its verifier redeems them, with no proof of being
+  that client.
 - **The key** is one `sign_rs256_pkcs8` signs with; `new` reads its public
   half with `rs256_public` and refuses a key it gives none for.
 - **`Error`**, `new`'s and the encoders': `Limits` (a value past its
@@ -109,7 +121,7 @@ whitespace:
 | `subject_types_supported` | `["public"]` |
 | `id_token_signing_alg_values_supported` | `["RS256"]` |
 | `scopes_supported` | `["openid","profile","email"]` |
-| `token_endpoint_auth_methods_supported` | `["client_secret_basic","client_secret_post"]` |
+| `token_endpoint_auth_methods_supported` | `["client_secret_basic","client_secret_post"]`, with `"none"` after them when a client is public |
 | `code_challenge_methods_supported` | `["S256"]` |
 | `claims_supported` | `["sub","iss","aud","exp","iat","nonce","preferred_username","email","email_verified","name"]` |
 
@@ -243,11 +255,16 @@ this order, the first failure answering:
      }`. A `client_secret` in the body beside it is `InvalidRequest`
      (two methods, RFC 6749, 2.3), and a `client_id` in the body that
      is not the header's id, `InvalidRequest`.
-   - *without one:* the body's `client_id` and `client_secret`, either
-     absent `InvalidClient { header: false }`.
+   - *without one:* the body's `client_id` and `client_secret`, the id
+     absent, or the secret absent for a confidential client, `InvalidClient
+     { header: false }`.
    - either way, an id no client has, or a secret not its client's,
      compared in constant time (`skein_lib::sha256::equal`), is
      `InvalidClient` with the same `header`.
+   - *a public client:* its id names it, and that is all. Basic's password,
+     an empty one among them, or the body's `client_secret`, is read and
+     dropped, never compared, since a peer's client library sends what it
+     sends: both at once are still `InvalidRequest`.
 4. `InvalidRequest`: `code`, `redirect_uri` or `code_verifier` absent; a
    verifier not 43 to 128 of RFC 7636's unreserved characters. A code
    past `token_bytes` is `InvalidGrant`: no code of the caller's is
@@ -391,7 +408,12 @@ pub fn valid(limits: &Limits) -> bool;
   sent back; a state echoed when within its bound and not past it; a
   redirect URI holding a query joined with `&`); every refusal of
   section 5 alone, Basic and the body each accepted, both refused, a
-  Basic id form-encoded, the secret off by one byte; `redeem` failing
+  Basic id form-encoded, the secret off by one byte; a public client by
+  Basic with an empty password, by the body with no secret and with one;
+  beside it a confidential client still refusing a wrong or missing secret;
+  a public client's authorization with no challenge refused, and its token
+  request with no verifier, another verifier and another redirect URI each
+  refused; `redeem` failing
   for another client, another redirect URI and another verifier; RFC
   7636's Appendix B verifier and challenge; the ID token's claims with
   and without a nonce and each of the person's claims, its signature

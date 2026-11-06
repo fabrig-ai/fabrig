@@ -38,6 +38,7 @@ mod agreement;
 mod chat;
 mod link;
 mod long_chat;
+mod parked;
 mod process;
 mod review;
 
@@ -824,7 +825,6 @@ impl World {
             | engine::Request::MakingCopied { .. }
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
-            | engine::Request::Return { .. }
             | engine::Request::Setup { .. }
             | engine::Request::Busy(_)
             | engine::Request::Unsettled(_)
@@ -921,7 +921,6 @@ impl World {
             | engine::Request::MakingCopied { .. }
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
-            | engine::Request::Return { .. }
             | engine::Request::Setup { .. }
             | engine::Request::ToChild(_)
             | engine::Request::Busy(_)

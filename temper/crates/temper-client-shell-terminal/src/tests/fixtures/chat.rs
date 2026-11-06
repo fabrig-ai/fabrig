@@ -15,6 +15,7 @@ pub fn page() -> skein_ui::Tree {
     text(&mut b, Role::Paragraph, &spend(7, 100, 2));
     b.open(Role::Log);
     b.name(b"Conversation");
+    b.bind(binding());
     text(&mut b, Role::Paragraph, b"You");
     text(&mut b, Role::Paragraph, b"Hello");
     text(&mut b, Role::Paragraph, b"Temper");
@@ -25,9 +26,8 @@ pub fn page() -> skein_ui::Tree {
     for (role, name) in [
         (Role::TextArea, b"Message".as_slice()),
         (Role::Button, b"Send"),
-        (Role::Button, b"Stop"),
+        (Role::Button, b"Pause"),
         (Role::Button, b"Close"),
-        (Role::Button, b"Older"),
     ] {
         b.open(role);
         b.name(name);
@@ -232,6 +232,8 @@ fn first_run_sheet(address: client::Address, landed: bool, closing: bool) -> ske
             Request::Client { .. }
             | Request::Unlinked { .. }
             | Request::Show { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }

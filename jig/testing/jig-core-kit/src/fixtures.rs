@@ -2,6 +2,7 @@
 use crate::world::Setup;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
+use jig_domain_link::{JobBound, JobKind};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -503,12 +504,8 @@ pub fn job_world(seed: u64, ceiling: bool) -> (crate::world::World, u64) {
     limits.core.authority.executors = 3;
     limits.core.tasks.executor_kinds = 3;
     limits.core.documents.executors = 3;
-    configuration.core.jobs = Box::new([jig_domain_host::JobBound {
-        kind: jig_domain_host::JobKind(7),
-        spec: 64,
-        result: 32,
-        deadline: skein_lib::Duration::from_secs(60),
-    }]);
+    configuration.core.jobs =
+        Box::new([JobBound { kind: JobKind(7), spec: 64, result: 32, deadline: skein_lib::Duration::from_secs(60) }]);
     let kinds: Box<[authority::Executor]> =
         Box::new([authority::Executor::Charter(1), authority::Executor::Procedure(1), authority::Executor::Job(7)]);
     configuration.core.defaults.rules.ceiling.delegation.kinds.clone_from(&kinds);

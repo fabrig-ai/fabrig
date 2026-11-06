@@ -8,6 +8,7 @@ use jig_domain_core as core;
 use jig_domain_core::{Delegate, ProcedureStep, RunCharter};
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::Grant;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_domain_views as views;
@@ -50,7 +51,7 @@ pub struct Assignment {
     pub answered: Box<[crate::CallRecord]>,
     pub settled: Box<[jig_domain_core::Settled]>,
     /// Secret-free account and application credential grants; token bytes stay in the protocol.
-    pub grants: Box<[accounts::Grant]>,
+    pub grants: Box<[Grant]>,
 }
 
 /// One root-owned section in a worker assignment (jig's domain/engine.md, section 9).
@@ -446,7 +447,7 @@ pub enum StoreInput {
 pub enum Link {
     Hello {
         worker: u32,
-        hello: host::Hello,
+        hello: jig_domain_link::Hello,
     },
     /// One hub record; temper's parts ride beside an answer and are empty otherwise.
     Up {
@@ -537,14 +538,13 @@ pub enum WorkerInput {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Application {
     Forge(forge::Ask),
-    Return { source: u32, path: Box<[u8]> },
     Try { account: u32, again: bool },
     Dismiss { what: forge::PersonFact },
     Looked { project: u32 },
     SetAway { project: u32, on: bool, until: Option<Wall>, kinds: u8 },
     Overturn { project: u32, number: u32 },
 }
-/// The family's terminal answer; root returns are volatile, like forge setup answers.
+/// The family's terminal answer (client/README.md, 4.6).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ApplicationAnswer {
     Make(forge::MakeAnswer),
@@ -557,7 +557,6 @@ pub enum ApplicationAnswer {
     Install(forge::InstallAnswer),
     Accept(forge::AcceptAnswer),
     Reachable(forge::ReachableAnswer),
-    Returning,
     Try(TryAnswer),
     Dismiss(forge::DismissAnswer),
     Looked(forge::LookedAnswer),
@@ -776,11 +775,6 @@ pub enum Request {
     Bound {
         request: Token,
         answer: forge::BindAnswer,
-    },
-    /// Give this sign-in its checked return path (client/README.md, 8).
-    Return {
-        source: u32,
-        path: Box<[u8]>,
     },
     /// Routed to the protocol layer's box link; nothing committed (domain/root.md, 5.1).
     SetUp {

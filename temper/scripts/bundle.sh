@@ -37,6 +37,8 @@ if [ "$playground" = false ]; then
     "$target/debug/skein-ui-bundle" \
         --module "$target/wasm32-unknown-unknown/$profile/temper_client_shell_web.wasm" \
         --name temper_client_shell_web --prefix /bundle/ \
+        --title temper --placeholder "$shell/loading.html" \
+        --placeholder-stylesheet "$shell/loading.css" \
         --stylesheet "$shell/temper.css" \
         --stylesheet "$shell/task-pages.css" \
         --files "$shell/files" \
@@ -46,7 +48,7 @@ else
     cargo build --target wasm32-unknown-unknown --profile web --features playground -p temper-client-shell-web
     cargo build --target wasm32-unknown-unknown --profile playground -p temper-playground
     cargo build -p skein-ui-bundle
-    directory=$("$target/debug/skein-ui-bundle" \
+    directory=$("$target/debug/skein-ui-bundle" --gzip off \
         --module "$target/wasm32-unknown-unknown/web/temper_client_shell_web.wasm" \
         --name temper_client_shell_web --prefix /bundle/ \
         --worker "temper_playground=$target/wasm32-unknown-unknown/playground/temper_playground.wasm" \

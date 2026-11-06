@@ -169,6 +169,22 @@ enum State {
     Retired { erase: bool },
 }
 
+/// Whether the asker's store holds the request yet.
+#[derive(Debug, Hash, PartialEq, Eq)]
+enum Keeping {
+    Unsaved,
+    Saved,
+    Restored,
+}
+
+/// What the owner has been told.
+#[derive(Clone, Copy, Debug, Hash)]
+enum Telling {
+    Silent,
+    Changed(RequestProgress),
+    Told(RequestProgress),
+}
+
 #[derive(Debug, Hash)]
 struct Anchor {
     now: Time,
@@ -180,21 +196,47 @@ struct Entry<O, R> {
     record: RequestRecord<R>,
     owner: O,
     size: u64,
-    restored: bool,
-    save: bool,
+    keeping: Keeping,
     state: State,
-    progress: Option<RequestProgress>,
-    changed: bool,
+    progress: Telling,
     backoff: Duration,
     anchor: Option<Anchor>,
 }
 
 impl<O, R> Entry<O, R> {
     fn progress(&mut self, progress: RequestProgress) {
-        if self.progress != Some(progress) {
-            self.progress = Some(progress);
-            self.changed = true;
+        self.progress = match self.progress {
+            Telling::Changed(last) | Telling::Told(last) if last == progress => self.progress,
+            Telling::Silent | Telling::Changed(_) | Telling::Told(_) => Telling::Changed(progress),
+        };
+    }
+
+    fn take_progress(&mut self) -> Option<RequestProgress> {
+        match self.progress {
+            Telling::Changed(progress) => {
+                self.progress = Telling::Told(progress);
+                Some(progress)
+            }
+            Telling::Silent | Telling::Told(_) => None,
         }
+    }
+
+    fn progress_pending(&self) -> bool {
+        match self.progress {
+            Telling::Changed(_) => true,
+            Telling::Silent | Telling::Told(_) => false,
+        }
+    }
+
+    fn saved(&mut self) {
+        match self.keeping {
+            Keeping::Unsaved => self.keeping = Keeping::Saved,
+            Keeping::Saved | Keeping::Restored => {}
+        }
+    }
+
+    fn reachable(&self, up: bool, scope: Option<u64>, retention: Option<Duration>) -> bool {
+        up && scope == Some(self.record.scope) && (self.keeping != Keeping::Restored || retention.is_some())
     }
 
     fn erase_pending(&self) -> bool {
@@ -206,7 +248,7 @@ impl<O, R> Entry<O, R> {
 
     fn unknown(&mut self) {
         self.state = State::Retired { erase: true };
-        self.save = false;
+        self.saved();
         self.progress(RequestProgress::Unknown);
     }
 }
@@ -283,7 +325,7 @@ impl<O: Copy, R> RequestTable<O, R> {
         key: RequestKey,
         request: R,
     ) -> Result<RequestAdmission, RequestRefused<R>> {
-        if self.contains(key) {
+        if self.index.contains_key(&key) {
             return Err(RequestRefused::Held(request));
         }
         if !self.fits(size) || self.serial == u64::MAX || self.fresh_attempt().is_none() {
@@ -302,7 +344,7 @@ impl<O: Copy, R> RequestTable<O, R> {
         size: u64,
         record: RequestRecord<R>,
     ) -> Result<RequestAdmission, RequestRefused<RequestRecord<R>>> {
-        if self.contains(record.key) {
+        if self.index.contains_key(&record.key) {
             return Err(RequestRefused::Held(record));
         }
         if !self.fits(size) || self.serial == u64::MAX {
@@ -343,13 +385,11 @@ impl<O: Copy, R> RequestTable<O, R> {
         for (_, id) in &self.order {
             let entry = self.entries.get(*id).expect("order names a held entry");
             match entry.state {
-                State::InFlight(current) => {
-                    if current == attempt {
-                        found = Some(*id);
-                        break;
-                    }
+                State::InFlight(current) if current == attempt => {
+                    found = Some(*id);
+                    break;
                 }
-                State::Parked | State::Ready | State::Retrying(_) | State::Retired { .. } => {}
+                State::Parked | State::Ready | State::InFlight(_) | State::Retrying(_) | State::Retired { .. } => {}
             }
         }
         let Some(id) = found else {
@@ -359,8 +399,8 @@ impl<O: Copy, R> RequestTable<O, R> {
         match envelope {
             RequestEnvelope::Final => {
                 entry.state = State::Retired { erase: true };
-                entry.save = false;
-                entry.changed = false;
+                entry.saved();
+                entry.take_progress();
                 return RequestAnswered::Final(entry.owner);
             }
             RequestEnvelope::Again | RequestEnvelope::Lost => {
@@ -389,8 +429,8 @@ impl<O: Copy, R> RequestTable<O, R> {
             State::Parked | State::Ready | State::InFlight(_) | State::Retrying(_) => {}
         }
         entry.state = State::Retired { erase: true };
-        entry.save = false;
-        entry.changed = false;
+        entry.saved();
+        entry.take_progress();
         Some(entry.owner)
     }
 
@@ -463,9 +503,8 @@ impl<O: Copy, R> RequestTable<O, R> {
     pub fn progress(&mut self) -> Option<(O, RequestProgress)> {
         for (_, id) in &self.order {
             let entry = self.entries.get_mut(*id).expect("order names a held entry");
-            if entry.changed {
-                entry.changed = false;
-                return Some((entry.owner, entry.progress.expect("a change has a progress value")));
+            if let Some(progress) = entry.take_progress() {
+                return Some((entry.owner, progress));
             }
         }
         None
@@ -474,8 +513,8 @@ impl<O: Copy, R> RequestTable<O, R> {
     /// Whether a display change remains, including a terminal unknown outcome.
     #[must_use]
     pub fn progress_pending(&self) -> bool {
-        for (_, id) in &self.order {
-            if self.entries.get(*id).expect("order names a held entry").changed {
+        for (_, entry) in &self.entries {
+            if entry.progress_pending() {
                 return true;
             }
         }
@@ -489,13 +528,11 @@ impl<O: Copy, R> RequestTable<O, R> {
             for (number, id) in &self.order {
                 let entry = self.entries.get(*id).expect("order names a held entry");
                 match entry.state {
-                    State::Retired { .. } => {
-                        if !entry.erase_pending() && !entry.changed {
-                            found = Some((*number, *id));
-                            break;
-                        }
+                    State::Retired { erase: false } if !entry.progress_pending() => {
+                        found = Some((*number, *id));
+                        break;
                     }
-                    State::Parked | State::Ready | State::InFlight(_) | State::Retrying(_) => {}
+                    State::Parked | State::Ready | State::InFlight(_) | State::Retrying(_) | State::Retired { .. } => {}
                 }
             }
             let Some((number, id)) = found else {
@@ -515,9 +552,8 @@ impl<O: Copy, R> RequestTable<O, R> {
     /// Whether store records or eligible sends remain to take.
     #[must_use]
     pub fn pending(&self) -> bool {
-        for (_, id) in &self.order {
-            let entry = self.entries.get(*id).expect("order names a held entry");
-            if entry.save || entry.erase_pending() || self.eligible(entry) {
+        for (_, entry) in &self.entries {
+            if entry.keeping == Keeping::Unsaved || entry.erase_pending() || self.eligible(entry) {
                 return true;
             }
         }
@@ -576,10 +612,6 @@ impl<O: Copy, R> RequestTable<O, R> {
         }
     }
 
-    fn contains(&self, key: RequestKey) -> bool {
-        self.index.contains_key(&key)
-    }
-
     fn fresh_key(&self) -> Option<(RequestKey, u64)> {
         let mut draws = self.draws;
         // SplitMix64 permutes all u64 states; before its period it never
@@ -596,7 +628,7 @@ impl<O: Copy, R> RequestTable<O, R> {
             for (slot, byte) in key.get_mut(8..).expect("second half").iter_mut().zip(draw.to_be_bytes()) {
                 *slot = byte;
             }
-            if !self.contains(key) {
+            if !self.index.contains_key(&key) {
                 return Some((key, draws));
             }
         }
@@ -610,11 +642,9 @@ impl<O: Copy, R> RequestTable<O, R> {
             record,
             owner,
             size,
-            restored,
-            save: !restored,
+            keeping: if restored { Keeping::Restored } else { Keeping::Unsaved },
             state: if eligible { State::Ready } else { State::Parked },
-            progress: if eligible { None } else { Some(RequestProgress::Parked) },
-            changed: !eligible,
+            progress: if eligible { Telling::Silent } else { Telling::Changed(RequestProgress::Parked) },
             backoff: self.limits.first.min(self.limits.most),
             anchor: None,
         };
@@ -633,38 +663,25 @@ impl<O: Copy, R> RequestTable<O, R> {
     fn synchronize(&mut self) {
         for (_, id) in &self.order {
             let entry = self.entries.get_mut(*id).expect("order names a held entry");
-            let eligible =
-                self.up && self.scope == Some(entry.record.scope) && (!entry.restored || self.retention.is_some());
+            let eligible = entry.reachable(self.up, self.scope, self.retention);
             match entry.state {
-                State::Retired { .. } => {}
-                State::Parked => {
-                    if eligible {
-                        entry.state = State::Ready;
-                    }
+                State::Parked if eligible => entry.state = State::Ready,
+                State::Ready | State::InFlight(_) | State::Retrying(_) if !eligible => {
+                    entry.state = State::Parked;
+                    entry.progress(RequestProgress::Parked);
                 }
-                State::Ready | State::InFlight(_) | State::Retrying(_) => {
-                    if !eligible {
-                        entry.state = State::Parked;
-                        entry.progress(RequestProgress::Parked);
-                    }
-                }
+                State::Parked | State::Ready | State::InFlight(_) | State::Retrying(_) | State::Retired { .. } => {}
             }
         }
     }
 
     fn fresh_attempt(&self) -> Option<Token> {
-        let raw = self.attempt.checked_add(1)?;
-        Some(Token::new(raw))
+        Some(Token::new(self.attempt.checked_add(1)?))
     }
 
     fn eligible(&self, entry: &Entry<O, R>) -> bool {
         match entry.state {
-            State::Ready => {
-                self.up
-                    && self.scope == Some(entry.record.scope)
-                    && (!entry.restored || self.retention.is_some())
-                    && self.fresh_attempt().is_some()
-            }
+            State::Ready => entry.reachable(self.up, self.scope, self.retention) && self.fresh_attempt().is_some(),
             State::Parked | State::InFlight(_) | State::Retrying(_) | State::Retired { .. } => false,
         }
     }
@@ -681,7 +698,10 @@ impl<O: Copy, R> RequestTake<'_, O, R> {
         for (_, id) in &self.table.order {
             let entry = self.table.entries.get(*id).expect("order names a held entry");
             let eligible = self.table.eligible(entry);
-            if entry.save || entry.erase_pending() || (eligible && entry.record.first_sent.is_none()) {
+            if entry.keeping == Keeping::Unsaved
+                || entry.erase_pending()
+                || (eligible && entry.record.first_sent.is_none())
+            {
                 record = Some(*id);
                 break;
             }
@@ -701,7 +721,7 @@ impl<O: Copy, R> RequestTake<'_, O, R> {
                 entry.record.first_sent = Some(self.wall);
                 entry.anchor = Some(Anchor { now: self.now, age: Duration::ZERO });
             }
-            entry.save = false;
+            entry.saved();
             return Some(RequestOut::Save(&entry.record));
         }
         let id = send?;
