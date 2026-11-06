@@ -44,10 +44,14 @@ fn hello(bounds: Bounds) -> Hello {
 }
 fn rejected(needs: Needs, bounds: Bounds) -> HelloRefusal {
     let expected = crate::shortfall(&needs, &bounds, HostKind::Worker).expect("agent shortfall");
+    let figures = crate::figures(&needs, &bounds, HostKind::Worker, expected);
     let mut h = Harness::with_needs(LIMITS, needs);
     assert_eq!(
         &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) }),
-        &[Request::Refuse { channel: C1 }]
+        &[Request::Refuse {
+            channel: C1,
+            hello: Some(crate::HelloRefused { why: HelloRefusal::Agent { why: expected }, figures })
+        }]
     );
     let actual = refusal(&h);
     assert_eq!(actual, HelloRefusal::Agent { why: expected });
@@ -106,7 +110,13 @@ fn the_engines_first_hello_is_checked_against_its_charters() {
     let mut h = Harness::with_needs(LIMITS, needs);
     assert_eq!(
         &*h.step(Event::Hello { worker: 0, channel: Token::new(0), hello: hello(bounds_window(4096)) }),
-        &[Request::Refuse { channel: Token::new(0) }]
+        &[Request::Refuse {
+            channel: Token::new(0),
+            hello: Some(crate::HelloRefused {
+                why: HelloRefusal::Agent { why: AgentShortfall::Window { charter: 1, model: 0 } },
+                figures: Some(crate::Figures { required: 8192, offered: 4096 })
+            })
+        }]
     );
     assert_eq!(refusal(&h), HelloRefusal::Agent { why: AgentShortfall::Window { charter: 1, model: 0 } });
 }
@@ -116,7 +126,10 @@ fn a_second_hello_on_the_engine_channel_is_refused() {
     assert!(h.step(Event::Hello { worker: 0, channel: Token::new(0), hello: hello(bounds_window(8192)) }).is_empty());
     assert_eq!(
         &*h.step(Event::Hello { worker: 0, channel: Token::new(0), hello: hello(bounds_window(8192)) }),
-        &[Request::Refuse { channel: Token::new(0) }]
+        &[Request::Refuse {
+            channel: Token::new(0),
+            hello: Some(crate::HelloRefused { why: HelloRefusal::ReservedChannel, figures: None })
+        }]
     );
     assert_eq!(refusal(&h), HelloRefusal::ReservedChannel);
 }
@@ -263,7 +276,7 @@ fn ambiguous_or_oversized_endpoint_metadata_is_never_retained() {
         bounds.program_endpoints = endpoints;
         assert_eq!(
             &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) }),
-            &[Request::Refuse { channel: C1 }]
+            &[Request::Refuse { channel: C1, hello: None }]
         );
         assert_eq!(h.domain.program_endpoint(C1, 7), None);
         assert_eq!(h.domain.workers(), 0);
@@ -435,4 +448,223 @@ fn a_queued_old_version_keeps_its_models_when_the_newest_changes() {
     assert_eq!((*channel, *run), (C1, R1));
     h.step(start_version(R2, A2, 2));
     assert!(h.settle().is_empty(), "the old host cannot run the new version");
+}
+
+#[test]
+fn a_refused_hello_says_why_and_what_each_side_holds() {
+    let mut needs = needs_window(8192);
+    needs.charters[0].change_reserve = Some(Duration::from_millis(4001));
+    let adequate = Bounds { checks: Duration::from_millis(4001), ..bounds_window(8192) };
+    for (bounds, why, required, offered) in [
+        (
+            Bounds {
+                models: Box::new([ModelBound { window: 4096, ..adequate.models[0].clone() }]),
+                ..adequate.clone()
+            },
+            AgentShortfall::Window { charter: 1, model: 0 },
+            8192,
+            4096,
+        ),
+        (
+            Bounds {
+                models: Box::new([ModelBound { output: 1023, ..adequate.models[0].clone() }]),
+                ..adequate.clone()
+            },
+            AgentShortfall::Output { charter: 1, model: 0 },
+            1024,
+            1023,
+        ),
+        (Bounds { turns: 7, ..adequate.clone() }, AgentShortfall::Turns { charter: 1 }, 8, 7),
+        (
+            Bounds { time: Duration::from_millis(59999), ..adequate.clone() },
+            AgentShortfall::Time { charter: 1 },
+            60000,
+            59999,
+        ),
+        (
+            Bounds { waiting: Duration::from_millis(9999), ..adequate.clone() },
+            AgentShortfall::Waiting { charter: 1 },
+            10000,
+            9999,
+        ),
+        (
+            Bounds { checks: Duration::from_millis(4002), ..adequate.clone() },
+            AgentShortfall::Checks { charter: 1 },
+            4001,
+            4002,
+        ),
+        (Bounds { spend: 99, ..adequate.clone() }, AgentShortfall::Spend, 100, 99),
+        (Bounds { message_bytes: 63, ..adequate.clone() }, AgentShortfall::Message, 64, 63),
+        (Bounds { inbox: 3, ..adequate.clone() }, AgentShortfall::Inbox, 4, 3),
+        (Bounds { unacknowledged: 1, ..adequate.clone() }, AgentShortfall::Unacknowledged, 2, 1),
+    ] {
+        assert_eq!(crate::shortfall(&needs, &bounds, HostKind::Worker), Some(why));
+        let figures = crate::Figures { required, offered };
+        assert_eq!(crate::figures(&needs, &bounds, HostKind::Worker, why), Some(figures));
+        if why == (AgentShortfall::Checks { charter: 1 }) {
+            assert!(offered > required);
+        } else {
+            assert!(offered < required);
+        }
+        let mut h = Harness::with_needs(LIMITS, needs.clone());
+        assert_eq!(
+            &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) }),
+            &[Request::Refuse {
+                channel: C1,
+                hello: Some(crate::HelloRefused {
+                    why: HelloRefusal::Agent { why },
+                    figures: Some(crate::Figures { required, offered }),
+                })
+            }],
+            "{why:?}"
+        );
+    }
+}
+
+#[test]
+fn a_bound_set_after_the_start_refuses_with_its_figures() {
+    let mut h = Harness::with_needs(LIMITS, needs_window(8192));
+    let mut needs = needs_window(8192);
+    needs.charters[0].turns = 9;
+    assert!(h.step(Event::Needs(needs)).is_empty());
+    assert_eq!(
+        &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds_window(8192)) }),
+        &[Request::Refuse {
+            channel: C1,
+            hello: Some(crate::HelloRefused {
+                why: HelloRefusal::Agent { why: AgentShortfall::Turns { charter: 1 } },
+                figures: Some(crate::Figures { required: 9, offered: 8 }),
+            })
+        }]
+    );
+}
+
+#[test]
+fn a_model_the_agent_does_not_declare_has_no_figures() {
+    let needs = needs_window(8192);
+    let mut bounds = bounds_window(8192);
+    bounds.models = Box::new([]);
+    for why in [
+        AgentShortfall::Model { charter: 1, model: 0 },
+        AgentShortfall::Window { charter: 1, model: 0 },
+        AgentShortfall::Output { charter: 1, model: 0 },
+    ] {
+        assert_eq!(crate::figures(&needs, &bounds, HostKind::Worker, why), None);
+    }
+    let mut h = Harness::with_needs(LIMITS, needs);
+    assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) }).is_empty());
+}
+
+#[test]
+fn a_recorded_non_agent_refusal_has_no_figures() {
+    let mut jobs = hello(bounds_window(8192));
+    let job = jig_domain_link::JobBound {
+        kind: jig_domain_link::JobKind(1),
+        spec: 1,
+        result: 1,
+        deadline: Duration::from_secs(1),
+    };
+    jobs.jobs = Box::new([job, job]);
+    let mut stop = hello(bounds_window(8192));
+    stop.stop_bound = LIMITS.grace;
+    let mut reserved = Harness::new(LIMITS);
+    reserved.step(Event::Hello { worker: 0, channel: Token::new(0), hello: hello(bounds_window(8192)) });
+    for (mut h, hello, worker, channel, why) in [
+        (Harness::new(LIMITS), jobs, 0, C1, HelloRefusal::JobKinds),
+        (
+            Harness::new(Limits { workers: 0, ..LIMITS }),
+            hello(bounds_window(8192)),
+            0,
+            C1,
+            HelloRefusal::Workers { limit: 0 },
+        ),
+        (
+            Harness::new(LIMITS),
+            hello(bounds_window(8192)),
+            LIMITS.configured_workers,
+            C1,
+            HelloRefusal::Position { worker: LIMITS.configured_workers },
+        ),
+        (Harness::new(LIMITS), stop, 0, C1, HelloRefusal::StopBound { grace: LIMITS.grace }),
+        (reserved, hello(bounds_window(8192)), 0, Token::new(0), HelloRefusal::ReservedChannel),
+    ] {
+        assert_eq!(
+            &*h.step(Event::Hello { worker, channel, hello }),
+            &[Request::Refuse { channel, hello: Some(crate::HelloRefused { why, figures: None }) }]
+        );
+        assert_eq!(refusal(&h), why);
+    }
+}
+
+#[test]
+fn a_refusal_with_no_reason_hands_up_none() {
+    let mut malformed = bounds_window(8192);
+    malformed.program_endpoints = Box::new([1, 1]);
+    let mut h = Harness::with_needs(LIMITS, needs_window(8192));
+    assert_eq!(
+        &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(malformed) }),
+        &[Request::Refuse { channel: C1, hello: None }]
+    );
+    assert!(h.domain.hello_refusals().is_empty());
+    assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds_window(8192)) }).is_empty());
+    let name = crate::SourceName::new(b"unexpected").unwrap();
+    assert_eq!(
+        &*h.step(Event::Logins {
+            channel: C1,
+            logins: Box::new([crate::Login { name, state: crate::LoginState::Usable }])
+        }),
+        &[Request::Refuse { channel: C1, hello: None }]
+    );
+    assert!(h.domain.hello_refusals().is_empty());
+}
+
+#[test]
+fn a_refused_hello_uses_the_applicable_charter_versions_figures() {
+    let mut needs = needs_window(8192);
+    let mut engine = needs.charters[0].clone();
+    engine.kinds = Kinds::Engine;
+    engine.turns = 9;
+    let mut worker = engine.clone();
+    worker.version.revision = 2;
+    worker.kinds = Kinds::Workers;
+    worker.turns = 10;
+    needs.charters = Box::new([engine, worker]);
+    for (channel, kind, required) in [(Token::new(0), HostKind::Engine, 9), (C1, HostKind::Worker, 10)] {
+        let bounds = bounds_window(8192);
+        let why = AgentShortfall::Turns { charter: 1 };
+        assert_eq!(crate::shortfall(&needs, &bounds, kind), Some(why));
+        let mut h = Harness::with_needs(LIMITS, needs.clone());
+        assert_eq!(
+            &*h.step(Event::Hello { worker: 0, channel, hello: hello(bounds) }),
+            &[Request::Refuse {
+                channel,
+                hello: Some(crate::HelloRefused {
+                    why: HelloRefusal::Agent { why },
+                    figures: Some(crate::Figures { required, offered: 8 }),
+                })
+            }],
+            "{kind:?}"
+        );
+    }
+}
+
+#[test]
+fn a_refused_hello_uses_the_first_short_versions_figures() {
+    let mut needs = needs_window(8192);
+    let first = needs.charters[0].clone();
+    let mut second = first.clone();
+    second.version.revision = 2;
+    second.turns = 10;
+    needs.charters = Box::new([first, second]);
+    let mut h = Harness::with_needs(LIMITS, needs);
+    assert_eq!(
+        &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds_window(8192)) }),
+        &[Request::Refuse {
+            channel: C1,
+            hello: Some(crate::HelloRefused {
+                why: HelloRefusal::Agent { why: AgentShortfall::Turns { charter: 1 } },
+                figures: Some(crate::Figures { required: 10, offered: 8 }),
+            })
+        }]
+    );
 }
