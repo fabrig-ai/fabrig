@@ -496,6 +496,10 @@ fn prepare_with_limits(
             .and_then(|binary| program_login::line(directories, &binary))
             .map(|line| line.into_bytes().into_boxed_slice()),
         given,
+        directories.program_environment(
+            &skein_shell::environment(),
+            std::env::current_dir().map_err(|why| why.to_string())?.as_os_str().as_bytes(),
+        ),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     if workspace_reuse() {

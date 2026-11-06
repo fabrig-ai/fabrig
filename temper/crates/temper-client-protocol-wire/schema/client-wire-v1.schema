@@ -111,7 +111,7 @@ versioned record Forges { forges: list 16 ForgeRow }
 record SettingRead { kind: u32 scope: u32 number: u32 }
 record ProposalItemsRead { key: u64 }
 record RevisionSettingRead { kind: u32 scope: u32 number: u32 revision: u32 }
-enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead }
+enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment }
 # Values are the records of temper's settings kinds below.
 versioned record SettingAnswer { value: option bytes 1048576 }
 record SettingValue { value: bytes 1048576 }
@@ -126,6 +126,7 @@ versioned record PlaygroundAnswer { forge: u16 project: option u32 provider: u32
 
 # The deployment's read (temper/docs/design/client/README.md, 4.6).
 versioned record DeploymentAnswer { welcome: bool owned: bool program_login: option bytes 8192 }
+versioned record ProgramEnvironmentAnswer { environment: bytes 49216 }
 
 # A change's watched panel (client/README.md, 4.6; client/forge.md, 9.2).
 record ChangeSubject { task: u64 }

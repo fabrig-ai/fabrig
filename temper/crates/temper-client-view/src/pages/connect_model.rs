@@ -541,13 +541,20 @@ fn key_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
 }
 /// The whole command for NAME (client/README.md, 4.6, *The printed command*).
 pub(crate) fn printed_command(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]> {
-    if let Some(answer) = root.forge().deployment()
+    let (environment, answered) = match root.pages().connect_model() {
+        Some(page) => (page.program_environment(), page.program_environment_answered()),
+        None => (b"".as_slice(), false),
+    };
+    let command = if let Some(answer) = root.forge().deployment()
         && let Some(line) = &answer.program_login
     {
         words::join(&[line, b" ", &crate::choice::shown(name, w)])
-    } else {
+    } else if !answered {
         named(w, W::Command, name)
-    }
+    } else {
+        named(w, W::EnvironmentCommand, name)
+    };
+    if environment.is_empty() { command } else { words::join(&[environment, b" ", &command]) }
 }
 /// The same command with the words saying where to run it.
 pub(crate) fn command_line(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]> {
