@@ -212,7 +212,7 @@ fn a_value_changed_is_wrong() {
     assert_eq!(outcome(&report, "goal-rule.ci"), &Outcome::Wrong { found: json!(true), expected: json!(false) });
     assert!(report.text().contains("goal-rule.ci  wrong: found true, expected false\n"));
     assert!(report.text().ends_with("failed: 1 of 79\n"));
-    assert_eq!(report.json()["verdicts"][56]["outcome"], json!({"kind":"wrong","found":true,"expected":false}));
+    assert_eq!(report.json()["verdicts"][55]["outcome"], json!({"kind":"wrong","found":true,"expected":false}));
 }
 #[test]
 fn an_added_charter_is_an_extra() {
