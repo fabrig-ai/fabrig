@@ -156,16 +156,11 @@ impl Driver {
         };
         let io_limits = IoLimits {
             sockets: 3,
-            refusals: 1,
             intake: client::LARGEST_READ,
-            receive: 1024,
             output,
             sends: 1,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
             retry: Duration::from_millis(1),
+            ..IoLimits::TEST
         };
         let server = pki::Server {
             versions: match version {

@@ -1651,6 +1651,20 @@ temper box
   time. A restarted serve draws its own first secret, and the box gives a
   secret to serve's first start alone.
 
+  **On a terminal.** Where the box's stdout is a terminal and `TERM` isn't
+  `dumb`, an unset `TERM` being no `dumb`, it wraps each link it prints, the
+  first and every fresh one, in OSC 8, so that a terminal that can makes it
+  clickable: `ESC ] 8 ; ; URL ESC \ URL ESC ] 8 ; ; ESC \`, then the line
+  feed. The visible text stays the whole URL. A link so wrapped stays whole
+  across a wrapped line, where a terminal's autodetection stops at the wrap
+  and cuts the secret; a terminal that doesn't know the sequence, emacs vterm
+  among them, ignores it. The box reads both once, at its start. Piped, sent
+  to a file or under `TERM=dumb`, its stdout stays exactly as it is, the bare
+  URL alone on its line, since scripts and tests read it. *Its stdout*'s 4096 bytes
+  bound the URL there and here alike; the line a terminal takes holds it
+  twice and the markers, at most 8,207 bytes with its line feed, which the
+  box's output bound holds.
+
   **Where the box draws none.** It draws none, and gives none, where it
   cannot print a link that works: the document's printed link not enabled
   (jig's `configuration.md`, section 3, clients), which prints no block at
@@ -3518,7 +3532,8 @@ relies on.
   test's: given one pipe for its stdout and its stderr, serve's link
   written in pieces between other steps' lines reads whole there; the
   sign-in block's exact bytes before any step's spawn and nothing else on
-  either stream, and a later link's blank line and link; a step's lines in
+  either stream, and a later link's blank line and link; each link's bytes
+  on a terminal and on a pipe, the widest whole; a step's lines in
   its log and not on the terminal, and on both with `--echo steps`; no file
   holding a link; the secret on serve's first spawn's stdin alone and in no
   spawn's arguments or environment, and a restart's spawn with no stdin;

@@ -45,7 +45,9 @@ pub fn probe(mut command: Command, address: SocketAddr, marker: &str) -> Probed 
     loop {
         let pipe = child.stdout.as_mut().expect("stdout pipe");
         let left = deadline.remaining();
-        if !skein_shell::wait_readable(skein_io::kernel::Fd::new(pipe.as_raw_fd()), left).expect("stdout readiness") {
+        if !skein_shell::keeper::wait_readable(skein_io::kernel::Fd::new(pipe.as_raw_fd()), left)
+            .expect("stdout readiness")
+        {
             if child.try_wait().expect("claimant status").is_some() {
                 break;
             }

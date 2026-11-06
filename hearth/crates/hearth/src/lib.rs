@@ -46,7 +46,7 @@ impl Client {
                 Ok(root) => opened.push(root),
                 Err(error) => {
                     for root in opened {
-                        skein_shell::close_keeper_fd(root);
+                        skein_shell::close_startup_fd(root);
                     }
                     return Err(std::io::Error::from_raw_os_error(error));
                 }
@@ -75,7 +75,7 @@ impl Client {
             Ok(client) => client,
             Err(error) => {
                 for root in [staging, resolutions, cache, store] {
-                    skein_shell::close_keeper_fd(root);
+                    skein_shell::close_startup_fd(root);
                 }
                 return Err(error);
             }
@@ -177,18 +177,18 @@ impl Host for Client {
         }
         if self.service.is_empty() {
             for root in [self.resolutions.take(), self.staging.take()].into_iter().flatten() {
-                skein_shell::close_keeper_fd(root);
+                skein_shell::close_startup_fd(root);
             }
         }
         if self.service.is_empty()
             && let Some(cache) = self.cache.take()
         {
-            skein_shell::close_keeper_fd(cache);
+            skein_shell::close_startup_fd(cache);
         }
         if self.service.is_empty()
             && let Some(store) = self.store.take()
         {
-            skein_shell::close_keeper_fd(store);
+            skein_shell::close_startup_fd(store);
         }
     }
 }

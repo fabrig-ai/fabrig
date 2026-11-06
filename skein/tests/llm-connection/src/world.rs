@@ -90,19 +90,7 @@ pub fn limits(calls: u32) -> Limits {
         per_endpoint: calls,
         memory: 16 * 1024 * 1024,
         idle_keep: Duration::from_secs(300),
-        io: skein_io::Limits {
-            sockets: calls,
-            refusals: 1,
-            intake: 19_000,
-            receive: 1024,
-            output: 19_000,
-            sends: 2,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
-            retry: Duration::from_millis(10),
-        },
+        io: skein_io::Limits { sockets: calls, intake: 19_000, output: 19_000, ..skein_io::Limits::TEST },
         tls: skein_tls::client::Limits { read: 4096, send: 4096, records: skein_tls::client::MAX_RECORD },
     }
 }

@@ -5,16 +5,14 @@ use skein_lib::{Duration, Rng};
 // The smallest usable admission and byte limits; an empty entity slab is usable.
 pub(super) const LIMITS: Limits = Limits {
     sockets: 0,
-    names: 0,
-    refusals: 1,
     intake: 1,
     receive: 1,
     output: 1,
     sends: 1,
-    accepts: 1,
     backlog: 0,
     close_timeout: Duration::from_nanos(0),
     retry: Duration::from_nanos(1),
+    ..Limits::TEST
 };
 
 // io.md, 5: 8*sockets+4 flight slots must fit below the 2^27 file lane.

@@ -3,6 +3,7 @@
 //! descriptors, socket and private file routing. Env
 //! records are handed in once; refresh bytes stay in private sign-in records.
 use alloc::boxed::Box;
+use skein_io::file_layer::step;
 use skein_io::{self as io, file, file_layer, kernel};
 use skein_lib::{CryptoRng, Env, List, Queue, Secret, Time, Token, Wall};
 use skein_oauth_accounts as oauth;
@@ -77,6 +78,7 @@ pub struct Accounts {
     limits: oauth::Limits,
     entries: List<Account>,
     files: file_layer::FileIo,
+    file_limits: file_layer::Limits,
     events: Queue<file::Event>,
     failed: Option<(u32, local::CredentialFailure)>,
     submissions: Queue<kernel::Submit>,
@@ -176,6 +178,10 @@ impl Account {
 }
 
 impl Accounts {
+    fn file_env(&self, now: Time, wall: Wall) -> Env<file_layer::Limits> {
+        Env { now, wall, limits: self.file_limits }
+    }
+
     /// Validate sources and adopt their source directory descriptors.
     pub fn new(sources: List<Source>, limits: oauth::Limits, entropy: [u8; 32]) -> Result<Self, crate::Error> {
         Self::build(sources, &limits, entropy, false)
@@ -196,13 +202,14 @@ impl Accounts {
         let effective_user = validate_sources(&sources, limits)?;
         let mut handed = List::with_capacity(limits.accounts);
         let mut accounts = List::<Account>::with_capacity(limits.accounts);
-        let mut files = file_layer::FileIo::with_whole_limit(
-            limits.accounts.checked_mul(4).ok_or(crate::Error::Memory)?,
-            4096,
-            1,
-            limits.client.document.document_bytes.max(limits.client.document.record_bytes),
-            limits.file_stall,
-        );
+        let file_limits = file_layer::Limits {
+            files: limits.accounts.checked_mul(4).ok_or(crate::Error::Memory)?,
+            read: 4096,
+            entries: 1,
+            whole: limits.client.document.document_bytes.max(limits.client.document.record_bytes),
+            timeout: limits.file_stall,
+        };
+        let mut files = file_layer::FileIo::with_limits(&file_limits);
         let random =
             u64::from_be_bytes(entropy.get(..8).expect("entropy prefix").try_into().expect("eight entropy bytes"));
         files.seed_randomness(random);
@@ -229,6 +236,7 @@ impl Accounts {
             limits: *limits,
             entries: accounts,
             files,
+            file_limits,
             events: Queue::uncapped(),
             failed: None,
             submissions: Queue::with_capacity(8),
@@ -321,6 +329,7 @@ impl Accounts {
     }
 
     fn progress(&mut self, now: Time, wall: Wall) {
+        let env = self.file_env(now, wall);
         if !self.files.takes() || !self.out.is_empty() {
             return;
         }
@@ -330,9 +339,9 @@ impl Accounts {
                 match &mut account.source {
                     Origin::SignIn { root, .. } if self.closed => {
                         if let Some(root) = root.take() {
-                            file_layer::down(
+                            step::down(
                                 &mut self.files,
-                                now,
+                                &env,
                                 file::Request::Close {
                                     owner: Token::tagged(ROOT_TAG, u64::from(index))
                                         .expect("account index fits root namespace"),
@@ -369,7 +378,8 @@ impl Accounts {
     /// Route one terminal of this driver's kernel operations.
     pub fn complete(&mut self, complete: kernel::Complete) {
         if file_layer::owns(complete.op) {
-            file_layer::up(&mut self.files, complete, &mut self.events, &mut self.submissions);
+            let env = self.file_env(Time::ZERO, Wall::EPOCH);
+            step::up(&mut self.files, &env, complete, &mut self.events, &mut self.submissions);
         } else {
             self.socket_completions.push(complete);
         }
@@ -497,7 +507,8 @@ impl Accounts {
             return;
         }
         if self.files.is_due(now) {
-            file_layer::expire(&mut self.files, now, &mut self.submissions);
+            let env = self.file_env(now, wall);
+            step::expire(&mut self.files, &env, &mut self.submissions);
         }
         for _ in 0..3_u32 {
             match self.events.pop() {

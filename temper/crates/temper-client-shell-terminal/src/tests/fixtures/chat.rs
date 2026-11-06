@@ -232,6 +232,8 @@ fn first_run_sheet(address: client::Address, landed: bool, closing: bool) -> ske
             Request::Client { .. }
             | Request::Unlinked { .. }
             | Request::Show { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
