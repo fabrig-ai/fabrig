@@ -2026,6 +2026,8 @@ pub enum Request {
         attempt: u64,
         /** New lifecycle admission or existing last-answer identity; exact payload replay is separately verified by root. */
         accepted: Accepted,
+        /// The newly admitted terminal parks; an already admitted terminal retains its proof.
+        parked: bool,
     },
     /// One newly admitted turn reply; root saves its transcript with the charged task state before
     /// outward acknowledgement.
