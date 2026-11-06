@@ -81,11 +81,12 @@ pub(crate) fn needs_controls(b: &mut Builder, root: &Domain, card: &Card, words:
 }
 fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings, needs: bool) {
     let Some(page) = &card.page else { return };
-    if let Some(outcome) = &card.outcome {
+    let sheet = showing(root, card.object);
+    if !sheet && let Some(outcome) = &card.outcome {
         outcome_words(b, words, outcome);
         return;
     }
-    if let Some(progress) = acts::pending(card, root.client()) {
+    if !sheet && let Some(progress) = acts::pending(card, root.client()) {
         progress_text(b, words, progress);
         return;
     }
@@ -167,6 +168,55 @@ fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindi
     }
 }
 
+pub(crate) fn showing(root: &Domain, object: jig_client::contract::ObjectKey) -> bool {
+    match root.pages().confirmation() {
+        Some(open) => open.object == object,
+        None => false,
+    }
+}
+/// Each confirmation's sheet (client/README.md, 3.6, The sheet).
+struct Sheet {
+    title: Word,
+    keep: Word,
+    does: Word,
+}
+fn sheet_open(b: &mut Builder, _words: &Words, title: &[u8]) {
+    b.open(Role::Dialog);
+    b.style(crate::look::CONFIRM);
+    b.name(title);
+    b.open(Role::Heading { level: 2 });
+    b.name(title);
+    b.text(Run::Plain, title);
+    b.close();
+}
+fn sheet_why(b: &mut Builder, root: &Domain, words: &Words) {
+    let Some(open) = root.pages().confirmation() else { return };
+    if let Some(key) = open.sent
+        && let Some(pending) = root.client().pending(key)
+    {
+        progress_text(b, words, pending.progress);
+    }
+    if let Some(outcome) = &open.failed {
+        outcome_words(b, words, outcome);
+    }
+}
+fn sheet_acts(b: &mut Builder, bindings: &mut Bindings, words: &Words, sheet: &Sheet) {
+    b.open(Role::Slot);
+    b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 60, a: 0, b: 0 });
+    b.style(crate::look::CONFIRM_ACTS);
+    button(b, bindings, words, sheet.keep, Act::Cancel);
+    b.open(Role::Button);
+    b.style(crate::look::CONFIRM_DO);
+    b.name(&words.say(sheet.does, &[]));
+    b.bind(bindings.insert(Act::Confirm));
+    b.close();
+    b.close();
+}
+fn lead(b: &mut Builder, words: &Words, word: Word) {
+    b.open(Role::Paragraph);
+    words.text(b, word, &[]);
+    b.close();
+}
 pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, rows: u32) {
     let Some(open) = root.pages().confirmation() else { return };
     if open.act == ActKind::Cancel && root.pages().chat().is_some() {
@@ -179,53 +229,60 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut
         && let Some(task) = page.document(root.client())
     {
         let goal = page.shape == temper_client_domain::pages::task::Shape::Tracked && open.act == ActKind::Cancel;
-        let title = if goal {
-            words.say(
-                Word::GoalStopTitle,
-                &[skein_ui::phrases::Hole::Name(skein_lib::bytes::copy_of(task.chip.title.bytes()))],
-            )
+        let sheet = if goal {
+            Sheet { title: Word::GoalStopTitle, keep: Word::KeepGoing, does: Word::StopGoal }
+        } else if open.act == ActKind::Stop {
+            Sheet { title: Word::StopTaskTitle, keep: Word::KeepGoing, does: Word::StopTask }
         } else {
-            words.say(if open.act == ActKind::Stop { Word::Stop } else { Word::Cancel }, &[])
+            Sheet { title: Word::CancelTaskTitle, keep: Word::KeepIt, does: Word::CancelTask }
         };
-        b.open(Role::Dialog);
-        b.name(&title);
-        b.text(Run::Plain, &title);
+        sheet_open(b, words, &words.say(sheet.title, &[]));
         if open.act == ActKind::Stop {
-            words.text(b, Word::StopHolds, &[]);
+            lead(b, words, Word::StopHolds);
         } else if goal {
-            words.text(b, Word::GoalStopStays, &[]);
+            lead(b, words, Word::GoalStopStays);
         } else {
-            // The task's own offers, read in place: cards::decision would take the document as a ReadValue.
-            let facts = jig_client::facts::DecisionFacts {
-                dangerous: jig_client::facts::dangerous(ActKind::Cancel),
-                effect: jig_client::facts::effect(task.acts.as_slice(), ActKind::Cancel).copied(),
-                funding: skein_lib::List::with_capacity(0),
-            };
-            for fact in &jig_client::words::decision(&facts, &words.book, words.language) {
-                crate::cards::text(b, Role::Paragraph, fact);
-            }
+            fates(b, task, &[], Word::WhatCancellingDoes, words, bindings);
         }
-        button(b, bindings, words, Word::Confirm, Act::Confirm);
-        button(b, bindings, words, Word::Cancel, Act::Cancel);
+        sheet_why(b, root, words);
+        sheet_acts(b, bindings, words, &sheet);
         b.close();
         return;
     }
+    let sheet = match open.act {
+        ActKind::Accept => Sheet { title: Word::AcceptTitle, keep: Word::NotYet, does: Word::Accept },
+        ActKind::Reject => Sheet { title: Word::RejectTitle, keep: Word::KeepIt, does: Word::RejectProposal },
+        ActKind::Release => Sheet { title: Word::ReleaseTitle, keep: Word::KeepHeld, does: Word::NeedsRelease },
+        ActKind::Answer
+        | ActKind::LeaveHeld
+        | ActKind::Take
+        | ActKind::HandBack
+        | ActKind::Message
+        | ActKind::Amend
+        | ActKind::Cancel
+        | ActKind::Stop
+        | ActKind::Move
+        | ActKind::PassUp
+        | ActKind::Reorder
+        | ActKind::Seen
+        | ActKind::EditNote
+        | ActKind::DeleteNote
+        | ActKind::Adopt
+        | ActKind::ChangePolicy
+        | ActKind::Rename
+        | ActKind::RemoveProject
+        | ActKind::SetRoles
+        | ActKind::MakeService
+        | ActKind::SetPool
+        | ActKind::Withdraw => return,
+    };
     let Some(cards) = root.pages().cards() else { return };
     for card in cards {
         if card.object != open.object {
             continue;
         }
         let Some(page) = &card.page else { return };
-        let mut word = None;
-        for (act, name) in ACTIONS {
-            if act == open.act {
-                word = Some(name);
-            }
-        }
-        let Some(word) = word else { return };
-        b.open(Role::Dialog);
-        b.name(&words.say(word, &[]));
-        b.text(Run::Plain, &words.say(word, &[]));
+        sheet_open(b, words, &words.say(sheet.title, &[]));
         crate::cards::proposal_at(b, page, words, rows, crate::cards::Place::Confirmation);
         if open.act != ActKind::Accept || !crate::cards::proposal_has_rows(page) {
             crate::cards::decision(b, words, Some(page), open.act);
@@ -235,14 +292,17 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut
             b.text(Run::Plain, reason.bytes());
             b.close();
         }
+        sheet_why(b, root, words);
         if let Some(Effect::Release(effect)) = jig_client::facts::effect(acts::offers(page), open.act)
             && *effect == ReleaseEffect::Uncertain
         {
+            b.open(Role::Slot);
+            b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 61, a: 0, b: 0 });
             button(b, bindings, words, Word::Again, Act::Again { again: true });
             button(b, bindings, words, Word::DoNotRepeat, Act::Again { again: false });
+            b.close();
         }
-        button(b, bindings, words, Word::Confirm, Act::Confirm);
-        button(b, bindings, words, Word::Cancel, Act::Cancel);
+        sheet_acts(b, bindings, words, &sheet);
         b.close();
         return;
     }
@@ -256,23 +316,18 @@ fn close(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings)
     use jig_client::contract::Ask;
     let Some(chat) = root.pages().chat() else { return };
     let Some(Ask::Compound { operations, .. }) = &chat.closing else { return };
-    b.open(Role::Dialog);
-    b.name(&words.say(if chat.restarting { Word::StartOver } else { Word::Close }, &[]));
-    if chat.restarting {
-        words.text(b, Word::StartOverQuestion, &[]);
-    }
-    if let Some(task) = chat.task(root.client())
-        && let Some(Effect::Cancel(_)) = jig_client::facts::effect(task.acts.as_slice(), ActKind::Cancel)
-    {
-        crate::cards::decision(b, words, Some(&ReadValue::Task(Box::new(task.clone()))), ActKind::Cancel);
-    }
-    // jig's domain/tasks.md, 5.2: Preparing has no committed attempt;
-    // only Claimed and Running can use a cancel's grace (section 7).
-    let run_live = match chat.task(root.client()) {
-        Some(task) => run_live(task),
-        None => false,
+    let sheet = if chat.restarting {
+        Sheet { title: Word::StartOverTitle, keep: Word::KeepGoing, does: Word::StartOver }
+    } else {
+        Sheet { title: Word::CloseTitle, keep: Word::KeepIt, does: Word::CloseChat }
     };
-    close_choices(b, chat.task, operations, run_live, words, bindings);
+    sheet_open(b, words, &words.say(sheet.title, &[]));
+    lead(b, words, if chat.restarting { Word::StartOverQuestion } else { Word::CloseCannotReopen });
+    if let Some(task) = chat.task(root.client()) {
+        fates(b, task, operations.as_slice(), Word::WhatClosingDoes, words, bindings);
+    }
+    sheet_why(b, root, words);
+    sheet_acts(b, bindings, words, &sheet);
     b.close();
 }
 fn run_live(task: &jig_client::contract::Task) -> bool {
@@ -287,48 +342,145 @@ fn run_live(task: &jig_client::contract::Task) -> bool {
         Some(RunStage::Idle | RunStage::Due | RunStage::Preparing | RunStage::BackingOff { .. }) | None => false,
     }
 }
-pub(crate) fn close_choices(
+pub(crate) fn fates(
     b: &mut Builder,
-    chat: u64,
-    operations: &skein_lib::List<jig_client::contract::Operation>,
-    run_live: bool,
+    task: &jig_client::contract::Task,
+    operations: &[jig_client::contract::Operation],
+    name: Word,
     words: &Words,
     bindings: &mut Bindings,
 ) {
     use jig_client::contract::Operation;
     use skein_ui::phrases::Hole;
+    let mut delegates = 0_u32;
     for operation in operations {
         match operation {
-            Operation::Cancel { task, grace, .. } if *task == chat => match if run_live { *grace } else { None } {
-                Some(grace) if grace.as_nanos() % 1_000_000_000 == 0 => {
-                    words.text(b, Word::CloseGrace, &[Hole::Span(grace)]);
-                }
-                Some(grace) => words.text(b, Word::CloseGraceNanos, &[Hole::Number(grace.as_nanos())]),
-                None => words.text(b, Word::CloseNow, &[]),
-            },
-            Operation::Cancel { task, .. } => delegate(b, *task, Word::DelegateCancel, words, bindings),
-            Operation::Move { task, .. } => delegate(b, *task, Word::DelegateMove, words, bindings),
-            Operation::Message { .. }
+            Operation::Cancel { task: number, .. } | Operation::Move { task: number, .. }
+                if *number != task.chip.task =>
+            {
+                delegates = delegates.saturating_add(1);
+            }
+            Operation::Cancel { .. }
+            | Operation::Move { .. }
+            | Operation::Message { .. }
             | Operation::Amend { .. }
             | Operation::Release { .. }
             | Operation::Stop { .. } => {}
         }
     }
-    words.text(b, Word::CloseCannotReopen, &[]);
-    button(b, bindings, words, Word::Confirm, Act::Confirm);
-    button(b, bindings, words, Word::Cancel, Act::Cancel);
-}
-
-fn delegate(b: &mut Builder, task: u64, word: Word, words: &Words, bindings: &mut Bindings) {
-    use jig_client::shapes::Fate;
-    use skein_ui::phrases::Hole;
-    words.text(b, word, &[Hole::Number(task)]);
-    for (word, fate) in [(Word::CancelDelegate, Fate::Cancel), (Word::TakeDelegate, Fate::Move)] {
-        b.open(Role::Button);
-        b.name(&words.say(word, &[Hole::Number(task)]));
-        b.bind(bindings.insert(Act::DelegateFate { task, fate }));
+    let impact = match jig_client::facts::effect(task.acts.as_slice(), ActKind::Cancel) {
+        Some(Effect::Cancel(impact)) => Some(impact),
+        Some(Effect::Release(_) | Effect::Move { .. }) | None => None,
+    };
+    let below = match impact {
+        Some(impact) => impact
+            .tasks
+            .waiting
+            .saturating_add(impact.tasks.running)
+            .saturating_add(impact.tasks.held)
+            .saturating_add(impact.tasks.closing)
+            .saturating_sub(delegates),
+        None => 0,
+    };
+    let proposals = match impact {
+        Some(impact) => impact.proposals,
+        None => 0,
+    };
+    let run = run_live(task);
+    if !run && delegates == 0 && below == 0 && proposals == 0 {
+        return;
+    }
+    b.open(Role::List);
+    b.style(crate::look::CONFIRM_FATES);
+    b.name(&words.say(name, &[]));
+    if run {
+        let mut grace = None;
+        for operation in operations {
+            match operation {
+                Operation::Cancel { task: number, grace: value, .. } if *number == task.chip.task => grace = *value,
+                Operation::Cancel { .. }
+                | Operation::Move { .. }
+                | Operation::Message { .. }
+                | Operation::Amend { .. }
+                | Operation::Release { .. }
+                | Operation::Stop { .. } => {}
+            }
+        }
+        b.open(Role::Item);
+        match grace {
+            Some(grace) if grace.as_nanos() % 1_000_000_000 == 0 => {
+                words.text(b, Word::CloseGrace, &[Hole::Span(grace)]);
+            }
+            Some(grace) => words.text(b, Word::CloseGraceNanos, &[Hole::Number(grace.as_nanos())]),
+            None => words.text(b, Word::CloseRunNow, &[]),
+        }
         b.close();
     }
+    for operation in operations {
+        match operation {
+            Operation::Cancel { task: number, .. } if *number != task.chip.task => {
+                delegate(b, task, *number, true, words, bindings);
+            }
+            Operation::Move { task: number, .. } => delegate(b, task, *number, false, words, bindings),
+            Operation::Cancel { .. }
+            | Operation::Message { .. }
+            | Operation::Amend { .. }
+            | Operation::Release { .. }
+            | Operation::Stop { .. } => {}
+        }
+    }
+    for (count, one, many) in
+        [(below, Word::TasksBelowOne, Word::TasksBelow), (proposals, Word::ProposalWithdrawn, Word::ProposalsWithdrawn)]
+    {
+        if count != 0 {
+            b.open(Role::Item);
+            if count == 1 {
+                words.text(b, one, &[]);
+            } else {
+                words.text(b, many, &[Hole::Number(u64::from(count))]);
+            }
+            b.close();
+        }
+    }
+    b.open(Role::Item);
+    words.text(b, Word::EffectsWithdrawn, &[]);
+    b.close();
+    b.close();
+}
+fn delegate(
+    b: &mut Builder,
+    parent: &jig_client::contract::Task,
+    task: u64,
+    cancel: bool,
+    words: &Words,
+    bindings: &mut Bindings,
+) {
+    use jig_client::shapes::Fate;
+    use skein_ui::phrases::Hole;
+    let mut title = b"".as_slice();
+    for delegate in &parent.delegates {
+        if delegate.chip.task == task {
+            title = delegate.chip.title.bytes();
+        }
+    }
+    b.open(Role::Item);
+    b.key(crate::pages::inbox::card_key(jig_client::contract::ObjectKey::Task(task)));
+    b.open(Role::Text);
+    b.run(Run::Strong, &words.say(Word::DelegateNumber, &[Hole::Number(task)]));
+    let fate = words.say(
+        if cancel { Word::DelegateCancel } else { Word::DelegateMove },
+        &[Hole::Name(skein_lib::bytes::copy_of(title))],
+    );
+    b.run(Run::Plain, if title.is_empty() { fate.get(1..).expect("fate starts with a space") } else { &fate });
+    b.close();
+    button(
+        b,
+        bindings,
+        words,
+        if cancel { Word::TakeInstead } else { Word::CancelInstead },
+        Act::DelegateFate { task, fate: if cancel { Fate::Move } else { Fate::Cancel } },
+    );
+    b.close();
 }
 
 fn proposal_object(object: jig_client::contract::ObjectKey) -> bool {

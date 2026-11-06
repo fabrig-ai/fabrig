@@ -2346,7 +2346,7 @@ fn home_funds_and_proposal_keep_decisions_confirmation_and_short_lines() {
             drive(&mut root, d::Event::Act { action: d::Action::Pages(action) });
             let mut confirmed = f::browser_page_view(&root);
             assert!(main_nodes(confirmed.tree()).iter().any(|node| node.role == Role::Dialog));
-            assert_action(&mut confirmed, Role::Button, b"Confirm", d::pages::Act::Confirm);
+            assert_action(&mut confirmed, Role::Button, name, d::pages::Act::Confirm);
             drive(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::Cancel) });
         }
     }

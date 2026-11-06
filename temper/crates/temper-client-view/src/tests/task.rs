@@ -292,7 +292,7 @@ fn the_release_confirmation_says_what_releasing_does() {
     );
     let mut view = fixtures::view();
     let tree = fixtures::build(&mut view, &root);
-    assert!(fixtures::find(tree, Role::Dialog, b"Release task").is_some());
+    assert!(fixtures::find(tree, Role::Dialog, b"Release this task?").is_some());
     let text = fixtures::text(tree);
     assert!(
         skein_lib::bytes::find(&text, b"The next run resumes its conversation; tries count again from zero").is_some()

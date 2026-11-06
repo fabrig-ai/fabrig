@@ -1122,6 +1122,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decision-why",
         b"temper-decision-late",
         b"temper-decision-overturned",
+        b"temper-confirm",
+        b"temper-confirm-fates",
+        b"temper-confirm-acts",
+        b"temper-confirm-do",
     ],
     regions: &[b"temper-link"],
 };
@@ -1283,6 +1287,15 @@ pub const DECISION_TOOK: Style = Style { owner: owner(), token: 443 };
 pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
+
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM: Style = Style { owner: owner(), token: 447 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM_FATES: Style = Style { owner: owner(), token: 448 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM_ACTS: Style = Style { owner: owner(), token: 449 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM_DO: Style = Style { owner: owner(), token: 450 };
 
 #[cfg(test)]
 mod tests {
