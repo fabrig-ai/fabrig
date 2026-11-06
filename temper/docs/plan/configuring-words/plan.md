@@ -53,7 +53,7 @@ Three go out at once. **Critical path:** `settings-reads` (70 minutes), then `pr
 
 ## Words and byte figures
 
-`configuring.txt` goes from 4,807 to 6,009 bytes, up 1,202 (`notes/configuring.txt`). `stock-words` holds the figure in `the_configuring_agent_is_charter_3_and_template_3`, and charter 3's measured row in `stock_brief.rs`: 42,035 non-brief bytes and 358,100 of room, from 40,833 and 359,302. The ceiling is 6,020 bytes, where charter 3's non-brief reaches charter 1's 42,046, from which `brief_bytes` and its margin are derived.
+`configuring.txt` goes from 4,807 to 6,009 bytes, up 1,202 (`notes/configuring.txt`). `stock-words` holds the figure in `the_configuring_agent_is_charter_3_and_template_3`, and the measured rows in `stock_brief.rs`. `permission-login`'s two descriptions add 68 bytes to every charter with the forge reads (1, 2, 3, 4, 6), and the words 1,202 to charter 3: its non-brief goes to 42,103 and its room to 358,032, from 40,833 and 359,302; charter 1's to 42,114 and 358,021, from 42,046 and 358,089. `brief_bytes` stays 356,270, and the 68 come out of `stock_brief.rs`'s margin, 279 from 347. The ceiling is 6,020 bytes, where charter 3's non-brief reaches charter 1's.
 
 How a model takes the words is unprovable below a walk. What's tested is mechanical: the phrases present and absent, each tool's answer, the refusal naming no command.
 

@@ -274,6 +274,16 @@ impl Domain {
     pub fn configured(&self, forge: u16) -> Option<&crate::Configured> {
         self.configured.get(&forge)
     }
+    /// The machine's person login for an owned forge (domain/agent.md, 8.1).
+    #[must_use]
+    pub fn owned_person(&self, forge: u16) -> Option<&[u8]> {
+        let config = self.configured(forge)?;
+        if config.mode != crate::Mode::Owned {
+            return None;
+        }
+        let machine = self.machine.as_ref()?;
+        if machine.owned_person.is_empty() { None } else { Some(&machine.owned_person) }
+    }
     #[must_use]
     pub fn connection(&self, forge: u16) -> crate::Connection {
         if self.forge_ended(forge) {
