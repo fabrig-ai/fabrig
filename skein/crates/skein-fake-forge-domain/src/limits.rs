@@ -54,6 +54,36 @@ pub struct Limits {
     pub observations: u32,
 }
 
+impl Limits {
+    /// Small limits for test worlds.
+    pub const TEST: Self = Self {
+        repositories: 1,
+        users: 3,
+        bypassing_users: 4,
+        labels: 2,
+        items: 64,
+        comments: 32,
+        dependencies: 2,
+        reviews: 8,
+        branches: 4,
+        commits: 16,
+        files: 4,
+        statuses: 4,
+        contexts: 4,
+        workflows: 0,
+        workflow_runs: 0,
+        pages: 1,
+        name_bytes: 64,
+        title_bytes: 64,
+        body_bytes: 1024,
+        content_bytes: 128,
+        page_size: 2,
+        calls: 4,
+        hooks: 8,
+        observations: 64,
+    };
+}
+
 /// The timers armed at most: one per call, one per delivery, and one per
 /// context of each commit with statuses, one per dispatched job, and one queue
 /// wake per repository.

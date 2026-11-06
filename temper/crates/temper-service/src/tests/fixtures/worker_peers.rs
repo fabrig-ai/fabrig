@@ -2,6 +2,7 @@
 use super::super::fixtures;
 use crate::worker_settings;
 use jig_domain_host as hub;
+use jig_domain_link::Grant;
 use jig_protocol_engine_workers as engine_link;
 use jig_protocol_worker_link as link;
 use jig_protocol_worker_wire::Part;
@@ -1042,7 +1043,7 @@ fn configuring_worker_settings() -> (crate::settings::Worker, crate::settings::A
     (settings, agent)
 }
 
-fn configuring_grants(worker: &mut crate::Worker, grants: &[jig_domain_accounts::Grant]) {
+fn configuring_grants(worker: &mut crate::Worker, grants: &[Grant]) {
     for grant in grants {
         worker
             .values

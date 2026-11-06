@@ -387,7 +387,7 @@ replay says the same clocks (`README.md`, 5.12).
 - **Signed out,** by "Sign out" (`README.md`, 6.6; jig's sign-out clears
   the cookie) or by a link spent or expired: the main is the view's
   signed-out paragraph (`README.md`, 5.1), in the browser's words:
-  "Signed out. To sign in, open a sign-in link `temper serve` printed."
+  "Signed out. To sign in, open a sign-in link temper printed."
   The view takes its shell's words at construction; the terminal's stay
   "Signed out." with its own line (`README.md`, 6.6).
   With a way of signing in configured, the main is the sign-in page
@@ -417,7 +417,7 @@ replay says the same clocks (`README.md`, 5.12).
 - **The first paint, the placeholder's:** the shell's `loading.html` and
   `loading.css`, given to skein's bundler (skein's `ui-web.md`, 4.3), so
   that a person on a slow connection has something to read in a few
-  hundred bytes. The mark as inline paths, so that no font is fetched and
+  kilobytes. The mark as inline paths, so that no font is fetched and
   nothing swaps, centred at about 38% of the height; under it a 240 px
   `progress`, as `temper-flow-meter` draws one, 4 px, ink over the
   hairline, and one muted line; a phone keeps the 16 px gutter. The lines,
@@ -1160,8 +1160,8 @@ over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
     before and after a reload (`README.md`, 2).
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../playground.md`, 9).
-13. **Reading a public project** (8.4), with no sign-in, and
-    losing it when it is made private.
+13. **Reading a public project** (8.4), with no sign-in, its board and task
+    lines readable at 1440 px and 420 px, and losing it when it is made private.
 14. **Reading back** (4.1, 5).
 15. **A project's rename** closed by Escape, Enter and Save returns the
     focus to its summary, and never to the page's `main`.
@@ -1255,15 +1255,12 @@ Not in the tier, each in the lowest world that shows it:
   nothing shown. Default: a group that sections arrive beside takes a
   role of its own, as Accounts' Sign out does, page by page; skein's
   diff stays.
-- **A phone's width in a test** (2.5): the sweep, the walk and the renders of
-  the request `ui-phone` of 2026-11-05 are throwaways by its own words, and the
-  browser tier cannot open a phone's width: `skein-browser` sets every page to
-  1280 by 800. So nothing holds how the phone's rules draw when the sheet next
-  moves: `temper-client-shell-web`'s suite reads one rule as text, the gallery's
-  `the_accounts_tabs_sign_out_hides_over_a_phones_width_alone` another, the proof
-  at 420 px of the request `ui-owner-menu` is a throwaway too, and the CDP walk of
-  the request `ui-final-walk`, which sets the width, goes with its plan.
-  Default: none, until a phone's rule breaks unseen.
+- **A phone's width in a test** (2.5): skein's browser kit opens pages at
+  1280 by 800 and offers `Viewport` to change their CSS pixel dimensions,
+  with desktop input behaviour. The public board and task story (8.4)
+  checks 1440 px and 420 px. Other phone rules remain held by their sheet
+  checks and throwaway walks alone: the accounts tabs, owner menu, rail,
+  chat and document panes have no retained viewport story.
 - **The rail's foot on a phone** (2.5; `README.md`, 5.3): the top bar holds the
   switcher alone, as the mock's does, so a project's page on a phone shows no
   link's state, no "Behind" and, but on the `Accounts` tab, no "Sign out did
@@ -1723,6 +1720,11 @@ never streaming (`../draft/first-release.md`, 5.3).
   its name, and a goal is "Goal" and a task "task", each with the first
   eight digits of its public identifier, then its title, with "…" where
   cut; an executor is its kind, "an agent", "a procedure", "a person".
+- **Public lines wrap at desktop and phone widths:** the identity link and
+  title form one group; executor, phase, duration, spend and priority form
+  a second group with gaps between facts. Titles wrap without truncation
+  beyond the public record's cut. Public content is a block reading column
+  with at least 16 CSS pixels of horizontal gutter, including navigation.
 - **The board:** the project's goals, each a line: its identifier and
   title, its phase in words, for how long, its spend; under it its
   tree's lines: "task 3f2a9c01 Write the parser, an agent, running for
@@ -1752,6 +1754,9 @@ never streaming (`../draft/first-release.md`, 5.3).
 - **The browser tier** (section 4): a public project on fakes read at
   `/public`, its board, a task and its landings, by a page with no
   sign-in and no stream, the view's text checked against the public
-  records' fields alone; and a project made private, its pages unknown
-  at the next read. The goal it reads is under way: a landed goal's pages
+  records' fields alone. Its board and task lines, goals and delegates,
+  are also read at 1440 px and 420 px with a long title and populated facts:
+  text boxes stay separate, titles remain readable, navigation stays inset
+  and content stays within the viewport. A project made private has its pages
+  unknown at the next read. The goal it reads is under way: a landed goal's pages
   hold nothing a browser alone shows (4.6).

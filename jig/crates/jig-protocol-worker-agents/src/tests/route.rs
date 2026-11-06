@@ -28,3 +28,48 @@ fn delivery_evidence_disagreeing_with_its_outcome_is_invalid() {
     let trailing = writer.finish();
     assert_eq!(route::evidence(host::DeliveryOutcome::Nothing, &trailing), Err(host::Undecoded::Evidence), "trailing");
 }
+
+#[test]
+fn a_change_at_its_body_bound_encodes_within_the_hubs_outcome() {
+    use smith_domain_run::outcome::{self, Change, ChangeSpec, Declared, Field, FieldRule, OutcomeSpec};
+    const OUTCOME_BYTES: u64 = 4096;
+    let body_max = jig_protocol_charter::CHANGE_BODY_MAX;
+    let title_max = jig_protocol_charter::CONTRACT_TEXT_MAX;
+    let mut change = Change {
+        fields: Box::new([
+            Field { name: b"title".as_slice().into(), value: Box::new([]) },
+            // The binary codec length-prefixes text; no byte requires escaping.
+            Field {
+                name: b"body".as_slice().into(),
+                value: skein_lib::bytes::zeroed(usize::try_from(body_max).unwrap()),
+            },
+        ]),
+    };
+    let title_bytes = OUTCOME_BYTES - change.owned_bytes().unwrap();
+    assert!(title_bytes <= u64::from(title_max));
+    change.fields[0].value = skein_lib::bytes::zeroed(usize::try_from(title_bytes).unwrap());
+    assert_eq!(change.owned_bytes(), Some(OUTCOME_BYTES));
+    let spec = OutcomeSpec {
+        change: Some(ChangeSpec {
+            checks_must_pass: jig_protocol_charter::CONTRACT_CHECKS_MUST_PASS,
+            fields: Box::new([
+                FieldRule { name: b"title".as_slice().into(), max: title_max },
+                FieldRule { name: b"body".as_slice().into(), max: body_max },
+            ]),
+        }),
+        verdicts: Box::new([]),
+        report: None,
+        failure: None,
+    };
+    let declared = Declared::Change(change.clone());
+    assert_eq!(outcome::judge(&spec, &declared), Ok(()));
+    let accepted = agent::Declared::new(Declared::Change(change), OUTCOME_BYTES).unwrap();
+    let encoded =
+        route::encode_result(agent::RunResult::Accepted { outcome: accepted }, &smith_host_protocol::fixture::small())
+            .unwrap();
+    assert!(encoded.len() <= usize::try_from(OUTCOME_BYTES).unwrap(), "encoded bytes: {}", encoded.len());
+    let decoded = smith_protocol_channel::decode_declared(&encoded, &jig_protocol_charter::limits()).unwrap();
+    assert_eq!(decoded, declared);
+    assert_eq!(outcome::owned_bytes(&decoded), Some(OUTCOME_BYTES));
+    assert_eq!(outcome::judge(&spec, &decoded), Ok(()));
+}

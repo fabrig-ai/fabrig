@@ -1,6 +1,7 @@
 //! Brief failure classification at bounded core routes (domain/engine.md, 9.1).
 use crate::tests::*;
 use jig_domain_brief as brief;
+use jig_domain_link::{Form, Scheme};
 
 fn preparing() -> (Core, Limits) {
     let (mut core, limits) = make_tree();
@@ -179,7 +180,7 @@ fn a_full_proof_table_pauses_before_claiming_an_agent() {
         &mut core,
         &limits,
         Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(60),

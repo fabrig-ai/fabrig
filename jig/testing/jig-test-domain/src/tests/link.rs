@@ -3,6 +3,8 @@ use crate::{Delivery, Payload, Request, link};
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::{Bounds, GrantTable, Hosting, ModelBound, Phase};
+use jig_domain_link::{Form, JobKind};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Queue, Token};
 
@@ -19,13 +21,13 @@ fn a_worker_s_hello_reaches_the_fleet_with_its_bounds() {
     assert_eq!(hello.workstreams.as_ref(), [4, 5]);
     assert_eq!(
         hello.hosting.as_ref(),
-        [fleet::Hosting { run: fixtures::RUN, attempt: fixtures::ATTEMPT, phase: fleet::Phase::Waiting }]
+        [Hosting { run: fixtures::RUN, attempt: fixtures::ATTEMPT, phase: Phase::Waiting }]
     );
     assert_eq!(
         hello.bounds,
-        fleet::Bounds {
+        Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([fleet::ModelBound { name: b"small".as_slice().into(), window: 1024, output: 128 }]),
+            models: Box::new([ModelBound { name: b"small".as_slice().into(), window: 1024, output: 128 }]),
             turns: 8,
             spend: 100,
             time: Duration::from_secs(60),
@@ -80,7 +82,7 @@ fn an_assignment_for_a_channel_leaves_as_the_hub_s_record() {
     assert_eq!((assignment.task, assignment.attempt, assignment.conversation, assignment.charter), (2, 3, 1, 1));
     assert_eq!(assignment.run, fixtures::run());
     assert_eq!(assignment.transcript.as_ref(), [Box::<[u8]>::from(b"prior turn".as_slice())]);
-    assert_eq!(assignment.grants[0].form.table(), jig_domain_accounts::GrantTable::Accounts);
+    assert_eq!(assignment.grants[0].form.table(), GrantTable::Accounts);
 }
 #[test]
 fn a_lost_link_reaches_the_fleet_as_its_channel_lost() {
@@ -339,7 +341,7 @@ fn a_restored_program_name_survives_sign_in_and_grant_delivery() {
                 panic!("grant reaches the host");
             };
             assert_eq!(carried, grant);
-            let host::Form::Program(name) = carried.form else { panic!("program grant") };
+            let Form::Program(name) = carried.form else { panic!("program grant") };
             assert_eq!(name.as_bytes(), b"Bad_Name");
             delivered = true;
         }
@@ -349,7 +351,8 @@ fn a_restored_program_name_survives_sign_in_and_grant_delivery() {
 
 #[test]
 fn program_source_lifecycle_routes_without_run_payloads() {
-    use jig_domain_host::{LinkDown, LinkUp, Login, LoginState, SignOutResult, SourceName};
+    use jig_domain_host::{LinkDown, LinkUp};
+    use jig_domain_link::{Login, LoginState, SignOutResult, SourceName};
     let mut domain = fixtures::domain();
     domain.hub_link.connect(fixtures::CHANNEL);
     let name = SourceName::new(b"alice").expect("source name");
@@ -715,7 +718,7 @@ fn a_job_assignment_carries_its_workspace_items_through_the_commit() {
                 task: fixtures::RUN.raw(),
                 attempt: fixtures::ATTEMPT.raw(),
                 workstream: 9,
-                kind: host::JobKind(7),
+                kind: JobKind(7),
                 spec: Box::from(b"spec".as_slice()),
                 deadline: Duration::from_secs(2),
                 result: 8,

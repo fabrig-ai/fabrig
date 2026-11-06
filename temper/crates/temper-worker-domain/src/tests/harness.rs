@@ -7,6 +7,7 @@ use super::fixtures::{self, RUN};
 use crate::checkout::git::{Done, Fault};
 use crate::{Domain, Encodable, Encoded, Event, Limits, Request, agent, host, step, valid};
 use alloc::boxed::Box;
+use jig_domain_link::Grant;
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
 
 const PROCESS: Token = Token::new(99);
@@ -192,7 +193,7 @@ impl Harness {
 
     /// The hub's start for the run, handed out to be decoded and left there,
     /// after an assignment with no repository.
-    pub fn decode(&mut self, grants: Box<[host::Grant]>) -> (Token, host::Start) {
+    pub fn decode(&mut self, grants: Box<[Grant]>) -> (Token, host::Start) {
         let assignment = fixtures::assignment(false, grants);
         let rows = self.step(Event::Link(host::LinkDown::Assign { assignment }));
         for row in rows {

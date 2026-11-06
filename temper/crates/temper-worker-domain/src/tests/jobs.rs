@@ -1,6 +1,7 @@
 //! Jobs through the root's protocol boundary (temper/docs/design/domain/worker.md, 4.4).
 
 use alloc::boxed::Box;
+use jig_domain_link::{JobBound, JobKind};
 use skein_lib::{Duration, List, Queue, Token, Writer};
 
 use super::{fixtures, harness::Harness};
@@ -39,7 +40,7 @@ fn requested(rows: &[Request]) -> bool {
 
 fn kind(delivers: bool) -> tooling::Kind {
     tooling::Kind {
-        bound: host::JobBound { kind: host::JobKind(9), spec: 128, result: 128, deadline: Duration::from_secs(10) },
+        bound: JobBound { kind: JobKind(9), spec: 128, result: 128, deadline: Duration::from_secs(10) },
         verb: Box::from(b"check".as_slice()),
         delivers,
     }
@@ -61,7 +62,7 @@ fn assignment(decoded: bool, writable: bool) -> Event {
     let job = host::JobAssignment {
         run: fixtures::RUN,
         attempt: fixtures::ATTEMPT,
-        kind: host::JobKind(9),
+        kind: JobKind(9),
         spec: Box::from(b"spec".as_slice()),
         deadline: Duration::from_secs(5),
         workspace: Some(host::Workspace { workstream: fixtures::WORKSTREAM, items: Token::new(0) }),

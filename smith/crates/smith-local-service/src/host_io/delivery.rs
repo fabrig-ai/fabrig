@@ -8,6 +8,8 @@ use skein_lib::{List, Map, Queue, Time, Token};
 use smith_local_domain as local;
 use smith_local_protocol as local_protocol;
 
+const GIT_TAG: u8 = 4;
+
 /// One capture of the plain directories: from `next`, until `deadline`.
 #[derive(Debug)]
 pub(super) struct Capture {
@@ -244,7 +246,7 @@ impl HostIo {
         self.delivery.git = match root {
             Some(root) => local_protocol::GitChild::new(
                 owner,
-                Token::new(1 << 62),
+                Token::tagged(GIT_TAG, 0).expect("git owner fits namespace"),
                 root,
                 self.delivery.git_environment.clone(),
                 op,

@@ -3,12 +3,13 @@ use crate::{Core, documents::DocumentLimits};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{LoginState, SignOutResult};
 use skein_lib::{List, Token, bytes};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProgramLogin {
     pub name: Box<[u8]>,
-    pub state: Option<fleet::LoginState>,
-    pub sign_out: Option<fleet::SignOutResult>,
+    pub state: Option<LoginState>,
+    pub sign_out: Option<SignOutResult>,
     pub cleanup: bool,
     pub cut: bool,
 }
@@ -27,21 +28,21 @@ fn detail(value: &[u8], limits: &DocumentLimits, cut: &mut bool) -> Box<[u8]> {
     *cut |= end < value.len();
     bytes::copy_of(value.get(..end).expect("bounded detail prefix"))
 }
-fn state(value: &fleet::LoginState, limits: &DocumentLimits, cut: &mut bool) -> fleet::LoginState {
+fn state(value: &LoginState, limits: &DocumentLimits, cut: &mut bool) -> LoginState {
     match value {
-        fleet::LoginState::Usable => fleet::LoginState::Usable,
-        fleet::LoginState::NotSignedIn => fleet::LoginState::NotSignedIn,
-        fleet::LoginState::SignedInOtherwise(method) => fleet::LoginState::SignedInOtherwise(*method),
-        fleet::LoginState::Failed { reason, detail: text } => {
-            fleet::LoginState::Failed { reason: *reason, detail: detail(text, limits, cut) }
+        LoginState::Usable => LoginState::Usable,
+        LoginState::NotSignedIn => LoginState::NotSignedIn,
+        LoginState::SignedInOtherwise(method) => LoginState::SignedInOtherwise(*method),
+        LoginState::Failed { reason, detail: text } => {
+            LoginState::Failed { reason: *reason, detail: detail(text, limits, cut) }
         }
     }
 }
-fn signed_out(value: &fleet::SignOutResult, limits: &DocumentLimits, cut: &mut bool) -> fleet::SignOutResult {
+fn signed_out(value: &SignOutResult, limits: &DocumentLimits, cut: &mut bool) -> SignOutResult {
     match value {
-        fleet::SignOutResult::SignedOut => fleet::SignOutResult::SignedOut,
-        fleet::SignOutResult::Failed { reason, detail: text } => {
-            fleet::SignOutResult::Failed { reason: *reason, detail: detail(text, limits, cut) }
+        SignOutResult::SignedOut => SignOutResult::SignedOut,
+        SignOutResult::Failed { reason, detail: text } => {
+            SignOutResult::Failed { reason: *reason, detail: detail(text, limits, cut) }
         }
     }
 }

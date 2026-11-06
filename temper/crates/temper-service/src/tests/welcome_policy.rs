@@ -19,6 +19,7 @@ fn generated_files() -> temper_init::Answer {
     let port = |value| NonZeroU16::new(value).expect("nonzero synthetic port");
     temper_init::files(
         &temper_init::Facts {
+            sign_in: false,
             binary: b"/bin/temper",
             git: Some(b"/bin/git"),
             claude: None,
@@ -109,7 +110,7 @@ fn sign_in_owner(driver: &mut Driver) {
         held: None,
         reply_to: ReplyTo::new(Token::new(900)),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 1, subject: b"owner-a".as_slice().into() },
+            key: people::IdentityKey { provider: 1, subject: b"ada@localhost".as_slice().into() },
             login: b"ada".as_slice().into(),
             name: b"Ada".as_slice().into(),
         },

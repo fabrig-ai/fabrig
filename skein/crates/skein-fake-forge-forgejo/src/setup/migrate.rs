@@ -1,5 +1,5 @@
 //! Catalogue copies and deletion (skein/docs/design/fake-forge.md, 4).
-use super::{Store, absent, encoded, full, joined, refusal, remove};
+use super::{Store, absent, concat, encoded, full, refusal, remove};
 use crate::{Config, Hosted, Limits, Repository, response::Reply};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api::{Answer, Error, Op, Write};
@@ -70,7 +70,7 @@ impl Store {
                 if !super::creation::repository_name(&at.name) {
                     return Err(refusal(422, b"invalid repository name", limits));
                 }
-                let destination = joined(&[&at.owner, b"/", &at.name]);
+                let destination = concat(&[&at.owner, b"/", &at.name]);
                 let domain_taken = match hosted {
                     Some(hosted) => hosted.domain.metadata(&destination).is_ok(),
                     None => false,
@@ -137,15 +137,15 @@ impl Store {
         if from.is_some() {
             let Some(default_branch) = copied_default(answer) else { return Some(full(limits)) };
             let Some(id) = id else { return Some(absent(limits)) };
-            let name = joined(&[&at.owner, b"/", &at.name]);
+            let name = concat(&[&at.owner, b"/", &at.name]);
             Some(encoded(
                 201,
                 server::Answer::CreatedRepository(CreatedRepository {
                     id: u64::from(id),
                     full_name: name.clone(),
                     default_branch: default_branch.into(),
-                    clone_url: joined(&[&config.base, b"/", &name, b".git"]),
-                    ssh_url: joined(&[b"ssh://git@localhost/", &name, b".git"]),
+                    clone_url: concat(&[&config.base, b"/", &name, b".git"]),
+                    ssh_url: concat(&[b"ssh://git@localhost/", &name, b".git"]),
                 }),
                 limits,
             ))

@@ -38,6 +38,9 @@
   about 135 lines of step code write `usize::try_from(..)` with no `.expect(..)` on
   the line, over a `u32` or a `u64`, `skein-kv`'s frames and snapshots among
   them, which that item does not name and that form does not count.
+  `skein-forge/src/forgejo/server/files.rs` keeps a private `joined` beside
+  `bytes::concat`, because it writes a slash between a path's segments, and
+  `concat` has no separator.
   12: `skein-lib/src/requests.rs`'s `Entry` holds its three lifecycles in
   `State`, `Keeping` and `Telling`, but the table's methods write most of their
   cells as assignments in their own arms, and `Entry::reachable` and the table's

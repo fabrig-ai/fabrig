@@ -36,10 +36,7 @@ fn the_running_playground_project_button_is_named_by_its_record() {
         true,
     );
     for words in [fixtures::words(), fixtures::browser_words()] {
-        let label = match words.shell {
-            crate::words::Shell::Browser => b"Shopacme/shop".as_slice(),
-            crate::words::Shell::Terminal => b"Shop",
-        };
+        let label = b"Shop";
         let mut view = fixtures::view_of(words);
         fixtures::build(&mut view, &root);
         let button = fixtures::person_find(view.tree(), Role::Button, label).expect("stored project row words");
@@ -193,10 +190,7 @@ fn signed_out_the_main_says_so_and_nothing_else() {
 #[test]
 fn signed_out_the_browser_main_says_how_to_sign_in() {
     let view = fixtures::browser_page_view(&fixtures::signed_out());
-    assert_eq!(
-        &*fixtures::main_text(view.tree()),
-        b"Signed out. To sign in, open a sign-in link temper serve printed.",
-    );
+    assert_eq!(&*fixtures::main_text(view.tree()), b"Signed out. To sign in, open a sign-in link temper printed.",);
 }
 #[test]
 fn a_full_link_says_the_pool_and_both_moments_in_either_shell() {
@@ -533,7 +527,15 @@ fn the_switcher_is_named_projects_before_a_project_is_open() {
     let root = fixtures::root_in_project(None);
     let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
     let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
-    crate::frame::switcher(&mut builder, &root, &fixtures::words(), &mut bindings, None, crate::frame::Place::Banner);
+    crate::frame::switcher(
+        &mut builder,
+        &root,
+        &fixtures::words(),
+        &mut bindings,
+        None,
+        crate::frame::Place::Banner,
+        &crate::forge_sign_in::Forges::new(),
+    );
     assert_switcher(&builder.finish(), b"Projects", &[(b"Shop", false), (b"Second", false)]);
 }
 
@@ -557,12 +559,22 @@ fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)
         at = at.checked_add(1).unwrap();
     }
     for (name, pressed) in projects {
+        let row_end = if nodes[at].styles.as_slice().contains(&crate::look::PROJECTS_ROW) {
+            let end = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+            at = at.checked_add(1).unwrap();
+            Some(end)
+        } else {
+            None
+        };
         let button = &nodes[at];
         assert_eq!(button.role, Role::Button);
         assert_eq!(button.name.as_deref(), Some(*name));
         assert_eq!(button.states.as_slice().contains(&skein_ui::State::Pressed), *pressed);
         assert!(button.binding.is_some());
-        at = at.checked_add(usize::try_from(button.size).unwrap()).unwrap();
+        at = match row_end {
+            Some(end) => end,
+            None => at.checked_add(usize::try_from(button.size).unwrap()).unwrap(),
+        };
         if nodes[at].role == Role::Button && nodes[at].name.as_deref() == Some(b"Rename") {
             assert!(*pressed, "rename belongs to the open project");
             at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
@@ -1509,10 +1521,7 @@ fn goals_opens_in_its_projects_frame() {
             assert!(page.is_none(), "goals starts no page watch");
             assert_eq!(root.pages().project(), Some(fixtures::SECOND_PROJECT));
             assert_eq!(root.pages().address(), &address);
-            let project_name = match words.shell {
-                crate::words::Shell::Browser => b"Shopno repository".as_slice(),
-                crate::words::Shell::Terminal => b"Shop".as_slice(),
-            };
+            let project_name = b"Shop";
             let mut view = fixtures::view_of(words);
             fixtures::build(&mut view, &root);
             assert_rail(&view, b"Second");
@@ -1601,6 +1610,7 @@ fn renaming_replaces_the_open_project_row_in_the_banner() {
             &mut bindings,
             Some(fixtures::PROJECT),
             crate::frame::Place::Banner,
+            &crate::forge_sign_in::Forges::new(),
         );
         let tree = builder.finish();
         assert!(fixtures::find(&tree, Role::Button, b"Shop").is_none());
@@ -1752,6 +1762,7 @@ fn opening_rename_takes_focus_from_a_shown_document_section() {
                 &mut bindings,
                 Some(fixtures::PROJECT),
                 crate::frame::Place::Banner,
+                &crate::forge_sign_in::Forges::new(),
             );
             crate::pages::document::pane(
                 &mut builder,

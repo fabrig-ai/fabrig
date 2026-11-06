@@ -15,6 +15,7 @@
 //! - Zeroed socket, stat and time structures contain only integer fields.
 //!   Child-exit decoding reads the status union only after successful waitid.
 
+use super::status_flags;
 pub(crate) use crate::posix::files::kind_of;
 use std::ffi::CString;
 use std::io;
@@ -135,14 +136,6 @@ pub(crate) fn opened(fd: i32) -> Result<Done, Error> {
             Err(error)
         }
     }
-}
-
-/// The status flags of what is open on `fd` (`F_GETFL`), or the error
-/// number.
-pub(crate) fn status_flags(fd: i32) -> Result<i32, i32> {
-    // SAFETY: integers only.
-    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
-    if flags < 0 { Err(last_errno()) } else { Ok(flags) }
 }
 
 /// Clears `O_NONBLOCK` from the file open on `fd`.
@@ -472,13 +465,6 @@ pub(crate) fn random(bytes: &mut [u8]) -> Result<(), i32> {
         Ok(_) => Err(libc::EIO),
         Err(_) => Err(last_errno()),
     }
-}
-
-/// The process effective user, read once by startup for io's private files (shell.md, section 6).
-#[must_use]
-pub fn effective_user() -> u32 {
-    // SAFETY: geteuid takes no pointers and has no preconditions.
-    unsafe { libc::geteuid() }
 }
 
 /// Checks startup's directory with `faccessat2(W_OK | X_OK, AT_EACCESS)`;

@@ -7,6 +7,7 @@ use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Membership, Problem};
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -179,9 +180,8 @@ fn context_carrier(limits: &Limits) -> Option<u64> {
         .checked_add(u64::from(task.result_bytes))
 }
 
-pub use fleet::WorkerProblem as Problem;
-pub(crate) fn problems(names: Box<[Box<[u8]>]>, limits: &Limits) -> Result<fleet::Membership, Problem> {
-    fleet::Membership::new(names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes)
+pub(crate) fn problems(names: Box<[Box<[u8]>]>, limits: &Limits) -> Result<Membership, Problem> {
+    Membership::new(names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes)
 }
 
 /// Whether the core's limits and edge bounds are representable (programming-model.md, 6.3).

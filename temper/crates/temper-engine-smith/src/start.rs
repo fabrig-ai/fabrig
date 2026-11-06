@@ -2,8 +2,8 @@
 //! already decoded history and mounts; no encoding or file access occurs here.
 
 use alloc::boxed::Box;
-use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
+use jig_domain_link::{Form, GrantTable, Scheme};
 use skein_lib::{Decimal, List, ReplyTo, Token, Writer, bytes};
 use smith_domain as smith;
 use smith_domain_run as run;
@@ -78,19 +78,17 @@ pub fn start(
     for grant in &assignment.grants {
         // Application grants are the worker's own, for git (domain/worker.md, 4.1).
         match grant.form.table() {
-            accounts::GrantTable::Accounts | accounts::GrantTable::Name => grants
+            GrantTable::Accounts | GrantTable::Name => grants
                 .push(smith::Grant {
                     renewable: match grant.form {
-                        accounts::Form::Credential(accounts::Scheme::Bearer) => true,
-                        accounts::Form::Credential(accounts::Scheme::Key)
-                        | accounts::Form::Application
-                        | accounts::Form::Program(_) => false,
+                        Form::Credential(Scheme::Bearer) => true,
+                        Form::Credential(Scheme::Key) | Form::Application | Form::Program(_) => false,
                     },
                     name: smith::GrantName { account: grant.account, generation: grant.generation },
                     valid: grant.valid,
                 })
                 .expect("bounded grants"),
-            accounts::GrantTable::Application => {}
+            GrantTable::Application => {}
         }
     }
     smith::Event::Start(smith::Start {

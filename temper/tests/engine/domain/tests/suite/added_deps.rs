@@ -355,8 +355,8 @@ fn restarting_a_parked_kept_task_does_not_start_it() {
         CHANNEL,
         limits().fleet.slots,
         Box::new([
-            protocol::hosting(parent.task, parent.attempt, jig_domain_host::Phase::Active),
-            protocol::hosting(prerequisite_run.task, prerequisite_run.attempt, jig_domain_host::Phase::Active),
+            protocol::hosting(parent.task, parent.attempt, jig_domain_link::Phase::Active),
+            protocol::hosting(prerequisite_run.task, prerequisite_run.attempt, jig_domain_link::Phase::Active),
         ]),
     ));
     restored.settle();

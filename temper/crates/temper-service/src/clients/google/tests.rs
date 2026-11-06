@@ -196,6 +196,7 @@ fn the_recovery_link_uses_the_first_google_owner_without_a_link_owner() {
         &fixtures::seeds(),
         &config.limits.root.journal,
         Some(&sign_in),
+        None,
         &[],
     )
     .unwrap();

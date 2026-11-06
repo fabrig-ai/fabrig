@@ -24,9 +24,10 @@ use jig_domain_host::{LinkDown, LinkUp};
 use std::collections::{BTreeMap, BTreeSet};
 
 use jig_domain_host::{
-    AgentFailure, Assignment, Ending, Event, Failure, Hosting, Invalid, Limits, MessageRefusal, Preparation, Reason,
-    Refusal, Request, RunAssignment, RunFailure, Workspace,
+    AgentFailure, Assignment, Ending, Event, Failure, Invalid, Limits, MessageRefusal, Preparation, Reason, Refusal,
+    Request, RunAssignment, RunFailure, Workspace,
 };
+use jig_domain_link::Hosting;
 use skein_lib::{Duration, Rng, Token, length::len_u64};
 use skein_world::domain::Span;
 

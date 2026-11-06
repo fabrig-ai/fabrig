@@ -1,8 +1,7 @@
+use jig_domain_link::{Grant, Hello, Phase};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use jig_domain_fleet::{
-    self as fleet, Answer, Domain, Event, Fact, Hello, Limits, Phase, Request, Undelivered, Withdrawal,
-};
+use jig_domain_fleet::{self as fleet, Answer, Domain, Event, Fact, Limits, Request, Undelivered, Withdrawal};
 use skein_lib::{Duration, ReplyTo, Rng, Time, Token};
 use skein_world::domain::{Ledger, Referee, Schedule, Span, Stage, Trace};
 
@@ -505,7 +504,7 @@ pub struct World {
     pub(crate) referee: Referee<Fleet>,
     pub(crate) stats: Stats,
     trace: Trace,
-    last_grant: Option<(Token, Token, Token, fleet::Grant)>,
+    last_grant: Option<(Token, Token, Token, Grant)>,
     grants_sent: u64,
 }
 
@@ -876,7 +875,7 @@ impl World {
                 let workstreams = workstreams.into();
                 let hosting = hosting
                     .into_iter()
-                    .map(|(run, attempt, phase)| fleet::Hosting {
+                    .map(|(run, attempt, phase)| jig_domain_link::Hosting {
                         run: Token::new(run),
                         attempt: Token::new(attempt),
                         phase,
@@ -1012,7 +1011,7 @@ impl World {
             Request::Acknowledge { channel, run, attempt } => {
                 self.down(channel, Message::Acknowledge { run: run.raw(), attempt: attempt.raw() });
             }
-            Request::Refuse { channel } => {
+            Request::Refuse { channel, .. } => {
                 self.stats.refused += 1;
                 if self.channels[&channel.raw()].open {
                     self.close(channel.raw());

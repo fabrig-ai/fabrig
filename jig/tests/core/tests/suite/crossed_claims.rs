@@ -2,12 +2,12 @@
 
 use crate::fresh_windows;
 use jig_core_world::world::Setup;
+use jig_domain_link::{Hosting, Phase};
 
 use fresh_windows::{AFTER, BEFORE, SEED, TAIL};
 use jig_core_world::fixtures;
 use jig_core_world::world::World;
 use jig_domain_core as core;
-use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{Duration, Token};
@@ -36,13 +36,9 @@ fn live_resumed() -> (World, u64, u64) {
     (world, task, attempt)
 }
 
-fn hosting(world: &World) -> fleet::Hosting {
+fn hosting(world: &World) -> Hosting {
     let assignment = world.assigned.as_ref().expect("live resumed assignment");
-    fleet::Hosting {
-        run: Token::new(assignment.task),
-        attempt: Token::new(assignment.attempt),
-        phase: fleet::Phase::Active,
-    }
+    Hosting { run: Token::new(assignment.task), attempt: Token::new(assignment.attempt), phase: Phase::Active }
 }
 
 fn lost_once_then_fresh(world: &mut World, task: u64, attempt: u64) {

@@ -114,7 +114,7 @@ fn decode(name: Name, reply: &Reply, limits: &Limits) -> Option<(Result<git::Ans
     let mut above = Queue::with_capacity(2);
     let mut below = Queue::with_capacity(2);
     let mut held = Held::new(reply.body.clone().into());
-    tokenizer::down(&mut json, &env, client::first(&decoder), &mut above, &mut below);
+    tokenizer::down(&mut json, &env, tokenizer::Request::Next, &mut above, &mut below);
     // A token/demand consumes bytes or advances a finite JSON container.
     for _ in 0..reply.body.len().saturating_mul(4).saturating_add(32) {
         if let Some(event) = above.pop() {

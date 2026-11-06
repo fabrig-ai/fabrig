@@ -63,7 +63,7 @@ impl HasGoals {
                         Readout::Jig(c::ReadResult::Value(_) | c::ReadResult::None(_))
                         | Readout::Family { .. }
                         | Readout::NotServed { .. }
-                        | Readout::Limit => false,
+                        | Readout::Limit => self.ended,
                     };
                 }
                 true
@@ -116,6 +116,7 @@ pub struct Goals {
     page: Option<c::TaskPage>,
     first: bool,
     reading_page: bool,
+    page_answered: bool,
     count: u32,
     needs_total: Option<u32>,
     selection: Option<List<c::InboxSelection>>,
@@ -135,6 +136,7 @@ impl Goals {
             page: None,
             first: true,
             reading_page: false,
+            page_answered: false,
             count: 0,
             needs_total: None,
             selection: None,
@@ -166,6 +168,7 @@ impl Goals {
             }
             self.query = next;
             self.page = None;
+            self.page_answered = false;
             self.reading_page = false;
             self.first = true;
             self.count = 0;
@@ -240,15 +243,13 @@ impl Goals {
             }
             Told::Page { handle, page } if handle == self.ended => {
                 self.reading_page = false;
-                self.page = match page {
-                    Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) => Some(*page),
-                    Readout::Jig(c::ReadResult::Value(_) | c::ReadResult::None(_))
-                    | Readout::Family { .. }
-                    | Readout::NotServed { .. }
-                    | Readout::Limit => None,
-                };
-                let read = u32::try_from(self.ended().len()).expect("goal page fits");
-                self.count = if self.first { read } else { self.count.checked_add(read).expect("goals count fits") };
+                if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(page))) = page {
+                    self.page = Some(*page);
+                    self.page_answered = true;
+                    let read = u32::try_from(self.ended().len()).expect("goal page fits");
+                    self.count =
+                        if self.first { read } else { self.count.checked_add(read).expect("goals count fits") };
+                }
                 true
             }
             Told::Page { handle, page } if handle == self.needs => {
@@ -335,6 +336,11 @@ impl Goals {
                 break;
             }
         }
+    }
+    /// The live watch has delivered and the ended read has answered with its value, for this query.
+    #[must_use]
+    pub fn known(&self, client: &Client) -> bool {
+        self.page_answered && self.live(client).is_some()
     }
     #[must_use]
     pub fn live<'a>(&self, client: &'a Client) -> Option<&'a c::Tasks> {

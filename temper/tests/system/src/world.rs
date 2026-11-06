@@ -4,6 +4,7 @@
 //! The fake store and person remain outside both domains.
 
 use jig_domain_host as host;
+use jig_domain_link::{Bounds, ModelBound};
 use jig_domain_people as people;
 use skein_fake_checkout::{Checkout, Exit, Program};
 use skein_fake_llm_domain::api::Script;
@@ -84,11 +85,11 @@ pub fn open_config(seed: u64) -> engine::Config {
 /// What a worker says it can host: wide enough for [`charter`] and for the
 /// configured spend, message and inbox bounds (jig's `domain/hosts.md`, 8).
 #[must_use]
-pub fn bounds() -> host::Bounds {
+pub fn bounds() -> Bounds {
     let model = charter().policy.model;
-    host::Bounds {
+    Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([host::ModelBound { name: model.name, window: model.window, output: model.output }]),
+        models: Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]),
         turns: 64,
         spend: 1000,
         time: Duration::from_secs(3600),
@@ -108,7 +109,7 @@ pub fn hello(slots: u32) -> engine::Event {
         channel: CHANNEL,
         link: engine::Link::Hello {
             worker: 0,
-            hello: host::Hello {
+            hello: jig_domain_link::Hello {
                 jobs: Box::default(),
                 slots,
                 stop_bound: Duration::from_secs(1),

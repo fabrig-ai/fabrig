@@ -1,5 +1,6 @@
 use super::fixtures;
 use crate::translate;
+use jig_domain_link::{CountKind, Hosting, Phase, SourceName};
 use skein_lib::{Duration, Token};
 fn translated(record: translate::Up) -> (jig_domain_host::LinkUp, translate::Parts) {
     let mut parts = translate::Parts::new(4);
@@ -27,11 +28,7 @@ fn a_hello_record_becomes_the_hubs_hello_with_its_bounds() {
     assert_eq!(hello.workstreams.as_ref(), &[9]);
     assert_eq!(
         hello.hosting.as_ref(),
-        &[jig_domain_host::Hosting {
-            run: Token::new(7),
-            attempt: Token::new(2),
-            phase: jig_domain_host::Phase::Waiting
-        }]
+        &[Hosting { run: Token::new(7), attempt: Token::new(2), phase: Phase::Waiting }]
     );
     let model = hello.bounds.models.first().expect("one model");
     assert_eq!(model.name.as_ref(), b"model");
@@ -70,7 +67,7 @@ fn a_fact_record_becomes_the_hubs_activity() {
             run: Token::new(7),
             attempt: Token::new(2),
             activity: jig_domain_host::AgentActivity::Count {
-                kind: jig_domain_host::CountKind::LlmStarted,
+                kind: CountKind::LlmStarted,
                 elapsed: Duration::from_secs(2),
                 count: 3
             }
@@ -270,7 +267,7 @@ fn a_grant_without_a_value_is_left_out() {
     };
     assert_eq!(value.secret().expose(), fixtures::TOKEN_TWO);
 }
-fn granted(form: jig_domain_host::Form, value: crate::GrantValue) -> Option<translate::Down> {
+fn granted(form: jig_domain_link::Form, value: crate::GrantValue) -> Option<translate::Down> {
     translate::down(
         jig_domain_host::LinkDown::Grant { run: Token::new(7), attempt: Token::new(2), grant: fixtures::grant(form) },
         &[],
@@ -286,7 +283,7 @@ fn granted_value(down: Option<translate::Down>) -> jig_protocol_worker_wire::Gra
 }
 #[test]
 fn each_credential_scheme_reaches_the_wire_with_its_token() {
-    use jig_domain_host::{Form, Scheme};
+    use jig_domain_link::{Form, Scheme};
     use jig_protocol_worker_wire as wire;
     for (form, scheme, expected) in [
         (Scheme::Bearer, crate::Scheme::Bearer, wire::Scheme::Bearer),
@@ -301,13 +298,13 @@ fn each_credential_scheme_reaches_the_wire_with_its_token() {
 #[test]
 fn an_application_grant_reaches_the_wire_with_its_secret() {
     let value = fixtures::values()[1].take().expect("application value");
-    let grant = granted_value(granted(jig_domain_host::Form::Application, value));
+    let grant = granted_value(granted(jig_domain_link::Form::Application, value));
     let jig_protocol_worker_wire::GrantValue::Application(value) = grant.value() else { panic!("application value") };
     assert_eq!(value.secret().expose(), fixtures::TOKEN_TWO);
 }
 #[test]
 fn a_value_unlike_its_grants_form_is_not_sent() {
-    use jig_domain_host::{Form, Scheme};
+    use jig_domain_link::{Form, Scheme};
     let bearer = Form::Credential(Scheme::Bearer);
     let key = Form::Credential(Scheme::Key);
     for (form, value) in [
@@ -328,7 +325,7 @@ fn a_standalone_grant_without_a_value_is_not_sent() {
             jig_domain_host::LinkDown::Grant {
                 run: Token::new(7),
                 attempt: Token::new(2),
-                grant: fixtures::grant(jig_domain_host::Form::Credential(jig_domain_host::Scheme::Bearer)),
+                grant: fixtures::grant(jig_domain_link::Form::Credential(jig_domain_link::Scheme::Bearer)),
             },
             &[],
             Box::new([None]),
@@ -505,13 +502,13 @@ fn an_invalid_start_answer_keeps_its_words_in_the_hub() {
     );
 }
 
-fn program_name() -> jig_domain_host::SourceName {
-    jig_domain_host::SourceName::new(b"claude").expect("source name")
+fn program_name() -> SourceName {
+    SourceName::new(b"claude").expect("source name")
 }
 #[test]
 fn a_program_grant_crosses_as_its_name() {
     let name = program_name();
-    let grant = granted_value(granted(jig_domain_host::Form::Program(name), crate::GrantValue::Program { name }));
+    let grant = granted_value(granted(jig_domain_link::Form::Program(name), crate::GrantValue::Program { name }));
     let jig_protocol_worker_wire::GrantValue::Program(value) = grant.value() else { panic!("program value") };
     assert_eq!(value.name(), b"claude");
 }
@@ -522,17 +519,17 @@ fn another_value_under_a_program_form_is_not_sent() {
         fixtures::credential_value(crate::Scheme::Key),
         fixtures::values()[1].take().expect("application"),
     ] {
-        assert!(granted(jig_domain_host::Form::Program(program_name()), value).is_none());
+        assert!(granted(jig_domain_link::Form::Program(program_name()), value).is_none());
     }
 }
 #[test]
 fn a_program_name_unlike_its_form_s_is_not_sent() {
-    let name = jig_domain_host::SourceName::new(b"other").expect("source name");
-    assert!(granted(jig_domain_host::Form::Program(program_name()), crate::GrantValue::Program { name }).is_none());
+    let name = SourceName::new(b"other").expect("source name");
+    assert!(granted(jig_domain_link::Form::Program(program_name()), crate::GrantValue::Program { name }).is_none());
 }
 #[test]
 fn a_program_value_under_another_form_is_not_sent() {
-    use jig_domain_host::{Form, Scheme};
+    use jig_domain_link::{Form, Scheme};
     for form in [Form::Credential(Scheme::Bearer), Form::Credential(Scheme::Key), Form::Application] {
         assert!(granted(form, crate::GrantValue::Program { name: program_name() }).is_none());
     }

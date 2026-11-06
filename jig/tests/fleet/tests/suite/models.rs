@@ -1,5 +1,6 @@
 //! Declared models narrow placement without refusing a host's hello (engine.md, 8).
-use jig_domain_fleet::{self as fleet, AgentShortfall, Answer, Event, Hello, HelloRefusal, HostKind, Kinds, Request};
+use jig_domain_fleet::{self as fleet, AgentShortfall, Answer, Event, HelloRefusal, HostKind, Kinds, Request};
+use jig_domain_link::{Bounds, Hello};
 use jig_fleet_world::fixtures::{MODEL_CHARTER, MODEL_OUTPUT, MODEL_WINDOW, OTHER_CHARTER, model_bounds, model_needs};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 
@@ -79,7 +80,7 @@ impl Fleet {
     }
 }
 
-fn hello(bounds: fleet::Bounds) -> Hello {
+fn hello(bounds: Bounds) -> Hello {
     Hello {
         jobs: Box::default(),
         bounds,
@@ -106,12 +107,25 @@ fn a_declared_models_smaller_window_or_output_refuses_hello() {
         (MODEL_WINDOW, MODEL_OUTPUT - 1, AgentShortfall::Output { charter: MODEL_CHARTER, model: 0 }),
     ] {
         let mut fleet = Fleet::new();
-        let mut bounds = model_bounds(&[b"main"]);
-        bounds.models[0].window = window;
-        bounds.models[0].output = output;
+        let mut bounds = model_bounds(&[b"alternative", b"main"]);
+        let model = bounds.models.iter_mut().find(|model| model.name.as_ref() == b"main").expect("declared main model");
+        model.window = window;
+        model.output = output;
+        let figures = match why {
+            AgentShortfall::Window { .. } => {
+                fleet::Figures { required: u64::from(MODEL_WINDOW), offered: u64::from(window) }
+            }
+            AgentShortfall::Output { .. } => {
+                fleet::Figures { required: u64::from(MODEL_OUTPUT), offered: u64::from(output) }
+            }
+            _ => unreachable!("window or output fixture"),
+        };
         assert_eq!(
             fleet.send(Event::Hello { worker: 0, channel: FIRST, hello: hello(bounds) }),
-            vec![Request::Refuse { channel: FIRST }]
+            vec![Request::Refuse {
+                channel: FIRST,
+                hello: Some(fleet::HelloRefused { why: HelloRefusal::Agent { why }, figures: Some(figures) })
+            }]
         );
         assert_eq!(fleet.domain.hello_refusals().get(0).expect("refused hello").why, HelloRefusal::Agent { why });
     }
