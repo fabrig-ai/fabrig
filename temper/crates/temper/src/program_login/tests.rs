@@ -108,12 +108,17 @@ fn the_printed_line_preserves_shell_arguments_from_another_directory() {
     directories.config = directory.join("config ' one").as_os_str().as_bytes().into();
     directories.data = directory.join("data ' two").as_os_str().as_bytes().into();
     directories.cache = directory.join("cache ' three").as_os_str().as_bytes().into();
-    let printed = line(&directories, &binary).expect("portable command");
+    let home = directory.as_os_str().as_bytes();
+    let word = crate::printed::path_word(binary.as_os_str().as_bytes(), Some(home));
+    let printed = line(&directories, &word, Some(home)).expect("portable command");
+    assert!(printed.starts_with("~/'temper"));
+    assert!(printed.contains(" --data ~/'data"));
     let output = std::process::Command::new("/bin/sh")
         .args(["-c", &format!("{printed} source")])
         .current_dir("/")
         .env_clear()
         .env("PATH", "/missing")
+        .env("HOME", &directory)
         .output()
         .expect("paste command into shell");
     assert!(output.status.success(), "{:?}", output.stderr);
@@ -130,11 +135,14 @@ fn the_printed_line_preserves_shell_arguments_from_another_directory() {
 #[test]
 fn the_printed_line_fits_its_wire_bound_including_shell_quoting() {
     let directories = crate::tests::configuration::directories(std::path::Path::new("/fixture"));
-    let base = line(&directories, std::path::Path::new("/b")).expect("short command");
+    let base = line(&directories, b"/b", None).expect("short command");
     let binary = format!("/b{}", "x".repeat(8192 - base.len()));
-    assert_eq!(line(&directories, std::path::Path::new(&binary)).unwrap().len(), 8192);
+    assert_eq!(line(&directories, binary.as_bytes(), None).unwrap().len(), 8192);
     for extra in ["x", "'"] {
-        assert!(line(&directories, std::path::Path::new(&format!("{binary}{extra}"))).is_none());
+        assert!(
+            line(&directories, crate::printed::path_word(format!("{binary}{extra}").as_bytes(), None).as_ref(), None)
+                .is_none()
+        );
     }
 }
 
@@ -142,7 +150,7 @@ fn the_printed_line_fits_its_wire_bound_including_shell_quoting() {
 fn the_printed_line_refuses_non_utf8_in_each_path() {
     let original = crate::tests::configuration::directories(std::path::Path::new("/fixture"));
     let binary = std::path::PathBuf::from(OsString::from_vec(b"/binary-\xff".to_vec()));
-    assert!(line(&original, &binary).is_none());
+    assert!(line(&original, binary.as_os_str().as_bytes(), None).is_none());
     for field in ["config", "data", "cache"] {
         let mut directories = original.clone();
         let path = Box::from(b"/directory-\xff".as_slice());
@@ -152,6 +160,6 @@ fn the_printed_line_refuses_non_utf8_in_each_path() {
             "cache" => directories.cache = path,
             _ => unreachable!(),
         }
-        assert!(line(&directories, std::path::Path::new("/temper")).is_none(), "{field}");
+        assert!(line(&directories, b"/temper", None).is_none(), "{field}");
     }
 }

@@ -33,7 +33,7 @@ pub(super) fn too_large(message: &Up, limits: &Limits) -> bool {
 pub(super) fn valid_record(agent: &Agent, message: &Up, env: &Env<Limits>) -> bool {
     let limits = &env.limits;
     match message {
-        Up::Admitted => !agent.word.admitted() && !agent.word.last_word(),
+        Up::Admitted => admission(&agent.word),
         Up::MessageRefused { name, .. } => agent.word.admitted() && agent.unread.refusal_known(*name),
         Up::Answer { answer } => valid_answer(agent, answer),
         Up::Call { call, name, deadline, ask } => {
@@ -128,5 +128,28 @@ fn valid_answer(agent: &Agent, answer: &crate::Answer) -> bool {
     match &answer.result {
         RunResult::Refused { .. } => !agent.word.admitted() && answer.turns == 0 && answer.spent == 0,
         RunResult::Accepted { .. } | RunResult::Parked | RunResult::Failed { .. } => agent.word.admitted(),
+    }
+}
+
+fn admission(word: &super::word::State) -> bool {
+    !word.admitted() && !word.told()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::word::{Admission, State};
+
+    #[test]
+    fn admission_requires_a_pending_word_without_a_fault() {
+        for (state, accepted) in [
+            (State::Open(Admission::Pending), true),
+            (State::Dropped(Admission::Pending), true),
+            (State::Open(Admission::Admitted), false),
+            (State::Dropped(Admission::Admitted), false),
+            (State::Answered, false),
+            (State::Faulted, false),
+        ] {
+            assert_eq!(super::admission(&state), accepted, "{state:?}");
+        }
     }
 }

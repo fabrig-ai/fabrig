@@ -2255,7 +2255,10 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app:has(> .temper-welcome) .temper-welcome-panel > :is(p, form, .temper-welcome-acts, .temper-welcome-field) { margin: 0; }
 #app:has(> .temper-welcome) .temper-welcome-panel > p { font-size: 15px; line-height: 1.6; }
 #app:has(> .temper-welcome) .temper-welcome-panel .temper-flow-facts { padding: 0; border: 0; font-size: 14.5px; color: var(--gf-muted); }
-#app:has(> .temper-welcome) .temper-welcome-cmd { margin: 0; padding: 12px 14px; border-radius: 8px; background: #f1f1ee; font: 13.5px var(--gf-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+#app:has(> .temper-welcome) .temper-welcome-cmd { margin: 0; padding: 12px 116px 12px 14px; border-radius: 8px; background: #f1f1ee; font: 13.5px var(--gf-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+#app:has(> .temper-welcome) .temper-welcome-cmd-box { position: relative; }
+#app:has(> .temper-welcome) .temper-welcome-copy { position: absolute; top: 12px; right: 12px; min-height: 0; padding: 0; border: 0; background: transparent; color: #9c573f; font: 600 12px/1.58 var(--gf-mono); cursor: pointer; }
+#app:has(> .temper-welcome) .temper-welcome-copy:hover { text-decoration: underline; }
 #app:has(> .temper-welcome) .temper-welcome-field { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; line-height: 1.6; color: var(--gf-muted); }
 #app:has(> .temper-welcome) .temper-welcome-field .temper-flow-field { margin: 0; }
 #app:has(> .temper-welcome) .temper-welcome-field label { display: block; margin: 0; font: inherit; color: var(--gf-muted); }

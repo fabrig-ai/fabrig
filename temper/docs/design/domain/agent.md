@@ -788,6 +788,13 @@ the saved window is unread, the first load spends a transient try; its
 retry starts fresh without the tail, keeping the person's pending words
 (jig's `domain/engine.md`, 7.2).
 
+An unidentified startup fault keeps its agent-failure classification and
+bounded operator diagnostic through cleanup (jig's `domain/hosts.md`, 6.3).
+It retains the transcript and pending words for the next attempt; it does
+not establish a transcript refusal. A persistent fault exhausts the agent
+allowance and holds the chat. An unidentified fault alone never takes
+the fresh preparation above.
+
 ## 8. The agents temper runs
 
 | Agent | Messages in | Tools its authority gives | Ends when |

@@ -258,6 +258,7 @@ fn only_the_welcomes_host_check_supplies_a_trial_today() {
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::Copy { .. }
             | d::Request::Fact { .. } => None,
         })
         .unwrap();
