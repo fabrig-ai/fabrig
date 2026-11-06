@@ -2,6 +2,17 @@
 
 2026-11-06. Where temper's code lags or departs from [root.md](root.md).
 
+- **Not yet:** 5.2: what the room saves is unobserved: no goal on record has
+  counted its `read_task` calls since the room landed, where the request
+  `read-task-room` of 2026-11-06 takes a real goal's next count as its proof.
+  The engine world holds the bound on a script alone
+  (`temper/tests/engine/domain/tests/suite/host_calls.rs`).
+- **Design departs:** 5.2, from the same request, decided by its plan's cut: a
+  process with no local agent's metadata names `documents.text_bytes`, where the
+  request has a run read up to what its reply holds, because an engine alone does
+  not know its remote agents' reply bound, and an answer past it reaches the run
+  as smith's `TooLarge` at every offset, so a long spec could not be read at all
+  (`agent.md`, section 10 keeps it open).
 - **Not yet:** 7.2: a section for each
   document a charter names (the forge's brief sources are CI, reviews, the
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
