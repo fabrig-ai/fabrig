@@ -11,6 +11,11 @@ fn the_page_is_what_fields_renders() {
     let checked_in = include_str!("../../../../docs/help/reference/settings-fields.md");
     let rendered = fields::page(&temper_client_tools::limits::form());
     let rendered = std::str::from_utf8(&rendered).expect("printable ASCII page");
+    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+        let path = skein_scratch::paths::tree().join("docs/help/reference/settings-fields.md");
+        std::fs::write(path, rendered).expect("write settings fields reference");
+        return;
+    }
     if checked_in != rendered {
         let mut line = 1;
         for (left, right) in checked_in.lines().zip(rendered.lines()) {
@@ -29,6 +34,7 @@ fn llm() -> jig_protocol_config::Llm {
         pickers: Box::new([true]),
         endpoints: Box::new([]),
         models: Box::new([jig_domain_core::Model {
+            provider: 1,
             dialect: 1,
             endpoint: 1,
             program: None,
@@ -74,6 +80,7 @@ fn models(llm: &jig_protocol_config::Llm) -> Box<[jig_protocol_engine_clients::M
 fn encode(value: &settings_form::view::SettingValue, out: &mut Encoder) {
     use settings_form::{values, view::SettingValue};
     match value {
+        SettingValue::Model(value) => values::encode_catalogue(value, out),
         SettingValue::Charter(value) => values::encode_charter(value, out),
         SettingValue::Template(value) => values::encode_template(value, out),
         SettingValue::Policy(value) => values::encode_setting_policy(value, out),

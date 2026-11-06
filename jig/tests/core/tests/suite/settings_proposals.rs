@@ -712,8 +712,7 @@ fn a_shape_refused_proposal_can_retry_after_its_unused_model_returns_without_a_h
     let mut model = config.core.settings.models[0].clone();
     model.name = b"pending-only".as_slice().into();
     config.core.settings.models = Box::new([config.core.settings.models[0].clone(), model.clone()]);
-    config.core.settings.llm_providers.providers[0].models =
-        Box::new([b"scripted".as_slice().into(), model.name.clone()]);
+
     let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
@@ -744,8 +743,7 @@ fn a_shape_refused_proposal_can_retry_after_its_unused_model_returns_without_a_h
     assert_eq!(proposal_document(&mut world, owner, OWNER, proposal).action, before);
     let (mut restored, _) = configuration();
     restored.core.settings.models = Box::new([restored.core.settings.models[0].clone(), model.clone()]);
-    restored.core.settings.llm_providers.providers[0].models =
-        Box::new([b"scripted".as_slice().into(), model.name.clone()]);
+
     restart(&mut world, restored);
     assert!(matches!(
         decide(&mut world, owner, 3, OWNER, proposal, people::ProposalDecision::Accept, Some(people::Running::Stays)),

@@ -99,6 +99,40 @@ pub fn check_change(
     limits: &Limits,
 ) -> Result<(), Failure> {
     super::change_shape(items, limits)?;
+    for item in items {
+        let number = match item.setting {
+            Setting::Model(number) => number,
+            Setting::Charter(_)
+            | Setting::Template(_)
+            | Setting::Policy(_)
+            | Setting::Rules
+            | Setting::Application { .. }
+            | Setting::ProjectPolicy { .. } => continue,
+        };
+        let failure = Failure { setting: item.setting, fault: Fault::Shape, detail: None };
+        match &item.edit {
+            Edit::Reset => {
+                if current.default_value(item.setting).is_none() {
+                    return Err(failure);
+                }
+            }
+            Edit::Removed => {}
+            Edit::Set(value) => {
+                let value = value.as_model().ok_or(failure)?;
+                for previous in [current.default_value(item.setting), current.value(item.setting)] {
+                    if let Some(previous) = previous
+                        && let Some(previous) = previous.as_model()
+                        && previous.model.name != value.model.name
+                    {
+                        return Err(failure);
+                    }
+                }
+                if let Err(fault) = super::catalogue::shape(value, number, settings) {
+                    return Err(Failure { fault, ..failure });
+                }
+            }
+        }
+    }
     check_set(current, false, items, settings, connectors, limits)
 }
 fn check_set(
@@ -185,6 +219,7 @@ fn check_set(
                 Some(authority::PolicyRefusal::Full) => Some(Fault::Count),
                 None => policy_fault(current, defaults, items, policy, settings, connectors, limits),
             },
+            Value::Model(value) => super::catalogue::shape(value, value.number, settings).err(),
             Value::Rules(_) | Value::Application(_) => None,
         };
         if let Some(fault) = fault {
@@ -206,7 +241,11 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
         Value::Policy(_) => match setting {
             Setting::Policy(number) => number != 0,
             Setting::ProjectPolicy { project } => project != 0,
-            Setting::Charter(_) | Setting::Template(_) | Setting::Rules | Setting::Application { .. } => false,
+            Setting::Charter(_)
+            | Setting::Template(_)
+            | Setting::Model(_)
+            | Setting::Rules
+            | Setting::Application { .. } => false,
         },
         Value::Rules(value) => {
             if setting == Setting::Rules
@@ -216,6 +255,7 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
             }
             setting == Setting::Rules
         }
+        Value::Model(value) => setting == Setting::Model(value.number) && super::catalogue::fits(value, value.number),
         Value::Application(_) => super::application::is_application(setting),
     };
     if !valid {
@@ -262,6 +302,7 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
                 && value.implies.len() <= bound.implications
                 && rules_patterns_fit(value, bound)
         }
+        Value::Model(value) => setting == Setting::Model(value.number) && super::catalogue::fits(value, value.number),
         Value::Application(_) => super::application::is_application(setting),
     };
     if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape, detail: None }) }
@@ -699,7 +740,9 @@ pub(super) fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) ->
         Setting::Charter(_) => (0, limits.tasks.charters),
         Setting::Template(_) => (1, limits.templates),
         Setting::Policy(_) => (2, limits.authority.projects),
-        Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => return Ok(()),
+        Setting::Model(_) | Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => {
+            return Ok(());
+        }
     };
     let count = counts.get_mut(slot).expect("three numbered kinds");
     *count = count.saturating_add(1);
@@ -710,7 +753,8 @@ fn model_valid(model: &crate::Model, settings: &Settings) -> bool {
     match super::charters::configured(settings, model) {
         Some(index) => {
             let configured = settings.models.get(usize::from(index)).expect("configured model");
-            model.dialect == configured.dialect
+            model.provider == configured.provider
+                && model.dialect == configured.dialect
                 && model.endpoint == configured.endpoint
                 && model.program == configured.program
                 && model.name == configured.name

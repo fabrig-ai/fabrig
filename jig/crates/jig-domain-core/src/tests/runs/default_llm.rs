@@ -20,7 +20,7 @@ fn task_with_default(choice: Option<tasks::LlmChoice>) -> Core {
     subagent.name = b"subagent".as_slice().into();
     subagent.effort = Some(b"high".as_slice().into());
     configuration.settings.models = Box::new([main.clone(), subagent.clone()]);
-    configuration.settings.llm_providers.providers[0].models = Box::new([main.name.clone(), subagent.name.clone()]);
+
     configuration.defaults.charters[0].policy.model = main;
     configuration.defaults.charters[0].policy.alternatives = Box::new([subagent]);
     let mut core = seeded_core(configuration, &limits).unwrap();

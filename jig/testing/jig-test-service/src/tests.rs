@@ -22,7 +22,7 @@ fn the_document_names_the_files_its_caller_reads() {
 #[test]
 fn both_jig_profiles_have_usable_store_edges() {
     for (label, name, value, commit, ops) in [
-        ("small", jig_protocol_config::Profile::Small, 1_156_772, 355_308_810, 41_606),
+        ("small", jig_protocol_config::Profile::Small, 2_407_076, 355_308_810, 41_606),
         ("standard", jig_protocol_config::Profile::Standard, 100_865_296, 901_830_282, 303_350),
     ] {
         let limits = crate::limits::profile_limits(name);

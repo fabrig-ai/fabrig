@@ -659,8 +659,7 @@ fn model_proposal_configuration() -> (root::Config, root::Limits, core::Model) {
     let mut model = config.core.settings.models[0].clone();
     model.name = b"pending-only".as_slice().into();
     config.core.settings.models = Box::new([config.core.settings.models[0].clone(), model.clone()]);
-    config.core.settings.llm_providers.providers[0].models =
-        Box::new([b"scripted".as_slice().into(), model.name.clone()]);
+
     (config, limits, model)
 }
 

@@ -393,13 +393,14 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
     for name in ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-sol"] {
         let mut model = walking::models()[0].clone();
         model.name = name.as_bytes().into();
+        model.provider = if name.starts_with("claude") { 2 } else { 3 };
         model.program = Some(b"claude_code".as_slice().into());
         model.efforts = Box::new([b"low".as_slice().into(), b"high".as_slice().into()]);
         model.effort = Some(b"high".as_slice().into());
         models.push(model);
     }
     let mut providers = config.core.settings.llm_providers.providers.clone().into_vec();
-    for (number, name, names) in [
+    for (number, name, _names) in [
         (2, "anthropic", vec!["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1"]),
         (3, "openai", vec!["gpt-6.1-sol"]),
     ] {
@@ -408,7 +409,6 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
             name: name.as_bytes().into(),
             signed_in_plan: true,
             manage_usage: None,
-            models: names.iter().map(|name| name.as_bytes().into()).collect(),
             offers: accounts::Offers {
                 sign_in: false,
                 key: false,

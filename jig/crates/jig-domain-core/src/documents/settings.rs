@@ -104,6 +104,7 @@ pub(crate) fn build(core: &Core) -> Settings {
 pub(super) fn document_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<u64> {
     let count = crate::settings::capacity(limits)?
         .checked_mul(2)?
+        .checked_sub(jig_domain_tasks::MODELS)?
         .checked_add(crate::settings::application::capacity(kinds, limits)?)?;
     let mut charters = 0_u64;
     for kind in kinds {

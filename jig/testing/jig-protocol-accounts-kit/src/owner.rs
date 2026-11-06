@@ -167,7 +167,6 @@ impl Owner {
                         name: b"Fake".as_slice().into(),
                         signed_in_plan: true,
                         manage_usage: Some(b"https://usage.example/".as_slice().into()),
-                        models: Box::new([]),
                         offers: child::Offers { sign_in: true, key: false, programs: Box::new([]) },
                     }]),
                 },

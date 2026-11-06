@@ -122,6 +122,7 @@ pub(crate) fn is_application(setting: Setting) -> bool {
         Setting::Charter(_)
         | Setting::Template(_)
         | Setting::Policy(_)
+        | Setting::Model(_)
         | Setting::Rules
         | Setting::ProjectPolicy { .. } => false,
     }
@@ -133,7 +134,9 @@ pub(crate) fn projects(items: &[super::Item]) -> Box<[u32]> {
         let scope = match item.setting {
             Setting::ProjectPolicy { project } => project,
             Setting::Application { scope, .. } => scope,
-            Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => people::DEPLOYMENT,
+            Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Model(_) | Setting::Rules => {
+                people::DEPLOYMENT
+            }
         };
         names.insert(scope, ()).expect("one scope per item");
     }
@@ -164,7 +167,11 @@ pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
                 }
             }
             super::Edit::Set(
-                super::Value::Charter(_) | super::Value::Template(_) | super::Value::Policy(_) | super::Value::Rules(_),
+                super::Value::Charter(_)
+                | super::Value::Template(_)
+                | super::Value::Policy(_)
+                | super::Value::Model(_)
+                | super::Value::Rules(_),
             ) => {
                 return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
             }
@@ -193,6 +200,7 @@ fn same_scope(setting: Setting, kind: u32, scope: u32) -> bool {
         Setting::Charter(_)
         | Setting::Template(_)
         | Setting::Policy(_)
+        | Setting::Model(_)
         | Setting::Rules
         | Setting::ProjectPolicy { .. } => false,
     }
@@ -218,6 +226,7 @@ fn named(setting: Setting) -> Option<Name> {
         Setting::Charter(_)
         | Setting::Template(_)
         | Setting::Policy(_)
+        | Setting::Model(_)
         | Setting::Rules
         | Setting::ProjectPolicy { .. } => None,
     }
@@ -229,7 +238,11 @@ fn translate(item: &super::Item) -> Option<Item> {
         super::Edit::Removed => Edit::Remove,
         super::Edit::Reset => Edit::Reset,
         super::Edit::Set(
-            super::Value::Charter(_) | super::Value::Template(_) | super::Value::Policy(_) | super::Value::Rules(_),
+            super::Value::Charter(_)
+            | super::Value::Template(_)
+            | super::Value::Policy(_)
+            | super::Value::Model(_)
+            | super::Value::Rules(_),
         ) => unreachable!("checked application value"),
     };
     Some(Item { kind, scope, number, edit })
@@ -272,6 +285,7 @@ pub(crate) fn project_templates(core: &Core, owner: Token, project: u32) -> Box<
             super::Edit::Set(
                 super::Value::Charter(_)
                 | super::Value::Template(_)
+                | super::Value::Model(_)
                 | super::Value::Rules(_)
                 | super::Value::Application(_),
             )

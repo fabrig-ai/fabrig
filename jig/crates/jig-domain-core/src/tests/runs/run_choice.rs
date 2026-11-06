@@ -98,18 +98,17 @@ fn ready(none: bool) -> (Core, Limits) {
     let mut same = scripted_model();
     same.name = b"same".as_slice().into();
     let mut other = scripted_model();
+    other.provider = 2;
     other.name = b"other".as_slice().into();
     other.endpoint = 2;
     config.settings.models = Box::new([scripted_model(), same.clone(), other.clone()]);
     config.defaults.charters[0].policy.alternatives = Box::new([same, other]);
-    config.settings.llm_providers.providers[0].models =
-        Box::new([b"scripted".as_slice().into(), b"same".as_slice().into()]);
+
     let provider = accounts::Provider {
         name: b"Fake".as_slice().into(),
         signed_in_plan: !none,
         manage_usage: Some(b"https://usage.example/".as_slice().into()),
         number: 2,
-        models: Box::new([b"other".as_slice().into()]),
         offers: accounts::Offers { sign_in: !none, key: false, programs: Box::new([]) },
     };
     config.settings.llm_providers.providers = Box::new([config.settings.llm_providers.providers[0].clone(), provider]);

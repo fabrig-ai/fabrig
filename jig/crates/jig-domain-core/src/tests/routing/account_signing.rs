@@ -21,7 +21,6 @@ fn signing_core() -> (Core, Env<Limits>) {
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),
             number: 3,
-            models: Box::new([]),
             offers,
         }]),
     };

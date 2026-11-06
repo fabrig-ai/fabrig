@@ -321,7 +321,7 @@ pub static SHAPES: [Shape; 61] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 260] = [
+pub static MEMBERS: [Member; 262] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -1233,10 +1233,28 @@ pub static MEMBERS: [Member; 260] = [
     },
     Member {
         shape: "charter",
+        name: "rest",
+        kind: "boolean",
+        bound: "",
+        required: false,
+        line: "Includes the other catalogue models after those named; true when models is absent.",
+        gone: None,
+    },
+    Member {
+        shape: "charter",
+        name: "models",
+        kind: "list of text",
+        bound: "64 names, 4096 bytes per name",
+        required: false,
+        line: "Names the charter's first choices in order.",
+        gone: None,
+    },
+    Member {
+        shape: "charter",
         name: "model",
         kind: "text",
         bound: "4096 bytes",
-        required: true,
+        required: false,
         line: "Names the charter's main configured model.",
         gone: None,
     },
@@ -1245,7 +1263,7 @@ pub static MEMBERS: [Member; 260] = [
         name: "alternatives",
         kind: "list of text",
         bound: "4096 bytes per name",
-        required: true,
+        required: false,
         line: "Names the other configured models its sub-agents may use.",
         gone: None,
     },

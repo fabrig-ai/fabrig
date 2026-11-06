@@ -164,6 +164,7 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
         settings::Setting::Charter(_)
         | settings::Setting::Template(_)
         | settings::Setting::Policy(_)
+        | settings::Setting::Model(_)
         | settings::Setting::Rules => {}
     }
     if let settings::Setting::Charter(number) = setting {
@@ -576,7 +577,7 @@ pub fn valid_revision(revision: &settings::Revision, limits: &Limits) -> bool {
                             return false;
                         }
                     }
-                    settings::Value::Rules(_) => {}
+                    settings::Value::Rules(_) | settings::Value::Model(_) => {}
                     settings::Value::Application(_) => unreachable!("an application's setting: apps-core"),
                 }
             }

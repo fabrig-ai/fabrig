@@ -45,7 +45,6 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
             name: provider.name.clone(),
             signed_in_plan: provider.signed_in_plan,
             manage_usage: provider.manage_usage.clone(),
-            models: provider.models.clone(),
             offers,
         };
         llm_providers.push(value).expect("one per configured provider");
@@ -75,12 +74,14 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
         grants: engine.acts.clone(),
         kinds: Box::default(),
         defaults: domain::settings::Defaults {
+            models: catalogue(engine),
             charters: engine.charters.clone(),
             templates: engine.templates.clone(),
             policies: configured_policies(engine),
             rules: engine.rules.clone(),
         },
         settings: domain::Settings {
+            endpoints: endpoints(engine),
             deployment_provider: deployment_provider.expect("one checked deployment provider"),
             models: engine.llm.models.clone(),
             resume_bytes: limits.resume_bytes,
@@ -117,4 +118,37 @@ fn configured_policies(engine: &Engine) -> Map<u32, domain::ConfiguredPolicy> {
         assert!(previous.is_none(), "checked unique configured policy");
     }
     policies
+}
+
+fn catalogue(engine: &Engine) -> Box<[domain::settings::CatalogueModel]> {
+    let mut result = List::with_capacity(jig_domain_tasks::MODELS);
+    for (at, model) in engine.llm.models.iter().enumerate() {
+        result
+            .push(domain::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded model position").checked_add(1).expect("model number"),
+                model: model.clone(),
+                shown: engine.llm.shown.get(at).expect("one shown name per model").clone(),
+                description: engine.llm.descriptions.get(at).expect("one description per model").clone(),
+                picker: *engine.llm.pickers.get(at).expect("one picker per model"),
+                withdrawn: false,
+                source: domain::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .expect("configured model count");
+    }
+    result.into_boxed()
+}
+
+fn endpoints(engine: &Engine) -> Box<[domain::EndpointFacts]> {
+    let mut endpoints = List::with_capacity(u32::try_from(engine.llm.endpoints.len()).expect("endpoint count"));
+    for endpoint in &engine.llm.endpoints {
+        endpoints
+            .push(domain::EndpointFacts {
+                number: endpoint.number,
+                dialect: endpoint.dialect,
+                program: endpoint.program.clone(),
+            })
+            .expect("endpoint count");
+    }
+    endpoints.into_boxed()
 }

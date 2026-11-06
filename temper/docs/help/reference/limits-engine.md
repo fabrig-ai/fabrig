@@ -221,7 +221,7 @@ temper sizes the engine's watch rooms itself: a stream holds 19 watches, and the
 - `core.settings.revisions`: count, 4. Bounds settings revisions held besides the newest.
 - `core.settings.versions`: count, 8. Bounds charter versions held besides the newest settings view.
 - `core.settings.history`: count, 64. Bounds revision records kept in the store beyond those held.
-- `core.settings.alternatives`: count, 16. Bounds model alternatives in a charter policy.
+- `core.settings.alternatives`: count, 63. Bounds model alternatives in a charter policy.
 - `core.settings.permissions`: count, 32. Bounds permissions in one settings policy value.
 - `core.templates`: count, 8. Bounds configured templates and overrides per project policy.
 - `core.fill_mark`: bytes, 268,435,456. Bounds store map bytes at or above which new party work is refused.

@@ -127,6 +127,7 @@ pub fn domain() -> Domain {
                 seed_projects: Box::new([]),
                 connectors: Box::new([1, 2]),
                 settings: core::Settings {
+                    endpoints: Box::default(),
                     deployment_provider: 3,
                     models: Box::new([run().policy.model]),
                     resume_bytes: 256,
@@ -140,14 +141,15 @@ pub fn domain() -> Domain {
                             signed_in_plan: true,
                             manage_usage: Some(b"https://usage.example/".as_slice().into()),
                             number: 1,
-                            models: Box::new([b"small".as_slice().into()]),
                             offers: jig_domain_accounts::Offers { sign_in: true, key: false, programs: Box::new([]) },
                         }]),
                     },
                 },
                 kinds: Box::default(),
                 defaults: core::settings::Defaults {
+                    models: Box::default(),
                     charters: Box::new([core::Charter {
+                        rest: false,
                         wake: jig_domain_tasks::WakePolicy::DEFAULT,
                         documents: Box::new([]),
                         number: 1,
@@ -194,6 +196,7 @@ pub fn run() -> Box<core::RunCharter> {
             reserve_turns: 1,
             reserve_time: Duration::from_secs(10),
             model: core::Model {
+                provider: 1,
                 dialect: 3,
                 endpoint: 1,
                 program: None,

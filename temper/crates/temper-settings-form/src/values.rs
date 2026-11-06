@@ -14,6 +14,8 @@ pub fn encode_document_text(value: &c::DocumentText, out: &mut Encoder) {
 }
 pub fn encode_charter(value: &c::Charter, out: &mut Encoder) {
     out.object_start();
+    out.key(b"rest");
+    out.boolean(value.rest);
     out.key(b"number");
     out.unsigned(u64::from(value.number));
     out.key(b"instructions");
@@ -247,6 +249,8 @@ pub fn encode_rules(value: &c::Rules, out: &mut Encoder) {
 }
 pub fn encode_setting_model(value: &c::SettingModel, out: &mut Encoder) {
     out.object_start();
+    out.key(b"provider");
+    out.unsigned(u64::from(value.provider));
     out.key(b"dialect");
     out.unsigned(u64::from(value.dialect));
     out.key(b"endpoint");
@@ -834,4 +838,35 @@ fn encode_wake_rule(value: c::WakeRule, out: &mut Encoder) {
             out.object_end();
         }
     }
+}
+
+pub fn encode_catalogue(value: &c::CatalogueEntry, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"number");
+    out.unsigned(u64::from(value.number));
+    out.key(b"model");
+    encode_setting_model(&value.model, out);
+    out.key(b"shown");
+    match &value.shown {
+        Some(value) => encode_text(value, out),
+        None => out.null(),
+    }
+    out.key(b"description");
+    match &value.description {
+        Some(value) => encode_text(value, out),
+        None => out.null(),
+    }
+    out.key(b"picker");
+    out.boolean(value.picker);
+    out.key(b"withdrawn");
+    out.boolean(value.withdrawn);
+    out.key(b"source");
+    out.string(match value.source {
+        c::ModelSource::Stock => b"stock",
+        c::ModelSource::List => b"list",
+        c::ModelSource::Person => b"person",
+    });
+    out.key(b"estimated");
+    out.boolean(value.estimated);
+    out.object_end();
 }

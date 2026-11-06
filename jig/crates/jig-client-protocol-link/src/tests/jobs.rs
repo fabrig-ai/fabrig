@@ -103,7 +103,8 @@ fn a_job_contract_round_trips() {
     for value in &values {
         match value {
             c::SettingValue::Template(value) => template = Some(value.clone()),
-            c::SettingValue::Application(_)
+            c::SettingValue::Model(_)
+            | c::SettingValue::Application(_)
             | c::SettingValue::Charter(_)
             | c::SettingValue::Policy(_)
             | c::SettingValue::Rules(_) => {}

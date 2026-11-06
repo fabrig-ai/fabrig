@@ -97,6 +97,13 @@ pub(crate) fn parse(
     }
     let providers = providers::parse(&mut object, document, path, models.as_slice(), directories, problems);
     program_bindings(endpoints.as_slice(), models.as_slice(), providers.as_slice(), path, problems);
+    for model in models.iter_mut() {
+        for provider in &providers {
+            if provider.models.contains(&model.name) {
+                model.provider = provider.number;
+            }
+        }
+    }
     object.finish(document, path, problems);
     Some(Llm {
         endpoints: endpoints.into_boxed(),
@@ -399,6 +406,7 @@ fn price(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> 
     }
     object.finish(document, path, problems);
     Some(Model {
+        provider: 0,
         name: Box::default(),
         dialect: 0,
         endpoint: 0,

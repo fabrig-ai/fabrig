@@ -64,6 +64,7 @@ fn run() -> Box<core::RunCharter> {
             reserve_turns: 1,
             reserve_time: Duration::from_secs(10),
             model: core::Model {
+                provider: 1,
                 dialect: 3,
                 endpoint: 1,
                 program: None,

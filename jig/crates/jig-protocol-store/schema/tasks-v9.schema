@@ -153,7 +153,7 @@ record ProposedAmendment { task: u64 revision: u64 amendment: Amendment }
 record ProposedWidening { task: u64 authority: Authority }
 record ReleasePlaced { task: u64 hold: u64 revision: u64 }
 record SettingNumber { number: u32 }
-enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules }
+enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, model: SettingNumber }
 enum SettingEdit { set, removed, reset }
 record SettingHead { setting: Setting edit: SettingEdit }
 record ProposedSettings { against: u32 items: list 128 SettingHead }
