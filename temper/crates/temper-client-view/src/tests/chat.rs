@@ -194,7 +194,7 @@ fn reading_past_the_bound_only_removes_released_lines() {
     while patches.pop().is_some() {}
     let mut released = None;
     for node in before.nodes() {
-        if node.styles.as_slice().contains(&crate::look::TURN) {
+        if node.styles.as_slice().contains(&crate::look::TURN) && node.key.is_some() {
             released = Some(node.id);
         }
     }
@@ -1317,7 +1317,7 @@ fn person_words_keep_their_shell_and_only_assistant_calls_keep_work() {
     let tree = tree(&structured_thread());
     {
         let at = styled(&tree, look::BY_PERSON);
-        assert_eq!(tree.nodes()[at].role, Role::Region);
+        assert_eq!(tree.nodes()[at].role, Role::Slot);
         assert!(tree.nodes()[at].styles.as_slice().contains(&look::MESSAGE));
         let nodes = subtree(&tree, at);
         let who = style_position(nodes, look::WHO).expect("who");

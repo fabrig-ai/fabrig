@@ -937,6 +937,8 @@ fn heard_card(
 }
 fn provisional(b: &mut Builder, message: &[u8], words: &Words) {
     b.open(Role::Region);
+    b.style(look::TURN);
+    b.open(Role::Slot);
     b.style(look::MESSAGE);
     b.style(look::BY_AGENT);
     b.open(Role::Slot);
@@ -956,6 +958,7 @@ fn provisional(b: &mut Builder, message: &[u8], words: &Words) {
         },
         b,
     );
+    b.close();
     b.close();
     b.close();
 }
@@ -1095,6 +1098,8 @@ fn words_message(
     clock: Option<&[u8]>,
 ) {
     b.open(Role::Region);
+    b.style(look::TURN);
+    b.open(Role::Slot);
     b.style(look::MESSAGE);
     b.style(side);
     b.open(Role::Slot);
@@ -1119,6 +1124,7 @@ fn words_message(
     text(b, Role::Paragraph, message.get(start..).expect("last paragraph"));
     b.close();
     b.close();
+    b.close();
 }
 
 fn person_lines(
@@ -1131,6 +1137,8 @@ fn person_lines(
     clock: Option<&[u8]>,
 ) {
     b.open(Role::Region);
+    b.style(look::TURN);
+    b.open(Role::Slot);
     b.style(look::MESSAGE);
     b.style(look::BY_PERSON);
     b.open(Role::Slot);
@@ -1153,6 +1161,7 @@ fn person_lines(
     b.open(Role::Slot);
     b.style(look::SAYS);
     text(b, Role::Paragraph, message);
+    b.close();
     b.close();
     b.close();
 }
@@ -1259,6 +1268,8 @@ fn committed<'a>(
             match block {
                 c::Block::Text(value) => {
                     b.open(Role::Region);
+                    b.style(look::TURN);
+                    b.open(Role::Slot);
                     b.style(look::MESSAGE);
                     b.style(match message.speaker {
                         c::Speaker::Assistant => look::BY_AGENT,
@@ -1289,6 +1300,7 @@ fn committed<'a>(
                     b.open(Role::Slot);
                     b.style(look::SAYS);
                     skein_ui::markdown::read(value.bytes(), 2, b);
+                    b.close();
                     b.close();
                     b.close();
                 }
@@ -1333,6 +1345,8 @@ fn committed<'a>(
                         cards(b, tasks, drawing.delegations, shown, words, bindings);
                     } else {
                         b.open(Role::Region);
+                        b.style(look::TURN);
+                        b.open(Role::Slot);
                         b.style(look::MESSAGE);
                         b.style(look::BY_TOOL);
                         b.open(Role::Slot);
@@ -1345,6 +1359,7 @@ fn committed<'a>(
                         b.style(look::WORK);
                         words.card_text(b, if *failed { P::CallFailed } else { P::CallCompleted }, &[]);
                         text(b, Role::Paragraph, first_line(summary.bytes()));
+                        b.close();
                         b.close();
                         b.close();
                         b.close();
