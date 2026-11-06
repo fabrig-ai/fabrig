@@ -244,6 +244,7 @@ fn engine_proposal() -> jig_domain_core::documents::Proposal {
         .push(reads::RevisionItemHead { setting: s::Setting::Template(1), edit: reads::RevisionEdit::Set })
         .expect("head");
     d::Proposal {
+        projects: skein_lib::List::with_capacity(0),
         proposer: jig_domain_people::Proposer::Party(9),
         number: 7,
         project: 0,
@@ -263,6 +264,66 @@ fn engine_proposal() -> jig_domain_core::documents::Proposal {
         acts: skein_lib::List::with_capacity(0),
     }
 }
+#[test]
+fn settings_proposal_projects_cross_the_row_and_document_wire() {
+    use jig_domain_core::{documents as d, reads};
+    use jig_protocol_engine_clients::translate as engine;
+    use skein_lib::List;
+    let limits = limits();
+    let mut source = engine_proposal();
+    source.projects = List::with_capacity(2);
+    source.projects.push(1).expect("first project");
+    source.projects.push(2).expect("second project");
+    let wire = engine::objects::proposal(&[], &source, limits.wire()).expect("engine proposal");
+    let c::ReadValue::Proposal(proposal) =
+        translate::reads::value(&encoded!(&w::ReadValue::Proposal(wire)), &limits).expect("proposal through link")
+    else {
+        panic!("proposal document")
+    };
+    assert_eq!(proposal.projects.as_slice(), &[1, 2]);
+    assert_eq!(proposal.project, 0);
+    assert_eq!(
+        proposal.waiting.holder,
+        c::HistoryHolder::Policy { project: 0, kind: c::MessageProposalKind::Settings }
+    );
+    let object = d::InboxObject::Proposal { proposer: source.proposer, number: source.number };
+    let row = d::InboxEntry {
+        projects: source.projects,
+        reply: None,
+        task: d::TaskLink::Stored { number: 0, status: None },
+        project: Some(0),
+        object,
+        activity: None,
+        at: None,
+        unread: None,
+        cursor: d::Cursor::Inbox { task: 0, object, at: None },
+    };
+    let mut rows = List::with_capacity(1);
+    rows.push(reads::PageRow::Inbox(row)).expect("one row");
+    let read = reads::Read::Inbox {
+        group: reads::Group::Proposals,
+        filter: reads::Filter { project: Some(1), goal: None },
+        from: None,
+    };
+    let wire = engine::pages::page(
+        &[],
+        &read,
+        &reads::Page { rows, before: None, next: None, cut: false, inbox_selection: None },
+        limits.wire(),
+    )
+    .expect("inbox wire");
+    let c::ReadValue::Inbox(inbox) = translate::reads::value(&encoded!(&wire), &limits).expect("inbox through link")
+    else {
+        panic!("inbox page")
+    };
+    let row = inbox.rows.get(0).expect("proposal row");
+    assert_eq!(row.projects, proposal.projects);
+    assert!(row.shows_in(0));
+    assert!(row.shows_in(1));
+    assert!(row.shows_in(2));
+    assert!(!row.shows_in(3));
+}
+
 #[test]
 fn engine_pending_settings_review_reaches_the_client_and_encodes_back_without_loss() {
     let limits = limits();

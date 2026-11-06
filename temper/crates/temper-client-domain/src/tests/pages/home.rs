@@ -1322,16 +1322,24 @@ fn landed_since_saturates() {
     }
 }
 #[test]
-fn a_brief_is_shown_only_above_seen() {
+fn a_brief_can_be_new_by_landing_or_by_when_it_was_written() {
     let mut facts = home::facts(&fixture().root, f::PROJECT, Wall::EPOCH);
     assert!(facts.brief().is_none());
-    for brief in [None, Some(1), Some(2), Some(3)] {
-        let document = crate::tests::status::document(4, 2, brief);
+    for (brief, previous, shown) in [
+        (None, Some(50), false),
+        (Some(2), None, false),
+        (Some(2), Some(99), true),
+        (Some(2), Some(100), false),
+        (Some(3), None, true),
+    ] {
+        let mut parts = crate::tests::status::document(4, 2, brief).into_parts();
+        parts.previous = previous;
+        let document = w::ProjectStatus::new(&w::CEILINGS, parts).unwrap();
         facts.status = home::Status::Shown(Box::new(document.clone()));
-        let expected = if brief == Some(3) { document.brief().as_ref() } else { None };
-        assert_eq!(facts.brief(), expected);
+        assert_eq!(facts.brief(), if shown { document.brief().as_ref() } else { None });
     }
 }
+
 #[test]
 fn a_watch_that_cannot_be_made_waits_for_reentry() {
     let mut f = fixture();
@@ -1409,8 +1417,8 @@ fn needs_count_falls_when_answered_and_keeps_later_cards() {
     let reads = inbox_reads(&out);
     let mut rows = List::with_capacity(ONE);
     rows.push(f::inbox_entry(f::acts::QUESTION, c::InboxGroup::Questions, f::PROJECT, 0)).unwrap();
-    let cards = inbox_page(&mut f.root, reads[0].0, rows, false);
-    inbox_page(&mut f.root, reads[1].0, List::with_capacity(EMPTY), false);
+    inbox_page(&mut f.root, reads[0].0, rows, false);
+    let cards = inbox_page(&mut f.root, reads[1].0, List::with_capacity(EMPTY), false);
     let cards = inbox_reads(&cards);
     up(&mut f.root, Up::ReadDone { read: cards[0].0, result: Readout::Jig(c::ReadResult::Value(f::acts::question())) });
     event(

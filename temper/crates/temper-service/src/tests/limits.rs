@@ -42,8 +42,9 @@ fn an_override_sets_the_field_its_dotted_name_names() {
     assert_eq!(limits.forge_component.log_pages, 10);
     assert_eq!(limits.forge_component.delivery_bytes, 1_048_576);
     assert_eq!(limits.forge.change_policy.questions, 4);
-    let rows: [(&[u8], u64); 15] = [
+    let rows: [(&[u8], u64); 16] = [
         (b"forge.repositories", 3),
+        (b"forge.sitting_ms", 3000),
         (b"forge.change_policy.questions", 7),
         (b"forge.client.calls", 5),
         (b"forge.client.settle_ms", 2_000),
@@ -63,6 +64,7 @@ fn an_override_sets_the_field_its_dotted_name_names() {
         assert_eq!(limits::apply(&mut limits, name, value), Ok(()), "{name:?}");
     }
     assert_eq!(limits.forge.repositories, 3);
+    assert_eq!(limits.forge.sitting, Duration::from_secs(3));
     assert_eq!(limits.forge.change_policy.questions, 7);
     assert_eq!(limits.forge.client.calls, 5);
     assert_eq!(limits.forge.client.settle, Duration::from_secs(2));
@@ -108,8 +110,9 @@ fn a_zero_change_tasks_override_refuses_the_start_naming_the_limit() {
 fn an_unknown_name_or_a_value_past_its_type_is_refused() {
     let mut limits = limits::profile(limits::Profile::Small);
     let before = limits;
-    let rows: [(&[u8], u64, limits::Refused); 5] = [
+    let rows: [(&[u8], u64, limits::Refused); 6] = [
         (b"forge.unknown", 1, limits::Refused::Unknown),
+        (b"forge.sitting_ms", u64::MAX, limits::Refused::Range),
         (b"Forge.repositories", 1, limits::Refused::Unknown),
         (b"forge.repositories", u64::from(u32::MAX) + 1, limits::Refused::Range),
         (b"root.loads.rows", u64::MAX, limits::Refused::Range),
@@ -139,6 +142,14 @@ fn an_unknown_name_or_a_value_past_its_type_is_refused() {
 fn the_small_profile_passes_each_domains_validity() {
     let settings = fixtures::engine();
     assert!(temper_engine_domain_forge::valid(&settings.limits.forge));
+    for profile in [limits::Profile::Small, limits::Profile::Standard] {
+        let mut bounds = limits::profile(profile).forge;
+        assert_eq!(bounds.sitting, temper_engine_domain_forge::SITTING);
+        bounds.sitting = Duration::ZERO;
+        assert!(!temper_engine_domain_forge::valid(&bounds));
+        bounds.sitting = Duration::from_millis(1);
+        assert!(temper_engine_domain_forge::valid(&bounds));
+    }
     assert!(temper_worker_domain_checkout::valid(&settings.limits.checkout));
     assert_eq!(temper_worker_protocol_git::check(&settings.limits.git_component, &settings.limits.checkout), Ok(()));
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);

@@ -291,6 +291,7 @@ fn task() -> Task {
 }
 fn proposal(key: ProposalKey) -> Proposal {
     Proposal {
+        projects: List::with_capacity(0),
         key,
         project: 3,
         reason: DocumentText::complete(text(&[b'w'; 32])),

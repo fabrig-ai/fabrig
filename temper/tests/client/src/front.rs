@@ -33,6 +33,7 @@ pub struct Joint {
     pub replacements: Vec<(u16, Token)>,
     pub playground: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
     pub deployment: (bool, bool),
+    pub program_environment: Box<[u8]>,
     pub hold_playground_end: bool,
     held_playground_end: Vec<(ClientId, Event)>,
     pub playground_ends: Vec<skein_lib::RequestKey>,
@@ -448,14 +449,24 @@ impl Joint {
     /// (temper/docs/design/domain/agent.md, 8.1).
     #[must_use]
     pub fn with_configuring(seed: u64, limits: client::Limits, member: bool) -> Self {
+        Self::with_configuring_projects(seed, limits, member, 1)
+    }
+
+    /// Configuring proposals read across this many seeded projects.
+    #[must_use]
+    pub fn with_configuring_projects(seed: u64, limits: client::Limits, member: bool, projects: u32) -> Self {
         let mut engine_limits = engine_limits();
+        engine_limits.people.projects = projects + 1;
+        engine_limits.authority.projects = projects;
+        engine_limits.forge.judge_projects = projects;
+        engine_limits.people.holdings = projects + 1;
         engine_limits.tasks.charters = 2;
         engine_limits.tasks.executor_kinds = 2;
         engine_limits.authority.executors = 2;
         engine_limits.authority.roles = 2;
         engine_limits.documents.executors = 2;
         engine_limits.templates = 3;
-        engine_limits.people.initial_owners = 2;
+        engine_limits.people.initial_owners = projects + 1;
         engine_limits.people.requests = 16;
         engine_limits.people.words = 512;
         engine_limits.tasks.message_bytes = 512;
@@ -464,7 +475,23 @@ impl Joint {
         // Stock charter 3 owns 5,034 bytes of instructions and run policy.
         engine_limits.journal.run_bytes = 8192;
         engine_limits.documents.text_bytes = 4096;
-        let config = fixtures::configuring_configuration(seed, member);
+        let mut config = fixtures::configuring_configuration(seed, member);
+        let policy = config.core.seed_projects[0].policy.clone();
+        config.core.seed_projects = (1..=projects)
+            .map(|number| jig_domain_core::SeedProject {
+                number,
+                name: format!("Project {number}").into_boxed_str(),
+                policy: policy.clone(),
+            })
+            .collect();
+        let owner = config.core.owners[0].clone();
+        let mut owners = config.core.owners.into_vec();
+        for project in 2..=projects {
+            let mut owner = owner.clone();
+            owner.project = project;
+            owners.push(owner);
+        }
+        config.core.owners = owners.into_boxed_slice();
         let mut driver = Driver::cold(Store::with_limits(&engine_limits), config, &engine_limits);
         driver.settle();
         // The account component plays a fake key; no secret bytes enter this world.
@@ -973,7 +1000,9 @@ impl Joint {
         reviewer.policy.agents = false;
         config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), reviewer]);
     }
-    fn with_engine(
+    /// Join a story's engine configuration to the client protocol and its observations.
+    #[must_use]
+    pub fn with_engine(
         seed: u64,
         limits: &client::Limits,
         store: Store,
@@ -1062,6 +1091,7 @@ impl Joint {
             replacements: Vec::new(),
             playground: None,
             deployment: (true, true),
+            program_environment: Box::new([]),
             hold_playground_end: false,
             held_playground_end: Vec::new(),
             playground_ends: Vec::new(),
@@ -1400,6 +1430,32 @@ impl Joint {
                                 result: jig_client::Readout::Family {
                                     family: wire::FORGE,
                                     record: Some(wire::deployment_answer(&answer)),
+                                },
+                            },
+                        },
+                    }
+                    .into(),
+                ));
+                return true;
+            }
+            if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
+                .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::ProgramEnvironment)
+            {
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                let answer = w::ProgramEnvironmentAnswer::new(
+                    &w::CEILINGS,
+                    w::ProgramEnvironmentAnswerParts { environment: self.program_environment.clone() },
+                )
+                .expect("program environment");
+                self.callbacks.push((
+                    who,
+                    RootEvent::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read: *read,
+                                result: jig_client::Readout::Family {
+                                    family: wire::FORGE,
+                                    record: Some(wire::program_environment_answer(&answer)),
                                 },
                             },
                         },

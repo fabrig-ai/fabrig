@@ -95,6 +95,7 @@ pub(in crate::codec) fn wire_inbox_entry(
     w::InboxEntry::new(
         limits,
         w::InboxEntryParts {
+            projects: value.projects.clone(),
             reply: value.reply.as_ref().map(|item| wire_task_line(item, limits)).transpose()?,
             task: wire_task_link(&value.task, limits)?,
             project: value.project.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,

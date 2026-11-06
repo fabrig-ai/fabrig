@@ -667,15 +667,35 @@ impl Facts {
             Status::Unknown => 0,
         }
     }
-    /// The brief that covers changes beyond the previous sitting.
+    /// The brief that covers new landings or was written since the previous sitting.
     #[must_use]
     pub fn brief(&self) -> Option<&w::StatusBrief> {
         match &self.status {
             Status::Shown(document) => match document.brief() {
-                Some(brief) if brief.landed() > document.seen() => Some(brief),
+                Some(brief)
+                    if brief.landed() > document.seen()
+                        || match document.previous() {
+                            Some(previous) => brief.at() > *previous,
+                            None => false,
+                        } =>
+                {
+                    Some(brief)
+                }
                 Some(_) | None => None,
             },
             Status::Unknown => None,
+        }
+    }
+
+    /// The latest landing, when the project has landed anything.
+    #[must_use]
+    pub fn last_landed(&self) -> Option<Wall> {
+        match &self.status {
+            Status::Shown(document) if document.landed() > 0 => match document.last_landed() {
+                Some(at) => Some(Wall::from_nanos(*at)),
+                None => None,
+            },
+            Status::Shown(_) | Status::Unknown => None,
         }
     }
 

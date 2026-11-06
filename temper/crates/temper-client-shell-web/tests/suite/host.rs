@@ -43,9 +43,11 @@ fn a_drawn_page_carries_the_views_hrefs() {
     );
 }
 
+#[path = "host/redacted.rs"]
+mod redacted;
 #[path = "host/walk.rs"]
 mod walk;
-use temper_client_shell_web::journey::{Line, Refusal, Replay, Stale, lines, prove};
+use temper_client_shell_web::journey::{Line, Refusal, Replay, Stale, lines, prove, prove_drawn};
 
 fn written(records: &[Line]) -> Box<[u8]> {
     let mut out = Vec::new();
@@ -99,6 +101,23 @@ fn a_recorded_walk_proves_and_replays_its_marks() {
     assert!(end.acted.is_empty());
     assert!(end.recorded.is_none());
     assert!(replay.next().expect("after end").is_none());
+}
+#[test]
+fn the_proof_gives_each_turns_drawn_page() {
+    let recording = walk::walked();
+    let records = lines(&recording).expect("walk's lines");
+    let deadlines = records.iter().filter(|line| matches!(line, Line::Deadline(_))).count();
+    let mut turns = Vec::new();
+    let mut last_page = None;
+    prove_drawn(&recording, &mut |turn, page| {
+        turns.push(turn);
+        last_page = Some(page.html());
+    })
+    .expect("live walk proves with drawn pages");
+    assert_eq!(turns.len(), deadlines, "one drawn page per deadline");
+    assert!(turns.into_iter().eq(1..=u32::try_from(deadlines).expect("turn count fits")));
+    let Some(Line::End(Some(html))) = records.last() else { panic!("walk ends with a live print") };
+    assert!(last_page.is_some_and(|page| page.as_bytes() == html.as_ref()), "last drawn page is the end print");
 }
 #[test]
 fn a_proved_recording_keeps_no_html() {

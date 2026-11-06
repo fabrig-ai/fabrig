@@ -266,6 +266,7 @@ fn a_page_at_its_kinds_bound_passes_and_one_byte_more_fails() {
             Kind::Concept => CONCEPT,
             Kind::Walk => WALK,
             Kind::Recipe => RECIPE,
+            Kind::Way => "## 1. First\n",
             Kind::Index | Kind::Reference => "",
         };
         let mut padded = String::from(text);
@@ -458,4 +459,34 @@ fn forgejo_help_says_what_a_hook_on_this_host_needs() {
     for words in ["ALLOWED_HOST_LIST", "application.webhooks.listener", "by polling"] {
         assert!(text.contains(words), "Forgejo help must explain {words}");
     }
+}
+
+#[test]
+fn a_way_numbers_its_sections_from_one() {
+    template(&fixture(Kind::Way, "## 1. First\n## 2. Next\n")).expect("numbered sections");
+    for text in ["", "## 2. First\n", "## 1. First\n## 3. Next\n", "## First\n", "## 1. \n"] {
+        fails(template, &fixture(Kind::Way, text), "headings");
+    }
+}
+
+#[test]
+fn the_way_shows_placeholder_figures_and_no_address() {
+    let text = HOW_TEMPER_BUILDS_TEMPER.text;
+    for line in ["- Merges: —", "- Agent runs: —", "- Workers: —", "Figures to come."] {
+        assert!(text.lines().any(|found| found == line), "{line}");
+    }
+    assert!(!text.contains("://"));
+    let note = Path::new(&std::env::var("CARGO_MANIFEST_DIR").expect("package path at test time"))
+        .join("../../docs/plan/look-round-8/notes/how-temper-builds-temper.md");
+    assert_eq!(text.as_bytes(), fs::read(note).expect("source note"));
+}
+
+#[test]
+fn the_const_is_the_tables_row() {
+    let row = find(b"how-temper-builds-temper").expect("way in table");
+    let page = HOW_TEMPER_BUILDS_TEMPER;
+    assert_eq!(
+        (row.name, row.kind, row.title, row.summary, row.text),
+        (page.name, page.kind, page.title, page.summary, page.text)
+    );
 }

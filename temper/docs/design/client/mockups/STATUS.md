@@ -120,7 +120,7 @@ Where the client does otherwise:
 
   | Page | Where the client does otherwise, or what is left |
   |---|---|
-  | The configuring chat's page (`chat.html?id=new&configure=1`) | In the project's frame, with Settings current, at `/projects/<project>/settings/configure` (`../browser.md`, 2.3); a configuring chat keeps that layout at `/chats/<task>` (`../README.md`, 3.5). The rail stays on a wide page; on a phone it and the tabs go so the composer keeps the foot. The page is named "Configure temper": its opening is a page in a column at most 720 px wide, the project's question, lede, what it sets, three starter cards and the fourth starter as a link, above the focused composer. The opening, turns and composer share their edges, with both scrollbar gutters on a wide page and 16 px in on a phone. Typing, sending, refusal and reopening keep their words and controls. Settings' first link, "Configure temper", opens the newest configuring chat not closed in its delivered rows, or this opening. Chats tags it "Configuring"; its offer and To begin keep "Tell temper how you work". |
+  | The configuring chat's page (`chat.html?id=new&configure=1`) | In the project's frame, with Settings current, at `/projects/<project>/settings/configure` (`../browser.md`, 2.3); a configuring chat keeps that layout at `/chats/<task>` (`../README.md`, 3.5). The rail stays on a wide page; on a phone it and the tabs go so the composer keeps the foot. The page is named "Configure temper": its opening is a page in a column at most 720 px wide, the project's question, lede, what it sets, three starter cards and the fourth starter as a link in the section’s head, then the card "At scale, as temper builds itself", its steps and its two buttons, above the focused composer. "See how it works" opens the stock reference "How temper builds temper" beside the page in Split, with the rail folded; Chat keeps the mode group and folds the reference. On a phone the reference stands alone as Draft, above the composer. The opening, turns and composer share their edges, with both scrollbar gutters on a wide page and 16 px in on a phone. Typing, sending, refusal and reopening keep their words and controls. Settings' first link, "Configure temper", opens the newest configuring chat not closed in its delivered rows, or this opening. Chats tags it "Configuring"; its offer and To begin keep "Tell temper how you work". |
 
   The model line names the first usable account's kind and the first
   model `me` serves for the project (`../README.md`, 3.5), rather than
@@ -265,6 +265,14 @@ The two additional gallery states are the first plan's Chats at step 5
 and the retired playground's T1 at step 7. This group remains here:
 its drawings still include the future pieces and missing facts below,
 unmarked in their main drawing.
+
+The `chat-work` conversation is drawn through the view in the gallery's
+`chat-work-*` states (`../browser.md`, 7.2): a folded run of calls and its
+rows, an answer's end mark, Latest while reading back, and the loading
+status at the head. The remaining live-text, list and scrolling behaviour,
+and an agent's running state and pill, belong to
+`../../draft/chat-reading.status.md`, sections 2, 3, 5, 6 and 7.
+"Older" remains the route to history until the log supplies a head-near act.
 
 Where the client's recorded picks stand against the drawing:
 

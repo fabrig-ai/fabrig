@@ -408,7 +408,8 @@ impl Task {
                 }
             }
             Act::Older => {}
-            Act::FocusComposer
+            Act::Latest
+            | Act::FocusComposer
             | Act::Amend
             | Act::AmendWords { .. }
             | Act::AmendTracked
@@ -444,6 +445,7 @@ impl Task {
             | Act::ConnectModel(_)
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::ShowReference
             | Act::Starter { .. }
             | Act::SkipToBegin
             | Act::RetryPlayground
@@ -575,6 +577,7 @@ impl Task {
             | Act::ConnectModel(_)
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::ShowReference
             | Act::Starter { .. }
             | Act::SkipToBegin
             | Act::RetryPlayground
@@ -590,6 +593,7 @@ impl Task {
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Older
+            | Act::Latest
             | Act::ClosedChats
             | Act::MoreGoals
             | Act::GoalsFilter { .. }
