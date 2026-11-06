@@ -1,4 +1,6 @@
+use crate::read_support::REQUEST_BASE;
 use jig_core_world::fixtures::PARTY;
+use jig_core_world::fixtures::party_ask;
 use jig_core_world::world::Setup;
 const FIRST_TURN: u32 = 1;
 const SECOND_TURN: u32 = 2;
@@ -373,7 +375,7 @@ fn a_conversation_mark_waits_for_its_concurrent_ending() {
         2,
     );
     let seen = people::Seen::Conversation { task, through: 2 };
-    let mark = crate::read_support::request_event(&world, SECOND_MARK, people::Ask::MarkSeen { seen });
+    let mark = party_ask(REQUEST_BASE, world.sign_in.expect("signed in"), SECOND_MARK, people::Ask::MarkSeen { seen });
     world.send_all(vec![end, mark]);
     assert_eq!(world.people_answers.last(), Some(&people::Reply::Outcome(people::Outcome::MarkedSeen { seen })));
     assert_ended_position(&mut world, task, 2, 0);
@@ -387,13 +389,15 @@ fn a_second_conversation_mark_is_busy_while_loading() {
     world.turn(THIRD_TURN, 3, None, b"third");
     jig_core_world::fixtures::finish_chat(&mut world, 3, b"done");
     world.store_delay = 3;
-    let first = crate::read_support::request_event(
-        &world,
+    let first = party_ask(
+        REQUEST_BASE,
+        world.sign_in.expect("signed in"),
         FIRST_MARK,
         people::Ask::MarkSeen { seen: people::Seen::Conversation { task, through: 2 } },
     );
-    let second = crate::read_support::request_event(
-        &world,
+    let second = party_ask(
+        REQUEST_BASE,
+        world.sign_in.expect("signed in"),
         SECOND_MARK,
         people::Ask::MarkSeen { seen: people::Seen::Conversation { task, through: 1 } },
     );

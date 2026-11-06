@@ -1,10 +1,11 @@
 //! A task's retention class decides what its reading erases (people.md, 6).
 
+use crate::read_support::REQUEST_BASE;
 use jig_core_world::fixtures::PARTY;
+use jig_core_world::fixtures::party_ask;
 const CONVERSATION_MARK: u8 = 63;
 use crate::read_support::forgettable_world;
 use crate::read_support::request;
-use crate::read_support::request_event;
 use crate::read_support::world;
 use jig_core_world::world::Cut;
 use jig_core_world::world::World;
@@ -110,18 +111,21 @@ fn a_results_mark_is_busy_while_a_conversation_loads() {
     let (task, through) = finish(&mut world);
     request(&mut world, MARK_TURNS, people::Ask::MarkSeen { seen: people::Seen::Conversation { task, through: 1 } });
     world.store_delay = 3;
-    let chat = crate::read_support::request_event(
-        &world,
+    let chat = party_ask(
+        REQUEST_BASE,
+        world.sign_in.expect("signed in"),
         CONVERSATION_MARK,
         people::Ask::MarkSeen { seen: people::Seen::Conversation { task, through: 1 } },
     );
-    let results = crate::read_support::request_event(
-        &world,
+    let results = party_ask(
+        REQUEST_BASE,
+        world.sign_in.expect("signed in"),
         MARK_RESULTS,
         people::Ask::MarkSeen { seen: people::Seen::Results { through } },
     );
-    let other_chat = request_event(
-        &world,
+    let other_chat = party_ask(
+        REQUEST_BASE,
+        world.sign_in.expect("signed in"),
         MARK_TURNS,
         people::Ask::MarkSeen { seen: people::Seen::Conversation { task, through: 1 } },
     );
@@ -197,7 +201,7 @@ fn a_seen_mark_and_its_waiter_wait_for_the_atomic_forgetting_commit() {
     let (task, through) = finish(&mut world);
     request(&mut world, MARK_RESULTS, people::Ask::MarkSeen { seen: people::Seen::Results { through } });
     let seen = people::Seen::Conversation { task, through: 1 };
-    let first = request_event(&world, MARK_TURNS, people::Ask::MarkSeen { seen });
+    let first = party_ask(REQUEST_BASE, world.sign_in.expect("signed in"), MARK_TURNS, people::Ask::MarkSeen { seen });
     let second = root::Event::Core(core::Event::People(people::Event::Ask {
         models: Box::new([]),
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(40_000)),
@@ -255,7 +259,7 @@ fn the_seen_observer_rejects_a_reply_before_the_position_commit() {
     request(&mut world, MARK_TURNS, people::Ask::MarkSeen { seen });
     assert_eq!(world.reached_cut, Some(Cut::Submitted(number)));
     let mut premature = root::Delivery::Core(core::Held::PeopleReply {
-        to: skein_lib::ReplyTo::new(skein_lib::Token::new(30_000 + u64::from(MARK_TURNS))),
+        to: skein_lib::ReplyTo::new(skein_lib::Token::new(REQUEST_BASE + u64::from(MARK_TURNS))),
         reply: people::Reply::Outcome(people::Outcome::MarkedSeen { seen }),
     });
     world.observer.delivered(0, &mut premature);
@@ -293,7 +297,7 @@ fn a_seen_reply_can_precede_a_later_marks_commit_for_the_same_position() {
 
         let mut observer = world.observer.clone();
         let mut premature = root::Delivery::Core(core::Held::PeopleReply {
-            to: skein_lib::ReplyTo::new(skein_lib::Token::new(30_000 + u64::from(MARK_RESULTS))),
+            to: skein_lib::ReplyTo::new(skein_lib::Token::new(REQUEST_BASE + u64::from(MARK_RESULTS))),
             reply: people::Reply::Outcome(people::Outcome::MarkedSeen { seen: second }),
         });
         let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -350,7 +354,7 @@ fn an_unchanged_ended_seen_mark_still_requires_its_own_position_commit() {
 
         let mut observer = world.observer.clone();
         let mut premature = root::Delivery::Core(core::Held::PeopleReply {
-            to: skein_lib::ReplyTo::new(skein_lib::Token::new(30_000 + u64::from(MARK_RESULTS))),
+            to: skein_lib::ReplyTo::new(skein_lib::Token::new(REQUEST_BASE + u64::from(MARK_RESULTS))),
             reply: people::Reply::Outcome(people::Outcome::MarkedSeen { seen }),
         });
         let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
