@@ -485,6 +485,7 @@ fn a_links_href_only_changes_when_the_owners_path_changes() {
 }
 
 mod events;
+mod lists;
 
 const FOCUS_HEADING: NodeId = NodeId(3); // page, main, heading
 fn focus_heading(b: &mut Builder, count: u64) {
