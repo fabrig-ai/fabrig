@@ -1,0 +1,43 @@
+draft = "hearth-memory-6"
+repo = "fabrig"
+sources = ["hearth/docs/plan/hearth-memory-6/inputs/request.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "before"
+title = "The gate's figures before this round are on record"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/domain/testing.md, 9.1"
+
+[[part]]
+id = "lists"
+title = "Render's hand-doubled lists are uncapped"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/domain/render.md, 8.4"
+
+[[part]]
+id = "stage"
+title = "The service routes with file_layer::owns and calls skein's stage"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/domain/render.md, 8.4"
+
+[[part]]
+id = "orders"
+title = "The store step has its predicate, and a stuck client its test"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/domain/render.md, 8.5"
+
+[[slice]]
+id = 1
+story = "the service drives io as skein does, and every order a room check sits beside has its holder and its test"
+parts = ["before", "lists", "stage", "orders"]
+walk = false

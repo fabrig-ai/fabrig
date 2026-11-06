@@ -7,7 +7,7 @@
 - **Checked:** 2026-11-06 at `ffbf75182f`
 - **Value:** high (hearth paces as the other trees do; `iterate` shrinks; new code stops copying the old form)
 - **Size:** L
-- **Status:** open
+- **Status:** planned (hearth-memory-6)
 - **Paid when:** no hearth step crate defines a `MaxOut` or a `MAX_OUT` constant, `iterate` asks no queue for room but the kernel's edge, the queues between a service's own layers are uncapped, and the orders the room checks kept are named predicates with world tests.
 - **Measure:** `grep '^max_out ' hearth/scripts/old-forms.txt`: `max_out 39`
 
