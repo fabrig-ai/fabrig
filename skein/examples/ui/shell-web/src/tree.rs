@@ -19,7 +19,7 @@ enum Report {
 
 pub(super) fn start(mount: web_sys::Element, path: &str, primary: skein_ui_web::mapping::Primary) {
     let case = path.strip_prefix("/test/tree/").expect("tree fixture route").to_owned();
-    assert!(["first", "middle", "move", "rename", "last", "mixed"].contains(&case.as_str()));
+    assert!(["first", "middle", "move", "rename", "last", "mixed", "form"].contains(&case.as_str()));
     let mut limits = skein_ui_example_view::limits::limits();
     limits.depth = 7; // Page, main, tree, three item levels, and their text.
     let page = Rc::new(RefCell::new(Page::new(
@@ -80,6 +80,12 @@ fn build(builder: &mut Builder, case: &str, revision: u64) {
     builder.name(revision_text.as_bytes());
     builder.text(Run::Plain, revision_text.as_bytes());
     builder.close();
+    if case == "form" {
+        form(builder, revision);
+        builder.close();
+        builder.close();
+        return;
+    }
     builder.open(Role::Tree);
     builder.name(b"Patch tree");
     item(builder, 100, b"Parent");
@@ -125,5 +131,24 @@ fn build(builder: &mut Builder, case: &str, revision: u64) {
     builder.close();
     builder.close();
     builder.close();
+    builder.close();
+}
+
+// A parent's name can change before its form is removed in a later delivery.
+fn form(builder: &mut Builder, revision: u64) {
+    builder.open(Role::Disclosure);
+    builder.name(if revision == 0 { b"Project" } else { b"Renamed project" });
+    builder.state(skein_ui::State::Expanded);
+    if revision < 2 {
+        builder.open(Role::Form);
+        builder.name(if revision == 0 { b"Rename project" } else { b"Rename renamed project" });
+        builder.open(Role::TextField);
+        builder.name(b"Name");
+        builder.focus(0);
+        builder.value(b"Project", 0);
+        builder.bind(NEXT);
+        builder.close();
+        builder.close();
+    }
     builder.close();
 }
