@@ -249,7 +249,7 @@ fn cancelling_drops_the_pages_open_confirmation_without_sending() {
 }
 
 #[test]
-fn card_words_keep_a_persons_whole_reply_to_the_receiving_bound() {
+fn a_cards_reason_keeps_the_text_bound() {
     let mut limits = fixtures::limits();
     limits.client.domain.text = 2048;
     limits.client.domain.long_text = 2048;
@@ -339,4 +339,27 @@ fn a_press_that_sends_nothing_closes_the_sheet() {
         assert!(f::sent(&mut f::act(&mut pages, Act::Confirm)).is_empty());
         assert!(pages.confirmation().is_none());
     }
+}
+
+#[test]
+fn only_the_open_reply_uses_long_text() {
+    let mut limits = fixtures::limits();
+    limits.client.domain.long_text = 64;
+    let mut pages = f::pages(f::QUESTION, f::question());
+    let mut other = pages.inbox().unwrap().cards.get(FIRST_CARD).unwrap().clone();
+    other.object = PROPOSAL;
+    pages.inbox.as_mut().unwrap().cards.push(other).unwrap();
+    f::act(&mut pages, Act::Needs(crate::pages::needs::Act::OpenReply { object: f::QUESTION }));
+    let words: Box<[u8]> = Box::from([b'a'; 33]);
+    for object in [f::QUESTION, PROPOSAL] {
+        acts::step(
+            &mut pages,
+            &fixtures::env(&limits),
+            Act::CardWords { object, words: words.clone() },
+            &mut skein_lib::Queue::uncapped(),
+        );
+    }
+    let cards = &pages.inbox().unwrap().cards;
+    assert_eq!(cards.get(FIRST_CARD).unwrap().words.as_ref().unwrap().bytes(), &*words);
+    assert_eq!(cards.get(1).unwrap().words, None);
 }

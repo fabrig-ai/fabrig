@@ -31,6 +31,7 @@ pub struct Chats {
     asking: super::activity::Asking,
     goal_tasks: List<u64>,
     pub words: Box<[u8]>,
+    pub beyond: u64,
     pub start: Option<Key>,
     /// The reference's mode beside Configure, once opened; the page's alone (client/README.md, 3.5).
     pub reference: Option<Mode>,
@@ -58,6 +59,7 @@ impl Chats {
             asking: super::activity::Asking::new(),
             goal_tasks: List::with_capacity(0),
             words: Box::default(),
+            beyond: 0,
             start: None,
             reference: None,
             page: None,
@@ -316,10 +318,8 @@ impl Chats {
             self.read(Some(after.clone()), out);
         }
     }
-    pub(crate) fn write(&mut self, words: Box<[u8]>, _limits: &Limits) {
-        if words.len() <= usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("text bound fits") {
-            self.words = words;
-        }
+    pub(crate) fn write(&mut self, words: Box<[u8]>, limits: &Limits) {
+        (self.words, self.beyond) = super::composer::held(words, limits.client.domain.long_text);
     }
     #[expect(clippy::too_many_arguments, reason = "the route selects the first message and opening mode")]
     pub(crate) fn start(
@@ -335,21 +335,22 @@ impl Chats {
         if self.start.is_some() || self.words.is_empty() {
             return;
         }
+        let Some(me) = me else { return };
+        if super::composer::over(&self.words, self.beyond, me.words_bytes) > 0 {
+            return;
+        }
         let words = if draft {
             let Some(size) = self.words.len().checked_add(2) else { return };
             let Some(size) = size.checked_add(WRITE_THIS_UP.len()) else { return };
-            if size > usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("cue bound fits") {
-                return;
-            }
             let mut words = Writer::new(size);
-            words.put(&self.words).expect("measured cue");
+            words.put(&self.words).expect("measured words");
             words.put(b"\n\n").expect("measured separator");
             words.put(WRITE_THIS_UP).expect("measured draft request");
             words.finish()
         } else {
             self.words.clone()
         };
-        self.send(env, me, project, jig_client::shapes::CHAT, words, Some(choice), serial, out);
+        self.send(env, Some(me), project, jig_client::shapes::CHAT, words, Some(choice), serial, out);
         if self.start.is_some() {
             self.starting_mode = if draft { Mode::Split } else { Mode::Chat };
         }
@@ -368,6 +369,9 @@ impl Chats {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
+        if words.len() > usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("cue bound fits") {
+            return;
+        }
         self.send(env, me, project, jig_client::shapes::CHAT, words.into(), Some(choice), serial, out);
     }
     pub(crate) fn configure_chat(
@@ -385,6 +389,7 @@ impl Chats {
             return;
         }
         self.words = words;
+        self.beyond = 0;
         let template = configuring_template(me, project);
         self.send(env, me, project, template, self.words.clone(), None, serial, out);
     }
@@ -412,7 +417,8 @@ impl Chats {
         {
             return;
         }
-        let Ok(words) = Text::new(words, temper_client_protocol_wire::CUE_BYTES) else { return };
+        // Callers bound typed words or cues before a draft's instruction is appended.
+        let Ok(words) = Text::new(words, u32::MAX) else { return };
         let ask = if template == jig_client::shapes::CHAT {
             jig_client::shapes::chat(me, project, words)
         } else {
@@ -472,11 +478,15 @@ impl Chats {
                     if let c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) = value {
                         self.opening = Some((*first, self.starting_mode));
                         show_chat(*first, address, out);
+                        self.words = Box::default();
+                        self.beyond = 0;
                     } else if let c::Outcome::Made { what: c::Made::Tasks { tasks } } = value
                         && let Some(task) = tasks.get(0)
                     {
                         self.opening = Some((*task, self.starting_mode));
                         show_chat(*task, address, out);
+                        self.words = Box::default();
+                        self.beyond = 0;
                     }
                 }
                 self.outcome = Some(outcome);
