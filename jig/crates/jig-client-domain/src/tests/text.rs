@@ -153,3 +153,43 @@ fn writing_is_replaced_whole_on_accepted_empty_deliveries_and_stale_turns_change
     }
     assert_eq!(c.domain.text(RUN).unwrap().writing.as_ref().unwrap().id.bytes(), b"b");
 }
+
+fn cut_delivery(c: &mut Client, from: u32, bytes: &[u8]) {
+    let mut up = super::fixtures::run(SUBJECT_TASK, FIRST_TURN, FIRST_RETRY, from, bytes);
+    let crate::Up::Watched {
+        watch,
+        event: crate::contract::WatchEvent::Delivered(crate::contract::Delivery::Run(value)),
+    } = &mut up
+    else {
+        panic!("run delivery");
+    };
+    *watch = c.name(run_subject());
+    value.cut = true;
+    c.step(crate::Event::Up { up });
+}
+
+#[test]
+fn a_delivery_marked_cut_that_continues_what_is_held_extends_it() {
+    for (from, bytes, expected) in [(1, b"bc".as_slice(), b"abc".as_slice()), (2, b"c", b"abc")] {
+        let mut c = Client::running();
+        c.run(FIRST_TURN, FIRST_RETRY, 0, b"ab");
+        cut_delivery(&mut c, from, bytes);
+        let text = c.domain.text(RUN).unwrap();
+        assert_eq!((text.text.bytes(), text.from, text.through), (expected, 0, 3));
+        assert!(text.cut);
+        c.run(FIRST_TURN, FIRST_RETRY, 3, b"d");
+        let text = c.domain.text(RUN).unwrap();
+        assert_eq!(text.text.bytes(), b"abcd");
+        assert!(text.cut);
+    }
+}
+
+#[test]
+fn a_delivery_marked_cut_past_what_is_held_takes_its_place() {
+    let mut c = Client::running();
+    c.run(FIRST_TURN, FIRST_RETRY, 0, b"ab");
+    cut_delivery(&mut c, 4, b"ef");
+    let text = c.domain.text(RUN).unwrap();
+    assert_eq!((text.text.bytes(), text.from, text.through), (b"ef".as_slice(), 4, 6));
+    assert!(text.cut);
+}
