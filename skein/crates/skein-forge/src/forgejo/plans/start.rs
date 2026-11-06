@@ -71,7 +71,7 @@ impl Plan {
                         self.state = State::Asked(read);
                         return None;
                     }
-                    ExchangeHeard::Done(Body::Document(document)) => document_answer(read, Some(document)),
+                    ExchangeHeard::Done(Body::Document(document)) => document_answer(read, document),
                     ExchangeHeard::Done(Body::Empty | Body::Raw { .. } | Body::Malformed(_))
                     | ExchangeHeard::Failed(_) => Heard::Unanswered,
                 };
@@ -83,17 +83,18 @@ impl Plan {
     }
 }
 
-fn document_answer(read: Read, document: Option<Document>) -> Heard {
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+fn document_answer(read: Read, document: Document) -> Heard {
     match read {
         Read::User => match document {
-            Some(Document::User(user)) => Heard::User { id: user.id },
-            Some(_) | None => Heard::Unanswered,
+            Document::User(user) => Heard::User { id: user.id },
+            _ => Heard::Unanswered,
         },
         Read::ApiSettings => match document {
-            Some(Document::ApiSettings(settings)) if settings.max_response_items > 0 => {
+            Document::ApiSettings(settings) if settings.max_response_items > 0 => {
                 Heard::ApiSettings { max_response_items: settings.max_response_items }
             }
-            Some(_) | None => Heard::Unanswered,
+            _ => Heard::Unanswered,
         },
     }
 }

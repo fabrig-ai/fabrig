@@ -466,7 +466,8 @@ keeps (`../protocol/configuration.md`, section 2).
     conversation says nothing of what was cut: no notice, at a text's end,
     a turn's or a window's;
   - *the words being written,* the turn being written, under "Temper",
-    whole from its start up to `long_text` (5.4), read by `skein-ui`'s
+    whole from its start up to `long_text` (5.4), a page opened late
+    from what the engine retains (section 11), read by `skein-ui`'s
     `read_growing` (skein's `ui.md`, section 10): a block a blank line
     has closed stays on the page as it was, only the last changes as
     words arrive, and no marker shows being written. A small block,
@@ -1009,7 +1010,8 @@ keeps (`../protocol/configuration.md`, section 2).
     program's name field and "Declare". Declaring a program's login
     asks its name, 1 to 32 of `a` to `z`, `0` to `9` and `-`, `claude-`
     and the person's first name by default (`claude-alice`), and shows
-    the command to run on each host, as *The printed command* (4.6) has it
+    the command to run on each host, as *The printed command* (4.6) has it,
+    after the words of `program_environment` (4.6) where it has any
     (`../protocol/credentials.md`, section 3). The tools' printed act
     includes the box's directory placeholders and the signed-in skip
     rule (`tools.md`, 5.5, area 5).
@@ -3091,8 +3093,9 @@ for its kind, its user's login and its installations. Its nodes:
 - **The program's environment, `program_environment`:** of the deployment's
   scope, with no fields and no subject: what `temper program-login` needs set
   to act on this deployment. It is the party's read, and only the deployment's
-  owner has it, the one person who is shown the command during set up; anyone
-  else's is refused, and sees the plain command. Its answer is the record
+  owner has it, at any time, since the welcome's Model step shows them the command
+  during set up and Connect a model after it; anyone else's is refused, and sees
+  the plain command. Its answer is the record
   `ProgramEnvironmentAnswer`: `environment` (bytes), empty when each of the
   three directories (`../protocol/configuration.md`, 12) is the one the command
   finds by itself in the environment the engine started in, and otherwise
@@ -3101,7 +3104,8 @@ for its kind, its user's login and its installations. Its nodes:
   that the client holds no path as a fact, quotes nothing and decides no
   default; it is a read of its own, separate from `DeploymentAnswer`.
   A page asks when its address names a program's way, the only place that
-  draws the command. On the wire it is `Reading`'s `program_environment`.
+  draws the command with these words; Accounts' stays plain (section 11). On the
+  wire it is `Reading`'s `program_environment`.
 - **A change's panel, the subject `change`** (`forge.md`, 9.2): of a
   project's scope, its window unused, naming the change task's number
   (u64). On the wire it is `Watching`'s `change`, `Watching` naming
@@ -3901,7 +3905,8 @@ The words for each offered source are:
   agents now run on it."; for a program's login: "Declared your Claude
   subscription · claude-alice", then "Run this on each host temper’s
   agents run on, in a terminal there:", the command (4.6, *The printed
-  command*), and "If this machine has no Claude Code,
+  command*), after the words of `program_environment` (4.6) where it has any,
+  and "If this machine has no Claude Code,
   this fetches it first. Claude Code asks you to sign in. temper never
   reads its login."; for a sign-in, A sign-in's (below).
   The tools' declaration act names the box's three directories as
@@ -6173,7 +6178,7 @@ own tests:
   in the same loop as the service, driven by a typist that types
   commands and reads printed pages, with a fake LLM, forge and git. Its
   live-text story: a reply held after its first piece is read printed
-  under "Writing…", then replaced by the committed turn.
+  before its "▍", then replaced by the committed turn.
 - **The process tier** (`../domain/testing.md`, 2.6): the real `temper`
   binary; skein's fake person through temper's client signs in by the
   printed link, adds the deployment's key on `ConnectModel`, and
@@ -6209,6 +6214,17 @@ own tests:
 - **A document's drawing** (3.5; the look request `configure-chat-draft`): its flow
   and figure wait on `skein/docs/design/draft/diagrams.md`. Default: a fenced block
   reads as code, and the agent isn't told to draw.
+- **The reference's picture as a flow** (3.5, *temper's own way, beside the page*;
+  `../draft/own-way.md`, 3): skein's flows are neither built nor planned
+  (`skein/docs/design/draft/diagrams.md`), and a flow is one path, its parts in
+  parallel a caption until they branch. Default: the numbered list.
+- **The reference kept beside a chat** (3.5, *temper's own way, beside the page*):
+  `../draft/own-way.md`, 3, has a question about it be the configuring chat's,
+  beside it. Default: a chat started there closes it, and a question about it
+  goes to a chat that no longer shows it.
+- **The table's QA row** (3.5, *temper's own way, beside the page*): it says "Later"
+  until QA after landing is built (`../domain/findings.md`, section 8), then names
+  its range as the other rows do. Default: "Later".
 - **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
   sections 7, 9 and 10): the forges' rows carry `makings`, `temper ctl
   forge list` says them, and Home's second step says a project's while To
@@ -6281,6 +6297,15 @@ own tests:
   project's `by` (`../domain/landing.md`, 13.1). A new fact of a protocol,
   the user's. Default: "Chats can change its code now." on every project,
   which names no way of landing.
+- **An answer past what the engine retains** (3.5, *the words being written*;
+  `../draft/chat-reading.md`, 3): a page following it from its start shows it whole
+  up to `long_text`. One opened later shows the end the engine retains, 65,536
+  bytes, until the turn commits, since one delivery stops at the same bound (jig's
+  `client/domain/client.md`, section 18). Default: as it stands.
+- **A turn too large for a page** (5.4; `../draft/chat-reading.md`, 4): a turn past
+  `document_bytes` on the wire, 1,048,576 bytes, reads as too large, with no calls'
+  names (jig's `client/domain/client.md`, section 18). Default: its line says so,
+  and the tools read it by its parts.
 - **A project's home in the switcher** (5.3, 4.4): `me` does not say
   which repository is a project's home, so the first listed stands in
   for it, and a row with several repositories never reads "3
@@ -6326,39 +6351,11 @@ own tests:
   the goal hearing those words, whose scripts are throwaway. No world keeps it:
   the parser, the stock sentence, the session and the view each hold their own
   side. Default: those tests.
-- **A proposal of settings in a project's Needs you** (3.5, *Needs you*, *What the
-  client keeps*; 5.13; the request `ui-final-walk` of 2026-11-05): jig takes a
-  proposal of settings in the deployment's scope (jig's `client/domain/contract.md`,
-  3.2), so its inbox row says project 0 whatever its items change, and *Needs you*
-  by the open project and the rail's count, the ways a project's frame has, leave
-  it out; the greenfield mock has its card and its count. To see it, on a fake box:
-  `temper ctl settings propose` one `project-ways` item of project 1, then Needs
-  you from the rail. Which inbox holds a proposal whose items span the deployment
-  and several projects is a decision, then one rule for the reads. Default: its
-  card in its chat (5.13) and `temper ctl`'s inbox.
-- **A choice pressed just after Undo** (3.5, *What the client keeps*; that
-  request): on a fake box at 1440, a question with choices, Later, its Reply sent,
-  Undo, then at once a choice: six seconds on the card and the count stood, and
-  the engine held the question unanswered. A repeat on a fresh box at 1440 and the
-  walk at 420 answered. Its cause is unknown and no way shows it reliably. Default:
-  as it stands, until it is seen again.
-- **A brief refused, on Home** (3.5, *Home on any project*; that request): a status
+- **A brief refused, on Home** (3.5, *Home on any project*; the request
+  `ui-final-walk` of 2026-11-05): a status
   run refused for want of funding leaves Home its computed sentence, with no byline
   and nothing saying why. How a person sees that goes with what funds the run
   (`../domain/forge.md`, 20). Default: nothing said.
-- **The Claude way's command on a box with directories of its own** (3.5, *Claude*;
-  5.5; that request): the page shows `temper program-login NAME`, which reads the
-  default directories under the person's home, so on such a box it refuses with
-  its configuration absent, before it fetches anything. The answer of 2026-11-05
-  to that plan's task `fix-flow` has the command run as shown: short with the
-  default directories, otherwise `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…
-  temper program-login NAME`, shell-quoted. No client is given the directories
-  (`temper`'s `directories.rs` holds them; the deployment's answer, `welcome` and
-  `owned` alone), so it takes a new fact from the binary through the service, the
-  wire or the page's bootstrap, the domain and the view. Its proof: tests of both
-  forms, with a space and an apostrophe and no download, then the shown command run
-  as it stands on a fresh real box, the pinned fetch with it. Default: the short
-  command.
 - **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; that
   request): the pinned Claude Code fetch and a real browser's Sign out ran by hand,
   on fresh loopback deployments, and no test keeps them. Not shown: a provider's
@@ -6699,6 +6696,14 @@ own tests:
   its own directories, and a person who isn't the owner gets no paths. Both
   stay plain, and on a box with custom directories they don't run as shown.
   Default: so, until a deployment says otherwise.
+- **This deployment's directories under "each host"** (4.6, 5.5): Connect a model's
+  Ready says "Run this on each host temper’s agents run on" over the command with
+  `program_environment`'s words, which are this deployment's directories, and
+  another host's may differ. Default: so, a box being one host.
+- **The owner's command before its read answers** (4.6): while
+  `program_environment` is unanswered, or if its read fails, the owner's page draws
+  the plain command and says nothing, and on a box with custom directories that
+  command refuses. Default: so.
 - **A directory that isn't UTF-8** (4.6): `program_environment` carries its
   bytes as they are, and the page draws text. Default: the command isn't
   drawn as it would run; the flags `../../help/box.md`, section 5, shows

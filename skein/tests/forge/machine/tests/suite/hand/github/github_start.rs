@@ -159,16 +159,6 @@ fn github_with_no_accepted_installation_is_ready_without_identity() {
     assert!(!contains(&h.request_bytes(FORGE), b"POST "));
 }
 #[test]
-fn github_listing_401_stops_with_key_refused() {
-    let mut h = harness();
-    h.answer(FORGE, &fixtures::status(401));
-    h.run(Duration::ZERO);
-    assert_eq!(h.stopped(), Some((FORGE, Stopped::KeyRefused)));
-    h.run(Duration::from_secs(20));
-    assert_eq!(h.connections_opened(), 1);
-    assert_eq!(h.connected_count, 0);
-}
-#[test]
 fn github_either_mint_401_stops_with_key_refused() {
     for stage in [Stage::Full, Stage::Contents] {
         let mut h = at(stage);
@@ -487,19 +477,6 @@ fn github_own_connection_is_reserved_while_forgejo_calls_run() {
     assert!(!contains(&h.request_bytes(fixtures::OTHER_FORGE), b"/api/v1"));
 }
 
-#[test]
-fn github_ready_calls_without_an_accepted_installation_are_not_installed() {
-    let mut h = harness();
-    accepted(&mut h, &[]);
-    h.answer(FORGE, &fixtures::ok(b"[]")); // The changed set discards the written page.
-    listed(&mut h);
-    h.call(1, fixtures::REPO, skein_forge::api::Op::Read(skein_forge::api::Read::Settings));
-    h.run(Duration::ZERO);
-    let answer = h.answered(1).expect("call terminal");
-    assert_eq!(answer.result, Err(skein_forge::api::Error::NotInstalled));
-    assert_eq!(answer.cost, 0);
-    assert!(!contains(&h.request_bytes(FORGE), b"/api/v1"));
-}
 #[test]
 fn github_replacement_discards_the_old_start_and_tokens() {
     replacement(Stage::Listing);

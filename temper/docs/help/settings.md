@@ -56,6 +56,12 @@ A change holds at most one item per setting. Each item:
 
 The rules are set or reset, never removed.
 
+A project's way is checked against the templates the whole decision would
+leave. One change or accepted proposal can install a template and select
+it as the project's way. Removing it in that decision leaves it unavailable;
+a reset follows its binary default, or leaves it unavailable if it has none.
+A refusal names the item, the project's ways and the rejected way number.
+
 A change names the newest revision its maker read. It makes one revision
 (`temper help revision`), or is refused whole.
 The deployment's items need its owners; a project's policy needs that
