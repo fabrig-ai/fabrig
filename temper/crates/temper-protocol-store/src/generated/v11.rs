@@ -61,6 +61,7 @@ pub struct Limits {
     pub directory_answer_path: u32,
     pub directory_answer_entries: u32,
     pub branches_answer_branches: u32,
+    pub permission_value_login: u32,
     pub summary_labels: u32,
     pub summary_key_some: u32,
     pub summary_title: u32,
@@ -243,6 +244,7 @@ pub const CEILINGS: Limits = Limits {
     directory_answer_path: 1_048_576,
     directory_answer_entries: 2_097_152,
     branches_answer_branches: 2_097_152,
+    permission_value_login: 1_048_576,
     summary_labels: 2_097_152,
     summary_key_some: 1_048_576,
     summary_title: 1_048_576,
@@ -931,6 +933,10 @@ pub enum Path {
     ProtectionAnswerTail,
     /// The `permission` field of `PermissionValue`.
     PermissionValuePermission,
+    /// The `user` field of `PermissionValue`.
+    PermissionValueUser,
+    /// The `login` field of `PermissionValue`.
+    PermissionValueLogin,
     /// Bytes after `PermissionValue`.
     PermissionValueTail,
     /// The `creation` field of `BranchCreationValue`.
@@ -2537,6 +2543,7 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.directory_answer_path > CEILINGS.directory_answer_path { return Err(Problem { path: Path::DirectoryAnswerPath, reason: skein_codec::Reason::Bound }); }
     if limits.directory_answer_entries > CEILINGS.directory_answer_entries { return Err(Problem { path: Path::DirectoryAnswerEntries, reason: skein_codec::Reason::Bound }); }
     if limits.branches_answer_branches > CEILINGS.branches_answer_branches { return Err(Problem { path: Path::BranchesAnswerBranches, reason: skein_codec::Reason::Bound }); }
+    if limits.permission_value_login > CEILINGS.permission_value_login { return Err(Problem { path: Path::PermissionValueLogin, reason: skein_codec::Reason::Bound }); }
     if limits.summary_labels > CEILINGS.summary_labels { return Err(Problem { path: Path::SummaryLabels, reason: skein_codec::Reason::Bound }); }
     if limits.summary_key_some > CEILINGS.summary_key_some { return Err(Problem { path: Path::SummaryKey, reason: skein_codec::Reason::Bound }); }
     if limits.summary_title > CEILINGS.summary_title { return Err(Problem { path: Path::SummaryTitle, reason: skein_codec::Reason::Bound }); }
@@ -2571,11 +2578,11 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.gating_asked > CEILINGS.gating_asked { return Err(Problem { path: Path::GatingAsked, reason: skein_codec::Reason::Bound }); }
     if limits.no_change_words > CEILINGS.no_change_words { return Err(Problem { path: Path::NoChangeWords, reason: skein_codec::Reason::Bound }); }
     if limits.change_state_holds > CEILINGS.change_state_holds { return Err(Problem { path: Path::ChangeStateHolds, reason: skein_codec::Reason::Bound }); }
-    if limits.gate_remark_words > CEILINGS.gate_remark_words { return Err(Problem { path: Path::GateRemarkWords, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
 fn check_limits_1(limits: &Limits) -> Result<(), Problem> {
+    if limits.gate_remark_words > CEILINGS.gate_remark_words { return Err(Problem { path: Path::GateRemarkWords, reason: skein_codec::Reason::Bound }); }
     if limits.early_heads_heads > CEILINGS.early_heads_heads { return Err(Problem { path: Path::EarlyHeadsHeads, reason: skein_codec::Reason::Bound }); }
     if limits.change_gates > CEILINGS.change_gates { return Err(Problem { path: Path::ChangeGates, reason: skein_codec::Reason::Bound }); }
     if limits.change_clean > CEILINGS.change_clean { return Err(Problem { path: Path::ChangeClean, reason: skein_codec::Reason::Bound }); }
@@ -6279,19 +6286,26 @@ impl ProtectionAnswer {
 pub struct PermissionValueParts {
     /// The `permission` field.
     pub permission: Permission,
+    /// The `user` field.
+    pub user: u64,
+    /// The `login` field.
+    pub login: Box<[u8]>,
 }
 
 /// `PermissionValue` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PermissionValue {
     permission: Permission,
+    user: u64,
+    login: Box<[u8]>,
 }
 
 impl PermissionValue {
     /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: PermissionValueParts) -> Result<Self, Problem> {
-        let PermissionValueParts { permission } = parts;
-        let value = Self { permission };
+    pub fn new(limits: &Limits, parts: PermissionValueParts) -> Result<Self, Problem> {
+        let PermissionValueParts { permission, user, login } = parts;
+        let value = Self { permission, user, login };
+        value.check(limits)?;
         Ok(value)
     }
 
@@ -6299,10 +6313,22 @@ impl PermissionValue {
     #[must_use]
     pub fn permission(&self) -> &Permission { &self.permission }
 
+    /// Reads the `user` field.
+    #[must_use]
+    pub fn user(&self) -> u64 { self.user }
+
+    /// Reads the `login` field.
+    #[must_use]
+    pub fn login(&self) -> &[u8] { &self.login }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> PermissionValueParts { PermissionValueParts { permission: self.permission } }
+    pub fn into_parts(self) -> PermissionValueParts { PermissionValueParts { permission: self.permission, user: self.user, login: self.login } }
 
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.login.len() > usize::try_from(limits.permission_value_login.min(CEILINGS.permission_value_login)).expect("u32 fits usize") { return Err(Problem { path: Path::PermissionValueLogin, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
 }
 
 /// Movable fields of `BranchCreationValue`.
@@ -7417,8 +7443,9 @@ impl Answer {
             Self::Protection(record) => ProtectionAnswer::check(record, limits),
             Self::Settings(record) => Settings::check(record, limits),
             Self::Collaborators(record) => CollaboratorsAnswer::check(record, limits),
+            Self::Permission(record) => PermissionValue::check(record, limits),
             Self::Directory(record) => DirectoryAnswer::check(record, limits),
-            Self::Commit(_) | Self::Permission(_) | Self::Created(_) | Self::Commented(_) | Self::Reviewed(_) | Self::Merged(_) | Self::Branch(_) | Self::Done | Self::Located(_) | Self::Queued => Ok(()),
+            Self::Commit(_) | Self::Created(_) | Self::Commented(_) | Self::Reviewed(_) | Self::Merged(_) | Self::Branch(_) | Self::Done | Self::Located(_) | Self::Queued => Ok(()),
         }?;
         Ok(())
     }
@@ -19797,6 +19824,10 @@ impl PermissionValue {
         let mut size = 0_u32;
         let field_permission = &self.permission;
         size = size.checked_add(field_permission.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_login = &self.login;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_login.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
         size
     }
 
@@ -19804,6 +19835,11 @@ impl PermissionValue {
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_permission = &self.permission;
         field_permission.encode(writer)?;
+        let field_user = &self.user;
+        writer.put(&field_user.to_be_bytes())?;
+        let field_login = &self.login;
+        writer.put(&u32::try_from(field_login.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_login.as_ref())?;
         Ok(())
     }
 
@@ -19816,7 +19852,9 @@ impl PermissionValue {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_permission = Permission::decode_from(limits, reader)?;
-        Ok(Self { permission: decoded_permission })
+        let decoded_user = reader.u64().ok_or(Problem { path: Path::PermissionValueUser, reason: skein_codec::Reason::Short })?;
+        let decoded_login = { let length = match skein_codec::read_len(reader, limits.permission_value_login.min(CEILINGS.permission_value_login)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::PermissionValueLogin, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::PermissionValueLogin, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { permission: decoded_permission, user: decoded_user, login: decoded_login })
     }
 }
 
@@ -32455,7 +32493,8 @@ impl PermissionValue {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(Permission::encoded_bound_within(limits)?)?;
+        size = size.checked_add(Permission::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.permission_value_login))?)?;
         size.checked_add(0)
     }
 
@@ -32468,7 +32507,8 @@ impl PermissionValue {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(Permission::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Permission::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.permission_value_login))?;
         heap.checked_add(0)
     }
 }
@@ -39929,8 +39969,8 @@ mod golden_tests {
         ("record_branches_answer_full", || { let value = BranchesAnswer::new(&CEILINGS, BranchesAnswerParts { branches: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, BranchesAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_protection_answer_smallest", || { let value = ProtectionAnswer::new(&CEILINGS, ProtectionAnswerParts { protection: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProtectionAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_protection_answer_full", || { let value = ProtectionAnswer::new(&CEILINGS, ProtectionAnswerParts { protection: Some(Protection::new(&CEILINGS, ProtectionParts { skein_bools: [true, true, true, true, true], branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), contexts: Box::from([0_u8, 127_u8, 255_u8].as_slice()), approvals: u32::MAX, bypass: Bypass::Never }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 255, 255, 255, 255, 1, 1, 1, 1, 1, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ProtectionAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_permission_value_smallest", || { let value = PermissionValue::new(&CEILINGS, PermissionValueParts { permission: Permission::None }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PermissionValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_permission_value_full", || { let value = PermissionValue::new(&CEILINGS, PermissionValueParts { permission: Permission::None }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PermissionValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_permission_value_smallest", || { let value = PermissionValue::new(&CEILINGS, PermissionValueParts { permission: Permission::None, user: 0_u64, login: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PermissionValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_permission_value_full", || { let value = PermissionValue::new(&CEILINGS, PermissionValueParts { permission: Permission::None, user: u64::MAX, login: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PermissionValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_branch_creation_value_smallest", || { let value = BranchCreationValue::new(&CEILINGS, BranchCreationValueParts { creation: BranchCreation::Created }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, BranchCreationValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_branch_creation_value_full", || { let value = BranchCreationValue::new(&CEILINGS, BranchCreationValueParts { creation: BranchCreation::Created }).expect("golden within ceilings"); let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, BranchCreationValue::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_kind_issue_smallest", || { let value = Kind::Issue; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Kind::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -40009,8 +40049,8 @@ mod golden_tests {
         ("enum_answer_settings_full", || { let value = Answer::Settings(Settings::new(&CEILINGS, SettingsParts { default_branch: Box::from([0_u8, 127_u8, 255_u8].as_slice()), merge: true, squash: true, rebase: true }).expect("golden within ceilings")); let bytes: &[u8] = &[14, 0, 0, 0, 3, 0, 127, 255, 1, 1, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_answer_collaborators_smallest", || { let value = Answer::Collaborators(CollaboratorsAnswer::new(&CEILINGS, CollaboratorsAnswerParts { collaborators: skein_lib::List::with_capacity(0), more: false }).expect("golden within ceilings")); let bytes: &[u8] = &[15, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_answer_collaborators_full", || { let value = Answer::Collaborators(CollaboratorsAnswer::new(&CEILINGS, CollaboratorsAnswerParts { collaborators: { let mut items = skein_lib::List::with_capacity(1); items.push(Collaborator::new(&CEILINGS, CollaboratorParts { user: u64::MAX, permission: Permission::None }).expect("golden within ceilings")).expect("one slot"); items }, more: true }).expect("golden within ceilings")); let bytes: &[u8] = &[15, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 0, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_answer_permission_smallest", || { let value = Answer::Permission(PermissionValue::new(&CEILINGS, PermissionValueParts { permission: Permission::None }).expect("golden within ceilings")); let bytes: &[u8] = &[16, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_answer_permission_full", || { let value = Answer::Permission(PermissionValue::new(&CEILINGS, PermissionValueParts { permission: Permission::None }).expect("golden within ceilings")); let bytes: &[u8] = &[16, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_answer_permission_smallest", || { let value = Answer::Permission(PermissionValue::new(&CEILINGS, PermissionValueParts { permission: Permission::None, user: 0_u64, login: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_answer_permission_full", || { let value = Answer::Permission(PermissionValue::new(&CEILINGS, PermissionValueParts { permission: Permission::None, user: u64::MAX, login: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[16, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_answer_created_smallest", || { let value = Answer::Created(Number::new(&CEILINGS, NumberParts { number: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[17, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_answer_created_full", || { let value = Answer::Created(Number::new(&CEILINGS, NumberParts { number: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[17, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_answer_commented_smallest", || { let value = Answer::Commented(Number::new(&CEILINGS, NumberParts { number: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[18, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Answer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -40888,6 +40928,7 @@ mod golden_tests {
         ("bound_directory_answer_path", || bound((Path::DirectoryAnswerPath, skein_codec::Reason::Bound), &Limits { directory_answer_path: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match DirectoryAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_directory_answer_entries", || bound((Path::DirectoryAnswerEntries, skein_codec::Reason::Bound), &Limits { directory_answer_entries: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match DirectoryAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_branches_answer_branches", || bound((Path::BranchesAnswerBranches, skein_codec::Reason::Bound), &Limits { branches_answer_branches: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match BranchesAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
+        ("bound_permission_value_login", || bound((Path::PermissionValueLogin, skein_codec::Reason::Bound), &Limits { permission_value_login: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match PermissionValue::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_summary_labels", || bound((Path::SummaryLabels, skein_codec::Reason::Bound), &Limits { summary_labels: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Summary::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_summary_key_some", || bound((Path::SummaryKey, skein_codec::Reason::Bound), &Limits { summary_key_some: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Summary::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_summary_title", || bound((Path::SummaryTitle, skein_codec::Reason::Bound), &Limits { summary_title: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Summary::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
@@ -40896,7 +40937,6 @@ mod golden_tests {
         ("bound_comment_body", || bound((Path::CommentBody, skein_codec::Reason::Bound), &Limits { comment_body: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Comment::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_review_key_some", || bound((Path::ReviewKey, skein_codec::Reason::Bound), &Limits { review_key_some: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Review::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_review_body", || bound((Path::ReviewBody, skein_codec::Reason::Bound), &Limits { review_body: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Review::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_items_answer_items", || bound((Path::ItemsAnswerItems, skein_codec::Reason::Bound), &Limits { items_answer_items: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match ItemsAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
     ];
 
     #[test]
@@ -40905,6 +40945,7 @@ mod golden_tests {
     }
 
     static BOUNDS_1: [Case; 64] = [
+        ("bound_items_answer_items", || bound((Path::ItemsAnswerItems, skein_codec::Reason::Bound), &Limits { items_answer_items: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match ItemsAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_item_answer_comments", || bound((Path::ItemAnswerComments, skein_codec::Reason::Bound), &Limits { item_answer_comments: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match ItemAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_reviews_answer_reviews", || bound((Path::ReviewsAnswerReviews, skein_codec::Reason::Bound), &Limits { reviews_answer_reviews: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0], |limits, bytes| match ReviewsAnswer::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_status_context", || bound((Path::StatusContext, skein_codec::Reason::Bound), &Limits { status_context: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Status::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
@@ -40968,7 +41009,6 @@ mod golden_tests {
         ("bound_make_into_host", || bound((Path::MakeIntoHost, skein_codec::Reason::Bound), &Limits { make_into_host: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match MakeInto::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_making_failed_words", || bound((Path::MakingFailedWords, skein_codec::Reason::Bound), &Limits { making_failed_words: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match MakingFailed::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_making_made_branch", || bound((Path::MakingMadeBranch, skein_codec::Reason::Bound), &Limits { making_made_branch: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match MakingMade::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_binding_address", || bound((Path::BindingAddress, skein_codec::Reason::Bound), &Limits { binding_address: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Binding::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
     ];
 
     #[test]
@@ -40976,7 +41016,8 @@ mod golden_tests {
         table(&BOUNDS_1);
     }
 
-    static BOUNDS_2: [Case; 50] = [
+    static BOUNDS_2: [Case; 51] = [
+        ("bound_binding_address", || bound((Path::BindingAddress, skein_codec::Reason::Bound), &Limits { binding_address: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Binding::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_binding_subject", || bound((Path::BindingSubject, skein_codec::Reason::Bound), &Limits { binding_subject: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Binding::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landing_member_gates", || bound((Path::LandingMemberGates, skein_codec::Reason::Bound), &Limits { landing_member_gates: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandingMember::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
         ("bound_landing_state_members", || bound((Path::LandingStateMembers, skein_codec::Reason::Bound), &Limits { landing_state_members: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match LandingState::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),

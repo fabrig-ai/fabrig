@@ -1130,6 +1130,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-check-failed",
         b"temper-welcome-check-why",
         b"temper-writing-end",
+        b"temper-rail-person",
+        b"temper-settings-sign-out",
     ],
     regions: &[b"temper-link"],
 };
@@ -1300,6 +1302,10 @@ pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 452 };
 
 /// The last word of a turn being written (client/README.md, 3.5).
 pub const WRITING_END: Style = Style { owner: owner(), token: 453 };
+/// The browser's person menu (client/README.md, 5.3).
+pub const RAIL_PERSON: Style = Style { owner: owner(), token: 454 };
+/// The Accounts tab's sign-out row (client/README.md, 3.5).
+pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 455 };
 
 #[cfg(test)]
 mod tests {

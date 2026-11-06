@@ -883,6 +883,24 @@ fn pull_answer(state: skein_forge::api::State, head: [u8; 32], merged: Option<[u
 }
 
 #[test]
+fn permission_answers_name_the_forge_user_and_available_login() {
+    use skein_forge::api;
+    for (permission, label) in [
+        (api::Permission::None, "No permission"),
+        (api::Permission::Read, "Read"),
+        (api::Permission::Write, "Write"),
+        (api::Permission::Admin, "Admin"),
+    ] {
+        for (login, suffix) in [(b"ada".as_slice(), ", login ada"), (b"".as_slice(), "")] {
+            let read = api::Answer::Permission(api::UserPermission { user: 3, login: login.into(), permission });
+            let rendered = answer(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))));
+            assert!(!rendered.error());
+            assert_eq!(rendered.text(), format!("{label}; forge user 3{suffix}").as_bytes());
+        }
+    }
+}
+
+#[test]
 fn forge_answers_print_commits_at_the_identifier_width() {
     use skein_forge::api;
     for (commit, digits) in COMMIT_SPELLINGS {
