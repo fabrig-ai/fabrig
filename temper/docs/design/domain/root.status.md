@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-05. Where temper's code lags or departs from [root.md](root.md).
+2026-11-06. Where temper's code lags or departs from [root.md](root.md).
 
 - **Not yet:** 7.2: a section for each
   document a charter names (the forge's brief sources are CI, reviews, the

@@ -430,7 +430,7 @@ fn render_host(engine: &mut Engine, to: skein_lib::ReplyTo, answer: &root::CallA
         tool,
         bytes,
         task,
-        engine.host_reply_bytes.unwrap_or(u32::MAX),
+        engine.env.limits.host_reply_bytes.unwrap_or(u32::MAX),
     ));
 }
 

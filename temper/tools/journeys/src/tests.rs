@@ -60,17 +60,19 @@ fn a_name_outside_the_pattern_is_refused() {
     let scratch = Scratch::new("temper-client-journeys-name");
     for name in ["Welcome", "1-welcome", "welcome_set", ""] {
         assert!(!crate::named(name), "invalid name: {name:?}");
-        assert!(matches!(crate::add(scratch.path(), name, b""), Err(crate::Refusal::Name(refused)) if refused == name));
+        assert!(
+            matches!(crate::add(scratch.path(), name, b"", &[]), Err(crate::Refusal::Name(refused)) if refused == name)
+        );
     }
     assert!(crate::named("welcome-set-up"));
-    assert!(matches!(crate::add(scratch.path(), "welcome-set-up", b""), Err(crate::Refusal::Proof { .. })));
+    assert!(matches!(crate::add(scratch.path(), "welcome-set-up", b"", &[]), Err(crate::Refusal::Proof { .. })));
 }
 
 #[test]
 fn an_unreadable_recording_is_refused_by_add() {
     let scratch = Scratch::new("temper-client-journeys-unreadable");
     assert!(matches!(
-        crate::add(scratch.path(), "welcome", b"not a recording\n"),
+        crate::add(scratch.path(), "welcome", b"not a recording\n", &[]),
         Err(crate::Refusal::Proof { name, refusal: journey::Refusal::Unreadable(_) }) if name == "welcome"
     ));
     assert!(!scratch.path().join("welcome").exists());
@@ -215,25 +217,7 @@ fn a_reprint_keeps_a_journeys_readme() {
     let scratch = Scratch::new("temper-client-journeys-readme");
     let source = scratch.path().join("source");
     let out = scratch.path().join("out");
-    let facts = journey::Facts {
-        seed: 11,
-        now: Time::ZERO,
-        wall: Wall::EPOCH,
-        primary: Primary::Control,
-        zone_minutes: 0,
-        ways: None,
-        forges: Vec::new(),
-        path: b"/welcome".as_slice().into(),
-        secret: None,
-        stored: Vec::new(),
-    };
-    let (mut host, mut page) = facts.start();
-    let mut recorder = journey::Recorder::new(&facts);
-    recorder.turn(facts.now, facts.wall);
-    recorder.report(&mut host, &page, temper_client_shell_web::host::Report::Start);
-    host.draw(&mut page, &mut Vec::new());
-    recorder.deadline(host.deadline());
-    crate::add(&source, "welcome", &recorder.save(&page)).expect("add fixture journey");
+    crate::add(&source, "welcome", &fixture_recording(), &[]).expect("add fixture journey");
     let directory = out.join("welcome");
     fs::create_dir_all(&directory).expect("journey directory");
     let readme = directory.join("README.md");
@@ -262,4 +246,251 @@ fn a_toggles_box_leads_on_by_its_act() {
             .document
             .contains("<input type=\"checkbox\" data-journey-next=\"02.html\" data-journey-act=\"toggle\"\n>")
     );
+}
+
+fn fixture_recording() -> Box<[u8]> {
+    fixture_with_secret(None)
+}
+
+fn fixture_with_secret(secret: Option<Box<[u8]>>) -> Box<[u8]> {
+    let facts = journey::Facts {
+        seed: 11,
+        now: Time::ZERO,
+        wall: Wall::EPOCH,
+        primary: Primary::Control,
+        zone_minutes: 0,
+        ways: None,
+        forges: Vec::new(),
+        path: b"/welcome".as_slice().into(),
+        secret,
+        stored: Vec::new(),
+    };
+    let (mut host, mut page) = facts.start();
+    let mut recorder = journey::Recorder::new(&facts);
+    recorder.turn(facts.now, facts.wall);
+    recorder.report(&mut host, &page, temper_client_shell_web::host::Report::Start);
+    host.draw(&mut page, &mut Vec::new());
+    recorder.deadline(host.deadline());
+    recorder.save(&page)
+}
+
+fn stale_recording(recording: &[u8]) -> Box<[u8]> {
+    let mut lines = journey::lines(recording).expect("fixture records");
+    let mut changed = 0;
+    for line in &mut lines {
+        if let journey::Line::Deadline(deadline) = line {
+            *deadline = Some(Time::ZERO);
+            changed += 1;
+        }
+    }
+    assert_eq!(changed, 1, "the start turn's deadline");
+    let mut out = Vec::new();
+    for line in lines {
+        line.write(&mut out);
+    }
+    out.into()
+}
+
+fn snapshot(root: &Path) -> std::collections::BTreeMap<std::path::PathBuf, Option<Vec<u8>>> {
+    fn visit(
+        root: &Path,
+        directory: &Path,
+        files: &mut std::collections::BTreeMap<std::path::PathBuf, Option<Vec<u8>>>,
+    ) {
+        for entry in fs::read_dir(directory).expect("snapshot directory") {
+            let entry = entry.expect("snapshot entry");
+            let path = entry.path();
+            let relative = path.strip_prefix(root).expect("entry beneath root").to_owned();
+            if entry.file_type().expect("snapshot type").is_dir() {
+                files.insert(relative, None);
+                visit(root, &path, files);
+            } else {
+                files.insert(relative, Some(fs::read(path).expect("snapshot file")));
+            }
+        }
+    }
+    let mut files = std::collections::BTreeMap::new();
+    visit(root, root, &mut files);
+    files
+}
+
+#[test]
+fn a_refused_add_leaves_its_root_as_it_was() {
+    let scratch = Scratch::new("temper-client-journeys-refused");
+    let recording = fixture_recording();
+    let unproved = journey::prove(&recording).expect("strip live prints");
+    for recording in [unproved, stale_recording(&recording)] {
+        let before = snapshot(scratch.path());
+        assert!(crate::add(scratch.path(), "welcome", &recording, &[]).is_err(), "recording refused");
+        assert!(snapshot(scratch.path()) == before, "a refused add leaves the root empty");
+    }
+    let missing = scratch.path().join("missing");
+    assert!(crate::add(&missing, "welcome", &stale_recording(&recording), &[]).is_err(), "stale recording refused");
+    assert!(!missing.exists(), "a refused add makes no root");
+}
+
+#[test]
+fn a_refused_add_keeps_the_journey_of_its_name() {
+    let scratch = Scratch::new("temper-client-journeys-kept");
+    let recording = fixture_recording();
+    crate::add(scratch.path(), "welcome", &recording, &[]).expect("add fixture journey");
+    fs::write(scratch.path().join("welcome/README.md"), "The person's description.\n").expect("description");
+    fs::write(scratch.path().join("welcome/99.html"), "An older page.\n").expect("older page");
+    fs::write(scratch.path().join("overlay.css"), "#app { color: red; }\n").expect("overlay");
+    fs::write(scratch.path().join("unrelated"), "Another file.\n").expect("unrelated file");
+    let before = snapshot(scratch.path());
+    assert!(
+        crate::add(scratch.path(), "welcome", &stale_recording(&recording), &[]).is_err(),
+        "stale recording refused"
+    );
+    assert!(snapshot(scratch.path()) == before, "a refused add keeps every directory and file byte for byte");
+}
+
+#[test]
+fn a_stale_reprint_leaves_its_pages_as_they_were() {
+    let scratch = Scratch::new("temper-client-journeys-stale-reprint");
+    let recording = fixture_recording();
+    crate::add(scratch.path(), "welcome", &recording, &[]).expect("add fixture journey");
+    fs::write(scratch.path().join("welcome/recording"), stale_recording(&recording)).expect("stale recording");
+    let before = snapshot(scratch.path());
+    let stale = crate::reprint(scratch.path(), scratch.path()).expect("reprint");
+    assert!(matches!(stale.as_slice(), [(name, _)] if name == "welcome"), "reprint reports the stale journey");
+    assert!(snapshot(scratch.path()) == before, "a stale reprint keeps every page byte for byte");
+}
+
+fn write_lines(lines: &[journey::Line]) -> Box<[u8]> {
+    let mut bytes = Vec::new();
+    for line in lines {
+        line.write(&mut bytes);
+    }
+    bytes.into()
+}
+
+fn heard_answer(value: &[u8]) -> journey::Line {
+    let mut quoted = Vec::new();
+    journey::Line::Secret(value.into()).write(&mut quoted);
+    let quoted = quoted.strip_prefix(b"secret ").expect("quoted bytes");
+    journey::lines(&[b"heard answered 999 200 ".as_slice(), quoted].concat()).expect("fake answer").remove(0)
+}
+
+fn with_answer(value: &[u8]) -> (Box<[u8]>, u32) {
+    let mut lines = journey::lines(&fixture_recording()).expect("fixture lines");
+    let at = lines.iter().position(|line| matches!(line, journey::Line::Deadline(_))).expect("deadline");
+    lines.insert(at, heard_answer(value));
+    (write_lines(&lines), u32::try_from(at + 1).expect("fixture line"))
+}
+
+fn absent(bytes: &[u8], private: &[u8], place: &str) {
+    assert!(skein_lib::bytes::find(bytes, private).is_none(), "original absent from {place}");
+}
+
+#[test]
+fn add_takes_the_link_out_and_the_replay_holds() {
+    let scratch = Scratch::new("journeys-link");
+    let fake = ["fake", "-link-private"].concat().into_bytes();
+    let recording = fixture_with_secret(Some(fake.clone().into()));
+    let added = crate::add(scratch.path(), "welcome", &recording, &[]).expect("add redacted link");
+    assert_eq!(added.link, 1, "one link original");
+    assert_eq!((added.stored, added.typed, added.given), (0, 0, 0));
+    assert!(added.places >= 2, "secret and exchange replaced");
+    let saved = fs::read(scratch.path().join("welcome/recording")).expect("saved recording");
+    absent(&saved, &fake, "recording");
+    let lines = journey::lines(&saved).expect("saved lines");
+    assert!(
+        lines
+            .iter()
+            .any(|line| matches!(line, journey::Line::Secret(value) if value.as_ref() == vec![b'x'; fake.len()]))
+    );
+    let pages = crate::printed("welcome", &saved).expect("read replay").expect("replay holds");
+    for page in pages {
+        let bytes = fs::read(scratch.path().join("welcome").join(page.name)).expect("written page");
+        absent(&bytes, &fake, "page");
+    }
+}
+
+#[test]
+fn add_takes_a_given_text_out() {
+    let scratch = Scratch::new("journeys-given");
+    let fake = ["private", "-heard-answer"].concat().into_bytes();
+    let (recording, _) = with_answer(&fake);
+    let added = crate::add(scratch.path(), "welcome", &recording, &[fake.clone().into()]).expect("add given text");
+    assert_eq!((added.given, added.places), (1, 1));
+    for bytes in snapshot(scratch.path()).values().flatten() {
+        absent(bytes, &fake, "written file");
+    }
+}
+
+#[test]
+fn a_shape_in_a_heard_answer_refuses() {
+    let scratch = Scratch::new("journeys-shape");
+    let fake = ["s", "k", "-", "Ab0123456789_-cdefGHI"].concat();
+    let (recording, line) = with_answer(fake.as_bytes());
+    let before = snapshot(scratch.path());
+    assert!(
+        matches!(crate::add(scratch.path(), "welcome", &recording, &[]),
+        Err(crate::Refusal::Found { line: found, record: "heard", place: journey::Place::Field, what: journey::What::Shape(journey::Shape::Key), .. }) if found == line),
+        "heard field shape refused"
+    );
+    assert!(snapshot(scratch.path()) == before, "refusal writes nothing");
+}
+
+#[test]
+fn a_given_text_the_page_draws_refuses() {
+    let scratch = Scratch::new("journeys-drawn");
+    let before = snapshot(scratch.path());
+    let result = crate::add(scratch.path(), "welcome", &fixture_recording(), &[b"temper".as_slice().into()]);
+    assert!(
+        matches!(result, Err(crate::Refusal::FoundDrawn { turn: 1, what: journey::What::Original, .. })),
+        "drawn hit precedes differing live print"
+    );
+    assert!(snapshot(scratch.path()) == before, "drawn refusal writes nothing");
+}
+
+#[test]
+fn a_given_text_only_the_print_holds_refuses() {
+    let scratch = Scratch::new("journeys-printed");
+    let before = snapshot(scratch.path());
+    let mut differing = journey::lines(&fixture_recording()).expect("fixture lines");
+    let mut count = 0;
+    for line in &mut differing {
+        if let journey::Line::End(html) = line {
+            *html = Some(b"different live print".as_slice().into());
+            count += 1;
+        }
+    }
+    assert_eq!(count, 1, "changed end mark");
+    for recording in [fixture_recording(), write_lines(&differing)] {
+        let result = crate::add(scratch.path(), "welcome", &recording, &[b"skein-ui.css".as_slice().into()]);
+        assert!(
+            matches!(result, Err(crate::Refusal::FoundPrinted { page, what: journey::What::Original, .. }) if page == "01.html"),
+            "printed document hit precedes proof refusal"
+        );
+        assert!(snapshot(scratch.path()) == before, "printed refusal writes nothing");
+    }
+}
+
+#[test]
+fn a_refusal_keeps_the_journey_of_its_name() {
+    let scratch = Scratch::new("journeys-existing-guard");
+    crate::add(scratch.path(), "welcome", &fixture_recording(), &[]).expect("initial journey");
+    fs::write(scratch.path().join("welcome/README.md"), "Description").expect("description");
+    let before = snapshot(scratch.path());
+    assert!(
+        crate::add(scratch.path(), "welcome", &fixture_recording(), &[b"skein-ui.css".as_slice().into()]).is_err(),
+        "guard refuses replacement"
+    );
+    assert!(snapshot(scratch.path()) == before, "existing journey and neighbours kept");
+}
+
+#[test]
+fn the_committed_journey_redacted_prints_the_same_pages() {
+    let root = Path::new(JOURNEYS).join("welcome-playground");
+    let recording = fs::read(root.join("recording")).expect("committed recording");
+    let redacted = journey::redact(&recording, &[]).expect("redact committed journey");
+    let pages = crate::printed("welcome-playground", &redacted.recording).expect("read journey").expect("replay");
+    assert!(!pages.is_empty(), "committed pages checked");
+    for page in pages {
+        let expected = fs::read(root.join(page.name)).expect("committed page");
+        assert!(expected == page.document.as_bytes(), "redacted page equals committed page");
+    }
 }

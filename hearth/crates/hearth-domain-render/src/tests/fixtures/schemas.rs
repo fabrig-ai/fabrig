@@ -282,5 +282,5 @@ pub fn nulled_accounts() -> (Declaration, Layers) {
 }
 
 fn schema_faults<T>() -> skein_lib::List<T> {
-    skein_lib::List::with_capacity(super::SCHEMA_FAULTS)
+    skein_lib::List::uncapped()
 }

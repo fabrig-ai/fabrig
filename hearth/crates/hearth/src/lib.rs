@@ -30,6 +30,10 @@ pub struct Client {
     staging: Option<Fd>,
 }
 impl Client {
+    #[must_use]
+    pub const fn service(&self) -> &Service {
+        &self.service
+    }
     pub fn open(invocation: Invocation, limits: &Limits, output: Fd, seed: u64) -> Result<Self, std::io::Error> {
         umask(0o022);
         let kind = skein_shell::prepare_output(output)

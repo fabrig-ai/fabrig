@@ -398,7 +398,7 @@ fn an_event_of_the_parent_nothing_waits_for_fails_the_walk() {
         sha256: PARENT.tree_file.sha256,
         size: PARENT.tree_file.size,
     };
-    let mut out = Queue::with_capacity(crate::MAX_OUT);
+    let mut out = Queue::with_capacity(1);
     step(&mut tree, &env, end, &mut out);
     let crate::vocabulary::Output::Answer(Answer::Failed { cause, .. }) = out.pop().expect("an output") else {
         panic!("a failure")
