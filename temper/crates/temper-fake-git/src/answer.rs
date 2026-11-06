@@ -231,17 +231,29 @@ fn working(checkout: &Checkout, at: &[u8]) -> Tree {
 fn staged(checkout: &Checkout, at: &[u8]) -> Tree {
     checkout.tree(&path(at, b".git/temper-index"))
 }
+// protocol/git.md, 4.7: excluded logs retain the index's contents, even when deleted.
 fn stage(checkout: &mut Checkout, at: &[u8]) {
     let mut tree = working(checkout, at);
     let prior = staged(checkout, at);
     let ignored = tree.get(b".gitignore".as_slice()).cloned().unwrap_or_default();
     tree.retain(|name, _| {
-        prior.contains_key(name)
-            || !ignored
-                .split(|b| *b == b'\n')
-                .any(|line| !line.is_empty() && !line.starts_with(b"#") && glob(line, name))
+        !hidden_log(name)
+            && (prior.contains_key(name)
+                || !ignored
+                    .split(|b| *b == b'\n')
+                    .any(|line| !line.is_empty() && !line.starts_with(b"#") && glob(line, name)))
     });
+    for (name, content) in prior {
+        if hidden_log(&name) {
+            tree.insert(name, content);
+        }
+    }
     write_index(checkout, at, tree);
+}
+fn hidden_log(path: &[u8]) -> bool {
+    path.rsplit(|b| *b == b'/')
+        .next()
+        .is_some_and(|name| name.len() > b".log".len() && name.starts_with(b".") && name.ends_with(b".log"))
 }
 fn write_index(checkout: &mut Checkout, at: &[u8], tree: Tree) {
     let index = path(at, b".git/temper-index");
