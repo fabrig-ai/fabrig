@@ -1,5 +1,5 @@
 //! Public thread inputs and chronological borrowed lines (client.md, 10).
-use super::{Thread, Words, later, live_turn};
+use super::{Thread, Words, extend_live, later, live_turn};
 use crate::{
     Key,
     contract::{
@@ -62,8 +62,10 @@ impl Thread {
         for at in 0..self.live.len() {
             let old = self.live.get_mut(at).expect("bounded live turn exists");
             if old.name.turn() == text.turn.turn() {
-                if old.name.retry <= text.turn.retry {
+                if old.name.retry < text.turn.retry {
                     *old = live_turn(text.clone(), text_bound);
+                } else if old.name.retry == text.turn.retry {
+                    extend_live(old, text, text_bound);
                 }
                 found = true;
                 break;

@@ -611,6 +611,44 @@ fn a_live_line_past_a_fields_text_arrives_whole_within_its_bound() {
 }
 
 #[test]
+fn a_live_lines_prefix_survives_suffix_only_snapshots() {
+    for (from, suffix, expected) in
+        [(5, b"".as_slice(), b"first".as_slice()), (5, b" last", b"first last"), (3, b"st last", b"first last")]
+    {
+        let mut thread = model();
+        thread.run(&run(), Some(&provisional(TURN, b"first")));
+        let mut snapshot = provisional(TURN, suffix);
+        snapshot.from = from;
+        snapshot.through = from + u32::try_from(suffix.len()).unwrap();
+        snapshot.cut = true;
+        thread.run(&run(), Some(&snapshot));
+        assert_eq!(
+            thread.lines().as_slice(),
+            &[Line::Provisional { name: snapshot.turn, text: expected, cut: false }],
+            "suffix from {from} must extend the prefix already held"
+        );
+    }
+}
+
+#[test]
+fn suffix_snapshots_keep_the_live_bound_and_do_not_join_across_a_gap() {
+    for (bound, from, suffix, expected) in [(6, 3, "界z", "aé界"), (5, 3, "界z", "aé"), (16, 6, "z", "aé")] {
+        let mut thread =
+            Thread::new(fixtures::SUBJECT_TASK, &crate::thread::Limits { lines: 4, bytes: 64, text: 2, live: bound });
+        thread.run(&run(), Some(&provisional(TURN, "aé".as_bytes())));
+        let mut snapshot = provisional(TURN, suffix.as_bytes());
+        snapshot.from = from;
+        snapshot.through = from + u32::try_from(suffix.len()).unwrap();
+        thread.run(&run(), Some(&snapshot));
+        assert_eq!(
+            thread.lines().as_slice(),
+            &[Line::Provisional { name: snapshot.turn, text: expected.as_bytes(), cut: true }],
+            "bound {bound}, suffix from {from}"
+        );
+    }
+}
+
+#[test]
 fn a_live_line_past_its_bound_keeps_its_start_on_a_character_boundary() {
     for (bound, expected) in [(0, ""), (1, "a"), (2, "a"), (3, "aé"), (5, "aé"), (6, "aé界")] {
         let mut thread =
