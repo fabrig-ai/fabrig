@@ -15,8 +15,21 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/domain/agent.md, 8.1"
 
+[[part]]
+id = "empties"
+title = "No page claims empty until its read has answered"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
 [[slice]]
 id = 1
 story = "someone who ran temper box reads a used link's words without temper serve, and a configuring chat tells them a proposal waits for their Accept, with no key, and writes no port into instructions"
 parts = ["words"]
+walk = false
+
+[[slice]]
+id = 2
+story = "a person on a Behind page reads section titles and what was last known, never a false empty, and an answered empty read still says it"
+parts = ["empties"]
 walk = false
