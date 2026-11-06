@@ -111,8 +111,6 @@ fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindi
                             Word::AnswerInWords
                         } else if needs && act == ActKind::LeaveHeld {
                             Word::LeaveHeld
-                        } else if needs {
-                            Word::RejectProposal
                         } else {
                             Word::Reject
                         },
