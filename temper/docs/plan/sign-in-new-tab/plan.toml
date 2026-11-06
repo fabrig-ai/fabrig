@@ -1,0 +1,16 @@
+draft = "sign-in-new-tab"
+repo = "fabrig"
+sources = ["temper/docs/plan/sign-in-new-tab/inputs/request.md", "temper/docs/design/draft/sign-in-new-tab.md", "AGENTS.md", "DESIGN.md"]
+
+[[part]]
+id = "listener-words"
+title = "The listener's fixed page says the new tab's end"
+mode = "direct"
+needs = []
+design = "skein/docs/design/oauth.md, 6.5"
+
+[[slice]]
+id = 1
+story = "A sign-in's new tab ends on \"Sign-in received. You can close this tab.\""
+parts = ["listener-words"]
+walk = false
