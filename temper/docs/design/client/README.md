@@ -5177,7 +5177,8 @@ section 5.
   and these open the tab, `Address` having no anchors: Home's "Turn on drafts
   and goals", "See the settings" and "Limits".
 - **The card in a chat:** a proposal of settings is a card at the call that
-  made it, as every proposal is (3.5): the title "How temper will run
+  made it where its turn names it, and after the conversation otherwise, as
+  every proposal is (3.5): the title "How temper will run
   PROJECT", PROJECT its `projects`' names joined by ", " and " and ", or, with
   none, the deployment's, "How temper will run your projects"; a line per line of the proposal's reason, in the person's words;
   then each item, in small mono type, faint, in the words of `temper ctl` but
@@ -6466,6 +6467,16 @@ own tests:
   a reload or another device loses it, since an ended proposal asks no card and jig
   names no `projects` on one. A card from the ended proposal, or a stored record, would
   keep it. Default: this session's alone.
+- **A Reject on a chat's card** (5.13; the request `ui-chat-accept` of 2026-11-06,
+  which counts Reject among the card's acts): the mock's `chat.html` draws "Accept" and
+  "Change something" alone, and the reason's box stands on the card in *Needs you*.
+  Drawing one takes a view change and that box; its ask already goes under the
+  proposal's own `project`. Default: none, a person rejects in *Needs you* or says what
+  to change in the chat.
+- **A rejected proposal of settings, on its chat's card** (5.13; the same request): its
+  title and lines stay with neither acts nor a state line, where the card in *Needs you*
+  says "Rejected"; the reason sent and the agent's reply stand in the conversation above
+  it. No words for it are designed. Default: as it stands.
 - **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; the
   requests `ui-final-walk` of 2026-11-05 and `ui-walk-3` of 2026-11-06): the pinned
   Claude Code fetch, from a box with directories of its own up to the sign-in prompt

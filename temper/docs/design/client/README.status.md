@@ -120,7 +120,9 @@
   disabled with their explanation. The welcome's Claude card says
   "a config of its own" rather than the mock's "an environment of its
   own" (3.5). Home and Changes omit the mock's "main green at" time:
-  their landing panel supplies a red flag, not that timestamp. These
+  their landing panel supplies a red flag, not that timestamp. A
+  proposal of settings' card draws no "temper enforces" and "Agents
+  follow" line, which 5.13 leaves to the review page. These
   sections retain the client's
   available acts and supplied values rather than the mock's local-only
   operations. Their extra rows and controls change the pages' lengths at
@@ -152,7 +154,9 @@
   and Accept from the chat itself; Reject from *Needs you* included a reason. Escape and
   the keeping act on Close, Start over, a goal's Stop, Accept and Reject were also pressed
   by hand at each width, which no test keeps; a press while the page updates, on a Release
-  alone. A task's Cancel and an agent's task's Stop are drawn at each width by their
+  alone. The client's world holds the chat's Accept and Reject's ask, with no browser
+  (`a_configuring_chat_accepts_its_own_proposal`, `a_configuring_chat_rejects_its_own_proposal`).
+  A task's Cancel and an agent's task's Stop are drawn at each width by their
   gallery states, the walk of the request `ui-walk-3` of 2026-11-06 having tried the
   fake box for them first, and no walk on record presses them.
 - **Not yet:** 3.5, *temper's own way, beside the page*: no journey records "See how it works"
@@ -220,6 +224,19 @@
   and the card has no "Drafts: on". The person accepts on the agent's words. The
   gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
   document.
+- **Not yet:** 5.13, *The card in a chat*, and 3.5's `Chat { task }`: no live turn names its
+  proposal, so a live proposal's card always stands after the conversation, below the newest
+  reply, where the mock's stays above later replies, and its call stays a line of its own above.
+  A turn's calls come with no `objects` (`jig-protocol-transcript`'s `translate_block`) and nothing
+  fills them, so `temper-client-view`'s `pages/chat.rs`, `proposal_anchor`, finds none; only the
+  view's tests, which fill them by hand, draw a card at its call. Seen at each width on the walk of
+  the request `ui-chat-accept` of 2026-11-06, its cause by reading; no test holds it.
+- **Design departs:** 5.13, *The card in a chat*, from the request `ui-chat-accept` of 2026-11-06,
+  by its plan's cut: that request has the fix reach both of the card's acts, reading "the unavailable
+  direct Reject control" as one family with the refused Accept. The section and the mock's `chat.html`,
+  the target, draw only "Accept" and "Change something", so no Reject is drawn, and a person rejects on
+  the card in *Needs you*. A Reject's ask from that card goes under the proposal's own `project` all the
+  same, and only the client's world sends it, by the act (section 11, *A Reject on a chat's card*).
 - **Not yet:** 3.5, *Reading back*: on the `ui-walk-3` walk of 2026-11-06, a long chat's first "Older" stayed
   "Loading earlier messages" for the 40 seconds watched, at 1280x720 and 1000x600, so
   no second press was made: a fresh fake box, 66 messages of 24 sentences through ctl,
