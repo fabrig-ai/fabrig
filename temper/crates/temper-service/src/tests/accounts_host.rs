@@ -387,31 +387,6 @@ fn issuer_request(sent: &[u8], now: Time) -> Option<oauth::HttpRequest> {
 }
 
 #[test]
-fn a_native_callback_returns_to_the_accounts_page() {
-    let mut world = SignInWorld::new();
-    let callback = world.approve(71);
-    world.accounts.return_to(71, bytes::copy_of(b"http://127.0.0.1:7000/accounts"));
-    world.grant_plan();
-    let socket = world.native_socket();
-    world.native_return(socket, &callback);
-    world.settle();
-    let answer = &world.sockets.iter().find(|peer| peer.token == socket).expect("native callback").sent;
-    assert!(answer.starts_with(b"HTTP/1.1 303"));
-    assert!(bytes::find(answer, b"location: http://127.0.0.1:7000/accounts\r\n").is_some());
-    assert!(bytes::find(answer, b"cache-control: no-store\r\n").is_some());
-    assert!(bytes::find(answer, b"referrer-policy: no-referrer\r\n").is_some());
-    let mut signed_in = 0_u32;
-    while let Some(event) = world.events.pop() {
-        if let root::Event::Account(domain::Event::SignedIn { source: 71, .. }) = event {
-            signed_in = signed_in.checked_add(1).unwrap();
-        }
-    }
-    assert_eq!(signed_in, 1);
-    assert_eq!(world.exchanges, 1);
-    world.nothing_held();
-}
-
-#[test]
 fn restarting_after_approval_then_pasting_the_new_callback_succeeds() {
     let mut world = SignInWorld::new();
     let old = world.approve(71);

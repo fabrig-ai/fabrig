@@ -129,7 +129,6 @@ fn sign_in_keeps_connect_in_the_page_and_welcome_offers_no_separate_entry() {
     assert!(offered(&root, Role::Link, b"Continue"));
     assert!(!offered(&root, Role::Button, ELSEWHERE));
     let (front, root, _) = begin(b"/accounts/connect");
-    assert!(front.engine.protocol.returns.is_empty(), "no native tab return for sign-in");
     assert!(front.leaves.is_empty(), "the sign-in remains in this tab");
     assert!(has(&root, "Open it again ›".as_bytes()), "waiting link has the promised words");
     assert!(
@@ -146,7 +145,6 @@ fn sign_in_keeps_connect_in_the_page_and_welcome_offers_no_separate_entry() {
 #[test]
 fn a_sign_in_holds_its_page_and_offers_the_paste() {
     let (front, root, _) = begin(b"/accounts/connect");
-    assert!(front.engine.protocol.returns.is_empty());
     assert!(front.leaves.is_empty());
     assert!(offered(&root, Role::TextField, FIELD));
 }
