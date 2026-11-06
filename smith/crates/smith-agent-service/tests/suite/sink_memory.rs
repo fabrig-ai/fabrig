@@ -15,7 +15,9 @@ mod tests {
     use smith_protocol_events::sinks::{Capture, Delivery, Destination, SinkLimits, Sinks};
 
     fn product_limits() -> SinkLimits {
-        use smith_agent_service::profile::{self, Configuration, Endpoint, Model, OversizedReasoning};
+        use smith_agent_service::profile::{
+            self, Configuration, Endpoint, Limits as DeclaredLimits, OversizedReasoning,
+        };
         let mut profile = profile::standard();
         profile.declared.tool_payload = 40960;
         profile.declared.file_bytes = 1_048_576;
@@ -40,16 +42,14 @@ mod tests {
                 option_bytes: 3,
                 connect: skein_lib::Duration::from_secs(10),
                 handshake: skein_lib::Duration::from_secs(10),
-                models: Box::new([Model {
-                    efforts: Box::new([]),
-                    name: b"gpt-6-luna".as_slice().into(),
+                limits: DeclaredLimits {
                     window: 272_000,
                     output: 32000,
                     reasoning_item: 65536,
                     oversized_reasoning: OversizedReasoning::Fail,
                     head: skein_lib::Duration::from_secs(60),
                     idle: skein_lib::Duration::from_secs(300),
-                }]),
+                },
             }]),
         };
         let limits = profile::derive(&profile, &declarations).expect("source-admitted product fixture");

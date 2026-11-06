@@ -22,7 +22,7 @@ pub(super) fn specialize(mut lower: agent::Config) -> agent::Config {
     lower.limits.llm.accounts = fixture.llm.accounts;
     lower.limits.llm.grant_value_bytes = fixture.llm.grant_value_bytes;
     lower.limits.file_timeout = fixture.file_timeout;
-    for model in &mut lower.domain.models {
+    for model in &mut lower.domain.limits {
         model.head = Duration::from_secs(10);
     }
     lower.limits.domain.session.tools.file_bytes = 4096;
@@ -209,7 +209,7 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
         }]),
         efforts: Box::new([Box::new([])]),
         sub_agents: false,
-        protocol_allowances: Box::new([lower.domain.models[0].protocol_allowance]),
+        protocol_allowances: Box::new([lower.domain.limits[0].protocol_allowance]),
         progress: Box::new([smith_domain::session::Progress {
             head: Duration::from_secs(60),
             idle: Duration::from_secs(30),
@@ -312,7 +312,7 @@ fn cloned_endpoints(lower: &agent::Config) -> smith_protocol_llm::Endpoints {
                 },
                 connect: options.connect,
                 handshake: options.handshake,
-                models: options.models.clone(),
+                oversized_reasoning: options.oversized_reasoning,
             }
         })
         .collect();
@@ -351,19 +351,10 @@ pub fn agent_document(launch: &Launch) -> serde_json::Value {
     let profile = smith_agent_process_world::profile();
     let declared = profile.declared;
     let policy = profile.policy;
-    let mut model = serde_json::json!({"name":"fake","window":1_048_576,"output":512,"reasoning_item":64,
-        "head":10000,"idle":30000,"prices":{"input":1,"cached":1,"output":1,"unit":1_000_000}});
-    if launch.choices {
-        model["efforts"] = serde_json::json!(["low", "high"]);
-    }
-    let mut models = vec![model.clone()];
-    if launch.choices {
-        model["name"] = serde_json::json!("alternate");
-        model["efforts"] = serde_json::json!(["low"]);
-        models.push(model);
-    }
+    let limits = serde_json::json!({"window":1_048_576,"output":512,"reasoning_item":64,
+        "head":10000,"idle":30000});
     let mut endpoint = serde_json::json!({"name":if launch.choices {"main"} else {"fake"},"number":0,"dialect":3,
-        "provider":"openai","connect":1000,"handshake":1000,"models":models,
+        "provider":"openai","connect":1000,"handshake":1000,"limits":limits,
         "address":format!("{}:{}", smith_agent_process_world::fake::loopback(), if launch.tls {34_443} else {443}),
         "transport":if launch.tls {"tls"} else {"plaintext"},
         "headers":[{"name":"originator","value":"skein-world"}]});

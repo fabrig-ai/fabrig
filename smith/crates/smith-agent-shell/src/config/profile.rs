@@ -36,6 +36,7 @@ fn apply_declared(
         profile.declared,
         overrides,
         "profile.declared.",
+        charter_models,
         conversations,
         tool_payload,
         file_bytes,

@@ -124,13 +124,13 @@ pub(super) fn domain(
         let owned = u64::try_from(size_of::<smith_domain::Program>())
             .ok()
             .and_then(|cell| cell.checked_add(skein_lib::len_u64(name.len())))
-            .and_then(|owned| limits.configured_model_bytes.checked_add(owned))
+            .and_then(|owned| limits.configured_endpoint_bytes.checked_add(owned))
             .ok_or_else(|| {
                 ConfigurationRefusal::Profile(Refusal::Derived {
-                    limit: LimitName::deployment(Layer::Service, "configured_model_bytes"),
+                    limit: LimitName::deployment(Layer::Service, "configured_endpoint_bytes"),
                 })
             })?;
-        limits.configured_model_bytes = owned;
+        limits.configured_endpoint_bytes = owned;
         programs.push(smith_domain::Program { endpoint: smith_domain::run::charter::Endpoint(*endpoint), name });
     }
     Ok(programs.into_boxed_slice())

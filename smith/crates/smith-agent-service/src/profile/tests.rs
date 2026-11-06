@@ -6,8 +6,8 @@ use alloc::boxed::Box;
 use skein_lib::Duration;
 
 use super::{
-    Check, Configuration, Endpoint, Layer, LimitName, Model, OversizedReasoning, Per, Refusal, Value, standard,
-    validate, words,
+    Check, Configuration, Endpoint, Layer, LimitName, Limits as DeclaredLimits, OversizedReasoning, Per, Refusal,
+    Value, standard, validate, words,
 };
 
 pub(super) fn profile() -> super::Profile {
@@ -29,16 +29,14 @@ pub(super) fn declarations() -> Configuration {
             option_bytes: 0,
             connect: Duration::from_secs(2),
             handshake: Duration::from_secs(3),
-            models: Box::new([Model {
-                efforts: Box::new([]),
-                name: Box::from(b"one".as_slice()),
+            limits: DeclaredLimits {
                 window: 65_536,
                 output: 512,
                 reasoning_item: 2048,
                 oversized_reasoning: OversizedReasoning::Fail,
                 head: Duration::from_secs(5),
                 idle: Duration::from_secs(11),
-            }]),
+            },
         }]),
     }
 }
@@ -65,7 +63,7 @@ fn forty_eight_calls_per_response_derive_with_two_models() {
     selected.policy.unacknowledged = 8;
     let mut configuration = declarations();
     configuration.endpoints = Box::new([configuration.endpoints[0].clone(), configuration.endpoints[0].clone()]);
-    for (endpoint, (number, name, window, reasoning_item)) in configuration
+    for (endpoint, (number, _name, window, reasoning_item)) in configuration
         .endpoints
         .iter_mut()
         .zip([(1, b"gpt-6-luna".as_slice(), 1_048_576, 65_536), (3, b"demo".as_slice(), 177_523, 2_048)])
@@ -73,8 +71,7 @@ fn forty_eight_calls_per_response_derive_with_two_models() {
         endpoint.number = number;
         endpoint.connect = Duration::from_millis(10_000);
         endpoint.handshake = Duration::from_millis(10_000);
-        let model = &mut endpoint.models[0];
-        model.name = name.into();
+        let model = &mut endpoint.limits;
         model.window = window;
         model.output = 8_192;
         model.reasoning_item = reasoning_item;
@@ -92,9 +89,9 @@ fn a_turn_holds_a_reasoning_block_at_the_completions_share() {
     use smith_transcript::{Opaque, OpaqueParts};
     let selected = standard();
     let mut configuration = declarations();
-    configuration.endpoints[0].models[0].window = 1_048_576;
-    configuration.endpoints[0].models[0].output = 32_768;
-    configuration.endpoints[0].models[0].reasoning_item = 65_536;
+    configuration.endpoints[0].limits.window = 1_048_576;
+    configuration.endpoints[0].limits.output = 32_768;
+    configuration.endpoints[0].limits.reasoning_item = 65_536;
     let derived = super::derive(&selected, &configuration).expect("standard profile");
     let client = derived.llm.translation.client;
     let transcript = derived.channel.transcript;
@@ -121,7 +118,7 @@ fn a_small_window_lowers_the_guide_bound_and_admits_the_run() {
     selected.declared.tool_payload = 8192;
     selected.declared.read_window = 8192;
     let mut configuration = declarations();
-    configuration.endpoints[0].models[0].output = 8192;
+    configuration.endpoints[0].limits.output = 8192;
     let limits = super::derive(&selected, &configuration).expect("small-window profile").domain.run;
     assert!(u64::from(limits.guide_bytes) <= limits.host_part);
     assert!(limits.guide_bytes < selected.declared.guide);
@@ -232,7 +229,7 @@ fn an_exit_grace_at_the_teardown_bound_names_the_broken_relationship() {
 fn file_bounds_follow_the_tools_admitted_piece_and_listing() {
     let mut selected = profile();
     let mut configuration = declarations();
-    configuration.endpoints[0].models[0].output = 4096;
+    configuration.endpoints[0].limits.output = 4096;
     for (payload, entries) in [(256, 3), (1024, 17), (4096, 100)] {
         selected.declared.tool_payload = payload;
         selected.declared.read_window = payload / 2;
@@ -277,8 +274,8 @@ fn a_payload_sized_write_fits_the_stated_whole_call_input() {
     selected.declared.tool_payload = 40_960;
     selected.declared.read_window = 32_768;
     let mut configuration = declarations();
-    configuration.endpoints[0].models[0].output = 32_000;
-    configuration.endpoints[0].models[0].window = 272_000;
+    configuration.endpoints[0].limits.output = 32_000;
+    configuration.endpoints[0].limits.window = 272_000;
     let limits = super::derive(&selected, &configuration).expect("product call limits");
     let stated = limits.llm.translation.stated;
     let mut path_bytes = [1_u8; 256];
@@ -304,7 +301,7 @@ fn a_payload_sized_write_fits_the_stated_whole_call_input() {
 fn write_envelopes_derive_checked_room_for_different_piece_sizes() {
     let mut selected = profile();
     let mut configuration = declarations();
-    configuration.endpoints[0].models[0].output = 32_000;
+    configuration.endpoints[0].limits.output = 32_000;
     let framing = u32::try_from(br#"{"path":"","content":""}"#.len()).unwrap();
     for payload in [1, 2, 17, 256, 4096, 40_960] {
         selected.declared.tool_payload = payload;
@@ -380,13 +377,13 @@ fn read_past_payload_retains_both_names_values_and_units() {
 }
 
 #[test]
-fn output_at_the_window_names_the_seen_endpoint_and_model() {
+fn output_at_the_window_names_the_seen_endpoint() {
     let mut configuration = declarations();
-    let model = configuration.endpoints.get_mut(0).expect("one endpoint").models.get_mut(0).expect("one model");
+    let model = &mut configuration.endpoints.get_mut(0).expect("one endpoint").limits;
     model.window = 8192;
     model.output = 8192;
     let refusal = super::derive(&profile(), &configuration).expect_err("output must be below window");
-    let per = Per::Model { endpoint: 7, model: 0 };
+    let per = Per::Endpoint(7);
     assert_eq!(
         refusal,
         Refusal::Broken {
@@ -397,21 +394,17 @@ fn output_at_the_window_names_the_seen_endpoint_and_model() {
     );
     assert_eq!(
         words(&refusal).as_ref(),
-        b"output-in-window: declared.output[endpoint=7,model=0]=8192 tokens; declared.window[endpoint=7,model=0]=8192 tokens"
+        b"output-in-window: declared.output[endpoint=7]=8192 tokens; declared.window[endpoint=7]=8192 tokens"
     );
 }
 
 #[test]
-fn zero_model_idle_is_a_named_deadline_refusal() {
+fn zero_endpoint_idle_is_a_named_deadline_refusal() {
     let mut configuration = declarations();
-    configuration.endpoints.get_mut(0).expect("one endpoint").models.get_mut(0).expect("one model").idle =
-        Duration::ZERO;
+    configuration.endpoints.get_mut(0).expect("one endpoint").limits.idle = Duration::ZERO;
     let refusal = super::derive(&profile(), &configuration).expect_err("zero idle");
     assert_eq!(refusal.check(), Some(Check::Deadlines));
-    assert_eq!(
-        words(&refusal).as_ref(),
-        b"deadlines: declared.idle[endpoint=7,model=0]=0 ns; policy.deadline_minimum=0 ns"
-    );
+    assert_eq!(words(&refusal).as_ref(), b"deadlines: declared.idle[endpoint=7]=0 ns; policy.deadline_minimum=0 ns");
 }
 
 #[test]
@@ -483,7 +476,7 @@ fn random_declarations_refuse_by_name_or_hold_the_checked_relationships() {
         profile.declared.tool_payload = u32::try_from(rng.next_u64() % 4096 + 1).expect("payload");
         profile.declared.read_window = u32::try_from(rng.next_u64() % 8192 + 1).expect("read");
         profile.declared.file_bytes = u32::try_from(rng.next_u64() % 8192 + 1).expect("whole file");
-        let model = configuration.endpoints.get_mut(0).expect("one endpoint").models.get_mut(0).expect("one model");
+        let model = &mut configuration.endpoints.get_mut(0).expect("one endpoint").limits;
         model.window = u32::try_from(rng.next_u64() % 8192 + 1).expect("window");
         model.output = u32::try_from(rng.next_u64() % 8192 + 1).expect("output");
         let output = model.output;
@@ -559,7 +552,7 @@ fn window_first_refuses_each_history_dimension_by_its_name() {
         match refusal {
             Refusal::Broken { check: Check::WindowFirst, right, .. } => {
                 assert_eq!(right.name.field, field);
-                assert_eq!(right.name.per, Per::Model { endpoint: 7, model: 0 });
+                assert_eq!(right.name.per, Per::Endpoint(7));
             }
             refusal @ (Refusal::Field { .. }
             | Refusal::Broken { .. }
@@ -632,7 +625,7 @@ fn window_first_refuses_a_history_one_byte_short_of_the_line() {
     limits.history_bytes -= 1;
     let refusal = validate::window_first(&profile, &configuration, &limits).unwrap_err();
     assert_eq!(refusal.check(), Some(Check::WindowFirst));
-    assert!(words(&refusal).starts_with(b"window-first: session.line[endpoint=7,model=0]="));
+    assert!(words(&refusal).starts_with(b"window-first: session.line[endpoint=7]="));
 }
 
 #[test]
@@ -656,7 +649,7 @@ fn a_larger_window_grows_the_request_and_not_the_connection_pool() {
     for conversations in [1, 2, 4, 6] {
         selected.declared.conversations = conversations;
         let small = super::derive(&selected, &configuration).expect("small window");
-        configuration.endpoints[0].models[0].window *= 2;
+        configuration.endpoints[0].limits.window *= 2;
         let large = super::derive(&selected, &configuration).expect("large window");
         assert_eq!(small.llm.connection.memory, large.llm.connection.memory);
         assert_eq!(large.llm.connection.memory, selected.declared.llm_pool);
@@ -667,7 +660,7 @@ fn a_larger_window_grows_the_request_and_not_the_connection_pool() {
         assert!(skein_llm::client::valid(&large_client));
         // Full-pool runtime memory is measured in the agent-process world by
         // every_conversation_open_with_the_pool_full_stays_under_the_ceiling.
-        configuration.endpoints[0].models[0].window /= 2;
+        configuration.endpoints[0].limits.window /= 2;
     }
 }
 
@@ -924,4 +917,30 @@ fn standard_job_poll_and_job_wait_are_thirty_seconds_and_five_minutes() {
     let selected = standard();
     assert_eq!(selected.policy.job_poll, Duration::from_secs(30));
     assert_eq!(selected.policy.job_wait, Duration::from_secs(300));
+}
+
+#[test]
+fn charter_models_bounds_the_charters_children_independently_of_endpoints() {
+    let mut selected = profile();
+    for count in [1, 64] {
+        selected.declared.charter_models = count;
+        let limits = super::derive(&selected, &declarations()).expect("declared charter count");
+        assert_eq!(limits.domain.run.models, count - 1);
+        assert_eq!(limits.llm.llms, count);
+        assert_eq!(limits.channel.charter.charter_models, count - 1);
+    }
+    selected.declared.charter_models = 65;
+    assert_eq!(
+        super::derive(&selected, &declarations()).unwrap_err(),
+        Refusal::Broken {
+            check: Check::CeilingsInVocabulary,
+            left: LimitName::deployment(Layer::Declared, "charter_models").value(Value::Count(65)),
+            right: LimitName::deployment(Layer::Channel, "charter_models").value(Value::Count(64)),
+        }
+    );
+    selected.declared.charter_models = 0;
+    assert_eq!(
+        super::derive(&selected, &declarations()).unwrap_err(),
+        Refusal::Derived { limit: LimitName::deployment(Layer::Declared, "charter_models") }
+    );
 }

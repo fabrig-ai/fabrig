@@ -476,9 +476,9 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         assert_eq!(endpoint["dialect"], 2, "Anthropic’s endpoint dialect");
         assert_eq!(endpoint["number"], 2);
     }
-    let agent_model = agent_endpoint["models"].as_array().expect("agent models").first().expect("program model");
-    for field in ["name", "window", "output", "prices"] {
-        assert_eq!(model[field], agent_model[field], "program declarations agree: {field}");
+    let agent_limits = &agent_endpoint["limits"];
+    for field in ["window", "output"] {
+        assert_eq!(model[field], agent_limits[field], "program quantities agree: {field}");
     }
     let stock = temper_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     for charter in &stock.charters {

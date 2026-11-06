@@ -24,7 +24,7 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
         "endpoints":[{"name":"fake","number":1,"dialect":3,"provider":"openai",
             "address":llm.to_string(),"transport":"plaintext",
             "connect":1000,"handshake":1000,
-            "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],
+            "limits": {"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}}],
         "environment":[]});
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
@@ -115,7 +115,6 @@ fn program_documents(directory: &Path, agent: &mut serde_json::Value, config: &m
     endpoint["dialect"] = 2.into();
     endpoint["provider"] = "anthropic".into();
     endpoint["program"] = "claude_code".into();
-    endpoint["models"][0]["name"] = "fake-claude".into();
     agent["endpoints"].as_array_mut().expect("agent endpoints").push(endpoint);
     let llm = &mut config["engine"]["llm"];
     let mut endpoint = llm["endpoints"][0].clone();

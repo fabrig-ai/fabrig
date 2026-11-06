@@ -20,7 +20,7 @@ fn reading_bytes_keeps_file_content_and_absent_file_refusal() {
 fn generated_values_build_the_native_agent_without_a_file() {
     let configuration = from_value(shaped_document()).expect("native configuration");
     assert_eq!(configuration.profile.declared.tool_payload, 256);
-    assert_eq!(configuration.declarations.endpoints[0].models[0].window, 65_536);
+    assert_eq!(configuration.declarations.endpoints[0].limits.window, 65_536);
 }
 
 #[test]

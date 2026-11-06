@@ -63,7 +63,7 @@ impl std::io::Write for AgentErrors {
 /// One real tiny model declaration for startup controls and process worlds.
 #[must_use]
 pub fn declarations(environment_bytes: u32) -> agent::profile::Configuration {
-    use agent::profile::{Configuration, Endpoint, Model, OversizedReasoning};
+    use agent::profile::{Configuration, Endpoint, Limits as DeclaredLimits, OversizedReasoning};
     Configuration {
         role_bound: None,
         environment_bytes,
@@ -73,16 +73,14 @@ pub fn declarations(environment_bytes: u32) -> agent::profile::Configuration {
             option_bytes: 0,
             connect: skein_lib::Duration::from_secs(1),
             handshake: skein_lib::Duration::from_secs(1),
-            models: Box::new([Model {
-                efforts: Box::new([]),
-                name: Box::from(b"fake".as_slice()),
+            limits: DeclaredLimits {
                 window: 1_048_576,
                 output: 512,
                 reasoning_item: 64,
                 oversized_reasoning: OversizedReasoning::Fail,
                 head: skein_lib::Duration::from_secs(1),
                 idle: skein_lib::Duration::from_secs(1),
-            }]),
+            },
         }]),
     }
 }
@@ -169,7 +167,7 @@ fn derive_limits() -> agent::Limits {
     let mut limits = agent::profile::derive(&profile, &configuration).expect("tiny profile derives");
     // Worlds may lower or specialize a derived limit (smith/docs/design/protocol/limits.md, section 2.2).
     limits.domain.run.models = 2;
-    limits.domain.configured_model_bytes = 4096;
+    limits.domain.configured_endpoint_bytes = 4096;
     limits.llm.connection.endpoints = 1;
     limits.llm.connection.connections = 2;
     limits.llm.connection.calls = 2;
@@ -218,7 +216,7 @@ fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limi
                     skein_llm::Provider::OpenAi => skein_llm::Endpoint::openai(),
                 },
             },
-            models: Box::new([]),
+            oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
         }]),
         1,
     )
@@ -229,15 +227,7 @@ fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limi
         domain: smith_domain::Config {
             programs: Box::new([]),
             endpoints: Box::new([smith_domain::run::charter::Endpoint(0)]),
-            models: Box::new([smith_domain::ConfiguredModel {
-                efforts: Box::new([]),
-                prices: smith_domain::run::Prices {
-                    input: 1,
-                    cached: 1,
-                    cache_write: None,
-                    output: 1,
-                    unit: 1_000_000,
-                },
+            limits: Box::new([smith_domain::EndpointLimits {
                 protocol_allowance: agent::profile::endpoint_allowance(
                     &profile(),
                     &declarations(0).endpoints[0],
@@ -245,7 +235,6 @@ fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limi
                 )
                 .expect("derived endpoint framing"),
                 endpoint: smith_domain::run::charter::Endpoint(0),
-                model: Box::from(&b"fake"[..]),
                 window: 1_048_576,
                 output: 512,
                 head: Duration::from_secs(2),
@@ -262,26 +251,26 @@ fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limi
 /// Keep shipped derivation for a scripted reply beyond the tiny model's output.
 fn configuration_output(anthropic: bool, output: u32) -> agent::Config {
     let mut declaration = declarations(0);
-    declaration.endpoints[0].models[0].output = output;
+    declaration.endpoints[0].limits.output = output;
     let limits = agent::profile::derive(&profile(), &declaration).expect("scripted output profile derives");
     let mut configuration = configuration_with_limits(
         if anthropic { skein_llm::Provider::Anthropic } else { skein_llm::Provider::OpenAi },
         &limits,
     );
-    configuration.domain.models[0].output = output;
+    configuration.domain.limits[0].output = output;
     configuration
 }
 
 /// The same process with the live reasoning-item entrance for the stopped-turn story.
 fn reasoning_configuration() -> agent::Config {
     let mut declaration = declarations(0);
-    declaration.endpoints[0].models[0].window = 272_000;
-    declaration.endpoints[0].models[0].output = 16_384;
-    declaration.endpoints[0].models[0].reasoning_item = 65_536;
+    declaration.endpoints[0].limits.window = 272_000;
+    declaration.endpoints[0].limits.output = 16_384;
+    declaration.endpoints[0].limits.reasoning_item = 65_536;
     let limits = agent::profile::derive(&profile(), &declaration).expect("reasoning profile derives");
     let mut configuration = configuration_with_limits(skein_llm::Provider::OpenAi, &limits);
-    configuration.domain.models[0].window = 272_000;
-    configuration.domain.models[0].output = 16_384;
+    configuration.domain.limits[0].window = 272_000;
+    configuration.domain.limits[0].output = 16_384;
     configuration
 }
 
@@ -457,8 +446,8 @@ pub fn charter() -> Box<[u8]> {
         let mut llm = parts.main.clone().into_parts();
         llm.account = Some(0);
         llm.model = Box::from(*b"fake");
-        llm.window = declarations(0).endpoints[0].models[0].window;
-        llm.output = declarations(0).endpoints[0].models[0].output;
+        llm.window = declarations(0).endpoints[0].limits.window;
+        llm.output = declarations(0).endpoints[0].limits.output;
         llm.prices = smith_charter::Prices::new(
             &smith_charter::CEILINGS,
             smith_charter::PricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },

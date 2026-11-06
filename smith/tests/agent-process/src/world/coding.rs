@@ -13,11 +13,11 @@ const CHECK: &[u8] = b".smith-test/check";
 pub(super) fn configuration() -> smith_agent_service::Config {
     let profile = smith_agent_service::profile::standard();
     let mut declarations = crate::declarations(0);
-    declarations.endpoints[0].models[0].output = OUTPUT;
+    declarations.endpoints[0].limits.output = OUTPUT;
     let limits = smith_agent_service::profile::derive(&profile, &declarations).expect("standard coding limits");
     let mut config = crate::configuration_with_limits(skein_llm::Provider::OpenAi, &limits);
-    config.domain.models[0].output = OUTPUT;
-    config.domain.models[0].protocol_allowance = smith_agent_service::profile::endpoint_allowance(
+    config.domain.limits[0].output = OUTPUT;
+    config.domain.limits[0].protocol_allowance = smith_agent_service::profile::endpoint_allowance(
         &profile,
         &declarations.endpoints[0],
         &limits.domain.session.tools,

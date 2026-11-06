@@ -378,8 +378,8 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
             {"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
                 "address":"api.anthropic.com:443", "transport":"tls", "server_name":"api.anthropic.com",
                 "connect":10000, "handshake":10000, "headers":[],
-                "models":[{"name":"claude-haiku-5-5", "prices":{"input":2000, "cached":2000, "output":10000, "unit":1_000_000},
-                    "window":1_048_576, "output":8192, "reasoning_item":65536, "head":60000, "idle":300_000}]},
+                "limits": {
+                    "window":1_048_576, "output":8192, "reasoning_item":65536, "head":60000, "idle":300_000}},
             agent_before["endpoints"].as_array().unwrap().iter().find(|endpoint| endpoint["name"] == "demo").unwrap()
         ])
     );

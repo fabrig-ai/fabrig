@@ -1716,8 +1716,8 @@ pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> setting
                 .iter()
                 .map(|endpoint| EndpointBound {
                     endpoint: endpoint.number,
-                    window: endpoint.models.iter().map(|model| model.window).max().unwrap_or(0),
-                    output: endpoint.models.iter().map(|model| model.output).max().unwrap_or(0),
+                    window: endpoint.limits.window,
+                    output: endpoint.limits.output,
                 })
                 .collect(),
             program_endpoints: config.program_endpoints.into_iter().collect(),

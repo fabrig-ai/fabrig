@@ -20,11 +20,11 @@ const CONFIG_BYTES: u64 = 1 << 20;
 
 mod document;
 mod endpoints;
-use endpoints::{PreparedEndpoints, build_endpoints, build_models};
+use endpoints::{PreparedEndpoints, build_endpoints, build_limits};
 mod native;
 #[cfg(test)]
 use document::Variable;
-use document::{DeclaredOverrides, Document, Endpoint, ModelDocument, PolicyOverrides, ProfileDocument, TraceDocument};
+use document::{DeclaredOverrides, Document, Endpoint, PolicyOverrides, ProfileDocument, TraceDocument};
 pub use native::TRUST_BYTES;
 
 #[cfg(all(test, unix))]
@@ -210,7 +210,7 @@ fn decode_document(document: Document) -> Result<Decoded, ConfigurationRefusal> 
     }
     let mut declarations = Vec::with_capacity(document.endpoints.len());
     for endpoint in &document.endpoints {
-        declarations.push(build_models(endpoint)?);
+        declarations.push(build_limits(endpoint)?);
     }
     let declarations = service::profile::Configuration {
         role_bound: None,
@@ -263,7 +263,7 @@ impl Decoded {
         let config = service::Config {
             program: programs::backend(program.as_ref(), &program_endpoints),
             limits,
-            domain: domain::Config { programs: domain_programs, endpoints: endpoints.domain, models: endpoints.models },
+            domain: domain::Config { programs: domain_programs, endpoints: endpoints.domain, limits: endpoints.limits },
             channel_endpoints: endpoints.channel,
             llm_endpoints,
             environment,

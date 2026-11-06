@@ -267,6 +267,28 @@ impl Config {
         Ok(())
     }
 
+    /// Whether a local product choice fits its catalogue's effort names and text bound.
+    #[must_use]
+    pub fn accepts_effort(efforts: &[Box<[u8]>], effort: Option<&[u8]>) -> bool {
+        match effort {
+            None => true,
+            Some(value) => {
+                if value.len() > 32 {
+                    return false;
+                }
+                if efforts.is_empty() {
+                    return true;
+                }
+                for effort in efforts {
+                    if effort.as_ref() == value {
+                        return true;
+                    }
+                }
+                false
+            }
+        }
+    }
+
     fn check_models(&self, limits: &Limits) -> Result<(), Invalid> {
         if self.protocol_allowances.len() != self.models.len() || self.efforts.len() != self.models.len() {
             return Err(Invalid::Models);
@@ -276,7 +298,12 @@ impl Config {
                 return Err(Invalid::Models);
             }
         }
-        let mut model_bytes = 0_u64;
+        let endpoint_bytes = skein_lib::len_u64(limits.endpoints.len())
+            .checked_mul(u64::try_from(size_of::<smith_domain::EndpointLimits>()).expect("endpoint cell"))
+            .ok_or(Invalid::Limits)?;
+        if endpoint_bytes > limits.smith.configured_endpoint_bytes {
+            return Err(Invalid::Limits);
+        }
         for (index, model) in self.models.iter().enumerate() {
             if let Err(rate) = model.prices.check() {
                 return Err(Invalid::Price(rate));
@@ -289,18 +316,10 @@ impl Config {
                     return Err(Invalid::Models);
                 }
             }
-            let Some(owned) = smith_domain::ConfiguredModel::owned_bound(
-                model.model.len(),
-                self.efforts.get(index).expect("matched effort inventory"),
-            ) else {
-                return Err(Invalid::Limits);
-            };
-            model_bytes = match model_bytes.checked_add(owned) {
-                Some(bytes) => bytes,
-                None => return Err(Invalid::Limits),
-            };
-            if model_bytes > limits.smith.configured_model_bytes {
-                return Err(Invalid::Limits);
+            for effort in self.efforts.get(index).expect("matched effort inventory") {
+                if effort.is_empty() || effort.len() > 32 {
+                    return Err(Invalid::Models);
+                }
             }
             if let Some(account) = model.account
                 && !self.accounts.contains(&account)

@@ -165,46 +165,18 @@ impl Harness {
                 crate::Config {
                     programs: Box::new([]),
                     endpoints: Box::new([Endpoint(1), Endpoint(2)]),
-                    models: Box::new([
-                        crate::ConfiguredModel {
-                            efforts: Box::new([]),
-                            prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
+                    limits: Box::new([
+                        crate::EndpointLimits {
                             protocol_allowance: 0,
                             endpoint: Endpoint(1),
-                            model: Box::from(&b"model-a"[..]),
                             window: 8192,
                             output: 1024,
                             head: Duration::from_secs(60),
                             idle: Duration::from_secs(30),
                         },
-                        crate::ConfiguredModel {
-                            efforts: Box::new([]),
-                            prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
-                            protocol_allowance: 0,
-                            endpoint: Endpoint(1),
-                            model: Box::from(&b"model-b"[..]),
-                            window: 8192,
-                            output: 1024,
-                            head: Duration::from_secs(60),
-                            idle: Duration::from_secs(30),
-                        },
-                        crate::ConfiguredModel {
-                            efforts: Box::new([]),
-                            prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
+                        crate::EndpointLimits {
                             protocol_allowance: 0,
                             endpoint: Endpoint(2),
-                            model: Box::from(&b"model-a"[..]),
-                            window: 8192,
-                            output: 1024,
-                            head: Duration::from_secs(60),
-                            idle: Duration::from_secs(30),
-                        },
-                        crate::ConfiguredModel {
-                            efforts: Box::new([]),
-                            prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
-                            protocol_allowance: 0,
-                            endpoint: Endpoint(2),
-                            model: Box::from(&b"model-b"[..]),
                             window: 8192,
                             output: 1024,
                             head: Duration::from_secs(60),
@@ -1916,18 +1888,17 @@ fn overflowing_reservation_runs_no_calls_and_tells_no_turn() {
 mod completion_retry;
 
 #[test]
-fn each_main_or_child_model_quantity_is_checked_before_admission() {
+fn a_model_past_its_endpoints_limits_is_refused() {
     for child in [false, true] {
-        for bad in 0_u32..5 {
+        for bad in 1_u32..5 {
             let mut requested = charter();
             let mut model = requested.llm.clone();
             match bad {
-                0 => model.model = bytes(b"not-configured"),
                 1 => model.window = 8193,
                 2 => model.output = 1025,
                 3 => model.window = 0,
                 4 => model.output = 0,
-                _ => unreachable!("five entrance refusals"),
+                _ => unreachable!("four entrance refusals"),
             }
             if child {
                 requested.models = Box::new([model]);
@@ -1949,18 +1920,18 @@ fn each_main_or_child_model_quantity_is_checked_before_admission() {
 }
 
 #[test]
-fn the_selected_model_progress_reaches_the_original_root_completion() {
-    for selected in 0..4 {
+fn the_selected_endpoint_progress_reaches_the_original_root_completion() {
+    for selected in 0..2 {
         let mut harness = Harness::new();
-        for (index, model) in harness.domain.config.models.iter_mut().enumerate() {
+        for (index, model) in harness.domain.config.limits.iter_mut().enumerate() {
             let index = u64::try_from(index).expect("four declarations");
             model.head = Duration::from_secs(11 + index);
             model.idle = Duration::from_secs(21 + index);
         }
-        let declared = harness.domain.config.models[selected].clone();
+        let declared = harness.domain.config.limits[selected].clone();
         let mut requested = charter();
         requested.llm.endpoint = declared.endpoint;
-        requested.llm.model = declared.model;
+        requested.llm.model = bytes(b"any-model");
         requested.conventions = None;
         let emitted = harness.step(Event::Start(crate::Start {
             workspace: Some(workspace()),
@@ -2220,20 +2191,36 @@ fn command_span_ends_at_the_seen_io_terminal_after_cancel() {
 }
 
 #[test]
-fn an_unchecked_charter_effort_is_refused_before_any_run_work() {
-    let mut harness = Harness::new();
-    for model in &mut harness.domain.config.models {
-        model.efforts = Box::new([b"low".as_slice().into()]);
+fn any_effort_within_its_bound_is_admitted() {
+    for length in [1, 32] {
+        let mut harness = Harness::new();
+        let mut requested = charter();
+        requested.llm.effort = Some(Box::from([b'x'; 32].get(..length).expect("bounded effort")));
+        let emitted = harness.step(Event::Start(crate::Start {
+            grants: account_grants(),
+            ..crate::fixture::start(Token::new(7), requested)
+        }));
+        let Some(Request::Admitted { .. }) = emitted.first() else { panic!("admission: {emitted:?}") };
     }
-    let mut requested = charter();
-    requested.llm.effort = Some(b"high".as_slice().into());
-    let emitted = harness.step(Event::Start(crate::Start {
-        grants: account_grants(),
-        ..crate::fixture::start(Token::new(7), requested)
-    }));
-    let [Request::Answer { answer, .. }] = emitted.as_ref() else { panic!("one refusal") };
-    assert_eq!(answer, &run::Answer::Refused(run::Refusal::Invalid(run::Invalid::Effort)));
-    assert!(harness.turns.is_empty());
+}
+
+#[test]
+fn any_model_on_a_configured_endpoint_is_admitted_within_its_limits() {
+    for child in [false, true] {
+        let mut requested = charter();
+        let model = Llm { model: bytes(b"added-while-running"), ..requested.llm.clone() };
+        if child {
+            requested.models = Box::new([model]);
+        } else {
+            requested.llm = model;
+        }
+        let mut harness = Harness::new();
+        let emitted = harness.step(Event::Start(crate::Start {
+            grants: account_grants(),
+            ..crate::fixture::start(Token::new(7), requested)
+        }));
+        let Some(Request::Admitted { .. }) = emitted.first() else { panic!("admission: {emitted:?}") };
+    }
 }
 
 #[test]
@@ -2341,7 +2328,7 @@ fn a_key_race_uses_the_new_generation_then_ends_on_its_own_policy() {
 fn invalid_limits_are_refused() {
     assert!(valid(&LIMITS));
     // Aggregate heap accounting is independent of constructor validity.
-    assert!(valid(&Limits { configured_model_bytes: u64::MAX, ..LIMITS }));
+    assert!(valid(&Limits { configured_endpoint_bytes: u64::MAX, ..LIMITS }));
     for budget in [
         run::Budget { turns: CEILING.turns + 1, ..BUDGET },
         run::Budget { spend: LIMITS.session.spend + 1, ..BUDGET },

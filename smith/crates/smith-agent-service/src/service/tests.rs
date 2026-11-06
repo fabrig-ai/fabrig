@@ -139,8 +139,8 @@ fn diagnostic_parent(seed: u64, activation: u64) -> Service {
     };
     let mut config = configuration();
     config.domain = domain_configuration(&charter);
-    config.limits.domain.configured_model_bytes =
-        config.limits.domain.configured_model_bytes.checked_add(128).expect("room for program declaration");
+    config.limits.domain.configured_endpoint_bytes =
+        config.limits.domain.configured_endpoint_bytes.checked_add(128).expect("room for program declaration");
     config.domain.programs =
         Box::new([domain::Program { endpoint: charter.llm.endpoint, name: b"claude_code".as_slice().into() }]);
     let mut agent = Service::new(config, seed).expect("diagnostic service");

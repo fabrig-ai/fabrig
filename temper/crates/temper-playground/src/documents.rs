@@ -265,7 +265,7 @@ pub fn agent_limits() -> smith_agent_service::Limits {
 #[must_use]
 pub fn agent_declarations() -> smith_agent_service::profile::Configuration {
     let mut declarations = smith::declarations(0);
-    declarations.endpoints[0].models[0].output = 2048;
+    declarations.endpoints[0].limits.output = 2048;
     declarations
 }
 /// The hosted agent's complete configuration.
@@ -283,7 +283,7 @@ pub fn agent_configuration() -> smith_agent_service::Config {
             destination,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            models: Box::default(),
+            oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
         }]),
         1,
     )

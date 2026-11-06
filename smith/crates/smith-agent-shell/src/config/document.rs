@@ -2,7 +2,6 @@
 //! Durations are milliseconds (smith/docs/design/protocol/agent.md, section 4).
 use super::programs;
 use serde::Deserialize;
-use smith_domain::run;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -29,6 +28,7 @@ pub(super) struct ProfileDocument {
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct DeclaredOverrides {
+    pub(super) charter_models: Option<u32>,
     pub(super) conversations: Option<u32>,
     pub(super) tool_payload: Option<u32>,
     pub(super) file_bytes: Option<u32>,
@@ -86,9 +86,7 @@ pub(super) struct FractionDocument {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct ModelDocument {
-    pub(super) prices: PriceDocument,
-    pub(super) name: String,
+pub(super) struct LimitsDocument {
     pub(super) window: u32,
     pub(super) output: u32,
     pub(super) reasoning_item: u32,
@@ -96,31 +94,6 @@ pub(super) struct ModelDocument {
     pub(super) oversized_reasoning: Option<String>,
     pub(super) head: u64,
     pub(super) idle: u64,
-    #[serde(default)]
-    pub(super) efforts: Vec<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(super) struct PriceDocument {
-    pub(super) input: u64,
-    pub(super) cached: u64,
-    #[serde(default)]
-    pub(super) cache_write: Option<u64>,
-    pub(super) output: u64,
-    pub(super) unit: u32,
-}
-
-impl PriceDocument {
-    pub(super) fn rates(&self) -> run::Prices {
-        run::Prices {
-            input: self.input,
-            cached: self.cached,
-            cache_write: self.cache_write,
-            output: self.output,
-            unit: self.unit,
-        }
-    }
 }
 
 #[derive(Deserialize)]
@@ -148,7 +121,7 @@ pub(super) struct Endpoint {
     pub(super) program: Option<String>,
     pub(super) connect: u64,
     pub(super) handshake: u64,
-    pub(super) models: Vec<ModelDocument>,
+    pub(super) limits: LimitsDocument,
     pub(super) name: String,
     pub(super) number: u32,
     pub(super) dialect: u32,

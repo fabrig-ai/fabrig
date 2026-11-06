@@ -60,7 +60,7 @@ fn engine_configured(inherited: &Inherited, open: bool) -> Proc {
 }
 fn declarations() -> smith_agent_service::profile::Configuration {
     let mut declarations = smith_agent_process_world::declarations(4096);
-    declarations.endpoints[0].models[0].window = 272_000;
+    declarations.endpoints[0].limits.window = 272_000;
     declarations
 }
 pub(crate) fn limits() -> smith_agent_service::Limits {
@@ -69,7 +69,7 @@ pub(crate) fn limits() -> smith_agent_service::Limits {
         let mut limits = smith_agent_service::profile::derive(&smith_agent_process_world::profile(), &declarations())
             .expect("272k profile");
         limits.llm.accounts = 2;
-        limits.domain.configured_model_bytes = 4096;
+        limits.domain.configured_endpoint_bytes = 4096;
         // As smith's program process fixture does, bound the report-only run's receiving room.
         limits.domain.run.run_bytes = limits.domain.run.run_bytes.min(4096);
         limits.domain.run.outcome_bytes = limits.domain.run.outcome_bytes.min(4096);
@@ -95,12 +95,12 @@ pub(crate) fn configuration() -> smith_agent_service::Config {
             destination,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            models: Box::new([]),
+            oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
         }]),
         1,
     )
     .expect("272k endpoint");
-    service.domain.models[0].window = 272_000;
+    service.domain.limits[0].window = 272_000;
     service.domain.programs = Box::new([smith_domain::Program {
         endpoint: smith_domain::run::charter::Endpoint(0),
         name: b"claude_code".as_slice().into(),

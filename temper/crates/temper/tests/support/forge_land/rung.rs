@@ -143,15 +143,9 @@ pub fn deployment(paths: &[PathBuf; 3]) {
         .find(|model| model["name"] == "gpt-6.1-sol")
         .expect("Sol");
     sol["output"] = 32_000.into();
-    for endpoint in worker["endpoints"].as_array_mut().expect("endpoints") {
-        endpoint["models"]
-            .as_array_mut()
-            .expect("models")
-            .retain(|model| model["name"] == "gpt-6.1-sol" || model["name"] == "demo");
-    }
     worker["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["name"] != "anthropic");
-    worker["endpoints"][0]["models"][0]["output"] = 32_000.into();
-    worker["endpoints"][0]["models"][0]["reasoning_item"] = 32_768.into();
+    worker["endpoints"][0]["limits"]["output"] = 32_000.into();
+    worker["endpoints"][0]["limits"]["reasoning_item"] = 32_768.into();
     // B0's carriers follow its one-call recipe.
     worker["profile"]["declared"]["calls_per_response"] = 1.into();
     let turn = turn_bounds::turn_body(&worker);
@@ -164,9 +158,8 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     assert_eq!(value["engine"]["limits"]["overrides"]["people.requests"], 256);
     assert_eq!(value["engine"]["limits"]["overrides"]["hub.turn_bytes"], turn);
     assert_eq!(value["application"]["limits"]["overrides"]["root.loads.loads"], 32);
-    assert_eq!(worker["endpoints"][0]["models"][0]["name"], "gpt-6.1-sol");
-    assert_eq!(worker["endpoints"][0]["models"][0]["output"], 32_000);
-    assert_eq!(worker["endpoints"][0]["models"][0]["reasoning_item"], 32_768);
+    assert_eq!(worker["endpoints"][0]["limits"]["output"], 32_000);
+    assert_eq!(worker["endpoints"][0]["limits"]["reasoning_item"], 32_768);
     write_json(&config, &value);
     write_json(&agent, &worker);
     let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));

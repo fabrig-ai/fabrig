@@ -275,9 +275,6 @@ pub(crate) fn agent(_spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
 }
 pub(crate) fn agent_providers(_spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     let mut config = fixtures::agent_configuration();
-    let mut other = config.domain.models[0].clone();
-    other.model = b"other".as_slice().into();
-    config.domain.models = Box::new([config.domain.models[0].clone(), other]);
     config.limits.llm.llms = 2;
     config.limits.llm.accounts = 3;
     config.limits.memory = 4 << 30;
@@ -294,7 +291,7 @@ fn agent_configured(inherited: &Inherited, mut configuration: smith_agent_servic
     let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (errors, capture) = agent_fixture::AgentErrors::pipe(fd);
     if slow {
-        configuration.domain.models[0].head = skein_lib::Duration::from_secs(30);
+        configuration.domain.limits[0].head = skein_lib::Duration::from_secs(30);
     }
 
     let agent = agent_fixture::configured(configuration, fixtures::SEED, inherited, errors.clone());
