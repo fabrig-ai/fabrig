@@ -131,6 +131,58 @@ fn configure_and_new_chat_start_their_template_and_open_the_chat() {
     }
 }
 
+fn answer_start(page: &mut Page) {
+    let key = page.pages.chats().expect("chats").start.expect("pending start");
+    let mut tasks = List::with_capacity(CREATED_TASKS);
+    tasks.push(fixtures::acts::TASK).unwrap();
+    page.event(crate::pages::Event::Told {
+        told: Told::Answered {
+            key,
+            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
+                what: Made::Tasks { tasks },
+            }))),
+        },
+    });
+    page.event(crate::pages::Event::Went { address: crate::Address::Chat { task: fixtures::acts::TASK } });
+}
+
+#[test]
+fn a_chat_started_by_sending_opens_asking_for_its_composer() {
+    use crate::{Address, pages::Act};
+    for (address, act) in [
+        (Address::NewChat { draft: false }, Some(Act::StartChat)),
+        (Address::NewChat { draft: true }, Some(Act::StartChat)),
+        (Address::Configure { project: fixtures::PROJECT }, Some(Act::StartChat)),
+        (Address::Configure { project: fixtures::PROJECT }, Some(Act::Starter { words: b"Hello".as_slice().into() })),
+        (Address::NewChat { draft: false }, None),
+    ] {
+        let mut page = Page::new(configuring_me(), address.clone());
+        if let Some(act) = act {
+            page.words(b"Hello");
+            page.act(act);
+        } else {
+            page.pages.suggest(&fixtures::env(&fixtures::limits()), page.root.client(), b"Hello", &mut page.out);
+        }
+        answer_start(&mut page);
+        assert_eq!(page.pages.chat().expect("chat").composer_focus, 1, "{address:?}");
+    }
+}
+
+#[test]
+fn a_chat_opened_otherwise_asks_for_nothing() {
+    use crate::{Address, pages::Act};
+    let address = Address::Chat { task: fixtures::acts::TASK };
+    let direct = Page::new(configuring_me(), address.clone());
+    assert_eq!(direct.pages.chat().expect("chat").composer_focus, 0);
+    let mut page = Page::new(configuring_me(), Address::NewChat { draft: false });
+    page.words(b"Hello");
+    page.act(Act::StartChat);
+    answer_start(&mut page);
+    page.event(crate::pages::Event::Went { address: Address::Chats { filter: ChatsFilter::All } });
+    page.event(crate::pages::Event::Went { address });
+    assert_eq!(page.pages.chat().expect("chat").composer_focus, 0);
+}
+
 #[test]
 fn a_starter_starts_once_with_its_words() {
     use crate::{Address, pages::Act};
