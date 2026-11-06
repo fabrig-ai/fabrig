@@ -534,6 +534,7 @@ fn focusable(role: Role) -> bool {
         Role::Choice,
         Role::Check,
         Role::Dialog,
+        Role::Disclosure,
         Role::Tab,
         Role::Main,
     ]
