@@ -4,7 +4,6 @@
 
 - **Not yet:** 5.4, *A composer*: an edit past `CUE_BYTES`, 256, on a chat or a new chat, or past `text` on an agent's, a goal's or a reply, is dropped and the old words kept, with nothing said; `Me` names no bound.
 - **Not yet:** 5.4, *A chat's first message*: the chat's page draws its spec as the engine cut it.
-- **Not yet:** 5.15, *An answer the client cannot decode*: it ends unreachable, and so is asked again for as long as the page is open; a chat's first read, failed, says nothing.
 - **Not yet:** 5.15: a conversation read by scrolling, whole. Until it lands, 3.5, 5.4, 5.9 and 5.11 say "Older" and a window of 16 lines, and the words under `chat-reading`'s section 5 stay as they stand.
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *The sign-in's tab*,
   *Its end*, *A reload while it waits* and *From another computer*; 7, *A sign-in's address in the small store*; 10:

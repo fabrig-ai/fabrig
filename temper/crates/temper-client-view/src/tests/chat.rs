@@ -293,8 +293,15 @@ fn a_failed_read_says_so_at_the_head() {
         (Edge::Dropped, Some(End::After), true),
         (Edge::Dropped, Some(End::Before), false),
         (Edge::End, Some(End::After), false),
+        (Edge::End, Some(End::Before), false),
     ] {
-        let mut thread = reading_thread();
+        let mut thread = conversation_turn(
+            &[fixtures::first_run::message(
+                c::Speaker::Assistant,
+                &[c::Block::Text(fixtures::first_run::text(b"Kept"))],
+            )],
+            false,
+        );
         thread.lines.edges.after = after;
         thread.read_failed = failed;
         let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
@@ -308,6 +315,19 @@ fn a_failed_read_says_so_at_the_head() {
             assert_eq!(fixtures::node_text(&drawn, at).as_ref(), b"Couldn't load earlier messages");
         }
     }
+}
+
+#[test]
+fn a_failed_first_read_says_so() {
+    let mut thread = reading_thread();
+    thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+    thread.failed();
+    let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
+    crate::pages::chat::older(&mut builder, &thread, &fixtures::browser_words());
+    let drawn = builder.finish();
+    let status = named_position(drawn.nodes(), Role::Status, Some(b"Loading earlier messages"))
+        .expect("a failed first read says why the empty conversation cannot load");
+    assert_eq!(fixtures::node_text(&drawn, status).as_ref(), b"Couldn't load earlier messages");
 }
 
 fn answer_tree(thread: &Thread, words: &crate::words::Words, projected: bool) -> skein_ui::Tree {

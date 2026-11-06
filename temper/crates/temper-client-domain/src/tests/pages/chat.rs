@@ -1953,3 +1953,30 @@ fn send_ready(words: &[u8], admission: c::Admission) -> f::Fixture {
     f.chat.words = words.into();
     f
 }
+
+#[test]
+fn an_ended_read_leaves_latest_free() {
+    use jig_client::thread::window::{Edge, End};
+    let (mut chat, client, mut out) = reading_chat(&fixtures::limits());
+    window_page(&mut chat, &client, &mut out, 0, WINDOW_PAGES);
+    while out.pop().is_some() {}
+    chat.thread.lines.edges.before = Edge::Dropped;
+    chat_act(&mut chat, &client, Act::Older, &mut out);
+    assert!(out.pop().is_some());
+    chat.told(
+        Time::ZERO,
+        &client,
+        Told::Page {
+            handle: chat.activity,
+            page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Malformed)),
+        },
+        &mut out,
+    );
+    assert_eq!(chat.thread.read_failed, Some(End::After));
+    assert_eq!(chat.next_deadline(), None);
+    chat.fire(Time::ZERO.saturating_add(Duration::from_secs(120)), &mut out);
+    assert!(out.is_empty(), "an undecodable answer is not asked again by time alone");
+    chat_act(&mut chat, &client, Act::Latest, &mut out);
+    assert_eq!(out.pop(), Some(first_activity(&chat)), "Latest asks immediately after a lasting end");
+    assert!(out.is_empty());
+}
