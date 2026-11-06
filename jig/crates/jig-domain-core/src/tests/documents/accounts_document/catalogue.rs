@@ -299,6 +299,7 @@ fn readiness_requires_one_models_source_and_host_together() {
     let (mut core, env) = serving();
     let mut direct = core.settings.models[0].clone();
     direct.name = b"direct".as_slice().into();
+    direct.endpoint = 2;
     core.settings.models[0].program = Some(b"claude_code".as_slice().into());
     core.settings.models = Box::new([core.settings.models[0].clone(), direct]);
     core.settings.llm_providers.providers[0].models =

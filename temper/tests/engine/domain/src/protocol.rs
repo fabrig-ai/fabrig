@@ -6,7 +6,7 @@
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
-use jig_domain_link::{Bounds, Form, Hosting, JobBound, JobKind, ModelBound, Phase, Scheme};
+use jig_domain_link::{Bounds, EndpointBound, Form, Hosting, JobBound, JobKind, Phase, Scheme};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, ReplyTo, Token};
 use std::collections::{BTreeMap, BTreeSet};
@@ -18,7 +18,7 @@ use temper_engine_domain as engine;
 pub fn bounds() -> Bounds {
     Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([ModelBound { name: b"scripted".as_slice().into(), window: 1024, output: 1024 }]),
+        endpoints: Box::new([EndpointBound { endpoint: 1, window: 1024, output: 1024 }]),
         turns: 8,
         spend: 1000,
         time: Duration::from_secs(60),

@@ -1,6 +1,6 @@
 use crate::{limits, settings};
 use jig_domain_host as host;
-use jig_domain_link::{Bounds, Form, Grant, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound, Form, Grant};
 use skein_lib::{Secret, Token};
 
 // smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
@@ -975,7 +975,7 @@ pub fn signed_worker() -> crate::Service {
                 hosting: Box::new([]),
                 bounds: Bounds {
                     program_endpoints: Box::new([]),
-                    models: Box::new([ModelBound { name: b"small".as_slice().into(), window: 8192, output: 1024 }]),
+                    endpoints: Box::new([EndpointBound { endpoint: 1, window: 8192, output: 1024 }]),
                     turns: 800,
                     spend: 1000,
                     time: skein_lib::Duration::from_secs(28_800),
@@ -1710,12 +1710,15 @@ pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> setting
         limits: protocol,
         host_limits,
         bounds: Bounds {
-            models: config
+            endpoints: config
                 .declarations
                 .endpoints
                 .iter()
-                .flat_map(|endpoint| endpoint.models.iter())
-                .map(|model| ModelBound { name: model.name.clone(), window: model.window, output: model.output })
+                .map(|endpoint| EndpointBound {
+                    endpoint: endpoint.number,
+                    window: endpoint.models.iter().map(|model| model.window).max().unwrap_or(0),
+                    output: endpoint.models.iter().map(|model| model.output).max().unwrap_or(0),
+                })
                 .collect(),
             program_endpoints: config.program_endpoints.into_iter().collect(),
             turns: config.profile.policy.max_turns,

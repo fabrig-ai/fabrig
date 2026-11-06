@@ -27,7 +27,7 @@ pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wi
     grant: 16,
     name: 16,
     secret: 16,
-    model_name: 16,
+
     items: 16,
     left: 16,
     saved: 16,
@@ -138,18 +138,15 @@ pub fn hello_record() -> jig_protocol_worker_wire::Hello {
     let mut models = List::with_capacity(1);
     models
         .push(
-            wire::ModelBound::new(
-                &codec,
-                wire::ModelBoundParts { name: Box::from(b"model".as_slice()), window: 8192, output: 1024 },
-            )
-            .expect("model"),
+            wire::EndpointBound::new(&codec, wire::EndpointBoundParts { endpoint: 1, window: 8192, output: 1024 })
+                .expect("model"),
         )
         .expect("one model");
     let bounds = wire::Bounds::new(
         &codec,
         wire::BoundsParts {
             program_endpoints: List::with_capacity(0),
-            models,
+            endpoints: models,
             turns: 8,
             spend: 100,
             time: Duration::from_secs(60),

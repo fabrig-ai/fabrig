@@ -34,8 +34,8 @@ pub use v9::{
     TurnKeptParts, Workspace, WorkspaceParts,
 };
 pub use v9::{
-    Bounds, BoundsParts, CEILINGS, Credential, CredentialParts, Hello, HelloParts, Hosting, HostingParts, ModelBound,
-    ModelBoundParts, Phase,
+    Bounds, BoundsParts, CEILINGS, Credential, CredentialParts, EndpointBound, EndpointBoundParts, Hello, HelloParts,
+    Hosting, HostingParts, Phase,
 };
 
 /// An application's opaque bytes under the token its vocabulary names.

@@ -3,7 +3,7 @@ use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
-use jig_domain_link::{Bounds, Hosting, ModelBound, Phase};
+use jig_domain_link::{Bounds, EndpointBound, Hosting, Phase};
 use jig_domain_link::{Form, Grant, Scheme};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, List, Map, Queue, Time, Token, Wall};
@@ -21,7 +21,7 @@ pub fn hello() -> jig_domain_link::Hello {
         hosting: Box::new([Hosting { run: RUN, attempt: ATTEMPT, phase: Phase::Waiting }]),
         bounds: Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([ModelBound { name: b"small".as_slice().into(), window: 1024, output: 128 }]),
+            endpoints: Box::new([EndpointBound { endpoint: 1, window: 1024, output: 128 }]),
             turns: 8,
             spend: 100,
             time: Duration::from_secs(60),

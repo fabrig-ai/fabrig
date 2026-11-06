@@ -47,7 +47,7 @@ pub fn limits() -> Limits {
     };
     let bounds = Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([]),
+        endpoints: Box::new([]),
         turns: 8,
         spend: 100,
         time: Duration::from_secs(60),

@@ -223,7 +223,7 @@ impl World {
     /// A scripted worker declares the job kinds it can host (engine.md, 7.5).
     pub fn job_hello(&mut self, channel: Token, worker: u32, kinds: Box<[JobBound]>) {
         let mut bounds = jig_test_profile::fixtures::bounds();
-        bounds.models = Box::new([]);
+        bounds.endpoints = Box::new([]);
         self.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
             worker,
             channel,

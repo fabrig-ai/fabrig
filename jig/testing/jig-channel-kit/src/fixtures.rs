@@ -1,6 +1,6 @@
 //! One bounded chat deployment and independent provider script (channel.md, 12).
 use crate::world::{Script, Settings};
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 use jig_test_service::{Files, Seeds};
 use skein_lib::{Duration, List, Secret};
 
@@ -218,7 +218,7 @@ pub(crate) fn agent_with_limits(agent_limits: &smith_agent_service::Limits) -> j
         host_limits,
         bounds: jig_domain_link::Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([ModelBound { name: b"fake".as_slice().into(), window: 1_048_576, output: 512 }]),
+            endpoints: Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 512 }]),
             turns: 8,
             spend: 100,
             time: Duration::from_secs(300),
@@ -378,18 +378,15 @@ pub(crate) fn peer_hello() -> skein_channel::Frame {
     let mut models = List::with_capacity(1);
     models
         .push(
-            wire::ModelBound::new(
-                codec,
-                wire::ModelBoundParts { name: b"fake".as_slice().into(), window: 1_048_576, output: 512 },
-            )
-            .expect("peer model"),
+            wire::EndpointBound::new(codec, wire::EndpointBoundParts { endpoint: 1, window: 1_048_576, output: 512 })
+                .expect("peer model"),
         )
         .expect("one model");
     let bounds = wire::Bounds::new(
         codec,
         wire::BoundsParts {
             program_endpoints: List::with_capacity(0),
-            models,
+            endpoints: models,
             turns: 8,
             spend: 100,
             time: Duration::from_secs(300),

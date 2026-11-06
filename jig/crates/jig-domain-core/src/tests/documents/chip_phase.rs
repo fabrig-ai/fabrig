@@ -75,7 +75,7 @@ fn chip_resource_keys_are_whole_and_oversized_keys_refuse_the_document() {
 fn chip_live_observation_uses_receipt_time_and_drops_after_loss() {
     let (mut core, mut limits) = make_tree();
     limits.fleet.engine_slots = 1;
-    core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, fixtures::needs(), Box::new([]));
+    core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, fixtures::needs());
     let mut env = Env { now: Time::ZERO, wall: Wall::from_nanos(20), limits: limits.fleet };
     let mut out = Queue::uncapped();
     fleet::step(
@@ -227,7 +227,7 @@ fn chip_closing_names_the_connectors_waited_on_without_counting_their_effects() 
 fn long_operation_work(operation: Operation) -> ChipWork {
     let (mut core, mut limits) = make_tree();
     limits.fleet.engine_slots = 1;
-    core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, fixtures::needs(), Box::new([]));
+    core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, fixtures::needs());
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
     let mut out = Queue::uncapped();
     fleet::step(

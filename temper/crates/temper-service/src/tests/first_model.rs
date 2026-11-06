@@ -10,7 +10,7 @@ use jig_client_protocol_wire::v19 as wire;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
-use jig_domain_link::{Bounds, Login, LoginState, ModelBound, PROGRAM_ENDPOINTS, SourceName};
+use jig_domain_link::{Bounds, EndpointBound, Login, LoginState, PROGRAM_ENDPOINTS, SourceName};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, List, Reader, ReplyTo, Token, Writer};
@@ -498,10 +498,10 @@ impl StockBox {
         }
         hello.bounds = Bounds {
             program_endpoints: endpoints.into_boxed(),
-            models: self
+            endpoints: self
                 .models
                 .iter()
-                .map(|model| ModelBound { name: model.name.clone(), window: model.window, output: model.output })
+                .map(|model| EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output })
                 .collect(),
             turns: 800,
             spend: u64::MAX,

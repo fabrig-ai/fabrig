@@ -4,7 +4,7 @@
     reason = "ordinary fixture code builds and edits configuration bytes"
 )]
 use crate::settings;
-use jig_domain_link::{Bounds, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound};
 use skein_lib::{List, Secret};
 
 pub const APPLICATION: &[u8] = br#"{
@@ -377,7 +377,7 @@ pub fn owned_worker_agent() -> settings::Agent {
         },
         bounds: Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([ModelBound { name: b"gpt-6-luna".as_slice().into(), window: 1_048_576, output: 8192 }]),
+            endpoints: Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 8192 }]),
             turns: 16,
             spend: 1_000_000_000,
             time: skein_lib::Duration::from_secs(86_400),

@@ -3,7 +3,7 @@ use crate::{Delivery, Payload, Request, link};
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
-use jig_domain_link::{Bounds, GrantTable, Hosting, ModelBound, Phase};
+use jig_domain_link::{Bounds, EndpointBound, GrantTable, Hosting, Phase};
 use jig_domain_link::{Form, JobKind};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Queue, Token};
@@ -27,7 +27,7 @@ fn a_worker_s_hello_reaches_the_fleet_with_its_bounds() {
         hello.bounds,
         Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([ModelBound { name: b"small".as_slice().into(), window: 1024, output: 128 }]),
+            endpoints: Box::new([EndpointBound { endpoint: 1, window: 1024, output: 128 }]),
             turns: 8,
             spend: 100,
             time: Duration::from_secs(60),
