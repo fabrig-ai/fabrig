@@ -27,3 +27,16 @@ id = 2
 story = "In Chromium, a press opens a tab in its own turn, and the page points it with its opener cut"
 parts = ["web-tab"]
 walk = false
+
+[[part]]
+id = "tab-root"
+title = "temper's root and host carry a sign-in's tab, and the page holds"
+mode = "direct"
+needs = ["web-tab"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 3
+story = "A press opens a tab, the answer points it, and the page holds and moves on from the accounts watch"
+parts = ["tab-root"]
+walk = false
