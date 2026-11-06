@@ -3,8 +3,6 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 6, 10 (`update-class`): kind 11 is unrecoverable, and an update not found holds
-    its task for a person.
   - 10 (`update-hold-words`): `Updates` names no write's account.
   - 18 (`update-worlds`): the stories of a lost update.
   - 11: a task's saved work is not deleted as it closes: `s<task>` is no hold,
