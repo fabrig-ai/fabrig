@@ -986,8 +986,10 @@ fn run_ctl_peers<T>(
     check: impl FnOnce(&Binary) -> T,
     peers: CtlPeers,
 ) -> (CtlOutcome<T>, Option<super::forge_land::Seen>) {
+    let fake_backends = flags.iter().any(|flag| flag == "--fake-backends");
     let pair = flags.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
     let data = PathBuf::from(&pair[1]);
+    let data = if fake_backends { data.join("box/fake-backends/data") } else { data };
     let resuming_playground = resuming_playground(&peers.model);
     let account_probe = matches!(&peers.model, CtlModel::Account(_));
     let cut = match &peers.model {
@@ -1007,7 +1009,6 @@ fn run_ctl_peers<T>(
     let tab = steps.iter().any(|step| matches!(step, super::ctl::Step::Visit));
     assert!(!tab || face.is_none(), "box-owned peers or an independent face");
     let clock = Clock::new();
-    let fake_backends = flags.iter().any(|flag| flag == "--fake-backends");
     let mut binary = Binary::start_with_tree(
         dying_with_test(Command {
             program: skein_scratch::paths::binary("temper"),

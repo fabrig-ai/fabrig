@@ -89,7 +89,10 @@ impl Walk {
         );
         let diagnostic = String::from_utf8_lossy(&outcome.stderr);
         let block = b"Open this link in a browser on this machine.\n\n\nIt signs you in as this temper's owner, once and for a short while.\nOpened again once spent, it prints a fresh one here.\n";
-        let after_block = outcome.stderr.strip_prefix(block).expect("the sign-in block is first on stderr");
+        let after_block = outcome
+            .stderr
+            .strip_prefix(block)
+            .unwrap_or_else(|| panic!("the sign-in block is first on stderr: {diagnostic}"));
         assert!(
             after_block.starts_with(b"box: effective configuration "),
             "the effective directories follow the block"
