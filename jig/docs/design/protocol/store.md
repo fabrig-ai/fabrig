@@ -917,7 +917,7 @@ a page, and each turn's line its turn (below).
 | an escalation | its decision, by the revision its task's record names, with the hold's milestone |
 | a question, a reply | the task's activity line, by its position, with the line that answers a question, where its answer was heard (below), or the turn a reply was (from the transcript, 8.3) |
 | a turn | the task's transcript (8.3) |
-| a task's activity, newest first | the activity family, read backwards (7.4); each turn's line with its turn, from the transcript (8.3); its owner task joined once for the page, and no row's ancestry or links, since an activity line names its task alone |
+| a task's activity, newest first, or the page beside one of its lines | the activity family, read backwards or, for the lines after a position, forwards (7.4); each turn's line with its turn, from the transcript (8.3); its owner task joined once for the page, and no row's ancestry or links, since an activity line names its task alone |
 | a task's history, or a subtree's | the history and milestone families; a subtree's by the index of its delegates, task by task: the task's own rows, then each delegate's in that index's order, each task's rows in its own history's order |
 | a task's ended delegates | the index of ended delegates by requester |
 | an inbox group | the index of the party's inbox, by time: what needs them oldest first, updates newest first; a group, and the filter, select within it |
@@ -1043,7 +1043,9 @@ shows and no reply read comes back unread.
 reads newest first by computing forward intervals from its last
 position, which its owner task's record names; a family read newest
 first by time is keyed reversed. skein-kv's load runs forwards only
-(skein's `kv.md`, section 12).
+(skein's `kv.md`, section 12). The lines after a position (a page beside
+a line, `../client/domain/contract.md`, section 6) walk the same dense positions
+upward, from the one after it, stopping at the same bounds.
 
 ## 8. Transcripts
 

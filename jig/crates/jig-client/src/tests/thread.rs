@@ -4,8 +4,278 @@ use crate::{
     thread::{Line, Thread, Words, window::Edge},
 };
 use skein_lib::{List, Wall};
+
+// Two 193-byte lines fit: line, message and block rooms, plus one text byte.
+const WINDOW_BYTES: u64 = 512;
+const SIZED_LINES: u32 = 8;
+fn sized_window() -> Thread {
+    bounded_window(WINDOW_BYTES, SIZED_LINES)
+}
+fn bounded_window(bytes: u64, lines: u32) -> Thread {
+    Thread::new(fixtures::SUBJECT_TASK, &crate::thread::Limits { lines, bytes, text: 100, live: 100 })
+}
+fn window_at_end(positions: &[u64], older: Option<&[u8]>) -> Thread {
+    let mut thread = sized_window();
+    thread.moved(*positions.first().unwrap()).expect("initial read");
+    assert_eq!(thread.page(sized_page(positions, older, None)), None);
+    thread
+}
 #[test]
-fn activity_reads_newest_then_older_and_keeps_reverse_cursor_when_sliding() {
+fn a_window_lets_whole_lines_go_past_its_bytes() {
+    let mut thread = window_at_end(&[6, 5], Some(b"older"));
+    assert_eq!(positions(&thread).as_ref(), &[6, 5]);
+    assert!(thread.older().is_some());
+    assert_eq!(thread.page(sized_page(&[4, 3], Some(b"past"), None)), None);
+    assert_eq!(positions(&thread).as_ref(), &[4, 3]);
+}
+#[test]
+fn bytes_keep_the_line_at_the_bound_and_drop_it_one_beyond() {
+    // Each sized line weighs 193, so two meet 386 exactly.
+    for (bytes, expected) in [(386, &[2, 1][..]), (385, &[1][..])] {
+        let mut thread = bounded_window(bytes, u32::try_from(bytes / u64::from(LINE_ROOM)).unwrap());
+        assert!(thread.moved(3).is_some());
+        assert_eq!(thread.page(sized_page(&[3, 2], Some(b"older"), None)), None);
+        assert!(thread.older().is_some());
+        assert_eq!(thread.page(sized_page(&[1], None, None)), None);
+        assert_eq!(positions(&thread).as_ref(), expected);
+    }
+}
+#[test]
+fn new_tail_staging_stops_at_its_bytes() {
+    let mut thread = window_at_end(&[2, 1], None);
+    assert!(thread.moved(8).is_some());
+    assert_eq!(
+        thread.page(sized_page(&[8, 7], Some(b"bridge"), None)),
+        Some(Read::Activity { task: fixtures::SUBJECT_TASK, before: Some(cursor(b"bridge")) })
+    );
+    assert_eq!(thread.page(sized_page(&[6, 5], Some(b"past"), None)), None);
+    assert_eq!(positions(&thread).as_ref(), &[8, 7]);
+    assert_eq!(thread.lines.edges.after, Edge::More(cursor(b"bridge")));
+}
+#[test]
+fn reading_older_lets_the_newest_go_and_reading_newer_the_oldest() {
+    for (bytes, lines) in [(WINDOW_BYTES, SIZED_LINES), (65536, 2)] {
+        let mut thread = bounded_window(bytes, lines);
+        assert!(thread.moved(6).is_some());
+        assert_eq!(thread.page(sized_page(&[6, 5], Some(b"older"), None)), None);
+        assert!(thread.older().is_some());
+        assert_eq!(thread.page(sized_page(&[4, 3], Some(b"past"), None)), None);
+        assert_eq!(thread.lines.edges.before, Edge::Dropped);
+        assert_eq!(
+            thread.newer(),
+            Some(Read::ActivityBeside { task: fixtures::SUBJECT_TASK, position: 4, side: Side::Later })
+        );
+        assert_eq!(thread.page(sized_page(&[5, 6], None, None)), None);
+        assert_eq!(positions(&thread).as_ref(), &[6, 5]);
+        assert_eq!(thread.lines.edges.after, Edge::Dropped);
+        assert_eq!(thread.lines.edges.before, Edge::End);
+    }
+}
+#[test]
+fn the_end_comes_back_after_enough_older() {
+    // Three forward pages return two lines each.
+    const RETURNED_LINES: u32 = 6;
+    let mut thread = window_at_end(&[8, 7], Some(b"older"));
+    for positions in [&[6, 5], &[4, 3], &[2, 1]] {
+        assert!(thread.older().is_some());
+        assert_eq!(thread.page(sized_page(positions, Some(b"older"), None)), None);
+    }
+    let mut returned = List::with_capacity(RETURNED_LINES);
+    for (positions, after) in [([3, 4], Some(b"more".as_slice())), ([5, 6], Some(b"more".as_slice())), ([7, 8], None)] {
+        let held = thread.lines.rows.get(0).unwrap().source.position;
+        assert_eq!(
+            thread.newer(),
+            Some(Read::ActivityBeside { task: fixtures::SUBJECT_TASK, position: held, side: Side::Later })
+        );
+        assert_eq!(thread.page(sized_page(&positions, None, after)), None);
+        let expected = sized_page(&positions, None, after);
+        assert!(thread.lines.rows.iter().rev().eq(expected.rows.iter()), "lines return whole");
+        for row in thread.lines.rows.iter().rev() {
+            returned.push(row.source.position).unwrap();
+        }
+    }
+    assert_eq!(returned.as_slice(), &[3, 4, 5, 6, 7, 8]);
+    assert_eq!(thread.lines.edges.before, Edge::End);
+    assert_eq!(thread.loaded, 8);
+    assert_eq!(thread.moved(9), Some(Read::Activity { task: fixtures::SUBJECT_TASK, before: None }));
+}
+#[test]
+fn a_page_alone_past_the_bound_stays() {
+    let mut thread = window_at_end(&[5, 4], Some(b"older"));
+    assert!(thread.older().is_some());
+    assert_eq!(thread.page(sized_page(&[3, 2, 1], None, None)), None);
+    assert_eq!(positions(&thread).as_ref(), &[3, 2, 1]);
+    assert_eq!(thread.lines.edges.before, Edge::Dropped);
+}
+#[test]
+fn older_past_a_dropped_edge_reads_beside_the_oldest_line() {
+    let mut thread = window_at_end(&[4, 3], Some(b"older"));
+    assert!(thread.moved(6).is_some());
+    assert_eq!(
+        thread.page(sized_page(&[6, 5], Some(b"bridge"), None)),
+        Some(Read::Activity { task: fixtures::SUBJECT_TASK, before: Some(cursor(b"bridge")) })
+    );
+    assert_eq!(thread.page(sized_page(&[4, 3], None, None)), None);
+    assert_eq!(
+        thread.older(),
+        Some(Read::ActivityBeside { task: fixtures::SUBJECT_TASK, position: 5, side: Side::Earlier })
+    );
+}
+#[test]
+fn latest_replaces_the_window() {
+    let mut thread = window_at_end(&[4, 3], Some(b"older"));
+    assert!(thread.older().is_some());
+    assert_eq!(thread.page(sized_page(&[2, 1], None, None)), None);
+    assert_eq!(thread.latest(), Some(Read::Activity { task: fixtures::SUBJECT_TASK, before: None }));
+    assert_eq!(thread.latest(), None);
+    assert_eq!(thread.page(sized_page(&[6], Some(b"latest"), None)), None);
+    assert_eq!(positions(&thread).as_ref(), &[6]);
+    assert_eq!(thread.loaded, 6);
+    assert_eq!(thread.lines.edges.after, Edge::More(cursor(b"latest")));
+    assert_eq!(thread.lines.edges.before, Edge::End);
+}
+#[test]
+fn a_window_that_let_its_end_go_reads_no_tail_and_draws_nothing_live() {
+    let mut thread = window_at_end(&[4, 3], Some(b"older"));
+    thread.run(&run(), Some(&provisional(TURN + 10, b"first")));
+    assert!(thread.older().is_some());
+    assert_eq!(thread.page(sized_page(&[2, 1], None, None)), None);
+    assert_eq!(thread.moved(5), None);
+    assert_eq!(thread.committed, 5);
+    assert!(thread.sending(fixtures::STOP, fixtures::PARTY, text(b"in the gap"), 0));
+    thread.answered(
+        fixtures::STOP,
+        &Answer::Done(Outcome::Document(DocumentOutcome::Said { task: fixtures::SUBJECT_TASK, message: MESSAGE })),
+    );
+    thread.run(&run(), Some(&provisional(TURN + 10, b"first grows")));
+    for line in thread.lines().into_boxed() {
+        match line {
+            Line::Turn { .. } => {}
+            Line::Words { .. } | Line::Provisional { .. } | Line::Undecoded { .. } | Line::Activity { .. } => {
+                panic!("only committed turns are shown while the newest end is absent");
+            }
+        }
+    }
+    assert!(thread.newer().is_some());
+    assert_eq!(thread.page(sized_page(&[3, 4], None, Some(b"more"))), None);
+    assert!(thread.newer().is_some());
+    assert_eq!(thread.page(sized_page(&[5], None, None)), None);
+    let shown = thread.lines();
+    assert!(shown.as_slice().contains(&Line::Words {
+        by: thread.words.rows.get(0).unwrap().by.as_ref(),
+        words: b"in the gap",
+        state: Words::Sent { message: MESSAGE },
+        at: None,
+    }));
+    assert!(shown.as_slice().contains(&Line::Provisional {
+        name: provisional(TURN + 10, b"").turn,
+        text: b"first grows",
+        cut: false,
+    }));
+    assert_eq!(thread.loaded, 5);
+}
+#[test]
+fn read_failed_says_which_end_until_it_is_read() {
+    use crate::thread::window::End;
+    let mut thread = sized_window();
+    assert!(thread.moved(4).is_some());
+    thread.failed();
+    assert_eq!(thread.read_failed, Some(End::Before));
+    assert!(thread.latest().is_some());
+    assert_eq!(thread.read_failed, None);
+    assert_eq!(thread.page(sized_page(&[4, 3], Some(b"older"), None)), None);
+    assert!(thread.older().is_some());
+    thread.failed();
+    assert_eq!(thread.read_failed, Some(End::After));
+    assert!(thread.latest().is_some());
+    assert_eq!(thread.read_failed, Some(End::After));
+    assert_eq!(thread.page(sized_page(&[4, 3], Some(b"older"), None)), None);
+    assert!(thread.older().is_some());
+    assert_eq!(thread.read_failed, None);
+    assert_eq!(thread.page(sized_page(&[2, 1], None, None)), None);
+    assert!(thread.newer().is_some());
+    thread.failed();
+    assert_eq!(thread.read_failed, Some(End::Before));
+    assert!(thread.newer().is_some());
+    assert_eq!(thread.read_failed, None);
+    thread.read_failed = Some(End::Before);
+    assert_eq!(thread.page(sized_page(&[3, 4], None, None)), None);
+    assert_eq!(thread.read_failed, None);
+}
+#[test]
+fn a_line_weighs_its_bytes_and_its_room() {
+    assert_eq!(LINE_ROOM, 64);
+    assert_eq!(SIZED_LINES, u32::try_from(WINDOW_BYTES / u64::from(LINE_ROOM)).unwrap());
+    assert_eq!(row(1).weight(), 64);
+    let mut page = sized_page(&[1], None, None);
+    let line = page.rows.get_mut(0).unwrap();
+    assert_eq!(line.weight(), 193);
+    let TurnRead::Decoded(turn) = &mut line.decoded.as_mut().unwrap().turn else { panic!("decoded fixture") };
+    let mut blocks = List::with_capacity(3);
+    blocks.push(Block::Text(text(b"ab"))).unwrap();
+    blocks.push(Block::Text(text(b"cd"))).unwrap();
+    blocks.push(Block::Text(text(b"ef"))).unwrap();
+    turn.messages.get_mut(0).unwrap().blocks = blocks;
+    assert_eq!(line.weight(), 326);
+    let mut blocks = List::with_capacity(3);
+    blocks.push(Block::Text(text(b"Working"))).unwrap();
+    blocks.push(Block::Opaque { dialect: text(b"provider"), size: u64::MAX }).unwrap();
+    let mut objects = List::with_capacity(1);
+    objects.push(ObjectKey::Task(fixtures::SUBJECT_TASK)).unwrap();
+    let mut path = List::with_capacity(2);
+    path.push(Box::from(b"src".as_slice())).unwrap();
+    path.push(Box::from(b"lib.rs".as_slice())).unwrap();
+    let mut parts = List::with_capacity(2);
+    parts.push(ApplicationPart::Resource { connector: 1, path }).unwrap();
+    parts.push(ApplicationPart::Connector { connector: 1 }).unwrap();
+    blocks
+        .push(Block::Call(Call {
+            number: 1,
+            tool: text(b"read"),
+            input: text(b"file"),
+            outcome: Some(text(b"done")),
+            failed: false,
+            objects,
+            parts,
+        }))
+        .unwrap();
+    let mut messages = List::with_capacity(2);
+    messages.push(Message { speaker: Speaker::Assistant, blocks }).unwrap();
+    let mut blocks = List::with_capacity(1);
+    blocks.push(Block::Result { call: 1, summary: text(b"complete"), failed: false }).unwrap();
+    messages.push(Message { speaker: Speaker::Tool, blocks }).unwrap();
+    let archive = line.decoded.as_mut().unwrap();
+    let TurnRead::Decoded(turn) = &mut archive.turn else { panic!("decoded fixture") };
+    turn.messages = messages;
+    // 44 retained text/path bytes plus 10 structural rooms, regardless of opaque size.
+    assert_eq!(line.weight(), 684);
+    line.decoded = Some(ArchivedTurn {
+        turn: TurnRead::Undecodable { why: TurnProblem::TooLarge { bytes: u64::MAX } },
+        ..line.decoded.take().unwrap()
+    });
+    assert_eq!(line.weight(), 64);
+    line.source.line = Activity::Words {
+        message: MESSAGE,
+        by: Requester::Task(fixtures::SUBJECT_TASK),
+        kind: MessageKind::Words,
+        words: text(b"hello"),
+    };
+    assert_eq!(line.weight(), 69);
+    let mut fields = List::with_capacity(1);
+    fields.push(ResultField { name: Box::from(b"key".as_slice()), value: Box::from(b"value".as_slice()) }).unwrap();
+    line.source.line = Activity::Heard(Word {
+        number: MESSAGE,
+        from: Requester::Task(fixtures::SUBJECT_TASK),
+        kind: MessageKind::Result(WordResult::Verdict { code: 1, fields }),
+        words: text(b"hello"),
+        at: Wall::EPOCH,
+        hits: 0,
+        eligible: false,
+    });
+    assert_eq!(line.weight(), 205);
+}
+#[test]
+fn activity_reads_newest_then_older_and_returns_beside_the_window() {
     let mut c = Thread::new(9, &crate::thread::Limits { lines: 3, bytes: 65536, text: 4096, live: 4096 });
     assert_eq!(c.moved(6), Some(Read::Activity { task: 9, before: None }));
     assert_eq!(c.moved(6), None);
@@ -14,10 +284,10 @@ fn activity_reads_newest_then_older_and_keeps_reverse_cursor_when_sliding() {
     assert_eq!(c.older(), Some(Read::Activity { task: 9, before: Some(cursor(b"older")) }));
     assert_eq!(c.accept(page(&[3, 2, 1], None, Some(b"newer"))), None);
     assert_eq!(positions(&c).as_ref(), &[3, 2, 1]);
-    assert_eq!(c.lines.edges.before, Edge::More(cursor(b"newer")));
+    assert_eq!(c.lines.edges.before, Edge::Dropped);
     assert_eq!(c.older(), None);
     assert_eq!(c.moved(7), None);
-    assert_eq!(c.newer(), Some(Read::Activity { task: 9, before: Some(cursor(b"newer")) }));
+    assert_eq!(c.newer(), Some(Read::ActivityBeside { task: 9, position: 3, side: Side::Later }));
     assert_eq!(c.accept(page(&[6, 5, 4], Some(b"older"), None)), Some(Read::Activity { task: 9, before: None }));
     assert_eq!(c.accept(page(&[7, 6, 5], Some(b"older"), None)), None);
     assert_eq!(positions(&c).as_ref(), &[7, 6, 5]);
@@ -279,7 +549,7 @@ fn empty_turn() -> Turn {
 }
 
 #[test]
-fn a_thread_keeps_the_newest_text_within_its_bounds_and_names_its_loss() {
+fn a_thread_keeps_the_newest_text_within_its_bounds() {
     let mut thread =
         Thread::new(fixtures::SUBJECT_TASK, &crate::thread::Limits { lines: 1, bytes: 2, text: 2, live: 2 });
     thread.run(&run(), Some(&provisional(TURN, b"first")));
@@ -287,7 +557,7 @@ fn a_thread_keeps_the_newest_text_within_its_bounds_and_names_its_loss() {
     let lines = thread.lines();
     assert_eq!(
         lines.as_slice(),
-        &[Line::Left { lines: 1 }, Line::Provisional { name: provisional(TURN + 1, b"").turn, text: b"se", cut: true }]
+        &[Line::Provisional { name: provisional(TURN + 1, b"").turn, text: b"se", cut: true }]
     );
 }
 

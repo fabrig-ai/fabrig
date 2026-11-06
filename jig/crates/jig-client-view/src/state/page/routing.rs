@@ -463,6 +463,7 @@ pub(crate) fn read_result(
         | Read::PersonTask { .. }
         | Read::Result { .. }
         | Read::Activity { .. }
+        | Read::ActivityBeside { .. }
         | Read::Turn { .. }
         | Read::Spend { .. }
         | Read::Project { .. }
@@ -659,6 +660,7 @@ fn owner_project_read_valid(domain: &Ui, token: Token, result: &ReadResult) -> b
         | Read::Ended { .. }
         | Read::History { .. }
         | Read::Activity { .. }
+        | Read::ActivityBeside { .. }
         | Read::Turn { .. }
         | Read::Inbox { .. }
         | Read::Spend { .. }
@@ -724,6 +726,7 @@ fn owner_inbox_read_valid(
         | Read::Ended { .. }
         | Read::History { .. }
         | Read::Activity { .. }
+        | Read::ActivityBeside { .. }
         | Read::Turn { .. }
         | Read::Spend { .. }
         | Read::Project { .. }
@@ -787,6 +790,7 @@ fn received_value(
             | Read::Ended { .. }
             | Read::History { .. }
             | Read::Activity { .. }
+            | Read::ActivityBeside { .. }
             | Read::Turn { .. }
             | Read::Inbox { .. }
             | Read::Spend { .. }
@@ -817,6 +821,7 @@ fn received_value(
                 | Read::Ended { .. }
                 | Read::History { .. }
                 | Read::Activity { .. }
+                | Read::ActivityBeside { .. }
                 | Read::Turn { .. }
                 | Read::Spend { .. }
                 | Read::Project { .. }
@@ -991,6 +996,7 @@ fn ended_read_task(what: &Read) -> Option<u64> {
         | Read::Result { .. }
         | Read::History { .. }
         | Read::Activity { .. }
+        | Read::ActivityBeside { .. }
         | Read::Turn { .. }
         | Read::Inbox { .. }
         | Read::Spend { .. }
@@ -1019,6 +1025,7 @@ fn spend_read_project(what: &Read) -> Option<u32> {
         | Read::Ended { .. }
         | Read::History { .. }
         | Read::Activity { .. }
+        | Read::ActivityBeside { .. }
         | Read::Turn { .. }
         | Read::Inbox { .. }
         | Read::Project { .. }
@@ -1091,6 +1098,7 @@ fn owner_escalation_read_valid(domain: &Ui, token: Token, result: &ReadResult, l
         | Read::Ended { .. }
         | Read::History { .. }
         | Read::Activity { .. }
+        | Read::ActivityBeside { .. }
         | Read::Turn { .. }
         | Read::Inbox { .. }
         | Read::Spend { .. }
