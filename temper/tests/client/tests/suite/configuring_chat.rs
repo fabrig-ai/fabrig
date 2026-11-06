@@ -21,9 +21,10 @@ const WORKFLOW: &[u8] = b"One chat per change, landed once CI passes.";
 
 #[test]
 fn the_page_starts_the_configuring_chat() {
-    for acts in
+    for (choose, acts) in [false, true].into_iter().flat_map(|choose| {
         [vec![Act::ChatWords { words: WORKFLOW.into() }, Act::StartChat], vec![Act::Starter { words: WORKFLOW.into() }]]
-    {
+            .map(|acts| (choose, acts))
+    }) {
         let mut front = Joint::with_configuring(fixtures::SEED, fixtures::domain_limits(), false);
         let mut root = Temper::new(fixtures::SEED).0;
         front.bind(ClientId(0), fixtures::PARTY);
@@ -33,6 +34,17 @@ fn the_page_starts_the_configuring_chat() {
             &mut root,
             Temper::start(Address::Configure { project: PROJECT }, Vec::new(), 0),
         );
+        if choose {
+            account_acts::event(
+                &mut front,
+                &mut root,
+                Event::Act {
+                    action: Action::Pages(Act::Choice(temper_client_domain::pages::choice::Act::Model { index: 0 })),
+                }
+                .into(),
+            );
+        }
+        let requested = root.person().pages().choice().requested.clone();
         for act in acts {
             account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(act) }.into());
         }
@@ -41,6 +53,12 @@ fn the_page_starts_the_configuring_chat() {
         assert!(assignment.workspace.repositories.is_empty(), "the configuring chat names no repository");
         let task = front.engine.task(assignment.task).expect("configuring chat");
         assert_eq!(task.spec.words.as_ref(), WORKFLOW);
+        assert_eq!(task.llm.is_some(), choose, "only a person's press supplies a model to Create");
+        if let Some(choice) = requested {
+            let llm = task.llm.as_ref().expect("Create carries the picked model");
+            let model = front.engine.root.models().get(usize::from(llm.main.model)).expect("configured model");
+            assert_eq!(model.name.as_ref(), choice.main.model.bytes());
+        }
         let task = assignment.task;
         let person = root.person();
         assert_eq!(person.pages().address(), &Address::Chat { task });

@@ -351,6 +351,8 @@ pub enum Word {
     ConfigureModelsTitle,
     ConfigureModelsCardLine,
     ConfigureModels,
+    ConfigurePlan,
+    ConfigureKey,
     ConfigureUnsureTitle,
     ConfigureWays,
     ConfigureAlone,
@@ -888,7 +890,7 @@ pub enum Word {
     WaitingAccountName,
     WaitingAccount,
     ChoiceProvider,
-    NeedsAccount,
+    ConnectPlanOrKey,
     AccountReadinessUnknown,
     AccountBanner,
     AccountRegion,
@@ -1393,7 +1395,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1877;
+const PHRASES: u32 = 1879;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1419,10 +1421,10 @@ const PHRASES: u32 = 1877;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3284;
+const SEGMENTS: u32 = 3298;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45862;
-const ALL: [Word; 1276] = [
+const ENGLISH_BYTES: u32 = 45853;
+const ALL: [Word; 1278] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1755,6 +1757,8 @@ const ALL: [Word; 1276] = [
     Word::ConfigureModelsTitle,
     Word::ConfigureModelsCardLine,
     Word::ConfigureModels,
+    Word::ConfigurePlan,
+    Word::ConfigureKey,
     Word::ConfigureUnsureTitle,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -2277,7 +2281,7 @@ const ALL: [Word; 1276] = [
     Word::WaitingAccountName,
     Word::WaitingAccount,
     Word::ChoiceProvider,
-    Word::NeedsAccount,
+    Word::ConnectPlanOrKey,
     Word::AccountReadinessUnknown,
     Word::AccountBanner,
     Word::AccountRegion,
@@ -3007,6 +3011,8 @@ impl Word {
             Self::ConfigureModelsTitle => 3204,
             Self::ConfigureModelsCardLine => 3205,
             Self::ConfigureModels => 3206,
+            Self::ConfigurePlan => 3910,
+            Self::ConfigureKey => 3911,
             Self::ConfigureUnsureTitle => 3207,
             Self::ConfigureWays => 3182,
             Self::ConfigureAlone => 3183,
@@ -3561,7 +3567,7 @@ impl Word {
             Self::WaitingAccountName => 1027,
             Self::WaitingAccount => 1023,
             Self::ChoiceProvider => 1020,
-            Self::NeedsAccount => 1021,
+            Self::ConnectPlanOrKey => 1021,
             Self::AccountReadinessUnknown => 1022,
             Self::AccountBanner => 1000,
             Self::AccountRegion => 1833,
@@ -5097,7 +5103,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChoiceDraftDefault => (&[b"Next run if applied: engine default"], &[]),
         Word::WaitingAccountName => (&[b"Waiting account: ", b""], &[Name]),
         Word::WaitingAccount => (&[b"Waiting account: ", b""], &[Number]),
-        Word::NeedsAccount => (&[b"needs an account"], &[]),
+        Word::ConnectPlanOrKey => (&[b"Connect a plan or key \xe2\x80\xba"], &[]),
         Word::AccountReadinessUnknown => (&[b"Account readiness unknown"], &[]),
         Word::AccountRegion => (&[b"LLM account"], &[]),
         Word::DefaultModel => (&[b"the default model"], &[]),
@@ -5110,7 +5116,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WaitRefreshing => (&[b"Refreshing account credentials"], &[]),
         Word::WaitMoving => (&[b"Waiting because the account is moving to another deployment"], &[]),
         Word::WaitHost => (&[b"", b"'s login isn't signed in on a host that can run this."], &[Name]),
-        Word::WaitEmpty => (&[b"No account serving this work"], &[]),
+        Word::WaitEmpty => (&[b"No account can run this chat yet."], &[]),
         Word::WaitEmptyModel => (&[b"No account can run ", b" yet."], &[Name]),
         Word::WaitCredential => (&[b"This work needs a credential from its forge."], &[]),
         Word::WaitCapacity => (&[b"No host has room for this, or none is connected. It starts when one does."], &[]),
@@ -5455,8 +5461,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ConfigureDesignTitle => (&[b"A design draft first"], &[]),
         Word::ConfigureDesignLine => (&[b"Agents plan its tasks; they land together."], &[]),
         Word::ConfigureModelsTitle => (&[b"Models by role"], &[]),
-        Word::ConfigureModelsCardLine => (&[b"Claude for reviews, my ChatGPT plan for the rest."], &[]),
-        Word::ConfigureModels => (&[b"Use Claude for reviews and my ChatGPT plan for everything else."], &[]),
+        Word::ConfigureModelsCardLine => (&[b"", b" for reviews, ", b" for the rest."], &[Name, Name]),
+        Word::ConfigureModels => (&[b"Use ", b" for reviews and ", b" for everything else."], &[Name, Name]),
+        Word::ConfigurePlan => (&[b"my ", b" plan"], &[Name]),
+        Word::ConfigureKey => (&[b"my ", b" API key"], &[Name]),
         Word::ConfigureUnsureTitle => (&[b"Not sure yet? Ask what temper can do."], &[]),
         Word::ConfigureWays => (&[b"Ways to begin"], &[]),
         Word::ConfigureAlone => (&[b"I work alone on small changes: one chat per change, landed once CI passes."], &[]),

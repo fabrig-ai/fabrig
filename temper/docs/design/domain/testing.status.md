@@ -10,6 +10,12 @@ approval-identity story covers a refusal naming no command.
 
 Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 
+Section 2.8 lists the killed-box lifetime test as Linux-only, matching its
+parent-death mechanism. The combined default-runner browser and terminal
+proof is not established by the supplied inventory (`../protocol/setup.status.md`,
+7.1, 7.2 and 13.4); the existing real-box sign-in story still awaits its
+after-landing execution (`../protocol/sign-in.status.md`, 9.9).
+
 - **Not yet:** 2.6: no passing whole run is recorded for the three-test
   profile with the four fixed-callback walks serialized. Its proof belongs
   to the next after-landing run on main (11), per the request

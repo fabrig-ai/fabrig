@@ -88,7 +88,7 @@ fn welcome_model_keeps_its_frame_with_a_model_already_usable() {
         &mut world,
         client,
         vec![
-            see(Role::Status, b"the default model"),
+            see(Role::Status, b"scripted"),
             see(Role::Link, "‹ Back".as_bytes()),
             gone(Role::Button, b"Add key"),
             gone(Role::Link, b"All ways"),

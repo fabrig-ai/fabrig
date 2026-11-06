@@ -156,6 +156,10 @@ pub(in crate::codec) fn wire_me_model(value: &c::MeModel, limits: &w::Limits) ->
             window: value.window,
             output: value.output,
             efforts: list(value.efforts.iter().map(|item| Ok::<_, w::Problem>(bytes::copy_of((item).bytes()))))?,
+            effort: value.effort.as_ref().map(|text| bytes::copy_of(text.bytes())),
+            shown: value.shown.as_ref().map(|text| bytes::copy_of(text.bytes())),
+            accounts: value.accounts.clone(),
+            picker: value.picker,
             prices: wire_me_prices(&value.prices, limits)?,
             description: value
                 .description

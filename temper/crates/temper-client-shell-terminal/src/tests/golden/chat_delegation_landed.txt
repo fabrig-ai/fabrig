@@ -22,7 +22,7 @@ Where:
   [14] Chats
   [15] demo
   [16] Chats
-T1 · Scripted model · Default
+T1 · Using the default model
 * waiting on your words
 0 spent · of 1
 Conversation:

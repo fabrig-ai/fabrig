@@ -66,7 +66,7 @@ Anthropic uses native ordered message blocks, tool schemas and tool-result
 error flags. `Prompt::max_output_tokens` sets its required `max_tokens`, defaulting
 to `Limits::declared_output_tokens`; zero is invalid. The public Responses route requires this setting to be `None`.
 `reasoning_effort` accepts `off` or adaptive-thinking effort `low`, `medium`,
-`high`, `max`; model compatibility is the caller's choice. Anthropic accepts
+`high`, `xhigh`, `max`; model compatibility is the caller's choice. Anthropic accepts
 `Prompt::affinity` with no effect on its wire bytes. Completed thinking and
 redacted-thinking blocks retain signatures/data as Anthropic-tagged replay.
 Received tool arguments remain raw; resending requires valid JSON objects and

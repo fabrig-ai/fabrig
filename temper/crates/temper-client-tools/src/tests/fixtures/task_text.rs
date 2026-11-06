@@ -101,6 +101,12 @@ pub(crate) fn source_summary(
     for model in &core.settings.models {
         models
             .push(jig_protocol_engine_clients::Model {
+                effort: match model.default_effort() {
+                    Some(effort) => Some(skein_lib::bytes::copy_of(effort)),
+                    None => None,
+                },
+                shown: None,
+                picker: true,
                 name: model.name.clone(),
                 provider: None,
                 window: model.window,

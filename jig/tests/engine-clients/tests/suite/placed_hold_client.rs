@@ -43,6 +43,7 @@ impl Party {
     fn new(world: &mut World, sign_in: u64, person: u64) -> Self {
         let mut settings = wire::settings();
         let model = jig_test_profile::scripted_model();
+        settings.models[0].effort = model.default_effort().map(skein_lib::bytes::copy_of);
         settings.models[0].name = model.name;
         settings.models[0].efforts = model.efforts;
         settings.models[0].window = model.window;

@@ -961,6 +961,10 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     assert!(roots > u64::try_from(size_of_val(contexts.get(0).unwrap().goals.as_slice())).unwrap());
     let delegates = List::<LiveDelegate>::price(limits.tasks.delegates).unwrap()
         + u64::from(limits.tasks.delegates) * chip_heap_bound(&limits.documents).unwrap();
+    let offer = List::<Offered>::price(tasks::MODELS).unwrap()
+        + u64::from(tasks::MODELS) * List::<u32>::price(limits.accounts.accounts).unwrap();
+    let previews = List::<(u32, tasks::LlmChoice)>::price(limits.templates).unwrap()
+        + u64::from(limits.templates) * List::<tasks::ModelEffort>::price(tasks::MODELS).unwrap();
     assert_eq!(
         document_with_context_bound(&limits, &core.kinds),
         Some(
@@ -968,6 +972,7 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
                 + delegates
                 + bound
                 + TEMPLATE_ENVELOPES
+                + u64::from(limits.documents.lines) * (offer + previews)
                 + settings_document_bytes()
                 + u64::from(limits.people.words)
         )

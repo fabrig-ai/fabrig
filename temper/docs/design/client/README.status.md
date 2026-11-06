@@ -60,10 +60,18 @@
   alone saying so (`pages/chat_line.rs`, `Run::flush`; the colour seen by reading the
   sheet). No reason is recorded.
 - **Not yet:** 3.5, *the words being written* and *While it works*: no browser test
-  draws the words being written, so the "▍" faint and in the line of the last word,
-  and the place held as the turn commits, are seen by reading the sheet's
-  `.temper-writing-end`. The gallery's `chat-work-writing` draws them and holds nothing
-  of the mark. The request `chat-reading-a` has the user read them on a real chat.
+  holds the writing mark's placement for Markdown beyond paragraphs. The
+  `ui-pgup` render proof at `e7bd0179d9` holds paragraphs through streaming and
+  commitment at 1440 and 420 px, with focus, draft and caret kept; it does not
+  settle the fence and open-marker cases below. The request `chat-reading-a`
+  has the user read them on a real chat.
+- **Departs:** 3.5, *the words being written*, and 5.15: a call or card drawn
+  at position zero of a committed turn takes the provisional text's key,
+  giving the later text another and replacing its nodes
+  (`pages/chat.rs`, `committed`, `block_key`). The plan `ui-pgup` left this
+  case outside its fix unless its reproduction saw it; its view test
+  `a_committed_redraw_keeps_the_nodes_of_the_words_being_read` commits a text
+  first. No render proof records the other order.
 - **Departs:** 3.5, *the words being written*. Before its first word the page and the
   dots ask only whether the text is empty (`temper-client-view`'s `pages/chat.rs`,
   `conversation_with_times`, and `pages/chats.rs`, `working`), where `read_growing`
@@ -374,15 +382,7 @@
   them apart takes a kit mechanism (section 11). Whether a keyboard rises is unknown, for those and for the request's own
   answers, up after a send and down on a chat opened from a list: no run on record has a real phone, and headless
   Chromium draws no keyboard.
-- **Not yet:** 3.4, 5.5: the composer's
-  supplied default, jig's
-  `resolved_default`, which neither jig's `Me` nor temper carries. Until it
-  does, a new chat's line and the `Configure` page's take the first model of
-  the catalogue whose provider is usable (3.5), in place of "Using the default
-  model". That is what the run takes on the stock settings, whose charters keep
-  the catalogue's order; it can differ where a configured charter orders its
-  models otherwise, a catalogue is clipped, or a configured template 3 names a
-  model. 3.5:
+- **Not yet:** 3.5:
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.
   5.13: a person with a project's role alone can read kinds 6 and 7,

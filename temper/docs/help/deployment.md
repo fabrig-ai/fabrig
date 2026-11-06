@@ -74,38 +74,38 @@ temper ctl settings apply`.
 - **ctl:** `me` reads your party in the deployment; `settings show`
   reads how its work runs.
 
-**Offering another model** (for example, `gpt-6-astra`):
+**Offering another model** (for example, `claude-haiku-5-5`):
 
 1. In `CONFIG/temper.json`, append a declaration to `engine.llm.models`:
 
    ```json
    {
-     "name": "gpt-6-astra", "endpoint": "openai",
+     "name": "claude-haiku-5-5", "endpoint": "anthropic",
      "window": 1048576, "output": 8192,
-     "efforts": ["high", "medium", "low"],
+     "efforts": ["low", "medium", "high"], "effort": "high",
      "prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000}
    }
    ```
 
-   Add `"gpt-6-astra"` to `engine.llm.providers[].models` for the
-   provider serving it (`openai` in this example). Its `models` array
+   Add `"claude-haiku-5-5"` to `engine.llm.providers[].models` for the
+   provider serving it (`anthropic` in this example). Its `models` array
    holds names, not declarations. The declaration's `endpoint` names
    an existing entry in `engine.llm.endpoints`.
 2. In `CONFIG/agent.json`, append a matching declaration to
-   `endpoints[].models` under the endpoint named `openai`:
+   `endpoints[].models` under the endpoint named `anthropic`:
 
    ```json
    {
-     "name": "gpt-6-astra",
+     "name": "claude-haiku-5-5",
      "window": 1048576, "output": 8192,
-     "efforts": ["high", "medium", "low"],
+     "efforts": ["low", "medium", "high"],
      "prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000},
      "reasoning_item": 65536, "head": 60000, "idle": 300000
    }
    ```
 
    Use the same model and endpoint names and supported `efforts` in both
-   files; the engine's first effort is the default.
+   files; the engine's `effort` names the default; left out, it is the first.
 3. These are illustrative values, not provider specifications. Set
    `window` (context tokens), `output` (maximum output tokens), and
    `prices` (input, cached input and output costs per `unit` tokens)

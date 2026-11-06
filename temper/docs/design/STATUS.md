@@ -40,7 +40,11 @@ worker slots it is to size temper's own way by, no story that runs has an owner 
 its proposal under Needs you, with `temper help proposal` still saying that press fails,
 and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
-settings family (`protocol/configuration.md`). The limits' check
+settings family (`protocol/configuration.md`). The watch rooms follow admitted
+streams, with the whole room available to one party; obsolete watch-room overrides are refused and ctl names a watch
+refused busy at its deadline. A fair share, the other ineffective views
+overrides, precise Busy causes and the manual browser check remain deferred
+(`protocol/configuration.md`, `client/tools.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
 (`domain/root.md`), and a change's refusal omits what authority it
 lacked and which model its charter refused (`domain/agent.md`). A
@@ -54,7 +58,13 @@ CI or tiers' workflows, and no walk applies the case's project file
 user's request of 2026-11-03 but for a message, a report, a person's
 spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
-with has not passed (`protocol/setup.md`). `temper init`'s documents hold
+with has not passed (`protocol/setup.md`). The box's hour-long Forgejo
+session, source-address refresh, refused public/sign-in pair, empty
+repository-name handling and Linux lifetime wrapper are built. The
+combined default-runner, restart, moved-port and terminal-hangup walk
+has no outcome in the supplied inventory, and the real-box sign-in
+story awaits its after-landing run (`protocol/setup.md`,
+`protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
@@ -238,7 +248,9 @@ no manual proof on record checks it in both shells. Edits past 131,072 bytes
 keep a prefix and overflow count, losing the rest on a new drawing, where the
 `long-words` request keeps every typed word (`client/README.md`, 5.4 and 5.15).
 The words being written draw an empty message in the dots' place until they hold a word, their "▍" falls below a closed
-fence, a last block still open changes as it commits, and no browser test draws them
+fence, and a last block still open changes as it commits. A committed call or card
+before the first text replaces that text's nodes; the paragraph render proof at
+1440 and 420 px does not cover these Markdown and block-order cases
 (`client/README.md`). A run of calls is one line on a chat's page and an agent's, its
 verbs and time for the user to read on a real chat (`draft/chat-reading.md`), but no test
 takes its call under way from the engine or draws it running in a browser or a real
