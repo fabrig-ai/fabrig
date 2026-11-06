@@ -213,6 +213,8 @@ fn the_fake_box_keeps_the_demos_two_document_turns() {
     let demo = temper["application"]["demo"]["llm"]["cued"].as_array().expect("demo cues");
     for cue in ["Write this up as a draft beside us.", "Add what happens to a running goal."] {
         let mut expected = demo.iter().find(|script| script["cue"] == cue).expect("demo document cue").clone();
+        // The signed-in box tries its model as T1 before its first chat, T2.
+        expected["turns"][0]["lines"][0]["arguments"]["scope"]["goal"] = json!(2);
         if cue == "Add what happens to a running goal." {
             // Home's status takes note 1 before the first chat writes note 2.
             expected["turns"][0]["lines"][0]["arguments"]["name"] = json!(2);
