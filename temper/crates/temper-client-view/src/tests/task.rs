@@ -1342,7 +1342,7 @@ fn an_agents_message_folds_each_call_and_results_into_rows() {
     task.activity = 1;
     let view = fixtures::page_view(&f::agent_root_with_page(task, Some(f::tree()), page));
     let tree = view.tree();
-    super::chat::assert_run_line(tree, "read ×2".as_bytes(), b"", &[b"read: First file", b"read: Second file"]);
+    super::chat::assert_run_line(tree, "Read 2 files".as_bytes(), b"", &[b"read: First file", b"read: Second file"]);
     for node in tree.nodes() {
         assert!(!node.styles.as_slice().contains(&look::BY_TOOL));
     }
