@@ -2,6 +2,8 @@
 
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
+- **Not yet:** 5.4, *A repository's link*: an empty OWNER or NAME still has an
+  address (`temper-client-view/src/forge/repository.rs`, `web_address`).
 - **Not yet:** 2.1: "in GitHub's merge queue, n": `Pull.queued` is not
   read (`../domain/forge.md`, 9.1). 2.3:
   amending a change's gates from its panel. 4: approvals, a person

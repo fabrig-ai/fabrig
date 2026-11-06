@@ -450,7 +450,8 @@ and `connect-forge.html`.
     Forgejo ↗", so that one click signs the member in and lands on the
     repository's page;
   - any other forge, GitHub among them, with a `web` address: `WEB/OWNER/NAME`;
-  - otherwise none, and the words stay plain, as the playground's do.
+  - otherwise none, and the words stay plain, as the playground's do. An empty
+    OWNER or NAME has no address either, on any forge.
 
   OWNER and NAME are each percent-encoded as a path's segment, all but ASCII
   letters, digits, `-`, `.`, `_` and `~`, and in `redirect_to` that path is

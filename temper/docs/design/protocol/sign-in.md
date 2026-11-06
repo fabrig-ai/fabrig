@@ -557,6 +557,10 @@ Google's (4.1). The issuer is the public origin (2.2), or
   and the URLs above; it goes to jig's clients' component in its
   settings. A key or a client the helper refuses refuses the start at
   its path.
+- **A moved port moves the issuer,** at the next start, and Forgejo keeps
+  the address its source was given. A box's preparation gives it the
+  current one (9.9); on any other arrangement the source is its owner's
+  to change, as its owner added it.
 - **What Forgejo 17's client does,** and the routes meet (its goth
   v1.82.0): it always sends a PKCE challenge, S256, and its verifier at
   the exchange; it authenticates at the token endpoint by Basic first,
@@ -828,7 +832,10 @@ with a password, as the set-up makes:
 So every press passes "Continuing to Forgejo…" (9.3), which replaces its address
 as soon as jig answers, with nothing to hold it longer. `auto` links by the name,
 then by the address, with no password. That is safe here because temper made every
-account on this Forgejo and one person holds the machine. `login` stays for a
+account on this Forgejo and the printed link signs in the box's one person (below).
+A box trusts every program listening on this machine's loopback, since browser
+cookies ignore ports. So Forgejo's session lasts an hour (`setup.md`, 6.2): every
+press signs in again, and one click needs no more. `login` stays for a
 managed Forgejo, whose accounts are not temper's, and for `temper serve`'s owned
 one, until the same reasoning has been checked for several members.
 
@@ -847,6 +854,11 @@ one, until the same reasoning has been checked for several members.
   or the set-up's admin's, when `machine.owned.sign_in` is not `null`. `temper init --box` already falls back
   from these logins; a hand-written document is refused. A login reaches jig only
   from these or from `sign_in.members` (9.7), so a start-time refusal is whole.
+- **Refused too, at the start, at `machine.owned.sign_in`'s path:** that member
+  beside `machine.owned.public`. Behind a proxy the forge's browser origin is
+  `public`, where the redirect init writes is the owned `listen`'s, so 9.7's check
+  would serve nothing, with the source added and no off fact. No walk has proved a
+  box behind a proxy (section 10).
 - **Nobody else signs in:** a box has no member and no Google; the printed link
   alone signs anyone in, always its owner, so the link provider's one owner is the
   one person who can reach `/oauth/authorize` signed in. An agent or a coding run
@@ -876,9 +888,21 @@ A restored group reports started only after its final source outcome, as on its 
 Its source fact is accepted for the kept box-owned Forgejo even with no setup ask in flight;
 the restored forge is already connected. An unknown or non-owned forge cannot set this fact.
 
+**A moved port.** The discovery address names temper's own listener, and a port a box
+finds taken is one its person may edit (`setup.md`, 7.1). Forgejo reads a source's
+address when it loads the source, at its start, and a source already listed is not
+added again. So a later preparation, before Forgejo runs, lists the sources and, with
+`temper` among them, runs `forgejo admin auth update-oauth --id ID --auto-discover-url
+ISSUER/.well-known/openid-configuration`, with `--work-path` and `--config` (`setup.md`,
+6.3). Each of the two commands has the set-up's deadline, since Forgejo may fetch the
+address it is given and serve answers it only once it is up.
+
 - **It never fails the set-up.** Any ending of the step leaves the set-up succeeding:
   one line in `box.log`, the forge's page fact saying so, and the links plain. Never a
-  welcome failure (`setup.md`, 7.2).
+  welcome failure (`setup.md`, 7.2). Any ending of the preparation's two commands
+  leaves the preparation going, with one line in its own log and the source as it was:
+  the entry still serves, so a press then ends at Forgejo's own error, on the old
+  address, until a later start succeeds. Forgejo's own login still works.
 - **Until the step says the source is there, the entry does not serve:** 9.7's
   "does not serve" with the reason, so no address leads to a route Forgejo lacks.
   Then the metas are made anew as 9.7 says, and "Open Forgejo ↗" and the repository's
@@ -895,6 +919,8 @@ bot's and the person's tokens, and neither passes this provider.
 
 - **`temper serve`'s owned Forgejo signing in with no command** (9.9). Default: its
   printed command, until `auto`'s reasoning has been checked for several members.
+- **A box's owned Forgejo behind `machine.owned.public`** (9.9). Default: the pair is
+  refused, until a walk proves its redirect, its source and its off fact.
 - **A deployment's own sign-in page.** Default: stock. Later, perhaps a
   name and a line in the configuration, or a template of the owner's.
 - **Members at runtime:** an owner's invitation and roles from the
