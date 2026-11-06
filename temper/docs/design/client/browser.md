@@ -1367,7 +1367,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-work-done` | the `chat-work` request's conversation, calls settled and folded, answer committed |
 | `chat-work-open` | the same conversation, the call run open to all thirteen rows |
 | `chat-work-running` | its first four calls settled and template 2 being checked, with no supplied outcome |
-| `chat-work-writing` | the same calls settled, the supplied opening paragraph being written with its end mark; the 512-byte live bound remains |
+| `chat-work-writing` | the same calls settled, the supplied opening paragraph being written with its end mark |
 | `chat-work-failed` | a failed charter read, its line and outcome in the signal's colour |
 | `chat-work-one` | one `read_docs` call alone, "Read the page hold" |
 | `chat-work-unknown` | a tool outside the words table, "read_file ×2" |

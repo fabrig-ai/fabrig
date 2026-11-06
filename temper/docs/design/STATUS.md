@@ -174,7 +174,11 @@ open reply, where a tree holds one request, seen by reading (`client/README.md`)
 and no test measures a long chat's document against its window, where the user's
 answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
 numbers in a chat's card, whose items the sheet makes flex, and a document page's
-takes the browser's margins (`client/browser.md`). Every confirmation of a chat, a
+takes the browser's margins (`client/browser.md`). A chat's calls read on one line and
+its answer only grows, but a call under way with none ended says itself twice, the
+line departs from the request `chat-work` in a failed call's colour, and its end mark
+is a glyph that does not blink (`client/README.md`); a chat is read by "Older" in a
+window of 16 lines until `draft/chat-reading.md`, 5 is built. Every confirmation of a chat, a
 task or a card is one sheet, but a closed chat hides every "Decision made", where the
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
 effect's choice closes its sheet, no walk on record presses Accept, a task's Cancel, an

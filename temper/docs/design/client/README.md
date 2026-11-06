@@ -4485,9 +4485,9 @@ acts on it as its document offers (5.11).
     mockup names the charter (3.5);
   - the playground's banner stays where the frame draws it, before the page,
     where the mockup draws it under the taskbar (5.1);
-  - a message's calls folded as the mockup folds them ("7 tool calls",
-    then "read ×6 · recall") and as a chat does (3.5), its results still
-    work lines (section 11);
+  - its calls in runs, as a chat's (3.5), where the mockup folds them
+    by message ("7 tool calls", then "read ×6 · recall"), and its results
+    its rows' outcomes;
   - not drawn, since no document supplies them: the charter's, model's,
     account's, worker's and pool's names ("Implementer · Sonnet ·
     medium", "on s1", "holds a slot of T12's pool"); whose
@@ -6387,6 +6387,15 @@ own tests:
   time under 12 hours old prints again each minute while it is shown.
   Default: as printed; a terminal shell that says every time as its
   moment, with no wake, is the candidate.
+- **Reading a chat by scrolling** (3.5, 5.4; `../draft/chat-reading.md`, 5):
+  earlier lines loading as a log's head nears (skein's `ui.md`, section 18), PgUp and
+  PgDn from anywhere, a window bounded by size that never loses the newest, and Latest
+  on the person sending and across all the window let go. Default: "Older" at the
+  head, a window of 16 lines, Latest reading one page and sending leaving the view.
+- **The rest of a run's line** (3.5, 5.9; `../draft/chat-reading.md`, 2 and 7): words
+  for further tools, which are the user's to read on a real chat, a run of one turn's
+  time, and a running run and Latest on an agent's page. Default: any other tool is
+  its name, a run of one turn has no time, and an agent's page has neither.
 - **An agent's conversation drawn as a chat's** (5.9): the agent's
   page draws runs as a chat does, and keeps the run markers
   as work lines, which a chat hides (3.5).

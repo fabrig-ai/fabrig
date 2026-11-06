@@ -189,14 +189,20 @@ There is no provisional state: no accessibility API has one. A node
 whose content is provisional says so in words (a status), and its look
 is its owner's style token.
 
-Completed is the one state no accessibility API has either, and it is
-in by the criterion's exception (4.1): a done step must reach a person
+Of the states that say something to a person, completed is the one no
+accessibility API has either, and it is in by the criterion's exception
+(4.1): a done step must reach a person
 who cannot see its tick, on every platform, which a style token cannot
 do. Each shell says it in words: the page part in a word of its own
 (ui-web.md, section 6), the text shell as `(completed)` (ui-text.md,
 section 5), a phone's shell as it says a sort (16.2, 16.3). The builder
 asserts it on an item alone: a tree item's content is not read when it
 is named, so completed there waits for a design of its own.
+
+Folds away and to log end say nothing to a person, and no accessibility
+API has them. Each asks a shell for a behaviour over what the shell alone
+knows, a press's place or a log's scroll (ui-web.md, section 7), and a
+shell with no such behaviour, as the text shell, ignores it.
 
 | Property | On | Means |
 |---|---|---|
@@ -320,6 +326,9 @@ how far a piece of work has gone toward its end.
   them, as a numbered list of the platform's or before each item's words.
   Another such exception is a change to this design (4.3), never the
   light path.
+- **Two more, which say nothing:** folds away and to log end (3.2), in no
+  platform's API, ask a shell for what it alone can do. Another of these
+  is a change to this design as well.
 - **The set converges,** because it mirrors accessibility semantics, not
   HTML's list of elements. Layout is never in the tree.
 
@@ -1191,6 +1200,9 @@ to 7 and 11 settle.
   several, a tree grid. Each waits for an application that needs it, and
   comes by the light path (4.3) where it maps one to one.
 - **Right-to-left text,** for section 19's question to be settled.
+- **A log's head near:** an act of a log's saying that its head has come
+  near the view, so that earlier lines load by scrolling rather than on a
+  press. It waits for `temper/docs/design/draft/chat-reading.md`, 5.
 - **An item's own blocks:** a line or a paragraph under a list's item
   ends the list (section 10), so one list written with them is several
   on the page, its numbers still as written. Read into the item, one list

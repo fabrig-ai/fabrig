@@ -269,9 +269,9 @@ unmarked in their main drawing.
 The `chat-work` conversation is drawn through the view in the gallery's
 `chat-work-*` states (`../browser.md`, 7.2): a folded run of calls and its
 rows, an answer's end mark, Latest while reading back, and the loading
-status at the head. The remaining live-text, list and scrolling behaviour,
-and an agent's running state and pill, belong to
-`../../draft/chat-reading.status.md`, sections 2, 3, 5, 6 and 7.
+status at the head. The remaining scrolling behaviour, further tools, a run
+of one turn's time, and an agent's running state and pill, belong to
+`../../draft/chat-reading.status.md`, sections 2, 5 and 7.
 "Older" remains the route to history until the log supplies a head-near act.
 
 Where the client's recorded picks stand against the drawing:
@@ -345,7 +345,7 @@ Other facts the comparison found absent:
   reference T1 drawing has 142 older turns and nine calls; the fake
   client's delivered window has no such total and carries three
   calls. The gallery keeps the browser's shipped bounds (browser.md
-  7.2), reports omitted text, and offers the existing older-page act
+  7.2), says nothing of what they cut, and offers the existing older-page act
   where supplied, rather than inventing history or widening limits.
 
 Where a word or shape was otherwise open, the client keeps its
