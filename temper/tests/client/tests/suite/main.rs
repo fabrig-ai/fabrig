@@ -17,6 +17,7 @@ mod chat_accept;
 mod chat_draft;
 mod choice;
 mod clearing;
+mod composer;
 mod configuring_chat;
 mod connect_forge;
 mod connect_model;

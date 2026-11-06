@@ -117,3 +117,26 @@ fn link(b: &mut Builder, bindings: &mut Bindings, words: &[u8], address: Address
     b.text(Run::Plain, words);
     b.close();
 }
+
+/// The line under a composer past what one message holds (client/README.md, 5.4).
+pub(crate) fn over(b: &mut Builder, w: &Words, characters: u64) {
+    if characters == 0 {
+        return;
+    }
+    let line = if characters == 1 {
+        w.say(Word::ComposerOverOne, &[])
+    } else {
+        let digits = skein_lib::Decimal::of(characters);
+        let digits = digits.as_bytes();
+        let commas = digits.len().checked_sub(1).expect("decimal has digits").checked_div(3).expect("three is nonzero");
+        let mut number = skein_lib::Writer::new(digits.len().checked_add(commas).expect("grouped u64 fits"));
+        for (index, digit) in digits.iter().enumerate() {
+            if index != 0 && digits.len().checked_sub(index).expect("digit is in decimal").checked_rem(3) == Some(0) {
+                number.put(b",").expect("grouped length counted");
+            }
+            number.put(core::slice::from_ref(digit)).expect("grouped length counted");
+        }
+        w.say(Word::ComposerOver, &[Hole::Name(number.finish())])
+    };
+    text(b, Role::Status, &line, None);
+}

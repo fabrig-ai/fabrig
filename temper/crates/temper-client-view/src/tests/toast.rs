@@ -64,6 +64,7 @@ fn toast_is_last_on_home_and_chats_in_both_shells_and_undo_is_only_held() {
             }
             f::root_event(&mut root, Event::Went { place: d::Place::Address(address.clone()) });
             for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+                assert_eq!(skein_ui::outline::check(view.tree()), None);
                 let nodes = view.tree().nodes();
                 let at = toast_at(view.tree()).unwrap();
                 let toast = &nodes[at];

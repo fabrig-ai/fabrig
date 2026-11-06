@@ -56,10 +56,10 @@ pub fn closing_page() -> skein_ui::Tree {
     first_run_sheet(client::Address::Chat { task: 1 }, false, true)
 }
 pub fn long_line_page(address: client::Address, line: &contract::Activity) -> skein_ui::Tree {
-    first_run_words(address, false, false, Some(line))
+    first_run_words(address, false, false, Some(line), None)
 }
 fn first_run_sheet(address: client::Address, landed: bool, closing: bool) -> skein_ui::Tree {
-    first_run_words(address, landed, closing, None)
+    first_run_words(address, landed, closing, None, None)
 }
 #[expect(clippy::too_many_lines, reason = "the fixture pumps one first-run page and optionally opens its confirmation")]
 fn first_run_words(
@@ -67,6 +67,7 @@ fn first_run_words(
     landed: bool,
     closing: bool,
     line: Option<&contract::Activity>,
+    typed: Option<&[u8]>,
 ) -> skein_ui::Tree {
     use jig_client::contract as c;
     use skein_lib::{Env, List, Queue, Time, Wall};
@@ -282,7 +283,18 @@ fn first_run_words(
             &mut out,
         );
     }
-    let bounds = if line.is_some() {
+    if let Some(words) = typed {
+        client::step(
+            &mut root,
+            &env,
+            Event::Act { action: client::Action::Pages(client::pages::Act::MessageWords { words: words.into() }) },
+            &mut out,
+        );
+        client::step(&mut root, &env, Event::Act { action: client::Action::Pages(client::pages::Act::Send) }, &mut out);
+        assert!(out.is_empty(), "an oversized Send sends nothing");
+        assert_eq!(root.pages().chat().unwrap().words.as_ref(), words);
+    }
+    let bounds = if line.is_some() || typed.is_some() {
         temper_client_view::Limits::of(&limits, &page_words()).expect("whole-line bounds")
     } else {
         temper_client_view::Limits { tree: tree_limits() }
@@ -482,4 +494,8 @@ fn demo_forges() -> Box<[u8]> {
         )
         .expect("one demo forge");
     wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).expect("demo forges"))
+}
+
+pub fn composer_over_page(words: &[u8]) -> skein_ui::Tree {
+    first_run_words(client::Address::Chat { task: 1 }, false, false, None, Some(words))
 }

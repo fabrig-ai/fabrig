@@ -268,22 +268,29 @@ fn session_composer(
     {
         return;
     }
+    let over = match root.pages().me(root.client()) {
+        Some(me) => temper_client_domain::pages::composer::over(&chat.words, chat.beyond, me.words_bytes),
+        None => 0,
+    };
     super::session::foot(b, &words.say(Word::Message, &[]));
     b.open(Role::TextArea);
     b.name(&words.say(Word::Message, &[]));
     b.placeholder(&words.say(Word::MessagePlaceholder, &[Hole::Number(task.chip.task)]));
-    if crate::choice::can_send(root) {
+    if over == 0 && crate::choice::can_send(root) {
         b.state(State::SubmitsOnEnter);
+    } else if over != 0 {
+        bindings.block_submissions();
     }
     if chat.composer_focus != 0 && root.pages().switcher().renaming().is_none() {
         b.focus(chat.composer_focus);
     }
-    b.value(&chat.words, temper_client_domain::pages::shown(root.pages()));
+    // Opening and sending write the field; an edit keeps the browser's own value.
+    b.value(&chat.words, chat.composer_focus);
     b.bind(bindings.insert(Act::MessageWords { words: Box::default() }));
     b.close();
     b.open(Role::Button);
     b.name(&words.say(Word::Send, &[]));
-    if chat.words.is_empty() || !crate::choice::can_send(root) {
+    if chat.words.is_empty() || over != 0 || !crate::choice::can_send(root) {
         b.state(State::Disabled);
     }
     b.bind(bindings.insert(Act::Send));
@@ -296,6 +303,7 @@ fn session_composer(
         Word::ChatSendHint
     };
     super::session::hint(b, words, hint);
+    super::session::over(b, words, over);
     if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
         && let Some(outcome) = &chat.outcome
         && !super::chats::accepted(outcome)
