@@ -196,7 +196,11 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                     }
                 }
                 root::PartyRequest::Deliver(root::Delivery::ForgeRead { reply, answer }) => {
-                    match crate::family::forge_read(answer, &temper_client_protocol_wire::v1::CEILINGS) {
+                    match crate::family::forge_read(
+                        answer,
+                        &engine.clients.program_environment,
+                        &temper_client_protocol_wire::v1::CEILINGS,
+                    ) {
                         Some(record) => Some(jig_protocol_engine_clients::Event::Application(
                             jig_protocol_engine_clients::FromApplication::Read {
                                 reply,

@@ -529,6 +529,7 @@ pub enum Word {
     NeedsYouCountCut,
     ToastAnswered,
     ToastLater,
+    ToastNotSent,
     ToastUndo,
     AnsweredReply,
     RailSettings,
@@ -1345,7 +1346,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Last landing adds two phrases (client/README.md, 3.5).
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
-const PHRASES: u32 = 1824;
+const PHRASES: u32 = 1825;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1366,13 +1367,14 @@ const PHRASES: u32 = 1824;
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
 // The rail menu adds six literal segments (client/README.md, 5.3).
+// The unsent answer toast adds one literal phrase and segment (3.5).
 // Last landing adds four segments (client/README.md, 3.5).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3153;
+const SEGMENTS: u32 = 3154;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 44860;
-const ALL: [Word; 1231] = [
+const ENGLISH_BYTES: u32 = 44900;
+const ALL: [Word; 1232] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1880,6 +1882,7 @@ const ALL: [Word; 1231] = [
     Word::NeedsYouCountCut,
     Word::ToastAnswered,
     Word::ToastLater,
+    Word::ToastNotSent,
     Word::ToastUndo,
     Word::AnsweredReply,
     Word::RailSettings,
@@ -3086,6 +3089,7 @@ impl Word {
             Self::NeedsYouCountCut => 3332,
             Self::ToastAnswered => 3333,
             Self::ToastLater => 3334,
+            Self::ToastNotSent => 3789,
             Self::ToastUndo => 3335,
             Self::AnsweredReply => 3336,
             Self::RailSettings => 3084,
@@ -3800,7 +3804,7 @@ impl Word {
             Self::WelcomeAwayTitle => 3373,
             Self::WelcomeAwayOwn => 3739,
             Self::WelcomeAwayAgain => 3740,
-            Self::WelcomeTabOpening => 3789,
+            Self::WelcomeTabOpening => 3790,
             Self::WelcomeAwayBody => 3374,
             Self::WelcomeFinishing => 3375,
             Self::WelcomeClaudeTitle => 3376,
@@ -4697,6 +4701,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NeedsYouCount => (&[b"Needs you ", b""], &[Number]),
         Word::NeedsYouCountCut => (&[b"Needs you ", b"+"], &[Number]),
         Word::ToastAnswered => (&[b"Answered: ", b""], &[Name]),
+        Word::ToastNotSent => (&[b"That answer wasn't sent. Press it again."], &[]),
         Word::ToastLater => (&[b"Later: it stays in Needs you, after the others."], &[]),
         Word::ToastUndo => (&[b"Undo"], &[]),
         Word::AnsweredReply => (&[b"Replied: \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name]),

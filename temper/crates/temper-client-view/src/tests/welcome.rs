@@ -2627,6 +2627,21 @@ fn ready_copies_name_the_project_and_lead_in_both_shells() {
 }
 
 #[test]
+fn the_command_stays_short_without_words() {
+    let (root, _) = model_with_forge(d::WayKind::Program);
+    assert_eq!(super::connect_model::command_line(&root), b"temper program-login claude-pat");
+}
+#[test]
+fn the_command_takes_the_words_first() {
+    let (mut root, _) = model_with_forge(d::WayKind::Program);
+    super::connect_model::answer_environment(&mut root, super::connect_model::ENVIRONMENT);
+    assert_eq!(
+        super::connect_model::command_line(&root),
+        b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper program-login claude-pat"
+    );
+}
+
+#[test]
 fn welcome_waiting_orders_the_note_link_and_folded_paste_in_both_shells() {
     let (mut root, _) = model_with_forge(d::WayKind::SignIn);
     start_model(&mut root);

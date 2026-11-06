@@ -19,6 +19,7 @@ fn the_deployment_document_is_one_temper_serve_starts() {
         None,
         None,
         &documents::given(&value),
+        Box::new([]),
     );
     if let Err(problems) = result {
         panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems)));
