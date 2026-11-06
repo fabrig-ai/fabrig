@@ -16,9 +16,9 @@ mod cache;
 mod client;
 mod events;
 mod git;
-mod held;
 mod indices;
 mod keep;
+mod resource;
 mod terminal;
 use events::stream_up;
 use terminal::listing_failed;
@@ -33,9 +33,9 @@ pub mod translate;
 use alloc::boxed::Box;
 use git::{Intake, Stage};
 use git_machine::{hunks, invocation, listing, oid::Oid, rev_parse};
-use held::Held;
 use limits::Limits;
 use render::vocabulary::{Class, Event as RenderEvent};
+use resource::Resource;
 use skein_io::{self as io, kernel::Fd};
 use skein_lib::{
     Env, List, Queue, Token, bytes,
@@ -105,6 +105,42 @@ enum Current {
     Git { child: git::Child, mode: Mode },
 }
 impl Current {
+    fn resolving(&self) -> Option<&resolve::Resolve> {
+        match self {
+            Self::Resolving(resolve) => Some(resolve),
+            Self::Call(_) | Self::Idle | Self::Step(_) | Self::Keeping(_) | Self::Git { .. } => None,
+        }
+    }
+    fn resolving_mut(&mut self) -> Option<&mut resolve::Resolve> {
+        match self {
+            Self::Resolving(resolve) => Some(resolve),
+            Self::Call(_) | Self::Idle | Self::Step(_) | Self::Keeping(_) | Self::Git { .. } => None,
+        }
+    }
+    fn keeping(&self) -> Option<&keep::Keep> {
+        match self {
+            Self::Keeping(keep) => Some(keep),
+            Self::Call(_) | Self::Idle | Self::Step(_) | Self::Resolving(_) | Self::Git { .. } => None,
+        }
+    }
+    fn keeping_mut(&mut self) -> Option<&mut keep::Keep> {
+        match self {
+            Self::Keeping(keep) => Some(keep),
+            Self::Call(_) | Self::Idle | Self::Step(_) | Self::Resolving(_) | Self::Git { .. } => None,
+        }
+    }
+    fn git(self) -> Option<(git::Child, Mode)> {
+        match self {
+            Self::Git { child, mode } => Some((child, mode)),
+            Self::Call(_) | Self::Idle | Self::Step(_) | Self::Keeping(_) | Self::Resolving(_) => None,
+        }
+    }
+    fn git_mut(&mut self) -> Option<(&mut git::Child, &mut Mode)> {
+        match self {
+            Self::Git { child, mode } => Some((child, mode)),
+            Self::Call(_) | Self::Idle | Self::Step(_) | Self::Keeping(_) | Self::Resolving(_) => None,
+        }
+    }
     fn is_idle(&self) -> bool {
         match self {
             Self::Idle => true,
@@ -206,7 +242,7 @@ impl Protocol {
             return child.work_pending() || child.done();
         }
         if child.failed && child.process.token().is_none() {
-            return child.process == Held::Closed;
+            return child.process == Resource::Closed;
         }
         let ready = match mode {
             Mode::Rev { ended, .. } => *ended,
@@ -354,18 +390,15 @@ pub fn down(
     }
 }
 pub fn up(protocol: &mut Protocol, env: &Env<Limits>, ev: Told, above: &mut Queue<Event>, below: &mut Queue<Asked>) {
-    match &mut protocol.current {
-        Current::Resolving(resolve) => {
-            let owned = match &ev {
-                Told::File(event) => event.owner() == resolve::OWNER,
-                Told::Io(event) => !protocol.client.owns(event) && !protocol.progress.owns(event),
-            };
-            if owned {
-                resolve.up(ev, protocol.roots, env, above, below);
-                return;
-            }
+    if let Some(resolve) = protocol.current.resolving_mut() {
+        let owned = match &ev {
+            Told::File(event) => event.owner() == resolve::OWNER,
+            Told::Io(event) => !protocol.client.owns(event) && !protocol.progress.owns(event),
+        };
+        if owned {
+            resolve.up(ev, protocol.roots, env, above, below);
+            return;
         }
-        Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Git { .. } => {}
     }
     let event = match ev {
         Told::Io(event) => event,
@@ -382,15 +415,10 @@ pub fn up(protocol: &mut Protocol, env: &Env<Limits>, ev: Told, above: &mut Queu
                 }
                 return;
             }
-            match &mut protocol.current {
-                Current::Keeping(keep) => keep.up(event),
-                current @ (Current::Call(_)
-                | Current::Step(_)
-                | Current::Idle
-                | Current::Resolving(_)
-                | Current::Git { .. }) => {
-                    read::current(current).expect("cache read exists").file_up(event);
-                }
+            if let Some(keep) = protocol.current.keeping_mut() {
+                keep.up(event);
+            } else {
+                read::current(&mut protocol.current).expect("cache read exists").file_up(event);
             }
             return;
         }
@@ -406,12 +434,7 @@ fn io_up(protocol: &mut Protocol, env: &Env<Limits>, event: io::Event, below: &m
         protocol.client.up(&Env { now: env.now, wall: env.wall, limits: env.limits.printer }, event);
         return;
     }
-    let (child, mode) = match &mut protocol.current {
-        Current::Git { child, mode } => (child, mode),
-        Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Resolving(_) => {
-            unreachable!("git event for a child")
-        }
-    };
+    let (child, mode) = protocol.current.git_mut().expect("git event for a child");
     match event {
         io::Event::Spawned { owner, child: token, pipes } => {
             assert_eq!(owner, child.owner, "current child owner");
@@ -526,7 +549,6 @@ fn succeeded(mode: &Mode, exit: invocation::Exit) -> bool {
     };
     invocation::succeeded(command, exit)
 }
-#[expect(clippy::too_many_lines, reason = "resume preserves call, client, step, store and git priority")]
 pub fn resume(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Asked>) {
     protocol.current = match core::mem::replace(&mut protocol.current, Current::Idle) {
         Current::Call(call) => {
@@ -559,22 +581,24 @@ pub fn resume(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Even
     if protocol.resume_store(above) {
         return;
     }
-    let (child, mode) = match &mut protocol.current {
-        Current::Resolving(resolve) => {
-            if resolve.resume(protocol.roots, env, above, below) {
-                protocol.current = Current::Idle;
-            }
-            return;
+    if let Some(resolve) = protocol.current.resolving_mut() {
+        if resolve.resume(protocol.roots, env, above, below) {
+            protocol.current = Current::Idle;
         }
-        Current::Keeping(keep) => {
-            keep.resume(env, above, below);
-            if keep.failed() {
-                protocol.current = Current::Idle;
-            }
-            return;
+        return;
+    }
+    if let Some(keep) = protocol.current.keeping_mut() {
+        keep.resume(env, above, below);
+        if keep.failed() {
+            protocol.current = Current::Idle;
         }
-        Current::Git { child, mode } => (child, mode),
-        Current::Call(_) | Current::Step(_) | Current::Idle => return,
+        return;
+    }
+    resume_git(protocol, env, above, below);
+}
+fn resume_git(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Asked>) {
+    let Some((child, mode)) = protocol.current.git_mut() else {
+        return;
     };
     let ready = match mode {
         Mode::Rev { ended, .. } => *ended,
@@ -634,7 +658,7 @@ pub fn resume(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Even
     {
         child.stage = Stage::Closing;
     }
-    if child.process == Held::Closed {
+    if child.process == Resource::Closed {
         child.stage = Stage::Closing;
     }
     if child.resume(below) {
@@ -690,12 +714,7 @@ fn resume_mode(
     }
 }
 fn finish(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Asked>) {
-    let (child, mode) = match core::mem::replace(&mut protocol.current, Current::Idle) {
-        Current::Git { child, mode } => (child, mode),
-        Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Resolving(_) => {
-            unreachable!("closed git child")
-        }
-    };
+    let (child, mode) = core::mem::replace(&mut protocol.current, Current::Idle).git().expect("closed git child");
     let failure = failure(&mode, &child, &env.limits.git);
     let (request, event) = match mode {
         Mode::Rev { request, repository, revision: _, stdout, ended: _ } => {
@@ -819,15 +838,11 @@ fn failure(
 mod tests;
 
 pub fn fire(protocol: &mut Protocol, env: &Env<Limits>, _above: &mut Queue<Event>, _below: &mut Queue<Asked>) {
-    match &mut protocol.current {
-        Current::Resolving(resolve) => resolve.fire(env),
-        Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Git { .. } => {}
+    if let Some(resolve) = protocol.current.resolving_mut() {
+        resolve.fire(env);
     }
 }
 #[must_use]
 pub fn next_deadline(protocol: &Protocol) -> Option<skein_lib::Time> {
-    match &protocol.current {
-        Current::Resolving(resolve) => resolve.next_deadline(),
-        Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Git { .. } => None,
-    }
+    protocol.current.resolving()?.next_deadline()
 }
