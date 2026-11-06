@@ -77,3 +77,14 @@ Run the `process` binary's fake-box walks (`-E 'test(/walk|fake_backends/)'`, ch
 ## Report
 
 Each walk's wait in a line, before and after; which were a person's too; what stays and why.
+
+## Rebase (2026-11-06, step merge, foreman test-speed/walk-waits/foreman-1)
+
+combine tier-threads’ concurrency findings with walk-waits’ measured waits in the 2.6 status entry
+Rebase onto the landing’s current integration tip.
+The conflict is in `temper/docs/design/domain/testing.status.md`, in the first **Not yet:** bullet.
+Integration commit `d44d39c7970851af0ad1de1a3a2a21d92b596897` expanded the concurrency sentence; branch commit `2bafb3cff320277db921b936c05ba7d58930031f` replaced the adjacent walks sentence.
+Keep integration’s concurrency text intact: one test at a time, the retained webhooks port collision, stalled turn landing, both passing alone, and the `tier-threads.md` reference.
+Immediately after it, retain this branch’s measured-waits text: charter wait, Away’s Undo holds, plan’s resumed chat and sitting gap, Home’s remaining cost, shared forge paces, and the `walk-waits.md` reference.
+Remove the superseded sentence about goal/Away’s 5 s poll and Home staying slow on short paces.
+Preserve the rest of the status document and the branch’s helper, status-walk changes and figures. No code change is needed for this merge refusal.
