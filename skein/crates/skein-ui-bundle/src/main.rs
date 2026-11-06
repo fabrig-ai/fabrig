@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use skein_ui_bundle::{Inputs, Worker, bundle_with, glue};
+use skein_ui_bundle::{Inputs, Placeholder, Worker, bundle_with, glue};
 
-const USAGE: &str = "usage: skein-ui-bundle --module PATH --name NAME --prefix /PREFIX/ --out DIR [--worker NAME=PATH] [--stylesheet PATH]… [--pictures OWNER-PREFIX=DIR]… [--page PATH] [--files DIR] [--noscript WORDS] [--gzip on|off]";
+const USAGE: &str = "usage: skein-ui-bundle --module PATH --name NAME --prefix /PREFIX/ --out DIR [--worker NAME=PATH] [--stylesheet PATH]… [--pictures OWNER-PREFIX=DIR]… [--page PATH] [--files DIR] [--noscript WORDS] [--gzip on|off] [--title WORDS] [--placeholder PATH --placeholder-stylesheet PATH]";
 
 #[derive(Debug, PartialEq, Eq)]
 struct Arguments {
@@ -21,6 +21,8 @@ fn arguments(args: &[String]) -> Result<Arguments, &'static str> {
     let mut prefix = None;
     let mut inputs = Inputs {
         gzip: true,
+        title: None,
+        placeholder: None,
         name: String::new(),
         prefix: String::new(),
         stylesheets: Vec::new(),
@@ -31,6 +33,8 @@ fn arguments(args: &[String]) -> Result<Arguments, &'static str> {
     };
     let mut noscript = None;
     let mut gzip = None;
+    let mut markup = None;
+    let mut stylesheet = None;
     let mut pairs = args.chunks_exact(2);
     for pair in &mut pairs {
         let value = &pair[1];
@@ -54,6 +58,9 @@ fn arguments(args: &[String]) -> Result<Arguments, &'static str> {
                 }
                 inputs.pictures.push((owner.into(), directory.into()));
             }
+            "--title" if inputs.title.is_none() => inputs.title = Some(value.clone()),
+            "--placeholder" if markup.is_none() => markup = Some(PathBuf::from(value)),
+            "--placeholder-stylesheet" if stylesheet.is_none() => stylesheet = Some(PathBuf::from(value)),
             "--page" if inputs.page.is_none() => inputs.page = Some(value.into()),
             "--files" if inputs.files.is_none() => inputs.files = Some(value.into()),
             "--noscript" if noscript.is_none() => noscript = Some(value.clone()),
@@ -70,6 +77,11 @@ fn arguments(args: &[String]) -> Result<Arguments, &'static str> {
     if !pairs.remainder().is_empty() {
         return Err(USAGE);
     }
+    inputs.placeholder = match (markup, stylesheet) {
+        (Some(markup), Some(stylesheet)) => Some(Placeholder { markup, stylesheet }),
+        (None, None) => None,
+        (Some(_), None) | (None, Some(_)) => return Err(USAGE),
+    };
     inputs.gzip = gzip.unwrap_or(true);
     inputs.name = name.ok_or(USAGE)?;
     inputs.prefix = prefix.ok_or(USAGE)?;
@@ -127,6 +139,12 @@ mod tests {
 
     const REQUIRED: &[&str] = &["--module", "notes.wasm", "--name", "notes", "--prefix", "/static/", "--out", "out"];
     const OPTIONAL: &[&str] = &[
+        "--title",
+        "Notes",
+        "--placeholder",
+        "loading.html",
+        "--placeholder-stylesheet",
+        "loading.css",
         "--gzip",
         "off",
         "--worker",
@@ -148,6 +166,11 @@ mod tests {
     fn the_arguments_make_inputs() {
         let inputs = Inputs {
             gzip: false,
+            title: Some("Notes".into()),
+            placeholder: Some(skein_ui_bundle::Placeholder {
+                markup: "loading.html".into(),
+                stylesheet: "loading.css".into(),
+            }),
             name: "notes".into(),
             prefix: "/static/".into(),
             stylesheets: vec!["a.css".into(), "b.css".into()],
@@ -172,6 +195,8 @@ mod tests {
         let on = REQUIRED.iter().copied().chain(["--gzip", "on"]).map(str::to_owned).collect::<Vec<_>>();
         assert!(arguments(&on).expect("explicit gzip on").inputs.gzip);
         for tail in [
+            &["--placeholder", "loading.html"][..],
+            &["--placeholder-stylesheet", "loading.css"],
             &["--gzip"][..],
             &["--gzip", "invalid"],
             &["--unknown", "x"][..],

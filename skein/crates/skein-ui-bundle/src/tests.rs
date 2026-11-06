@@ -15,6 +15,8 @@ fn inputs(scratch: &Scratch) -> Inputs {
     fs::write(path.join("a.css"), b"body { color: navy; }").expect("stylesheet");
     Inputs {
         gzip: true,
+        title: None,
+        placeholder: None,
         name: "notes".into(),
         prefix: "/static/".into(),
         stylesheets: vec![path.join("a.css")],
@@ -84,11 +86,15 @@ fn the_same_inputs_give_the_same_bundle() {
 }
 
 #[test]
-fn the_page_matches_its_golden() {
+fn no_placeholder_keeps_the_page_and_the_starter() {
     let scratch = Scratch::new("bundle-golden");
     let inputs = inputs(&scratch);
     let out = scratch.path().join("out");
-    bundle(&inputs, &glue(), &out).expect("bundle");
+    let digest = bundle(&inputs, &glue(), &out).expect("bundle");
+    assert_eq!(
+        fs::read(out.join(digest.to_string()).join("boot.js")).expect("starter"),
+        b"import init from \"./notes.js\";\ninit();\n"
+    );
     // Regenerate with SKEIN_UPDATE_GOLDENS=1 and this test alone.
     if std::env::var_os("SKEIN_UPDATE_GOLDENS").is_some() {
         fs::copy(out.join("index.html"), Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tests/golden/index.html"))
@@ -316,4 +322,132 @@ fn gzip_off_writes_the_plain_files_alone() {
     let files = contents(&out);
     assert_eq!(files.len(), 9);
     assert!(files.keys().all(|name| Path::new(name).extension() != Some(std::ffi::OsStr::new("gz"))));
+}
+
+fn placeholder(scratch: &Scratch) -> super::Placeholder {
+    let markup = scratch.path().join("loading.html");
+    let stylesheet = scratch.path().join("loading.css");
+    fs::write(&markup, b"<div id=\"boot\">Notes {noscript}</div>").expect("markup");
+    fs::write(&stylesheet, b"#boot { color: navy; }").expect("placeholder stylesheet");
+    super::Placeholder { markup, stylesheet }
+}
+
+#[test]
+fn a_placeholder_makes_the_page() {
+    let scratch = Scratch::new("bundle-placeholder");
+    let mut inputs = inputs(&scratch);
+    inputs.placeholder = Some(placeholder(&scratch));
+    let out = scratch.path().join("out");
+    bundle(&inputs, &glue(), &out).expect("bundle");
+    // Regenerate with SKEIN_UPDATE_GOLDENS=1 and this test alone.
+    if std::env::var_os("SKEIN_UPDATE_GOLDENS").is_some() {
+        fs::copy(
+            out.join("index.html"),
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tests/golden/placeholder.html"),
+        )
+        .expect("regenerate placeholder golden");
+        return;
+    }
+    assert_eq!(fs::read(out.join("index.html")).expect("page"), include_bytes!("tests/golden/placeholder.html"));
+}
+
+#[test]
+fn the_loader_heads_with_each_files_sizes() {
+    let scratch = Scratch::new("bundle-sizes");
+    let mut inputs = inputs(&scratch);
+    inputs.placeholder = Some(placeholder(&scratch));
+    // Quoting is independent of HTML escaping.
+    let sheet = scratch.path().join("a\\\".css");
+    fs::write(&sheet, b"body {}").expect("quoted sheet");
+    inputs.stylesheets.push(sheet);
+    for gzip in [true, false] {
+        inputs.gzip = gzip;
+        let out = scratch.path().join("out");
+        let digest = bundle(&inputs, &glue(), &out).expect("bundle");
+        let directory = out.join(digest.to_string());
+        let row = |name: &str| {
+            let plain = fs::metadata(directory.join(name)).expect("plain size").len();
+            let compressed =
+                if gzip { fs::metadata(directory.join(format!("{name}.gz"))).expect("gzip size").len() } else { plain };
+            format!("[\"{}\", {plain}, {compressed}]", name.replace('\\', "\\\\").replace('\"', "\\\""))
+        };
+        let head = format!(
+            "const GLUE = {};\nconst WASM = {};\nconst SHEETS = [{}, {}, {}];\n",
+            row("notes.js"),
+            row("notes_bg.wasm"),
+            row("skein-ui.css"),
+            row("a.css"),
+            row("a\\\".css")
+        );
+        let boot = fs::read_to_string(directory.join("boot.js")).expect("loader");
+        assert!(boot.starts_with(&head), "{boot}");
+        assert!(!boot.contains("loading.css"));
+    }
+}
+
+#[test]
+fn a_title_names_the_page() {
+    let scratch = Scratch::new("bundle-title");
+    let mut inputs = inputs(&scratch);
+    inputs.title = Some("Notes <&> \"'".into());
+    for placeholder in [None, Some(placeholder(&scratch))] {
+        inputs.placeholder = placeholder;
+        let out = scratch.path().join("out");
+        bundle(&inputs, &glue(), &out).expect("bundle");
+        assert!(
+            fs::read_to_string(out.join("index.html"))
+                .expect("page")
+                .contains("<title>Notes &lt;&amp;&gt; &quot;&#39;</title>")
+        );
+    }
+}
+
+#[test]
+fn a_placeholder_is_refused_where_it_cant_hold() {
+    let scratch = Scratch::new("bundle-placeholder-refusal");
+    let mut inputs = inputs(&scratch);
+    let placeholder = placeholder(&scratch);
+    inputs.placeholder = Some(placeholder.clone());
+    let out = scratch.path().join("out");
+    fs::write(&placeholder.markup, b"No marker").expect("markup");
+    assert_eq!(bundle(&inputs, &glue(), &out), Err(Refusal::NoNoscriptMarker { markup: placeholder.markup.clone() }));
+    fs::write(&placeholder.markup, b"{noscript}").expect("marker");
+    let page = scratch.path().join("own.html");
+    inputs.page = Some(page.clone());
+    assert_eq!(bundle(&inputs, &glue(), &out), Err(Refusal::PlaceholderWithPage { page }));
+    inputs.page = None;
+    for (name, expected) in [
+        ("skein-ui.css", Refusal::ReservedName { file: scratch.path().join("skein-ui.css") }),
+        ("a.css", Refusal::SameName { file: scratch.path().join("a.css") }),
+        ("bad\n.css", Refusal::Type { file: scratch.path().join("bad\n.css") }),
+    ] {
+        let file = scratch.path().join(name);
+        fs::write(&file, b"body {}").expect("sheet");
+        inputs.placeholder.as_mut().expect("placeholder").stylesheet = file;
+        assert_eq!(bundle(&inputs, &glue(), &out), Err(expected));
+    }
+}
+
+#[test]
+fn the_page_and_the_loader_hold_nothing_inline() {
+    let scratch = Scratch::new("bundle-policy");
+    let mut inputs = inputs(&scratch);
+    let example = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/ui/shell-web");
+    inputs.placeholder =
+        Some(super::Placeholder { markup: example.join("loading.html"), stylesheet: example.join("loading.css") });
+    let out = scratch.path().join("out");
+    let digest = bundle(&inputs, &glue(), &out).expect("bundle");
+    let page = fs::read_to_string(out.join("index.html")).expect("page");
+    assert!(!page.contains("<style"));
+    for tag in page.split('<').skip(1) {
+        for attribute in tag.split('>').next().expect("tag").split_ascii_whitespace().skip(1) {
+            let name = attribute.split('=').next().expect("attribute");
+            assert!(name != "style" && !name.starts_with("on"), "inline attribute: {name}");
+        }
+    }
+    assert_eq!(page.matches("<script").count(), 1);
+    assert!(page.contains(&format!("<script type=\"module\" src=\"/static/{digest}/boot.js\"></script>")));
+    let loader = include_str!("../loader.js");
+    assert!(!loader.contains("eval("));
+    assert!(!loader.contains("new Function"));
 }

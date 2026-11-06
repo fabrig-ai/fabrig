@@ -122,3 +122,51 @@ fn back_and_forward_move_between_the_list_and_a_note() {
 
 #[path = "support/live_tree.rs"]
 mod live_tree;
+
+#[test]
+fn a_placeholder_gives_way_to_the_client() {
+    let mut person = Script::new(Box::new([
+        harness::Step::Person(Step::See {
+            find: Find::exactly_named(Role::Heading { level: 1 }, b"Notes"),
+            within: Duration::from_secs(2),
+        }),
+        harness::Step::Person(Step::Gone { find: Find::text(b"Starting notes"), within: Duration::from_secs(2) }),
+    ]));
+    assert_eq!(harness::Harness::new(setup()).run(&mut [&mut person]), Outcome::Done);
+}
+
+#[test]
+fn a_module_not_found_says_so_and_offers_to_try_again() {
+    let scratch = skein_scratch::Scratch::new("bundle-module-missing");
+    let copied = scratch.path().join("bundle");
+    copy_without_module(&example_bundle(), &copied);
+    let mut setup = setup();
+    setup.args = vec!["127.0.0.1:0".into(), "--bundle".into(), copied.into_os_string()];
+    setup.expected =
+        vec![b"Failed to load resource: the server responded with a status of 404 (Not Found)".as_slice().into()];
+    let mut person = Script::new(Box::new([
+        harness::Step::Person(Step::See {
+            find: Find::text(b"The server answered 404."),
+            within: Duration::from_secs(2),
+        }),
+        harness::Step::Person(Step::Press { find: Find::exactly_named(Role::Button, b"Try again") }),
+        harness::Step::Person(Step::See {
+            find: Find::text(b"The server answered 404."),
+            within: Duration::from_secs(2),
+        }),
+    ]));
+    assert_eq!(harness::Harness::new(setup).run(&mut [&mut person]), Outcome::Done);
+}
+
+fn copy_without_module(source: &std::path::Path, target: &std::path::Path) {
+    std::fs::create_dir_all(target).expect("copy directory");
+    for entry in std::fs::read_dir(source).expect("bundle directory") {
+        let entry = entry.expect("bundle entry");
+        let name = entry.file_name();
+        if entry.path().is_dir() {
+            copy_without_module(&entry.path(), &target.join(name));
+        } else if name != "skein_ui_example_shell_web_bg.wasm" && name != "skein_ui_example_shell_web_bg.wasm.gz" {
+            std::fs::copy(entry.path(), target.join(name)).expect("copy bundle file");
+        }
+    }
+}
