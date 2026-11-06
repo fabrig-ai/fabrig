@@ -1588,6 +1588,11 @@ fn an_agents_older_button_reads_before_the_full_window() {
             panic!("older read pending")
         }
     }
+    let view = fixtures::browser_page_view(&root);
+    assert!(fixtures::find(view.tree(), Role::Button, b"Older").is_none());
+    let status = fixtures::find(view.tree(), Role::Status, b"Loading earlier messages").expect("loading status");
+    assert!(view.tree().find(status).unwrap().styles.as_slice().contains(&look::THREAD_LOADING));
+    assert!(fixtures::find(view.tree(), Role::Button, b"Latest").is_none());
 }
 
 fn confirming_stop(root: &mut Domain) -> skein_lib::Token {

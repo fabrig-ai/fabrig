@@ -203,6 +203,7 @@ pub enum Act {
         fate: jig_client::shapes::Fate,
     },
     Older,
+    Latest,
     ClosedChats,
     MoreGoals,
     GoalsFilter {
@@ -610,7 +611,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::ClosedChats } => closed_chats(pages, out),
         Event::Act { act: Act::ChatFilter { filter } } => chat_filter(pages, filter, out),
         Event::Act { act: Act::Filter { filter } } => out.push(Request::Show { address: Address::Inbox { filter } }),
-        Event::Act { act: act @ (Act::Mode { .. } | Act::ShowSection { .. } | Act::AddDraft) } => {
+        Event::Act { act: act @ (Act::Mode { .. } | Act::ShowSection { .. } | Act::AddDraft | Act::Latest) } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
             }
@@ -1511,6 +1512,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::AddDraft
         | Act::Send
         | Act::Older
+        | Act::Latest
         | Act::GoalsFilter { .. }
         | Act::MoreGoals
         | Act::ChatFilter { .. }

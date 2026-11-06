@@ -368,12 +368,9 @@ fn the_conversation_tokens_stay_on_their_roles() {
     let proposal = fixtures::page_view(&fixtures::chat::proposal_root());
     let composer = fixtures::page_view(&fixtures::chat::messaging_root());
     let agent = agent_composer();
-    for token in
-        [AGENT_PAGE, TASKBAR, THREAD, MESSAGE, BY_PERSON, BY_AGENT, WHO, SAYS, WORK, MARKER, CARDS, COMPOSER_AREA]
-    {
+    for token in [AGENT_PAGE, TASKBAR, THREAD, MESSAGE, BY_PERSON, BY_AGENT, WHO, SAYS, WORK, CARDS, COMPOSER_AREA] {
         let role = match token {
             AGENT_PAGE => Role::Main,
-            MARKER => Role::Region,
             CARDS => Role::List,
             _ => Role::Slot,
         };
@@ -662,6 +659,12 @@ fn work_tokens_name_the_line_and_its_rows() {
 }
 
 #[test]
-fn the_writing_end_has_its_css_name() {
-    assert_eq!(NAMES.style(WRITING_END), Some(b"temper-writing-end".as_slice()));
+fn the_writing_end_and_reading_controls_have_their_css_names() {
+    for (token, name) in [
+        (WRITING_END, b"temper-writing-end".as_slice()),
+        (LATEST, b"temper-latest"),
+        (THREAD_LOADING, b"temper-thread-loading"),
+    ] {
+        assert_eq!(NAMES.style(token), Some(name));
+    }
 }

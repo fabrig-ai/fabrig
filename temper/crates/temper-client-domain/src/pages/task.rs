@@ -406,7 +406,8 @@ impl Task {
                 }
             }
             Act::Older => {}
-            Act::FocusComposer
+            Act::Latest
+            | Act::FocusComposer
             | Act::Amend
             | Act::AmendWords { .. }
             | Act::AmendTracked
@@ -586,6 +587,7 @@ impl Task {
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Older
+            | Act::Latest
             | Act::ClosedChats
             | Act::MoreGoals
             | Act::GoalsFilter { .. }

@@ -1128,6 +1128,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-work-calls",
         b"temper-work-out",
         b"temper-writing-end",
+        b"temper-latest",
+        b"temper-thread-loading",
     ],
     regions: &[b"temper-link"],
 };
@@ -1303,6 +1305,11 @@ pub const WORK_OUT: Style = Style { owner: owner(), token: 451 };
 
 /// The words being written end here (temper/docs/design/client/README.md, 3.5).
 pub const WRITING_END: Style = Style { owner: owner(), token: 452 };
+
+/// Return to the conversation's end (client/README.md, 3.5).
+pub const LATEST: Style = Style { owner: owner(), token: 453 };
+/// An older activity read is out (client/README.md, 3.5).
+pub const THREAD_LOADING: Style = Style { owner: owner(), token: 454 };
 
 #[cfg(test)]
 mod tests {

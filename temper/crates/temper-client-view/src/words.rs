@@ -902,7 +902,6 @@ pub enum Word {
     ChatCancelled,
     RunBegan,
     RunEnded,
-    LinesLeft,
     Message,
     MessagePlaceholder,
     Send,
@@ -916,6 +915,9 @@ pub enum Word {
     CancelDelegate,
     TakeDelegate,
     Older,
+    Latest,
+    LoadingEarlier,
+    LoadingEarlierName,
     FirstChat,
     ChatsKicker,
     ChatsHeadlineIn,
@@ -1286,7 +1288,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
 // The rail menu adds six literal phrases (client/README.md, 5.3).
-const PHRASES: u32 = 1772;
+const PHRASES: u32 = 1774;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1308,7 +1310,7 @@ const PHRASES: u32 = 1772;
 // The agent check refusal names its charter, adding two segments.
 // The rail menu adds six literal segments (client/README.md, 5.3).
 const SEGMENTS: u32 = 3093;
-const ALL: [Word; 1177] = [
+const ALL: [Word; 1179] = [
     Word::DraftsChats,
     Word::ChatsDraftLede,
     Word::ChatRowWrites,
@@ -2178,7 +2180,6 @@ const ALL: [Word; 1177] = [
     Word::ChatCancelled,
     Word::RunBegan,
     Word::RunEnded,
-    Word::LinesLeft,
     Word::Message,
     Word::MessagePlaceholder,
     Word::Send,
@@ -2192,6 +2193,9 @@ const ALL: [Word; 1177] = [
     Word::CancelDelegate,
     Word::TakeDelegate,
     Word::Older,
+    Word::Latest,
+    Word::LoadingEarlier,
+    Word::LoadingEarlierName,
     Word::FirstChat,
     Word::ChatsKicker,
     Word::ChatsHeadlineIn,
@@ -3399,12 +3403,14 @@ impl Word {
             Self::ChatCancelled => 1046,
             Self::RunBegan => 150,
             Self::RunEnded => 151,
-            Self::LinesLeft => 152,
             Self::Message => 146,
             Self::MessagePlaceholder => 1077,
             Self::Send => 147,
             Self::Stop => 148,
             Self::Older => 149,
+            Self::Latest => 152,
+            Self::LoadingEarlier => 3706,
+            Self::LoadingEarlierName => 3707,
             Self::FirstChat => 2183,
             Self::ChatsKicker => 3246,
             Self::ChatsHeadlineIn => 3247,
@@ -4883,7 +4889,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatCancelled => (&[b"Cancelled \xc2\xb7 ", b""], &[Name]),
         Word::RunBegan => (&[b"Run ", b" began"], &[Number]),
         Word::RunEnded => (&[b"Run ", b" ended"], &[Number]),
-        Word::LinesLeft => (&[b"Earlier lines omitted ", b""], &[Number]),
         Word::Message => (&[b"Message"], &[]),
         Word::MessagePlaceholder => (&[b"Reply to T"], &[Number]),
         Word::Send => (&[b"Send"], &[]),
@@ -4897,6 +4902,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DelegateMove => (&[b"Delegate ", b" will be moved to you"], &[Number]),
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
+        Word::Latest => (&[b"Latest"], &[]),
+        Word::LoadingEarlier => (&[b"Loading earlier messages\xe2\x80\xa6"], &[]),
+        Word::LoadingEarlierName => (&[b"Loading earlier messages"], &[]),
         Word::AwaySettingsTitle => (&[b"While you\xe2\x80\x99re away, agents may decide"], &[]),
         Word::AwayKinds => (&[b"Kinds of decision"], &[]),
         Word::AwayKindsLine => (&[b"Each shows afterwards as decided for you, with Overturn."], &[]),
