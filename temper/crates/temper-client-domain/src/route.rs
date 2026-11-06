@@ -143,13 +143,7 @@ fn route_pages(
     for _ in 0..child.len() {
         match child.pop().expect("counted pages output") {
             crate::pages::Request::OpenTab { provider } => {
-                root.tab = match root.pages.connect_model() {
-                    Some(page) => match &page.request.pending {
-                        Some(pending) => Some(pending.key),
-                        None => None,
-                    },
-                    None => None,
-                };
+                root.tab = root.pages.sign_in_key();
                 out.push(Request::Tab { tab: crate::Tab::Open { provider } });
             }
             crate::pages::Request::Client(event) => client(root, env, event, out),
