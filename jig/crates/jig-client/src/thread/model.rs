@@ -33,18 +33,18 @@ impl Thread {
         self.prune_live();
         next
     }
-    /// Keeps each provisional turn until its committed replacement arrives.
+    /// Keeps provisional turns across a run's end until replaced or `end_run`.
     pub fn run(&mut self, run: &RunState, text: Option<&RunText>) {
         if run.task != self.task {
+            return;
+        }
+        // A run's end takes no line away: `end_run` does, once the committed activity has been read (client.md, 10).
+        if run.attempt.is_none() {
             return;
         }
         if self.attempt != run.attempt {
             self.live.clear();
             self.attempt = run.attempt;
-        }
-        if run.attempt.is_none() {
-            self.live.clear();
-            return;
         }
         let Some(text) = text else {
             return;
