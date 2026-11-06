@@ -3499,16 +3499,22 @@ The acts of both, each one act and one request (3.6):
   rows in the rail, offered while `me`'s role on
   that project is owner, the role jig gives, which the context line
   reads too (5.6); jig judges the request (jig's `domain/people.md`,
-  5.1). Pressed, the row becomes a form, "Rename PROJECT", holding the
-  name's field, its value the project's name and the focus on it, then
-  "Save" and "Cancel". The field's Enter or "Save" sends jig's
-  `Rename { project, name }`, the form's acts disabled while it is out;
-  "Cancel", or Escape, which "Cancel" names (skein's `ui.md`, 6.1),
-  closes the form and sends nothing. An empty name, or the name
-  unchanged, sends nothing. Answered renamed, the form closes, and `me`
+  5.1). Pressed, the open project's row is the form, "Rename PROJECT",
+  in the banner and the rail alike, and the rail's "Rename PROJECT"
+  leaves its acts while the form is open. The form holds the name's
+  field, filling the row, its value the project's name and the focus on
+  it, then "Save", primary and small. The field's Enter or "Save" sends
+  jig's `Rename { project, name }`, its name without the spaces at its
+  ends, the form's acts disabled while it is out; Escape closes the form
+  and sends nothing: the form's "Cancel" names it (skein's `ui.md`,
+  6.1), which the terminal shows and the browser's sheet hides. An empty
+  name, or the name unchanged, sends nothing and closes the form,
+  keeping the old name. Answered renamed, the form closes, and `me`
   brings the new name wherever the project's name shows; refused (the
   name taken, its shape, the role), the form stays and says why under
-  its field.
+  its field. A closed form leaves the focus on the switcher's summary
+  (skein's `ui-web.md`, 7), or on a page's own field where the page asks
+  it (a new chat, Configure).
 - **A new project:** the list ends with a form, "New project", holding
   a name's field, "+ New project" its placeholder, and "Create".
   "Create", or the field's Enter, sends jig's `MakeProject { name,

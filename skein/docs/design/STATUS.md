@@ -26,8 +26,9 @@ in `skein-playground`'s manifest (`playground.md`). An owner may ask a call
 to keep its rendered body (`llm.md`, `llm-connection.md`), and a world the
 fake LLM peer to keep what it read (`fake-llm.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
-`forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
-`browser.md` have no gap. The state machines of io's file store and
+`forge-client.md`, `oauth-issuer.md`, `ui-text.md` and
+`browser.md` have no gap; `ui-web.md` lags in where a focus lands and in
+its sheet's outline on a focus target. The state machines of io's file store and
 private opening, forge-connection, Forgejo's plans, the fake forge's
 connection, oauth and its accounts, llm,
 llm-connection and lib's `RequestTable` depart from
