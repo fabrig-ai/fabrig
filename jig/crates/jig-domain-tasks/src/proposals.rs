@@ -83,7 +83,7 @@ fn wake_holder(domain: &mut Domain, env: &Env<Limits>, proposal: &Proposal, out:
 )]
 pub enum ProposalAction {
     /// Settings values stay in the core (engine.md, 17.6).
-    Settings { against: u32, items: Box<[SettingHead]> },
+    Settings { against: u32, items: Box<[SettingHead]>, projects: Box<[u32]> },
     /// Whole batch with IDs allocated on proposal admission, before reservation.
     Batch(Box<[New]>),
     /// Connector-owned payload retained under this proposal's number. Only
@@ -996,7 +996,7 @@ pub(crate) fn withdraw(
 /// Settings wait in deployment scope from the start; ordinary actions stay in their task's project.
 pub(crate) fn proposal_scope(project: u32, proposal: &Proposal) -> bool {
     match &proposal.action {
-        ProposalAction::Settings { against, items } => {
+        ProposalAction::Settings { against, items, .. } => {
             let owners = match proposal.state {
                 ProposalState::Pending { holder, .. } => {
                     holder == ProposalHolder::Policy { project: 0, kind: ProposalKind::Settings }

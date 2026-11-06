@@ -2,6 +2,20 @@
 
 2026-11-06. Where temper's code lags or departs from [testing.md](testing.md).
 
+Sections 2.4 and 2.6 have the reusable-port chooser and its callers:
+socket-claimed blocks below Linux's configured ephemeral range, the
+retained deployment's listeners, the browser's reserved sockets and the
+fake box's nine-port override. Focused tests cover disjoint choosers,
+released ports listening again and retained sandbox ports. The supplied
+inventory establishes no slow-tier restart outcome for `process-ports`;
+that proof remains with the after-landing runs (11).
+
+- **Departs:** 2.6: `temper-fixtures/src/ports.rs`, `ephemeral_first`,
+  uses 49152 when `/proc/sys/net/ipv4/ip_local_port_range` is absent,
+  rather than reading macOS's configured range. The plan chose its
+  default because macOS has no Linux range file. A lower configured
+  boundary can overlap the chosen ports; reading it remains later (11).
+
 Section 6.4 has no gap in the configuring inventory's separation of a box
 requester and its forge approver, the stock permission mapping, refusal of the
 owner role after admin adoption, or acceptance of a fresh maintainer rule.

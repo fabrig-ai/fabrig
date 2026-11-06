@@ -219,6 +219,7 @@ fn each_proposal_action_reads_back() {
         ProposalAction::Widen { task: 17, authority: fixtures::task_authority() },
         ProposalAction::Release { task: 17 },
         ProposalAction::Settings {
+            projects: Box::new([17, 23]),
             against: 1,
             items: Box::new([jig_domain_tasks::SettingHead {
                 setting: jig_domain_tasks::Setting::Charter(1),

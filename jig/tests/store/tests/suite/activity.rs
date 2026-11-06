@@ -43,7 +43,7 @@ fn fixture(joins: u32, turns: [u64; 3]) -> World {
                 turn: u32::try_from(index + 1).expect("three turns"),
                 read: None,
             },
-            None => tasks::Line::Decided { revision: position },
+            None => tasks::Line::Decided { revision: position, proposal: None },
         };
         writes.push(Write::Save(core::Record::Tasks(tasks::Stored::Activity(tasks::ActivityLine {
             task: OWNER,

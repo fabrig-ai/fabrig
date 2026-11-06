@@ -36,8 +36,8 @@ the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but no walk
 on record has run a real model on its words as they stand, nothing it reads names the
-worker slots it is to size temper's own way by, no story that runs has an owner reject
-its proposal under Needs you, with `temper help proposal` still saying that press fails,
+worker slots it is to size temper's own way by, `temper help proposal` still says an
+owner's rejection under Needs you fails,
 and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). Seven stock models and their
@@ -50,7 +50,14 @@ outside the offer and only instructions restrict proposals to it
 (`domain/agent.md`, `draft/model-catalogue.md`). Model settings and provider
 list reads remain the catalogue's later steps. The watch rooms follow admitted
 streams, with the whole room available to one party; obsolete watch-room overrides are refused and ctl names a watch
-refused busy at its deadline. A fair share, the other ineffective views
+refused busy at its deadline. Ctl's deadline names the link, stream, read or
+act's outcome, with retention and retry words; request and watch retries
+span at most 2 s. A full-inbox message and same-key replay are covered, but
+the reported long-chat resume-refusal wait and settings silence remain
+unreproduced (`client/tools.md`). The service logs passes past 1 s, naming
+the longest stage and holding suppressed passes for its 10 s rate limit;
+the kernel's reap and submit remain outside that timing
+(`protocol/README.md`). A fair share, the other ineffective views
 overrides, precise Busy causes and the manual browser check remain deferred
 (`protocol/configuration.md`, `client/tools.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
@@ -233,10 +240,9 @@ an account with no source still reads `Nothing awaited` beneath `no account
 serving this work yet`, and a person task's `task amend` prints no arguments
 (`client/tools.md`). A proposal of settings reaches a
 project's Needs you and rail's count and is accepted on its chat's card, but its live
-card lists no item of temper's kinds, stays on Needs you once accepted, leaves its chat
-on a reload, stands below the chat's newest reply rather than at its call and follows a
-"Decision made" while it waits; the chat's card draws no Reject, departing from the
-request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
+card lists no item of temper's kinds and stays on Needs you once accepted. No live turn
+names its proposal, so its card stands after the turn that made it; the chat's card
+draws no Reject, departing from the request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
 binary that runs it and has a Copy, but no browser test presses the Copy or sees its word change; the gallery's walk of
 named controls excepts a recommended choice's tag, departing from the request `ui-copy-once`; with no `HOME` and an XDG variable placing
@@ -305,7 +311,12 @@ where it is. The browser tier runs Chromium alone, with
 themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**). A read
 that failed at the head is not tried again on a move back within its reach (`client/README.md`).
 The process tier's three tests at a time await a passing whole run after landing,
-and its CPU-budget overages remain (`domain/testing.md`). The
+and its CPU-budget overages remain. Reusable listener ports come from
+process-held blocks below Linux's configured ephemeral range; macOS uses
+its default boundary, and the concurrent restart proof remains after
+landing (`domain/testing.md`). A fake sandbox keeps its ports across a
+valid new choice, but a malformed test override still refuses a retained
+start (`protocol/setup.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither

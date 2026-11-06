@@ -513,7 +513,8 @@ record ActivityNotified { recipient: Requester word: Word }
 record ActivityRunBegan { attempt: u64 why: RunWhy resumed: bool }
 record ActivityRunEnded { attempt: u64 end: RunEnd spent: u64 }
 record ActivityTurn { reply: u64 attempt: u64 turn: u32 read: option u64 }
-record ActivityDecided { revision: u64 }
+record ActivityDecidedProposal { number: u64 made: bool }
+record ActivityDecided { revision: u64 proposal: option ActivityDecidedProposal }
 record ActivityMilestone { position: u64 }
 record ActivityKept { attempt: u64 pending: list 32 u64 question: option u64 }
 enum Activity { words: ActivityWords, heard: ActivityHeard, notified: ActivityNotified, run_began: ActivityRunBegan, run_ended: ActivityRunEnded, turn: ActivityTurn, decided: ActivityDecided, milestone: ActivityMilestone, kept: ActivityKept }
@@ -582,7 +583,7 @@ record ProjectPolicySetting { project: u32 }
 enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting }
 enum RevisionItemEdit { set, removed, reset }
 record RevisionItemHead { setting: Setting edit: RevisionItemEdit }
-record RetainedActionSettings { against: u32 items: list 128 RevisionItemHead made: option u32 }
+record RetainedActionSettings { projects: list 32 u32 against: u32 items: list 128 RevisionItemHead made: option u32 }
 enum RetainedAction { batch: RetainedActionBatch, effect: RetainedActionEffect, procedure_effect: RetainedActionProcedureEffect, amend: boxed RetainedActionAmend, widen: RetainedActionWiden, release: RetainedActionRelease, settings: RetainedActionSettings }
 record HistoryHolderTask { value: u64 }
 record HistoryHolderPerson { value: u64 }
@@ -592,7 +593,7 @@ record ProposalHistoryStatePending { holder: HistoryHolder since: u64 }
 record ProposalHistoryStateAccepted { by: Requester }
 record ProposalHistoryStateRejected { by: Requester reason: DocumentText }
 enum ProposalHistoryState { pending: ProposalHistoryStatePending, accepted: ProposalHistoryStateAccepted, rejected: ProposalHistoryStateRejected, withdrawn }
-record ProposalHistory { action: RetainedAction number: u64 proposer: u64 as_holder: bool state: ProposalHistoryState }
+record ProposalHistory { reason: DocumentText action: RetainedAction number: u64 proposer: u64 as_holder: bool state: ProposalHistoryState }
 record AmendmentState { addressed: option PersonAddress taken_by: option u64 instructions: option DocumentText spec: SpecificationDocument authority: AuthorityDocument wake: WakePolicy dependencies: list 32 u64 cut: bool }
 record HistoryAmendment { before: AmendmentState after: AmendmentState }
 record HistoryLine { task: u64 revision: u64 by: Requester change: HistoryChange reason: DocumentText proposal: option ProposalHistory amendment: option HistoryAmendment at: option u64 }

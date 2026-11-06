@@ -75,7 +75,7 @@ fn an_activity_line_of_each_kind_reads_back() {
         },
         domain::Line::RunEnded { attempt: 3, end: domain::EndKind::Failed { class: domain::Class::Lost }, spent: 7 },
         domain::Line::Turn { reply: 37, attempt: 3, turn: 5, read: Some(5) },
-        domain::Line::Decided { revision: 3 },
+        domain::Line::Decided { revision: 3, proposal: Some(domain::DecidedProposal { number: 7, made: true }) },
         domain::Line::Milestone { position: 13 },
     ] {
         let row = activity(line);

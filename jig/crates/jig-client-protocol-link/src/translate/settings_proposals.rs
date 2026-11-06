@@ -66,6 +66,7 @@ pub fn restore_owner_retained_action_settings(
     limits: &Limits,
 ) -> Result<c::RetainedActionSettings, w::Problem> {
     Ok(c::RetainedActionSettings {
+        projects: value.projects().clone(),
         against: value.against(),
         items: decode_heads(value.items(), limits.receiving().retained_action_settings_items)?,
         made: *value.made(),

@@ -345,6 +345,63 @@ fn an_offer_decodes_the_effect_with_its_counts_or_reservation() {
     assert_eq!(translate::documents::effect_fields(&effect), c::Effect::Move { reservation: 17 });
 }
 
+#[test]
+fn proposal_history_and_activity_keep_their_card_facts() {
+    let limits = fixtures::limits();
+    let wire = limits.wire();
+    for made in [false, true] {
+        let record = w::Activity::Decided(
+            w::ActivityDecided::new(
+                wire,
+                w::ActivityDecidedParts {
+                    revision: 5,
+                    proposal: Some(
+                        w::ActivityDecidedProposal::new(wire, w::ActivityDecidedProposalParts { number: 19, made })
+                            .unwrap(),
+                    ),
+                },
+            )
+            .unwrap(),
+        );
+        assert_eq!(
+            translate::pages::activity_fields(&record, &limits).unwrap(),
+            c::Activity::Decided { revision: 5, proposal: Some(c::DecidedProposal { number: 19, made }) }
+        );
+    }
+    let mut projects = skein_lib::List::with_capacity(1);
+    projects.push(23).unwrap();
+    let record = w::ProposalHistory::new(
+        wire,
+        w::ProposalHistoryParts {
+            reason: w::DocumentText::new(wire, w::DocumentTextParts { bytes: b"why".as_slice().into(), cut: true })
+                .unwrap(),
+            action: w::RetainedAction::Settings(
+                w::RetainedActionSettings::new(
+                    wire,
+                    w::RetainedActionSettingsParts {
+                        projects: projects.clone(),
+                        against: 3,
+                        items: skein_lib::List::with_capacity(0),
+                        made: Some(5),
+                    },
+                )
+                .unwrap(),
+            ),
+            number: 19,
+            proposer: 7,
+            as_holder: false,
+            state: w::ProposalHistoryState::Withdrawn,
+        },
+    )
+    .unwrap();
+    let proposal = translate::pages::proposal_history_fields(&record, &limits).unwrap();
+    assert_eq!(proposal.reason.bytes(), b"why");
+    assert!(proposal.reason.cut);
+    let c::RetainedAction::Settings(action) = proposal.action else { panic!("settings") };
+    assert_eq!(action.projects, projects);
+    assert_eq!(action.made, Some(5));
+}
+
 fn line_limits() -> Limits {
     let base = fixtures::limits();
     Limits::new(jig_client_domain::Limits { text: 32, long_text: 128, ..*base.client() }, base.exchanges()).unwrap()
