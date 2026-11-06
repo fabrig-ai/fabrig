@@ -157,6 +157,8 @@ pub enum Act {
     Starter {
         words: Box<[u8]>,
     },
+    /// "See how it works": the stock reference beside Configure (client/README.md, 3.5).
+    ShowReference,
     Suggest {
         cue: u8,
     },
@@ -591,6 +593,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 if let Some(chats) = &mut pages.chats {
                     chats.configure_chat(env, me, Some(project), words, &mut pages.serial, out);
                 }
+            }
+        }
+        Event::Act { act: Act::ShowReference } => {
+            if let Address::Configure { .. } = pages.address
+                && let Some(chats) = &mut pages.chats
+            {
+                chats.reference = Some(chat::document::Mode::Split);
             }
         }
         Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::RetryPlayground } => {
@@ -1498,6 +1507,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::SignOut
         | Act::ChatWords { .. }
         | Act::StartChat
+        | Act::ShowReference
         | Act::Starter { .. }
         | Act::SkipToBegin
         | Act::Playground
