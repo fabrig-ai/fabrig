@@ -1,0 +1,338 @@
+//! A run of calls and its rows (temper/docs/design/client/README.md, 3.5).
+use crate::{
+    look,
+    words::{Word, Words},
+};
+use alloc::boxed::Box;
+use jig_client::contract as c;
+use skein_lib::{List, Wall, Writer};
+use skein_ui::{Builder, Role, Run as TextRun, phrases::Hole};
+use temper_client_domain::pages::calls::{self, Touched};
+
+#[derive(Debug)]
+struct Call<'a> {
+    source: &'a c::Call,
+    touched: Touched,
+    summary: Option<&'a c::Text>,
+}
+pub(crate) struct Run<'a> {
+    calls: List<Call<'a>>,
+    first: Option<Wall>,
+    last: Option<Wall>,
+}
+impl<'a> Run<'a> {
+    pub(crate) fn with_capacity(calls: u32) -> Self {
+        Self { calls: List::with_capacity(calls), first: None, last: None }
+    }
+    pub(crate) fn call(&mut self, call: &'a c::Call, at: Wall) {
+        self.first.get_or_insert(at);
+        self.last = Some(at);
+        self.calls
+            .push(Call { source: call, summary: None, touched: calls::touched(call.tool.bytes(), call.input.bytes()) })
+            .expect("window bounds run calls");
+    }
+    pub(crate) fn has_call(&self, number: u64) -> bool {
+        for call in &self.calls {
+            if call.source.number == number {
+                return true;
+            }
+        }
+        false
+    }
+    pub(crate) fn result(&mut self, call: u64, summary: &'a c::Text) {
+        for row in self.calls.iter_mut().rev() {
+            if row.source.number == call {
+                row.summary = Some(summary);
+                return;
+            }
+        }
+    }
+    pub(crate) fn is_empty(&self) -> bool {
+        self.calls.is_empty()
+    }
+    /// Draws its turn and empties; nothing when empty and with nothing under way.
+    pub(crate) fn flush(&mut self, b: &mut Builder, current: Option<&c::CurrentCall>, running: bool, words: &Words) {
+        if self.is_empty() && current.is_none() {
+            return;
+        }
+        let name = if let Some(call) = self.calls.as_slice().first() {
+            if self.calls.len() == 1 { alone(call.source, words) } else { phrases(self.calls.as_slice(), words) }
+        } else {
+            let current = current.expect("nonempty run or current call");
+            capitalized(
+                under_way(current, words),
+                current.tool.bytes() == b"read_docs" || current.tool.bytes() == b"settings",
+            )
+        };
+        let mut failed = 0_u64;
+        for call in &self.calls {
+            if call.source.failed {
+                failed = failed.checked_add(1).expect("window call count");
+            }
+        }
+        let description = if running {
+            match current {
+                Some(call) => Some(under_way(call, words)),
+                None => None,
+            }
+        } else {
+            let duration = match (self.first, self.last) {
+                (Some(first), Some(last)) => time(first, last, words),
+                (Some(_) | None, None) | (None, Some(_)) => None,
+            };
+            if failed == 0 {
+                duration
+            } else {
+                let description = words.say(Word::WorkFailedCount, &[Hole::Number(failed)]);
+                Some(match duration {
+                    Some(duration) => joined(&[&description, " · ".as_bytes(), &duration]),
+                    None => description,
+                })
+            }
+        };
+        b.open(Role::Region);
+        b.style(look::TURN);
+        b.open(Role::Disclosure);
+        b.style(look::WORK);
+        b.style(look::TURN_TOOL);
+        b.style(look::WORK_RUN);
+        if running {
+            b.style(look::WORK_RUNNING);
+        }
+        if failed != 0 {
+            b.style(look::WORK_FAILED);
+        }
+        b.name(&cut(&name, 256));
+        if let Some(description) = description {
+            b.description(&cut(&description, 256));
+        }
+        b.open(Role::Slot);
+        b.style(look::WORK);
+        b.style(look::WORK_CALLS);
+        for call in &self.calls {
+            let outcome = match call.source.outcome.as_ref().or(call.summary) {
+                Some(text) => Some(text.bytes()),
+                None => None,
+            };
+            row(b, call.source.tool.bytes(), &call.touched, outcome, call.source.failed, words);
+        }
+        if let Some(call) = current {
+            row(b, call.tool.bytes(), &calls::touched(call.tool.bytes(), call.input.bytes()), None, false, words);
+        }
+        b.close();
+        b.close();
+        b.close();
+        self.calls.clear();
+        self.first = None;
+        self.last = None;
+    }
+}
+fn phrases(calls: &[Call<'_>], words: &Words) -> Box<[u8]> {
+    let mut parts = List::with_capacity(u32::try_from(calls.len()).expect("bounded calls"));
+    let mut length = 0_usize;
+    for (at, call) in calls.iter().enumerate() {
+        let tool = call.source.tool.bytes();
+        let mut earlier = false;
+        for previous in calls.get(..at).expect("earlier calls") {
+            if previous.source.tool.bytes() == tool {
+                earlier = true;
+                break;
+            }
+        }
+        if earlier {
+            continue;
+        }
+        let mut count = 0_u64;
+        let mut docs = 0_u64;
+        for (index, other) in calls.iter().enumerate() {
+            if other.source.tool.bytes() != tool {
+                continue;
+            }
+            count = count.checked_add(1).expect("window calls");
+            let mut repeated = false;
+            if tool == b"read_docs"
+                && let Touched::Doc { topic, .. } = &other.touched
+            {
+                for previous in calls.get(..index).expect("earlier calls") {
+                    if previous.source.tool.bytes() == tool
+                        && let Touched::Doc { topic: seen, .. } = &previous.touched
+                        && seen == topic
+                    {
+                        repeated = true;
+                        break;
+                    }
+                }
+            }
+            if !repeated {
+                docs = docs.checked_add(1).expect("window docs");
+            }
+        }
+        let part = if tool == b"read_docs" {
+            words.say(if docs == 1 { Word::WorkReadDoc } else { Word::WorkReadDocs }, &[Hole::Number(docs)])
+        } else if tool == b"settings" {
+            if count == 1 {
+                words.say(Word::WorkCheckedSettings, &[])
+            } else {
+                words.say(Word::WorkCheckedSettingsCount, &[Hole::Number(count)])
+            }
+        } else if count == 1 {
+            skein_lib::bytes::copy_of(tool)
+        } else {
+            words.say(Word::WorkRepeated, &[crate::cards::name(&cut(tool, 256)), Hole::Number(count)])
+        };
+        let part = capitalized(part, parts.is_empty() && (tool == b"settings" || tool == b"read_docs"));
+        let extra = if parts.is_empty() { 0 } else { 2 };
+        let next =
+            length.checked_add(extra).expect("bounded separators").checked_add(part.len()).expect("bounded phrase");
+        if next > 253 {
+            parts.push(skein_lib::bytes::copy_of("…".as_bytes())).expect("omission replaces next phrase");
+            length = length.checked_add(3).expect("bounded ellipsis");
+            break;
+        }
+        let part = if parts.is_empty() { part } else { joined(&[b", ", &part]) };
+        length = next;
+        parts.push(part).expect("one phrase per tool");
+    }
+    let mut out = Writer::new(length);
+    for part in &parts {
+        out.put(part).expect("measured phrase");
+    }
+    out.finish()
+}
+fn alone(call: &c::Call, words: &Words) -> Box<[u8]> {
+    let touched = calls::touched(call.tool.bytes(), call.input.bytes());
+    let phrase = match &touched {
+        Touched::Doc { topic, .. } if call.tool.bytes() == b"read_docs" => {
+            words.say(Word::WorkReadPage, &[crate::cards::name(topic)])
+        }
+        Touched::Search { words: search } => words.say(Word::WorkSearched, &[crate::cards::name(search)]),
+        Touched::Inventory | Touched::Setting { .. } | Touched::SettingHistory => {
+            words.say(Word::WorkChecked, &[Hole::Name(argument(&touched, words))])
+        }
+        Touched::Doc { .. } | Touched::Other { .. } => {
+            if call.tool.bytes() == b"read_docs" {
+                words.say(Word::WorkReadDoc, &[Hole::Number(1)])
+            } else {
+                return skein_lib::bytes::copy_of(call.tool.bytes());
+            }
+        }
+    };
+    capitalized(phrase, true)
+}
+fn under_way(call: &c::CurrentCall, words: &Words) -> Box<[u8]> {
+    let touched = calls::touched(call.tool.bytes(), call.input.bytes());
+    let word = if call.tool.bytes() == b"read_docs" {
+        if let Touched::Search { .. } = touched { Word::WorkSearching } else { Word::WorkReading }
+    } else if call.tool.bytes() == b"settings" {
+        Word::WorkChecking
+    } else {
+        return skein_lib::bytes::copy_of(call.tool.bytes());
+    };
+    words.say(word, &[Hole::Name(argument(&touched, words))])
+}
+fn time(first: Wall, last: Wall, words: &Words) -> Option<Box<[u8]>> {
+    let seconds = last.as_nanos().checked_sub(first.as_nanos())?.checked_div(1_000_000_000)?;
+    if seconds == 0 {
+        return None;
+    }
+    Some(words.say(
+        if seconds < 60 { Word::WorkSeconds } else { Word::WorkMinutes },
+        &[Hole::Number(if seconds < 60 { seconds } else { seconds.checked_div(60)? })],
+    ))
+}
+fn argument(touched: &Touched, words: &Words) -> Box<[u8]> {
+    match touched {
+        Touched::Doc { topic, from } => match from {
+            Some(from) => words.say(Word::WorkFromLine, &[crate::cards::name(topic), Hole::Number(*from)]),
+            None => topic.clone(),
+        },
+        Touched::Search { words } => words.clone(),
+        Touched::Inventory => words.say(Word::WorkInventory, &[]),
+        Touched::SettingHistory => words.say(Word::WorkHistory, &[]),
+        Touched::Setting { kind, number } => match number {
+            Some(number) => words.say(Word::WorkNumber, &[crate::cards::name(kind), Hole::Number(*number)]),
+            None => kind.clone(),
+        },
+        Touched::Other { argument } => argument.clone().unwrap_or_default(),
+    }
+}
+fn row(b: &mut Builder, tool: &[u8], touched: &Touched, outcome: Option<&[u8]>, failed: bool, words: &Words) {
+    let tool = cut(tool, 160);
+    let argument = argument(touched, words);
+    let argument = cut(&argument, 160_usize.saturating_sub(tool.len()).saturating_sub(1));
+    let used = tool
+        .len()
+        .checked_add(argument.len())
+        .expect("bounded row")
+        .checked_add(usize::from(!argument.is_empty()))
+        .expect("row separator");
+    let outcome = if failed { Some(outcome.unwrap_or(b"")) } else { outcome };
+    let outcome = match outcome {
+        Some(outcome) if used < 158 => {
+            let line = calls::first_line(outcome);
+            let line = if failed {
+                words.say(Word::WorkFailedOut, &[crate::cards::name(&cut(line, 160))])
+            } else {
+                skein_lib::bytes::copy_of(line)
+            };
+            Some(cut(&line, 160_usize.saturating_sub(used).saturating_sub(2)))
+        }
+        Some(_) | None => None,
+    };
+    let name = if argument.is_empty() { tool.clone() } else { joined(&[&tool, b" ", &argument]) };
+    let name = match &outcome {
+        Some(outcome) => joined(&[&name, b": ", outcome]),
+        None => name,
+    };
+    b.open(Role::Paragraph);
+    b.name(&name);
+    if failed {
+        b.style(look::WORK_FAILED);
+    }
+    b.text(TextRun::Code, &tool);
+    if !argument.is_empty() {
+        let argument = if words.shell == crate::words::Shell::Terminal { joined(&[b" ", &argument]) } else { argument };
+        b.text(TextRun::Plain, &argument);
+    }
+    if let Some(outcome) = outcome {
+        let outcome = if words.shell == crate::words::Shell::Terminal { joined(&[b": ", &outcome]) } else { outcome };
+        b.open(Role::Text);
+        b.style(look::WORK_OUT);
+        b.run(TextRun::Plain, &outcome);
+        b.close();
+    }
+    b.close();
+}
+fn capitalized(mut bytes: Box<[u8]>, capitalize: bool) -> Box<[u8]> {
+    if capitalize && let Some(first) = bytes.first_mut() {
+        first.make_ascii_uppercase();
+    }
+    bytes
+}
+fn cut(bytes: &[u8], most: usize) -> Box<[u8]> {
+    if bytes.len() <= most {
+        return skein_lib::bytes::copy_of(bytes);
+    }
+    if most < 3 {
+        return Box::default();
+    }
+    let mut end = most.saturating_sub(3);
+    for _continuation in 0_u8..3 {
+        match bytes.get(end) {
+            Some(byte) if byte & 0xc0 == 0x80 => end = end.saturating_sub(1),
+            Some(_) | None => break,
+        }
+    }
+    joined(&[bytes.get(..end).expect("UTF-8 prefix"), "…".as_bytes()])
+}
+fn joined(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded text join");
+    }
+    let mut out = Writer::new(length);
+    for part in parts {
+        out.put(part).expect("measured text join");
+    }
+    out.finish()
+}

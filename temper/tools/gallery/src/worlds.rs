@@ -1,6 +1,7 @@
 //! Mockup documents, answered through the same windows as the engine.
 //! First-run records follow temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 4.8.
 use temper_fixtures::client_documents as documents;
+mod chat_work;
 mod github;
 use crate::driver::{answer, deliver, limits, step};
 use crate::samples::{Confirmation, Then, World};
@@ -233,6 +234,18 @@ fn configure_frame(me: &mut c::Me) {
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
     world_in_layout(w, address, then, false, None, None, false)
 }
+pub(super) fn chat_work_world(name: &str) -> Domain {
+    let mut root =
+        world_in_layout(World::Bare, Address::Chat { task: 1 }, Then::Shown, false, Some(name), None, false).0;
+    if name == "chat-work-reading" {
+        step(
+            &mut root,
+            Event::Act { action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Older) },
+            &mut Queue::uncapped(),
+        );
+    }
+    root
+}
 pub(super) fn drafts_world() -> Domain {
     world_in_layout(
         Reference,
@@ -338,9 +351,13 @@ fn world_in_layout(
                         }
                         c::Subject::Inbox { window } => Some(c::Delivery::Inbox(Box::new(inbox_window(w, window)))),
                         c::Subject::Task { task: number } => {
-                            let mut task = page_goal(goals)
-                                .filter(|g| g.facts.number == number)
-                                .map_or_else(|| shown_task(w, number, then), |g| g.document(w));
+                            let mut task = if let Some(name) = goals.filter(|name| name.starts_with("chat-work-")) {
+                                chat_work::task(name)
+                            } else {
+                                page_goal(goals)
+                                    .filter(|g| g.facts.number == number)
+                                    .map_or_else(|| shown_task(w, number, then), |g| g.document(w))
+                            };
                             if configuring_chat {
                                 configuring_chip(&mut task.chip);
                             }
@@ -388,7 +405,10 @@ fn world_in_layout(
                             }
                             Some(c::Delivery::Chips(chips))
                         }
-                        c::Subject::Chips { .. } | c::Subject::Run { .. } => None,
+                        c::Subject::Run { .. } => {
+                            goals.filter(|name| name.starts_with("chat-work-")).map(chat_work::run)
+                        }
+                        c::Subject::Chips { .. } => None,
                     };
                     if let Some(document) = document {
                         deliver(&mut root, watch, document, &mut out);
@@ -397,7 +417,7 @@ fn world_in_layout(
                 jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) } => {
                     let value = if let Some(name) = settings_chat {
                         match &what {
-                            c::Read::Proposal { proposal } => Some(settings_proposal(*proposal)),
+                            c::Read::Proposal { proposal } => Some(settings_proposal(*proposal, name)),
                             c::Read::Activity { .. } => Some(c::ReadValue::Activity(Box::new(settings_activity(name)))),
                             _ => read_value(w, &what, then, goals),
                         }
@@ -576,7 +596,7 @@ fn world_in_layout(
     assert!(out.is_empty(), "world fixture settles: {w:?} {settings:?} {out:?}");
     first_run_ready(&mut root, w, forge_watch, &mut out);
     if let Some(name) = settings_chat
-        && name != "configure-chat-proposal"
+        && !name.starts_with("configure-chat-proposal")
     {
         finish_settings_proposal(&mut root, settings_chat_watch.expect("settings chat watch"), name, &mut out);
     }
@@ -1200,6 +1220,7 @@ fn proposal() -> c::ReadValue {
             })
             .expect("one funding source");
         c::Proposal {
+            projects: List::with_capacity(0),
             key: PROPOSAL,
             project: PROJECT,
             reason: c::DocumentText::complete(text(JSON_WHY)),
@@ -1213,6 +1234,11 @@ fn proposal() -> c::ReadValue {
 }
 #[expect(clippy::too_many_lines, reason = "one dispatch answers every gallery read with its world fixture")]
 fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Option<c::ReadValue> {
+    if let Some(name) = goals.filter(|name| name.starts_with("chat-work-"))
+        && let c::Read::Activity { before, .. } = what
+    {
+        return Some(c::ReadValue::Activity(Box::new(chat_work::activity(name, before.as_ref()))));
+    }
     if let Some(goal) = page_goal(goals)
         && let Some(value) = goal.read(w, what)
     {
@@ -1764,6 +1790,7 @@ fn goal_inbox(
         let at = Some(offset(w, -18));
         let cursor = c::InboxCursor::Inbox { task: 3, object, at };
         rows.push(c::InboxEntry {
+            projects: List::with_capacity(0),
             reply: None,
             task: c::TaskLink::Live(document(w, 3).chip),
             project: Some(PROJECT),
@@ -1792,6 +1819,7 @@ fn goal_inbox(
             };
             let cursor = c::InboxCursor::Inbox { task: f.number, object, at: Some(offset(w, f.at)) };
             rows.push(c::InboxEntry {
+                projects: List::with_capacity(0),
                 reply: None,
                 task: c::TaskLink::Live(goal_line(w, f).chip),
                 project: Some(PROJECT),
@@ -2137,6 +2165,7 @@ impl GoalPage {
                     let cursor = c::InboxCursor::Inbox { task, object, at: Some(goal_wall(w, -40)) };
                     let chip = if task == self.facts.number { self.document(w).chip } else { self.delegate(w, 1).chip };
                     rows.push(c::InboxEntry {
+                        projects: List::with_capacity(0),
                         reply: None,
                         task: c::TaskLink::Live(chip),
                         project: Some(PROJECT),
@@ -3611,6 +3640,7 @@ fn inbox_window(w: World, window: u32) -> c::Inbox {
         let cursor = c::InboxCursor::Inbox { task, object, at: row.at };
         let reply = if row.group() == c::InboxGroup::Replies { Some(Box::new(reply_line(w, task))) } else { None };
         let entry = c::InboxEntry {
+            projects: List::with_capacity(0),
             reply,
             task: c::TaskLink::Live(chip(w, task)),
             project: Some(PROJECT),
@@ -4022,6 +4052,7 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
 /// Sample clocks keep the mock’s dates and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
+        name if name.starts_with("chat-work-") => Wall::from_nanos(chat_work::AT + 60_000_000_000),
         "home-morning" | "home-away" | "home-away-one" | "home-away-overturned" => {
             Wall::from_nanos(1_792_483_440_000_000_000)
         }
@@ -4256,6 +4287,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
 pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1::ProjectStatus> {
     use temper_client_protocol_wire::v1 as w;
     let (landed, seen, queued, red, previous, last) = match name {
+        "home-last-landed" => (1, 1, 0, false, Some(540), Some(6)),
         "home-computed" => (3, 1, 3, false, Some(540), Some(6)),
         "home-last-looked-none" => (3, 1, 3, false, None, Some(6)),
         "home-landing-none" => (0, 0, 0, false, Some(540), None),
@@ -4382,18 +4414,34 @@ const SETTINGS_NEXT: c::ProposalKey = c::ProposalKey { proposer: c::Proposer::Ta
 pub(super) fn settings_chat_world(name: &str) -> Domain {
     world_in_layout(Solo, Address::Chat { task: 10 }, Then::Shown, true, None, Some(name), false).0
 }
-fn settings_proposal(key: c::ProposalKey) -> c::ReadValue {
+fn settings_proposal(key: c::ProposalKey, name: &str) -> c::ReadValue {
     let c::ReadValue::Proposal(mut proposal) = proposal() else { unreachable!("proposal fixture") };
     proposal.key = key;
+    proposal.project = 0;
+    proposal.projects = List::with_capacity(2);
+    if name != "configure-chat-proposal-deployment" {
+        proposal.projects.push(PROJECT).expect("first project");
+    }
+    if name == "configure-chat-proposal-two-projects" {
+        proposal.projects.push(2).expect("second project");
+    }
     proposal.reason = doc("I work alone on small changes.\nKeep drafts beside the code.");
-    let mut items = List::with_capacity(2);
-    for kind in [7, 6] {
-        items
-            .push(c::RevisionItemHead {
-                setting: c::Setting::Application { kind, scope: PROJECT, number: 1 },
-                edit: c::RevisionItemEdit::Set,
-            })
-            .expect("settings item");
+    let mut items = List::with_capacity(3);
+    let settings = if name == "configure-chat-proposal-deployment" {
+        List::from_boxed(Box::new([c::Setting::Charter(c::SettingNumber { number: 1 })]))
+    } else if name == "configure-chat-proposal-two-projects" {
+        List::from_boxed(Box::new([
+            c::Setting::Application { kind: 7, scope: PROJECT, number: 1 },
+            c::Setting::Application { kind: 7, scope: 2, number: 1 },
+        ]))
+    } else {
+        List::from_boxed(Box::new([
+            c::Setting::Application { kind: 7, scope: PROJECT, number: 1 },
+            c::Setting::Application { kind: 6, scope: PROJECT, number: 1 },
+        ]))
+    };
+    for setting in &settings {
+        items.push(c::RevisionItemHead { setting: *setting, edit: c::RevisionItemEdit::Set }).expect("settings item");
     }
     proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
         against: 0,
@@ -4472,7 +4520,7 @@ fn finish_settings_proposal(root: &mut Domain, watch: Token, name: &str, out: &m
         }) = crate::driver::down(request)
         {
             assert_eq!(key, PROPOSAL);
-            let c::ReadValue::Proposal(proposal) = settings_proposal(key) else { unreachable!("settings") };
+            let c::ReadValue::Proposal(proposal) = settings_proposal(key, name) else { unreachable!("settings") };
             let c::ProposalAction::Settings(settings) = proposal.action else { unreachable!("settings") };
             let state = if name == "configure-chat-accepted" {
                 c::ProposalHistoryState::Accepted { by: c::Requester::Person(73) }

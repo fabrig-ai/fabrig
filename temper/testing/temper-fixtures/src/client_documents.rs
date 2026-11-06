@@ -25,6 +25,7 @@ pub fn entry(
         c::ObjectKey::Note { .. } => unreachable!("notes do not enter the inbox"),
     };
     c::InboxEntry {
+        projects: List::with_capacity(0),
         task: c::TaskLink::Stored { number, status: None },
         object,
         project: Some(project),

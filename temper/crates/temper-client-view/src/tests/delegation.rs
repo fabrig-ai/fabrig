@@ -606,8 +606,8 @@ fn a_delegation_without_its_document_shows_its_call_work() {
     let view = view(None, &[CHANGE], false);
     assert!(fixtures::find(view.tree(), Role::Region, b"Task 2").is_none());
     assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"delegate").is_some());
-    super::chat::assert_call_fold(view.tree(), b"1 tool call", b"delegate", &[b"delegateDelegated tasks: 2"]);
-    assert!(fixtures::find(view.tree(), Role::Paragraph, b"Delegated tasks: 2").is_some());
+    super::chat::assert_run_line(view.tree(), b"delegate", b"", &[b"delegate: Delegated tasks: 2"]);
+    assert!(fixtures::find(view.tree(), Role::Paragraph, b"delegate: Delegated tasks: 2").is_some());
     assert_eq!(work_slots(&view), 1);
 }
 #[test]
@@ -717,7 +717,7 @@ fn in_order(said: &[u8], expected: &[&[u8]]) {
 fn the_csv_chat_receives_the_whole_turn_and_anchors_the_landed_card_at_its_call() {
     use fixtures::first_run as run;
     let view = first_run_view(false, true);
-    super::chat::assert_call_fold(view.tree(), b"1 tool call", b"wait", &[b"wait"]);
+    super::chat::assert_run_line(view.tree(), b"wait", b"", &[b"wait"]);
     let said = fixtures::text(view.tree());
     in_order(
         &said,
