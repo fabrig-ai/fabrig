@@ -480,6 +480,7 @@ pub(crate) fn inbox_entry(key: jig_client::contract::ObjectKey) -> jig_client::c
         ObjectKey::Note { .. } => panic!("notes have their own source"),
     };
     InboxEntry {
+        projects: skein_lib::List::with_capacity(0),
         reply: None,
         task: TaskLink::Stored { number: task, status: None },
         project: Some(4),
@@ -531,6 +532,7 @@ pub(crate) fn archive(
 pub(crate) fn proposal(key: jig_client::contract::ProposalKey, reason: Text) -> jig_client::contract::Proposal {
     use jig_client::contract::*;
     Proposal {
+        projects: skein_lib::List::with_capacity(0),
         key,
         project: 4,
         reason: DocumentText::complete(reason),

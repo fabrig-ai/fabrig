@@ -83,6 +83,7 @@ pub(crate) fn inbox_entry_fields(value: &w::InboxEntry, limits: &Limits) -> Resu
         None => None,
     };
     Ok(c::InboxEntry {
+        projects: value.projects().clone(),
         reply: opt0,
         task: task_link_fields(value.task(), limits)?,
         project: opt1,
