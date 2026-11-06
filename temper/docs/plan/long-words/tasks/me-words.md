@@ -64,3 +64,13 @@ Not this task: the amendment's bound, which stays **Not yet**. Any composer: `co
 ## Report
 
 As the implementer's text asks, with the regeneration's command, each literal outside `jig/` by file, and the new wire field, for temper/ui.
+
+## Rebase (2026-11-06, step merge, foreman long-words/me-words/foreman-1)
+
+preserve main’s startup-log deletion and regenerate the conflicting recordings after rebase.
+The merge conflicts with generated-fixture refresh commit `09a4d1a2e4`; resolve against the combined code, retaining `Me.words_bytes`.
+- Keep `temper/crates/temper-playground/src/tests/fixtures/story-a-start.log` deleted. Main commit `2fb28d2699` replaced it with the shared Story A recording in `temper-playground/src/tests/world.rs`; retain that implementation and main’s generator change in `temper/tests/playground/tests/suite/walk.rs`.
+- Regenerate `temper/tests/playground/tests/fixtures/story-a.log`, incorporating main’s current request bytes (`2fb28d2699`) and integrated state changes (`024468c9da`). Run `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`.
+- Regenerate `temper/docs/design/client/journeys/welcome-playground/recording` with `temper-client-journeys again welcome-playground` through heavy, using the combined code and configured Chromium. Main refreshed it after removing Return (`f326d63d48`); preserve that behavior and the expanded Me document.
+- Let the journey tool regenerate any resulting pages; do not splice generated recordings or state hashes by hand.
+- Verify Story A’s native replay and `temper-playground`’s `story_a_start_makes_its_project_and_adopts_widget`, plus the regenerated journey’s replay. Report regeneration commands and resulting generated-file changes.
