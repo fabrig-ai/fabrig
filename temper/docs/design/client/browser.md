@@ -1516,7 +1516,16 @@ from the engine's own answers, is where the look is tuned.
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
 | `chat-change-held` | the first run's chat T1 at step 2, its change held: its one line says so |
 | `chat-goal` | a chat with a goal it started: its one line |
-| `chat-byline-open` | a new chat with its byline pressed: the chooser's panel |
+| `chat-model-open` | a new chat, Claude alone, its picker open: the other provider's line, the efforts |
+| `chat-model-both` | a new chat with Claude and a ChatGPT plan, its picker open |
+| `chat-model-all` | a new chat, its picker on "All models", with a model `picker` doesn't show |
+| `chat-model-two-accounts` | a new chat with two accounts of one provider, its picker open: a heading for each |
+| `chat-model-sign-in-again` | a new chat whose account has stopped being usable, its picker open: the provider's own fix and no model |
+| `chat-model-fixed` | a chat whose choice can't be changed: the same words, not a button |
+| `chat-started-model-open` | a started chat, its picker open: "A change applies from the next turn." |
+| `chat-started-model-changing` | a started chat with a change sent, its picker open: "Changing…" |
+| `chat-started-model-refused` | a started chat with a change refused, its picker open: why |
+| `configure-model-open` | Configure temper, its picker open |
 | `chat-draft-chat` | a chat with a document, in Chat: its group and tool line |
 | `chat-draft-split` | the same chat in Split: the strip, the pane and a tinted section |
 | `chat-draft-draft` | the same chat in Draft: the composer at the foot on white |
