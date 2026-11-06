@@ -1164,6 +1164,11 @@ Not in the tier, each in the lowest world that shows it:
   home bar alone, and at 760 px and under alone. A phone on its side, wider than
   that, draws the rail and a chat's foot under its notch and its home bar.
   Default: as the mock draws it, until a look request.
+- **The try's states in the gallery** (7.2; `README.md`, 3.5, *The try*;
+  `../draft/model-check.md`): the box past the host's check has no state of its
+  own, since the gallery draws what the view draws and no fact reaches it. Default:
+  the host's two rows, the view's tests holding the rest, until that draft gives
+  the facts.
 
 ## 7. The gallery
 

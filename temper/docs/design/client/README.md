@@ -6112,6 +6112,12 @@ own tests:
   with a project or an account on it; the small engine profile whole, whose client
   limits alone ran; another platform's build, a failed or corrupt download, two
   fetches at once; a copy from a public host. Default: none, until a plan walks them.
+- **What feeds the try** (3.5, *The try*; `../draft/model-check.md`): the trial's
+  task and charter, how it selects its model, who pays, what ends it and its
+  cancelling on leaving are that draft's, and are designed as it is built, with
+  what it leaves open: an act on Settings' accounts, and a world for the wait.
+  Default: the host's check feeds the box's first step, and a model usable moves
+  on to Ready.
 - **The rename's opening and closing, as the mock draws them** (5.3; the request
   `ui-rename-focus` of 2026-11-06): the mock selects the name as the form opens,
   folds the menu as it closes and says "Renamed" in a toast. A view can neither

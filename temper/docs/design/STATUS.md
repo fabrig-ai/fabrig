@@ -157,7 +157,10 @@ off in the stock, where that request has them follow a tracked template
 has it keep no notes (`domain/agent.md`). A proposal of settings shows on no
 project's Needs you or rail's count, the Claude way's command refuses on a box
 with directories of its own, and a choice pressed just after Undo stayed
-unanswered once (`client/README.md`). The rename's form asks the focus beside an
+unanswered once (`client/README.md`). The welcome's try of a model draws its box
+over the host's check alone, no trial being built, and departs from the request
+`model-check` in its list's names and a few of its acts and words
+(`client/README.md`). The rename's form asks the focus beside an
 open reply, where a tree holds one request, seen by reading (`client/README.md`),
 and no test measures a long chat's document against its window, where the user's
 answer of 2026-11-06 asks one (`client/browser.md`). A document
