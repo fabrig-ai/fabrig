@@ -28,6 +28,26 @@ pub enum Write<'a> {
     Other,
 }
 
+/// Borrow core rows and translate submitted writes; the adapter adds connector evidence.
+#[must_use]
+pub fn view<'a, R: 'a, W: 'a>(
+    applied: u64,
+    rows: impl IntoIterator<Item = &'a R>,
+    pending: impl IntoIterator<Item = (u64, &'a [W])>,
+    row: impl FnMut(&'a R) -> Option<&'a core::Record>,
+    mut write: impl FnMut(&'a W) -> Write<'a>,
+) -> Store<'a> {
+    Store {
+        applied,
+        rows: rows.into_iter().filter_map(row).map(|row| (row.key(), row)).collect(),
+        pending: pending
+            .into_iter()
+            .map(|(number, writes)| Commit { number, writes: writes.iter().map(&mut write).collect() })
+            .collect(),
+        ..Store::default()
+    }
+}
+
 /// Connector facts translated by the owning adapter.
 #[derive(Clone, Debug, Default)]
 pub struct Effects {
