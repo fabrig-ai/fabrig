@@ -471,8 +471,9 @@ keeps (`../protocol/configuration.md`, section 2).
   stage (jig's `client/domain/client.md`, 19.1). A chat held on a
   configured bound (jig's `Exceeded` hold) says jig's phrase for that
   hold, as its hold card does: "Held: the model's reasoning went past
-  its configured allowance of 2048 bytes". Any other hold says jig's
-  "Held", and the chat's page says why.
+  its configured allowance of 2048 bytes". A chat the person paused says
+  "Paused", on its bar and on its line on Chats and on Home (*A person's
+  pause,* below). Any other hold says jig's "Held", and the chat's page says why.
 - **A chat's conversation** is the chat's own, drawn from jig's thread
   (jig's `client/domain/objects.md`, section 10), never its runs'
   mechanics (`chat.html`, the mockups' first run):
@@ -4980,8 +4981,7 @@ Its rules on an agent's task's page:
   holds its acts: "Amend", "Pause" or "Resume", "Close"; and its composer last
   (below).
   The taskbar's acts wrap as a chat's do. While the page's confirmation is
-  open, the taskbar draws no act: the dialog is the one place to answer, and
-  its "Cancel" the only one on the page.
+  open, the taskbar draws no act: the dialog is the one place to answer.
 - **Its own held card.** While the page's task is held for any cause but
   the person's own pause, its held task's card (3.6), with Release and its
   confirmation, follows the agent's run heading. The task is no row of its
@@ -6195,7 +6195,8 @@ own tests:
   `client/domain/testing.md`, sections 5, 6 and 7). The forge's request
   and outcome are decoded and encoded by the engine's routing (section
   8), exhaustive both ways. Stories: signing in and seeing the inbox; a
-  chat started and answered; a goal proposed in a chat, accepted in the
+  chat started and answered; a chat paused, resumed and paused again, and a
+  message to it resuming it, answered; a goal proposed in a chat, accepted in the
   inbox, and gone from the chat's card; a
   held task released from its own page; a goal's page saying which
   task a delegate waits on, then, the first delegate ended, the second's line
@@ -6204,9 +6205,10 @@ own tests:
   brief, its run's heading and its committed turn, the goal reached
   again by its lineage bar, and, once the delegate has reported, its
   run ended and its result; from a running delegate's page, a message
-  sent and read by its scripted run's next turn; that delegate stopped,
-  confirmed, its own held card shown, and released, running again; a
-  goal stopped from its page, confirmed, and its delegates ended; a goal paused and
+  sent and read by its scripted run's next turn; that delegate paused at once,
+  saying "Paused" with no held card of its own, and resumed, running again; a
+  delegate closed through its sheet, and ended; a
+  goal closed from its page, confirmed, and its delegates ended; a goal paused and
   resumed from its page; a waiting delegate's Message refused, its page
   saying why and sending nothing; an amendment of a goal's
   specification from its page, and one refused as moved asking to look
@@ -6768,13 +6770,11 @@ own tests:
     where the mockup draws none;
   - its acts are 5.11's.
 - **A task's page's acts** (5.11), each a default the user may change:
-  - Stop confirmed on a task's page, where a chat's Stop is sent at
-    once: stopping holds the task until it is released, and the task's
-    page acts on work the person may not be watching. The chat
-    confirming its Stop too is the candidate;
-  - Cancel on a goal's page only, as its Stop; an agent's task's Cancel, which
-    the engine offers the person its requesters lead to, is reached from
-    `temper ctl`;
+  - an agent's task's Pause sent at once, as a chat's and a goal's, though that
+    page acts on work the person may not be watching: Resume undoes it (3.6). A
+    sheet on it is the candidate;
+  - Close on a goal's and an agent's task's page alone; a procedure's Cancel, which
+    no page draws, is reached from `temper ctl`;
   - the amendment's editor on the pages: the specification's words
     and, on a goal, its tracking and priority, the model choice being
     the choice line's; the rest of an amendment is `temper ctl
