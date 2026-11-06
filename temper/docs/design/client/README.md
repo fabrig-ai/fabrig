@@ -6594,7 +6594,10 @@ own tests:
   `../draft/chat-reading.md`, 3): a page following it from its start shows it whole
   up to `long_text`. One opened later shows the end the engine retains, 65,536
   bytes, until the turn commits, since one delivery stops at the same bound (jig's
-  `client/domain/client.md`, section 18). Default: as it stands.
+  `client/domain/client.md`, section 18). A gap between suffix snapshots keeps
+  the held prefix incomplete until a full-origin snapshot or commitment, even
+  below `long_text`; recovering the missing provisional bytes needs a read
+  the thread does not ask for. Default: keep the prefix and its reading position.
 - **A turn too large for a page** (5.4; `../draft/chat-reading.md`, 4): a turn past
   `document_bytes` on the wire, 1,048,576 bytes, reads as too large, with no calls'
   names (jig's `client/domain/client.md`, section 18). Default: its line says so,
@@ -6836,6 +6839,12 @@ own tests:
   the position staying put when lines load above is for the user to read on a
   real chat. Default: the browser tier runs Chromium, including with
   `overflow-anchor: none`; Firefox and Safari themselves are read, not run.
+- **A turn with a call before its first text** (3.5, 5.15;
+  `../draft/chat-reading.md`, 3): keeping that text's nodes through commitment
+  needs its key independent of the preceding call or card's place. Default:
+  keep the current block keys until this ordering is reproduced; the
+  `ui-pgup` request uses a render driver at 1440 and 420 px for its proof,
+  with no new browser story, since the tier is at its budget.
 - **An agent's page going to its end** (5.15; `../draft/chat-reading.md`, 5): its
   log has no end request, so a person sending from far back stays where they read,
   and Latest reaches the end a page at a time. A chat's `to_end` and

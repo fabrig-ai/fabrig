@@ -782,8 +782,13 @@ for any presentation of a chat or of any agent task's activity.
   committed turn of the same attempt and number takes its place: the
   thread keeps each turn's line, since the client holds only the turn
   being written (8.3). A line keeps its text's start, up to the thread's
-  `live` bound, so it only grows; past the bound it stays as it is until
-  its committed turn takes its place. A run's end takes no line away by
+  `live` bound. Within the same retry, suffix snapshots extend that prefix
+  only where their bytes meet or overlap it; a gap leaves the prefix in
+  place, marked cut, never joined across missing bytes. Its retained start
+  and the newest stream offset are separate. A snapshot from the full
+  origin, a newer retry or a new attempt replaces it; otherwise it only
+  grows, and past the bound stays as it is until its committed turn takes
+  its place. A run's end takes no line away by
   itself, since its committed turn may be a read away and a person may be
   reading those words: once the run has ended and the committed activity has
   been read, a line no committed turn replaced goes. That is a turn lost with
@@ -1237,7 +1242,10 @@ with a person in front of a tree, are view.md's, 18.10.
   `views.text_bytes` and the wire's `run_text_text` stop at one bound, so a client
   following a turn from its start holds it whole, and one opened later holds the
   retained end until its committed turn comes. Holding the whole takes a delivery in
-  pieces, a change of a protocol, the user's. Default: as it stands.
+  pieces, a change of a protocol, the user's. A thread whose next suffix
+  skips bytes likewise keeps its prefix marked cut until a full-origin
+  snapshot or its committed turn replaces it (section 10); it asks for no
+  missing provisional bytes. Default: as it stands.
 - **A committed turn past a client's document bound** (sections 10 and 16): a turn
   past `document_bytes` on the wire is refused as too large, with its size, so it
   shows no calls' names, whatever `turn_text` would keep of it. Reading it takes a
