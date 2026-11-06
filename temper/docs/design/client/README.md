@@ -3120,12 +3120,16 @@ for its kind, its user's login and its installations. Its nodes:
   `name_bytes`; or *unknown*, its
   outcome no longer held (section 8), the same unknown as an
   adoption's. A refusal at admission is jig's answer, as for `Adopt`.
-- **`DismissMaking`:** of the project the failed row's `into` names, or of
-  the deployment with none (section 8): the forge's number (u16), the org
-  and the name, bounded as `MakeRepository`'s. It erases a failed row
-  (`../domain/forge.md`, 4.5), freeing its place in `forge.makings`, and is
-  answered *kept*; with no row at the name, so that a request sent again
-  joins, *kept* too; with a row that is not failed, refused as `not_failed`.
+- **`DismissMaking`:** of the project it names, or of the deployment with
+  none (section 8), as `MakeRepository`'s `into` gives its scope, so that a
+  key sent again has the same scope and is replayed once the row is gone: the
+  forge's number (u16), the org and the name, bounded as `MakeRepository`'s,
+  and `project`, none or a u32, the failed row's `into` as the client reads
+  it on the `forges` watch. It erases a failed row (`../domain/forge.md`,
+  4.5), freeing its place in `forge.makings`, and is answered *kept*; with no
+  row at the name, so that a request sent again joins, *kept* too; with a row
+  whose `into` is not the project it names, refused as `not_owner`; with a
+  row that is not failed, refused as `not_failed`.
 - **`MakeRepository`:** of the project `into` names, or of the deployment
   with none (section 8): the forge's number (u16); the org and the name
   (byte strings, bounded as `Adopt`'s owner and name); `from`, `MakeFrom`:

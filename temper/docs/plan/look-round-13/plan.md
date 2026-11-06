@@ -19,6 +19,7 @@ The look request `connect-flows` (`97ad67393b`), landed by `temper/docs/design/d
 - **`Address::Adopt` stays,** as the sheet's address: every link keeps working, a reload draws the sheet, and the fewest readers change. Cancel goes to `Repositories`.
 - **`Near` reaches a list, in skein,** rather than the picker reading all at once (it would read what isn't wanted) or a list dressed as a `log` (a log's live region and following are wrong for checkboxes).
 - **Plural sends are the client's,** one `Adopt` at a time and one `MakeRepository` a line; the wire is unchanged for them. `DismissMaking` and `MakeRefusal::NotFailed` are new, in the wire and the store, with no compatibility kept (the user's rule).
+- **`DismissMaking` names its project,** as `MakeRepository`'s `into` does, and its scope comes from the request, not the row: jig compares a repeated key's whole ask, scope included, and the row is gone by then. It departs from the task's first spec, which read `into` from the row; no change to jig, and no Own-scoped admission.
 - **`picker.rows` is a client constant of 2000,** not configuration, since it bounds the client's own memory.
 - **`Text::Forge` stays in `Form` for `temper ctl`:** only Settings' "Forge number" goes.
 - **Owned Forgejo from Settings** opens the welcome's sheet; the request leaves it unmocked, as the welcome has it.

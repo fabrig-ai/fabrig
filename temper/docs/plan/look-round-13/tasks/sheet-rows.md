@@ -15,7 +15,7 @@ Repositories afterwards (page 23): a repository being made is a row, and a faile
 Acceptance:
 - the `Repositories` tab lists the `makings` whose `into` names this project among its rows: "Copying · FORGE", "Making · FORGE"; failed: "Copy failed · FORGE", "Make failed · FORGE", in `CONNECT_FAILED`, a line "Forgejo said: “WORDS”" (a forge's words cut as the row's are), "Copy again" and "Dismiss";
 - "Copy again" goes to `Adopt` on Copy public, its address filled; a failed step at `Taken` has "Adopt it" in its place, the sheet on Adopt with its row picked once read; a failed empty one, "Make again", on Make empty, filled;
-- "Dismiss" sends `forge::dismiss_making` (`notes/contracts.md`); its row goes on the watch; a refusal's words stay in the row;
+- "Dismiss" sends `forge::dismiss_making` with the row's `into` project (`notes/contracts.md`); its row goes on the watch; a refusal's words stay in the row;
 - the section's count stays adopted repositories;
 - Home's and the rest stay as they are;
 - focused tests of `temper-client-view`, `temper-client-domain`, `temper/tests/client` pass.

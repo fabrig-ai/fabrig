@@ -684,7 +684,8 @@ public address, adopted into a project when `into` names one
 - **A failed row is dismissed** by `DismissMaking` (`../client/README.md`,
   4.6): erased, its place in `forge.makings` free. No row at the name is
   answered *kept*; a row not failed is refused, `NotFailed`, and goes on.
-  Admitted as `MakeRepository` is, from the row's `into`.
+  Admitted as `MakeRepository` is, from the project the request names; a
+  row whose `into` is not that project is refused, `NotOwner`, and goes on.
 - **Its state** moves one way: `Waiting`, `Making`, `Made { id, branch }`,
   `Adopting { id, branch }`, then erased; or `Failed { step, reason,
   words }`, the step `Admin`, `Org`, `Repository`, `File` or `Adoption`,
