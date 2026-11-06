@@ -466,6 +466,9 @@
   And " · later" shows on *Needs you*'s mono line as on Home's, where the request
   and the mock have it on Home's card alone: the one function draws both, and no
   reason is recorded.
+- **Not yet:** 4.6, *The program's environment*: `program_environment`
+  (`crates/temper/src/directories.rs`) answers all three `TEMPER_` values where any
+  directory isn't its own, where 4.6 names only those that aren't.
 - **Design departs:** 3.5, *Claude*, 4.6, from the request `ui-walk-2` of 2026-11-06,
   decided by its plan's cut. `program_environment` answers the owner at any time,
   where the request has it during set up, because Connect a model draws the same
