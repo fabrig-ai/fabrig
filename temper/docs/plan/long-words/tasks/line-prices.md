@@ -28,7 +28,7 @@ Acceptance:
 - `Limits::of` prices as `notes/contracts.md`, *The view's prices*, has it, and holds at the browser's, the terminal's and the tests' limits. `nodes` falls: a person's kept words no longer cost `lines × text`.
 - A window of `Words` lines at `long_text` builds within the bounds, at both shells' limits, for plain words and for words that are nothing but newlines, a paragraph a line.
 - Kept words totalling a thread's `bytes` build within the bounds. So do a request at `long_text` and a composer's value at `long_text`, on the one page.
-- A line of 1,149 bytes and one of 10,660 draw whole, uncut, on a chat's page and an agent's: their whole words are the tree's text, and in the terminal's print. So does a heard or notified word on a tracked task's page.
+- A line of 1,149 bytes and one of 10,660 draw whole, uncut, on a chat's page and an agent's: their whole words are the tree's text, and in the terminal's print. So does a heard or notified word on an agent's page, the whole page built. On a tracked task's page, a goal's, the reader's own `Words` line draws whole in `.sent`; 5.8 draws no other line there.
 - In `temper/tests/client`, a chat of 66 person's messages of 538 or 1,149 bytes is read to its start: every message seen whole, no "Couldn't load earlier messages". An agent's page reads the same through "Older".
 - The clause `5.4, *A line of a conversation*` leaves `temper/docs/design/client/README.status.md`'s **Not yet**.
 
@@ -64,3 +64,12 @@ Not this task: what a failed read says, the composer.
 ## Report
 
 As the implementer's text asks, with `Limits::of`'s `nodes` and `text_bytes` at the browser's limits, before and after, and any line the request's run showed that this doesn't.
+
+## Answers
+
+2026-11-06. Does a tracked task's page have to draw heard and notified words (`pages/goal.rs`), or does the shared renderer's proof do? Neither: `temper/docs/design/client/README.md`, 5.8, `.sent`, is the contract. A goal's page draws the reader's own `Activity::Words` and no other line, "a goal's answer is its next report", and that holds at any length, so nothing about a long word is cut there. The acceptance clause asked for what the design rules out, and is corrected above. `pages/goal.rs` stays as it is, and this task doesn't change it.
+
+- Remove `a_tracked_tasks_heard_or_notified_long_word_draws_whole`, committed failing on this branch.
+- Add `a_goals_own_long_line_draws_whole`: `long_line_page` with `tracked = true`, a `Words` line by the reader at 1,149 and 10,660 bytes, the page confirmed `Shape::Tracked`, `assert_long_line`.
+- Add `an_agents_heard_or_notified_long_word_draws_whole`: `long_line_page` with `tracked = false`, each of `Heard` and `Notified` at both lengths. `pages/agent.rs` draws them through `chat::conversation`. The shared renderer alone proves no page: keep `a_heard_or_notified_long_word_draws_whole` beside it if you like, not in its place.
+- Then finish what the first run left: the full package runs of step 3, the suites of the packages that depend on these, and the mutation proofs of the tests that passed before the prices moved. Remove the 5.4 clause from `README.status.md`.
