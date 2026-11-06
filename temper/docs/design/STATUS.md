@@ -64,7 +64,16 @@ request has as its proof, nor why its hold came about 57 minutes in, and a no-ch
 under another hold is said only once a release holds it again (`domain/forge.md`). A
 merged start has no real run on record (`domain/worker.md`), a commit leaves out a
 stray by the name `.*.log` alone (`protocol/git.md`), and the coding charter alone
-asks a run to name no commit off its branch (`domain/agent.md`). A green head ends a CI repair
+asks a run to name no commit off its branch (`domain/agent.md`). A head already behind
+takes its base first, a receipt says what it pushed, a producer is told which task to ask
+and a resume holding the landing tip makes no merge, but no record shows the next landing
+plan on a real deployment, which the `landing-fixes` request has as their proof. The first
+saves a change's wait and not a run the forge started (`domain/forge.md`), and a resume on
+saved work whose save changes nothing leaves the engine's saved set
+(`domain/worker.md`, `protocol/channel.md`). That request's other items stand open: a
+task's saved work outlives its close and a repair's brief with no cause is untraced
+(`domain/forge.md`), a refused worker hears no why (`domain/worker.md`), and a unit test's
+port reservation flakes (`domain/testing.md`). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s
@@ -123,7 +132,8 @@ Forgejo's command without its binary and paths
 configuration names a `uuid`, reading no row, where the `runner-labels`
 request of 2026-11-05 has the uuid match (`protocol/setup.md`), `temper
 box` prints its link first and alone, but no story holds a connection
-waiting on its socket and then signing in, and a first box from a binary
+waiting on its socket and then signing in, no run on record has its OSC 8
+link on a real terminal, and a first box from a binary
 with no browser does not say so (`protocol/setup.md`), and a
 held task names no run's failure, which
 is the user's to decide (`domain/worker.md`); a start past 20 slots on
@@ -180,8 +190,8 @@ on a reload, stands below the chat's newest reply rather than at its call and fo
 "Decision made" while it waits; the chat's card draws no Reject, departing from the
 request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
-binary that runs it and has a Copy, but no browser test presses the Copy; a `TEMPER_` value named only where it
-differs (`client/README.md`) and a link clickable on a terminal (`protocol/setup.md`) wait on `box-small-2`; and
+binary that runs it and has a Copy, but no browser test presses the Copy; with no `HOME` and an XDG variable placing
+only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request
 `model-check-pane` in its list's words, and a sign-in that ends on its way's page stops at
@@ -214,7 +224,7 @@ no "1 failed" (`client/README.md`). Every confirmation of a chat, a
 task or a card is one sheet, but a closed chat hides every "Decision made", where the
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
 effect's choice closes its sheet, no walk on record presses a task's Cancel or an
-agent's task's Stop (`client/README.md`), and a sheet's acts stand
+agent's task's Close (`client/README.md`), and a sheet's acts stand
 44 px on a phone, where that request has 38 (`client/browser.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
