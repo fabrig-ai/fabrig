@@ -683,7 +683,10 @@ handles, as every presentation does (sections 7 and 8).
 - **Read from an offset, one turn at a time.** The client keeps the
   text it holds of the turn being written, within the bound on a
   provisional turn's bytes, takes each delivery's text past its offset,
-  and says `Text { handle }`. It holds that one turn alone, the newest
+  and says `Text { handle }`. A delivery that begins within what it holds
+  extends it, marked cut or not, since nothing between them is missing;
+  one past it, marked cut, takes its place. One delivery's text is within
+  `long_text` (section 14). It holds that one turn alone, the newest
   delivered: a delivery naming a later turn, or a later retry of the
   same turn, takes the place of what it holds, from its own offset; one
   naming an earlier turn, or an earlier retry, changes nothing, and
@@ -750,9 +753,11 @@ for any presentation of a chat or of any agent task's activity.
   it used and spent. A call to the engine carries, as its objects and
   parts, what the core wrote beside the turn under its name
   (`../../domain/engine.md`, 7.2), never what its answer's words say.
-  The committed turn shares one `turn_text` budget across its texts, calls'
-  names, inputs and outcomes, and results' summaries (section 14); a
-  receiving cut is marked on the decoded turn.
+  A call's outcome is its result's first line with words, within a
+  field's `text`; its result block keeps the summary whole. The committed
+  turn shares one `turn_text` budget, priced in section 14's order, so its
+  calls' names go last. A text cut at the bound ends in "…", where it was
+  cut, and the decoded turn is marked.
   Neither the application nor the helpers link smith.
 - **A job is a call's outcome,** worded like any other call's. A call
   that answered `running` reads "started as job N", never "is running":
@@ -770,7 +775,9 @@ for any presentation of a chat or of any agent task's activity.
   thread's provisional line, kept under the turn's name until the
   committed turn of the same attempt and number takes its place: the
   thread keeps each turn's line, since the client holds only the turn
-  being written (8.3). A turn lost with its host never commits: its
+  being written (8.3). A line keeps its text's start, up to the thread's
+  `live` bound, so it only grows; past the bound it stays as it is until
+  its committed turn takes its place. A turn lost with its host never commits: its
   provisional text is dropped when the run ends, and the next run
   starts after the last committed turn.
 - **A person's words, in three states:** being sent, while their
@@ -1016,13 +1023,16 @@ Each is configured and bounds what enters or is retained:
   (`../../protocol/client.md`, section 9).
 
 `DomainLimits.turn_text` is one committed turn's shared text budget in the
-transcript: its texts, its calls' names, its outcomes and inputs, an outcome
-taken before its input, and its results' summaries. It is at least the receiving
-field bound `text` and at most `turn_bytes`; limits outside those bounds are
-refused.
+transcript, priced in this order: its calls' names; its texts, an opaque block's
+dialect with them; its calls' outcomes, a line each within `text`; its calls'
+inputs; and its results' summaries. An outcome comes before the inputs because a
+call's input can fill the budget, a note's whole body, and what reads a call's
+outcome needs its line. It is at least the receiving field bound `text` and at
+most `turn_bytes`; limits outside those bounds are refused.
 
 `DomainLimits.long_text` bounds what a person may read or send whole past a
-field's `text`: a note's body, a document's text and a task's words. It is at
+field's `text`: a note's body, a document's text and a task's words, and what one
+delivery of a run's text carries, within the wire's ceiling for it. It is at
 least `text` and at most `document_bytes`, and a request's `ask_bytes` holds it.
 
 Reads have room independently of watch handles; a read need not own a

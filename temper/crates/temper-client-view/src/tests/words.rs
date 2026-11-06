@@ -128,7 +128,7 @@ fn assert_chat_days(words: &Words, midnight: u64) {
     };
     use skein_lib::List;
     use skein_ui::{Builder, Role};
-    let mut thread = Thread::new(1, &Limits { lines: 4, bytes: 4096, text: 512 });
+    let mut thread = Thread::new(1, &Limits { lines: 4, bytes: 4096, text: 512, live: 512 });
     thread.reading = Some(Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(2);
     for (position, at) in [(2, midnight), (1, midnight.checked_sub(1).unwrap())] {
