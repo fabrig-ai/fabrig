@@ -25,6 +25,9 @@ struct Reading {
     heads: u64,
     feet: u64,
     automatic: bool,
+    head_mode: bool,
+    started: u64,
+    elapsed: u64,
     busy: bool,
     empty_page: bool,
     empty_before: i32,
@@ -98,6 +101,15 @@ impl Reading {
                     self.dialog = false;
                     changed = true;
                 }
+                12 => {
+                    self.automatic = true;
+                    self.started = skein_ui_web::platform::clocks().0.as_nanos();
+                    move_back = true;
+                }
+                13 => {
+                    self.automatic = false;
+                    log(document).set_scroll_top(0);
+                }
                 token => panic!("unknown fixture button {token}"),
             },
             Act::Input { .. } => {}
@@ -113,6 +125,7 @@ enum Report {
     Act(NodeId, Act),
 }
 
+#[expect(clippy::too_many_lines, reason = "the fixture keeps its synchronous owner turn and browser setup together")]
 pub(super) fn start(mount: web_sys::Element, path: &str, primary: Primary) {
     let document = mount.owner_document().expect("document");
     let sheet = document
@@ -123,21 +136,37 @@ pub(super) fn start(mount: web_sys::Element, path: &str, primary: Primary) {
         .expect("CSS stylesheet");
     let anchor = if path.ends_with("/anchored") { "auto" } else { "none" };
     let short = path.ends_with("/short");
+    let head_mode = path.ends_with("/head");
     let height = if short { "auto" } else { "200px" };
     sheet.insert_rule(&format!("#app [role=log] {{ height:{height}; max-height:200px; width:400px; overflow:auto; overflow-anchor:{anchor}; line-height:20px; font-size:16px; }}"))
         .expect("fixture log rule");
     sheet.insert_rule("#app [role=log] ul { margin:0; padding:0; list-style:none; }").expect("fixture list rule");
     let mut reading = Reading {
         first: 100,
-        end: if short { 102 } else { 108 },
-        remaining: if short { 2 } else { 20 },
-        page: if short { 2 } else { 8 },
+        end: if head_mode {
+            140
+        } else if short {
+            102
+        } else {
+            108
+        },
+        remaining: if head_mode {
+            7
+        } else if short {
+            2
+        } else {
+            20
+        },
+        page: if short || head_mode { 2 } else { 8 },
         reads: 0,
         heads: 0,
         feet: 0,
-        automatic: true,
+        automatic: !head_mode,
+        head_mode,
+        started: 0,
+        elapsed: 0,
         busy: false,
-        empty_page: short,
+        empty_page: short || head_mode,
         empty_before: 0,
         empty_after: 0,
         empty_was_busy: false,
@@ -172,6 +201,10 @@ pub(super) fn start(mount: web_sys::Element, path: &str, primary: Primary) {
                         reading.remaining -= 1;
                         reading.first -= reading.page;
                     }
+                    if reading.head_mode && reading.remaining == 0 {
+                        reading.automatic = false;
+                    }
+                    reading.elapsed = skein_ui_web::platform::clocks().0.as_nanos() - reading.started;
                     reading.busy = false;
                     (true, false, false)
                 }
@@ -197,8 +230,16 @@ pub(super) fn start(mount: web_sys::Element, path: &str, primary: Primary) {
             }
             let log = log(&document);
             if move_back || to_foot {
-                log.set_scroll_top(if to_foot { log.scroll_height() } else { 240 });
-                log.dispatch_event(&web_sys::Event::new("scroll").expect("scroll event")).expect("measure scroll");
+                log.set_scroll_top(if to_foot {
+                    log.scroll_height()
+                } else if reading.head_mode {
+                    0
+                } else {
+                    240
+                });
+                if !reading.head_mode {
+                    log.dispatch_event(&web_sys::Event::new("scroll").expect("scroll event")).expect("measure scroll");
+                }
             }
             facts(&document, &reading);
         }
@@ -227,6 +268,8 @@ fn facts(document: &web_sys::Document, reading: &Reading) {
         ("height", log.scroll_height().to_string()),
         ("viewport", log.client_height().to_string()),
         ("reads", reading.reads.to_string()),
+        ("read-ms", (reading.elapsed / 1_000_000).to_string()),
+        ("remaining", reading.remaining.to_string()),
         ("empty-before", reading.empty_before.to_string()),
         ("empty-after", reading.empty_after.to_string()),
         ("empty-was-busy", reading.empty_was_busy.to_string()),
@@ -285,6 +328,8 @@ fn build(builder: &mut Builder, reading: &Reading) {
         (8, "Inspect"),
         (9, "Body focus"),
         (10, "Open dialog"),
+        (12, "Read head"),
+        (13, "Head"),
     ] {
         button(builder, token, name);
     }

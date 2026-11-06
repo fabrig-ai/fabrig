@@ -114,6 +114,13 @@ fn positions(path: &[u8]) -> Vec<harness::Step> {
         keep("removed", "position"),
         press(b"Append"),
         keep("appended", "position"),
+        press(b"Head"),
+        press(b"Remember line"),
+        keep("head-before", "position"),
+        keep("head-top", "top"),
+        press(b"Prepend"),
+        keep("head-after", "position"),
+        press(b"Read back"),
     ]
 }
 fn check_positions(harness: &harness::Harness) {
@@ -122,6 +129,8 @@ fn check_positions(harness: &harness::Harness) {
     assert!(top * 2 >= viewport * 3, "opening head is {top}px offscreen");
     assert_eq!(top + viewport, number(harness, "opening-height"), "opening foot is visible");
     assert_eq!(value(harness, "reads"), "3", "reading stops beyond the near zone");
+    assert_eq!(number(harness, "head-top"), 0);
+    held(harness, "head-before", "head-after");
     for after in ["inserted", "removed", "appended"] {
         held(harness, "before", after);
     }
@@ -202,4 +211,22 @@ fn reading_without_browser_anchoring_follows_requests_and_page_keys() {
     assert!(number(&harness, "heads-after") > number(&harness, "heads-before"));
     assert_eq!(number(&harness, "dialog-up"), 240);
     assert_eq!(number(&harness, "dialog-down"), 240);
+}
+
+#[test]
+fn a_read_in_a_scroll_turn_reads_on_without_a_tick() {
+    let harness = run(vec![
+        go(b"/test/reading/head"),
+        press(b"Read head"),
+        press(b"Inspect"),
+        keep("reads", "reads"),
+        keep("read-ms", "read-ms"),
+        keep("remaining", "remaining"),
+        keep("top", "top"),
+        keep("viewport", "viewport"),
+    ]);
+    assert_eq!(number(&harness, "reads"), 8, "each answer measures and starts the next read");
+    assert!(number(&harness, "read-ms") < 1000, "eight reads finish before a clock tick can help");
+    assert_eq!(number(&harness, "remaining"), 0, "nothing left to read");
+    assert!(number(&harness, "top") * 2 < number(&harness, "viewport") * 3);
 }
