@@ -4,7 +4,7 @@ use jig_domain_tasks::{
     Hold, InvalidResult, Key, Line, MessageKind, Models, New, Operation, Party, PersonAddress, Phase, Problem, Refusal,
     Release, Stage, Stored, TaskResult, Tries, Was, Word,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, MEMBER, Reply, World, task};
 use skein_lib::Duration;
 
 #[path = "../open/resume.rs"]
@@ -138,24 +138,30 @@ fn a_finite_tasks_invalid_finish_after_its_reply_retries() {
 #[test]
 fn a_batchs_requester_authority_takes_one_shape() {
     const PARENT: u64 = 1;
-    const MEMBER: u64 = 2;
-    const PERSON: Party = Party::Person(7);
+    const BATCH_PERSON: u64 = 7;
+    const BATCH_REQUESTER: Party = Party::Person(BATCH_PERSON);
     const AGENT: Executor = Executor::Agent { charter: 1 };
     const OPEN: Flags = Flags { conversation: true, ended_by: EndedBy::Requester, ..Flags::PLAIN };
     let accepted = Reply::Made(vec![MEMBER]);
     let refused = Reply::Refused(Problem::new(Some(MEMBER), Refusal::Contract));
     for (name, flags, executor, creator, expected) in [
-        ("person's agent conversation", OPEN, AGENT, PERSON, accepted.clone()),
-        ("person executor", OPEN, Executor::Person(PersonAddress::Person(7)), PERSON, refused.clone()),
-        ("procedure executor", OPEN, Executor::Procedure { connector: 1, code: 1 }, PERSON, refused.clone()),
-        ("no conversation", Flags { conversation: false, ..OPEN }, AGENT, PERSON, refused.clone()),
+        ("person's agent conversation", OPEN, AGENT, BATCH_REQUESTER, accepted.clone()),
+        (
+            "person executor",
+            OPEN,
+            Executor::Person(PersonAddress::Person(BATCH_PERSON)),
+            BATCH_REQUESTER,
+            refused.clone(),
+        ),
+        ("procedure executor", OPEN, Executor::Procedure { connector: 1, code: 1 }, BATCH_REQUESTER, refused.clone()),
+        ("no conversation", Flags { conversation: false, ..OPEN }, AGENT, BATCH_REQUESTER, refused.clone()),
         ("task creator", OPEN, AGENT, Party::Task(PARENT), refused.clone()),
         ("deployment creator", OPEN, AGENT, Party::Deployment { project: 1 }, refused.clone()),
         ("zero person", OPEN, AGENT, Party::Person(0), refused),
-        ("result authority control", Flags::PLAIN, AGENT, PERSON, accepted),
+        ("result authority control", Flags::PLAIN, AGENT, BATCH_REQUESTER, accepted),
     ] {
         let mut w = World::new(328, LIMITS);
-        w.make(PERSON, vec![task(PARENT, &[])]);
+        w.make(BATCH_REQUESTER, vec![task(PARENT, &[])]);
         let before = w.live();
         let records = w.records.clone();
         let mut member = task(MEMBER, &[]);

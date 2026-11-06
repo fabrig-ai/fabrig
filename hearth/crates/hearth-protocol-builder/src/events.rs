@@ -8,9 +8,10 @@ use crate::{
 use skein_lib::{Token, stream::Up};
 
 pub(super) fn stream_up(child: &mut git::Child, owner: Token, up: Up) -> Option<Up> {
-    if child.stage == Stage::Closing {
-        return None;
-    }
+    let (output, error) = match &mut child.stage {
+        Stage::Live { output, error } => (output, error),
+        Stage::Closing => return None,
+    };
     if let Up::Failed(_) = &up {
         child.fault = Some(render::errors::Ended::Stream);
     }
@@ -18,25 +19,25 @@ pub(super) fn stream_up(child: &mut git::Child, owner: Token, up: Up) -> Option<
         match up {
             Up::Bytes(bytes) => {
                 child.tail.admit(&bytes);
-                child.error_state = Intake::Demand;
+                *error = Intake::Demand;
             }
             Up::End => {
-                child.error_state = Intake::Ended;
+                *error = Intake::Ended;
             }
             Up::Failed(_) => {
-                child.error_state = Intake::Ended;
+                *error = Intake::Ended;
                 child.failed = true;
             }
             Up::Room => unreachable!("read-only stderr"),
         }
         return None;
     }
-    if child.output.token() == Some(owner) && (child.output_state == Intake::Draining || child.failed) {
+    if child.output.token() == Some(owner) && (*output == Intake::Draining || child.failed) {
         match up {
-            Up::Bytes(_) => child.output_state = Intake::Waiting,
-            Up::End => child.output_state = Intake::Ended,
+            Up::Bytes(_) => *output = Intake::Waiting,
+            Up::End => *output = Intake::Ended,
             Up::Failed(_) => {
-                child.output_state = Intake::Ended;
+                *output = Intake::Ended;
                 child.failed = true;
             }
             Up::Room => unreachable!("read-only stdout"),
@@ -44,7 +45,7 @@ pub(super) fn stream_up(child: &mut git::Child, owner: Token, up: Up) -> Option<
         return None;
     }
     if child.output.token() == Some(owner) {
-        child.output_state = if stream_ended(&up) { Intake::Ended } else { Intake::Waiting };
+        *output = if stream_ended(&up) { Intake::Ended } else { Intake::Waiting };
     }
     Some(up)
 }

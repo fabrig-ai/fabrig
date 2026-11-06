@@ -2,7 +2,7 @@
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Handle, Latest, Link, Readable, Readout, Told, contract as c};
-use skein_lib::{List, Queue, Reader, Token, Writer};
+use skein_lib::{Duration, List, Queue, Reader, Time, Token, Writer};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -75,6 +75,8 @@ struct Slot {
     line: Option<(Option<u32>, c::SettingFollows)>,
     setting: Option<Setting>,
     refused: Option<c::Refusal>,
+    retry_at: Option<Time>,
+    wait: Duration,
 }
 #[derive(Clone, Copy, Debug)]
 struct Reading {
@@ -91,13 +93,24 @@ struct Setting {
 }
 impl Slot {
     const fn new() -> Self {
-        Self { value: None, pending: None, again: false, line: None, setting: None, refused: None }
+        Self {
+            value: None,
+            pending: None,
+            again: false,
+            line: None,
+            setting: None,
+            refused: None,
+            retry_at: None,
+            wait: Duration::from_secs(1),
+        }
     }
     fn forget(&mut self) {
         self.value = None;
         self.line = None;
         self.again = true;
         self.refused = None;
+        self.retry_at = None;
+        self.wait = Duration::from_secs(1);
     }
 }
 impl State {
@@ -205,7 +218,14 @@ fn end(side: &mut Side, out: &mut Queue<Request>) {
 }
 
 /// Reconcile the open project and the How work runs tab after every step and fire.
-pub(crate) fn progress(side: &mut Side, open: Option<u32>, on_tab: bool, limits: Limits, out: &mut Queue<Request>) {
+pub(crate) fn progress(
+    side: &mut Side,
+    now: Time,
+    open: Option<u32>,
+    on_tab: bool,
+    limits: Limits,
+    out: &mut Queue<Request>,
+) {
     let open = if side.party.is_some() { open } else { None };
     if side.ways.project != open {
         side.ways.project = open;
@@ -217,6 +237,9 @@ pub(crate) fn progress(side: &mut Side, open: Option<u32>, on_tab: bool, limits:
         side.ways.questions.again = true;
     }
     side.ways.on_tab = on_tab;
+    if !on_tab {
+        side.ways.questions.retry_at = None;
+    }
     for control in [Control::Ways, Control::Questions] {
         let Some(project) = open else { continue };
         if control == Control::Questions && !on_tab {
@@ -228,7 +251,7 @@ pub(crate) fn progress(side: &mut Side, open: Option<u32>, on_tab: bool, limits:
             slot.line = line;
             slot.again = true;
         }
-        read(side, control, limits, out);
+        read(side, now, control, limits, out);
     }
 }
 fn line(
@@ -243,13 +266,18 @@ fn line(
     }
     None
 }
-fn read(side: &mut Side, control: Control, limits: Limits, out: &mut Queue<Request>) {
+fn read(side: &mut Side, now: Time, control: Control, limits: Limits, out: &mut Queue<Request>) {
     let Some(project) = side.ways.project else { return };
     if control == Control::Questions && !side.ways.on_tab {
         return;
     }
     let slot = side.ways.slot(control);
     if !slot.again || slot.pending.is_some() || side.party.is_none() {
+        return;
+    }
+    if let Some(at) = slot.retry_at
+        && at > now
+    {
         return;
     }
     let Some(bounds) = wire_limits(&limits) else { return };
@@ -262,6 +290,7 @@ fn read(side: &mut Side, control: Control, limits: Limits, out: &mut Queue<Reque
     let slot = side.ways.slot_mut(control);
     slot.pending = Some(Reading { handle, project, publish: true });
     slot.again = false;
+    slot.retry_at = None;
     out.push(Request::Client {
         asked: jig_client::Event::Read {
             handle,
@@ -279,6 +308,7 @@ fn read(side: &mut Side, control: Control, limits: Limits, out: &mut Queue<Reque
 }
 pub(crate) fn told(
     side: &mut Side,
+    now: Time,
     client: &jig_client::Client,
     told: &Told,
     limits: Limits,
@@ -337,10 +367,18 @@ pub(crate) fn told(
                     let slot = side.ways.slot_mut(control);
                     slot.pending = None;
                     if current {
-                        slot.value = value(page, control, limits);
+                        if transient(client, page) {
+                            slot.again = true;
+                            slot.retry_at = Some(now.saturating_add(slot.wait));
+                            slot.wait = slot.wait.saturating_mul(2).min(Duration::from_secs(30));
+                        } else {
+                            slot.value = value(page, control, limits);
+                            slot.retry_at = None;
+                            slot.wait = Duration::from_secs(1);
+                        }
                     }
                     side.changed();
-                    read(side, control, limits, out);
+                    read(side, now, control, limits, out);
                     return true;
                 }
             }
@@ -352,7 +390,7 @@ pub(crate) fn told(
                     && key.asker == crate::owner::Owner::Forge.asker()
                     && key.number == pending.request.raw()
                 {
-                    answered(side, control, outcome, limits, out);
+                    answered(side, now, control, outcome, limits, out);
                     return true;
                 }
             }
@@ -364,6 +402,29 @@ pub(crate) fn told(
         | Told::Pending { .. }
         | Told::Kept { .. }
         | Told::Dropped { .. } => false,
+    }
+}
+pub(crate) const fn next_deadline(side: &Side) -> Option<Time> {
+    match (side.ways.ways.retry_at, side.ways.questions.retry_at) {
+        (Some(left), Some(right)) => Some(if left.as_nanos() <= right.as_nanos() { left } else { right }),
+        (Some(at), None) | (None, Some(at)) => Some(at),
+        (None, None) => None,
+    }
+}
+fn transient(client: &jig_client::Client, page: &Readout) -> bool {
+    match page {
+        Readout::Limit => true,
+        Readout::Jig(c::ReadResult::None(why)) => match why {
+            c::ReadNone::Busy | c::ReadNone::Unreachable => true,
+            c::ReadNone::SignedOut => client.link().state != Link::SignedOut,
+            c::ReadNone::Unknown
+            | c::ReadNone::Refused
+            | c::ReadNone::Gone
+            | c::ReadNone::TooLinked { .. }
+            | c::ReadNone::TooLarge { .. }
+            | c::ReadNone::Malformed => false,
+        },
+        Readout::Jig(c::ReadResult::Value(_)) | Readout::Family { .. } | Readout::NotServed { .. } => false,
     }
 }
 fn value(page: &Readout, control: Control, limits: Limits) -> Option<Asked> {
@@ -496,6 +557,7 @@ fn send(side: &mut Side, mut pending: Setting, against: u32, limits: Limits, out
 }
 fn answered(
     side: &mut Side,
+    now: Time,
     control: Control,
     outcome: &jig_client::Outcome,
     limits: Limits,
@@ -529,7 +591,7 @@ fn answered(
             slot.again = true;
         }
     }
-    read(side, control, limits, out);
+    read(side, now, control, limits, out);
     side.changed();
 }
 

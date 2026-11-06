@@ -1189,6 +1189,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 /* Home's column. */
 
 /* ==== ui: home ==== */
+/* Navigation focuses page targets without drawing a control ring. */
+#app :is(main, h1)[tabindex="-1"]:focus { outline: none; }
 #app > .temper-home .temper-home-byline { margin: 0; font-size: 12px; color: var(--gf-faint); }
 #app > .temper-home .temper-home-facts { font-size: 13.5px; color: var(--gf-muted); }
 #app > .temper-home .temper-home-facts > a { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
@@ -1411,7 +1413,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-session > .temper-session-top { padding: 10px 12px; gap: 8px; }
   #app > .temper-session .temper-crumbs > .temper-back { display: inline-flex; flex: none; min-width: 36px; min-height: 36px; align-items: center; justify-content: center; font-size: 0; color: var(--gf-ink); }
   #app > .temper-session .temper-crumbs > .temper-back::before { content: '‹'; font-size: 20px; line-height: 1; }
-  #app > .temper-session :is(.temper-trail, .temper-byline) { display: none; }
+  #app > .temper-session :is(.temper-trail, .temper-byline, .temper-session-hint) { display: none; }
 }
 
 /* The byline is the chooser's summary; feedback stays above the composer. */
@@ -1544,7 +1546,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-doc-inner p { margin: 0 0 8px; }
 #app > .temper-session .temper-doc-path { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; margin-bottom: 18px !important; font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
 #app > .temper-session .temper-doc-inner h2 { margin: 0 0 4px; font: 500 28px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--gf-ink); }
-#app > .temper-session .temper-doc-inner h3 { margin: 26px 0 8px; font: 600 17px/1.5 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+#app > .temper-session .temper-doc-inner h3 { margin: 26px 0 8px; font: 600 17px/1.7 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
 #app > .temper-session :is(.temper-doc-sub, .temper-doc-muted) { color: var(--gf-muted); }
 #app > .temper-session .temper-doc-muted { font-size: 14px; }
 #app > .temper-session .temper-doc-inner ul { margin: 0; padding-left: 20px; }

@@ -5,7 +5,7 @@ use skein_lib::{List, ReplyTo};
 
 const CHAT: u64 = 1;
 const DEPENDENCY: u64 = 2;
-const PERSON: u64 = 1;
+const CHAT_PERSON: u64 = 1;
 const FIRST_ATTEMPT: u64 = 1;
 const NEXT_ATTEMPT: u64 = 2;
 const DEPENDENCY_ATTEMPT: u64 = 3;
@@ -196,13 +196,18 @@ fn escalation(w: &mut World, before_hold: fn(&mut World)) {
     before_hold(w);
     hold(w);
     let revision = w.record(CHAT).escalation.revision();
-    w.send(Event::RoutedEscalation { task: CHAT, revision, holder: EscalationHolder::Person(PERSON), entry: ENTRY });
+    w.send(Event::RoutedEscalation {
+        task: CHAT,
+        revision,
+        holder: EscalationHolder::Person(CHAT_PERSON),
+        entry: ENTRY,
+    });
     let reply_to = w.to();
     w.stage(Event::DecideEscalation {
         reply_to,
         task: CHAT,
         revision,
-        by: PERSON,
+        by: CHAT_PERSON,
         entry: None,
         decision: EscalationDecision::Release,
     });
@@ -234,7 +239,7 @@ fn amend(w: &mut World, task: u64, dependencies: &[u64]) {
         operation: tasks::Amend { task, message, stop_run: false, amendment: Box::new(amendment(dependencies, None)) },
         places: Box::new([]),
         reply_to: ReplyTo::new(call),
-        by: Party::Person(PERSON),
+        by: Party::Person(CHAT_PERSON),
         funder: None,
     });
     assert_eq!(w.replies[&call.raw()], Reply::Done);
@@ -252,7 +257,7 @@ fn an_open_task_resumes_from_the_met_wake_and_still_parks() {
 }
 
 fn met(w: &mut World) {
-    assert_eq!(w.make(Party::Person(PERSON), vec![task(DEPENDENCY, &[])]), Reply::Made(vec![DEPENDENCY]));
+    assert_eq!(w.make(Party::Person(CHAT_PERSON), vec![task(DEPENDENCY, &[])]), Reply::Made(vec![DEPENDENCY]));
     amend(w, CHAT, &[DEPENDENCY]);
     park(w);
     dependency_done(w);
@@ -272,7 +277,7 @@ fn an_open_task_resumes_from_the_circle_lift_and_still_parks() {
 fn circle(w: &mut World) {
     park(w);
     hold(w);
-    assert_eq!(w.make(Party::Person(PERSON), vec![task(DEPENDENCY, &[CHAT])]), Reply::Made(vec![DEPENDENCY]));
+    assert_eq!(w.make(Party::Person(CHAT_PERSON), vec![task(DEPENDENCY, &[CHAT])]), Reply::Made(vec![DEPENDENCY]));
     amend(w, CHAT, &[DEPENDENCY]);
     release(w);
     assert!(matches!(w.record(CHAT).phase, Phase::Held { was: Was::Active(Active::Idle), why: Hold::Circle, .. }));
@@ -286,7 +291,7 @@ fn compound(w: &mut World, operations: Vec<Operation>) {
     let call = reply_to.into_token();
     w.send(Event::Compound {
         reply_to: ReplyTo::new(call),
-        by: jig_domain_tasks::Party::Person(PERSON),
+        by: jig_domain_tasks::Party::Person(CHAT_PERSON),
         project: 1,
         operations: staged,
         period: 0,
@@ -338,7 +343,7 @@ fn staged_amendment_release(w: &mut World) {
                 task: CHAT,
                 word: Word {
                     number: message + 1,
-                    from: Party::Person(PERSON),
+                    from: Party::Person(CHAT_PERSON),
                     kind: MessageKind::Words,
                     words: b"again".as_slice().into(),
                     at: w.env.wall,
