@@ -78,7 +78,11 @@ counts disagree with its shared oracle (`protocol/setup.md`,
 `protocol/sign-in.md`, `domain/testing.md`). The
 combined default-runner, restart, moved-port and terminal-hangup walk
 has no outcome in the supplied inventory, and the real-box sign-in
-story awaits its after-landing run (`protocol/setup.md`,
+story awaits its after-landing run. Repository links and box-owned sign-in
+are built, with native browser clicks at 1440 and Settings links at 420;
+the runner was disabled. No separate attacker-review outcome is supplied,
+three laptop baseline cases remain unrepeated, and an intermittent busy
+authorization page without a request is unresolved (`protocol/setup.md`,
 `protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
