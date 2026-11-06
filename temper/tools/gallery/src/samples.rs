@@ -104,7 +104,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 269;
+pub const N: usize = 270;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -116,6 +116,7 @@ fn task(task: u64) -> Address {
 #[expect(clippy::too_many_lines, reason = "one table keeps every named gallery state in its promised order")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "agent-work", world: Bare, address: Address::Task { task: 1 }, then: Shown },
         Sample { name: "chat-work-done", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-work-open", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-work-running", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
@@ -1211,7 +1212,7 @@ fn start_domain(sample: &Sample) -> Domain {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
-    if sample.name.starts_with("chat-work-") {
+    if sample.name.starts_with("chat-work-") || sample.name == "agent-work" {
         return crate::worlds::chat_work_world(sample.name);
     }
     if sample.name == "chats-drafts" {

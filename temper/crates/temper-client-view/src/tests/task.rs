@@ -1109,6 +1109,217 @@ fn has_style(nodes: &[Node], style: skein_ui::Style) -> bool {
 fn agent(task: c::Task) -> crate::View {
     fixtures::page_view(&f::agent_root(task, Some(f::tree()), true))
 }
+// client/README.md, 5.9: an agent shares the chat's work line and reading control.
+fn agent_work_page(ended: bool) -> c::ActivityPage {
+    use fixtures::first_run as run;
+    let mut rows = List::with_capacity(2);
+    if ended {
+        for (position, seconds, block) in
+            [(1, 12_u64, c::Block::Text(run::text(b"Checking."))), (2, 41, run::call(1, b"read", b"{}", Some(b"Read")))]
+        {
+            let mut row = run::turn(
+                position,
+                f::RUN_ATTEMPT,
+                u32::try_from(position).unwrap(),
+                &[run::message(c::Speaker::Assistant, &[block])],
+                512,
+            );
+            row.source.task = TASK;
+            row.source.at = skein_lib::Wall::from_nanos(seconds.checked_mul(1_000_000_000).unwrap());
+            let decoded = row.decoded.as_mut().unwrap();
+            decoded.task = TASK;
+            decoded.at = row.source.at;
+            rows.push(row).unwrap();
+        }
+    }
+    c::ActivityPage { rows, before: None, after: None, cut: false }
+}
+fn agent_work_root(page: c::ActivityPage, writing: Option<&[u8]>) -> (Domain, skein_lib::Token) {
+    use jig_client::{Event as E, Up};
+    use skein_lib::{Env, Queue, Time, Token};
+    let limits = fixtures::domain_limits();
+    let (mut root, _, watch, _, _, _) = fixtures::root_at_with_forges(
+        temper_client_domain::Address::Task { task: TASK },
+        &limits,
+        b"Shop",
+        None,
+        Some(page),
+        None,
+    );
+    let watch = watch.unwrap();
+    let mut task = f::delegate();
+    task.activity = 2;
+    let mut out = Queue::uncapped();
+    temper_client_domain::step(
+        &mut root,
+        &Env { now: Time::ZERO, wall: fixtures::NOW, limits },
+        Event::Client {
+            event: E::Up {
+                up: Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))) },
+            },
+        },
+        &mut out,
+    );
+    let mut run_watch = None;
+    while let Some(request) = out.pop() {
+        if let temper_client_domain::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Run { .. }) },
+                },
+        } = request
+        {
+            run_watch = Some(watch);
+        }
+    }
+    let text = fixtures::first_run::text;
+    fixtures::root_event(
+        &mut root,
+        Event::Client {
+            event: E::Up {
+                up: Up::Watched {
+                    watch: run_watch.expect("agent run opened"),
+                    event: c::WatchEvent::Delivered(c::Delivery::RunState(Box::new(c::RunState {
+                        task: TASK,
+                        attempt: Some(f::RUN_ATTEMPT),
+                        committed_turn: 2,
+                        writing: match writing {
+                            Some(words) => Some(c::RunText {
+                                attempt: f::RUN_ATTEMPT,
+                                began: None,
+                                turn: c::ProvisionalTurnName { attempt: f::RUN_ATTEMPT, number: 3, retry: 0 },
+                                from: 0,
+                                through: u32::try_from(words.len()).unwrap(),
+                                text: text(words),
+                                cut: false,
+                                call: None,
+                                writing: None,
+                            }),
+                            None => None,
+                        },
+                        call: Some(c::CurrentCall {
+                            identity: c::CallIdentity {
+                                owner: Token::new(1),
+                                sequence: 2,
+                                retry: 0,
+                                id: text(b"current"),
+                            },
+                            tool: text(b"settings"),
+                            input: text(br#"{"setting":{"kind":"template","number":2}}"#),
+                            cut: false,
+                            began: None,
+                        }),
+                    }))),
+                },
+            },
+        },
+    );
+    assert!(root.pages().task().unwrap().current_call().is_some(), "call delivered through the run watch");
+    (root, watch)
+}
+fn agent_run_line(tree: &Tree) -> &Node {
+    &tree.nodes()[styled(tree, look::WORK)]
+}
+#[test]
+fn an_agents_run_says_the_call_under_way() {
+    for writing in [None, Some(b"".as_slice())] {
+        let (root, _) = agent_work_root(agent_work_page(true), writing);
+        let view = fixtures::browser_page_view(&root);
+        let line = agent_run_line(view.tree());
+        assert!(line.styles.as_slice().contains(&look::WORK_RUNNING));
+        assert_eq!(line.description.as_deref(), Some(b"checking template 2".as_slice()));
+        assert_eq!(line.name.as_deref(), Some(b"Read 1 file".as_slice()));
+    }
+}
+#[test]
+fn an_agents_call_with_none_ended_is_a_line() {
+    let (root, _) = agent_work_root(agent_work_page(false), None);
+    let view = fixtures::browser_page_view(&root);
+    let tree = view.tree();
+    assert_eq!(agent_run_line(tree).name.as_deref(), Some(b"Checking template 2".as_slice()));
+    let calls = subtree(tree, styled(tree, look::WORK_CALLS));
+    assert_eq!(children(tree, styled(tree, look::WORK_CALLS)).len(), 1);
+    assert!(named(calls, Role::Paragraph, b"settings template 2"));
+}
+#[test]
+fn an_agents_written_words_settle_its_run() {
+    let (root, _) = agent_work_root(agent_work_page(true), Some(b"The answer."));
+    let view = fixtures::browser_page_view(&root);
+    let line = agent_run_line(view.tree());
+    assert!(!line.styles.as_slice().contains(&look::WORK_RUNNING));
+    assert_eq!(line.description.as_deref(), Some(b"29 s".as_slice()));
+    assert!(!named(view.tree().nodes(), Role::Paragraph, b"settings template 2"));
+    assert!(contains(view.tree(), b"The answer."));
+}
+#[test]
+fn no_run_out_settles_an_agents_line() {
+    let (mut root, watch) = agent_work_root(agent_work_page(true), None);
+    let mut task = f::delegate();
+    task.activity = 2;
+    f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
+    fixtures::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))),
+                },
+            },
+        },
+    );
+    let view = fixtures::browser_page_view(&root);
+    let line = agent_run_line(view.tree());
+    assert!(!line.styles.as_slice().contains(&look::WORK_RUNNING));
+    assert_eq!(line.description.as_deref(), Some(b"29 s".as_slice()));
+    assert!(!named(view.tree().nodes(), Role::Paragraph, b"settings template 2"));
+}
+#[test]
+fn an_agents_page_has_no_dots() {
+    for running in [false, true] {
+        let mut task = f::delegate();
+        task.activity = 0;
+        if !running {
+            f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
+        }
+        let root = f::agent_root(task, None, false);
+        let view = fixtures::browser_page_view(&root);
+        assert!(!has_style(view.tree().nodes(), look::TYPING));
+    }
+}
+#[test]
+fn an_agents_page_has_latest_in_a_browser() {
+    let root = f::agent_root(f::delegate(), None, true);
+    let view = fixtures::browser_page_view(&root);
+    let tree = view.tree();
+    let pill = index_of(tree, Role::Button, b"Latest");
+    let log = index_of(tree, Role::Log, b"Conversation");
+    assert_eq!(pill, log + usize::try_from(tree.nodes()[log].size).unwrap());
+    assert!(tree.nodes()[pill].styles.as_slice().contains(&look::LATEST));
+    assert!(tree.nodes()[pill].states.as_slice().contains(&skein_ui::State::ToLogEnd));
+}
+#[test]
+fn latest_binds_where_the_window_let_its_end_go() {
+    for dropped in [false, true] {
+        let mut page = agent_work_page(true);
+        if dropped {
+            page.after = Some(c::Cursor::new(Box::from(*b"newer"), 32).unwrap());
+        }
+        let (root, _) = agent_work_root(page, None);
+        let mut view = fixtures::browser_page_view(&root);
+        let id = fixtures::find(view.tree(), Role::Button, b"Latest").expect("Latest");
+        assert_eq!(
+            crate::act(&mut view, id, skein_ui::Act::Press),
+            if dropped { Some(Action::Pages(Act::Latest)) } else { None }
+        );
+    }
+}
+#[test]
+fn an_agents_terminal_has_no_latest() {
+    let root = f::agent_root(f::delegate(), None, true);
+    let view = fixtures::page_view(&root);
+    assert!(fixtures::find(view.tree(), Role::Button, b"Latest").is_none());
+}
 #[test]
 fn an_agents_task_has_its_parts_in_order() {
     let view = agent(f::delegate());
@@ -1592,7 +1803,7 @@ fn an_agents_older_button_reads_before_the_full_window() {
     assert!(fixtures::find(view.tree(), Role::Button, b"Older").is_none());
     let status = fixtures::find(view.tree(), Role::Status, b"Loading earlier messages").expect("loading status");
     assert!(view.tree().find(status).unwrap().styles.as_slice().contains(&look::THREAD_LOADING));
-    assert!(fixtures::find(view.tree(), Role::Button, b"Latest").is_none());
+    assert!(fixtures::find(view.tree(), Role::Button, b"Latest").is_some());
 }
 
 fn confirming_stop(root: &mut Domain) -> skein_lib::Token {
