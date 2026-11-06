@@ -2,7 +2,12 @@ use super::*;
 use crate::journey::{Kind, Line};
 use jig_client_protocol_wire as w;
 use jig_client_shell_web::adapter::Heard;
-use skein_lib::{Reader, Writer, base64::{self, Alphabet}, bytes::find, sha256::digest};
+use skein_lib::{
+    Reader, Writer,
+    base64::{self, Alphabet},
+    bytes::find,
+    sha256::digest,
+};
 use skein_ui::Act;
 
 // Sixteen fake bytes, with URL, html and Debug escapes all differing from the bytes.
@@ -44,14 +49,26 @@ fn kept(record: &[u8]) -> Box<[u8]> {
 }
 fn exchange(body: &[u8]) -> Line {
     Line::Exchange {
-        id: 1, bound: 256, method: b"POST".as_slice().into(), path: b"/".as_slice().into(),
-        body: body.into(), headers: Vec::new(),
+        id: 1,
+        bound: 256,
+        method: b"POST".as_slice().into(),
+        path: b"/".as_slice().into(),
+        body: body.into(),
+        headers: Vec::new(),
     }
 }
 fn framed(value: &[u8]) -> Box<[u8]> {
     // A counted field between two neighbours, repeated to check every occurrence.
-    [b"before".as_slice(), &u32::try_from(value.len()).expect("fixture length").to_le_bytes(),
-        value, b"between", value, b"after"].concat().into()
+    [
+        b"before".as_slice(),
+        &u32::try_from(value.len()).expect("fixture length").to_le_bytes(),
+        value,
+        b"between",
+        value,
+        b"after",
+    ]
+    .concat()
+    .into()
 }
 fn event(record: &[u8]) -> Box<[u8]> {
     let len = base64::encoded_len(Alphabet::Standard, u32::try_from(record.len()).expect("fixture length"))
@@ -81,37 +98,69 @@ struct Case {
 fn case(label: &str, before: Line, after: Line) -> Case {
     Case { label: label.into(), before: vec![before], after: vec![after] }
 }
+type TextField = (&'static str, fn(Box<[u8]>) -> Line);
+
+#[expect(clippy::too_many_lines, reason = "the table names each field, form and piece boundary of journeys.md, 3.6")]
 fn places() -> Vec<Case> {
     let mut cases = vec![
         case("secret bytes", Line::Secret(VALUE.into()), Line::Secret(HIDDEN.into())),
-        case("stored value", Line::Stored { key: b"other".as_slice().into(), value: VALUE.into() },
-            Line::Stored { key: b"other".as_slice().into(), value: HIDDEN.into() }),
+        case(
+            "stored value",
+            Line::Stored { key: b"other".as_slice().into(), value: VALUE.into() },
+            Line::Stored { key: b"other".as_slice().into(), value: HIDDEN.into() },
+        ),
         case("framed percent", exchange(&framed(UPPER)), exchange(&framed(&vec![b'x'; UPPER.len()]))),
         case("exchange body", exchange(&framed(VALUE)), exchange(&framed(HIDDEN))),
-        case("answered body",
+        case(
+            "answered body",
             Line::Heard(Heard::Answered { exchange: 1, status: 200, body: framed(VALUE), headers: Vec::new() }),
-            Line::Heard(Heard::Answered { exchange: 1, status: 200, body: framed(HIDDEN), headers: Vec::new() })),
-        case("act event", Line::Act { act: Act::Press, event: VALUE.into(), name: Box::default() },
-            Line::Act { act: Act::Press, event: HIDDEN.into(), name: Box::default() }),
-        case("act Debug event", Line::Act { act: Act::Press, event: DEBUG.into(), name: Box::default() },
-            Line::Act { act: Act::Press, event: HIDDEN.into(), name: Box::default() }),
-        case("act name", Line::Act { act: Act::Press, event: Box::default(), name: VALUE.into() },
-            Line::Act { act: Act::Press, event: Box::default(), name: HIDDEN.into() }),
-        case("plain act value", Line::Act { act: Act::Input { value: VALUE.into() }, event: Box::default(), name: Box::default() },
-            Line::Act { act: Act::Input { value: HIDDEN.into() }, event: Box::default(), name: Box::default() }),
-        case("drawing", Line::Act { act: Act::Drawing { data: VALUE.into() }, event: Box::default(), name: Box::default() },
-            Line::Act { act: Act::Drawing { data: HIDDEN.into() }, event: Box::default(), name: Box::default() }),
+            Line::Heard(Heard::Answered { exchange: 1, status: 200, body: framed(HIDDEN), headers: Vec::new() }),
+        ),
+        case(
+            "act event",
+            Line::Act { act: Act::Press, event: VALUE.into(), name: Box::default() },
+            Line::Act { act: Act::Press, event: HIDDEN.into(), name: Box::default() },
+        ),
+        case(
+            "act Debug event",
+            Line::Act { act: Act::Press, event: DEBUG.into(), name: Box::default() },
+            Line::Act { act: Act::Press, event: HIDDEN.into(), name: Box::default() },
+        ),
+        case(
+            "act name",
+            Line::Act { act: Act::Press, event: Box::default(), name: VALUE.into() },
+            Line::Act { act: Act::Press, event: Box::default(), name: HIDDEN.into() },
+        ),
+        case(
+            "plain act value",
+            Line::Act { act: Act::Input { value: VALUE.into() }, event: Box::default(), name: Box::default() },
+            Line::Act { act: Act::Input { value: HIDDEN.into() }, event: Box::default(), name: Box::default() },
+        ),
+        case(
+            "drawing",
+            Line::Act { act: Act::Drawing { data: VALUE.into() }, event: Box::default(), name: Box::default() },
+            Line::Act { act: Act::Drawing { data: HIDDEN.into() }, event: Box::default(), name: Box::default() },
+        ),
         case("piece record", piece(&event(&framed(VALUE))), piece(&event(&framed(HIDDEN)))),
-        case("stream comment", piece(&[b": ".as_slice(), VALUE, b"\n"].concat()),
-            piece(&[b": ".as_slice(), HIDDEN, b"\n"].concat())),
+        case(
+            "stream comment",
+            piece(&[b": ".as_slice(), VALUE, b"\n"].concat()),
+            piece(&[b": ".as_slice(), HIDDEN, b"\n"].concat()),
+        ),
         case("stream refused body", piece(VALUE), piece(HIDDEN)),
-        case("cut event record", piece(event(&framed(VALUE)).strip_suffix(b"\n\n").expect("event terminator")),
-            piece(event(&framed(HIDDEN)).strip_suffix(b"\n\n").expect("event terminator"))),
+        case(
+            "cut event record",
+            piece(event(&framed(VALUE)).strip_suffix(b"\n\n").expect("event terminator")),
+            piece(event(&framed(HIDDEN)).strip_suffix(b"\n\n").expect("event terminator")),
+        ),
     ];
     // Each text field is an independent row, including fields outside the minimum sketch.
-    let text_fields: &[(&str, fn(Box<[u8]>) -> Line)] = &[
-        ("path", Line::Path), ("place", Line::Place), ("navigate", Line::Navigate),
-        ("replace", Line::Replace), ("show", |path| Line::Show { path, replace: false }),
+    let text_fields: &[TextField] = &[
+        ("path", Line::Path),
+        ("place", Line::Place),
+        ("navigate", Line::Navigate),
+        ("replace", Line::Replace),
+        ("show", |path| Line::Show { path, replace: false }),
         ("ways content", |content| Line::Ways { content, origin: Box::default() }),
         ("ways origin", |origin| Line::Ways { content: Box::default(), origin }),
         ("forge", Line::Forge),
@@ -132,16 +181,22 @@ fn places() -> Vec<Case> {
         ("stored key", (|key| Line::Stored { key, value: Box::default() }) as fn(Box<[u8]>) -> Line),
         ("save key", |key| Line::Save { key, value: Box::default() }),
         ("save value", |value| Line::Save { key: b"other".as_slice().into(), value }),
-        ("written", Line::Written), ("unwritten", Line::Unwritten), ("erase", Line::Erase),
+        ("written", Line::Written),
+        ("unwritten", Line::Unwritten),
+        ("erase", Line::Erase),
     ] {
         cases.push(case(label, make(VALUE.into()), make(HIDDEN.into())));
     }
     for open in [false, true] {
         for name in [false, true] {
             let make = |bytes: &[u8]| {
-                let header = if name { (bytes.into(), b"v".as_slice().into()) } else { (b"h".as_slice().into(), bytes.into()) };
-                if open { Line::Open { piece: 64, path: b"/".as_slice().into(), headers: vec![header] } }
-                else { request(b"/".as_slice().into(), vec![header]) }
+                let header =
+                    if name { (bytes.into(), b"v".as_slice().into()) } else { (b"h".as_slice().into(), bytes.into()) };
+                if open {
+                    Line::Open { piece: 64, path: b"/".as_slice().into(), headers: vec![header] }
+                } else {
+                    request(b"/".as_slice().into(), vec![header])
+                }
             };
             cases.push(case(&format!("header open={open} name={name}"), make(VALUE), make(HIDDEN)));
         }
@@ -149,7 +204,11 @@ fn places() -> Vec<Case> {
     let before = event(&framed(VALUE));
     let after = event(&framed(HIDDEN));
     for cut in 0..=before.len() {
-        cases.push(Case { label: format!("piece split {cut}"), before: split(&before, cut), after: split(&after, cut) });
+        cases.push(Case {
+            label: format!("piece split {cut}"),
+            before: split(&before, cut),
+            after: split(&after, cut),
+        });
     }
     cases
 }
@@ -255,26 +314,28 @@ fn a_pasted_values_whitespace_stands() {
 
 #[test]
 fn longest_first() {
-    let (_, output) = changed(&[exchange(b"abcdef abcd abcdef")], &[b"abcd".as_slice().into(), b"abcdef".as_slice().into()]);
+    let (_, output) =
+        changed(&[exchange(b"abcdef abcd abcdef")], &[b"abcd".as_slice().into(), b"abcdef".as_slice().into()]);
     assert!(written(&output) == written(&[exchange(b"xxxxxx xxxx xxxxxx")]), "longest original replaced first");
 }
 
 #[test]
 fn counts_each_kind_and_its_places() {
+    // Four source occurrences, six body occurrences, one event and one plain run.
+    const PLACES: u32 = 12;
     let source = [
         Line::Secret(b"link-value".as_slice().into()),
         Line::Stored { key: jig_client::STREAM_KEY.into(), value: kept(b"stored-value") },
         Line::Save { key: jig_client::STREAM_KEY.into(), value: kept(b"stored-value") },
         input(b"typed-value"),
         exchange(b"link-value link-value stored-value typed-value given-value given-value"),
-        piece(&event(b"given-value")), piece(b": given-value\n"),
+        piece(&event(b"given-value")),
+        piece(b": given-value\n"),
     ];
     let (result, _) = changed(&source, &[b"given-value".as_slice().into()]);
     for kind in [Kind::Link, Kind::Stored, Kind::Typed, Kind::Given] {
         assert_eq!(result.originals.count(kind), 1, "one distinct original per kind");
     }
-    // Four source occurrences, six body occurrences, one event and one plain run.
-    const PLACES: u32 = 12;
     assert_eq!(result.places, PLACES);
     let (again, _) = changed(&lines_of(&result), &[]);
     assert_eq!(again.places, 0, "already redacted values are not replacements");
@@ -292,18 +353,44 @@ fn the_committed_recordings_redact() {
     let mut count = 0;
     for entry in std::fs::read_dir(journeys).expect("journeys") {
         let path = entry.expect("journey").path().join("recording");
-        if !path.is_file() { continue; }
+        if !path.is_file() {
+            continue;
+        }
         count += 1;
         let recording = std::fs::read(path).expect("recording");
         let output = redact(&recording, &[]).expect("committed recording redacts");
         for line in lines(&recording).expect("committed lines") {
-            if let Line::Secret(value) = line {
-                if !value.iter().all(|byte| *byte == b'x') {
-                    assert!(find(&output.recording, &value).is_none(), "committed secret gone");
-                }
+            if let Line::Secret(value) = line
+                && !value.iter().all(|byte| *byte == b'x')
+            {
+                assert!(find(&output.recording, &value).is_none(), "committed secret gone");
             }
         }
     }
     eprintln!("committed recordings checked: {count}");
     assert!(count > 0, "committed recordings checked");
+}
+
+#[test]
+fn an_escaped_form_precedes_its_byte_prefix() {
+    for (source, expected) in [
+        (Line::Path(b"a&amp; a&".as_slice().into()), Line::Path(b"xx xx".as_slice().into())),
+        (exchange(b"a&amp; a&"), exchange(b"xxxxxx xx")),
+    ] {
+        let (_, output) = changed(&[source], &[b"a&".as_slice().into()]);
+        assert!(written(&output) == written(&[expected]), "a whole escaped form replaces its byte prefix");
+    }
+}
+
+#[test]
+fn a_digest_replacement_is_not_searched_again() {
+    let (_, output) = changed(&[exchange(&digest(b"-"))], &[b"-".as_slice().into()]);
+    assert!(written(&output) == written(&[exchange(&digest(b"x"))]), "placeholder digest stands whole");
+}
+
+#[test]
+fn unreadable_input_is_refused_by_its_line() {
+    let result = redact(b"due\nnot-a-record\n", &[]);
+    let Err(Unredacted::Unreadable(error)) = result else { panic!("unreadable input refused") };
+    assert_eq!(error.line, 2);
 }
