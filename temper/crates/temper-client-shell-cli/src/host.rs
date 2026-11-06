@@ -601,6 +601,12 @@ impl OneShot {
                 self.fail(format!("the engine's {} streams are all in use, by waits and open clients; end one, or wait and call again", full.size).as_bytes());
                 return;
             }
+            if self.root.client().link().watches_full {
+                self.fail(
+                    b"all the engine's watches are in use, by open pages and waits; close one, or wait and call again",
+                );
+                return;
+            }
             self.fail(format!("the engine at {address} did not answer within 30 s").as_bytes());
         }
     }
