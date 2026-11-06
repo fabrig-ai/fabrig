@@ -15,6 +15,7 @@ pub fn wire_setting(value: &c::Setting, limits: &w::Limits) -> Result<w::Setting
         c::Setting::Charter(item) => w::Setting::Charter(wire_setting_number(item, limits)?),
         c::Setting::Template(item) => w::Setting::Template(wire_setting_number(item, limits)?),
         c::Setting::Policy(item) => w::Setting::Policy(wire_setting_number(item, limits)?),
+        c::Setting::Model(item) => w::Setting::Model(wire_setting_number(item, limits)?),
         c::Setting::Rules => w::Setting::Rules,
         c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(
             limits,
@@ -31,6 +32,7 @@ pub fn restore_setting(value: &w::Setting) -> Result<c::Setting, w::Problem> {
         w::Setting::Charter(item) => c::Setting::Charter(restore_setting_number(item)?),
         w::Setting::Template(item) => c::Setting::Template(restore_setting_number(item)?),
         w::Setting::Policy(item) => c::Setting::Policy(restore_setting_number(item)?),
+        w::Setting::Model(item) => c::Setting::Model(restore_setting_number(item)?),
         w::Setting::Rules => c::Setting::Rules,
         w::Setting::ProjectPolicy(v) => c::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => c::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
@@ -44,6 +46,7 @@ pub fn wire_setting_model(value: &c::SettingModel, limits: &w::Limits) -> Result
     w::SettingModel::new(
         limits,
         w::SettingModelParts {
+            provider: value.provider,
             dialect: value.dialect,
             endpoint: value.endpoint,
             program: match &value.program {
@@ -75,6 +78,7 @@ pub fn restore_setting_model(value: &w::SettingModel) -> Result<c::SettingModel,
         efforts.push(text(item, 32)?).expect("same capacity");
     }
     Ok(c::SettingModel {
+        provider: value.provider(),
         dialect: value.dialect(),
         endpoint: value.endpoint(),
         program: match value.program() {
@@ -136,7 +140,7 @@ pub fn wire_charter(value: &c::Charter, limits: &w::Limits) -> Result<w::Charter
         limits,
         w::CharterParts {
             documents,
-            skein_bools: [value.resume, value.inspect, value.modify, value.shell, value.agents],
+            skein_bools: [value.rest, value.resume, value.inspect, value.modify, value.shell, value.agents],
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
             waiting: value.waiting,
@@ -171,6 +175,7 @@ pub fn restore_charter(value: &w::Charter) -> Result<c::Charter, w::Problem> {
             .expect("same capacity");
     }
     Ok(c::Charter {
+        rest: value.rest(),
         documents,
         number: value.number(),
         instructions: text(value.instructions(), 1_114_240)?,
@@ -314,6 +319,7 @@ pub fn restore_rules(value: &w::Rules, limits: &Limits) -> Result<c::Rules, w::P
 }
 pub fn wire_setting_value(value: &c::SettingValue, limits: &w::Limits) -> Result<w::SettingValue, w::Problem> {
     Ok(match value {
+        c::SettingValue::Model(v) => w::SettingValue::Model(Box::new(wire_catalogue(v, limits)?)),
         c::SettingValue::Application(v) => w::SettingValue::Application(w::ApplicationValue::new(
             limits,
             w::ApplicationValueParts { bytes: v.clone() },
@@ -326,6 +332,7 @@ pub fn wire_setting_value(value: &c::SettingValue, limits: &w::Limits) -> Result
 }
 pub fn restore_setting_value(value: &w::SettingValue, limits: &Limits) -> Result<c::SettingValue, w::Problem> {
     Ok(match value {
+        w::SettingValue::Model(v) => c::SettingValue::Model(Box::new(restore_catalogue(v)?)),
         w::SettingValue::Application(v) => c::SettingValue::Application(bytes::copy_of(v.bytes())),
         w::SettingValue::Charter(item) => c::SettingValue::Charter(Box::new(restore_charter(item)?)),
         w::SettingValue::Template(item) => {
@@ -934,4 +941,52 @@ fn restore_setting_detail(value: &w::SettingDetail) -> c::SettingDetail {
         supplied: value.supplied(),
         bound: value.bound(),
     }
+}
+
+fn wire_catalogue(value: &c::CatalogueEntry, limits: &w::Limits) -> Result<w::CatalogueEntry, w::Problem> {
+    w::CatalogueEntry::new(
+        limits,
+        w::CatalogueEntryParts {
+            number: value.number,
+            model: wire_setting_model(&value.model, limits)?,
+            shown: match &value.shown {
+                Some(value) => Some(bytes::copy_of(value.bytes())),
+                None => None,
+            },
+            description: match &value.description {
+                Some(value) => Some(bytes::copy_of(value.bytes())),
+                None => None,
+            },
+            picker: value.picker,
+            withdrawn: value.withdrawn,
+            estimated: value.estimated,
+            source: match value.source {
+                c::ModelSource::Stock => w::ModelSource::Stock,
+                c::ModelSource::List => w::ModelSource::List,
+                c::ModelSource::Person => w::ModelSource::Person,
+            },
+        },
+    )
+}
+fn restore_catalogue(value: &w::CatalogueEntry) -> Result<c::CatalogueEntry, w::Problem> {
+    Ok(c::CatalogueEntry {
+        number: value.number(),
+        model: restore_setting_model(value.model())?,
+        shown: match value.shown() {
+            Some(value) => Some(text(value, 4096)?),
+            None => None,
+        },
+        description: match value.description() {
+            Some(value) => Some(text(value, 512)?),
+            None => None,
+        },
+        picker: value.picker(),
+        withdrawn: value.withdrawn(),
+        estimated: value.estimated(),
+        source: match value.source() {
+            w::ModelSource::Stock => c::ModelSource::Stock,
+            w::ModelSource::List => c::ModelSource::List,
+            w::ModelSource::Person => c::ModelSource::Person,
+        },
+    })
 }

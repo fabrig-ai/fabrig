@@ -139,7 +139,7 @@ fn preferred(number: u32) -> tasks::LlmChoice {
     }
 }
 fn with_model(core: &mut Core) {
-    core.settings.llm_providers.providers[0].models = Box::new([b"scripted".as_slice().into()]);
+    core.settings.models[0].provider = core.settings.llm_providers.providers[0].number;
 }
 
 #[test]

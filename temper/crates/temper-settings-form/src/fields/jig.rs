@@ -1,11 +1,12 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 54] = [
+pub static FORMS: [Form; 55] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
     Form { shape: Shape::Charter, name: b"charter", choice: Choice::Every, line: b"How an agent's run works: its instructions, models, tools, hosts and budget. A task's runs read the charter of the settings revision the task was made in." },
     Form { shape: Shape::Document, name: b"document", choice: Choice::Every, line: b"A document every run of the charter reads in its brief, as the file is at the branch's head when the run is prepared: a rule that lands there reaches the next run." },
-    Form { shape: Shape::Model, name: b"model", choice: Choice::Every, line: b"One of the deployment's models, as a charter offers it. Every member but `effort` must equal the configured model's, else refused as `reference`: copy them from a charter's value." },
+    Form { shape: Shape::Catalogue, name: b"catalogue", choice: Choice::Every, line: b"A whole numbered model setting: its runtime model, display facts, availability and origin." },
+    Form { shape: Shape::Model, name: b"model", choice: Choice::Every, line: b"A runtime model. In a charter, every member but `effort` must match its configured row, else refused as `reference`; a model setting supplies the row whole." },
     Form { shape: Shape::Wake, name: b"wake", choice: Choice::Every, line: b"What wakes a task, kind of message by kind; a proposal, an escalation and a cancel always wake it." },
     Form { shape: Shape::WakeRule, name: b"wake_rule", choice: Choice::One { words: &[Word { word: b"never", line: b"It waits for the task's next run." }, Word { word: b"immediate", line: b"It wakes the task at once." }] }, line: b"How a kind of message wakes a task: a word, or an object with one member." },
     Form { shape: Shape::WakeBatch, name: b"wake_batch", choice: Choice::Every, line: b"A batch of messages that wakes a task once." },
@@ -84,7 +85,7 @@ pub static FORMS: [Form; 54] = [
         Word { word: b"up", line: b"A change's questions go up to its parent." },
     ] }, line: b"The route a project's change takes when its maker names none." },
 ];
-pub static FIELDS: [Field; 197] = [
+pub static FIELDS: [Field; 207] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -114,6 +115,7 @@ pub static FIELDS: [Field; 197] = [
         shape: Shape::Setting,
         name: b"kind",
         value: Value::Words(&[
+            Word { word: b"model", line: b"" },
             Word { word: b"charter", line: b"" },
             Word { word: b"template", line: b"" },
             Word { word: b"policy", line: b"" },
@@ -137,6 +139,7 @@ pub static FIELDS: [Field; 197] = [
         line: b"The setting's number, from 1; left out for rules, project-policy, project-ways and project-questions.",
     },
     Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required for project-ways and project-questions. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
+    Field { shape: Shape::Charter, name: b"rest", value: Value::Boolean, list: None, null: false, line: b"Whether the other catalogue models follow the named first choices; false when absent." },
     Field {
         shape: Shape::Charter,
         name: b"number",
@@ -236,6 +239,15 @@ pub static FIELDS: [Field; 197] = [
     Field { shape: Shape::Document, name: b"branch", value: Value::Text(Bound::Limit(Limit::DocumentBranch)), list: None, null: false, line: b"The branch whose head is read, its segments joined by `/`." },
     Field { shape: Shape::Document, name: b"path", value: Value::Text(Bound::Limit(Limit::DocumentPath)), list: None, null: false, line: b"The file's path in the repository, at most 256 bytes." },
     Field { shape: Shape::Document, name: b"heading", value: Value::Text(Bound::Limit(Limit::DocumentHeading)), list: None, null: true, line: b"A Markdown heading's text: the run reads from that heading to the next of its level or above; null reads the whole file." },
+    Field { shape: Shape::Catalogue, name: b"number", value: Value::Integer(Width::U32), list: None, null: false, line: b"Its permanent number, from 1 to 64, matching setting.number." },
+    Field { shape: Shape::Catalogue, name: b"model", value: Value::Shape(Shape::Model), list: None, null: false, line: b"The runtime model, whole." },
+    Field { shape: Shape::Catalogue, name: b"shown", value: Value::Text(Bound::Limit(Limit::CatalogueEntryShownSome)), list: None, null: true, line: b"Its name for showing, or null." },
+    Field { shape: Shape::Catalogue, name: b"description", value: Value::Text(Bound::Limit(Limit::CatalogueEntryDescriptionSome)), list: None, null: true, line: b"Its description, or null." },
+    Field { shape: Shape::Catalogue, name: b"picker", value: Value::Boolean, list: None, null: false, line: b"Whether a model picker shows it." },
+    Field { shape: Shape::Catalogue, name: b"withdrawn", value: Value::Boolean, list: None, null: false, line: b"Whether it is withdrawn; its number and name stay." },
+    Field { shape: Shape::Catalogue, name: b"source", value: Value::Words(&[Word { word: b"stock", line: b"The binary." }, Word { word: b"list", line: b"A provider list." }, Word { word: b"person", line: b"A person." }]), list: None, null: false, line: b"Where the model came from." },
+    Field { shape: Shape::Catalogue, name: b"estimated", value: Value::Boolean, list: None, null: false, line: b"Whether its prices are provider defaults." },
+    Field { shape: Shape::Model, name: b"provider", value: Value::Integer(Width::U32), list: None, null: false, line: b"The configured LLM provider that serves it; 1 when absent." },
     Field {
         shape: Shape::Model,
         name: b"dialect",

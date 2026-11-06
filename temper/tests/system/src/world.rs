@@ -34,6 +34,7 @@ pub struct World {
 pub fn charter() -> engine::Charter {
     let mut charter = walking::charter();
     charter.policy.model = engine::Model {
+        provider: 1,
         program: None,
         dialect: temper_worker_domain_world::DIALECT,
         endpoint: 0,
@@ -66,8 +67,7 @@ pub fn config(seed: u64) -> engine::Config {
     let charter = charter();
     // The charter's model is a configured one, as jig's core world sets it (tests/core charters.rs).
     config.core.settings.models = Box::new([charter.policy.model.clone()]);
-    config.core.settings.llm_providers.providers.first_mut().expect("walking fixture's provider").models =
-        Box::new([charter.policy.model.name.clone()]);
+
     config.core.defaults.charters = Box::new([charter]);
     config.core.settings.resume_bytes = 8192;
     config

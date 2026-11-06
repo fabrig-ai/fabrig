@@ -178,7 +178,6 @@ fn playground_providers(config: &mut engine::Config) {
     let mut other = playground.clone();
     other.number = PROVIDER + 1;
     other.name = Box::from(b"Other fake".as_slice());
-    other.models = Box::new([Box::from(b"other-scripted".as_slice())]);
     other.offers = a::Offers { sign_in: true, key: true, programs: Box::new([]) };
     config.core.settings.llm_providers.providers = Box::new([playground, other]);
 }
@@ -205,13 +204,18 @@ fn fixture_root(
     }
     let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|index| {
         let mut config = walking::config(seed);
+        for model in &mut config.core.settings.models {
+            model.provider = PROVIDER;
+        }
+        for charter in &mut config.core.defaults.charters {
+            charter.policy.model.provider = PROVIDER;
+        }
         config.core.settings.llm_providers = a::Providers {
             providers: Box::new([a::Provider {
                 number: PROVIDER,
                 name: Box::from(if plan { b"openai".as_slice() } else { b"Scripted".as_slice() }),
                 signed_in_plan: plan,
                 manage_usage: None,
-                models: Box::new([Box::from(b"scripted".as_slice())]),
                 offers: a::Offers { sign_in: true, key: true, programs: Box::new([]) },
             }]),
         };
@@ -227,14 +231,13 @@ fn fixture_root(
                 Box::new([Box::from(b"claude_code".as_slice())]);
         }
         if tools {
-            let mut model = walking::charter().policy.model;
+            let primary = config.core.settings.models[0].clone();
+            let mut model = primary.clone();
             model.name = Box::from(b"effort-model".as_slice());
             model.efforts = Box::new([Box::from(b"high".as_slice())]);
             model.effort = None;
-            config.core.settings.models = Box::new([walking::charter().policy.model, model.clone()]);
+            config.core.settings.models = Box::new([primary, model.clone()]);
             config.core.defaults.charters.get_mut(0).expect("fixture charter").policy.alternatives = Box::new([model]);
-            config.core.settings.llm_providers.providers.get_mut(0).expect("fixture provider").models =
-                Box::new([Box::from(b"scripted".as_slice()), Box::from(b"effort-model".as_slice())]);
         }
         if let Some(spend) = spend {
             let policy = &mut config.core.seed_projects[0].policy.policy;

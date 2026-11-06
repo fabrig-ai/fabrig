@@ -78,7 +78,9 @@ pub(crate) fn admit(
     let decoded = decoded_read_room(turn).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))?;
     // The chunk or resume buffer can already cover a page. Only a decoded
     // row must fit the configured read itself; either refusal names one room.
-    if check_read_page(&limits).is_none() || root.loads.read_bytes < decoded {
+    let page_fits = check_read_page(&limits).is_some();
+    if !page_fits || root.loads.read_bytes < decoded {
+        let needs = if page_fits { decoded } else { needs };
         return Err(Refusal::ReadRoom { read: root.loads.read_bytes, needs });
     }
     match protocol::sizes::whole(max_whole(&limits)) {
@@ -350,7 +352,7 @@ mod sizing_tests {
         assert_eq!(row, 274_504);
         assert!(row <= u64::from(limits.secrets.value));
         assert!(row.checked_add(KEY_BYTES).unwrap() < u64::from(limits.secrets.page.bytes));
-        assert_eq!(profile.store.page.bytes, 2_168_979);
+        assert_eq!(profile.store.page.bytes, 3_421_331);
     }
 
     #[test]

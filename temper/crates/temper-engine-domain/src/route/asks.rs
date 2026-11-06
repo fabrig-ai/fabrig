@@ -102,7 +102,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             );
             None
         }
-        core::Ask::DropDocument { .. } => None,
+        core::Ask::Catalogue { .. } | core::Ask::DropDocument { .. } => None,
         core::Ask::DropApplication { owner } => {
             super::applications::drop(domain, owner);
             None

@@ -720,6 +720,7 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::Charter(n) => (b"charter".as_slice(), Some(n.number)),
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
+        c::Setting::Model(n) => (b"Model".as_slice(), Some(n.number)),
         c::Setting::Rules => (b"rules".as_slice(), None),
         c::Setting::ProjectPolicy { project } => (b"project policy".as_slice(), Some(project)),
         c::Setting::Application { kind: 1 | 2, number, .. } => (b"landing rule".as_slice(), Some(number)),

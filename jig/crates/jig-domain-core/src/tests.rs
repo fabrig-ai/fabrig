@@ -370,6 +370,7 @@ fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::
 /// The one configured model, its charter's, which declares two efforts (tasks.md, 3).
 fn scripted_model() -> Model {
     Model {
+        provider: 1,
         dialect: 3,
         endpoint: 1,
         program: None,
@@ -447,6 +448,7 @@ pub(crate) fn config(seed: u64) -> Config {
         }]),
         connectors: Box::new([1, 2]),
         settings: Settings {
+            endpoints: Box::default(),
             deployment_provider: 3,
             models: Box::new([scripted_model()]),
             resume_bytes: 256,
@@ -460,14 +462,15 @@ pub(crate) fn config(seed: u64) -> Config {
                     signed_in_plan: true,
                     manage_usage: Some(b"https://usage.example/".as_slice().into()),
                     number: 1,
-                    models: Box::new([b"scripted".as_slice().into()]),
                     offers: accounts::Offers { sign_in: true, key: false, programs: Box::new([]) },
                 }]),
             },
         },
         kinds: Box::default(),
         defaults: crate::settings::Defaults {
+            models: Box::default(),
             charters: Box::new([Charter {
+                rest: false,
                 wake: jig_domain_tasks::WakePolicy::DEFAULT,
                 documents: Box::new([]),
                 number: 1,

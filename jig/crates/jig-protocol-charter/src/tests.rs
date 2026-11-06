@@ -338,6 +338,7 @@ fn assignment_fixture(instructions: &[u8], words: u32, spend: u64, turns: u32) -
             reserve_turns: 1,
             reserve_time: Duration::from_secs(10),
             model: core::Model {
+                provider: 1,
                 program: None,
                 dialect: 3,
                 endpoint: 1,

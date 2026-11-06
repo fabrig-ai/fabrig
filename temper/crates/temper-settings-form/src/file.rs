@@ -278,6 +278,7 @@ fn setting(d: &Decoder, at: u32) -> Result<c::Setting, Error> {
     match kind {
         b"charter" => Ok(c::Setting::Charter(number)),
         b"template" => Ok(c::Setting::Template(number)),
+        b"model" => Ok(c::Setting::Model(number)),
         b"policy" => Ok(c::Setting::Policy(number)),
         _ => Err(error(b"kind", b"unknown setting kind")),
     }
@@ -288,6 +289,7 @@ fn item(d: &Decoder, at: u32) -> Result<c::SettingItem, Error> {
     let edit = match (optional(&fields, b"set"), optional(&fields, b"edit")) {
         (Some(at), None) => {
             let value = match setting {
+                c::Setting::Model(_) => c::SettingValue::Model(Box::new(values::catalogue(d, at)?)),
                 c::Setting::Charter(_) => c::SettingValue::Charter(Box::new(values::charter(d, at)?)),
                 c::Setting::Template(_) => c::SettingValue::Template(Box::new(values::template(d, at)?)),
                 c::Setting::Policy(_) | c::Setting::ProjectPolicy { .. } => {

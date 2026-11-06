@@ -453,7 +453,11 @@ fn settings_scopes(ask: &Ask) -> Option<skein_lib::Set<u32>> {
         let mut scopes = skein_lib::Set::with_capacity(settings.items.len());
         for item in &settings.items {
             let scope = match item.setting {
-                c::Setting::Charter(_) | c::Setting::Template(_) | c::Setting::Policy(_) | c::Setting::Rules => 0,
+                c::Setting::Charter(_)
+                | c::Setting::Template(_)
+                | c::Setting::Policy(_)
+                | c::Setting::Model(_)
+                | c::Setting::Rules => 0,
                 c::Setting::ProjectPolicy { project } => project,
                 c::Setting::Application { scope, .. } => scope,
             };

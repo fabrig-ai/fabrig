@@ -44,7 +44,6 @@ pub(in crate::tests) fn fixture(records: Vec<accounts::Stored>) -> (Core, Env<Li
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),
             number: PROVIDER,
-            models: Box::new([]),
             offers: accounts::Offers { sign_in: true, key: true, programs: Box::new([]) },
         }]),
     };

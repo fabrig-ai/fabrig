@@ -599,6 +599,7 @@ fn held_assignment() -> crate::Assignment {
                 reserve_turns: 1,
                 reserve_time: skein_lib::Duration::from_secs(1),
                 model: crate::Model {
+                    provider: 1,
                     program: None,
                     dialect: 1,
                     endpoint: 1,

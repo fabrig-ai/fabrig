@@ -34,6 +34,7 @@ const WORKER_SLOTS: u32 = 2; // The running goal and one report delegate.
 
 fn model() -> engine::Model {
     engine::Model {
+        provider: 1,
         dialect: 3,
         endpoint: 1,
         program: None,

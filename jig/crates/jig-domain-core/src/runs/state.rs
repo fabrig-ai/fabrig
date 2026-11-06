@@ -300,6 +300,7 @@ pub struct RestoringProof {
 /// One configured model and its deployment-unit prices (domain/agent.md, 4.6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Model {
+    pub provider: u32,
     pub dialect: u32,
     pub endpoint: u32,
     /// The endpoint's backend, when it takes program sources (configuration.md, 3).
@@ -326,6 +327,31 @@ pub struct Model {
 }
 
 impl Model {
+    /// An unoccupied catalogue position (domain/engine.md, 17.11).
+    #[must_use]
+    pub fn hole() -> Self {
+        Self {
+            provider: 0,
+            dialect: 0,
+            endpoint: 0,
+            program: None,
+            name: Box::default(),
+            window: 0,
+            output: 0,
+            input_price: 0,
+            cached_price: 0,
+            cache_write_price: None,
+            output_price: 0,
+            price_unit: 0,
+            efforts: Box::default(),
+            effort: None,
+        }
+    }
+    #[must_use]
+    pub fn is_hole(&self) -> bool {
+        self.name.is_empty()
+    }
+
     /// The default effort a task given no LLM choice takes (domain/tasks.md, 3).
     #[must_use]
     pub fn default_effort(&self) -> Option<&[u8]> {

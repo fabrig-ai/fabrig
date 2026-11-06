@@ -53,6 +53,7 @@ fn authority() -> c::Authority {
 }
 fn model() -> c::SettingModel {
     c::SettingModel {
+        provider: 1,
         dialect: 1,
         endpoint: 2,
         program: Some(words("program")),
@@ -327,6 +328,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
         (
             c::Setting::Charter(c::SettingNumber { number: 3 }),
             c::SettingValue::Charter(Box::new(c::Charter {
+                rest: false,
                 documents: documents(),
                 number: 3,
                 instructions: words("keep \"boundaries\"\nwhole"),
@@ -855,6 +857,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
             c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
             c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => continue,
+            c::Setting::Model(_) => vec!["settings", "show", "model", "9"],
             c::Setting::Rules => vec!["settings", "show", "rules"],
         };
         let answer = read(

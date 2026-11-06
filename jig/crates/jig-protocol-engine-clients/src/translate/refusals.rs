@@ -427,6 +427,9 @@ fn encode_setting(value: p::Setting, limits: &w::Limits) -> Result<w::Setting, w
         p::Setting::Policy(number) => {
             w::Setting::Policy(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }
+        p::Setting::Model(number) => {
+            w::Setting::Model(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
+        }
         p::Setting::Rules => w::Setting::Rules,
         p::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
             limits,

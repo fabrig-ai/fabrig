@@ -202,7 +202,8 @@ impl Core {
     }
 
     pub(crate) fn provider(&self, model: &crate::Model) -> Option<u32> {
-        Some(self.settings.llm_providers.serving(&model.name)?.number)
+        self.settings.llm_providers.get(model.provider)?;
+        Some(model.provider)
     }
 }
 fn account_wait(account: Option<u32>) -> RunWait {

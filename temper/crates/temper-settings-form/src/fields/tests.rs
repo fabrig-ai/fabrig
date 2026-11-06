@@ -5,13 +5,14 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 54] = [
+const SHAPES: [Shape; 55] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
     Shape::Charter,
     Shape::Document,
     Shape::Model,
+    Shape::Catalogue,
     Shape::Wake,
     Shape::WakeRule,
     Shape::WakeBatch,
@@ -396,7 +397,8 @@ fn a_member_left_out_is_refused_naming_it() {
         if field.shape == Shape::Item
             || (field.shape == Shape::Setting && field.name == b"project")
             || (field.shape == Shape::Template && field.name == b"resources")
-            || (field.shape == Shape::Charter && [b"wake".as_slice(), b"tools"].contains(&field.name))
+            || (field.shape == Shape::Charter && [b"wake".as_slice(), b"tools", b"rest"].contains(&field.name))
+            || (field.shape == Shape::Model && field.name == b"provider")
             || (field.shape == Shape::Document && field.name == b"heading")
         {
             continue;
@@ -571,7 +573,7 @@ LINE
 ## model
 
 - `"chosen"`: LINE
-- `set`: list of at most 16, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule`, `forge-charter`, `project-policy`, `project-ways` or `project-questions`, or null.
+- `set`: list of at most 32, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `project-policy`, `project-ways` or `project-questions`, or null.
 "#;
     assert_eq!(page.as_ref(), expected);
 }

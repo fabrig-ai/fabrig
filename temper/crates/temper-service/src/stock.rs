@@ -37,6 +37,7 @@ impl Given {
                     policies.insert(*number, policy.clone()).expect("counted policies");
                 }
                 Some(Defaults {
+                    models: own.models.clone(),
                     charters: own.charters.clone(),
                     templates: own.templates.clone(),
                     policies,
@@ -203,6 +204,7 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Opti
     let mut policies = Map::with_capacity(1);
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
+        models: Box::default(),
         charters,
         templates,
         policies,
@@ -296,6 +298,7 @@ fn charter(
         alternatives.push(alternative).expect("one per remaining configured model");
     }
     Charter {
+        rest: false,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([]),
         number,

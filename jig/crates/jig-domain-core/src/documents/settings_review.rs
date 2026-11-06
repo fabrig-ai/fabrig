@@ -37,6 +37,7 @@ pub fn settings_heads(items: &[t::SettingHead]) -> List<crate::reads::RevisionIt
                     t::Setting::Template(n) => s::Setting::Template(n),
                     t::Setting::Policy(n) => s::Setting::Policy(n),
                     t::Setting::Rules => s::Setting::Rules,
+                    t::Setting::Model(n) => s::Setting::Model(n),
                 },
                 edit: match item.edit {
                     t::SettingEdit::Set => crate::reads::RevisionEdit::Set,
@@ -65,6 +66,7 @@ pub(super) fn review(
             s::Setting::Charter(_)
             | s::Setting::Template(_)
             | s::Setting::Policy(_)
+            | s::Setting::Model(_)
             | s::Setting::Rules
             | s::Setting::Application { .. } => {
                 let (now, origin) = core.current.lookup(item.setting);

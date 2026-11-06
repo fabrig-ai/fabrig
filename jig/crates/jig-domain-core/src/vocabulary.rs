@@ -71,18 +71,34 @@ pub enum Request {
 /// A question or retained-section command for a numbered connector.
 #[derive(Debug)]
 pub enum Ask {
+    Catalogue {
+        models: Box<[crate::settings::CatalogueModel]>,
+    },
     /// Release every adoption this connector holds for a project being deleted
     /// (jig/docs/design/domain/people.md, 5.2). Answered by
     /// `Event::ProjectReleased` once the release commits; at once when none are held.
     /// Sent again at each start until answered, so a connector releases idempotently.
-    ReleaseProject { project: u32 },
+    ReleaseProject {
+        project: u32,
+    },
     /// The complete procedure step committed with these spec revisions.
-    StepMade { task: u64, step: u64, first: Option<u64>, revisions: Box<[(u64, u64)]> },
+    StepMade {
+        task: u64,
+        step: u64,
+        first: Option<u64>,
+        revisions: Box<[(u64, u64)]>,
+    },
     /// No part of the procedure step committed.
-    StepRefused { task: u64, step: u64, why: StepRefusal },
+    StepRefused {
+        task: u64,
+        step: u64,
+        why: StepRefusal,
+    },
 
     /// Discard the connector-owned binding of a refused application watch or read.
-    DropDocument { subject: Token },
+    DropDocument {
+        subject: Token,
+    },
     /// Make a connector's current document, then complete the views' Make within this decision.
     Document {
         watcher: Token,
@@ -110,9 +126,14 @@ pub enum Ask {
         retention: skein_lib::Duration,
     },
     /// Discard a prepared value after admission; deciding consumes it first.
-    DropApplication { owner: Token },
+    DropApplication {
+        owner: Token,
+    },
     /// The party's core part completed, with the same facts as a direct ask.
-    ApplicationPartAnswered { request: Token, outcome: people::Outcome },
+    ApplicationPartAnswered {
+        request: Token,
+        outcome: people::Outcome,
+    },
     /// A core-selected effect handoff completed inside this decision.
     Effect(crate::effects::connector::Ask),
     /// Tell the owning connector that this task took a write hold.
@@ -124,21 +145,48 @@ pub enum Ask {
         entry: u64,
     },
     /// Tell the owning connector to end a task's topic interest.
-    EndTopic { task: u64, subscription: u64 },
+    EndTopic {
+        task: u64,
+        subscription: u64,
+    },
     /// Gather a section within the brief's budget.
-    Gather { section: Token, budget: u32 },
+    Gather {
+        section: Token,
+        budget: u32,
+    },
     /// Cut a retained section to a smaller bound.
-    CutTo { section: Token, size: u32 },
+    CutTo {
+        section: Token,
+        size: u32,
+    },
     /// Release a retained section.
-    Drop { section: Token },
+    Drop {
+        section: Token,
+    },
     /// Offer an authorized party's resource to its owning connector.
-    Adopt { request: Token, project: u32, adoption: people::Adoption },
+    Adopt {
+        request: Token,
+        project: u32,
+        adoption: people::Adoption,
+    },
     /// Settle a closing task's connector effects before its final release.
-    Close { task: u64, root: u64, ending: tasks::Ending },
+    Close {
+        task: u64,
+        root: u64,
+        ending: tasks::Ending,
+    },
     /// Release a closing task's connector holds through a numbered outbox entry.
-    Release { task: u64, root: u64, ending: tasks::Ending, entry: u64 },
+    Release {
+        task: u64,
+        root: u64,
+        ending: tasks::Ending,
+        entry: u64,
+    },
     /// Tell a connector that a fenced host attempt was lost.
-    Lost { task: u64, attempt: u64 },
+    Lost {
+        task: u64,
+        attempt: u64,
+    },
     /// Ask this connector which bounded task holdings its resources require.
     TaskHoldings {
         request: Token,
@@ -152,19 +200,43 @@ pub enum Ask {
         symbols: Box<[u16]>,
     },
     /// Ask one connector for the holdings of every member of a named delegate batch.
-    DelegateHoldings { request: Token, from: u64, members: Box<[HoldingsNeed]> },
+    DelegateHoldings {
+        request: Token,
+        from: u64,
+        members: Box<[HoldingsNeed]>,
+    },
     /// Ask one connector for a procedure's delegated batch holdings.
-    ProcedureHoldings { task: u64, step: u64, members: Box<[HoldingsNeed]> },
+    ProcedureHoldings {
+        task: u64,
+        step: u64,
+        members: Box<[HoldingsNeed]>,
+    },
     /// Project the complete bounded tree and newly recorded history once per decision.
-    ProjectGoal { feed: Box<crate::ProjectionFeed> },
+    ProjectGoal {
+        feed: Box<crate::ProjectionFeed>,
+    },
     /// Release a goal's projection state after every closing write has settled.
-    ForgetProjection { goal: u64 },
+    ForgetProjection {
+        goal: u64,
+    },
     /// Complete a connector-owned subscription after the task hub accepts it.
-    SubscriptionDone { request: Token, key: CallKey, subscription: u64 },
+    SubscriptionDone {
+        request: Token,
+        key: CallKey,
+        subscription: u64,
+    },
     /// Complete a connector-owned unsubscription after the task hub accepts it.
-    UnsubscriptionDone { request: Token, key: CallKey },
+    UnsubscriptionDone {
+        request: Token,
+        key: CallKey,
+    },
     /// Complete a prepared claim through the connector that owns its writes.
-    ClaimDone { task: u64, attempt: u64, kinds: fleet::Kinds, version: fleet::Version },
+    ClaimDone {
+        task: u64,
+        attempt: u64,
+        kinds: fleet::Kinds,
+        version: fleet::Version,
+    },
     /// Start a claimed job after its decision is durable (jig/docs/design/domain/engine.md, 7.5).
     JobClaimed {
         task: u64,
@@ -177,15 +249,31 @@ pub enum Ask {
         workspace: Option<Box<[u8]>>,
     },
     /// Discard one rejected connector subscription flight.
-    DropSubscription { request: Token },
+    DropSubscription {
+        request: Token,
+    },
     /// Ask a connector whether a refused repair belongs to a held task.
-    RepairRefused { repair: Option<u64> },
+    RepairRefused {
+        repair: Option<u64>,
+    },
     /// Let a connector settle a refused procedure delegation.
-    DelegateRefused { task: Option<u64> },
+    DelegateRefused {
+        task: Option<u64>,
+    },
     /// Start one admitted procedure through its numbered connector.
-    StartProcedure { context: Box<tasks::RunContext>, step: u64 },
+    StartProcedure {
+        context: Box<tasks::RunContext>,
+        step: u64,
+    },
     /// Ask a connector for a public document (jig/docs/design/domain/engine.md, 11).
-    Public { reply: ReplyTo, kind: u16, version: u16, project: u32, task: Option<u64>, public: Box<[u64]> },
+    Public {
+        reply: ReplyTo,
+        kind: u16,
+        version: u16,
+        project: u32,
+        task: Option<u64>,
+        public: Box<[u64]>,
+    },
 }
 
 /// Store mutation issued by a child of the core.
