@@ -34,6 +34,12 @@ is not idempotent. A feed must preserve those commit boundaries. `Got` also
 changes the store's rows outside commits, so cold observation needs the current
 rows even when `applied` is unchanged.
 
+`Observer::inbound` also builds the full view for every core event
+(`jig/testing/jig-core-kit/src/conformance.rs`'s `inbound`,
+`jig/tests/ops/src/conformance/mod.rs`'s `inbound`). And
+`Neighbours::busy_events` keeps `{event:?}` strings
+(`jig/tests/conformance/src/lib.rs`).
+
 `jig/tests/ops/tests/suite/fuzzy/joint.rs`'s six acceptance and move tests keep
 their own baselines on purpose: each runs its own seed (531 through 536).
 

@@ -379,7 +379,10 @@ are ids.
    A repository the bot owns, or one whose org gives the bot more, is
    left as it is.
 4. **Its hook,** when the listener is on loopback; with none, or one
-   elsewhere, the plan ends `Done` after step 3.
+   elsewhere, the plan ends `Done` after step 3. A loopback listener is
+   in reach of a forge on its own host alone, so an owner gives none to
+   a forge elsewhere, whose hook would post, signed, to that forge's own
+   loopback (`temper/docs/design/protocol/setup.md`, 5.5).
    - The URL is `http://<address>/hooks/<number>`, the address being
      `127.x.y.z:port` or `[::1]:port`.
    - The secret is asked for once. When the host has none, the plan

@@ -1,6 +1,7 @@
 # Markdown inputs compiled into, or read by, tests.
 temper/docs/help/**
 temper/docs/design/draft/reference-code-production.md
+temper/docs/examples/reference/README.md
 jig/docs/design/protocol/store.md
 smith/docs/design/**
 smith/crates/smith-agent-shell/README.md

@@ -405,6 +405,14 @@ impl Core {
         templates::current_merged(&self.current, overrides)
     }
 
+    /// Templates the active settings decision would offer this project, including its policy
+    /// overrides. `owner` is the token from `JudgeSettings`; accepted settings remain unchanged
+    /// until every judge accepts (jig/docs/design/domain/engine.md, 17.1–17.2).
+    #[must_use]
+    pub fn settings_project_templates(&self, owner: skein_lib::Token, project: u32) -> Box<[Template]> {
+        settings::application::project_templates(self, owner, project)
+    }
+
     /// Allocate the eight children and the bounded live core tables.
     /// # Errors
     /// A configured worker count or name exceeds the priced membership bounds.

@@ -2360,6 +2360,12 @@ judges and keeps it within the change's decision.
   or answers that an item leaves its setting as it is, which the core
   counts toward *empty* (17.2). A set commits only when every connector
   it names accepts.
+  During `JudgeSettings`, the root may read the templates the active
+  decision would offer a project through the core's
+  `settings_project_templates` query, named by the judge's owner token.
+  This applies the same set, removal and reset selection as 17.1's check,
+  including the project's policy overrides the change would leave, without
+  publishing or mutating the current settings.
 - **Kept in the same decision.** Once a change commits, each connector
   saves its items' values as their settings' changes, a removal as a
   change with no value, so that a removed setting is never taken for
