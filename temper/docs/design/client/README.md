@@ -2413,15 +2413,11 @@ keeps (`../protocol/configuration.md`, section 2).
     that opening it reads nothing and fetches nothing.
   - *Its parts:* section 1, the picture, is a numbered list of the flow's six
     steps, a name in ink and its caption, with one number and no bullet.
-    Section 5's table has a row name in ink over the reader's cells. A
-    section's closing note, under the table and under the figures, is muted.
-    Section 6's figures are three pale boxes in a row where they fit, a
-    term over its value, made from the bullets `- TERM: VALUE` that open the
-    section, so that the file alone holds their values. They are "—" until
-    the user fills them; the deployment fetches nothing.
+    Section 5's table has a row name in ink over the reader's cells, and the
+    note closing it is muted. The page holds no figures and no link to any.
   - *The terminal* prints the pane after the composer, as it prints a chat's
     document: the line, the title, the summary, each section with its
-    heading, the figures as terms and descriptions.
+    heading.
   - *A chat started beside it,* by a starter or "Send", opens the chat's page
     as from the page alone, and the reference closes; the chat's own document
     comes when it writes one. The configuring agent reads the same page
