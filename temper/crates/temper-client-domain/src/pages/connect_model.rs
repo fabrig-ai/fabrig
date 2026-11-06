@@ -39,6 +39,7 @@ pub enum Act {
     Finish { name: RequestKey },
     ProgramName { value: Box<[u8]> },
     Submit { name: RequestKey },
+    SignInAgain,
     Cancel,
 }
 #[must_use]
@@ -208,6 +209,7 @@ impl ConnectModel {
             | Act::ProgramName { .. }
             | Act::Submit { .. }
             | Act::Finish { .. }
+            | Act::SignInAgain
             | Act::Cancel => false,
         };
         let Some(me) = accounts::current_me(client) else { return };
@@ -231,6 +233,12 @@ impl ConnectModel {
             }
             Act::Finish { name } => self.request.finish(client, name, serial, out),
             Act::Cancel => self.request.cancel(),
+            Act::SignInAgain => {
+                if matches_welcome_program(current) && self.check == ProgramCheck::NotYet {
+                    self.check = ProgramCheck::Idle;
+                    self.request.cancel();
+                }
+            }
             Act::SignIn { name, way } | Act::SignInElsewhere { name, way } => {
                 if model_way(way).kind != WayKind::SignIn
                     || !accounts::ways(&me.providers, playground, self.holder).as_slice().contains(&way)
