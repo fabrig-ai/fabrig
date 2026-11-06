@@ -127,6 +127,26 @@ pub fn program_checked(front: &mut Joint, root: &mut Root, usable: bool) {
     front.engine.settle();
     settle(front, root);
 }
+
+/// Settle the welcome's trial before a story scripts its own worker attempt
+/// (temper/docs/design/domain/trial.md, 2; temper/docs/design/domain/testing.md, 6.3).
+pub fn answer_trial(front: &mut Joint, root: &mut Root) {
+    settle(front, root);
+    let tasks: Vec<_> = root
+        .person()
+        .forge()
+        .trials()
+        .iter()
+        .filter(|row| row.state == temper_client_domain::forge::trials::State::Running)
+        .filter_map(|row| row.task)
+        .collect();
+    for task in tasks {
+        let attempt = front.hosted_attempt(task).expect("trial reached its scripted worker");
+        let read = front.engine.task(task).expect("trial task").inbox.last().map(|message| message.number);
+        front.finish_reply(task, attempt, read, Some(b"Yes"));
+        settle(front, root);
+    }
+}
 #[must_use]
 pub fn empty_fixture(seed: u64) -> (Joint, Root) {
     without_deployment_account(fixture(seed))
@@ -203,6 +223,16 @@ fn fixture_root(
     }
     let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|index| {
         let mut config = walking::config(seed);
+        // The joined world's worker scripts trials through the same model as its chats (domain/trial.md, 2).
+        let mut trial = walking::charter();
+        trial.number = 10;
+        trial.policy.turns = 2;
+        trial.policy.inspect = false;
+        trial.policy.modify = false;
+        trial.policy.shell = false;
+        trial.policy.agents = false;
+        trial.policy.tools = jig_domain_tasks::Tools(0);
+        config.core.defaults.charters = Box::new([walking::charter(), trial]);
         config.core.settings.llm_providers = a::Providers {
             providers: Box::new([a::Provider {
                 number: PROVIDER,
@@ -275,6 +305,7 @@ fn fixture_root(
             config.forges = Box::new([]);
         }
         let mut engine_limits = engine_limits();
+        engine_limits.tasks.charters = 2;
         // Restore one deployment account and leave the requested room for party accounts.
         engine_limits.documents.lines = engine_limits.documents.lines.max(own_accounts);
         engine_limits.accounts.accounts = own_accounts + 1;
