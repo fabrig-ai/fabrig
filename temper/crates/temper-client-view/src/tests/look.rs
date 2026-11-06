@@ -106,7 +106,7 @@ const GOALS_NAMES: [(skein_ui::Style, &[u8]); 65] = [
     (GOALS_STATE_PLANNING, b"temper-goals-state-planning"),
     (GOALS_STATE_PAUSED, b"temper-goals-state-paused"),
     (GOALS_STATE_LANDED, b"temper-goals-state-landed"),
-    (GOALS_STATE_STOPPED, b"temper-goals-state-stopped"),
+    (GOALS_STATE_CLOSED, b"temper-goals-state-closed"),
     (GOAL, b"temper-goal"),
     (GOAL_HEAD, b"temper-goal-head"),
     (GOAL_META, b"temper-goal-meta"),
@@ -600,7 +600,6 @@ fn configuring_opening_and_needs_have_their_css_names() {
         (STARTER_OWN_ACTS, b"temper-starter-own-acts"),
         (DOC_SUB, b"temper-doc-sub"),
         (DOC_FLOW, b"temper-doc-flow"),
-        (DOC_FIGURES, b"temper-doc-figures"),
         (TOAST, b"temper-toast"),
         (NEEDS, b"temper-needs"),
     ] {

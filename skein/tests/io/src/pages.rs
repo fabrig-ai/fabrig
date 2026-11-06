@@ -2,10 +2,10 @@
 use skein_fake_machine::{Item, Machine as Files};
 use skein_io::{
     file::{Entry, Event, Request},
-    file_layer::{self, FileIo},
+    file_layer::{FileIo, Limits, step},
     kernel::{Complete, Fd, Submit},
 };
-use skein_lib::{Duration, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_sim::{Answer, Call, Config, Handle};
 use skein_world::{Host, Machine, Memory, Referee, World};
 const OPEN: Token = Token::new(1);
@@ -25,6 +25,7 @@ enum Phase {
 #[derive(Debug)]
 pub struct Owner {
     io: FileIo,
+    limits: Limits,
     root: Token,
     directory: Option<Token>,
     max: u32,
@@ -38,10 +39,12 @@ pub struct Owner {
 impl Owner {
     #[must_use]
     pub fn new(root: Fd, max: u32, total: u32) -> Self {
-        let mut io = FileIo::new(2, 16, ENTRIES, Duration::from_secs(1));
+        let limits = Limits { files: 2, read: 16, entries: ENTRIES, whole: 16, timeout: Duration::from_secs(1) };
+        let mut io = FileIo::with_limits(&limits);
         let root = io.adopt_root(root).expect("startup root");
         Self {
             io,
+            limits,
             root,
             directory: None,
             max,
@@ -99,13 +102,14 @@ impl Owner {
     }
 }
 impl Host for Owner {
-    fn iterate(&mut self, now: Time, _wall: Wall) {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        let env = Env { now, wall, limits: self.limits };
         while let Some(complete) = self.completions.pop() {
-            file_layer::up(&mut self.io, complete, &mut self.events, &mut self.submissions);
+            step::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
             self.observe();
         }
         if self.io.is_due(now) {
-            file_layer::expire(&mut self.io, now, &mut self.submissions);
+            step::expire(&mut self.io, &env, &mut self.submissions);
         }
         if self.io.takes() && !self.waiting {
             let request = match self.phase {
@@ -128,7 +132,7 @@ impl Host for Owner {
             };
             if let Some(request) = request {
                 self.waiting = true;
-                file_layer::down(&mut self.io, now, request, &mut self.events, &mut self.submissions);
+                step::down(&mut self.io, &env, request, &mut self.events, &mut self.submissions);
                 self.observe();
             }
         }

@@ -5,7 +5,7 @@ use std::path::Path;
 
 use skein_io::{
     file,
-    file_layer::{self, FileIo},
+    file_layer::{self, FileIo, step},
 };
 use skein_lib::{Duration, Env, Queue, Time, Token};
 use skein_shell::{Clock, Config, Kernel, Wait, open_root};
@@ -30,7 +30,9 @@ fn perform(directory: &Path, op: tools::Op) -> tools::Done {
     let now = clock.now();
     let env = Env { now: now.now, wall: now.wall, limits };
     let mut kernel = Kernel::open(Config { operations: 16 }).expect("real file kernel");
-    let mut files = FileIo::with_whole_limit(8, 16, 8, 16, Duration::from_secs(1));
+    let file_limits = file_layer::Limits { files: 8, read: 16, entries: 8, whole: 16, timeout: Duration::from_secs(1) };
+    let file_env = Env { now: now.now, wall: now.wall, limits: file_limits };
+    let mut files = FileIo::with_limits(&file_limits);
     let root = files.adopt_root(open_root(directory).expect("scratch root")).expect("root slot");
     assert_eq!(root, ROOT);
     let mut component =
@@ -61,7 +63,7 @@ fn perform(directory: &Path, op: tools::Op) -> tools::Done {
     for _ in 0..128 {
         while let Some(request) = below.pop() {
             let (request, deadline) = file_request(&files, request);
-            file_layer::down_until(&mut files, deadline, request, &mut events, &mut submissions);
+            step::down_until(&mut files, &file_env, deadline, request, &mut events, &mut submissions);
         }
         while let Some(event) = events.pop() {
             if matches!(event, file::Event::Closed { owner } if owner == CLOSE) {
@@ -80,8 +82,9 @@ fn perform(directory: &Path, op: tools::Op) -> tools::Done {
                 | ToDomain::Checked { .. }
                 | ToDomain::Aborted { .. }) => panic!("file terminal: {other:?}"),
             });
-            file_layer::down_until(
+            step::down_until(
                 &mut files,
+                &file_env,
                 Time::from_nanos(u64::MAX),
                 file::Request::Close { owner: CLOSE, file: root },
                 &mut events,
@@ -92,7 +95,7 @@ fn perform(directory: &Path, op: tools::Op) -> tools::Done {
             kernel.submit(&mut submissions, Wait::Forever);
             kernel.reap(&mut completions);
             while let Some(complete) = completions.pop() {
-                file_layer::up(&mut files, complete, &mut events, &mut submissions);
+                step::up(&mut files, &file_env, complete, &mut events, &mut submissions);
             }
         }
     }

@@ -625,9 +625,16 @@ service that runs two `Io`s, or two `FileIo`s, tells them apart itself.
 `file_layer::Limits`, which `file_layer::valid` checks and
 `FileIo::with_limits` is made from, in the `Env<Limits>` that
 `file_layer::step`'s entry points (`down`, `down_until`, `up`, `expire`)
-take. `FileIo::new` and `FileIo::with_whole_limit`, with `file_layer`'s own
-`down`, `down_until`, `up` and `expire`, are thin forms over them, for a
-reader that keeps no `Env`.
+take. A reader keeps its `file_layer::Limits` beside its `FileIo`, since
+`FileIo` gives them back to no one. `up` and `down_until` read no clock, and
+no entry point reads `wall`: a reader with no clock at those calls gives
+`Time::ZERO` and `Wall::EPOCH`.
+
+Each request `FileIo` works on is one lifecycle (programming-model.md, 5.4). A
+replacing store and a private opening are each one enum, whose every state holds
+the descriptors open in it and what it still needs, with no field beside the state
+for a phase. A store settling a failure holds the failure and the step of cleanup
+it has reached.
 
 ```rust
 // skein_io::file
@@ -1412,6 +1419,9 @@ cancellation and settling, graceful close, the receive and send queues
 under their caps, and the accept budget; and every contract and
 invariant of testing-strategy.md, 6.
 
+A test world's limits start from `Limits::TEST`, one small set, and change the
+fields the test means (testing-strategy.md, 10).
+
 Files and processes go to skein's minimal fake machine: a few files
 beneath a root, a program that echoes its input, one that exits with a
 given status, one that never exits. Its files lie behind the
@@ -1547,11 +1557,6 @@ What of this document is not built is in [`io.status.md`](io.status.md).
   joined pair (3.5), so an application's one-process worlds meet only
   what the owners at either end do. Whether io gives a world a way to
   reset a pair, or cut a move short, as a socket world can.
-- **The file layer's thin forms and private machines.** `FileIo::new`,
-  `FileIo::with_whole_limit` and `file_layer`'s own entry points (5) go when
-  their readers hold a `file_layer::Limits` and call `file_layer::step`, and
-  `Store` and `Opening` take lifecycle states (programming-model.md, 5.4), by
-  one debt item (`skein/docs/development/debt/D049-file-layer-thin-forms.md`).
 - **`FileIo`'s buffers in a `List`:** a scan's sorted page wants `insert` and
   `pop`, which `List` lacks. Whether `List` gains them, or a scan keeps its
   page another way.

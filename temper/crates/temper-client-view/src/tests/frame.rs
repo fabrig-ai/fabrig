@@ -1646,6 +1646,54 @@ fn opening_rename_takes_focus_from_a_chat_composer() {
 }
 
 #[test]
+fn opening_rename_takes_focus_from_a_task_composer() {
+    use temper_client_domain::{Address, Event};
+    for priority in [None, Some(1)] {
+        let mut task = fixtures::task::delegate();
+        task.priority = priority;
+        task.acts = skein_lib::List::uncapped();
+        task.acts
+            .push(jig_client::contract::Offered {
+                act: jig_client::contract::ActKind::Message,
+                admission: jig_client::contract::Admission::Allowed,
+                effect: None,
+            })
+            .unwrap();
+        let (mut root, me, watch) =
+            fixtures::root_at(Address::Task { task: task.chip.task }, &fixtures::domain_limits());
+        let mut person = root.pages().me(root.client()).unwrap().clone();
+        person.projects.get_mut(0).unwrap().role = jig_client::contract::HeldRole::Owner;
+        fixtures::deliver_me(&mut root, me, person);
+        fixtures::root_event(
+            &mut root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch: watch.unwrap(),
+                        event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Task(
+                            Box::new(task),
+                        )),
+                    },
+                },
+            },
+        );
+        fixtures::root_event(&mut root, Event::Act { action: Action::Pages(pages::Act::Send) });
+        for renaming in [false, true, false] {
+            let act = if renaming { pages::switcher::Act::Rename } else { pages::switcher::Act::Cancel };
+            fixtures::root_event(&mut root, Event::Act { action: Action::Pages(pages::Act::Switcher(act)) });
+            for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+                let at = super::chat::named_position(view.tree().nodes(), Role::TextArea, None).expect("composer");
+                let composer = &view.tree().nodes()[at];
+                assert_eq!(composer.focus, if renaming { None } else { Some(1) });
+                if renaming {
+                    assert_eq!(switcher_node(&view, Role::TextField, b"Rename").focus, Some(0));
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn opening_rename_takes_focus_from_the_limits_heading() {
     use temper_client_domain::{Address, Event, Place};
     let (mut root, watch) = fixtures::away_frame(None, None);

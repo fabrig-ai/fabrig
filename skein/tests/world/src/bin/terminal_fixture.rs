@@ -2,7 +2,7 @@
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_io::{Event, Io, Limits, Request, Window};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Config, Host, Input, Keys, Watch, drive, open_signals, raw_input};
 use std::{collections::VecDeque, process::ExitCode};
 
@@ -127,19 +127,7 @@ fn main() -> ExitCode {
     result
 }
 fn run() -> ExitCode {
-    let limits = Limits {
-        sockets: 3,
-        refusals: 1,
-        intake: 8,
-        receive: 1,
-        output: 256,
-        sends: 8,
-        accepts: 1,
-        backlog: 1,
-        close_timeout: Duration::from_secs(1),
-        names: 0,
-        retry: Duration::from_millis(10),
-    };
+    let limits = Limits { sockets: 3, intake: 8, receive: 1, output: 256, sends: 8, ..Limits::TEST };
     let mut io = Io::new(&limits);
     let input = io.adopt_read_pipe(Fd::new(0)).expect("input");
     let output = io.adopt_write_pipe(Fd::new(2), None).expect("stderr");

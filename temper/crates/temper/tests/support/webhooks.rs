@@ -184,7 +184,7 @@ pub fn receive(listener: &TcpListener, within: Duration) -> Delivery {
             Ok(connection) => break connection,
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                 let left = deadline.as_ref().map_or(super::WITHIN, skein_world::Deadline::remaining);
-                if !skein_shell::wait_readable(skein_io::kernel::Fd::new(listener.as_raw_fd()), left)
+                if !skein_shell::keeper::wait_readable(skein_io::kernel::Fd::new(listener.as_raw_fd()), left)
                     .expect("webhook listener readiness")
                     && let Some(bound) = &deadline
                     && bound.passed()

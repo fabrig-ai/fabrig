@@ -9,7 +9,7 @@
 )]
 use super::fixtures::{
     self,
-    disk::{Disk, Seen},
+    disk::{Disk, Seen, file_limits},
 };
 use super::patching::{BASE, SETS, decoded, label, levels, shelf, token};
 use crate::directory::{OWNER, Opening};
@@ -20,7 +20,7 @@ use jig_test_patches_jig::patches as jig;
 use skein_fake_machine::{How, Is, Item, Machine, Opened};
 use skein_io::{
     file,
-    file_layer::{self, FileIo},
+    file_layer::{FileIo, Limits as FileLimits, step},
     kernel::{Complete, Error, Kind, Submit},
 };
 use skein_lib::{Queue, Token, length::len_u64};
@@ -259,6 +259,7 @@ struct Harness {
     pid: Pid,
     root: Root,
     io: [FileIo; 3],
+    file_limits: FileLimits,
     seeded: crate::Seeded,
     trace: Vec<(Stage, Trace)>,
     changes: Vec<(Stage, Change)>,
@@ -286,8 +287,7 @@ impl Harness {
         let pid = sim.spawn_process();
         let fd = sim.root(pid, Handle::new(handle.raw()));
         let mut io = core::array::from_fn(|_| {
-            let limits = fixtures::store_limits();
-            let mut io = FileIo::new(8, limits.store.chunk, 32, limits.store.deadline).with_effective_user(0);
+            let mut io = FileIo::with_limits(&file_limits()).with_effective_user(0);
             assert_eq!(io.adopt_root(fd), Some(Token::new(1)));
             io
         });
@@ -300,6 +300,7 @@ impl Harness {
             pid,
             root: Root { token: Token::new(1), fd },
             io,
+            file_limits: file_limits(),
             seeded,
             trace: Vec::new(),
             changes: Vec::new(),
@@ -435,7 +436,8 @@ impl Harness {
         let mut events = Queue::with_capacity(128);
         let mut subs: Queue<Submit> = Queue::with_capacity(128);
         let mut completions: Queue<Complete> = Queue::with_capacity(128);
-        file_layer::down(&mut self.io[driver], fixtures::env().now, request, &mut events, &mut subs);
+        let env = fixtures::env().with(self.file_limits);
+        step::down(&mut self.io[driver], &env, request, &mut events, &mut subs);
         for _ in 0_u32..100 {
             self.sim.submit(self.pid, &mut subs);
             let mut calls = Queue::with_capacity(128);
@@ -475,7 +477,7 @@ impl Harness {
             }
             self.sim.reap(self.pid, &mut completions);
             while let Some(complete) = completions.pop() {
-                file_layer::up(&mut self.io[driver], complete, &mut events, &mut subs);
+                step::up(&mut self.io[driver], &env, complete, &mut events, &mut subs);
             }
             if self.io[driver].takes() {
                 let event = events.pop().expect("file terminal");

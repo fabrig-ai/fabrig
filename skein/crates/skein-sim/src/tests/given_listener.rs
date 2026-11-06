@@ -25,17 +25,13 @@ fn socket(sim: &mut Sim, pid: Pid) -> Fd {
 
 fn claim_and_accept(sim: &mut Sim, pid: Pid, fd: Fd, address: SocketAddr) {
     let limits = Limits {
-        sockets: 2,
-        names: 0,
-        refusals: 1,
         intake: 8,
         receive: 4,
         output: 8,
         sends: 1,
-        accepts: 1,
         backlog: 2,
-        close_timeout: Duration::from_secs(1),
         retry: Duration::from_millis(1),
+        ..Limits::TEST
     };
     let mut io = Io::new(&limits);
     let held = io.adopt_listener(fd, address).expect("adopt child descriptor");

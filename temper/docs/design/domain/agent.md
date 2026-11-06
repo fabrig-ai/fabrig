@@ -909,7 +909,7 @@ and waits in the Needs you of each project it belongs to (jig's
   beside the page, and proposes its settings sized for the deployment: the
   slots its workers have, the models its accounts reach. What the deployment
   cannot do yet it says, and leaves out; workers stay the deployment's. Its
-  "How PROJECT works" keeps a column of temper's own values beside the
+  "How this project works" keeps a column of temper's own values beside the
   project's, so that each difference is a sentence the person can change:
   its words, not a view of the client's.
 - **Its instructions** are held in the binary, in the `stock` module's
@@ -918,7 +918,9 @@ and waits in the Needs you of each project it belongs to (jig's
     it, what must pass before a change lands, who approves and which
     model runs, naming a charter, template, revision or kind only in a
     proposal, its outcome or when asked, and answering "what is the
-    current setting" from "How PROJECT works" (8.3) or in its words;
+    current setting" from "How this project works" (8.3) or in its words;
+    and to say neither "stock settings" nor "operator", but what temper
+    starts with and who runs temper here;
   - never to send the person to a terminal, `temper ctl` or a command,
     nor to relay one from a page, whose facts it takes: what it can
     check it checks with its tools, and what it can't, an owner's
@@ -935,10 +937,18 @@ and waits in the Needs you of each project it belongs to (jig's
     review alone beside it. It never promises that adding admin makes a
     role-0 proposal acceptable: after adoption it reads inventory again and
     proposes afresh against the newest revision;
+  - whenever someone is to approve or join, before a proposal or after one is
+    accepted, to say every step and who does each: on the forge, a repository
+    admin adds the human collaborator at the mapped permission and, on
+    Forgejo, grants temper's forge user repository admin, since write isn't
+    enough; in temper, the person adopts the repository again, on Settings,
+    Repositories, "Adopt a repository", with the same options. Adopting
+    again is never someone else's side;
   - never to report a read it could not make as a fact about the
     settings;
-  - to say that nothing has changed once, where the person could think
-    something did, such as a proposal waiting for an owner;
+  - to say that nothing has changed only when it first gives a proposal's
+    number, or where the person thinks something applied; never before a
+    proposal, and never to close a reply;
   - the test for each sentence of a description: would temper's engine
     act differently without it? A sentence that changes what temper
     wakes, schedules, permits, pays for, lands or holds is structure,
@@ -960,7 +970,7 @@ and waits in the Needs you of each project it belongs to (jig's
     described `work: settings`, whose body is a whole settings file
     `{"items":[...]}`. Bounded `note` writes use `first` and `remove`,
     and `join` to continue a line longer than one call. This note is separate
-    from "How PROJECT works" (8.3); it applies no settings;
+    from "How this project works" (8.3); it applies no settings;
   - to propose once, with `propose_settings`, against the newest
     revision it read, with a reason whose first line is the
     proposal's title and whose next lines say, under "temper
@@ -998,8 +1008,10 @@ and waits in the Needs you of each project it belongs to (jig's
   1's, holds the settings, read, delegation and message families. It
   has no workspace, its instructions never delegate, and it never
   calls `withdraw`, whose family, the decide family, policy 1 does not
-  give: a proposal it no longer wants is replaced by a fresh one, and
-  the first one an owner accepts leaves the other stale.
+  give. Nor can it replace a proposal that waits: a task holds one pending
+  proposal (jig's `domain/tasks.md`, section 9), so a second is refused as
+  busy. Asked to withdraw or change one, it says so plainly: an owner rejects
+  it under Needs you, with a reason the chat hears, and it proposes afresh.
 - **The kinds it reads and proposes** are a settings file's
   (`../client/tools.md`, 5.3): `charter`, `template`, `policy`,
   `rules`, `landing-rule` (with its `project`, the deployment's when
@@ -1021,8 +1033,8 @@ and waits in the Needs you of each project it belongs to (jig's
   and proposes; only an owner's decision changes settings (jig's
   `domain/engine.md`, 17.6). A member's configuring chat proposes as
   an owner's does, and its proposal waits for an owner.
-- **It writes down how it understood the person** as the chat's document, "How
-  PROJECT works", kept current as the conversation changes it (8.3).
+- **It writes down how it understood the person** as the chat's document, "How this
+  project works", kept current as the conversation changes it (8.3).
 - **Started from ctl** with `chat start --project PROJECT --template 3
   TEXT` (`../client/tools.md`, 5.3), and from the client's `Configure`,
   which "Tell temper how you work" opens (`../client/README.md`, 3.5).
@@ -1163,7 +1175,9 @@ chat's own scope (jig's `domain/engine.md`, section 10), the lowest numbered
 whose description does not begin `work:`: there is no kind. A `work:` note, such
 as the configuring agent's `work: settings` (8.1), is never drawn, and a chat
 with only working notes has no document. Its description is its title, its body
-Markdown. The configuring chat's "How PROJECT works" is the same mechanism.
+Markdown. The configuring chat's "How this project works" is the same
+mechanism: its title is that literal, since a run knows its project's number
+and not its name.
 
 - **Who may write:** a chat's authority's note scopes hold a goal's, which for
   a root conversation is its own (`../protocol/configuration.md`, 13.4), so a
@@ -1173,14 +1187,14 @@ Markdown. The configuring chat's "How PROJECT works" is the same mechanism.
   of `chat.txt`: when the person asks for a draft, or says "write this up", keep
   one document, with `note`, scope goal, the project and its own task number,
   description its title, its body Markdown beginning with `# TITLE` and a muted
-  line "Draft, DATE, with the user.", one `##` section per topic, open questions
+  line "Draft, with the user." (no run is told the date), one `##` section per topic, open questions
   under "## Open questions". It writes a first version whole, then changes it by
   lines (jig's `domain/engine.md`, section 10), naming the note and the revision
   it read; it never rewrites it whole past a few KB, builds a long document in
   parts, and continues a line past one call with `join`. It says in a sentence
   what changed and doesn't repeat it. Mermaid isn't drawn, so it doesn't draw.
-- **The configuring agent's,** `configuring.txt` (8.1): the same, its title "How
-  PROJECT works", written once the person's way is understood, kept current as
+- **The configuring agent's,** `configuring.txt` (8.1): the same, its title "How this
+  project works", written once the person's way is understood, kept current as
   the conversation changes it.
 - **The tool's answer** gives the client what its line says (`../client/README.md`,
   3.5): `Note N revision R written · 64 lines` for a first write, `Note N revision

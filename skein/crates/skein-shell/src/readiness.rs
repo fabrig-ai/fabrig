@@ -678,7 +678,7 @@ mod tests {
         submit(&mut kernel, 1, Op::ReadSignal { fd });
         assert_eq!(kernel.waiters.get(&fd).expect("signal source read interest").read, Some(0));
         assert!(kernel.ready.is_empty(), "a signal source waits before its first call");
-        crate::signal_current_thread(ServiceSignal::Interrupt).expect("queue SIGINT on this thread");
+        crate::keeper::signal_current_thread(ServiceSignal::Interrupt).expect("queue SIGINT on this thread");
         kernel.submit(&mut Queue::with_capacity(0), Wait::Forever);
         let mut out = Queue::with_capacity(1);
         kernel.reap(&mut out);

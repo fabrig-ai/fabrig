@@ -43,7 +43,7 @@ impl Kept {
         deadline.watch_process(self.pid);
         let mut deferred = false;
         loop {
-            if skein_shell::pidfd_exited(self.fd).expect("pidfd exit observation") {
+            if skein_shell::keeper::pidfd_exited(self.fd).expect("pidfd exit observation") {
                 return None;
             }
             if !deferred && deadline.passed() {
@@ -56,15 +56,17 @@ impl Kept {
                 }
             }
             // A reaped pidfd can report POLLHUP; only the identity-specific check proves exit.
-            let _readiness =
-                skein_shell::wait_readable(self.fd, if deferred { super::WITHIN } else { deadline.remaining() });
+            let _readiness = skein_shell::keeper::wait_readable(
+                self.fd,
+                if deferred { super::WITHIN } else { deadline.remaining() },
+            );
         }
     }
 }
 #[cfg(target_os = "linux")]
 impl Drop for Kept {
     fn drop(&mut self) {
-        skein_shell::close_keeper_fd(self.fd);
+        skein_shell::keeper::close_keeper_fd(self.fd);
     }
 }
 
@@ -89,7 +91,7 @@ impl Guard {
         let mut guard = Self { child: None, kept: Vec::new(), kill_on_drop: false };
         let children = std::fs::read_to_string("/proc/thread-self/children").expect("test thread's children");
         for pid in children.split_whitespace().map(|pid| pid.parse().expect("child PID")) {
-            let fd = match skein_shell::open_child_pidfd(pid, std::process::id()) {
+            let fd = match skein_shell::keeper::open_child_pidfd(pid, std::process::id()) {
                 Ok(fd) => fd,
                 Err(skein_io::kernel::Error::NotFound | skein_io::kernel::Error::Other(3)) => continue,
                 Err(error) => panic!("test child identity: {error:?}"),
@@ -112,13 +114,13 @@ impl Guard {
 
     /// The caller keeps this parent alive or unreaped throughout discovery.
     pub fn record(&mut self, pid: u32, parent: u32) {
-        let fd = skein_shell::open_child_pidfd(pid, parent).expect("owned descendant identity");
+        let fd = skein_shell::keeper::open_child_pidfd(pid, parent).expect("owned descendant identity");
         self.kept.push(Kept { pid, parent, fd });
     }
 
     pub fn signal(&self, pid: u32, signal: Signal) {
         let fd = self.kept.iter().find(|kept| kept.pid == pid).expect("recorded process").fd;
-        skein_shell::signal_kept_child(fd, signal, Target::Child).expect("signal retained process");
+        skein_shell::keeper::signal_kept_child(fd, signal, Target::Child).expect("signal retained process");
     }
 
     pub fn wait_for(&mut self, pid: u32) {
@@ -146,14 +148,14 @@ impl Guard {
 
     fn end_kept(&mut self) {
         for kept in &self.kept {
-            let _sent = skein_shell::signal_kept_child(kept.fd, Signal::Kill, Target::Child);
+            let _sent = skein_shell::keeper::signal_kept_child(kept.fd, Signal::Kill, Target::Child);
         }
         for kept in &self.kept {
             let _starved = kept.wait(false, "the owned child's cleanup");
         }
         for kept in &self.kept {
             // A retained descendant may be reaped by its parent rather than by this test.
-            let _reaped = skein_shell::poll_child(kept.fd, true);
+            let _reaped = skein_shell::keeper::poll_child(kept.fd, true);
         }
         self.kept.clear();
     }
@@ -164,12 +166,12 @@ impl Guard {
     }
 
     fn descendants_of(&mut self, pid: u32, parent: Fd) {
-        if skein_shell::pidfd_exited(parent).expect("parent identity") {
+        if skein_shell::keeper::pidfd_exited(parent).expect("parent identity") {
             return;
         }
         if let Ok(children) = std::fs::read_to_string(format!("/proc/{pid}/task/{pid}/children")) {
             for child in children.split_whitespace().map(|child| child.parse().expect("child pid")) {
-                let fd = match skein_shell::open_child_pidfd(child, pid) {
+                let fd = match skein_shell::keeper::open_child_pidfd(child, pid) {
                     Ok(fd) => fd,
                     // A short-lived command (such as the PID file's mv) can
                     // exit between the children snapshot and pidfd_open.
@@ -178,8 +180,8 @@ impl Guard {
                 };
                 // Bind the parent observation to its retained identity too:
                 // an exited parent's numeric PID might have been reused.
-                if skein_shell::pidfd_exited(parent).expect("parent identity after discovery") {
-                    skein_shell::close_keeper_fd(fd);
+                if skein_shell::keeper::pidfd_exited(parent).expect("parent identity after discovery") {
+                    skein_shell::keeper::close_keeper_fd(fd);
                     return;
                 }
                 self.kept.push(Kept { pid: child, parent: pid, fd });
@@ -191,7 +193,7 @@ impl Guard {
     /// Checks retained identities even after their parents have been reaped.
     #[must_use]
     pub fn all_exited(&self) -> bool {
-        self.kept.iter().all(|kept| skein_shell::pidfd_exited(kept.fd).expect("retained process exit"))
+        self.kept.iter().all(|kept| skein_shell::keeper::pidfd_exited(kept.fd).expect("retained process exit"))
     }
 
     #[must_use]
@@ -282,7 +284,7 @@ pub fn end_child(child: &mut Child) {
     let mut tree = {
         let mut tree = Guard { child: None, kept: Vec::new(), kill_on_drop: false };
         if running {
-            match skein_shell::open_child_pidfd(child.id(), std::process::id()) {
+            match skein_shell::keeper::open_child_pidfd(child.id(), std::process::id()) {
                 Ok(fd) => {
                     tree.kept.push(Kept { pid: child.id(), parent: std::process::id(), fd });
                     tree.descendants(child.id());
@@ -292,7 +294,7 @@ pub fn end_child(child: &mut Child) {
             }
         }
         for kept in &tree.kept {
-            let _sent = skein_shell::signal_kept_child(kept.fd, Signal::Kill, Target::Child);
+            let _sent = skein_shell::keeper::signal_kept_child(kept.fd, Signal::Kill, Target::Child);
         }
         for kept in &tree.kept {
             let _starved = kept.wait(false, "the owned child's cleanup");
