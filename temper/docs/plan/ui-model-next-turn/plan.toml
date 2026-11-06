@@ -1,0 +1,3 @@
+draft = "ui-model-next-turn"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-model-next-turn/inputs/request.md", "smith/crates/smith-domain/src/route.rs", "temper/docs/design/draft/model-catalogue.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
