@@ -19,7 +19,7 @@ The look request `connect-flows`, procedure `temper/docs/design/draft/look-reque
 ## Runs
 
 - **Only focused and fuzzy run.** Never `tools/tiers/run`, a browser, process or live tier, one of their stories or a
-  tier's CPU figure. A browser story the change walks is edited and compiled (`heavy cargo check -p temper-client-browser --tests`), not run, and the report says so. This overrides anything else in a spec.
+  tier's CPU figure. A browser story the change walks is edited and compiled (`heavy cargo check -p temper-client-browser-world --tests`), not run, and the report says so. This overrides anything else in a spec.
 - A throwaway render script to look at a page is allowed: untracked and gone before the push. Chromium 147's headless won't go below 500 px by `--window-size`; use CDP's `Emulation.setDeviceMetricsOverride` for 420. Handle `Page.javascriptDialogOpening`.
 - Before calling a focused or fuzzy failure "outside the change", run it once on the pristine base. If main passes and your branch fails, it is yours.
 

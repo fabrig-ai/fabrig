@@ -3,6 +3,7 @@
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 3.5, `ConnectModel`, `Accounts`: one set of cards, "✓ Connected", the moved default, the panels, *Ready's place* and an opened row's words (look-round-13's `model-cards`, `model-end`).
+- **Not yet:** 4.4: the sheet "Add repositories": its sources, its picker, "Not listed", "More", its plural sends (look-round-13's `sheet-state`, `sheet-view`, `sheet-copies`); Home's and a project with no repository's ways into it stay as they are, as the request leaves them unmocked.
 - **Not yet:** 4.6: `DismissMaking`, and Settings' Repositories' lines for a repository being made, a failed one's "Copy again" and "Dismiss" (look-round-13's tasks).
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
@@ -403,10 +404,6 @@
   account usable, since 5.5 has no words for it and no walk has ended so
   (section 11); and any ending where `me` offers no ChatGPT plan's sign-in,
   since the function finds that way before it draws the ending's words.
-  4.4: the picker, which the adoption page does not draw
-  (`temper-client-view`'s `forge/page.rs`), so Home's GitHub step's
-  "Adopt" opens the form with no picker, and its line counts no
-  repositories, where the mock's does.
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat

@@ -4,6 +4,8 @@
 
 Unlisted sections have no known gap.
 
+- **Not yet:** 7: *A bound list*: only a log reports `Near` (look-round-13's `list-near`).
+
 - **Departs:** 7: a press outside an open menu returns the focus to its button
   unless that press took it to another control, where the code asks only whether
   the focus left the menu (`skein-ui-web`'s `page.rs`, `close_menu_outside`, and

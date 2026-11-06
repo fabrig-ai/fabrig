@@ -445,7 +445,7 @@ and `connect-forge.html`.
   set up or connected. It is Settings' `Forges` tab (`README.md`, 3.5,
   *The `Forges` tab*), whose lede says "Each forge temper is connected to,
   or setting up. Add one to bring its repositories to temper.": the
-  level-2 heading "Your forges · N", with "+ Add a forge", a link to
+  level-2 heading "Your forges · N", with "+ Connect a forge", a link to
   `ConnectForge`, in its head; with none, a quiet band: the tag "No forge
   yet", "No forge of yours yet." and "Connect a forge", the same link. With
   no project its level-1 heading is "Forges", and the lede follows it. While the playground runs, neither link is

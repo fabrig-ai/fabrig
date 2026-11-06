@@ -5,7 +5,6 @@
 - **Design lags:**
   - 6, 8: skein's `forge-setup.status.md`, 8: which workflow directory Actions reads when both are there is `unchecked`, so "a fact the conformance records" does not hold yet and the starter's place in a copy stands on no run; the facts a copy relies on were recorded at Forgejo 17.0.0, and the pin is 17.0.1.
   - 6: skein's `fake-forge.status.md`, 4: the fake does not answer a missing or private source "as Forgejo does": it leaves no repository, where Forgejo leaves an empty one.
-  - 9: `../client/README.md`, 4.4: no sheet, "Add repositories", with its three sources, its "More" or its "Adopt it": outside Home's second step, whose sheet of its own is below, the adoption form is the one way to add a repository.
 - **Design departs:**
   - 5.4: `../client/README.md`, 3.5: the welcome's sheet strips `http://` as it does `https://`, and reads `OWNER/NAME` as `github.com`'s, as the greenfield mock's does; the wire's check stays the draft's (the request of ui-welcome, 2026-11-05).
   - 7: `../client/README.md`, 3.5: Ready's lead says "with acme/widget in it", or "with 2 repositories in it", where the draft has "copied into it" and "and N more", and Home's lines say each copy, as the greenfield mock's do (the request of ui-welcome, 2026-11-05).
