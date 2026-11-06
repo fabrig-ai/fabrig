@@ -36,3 +36,30 @@ id = 1
 story = "A report's run with the grant is offered deliver, and a change on a run branch steps beside the run that made it, with the plan's story written and failing"
 parts = ["story-red", "delivery-grant", "run-change"]
 walk = false
+
+[[part]]
+id = "goal-workspace"
+title = "A goal's run starts from g with its run branch merged in, pushes to it, and is told it delivers"
+mode = "direct"
+needs = ["delivery-grant", "run-change"]
+design = "temper/docs/design/domain/forge.md, 11.1"
+
+[[part]]
+id = "story-green"
+title = "The story passes, with a second run, a branch left holding what g lacks, a conflict and the goal's close"
+mode = "direct"
+needs = ["story-red", "goal-workspace"]
+design = "temper/docs/design/domain/forge.md, 8.5"
+
+[[part]]
+id = "real-story"
+title = "Real smith, a real worker and the engine: a goal's run delivers and lands through a change"
+mode = "direct"
+needs = ["goal-workspace"]
+design = "temper/docs/design/domain/agent.md, 4.3"
+
+[[slice]]
+id = 2
+story = "A goal's run modifies its checkout, delivers to its run branch, and a change lands that into g while merges go on; a later run delivers too"
+parts = ["goal-workspace", "story-green", "real-story"]
+walk = false
