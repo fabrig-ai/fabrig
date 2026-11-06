@@ -1072,10 +1072,11 @@ of `../draft/v0.1.0.md`, 2.1.
 A chat keeps one Markdown document beside its conversation: its agent writes
 it, the person reads it in Chat, Split or Draft (`../client/README.md`, 3.5,
 *A chat's document*), and a goal starts from it. It is the note of jig's in the
-chat's own scope (jig's `domain/engine.md`, section 10), the lowest numbered:
-there is no kind, and every note in that scope is the document. Its description
-is its title, its body Markdown. The configuring chat's "How PROJECT works" is
-the same mechanism.
+chat's own scope (jig's `domain/engine.md`, section 10), the lowest numbered
+whose description does not begin `work:`: there is no kind. A `work:` note, such
+as the configuring agent's `work: settings` (8.1), is never drawn, and a chat
+with only working notes has no document. Its description is its title, its body
+Markdown. The configuring chat's "How PROJECT works" is the same mechanism.
 
 - **Who may write:** a chat's authority's note scopes hold a goal's, which for
   a root conversation is its own (`../protocol/configuration.md`, 13.4), so a
@@ -1190,11 +1191,6 @@ host:
   though a note now holds it, built by line ranges (jig's `domain/engine.md`,
   section 10). Naming a note there is left to a plan of its own (the request
   `note-parts` of 2026-11-05). Default: a value fits one call.
-- **A working note in a chat's own scope** (8.3): an agent's note beside its
-  document, its description beginning "work:", not drawn, in which a configuring
-  chat would keep a settings value, as the answer of 2026-11-05 to the `ui-chat-draft`
-  task `document-pane` has it. Default: as that request has it, every note there is
-  the document, the lowest numbered drawn, and no instruction writes a second.
 - **Who may name a plan's members of `change`:** the control family
   says it (4.3.1), since a plan's maker amends, cancels and releases what
   it makes. A family of its own would let a policy grant control without

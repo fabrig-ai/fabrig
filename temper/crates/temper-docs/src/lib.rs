@@ -47,13 +47,12 @@ impl Kind {
         }
     }
 
-    /// Its bound in bytes: 6,144; 8,192; 12,288; 3,072; 32,768.
+    /// Its bound in bytes: 6,144; 12,288; 12,288; 3,072; 32,768.
     #[must_use]
     pub fn bound(self) -> usize {
         match self {
             Self::Index => 6_144,
-            Self::Concept => 8_192,
-            Self::Walk => 12_288,
+            Self::Concept | Self::Walk => 12_288,
             Self::Recipe => 3_072,
             Self::Reference => PAGE_BYTES,
         }

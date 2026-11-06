@@ -19,6 +19,7 @@ Lands the look request `chat-work` (`3f707babb9`), by `temper/docs/design/draft/
 - **An agent's page:** a run's results become its rows' outcomes. Left as lines they'd end every run.
 - **"Older" stays until `chat-reading` (c),** against the request's list: it is the only way to earlier lines until a log's head says it is near, and removing it first would strand a long chat's history. The account defers it, and the report tells the user.
 - **The block that ends the words is drawn by `::after`** where the overlay has a span: skein's reader closes its blocks. The terminal's mark is "▌", replacing "Writing..." in its prints and real-loop tests.
+- **On a closed fenced code block that block falls on the next line,** the reader keeping the code's final newline, until `chat-reading-a`'s `read_growing` draws the end inside the block: no second reader change here.
 - **"Latest" reads one page** where the window let the end go, and sending doesn't press it (Enter isn't a press): both `chat-reading` (c), named in the account. An agent's page has no pill.
 - **The render check** compares the request's own pages under each stylesheet, then gallery states of the request's conversation: its README says no reprint will equal them.
 - **Stored formats and protocols** are unchanged. skein's `State` gains `ToLogEnd`, a public addition.

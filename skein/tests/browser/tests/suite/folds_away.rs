@@ -46,6 +46,25 @@ pub(super) fn setup() -> Setup<'static> {
 }
 
 #[test]
+fn removing_a_focused_form_returns_to_its_disclosures_summary() {
+    let mut person = Script::new(Box::new([
+        harness::Step::Person(Step::Go { address: b"/test/folds-away".as_slice().into() }),
+        harness::Step::Focused(Find::exactly_named(Role::Disclosure, b"Editor")),
+        check(b"details:not([tabindex]):has(> summary:focus:not([tabindex]))"),
+        disclosure(b"Editor"),
+        harness::Step::Type {
+            find: Find::exactly_named(Role::TextField, b"Name"),
+            words: b"Changed".as_slice().into(),
+        },
+        harness::Step::Key(Key::Escape),
+        harness::Step::Focused(Find::exactly_named(Role::Disclosure, b"Editor")),
+        check(b"main:not(:focus)"),
+        check(b"details:not([tabindex]):has(> summary:focus:not([tabindex])):not(:has(form))"),
+    ]));
+    assert_eq!(harness::Harness::new(setup()).run(&mut [&mut person]), Outcome::Done);
+}
+
+#[test]
 fn a_panel_folds_away_without_taking_the_outside_press_or_a_forms_escape() {
     let mut person = Script::new(Box::new([
         harness::Step::Person(Step::Go { address: b"/test/folds-away".as_slice().into() }),
