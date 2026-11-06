@@ -27,6 +27,8 @@ pub struct Joint {
     /// The ctl caller in this world; existing stories use person 1.
     pub caller: u64,
     pub leaves: Vec<Box<[u8]>>,
+    pub tabs: Vec<client::Tab>,
+    pub shows: Vec<(client::Address, bool)>,
     pub refuse_return: bool,
     set_ups: Vec<(u16, Token)>,
     pub admin_connects: Vec<(u16, Token)>,
@@ -1056,6 +1058,8 @@ impl Joint {
             status_looks: BTreeMap::new(),
             caller: fixtures::PARTY,
             leaves: Vec::new(),
+            tabs: Vec::new(),
+            shows: Vec::new(),
             refuse_return: false,
             set_ups: Vec::new(),
             admin_connects: Vec::new(),

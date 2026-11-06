@@ -484,7 +484,10 @@ fn new_chat_and_filter_moves_keep_the_draft_and_the_closed_page() {
                 Request::Client(jig_client::Event::Unwatch { handle }) => {
                     assert!([chats.notes, chats.goals].contains(&handle));
                 }
-                other @ (Request::Client(_) | Request::Show { .. } | Request::Replace { .. }) => {
+                other @ (Request::Client(_)
+                | Request::Show { .. }
+                | Request::Replace { .. }
+                | Request::OpenTab { .. }) => {
                     panic!("the live and closed windows stay: {other:?}")
                 }
             }

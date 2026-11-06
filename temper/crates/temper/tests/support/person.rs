@@ -98,20 +98,6 @@ pub fn deployment_account() -> Script {
         ]),
     }
 }
-/// The welcome's button leaves the tab; the next observation belongs to its come-back page.
-#[must_use]
-pub fn welcome_sign_in() -> Script {
-    use skein_ui::Role;
-    Script {
-        begin: Begin::Link,
-        steps: Box::new([
-            Step::Go { address: Address::Welcome { step: temper_client_domain::Step::Model { way: None } } },
-            Step::See { find: Find::exactly_named(Role::Button, b"Continue with ChatGPT"), within: START_WITHIN },
-            Step::Press { find: Find::exactly_named(Role::Button, b"Continue with ChatGPT") },
-            Step::See { find: Find::named(Role::Paragraph, b"Model ChatGPT plan"), within: START_WITHIN },
-        ]),
-    }
-}
 /// Every fresh deployment offers both subscriptions before either is chosen.
 #[must_use]
 pub fn welcome_model_offers() -> Script {
@@ -315,12 +301,6 @@ enum ProjectSelection {
     Pending,
     Selected,
 }
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Departure {
-    Disabled,
-    Present,
-    Left,
-}
 /// Stdout and the client share one host; the link comes only from the binary.
 pub struct Person {
     serve_data: Option<std::path::PathBuf>,
@@ -344,9 +324,6 @@ pub struct Person {
     key_send: Option<u32>,
     directory: Box<[u8]>,
     seed: u64,
-    departure: Departure,
-    leave: Option<Box<[u8]>>,
-    return_address: Option<Address>,
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
 }
@@ -373,31 +350,6 @@ impl Person {
     #[must_use]
     pub fn new(root: Fd, input: Fd, output: Fd, script: Script) -> Self {
         Self::build(root, Some(input), Some(output), script)
-    }
-    #[must_use]
-    pub fn departing(root: Fd, input: Fd, output: Fd, script: Script) -> Self {
-        let mut person = Self::new(root, input, output, script);
-        person.departure = Departure::Present;
-        person.project = ProjectSelection::Selected;
-        person
-    }
-    pub fn leave(&mut self) -> Option<Box<[u8]>> {
-        self.leave.take()
-    }
-    /// Reopen the departed tab on its kept sign-in, once the native transport has drained.
-    pub fn come_back(&mut self, root: Fd, path: &[u8]) {
-        assert!(self.departure == Departure::Left, "the tab departed");
-        assert!(self.client.as_ref().is_some_and(Host::is_empty), "departing client drained");
-        let temper_client_domain::Place::Address(address) = temper_client_domain::address::parse(path) else {
-            panic!("the listener returned a client address");
-        };
-        self.client = None;
-        self.root = Some(root);
-        self.begin = Begin::Token;
-        self.seed = self.seed.checked_add(1).expect("fresh client seed");
-        self.return_address = Some(address);
-        self.departure = Departure::Present;
-        self.wake = Some(Time::ZERO);
     }
     /// Wait for ctl to finish a sign-in in its own directory; load it through the native shell.
     #[must_use]
@@ -503,9 +455,6 @@ impl Person {
             } else {
                 7
             },
-            departure: Departure::Disabled,
-            leave: None,
-            return_address: None,
             completions: Queue::with_capacity(512),
             submissions: Queue::with_capacity(512),
         }
@@ -555,10 +504,8 @@ impl Person {
                 .parse()
                 .expect("socket address");
             self.signing_until = Some(now.saturating_add(START_WITHIN));
-            let make_client =
-                if self.departure == Departure::Disabled { NativeClient::new } else { NativeClient::departing };
             self.client = Some(
-                make_client(
+                NativeClient::new(
                     Settings {
                         engine: skein_io::Addr::Ip(address),
                         directory: self.directory.clone(),
@@ -587,13 +534,9 @@ impl Person {
         }
         while let Some(notice) = client.notices() {
             if let temper_client_shell_terminal::client::Shown::Notice(
-                temper_client_shell_terminal::route::Notice::Leave { to },
+                temper_client_shell_terminal::route::Notice::Leave { .. },
             ) = notice
             {
-                assert!(self.departure == Departure::Present, "one tab departure");
-                self.departure = Departure::Left;
-                self.leave = Some(to);
-                client.close();
                 continue;
             }
             assert!(
@@ -664,11 +607,6 @@ impl Person {
             self.wake = Some(now);
         }
         let signing_wake = self.wake;
-        if client.started()
-            && let Some(address) = self.return_address.take()
-        {
-            client.go(address);
-        }
         // The goal fact's Watch and Read finish before the setup carries its key.
         let key_waits = self.key_send == Some(self.actor.at()) && {
             let pending = client.pending();
@@ -679,7 +617,6 @@ impl Person {
                 || pending.admission.deferred_reads != 0
         };
         if client.started()
-            && self.departure != Departure::Left
             && self.project == ProjectSelection::Selected
             && !self.finished
             && self.failed.is_none()

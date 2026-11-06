@@ -21,6 +21,7 @@ pub enum ProgramCheck {
     NotYet,
 }
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "the root sets the tab refusal; the view reads its accessor")]
 pub struct ConnectModel {
     pub holder: c::AskAccountHolder,
     pub check: ProgramCheck,
@@ -29,6 +30,7 @@ pub struct ConnectModel {
     /// Whether the scripted model was serving when this connection was sent.
     pub playground: bool,
     pub elsewhere: bool,
+    pub(crate) tab_refused: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
@@ -132,6 +134,11 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
     None
 }
 impl ConnectModel {
+    /// Whether the shell refused this sign-in's tab (temper/docs/design/client/README.md, 3.5).
+    #[must_use]
+    pub const fn tab_refused(&self) -> bool {
+        self.tab_refused
+    }
     #[must_use]
     pub const fn elsewhere(&self) -> bool {
         self.elsewhere
@@ -155,7 +162,11 @@ impl ConnectModel {
             } else {
                 None
             };
-            if next != Some(*old) {
+            let same_way = match next {
+                Some(next) => next.provider == old.provider && next.kind == old.kind,
+                None => false,
+            };
+            if !same_way {
                 self.leave_way();
             }
         }
@@ -232,7 +243,10 @@ impl ConnectModel {
                 }
             }
             Act::Finish { name } => self.request.finish(client, name, serial, out),
-            Act::Cancel => self.request.cancel(),
+            Act::Cancel => {
+                self.tab_refused = false;
+                self.request.cancel();
+            }
             Act::SignInAgain => {
                 if matches_welcome_program(current) && self.check == ProgramCheck::NotYet {
                     self.check = ProgramCheck::Idle;
@@ -246,6 +260,8 @@ impl ConnectModel {
                     return;
                 }
                 self.elsewhere = elsewhere;
+                self.tab_refused = false;
+                out.push(Output::OpenTab { provider: way.provider() });
                 self.request.send(
                     name,
                     c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: way.provider() },
@@ -466,6 +482,7 @@ impl Default for ConnectModel {
             request: Request::default(),
             playground: false,
             elsewhere: false,
+            tab_refused: false,
         }
     }
 }

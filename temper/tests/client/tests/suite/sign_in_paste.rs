@@ -69,13 +69,9 @@ fn visit(front: &mut Joint, root: &mut Root, source: u32) {
     account(front, root, a::Event::Visited { source, address: ISSUER.into() });
 }
 
-fn begin(path: &[u8], departing: bool, elsewhere: bool) -> (Joint, Root, u32) {
+fn begin(path: &[u8], elsewhere: bool) -> (Joint, Root, u32) {
     let (mut front, mut root) = h::plan_fixture(f::SEED);
-    if departing {
-        h::reopen(&mut front, &mut root, at(path), true);
-    } else {
-        h::event(&mut front, &mut root, Temper::went(at(path)));
-    }
+    h::event(&mut front, &mut root, Temper::went(at(path)));
     if elsewhere {
         h::event(
             &mut front,
@@ -148,7 +144,7 @@ fn elsewhere_keeps_connect_in_the_page_and_the_welcome_offers_none() {
     h::event(&mut front, &mut root, Temper::went(at(b"/welcome?at=model")));
     assert!(offered(&root, Role::Link, b"Continue"));
     assert!(!offered(&root, Role::Button, ELSEWHERE));
-    let (front, root, _) = begin(b"/accounts/connect", true, true);
+    let (front, root, _) = begin(b"/accounts/connect", true);
     assert!(front.engine.protocol.returns.is_empty(), "no native tab return for elsewhere");
     assert!(front.leaves.is_empty(), "the sign-in remains in this tab");
     assert!(has(&root, "Open it again ›".as_bytes()), "waiting link has the promised words");
@@ -162,22 +158,19 @@ fn elsewhere_keeps_connect_in_the_page_and_the_welcome_offers_none() {
     assert!(disabled(&root), "an empty field cannot submit");
 }
 
-// client/README.md 3.5 Signing in and 6.5: the ordinary browser still departs;
-// the terminal remains in place and offers the same paste.
+// client/README.md 3.5: every shell's root holds the sign-in and offers its paste.
 #[test]
-fn native_browser_and_terminal_keep_their_departure_policies() {
-    for departing in [false, true] {
-        let (front, root, _) = begin(b"/accounts/connect", departing, false);
-        assert_eq!(front.engine.protocol.returns.len(), usize::from(departing));
-        assert_eq!(front.leaves.len(), usize::from(departing));
-        assert!(offered(&root, Role::TextField, FIELD));
-    }
+fn a_sign_in_holds_its_page_and_offers_the_paste() {
+    let (front, root, _) = begin(b"/accounts/connect", false);
+    assert!(front.engine.protocol.returns.is_empty());
+    assert!(front.leaves.is_empty());
+    assert!(offered(&root, Role::TextField, FIELD));
 }
 
 // client/README.md 3.5 The paste: surrounding whitespace alone is empty.
 #[test]
 fn whitespace_only_paste_stays_disabled_and_sends_nothing() {
-    let (mut front, mut root, _) = begin(b"/accounts/connect", false, false);
+    let (mut front, mut root, _) = begin(b"/accounts/connect", false);
     let before = front.engine.protocol.accounts.len();
     paste(&mut front, &mut root, b" \t\r\n ");
     assert!(disabled(&root));
@@ -190,7 +183,7 @@ fn whitespace_only_paste_stays_disabled_and_sends_nothing() {
 // but a later correctly sized paste can be sent.
 #[test]
 fn oversized_paste_is_local_and_editing_it_recovers() {
-    let (mut front, mut root, _) = begin(b"/accounts/connect", false, false);
+    let (mut front, mut root, _) = begin(b"/accounts/connect", false);
     let before = front.engine.protocol.accounts.len();
     let oversized = vec![b'x'; 4097];
     paste(&mut front, &mut root, &oversized);
@@ -207,7 +200,7 @@ fn oversized_paste_is_local_and_editing_it_recovers() {
 // tree and address, including before sending. Assertions never format it.
 #[test]
 fn typed_callback_never_appears_in_the_view_or_page_address() {
-    let (mut front, mut root, _) = begin(b"/accounts/connect", false, false);
+    let (mut front, mut root, _) = begin(b"/accounts/connect", false);
     let value = callback();
     paste(&mut front, &mut root, &value);
     assert!(!has(&root, &value), "the semantic page must not echo the pasted secret");
@@ -233,7 +226,7 @@ fn typed_callback_never_appears_in_the_view_or_page_address() {
 #[test]
 fn leaving_the_page_or_way_drops_the_paste() {
     for destination in [b"/accounts".as_slice(), b"/accounts/connect?provider=17&way=key"] {
-        let (mut front, mut root, source) = begin(b"/accounts/connect", false, false);
+        let (mut front, mut root, source) = begin(b"/accounts/connect", false);
         paste(&mut front, &mut root, &callback());
         h::event(&mut front, &mut root, Temper::went(at(destination)));
         let returned = format!("/accounts/connect?provider=17&way=sign-in&source={source}");
@@ -246,7 +239,7 @@ fn leaving_the_page_or_way_drops_the_paste() {
 // the pending finish, even when supplied under another name.
 #[test]
 fn duplicate_finish_sends_one_request_and_clears_the_field() {
-    let (mut front, mut root, _) = begin(b"/accounts/connect", false, false);
+    let (mut front, mut root, _) = begin(b"/accounts/connect", false);
     paste(&mut front, &mut root, &callback());
     let before = front.engine.protocol.accounts.len();
     finish(&mut front, &mut root, 93);
@@ -260,7 +253,7 @@ fn duplicate_finish_sends_one_request_and_clears_the_field() {
 // including when a finish was already submitted.
 #[test]
 fn watch_success_replaces_a_pending_paste_with_ready() {
-    let (mut front, mut root, source) = begin(b"/accounts/connect", false, false);
+    let (mut front, mut root, source) = begin(b"/accounts/connect", false);
     paste(&mut front, &mut root, &callback());
     finish(&mut front, &mut root, 95);
     account(
@@ -281,10 +274,10 @@ fn watch_success_replaces_a_pending_paste_with_ready() {
 // client/README.md 3.5: reloading retains no pasted draft.
 #[test]
 fn reload_of_the_waiting_source_drops_the_pasted_value() {
-    let (mut front, mut root, source) = begin(b"/accounts/connect", false, false);
+    let (mut front, mut root, source) = begin(b"/accounts/connect", false);
     paste(&mut front, &mut root, &callback());
     let returned = format!("/accounts/connect?provider=17&way=sign-in&source={source}");
-    h::reopen(&mut front, &mut root, at(returned.as_bytes()), true);
+    h::reopen(&mut front, &mut root, at(returned.as_bytes()));
     assert!(disabled(&root));
     assert!(front.leaves.is_empty());
 }
@@ -294,7 +287,7 @@ fn reload_of_the_waiting_source_drops_the_pasted_value() {
 fn both_sign_in_acts_offer_the_paste_folded() {
     const DISCLOSURE: &[u8] = "Signed in, but the page couldn’t be reached?".as_bytes();
     for elsewhere in [false, true] {
-        let (_, root, _) = begin(b"/accounts/connect", false, elsewhere);
+        let (_, root, _) = begin(b"/accounts/connect", elsewhere);
         let view = shown(&root);
         let disclosure = Temper::tree(&view)
             .nodes()
@@ -308,7 +301,7 @@ fn both_sign_in_acts_offer_the_paste_folded() {
 // the same paste and finishes from the accounts watch.
 #[test]
 fn accounts_row_sign_in_offers_the_paste_and_observes_success() {
-    let (mut front, mut root, source) = begin(b"/accounts/connect", false, false);
+    let (mut front, mut root, source) = begin(b"/accounts/connect", false);
     account(
         &mut front,
         &mut root,
@@ -319,7 +312,7 @@ fn accounts_row_sign_in_offers_the_paste_and_observes_success() {
             declined: false,
         },
     );
-    h::reopen(&mut front, &mut root, Address::Accounts, false);
+    h::reopen(&mut front, &mut root, Address::Accounts);
     account(
         &mut front,
         &mut root,
