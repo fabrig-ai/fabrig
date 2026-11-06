@@ -467,6 +467,63 @@ fn near_comes_again_as_the_height_moves_and_not_on_every_scroll() {
     assert_eq!(scroll(&mut page, 200, 1000, 200), None);
 }
 
+fn log_busy(page: &mut Page<'_>, busy: bool) {
+    let mut view = View::new(&LIMITS);
+    let _patches = fixtures::patches(&mut view, 0, |b| reading(b, true, true, None));
+    let mut attribute = skein_ui::Made::of(view.tree().get(2).expect("fixture log")).attribute;
+    if busy {
+        attribute.states.push(State::Busy).expect("fixture state room");
+    }
+    let mut ops = Vec::new();
+    page.apply(&[Patch::Attribute { node: LOG, attribute: Box::new(attribute) }], &mut ops);
+    assert!(ops.ends_with(&[Op::Measure { node: LOG }]));
+}
+
+#[test]
+fn near_comes_again_when_busy_leaves() {
+    for (top, edge) in [(200, NEAR_HEAD), (600, NEAR_FOOT)] {
+        let mut page = reading_page(true, true);
+        assert_eq!(scroll(&mut page, top, 1000, 200), edge);
+        log_busy(&mut page, true);
+        assert_eq!(scroll(&mut page, top, 1000, 200), None);
+        log_busy(&mut page, false);
+        assert_eq!(scroll(&mut page, top, 1000, 200), edge, "busy left without a height change");
+        assert_eq!(scroll(&mut page, top, 1000, 200), None, "reported once");
+    }
+}
+
+#[test]
+fn a_log_kept_busy_says_nothing_until_the_person_moves() {
+    for (top, nearer, almost, edge) in [(200, 150, 151, NEAR_HEAD), (600, 650, 649, NEAR_FOOT)] {
+        let mut page = reading_page(true, true);
+        assert_eq!(scroll(&mut page, top, 1000, 200), edge);
+        log_busy(&mut page, true);
+        assert_eq!(scroll(&mut page, top, 1000, 200), None, "busy apply");
+        assert_eq!(scroll(&mut page, top, 1100, 200), None, "height alone while busy");
+        assert_eq!(scroll(&mut page, top, 1000, 200), None);
+        assert_eq!(scroll(&mut page, top + 100, 1100, 200), None, "height also moves the view");
+        assert_eq!(scroll(&mut page, top, 1000, 200), None);
+        log_busy(&mut page, true);
+        assert_eq!(scroll(&mut page, top, 1000, 200), None, "failed read keeps busy");
+        assert_eq!(scroll(&mut page, almost, 1000, 200), None, "less than a quarter screen");
+        assert_eq!(scroll(&mut page, nearer, 1000, 200), edge, "person moves a quarter screen");
+        assert_eq!(scroll(&mut page, nearer, 1000, 200), None);
+    }
+}
+
+#[test]
+fn near_says_nothing_if_the_edge_went_far_while_busy() {
+    for (top, edge) in [(200, NEAR_HEAD), (600, NEAR_FOOT)] {
+        let mut page = reading_page(true, true);
+        assert_eq!(scroll(&mut page, top, 1000, 200), edge);
+        log_busy(&mut page, true);
+        assert_eq!(scroll(&mut page, 400, 1000, 200), None, "both edges far while busy");
+        log_busy(&mut page, false);
+        assert_eq!(scroll(&mut page, 400, 1000, 200), None, "busy leaving cannot make an edge near");
+        assert_eq!(scroll(&mut page, top, 1000, 200), edge, "edge comes near again");
+    }
+}
+
 #[test]
 fn a_quarter_screen_nearer_says_near_again() {
     let mut page = reading_page(true, false);

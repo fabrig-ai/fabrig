@@ -78,14 +78,20 @@ fn a_short_log_reads_each_page_once_until_there_is_no_more() {
         go(b"/test/reading/short"),
         press(b"Inspect"),
         keep("reads", "reads"),
+        keep("empty-before", "empty-before"),
+        keep("empty-after", "empty-after"),
+        keep("empty-was-busy", "empty-was-busy"),
         keep("height", "height"),
         keep("viewport", "viewport"),
         keep("top", "top"),
         press(b"Inspect"),
         keep("settled", "reads"),
     ]);
-    assert_eq!(value(&harness, "reads"), "3");
-    assert_eq!(value(&harness, "settled"), "3");
+    assert_eq!(value(&harness, "reads"), "4", "empty page is followed by pages that draw");
+    assert_eq!(value(&harness, "settled"), "4");
+    assert_eq!(value(&harness, "empty-was-busy"), "true");
+    assert_eq!(number(&harness, "empty-before"), 40, "two opening lines");
+    assert_eq!(number(&harness, "empty-after"), number(&harness, "empty-before"), "empty page moves no height");
     assert_eq!(number(&harness, "top"), 0);
     assert_eq!(number(&harness, "height"), 120, "six whole lines");
     assert_eq!(number(&harness, "height"), number(&harness, "viewport"));

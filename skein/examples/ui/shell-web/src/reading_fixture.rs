@@ -12,6 +12,10 @@ use wasm_bindgen::JsCast;
 
 const OWNER: Owner = Owner { number: 1 };
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the fixture controls independent reading states and records the busy observation"
+)]
 struct Reading {
     first: u64,
     end: u64,
@@ -21,6 +25,11 @@ struct Reading {
     heads: u64,
     feet: u64,
     automatic: bool,
+    busy: bool,
+    empty_page: bool,
+    empty_before: i32,
+    empty_after: i32,
+    empty_was_busy: bool,
     continues: bool,
     request: u64,
     dialog: bool,
@@ -35,11 +44,10 @@ impl Reading {
         match act {
             Act::Near { edge: LogEdge::Head } => {
                 self.heads += 1;
-                if self.automatic {
+                if self.automatic && !self.busy {
                     self.reads += 1;
-                    if self.remaining > 0 {
-                        self.remaining -= 1;
-                        self.first -= self.page;
+                    if self.empty_page || self.remaining > 0 {
+                        self.busy = true;
                         changed = true;
                     }
                 }
@@ -101,6 +109,7 @@ impl Reading {
 
 enum Report {
     Start,
+    Read,
     Act(NodeId, Act),
 }
 
@@ -127,6 +136,11 @@ pub(super) fn start(mount: web_sys::Element, path: &str, primary: Primary) {
         heads: 0,
         feet: 0,
         automatic: true,
+        busy: false,
+        empty_page: short,
+        empty_before: 0,
+        empty_after: 0,
+        empty_was_busy: false,
         continues: false,
         request: 0,
         dialog: false,
@@ -147,6 +161,20 @@ pub(super) fn start(mount: web_sys::Element, path: &str, primary: Primary) {
         while let Some(report) = inbox.next() {
             let (changed, move_back, to_foot) = match report {
                 Report::Start => (true, false, false),
+                Report::Read => {
+                    assert!(reading.busy, "read is outstanding");
+                    if reading.empty_page {
+                        let log = log(&document);
+                        reading.empty_before = log.scroll_height();
+                        reading.empty_was_busy = log.get_attribute("aria-busy").as_deref() == Some("true");
+                        reading.empty_page = false;
+                    } else {
+                        reading.remaining -= 1;
+                        reading.first -= reading.page;
+                    }
+                    reading.busy = false;
+                    (true, false, false)
+                }
                 Report::Act(node, act) => view.act(node, act).map_or((false, false, false), |bound| {
                     reading.act(&bound.act, bound.binding.token.raw(), &document)
                 }),
@@ -161,6 +189,11 @@ pub(super) fn start(mount: web_sys::Element, path: &str, primary: Primary) {
                 let mut ops = Vec::new();
                 page.borrow_mut().apply(&patches, &mut ops);
                 dom.apply(&ops);
+                if reading.busy {
+                    inbox.raise(Report::Read);
+                } else if reading.empty_before > 0 && reading.empty_after == 0 {
+                    reading.empty_after = log(&document).scroll_height();
+                }
             }
             let log = log(&document);
             if move_back || to_foot {
@@ -194,6 +227,9 @@ fn facts(document: &web_sys::Document, reading: &Reading) {
         ("height", log.scroll_height().to_string()),
         ("viewport", log.client_height().to_string()),
         ("reads", reading.reads.to_string()),
+        ("empty-before", reading.empty_before.to_string()),
+        ("empty-after", reading.empty_after.to_string()),
+        ("empty-was-busy", reading.empty_was_busy.to_string()),
         ("feet", reading.feet.to_string()),
         ("heads", reading.heads.to_string()),
         ("focus", document.active_element().expect("active element").tag_name()),
@@ -219,6 +255,9 @@ fn build(builder: &mut Builder, reading: &Reading) {
     builder.name(b"Reading");
     builder.bind(Binding { owner: OWNER, token: Token::new(100) });
     builder.end_request(reading.request);
+    if reading.busy {
+        builder.state(State::Busy);
+    }
     if reading.continues {
         builder.state(State::Continues);
     }
