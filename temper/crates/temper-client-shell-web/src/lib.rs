@@ -346,6 +346,10 @@ impl<P: ShellPlatform> Shell<P> {
             | skein_ui_web::page::Op::Href { .. }
             | skein_ui_web::page::Op::Reveal { .. }
             | skein_ui_web::page::Op::ScrollEnd { .. }
+            | skein_ui_web::page::Op::HoldView { .. }
+            | skein_ui_web::page::Op::PutView { .. }
+            | skein_ui_web::page::Op::Measure { .. }
+            | skein_ui_web::page::Op::ScrollScreen { .. }
             | skein_ui_web::page::Op::Component { .. } => false,
         });
         self.heading_focus.finish(&document, heading, new_page, requested);

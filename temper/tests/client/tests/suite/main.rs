@@ -29,6 +29,7 @@ mod names;
 mod open_chat;
 mod playground;
 mod project_fund;
+mod reading;
 mod recovery;
 mod settings;
 mod settings_tools;

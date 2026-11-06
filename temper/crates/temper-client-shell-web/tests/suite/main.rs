@@ -6,6 +6,7 @@ static HEAP: Counting = Counting;
 mod confirmations;
 mod host;
 mod memory;
+mod placeholder;
 mod switcher;
 
 #[test]

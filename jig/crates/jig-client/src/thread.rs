@@ -1,7 +1,7 @@
 //! A task's committed conversation, newest first, in one sliding window.
 //! Keeps opaque read cursors and page-owned call folds; knows no transcript
 //! encoding, application values or engine internals. `moved` reads a new tail
-//! only while the window reaches it; `older` and `newer` follow its cursors.
+//! only while the window reaches it; `older` and `newer` read beside lines let go.
 //! `accept` consumes one requested page and may ask for another new-tail page.
 //! The owner routes reads and keeps returned object names live in its working set.
 //! See client/domain/client.md, 7 and 10, and objects.md, 10.
@@ -9,14 +9,17 @@
 //! | State | Event | Next | Emits |
 //! |---|---|---|---|
 //! | idle, at newest | activity moved | latest read | activity read |
-//! | idle | scroll to a cursor | edge read | activity read |
+//! | idle | older, cursor | older read | activity read |
+//! | idle | older, dropped edge | older read | read beside oldest line |
+//! | idle | newer, cursor or dropped edge | newer read | read beside newest line |
+//! | idle | latest | replacing read | activity read |
 //! | latest read | page before known tail | latest read or idle | continuation or names |
 //! | edge read | page | idle | names |
-//! | any read | failed | idle | nothing |
+//! | any read | failed | idle, failed end recorded | nothing |
 use self::window::{Edge, Edges, End, TurnWindow};
 use crate::contract::{
     ActivityPage, ApplicationPart, ArchivedTurn, Block, CallIdentity, Cursor, DecodedActivityLine, LiveCall, ObjectKey,
-    ProvisionalTurnName, Read, RunState, RunText, Text, TurnName, TurnRead,
+    ProvisionalTurnName, Read, RunState, RunText, Side, Text, TurnName, TurnRead,
 };
 use skein_lib::{List, Map, Wall, bytes};
 mod model;
@@ -77,7 +80,8 @@ pub struct Thread {
     pub live: List<LiveTurn>,
     pub limits: Limits,
     pub attempt: Option<u64>,
-    pub left: u32,
+    /// The end whose last read failed, until that end is read again.
+    pub read_failed: Option<End>,
     /// Loss reported by retained activity pages, independent of turn and text loss.
     pub page_cut: bool,
     pub task: u64,
@@ -115,7 +119,7 @@ impl Thread {
             live: List::with_capacity(rows),
             limits: *limits,
             attempt: None,
-            left: 0,
+            read_failed: None,
             page_cut: false,
             task,
             lines: TurnWindow::new(rows),
@@ -139,39 +143,65 @@ impl Thread {
         if self.reading.is_some() || !self.lines.edges.reaches(End::Before) || self.committed <= self.loaded {
             return None;
         }
+        self.clear_failed(End::Before);
         self.fresh.rows.clear();
         self.fresh.edges = Edges { before: Edge::End, after: Edge::End };
         self.reading = Some(Reading::Latest { known: self.loaded });
         Some(Read::Activity { task: self.task, before: None })
     }
-    /// Reads the preceding activity page from the window's opaque older cursor.
+    /// Reads older rows by cursor, or beside the oldest held line after a drop.
     pub fn older(&mut self) -> Option<Read> {
         if self.reading.is_some() {
             return None;
         }
-        let cursor = match &self.lines.edges.after {
+        let read = match &self.lines.edges.after {
             Edge::End => return None,
-            Edge::More(cursor) => cursor.clone(),
+            Edge::More(cursor) => Read::Activity { task: self.task, before: Some(cursor.clone()) },
+            Edge::Dropped => Read::ActivityBeside {
+                task: self.task,
+                position: self.lines.rows.get(self.lines.rows.len().checked_sub(1)?)?.source.position,
+                side: Side::Earlier,
+            },
         };
+        self.clear_failed(End::After);
         self.reading = Some(Reading::Older);
-        Some(Read::Activity { task: self.task, before: Some(cursor) })
+        Some(read)
     }
-    /// Re-reads rows dropped at the present end while scrolling into history.
+    /// Reads beside the newest held line, or checks for a new tail at the end.
     pub fn newer(&mut self) -> Option<Read> {
         if self.reading.is_some() {
             return None;
         }
-        let cursor = match &self.lines.edges.before {
+        match &self.lines.edges.before {
             Edge::End => return self.moved(self.committed),
-            Edge::More(cursor) => cursor.clone(),
-        };
+            Edge::More(_) | Edge::Dropped => {}
+        }
+        let position = self.lines.rows.get(0)?.source.position;
+        self.clear_failed(End::Before);
         self.reading = Some(Reading::Newer);
-        Some(Read::Activity { task: self.task, before: Some(cursor) })
+        Some(Read::ActivityBeside { task: self.task, position, side: Side::Later })
+    }
+    /// Reads the list's end again, replacing the held window with its page.
+    pub fn latest(&mut self) -> Option<Read> {
+        if self.reading.is_some() {
+            return None;
+        }
+        self.clear_failed(End::Before);
+        self.fresh.rows.clear();
+        self.fresh.edges = Edges { before: Edge::End, after: Edge::End };
+        self.reading = Some(Reading::Latest { known: 0 });
+        Some(Read::Activity { task: self.task, before: None })
+    }
+    fn clear_failed(&mut self, end: End) {
+        if self.read_failed == Some(end) {
+            self.read_failed = None;
+        }
     }
     /// Takes a requested page; repeated rows never duplicate a committed line.
     /// The owner has validated its row and payload bounds before this call.
     pub fn accept(&mut self, page: ActivityPage) -> Option<Read> {
         let reading = self.reading.take()?;
+        self.clear_failed(read_end(&reading));
         self.page_cut |= page.cut;
         self.words.observe(&page);
         let edges = page_edges(page.after, page.before);
@@ -188,7 +218,9 @@ impl Thread {
                     }
                 }
                 order(&mut rows);
-                let fits = rows.len() <= available;
+                let fits = rows.len() <= available
+                    && (self.fresh.rows.is_empty()
+                        || window_weight(&self.fresh.rows).saturating_add(window_weight(&rows)) <= self.limits.bytes);
                 if fits {
                     let dropped = self.fresh.slide(rows, edges, End::After);
                     assert!(dropped == 0, "whole refresh pages fit staging room");
@@ -197,14 +229,19 @@ impl Thread {
                     // would skip its rows if only part of it fitted the window.
                     reached = false;
                 }
-                if known > 0 && fits && !reached && self.fresh.rows.len() < self.fresh.rows.capacity() {
+                if known > 0
+                    && fits
+                    && !reached
+                    && self.fresh.rows.len() < self.fresh.rows.capacity()
+                    && window_weight(&self.fresh.rows) < self.limits.bytes
+                {
                     match &self.fresh.edges.after {
                         Edge::More(cursor) => {
                             let cursor = cursor.clone();
                             self.reading = Some(Reading::Latest { known });
                             return Some(Read::Activity { task: self.task, before: Some(cursor) });
                         }
-                        Edge::End => {}
+                        Edge::End | Edge::Dropped => {}
                     }
                 }
                 if let Some(row) = self.fresh.rows.get(0) {
@@ -216,11 +253,7 @@ impl Thread {
                     self.lines.rows.clear();
                     self.lines.edges = Edges { before: Edge::End, after: Edge::End };
                 }
-                let dropped = self.lines.slide(rows, edges, End::Before);
-                self.left = self.left.saturating_add(dropped);
-                if dropped > 0 {
-                    assert!(self.lines.rows.len() == self.lines.rows.capacity(), "a dropping slide fills its window");
-                }
+                slide(&mut self.lines, rows, edges, self.limits.bytes, End::Before);
             }
             Reading::Older | Reading::Newer => {
                 let end = match reading {
@@ -242,11 +275,12 @@ impl Thread {
                     }
                 }
                 order(&mut rows);
-                let dropped = self.lines.slide(rows, edges, end);
-                self.left = self.left.saturating_add(dropped);
-                if dropped > 0 {
-                    assert!(self.lines.rows.len() == self.lines.rows.capacity(), "a dropping slide fills its window");
+                if end == End::Before
+                    && let Some(row) = rows.get(0)
+                {
+                    self.loaded = self.loaded.max(row.source.position);
                 }
+                slide(&mut self.lines, rows, edges, self.limits.bytes, end);
             }
         }
         // Staged pages fence live text only once their rows enter the window.
@@ -261,7 +295,9 @@ impl Thread {
     }
     /// Allows a failed or refused read to be retried without inventing a page.
     pub fn failed(&mut self) {
-        self.reading = None;
+        if let Some(reading) = self.reading.take() {
+            self.read_failed = Some(read_end(&reading));
+        }
         self.fresh.rows.clear();
     }
     /// Ends the provisional presentation after its committed activity has been read.
@@ -546,6 +582,59 @@ fn add_part(parts: &mut List<ApplicationPart>, part: &ApplicationPart) {
     if !parts.as_slice().contains(part) {
         match parts.push(part.clone()) {
             Ok(()) | Err(_) => {}
+        }
+    }
+}
+
+fn read_end(reading: &Reading) -> End {
+    match reading {
+        Reading::Older => End::After,
+        Reading::Newer | Reading::Latest { .. } => End::Before,
+    }
+}
+fn window_weight(rows: &List<DecodedActivityLine>) -> u64 {
+    let mut weight = 0_u64;
+    for row in rows {
+        weight = weight.saturating_add(row.weight());
+    }
+    weight
+}
+fn slide(window: &mut TurnWindow, rows: List<DecodedActivityLine>, edges: Edges, bytes: u64, end: End) {
+    let keep = rows.len();
+    let mut dropped = window.slide(rows, edges, end);
+    let mut weight = window_weight(&window.rows);
+    let mut removed = 0_u32;
+    for offset in 0..window.rows.len().saturating_sub(keep) {
+        if weight <= bytes {
+            break;
+        }
+        let at = match end {
+            End::After => offset,
+            End::Before => window.rows.len().saturating_sub(offset).saturating_sub(1),
+        };
+        weight = weight.saturating_sub(window.rows.get(at).expect("bounded row exists").weight());
+        removed = removed.saturating_add(1);
+    }
+    if removed > 0 {
+        let count = window.rows.len().saturating_sub(removed);
+        let start = match end {
+            End::After => removed,
+            End::Before => 0,
+        };
+        let old = core::mem::replace(&mut window.rows, List::with_capacity(0));
+        window.rows = List::with_capacity(old.capacity());
+        for (at, row) in old.into_boxed().into_iter().enumerate() {
+            let at = u32::try_from(at).expect("bounded row index fits");
+            if at >= start && at < start.saturating_add(count) {
+                window.rows.push(row).expect("retained rows fit");
+            }
+        }
+        dropped = dropped.saturating_add(removed);
+    }
+    if dropped > 0 {
+        match end {
+            End::After => window.edges.before = Edge::Dropped,
+            End::Before => window.edges.after = Edge::Dropped,
         }
     }
 }

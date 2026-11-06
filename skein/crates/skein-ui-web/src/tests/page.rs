@@ -248,6 +248,10 @@ fn an_attribute_patch_keeps_a_tag_it_can_update() {
             | Op::Focus { .. }
             | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
+            | Op::HoldView { .. }
+            | Op::PutView { .. }
+            | Op::Measure { .. }
+            | Op::ScrollScreen { .. }
             | Op::Component { .. } => "other",
         })
         .collect();
@@ -288,6 +292,10 @@ fn a_changed_tag_replaces_the_element() {
             | Op::Focus { .. }
             | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
+            | Op::HoldView { .. }
+            | Op::PutView { .. }
+            | Op::Measure { .. }
+            | Op::ScrollScreen { .. }
             | Op::Component { .. } => "other",
         })
         .collect();
@@ -608,6 +616,10 @@ fn a_changed_count_sets_each_items_setsize_again() {
             | Op::Focus { .. }
             | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
+            | Op::HoldView { .. }
+            | Op::PutView { .. }
+            | Op::Measure { .. }
+            | Op::ScrollScreen { .. }
             | Op::Component { .. } => None,
         })
         .collect();
@@ -698,6 +710,10 @@ fn a_component_patch_receives_the_new_value() {
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::Reveal { .. }
+            | Op::HoldView { .. }
+            | Op::PutView { .. }
+            | Op::Measure { .. }
+            | Op::ScrollScreen { .. }
             | Op::ScrollEnd { .. } => None,
         })
         .collect();
@@ -922,6 +938,10 @@ fn completion_attributes_keep_the_items_children_before_its_description() {
             | Op::Focus { .. }
             | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
+            | Op::HoldView { .. }
+            | Op::PutView { .. }
+            | Op::Measure { .. }
+            | Op::ScrollScreen { .. }
             | Op::Component { .. } => unreachable!("only completion changed"),
         }
         assert_eq!(page.html(), expected_page);
@@ -965,6 +985,10 @@ fn setting_then_clearing_a_placeholder_updates_its_attributes() {
             | Op::Focus { .. }
             | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
+            | Op::HoldView { .. }
+            | Op::PutView { .. }
+            | Op::Measure { .. }
+            | Op::ScrollScreen { .. }
             | Op::Component { .. } => unreachable!("only the placeholder changed"),
         }
     }
@@ -1019,6 +1043,10 @@ fn disclosure_attribute_patches_keep_the_summary_before_its_children() {
             | Op::Focus { .. }
             | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
+            | Op::HoldView { .. }
+            | Op::PutView { .. }
+            | Op::Measure { .. }
+            | Op::ScrollScreen { .. }
             | Op::Component { .. }) => panic!("expected disclosure attributes, got {op:?}"),
         }
     }
@@ -1062,6 +1090,10 @@ fn a_progress_that_moves_keeps_its_element_and_says_its_new_words() {
             | Op::Focus { .. }
             | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
+            | Op::HoldView { .. }
+            | Op::PutView { .. }
+            | Op::Measure { .. }
+            | Op::ScrollScreen { .. }
             | Op::Component { .. } => unreachable!("progress updates its existing element"),
         }
     }
@@ -1126,6 +1158,10 @@ fn list_op_kinds(ops: &[Op]) -> Vec<&str> {
             | Op::Focus { .. }
             | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
+            | Op::HoldView { .. }
+            | Op::PutView { .. }
+            | Op::Measure { .. }
+            | Op::ScrollScreen { .. }
             | Op::Component { .. } => "other",
         })
         .collect()

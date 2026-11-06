@@ -23,6 +23,10 @@ pub fn page(
     };
     Ok(match read {
         reads::Read::Activity { task, .. } => documents::activity(*task, page, before, after, limits)?,
+        reads::Read::ActivityBeside { task, side, .. } => match side {
+            reads::Side::Earlier => documents::activity(*task, page, None, after, limits)?,
+            reads::Side::Later => documents::activity(*task, page, after, None, limits)?,
+        },
         reads::Read::History { task, subtree, .. } => {
             documents::history(models, *task, *subtree, page, before, after, limits)?
         }
@@ -60,7 +64,9 @@ fn check_edges(read: &reads::Read, page: &reads::Page) -> Result<(), w::Problem>
         let matches = match cursor {
             reads::Cursor::Live { scope, .. } | reads::Cursor::Store { scope, .. } => {
                 let expected = match read {
-                    reads::Read::Activity { task, .. } => reads::Scope::Activity { task: *task },
+                    reads::Read::Activity { task, .. } | reads::Read::ActivityBeside { task, .. } => {
+                        reads::Scope::Activity { task: *task }
+                    }
                     reads::Read::History { task, subtree, .. } => {
                         reads::Scope::History { task: *task, subtree: *subtree }
                     }

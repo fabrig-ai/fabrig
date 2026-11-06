@@ -132,10 +132,6 @@ pub(super) fn chat(thread: &Thread, call: &Call, limits: &Limits, out: &mut Text
             }
 
             Line::Activity { line: row } => line(row, thread.task, call, limits, out),
-            Line::Left { lines } => {
-                out.number(u64::from(lines));
-                out.put(b" lines left\n");
-            }
         }
     }
     for part in thread.parts(limits.rows, thread.live.as_slice()).into_boxed() {
@@ -143,7 +139,9 @@ pub(super) fn chat(thread: &Thread, call: &Call, limits: &Limits, out: &mut Text
     }
     match &thread.lines.edges.after {
         jig_client::thread::window::Edge::More(cursor) => lists::next(call, 1, Some(cursor), out),
-        jig_client::thread::window::Edge::End => lists::next(call, 1, None, out),
+        jig_client::thread::window::Edge::End | jig_client::thread::window::Edge::Dropped => {
+            lists::next(call, 1, None, out);
+        }
     }
 }
 pub(super) fn run(delivery: &c::Delivery, text: Option<&c::RunText>, out: &mut Text) {

@@ -218,6 +218,12 @@ fn read_value(
         }
     }
     match what {
+        c::Read::ActivityBeside { .. } => Some(c::ReadValue::Activity(Box::new(c::ActivityPage {
+            rows: List::with_capacity(0),
+            before: None,
+            after: None,
+            cut: false,
+        }))),
         c::Read::Activity { .. } => match &side.activity {
             Some(page) => Some(c::ReadValue::Activity(Box::new(page.clone()))),
             None => None,

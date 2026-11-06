@@ -1624,6 +1624,40 @@ fn a_producers_contained_saved_start_delivers_its_tree_without_a_second_parent()
 }
 
 #[test]
+fn a_producers_clean_merge_is_committed_before_it_is_ready() {
+    let (mut h, hold) = comparing_producer_base(false);
+    let Op::Merge { theirs, .. } = h.next(hold, Done::IsAncestor { contains: false }) else { panic!("merge base") };
+    assert_eq!(theirs, commit(7));
+    let Op::Commit { parent, merging, title, body, identity, .. } = h.next(hold, Done::Merged) else {
+        panic!("commit the clean merge before ready")
+    };
+    assert_eq!((parent, merging), (commit(1), Some(commit(7))));
+    assert_eq!(&*title, b"Merge 0707070707070707070707070707070707070707070707070707070707070707");
+    assert!(body.is_empty());
+    assert_eq!(identity, 0);
+    let Op::CheckOut { commit: head, clean, .. } = h.next(hold, Done::Committed { commit: commit(9) }) else {
+        panic!("check out the merge to clear its state")
+    };
+    assert_eq!((head, clean), (commit(9), true));
+    let Request::Prepared { prepared: Prepared::Ready { conflicts, .. }, .. } =
+        h.one(Event::Done { owner: hold, done: Done::Succeeded })
+    else {
+        panic!("ready after the merge checkout")
+    };
+    assert!(conflicts.is_empty());
+    let Op::Commit { parent, merging, .. } = io(h.one(Event::Push { hold, message: message() }), hold) else {
+        panic!("commit new work on the merge")
+    };
+    assert_eq!((parent, merging), (commit(9), None));
+    let Op::Push { commit: head, .. } = h.next(hold, Done::Unchanged) else { panic!("deliver the merge") };
+    assert_eq!(head, commit(9));
+    assert_eq!(
+        &*landings(h.one(Event::Done { owner: hold, done: Done::Succeeded })),
+        &[Landing::Landed { commit: commit(9) }]
+    );
+}
+
+#[test]
 fn a_producers_uncontained_base_still_leaves_a_conflicted_two_parent_merge() {
     let (mut h, hold) = comparing_producer_base(false);
     let Op::Merge { theirs, .. } = h.next(hold, Done::IsAncestor { contains: false }) else { panic!("merge base") };

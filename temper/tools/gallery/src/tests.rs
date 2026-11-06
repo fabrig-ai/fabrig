@@ -2644,6 +2644,34 @@ fn no_state_reads_of_zero() {
         }
     }
 }
+// A browser's button, tab and option show their name as their text (skein/docs/design/ui-web.md, 6), so text under one
+// is more words; a recommended choice's tag is the one the design draws (temper/docs/design/client/README.md, 3.5).
+#[test]
+fn no_named_control_draws_a_text_child_in_any_state() {
+    for sample in samples::samples() {
+        let view = view(&sample);
+        let nodes = view.tree().nodes();
+        for (index, node) in nodes.iter().enumerate() {
+            if node.name.is_none() || !matches!(node.role, Role::Button | Role::Tab | Role::Option) {
+                continue;
+            }
+            let mut text = Vec::new();
+            for inner in nodes.iter().skip(index).take(usize::try_from(node.size).unwrap()) {
+                for run in &inner.text {
+                    text.extend_from_slice(&run.text);
+                }
+            }
+            assert!(
+                text.is_empty() || text == b"recommended",
+                "{}: {:?} {:?} also draws the text {:?}",
+                sample.name,
+                node.role,
+                node.name.as_deref().map(String::from_utf8_lossy),
+                String::from_utf8_lossy(&text),
+            );
+        }
+    }
+}
 fn has_text(tree: &skein_ui::Tree, text: &str) -> bool {
     tree.nodes().iter().any(|node| node.text.iter().any(|run| run.text.as_ref() == text.as_bytes()))
 }
