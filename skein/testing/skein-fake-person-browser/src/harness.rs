@@ -15,6 +15,8 @@ use std::fmt::Write as _;
 use std::{collections::VecDeque, ffi::OsString, os::unix::ffi::OsStrExt, path::PathBuf};
 
 const POLL: Duration = Duration::from_millis(10);
+const DEFAULT_HORIZON: Duration = Duration::from_secs(40);
+const CLOSE_WINDOW: Duration = Duration::from_secs(4);
 pub(crate) const SERVER: Token = Token::new(10);
 pub(crate) const PROCESS: Token = Token::new(11);
 pub(crate) const BROWSER: Token = Token::new(12);
@@ -135,6 +137,7 @@ pub struct Kept {
     pub value: Box<[u8]>,
 }
 pub struct Harness {
+    horizon: Duration,
     kept: Vec<Kept>,
     server: PathBuf,
     args: Vec<OsString>,
@@ -152,6 +155,7 @@ impl Harness {
     #[must_use]
     pub fn new(setup: Setup<'_>) -> Self {
         Self {
+            horizon: DEFAULT_HORIZON,
             kept: Vec::new(),
             server: setup.server,
             args: setup.args,
@@ -165,6 +169,15 @@ impl Harness {
             expected: setup.expected,
             origins: setup.origins,
         }
+    }
+    /// Sets the whole run's horizon for a program with bounds of its own on each step.
+    /// No test sets it: every test stands on the forty-second horizon
+    /// (skein/docs/design/ui-web.md, 14.2).
+    #[must_use]
+    pub fn horizon(mut self, horizon: Duration) -> Self {
+        bounds(horizon);
+        self.horizon = horizon;
+        self
     }
     #[must_use]
     pub fn kept(&self) -> &[Kept] {
@@ -192,6 +205,10 @@ impl Harness {
         }
         outcome
     }
+}
+fn bounds(horizon: Duration) -> (Duration, Duration) {
+    assert!(horizon >= CLOSE_WINDOW, "horizon {horizon:?} is shorter than the close window {CLOSE_WINDOW:?}");
+    (Duration::from_nanos(horizon.as_nanos().saturating_sub(CLOSE_WINDOW.as_nanos())), horizon)
 }
 pub(crate) mod capacity;
 pub(crate) mod closing;
@@ -986,16 +1003,20 @@ impl Runtime {
             }
         }
     }
+    #[expect(clippy::too_many_lines, reason = "ui-web.md, 14.2 keeps the run and its close window in one loop")]
     fn run(
         mut self,
         setup: &Harness,
         people: &mut [&mut dyn Play],
         peers: &mut peers::Peers<'_, '_>,
     ) -> (Outcome, Vec<Kept>, Option<Starved>) {
-        // Reserve io's close window inside the run's forty-second horizon.
+        // Reserve io's close window inside the run's horizon.
         let mut startup = Some(Deadline::arm("the lent peers' startup", Duration::from_secs(36)));
-        let close_at = Deadline::arm("the browser harness run", Duration::from_secs(36));
-        let deadline = close_at.until().saturating_add(Duration::from_secs(4));
+        let (close_patience, patience) = bounds(setup.horizon);
+        let close_at = Deadline::arm("the browser harness run", close_patience);
+        let deadline = close_at
+            .until()
+            .saturating_add(Duration::from_nanos(patience.as_nanos().saturating_sub(close_patience.as_nanos())));
         self.deadline = Some(close_at);
         let mut classified = false;
         let mut faces = Vec::new();

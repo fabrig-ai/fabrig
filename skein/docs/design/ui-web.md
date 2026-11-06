@@ -1057,6 +1057,9 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
   (browser.md, section 7); and writes the accessibility snapshot, a
   screenshot, and Chromium's and the binary's stderr's tails on a
   failure (browser.md, section 10).
+  **Its run ends at forty seconds,** io's close window inside them, on
+  which every test stands; a program that is no test, with bounds of its
+  own on each step, may set another horizon on the harness.
   **Its persons' downloads** go to a directory the test names in its
   setup, or are refused when it names none (browser.md, section 5). The
   face keeps each person's `Downloaded` in order, its suggested name and

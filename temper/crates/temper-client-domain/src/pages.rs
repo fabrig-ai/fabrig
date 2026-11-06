@@ -534,8 +534,10 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             let chosen = connect_model::way(pages, client);
             if pages.address == (Address::Welcome { step: crate::Step::Ready })
                 && let connect_model::Act::SignIn { .. } = &act
-                && pages.connect_model.is_none()
             {
+                if let Some(mut page) = pages.connect_model.take() {
+                    page.leave();
+                }
                 pages.connect_model = Some(Box::new(connect_model::ConnectModel::default()));
             }
             if let Some(page) = &mut pages.connect_model {
@@ -1122,7 +1124,13 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Configure { .. }
             | Address::Adopt { .. } => false,
         };
-        if connect_model::open(&address) {
+        let checking_ready = if let Some(page) = &pages.connect_model {
+            address == (Address::Welcome { step: crate::Step::Ready })
+                && page.check != connect_model::ProgramCheck::Idle
+        } else {
+            false
+        };
+        if connect_model::open(&address) || checking_ready {
             if pages.connect_model.is_none() {
                 pages.connect_model = Some(Box::new(connect_model::ConnectModel::default()));
             }
