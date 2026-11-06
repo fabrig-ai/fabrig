@@ -3,3 +3,27 @@ repo = "fabrig"
 sources = ["temper/docs/plan/browser-trim/inputs/request.md", "skein/docs/foundation/testing-strategy.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "goals-link"
+title = "Goals' draft link leaves the browser tier; the view holds its target"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 4.6"
+
+[[part]]
+id = "slow-walks"
+title = "Where the history story's and the public walk's time goes, measured; causes fixed where they lie"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 4.3"
+
+[[slice]]
+id = 1
+story = "The tier loses a test no browser needs, and its two slowest walks are understood by measurement"
+parts = ["goals-link", "slow-walks"]
+walk = false

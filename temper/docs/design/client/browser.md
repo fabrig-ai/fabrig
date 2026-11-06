@@ -1098,6 +1098,9 @@ The tier's tests, each one test of the steps it names, each on its own
 The cap includes all browser tests, whatever their names.
 
 Not in the tier, each in the lowest world that shows it:
+- **Goals' link to a draft:** the view's
+  `tests::goals::the_link_shows_with_a_tracked_template` holds its target, the
+  Chats page; test 2 holds what a browser's history does with a link.
 - **Address-codec edge rows:** `temper-client-domain`'s
   `tests::address::{a_path_that_is_no_page_is_missing,each_number_spans_its_types_range}`.
   Browser test 2 keeps the shell's replacement of a missing address with `/`.

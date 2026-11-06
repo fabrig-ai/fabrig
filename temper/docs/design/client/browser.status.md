@@ -64,6 +64,8 @@
   answer on its task of 2026-11-05 judged its eight passes on everything but
   that line and takes the budget to the user as its own item, so nothing here
   shows the tier within it.
+- **Not yet:** 4.6: `start_goal_opens_chats_for_a_draft` still walks Goals' link
+  in this tier, until the `browser-trim` plan's `draft-link`.
 - **Departs:** 7.2: `start-goal` is Chats with no sheet and no filter,
   `Chats { filter: All }`, since that is where Goals' entry goes and `OpenStart`
   opens nothing without both a draft and a chat; `start-goal-draft` and
