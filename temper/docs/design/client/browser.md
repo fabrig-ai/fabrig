@@ -1357,7 +1357,7 @@ from the engine's own answers, is where the look is tuned.
 | `goals-none` | hand-made Goals deliveries: "No goals yet."; the rail keeps Goals since the page is Goals |
 | `goals-needs` | hand-made Goals deliveries: the filter Needs you, "needs funds" and "needs you" |
 | `goals-under-way` | hand-made Goals deliveries: the filter Under way, running, planning and paused |
-| `goals-ended` | hand-made Goals deliveries: the filter Ended, landed, stopped and failed |
+| `goals-ended` | hand-made Goals deliveries: the filter Ended, landed, closed and failed |
 | `goals-filter-empty` | hand-made Goals deliveries: a filter no goal matches, "None." |
 | `goals-more` | hand-made Goals deliveries: "More than N goals, M under way." and "More goals" |
 | `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
@@ -1461,11 +1461,11 @@ from the engine's own answers, is where the look is tuned.
 | `goal-paused` | first-run-projects paused by the person: "paused by you", Resume |
 | `goal-landed` | pane-chat-line landed: its result, "Landed at 01:12.", no acts and no composer |
 | `goal-landed-open` | `goal-landed` with "N landed" pressed: its rows under it |
-| `goal-stopped` | welcome-stall stopped: "Stopped by you…", "Stopped before it landed." |
+| `goal-closed` | welcome-stall closed: "Closed by you…", "Closed before it landed." |
 | `goal-failed` | forge-cards failed: "Failed: " and its reason, "Failed before it landed." |
 | `goal-no-report` | first-run-projects running with tasks and no report: "N of M tasks landed.", no byline |
 | `goal-amending` | `goal-running` with Amend pressed: the editor, between the header and the report |
-| `goal-stop-dialog` | `goal-running` with Stop pressed: its confirmation |
+| `goal-closing` | `goal-running` with Close pressed: its confirmation |
 | `goal-toast` | `goal-running` paused, its toast showing |
 | `goal-sending` | `goal-running` with the person's words sent and one being sent, the composer holding its next words |
 | `start-goal` | Goals with "Start one from a draft" pressed: the sheet with no draft, its Draft field and two ways |
@@ -1545,9 +1545,10 @@ from the engine's own answers, is where the look is tuned.
 | `chat-closing-work` | a run, two delegates with opposite fates, and two proposals: what closing changes |
 | `chat-closing-failed` | the same close refused: the sheet keeps its choices and says why |
 | `chat-closed` | the requester closed it: one end line at 21:05, with a quiet bar |
+| `chat-paused` | a chat its person paused: "Paused", Resume and Close, and the composer's hint "Sending resumes this chat." |
 | `chat-closing-start-over` | a configuring chat's Start over confirmation |
-| `task-cancelling` | an agent's task Cancel confirmation, with a task below it |
-| `task-stopping` | an agent's task Stop confirmation |
+| `task-closing` | an agent's task Close confirmation, with a task below it |
+| `task-paused` | an agent's task its person paused: "Paused", Resume and Close, and no own held card |
 | `proposal-accepting` | a proposal's Accept confirmation |
 | `proposal-rejecting` | a proposal's Reject confirmation with its reason |
 | `chat-closing` | `chat-solo-T6` with Close pressed: its confirmation |
