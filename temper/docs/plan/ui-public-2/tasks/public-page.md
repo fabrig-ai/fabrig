@@ -189,3 +189,23 @@ Commit and push.
 ## Report
 
 As the implementer's text says, plus: the widths' measurements, the two screenshots' paths, each test's rule broken by hand and the failure seen, and that the story was compiled and not run.
+
+## Rebase (2026-11-06, step merge, foreman ui-public-2/public-page/foreman-1)
+
+rebase public-page onto the updated integration, preserving its address-free records and row contract.
+The merge conflicts are the branch’s; no test failure is reported.
+Reconcile against `69c698caa2` (integration’s main reconciliation), including main’s `c9a04a9dec` (public layout) and `59068e218c` (commit links).
+Resolve these seven paths:
+- `temper/crates/temper-client-view/src/look.rs`: reconcile public style definitions and `NAMES` without duplicate constants or token collisions; preserve main’s repository styles and update `tests/look.rs`.
+- `temper/crates/temper-client-view/src/public.rs`: keep `MAIN`, `PAGE` and `PUBLIC_PAGE` on the main node, as the task requires.
+- `temper/crates/temper-client-view/src/public/lines.rs`: retain the task’s `row` implementation, paragraph title/facts, literal separators, ending/time rules and executor placement.
+- `temper/crates/temper-client-view/src/public/forge.rs`: retain seven-digit plain commits and removed forge links; main’s full-width external commit printer is superseded.
+- `temper/crates/temper-client-view/src/tests/public/records.rs`: retain address-free fixtures and consolidate main’s commit helpers with `change_commits`/`landing_commits`.
+- `temper/crates/temper-client-view/src/words.rs`: preserve both vocabularies and stable word IDs; recompute combined phrase, segment, byte and `ALL` counts.
+- `temper/docs/design/client/browser.status.md`: remove the superseded 8.3/8.4 implementation lag entry; preserve “three things remain”, the retained geometry-story runtime note and unrelated main entries.
+Also inspect automatically merged files:
+- In `tests/public.rs`, replace main’s `public_commit_links_use_the_object_id_width` and `commit_links` assertions with coverage of seven plain digits, commit precedence and no external forge addresses. Remove dependencies on deleted repository constants.
+- In `temper.css`, consolidate main’s appended public rules into the task’s `ui: public` block. Remove obsolete title/meta rules and conflicting column geometry; retain the 720 px column and wrapping rows.
+- Preserve `public_board_and_task_lines_are_readable_at_desktop_and_phone_widths` in `browser_public.rs`, but update `TextBoxes::check`: priority is absent, executors appear only on the task’s own row, and spend no longer has the old surrounding spaces.
+Keep that story’s gutter, wrapping and overlap checks; compile it without running the browser tier.
+Run focused checks for the combined view and vocabulary, the task’s required checks, and repeat its render proof after resolving the CSS.
