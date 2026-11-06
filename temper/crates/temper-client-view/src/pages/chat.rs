@@ -236,7 +236,7 @@ fn session_composer(
     if crate::choice::can_send(root) {
         b.state(State::SubmitsOnEnter);
     }
-    if chat.composer_focus != 0 {
+    if chat.composer_focus != 0 && root.pages().switcher().renaming().is_none() {
         b.focus(chat.composer_focus);
     }
     b.value(&chat.words, temper_client_domain::pages::shown(root.pages()));

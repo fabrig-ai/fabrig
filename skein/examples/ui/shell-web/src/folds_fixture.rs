@@ -33,15 +33,15 @@ pub(super) fn start(mount: web_sys::Element, primary: Primary) {
     let dom = Dom::new(mount, &page, &inbox, |node, act| (node, act), &[]);
     let mut view = View::new(&limits);
     let mut builder = view.builder();
-    build(&mut builder);
+    build(&mut builder, true);
     let mut patches = Queue::with_capacity(limits.patches);
     view.finish(builder, 0, &mut patches);
-    let patches: Vec<_> = std::iter::from_fn(|| patches.pop()).collect();
+    let initial: Vec<_> = std::iter::from_fn(|| patches.pop()).collect();
     let mut ops = Vec::new();
-    page.borrow_mut().apply(&patches, &mut ops);
+    page.borrow_mut().apply(&initial, &mut ops);
     dom.apply(&ops);
     document.get_element_by_id("app").expect("mount").append_child(&component).expect("component mounted");
-    // The fixture records every application act without patching the disclosures.
+    // Escape removes the editor's form; other acts leave the disclosures in place.
     inbox.start(Box::new(move |inbox| {
         let _keep_dom_alive = (&dom, &listener);
         while let Some((node, act)) = inbox.next() {
@@ -49,6 +49,15 @@ pub(super) fn start(mount: web_sys::Element, primary: Primary) {
                 let document = web_sys::window().expect("window").document().expect("document");
                 let status = document.query_selector("[role=status]").expect("status selector").expect("status");
                 status.set_text_content(Some(&format!("Pressed {}", bound.binding.token.raw())));
+                if bound.binding.token == Token::new(5) {
+                    let mut builder = view.builder();
+                    build(&mut builder, false);
+                    view.finish(builder, 1, &mut patches);
+                    let patches: Vec<_> = std::iter::from_fn(|| patches.pop()).collect();
+                    let mut ops = Vec::new();
+                    page.borrow_mut().apply(&patches, &mut ops);
+                    dom.apply(&ops);
+                }
             }
         }
     }));
@@ -59,7 +68,7 @@ fn button(builder: &mut Builder, name: &[u8], token: u64) {
     builder.name(name);
     builder.bind(Binding { owner: OWNER, token: Token::new(token) });
 }
-fn build(builder: &mut Builder) {
+fn build(builder: &mut Builder, editing: bool) {
     builder.open(Role::Page);
     builder.open(Role::Main);
     builder.open(Role::Form);
@@ -92,9 +101,25 @@ fn build(builder: &mut Builder) {
     }
     button(builder, b"Outside", 4);
     builder.close();
+    builder.close();
+    builder.open(Role::Disclosure);
+    builder.name(b"Editor");
+    builder.focus(1);
+    if editing {
+        builder.open(Role::Form);
+        builder.name(b"Edit");
+        builder.open(Role::TextField);
+        builder.name(b"Name");
+        builder.bind(Binding { owner: OWNER, token: Token::new(6) });
+        builder.close();
+        button(builder, b"Close editor", 5);
+        builder.shortcut(Shortcut::ESCAPE);
+        builder.close();
+        builder.close();
+    }
+    builder.close();
     builder.open(Role::Status);
     builder.text(Run::Plain, b"No presses");
-    builder.close();
     builder.close();
     builder.close();
     builder.close();

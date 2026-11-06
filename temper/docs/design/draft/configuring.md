@@ -453,59 +453,27 @@ the second once the reference case walks.
 ### 8.2 Stage 2: the reference case under it
 
 - **v0.1.0's rung D** (`v0.1.0.md`, 2.1): 8.1 with no gap left, on
-  the box with the reference's limits, then a person's draft started as
-  a goal under the accepted settings, and carried from intake to landing
-  as rung C carries `reference-case.md`, acts 1 to 5.
+  rung C's deployment with the reference's limits, then a person's draft
+  started as a goal under the accepted settings, and carried from intake
+  to landing as rung C carries `reference-case.md`, acts 1 to 5.
 - **It differs from C by the agent alone.** C runs under
   `reference-code-production.md`, section 14's settings as the
   reference's milestones make them (`reference-case.execution.md`,
-  M10); D runs under what the agent proposed, on a box that never held
-  them.
+  M10); D runs under what the agent proposed, on a deployment that never
+  held them. That deployment is not `temper box`, which 8.1 keeps
+  (`v0.1.0.md`, section 7).
 - **It waits for C,** the user's choice of 2026-11-02: stage 1 runs as
   this draft's code lands, stage 2 once rung C passes.
 
 ## 9. Order
 
-The first order's survey and designs are done: jig's
-`domain/engine.md`, section 17; temper's `../protocol/configuration.md`,
-section 13, `../domain/agent.md`, 8.1 and `../client/tools.md`, section
-5. What is left, revised 2026-11-02:
+The order is `configuring.execution.md`'s, its phases P1 to P5. Their
+design and code have landed but for P5. What is left:
 
-1. **The design's own words** for what it still cites this draft for,
-   and for what it says otherwise (this draft's status): among them, a
-   change touching a project's own policy (3.3), which the acceptance
-   needs, so that the draft can go once 8.2 passes.
-2. **The code, against that design,** as the designs' statuses record
-   it:
-   - jig's: charters read at their task's revision, and a charter's
-     documents (17.9), jig's and temper's both
-     (`../domain/agent.status.md`, `../protocol/configuration.status.md`),
-     which the reference's charters name too; no milestone of
-     `reference-case.execution.md` builds them;
-   - temper's: charter 3 and template 3, the configuring agent, with
-     the `settings` family in the stock's policy and rules; the
-     `settings` family offered only where a charter's `tools` names it;
-     each charter leaving its brief room, checked at a start and at a
-     change's entrances (`../domain/agent.status.md`,
-     `../protocol/configuration.status.md`); `chat start --template`,
-     the items of temper's kinds in a settings file and in a proposal's
-     review, `settings show landing-rule` and `forge-charter`, and
-     `revision restore` (`../client/tools.status.md`); the reference
-     pages `configuration`, `configuration-engine` and `limits` the
-     agent reads (`../protocol/documentation.status.md`);
-   - not here: temper's kinds as settings, `application.landing` and
-     `charter` gone from the document, which
-     `reference-case.execution.md`'s M3 builds; this draft's execution
-     takes them from there, its ctl and its agent following.
-3. **The configuring agent's stories in the gate**
-   (`../domain/testing.md`, 6.4).
-4. **Stage 1** (8.1): the golden as settings items, its check in code
-   and its judge, and QA's walk; designed beside the gate's stories in
-   `../domain/testing.md` unless the execution finds a better home.
-5. **Stage 2** (8.2), once rung C passes.
-6. **The web client's pages** (5.1, 5.2): "How work runs", the card and
-   the review page, their mockups first, designed and built separately
-   (`../client/README.md`).
+1. **Stage 1 passing** (8.1), by its walk.
+2. **Stage 2** (8.2), once rung C passes.
+3. **The web client's pages** past what they hold (5.1, 5.2): "How work
+   runs" and the review page (`../client/README.md`), built separately.
 
 ## 10. Open questions
 

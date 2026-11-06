@@ -170,6 +170,7 @@ impl Chats {
                 self.notes_seen = self.notes_seen.checked_add(1).expect("notes bounded by rows");
                 if let c::NoteScope::Task { project: held, task } = note.scope
                     && held == project
+                    && !note.description.bytes().starts_with(b"work:")
                     && match self.note_numbers.get(&task) {
                         Some(number) => note.number < *number,
                         None => true,

@@ -3,15 +3,15 @@ use jig_domain_people::{
     self as p, Act, ActGrant, ActKey, ActKind, Ask, DeletionStep, Domain, Event, Holding, KeptDeletion, Key, Outcome,
     Refusal, Reply, Request, RequestKey, Role, Stored,
 };
-use jig_people_world::{LIMITS, fixtures::people_member, identity};
+use jig_people_world::{
+    LIMITS,
+    fixtures::{CONNECTOR, PERSON, PROJECT, SIGN_IN, people_member},
+    identity,
+};
 use skein_lib::{Env, List, Queue, ReplyTo, Time, Token, Wall};
 use std::collections::BTreeMap;
 
-const PROJECT: u32 = 1;
 const OTHER: u32 = 2;
-const PERSON: u64 = 1;
-const SIGN_IN: u64 = 10;
-const CONNECTOR: u16 = 1;
 
 struct People {
     domain: Domain,

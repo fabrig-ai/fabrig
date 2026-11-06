@@ -1,5 +1,6 @@
 use jig_core_world::Fault;
 use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::peers::Peers;
 use jig_core_world::peers::fixture;
 use jig_core_world::world::Setup;
@@ -19,15 +20,7 @@ fn client_world() -> (World, u64) {
         ..Setup::default()
     });
     world.client_peer = Some(ClientPeer::default());
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(45_100)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: Box::from(&b"client-peer"[..]) },
-            login: Box::from(&b"client"[..]),
-            name: Box::from(&b"Client"[..]),
-        },
-    }));
+    world.send(signin(Token::new(45_100), 0, &b"client-peer"[..], &b"client"[..], &b"Client"[..]));
     let (
         _,
         root::Delivery::Core(core::Held::PeopleReply {

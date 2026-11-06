@@ -13,7 +13,7 @@ use skein_forge::forgejo::{
 use skein_forge::{decode, time};
 use skein_http::client as http;
 use skein_json::tokenizer;
-use skein_lib::{Env, List, Queue, Secret, Writer};
+use skein_lib::{Env, List, Queue, Secret, Time, Writer};
 
 #[derive(Debug)]
 pub struct Exchange {
@@ -28,15 +28,18 @@ impl Exchange {
     pub fn new() -> Self {
         Self { request: None, decoder: None, done: None, heard: Queue::uncapped(), after: 0, keep: Keep::Head(0) }
     }
+    #[expect(clippy::too_many_arguments, reason = "the holder supplies its connection, deadline and exchange context")]
     pub fn start(
         &mut self,
         c: &mut Connection,
+        until: Option<Time>,
         env: &Env<Limits>,
         forge: &Forge,
         user_agent: &[u8],
         exchange: plans::plan::Exchange,
         authorization: Secret,
     ) -> Result<(), documents::Refusal> {
+        c.until(until);
         let plans::plan::Exchange { request, range } = exchange;
         let encoded = documents::encode(&request, &limits::documents(&env.limits))?;
         // Host, Authorization, User-Agent, Content-Type and Range; HTTP adds Content-Length.

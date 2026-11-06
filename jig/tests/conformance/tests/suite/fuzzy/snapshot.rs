@@ -1,55 +1,35 @@
-use jig_conformance::{Cut, scenarios::Scenario};
-use jig_conformance_world::replay;
-
-fn compare(scenario: Scenario, seed: u64) {
-    let cuts = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
-    let reached = std::rc::Rc::clone(&cuts);
-    let baseline = replay::every_cut_traced(scenario, seed, Some(true), move |cut, resumed| {
-        let actual = replay::outside(&resumed);
-        assert!(resumed.outcome().crashes.contains(&cut));
-        drop(resumed);
-        let fresh = replay::fresh(scenario, Cut::AfterCommit(cut), seed, true).expect("fresh selected cut");
-        assert_eq!(
-            actual,
-            replay::outside(&fresh),
-            "{scenario:?}, cut {cut}, seed {seed}: complete outside state and whole trace"
-        );
-        reached.borrow_mut().push(cut);
-    })
-    .expect("all snapshot cuts");
-    assert_eq!(*cuts.borrow(), (1..=baseline.commits).collect::<Vec<_>>());
-    assert!(baseline.commits > 0);
-}
+use super::super::snapshot::compare;
+use jig_conformance::scenarios::Scenario;
 
 #[test]
 fn late_copy_every_snapshot_matches_complete_fresh_state() {
-    compare(Scenario::LateCopy, 81);
+    compare(Scenario::LateCopy, 81, None);
 }
 #[test]
 fn other_hand_every_snapshot_matches_complete_fresh_state() {
-    compare(Scenario::OtherHand, 82);
+    compare(Scenario::OtherHand, 82, None);
 }
 #[test]
 fn uncertain_restarts_every_snapshot_matches_complete_fresh_state() {
-    compare(Scenario::UncertainRestarts, 83);
+    compare(Scenario::UncertainRestarts, 83, None);
 }
 #[test]
 fn changed_judge_every_snapshot_matches_complete_fresh_state() {
-    compare(Scenario::ChangedJudge, 84);
+    compare(Scenario::ChangedJudge, 84, None);
 }
 #[test]
 fn shrinking_pool_every_snapshot_matches_complete_fresh_state() {
-    compare(Scenario::ShrinkingPool, 85);
+    compare(Scenario::ShrinkingPool, 85, None);
 }
 #[test]
 fn narrowing_policy_every_snapshot_matches_complete_fresh_state() {
-    compare(Scenario::NarrowingPolicy, 86);
+    compare(Scenario::NarrowingPolicy, 86, None);
 }
 #[test]
 fn standing_task_every_snapshot_matches_complete_fresh_state() {
-    compare(Scenario::StandingTask, 87);
+    compare(Scenario::StandingTask, 87, None);
 }
 #[test]
 fn run_budget_every_snapshot_matches_complete_fresh_state() {
-    compare(Scenario::RunBudget, 88);
+    compare(Scenario::RunBudget, 88, None);
 }

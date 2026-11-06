@@ -392,7 +392,11 @@ fn prepared(clients: bool) -> crate::Service {
         application: skein_lib::Map::with_capacity(0),
         accounts: jig_protocol_accounts::table::Table::new(1, 256),
     };
-    let systems = [crate::system::System::new(16, 16), crate::system::System::new(16, 16)];
+    let connector = limits.root.connector;
+    let systems = [
+        crate::system::System::new(connector.resources, connector.made),
+        crate::system::System::new(connector.resources, connector.made),
+    ];
     let store = crate::store::Store::new(
         &limits.root,
         &crate::store::limits(&limits.root, &limits.store).expect("fixture store admission"),

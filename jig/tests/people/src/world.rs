@@ -1,5 +1,6 @@
 #[path = "ended.rs"]
 mod ended;
+use crate::fixtures::{OWNER, OWNER_RELOGIN, PROJECT, SECOND, SECOND_SIGN_IN, SIGN_IN};
 use crate::referee::{People, RouteKind, Seen, Stimulus};
 use jig_domain_people::{
     self as people, Again, Ask, Domain, Entry, Event, Holding, Identity, IdentityKey, InitialOwner, Key, Lack, Limits,
@@ -309,11 +310,11 @@ impl World {
     }
 
     pub fn sign_in_owner(&mut self) -> u64 {
-        self.signin(10, 1)
+        self.signin(SIGN_IN, OWNER)
     }
 
     pub fn sign_in_second(&mut self) -> u64 {
-        self.signin(11, 2)
+        self.signin(SECOND_SIGN_IN, SECOND)
     }
 
     pub fn signin_held(&mut self, sign_in: u64, user: u64, held: Option<u64>) -> u64 {
@@ -372,7 +373,7 @@ impl World {
         self.domain.remember_result(
             &self.env.limits,
             person,
-            people::ResultRef { task, project: 1, at: self.env.wall, position, forgettable: None },
+            people::ResultRef { task, project: PROJECT, at: self.env.wall, position, forgettable: None },
         );
     }
 
@@ -392,7 +393,7 @@ impl World {
     }
 
     pub fn forget_chat(&mut self, task: u64) {
-        self.send(Event::Forget { task, project: 1, party: None, last_reply: 0 });
+        self.send(Event::Forget { task, project: PROJECT, party: None, last_reply: 0 });
     }
 
     pub fn waiting(&mut self, task: u64, entries: Box<[Entry]>) {
@@ -587,7 +588,7 @@ impl World {
                 }
                 Request::Route { request, person, project, role, ask, models: _ } => {
                     assert!(
-                        project == 1
+                        project == PROJECT
                             || matches!(
                                 ask.as_ref(),
                                 Ask::Lift { .. }
@@ -716,7 +717,7 @@ impl World {
                                 let outcome = if allowed {
                                     Outcome::MarkedSeen { seen }
                                 } else {
-                                    Outcome::Refused(Refusal::Role { held: self.domain.role(person, 1) })
+                                    Outcome::Refused(Refusal::Role { held: self.domain.role(person, PROJECT) })
                                 };
                                 if allowed
                                     && let people::Seen::Conversation { task, .. } = seen
@@ -729,7 +730,7 @@ impl World {
                                     &self.env,
                                     match (allowed, seen) {
                                         (true, people::Seen::Conversation { task: _, through }) => {
-                                            Event::ConversationSeen { request, project: 1, last_reply: through }
+                                            Event::ConversationSeen { request, project: PROJECT, last_reply: through }
                                         }
                                         _ => Event::Decided { request, outcome },
                                     },
@@ -1296,10 +1297,10 @@ impl World {
         let signin = self.sign_in_owner();
         self.commit_all();
         let Reply::SignedIn { person, .. } = self.reply(signin).expect("sign-in replied") else { panic!("signed in") };
-        self.roles(1, Box::new([Holding { person, role: Role::Member }]));
+        self.roles(PROJECT, Box::new([Holding { person, role: Role::Member }]));
         self.commit_all();
         let mut rng = Rng::new(self.settings.seed);
-        let first = self.ask(10, [1; 16], b"hello");
+        let first = self.ask(SIGN_IN, [1; 16], b"hello");
         assert!(self.reply(first).is_none(), "answer waits for durability");
         let before = rng.below(2) == 0;
         if before {
@@ -1313,26 +1314,26 @@ impl World {
             self.hold_replies(false);
             self.ending("restart after durable");
         }
-        let replay = self.ask(10, [1; 16], b"hello");
+        let replay = self.ask(SIGN_IN, [1; 16], b"hello");
         self.commit_all();
         assert!(matches!(self.reply(replay), Some(Reply::Outcome(_))));
         self.ending(if self.settings.authority_refuses { "authority" } else { "started" });
         let routes = self.stats.routes;
-        let duplicate = self.ask(10, [1; 16], b"hello");
+        let duplicate = self.ask(SIGN_IN, [1; 16], b"hello");
         self.commit_all();
         assert_eq!(self.reply(duplicate), self.reply(replay));
         assert_eq!(self.stats.routes, routes);
         self.ending("duplicate");
-        let conflict = self.ask(10, [1; 16], b"different");
+        let conflict = self.ask(SIGN_IN, [1; 16], b"different");
         self.commit_all();
         assert_eq!(self.reply(conflict), Some(Reply::Refused(Refusal::KeyConflict)));
         self.ending("conflict");
         self.defer_routes(true);
         let mut waiting = Vec::new();
         for _ in 0..self.settings.limits.waiters {
-            waiting.push(self.ask(10, [7; 16], b"pending"));
+            waiting.push(self.ask(SIGN_IN, [7; 16], b"pending"));
         }
-        let overflow = self.ask(10, [7; 16], b"pending");
+        let overflow = self.ask(SIGN_IN, [7; 16], b"pending");
         self.commit_all();
         assert_eq!(self.reply(overflow), Some(Reply::Again(Again::Busy)));
         self.ending("waiter busy");
@@ -1342,9 +1343,9 @@ impl World {
         for call in waiting {
             assert!(matches!(self.reply(call), Some(Reply::Outcome(_))));
         }
-        self.roles(1, Box::new([Holding { person, role: Role::Observer }]));
+        self.roles(PROJECT, Box::new([Holding { person, role: Role::Observer }]));
         self.commit_all();
-        let denied = self.ask(10, [2; 16], b"hello");
+        let denied = self.ask(SIGN_IN, [2; 16], b"hello");
         self.commit_all();
         assert_eq!(
             self.reply(denied),
@@ -1354,7 +1355,7 @@ impl World {
         for byte in
             20..u8::try_from(self.settings.limits.requests).expect("scenario request limit fits u8").saturating_add(20)
         {
-            let call = self.ask(10, [byte; 16], b"fill");
+            let call = self.ask(SIGN_IN, [byte; 16], b"fill");
             self.commit_all();
             if let Some(Reply::Again(Again::Full { held, .. })) = self.reply(call) {
                 assert_eq!(held, self.settings.limits.requests);
@@ -1363,14 +1364,14 @@ impl World {
         }
         assert!(self.stats.endings.contains("answers full"));
         self.advance(Duration::from_secs(61));
-        let expired = self.ask(10, [3; 16], b"hello");
+        let expired = self.ask(SIGN_IN, [3; 16], b"hello");
         self.commit_all();
         assert_eq!(self.reply(expired), Some(Reply::SignedOut));
         self.ending("expired");
-        let signin = self.signin(11, 1);
+        let signin = self.signin(OWNER_RELOGIN, OWNER);
         self.commit_all();
         assert!(matches!(self.reply(signin), Some(Reply::SignedIn { .. })));
-        let signout = self.signout(11);
+        let signout = self.signout(OWNER_RELOGIN);
         self.commit_all();
         assert_eq!(self.reply(signout), Some(Reply::SignedOut));
         self.ending("signed out");

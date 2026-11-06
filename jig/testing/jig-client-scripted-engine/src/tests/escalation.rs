@@ -11,7 +11,7 @@ fn escalation_script_preserves_supplied_identity_scope_and_outer_offer_without_s
         acts: list(vec![Offered { effect: None, act: ActKind::Release, admission: Admission::Allowed }]),
     }));
     setup.truth.objects.insert(ObjectKey::Escalation(8), value.clone());
-    setup.truth.object_projects.insert(ObjectKey::Escalation(8), 1);
+    setup.truth.object_projects.insert(ObjectKey::Escalation(8), PROJECT);
     let engine = Engine::new(setup.clone(), 1).expect("valid script");
     assert_eq!(engine.truth.objects[&ObjectKey::Escalation(8)], value);
     // The embedded project is authoritative even if an obsolete fallback differs.
@@ -27,15 +27,10 @@ fn escalation_script_preserves_supplied_identity_scope_and_outer_offer_without_s
     assert_eq!(Engine::new(setup, 1).err(), Some(Invalid::Identity));
 }
 
-const REQUESTER: u64 = 1;
-const DECIDER: u64 = 2;
 const ANCESTOR: u64 = 6;
 const PARENT: u64 = 7;
 const HELD_TASK: u64 = 8;
-const PROJECT: u32 = 1;
 const HOLD_REVISION: u64 = 1;
-const REQUESTER_SIGN_IN: u64 = 11;
-const DECIDER_SIGN_IN: u64 = 22;
 // The default script makes each commit durable after ten milliseconds.
 const COMMIT_NANOS: u64 = 10_000_000;
 

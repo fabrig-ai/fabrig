@@ -124,7 +124,7 @@ impl Agents {
         self.live.clear();
     }
 
-    pub fn answer(&mut self, request: host::ToAgent) -> Vec<Input<root::Event, root::Record>> {
+    pub fn answer(&mut self, request: host::ToAgent) -> Vec<Input<root::Event>> {
         let mut out = Vec::new();
         match request {
             host::ToAgent::Start { owner, start } => {
@@ -203,7 +203,7 @@ impl Agents {
     }
 
     /// Take each ready run's next completion, and park the runs whose wait ran out.
-    pub fn poll(&mut self, clock: Clock) -> Vec<Input<root::Event, root::Record>> {
+    pub fn poll(&mut self, clock: Clock) -> Vec<Input<root::Event>> {
         let mut out = Vec::new();
         let owners: Vec<Token> = self.live.keys().copied().collect();
         for owner in owners {
