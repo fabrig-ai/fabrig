@@ -11,9 +11,6 @@ Section 4.3's failed and refused answer diagnostics reach serve's stderr and the
   request of 2026-11-05 asked for if cheap: it needs a stored-format
   change, so it is section 12's question, and `temper help server` says
   where the reason is read.
-  5, *Saved work*: a merge start of saved work reports `from_saved` false
-  (`temper-worker-domain/src/workspace.rs`), so a save that lands nothing drops
-  the saved work: by reading, not yet shown by a test.
   4.4: the prepare and key kinds: neither kind's entry is
   built, so the worker's hello declares the merge kind alone
   (`temper/crates/temper-service/src/worker.rs`), and with prepare the
