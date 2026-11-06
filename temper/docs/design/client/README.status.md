@@ -2,6 +2,12 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, *A person's pause*; 3.6, *The sheet*; 5.8; 5.11: the request `ui-pause-close`. A chat says "Stop",
+  has no "Resume" and says "Held" and "Applied" after its own pause, and a message to it sits with no run; a goal and an
+  agent's task say "Stop", a goal's end "stopped", and an agent's task has neither Pause, Resume nor Close.
+- **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
+  agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
+  request `ui-pause-close`.
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits* and
   *From another computer*: the card's line and the note say a new tab, and nothing opens one: a press still
   sends a `Return` and the page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. So the note shows
@@ -121,7 +127,7 @@
   that plan's cut took no new word for it.
 - **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
-  Stop and Close, and offers Change model only with supplied choices;
+  Pause or Resume, and Close, and offers Change model only with supplied choices;
   a goal uses supplied budget units, not dollars, and offers neither the
   mock's budget field nor its earlier reports. Settings adds Configure
   temper and keeps unsupported status, funds and notification controls
@@ -155,10 +161,10 @@
   fails say why above its acts: no ask went, and the reason's box is on the card behind
   the sheet.
 - **Not yet:** 3.6, *The sheet*: that request has each confirmation walked. A browser
-  on a fake box pressed Close, a goal's Stop and a Release both ways, a goal's Pause,
+  on a fake box pressed Close, a goal's Close and a Release both ways, a goal's Pause,
   and Accept on a configuring chat's proposal from *Needs you*, by hand at each width,
-  which no test keeps; a press while the page updates, on a Release alone. A task's Cancel,
-  an agent's task's Stop, Reject and Start over are drawn at each width by their
+  which no test keeps; a press while the page updates, on a Release alone. An agent's task's Close,
+  Reject and Start over are drawn at each width by their
   gallery states, and no walk on record presses them.
 - **Not yet:** 3.5, *temper's own way, beside the page*: no walk on record presses "See how it
   works" or "Start from it", and no journey records them: the view's tests and the gallery's
@@ -197,7 +203,7 @@
   as Forge's has, where the request's pages have the same words, because the terminal reads
   them. A line with nothing yet keeps its "Forge" or "Model" label, as the request's words say.
 - **Not yet:** 10: a walk from the sheet through planning, a live report and
-  delegate tasks, Pause, Resume, a message and Stop, which the request
+  delegate tasks, Pause, Resume, a message and Close, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The
   view holds Goals' link to `/chats` (`the_link_shows_with_a_tracked_template`),
   and the fake box's walk reaches an
@@ -208,7 +214,7 @@
   delegates, so it can show no planning and no delegate task: the journey
   `chat-draft` walks a chat's sheet to that goal's page and back to the chat alone.
   The request `ui-final-walk` of 2026-11-05 walked a live report, Pause, Resume and
-  Stop there by hand, which no test keeps. Of a configuring agent, that model scripts
+  Close there by hand, which no test keeps. Of a configuring agent, that model scripts
   one proposal, the cue "Show drafts and goals for this project.", and no document,
   and it has no hold of temper's own, so the gallery alone draws those states.
 - **Not yet:** 5.13, *The card in a chat*: a live proposal of temper's kinds draws its
