@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 4.6, *The program's environment*, and 3.5's command after its words: no such read; the command is `connect_model.rs`'s static one (`ui-walk-2/login-command`).
 - **Design departs:** 3.5, *Starting a goal from a chat's document*, and 5.14, from
   the request `ui-chat-draft` of 2026-11-05, decided by the answers that day to its
   tasks `goal-sheet-state` and `goal-sheet`: one sheet, `ui-goal-page`'s, where the
@@ -116,12 +115,6 @@
   card and its count. No live walk shows that card: the gallery's
   `configure-chat-proposal` draws it in a chat, and `needs-proposal` is a goal's.
   Section 11 holds the decision.
-- **Not yet:** 3.5, *Claude*, 5.5: the command is the same words whatever the box's
-  directories (`temper-client-view`'s `pages/connect_model.rs`, `command`), so on a
-  box given its own it refuses, where the answer of 2026-11-05 to the `ui-final-walk`
-  task `fix-flow` has it run as shown. The pinned fetch has run by hand only with the
-  three directories exported, to Claude Code's first sign-in prompt. Section 11
-  holds it, because it needs a fact no client is given.
 - **Not yet:** 3.5, *What the client keeps*, its held send: once, on a fake box at
   1440, a choice pressed just after Undo left the card, the count and the engine's
   question as they were after six seconds, and a repeat on a fresh box and the walk

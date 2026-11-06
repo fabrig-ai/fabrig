@@ -478,7 +478,7 @@ pub(super) fn program_body(b: &mut Builder, root: &Domain, w: &Words, bindings: 
         }
         b.close();
     }
-    command(b, w, &name, false);
+    command(b, w, &name, page.program_environment(), false);
     muted(b, &say(w, W::ProgramNote));
     button(
         b,
@@ -507,10 +507,19 @@ fn key_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
     button(b, bindings, &w.say(Word::ModelAddKey, &[]), Act::Submit { name: root.pages().account_name() }, busy, true);
     b.close();
 }
-pub(super) fn command(b: &mut Builder, w: &Words, name: &[u8], welcome: bool) {
+pub(super) fn command(b: &mut Builder, w: &Words, name: &[u8], environment: &[u8], welcome: bool) {
     b.open(Role::Code);
     b.style(if welcome { crate::look::WELCOME_CMD } else { crate::look::FLOW_CODE });
-    b.text(Run::Plain, &named(w, W::Command, name));
+    let command = named(w, W::Command, name);
+    let size = environment.len().checked_add(command.len()).expect("bounded command");
+    let size = size.checked_add(usize::from(!environment.is_empty())).expect("bounded command");
+    let mut words = skein_lib::Writer::new(size);
+    if !environment.is_empty() {
+        words.put(environment).expect("measured command");
+        words.put(b" ").expect("measured command");
+    }
+    words.put(&command).expect("measured command");
+    b.text(Run::Plain, &words.finish());
     b.close();
 }
 pub(super) fn ready_body(
@@ -544,7 +553,7 @@ pub(super) fn ready_body(
             );
             crate::cards::text(b, Role::Status, &label);
             text(b, w, Role::Paragraph, W::ProgramRun);
-            command(b, w, name, false);
+            command(b, w, name, page.program_environment(), false);
             text(b, w, Role::Paragraph, W::ProgramNote);
         }
         Way::SignIn { .. } => {
