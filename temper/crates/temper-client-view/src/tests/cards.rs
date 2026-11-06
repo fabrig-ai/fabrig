@@ -603,7 +603,8 @@ fn a_settings_proposal_s_reason_draws_its_markdown() {
     let tree = draw_settings(&root, &settings_card(&root), false);
     assert!(fixtures::person_find(&tree, Role::Heading { level: 5 }, b"temper enforces").is_some());
     assert!(fixtures::person_find(&tree, Role::Paragraph, b"No direct pushes.").is_some());
-    let reason = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_REASON)).unwrap();
+    let reason =
+        tree.nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_REASON)).unwrap();
     assert_eq!(reason.role, Role::Slot);
     let mut item_text = tree.nodes().iter().enumerate().filter(|(_, node)| node.role == Role::Item);
     for expected in [b"one".as_slice(), b"two", b"charter 2"] {

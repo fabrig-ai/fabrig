@@ -737,7 +737,7 @@ fn a_proposal_s_question_line_leaves_off_a_heading_s_marks() {
         let root = kinds(&[proposal_row(p)]);
         let card = root.pages().needs().shown(root.pages().inbox().unwrap()).unwrap();
         let asked = crate::pages::ask::read(card, &f::words());
-        assert_eq!(asked.short.as_ref(), expected.map(str::as_bytes).unwrap_or(&asked.title), "{reason}");
+        assert_eq!(asked.short.as_ref(), expected.map_or(asked.title.as_ref(), str::as_bytes), "{reason}");
         assert_eq!(styled(&f::browser_page_view(&root), look::FLOW_Q).name.as_deref(), Some(asked.short.as_ref()));
     }
 }
