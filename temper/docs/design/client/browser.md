@@ -1397,8 +1397,8 @@ from the engine's own answers, is where the look is tuned.
 | `welcome-model-forge-done` | Model at first run step 7, Forgejo connected, its marked Forge pane without Each step |
 | `welcome-model-forge-failed` | Model at first run step 9, Forgejo failed, its Forge pane and Each step |
 | `welcome-model-claude` | Claude’s welcome command and I’ve signed in, with no Name field |
-| `welcome-model-claude-checking` | the declaration or host check under way, its note and spinner |
-| `welcome-model-claude-not-yet` | the settled check without a usable login, its alert and another check |
+| `welcome-model-claude-checking` | the declaration or host check under way, the try's box at its first step |
+| `welcome-model-claude-not-yet` | the settled check without a usable login, the try's box stopped at its first step, Try again, Sign in again and Continue anyway |
 | `welcome-model-key-details` | the welcome's API key form, without an unsupported display-name field |
 | `welcome-model-connected` | a usable ChatGPT plan, its ticked status and Continue to Ready |
 | `welcome-model-away` | ChatGPT’s sign-in in this tab, its note and folded paste |
