@@ -1,0 +1,5 @@
+draft = "ui-owner-menu"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-owner-menu/inputs/request.md", "temper/crates/temper-client-view/src/frame.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
