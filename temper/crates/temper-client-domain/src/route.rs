@@ -167,6 +167,9 @@ pub(crate) fn route_forge(
 ) {
     for _ in 0..child.len() {
         match child.pop().expect("counted forge output") {
+            forge::Request::Repositories { project } => {
+                out.push(Request::Show { address: Address::Repositories { project }, replace: false });
+            }
             forge::Request::ConnectForge { forge } => {
                 let choice = Some(crate::Choice::Forge(forge));
                 let address = match root.pages.address() {
@@ -402,7 +405,8 @@ fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
-    let consumed = forge::away::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+    let consumed = forge::sheet::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+        || forge::away::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::dismissed::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::github::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
@@ -418,6 +422,7 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
             replace: false,
         });
     }
+    forge::sheet::progress(&mut root.forge, env.limits.forge, &mut child);
     route_forge(root, env, &mut child, out);
     if consumed
         && let jig_client::Told::Changed { handle } | jig_client::Told::Ended { handle, .. } = told

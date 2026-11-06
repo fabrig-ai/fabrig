@@ -365,7 +365,7 @@ and what its read answered:
 
 | Where | The form says |
 |---|---|
-| GitHub, an account whose installation has selected repositories | "Grant OWNER/NAME to temper's App on GitHub's installation page.", linked to that installation's page (5.5) |
+| GitHub, an account with an installation of temper's App | "Check OWNER/NAME exists, and grant it to temper's App on GitHub.", linked to `https://github.com/apps/SLUG/installations/new` where the client holds the App's slug, with no link otherwise; the page asks for the account |
 | GitHub, an account with no installation of temper's App | "temper's App is not installed on OWNER.", with "Install on another account" (5.4) |
 | Forgejo, connected | "Make LOGIN a collaborator with write on OWNER/NAME.", LOGIN the bot's |
 | Forgejo, managed or owned | nothing: adopting it grants the bot its access |
