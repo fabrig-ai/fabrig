@@ -778,9 +778,12 @@ for any presentation of a chat or of any agent task's activity.
   thread keeps each turn's line, since the client holds only the turn
   being written (8.3). A line keeps its text's start, up to the thread's
   `live` bound, so it only grows; past the bound it stays as it is until
-  its committed turn takes its place. A turn lost with its host never commits: its
-  provisional text is dropped when the run ends, and the next run
-  starts after the last committed turn.
+  its committed turn takes its place. A run's end takes no line away by
+  itself, since its committed turn may be a read away and a person may be
+  reading those words: once the run has ended and the committed activity has
+  been read, a line no committed turn replaced goes. That is a turn lost with
+  its host, which never commits, and the next run starts after the last
+  committed turn.
 - **A person's words, in three states:** being sent, while their
   `Message` is pending; sent, once its answer names their message in
   the task's inbox; read, once a committed turn says it read through
