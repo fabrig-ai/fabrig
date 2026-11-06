@@ -43,6 +43,9 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         Event::Forge(event) => forge(root, env, event, out),
         Event::SignInAddress { value } => pages(root, env, crate::pages::Event::SignInAddress { value }, out),
         Event::AccountKey { value } => pages(root, env, crate::pages::Event::AccountKey { value }, out),
+        Event::SignInKept { source, address, refused } => {
+            pages(root, env, crate::pages::Event::SignInKept { source, address, refused }, out);
+        }
         Event::TabRefused => crate::sign_in_tab::refused(root),
         Event::SignedOut => client(root, env, jig_client::Event::Up { up: jig_client::Up::SignedOut }, out),
     }
@@ -76,6 +79,7 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
         },
         crate::pages::Event::Started
         | crate::pages::Event::Left
+        | crate::pages::Event::SignInKept { .. }
         | crate::pages::Event::SignInAddress { .. }
         | crate::pages::Event::AccountKey { .. }
         | crate::pages::Event::Went { .. }

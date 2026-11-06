@@ -135,7 +135,7 @@ impl ConnectModel {
     /// Whether the shell refused this sign-in's tab (temper/docs/design/client/README.md, 3.5).
     #[must_use]
     pub const fn tab_refused(&self) -> bool {
-        self.tab_refused
+        self.tab_refused || self.request.kept_refused()
     }
     pub(crate) fn changing_way(&mut self, current: &Address, next: &Address) {
         if let Address::ConnectModel { .. } = current

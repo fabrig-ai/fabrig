@@ -52,6 +52,7 @@ fn opened(role: bool) -> (d::Domain, Token, Option<Token>) {
         | d::Request::Leave { .. }
         | d::Request::SignOut
         | d::Request::Dropped { .. }
+        | d::Request::KeepSignIn { .. }
         | d::Request::Tab { .. }
         | d::Request::Fact { .. } => None,
     });

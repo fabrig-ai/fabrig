@@ -34,6 +34,7 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Fact { .. } => None,
         })
@@ -87,6 +88,7 @@ fn deliver_forges(host: &mut Host, forges: &temper_client_protocol_wire::v1::For
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Fact { .. } => None,
         })
@@ -141,6 +143,7 @@ fn send(host: &mut Host, name: &[u8]) -> Token {
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Fact { .. } => None,
         })

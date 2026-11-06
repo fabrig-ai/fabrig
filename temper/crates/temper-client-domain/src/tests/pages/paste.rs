@@ -293,6 +293,14 @@ fn signing_in_points_its_tab_only_once() {
     );
     assert_eq!(
         result.pop(),
+        Some(crate::Request::KeepSignIn {
+            source: 43,
+            address: b"https://issuer.test/start".as_slice().into(),
+            refused: false
+        })
+    );
+    assert_eq!(
+        result.pop(),
         Some(crate::Request::Show {
             address: Address::ConnectModel {
                 way: Some(crate::ModelWay { provider: 17, kind: crate::WayKind::SignIn, source: Some(43) })
@@ -324,6 +332,14 @@ fn an_answer_at_welcome_ready_points_without_an_address_move() {
     assert_eq!(
         result.pop(),
         Some(crate::Request::Tab { tab: crate::Tab::Point { to: b"https://issuer.test/start".as_slice().into() } })
+    );
+    assert_eq!(
+        result.pop(),
+        Some(crate::Request::KeepSignIn {
+            source: 43,
+            address: b"https://issuer.test/start".as_slice().into(),
+            refused: false
+        })
     );
     assert!(result.is_empty(), "an answer at Ready asks no address change");
     assert_eq!(root.pages().address(), &Address::Welcome { step: crate::Step::Ready });

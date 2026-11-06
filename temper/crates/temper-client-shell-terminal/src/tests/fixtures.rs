@@ -439,6 +439,7 @@ fn populate_page(
             }
             Request::Client { .. }
             | Request::Unlinked { .. }
+            | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Leave { .. }
             | Request::SignOut

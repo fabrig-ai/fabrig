@@ -6,16 +6,23 @@ use skein_lib::Queue;
 
 pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
     let Told::Answered { key, outcome } = told else { return };
-    if root.tab != Some(*key) {
+    let pointing = root.tab == Some(*key);
+    let waiting = awaiting(root, *key);
+    if !pointing && !waiting {
         return;
     }
-    root.tab = None;
-    if root.pages.sign_in_key() == Some(*key)
+    if pointing {
+        root.tab = None;
+    }
+    if waiting
         && let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
             c::DocumentOutcome::AccountSignInStarted { source, address },
         )))) = outcome
     {
-        out.push(Request::Tab { tab: Tab::Point { to: address.clone() } });
+        if pointing {
+            out.push(Request::Tab { tab: Tab::Point { to: address.clone() } });
+        }
+        out.push(Request::KeepSignIn { source: *source, address: address.clone(), refused: !pointing });
         let mut address = root.pages.address().clone();
         match &mut address {
             Address::ConnectModel { way: Some(way) } | Address::Welcome { step: Step::Model { way: Some(way) } } => {
@@ -41,7 +48,7 @@ pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
             | Address::Configure { .. }
             | Address::Adopt { .. } => {}
         }
-    } else {
+    } else if pointing {
         out.push(Request::Tab { tab: Tab::Close });
     }
 }
@@ -55,4 +62,15 @@ pub(crate) fn refused(root: &mut Domain) {
         page.tab_refused = true;
         root.tab_revision = root.tab_revision.checked_add(1).expect("tab revisions fit");
     }
+}
+
+fn awaiting(root: &Domain, key: jig_client::Key) -> bool {
+    let request = if let Some(page) = root.pages.connect_model() {
+        &page.request
+    } else {
+        let Some(page) = root.pages.accounts() else { return false };
+        &page.request
+    };
+    let Some(pending) = &request.pending else { return false };
+    pending.key == key && pending.outcome.is_none()
 }

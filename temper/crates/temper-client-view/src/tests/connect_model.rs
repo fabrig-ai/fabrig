@@ -212,6 +212,7 @@ pub(super) fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Fact { .. } => None,
         })
@@ -929,6 +930,78 @@ fn ended_sign_ins_remove_the_note_on_both_pages() {
                 assert!(text.contains(message), "{text}");
                 assert!(!text.contains("Go forward to that page"));
             }
+        }
+    }
+}
+
+#[test]
+fn a_reloaded_source_reads_only_its_kept_address_and_refusal() {
+    for welcome in [false, true] {
+        for (source, refused) in [(43, false), (43, true), (44, true)] {
+            let way = Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::SignIn, source: Some(43) });
+            let address = if welcome {
+                d::Address::Welcome { step: d::Step::Model { way } }
+            } else {
+                d::Address::ConnectModel { way }
+            };
+            let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
+            fixtures::root_event(&mut root, d::Event::Went { place: d::Place::Address(address) });
+            let mut view = fixtures::browser_page_view(&root);
+            fixtures::root_event(
+                &mut root,
+                d::Event::SignInKept {
+                    source,
+                    address: Box::from(b"https://issuer.example/visit".as_slice()),
+                    refused,
+                },
+            );
+            for delivered in [false, true] {
+                if delivered {
+                    let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn);
+                    doc.usable = false;
+                    doc.accounts.clear();
+                    doc.signing.get_mut(0).unwrap().source = 43;
+                    super::accounts::deliver(&mut root, watch, doc);
+                }
+                let page = root.pages().connect_model().unwrap();
+                assert_eq!(
+                    page.request.sign_in_address(root.client()),
+                    (source == 43).then_some(b"https://issuer.example/visit".as_slice())
+                );
+                assert_eq!(page.tab_refused(), source == 43 && refused);
+                let tree = fixtures::build(&mut view, &root);
+                assert!(fixtures::find(tree, Role::Button, b"Continue with ChatGPT").is_none());
+                let name =
+                    if source == 43 && refused { "Open ChatGPT’s sign-in ›".as_bytes() } else { b"Open it again" };
+                let link = fixtures::find(tree, Role::Link, name);
+                assert_eq!(link.is_some(), source == 43);
+                if let Some(link) = link {
+                    let node = tree.nodes().iter().find(|node| node.id == link).unwrap();
+                    assert_eq!(node.external.as_deref(), Some(b"https://issuer.example/visit".as_slice()));
+                    assert!(node.styles.as_slice().contains(&if refused {
+                        crate::look::FLOW_PRIMARY
+                    } else {
+                        crate::look::WELCOME_AGAIN
+                    }));
+                    let title =
+                        if refused { "ChatGPT’s sign-in" } else { "Waiting for ChatGPT’s sign-in, in the new tab" };
+                    assert!(fixtures::find(tree, Role::Status, title.as_bytes()).is_some());
+                }
+            }
+            let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn);
+            doc.usable = false;
+            doc.accounts.clear();
+            doc.signing.clear();
+            super::accounts::deliver(&mut root, watch, doc);
+            fixtures::build(&mut view, &root);
+            assert!(fixtures::find(view.tree(), Role::Button, b"Continue with ChatGPT").is_some());
+            assert!(
+                !view
+                    .tree()
+                    .nodes()
+                    .iter()
+                    .any(|node| node.external.as_deref() == Some(b"https://issuer.example/visit"))
+            );
         }
     }
 }

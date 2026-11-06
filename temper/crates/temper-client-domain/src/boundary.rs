@@ -12,14 +12,34 @@ pub enum Action {
 #[derive(Debug)]
 pub enum Event {
     Forge(crate::forge::Event),
-    Start { address: Address, kept: List<jig_client::Record>, with: Option<jig_client::With> },
-    Went { place: Place },
-    Act { action: Action },
-    Client { event: jig_client::Event },
-    AccountKey { value: skein_lib::Secret },
-    SignInAddress { value: skein_lib::Secret },
+    Start {
+        address: Address,
+        kept: List<jig_client::Record>,
+        with: Option<jig_client::With>,
+    },
+    Went {
+        place: Place,
+    },
+    Act {
+        action: Action,
+    },
+    Client {
+        event: jig_client::Event,
+    },
+    AccountKey {
+        value: skein_lib::Secret,
+    },
+    SignInAddress {
+        value: skein_lib::Secret,
+    },
     SignedOut,
     TabRefused,
+    /// The browser's kept sign-in address (client/README.md, 7).
+    SignInKept {
+        source: u32,
+        address: Box<[u8]>,
+        refused: bool,
+    },
 }
 /// Bounded routing and child facts for the shell to observe.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -39,6 +59,12 @@ pub enum Tab {
 /// One shell obligation; keyed sends come only from the table.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
+    /// Keep an answered sign-in beside the client's records (client/README.md, 7).
+    KeepSignIn {
+        source: u32,
+        address: Box<[u8]>,
+        refused: bool,
+    },
     Tab {
         tab: Tab,
     },
