@@ -13,6 +13,7 @@ jig-client.workspace = true
 skein-lib.workspace = true
 skein-ui.workspace = true
 temper-client-domain.workspace = true
+temper-docs.workspace = true
 temper-client-protocol-wire.workspace = true
 
 [lints]

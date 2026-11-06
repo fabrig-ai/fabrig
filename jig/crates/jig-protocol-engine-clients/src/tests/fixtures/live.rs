@@ -109,6 +109,7 @@ pub fn inbox_cursor() -> d::Cursor {
 }
 pub fn inbox_entry() -> d::InboxEntry {
     d::InboxEntry {
+        projects: List::with_capacity(0),
         reply: Some(Box::new(tasks_document().lines.get(0).expect("fixture line").clone())),
         task: d::TaskLink::Stored { number: 7, status: Some(t::Status::Failed) },
         project: Some(7),

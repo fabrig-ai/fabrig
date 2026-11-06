@@ -3,6 +3,6 @@ Plan: I’ll add a `--csv` output-mode option to the Rust CLI in `src/main.rs`, 
 read whole: temper ctl DIR task activity 1
 answer: temper ctl DIR task answer 1 2 TEXT
 1 · task
-digest: inbox dbc9e89f88287cbd
+digest: inbox a60ea874cf12f94f
 read on with: inbox --after 011122
 met

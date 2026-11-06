@@ -149,6 +149,17 @@ fn a_filter_by_project_shows_only_that_projects_entries() {
         },
         &mut out,
     );
+    // Filtered sections are applied together.
+    let updates = root.pages().inbox().unwrap().queries[1];
+    crate::route::told(
+        &mut root,
+        &fixtures::env(&fixtures::limits()),
+        jig_client::Told::Page {
+            handle: updates,
+            page: jig_client::Readout::Jig(contract::ReadResult::None(contract::ReadNone::Busy)),
+        },
+        &mut out,
+    );
     assert_eq!(reads(&mut out).as_ref(), [Read::PersonTask { task: TASK }]);
 }
 #[test]
@@ -194,6 +205,7 @@ fn a_filter_by_goal_shows_only_entries_below_it() {
         },
         &mut out,
     );
+    section(&mut root, 1, None);
     assert_eq!(
         root.pages().inbox().expect("home").cards.get(0).expect("selected card").object,
         ObjectKey::PersonTask(BELOW_TASK)
@@ -332,6 +344,7 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
             let mut updates = List::with_capacity(1);
             updates
                 .push(contract::InboxEntry {
+                    projects: List::with_capacity(0),
                     reply: Some(Box::new(line.clone())),
                     task: contract::TaskLink::Live(line.chip.clone()),
                     project: Some(PROJECT),
@@ -419,4 +432,238 @@ fn filtered_cut_is_kept_for_each_section_and_both_page_shapes() {
         }
         assert_eq!(root.pages().inbox().unwrap().cut, [false, true]);
     }
+}
+
+fn section(root: &mut crate::Domain, index: usize, rows: Option<List<contract::InboxEntry>>) {
+    let handle = root.pages().inbox().unwrap().queries[index];
+    let result = match rows {
+        Some(rows) => contract::ReadResult::Value(contract::ReadValue::Inbox(Box::new(contract::InboxPage {
+            rows,
+            cut: false,
+            before: None,
+            after: None,
+            selection: None,
+        }))),
+        None => contract::ReadResult::None(contract::ReadNone::Busy),
+    };
+    page(root, handle, result);
+}
+fn page(root: &mut crate::Domain, handle: jig_client::Handle, result: contract::ReadResult) {
+    crate::route::told(
+        root,
+        &fixtures::env(&fixtures::limits()),
+        jig_client::Told::Page { handle, page: jig_client::Readout::Jig(result) },
+        &mut Queue::uncapped(),
+    );
+}
+fn filtered() -> Filter {
+    Filter { project: Some(PROJECT), ..Filter::ALL }
+}
+fn question_rows() -> List<contract::InboxEntry> {
+    rows(fixtures::acts::QUESTION, InboxGroup::Questions, PROJECT)
+}
+fn ready(filter: Filter) -> (crate::Domain, skein_lib::Token) {
+    let (mut root, watch) = fixtures::inbox_home(filter);
+    fixtures::inbox_entries(&mut root, watch, question_rows());
+    if filter.project.is_some() {
+        section(&mut root, 0, Some(question_rows()));
+        section(&mut root, 1, Some(rows(ObjectKey::Result(TASK), InboxGroup::Results, PROJECT)));
+    }
+    let cards = &root.pages().inbox().unwrap().cards;
+    let mut handles = List::with_capacity(cards.len());
+    for card in cards {
+        handles.push(card.handle).unwrap();
+    }
+    for handle in &handles {
+        page(&mut root, *handle, contract::ReadResult::Value(fixtures::acts::question()));
+    }
+    (root, watch)
+}
+fn objects(root: &crate::Domain) -> Box<[ObjectKey]> {
+    let cards = &root.pages().inbox().unwrap().cards;
+    let mut objects = List::with_capacity(cards.len());
+    for card in cards {
+        objects.push(card.object).unwrap();
+    }
+    objects.into_boxed()
+}
+#[test]
+fn a_refresh_keeps_each_cards_page_until_its_read_answers() {
+    let (mut root, watch) = ready(Filter::ALL);
+    fixtures::inbox_entries(&mut root, watch, question_rows());
+    let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+    assert_eq!(card.page, Some(fixtures::acts::question()));
+    assert!(!root.pages().inbox().unwrap().delivered(root.client()));
+    let handle = card.handle;
+    page(&mut root, handle, contract::ReadResult::Value(fixtures::acts::person(contract::ActKind::Take)));
+    assert_eq!(
+        root.pages().inbox().unwrap().cards.get(0).unwrap().page,
+        Some(fixtures::acts::person(contract::ActKind::Take))
+    );
+    assert!(root.pages().inbox().unwrap().delivered(root.client()));
+}
+#[test]
+fn a_failed_read_keeps_the_page_it_had() {
+    let (mut root, watch) = ready(Filter::ALL);
+    fixtures::inbox_entries(&mut root, watch, question_rows());
+    let handle = root.pages().inbox().unwrap().cards.get(0).unwrap().handle;
+    page(&mut root, handle, contract::ReadResult::None(contract::ReadNone::Busy));
+    assert_eq!(root.pages().inbox().unwrap().cards.get(0).unwrap().page, Some(fixtures::acts::question()));
+    assert!(root.pages().inbox().unwrap().delivered(root.client()));
+}
+#[test]
+fn a_filtered_refresh_keeps_the_cards_until_both_reads_answer() {
+    for first in [0, 1] {
+        let (mut root, watch) = ready(filtered());
+        let before = objects(&root);
+        fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+        assert_eq!(objects(&root), before);
+        section(&mut root, first, Some(List::with_capacity(0)));
+        assert_eq!(objects(&root), before);
+        for card in &root.pages().inbox().unwrap().cards {
+            assert!(card.page.is_some());
+        }
+        assert!(!root.pages().inbox().unwrap().delivered(root.client()));
+        section(&mut root, 1 - first, Some(List::with_capacity(0)));
+        assert!(objects(&root).is_empty());
+        assert!(root.pages().inbox().unwrap().delivered(root.client()));
+    }
+}
+#[test]
+fn a_failed_section_read_keeps_that_sections_cards() {
+    for failed in [0, 1] {
+        let (mut root, watch) = ready(filtered());
+        let kept = objects(&root)[failed];
+        fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+        section(&mut root, failed, None);
+        section(&mut root, 1 - failed, Some(List::with_capacity(0)));
+        assert_eq!(objects(&root).as_ref(), [kept]);
+        assert_eq!(root.pages().inbox().unwrap().cards.get(0).unwrap().page, Some(fixtures::acts::question()));
+    }
+}
+#[test]
+fn a_card_gone_from_the_rows_leaves_at_the_swap() {
+    let (mut root, watch) = ready(filtered());
+    fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+    section(&mut root, 0, Some(List::with_capacity(0)));
+    assert!(objects(&root).contains(&fixtures::acts::QUESTION));
+    section(&mut root, 1, None);
+    assert!(!objects(&root).contains(&fixtures::acts::QUESTION));
+    let out = fixtures::acts::act(
+        &mut root.pages,
+        Act::Needs(crate::pages::needs::Act::Choose {
+            object: fixtures::acts::QUESTION,
+            words: Box::from(b"stale".as_slice()),
+        }),
+    );
+    assert!(out.is_empty());
+    assert!(!root.pages().needs().held(fixtures::acts::QUESTION));
+}
+#[test]
+fn overlapping_filtered_refreshes_show_the_newest_rows() {
+    let (mut root, watch) = ready(filtered());
+    fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+    section(&mut root, 0, Some(List::with_capacity(0)));
+    fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+    section(&mut root, 0, Some(question_rows()));
+    section(&mut root, 1, Some(List::with_capacity(0)));
+    assert_eq!(objects(&root).as_ref(), [fixtures::acts::QUESTION]);
+    // Reused handles can deliver the newer read after the first pair swaps.
+    section(&mut root, 0, Some(rows(ObjectKey::PersonTask(BELOW_TASK), InboxGroup::PersonTasks, PROJECT)));
+    assert_eq!(objects(&root).as_ref(), [ObjectKey::PersonTask(BELOW_TASK)]);
+}
+
+#[test]
+fn a_waiting_confirmation_survives_its_row_leaving() {
+    let (mut root, watch) = ready(Filter::ALL);
+    let key = jig_client::Key { asker: crate::owner::Owner::Pages.asker(), number: 1 };
+    root.pages.inbox.as_mut().unwrap().cards.get_mut(0).unwrap().key = Some(key);
+    fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+    assert_eq!(objects(&root).as_ref(), [fixtures::acts::QUESTION]);
+    let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+    assert_eq!(card.key, Some(key));
+    assert_eq!(card.page, Some(fixtures::acts::question()));
+}
+
+fn settings_rows() -> List<contract::InboxEntry> {
+    let key = contract::ProposalKey { proposer: contract::Proposer::Task(TASK), number: MESSAGE };
+    let mut entries = rows(ObjectKey::Proposal(key), InboxGroup::Proposals, 0);
+    let row = entries.get_mut(0).unwrap();
+    row.projects = List::with_capacity(2);
+    row.projects.push(PROJECT).unwrap();
+    row.projects.push(OTHER_PROJECT).unwrap();
+    entries
+}
+#[test]
+fn a_settings_proposal_is_read_in_each_project_it_shows_in() {
+    for project in [PROJECT, OTHER_PROJECT] {
+        let (mut root, watch) = fixtures::inbox_home(Filter { project: Some(project), ..Filter::ALL });
+        let mut out = fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+        let handle = root.pages().inbox().unwrap().queries[0];
+        crate::route::told(
+            &mut root,
+            &fixtures::env(&fixtures::limits()),
+            jig_client::Told::Page {
+                handle,
+                page: jig_client::Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Inbox(Box::new(
+                    contract::InboxPage {
+                        rows: settings_rows(),
+                        cut: false,
+                        before: None,
+                        after: None,
+                        selection: None,
+                    },
+                )))),
+            },
+            &mut out,
+        );
+        section(&mut root, 1, Some(List::with_capacity(0)));
+        let cards = &root.pages().inbox().unwrap().cards;
+        assert_eq!(cards.len(), 1, "project {project} must show the settings proposal");
+        assert_eq!(cards.get(0).unwrap().project, Some(0), "the decision stays deployment-scoped");
+    }
+}
+#[test]
+fn a_failed_refresh_keeps_a_settings_proposal_in_each_project_it_shows_in() {
+    for project in [PROJECT, OTHER_PROJECT] {
+        let (mut root, watch) = fixtures::inbox_home(Filter { project: Some(project), ..Filter::ALL });
+        fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+        section(&mut root, 0, Some(settings_rows()));
+        section(&mut root, 1, Some(List::with_capacity(0)));
+        let before = objects(&root);
+        assert_eq!(before.len(), 1);
+
+        fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+        section(&mut root, 0, None);
+        section(&mut root, 1, Some(List::with_capacity(0)));
+        assert_eq!(objects(&root), before, "project {project} keeps the settings proposal");
+        assert_eq!(root.pages().inbox().unwrap().cards.get(0).unwrap().project, Some(0));
+    }
+}
+#[test]
+fn the_rail_counts_a_settings_proposal_in_each_project_it_shows_in() {
+    let mut root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+    let me = fixtures::start(&mut root, List::with_capacity(0));
+    let out = super::welcome::deliver(&mut root, me, contract::Delivery::Me(Box::new(fixtures::chats::me())));
+    let mut watch = None;
+    for request in &out {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Open {
+                            watch: token,
+                            subject: jig_client::Watchable::Jig(contract::Subject::Inbox { .. }),
+                        },
+                },
+        } = request
+        {
+            watch = Some(*token);
+        }
+    }
+    fixtures::inbox_entries(&mut root, watch.expect("standing inbox watch"), settings_rows());
+    for project in [PROJECT, OTHER_PROJECT] {
+        assert_eq!(root.pages().needs().count(root.client(), project).count, 1, "project {project}");
+    }
+    assert_eq!(root.pages().needs().count(root.client(), 3).count, 0);
 }

@@ -1,5 +1,5 @@
 //! Orders beside the service's room checks (hearth/docs/design/domain/render.md, 8.5).
-use hearth_builder_world::{fixtures, simulated};
+use hearth_builder_world::{fixtures, protocol, simulated};
 use hearth_lib::encode::Digest;
 use skein_io::kernel::{Done, Exit};
 use skein_sim::{Event, Summary, Text};
@@ -8,6 +8,17 @@ use super::bounds;
 
 // The task's smallest, intermediate and roomy service queues.
 const QUEUES: [u32; 3] = [bounds::QUEUE, 32, 4_096];
+
+#[test]
+fn a_client_s_output_has_one_demand_out_whatever_the_chunk() {
+    let mut limits = hearth::limits();
+    limits.protocol.printer.chunk = 16;
+    for seed in 0..2 {
+        let run = protocol::with_limits(&fixtures::thin(), seed, &limits);
+        assert_eq!(run.stdout, fixtures::THIN_TEXT.as_bytes(), "seed {seed}: the records whole, at 16 bytes a piece");
+        assert_eq!(run.code, Some(0), "seed {seed}: done");
+    }
+}
 
 fn laid() -> [fixtures::Laid; 2] {
     [1_u8, 2]

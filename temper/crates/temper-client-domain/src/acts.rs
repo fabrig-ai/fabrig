@@ -153,8 +153,10 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::StartOver
         | Act::DelegateFate { .. }
         | Act::Older
+        | Act::Latest
         | Act::ChatWords { .. }
         | Act::StartChat
+        | Act::ShowReference
         | Act::Starter { .. }
         | Act::SkipToBegin
         | Act::RetryPlayground

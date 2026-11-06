@@ -23,6 +23,19 @@ fn the_looks_names_pass_skeins_check() {
         assert_eq!(NAMES.style(token), Some(name));
     }
 }
+#[test]
+fn model_try_styles_keep_their_names_beside_configuring_styles() {
+    for (style, name) in [
+        (STARTER_HEAD, b"temper-starter-head".as_slice()),
+        (DOC_FIGURES, b"temper-doc-figures"),
+        (WELCOME_CHECK, b"temper-welcome-check"),
+        (WELCOME_CHECK_STOPPED, b"temper-welcome-check-stopped"),
+        (WELCOME_CHECK_FAILED, b"temper-welcome-check-failed"),
+        (WELCOME_CHECK_WHY, b"temper-welcome-check-why"),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
+}
 const FLOW_NAMES: [(skein_ui::Style, &[u8]); 27] = [
     (WELCOME_CHECK, b"temper-welcome-check"),
     (WELCOME_CHECK_WHY, b"temper-welcome-check-why"),
@@ -380,25 +393,9 @@ fn the_conversation_tokens_stay_on_their_roles() {
     let proposal = fixtures::page_view(&fixtures::chat::proposal_root());
     let composer = fixtures::page_view(&fixtures::chat::messaging_root());
     let agent = agent_composer();
-    for token in [
-        AGENT_PAGE,
-        TASKBAR,
-        THREAD,
-        MESSAGE,
-        BY_PERSON,
-        BY_AGENT,
-        BY_TOOL,
-        BY_SYSTEM,
-        WHO,
-        SAYS,
-        WORK,
-        MARKER,
-        CARDS,
-        COMPOSER_AREA,
-    ] {
+    for token in [AGENT_PAGE, TASKBAR, THREAD, MESSAGE, BY_PERSON, BY_AGENT, WHO, SAYS, WORK, CARDS, COMPOSER_AREA] {
         let role = match token {
             AGENT_PAGE => Role::Main,
-            MARKER => Role::Region,
             CARDS => Role::List,
             _ => Role::Slot,
         };
@@ -599,6 +596,15 @@ fn configuring_opening_and_needs_have_their_css_names() {
         (STARTER_NOTE, b"temper-starter-note"),
         (STARTER_WAYS, b"temper-starter-ways"),
         (STARTER_UNSURE, b"temper-starter-unsure"),
+        (STARTER_HEAD, b"temper-starter-head"),
+        (STARTER_OWN, b"temper-starter-own"),
+        (STARTER_OWN_TEXT, b"temper-starter-own-text"),
+        (STARTER_OWN_TITLE, b"temper-starter-own-title"),
+        (STARTER_OWN_STEPS, b"temper-starter-own-steps"),
+        (STARTER_OWN_ACTS, b"temper-starter-own-acts"),
+        (DOC_SUB, b"temper-doc-sub"),
+        (DOC_FLOW, b"temper-doc-flow"),
+        (DOC_FIGURES, b"temper-doc-figures"),
         (TOAST, b"temper-toast"),
         (NEEDS, b"temper-needs"),
     ] {
@@ -670,6 +676,30 @@ fn decision_tokens_name_the_away_rows() {
         (DECISION_WHY, b"temper-decision-why"),
         (DECISION_LATE, b"temper-decision-late"),
         (DECISION_OVERTURNED, b"temper-decision-overturned"),
+    ] {
+        assert_eq!(NAMES.style(token), Some(name));
+    }
+}
+
+#[test]
+fn work_tokens_name_the_line_and_its_rows() {
+    for (token, name) in [
+        (WORK_RUN, b"temper-work-run".as_slice()),
+        (WORK_RUNNING, b"temper-work-running"),
+        (WORK_FAILED, b"temper-work-failed"),
+        (WORK_CALLS, b"temper-work-calls"),
+        (WORK_OUT, b"temper-work-out"),
+    ] {
+        assert_eq!(NAMES.style(token), Some(name));
+    }
+}
+
+#[test]
+fn the_writing_end_and_reading_controls_have_their_css_names() {
+    for (token, name) in [
+        (WRITING_END, b"temper-writing-end".as_slice()),
+        (LATEST, b"temper-latest"),
+        (THREAD_LOADING, b"temper-thread-loading"),
     ] {
         assert_eq!(NAMES.style(token), Some(name));
     }

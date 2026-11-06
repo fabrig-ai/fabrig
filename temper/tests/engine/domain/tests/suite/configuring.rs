@@ -110,6 +110,205 @@ fn project_people_world(mode: temper_engine_domain_forge::Mode, login: &[u8]) ->
     (world, member)
 }
 
+fn box_approval_world() -> World {
+    use skein_fake_forge_domain::api::Permission;
+    let (mut config, mut bounds) = project_people_setup(temper_engine_domain_forge::Mode::Owned, b"ada");
+    for owner in &mut config.core.owners {
+        owner.identity = people::IdentityKey { provider: 3, subject: b"box-owner".as_slice().into() };
+    }
+    bounds.people.requests = 16; // Account, adoption, chat, turns and decisions.
+    let mut world = World::with_limits(config, &bounds);
+    let mut forge = temper_engine_domain_world::forge_stand::ForgeStand::with(&[(b"org", b"repo", 2)]);
+    for user in [2, 7] {
+        forge.grant(b"org/repo", user, Permission::None);
+    }
+    world.driver.forge = Some(forge);
+    adopt_repository(&mut world, PROJECT, b"repo", 28);
+    world
+}
+
+fn approval_items(world: &mut World, run: &engine::Assignment, completion: u32, role: u32) -> serde_json::Value {
+    use serde_json::json;
+    let setting = json!({"kind":"landing-rule","number":1});
+    let (text, _) = read_whole(&mut world.driver, run, completion, json!({"setting":setting}));
+    let (_, text) = text.split_once('\n').expect("landing rule heading");
+    let mut landing = serde_json::Deserializer::from_str(text)
+        .into_iter::<serde_json::Value>()
+        .next()
+        .expect("rule before application status")
+        .expect("landing rule JSON");
+    landing["approvals"] = json!([{"role":role,"people":1,"freshness":"exact"}]);
+    json!([{"setting":setting,"set":landing}])
+}
+
+fn refuse_owner_approval(world: &mut World, run: &engine::Assignment, proposal: u64, key: u8) {
+    world.ask(
+        world.owner,
+        key,
+        people::Ask::DecideProposal {
+            project: people::DEPLOYMENT,
+            proposer: people::Proposer::Task(run.task),
+            proposal,
+            decision: people::ProposalDecision::Accept,
+            running: Some(people::Running::Stays),
+        },
+    );
+    let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) = world.reply(key) else {
+        panic!("unsatisfiable approval refused: {:?}", world.reply(key))
+    };
+    let why = std::str::from_utf8(why).expect("refusal UTF-8");
+    assert!(why.contains("project 1 role 0 requires 1 distinct known forge people; currently 0 eligible"), "{why}");
+    assert_eq!(world.head().number, 1, "refused acceptance changes nothing");
+}
+
+fn approval_context(world: &mut World, run: &engine::Assignment) {
+    use serde_json::json;
+    let (inventory, _) = read_whole(&mut world.driver, run, 1, json!({}));
+    assert!(
+        inventory.contains("person 1 person: role 0, requester, forge identity unknown: cannot count for approvals"),
+        "{inventory}"
+    );
+    assert!(
+        inventory.contains(
+            "forge forge.example:3847 configured owned-forge account ada; project membership unverified by this row"
+        ),
+        "{inventory}"
+    );
+    let policy = read_value(&mut world.driver, run, 10, json!({"setting":{"kind":"project-policy","project":PROJECT}}));
+    assert!(
+        policy["permissions"]
+            .as_array()
+            .expect("permission mapping")
+            .iter()
+            .any(|row| row == &json!({"connector":1,"permission":3,"role":1})),
+        "{policy}"
+    );
+    approval_documentation(world, run);
+    let words = std::str::from_utf8(&run.run.policy.instructions).expect("stock instructions");
+    for rule in [
+        "requester is the project party",
+        "configured owned-forge account is separate",
+        "existing verified project role",
+        "read the current project-policy permission mapping",
+        "admin seeds maintainer (1), never owner (0)",
+        "Never promise admin fixes a role-0 proposal",
+        "adopt again, reread inventory and propose afresh",
+    ] {
+        assert!(words.contains(rule), "missing stock rule: {rule}");
+    }
+}
+
+fn approval_documentation(world: &mut World, run: &engine::Assignment) {
+    use serde_json::json;
+    let mut from = 0;
+    let mut documentation = String::new();
+    for completion in 20..30 {
+        let (body, error) = host_tool(
+            &mut world.driver,
+            run,
+            completion,
+            b"read_docs",
+            json!({"topic":"landing-rule","from":from}).to_string().as_bytes(),
+        );
+        assert!(!error);
+        let page = std::str::from_utf8(&body).expect("documentation UTF-8");
+        documentation.push_str(page);
+        if let Some((_, next)) = page.rsplit_once("next: ") {
+            from = next.trim().parse::<u32>().expect("documentation offset");
+        } else {
+            break;
+        }
+    }
+    assert!(documentation.contains("Stock maps admin to maintainer (1)"), "{documentation}");
+}
+
+#[test]
+fn a_box_inventory_distinguishes_the_requester_from_the_forge_approver() {
+    let mut world = box_approval_world();
+    let run = world.chat_words(CONFIGURING, world.owner, 20, b"Keep CI and agent review. Ask who else should approve.");
+    world.ask(
+        world.owner,
+        21,
+        people::Ask::Say {
+            project: PROJECT,
+            task: run.task,
+            words: b"A person too, please: me for now.".as_slice().into(),
+        },
+    );
+    let run = world.next(&run);
+    heard_approval_turn(&mut world, &run, b"A person too, please: me for now.");
+    approval_context(&mut world, &run);
+    let items = approval_items(&mut world, &run, 40, 0);
+    let proposal = propose(&mut world.driver, &run, 41, 1, &items);
+    refuse_owner_approval(&mut world, &run, proposal, 22);
+    world.ask(
+        world.owner,
+        23,
+        people::Ask::Say {
+            project: PROJECT,
+            task: run.task,
+            words: b"Acceptance was refused: role 0 has 0 eligible people.".as_slice().into(),
+        },
+    );
+    adopted_approval(&mut world, &run, proposal);
+}
+
+fn heard_approval_turn(world: &mut World, run: &engine::Assignment, expected: &[u8]) {
+    assert_heard(run, expected);
+    let read = run.messages.iter().map(|word| word.number).max();
+    let turn = world.driver.task(run.task).expect("live configuring chat").turn + 1;
+    world.driver.send(temper_engine_domain_world::protocol::turn(
+        CHANNEL,
+        run.task,
+        run.attempt,
+        turn,
+        0,
+        read,
+        b"Read the person's reply",
+    ));
+    world.driver.settle();
+}
+
+fn adopted_approval(world: &mut World, run: &engine::Assignment, proposal: u64) {
+    use serde_json::json;
+    world.driver.forge.as_mut().expect("fake forge").grant(
+        b"org/repo",
+        2,
+        skein_fake_forge_domain::api::Permission::Admin,
+    );
+    adopt_repository(world, PROJECT, b"repo", 29);
+    world.ask(
+        world.owner,
+        24,
+        people::Ask::Say {
+            project: PROJECT,
+            task: run.task,
+            words: b"Done: I am a collaborator on the forge with admin permission and adopted again.".as_slice().into(),
+        },
+    );
+    let run = world.next(run);
+    heard_approval_turn(
+        world,
+        &run,
+        b"Done: I am a collaborator on the forge with admin permission and adopted again.",
+    );
+    let (inventory, _) = read_whole(&mut world.driver, &run, 50, json!({}));
+    assert!(inventory.contains("person 1 person: role 0, requester, forge identity unknown"), "{inventory}");
+    assert!(inventory.contains("person 3: role 1, forge user 2"), "{inventory}");
+    refuse_owner_approval(world, &run, proposal, 25);
+    world.decide(
+        &run,
+        proposal,
+        26,
+        people::ProposalDecision::Reject { reason: b"Use the verified maintainer role.".as_slice().into() },
+        people::Running::Stays,
+    );
+    let items = approval_items(world, &run, 60, 1);
+    let proposal = propose(&mut world.driver, &run, 61, 1, &items);
+    world.decide(&run, proposal, 27, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2, "fresh maintainer proposal accepted");
+}
+
 #[test]
 fn an_inventory_names_its_own_projects_people() {
     use serde_json::json;
@@ -123,7 +322,7 @@ fn an_inventory_names_its_own_projects_people() {
     let (_, people) = inventory.split_once("project people:\n").expect("project people block");
     assert_eq!(
         people,
-        "  person 1 person: role 0, you, forge user 7\n  person 4 member: role 2, forge user 8\n  person 5 temper-writer: role 2, forge user 1, temper's own forge writer: never counts as a person\n  person 7: role 2, forge user 2\nforge people:\n  forge forge.example:3847 person box-person\n",
+        "  person 1 person: role 0, requester, forge user 7\n  person 4 member: role 2, forge user 8\n  person 5 temper-writer: role 2, forge user 1, temper's own forge writer: never counts as a person\n  person 7: role 2, forge user 2\nforge people:\n  forge forge.example:3847 configured owned-forge account box-person; project membership unverified by this row\n",
         "{inventory}"
     );
     for forbidden in ["elsewhere", "deployment-service", "Private display name", "Person", "@"] {
@@ -157,9 +356,9 @@ fn a_members_chat_reads_the_same_people() {
     let (member, _) = read_whole(&mut world.driver, &member_run, 1, json!({}));
     let (_, owner) = owner.split_once("project people:\n").expect("owner's people block");
     let (_, member) = member.split_once("project people:\n").expect("member's people block");
-    assert!(owner.contains("person 1 person: role 0, you, forge user 7"), "{owner}");
-    assert!(member.contains("person 4 member: role 2, you, forge user 8"), "{member}");
-    assert_eq!(owner.replace(", you", ""), member.replace(", you", ""));
+    assert!(owner.contains("person 1 person: role 0, requester, forge user 7"), "{owner}");
+    assert!(member.contains("person 4 member: role 2, requester, forge user 8"), "{member}");
+    assert_eq!(owner.replace(", requester", ""), member.replace(", requester", ""));
 }
 
 #[test]

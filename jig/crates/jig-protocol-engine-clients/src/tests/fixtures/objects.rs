@@ -12,6 +12,7 @@ pub fn pending_proposal() -> d::Proposal {
         funding.push(d::FundingOffer { source, needed, left, after }).expect("two offers");
     }
     d::Proposal {
+        projects: List::with_capacity(0),
         acts: List::with_capacity(0),
         proposer: d::Proposer::Party(11),
         number: 13,

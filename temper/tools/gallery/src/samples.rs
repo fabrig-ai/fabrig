@@ -88,7 +88,11 @@ impl Sample {
     /// Opens a page-owned disclosure in the static print (client/browser.md, 7).
     #[must_use]
     pub fn open_disclosure(&self) -> Option<&[u8]> {
-        if self.name == "chat-byline-open" { Some(b"Change model") } else { None }
+        match self.name {
+            "chat-byline-open" => Some(b"Change model"),
+            "chat-work-open" => Some("Checked settings 3×, read 7 docs".as_bytes()),
+            _ => None,
+        }
     }
     /// Opens the rail menu through the page part in the static print (client/browser.md, 7).
     #[must_use]
@@ -100,7 +104,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 259;
+pub const N: usize = 274;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -112,6 +116,16 @@ fn task(task: u64) -> Address {
 #[expect(clippy::too_many_lines, reason = "one table keeps every named gallery state in its promised order")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "chat-work-done", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-open", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-running", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-writing", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-failed", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-one", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-unknown", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-separated", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-empty", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-work-reading", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample {
             name: "builders",
             world: Solo,
@@ -161,6 +175,12 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "home-morning",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-last-landed",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -416,6 +436,18 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample {
+            name: "configure-reference",
+            world: FirstRun { step: 7 },
+            address: Address::Configure { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "configure-reference-draft",
+            world: FirstRun { step: 7 },
+            address: Address::Configure { project: 1 },
+            then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Draft),
+        },
+        Sample {
             name: "configure-typing",
             world: FirstRun { step: 7 },
             address: Address::Configure { project: 1 },
@@ -464,6 +496,18 @@ pub fn samples() -> [Sample; N] {
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Draft),
         },
         Sample { name: "configure-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample {
+            name: "configure-chat-proposal-deployment",
+            world: Solo,
+            address: Address::Chat { task: 10 },
+            then: Shown,
+        },
+        Sample {
+            name: "configure-chat-proposal-two-projects",
+            world: Solo,
+            address: Address::Chat { task: 10 },
+            then: Shown,
+        },
         Sample { name: "configure-chat-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chat-accepted", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chat-replaced", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
@@ -1197,6 +1241,9 @@ fn start_domain(sample: &Sample) -> Domain {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name.starts_with("chat-work-") {
+        return crate::worlds::chat_work_world(sample.name);
+    }
     if sample.name == "chats-drafts" {
         return crate::worlds::drafts_world();
     }
@@ -1571,7 +1618,14 @@ fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>)
 }
 
 fn configure_domain(sample: &Sample) -> Domain {
-    if matches!(sample.name, "configure-chat-proposal" | "configure-chat-accepted" | "configure-chat-replaced") {
+    if matches!(
+        sample.name,
+        "configure-chat-proposal"
+            | "configure-chat-proposal-deployment"
+            | "configure-chat-proposal-two-projects"
+            | "configure-chat-accepted"
+            | "configure-chat-replaced"
+    ) {
         return crate::worlds::settings_chat_world(sample.name);
     }
     if matches!(
@@ -1589,6 +1643,13 @@ fn configure_domain(sample: &Sample) -> Domain {
         return root;
     }
     let mut out = Queue::uncapped();
+    if sample.name.starts_with("configure-reference") {
+        step(&mut root, Event::Act { action: Action::Pages(Act::ShowReference) }, &mut out);
+        if let Then::Mode(mode) = sample.then {
+            step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut out);
+        }
+        return root;
+    }
     step(
         &mut root,
         Event::Act {
@@ -1865,6 +1926,7 @@ fn home_domain(name: &str) -> Domain {
         "home-away"
         | "home-away-one"
         | "home-away-overturned"
+        | "home-last-landed"
         | "home-computed"
         | "home-last-looked-none"
         | "home-landing-none"

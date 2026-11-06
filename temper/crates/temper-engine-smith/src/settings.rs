@@ -404,6 +404,20 @@ fn repository_rows(
     if !people.is_empty() {
         out.put(b"project people:\n");
     }
+    project_people_rows(out, people);
+    if !forge_people.is_empty() {
+        out.put(b"forge people:\n");
+    }
+    for person in forge_people {
+        out.put(b"  forge ");
+        out.put(&person.host);
+        out.put(b" configured owned-forge account ");
+        out.put(&person.login);
+        out.put(b"; project membership unverified by this row\n");
+    }
+}
+
+fn project_people_rows(out: &mut settings_form::Text, people: &[engine::ProjectPerson]) {
     for person in people {
         out.put(b"  person ");
         out.number(person.person);
@@ -414,25 +428,18 @@ fn repository_rows(
         out.put(b": role ");
         out.number(u64::from(person.role));
         if person.you {
-            out.put(b", you");
+            out.put(b", requester");
         }
-        if let Some(user) = person.forge_user {
-            out.put(b", forge user ");
-            out.number(user);
+        match person.forge_user {
+            Some(user) => {
+                out.put(b", forge user ");
+                out.number(user);
+            }
+            None => out.put(b", forge identity unknown: cannot count for approvals"),
         }
         if person.writer {
             out.put(b", temper's own forge writer: never counts as a person");
         }
-        out.put(b"\n");
-    }
-    if !forge_people.is_empty() {
-        out.put(b"forge people:\n");
-    }
-    for person in forge_people {
-        out.put(b"  forge ");
-        out.put(&person.host);
-        out.put(b" person ");
-        out.put(&person.login);
         out.put(b"\n");
     }
 }

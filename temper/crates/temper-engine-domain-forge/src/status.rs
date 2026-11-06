@@ -105,7 +105,7 @@ pub(crate) fn looked(
     let mut row = match d.looked.remove(&key) {
         Some(mut row) => {
             if let Some(age) = now.as_nanos().checked_sub(row.latest.as_nanos())
-                && age >= SITTING.as_nanos()
+                && age >= env.limits.sitting.as_nanos()
             {
                 sitting = true;
                 row.previous = Some(row.latest);

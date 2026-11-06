@@ -79,7 +79,7 @@ pub fn tree_limits() -> skein_ui::Limits {
         drawing_bytes: 0,
         scene_marks: 0,
         scene_bytes: 0,
-        styles_per_node: 3,
+        styles_per_node: 5,
         patches: 960,
         bindings: 128,
         slots: 32,
@@ -695,7 +695,7 @@ pub(super) fn root_at_with_values(
                         );
                     }
                 }
-                w::Read::RevisionSetting(_) | w::Read::ProposalItems(_) => {}
+                w::Read::RevisionSetting(_) | w::Read::ProposalItems(_) | w::Read::ProgramEnvironment => {}
             }
         }
     }
@@ -1294,6 +1294,7 @@ pub mod chat {
             None => c::ReadValue::Proposal(Box::new(c::Proposal {
                 key: PROPOSAL,
                 project: fixtures::PROJECT,
+                projects: List::from_boxed(Box::new([fixtures::PROJECT])),
                 reason: c::DocumentText::complete(c::Text::new(Box::from(*b"Make a goal"), TEXT).expect("reason")),
                 action: c::ProposalAction::Batch(List::with_capacity(EMPTY_BATCH)),
                 as_holder: true,

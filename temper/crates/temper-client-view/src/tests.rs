@@ -8,6 +8,7 @@ mod delegation;
 mod document;
 mod model_forge;
 mod new_chat;
+mod reference;
 pub use temper_fixtures::client_documents as documents;
 pub(crate) mod fixtures;
 mod forge_page;
@@ -112,6 +113,7 @@ fn a_part_needing_a_document_says_shown_on_the_forge() {
 }
 
 mod chat;
+mod chat_line;
 mod chat_sheet;
 
 mod task;

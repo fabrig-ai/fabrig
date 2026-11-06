@@ -150,6 +150,8 @@ pub enum State {
     SubmitsOnEnter,
     /// A disclosure folds on an outside press or Escape.
     FoldsAway,
+    /// A button takes the page's logs to their ends before its press reaches its owner where bound.
+    ToLogEnd,
 }
 
 /// A token from an owner's closed style set.

@@ -266,6 +266,10 @@ fn titled_proposal(row: &c::InboxEntry, reading: &Reading, out: &mut Text) -> bo
         None => reason.bytes(),
     };
     out.words(title);
+    if row.project == Some(0) || !row.projects.is_empty() {
+        out.put(b" \xc2\xb7 projects: ");
+        super::document::projects_text(&row.projects, out);
+    }
     out.put(b"\n");
     true
 }

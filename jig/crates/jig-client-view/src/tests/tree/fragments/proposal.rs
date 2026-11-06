@@ -107,6 +107,7 @@ fn hold() -> ChipHold {
 }
 fn source(action: ProposalAction) -> Proposal {
     Proposal {
+        projects: List::with_capacity(0),
         key: ProposalKey { proposer: Proposer::Party(u64::MAX), number: u64::MAX },
         project: u32::MAX,
         reason: doc(b"# whole proposal reason", true),

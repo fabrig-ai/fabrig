@@ -51,7 +51,7 @@ impl fmt::Display for Refusal {
     }
 }
 type Argument = Box<[u8]>;
-type EnvironmentEntry = (Argument, Argument);
+pub(crate) type EnvironmentEntry = (Argument, Argument);
 pub fn resolve(
     arguments: &[Argument],
     environment: &[EnvironmentEntry],
@@ -84,6 +84,38 @@ pub fn resolve(
     ))
 }
 impl Directories {
+    /// Words needed by program-login on this deployment (temper/docs/design/client/README.md, 4.6).
+    #[must_use]
+    pub fn program_environment(&self, environment: &[EnvironmentEntry], working: &[u8]) -> Box<[u8]> {
+        let defaults: Vec<_> = environment
+            .iter()
+            .filter(|(name, _)| {
+                ![b"TEMPER_CONFIG".as_slice(), b"TEMPER_DATA", b"TEMPER_CACHE"].contains(&name.as_ref())
+            })
+            .cloned()
+            .collect();
+        if let Ok((defaults, _)) = resolve(&[], &defaults, working)
+            && self.config == defaults.config
+            && self.data == defaults.data
+            && self.cache == defaults.cache
+        {
+            return Box::new([]);
+        }
+        let mut words = Vec::new();
+        for (name, path) in [
+            (b"TEMPER_CONFIG=".as_slice(), &self.config),
+            (b"TEMPER_DATA=", &self.data),
+            (b"TEMPER_CACHE=", &self.cache),
+        ] {
+            if !words.is_empty() {
+                words.push(b' ');
+            }
+            words.extend_from_slice(name);
+            words.extend_from_slice(&temper_forge_setup::sign_in::quote(path));
+        }
+        words.into_boxed_slice()
+    }
+
     #[must_use]
     pub fn jig(&self) -> jig_protocol_config::Directories {
         jig_protocol_config::Directories::given(&self.config, &self.data, &self.cache)
