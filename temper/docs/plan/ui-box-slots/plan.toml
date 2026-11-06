@@ -1,0 +1,3 @@
+draft = "ui-box-slots"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-box-slots/inputs/request.md", "temper/docs/design/domain/worker.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
