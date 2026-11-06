@@ -511,7 +511,9 @@ the issuer at start, and draws the authorization's page.
   `web` when it has one, else its `git` URL
   (`forge.md`, 2.1; `setup.md`, 6.2). Forgejo sends the
   browser to temper's `/oauth/authorize`, temper answers at once, and
-  Forgejo opens signed in. No click.
+  Forgejo opens signed in. No click. A repository's link does the same with
+  Forgejo's `redirect_to`, so it opens on the repository's page
+  (`../client/forge.md`, 5.4, *A repository's link*).
 - **At Forgejo first:** Forgejo's sign-in page offers "Sign in with
   temper". Signed in to temper, one click; signed out, temper's sign-in
   page says "to continue to" the forge, Google follows, then Forgejo,
