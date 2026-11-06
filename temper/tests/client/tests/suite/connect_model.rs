@@ -321,6 +321,108 @@ fn a_welcome_model_answer_names_its_source_and_holds() {
     assert!(front.engine.protocol.returns.is_empty());
     assert!(front.leaves.is_empty());
 }
+fn welcome_signed_in(front: &mut Joint, root: &mut Root, source: u32, declined: bool) {
+    front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::SignedIn {
+        source,
+        subject: b"subject".as_slice().into(),
+        display: b"alice@example.com".as_slice().into(),
+        declined,
+    }));
+    accounts::settle(front, root);
+}
+fn welcome_moves_on(front: &mut Joint, root: &mut Root, source: u32) {
+    let shown = front.shows.len();
+    welcome_signed_in(front, root, source, false);
+    let ready = Address::Welcome { step: d::Step::Ready };
+    assert_eq!(root.person().pages().address(), &ready);
+    assert_eq!(&front.shows[shown..], &[(ready, true)]);
+    assert!(text(root).contains("Model ChatGPT plan · alice@example.com"), "{}", text(root));
+    accounts::settle(front, root);
+    assert_eq!(front.shows.len(), shown + 1);
+    assert!(front.leaves.is_empty());
+    assert!(front.engine.protocol.returns.is_empty());
+}
+#[test]
+fn a_held_welcome_sign_in_moves_on_once_when_the_watch_makes_its_account() {
+    let (mut front, mut root, source) = welcome_sign_in();
+    welcome_moves_on(&mut front, &mut root, source);
+}
+#[test]
+fn a_reloaded_welcome_sign_in_moves_on_once_when_the_watch_makes_its_account() {
+    let (mut front, mut root, source) = welcome_sign_in();
+    let path = d::address::print(root.person().pages().address());
+    let Place::Address(address) = d::address::parse(&path) else { panic!("welcome source address") };
+    accounts::reopen(&mut front, &mut root, address);
+    assert_eq!(
+        root.person().pages().connect_model().expect("model page").request.sign_in_state(root.person().client()),
+        d::pages::accounts::SignInState::Signing { source }
+    );
+    welcome_moves_on(&mut front, &mut root, source);
+}
+#[test]
+fn a_welcome_sign_in_ending_without_a_usable_model_keeps_its_words_and_acts() {
+    for declined in [true, false] {
+        let (mut front, mut root, source) = welcome_sign_in();
+        let address = Address::Welcome {
+            step: d::Step::Model {
+                way: Some(d::ModelWay { provider: accounts::PROVIDER, kind: d::WayKind::SignIn, source: Some(source) }),
+            },
+        };
+        let shown = front.shows.len();
+        let words = if declined {
+            welcome_signed_in(&mut front, &mut root, source, true);
+            "You signed in without plan usage."
+        } else {
+            front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::SignInFailed {
+                source,
+                failure: jig_domain_accounts::Failure::Misconfigured,
+            }));
+            accounts::settle(&mut front, &mut root);
+            "OpenAI refused temper’s sign-in. Check the configuration’s registration."
+        };
+        assert_eq!(root.person().pages().address(), &address);
+        assert_eq!(front.shows.len(), shown);
+        assert!(text(&root).contains(words), "{}", text(&root));
+        let view = view(&root);
+        assert!(
+            view.tree()
+                .nodes()
+                .iter()
+                .any(|node| { node.role == Role::Button && node.name.as_deref() == Some(b"Continue with ChatGPT") })
+        );
+        if declined {
+            assert!(
+                view.tree()
+                    .nodes()
+                    .iter()
+                    .any(|node| { node.role == Role::Link && node.name.as_deref() == Some(b"Use an API key") })
+            );
+        }
+        assert!(front.leaves.is_empty());
+    }
+}
+#[test]
+fn a_typed_welcome_sign_in_way_with_a_usable_model_keeps_continue() {
+    let (mut front, mut root) = accounts::plan_fixture(fixtures::SEED);
+    let Place::Address(address) =
+        d::address::parse(format!("/welcome?at=model&provider={}&way=sign-in", accounts::PROVIDER).as_bytes())
+    else {
+        panic!("welcome sign-in way");
+    };
+    accounts::reopen(&mut front, &mut root, address.clone());
+    assert_eq!(d::pages::welcome::model_usable(root.person()), Some(true));
+    assert_eq!(root.person().pages().address(), &address);
+    assert!(!front.shows.iter().any(|(address, _)| *address == Address::Welcome { step: d::Step::Ready }));
+    assert!(text(&root).contains("Connect a model"));
+    assert!(
+        view(&root)
+            .tree()
+            .nodes()
+            .iter()
+            .any(|node| { node.role == Role::Link && node.name.as_deref() == Some(b"Continue") })
+    );
+    assert!(front.leaves.is_empty());
+}
 #[test]
 fn a_typed_welcome_ready_reads_the_sign_in_then_its_account() {
     const SUBJECT: &[u8] = b"subject";
