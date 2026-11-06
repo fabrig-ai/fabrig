@@ -2,7 +2,7 @@
 
 2026-11-06. Where temper's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 6.4: the row of the configuring agent's reads: its stock reads, the inventory's people and a refusal naming no command have no story.
+- **Not yet:** 6.4: `settings` reads of each kind: no story of the engine's domain world reads `project-policy` through a run; jig's core holds the answer (`jig-domain-core/src/tests/settings/project_policy.rs`) and `temper-engine-smith/src/tests/settings.rs` its key.
 
 Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 

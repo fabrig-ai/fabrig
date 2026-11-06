@@ -830,10 +830,10 @@ fn deciding_reasons_keep_their_value_and_confirmation_over_the_page() {
     let p = proposal_row(proposal(c::Proposer::Task(9)));
     let h = held_row(held(Some(c::HoldCategory::Stalled)));
     for (row, name, act_kind, dialog) in [
-        (&p, b"Reject".as_slice(), c::ActKind::Reject, Some(b"Reject with reason".as_slice())),
-        (&p, b"Accept", c::ActKind::Accept, Some(b"Accept".as_slice())),
+        (&p, b"Reject".as_slice(), c::ActKind::Reject, Some(b"Reject this proposal?".as_slice())),
+        (&p, b"Accept", c::ActKind::Accept, Some(b"Accept this proposal?".as_slice())),
         (&h, b"Leave held", c::ActKind::LeaveHeld, None),
-        (&h, b"Release", c::ActKind::Release, Some(b"Release task".as_slice())),
+        (&h, b"Release", c::ActKind::Release, Some(b"Release this task?".as_slice())),
     ] {
         let mut root = kinds(core::slice::from_ref(row));
         let mut view = f::browser_page_view(&root);
@@ -875,6 +875,7 @@ fn sent_cards_replace_all_acts_with_progress_and_the_returned_outcome() {
     let mut out = Queue::uncapped();
     event(&mut root, Event::Act { action }, &mut out);
     page_act(&mut root, pages::Act::Confirm, &mut out);
+    page_act(&mut root, pages::Act::Cancel, &mut out);
     let view = f::browser_page_view(&root);
     for name in [b"Accept".as_slice(), b"Reject", b"Open", b"Later", b"Undo"] {
         assert!(f::find(view.tree(), Role::Button, name).is_none());

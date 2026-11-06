@@ -1564,10 +1564,10 @@ fn the_stop_dialogs_words() {
     let mut root = root(task, DONE, TOTAL, None, false);
     press(&mut root, Act::Close);
     let tree = draw(&root, &fixtures::browser_words()).0;
-    let dialog = named_index(&tree, Role::Dialog, b"Stop Away mode?");
-    assert_eq!(tree.nodes()[dialog].name.as_deref(), Some(b"Stop Away mode?".as_slice()));
-    assert_eq!(fixtures::node_text(&tree, dialog).as_ref(), b"Stop Away mode?What landed on its branch stays there.");
-    for label in [b"Confirm".as_slice(), b"Cancel"] {
+    let dialog = named_index(&tree, Role::Dialog, b"Stop this goal?");
+    assert_eq!(tree.nodes()[dialog].name.as_deref(), Some(b"Stop this goal?".as_slice()));
+    assert_eq!(fixtures::node_text(&tree, dialog).as_ref(), b"Stop this goal?What landed on its branch stays there.");
+    for label in [b"Keep going".as_slice(), b"Stop goal"] {
         assert!(fixtures::find(&tree, Role::Button, label).is_some());
     }
     assert_eq!(acts_names(&tree).as_ref(), [b"Draft".as_slice(), b"Stop"]);
@@ -1609,7 +1609,7 @@ fn an_agents_stop_still_confirms_as_before() {
     let mut root = f::agent_root(task, Some(f::tree()), true);
     press(&mut root, Act::Stop);
     let tree = fixtures::browser_page_view(&root);
-    assert!(fixtures::find(tree.tree(), Role::Dialog, b"Stop").is_some());
+    assert!(fixtures::find(tree.tree(), Role::Dialog, b"Stop this task?").is_some());
     assert!(
         skein_lib::bytes::find(
             &fixtures::text(tree.tree()),
@@ -1617,7 +1617,7 @@ fn an_agents_stop_still_confirms_as_before() {
         )
         .is_some()
     );
-    for name in [b"Confirm".as_slice(), b"Cancel"] {
+    for name in [b"Keep going".as_slice(), b"Stop task"] {
         assert!(fixtures::find(tree.tree(), Role::Button, name).is_some());
     }
 }

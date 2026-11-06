@@ -1,18 +1,16 @@
-# ui-owner-menu: Sign out from the rail's Owner row
+# look-round-10: closing a chat, and every confirmation
 
-At the user's word (2026-11-06, through the director, taking fabrig/ui's recommendation): Sign out is too buried at the foot of the Accounts tab. The rail's Owner row, plain text in the mock, opens a small menu with Sign out. A small, decided departure from the mock.
+At the user's request (2026-11-06; asleep, taking recommendations): land the look request `close-chat` (``, on `origin/look-requests`; the branch moves, so if that hash is gone, find it by its `Look-request: close-chat` trailer). The close dialog becomes a sheet ("Close this chat?", "Keep it", "Close chat") saying only what closing changes, and a closed chat ends on one quiet line. "Dangerous action", the zero counts, "Decision made" and "Applied" go. The same sheet serves every confirmation in `confirm.rs`. No behaviour changes.
 
-## The change
+**The procedure is `temper/docs/design/draft/look-requests.md`: every step of sections 3 to 5, and its account.** Read the commit and its whole message. Every commit carries `Look-request: close-chat` directly above `Co-Authored-By:`. Requests above and below it on the branch are other plans'.
 
-- The rail's foot row, the person's name, becomes a button that opens a small menu above it, in the look of the project switcher's menu (`frame.rs`, the `#app > .temper-rail` rules of `temper.css`). Its entries: "Accounts", to Settings' Accounts tab, and "Sign out", the same act and the same failure line as today's. Escape and a click outside close it, and focus returns to the row.
-- Sign out leaves the Accounts tab's foot. A project-less Accounts page, with no rail, keeps it there.
-- **On a phone** there's no rail row: Sign out stays reachable on Settings' Accounts tab. Keep it there at the phone's width.
-- The terminal keeps its acts and their meaning.
-- `ui-rename-focus` lands focus rules for menus and removed controls first: take them by catch-up, and follow them. The Sign out work of `ui-browser-red` holds: the button keeps its identity while accounts arrive, so a click isn't lost; keep the browser test's assertions, adapting only its way to the button.
+## Beside it
+
+`look-round-6` (`chat-work`) changes how a chat reads, and `ui-walk-2` is checking presses lost to re-renders on Needs you: a confirmation's button keeps its identity while the page updates. `ui-goal-page`'s Pause and Stop, and `ui-needs`' Accept, go through `confirm.rs`: walk each confirmation it serves. Expect catch-ups. New rules go under `/* ==== ui: chats ==== */`.
 
 ## How the cut shapes it
 
-One or two tasks. Tests red first; a browser story that signs out from the menu, reloads and stays out. The proof at 1440, 1000 and 420, open and closed. Update `client/README.md` and the mock's note of departures. New rules go under `/* ==== ui: settings ==== */`.
+One or two tasks. Screenshots beside the request's pages at 1440, 1000 and 420 wide in `~/src/fabrig/look-round-10/` on the builder, outside any worktree, the report saying which builder. The terminal's prints keep their meaning.
 
 ## Size
 
@@ -20,7 +18,8 @@ One cut is at most 20 minutes. Budgets and timeouts are the user's (skein's `doc
 
 ## Sources
 
-- `temper/crates/temper-client-view/src/frame.rs`
+- `temper/crates/temper-client-view/src/confirm.rs`
+- `temper/docs/design/draft/look-requests.md`
 
 ## For every task of this plan
 

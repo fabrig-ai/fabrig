@@ -658,7 +658,7 @@ fn a_done_pause_toasts_on_its_answer_not_before() {
     }
 }
 #[test]
-fn a_refused_stop_toasts_jigs_words() {
+fn a_refused_stop_keeps_jigs_words_in_its_sheet() {
     for outcome in [
         jig_client::Outcome::Unknown,
         jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
@@ -672,7 +672,8 @@ fn a_refused_stop_toasts_jigs_words() {
         let key = h.pages.task().unwrap().pending.get(0).unwrap().0;
         assert!(h.pages.needs().toast().is_none());
         h.event(Event::Told { told: Told::Answered { key, outcome: outcome.clone() } });
-        assert_eq!(h.pages.needs().toast(), Some(&pages::needs::Toasted::Refused { outcome }));
+        assert!(h.pages.needs().toast().is_none());
+        assert_eq!(h.pages.confirmation().unwrap().failed.as_ref(), Some(&outcome));
         assert!(h.pages.task().unwrap().outcome.is_none());
         page_act(&mut h, Act::Needs(pages::needs::Act::Dismiss));
         assert!(h.pages.needs().toast().is_none());

@@ -71,12 +71,15 @@ fn a_delegate_stopped_from_its_page_is_held_then_released() {
         vec![
             Step::See { find: Find::named(Role::Button, b"Stop"), within: fixtures::WITHIN },
             Step::Press { find: Find::named(Role::Button, b"Stop") },
-            Step::See { find: Find::named(Role::Dialog, b"Stop"), within: fixtures::WITHIN },
+            Step::See { find: Find::named(Role::Dialog, b"Stop this task?"), within: fixtures::WITHIN },
             Step::See {
                 find: Find::text(b"Its run stops, and the task is held until it is released."),
                 within: fixtures::WITHIN,
             },
-            Step::Press { find: Find::named(Role::Button, b"Confirm") },
+            Step::Press {
+                find: Find::named(Role::Button, b"Stop task")
+                    .within(Box::new([skein_fake_person::Target::Role { role: Role::Dialog, name: Box::new([]) }])),
+            },
             Step::See { find: Find::named(Role::Button, b"Release task"), within: fixtures::WITHIN },
         ],
     );
@@ -87,12 +90,15 @@ fn a_delegate_stopped_from_its_page_is_held_then_released() {
         person,
         vec![
             Step::Press { find: Find::named(Role::Button, b"Release task") },
-            Step::See { find: Find::named(Role::Dialog, b"Release task"), within: fixtures::WITHIN },
+            Step::See { find: Find::named(Role::Dialog, b"Release this task?"), within: fixtures::WITHIN },
             Step::See {
                 find: Find::text(b"The next run resumes its conversation; tries count again from zero"),
                 within: fixtures::WITHIN,
             },
-            Step::Press { find: Find::named(Role::Button, b"Confirm") },
+            Step::Press {
+                find: Find::named(Role::Button, b"Release")
+                    .within(Box::new([skein_fake_person::Target::Role { role: Role::Dialog, name: Box::new([]) }])),
+            },
             Step::Gone { find: Find::named(Role::Button, b"Release task"), within: fixtures::WITHIN },
         ],
     );
@@ -438,12 +444,15 @@ fn a_held_task_released_from_a_goals_plan_runs_again() {
             Step::Press { find: goal_task_link(b"Review the change") },
             Step::See { find: Find::named(Role::Button, b"Release task"), within: fixtures::WITHIN },
             Step::Press { find: Find::named(Role::Button, b"Release task") },
-            Step::See { find: Find::named(Role::Dialog, b"Release task"), within: fixtures::WITHIN },
+            Step::See { find: Find::named(Role::Dialog, b"Release this task?"), within: fixtures::WITHIN },
             Step::See {
                 find: Find::text(b"The next run resumes its conversation; tries count again from zero"),
                 within: fixtures::WITHIN,
             },
-            Step::Press { find: Find::named(Role::Button, b"Confirm") },
+            Step::Press {
+                find: Find::named(Role::Button, b"Release")
+                    .within(Box::new([skein_fake_person::Target::Role { role: Role::Dialog, name: Box::new([]) }])),
+            },
             Step::See { find: Find::exactly_named(Role::Status, b"running"), within: fixtures::WITHIN },
         ],
     );
