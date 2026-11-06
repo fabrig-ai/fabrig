@@ -867,7 +867,7 @@ fn the_connected_model_offers_continue_as_a_terminal_command() {
     );
 }
 
-pub(super) const ENVIRONMENT: &[u8] = b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache'";
+pub(super) const ENVIRONMENT: &[u8] = b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper";
 pub(super) fn answer_environment(root: &mut d::Domain, words: &[u8]) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let address = root.pages().address().clone();
@@ -1014,6 +1014,32 @@ fn ended_sign_ins_remove_the_note_on_both_pages() {
                 assert!(text.contains(message), "{text}");
                 assert!(!text.contains("Go forward to that page"));
             }
+        }
+    }
+}
+
+#[test]
+fn both_model_pages_use_the_binary_word_the_box_answers() {
+    for welcome in [false, true] {
+        let (mut root, _) = flow_fixture(d::WayKind::Program);
+        if welcome {
+            fixtures::root_event(
+                &mut root,
+                d::Event::Went {
+                    place: d::Place::Address(d::Address::Welcome {
+                        step: d::Step::Model {
+                            way: Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::Program, source: None }),
+                        },
+                    }),
+                },
+            );
+        }
+        for (answer, expected) in [
+            (b"~/bin/temper".as_slice(), b"~/bin/temper program-login claude-pat".as_slice()),
+            (b"", b"temper program-login claude-pat"),
+        ] {
+            answer_environment(&mut root, answer);
+            assert_eq!(command_line(&root), expected, "welcome: {welcome}");
         }
     }
 }

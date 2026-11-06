@@ -542,7 +542,7 @@ fn key_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
 pub(super) fn command(b: &mut Builder, w: &Words, name: &[u8], environment: &[u8], welcome: bool) {
     b.open(Role::Code);
     b.style(if welcome { crate::look::WELCOME_CMD } else { crate::look::FLOW_CODE });
-    let command = named(w, W::Command, name);
+    let command = named(w, if environment.is_empty() { W::Command } else { W::ProgramLogin }, name);
     let size = environment.len().checked_add(command.len()).expect("bounded command");
     let size = size.checked_add(usize::from(!environment.is_empty())).expect("bounded command");
     let mut words = skein_lib::Writer::new(size);
