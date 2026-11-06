@@ -8,6 +8,7 @@ mod line;
 mod originals;
 mod record;
 mod replay;
+pub mod scan;
 mod stream;
 mod walk;
 pub use fields::{Framing, fields_mut};
@@ -16,6 +17,7 @@ pub use originals::{Kind, Original, Originals, SECRET_EVENT, kept_head, placehol
 pub use record::Recorder;
 pub use replay::prove_drawn;
 pub use replay::{Mark, Refusal, Replay, Stale, prove};
+pub use scan::{Found, Place, Shape, What};
 pub use stream::{Event, Plain, Streams, Undecoded};
 pub use walk::{Step, Unwalkable, differs, still, walk};
 #[cfg(test)]
