@@ -38,6 +38,7 @@ mod agreement;
 mod chat;
 mod link;
 mod long_chat;
+mod parked;
 mod process;
 mod review;
 

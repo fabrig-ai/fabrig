@@ -19,10 +19,28 @@ fn kinds_follow_the_closed_list() {
 #[test]
 fn files_stay_under_their_digest_and_robots_names_a_root_file() {
     let mut files = Map::with_capacity(1);
-    files.insert(Box::from(b"files/robots.txt".as_slice()), File { kind: b"", bytes: Box::new([]) }).unwrap();
+    files
+        .insert(Box::from(b"files/robots.txt".as_slice()), File { kind: b"", bytes: Box::new([]), gzip: None })
+        .unwrap();
     assert!(file(&files, b"d", b"/bundle/d/files/robots.txt").is_some());
     assert!(file(&files, b"d", b"/robots.txt").is_some());
     for path in [b"/bundle/x/files/robots.txt".as_slice(), b"/bundle/d/", b"/bundle/d/unknown.js"] {
         assert!(file(&files, b"d", path).is_none());
     }
+}
+
+#[test]
+fn compressed_forms_name_only_compressible_files() {
+    for (form, plain) in [
+        (b"a/x.js.gz".as_slice(), b"a/x.js".as_slice()),
+        (b"a/x.wasm.gz", b"a/x.wasm"),
+        (b"a/x.css.gz", b"a/x.css"),
+        (b"a/x.svg.gz", b"a/x.svg"),
+    ] {
+        assert_eq!(compressed_of(form), Some(plain));
+    }
+    for path in [b"x.txt.gz".as_slice(), b"x.gz", b"x.js", b"x.js.gz.gz"] {
+        assert_eq!(compressed_of(path), None);
+    }
+    assert_eq!(kind(b"x.js.gz"), None);
 }

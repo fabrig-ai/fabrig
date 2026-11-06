@@ -1,0 +1,24 @@
+draft = "ui-copy-once"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-copy-once/inputs/request.md", "temper/crates/temper-client-view/src/pages/welcome_copy.rs", "skein/crates/skein-ui-web/src/mapping.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# One request, one task: the fix, its test and the gallery's walk. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "copy-once"
+title = "The welcome's Copy reads once in a browser, and no named button, tab or option draws a text child in any gallery state but a recommended choice's tag"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "A person on the welcome's Claude way sees the command's button read \"Copy\" once, then \"Copied\" or \"Couldn’t copy\" once"
+parts = ["copy-once"]
+walk = false

@@ -969,8 +969,9 @@ and waits in the Needs you of each project it belongs to (jig's
   - to assemble settings past a few KB in a separate goal-scoped jig note,
     described `work: settings`, whose body is a whole settings file
     `{"items":[...]}`. Bounded `note` writes use `first` and `remove`,
-    and `join` to continue a line longer than one call. This note is separate
-    from "How this project works" (8.3); it applies no settings;
+    and `join` to continue a line longer than one call, as `note`'s schema and
+    `propose_settings`' description say rather than these words. This note is
+    separate from "How this project works" (8.3); it applies no settings;
   - to propose once, with `propose_settings`, against the newest
     revision it read, with a reason whose first line is the
     proposal's title and whose next lines say, under "temper
@@ -1195,7 +1196,9 @@ and not its name.
   what changed and doesn't repeat it. Mermaid isn't drawn, so it doesn't draw.
 - **The configuring agent's,** `configuring.txt` (8.1): the same, its title "How this
   project works", written once the person's way is understood, kept current as
-  the conversation changes it.
+  the conversation changes it. Its words leave what a write's `first`, `remove` and
+  `join` mean to `note`'s schema, and say what changed in the document, since no
+  setting did.
 - **The tool's answer** gives the client what its line says (`../client/README.md`,
   3.5): `Note N revision R written · 64 lines` for a first write, `Note N revision
   R written · +18 −6 · line 31 · 64 lines` for a later one, from jig's `lines`,
@@ -1306,7 +1309,17 @@ host:
   (4.3), and the authority refuses what it does not allow. Whether to
   declare only what the charter names for the other families too, which
   the host part's budget (4.3) may force, and how a brief teaches an LLM
-  when to delegate a task rather than a sub-agent.
+  when to delegate a task rather than a sub-agent. `withdraw`, offered to
+  charter 3 and refused by its authority (8.1), is one such tool.
+- **A way out of a proposal that waits** (8.1): the configuring agent can neither
+  withdraw nor replace one, so a person who presses "Change something"
+  (`../client/README.md`, 5.13), where `../draft/configuring.md`, 5.2 has the agent
+  revise, hears that an owner rejects it first. Letting a fresh proposal replace a
+  waiting one, or moving `withdraw` out of the decide family, would give a run its
+  own way, and each is jig's to design (jig's `domain/tasks.md`, section 9); granting
+  the decide family as it stands would also let every chat under policy 1 decide
+  proposals and escalations. Default: an owner rejects it, until a walk shows whether
+  that asks too much of the person.
 - **What sizes temper's own way** (8.1): a read of the deployment's worker slots
   and of the models its accounts reach, offered to a run with the settings
   family, or an answer from the person. Default: the person's, as nothing reads
