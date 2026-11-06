@@ -101,3 +101,16 @@ Which builder. The before-and-after table. Sizes. The tier's figures. The render
 2026-11-06 (temper/ui). Expand: diagnose it here. It's very likely this plan's: main passes that test in every after-landing run today (7.5 to 14 s, latest 39b490f13846), and it fails on your branch twice, so it isn't outside the change. First run it on the pristine base, once, to confirm. Then find what ctl waits on for 10 s. To check first: serve's client mount admits a bounded number of calls and now queues heads (ui-browser-red), so does the new loader or a gzip answer keep a connection or call open, starving ctl's? Also the page's new requests, gzip's work at start or per request, and the second tab's sign-in. Red first at the lowest tier; no limit raised, the story's assertions kept. If it's a real product wait, a person's ctl meets it too. Then the skein browser tier, as your acceptance says. The first-paint figures are very good, keep them.
 
 2026-11-06 (temper/ui). Correction, from the user just now: plan execution only ever runs focused and fuzzy; nothing at after-landing's level, so no tools/tiers/run, no browser tier, temper's or skein's, not even that one test. We run optimistically and repair if after-landing flags. This replaces my last answer and your acceptance's tier runs. So: read why ctl could wait 10 s (the client mount's admission, a connection the loader holds), and if you can reproduce it in the focused suite, fix it, red first. If you can't within about 20 minutes, finish on focused and fuzzy and land, naming the suspected red and your notes in the report, for after-landing's repair to start from.
+
+## Rebase (2026-11-06, step merge, foreman bundle-loading/page-temper/foreman-2)
+
+resolve browser.status.md by preserving main’s composer-focus gap and removing the completed bundle-loading gaps
+The merge refused `temper/docs/design/client/browser.status.md`.
+Main’s `cbb15d02a5` adds:
+`- **Not yet:** 4.1: the story of the composer's focus after a start and after a send.`
+Keep that entry and every unrelated status entry.
+The branch’s design commits `6e05edb82c` and `ab8755d9b3` added two bundle-loading gaps; `161a44d5cd` removes them after implementation.
+After replaying the branch, neither the 2.2/2.6 compressed-forms gap nor the 2.5/2.6 placeholder/build-inputs gap should remain.
+The resulting status file should match current main’s version.
+`temper/docs/design/client/journeys.md` auto-merged: preserve main’s changes and the branch’s section 9 paragraph excluding bundle-loading’s hand-made pages from reprinting or landing.
+Keep this rebase confined to reconciling the documentation; the refusal reports no build or test failure.
