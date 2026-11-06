@@ -763,8 +763,11 @@ not journeys to reprint or land (section 7). The gallery's isolated
 `chat-work-*` states draw their conversation and their additional states
 through the view (`browser.md`, 7.2). Their summary follows the first
 appearance of a tool, so settings precedes docs where it was called first.
-The growing text and scrolling beyond the pill and loading status are
-tracked in `../draft/chat-reading.status.md`, sections 3 and 5, and a numbered
+The conversation is read by its log's edges (`README.md`, 5.15), with no
+Older control. `chat-draft`'s return to the chat holds its first activity
+page until browser measures read more. The remaining live text and the
+terminal and browser coverage departures are tracked in
+`../draft/chat-reading.status.md`, sections 3 and 5, and a numbered
 list's look in `browser.status.md`, 2.5.
 
 The `close-chat` request's hand-made `close-chat/01.html` through `03.html`

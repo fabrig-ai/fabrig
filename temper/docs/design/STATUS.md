@@ -216,8 +216,7 @@ Configure, departing from the request `configure-temper-own-way` in its referenc
 words and look (`client/README.md`), but no journey records its acts and no
 render has checked its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
 the line departs from the request `chat-work` in a failed call's colour, and the end
-mark is a glyph that does not blink (`client/README.md`); a chat is read by "Older" in a
-window of 16 lines until `draft/chat-reading.md`, 5 is built, and on a walk a long chat's
+mark is a glyph that does not blink (`client/README.md`); on a walk a long chat's
 first "Older" did not end in 40 seconds, its cause unknown (`client/README.md`). The words being written draw an
 empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, a last block still open changes as it commits, and no browser test draws them
@@ -240,7 +239,13 @@ two welcome journeys keep their fake boxes' link secrets until next added, nothi
 refuses `again` on a real journey, and the refusal's process tests watch two
 directories, not every path; no run on record has `again` walk `project-landing`'s
 setup through a sign-in's new tab, and its words still say the page returns
-(`client/journeys.md`). The process tier runs one test
+(`client/journeys.md`). Conversations are read by their log's edges
+(`client/README.md`, 5.15); in the terminal PgUp and PgDn are lines followed
+by Enter, and `lines` stays for jig's reference UI and tools, past what
+temper's bytes hold. The browser tier runs Chromium alone, with
+`overflow-anchor: none` as the nearest run to Safari; Firefox and Safari
+themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**).
+The process tier runs one test
 at a time where its design has three, its one trial at three having failed twice on
 causes not found, and most of the `test-speed` plan's whole runs read over its CPU
 budget (`domain/testing.md`). The
