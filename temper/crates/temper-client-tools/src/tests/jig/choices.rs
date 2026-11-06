@@ -121,7 +121,7 @@ fn unknown_chat_model_names_the_usage_error() {
         root.submit(&["chat", "start", "hello", "--project", "shop", "--model", "unknown-model", "--key", "unknown"]);
     assert!(root.sends.is_empty());
     let answer = root.answer(call).expect("usage error");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"unknown model: unknown-model\n".as_slice()));
+    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: unknown-model\n".as_slice()));
 }
 #[test]
 fn unknown_chat_effort_names_the_usage_error() {
@@ -159,7 +159,7 @@ fn chat_model_lookup_is_scoped_to_the_project() {
         root.submit(&["chat", "start", "hello", "--project", "other", "--model", "chosen-model", "--key", "other"]);
     assert!(root.sends.is_empty());
     let answer = root.answer(call).expect("usage error");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"unknown model: chosen-model\n".as_slice()));
+    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: chosen-model\n".as_slice()));
 }
 #[test]
 fn chat_effort_requires_a_model() {
@@ -222,7 +222,7 @@ fn a_long_unknown_model_prints_a_json_usage_error() {
     assert_eq!(answer.status, 1);
     let name = answer
         .stderr
-        .strip_prefix(b"{\"error\":\"unknown model: ")
+        .strip_prefix(b"{\"error\":\"model not offered: ")
         .expect("prefix")
         .strip_suffix(b"...\"}")
         .expect("cut marker");
@@ -309,13 +309,37 @@ fn chat_sends_no_effort_for_an_effortless_model() {
     );
 }
 #[test]
-fn chat_requires_an_effort_for_a_model_with_efforts() {
-    let mut root = f::choice_root(f::choice_me(f::CHAT_BUDGET));
+fn chat_takes_the_models_default_effort() {
+    let mut me = f::choice_me(f::CHAT_BUDGET);
+    let model = me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model");
+    model.efforts = List::with_capacity(2);
+    model.efforts.push(f::act_text(b"low")).expect("low effort");
+    model.efforts.push(f::act_text(b"high")).expect("high effort");
+    model.effort = Some(f::act_text(b"high"));
+    let mut root = f::choice_root(me);
     let call =
         root.submit(&["chat", "start", "hello", "--project", "shop", "--model", "chosen-model", "--key", "effort"]);
-    assert!(root.sends.is_empty());
-    let answer = root.answer(call).expect("usage error");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"effort required: chosen-model\n".as_slice()));
+    assert_eq!(
+        f::chat_task(&root, call).llm.as_ref().expect("choice").main,
+        f::model_effort(f::MODEL_NAME, Some(b"high"))
+    );
+    let explicit = root.submit(&[
+        "chat",
+        "start",
+        "hello",
+        "--project",
+        "shop",
+        "--model",
+        "chosen-model",
+        "--effort",
+        "low",
+        "--key",
+        "explicit",
+    ]);
+    assert_eq!(
+        f::chat_task(&root, explicit).llm.as_ref().expect("choice").main,
+        f::model_effort(f::MODEL_NAME, Some(b"low"))
+    );
 }
 #[test]
 fn unknown_model_control_bytes_are_cut() {
@@ -323,7 +347,7 @@ fn unknown_model_control_bytes_are_cut() {
         let mut root = f::choice_root(f::choice_me(f::CHAT_BUDGET));
         let call = root.submit(&["chat", "start", "hello", "--project", "shop", "--model", name, "--key", "control"]);
         let answer = root.answer(call).expect("usage error");
-        assert_eq!(answer.stderr.as_ref(), b"unknown model: safe...\n");
+        assert_eq!(answer.stderr.as_ref(), b"model not offered: safe...\n");
     }
 }
 #[test]
@@ -334,7 +358,7 @@ fn unknown_model_echo_keeps_a_utf8_boundary() {
     let call = root.submit(&["chat", "start", "hello", "--project", "shop", "--model", &name, "--key", "unicode"]);
     let answer = root.answer(call).expect("usage error");
     let echo =
-        answer.stderr.strip_prefix(b"unknown model: ").expect("prefix").strip_suffix(b"...\n").expect("cut marker");
+        answer.stderr.strip_prefix(b"model not offered: ").expect("prefix").strip_suffix(b"...\n").expect("cut marker");
     assert_eq!(echo, "x".repeat(255).as_bytes());
 }
 
@@ -368,12 +392,65 @@ fn chat_subagent_without_efforts_sends_none() {
 }
 
 #[test]
+fn chat_subagent_takes_the_models_default_effort() {
+    let mut me = f::choice_me(f::CHAT_BUDGET);
+    let model = me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model");
+    model.efforts = List::with_capacity(2);
+    model.efforts.push(f::act_text(b"low")).expect("low effort");
+    model.efforts.push(f::act_text(b"high")).expect("high effort");
+    model.effort = Some(f::act_text(b"high"));
+    let mut root = f::choice_root(me);
+    let argv = subagent_words(&["chosen-model", "plain-model"]);
+    let call = root.submit(argv.as_slice());
+    assert_eq!(
+        f::chat_task(&root, call).llm.as_ref().expect("choice").subagents.as_slice(),
+        &[f::model_effort(f::MODEL_NAME, Some(b"high")), f::model_effort(f::EFFORTLESS_MODEL_NAME, None)]
+    );
+}
+
+#[test]
+fn amend_takes_the_default_instead_of_the_previous_effort() {
+    let mut task = f::choice_task(c::Admission::Allowed);
+    task.llm.as_mut().expect("prior choice").main = f::model_effort(f::MODEL_NAME, Some(b"low"));
+    let (root, call) =
+        f::send_choice_amend(&["task", "amend", "41", "--rev", "7", "--model", "chosen-model", "because"], task);
+    let c::Ask::Amend { change, .. } = f::act_ask(&root, call) else { panic!("amend") };
+    assert_eq!(change.llm.as_ref().expect("choice").main, f::model_effort(f::MODEL_NAME, Some(f::EFFORT_NAME)));
+}
+
+#[test]
+fn goals_refuse_models_and_subagents_outside_the_offer() {
+    for extra in
+        [&["--model", "unoffered-model"][..], &["--model", "chosen-model", "--sub-agent", "unoffered-model"][..]]
+    {
+        let mut root = f::choice_root(super::goal_template::goal_me());
+        let argv = f::extended(super::goal_template::START, extra);
+        let call = root.submit(argv.as_slice());
+        assert!(root.sends.is_empty());
+        let answer = root.answer(call).expect("usage error");
+        assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: unoffered-model\n".as_slice()));
+    }
+}
+
+#[test]
+fn amendments_refuse_models_and_subagents_outside_the_offer() {
+    for extra in
+        [&["--model", "unoffered-model"][..], &["--model", "chosen-model", "--sub-agent", "unoffered-model"][..]]
+    {
+        let argv = f::extended(&["task", "amend", "41", "--rev", "7", "because"], extra);
+        let (mut root, call) = f::send_choice_amend(argv.as_slice(), f::choice_task(c::Admission::Allowed));
+        assert!(root.sends.is_empty());
+        let answer = root.answer(call).expect("usage error");
+        assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: unoffered-model\n".as_slice()));
+    }
+}
+
+#[test]
 fn chat_subagent_validation_sends_nothing() {
     for (subagents, expected) in [
-        (["unknown-model", "plain-model"], b"unknown model: unknown-model\n".as_slice()),
+        (["unknown-model", "plain-model"], b"model not offered: unknown-model\n".as_slice()),
         (["chosen-model:low", "plain-model"], b"unknown effort: low\n".as_slice()),
         (["plain-model:high", "chosen-model:high"], b"unknown effort: high\n".as_slice()),
-        (["chosen-model", "plain-model"], b"effort required: chosen-model\n".as_slice()),
         (["chosen-model:high", "chosen-model:high"], b"sub-agent named twice: chosen-model\n".as_slice()),
         (["chosen-model:high", "chosen-model:low"], b"sub-agent named twice: chosen-model\n".as_slice()),
     ] {
@@ -423,7 +500,7 @@ fn chat_subagent_lookup_is_scoped_to_the_project() {
     let call = root.submit(argv.as_slice());
     assert!(root.sends.is_empty());
     let answer = root.answer(call).expect("usage error");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"unknown model: other-model\n".as_slice()));
+    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: other-model\n".as_slice()));
 }
 
 #[test]

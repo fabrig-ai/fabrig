@@ -3,7 +3,6 @@
 2026-11-06. Remaining gaps between temper's code and [tools.md](tools.md).
 Unlisted sections have no known gap.
 
-- **Not yet:** 5.5: `model list` prints what the party's authority allows, by provider, and neither its default effort nor its accounts.
 - **Not yet:** 5.2: `task show`'s text says `deployment show` for a host's wait
   (`temper-client-tools`' `render/document/llm.rs`, `wait_explanation`), and ctl has
   no such tool until area 3's is built (5.5), so that line names a command that
