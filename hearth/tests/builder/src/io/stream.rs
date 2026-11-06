@@ -47,17 +47,24 @@ impl Below {
             match down {
                 Down::Demand { room, .. } => {
                     if room > 0 {
+                        assert!(self.granted.insert(token, room).is_none(), "one demand out on a client's output");
                         self.events.push_back(Told::Io(io::Event::Stream { owner: token, up: Up::Room }));
+                    } else {
+                        self.granted.remove(&token);
                     }
                 }
                 Down::Send(bytes) => {
+                    let room = self.granted.remove(&token).expect("a piece answers a demand");
+                    assert!(bytes.len() <= usize::try_from(room).expect("room fits"), "a piece within its room");
                     if token == fixtures::PROTOCOL_OUTPUT {
                         self.stdout.extend_from_slice(&bytes);
                     } else {
                         self.stderr.extend_from_slice(&bytes);
                     }
                 }
-                Down::Finish => {}
+                Down::Finish => {
+                    assert!(!self.granted.contains_key(&token), "a stream finishes after its last piece");
+                }
             }
             return;
         }
