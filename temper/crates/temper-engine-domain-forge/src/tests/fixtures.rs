@@ -200,6 +200,7 @@ pub fn step_change(d: &mut Domain) {
             entry: OPEN + 1,
             heard: change::Heard {
                 delegate_running: false,
+                delegate_live: false,
                 start_conflict: None,
                 lacking: None,
                 spend: None,

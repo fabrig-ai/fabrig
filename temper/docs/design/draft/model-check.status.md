@@ -3,8 +3,7 @@
 2026-11-06. Where the design lags or departs from [model-check.md](model-check.md).
 
 - **Design lags:**
-  - 2: `../client/README.md`, 3.5: a task is a chat, a goal or an agent's, with no kind that lists nowhere; *The try* cites this draft for what runs, where `../domain/trial.md` holds it.
-  - 3: `../client/README.md`, 3.5: *The try* is one status box in the panel's place, on the welcome and on `ConnectModel`, where 3 has the side pane and the account's row, and it says nothing of what feeds it: the welcome's Model step and `ConnectModel` go from the host's check to a model usable, with no trial. *A way's page*'s Claude stays until the host's check answers, where 3 moves on at once. *Ready* has its checklist, where 3 has the pane, and its heading waits for a model usable, where 3 counts one just declared. `../client/browser.md`, 7.2: gallery states of the box, and none of a trial's own steps and endings.
-  - 4: `../client/README.md`, 3.5: a stop's why comes from the host's check, where 4 has the run's ending or `RunWait`; "Continue anyway" goes, and Home says a try that stopped; nothing says the failure takes nothing from the account.
+  - 2: `../client/README.md`, 3.5: a task is a chat, a goal or an agent's, with no kind that lists nowhere; *The try* cites this draft for what runs, where `../domain/trial.md` holds it, and says nothing of who pays or what ends a trial (its first committed text, or a wait of a minute).
+  - 3, 4: `../client/README.md`, 3.5: *The try* draws Model's line, its steps and its acts, and says nothing of what feeds them past the host's check. Its "Try again" checks the host again, where 2 runs another trial. A stop's why comes from the host's check, where 4 has the run's ending or `RunWait`, and nothing says the failure takes nothing from the account. `../client/browser.md`, 7.2: gallery states of a trial's own steps and endings.
 - **Open:**
   - 5: an act on Settings' accounts; a world for the wait.

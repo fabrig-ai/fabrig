@@ -35,7 +35,9 @@ journeys, 10 what is open.
   the live page's prints.
 - **Recorded again by a command** while its acts hold: `again NAME`
   walks them on a fresh fake box in headless Chromium, as the browser
-  tier drives it, and adds the result; no person walks it (8.1).
+  tier drives it, and adds the result; no person walks it (8.1). A
+  journey that starts past the first page says how to reach it in a
+  setup file beside its recording (8.2).
 - **Printed as static pages** by `temper-client-journeys`, under
   `docs/design/client/journeys/`: a page per mark, one tag per line, the
   acted control leading to the next page, the shell's stylesheets
@@ -417,9 +419,9 @@ Under `docs/design/client/journeys/`:
 
 - **A journey's directory,** `NAME/`: its `recording`; its
   `README.md`, the journey's description, what it walks and what each
-  mark shows, which `add` and the reprint leave as they find it; and a
-  page for each mark, `01.html` onwards, in the marks' order, replaced
-  whole at each print.
+  mark shows, and its `setup`, when it has one (8.2), which `add` and the
+  reprint leave as they find them; and a page for each mark, `01.html`
+  onwards, in the marks' order, replaced whole at each print.
 - **Beside the journeys:** `skein-ui.css`, skein-ui-bundle's own
   (`skein_ui_bundle::STYLESHEET`, skein's `ui-web.md`, section 12), and
   `journey.js`, the program's, both written at each print; and
@@ -427,8 +429,8 @@ Under `docs/design/client/journeys/`:
   otherwise.
 - **Generated:** the pages, `skein-ui.css` and `journey.js` are
   generated files, rewritten by the reprint, so that a rebase that
-  conflicts in them is resolved by reprinting. A recording, a README
-  and the overlay are sources, never regenerated. A stale journey fails the
+  conflicts in them is resolved by reprinting. A recording, a README, a
+  setup and the overlay are sources, never regenerated. A stale journey fails the
   reprint: such a change waits until the journey is recorded again
   (section 8).
 
@@ -509,6 +511,15 @@ python3 -m http.server 8766
   role, name and order; a still page told from a moving one by two
   saves, an exchange or a write in flight among them; and the check
   refusing a new walk whose acts, values, events or key marks differ.
+- **A setup, natively,** in the journey module's tests and
+  `tools/journeys`' own: a setup's lines read back, each record among
+  them, and another version, a line out of its place, a second `reload`
+  and an unknown role each unreadable; `after` joining a named setup's
+  steps without its `reload`, and a chain of two, a missing name and a
+  name of its own refused; every committed setup read; and
+  `project-landing`'s first steps, replayed against `welcome-set-up`'s
+  recording, each naming a control of which the view makes that act's
+  event, so that the two starts stay one.
 - **`again`'s browser half has no story of its own,** as the recorder's
   keys have none: its first run, a journey recorded again, proves it,
   and skein's browser tier proves the kit's letter with Alt and its
@@ -579,8 +590,13 @@ python3 -m http.server 8766
   its own (never the request's commit itself), that moves the overlay's
   rules into `temper.css` or `task-pages.css` and the markup's changes
   into the view, and reprints. The reprint then equals the request's
-  pages, compared as text, not as pictures; where it does not, the
-  landing says why, and the later requests take it as it is. What the
+  pages where their facts agree; a hand-made page's values need not be
+  a journey's (the request's README says where they came from). The
+  landing also renders the request against the reprint at each width,
+  with disclosures and menus open, and accounts for every rule, page
+  change and named state in its last commit (`../draft/look-requests.md`,
+  4 and 5). Where they differ, the account says why, and the later
+  requests take the reprint as it is. What the
   edits imply beyond the pages recorded (the same part in a state no
   journey reaches) is the view's and `temper.css`'s for every state, and
   the mockups follow (`mockups/README.md`, 1).
@@ -596,6 +612,9 @@ reprint carries, since its acts are events, not controls.
   person walks it.
 - **A real journey** (section 9) is never walked by `again`, which starts
   fake boxes alone: its person records it again by hand (3.5).
+- **A setup that no longer walks** (a control renamed before the reload)
+  stops `again`, naming its line; it is edited, and no recording changes
+  for it (8.2).
 - **When the walk itself changes** (a step gone, another added), the
   journey is walked anew in a browser on a fresh fake box (3.5), from
   its `README.md` and the change that moved it, then added (`add NAME
@@ -664,14 +683,58 @@ over skein's harness.
   end, its scratch directory removed unless it failed, which it then
   names with what failed.
 
+### 8.2 A setup
+
+A journey whose recording starts past the first page has an optional file,
+`setup`, beside its `recording`: what the person did on the fresh box before
+the reload where the recording starts. `again` walks it first, by itself, and
+the journey is then recorded as 8.1 has it. No setup, and `again` starts
+at the printed link's first page, as 8.1 has it.
+
+Text, one record per line, as the recording's (3.2): its kind first, then its
+fields, each after one space, a word bare, bytes in double quotes.
+
+| Record | Fields | What `again` does |
+|---|---|---|
+| `setup` | `1`, the format's version | the first line |
+| `after` | a journey's name | the second line, or absent: that journey's steps come first, without its `reload`; the journey it names has no `after`, and isn't this one |
+| `press`, `submit`, `toggle` | a role, a control's accessible name, then its order from 0, when it isn't 0 | finds that control on the live page and acts as a person does (8.1) |
+| `input` | a role, a name, a value, then its order, when it isn't 0 | the field's value selected and the value typed |
+| `see` | text | waits until the page shows the text |
+| `reload` | a path and query | once, last of the steps: loads that address on the box's origin; the recording starts there, as any load starts one (3.1) |
+| `mark` | a key mark's number in the walk from 1, text | after `reload`, in order, one to a mark: at that step of the walk, waits until the page shows the text, then goes on as 8.1 |
+
+- **By role and name,** as a person finds a control, and never an event:
+  nothing before the reload reaches the recording, which proves nothing of
+  it. A role is a word of skein's roles, lowercase: `button`, `link`,
+  `textbox`, `checkbox`.
+- **Shared, once:** `project-landing`'s setup walks a fresh box to Home in
+  Hello, and `chat-draft`'s is `after project-landing`, what it waits for
+  on Home, and its own `reload`. `welcome-set-up`, with no setup, walks
+  that start in its recording, and a test holds the two together
+  (section 6).
+- **Why a mark waits:** the page may stand still for seconds while a fake
+  model's turn goes on, and two saves half a second apart can't tell that
+  from settled, where the person could (8.1). A `mark` names what the
+  person waited for. A key mark with none falls as 8.1 has it.
+- **Its bounds:** a step of a setup not done within 60 seconds stops `again`,
+  naming its line and what it sought; a `mark`'s text not shown within 30
+  seconds stops it, naming the mark.
+- **A longer run than a test's:** `again` sets the harness's horizon (skein's
+  `ui-web.md`, 14.2) to ten minutes, since each of its steps has its own bound
+  and a walk like `chat-draft`'s holds more than forty seconds of saves. It
+  is a person's command and in no tier; every test keeps the harness's forty.
+- **No secret:** a setup is committed as it stands, and `add`'s scan doesn't
+  read it. A step that needs a secret is no fake box's.
+
 ## 9. The journeys
 
 | Name | The walk | Its pages |
 |---|---|---|
 | `welcome-set-up` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then Forgejo's "Run on this machine" pressed on the Forge step, which opens Forgejo's sheet, then the sheet's "Run on this machine", an empty repository chosen, which makes the forge and sets it up (`README.md`, 3.5) | `01.html` and `02.html`, the welcome, the second as it was when "Set up temper" was pressed, which leads to `03.html` and `04.html`, the Forge step's choices, the second as it was when "Run on this machine" was pressed, which leads to `05.html` and `06.html`, Forgejo's sheet, the second as it was when its "Run on this machine" was pressed, which leads to `07.html` and `08.html`, the Model step, the set up running on, the second as it was when the recording ended; its `README.md` says so |
 | `welcome-playground` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Try the playground" pressed | `01.html`, the welcome as it was when "Try the playground" was pressed, which leads to `02.html`, `NewChat` in the Demo project, the playground started, its banner's one line above its main, as it was when the recording ended; its `README.md` says so |
-| `project-landing` | on a fresh `temper box --fake-backends` (3.5): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts, and the settled Home saved | `01.html`, Home in Hello with the ChatGPT plan, Forgejo, "work/hello is in Hello" and To begin's two steps left; the recording holds no act; its `README.md` says so |
-| `chat-draft` | on a fresh `temper box --fake-backends` (3.5): "Chats can write drafts" enabled in Settings, a chat started, "+ Draft" pressed, two turns of the fake model writing and changing its document (`../domain/testing.md`, 2.4), Split, Draft, then "Start goal…" and its goal's page, then its Draft link back to the chat | a chat in Chat, Split and Draft, the sheet, the goal's page and the return to the chat (`../domain/agent.md`, 8.3; `README.md`, 3.5) |
+| `project-landing` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts, and the settled Home saved | `01.html`, Home in Hello with the ChatGPT plan, Forgejo, "work/hello is in Hello" and To begin's two steps left; the recording holds no act; its `README.md` says so |
+| `chat-draft` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2), `after project-landing`, up to `/projects/1/settings` reloaded; then "Chats can write drafts" enabled in Settings, a chat started, "+ Draft" pressed, two turns of the fake model writing and changing its document (`../domain/testing.md`, 2.4), Split, Draft, then "Start goal…" and its goal's page, then its Draft link back to the chat | a chat in Chat, Split and Draft, the sheet, the goal's page and the return to the chat (`../domain/agent.md`, 8.3; `README.md`, 3.5) |
 
 A journey recorded on a real box says so in its walk here, as `real`,
 and in its `README.md`; none is yet (3.5).
@@ -723,17 +786,11 @@ Release, with its uncertain pair. These add no recorded journey or page.
 - **The page's own state at a mark** (3.4): where a journey meets a
   skein menu, the page's events would be recorded and replayed beside
   the host's reports.
-- **A new recording's noise:** fixed loopback ports for the fake box,
+- **A new recording's noise:** ports fixed for a fake box that `again`
+  starts, where it takes the kernel's (`../protocol/setup.md`, 7.5), and
   which must not collide when several record at once, and a fixed start
   for its clock and the browser's, so that a recording made again
   differs from the last only where the client does.
-- **A prepared box for `again`:** a journey that begins past the welcome needs
-  its project and account made before its first act, and `again` has no such
-  stage (8.1). Default: such a journey is walked anew and added (section 8).
-- **A longer walk for `again`:** skein's harness ends its whole run at
-  40 seconds, which holds the box's start and every step's saves;
-  `welcome-set-up`'s fits in about 10. A journey that doesn't would need
-  the harness's horizon set by its setup, skein's.
 - **Later, if wanted:** the one-tag-per-line print as skein-ui-web's,
   for another application's journeys.
 - **What a real journey leaves out** (3.8): a token split across a run's

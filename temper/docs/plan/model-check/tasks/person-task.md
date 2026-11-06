@@ -18,6 +18,8 @@ files = [
   "jig/crates/jig-domain-authority/src/check.rs",
   "jig/crates/jig-domain-authority/src/lib.rs",
   "jig/crates/jig-domain-authority/src/tests_policy.rs",
+  "jig/testing/jig-conformance/src/referee.rs",
+  "jig/testing/jig-conformance/src/referee/tests.rs",
 ]
 effort = "high"
 minutes = 120
@@ -139,3 +141,25 @@ pushed `4ad4220b01`. No synthetic policy, no substitute project, no bypass in th
 - **Its story, failing first, in `tests_policy.rs`:** project 0 with no policy allows a good run; past the rules' spend
   or deadline it refuses; a write refuses; project 99 with no policy still refuses `UnknownProject`. Run
   `jig-domain-authority`'s `--lib` with the checks above.
+
+2026-11-06. **The referee's authority predicate (`referee.rs:622`) requires a project policy for project 0: widen the task,
+or a prerequisite task?** Widen: the host story in `jig/tests/core` is this task's acceptance and cannot pass without it,
+and `jig/docs/design/domain/authority.md`, 6.1 already decides what the rule is. `files` now hold `referee.rs` and
+`referee/tests.rs`. Resume from the pushed `0c38bd8a04`; the failing world story stays as it is. No synthetic policy, no
+substitute project, no observation disabled.
+
+- **The rule is the referee's own:** it states 6.1 itself and calls no authority decision, as the referee does elsewhere.
+  A constant of its own, `NO_PROJECT: u32 = 0`, citing 6.1; it doesn't take `jig_domain_authority::NO_PROJECT`.
+- **At `task.project == NO_PROJECT`,** in the place of `project.is_some_and(..)`: `task.source` is `Source::Deployment`,
+  and the scope holds no tools, grants, notes, note resources, descendants or depth. The two checks beside it stay as they
+  are: within `policy.deployment`, within its source. Every other project with no policy stays a violation.
+- **Its story, failing first, in `referee/tests.rs`:** a stripped task from the deployment at project 0 passes; one with a
+  tool, a grant, a note or delegation each breaks `Promise::Authority`; past the deployment's budget breaks it; a person as
+  its source breaks it; project 99 with no policy still breaks it. Each refusal names what it expects; run
+  `jig-conformance`'s `--lib` with the checks above.
+- **Another referee read of a project's policy on this task's path** (`policy.projects[..]` at the effect decision, say):
+  pre-approved, the same rule, a line each, named in your report. A decision on a project 0 task has no grant to stand on:
+  where the story reaches that index, it's a `Promise::Authority` violation, not a pass and not a panic. Change it only if
+  a story reaches it.
+- **Any other violation** (spend, a pool, delivery, a receipt) is the referee finding what it's there to find: fix the
+  code, not the referee. If the fix is outside this task, that is a new question.

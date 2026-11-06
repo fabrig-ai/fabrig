@@ -512,8 +512,8 @@ delegate from what it knows:
   the run's authority: a model not configured or named twice, an effort
   its model does not declare, a model, main or sub-agent, outside that
   charter's models or the authority's refuses the call, naming the
-  model and why. A role left out takes its charter's default as each of
-  its agents is made (jig's `domain/tasks.md`, section 3).
+  model and why. A role left out names none, and each of its agents takes
+  its models at each run's check (jig's `domain/tasks.md`, section 3).
 - **`repairs`:** the red landing the change repairs
   (`after-landing.md`, section 7), by its merge commit's full
   hexadecimal digits, as the red's news names it: a landing of temper's
@@ -760,6 +760,15 @@ merge, with both parents. Its outcomes, in smith's terms (smith's
 | a branch moved, as a fast-forward cannot take it or its head is not the one expected | stale: the run ends, and the engine decides afresh |
 | a conflicted file still holds a marker | refused, naming the file |
 | refused by the forge, unreachable, timed out, broken, too large, missing the repository, a branch or a commit | failed, with the reason and the last 512 bytes of git's diagnostic output |
+
+What it delivers is the tree, not the run's history: a checkout is detached
+(worker.md, section 5), and the worker commits on its own record of the head,
+never on HEAD (`../protocol/git.md`, 4.7). So a run's own commits, resets and
+rebases keep their files and lose their history, and a saved tree that is
+delivered unchanged lands the save's commit, the delivery's title and body
+unused (worker.md, section 5). The head delivered names what is on the branch,
+and the coding charter's words say so (`../protocol/configuration.md`, 13.4's
+charter 2 row), since a run can't otherwise tell.
 
 A push that lands is the result, even if the run was winding down. The
 answer carries what the run left on the forge (worker.md, 4.2), and the

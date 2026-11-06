@@ -76,3 +76,48 @@ The checks: fmt, `old_forms.py` for `temper`, clippy on `temper-client-domain`, 
 ## Report
 
 As the implementer's text asks: each test's bite, and each of the note's files you changed.
+
+## Answers
+
+2026-11-06. **Question:** authorize capacity hunks in the domain and view test fixtures, or give their repair to a
+follow-up? **Answer: authorize them, and the production capacity they stand for.** Keep the pushed commit `f11eef91a3` and
+go on from it. The session now holds two more watches, the Trials rows and a running row's Task, and no other task names
+this room. In a fixture it fails loudly; at the shells' limits it would lose a page's watch without a word, against this
+task's "whatever the page" and `temper/docs/design/protocol/configuration.md`, 7. `4bf6574345` moved the same lines for the
+goal fact, and it is the pattern to follow. A capacity following the session's watches changes no test's expectation.
+
+The rule: two more handles and two more watches at each site below, its comment saying what the new room holds. Nothing else
+moves in these files, and these hunks are the exception to "nothing of `pages/`, and no view".
+
+May also change, for that rule only:
+
+- **Production, handles 19 to 21, watches 17 to 19:** `temper/crates/temper-client-tools/src/limits.rs`,
+  `temper/crates/temper-client-shell-terminal/src/limits.rs`, `temper/crates/temper-client-shell-web/src/limits.rs`.
+- **The engine's room, 17 to 19:** in `temper/crates/temper-engine-domain/src/limits.rs`, `WATCHES_PER_STREAM`,
+  `VIEWS.watchers`, `VIEWS.watchers_per_party` and the doc comment's number.
+- **What the page leaves:** `temper/crates/temper-client-domain/src/pages/delegation.rs`, `bound`: `saturating_sub(5)` becomes
+  `saturating_sub(7)`, and its comment adds the trials and a running trial's task. With the watches up by two, every
+  client's bound stays what it was, so no delegation test should move.
+- **Unit fixtures:** `temper/crates/temper-client-domain/src/tests/fixtures.rs`, 14 and 13;
+  `temper/crates/temper-client-view/src/tests/fixtures.rs`, 14 and 14; `temper/crates/temper-client-view/src/tests/home.rs`,
+  `limits.client.domain`, 17 and 15, that one hunk alone, as `home-line` owns the file.
+- **Suites:** `temper/crates/temper-client-domain/tests/suite/change.rs` and `task_pages.rs`, 14 and 13;
+  `temper/crates/temper-client-view/tests/suite/change_page.rs`, 14 and 13, and `task_pages.rs`, 11 and 11.
+- **The client world:** `temper/tests/client/src/fixtures.rs`, 16 and 15; `temper/tests/client/tests/suite/status.rs`,
+  `to_begin.rs` and `away.rs`, 18 and 18, and `to_begin.rs`' comment, "the engine admits 19 watches".
+- **The design's numbers, 17 to 19, and no other line:** `temper/docs/design/protocol/configuration.md`, 7, and
+  `temper/docs/design/domain/root.md`, 10. This departs from the common note's rule on design text.
+
+`temper/crates/temper-client-domain/src/tests/pages/goals.rs`, at 20 and 20, stays unless it fails. Another explicit client
+limit in `temper/` that fails only for lost room takes the same rule, and you name it in your report. A test that fails
+for any other reason, or that expects a refusal at the old count, is a question.
+
+Checks, beside the spec's: `heavy cargo nextest run -p temper-client-view --lib`; `--test suite` of `temper-client-domain`
+and of `temper-client-view`; `-p temper-client-world -E 'test(to_begin) | test(away) | test(status)'`;
+`-p temper --test suite -E 'test(configuration::)'`, which holds the engine's room to the client's. Check each run's count.
+
+Leave recordings and their harnesses: a session watch adds an exchange to
+`temper/docs/design/client/journeys/welcome-playground/recording`, and may add one to
+`temper/tests/playground/tests/fixtures/story-a.log` and to worlds that wait on startup exchanges (`4bf6574345` touched
+`temper/tests/one-process/src/world.rs` and `temper/crates/temper/tests/support/person.rs`). Don't run those tiers; name them
+under `## Left`, and the trunk's end check and its repair take them.
