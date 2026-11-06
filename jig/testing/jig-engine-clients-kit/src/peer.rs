@@ -731,6 +731,10 @@ impl Peer {
         self.pump();
     }
     #[must_use]
+    pub fn link_count(&self) -> usize {
+        self.links.len()
+    }
+    #[must_use]
     pub fn printed_link(&self) -> Box<[u8]> {
         self.links.last().expect("printed link").clone()
     }

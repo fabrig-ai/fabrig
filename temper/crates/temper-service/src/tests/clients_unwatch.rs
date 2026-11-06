@@ -51,6 +51,7 @@ impl Stand {
             redirect_bytes: config.limits.driver.client.uri_bytes,
             deployment_provider: 2,
             link: None,
+            link_secret: None,
             heartbeat: config.clients.heartbeat,
             rows: 32,
             served,
