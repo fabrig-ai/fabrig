@@ -1,0 +1,3 @@
+draft = "smith-test-cost"
+repo = "fabrig"
+sources = ["smith/docs/plan/smith-test-cost/inputs/request.md", "smith/benchmarks/src/isolate.rs", "smith/benchmarks/src/passive.rs", "smith/benchmarks/tests/suite/pipeline.rs", "smith/benchmarks/tests/suite/runner.rs", "smith/benchmarks/tests/suite/probe_command.rs", "AGENTS.md", "DESIGN.md"]
