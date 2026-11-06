@@ -530,6 +530,13 @@ appearance of a tool, so settings precedes docs where it was called first.
 The growing text, ordered lists and scrolling beyond the pill and loading
 status are tracked in `../draft/chat-reading.status.md`, sections 3, 5 and 6.
 
+The `close-chat` request's hand-made `close-chat/01.html` through `03.html`
+are not journeys to reprint or land (section 7). Their states are the gallery's
+`chat-closing`, `chat-closing-work` and `chat-closed` (`browser.md`, 7.2).
+The other confirmations and failures use the same sheet (`README.md`, 3.6);
+their gallery states include Start over, Stop, Cancel, Accept, Reject and
+Release, with its uncertain pair. These add no recorded journey or page.
+
 ## 10. Open questions
 
 - **Typing:** whether every act marks its page; the design marks

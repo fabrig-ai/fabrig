@@ -59,7 +59,11 @@ pub fn refusal(b: &mut Builder, words: &Words, value: &c::Refusal) {
     }
 }
 pub fn decision(b: &mut Builder, words: &Words, page: Option<&c::ReadValue>, act: c::ActKind) {
-    let facts = jig_client::facts::decision(page, act);
+    let mut facts = jig_client::facts::decision(page, act);
+    facts.dangerous = false;
+    if act == c::ActKind::Cancel {
+        facts.effect = None;
+    }
     for fact in &jig_client::words::decision(&facts, &words.book, words.language) {
         text(b, Role::Paragraph, fact);
     }

@@ -182,6 +182,103 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "chat-closing-below",
+        heading: "T6 · Why is tally sum slow on big files?",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Close this chat?" },
+            Part::Text { text: "1 task below it is cancelled." },
+        ],
+    },
+    Holds {
+        name: "chat-closing-proposal",
+        heading: "T6 · Why is tally sum slow on big files?",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Close this chat?" },
+            Part::Text { text: "1 proposal is withdrawn." },
+        ],
+    },
+    Holds {
+        name: "task-releasing-uncertain",
+        heading: "T3 · CSV import",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Release this task?" },
+            Part::Named { role: Role::Button, name: "Repeat the effect" },
+            Part::Named { role: Role::Button, name: "Do not repeat the effect" },
+        ],
+    },
+    Holds {
+        name: "chat-closing-work",
+        heading: "T6 · Why is tally sum slow on big files?",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Close this chat?" },
+            Part::Named { role: Role::Button, name: "Keep it" },
+            Part::Named { role: Role::Button, name: "Close chat" },
+        ],
+    },
+    Holds {
+        name: "chat-closing-failed",
+        heading: "T6 · Why is tally sum slow on big files?",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Close this chat?" },
+            Part::Named { role: Role::Button, name: "Keep it" },
+            Part::Named { role: Role::Button, name: "Close chat" },
+        ],
+    },
+    Holds {
+        name: "chat-closing-start-over",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Start over?" },
+            Part::Named { role: Role::Button, name: "Keep going" },
+            Part::Named { role: Role::Button, name: "Start over" },
+        ],
+    },
+    Holds {
+        name: "task-cancelling",
+        heading: "T3 · CSV import",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Cancel this task?" },
+            Part::Named { role: Role::Button, name: "Keep it" },
+            Part::Named { role: Role::Button, name: "Cancel task" },
+        ],
+    },
+    Holds {
+        name: "task-stopping",
+        heading: "T3 · CSV import",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Stop this task?" },
+            Part::Named { role: Role::Button, name: "Keep going" },
+            Part::Named { role: Role::Button, name: "Stop task" },
+        ],
+    },
+    Holds {
+        name: "proposal-accepting",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Accept this proposal?" },
+            Part::Named { role: Role::Button, name: "Not yet" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "proposal-rejecting",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Reject this proposal?" },
+            Part::Named { role: Role::Button, name: "Keep it" },
+            Part::Named { role: Role::Button, name: "Reject" },
+        ],
+    },
+    Holds {
+        name: "chat-closed",
+        heading: "T6 · Why is tally sum slow on big files?",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Closed at 21:05" },
+            Part::Named { role: Role::Status, name: "Closed" },
+            Part::Absent { role: Role::TextArea, name: "Message" },
+        ],
+    },
+    Holds {
         name: "rail-person-menu",
         heading: "tally",
         parts: &[
@@ -289,7 +386,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "goal-stop-dialog",
         heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
         parts: &[
-            Part::Named { role: Role::Dialog, name: "Stop first-run-projects?" },
+            Part::Named { role: Role::Dialog, name: "Stop this goal?" },
             Part::Text { text: "What landed on its branch stays there." },
         ],
     },
@@ -2257,7 +2354,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "chat-closing",
         heading: "T6 · Why is tally sum slow on big files?",
-        parts: &[Part::Named { role: Role::Dialog, name: "Close" }],
+        parts: &[Part::Named { role: Role::Dialog, name: "Close this chat?" }],
     },
     Holds {
         name: "chat-rejecting",
@@ -2279,7 +2376,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "task-releasing",
         heading: "T3 · CSV import",
-        parts: &[Part::Named { role: Role::Dialog, name: "Release" }],
+        parts: &[Part::Named { role: Role::Dialog, name: "Release this task?" }],
     },
     Holds {
         name: "connect-model-choose",
@@ -2390,7 +2487,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 35] = [
+const SPENDS: [(&str, Role, &str); 41] = [
     ("chat-work-done", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-open", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-running", Role::Paragraph, "70 spent · of 101472"),
@@ -2401,6 +2498,12 @@ const SPENDS: [(&str, Role, &str); 35] = [
     ("chat-work-separated", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-empty", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-reading", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-closed", Role::Paragraph, "1 spent · of 40"),
+    ("chat-closing-below", Role::Paragraph, "1 spent · of 40"),
+    ("chat-closing-proposal", Role::Paragraph, "1 spent · of 40"),
+    ("chat-closing-work", Role::Paragraph, "1 spent · of 40"),
+    ("chat-closing-failed", Role::Paragraph, "1 spent · of 40"),
+    ("chat-closing-start-over", Role::Paragraph, "0 spent · of 40"),
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
     ("chat-held-task", Role::Paragraph, "0 spent · of 40"),
@@ -3024,7 +3127,7 @@ fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
 fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
     for (name, role, label) in [
         ("goal-amending", Role::Region, "Amend task 108"),
-        ("goal-stop-dialog", Role::Dialog, "Stop first-run-projects?"),
+        ("goal-stop-dialog", Role::Dialog, "Stop this goal?"),
         ("goal-toast", Role::Status, ""),
     ] {
         let sample = samples::samples().into_iter().find(|sample| sample.name == name).unwrap();

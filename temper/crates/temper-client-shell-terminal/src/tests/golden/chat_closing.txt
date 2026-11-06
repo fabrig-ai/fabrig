@@ -1,0 +1,59 @@
+== T1 · Add CSV export to widget == Live
+demo:
+  [1] temper
+  demo:
+    [2] demo · no repository (pressed)
+    New project:
+      [3] New project: (empty) (enter sends)
+      [4] Create
+    [5] Settings for demo
+  [6] Home
+  [7] Needs you
+  [8] Chats (current)
+  [9] + New chat
+  More ways to start work:
+    [10] Chat
+      Ask a question or ask for a change.
+    [11] All ways to start work
+  [12] Settings
+  * Pat
+Where:
+  [13] Chats
+  [14] demo
+  [15] Chats
+T1 · Using the default model
+* waiting on 1 delegate
+[16] Close
+0 spent · of 1
+Conversation:
+  Conversation:
+    Today · Thursday 1 January
+    You
+    00:00
+    Add CSV export to widget
+    Temper
+    00:00
+    I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge.
+    Task 2:
+      T2 · CHANGE
+      * Running
+      ### Export widget's table as CSV
+      Steps:
+        - Branch pushed
+        - Pull request opened
+        - CI passed
+        - Landed
+      [17] Task 2 ↗
+    wait:
+      `wait`
+Close this chat?
+  ## Close this chat?
+  You can still read it, but it can’t be reopened.
+  What closing does:
+    - The run under way stops now.
+    - T2 Export widget's table as CSV is cancelled.
+      [18] Take it instead
+    - 2 proposals are withdrawn.
+    - Changes not yet begun are withdrawn. Those under way settle.
+  [19] Keep it
+  [20] Close chat
