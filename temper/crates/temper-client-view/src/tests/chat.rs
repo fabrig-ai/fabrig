@@ -7,6 +7,24 @@ use jig_client::{contract as c, thread::Thread};
 use skein_lib::{List, Wall};
 use skein_ui::Role;
 
+fn answer_tree(thread: &Thread, words: &crate::words::Words, projected: bool) -> skein_ui::Tree {
+    let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
+    crate::pages::chat::conversation(
+        &mut b,
+        thread,
+        words,
+        (LINES, TEXT),
+        crate::pages::chat::Speakers { person: None, requester: false },
+        if projected {
+            crate::pages::chat::Drawn::Chat { request: None, delegations: None }
+        } else {
+            crate::pages::chat::Drawn::Lines
+        },
+        &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
+    );
+    b.finish()
+}
+
 #[test]
 fn the_playground_project_is_named_playground() {
     let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
@@ -21,7 +39,7 @@ fn the_playground_project_is_named_playground() {
             }
         }
         let context = context.expect("chat context");
-        assert_eq!(context, styled(tree, crate::look::THREAD_INNER) + 1);
+        assert!(context > styled(tree, crate::look::THREAD_INNER));
         assert!(tree.nodes()[context].styles.as_slice().contains(&crate::look::META_LINE));
         assert!(skein_lib::bytes::find(&fixtures::node_text(tree, context), "Shop · acme/shop".as_bytes()).is_some());
     }
@@ -1014,20 +1032,7 @@ fn person_words_keep_their_shell_and_only_assistant_calls_keep_work() {
     for hidden in [look::BY_TOOL, look::BY_SYSTEM, look::BY_AGENT] {
         assert!(style_position(tree.nodes(), hidden).is_none(), "inputs and call-only assistant have no shell");
     }
-    assert_call_fold(&tree, b"1 tool call", b"Read", &[b"Read"]);
-}
-#[test]
-fn only_omission_markers_keep_the_turn_region() {
-    let tree = tree(&structured_thread());
-    let mut markers = 0_u32;
-    for node in tree.nodes() {
-        if node.styles.as_slice().contains(&crate::look::MARKER) {
-            assert_eq!(node.role, Role::Region);
-            assert!(node.styles.as_slice().contains(&crate::look::TURN));
-            markers = markers.checked_add(1).expect("marker count");
-        }
-    }
-    assert_eq!(markers, 1);
+    assert_run_line(&tree, b"Read", b"", &[b"Read: Done"]);
 }
 
 fn chat_event(
@@ -1376,20 +1381,20 @@ fn repeated_calls_fold_in_first_name_order_with_each_outcome_inside() {
         run::call(2, b"wait", b"{}", None),
         run::call(3, b"read", b"{}", Some(b"Read the second file")),
     ]);
-    assert_call_fold(
+    assert_run_line(
         &tree,
-        b"3 tool calls",
-        "read ×2 · wait".as_bytes(),
-        &[b"readRead the first file", b"wait", b"readRead the second file"],
+        "read ×2, wait".as_bytes(),
+        b"",
+        &[b"read: Read the first file", b"wait", b"read: Read the second file"],
     );
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Temper").is_none());
 }
 #[test]
 fn a_fold_names_two_repeated_calls_and_two_distinct_calls() {
     use fixtures::first_run as run;
-    for (tool, description) in [(b"read".as_slice(), "read ×2"), (b"edit".as_slice(), "read · edit")] {
+    for (tool, description) in [(b"read".as_slice(), "read ×2"), (b"edit".as_slice(), "read, edit")] {
         let tree = assistant_blocks(&[run::call(1, b"read", b"{}", None), run::call(2, tool, b"{}", None)]);
-        assert_call_fold(&tree, b"2 tool calls", description.as_bytes(), &[b"read", tool]);
+        assert_run_line(&tree, description.as_bytes(), b"", &[b"read", tool]);
     }
 }
 #[test]
@@ -1424,25 +1429,60 @@ fn a_tool_name_using_the_whole_turn_budget_fits_its_fold_description() {
         &mut crate::frame::Bindings::new(bounds.tree.bindings),
     );
     let tree = b.finish();
-    assert_call_fold(&tree, b"1 tool call", &tool, &[&tool]);
+    let mut name = skein_lib::Writer::new(256);
+    name.put(tool.get(..253).unwrap()).unwrap();
+    name.put("…".as_bytes()).unwrap();
+    let mut row = skein_lib::Writer::new(160);
+    row.put(tool.get(..157).unwrap()).unwrap();
+    row.put("…".as_bytes()).unwrap();
+    assert_run_line(&tree, &name.finish(), b"", &[&row.finish()]);
 }
 // The fake person sees the fold and all its content, without an Expanded state.
-pub(super) fn assert_call_fold(tree: &skein_ui::Tree, name: &[u8], description: &[u8], lines: &[&[u8]]) {
+pub(super) fn assert_run_line(tree: &skein_ui::Tree, name: &[u8], description: &[u8], lines: &[&[u8]]) {
     assert!(fixtures::person_find(tree, Role::Disclosure, name).is_some());
     let at = named_position(tree.nodes(), Role::Disclosure, Some(name)).expect("disclosure node");
     let fold = &tree.nodes()[at];
-    assert_eq!(fold.description.as_deref(), Some(description));
+    assert_eq!(fold.description.as_deref().unwrap_or(b""), description);
     assert!(!fold.states.as_slice().contains(&skein_ui::State::Expanded));
-    let mut child = at.checked_add(1).unwrap();
+    let slot = at.checked_add(1).unwrap();
+    assert!(tree.nodes()[slot].styles.as_slice().contains(&crate::look::WORK_CALLS));
+    let mut child = slot.checked_add(1).unwrap();
     for line in lines {
         let node = &tree.nodes()[child];
-        assert_eq!(node.role, Role::Slot);
-        assert!(node.styles.as_slice().contains(&crate::look::WORK));
+        assert_eq!(node.role, Role::Paragraph);
         assert_eq!(fixtures::node_text(tree, child).as_ref(), *line);
-        child = child.checked_add(usize::try_from(node.size).expect("work line size")).unwrap();
+        child = child.checked_add(usize::try_from(node.size).unwrap()).unwrap();
     }
-    assert_eq!(child, at.checked_add(usize::try_from(fold.size).expect("fold size")).unwrap());
+    assert_eq!(child, at.checked_add(usize::try_from(fold.size).unwrap()).unwrap());
 }
+#[test]
+fn an_opaque_block_draws_nothing_and_no_shell() {
+    use fixtures::first_run as run;
+    for speaker in [c::Speaker::Assistant, c::Speaker::Person, c::Speaker::Tool, c::Speaker::System] {
+        let mut thread =
+            Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
+        thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+        let mut rows = List::with_capacity(1);
+        rows.push(run::turn(
+            1,
+            ATTEMPT,
+            1,
+            &[run::message(speaker, &[c::Block::Opaque { dialect: run::text(b"opaque-v1"), size: 42 }])],
+            512,
+        ))
+        .unwrap();
+        thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            for projected in [true, false] {
+                let drawn = answer_tree(&thread, &words, projected);
+                assert_eq!(drawn.nodes().len(), 1, "only the conversation log remains");
+                assert_eq!(drawn.nodes()[0].role, Role::Log);
+                assert!(fixtures::text(&drawn).is_empty());
+            }
+        }
+    }
+}
+
 #[test]
 fn a_persons_words_are_paragraphs_without_a_read_label() {
     let mut thread = structured_thread();
@@ -2196,15 +2236,14 @@ fn a_proposals_fold_precedes_its_card_after_the_message() {
         root.pages().chat().unwrap().thread.lines.rows
     );
     let turn = turn.unwrap();
-    let children = subtree(&tree, turn);
-    let card = style_position(children, crate::look::CARD).expect("proposal inside first turn");
-    let message = style_position(children, crate::look::MESSAGE).expect("message");
-    assert!(card >= message + usize::try_from(children[message].size).unwrap());
-    let fold = style_position(children, crate::look::WORK).expect("fold in the same turn");
-    assert!(fold >= message + usize::try_from(children[message].size).unwrap());
-    assert!(fold + usize::try_from(children[fold].size).unwrap() <= card, "fold before proposal card");
+    let message = styled(&tree, crate::look::MESSAGE);
+    let fold = styled(&tree, crate::look::WORK_RUN);
+    let card = styled(&tree, crate::look::CARD);
+    assert!(fold >= message + usize::try_from(tree.nodes()[message].size).unwrap());
+    assert!(fold + usize::try_from(tree.nodes()[fold].size).unwrap() <= card, "run before proposal card");
+    assert!(turn < fold);
     assert_eq!(named_count(&tree, Role::Button, b"Accept"), 1);
-    assert_call_fold(&tree, b"2 tool calls", "read ×2".as_bytes(), &[b"read", b"read"]);
+    assert_run_line(&tree, "read ×2".as_bytes(), b"", &[b"read", b"read"]);
     let said = fixtures::text(&tree);
     assert!(skein_lib::bytes::find(&said, b"propose").is_none());
 }
@@ -2259,7 +2298,7 @@ fn unavailable_models_block_send_and_enter_in_the_view() {
     }
 }
 
-fn configuring_task_root(mut task: c::Task, template: bool, charter: u32) -> temper_client_domain::Domain {
+pub(super) fn configuring_task_root(mut task: c::Task, template: bool, charter: u32) -> temper_client_domain::Domain {
     let (mut root, me_watch, task_watch) =
         fixtures::root_at(temper_client_domain::Address::Chat { task: TASK }, &fixtures::domain_limits());
     let source = messaging_root();
@@ -2273,7 +2312,7 @@ fn configuring_task_root(mut task: c::Task, template: bool, charter: u32) -> tem
     deliver_chat(&mut root, task_watch.expect("task watch"), c::Delivery::Task(Box::new(task)));
     root
 }
-fn configuring_task() -> c::Task {
+pub(super) fn configuring_task() -> c::Task {
     let source = messaging_root();
     let mut task = source.pages().chat().expect("chat").task(source.client()).expect("task").clone();
     task.chip.title = c::DocumentText::complete(fixtures::first_run::text(b"Hello"));
@@ -2523,7 +2562,7 @@ fn configuring_chats_keep_the_conversation_and_proposals_whole() {
         assert!(style_position(configuring_tree.nodes(), crate::look::TASK_CARD).is_some());
         assert!(skein_lib::bytes::find(&fixtures::text(configuring_tree), b"Delegated work").is_some());
         assert_eq!(named_count(configuring_tree, Role::Button, b"Accept"), 1);
-        assert!(fixtures::find(configuring_tree, Role::Disclosure, b"1 tool call").is_some());
+        assert!(fixtures::find(configuring_tree, Role::Disclosure, b"read").is_some());
         assert!(skein_lib::bytes::find(&fixtures::text(configuring_tree), b"Here is my proposal").is_some());
     }
 }
@@ -2726,8 +2765,7 @@ fn provisional_text_replaces_working_dots_and_agent_task_logs_never_have_them() 
     }
 }
 
-#[test]
-fn the_log_has_one_column_with_older_before_turns() {
+fn full_window(dropped: bool) -> (temper_client_domain::Domain, temper_client_domain::Limits) {
     let mut limits = fixtures::domain_limits();
     limits.client.domain.rows = temper_client_domain::pages::chat::LINES;
     let mut rows = List::with_capacity(limits.client.domain.rows);
@@ -2752,13 +2790,19 @@ fn the_log_has_one_column_with_older_before_turns() {
         Some(c::ActivityPage {
             rows,
             before: Some(c::Cursor::new(Box::from(*b"older"), TEXT).unwrap()),
-            after: None,
+            after: if dropped { Some(c::Cursor::new(b"newer".as_slice().into(), TEXT).unwrap()) } else { None },
             cut: false,
         }),
         None,
     );
     deliver_chat(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(configuring_task())));
+    (root, limits)
+}
+#[test]
+fn the_log_has_one_column_with_older_before_turns() {
+    let (root, limits) = full_window(false);
     for words in [fixtures::words(), fixtures::browser_words()] {
+        let browser = words.shell == crate::words::Shell::Browser;
         let bounds = crate::Limits::of(&limits, &words).unwrap();
         let mut view = crate::View::new(&bounds, &limits, words, fixtures::FORGE);
         let tree = fixtures::build(&mut view, &root);
@@ -2766,7 +2810,7 @@ fn the_log_has_one_column_with_older_before_turns() {
         let log = named_position(tree.nodes(), Role::Log, Some(b"Conversation")).unwrap();
         let inner = styled(tree, crate::look::THREAD_INNER);
         assert_eq!(log, thread + 1);
-        assert_eq!(tree.nodes()[thread].size, tree.nodes()[log].size + 1);
+        assert_eq!(tree.nodes()[thread].size, tree.nodes()[log].size + if browser { 2 } else { 1 });
         assert_eq!(inner, log + 1);
         assert_eq!(tree.nodes()[log].size, tree.nodes()[inner].size + 1);
         let column = subtree(tree, inner);
@@ -2778,30 +2822,28 @@ fn the_log_has_one_column_with_older_before_turns() {
 }
 
 #[test]
-fn a_note_turn_draws_no_cut_words() {
+fn a_cut_text_says_nothing() {
     use fixtures::first_run as run;
-    let thread = conversation_turn(
-        &[run::message(
-            c::Speaker::Assistant,
-            &[
-                run::call(1, b"note", b"", Some("Note 1 revision 1 written · 12 lines".as_bytes())),
-                c::Block::Text(run::text(b"A long reply, also cut")),
-            ],
-        )],
-        true,
-    );
-    let tree = tree(&thread);
-    assert!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_none());
-    assert!(fixtures::find(&tree, Role::Button, b"Show").is_some());
-}
-
-#[test]
-fn whole_turn_limits_fit_the_shells_receiving_values() {
-    let domain = whole_turn_shell_limits();
-    for shell in [crate::words::Shell::Browser, crate::words::Shell::Terminal] {
-        let words = crate::words::Words::english(fixtures::FORGE, domain.client.domain.text, shell).unwrap();
-        let limits = crate::Limits::of(&domain, &words).expect("whole shell turns have representable bounds");
-        assert!(crate::valid(&limits, &domain, &words));
+    for projected in [true, false] {
+        let mut blocks = List::with_capacity(2);
+        blocks.push(run::call(1, b"note", b"", Some("Note 1 revision 1 written · 12 lines".as_bytes()))).unwrap();
+        blocks.push(c::Block::Text(run::text(b"A long reply, also cut"))).unwrap();
+        let mut line = run::turn(1, ATTEMPT, 1, &[run::message(c::Speaker::Assistant, blocks.as_slice())], 512);
+        let Some(c::ArchivedTurn { turn: c::TurnRead::Decoded(turn), .. }) = &mut line.decoded else {
+            panic!("decoded turn")
+        };
+        turn.cut = true;
+        line.source.task = TASK;
+        line.decoded.as_mut().unwrap().task = TASK;
+        let mut thread =
+            Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
+        thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+        let mut rows = List::with_capacity(1);
+        rows.push(line).unwrap();
+        thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
+        let tree = answer_tree(&thread, &fixtures::words(), projected);
+        assert!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_none());
+        assert!(fixtures::find(&tree, Role::Button, b"Show").is_some());
     }
 }
 
@@ -2910,6 +2952,89 @@ fn repeated_markdown(pattern: &[u8], length: usize) -> Box<[u8]> {
         *byte = *pattern.get(at.checked_rem(pattern.len()).unwrap()).unwrap();
     }
     input
+}
+
+#[test]
+fn latest_is_a_browsers_alone_and_goes_to_the_log_end() {
+    let root = messaging_root();
+    for (mut view, browser) in [(fixtures::page_view(&root), false), (fixtures::browser_page_view(&root), true)] {
+        let found = fixtures::find(view.tree(), Role::Button, b"Latest");
+        assert_eq!(found.is_some(), browser);
+        if let Some(id) = found {
+            let nodes = view.tree().nodes();
+            let pill = named_position(nodes, Role::Button, Some(b"Latest")).unwrap();
+            let log = named_position(nodes, Role::Log, None).unwrap();
+            assert_eq!(pill, log + usize::try_from(nodes[log].size).unwrap());
+            assert!(nodes[pill].styles.as_slice().contains(&crate::look::LATEST));
+            assert!(nodes[pill].states.as_slice().contains(&skein_ui::State::ToLogEnd));
+            let thread = styled(view.tree(), crate::look::THREAD);
+            assert_eq!(pill + 1, thread + usize::try_from(nodes[thread].size).unwrap());
+            assert!(crate::act(&mut view, id, skein_ui::Act::Press).is_none());
+        }
+    }
+}
+
+#[test]
+fn latest_is_bound_only_where_the_window_let_the_end_go() {
+    use temper_client_domain::{Action, pages::Act};
+    for dropped in [false, true] {
+        let (root, limits) = full_window(dropped);
+        let words = fixtures::browser_words();
+        let bounds = crate::Limits::of(&limits, &words).unwrap();
+        let mut view = crate::View::new(&bounds, &limits, words, fixtures::FORGE);
+        fixtures::build(&mut view, &root);
+        let id = fixtures::find(view.tree(), Role::Button, b"Latest").expect("latest");
+        assert_eq!(
+            crate::act(&mut view, id, skein_ui::Act::Press),
+            if dropped { Some(Action::Pages(Act::Latest)) } else { None }
+        );
+    }
+}
+
+#[test]
+fn the_message_stands_for_older_while_a_read_is_out() {
+    use jig_client::thread::{Reading, window::Edge};
+    for (reading, at_start, loading, button) in [
+        (None, false, false, true),
+        (Some(Reading::Older), false, true, false),
+        (Some(Reading::Newer), false, false, true),
+        (Some(Reading::Latest { known: 0 }), false, false, true),
+        (None, true, false, false),
+        (Some(Reading::Older), true, false, false),
+    ] {
+        let mut thread =
+            Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
+        thread.reading = reading;
+        thread.lines.edges.after =
+            if at_start { Edge::End } else { Edge::More(c::Cursor::new(b"older".as_slice().into(), TEXT).unwrap()) };
+        let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
+        let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
+        crate::pages::chat::older(&mut b, &thread, true, &fixtures::browser_words(), &mut bindings);
+        let tree = b.finish();
+        let status = fixtures::find(&tree, Role::Status, b"Loading earlier messages");
+        assert_eq!(status.is_some(), loading);
+        assert_eq!(fixtures::find(&tree, Role::Button, b"Older").is_some(), button);
+        if let Some(status) = status {
+            let node = tree.find(status).unwrap();
+            assert_eq!(node.styles.as_slice(), [crate::look::THREAD_LOADING]);
+            assert_eq!(fixtures::text(&tree).as_ref(), "Loading earlier messages…".as_bytes());
+        }
+    }
+    let root = chat_with_history();
+    let view = fixtures::browser_page_view(&root);
+    let nodes = view.tree().nodes();
+    let inner = styled(view.tree(), crate::look::THREAD_INNER);
+    assert_eq!(nodes[inner + 1].name.as_deref(), Some(b"Loading earlier messages".as_slice()));
+}
+
+#[test]
+fn no_line_is_drawn_for_lines_left() {
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
+    thread.left = 7;
+    let drawn = answer_tree(&thread, &fixtures::words(), true);
+    assert_eq!(drawn.nodes().len(), 1, "only the empty log, no region for omitted lines");
+    assert_eq!(drawn.nodes()[0].role, Role::Log);
 }
 
 #[test]

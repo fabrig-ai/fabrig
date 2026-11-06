@@ -127,6 +127,7 @@ fn goal_tasks(b: &mut skein_ui::Builder) {
 }
 
 /// A live delegate's brief and conversation (client/README.md, 5.9).
+#[expect(clippy::too_many_lines, reason = "one synthetic page keeps the terminal agent layout together")]
 pub fn agent_task_page() -> skein_ui::Tree {
     use temper_client_view::look;
     let mut b = skein_ui::Builder::new(&tree_limits());
@@ -201,14 +202,25 @@ pub fn agent_task_page() -> skein_ui::Tree {
     b.open(Role::Slot);
     b.style(look::SAYS);
     skein_ui::markdown::read(b"Checking the credentials.", 3, &mut b);
+    b.close();
+    b.close();
+    b.close();
+    b.open(Role::Region);
+    b.style(look::TURN);
     b.open(Role::Disclosure);
     b.style(look::WORK);
-    b.name(b"1 tool call");
-    b.description(b"read_file");
+    b.style(look::TURN_TOOL);
+    b.style(look::WORK_RUN);
+    b.name(b"read_file");
     b.open(Role::Slot);
     b.style(look::WORK);
-    text(&mut b, Role::Paragraph, b"read_file");
-    text(&mut b, Role::Paragraph, b"Read token.rs");
+    b.style(look::WORK_CALLS);
+    b.open(Role::Paragraph);
+    b.name(b"read_file: Read token.rs");
+    b.text(Run::Code, b"read_file");
+    b.open(Role::Text);
+    b.style(look::WORK_OUT);
+    b.run(Run::Plain, b": Read token.rs");
     b.close();
     b.close();
     b.close();

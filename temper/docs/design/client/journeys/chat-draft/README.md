@@ -51,3 +51,10 @@ those provenance lines, beyond its shortened specification preview.
 The walk used a throwaway Chromium CDP driver, accepting JavaScript
 dialogs and using `Emulation.setDeviceMetricsOverride` for 420-pixel
 renders. No driver is kept. Screenshots are outside the checkout.
+
+Each chat print keeps the call run and its rows, the document write's
+line and Show, and the end of the answer. Latest is a sibling of the log
+in Chat and Split, hidden until the live log is away from its end. It is
+absent from the terminal. An older read replaces Older with "Loading
+earlier messages…"; this short conversation reaches its start without
+that control.
