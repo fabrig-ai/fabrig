@@ -1291,6 +1291,9 @@ with a person in front of a tree, are view.md's, 18.10.
   reference UI says them through skein-ui's phrasebook (view.md,
   section 7), and jig's check says a decision's facts in them, with the
   application's overrides (testing.md, 6.2).
+  `held` says what a held task waits on when it awaits nothing else:
+  `WaitsOn` names no hold, so a client that reads the task's hold chooses
+  the word, and no `WaitsOn` maps to it.
 - **What jig adopts.** Sugar starts in an application. jig adopts it
   when a second consumer uses it, or early when it is hard to interpret
   consistently (what "waiting for you" means, how committed turns and

@@ -794,7 +794,12 @@ The table grows area by area, each with its stories (section 11).
 
    `task show TASK` joins a person task's document to its generic task:
    its question, result contract, choice codes and bounds, person revision,
-   holder, and each offered act with its admission. The inbox's person-task
+   holder, and each offered act with its admission. Its holder prints as
+   `taken by: PARTY`, or `taken by: none`. Once an answer has ended the
+   task, `answered by: PARTY` takes that line's place, from the retained
+   result's `chosen_by`. A closing person task with no holder prints
+   neither: its live document does not say who answered. `--json` keeps
+   `taken_by` as jig gives it. The inbox's person-task
    line prints `read: task show TASK`. Role-addressed work offers
    `task take TASK` and `task hand-back TASK`; it must be taken before an
    answer. These commands and person answers are optionally keyed.
@@ -1213,6 +1218,12 @@ digest: task 7c1e09a2b44f0d13
   Its tracking is `priority P` while it is tracked, and `untracked`
   otherwise. A change delegate, ended: `task 2 · change · Ended ·
   project 1 · untracked`.
+- **`waiting on:`** prints jig's word for what the task waits on (jig's
+  `client/domain/client.md`, 19), or the party and what it must answer. A
+  held task that awaits nothing else prints its hold, where `Nothing
+  awaited` would read as if nothing were wrong; one a party or a delegate
+  also keeps prints those. In which words is open (section 15). `--json`
+  keeps `waits_on` as jig gives it.
 - **The deadline** has its date and its zone: `deadline 2026-10-24
   17:00 UTC`, or `no deadline`.
 - **Its instructions,** when the document carries them, on a line of
@@ -2231,6 +2242,9 @@ Each is named here and designed when it comes.
 
 ## 15. Open questions
 
+- **The words for a hold after `waiting on:`** (6.1): `held` alone, or
+  `held: REASON`, which may be long on a narrow screen. Whoever asked for
+  the line decides, through the question of the change that reaches it.
 - **`temper open` and `temper ctl` on one DIRECTORY:** not supported and
   not detected (`README.md`, section 11). Default: the lock of 8.3 is
   `temper ctl`'s alone, until `temper open` takes it.

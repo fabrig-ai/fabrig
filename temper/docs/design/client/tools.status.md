@@ -1,8 +1,11 @@
 # tools: status
 
-2026-11-05. Remaining gaps between temper's code and [tools.md](tools.md).
+2026-11-06. Remaining gaps between temper's code and [tools.md](tools.md).
 Unlisted sections have no known gap.
 
+- **Not yet:** 5.5: area 3's `answered by:` line: an answered person task
+  prints `taken by: none`. 6.1: a held task that awaits nothing else prints
+  `waiting on: Nothing awaited`, not its hold.
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
