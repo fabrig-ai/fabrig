@@ -4,7 +4,7 @@ On a fresh `temper box --fake-backends`, built with
 `temper/scripts/bundle.sh --loopback --record`: set up Forgejo on this
 machine with the offered empty `work/hello`, sign in to the fake ChatGPT
 plan, and create Hello. Wait for Home's status before starting the
-first chat. Home writes note 1; the chat's document is note 2.
+first chat. Home writes note 1; the chat's document is note 3.
 
 Reload `/projects/1/settings` to start the recording at How work runs.
 Mark the page with Alt+Shift+M, turn on "Chats can write drafts", and
