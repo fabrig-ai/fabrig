@@ -178,7 +178,7 @@ pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
 }
 
 /// The configured authority and task bound used by a creating party.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Creating {
     roles: std::collections::BTreeMap<(u32, u32), authority::Authority>,
     pub tasks: u32,

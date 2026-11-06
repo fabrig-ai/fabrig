@@ -1,5 +1,6 @@
 //! Each variant fixes its destination. Replace connector arms when copying;
 //! retain the journal marks and engine's permanent host link (domain/root.md, 5).
+use crate::client_documents::{Watched, document as watched_document};
 use crate::domain::{Work, child, held, now, write};
 use crate::translate;
 use crate::{Domain, Event, Key, Limits, Output, Record, Released, Write};
@@ -934,7 +935,7 @@ pub(crate) fn connector_out(
                     infrastructure::DocumentMissing::NotAllowed => jig_domain_views::End::NotAllowed,
                 }),
             };
-            crate::client_documents::document(domain, env, decision, number, (watcher, subject), document, work);
+            watched_document(domain, env, decision, number, Watched { watcher, subject }, document, work);
         }
         ConnectorRequest::Infrastructure(infrastructure::Request::ReadAnswered { .. })
         | ConnectorRequest::Observability(observability::Request::ReadAnswered { .. }) => {
@@ -1116,7 +1117,7 @@ pub(crate) fn connector_out(
                     observability::DocumentMissing::NotAllowed => jig_domain_views::End::NotAllowed,
                 }),
             };
-            crate::client_documents::document(domain, env, decision, number, (watcher, subject), document, work);
+            watched_document(domain, env, decision, number, Watched { watcher, subject }, document, work);
         }
         ConnectorRequest::Observability(observability::Request::Save { record }) => {
             write(domain, decision, Write::Save(Record::Observability(record)));

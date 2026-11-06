@@ -1,11 +1,10 @@
 //! Deleted project uses (jig/docs/design/domain/accounts.md, 4.2;
 //! jig/docs/design/domain/accounts.md, 4.2 and 4.3).
-use jig_accounts_world::{World, account, provider, providers, source};
+use jig_accounts_world::{PROVIDER, World, account, provider, providers, source};
 use jig_domain_accounts::{Coverage, Event, Holder, Kind, Request, Selection, Stored, Use};
 
 const PROJECT: u32 = 42;
 const OTHER_PROJECT: u32 = 43;
-const PROVIDER: u32 = 1;
 
 fn row(number: u32, uses: Option<&[Use]>) -> Stored {
     let mut row = account(number, PROVIDER, Holder::Party(u64::from(number)), b"");

@@ -1,6 +1,6 @@
 //! One mmdebstrap run, its pipe readers, deadlines and scratch reclamation (hearth/docs/design/domain/render.md, 5.2).
 use crate::{Asked, Roots, Told, builder::vocabulary::Event, limits::Limits, render, translate, walk::Walker};
-use crate::{Current, held::Held, indices::Indices};
+use crate::{Current, indices::Indices, resource::Resource};
 use alloc::boxed::Box;
 use hearth_protocol_mmdebstrap::output::{self, Reader, Seen};
 use hearth_protocol_mmdebstrap::{tail, vector};
@@ -14,13 +14,13 @@ use skein_lib::{Env, Queue, Time, Token, Writer, bytes, stream::Up};
 pub(super) const OWNER: Token = Token::new(21);
 #[derive(Debug)]
 struct PipeReader {
-    held: Held,
+    held: Resource,
     reader: Reader,
     ended: bool,
 }
 impl PipeReader {
     fn new(limits: &hearth_protocol_mmdebstrap::limits::Limits) -> Self {
-        Self { held: Held::Awaited, reader: Reader::new(limits), ended: false }
+        Self { held: Resource::Awaited, reader: Reader::new(limits), ended: false }
     }
 }
 #[derive(Debug)]
@@ -34,7 +34,7 @@ pub(super) struct Resolve {
     stage: Stage,
     output: PipeReader,
     error: PipeReader,
-    process: Held,
+    process: Resource,
     exit: Option<Exit>,
     pending: Queue<Asked>,
     deadline: Time,
@@ -84,7 +84,7 @@ impl Resolve {
             stage: Stage::Running,
             output: PipeReader::new(&env.limits.mmdebstrap),
             error: PipeReader::new(&env.limits.mmdebstrap),
-            process: Held::Awaited,
+            process: Resource::Awaited,
             exit: None,
             pending: Queue::uncapped(),
             deadline,
@@ -148,12 +148,12 @@ impl Resolve {
             },
             Told::Io(event) => match event {
                 io::Event::Spawned { child, pipes, .. } => {
-                    self.process = Held::Open(child);
+                    self.process = Resource::Open(child);
                     let mut pipes = pipes.into_iter();
                     let env = Env { now: env.now, wall: env.wall, limits: env.limits.mmdebstrap };
                     for pipe in [&mut self.output, &mut self.error] {
                         let stream = pipes.next().expect("resolve pipe");
-                        pipe.held = Held::Open(stream);
+                        pipe.held = Resource::Open(stream);
                         let mut requests = Queue::uncapped();
                         output::open(&mut pipe.reader, &env, &mut requests);
                         if let Some(down) = requests.pop() {
@@ -166,11 +166,11 @@ impl Resolve {
                 io::Event::Failed { .. } => self.fail(Ended::Start, None),
                 io::Event::Closed { owner } => {
                     if owner == OWNER {
-                        self.process = Held::Closed;
+                        self.process = Resource::Closed;
                     }
                     for pipe in [&mut self.output, &mut self.error] {
                         if pipe.held.token() == Some(owner) {
-                            pipe.held = Held::Closed;
+                            pipe.held = Resource::Closed;
                         }
                     }
                 }

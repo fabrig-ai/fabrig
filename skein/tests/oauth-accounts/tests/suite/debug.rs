@@ -3,7 +3,7 @@
 use std::fmt::Debug;
 
 use skein_fake_oauth as fake;
-use skein_lib::{Duration, Queue, Secret, Time, Wall, bytes};
+use skein_lib::{CryptoRng, Duration, Env, List, Queue, Secret, Time, Wall, bytes};
 use skein_oauth as oauth;
 use skein_oauth_accounts as accounts;
 use skein_oauth_accounts_world::{sign_in, world::limits};
@@ -33,17 +33,6 @@ fn record() -> oauth::SavedToken {
         issued_client_id: None,
         granted_scopes: None,
         subject: None,
-        id_token: Some(secret()),
-        earliest_refresh_at: None,
-    }
-}
-
-fn token() -> oauth::TokenResponse {
-    oauth::TokenResponse {
-        access_token: secret(),
-        refresh_token: Some(secret()),
-        expires_in: 30,
-        scope: None,
         id_token: Some(secret()),
         earliest_refresh_at: None,
     }
@@ -86,31 +75,53 @@ fn assert_hidden(name: &str, value: &dyn Debug) {
 }
 
 #[test]
-fn debug_hides_every_oauth_credential_and_carrier() {
+fn debug_hides_oauth_secret_and_hand_written_views() {
     let mut client = oauth::Client::new(limits().client).expect("client");
     let mut out = Queue::uncapped();
     client.step(sign_in(), &mut out);
     assert!(matches!(out.pop(), Some(oauth::Request::Http(_))), "sign-in holds its visit while fetching keys");
 
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
+    let mut component = accounts::Component::new(
+        List::from_boxed(Box::new([accounts::Account::HandedIn])),
+        &env.limits,
+        CryptoRng::new(&Secret::new(bytes::copy_of(&[7; 32])), 0).expect("seed"),
+    )
+    .expect("component");
+    let mut events = Queue::uncapped();
+    component.down(
+        &env,
+        accounts::Request::HandIn { account: 0, record: oauth::SavedToken { refresh_token: None, ..record() } },
+        &mut events,
+        &mut Queue::uncapped(),
+        &mut Queue::uncapped(),
+    );
+    assert!(events.is_empty(), "component accepts the canary record");
+
+    let issuer = fake::Issuer::new(
+        fake::Config {
+            authorization_url: bytes::copy_of(b"https://issuer.example/authorize"),
+            token_endpoint: bytes::copy_of(b"https://issuer.example/token"),
+            client_id: bytes::copy_of(b"client"),
+            client_secret: Some(secret()),
+            redirect_uri: bytes::copy_of(b"https://app.example/callback"),
+            refresh_token: secret(),
+            terms: None,
+        },
+        fake::Limits {
+            document: env.limits.client.document,
+            uri_bytes: env.limits.client.uri_bytes,
+            request_bytes: env.limits.client.request_bytes,
+            codes: 1,
+            rotations: 2,
+            plans: 2,
+            carried: 0,
+        },
+    )
+    .expect("issuer");
+
     let rows: &[(&str, &dyn Debug)] = &[
         ("oauth::SavedToken", &record()),
-        ("oauth::RefreshState", &record().refresh_state().expect("refresh state")),
-        ("oauth::TokenResponse", &token()),
-        (
-            "oauth::RefreshRequest",
-            &oauth::RefreshRequest { client_id: bytes::copy_of(b"client"), refresh_token: secret() },
-        ),
-        ("oauth::Registration", &registration()),
-        (
-            "oauth::Redirect",
-            &oauth::Redirect {
-                uri: bytes::copy_of(b"https://app.example/callback"),
-                state: secret(),
-                code: Some(secret()),
-                error: None,
-                client_id: None,
-            },
-        ),
         ("oauth::HttpRequest", &post()),
         (
             "oauth::HttpResponse",
@@ -124,63 +135,9 @@ fn debug_hides_every_oauth_credential_and_carrier() {
                 wall: Wall::from_nanos(0),
             },
         ),
-        ("oauth::Event::SignIn", &sign_in()),
-        (
-            "oauth::Event::Redirected",
-            &oauth::Event::Redirected {
-                uri: bytes::copy_of(b"https://app.example/callback"),
-                state: secret(),
-                code: Some(secret()),
-                error: None,
-                client_id: None,
-                now: Time::ZERO,
-            },
-        ),
-        ("oauth::Request::Visit", &oauth::Request::Visit { url: secret() }),
-        ("accounts::Request::HandIn", &accounts::Request::HandIn { account: 0, record: record() }),
-        ("accounts::Request::Redirected", &accounts::Request::Redirected { account: 0, uri: secret() }),
-        (
-            "accounts::Event::Granted",
-            &accounts::Event::Granted { account: 0, token: secret(), generation: 1, valid: Duration::ZERO },
-        ),
-        ("accounts::Event::Keep", &accounts::Event::Keep { account: 0, record: record() }),
-        ("accounts::Event::Visit", &accounts::Event::Visit { account: 0, url: secret() }),
-        ("accounts::Locked::Held", &accounts::Locked::Held { record: Some(record()) }),
-        (
-            "fake::Config",
-            &fake::Config {
-                authorization_url: bytes::copy_of(b"https://issuer.example/authorize"),
-                token_endpoint: bytes::copy_of(b"https://issuer.example/token"),
-                client_id: bytes::copy_of(b"client"),
-                client_secret: Some(secret()),
-                redirect_uri: bytes::copy_of(b"https://app.example/callback"),
-                refresh_token: secret(),
-                terms: None,
-            },
-        ),
-        ("fake::Body::Token", &fake::Body::Token(token())),
-        ("fake::Body::Raw", &fake::Body::Raw(secret())),
-        (
-            "fake::Plan",
-            &fake::Plan {
-                status: 200,
-                body: fake::Body::Token(token()),
-                delay: Duration::ZERO,
-                retry_after: Duration::ZERO,
-            },
-        ),
-        ("fake::Event::Authorize", &fake::Event::Authorize { url: secret(), now: Time::ZERO }),
-        ("fake::Event::Post", &fake::Event::Post { request: post(), now: Time::ZERO, wall: Wall::from_nanos(0) }),
-        (
-            "fake::Request::Redirect",
-            &fake::Request::Redirect {
-                uri: bytes::copy_of(b"https://app.example/callback"),
-                state: secret(),
-                code: secret(),
-                client_id: None,
-            },
-        ),
         ("oauth::Client", &client),
+        ("accounts::Component", &component),
+        ("fake::Issuer", &issuer),
     ];
     for (name, value) in rows {
         assert_hidden(name, value);

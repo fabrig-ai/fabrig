@@ -1,5 +1,4 @@
 use super::*;
-const PROJECT: u32 = 1;
 const FIRST_MESSAGE: u64 = 19;
 fn bounded_release() -> (Script, Ask, Answer) {
     let mut setup = live_script();
@@ -44,14 +43,14 @@ fn bounded_release() -> (Script, Ask, Answer) {
         operations: 2,
         first_message: FIRST_MESSAGE,
     }));
-    setup.rules.push(Rule { party: Some(1), ask: ask.clone(), answer: answer.clone(), changes: vec![] });
+    setup.rules.push(Rule { party: Some(REQUESTER), ask: ask.clone(), answer: answer.clone(), changes: vec![] });
     (setup, ask, answer)
 }
 #[test]
 fn a_compound_amend_and_release_obeys_the_same_bounded_offer() {
     let (setup, ask, answer) = bounded_release();
     let mut engine = Engine::new(setup, 1).expect("valid script");
-    send(&mut engine, 0, 11, 1, 1, ask);
+    send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask);
     assert_eq!(final_answer(&engine.poll(at(10_000_000))[0]), &answer);
 }
 
