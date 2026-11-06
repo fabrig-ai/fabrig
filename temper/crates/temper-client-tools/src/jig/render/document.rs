@@ -641,7 +641,13 @@ mod task_settings;
 use result_words::text as result_text;
 
 // jig/docs/design/client/domain/contract.md, 3.2: person answers name their revision and offers.
-fn person_text(person: &jig_client::contract::PersonTask, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
+fn person_text(
+    person: &jig_client::contract::PersonTask,
+    answerer: Option<u64>,
+    me: Option<&Me>,
+    book: &Phrasebook,
+    out: &mut Text,
+) {
     out.put(b"person task ");
     out.number(person.task.task);
     out.put(b" --rev ");
@@ -653,10 +659,14 @@ fn person_text(person: &jig_client::contract::PersonTask, me: Option<&Me>, book:
     }
     out.put(b"\ncontract: ");
     person_contract_text(&person.contract, out);
-    out.put(b"\ntaken by: ");
-    match person.taken_by {
-        Some(party) => acts::party(party, me, out),
-        None => out.put(b"none"),
+    if let Some(party) = answerer {
+        out.put(b"\nanswered by: ");
+        acts::party(party, me, out);
+    } else if let Some(party) = person.taken_by {
+        out.put(b"\ntaken by: ");
+        acts::party(party, me, out);
+    } else if person.task.phase != jig_client::contract::Phase::Closing {
+        out.put(b"\ntaken by: none");
     }
     out.put(b"\nacts:\n");
     for offer in &person.acts {

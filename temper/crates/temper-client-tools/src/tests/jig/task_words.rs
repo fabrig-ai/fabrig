@@ -1012,3 +1012,119 @@ fn activity_verdicts_name_the_code_with_the_reason() {
         assert!(skein_lib::bytes::find(&printed.stdout, "1 · verdict 2 · bold\n".as_bytes()).is_some(), "{printed:?}");
     }
 }
+
+fn person_details(chosen_by: Option<u64>) -> Box<c::ResultDetails> {
+    let person = f::person_document();
+    Box::new(c::ResultDetails {
+        contract: person.contract,
+        requester: person.requester,
+        executor: c::Executor::Person(person.address),
+        chosen_by,
+        delegates: List::with_capacity(0),
+        followups: None,
+        proposal: None,
+        cut: false,
+    })
+}
+fn ended_person(mut person: c::PersonTask, details: Option<Box<c::ResultDetails>>) -> c::ReadResult {
+    person.task.phase = c::Phase::Ended;
+    person.acts = List::with_capacity(0);
+    let result = c::Result {
+        task: person.task.clone(),
+        ending: c::Ending::Done,
+        value: None,
+        at: None,
+        details,
+        acts: List::with_capacity(0),
+    };
+    c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
+        key: c::ObjectKey::PersonTask(person.task.task),
+        value: c::EndedValue::PersonTask { document: Box::new(person), result: Box::new(result) },
+        at: None,
+        by: None,
+    })))
+}
+fn person_shown(argv: &[&str], page: c::ReadResult) -> Box<[u8]> {
+    let c::ReadResult::Value(value) = &page else { panic!("person value") };
+    let person = crate::jig::render::person_task(value).expect("person document");
+    let mut task = f::goal(f::TASK, c::WaitsOn::Nothing);
+    task.chip.phase = person.task.phase;
+    task.person_revision = Some(person.revision);
+    let (mut root, call) = f::read_call(argv);
+    root.serve(call, f::task_result(task));
+    root.serve(call, page);
+    let printed = root.answer(call).expect("person task answered");
+    assert_eq!(printed.status, 0, "{printed:?}");
+    printed.stdout
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "printed-byte assertions decode the renderer's UTF-8")]
+fn an_answered_person_task_names_who_answered() {
+    for (party, expected) in [(f::PARTY, "answered by: you"), (f::RECIPIENT, "answered by: party 91")] {
+        let mut person = f::person_document();
+        person.taken_by = None;
+        let page = ended_person(person, Some(person_details(Some(party))));
+        let shown = person_shown(f::TASK_CALL, page);
+        let shown = core::str::from_utf8(&shown).expect("task text");
+        assert!(shown.contains(expected), "{shown}");
+        assert!(!shown.contains("taken by:"), "{shown}");
+    }
+    let page = ended_person(f::person_document(), Some(person_details(Some(f::RECIPIENT))));
+    let shown = person_shown(f::TASK_CALL, page);
+    let shown = core::str::from_utf8(&shown).expect("task text");
+    assert!(shown.contains("answered by: party 91"), "answerer precedes holder: {shown}");
+    assert!(!shown.contains("taken by:"), "{shown}");
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "printed-byte assertions decode the renderer's UTF-8")]
+fn a_closing_person_task_with_no_holder_says_nothing_of_who_took_it() {
+    let mut person = f::person_document();
+    person.task.phase = c::Phase::Closing;
+    person.taken_by = None;
+    let shown = person_shown(f::TASK_CALL, c::ReadResult::Value(c::ReadValue::PersonTask(Box::new(person))));
+    let shown = core::str::from_utf8(&shown).expect("task text");
+    assert!(!shown.contains("answered by:"), "{shown}");
+    assert!(!shown.contains("taken by:"), "{shown}");
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "printed-byte assertions decode the renderer's UTF-8")]
+fn a_person_task_nobody_answered_keeps_its_holder_line() {
+    for (phase, holder, details) in [
+        (c::Phase::Running, Some(f::PARTY), None),
+        (c::Phase::Running, None, None),
+        (c::Phase::Closing, Some(f::PARTY), None),
+        (c::Phase::Ended, Some(f::PARTY), None),
+        (c::Phase::Ended, None, None),
+        (c::Phase::Ended, Some(f::PARTY), Some(person_details(None))),
+        (c::Phase::Ended, None, Some(person_details(None))),
+    ] {
+        let mut person = f::person_document();
+        person.task.phase = phase;
+        person.taken_by = holder;
+        let page = if phase == c::Phase::Ended {
+            ended_person(person, details)
+        } else {
+            c::ReadResult::Value(c::ReadValue::PersonTask(Box::new(person)))
+        };
+        let shown = person_shown(f::TASK_CALL, page);
+        let shown = core::str::from_utf8(&shown).expect("task text");
+        let expected = if holder.is_some() { "taken by: you" } else { "taken by: none" };
+        assert!(shown.contains(expected), "{shown}");
+        assert!(!shown.contains("answered by:"), "{shown}");
+    }
+}
+#[test]
+#[expect(clippy::disallowed_methods, reason = "printed-byte assertions decode the renderer's UTF-8")]
+fn an_answered_person_tasks_json_keeps_taken_by() {
+    let mut person = f::person_document();
+    person.taken_by = None;
+    let page = ended_person(person, Some(person_details(Some(f::PARTY))));
+    let shown = person_shown(f::TASK_JSON_CALL, page);
+    let shown = core::str::from_utf8(&shown).expect("task JSON");
+    assert!(shown.contains("\"taken_by\":null"), "{shown}");
+    let json = crate::jig::json::document_depth(shown.as_bytes(), 32).expect("task JSON document");
+    let person = json.member(0, b"person_task").expect("person task member");
+    let holder = json.member(person, b"taken_by").expect("person holder member");
+    assert_eq!(json.token(holder).expect("holder token").kind, skein_json::Kind::Null);
+    assert!(!shown.contains("answered by:"), "{shown}");
+}
