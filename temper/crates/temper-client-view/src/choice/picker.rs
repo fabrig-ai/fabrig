@@ -341,6 +341,9 @@ fn groups(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, al
         c::AskAccountHolder::Own,
     );
     for offer in &me.providers {
+        if offer.name.bytes() == crate::words::SCRIPTED_MODEL && !root.forge().playground_running() {
+            continue;
+        }
         let mut offered = false;
         for model in models {
             offered |= model.provider == Some(offer.provider);

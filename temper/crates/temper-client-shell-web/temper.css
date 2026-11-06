@@ -1265,7 +1265,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > :is(.temper-session, .temper-agent-page) .temper-foot-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; max-width: 720px; margin: 6px auto 0; }
 #app > :is(.temper-session, .temper-agent-page) .temper-foot-row > .temper-session-hint { margin: 0; padding-left: 6px; font-size: 12px; color: var(--gf-faint); }
 #app > :is(.temper-session, .temper-agent-page) .temper-model { flex: none; margin-left: auto; }
-#app > :is(.temper-session, .temper-agent-page) .temper-model > summary { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 7px; list-style: none; font-size: 0; line-height: 1.5; color: var(--gf-muted); cursor: pointer; }
+#app > :is(.temper-session, .temper-agent-page) .temper-model > summary { display: flex; align-items: center; gap: 0; padding: 3px 8px; border-radius: 7px; list-style: none; font-size: 0; line-height: 1.5; color: var(--gf-muted); cursor: pointer; }
 #app > :is(.temper-session, .temper-agent-page) .temper-model > summary::-webkit-details-marker { display: none; }
 #app > :is(.temper-session, .temper-agent-page) .temper-model > summary::after { content: '⌄' / ''; position: relative; top: -2px; font-size: 12px; color: var(--gf-faint); }
 #app > :is(.temper-session, .temper-agent-page) .temper-model > summary:hover, #app > :is(.temper-session, .temper-agent-page) .temper-model[open] > summary { background: var(--gf-hover); color: var(--gf-ink); }
@@ -1296,7 +1296,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
   #app > :is(.temper-session, .temper-agent-page) .temper-foot-row > .temper-session-hint { display: none; }
   #app > :is(.temper-session, .temper-agent-page) .temper-model-menu { left: 0; right: 0; width: auto; }
 }
-#app > :is(.temper-session, .temper-agent-page) .temper-model > summary > span { font-size: 12.5px; }
+#app > :is(.temper-session, .temper-agent-page) .temper-model > summary > span { margin-right: 6px; font-size: 12.5px; }
 #app > :is(.temper-session, .temper-agent-page) .temper-model-fixed { padding: 3px 8px; font-size: 12.5px; line-height: 1.5; color: var(--gf-muted); }
 #app > :is(.temper-session, .temper-agent-page) button.temper-model-all { width: 100%; border-right: 0; border-bottom: 0; border-left: 0; border-radius: 0; background: transparent; text-align: left; }
 #app > .temper-agent-page .temper-model-menu { position: static; }
