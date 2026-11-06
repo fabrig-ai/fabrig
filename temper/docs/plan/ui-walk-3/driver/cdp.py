@@ -80,7 +80,7 @@ class CDP:
         time.sleep(0.5)
 
     def text(self):
-        return self.js('document.body.innerText')
+        return self.js("document.body?.innerText || ''")
 
     def wait(self, words, seconds=40):
         end = time.monotonic() + seconds
@@ -99,7 +99,7 @@ class CDP:
         raise RuntimeError(f'Control stayed disabled: {name}')
 
     def controls(self):
-        return self.js("""[...document.querySelectorAll('a,button,input,textarea,select,summary,[role=button]')]
+        return self.js("""[...document.querySelectorAll('a,button,input,textarea,select,summary,[role=button],[role=menuitem]')]
           .filter(e=>e.checkVisibility({checkVisibilityCSS:true}))
           .map(e=>({tag:e.tagName,role:e.getAttribute('role'),name:e.getAttribute('aria-label')||e.innerText||e.labels?.[0]?.innerText||e.placeholder||'',type:e.type,disabled:e.disabled}))""")
 
@@ -133,4 +133,4 @@ class CDP:
         if reset:
             self.js('window.scrollTo(0,0)')
         time.sleep(0.2)
-        path.write_bytes(base64.b64decode(self.call('Page.captureScreenshot', format='png', captureBeyondViewport=False)['data']))
+        path.write_bytes(base64.b64decode(self.call('Page.captureScreenshot', format='png', captureBeyondViewport=False, fromSurface=False)['data']))
