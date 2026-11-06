@@ -192,3 +192,15 @@ verify the two replays, and run the spec's remaining validation, the gallery and
 **Old forms.** `old_forms.py`, from `temper`, passes on `476e80df94` and on `aab4f2590b` in a clean checkout, `comment:actual` within its 59, and the branch's diff
 adds no such comment. The 61 the run saw doesn't reproduce, so it isn't an inherited red: don't record it under `## Left`. Run it once more on your final tree. If it's still
 red, find the lines from its log and report them; the baseline doesn't rise.
+
+## Rebase (2026-11-06, step merge, foreman first-usable-model/printed-command/foreman-5)
+
+combine upstream turn sizing with the printed-command bound and vocabulary counts
+Bring preserved tip `e466dc85e4` up to the integration trunk; preserve its recording-tool changes and regenerated sessions.
+The merge refused two content conflicts; no build or test failure was reported.
+
+- `temper/crates/temper-client-view/src/limits.rs`: retain upstream `d3514d9555`’s separate pricing of turn Markdown and page structure, including `turn = receiving.turn_text.max(receiving.long_text)`. In `tree.text_per_node`, combine upstream `text.max(turn.checked_mul(2)?).max(builder_name)` with this branch’s final `.max(...)` for `deployment_answer_program_login_some + words.capacity()? + 1`, using checked arithmetic.
+- `temper/crates/temper-client-view/src/words.rs`: upstream `f1ac55a8d5`, integrated by `76f68deb42`, corrects counts after chat-word removals. Add this branch’s one phrase and three segments to upstream’s 1789 and 3085: combined `PHRASES = 1790`, `SEGMENTS = 3088`. Verify against the combined vocabulary.
+- Preserve the printed-command literal-byte comment and sufficient `text_bytes`; follow the existing answer’s measured-sum rule if recalculating it.
+- Check automatically merged deployment fixtures retain `program_login` alongside upstream chat changes, and preserve upstream status entries while removing only the printed-command **Not yet** entry.
+- Run the spec’s view, client-world and gallery validation through `heavy`. Regenerate any output made stale by the combined code using its tool; preserve the existing recording stop conditions and `## Left` record.
