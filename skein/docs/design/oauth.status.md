@@ -1,6 +1,6 @@
 # oauth: status
 
-2026-11-05. Where skein's code lags or departs from [oauth.md](oauth.md).
+2026-11-06. Where skein's code lags or departs from [oauth.md](oauth.md).
 
 - **Not yet:** 4: `skein-oauth/src/json.rs`'s `Json` and `Collector` derive
   `Debug` over their tokens, and a `Json` holds a token response, though only
