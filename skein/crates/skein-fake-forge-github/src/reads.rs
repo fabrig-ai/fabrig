@@ -10,6 +10,7 @@ use skein_fake_forge_domain::{
     api::{self as a, Answer, Error, Op},
 };
 use skein_forge::{api, github::document as d};
+use skein_lib::bytes::concat;
 use skein_lib::{List, ReplyTo, Wall, bytes, len_u64, usize_of};
 
 mod checks;
@@ -160,9 +161,7 @@ pub(crate) fn call(
     if !contents(&read) && grant.contents() {
         return Outcome::Reply(answers::refusal(403, b"Resource not accessible by integration", &service.limits));
     }
-    let Some(repository) = full(row) else {
-        return Outcome::Reply(answers::failed());
-    };
+    let repository = full(row);
     let (kind, op) = match read {
         Read::Checks { commit, page, per_page, runs, .. } => {
             let Some(commit) = count(&commit) else {
@@ -292,9 +291,8 @@ pub(crate) fn call(
         fake::Event::Call { reply_to, user: grant.user(), repository, op },
     )
 }
-pub(crate) fn full(row: &Row) -> Option<Box<[u8]>> {
-    let owner = service::joined(&row.owner, b"/")?;
-    service::joined(&owner, &row.name)
+pub(crate) fn full(row: &Row) -> Box<[u8]> {
+    concat(&[&row.owner, b"/", &row.name])
 }
 pub(crate) fn commit(count: u64) -> api::Commit {
     fake::commit_bytes(count)
@@ -566,14 +564,10 @@ fn repository(row: Row, answer: Answer, limits: &Limits) -> Response {
     if length > limits.github.string_bytes {
         return answers::failed();
     }
-    let Some(full) = full(&row) else {
-        return answers::failed();
-    };
+    let full = full(&row);
     // Routing/owner data is GitHub's table; settings and default come
     // only from the domain. html_url uses GitHub's public web origin.
-    let Some(html_url) = service::joined(b"https://github.com/", &full) else {
-        return answers::failed();
-    };
+    let html_url = concat(&[b"https://github.com/", &full]);
     let document = d::Repository {
         id: u64::from(row.id),
         owner: row.owner,

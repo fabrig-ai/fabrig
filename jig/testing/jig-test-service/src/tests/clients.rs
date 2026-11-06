@@ -3,7 +3,7 @@ use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_test_domain as root;
 use skein_io as io;
-use skein_lib::{ReplyTo, Time, Token, Wall};
+use skein_lib::{ReplyTo, Time, Token, Wall, length::len_u64};
 
 fn listening(engine: &mut crate::Engine) {
     let addr = address();
@@ -108,7 +108,7 @@ impl Peer {
             Some(value) => f::join(&[b"Authorization: Bearer ", value, b"\r\n"]),
             None => Box::default(),
         };
-        let length = f::decimal(u64::try_from(body.len()).expect("short body"));
+        let length = f::decimal(len_u64(body.len()));
         let bytes = f::join(&[
             method,
             b" ",

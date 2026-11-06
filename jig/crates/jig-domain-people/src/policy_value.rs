@@ -4,7 +4,7 @@
 
 use alloc::boxed::Box;
 use core::mem::size_of;
-use skein_lib::Duration;
+use skein_lib::{Duration, length::len_u64};
 
 use crate::{Authority, Last, Pattern};
 
@@ -88,8 +88,7 @@ pub struct Requirement {
 /// Checked deep-byte size of one owner policy payload.
 #[must_use]
 pub fn policy_bytes(policy: &PolicyValue) -> Option<u64> {
-    let mut total =
-        u64::try_from(policy.roles.len()).ok()?.checked_mul(u64::try_from(size_of::<PolicyRole>()).ok()?)?;
+    let mut total = len_u64(policy.roles.len()).checked_mul(u64::try_from(size_of::<PolicyRole>()).ok()?)?;
     total = total.checked_add(crate::authority_bytes(&policy.ceiling)?)?;
     total = total.checked_add(u64::try_from(size_of::<Authority>()).ok()?)?;
     total = total.checked_add(u64::try_from(size_of::<Option<u32>>()).ok()?)?;
@@ -99,26 +98,22 @@ pub fn policy_bytes(policy: &PolicyValue) -> Option<u64> {
     total = total.checked_add(grants_bytes(&policy.projections)?)?;
     total = total.checked_add(requirements_bytes(&policy.requirements)?)?;
     total = total.checked_add(templates_bytes(&policy.templates)?)?;
-    total.checked_add(
-        u64::try_from(policy.permissions.len()).ok()?.checked_mul(u64::try_from(size_of::<PermissionRole>()).ok()?)?,
-    )
+    total.checked_add(len_u64(policy.permissions.len()).checked_mul(u64::try_from(size_of::<PermissionRole>()).ok()?)?)
 }
 
 /// Checked deep-byte size of system-neutral requirements.
 #[must_use]
 pub fn requirements_bytes(requirements: &[Requirement]) -> Option<u64> {
-    let mut total =
-        u64::try_from(requirements.len()).ok()?.checked_mul(u64::try_from(size_of::<Requirement>()).ok()?)?;
+    let mut total = len_u64(requirements.len()).checked_mul(u64::try_from(size_of::<Requirement>()).ok()?)?;
     for requirement in requirements {
         let pattern = &requirement.pattern;
-        total = total.checked_add(
-            u64::try_from(pattern.segments.len()).ok()?.checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
-        )?;
+        total = total
+            .checked_add(len_u64(pattern.segments.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?)?;
         for segment in &pattern.segments {
-            total = total.checked_add(u64::try_from(segment.len()).ok()?)?;
+            total = total.checked_add(len_u64(segment.len()))?;
         }
         total = total.checked_add(match &pattern.last {
-            Last::Exact(word) | Last::Open(word) => u64::try_from(word.len()).ok()?,
+            Last::Exact(word) | Last::Open(word) => len_u64(word.len()),
         })?;
     }
     Some(total)
@@ -134,29 +129,27 @@ pub fn policy_change_bytes(change: &PolicyChange) -> Option<u64> {
         PolicyChange::Role(role) => crate::authority_bytes(&role.authority),
         PolicyChange::Requirements { requirements } => requirements_bytes(requirements),
         PolicyChange::Permissions { mappings } => {
-            u64::try_from(mappings.len()).ok()?.checked_mul(u64::try_from(size_of::<PermissionRole>()).ok()?)
+            len_u64(mappings.len()).checked_mul(u64::try_from(size_of::<PermissionRole>()).ok()?)
         }
     }
 }
 
 fn grants_bytes(grants: &[crate::Grant]) -> Option<u64> {
-    let mut total = u64::try_from(grants.len()).ok()?.checked_mul(u64::try_from(size_of::<crate::Grant>()).ok()?)?;
+    let mut total = len_u64(grants.len()).checked_mul(u64::try_from(size_of::<crate::Grant>()).ok()?)?;
     for grant in grants {
         total = total.checked_add(
-            u64::try_from(grant.pattern.segments.len())
-                .ok()?
-                .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+            len_u64(grant.pattern.segments.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
         )?;
         for segment in &grant.pattern.segments {
-            total = total.checked_add(u64::try_from(segment.len()).ok()?)?;
+            total = total.checked_add(len_u64(segment.len()))?;
         }
         total = total.checked_add(match &grant.pattern.last {
-            Last::Exact(value) | Last::Open(value) => u64::try_from(value.len()).ok()?,
+            Last::Exact(value) | Last::Open(value) => len_u64(value.len()),
         })?;
     }
     Some(total)
 }
 
 fn templates_bytes(overrides: &[crate::TemplateOverride]) -> Option<u64> {
-    u64::try_from(overrides.len()).ok()?.checked_mul(u64::try_from(size_of::<crate::TemplateOverride>()).ok()?)
+    len_u64(overrides.len()).checked_mul(u64::try_from(size_of::<crate::TemplateOverride>()).ok()?)
 }

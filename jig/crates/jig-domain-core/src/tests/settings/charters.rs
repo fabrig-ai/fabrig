@@ -9,7 +9,8 @@ fn a_charter_whose_default_spend_misses_its_floor_is_refused() {
         crate::settings::check(&current, &config.settings, &config.connectors, &limits()),
         Err(crate::settings::Failure {
             setting: crate::settings::Setting::Charter(1),
-            fault: crate::settings::Fault::Budget
+            fault: crate::settings::Fault::Budget,
+            detail: None
         })
     );
 }

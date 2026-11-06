@@ -326,6 +326,11 @@ impl World {
         self.drain();
     }
 
+    /// Set the fake tool decoder's bounds independently of the core's admission bounds.
+    pub fn settings_input_limits(&mut self, limits: core::Limits, models: &[core::Model]) {
+        self.protocol = crate::protocol::Stand::with_models(limits, models);
+    }
+
     /// Correct wall time backwards while elapsed time continues monotonically.
     pub fn correct_wall_backwards(&mut self, by: Duration) {
         self.wall_lag = self.wall_lag.checked_add(by.as_nanos()).expect("wall correction fits");

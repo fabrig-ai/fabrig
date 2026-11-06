@@ -157,7 +157,8 @@ fn a_stored_charter_with_an_unconfigured_model_refuses_the_start_naming_the_chan
             core::start::Failure::Settings {
                 failure: settings::Failure {
                     setting: settings::Setting::Charter(1),
-                    fault: settings::Fault::Reference
+                    fault: settings::Fault::Reference,
+                    detail: None
                 },
                 changed: true
             }
@@ -225,7 +226,8 @@ fn changes_past_their_kinds_bound_refuse_before_the_overflow_value_is_retained()
             core::start::Failure::Settings {
                 failure: settings::Failure {
                     setting: settings::Setting::Charter(extra),
-                    fault: settings::Fault::Count
+                    fault: settings::Fault::Count,
+                    detail: None
                 },
                 changed: true
             }
@@ -435,6 +437,7 @@ fn refused_changes_preserve_all_settings_rows_and_the_newest() {
                 why: people::Malformed::Settings {
                     setting: settings::Setting::Template(1),
                     fault: settings::Fault::Reference,
+                    detail: None,
                 },
             },
         ),
@@ -594,6 +597,11 @@ fn live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted() {
         let people::Ask::Create { batch, .. } = &mut chat else { panic!("agent batch") };
         batch[0].budget = people::Budget::Named;
         batch[0].authority.spend = 20;
+        batch[0].llm = Some(people::LlmChoice {
+            account: None,
+            main: people::ModelEffort { model: 0, effort: None },
+            subagents: Box::new([]),
+        });
         let people::Reply::Outcome(people::Outcome::Created { first, .. }) = ask(&mut world, signed, key, chat) else {
             panic!("agent task")
         };
@@ -1957,7 +1965,7 @@ fn settings_task_document(world: &mut World, signed: u64, task: u64) -> document
 fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
     let (mut world, signed, goal) = held_run();
     let old_instructions = world.assigned.as_ref().expect("goal run").run.policy.instructions.clone();
-    let llm = fixtures::live_row(&world, goal).llm.clone();
+    let llm = settings_task_document(&mut world, signed, goal).llm;
     let mut charter = world.domain.settings().charter(1).expect("charter").clone();
     assert_eq!(charter.hosts, fleet::Kinds::Workers);
     charter.hosts = fleet::Kinds::Engine;
@@ -2040,7 +2048,7 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
     assert_eq!(document.settings, Some(documents::TaskSettings { task: 1, run: None, newest: 2 }));
     assert!(document.instructions.is_none());
     assert!(document.run_wait.is_none());
-    assert_eq!(document.llm, llm, "the LLM choice is retained task data");
+    assert_eq!(document.llm, None, "the released charter no longer resolves an omitted choice");
 }
 
 fn goal_description_review(world: &mut World, signed: u64, goal: u64) -> documents::Proposal {

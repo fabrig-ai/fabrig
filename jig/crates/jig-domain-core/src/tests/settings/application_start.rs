@@ -255,7 +255,7 @@ fn an_unoffered_charter_in_a_default_refuses_as_a_reference() {
     assert_eq!(
         failure,
         Failure::Settings {
-            failure: s::Failure { setting: setting(1, 0, 1), fault: s::Fault::Reference },
+            failure: s::Failure { setting: setting(1, 0, 1), fault: s::Fault::Reference, detail: None },
             changed: false
         }
     );
@@ -477,7 +477,7 @@ fn a_restored_change_holds_its_charters_against_the_supplied_defaults() {
     assert_eq!(
         failure,
         Failure::Settings {
-            failure: s::Failure { setting: setting(1, 0, 1), fault: s::Fault::Reference },
+            failure: s::Failure { setting: setting(1, 0, 1), fault: s::Fault::Reference, detail: None },
             changed: true
         }
     );

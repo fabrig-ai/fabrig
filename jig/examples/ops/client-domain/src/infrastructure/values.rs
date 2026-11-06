@@ -2,7 +2,7 @@
 //! Raw environment and pool names stay raw; no display identity or revision is invented.
 use super::documents::Subject;
 use alloc::boxed::Box;
-use skein_lib::{List, Wall};
+use skein_lib::{List, Wall, length::len_u64};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Service {
@@ -355,7 +355,7 @@ fn text(value: &[u8], limits: &jig_client::DomainLimits) -> Option<u64> {
     if value.len() > usize::try_from(limits.text).ok()? {
         return None;
     }
-    u64::try_from(value.len()).ok()
+    Some(len_u64(value.len()))
 }
 fn resource(value: &Resource, limits: &jig_client::DomainLimits) -> Option<u64> {
     match value {
@@ -381,8 +381,7 @@ fn description(value: &Description, limits: &jig_client::DomainLimits) -> Option
     if value.resources.len() > usize::try_from(limits.rows).ok()? {
         return None;
     }
-    let mut bytes =
-        u64::try_from(value.resources.len()).ok()?.checked_mul(u64::try_from(size_of::<Resource>()).ok()?)?;
+    let mut bytes = len_u64(value.resources.len()).checked_mul(u64::try_from(size_of::<Resource>()).ok()?)?;
     for value in &value.resources {
         bytes = bytes.checked_add(resource(value, limits)?)?;
     }

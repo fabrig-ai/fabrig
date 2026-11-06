@@ -33,7 +33,7 @@ pub struct ConnectModel {
     /// Whether the scripted model was serving when this connection was sent.
     pub playground: bool,
     pub elsewhere: bool,
-    program_environment: Box<[u8]>,
+    program_environment: Option<Box<[u8]>>,
     environment_read: Option<Handle>,
     environment_asked: bool,
 }
@@ -141,7 +141,16 @@ impl ConnectModel {
     /// The owner's `program_environment`, empty until answered (temper/docs/design/client/README.md, 4.6).
     #[must_use]
     pub fn program_environment(&self) -> &[u8] {
-        &self.program_environment
+        match &self.program_environment {
+            Some(environment) => environment,
+            None => b"",
+        }
+    }
+
+    /// Whether the owner’s environment was decoded, including an empty default (client/README.md, 4.6).
+    #[must_use]
+    pub const fn program_environment_answered(&self) -> bool {
+        self.program_environment.is_some()
     }
 
     pub(crate) fn read_environment(&mut self, address: &Address, link: Link, next: &mut u64, out: &mut Queue<Output>) {
@@ -178,13 +187,11 @@ impl ConnectModel {
                 self.program_environment = match page {
                     Readout::Family { family, record: Some(record) } if *family == wire::FORGE => {
                         match wire::decode_program_environment_answer(record, &w::CEILINGS) {
-                            Some(record) => record.into_parts().environment,
-                            None => Box::new([]),
+                            Some(record) => Some(record.into_parts().environment),
+                            None => None,
                         }
                     }
-                    Readout::Family { .. } | Readout::NotServed { .. } | Readout::Limit | Readout::Jig(_) => {
-                        Box::new([])
-                    }
+                    Readout::Family { .. } | Readout::NotServed { .. } | Readout::Limit | Readout::Jig(_) => None,
                 };
                 true
             }
@@ -538,7 +545,7 @@ impl Default for ConnectModel {
             request: Request::default(),
             playground: false,
             elsewhere: false,
-            program_environment: Box::new([]),
+            program_environment: None,
             environment_read: None,
             environment_asked: false,
         }

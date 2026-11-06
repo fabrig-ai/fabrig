@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_core::{self as core, documents, reads};
 use jig_domain_tasks as tasks;
 use skein_kv::Range;
-use skein_lib::List;
+use skein_lib::{List, length::len_u64};
 
 fn owner_number(key: &core::Key) -> Result<u64, Failure> {
     match key {
@@ -452,10 +452,8 @@ pub(super) fn subtree_history(
         let after: Option<Cursor> = if index == first { paged::cursor(range, &selected)? } else { None };
         let walked = pages::reader::walk(store, &selected, after.as_ref(), spent.rows).or(Err(Failure::Corrupt))?;
         for item in walked.rows {
-            let size = u64::try_from(item.row.key.len())
-                .or(Err(Failure::Corrupt))?
-                .checked_add(u64::try_from(item.row.value.len()).or(Err(Failure::Corrupt))?)
-                .ok_or(Failure::Corrupt)?;
+            let size =
+                len_u64(item.row.key.len()).checked_add(len_u64(item.row.value.len())).ok_or(Failure::Corrupt)?;
             encoded = encoded.checked_add(size).ok_or(Failure::Corrupt)?;
             if encoded > u64::from(store.limits.store.page.bytes) {
                 return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });

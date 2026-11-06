@@ -32,10 +32,13 @@ as do operating, development machines, artifacts and reproducible builds
 git, resolution and render conformance, and tool fakes, but lack the complete
 M2 fake machine, joined system world, real builds and boot test; conformance
 has no automatic runner. Tier profiles, memory tests and shared suite
-timeouts depart from the design; the focused suite takes 41.678860 CPU s,
-11.678860 over its 30 CPU s, and fuzzy takes 100.520668 CPU s. All 2189
-focused and 60 fuzzy tests pass; the focused CPU verdict stays red, and
-whether repairs reach 30 CPU s remains unknown
+timeouts depart from the design. Five of hearth's crates build at `opt-level` 1
+in development, against `skein/docs/foundation/testing-strategy.md`, 8, with no
+profile and no sign-off, which is the user's to rule on. The focused suite's
+budget is the queue's figure, unknown for the suite as it stands; measured outside
+the queue, the same code reads 30.855038 CPU s in one sitting and 26.934412 in
+another. Fuzzy takes 71.818933 CPU s, 13.390022 s of execution wall. All 2189
+focused and 60 fuzzy tests pass
 (`hearth/docs/design/domain/testing.md`). The design departs
 from the draft in its three processes, subordinate ids, offline sandboxes,
 development loop, live changes and milestone split; pool placement still

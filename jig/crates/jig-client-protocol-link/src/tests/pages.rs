@@ -1,4 +1,5 @@
 use super::*;
+use skein_lib::length::len_u64;
 
 fn a_history_page_record_becomes_its_literal_contract_value() {
     assert_eq!(
@@ -217,7 +218,7 @@ fn a_turns_receiving_cut_stays_on_its_decoded_value() {
 }
 #[test]
 fn a_turn_at_its_admission_bound_is_decoded() {
-    assert_eq!(u64::try_from(fixtures::FULL_TURN.len()).unwrap(), fixtures::TURN_PAYLOAD_BYTES);
+    assert_eq!(len_u64(fixtures::FULL_TURN.len()), fixtures::TURN_PAYLOAD_BYTES);
     let limits = fixtures::turn_limits(32, fixtures::TURN_PAYLOAD_BYTES);
     assert_eq!(
         translate::pages::carried_turn_fields(fixtures::FULL_TURN, &limits),

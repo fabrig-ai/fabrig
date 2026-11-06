@@ -53,28 +53,38 @@
 - **Departs:** 9.1: no global timeout holds hearth's suites alone, because
   the root has one `default` and one `fuzzy` profile, whose 150 s and 600 s
   sum each tree's figures, hearth's 30 s and 120 s among them.
-- **Departs:** 9.1: the focused suite takes 41.678860 CPU s, 11.678860
-  over its 30 CPU s, by `tools/tiers/cpu.py` on 2026-11-06 at
-  `2916bc07d21c1eb4cd7210135da58460197847cf`, with
-  `NEXTEST_DOUBLE_SPAWN=0` and all 34 hearth workspace packages selected.
-  All 2189 focused tests pass; the CPU verdict is red. The builder suite
-  costs 12.008451 CPU s, the tree suite 10.029600, the builder real-git
-  binary 8.479085 and the render suite 4.086128. Within them the largest
-  families are the builder suite's `domain::` at 4.139167, the tree suite's
-  `walk::` at 3.612423 and `memory::` at 2.833243, and the render suite's
-  `properties::` at 2.217494; the largest test is the tree suite's
-  `memory::walk::walking_wide_and_deep_layers_holds_no_more_than_its_ceiling`
-  at 1.299843. These rank the work, and show neither an inefficiency nor
-  what a repair saves. Whether repairs to those costs reach 30 CPU s is
-  unknown; the figure stands (`hearth/docs/design/domain/testing.md`, 11).
-  Fuzzy takes 100.520668 CPU s, 24.255479 s of execution wall, with all
-  60 tests passing and the large render included at 14.633486 CPU s.
-  Neither run has retries, starvation, unobserved attempts, leaked
+- **Departs:** 9.1: `skein/docs/foundation/testing-strategy.md`, 8 has test
+  builds stay unoptimized, tools aside, with an override for one hot leaf crate
+  alone, on a profile showing a cost no test can avoid and the user's sign-off,
+  with a comment beside it citing both. The root `Cargo.toml` sets `opt-level` 1
+  on five: `hearth-lib`, `hearth-protocol-tree`, `hearth-domain-tree`,
+  `hearth-domain-builder` and `hearth-tree-world`. No comment stands beside them
+  and no sign-off is recorded, and no profile was taken, because the machine that
+  measured has no profiler: each line stays for what it measured. Together, on one
+  machine, they take the suite from 34.500778 to 28.789301 CPU s, for 15.540240
+  CPU s added to a clean build of hearth's 34 packages. Overflow checks and debug
+  assertions stay on. Whether they stand is the user's (11).
+- **Departs:** 9.1: the budget is the queue's figure, and for the suite as it
+  stands that figure is unknown: the last on record, 31.7 CPU s over 2189 tests
+  at 08:56 UTC on 2026-11-06, precedes those lines, and none has been read since,
+  so neither the 30 CPU s nor the 27 the request of 2026-11-06 aims for on that
+  figure is shown held. Measured outside the queue, with `NEXTEST_DOUBLE_SPAWN=0`
+  and all 34 hearth workspace packages selected, the suite reads on either side
+  of 30 with hearth's code and dependencies the same: on 2026-11-06, 31.120433 and
+  30.855038 CPU s at `f0f5205efa52d5b1bd86def4e8de693b2c1a4e99`, whose CPU verdicts
+  are red, and 26.934412 and 27.157056 on another machine at
+  `ef194173bfbb678a9ce08c4a89210a32f8141f22`. All 2189 focused tests pass. In the
+  run at 30.855038, the builder suite costs 10.454081 CPU s, the tree suite
+  3.933565, the builder real-git binary 6.576753 and the render suite 3.534250.
+  Fuzzy takes 71.818933 CPU s, 13.390022 s of execution wall, with all
+  60 tests passing and the large render included at 13.338879 CPU s.
+  None of these runs has retries, starvation, unobserved attempts, leaked
   descendants or incomplete records. These are test execution costs in
   the collector's waited-and-reaped-descendants scope
   (`tools/tiers/design.md`, 7.2); full-gate incremental build and clippy
   costs for this revision are unknown because the measurement excludes
   them. The fuzzy budget's basis and the render world's selection on
-  every change await the user's ruling (11). How much of the large render's
-  CPU lies in the harness or production code remains unknown because this
-  measurement doesn't isolate it.
+  every change await the user's ruling (11). The causes of suite-cost
+  variation, the suite's CPU by function, and how much of the large render's
+  CPU lies in the harness or production code remain unknown, because no
+  measurement isolates them and no profile of the suite has been taken.

@@ -1,7 +1,7 @@
 use super::*;
 use jig_client_test_records as records;
 use jig_domain_core::reads;
-use skein_lib::Reader;
+use skein_lib::{Reader, length::len_u64};
 pub fn read_exchange() -> Exchange {
     let mut limits = env();
     limits.limits.wire.owned_record = 4096;
@@ -261,7 +261,7 @@ fn task_text_read() -> (&'static str, w::Read, reads::Read, reads::Answer, w::Re
     let limits = wire();
     let bytes = "é CI failed: missing artifact".as_bytes();
     let from = 127_u64;
-    let total = from.checked_add(u64::try_from(bytes.len()).unwrap()).unwrap();
+    let total = from.checked_add(len_u64(bytes.len())).unwrap();
     (
         "task text",
         w::Read::TaskText(

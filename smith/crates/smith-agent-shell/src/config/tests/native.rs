@@ -131,7 +131,7 @@ fn decoding_keeps_unresolved_names_and_unread_trust_sources() {
 }
 
 #[test]
-fn resolving_reports_trust_only_to_the_supplied_writer() {
+fn resolving_says_nothing_of_well_formed_roots() {
     let mut document = shaped_document();
     document["endpoints"][0]["transport"] = serde_json::json!("tls");
     document["endpoints"][0]["server_name"] = serde_json::json!("example.test");
@@ -140,7 +140,37 @@ fn resolving_reports_trust_only_to_the_supplied_writer() {
     let decoded = super::decode(&serde_json::to_vec(&document).expect("configuration JSON")).expect("pure decode");
     let mut errors = Vec::new();
     decoded.resolve(&mut errors).expect("native configuration");
-    assert_eq!(errors, b"smith: trust roots: 1 taken, 0 skipped, 0 malformed blocks, 0 other blocks\n");
+    assert!(errors.is_empty(), "well-formed roots produce no diagnostic: {errors:?}");
+}
+
+fn resolve_with_pem(pem: &[u8]) -> Vec<u8> {
+    let scratch = skein_scratch::Scratch::new("smith-report-trust");
+    let path = scratch.path().join("roots.pem");
+    std::fs::write(&path, pem).expect("PEM fixture");
+    let mut document = shaped_document();
+    document["endpoints"][0]["transport"] = serde_json::json!("tls");
+    document["endpoints"][0]["server_name"] = serde_json::json!("example.test");
+    document["endpoints"][0]["trust"] = serde_json::json!({"system":false,
+        "der":[skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der")],
+        "pem":[path]});
+    let decoded = super::decode(&serde_json::to_vec(&document).expect("configuration JSON")).expect("pure decode");
+    let mut errors = Vec::new();
+    decoded.resolve(&mut errors).expect("native configuration");
+    errors
+}
+
+#[test]
+fn resolving_says_nothing_of_skipped_roots_and_other_blocks() {
+    let errors = resolve_with_pem(
+        b"-----BEGIN CERTIFICATE-----\nAA==\n-----END CERTIFICATE-----\n-----BEGIN X509 CRL-----\nignored\n-----END X509 CRL-----\n",
+    );
+    assert!(errors.is_empty(), "skipped roots and other blocks produce no diagnostic: {errors:?}");
+}
+
+#[test]
+fn a_malformed_block_is_reported_once_to_the_supplied_writer() {
+    let errors = resolve_with_pem(b"-----BEGIN CERTIFICATE-----\n!\n-----END CERTIFICATE-----\n");
+    assert_eq!(errors, b"smith: trust roots: 1 taken, 0 skipped, 1 malformed blocks, 0 other blocks\n");
 }
 
 #[test]

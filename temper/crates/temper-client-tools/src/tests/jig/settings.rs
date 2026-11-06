@@ -685,13 +685,7 @@ fn settings_change_outcomes_name_the_revision_and_refusal_facts() {
     for (refusal, expected) in [
         (c::Refusal::Stale(c::RefusalStale { newest: 6 }), "stale; newest revision 6"),
         (
-            c::Refusal::Malformed {
-                at: 1,
-                why: c::Malformed::Settings(c::MalformedSettings {
-                    setting: c::Setting::Rules,
-                    fault: c::SettingFault::Owner,
-                }),
-            },
+            c::Refusal::Malformed { at: 1, why: super::malformed_setting(c::Setting::Rules, c::SettingFault::Owner) },
             "out of shape; item 1; rules: owner",
         ),
         (
@@ -2519,10 +2513,7 @@ fn an_engine_refusal_naming_a_project_policy_prints_its_setting() {
         (
             c::Refusal::Malformed {
                 at: 0,
-                why: c::Malformed::Settings(c::MalformedSettings {
-                    setting: c::Setting::ProjectPolicy { project: 1 },
-                    fault: c::SettingFault::Rules,
-                }),
+                why: super::malformed_setting(c::Setting::ProjectPolicy { project: 1 }, c::SettingFault::Rules),
             },
             "settings apply: out of shape; item 0; project-policy 1: rules\n",
         ),
