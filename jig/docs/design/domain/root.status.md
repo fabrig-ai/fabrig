@@ -3,7 +3,8 @@
 2026-11-06. Where jig's code lags or departs from [root.md](root.md).
 
 - **Not yet:** 2, 5, 6: `smith-inline-agent` composed in the engine's
-  root.
+  root. 2: the fleet, the hub and accounts still re-export the link's values
+  (`jig/docs/development/debt/D006-link-values-two-paths.md`).
 - **Departs:** 3, 5, 8, 11: the test root is not in `ops`'s shape: its
   `Domain` keeps `now`, `store_answers`, `busy` and `public_reads` beside
   the journal between steps, its `release` steps released callbacks
