@@ -712,49 +712,188 @@ fn a_person_who_may_not_accept_sees_who_decides() {
     assert!(fixtures::find(&tree, Role::Paragraph, b"Waiting for an owner").is_some());
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Pat").is_some());
 }
-#[test]
-fn replaced_and_accepted_say_so() {
-    let (root, _) = settings_root(settings_page(&[], true));
-    for (state, replaced, expected, style) in [
-        (
-            c::ProposalHistoryState::Accepted { by: c::Requester::Person(73) },
-            false,
-            "✓ Accepted · new work follows it",
-            crate::look::SETTINGS_PROPOSAL_OK,
-        ),
-        (
-            c::ProposalHistoryState::Withdrawn,
-            true,
-            "Replaced by the proposal below",
-            crate::look::SETTINGS_PROPOSAL_SUPERSEDED,
-        ),
-    ] {
-        let mut card = settings_card(&root);
-        card.page = Some(c::ReadValue::Ended(Box::new(c::Ended {
-            key: card.object,
-            value: c::EndedValue::Proposal(c::ProposalHistory {
-                number: SETTINGS_KEY.number,
-                proposer: fixtures::chat::DELEGATE,
-                as_holder: true,
-                state,
-                action: c::RetainedAction::Settings(c::RetainedActionSettings {
-                    against: 0,
-                    items: List::with_capacity(0),
-                    made: None,
-                }),
-            }),
-            at: None,
-            by: None,
-        })));
-        let tree = draw_settings(&root, &card, replaced);
-        assert!(fixtures::find(&tree, Role::Paragraph, expected.as_bytes()).is_some());
-        let mut styled = false;
-        for node in tree.nodes() {
-            styled |= node.styles.as_slice().contains(&style);
-        }
-        assert!(styled);
-        assert!(fixtures::find(&tree, Role::Button, b"Accept").is_none());
+fn restored_settings() -> (d::Domain, skein_lib::Token) {
+    let (mut root, _, _) =
+        fixtures::root_at(d::Address::Home { project: fixtures::PROJECT }, &fixtures::domain_limits());
+    let out = settings_drive(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Read {
+                handle: jig_client::Handle { asker: d::owner::Owner::Pages.asker(), number: 100 },
+                read: jig_client::Readable::Jig(c::Read::Proposal { proposal: SETTINGS_KEY }),
+            },
+        },
+    );
+    let read = out
+        .into_iter()
+        .find_map(|request| match request {
+            d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read { read, .. } },
+            } => Some(*read),
+            _ => None,
+        })
+        .expect("proposal read under Needs you");
+    settings_up(
+        &mut root,
+        jig_client::Up::ReadDone {
+            read,
+            result: jig_client::Readout::Jig(c::ReadResult::Value(settings_page(&[], true))),
+        },
+    );
+    let out = settings_drive(
+        &mut root,
+        Event::Went { place: d::Place::Address(d::Address::Chat { task: fixtures::chat::DELEGATE }) },
+    );
+    let read = out.into_iter().find_map(|request| match request {
+        d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Proposal { .. }) } } } => Some(*read),
+        _ => None,
+    }).expect("restored card read");
+    assert!(settings_card(&root).page.is_none());
+    assert!(root.pages().chat().unwrap().settings_proposals.get(0).unwrap().acts.is_empty());
+    (root, read)
+}
+fn assert_reading_settings(root: &d::Domain) {
+    let tree = draw_settings(root, &settings_card(root), false);
+    assert!(fixtures::find(&tree, Role::Paragraph, b"Waiting for an owner").is_none());
+    assert!(fixtures::find(&tree, Role::Paragraph, b"How temper will run Shop").is_some());
+    for line in SETTINGS_REASON.split(|byte| *byte == b'\n') {
+        assert!(skein_lib::bytes::find(&fixtures::text(&tree), line).is_some());
     }
+    assert!(tree.nodes().iter().all(|node| !node.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_STATE)));
+    assert!(tree.nodes().iter().all(|node| node.role != Role::Button));
+}
+#[test]
+fn a_restored_card_says_no_waiting_before_its_read() {
+    let (root, _) = restored_settings();
+    assert_reading_settings(&root);
+}
+#[test]
+fn a_restored_card_says_no_waiting_when_its_read_is_busy() {
+    let (mut root, read) = restored_settings();
+    settings_up(
+        &mut root,
+        jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)) },
+    );
+    assert_reading_settings(&root);
+}
+fn decided_settings(state: c::ProposalHistoryState, choice: c::ProposalChoice, replaced: bool, expected: &str) {
+    let (root, _) = settings_root(settings_page(&[], true));
+    for ended in [true, false] {
+        let mut card = settings_card(&root);
+        if ended {
+            card.page = Some(c::ReadValue::Ended(Box::new(c::Ended {
+                key: card.object,
+                value: c::EndedValue::Proposal(c::ProposalHistory {
+                    number: SETTINGS_KEY.number,
+                    proposer: fixtures::chat::DELEGATE,
+                    as_holder: true,
+                    state: state.clone(),
+                    action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                        against: 0,
+                        items: List::with_capacity(0),
+                        made: None,
+                    }),
+                }),
+                at: None,
+                by: None,
+            })));
+        } else {
+            card.outcome = Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
+                c::Outcome::Document(c::DocumentOutcome::ProposalDecided {
+                    proposal: SETTINGS_KEY,
+                    by: 73,
+                    at: fixtures::NOW,
+                    choice,
+                    repeated: false,
+                }),
+            ))));
+        }
+        let tree = draw_settings(&root, &card, replaced);
+        let node = tree
+            .nodes()
+            .iter()
+            .find(|node| node.role == Role::Paragraph && node.name.as_deref() == Some(expected.as_bytes()))
+            .expect(expected);
+        assert!(node.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_STATE));
+        assert!(!node.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_OK));
+        assert_eq!(
+            tree.nodes().iter().any(|node| node.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_SUPERSEDED)),
+            replaced && choice == c::ProposalChoice::Withdrawn
+        );
+        assert!(fixtures::find(&tree, Role::Paragraph, b"Waiting for an owner").is_none());
+        assert!(tree.nodes().iter().all(|node| node.role != Role::Button));
+    }
+}
+#[test]
+fn a_rejected_card_says_rejected_and_nothing_changes() {
+    decided_settings(
+        c::ProposalHistoryState::Rejected {
+            by: c::Requester::Person(73),
+            reason: c::DocumentText::complete(c::Text::new(b"Keep it".as_slice().into(), 32).unwrap()),
+        },
+        c::ProposalChoice::Rejected,
+        false,
+        "Rejected · nothing changes",
+    );
+}
+#[test]
+fn a_withdrawn_card_says_withdrawn_and_nothing_changes() {
+    decided_settings(
+        c::ProposalHistoryState::Withdrawn,
+        c::ProposalChoice::Withdrawn,
+        false,
+        "Withdrawn · nothing changes",
+    );
+}
+#[test]
+fn a_withdrawn_card_with_a_later_one_is_replaced() {
+    decided_settings(
+        c::ProposalHistoryState::Withdrawn,
+        c::ProposalChoice::Withdrawn,
+        true,
+        "Replaced by the proposal below",
+    );
+}
+#[test]
+fn a_rejected_card_with_a_later_one_stays_rejected() {
+    decided_settings(
+        c::ProposalHistoryState::Rejected {
+            by: c::Requester::Person(73),
+            reason: c::DocumentText::complete(c::Text::new(b"Keep it".as_slice().into(), 32).unwrap()),
+        },
+        c::ProposalChoice::Rejected,
+        true,
+        "Rejected · nothing changes",
+    );
+}
+#[test]
+fn an_accepted_card_keeps_its_state_line() {
+    let (root, _) = settings_root(settings_page(&[], true));
+    let mut card = settings_card(&root);
+    card.page = Some(c::ReadValue::Ended(Box::new(c::Ended {
+        key: card.object,
+        value: c::EndedValue::Proposal(c::ProposalHistory {
+            number: SETTINGS_KEY.number,
+            proposer: fixtures::chat::DELEGATE,
+            as_holder: true,
+            state: c::ProposalHistoryState::Accepted { by: c::Requester::Person(73) },
+            action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                against: 0,
+                items: List::with_capacity(0),
+                made: None,
+            }),
+        }),
+        at: None,
+        by: None,
+    })));
+    let tree = draw_settings(&root, &card, false);
+    assert!(fixtures::find(&tree, Role::Paragraph, "✓ Accepted · new work follows it".as_bytes()).is_some());
+    let mut styled = false;
+    for node in tree.nodes() {
+        styled |= node.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_OK);
+    }
+    assert!(styled);
+    assert!(fixtures::find(&tree, Role::Button, b"Accept").is_none());
     let mut card = settings_card(&root);
     card.outcome = Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
         c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: 1 }),
