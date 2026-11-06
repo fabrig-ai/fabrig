@@ -175,7 +175,10 @@ fn a_hello_with_job_kinds_out_of_order_is_not_admitted() {
             hosting: Box::new([]),
         };
         hello.jobs = jobs;
-        assert_eq!(h.step(Event::Hello { channel: C1, worker: 0, hello }), &[Request::Refuse { channel: C1 }]);
+        assert!(matches!(
+            h.step(Event::Hello { channel: C1, worker: 0, hello }).as_slice(),
+            [Request::Refuse { channel: C1, .. }]
+        ));
         assert_eq!(h.domain.hello_refusals().get(0).expect("refused hello history").why, HelloRefusal::JobKinds);
     }
 }

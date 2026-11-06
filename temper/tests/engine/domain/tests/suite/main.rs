@@ -15,6 +15,7 @@ mod document_limits;
 mod escalation;
 mod fabrig_scale;
 mod forge_routes;
+mod hello_refused;
 mod host_calls;
 mod issue_projection;
 mod loads;

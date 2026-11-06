@@ -203,6 +203,8 @@ pub enum Delivery {
         /// Fixed-size worker protocol destination echoed from its refused hello; no worker slot is
         /// admitted.
         channel: Token,
+        /// The fleet's hello reason and figures; absent for malformed records or a stopping core.
+        hello: Option<jig_domain_fleet::HelloRefused>,
     },
     /// Root to worker: fleet lacked turn admission room; keep the body and retry after a backoff,
     /// without charging.

@@ -118,7 +118,7 @@ fn partial_foreign_or_duplicate_snapshots_fault_the_link() {
     for names in [&[b"a".as_slice()][..], &[b"a".as_slice(), b"foreign"], &[b"a".as_slice(), b"a"]] {
         let mut world = World::new(&[b"a", b"b"]);
         world.hello(CHANNEL);
-        assert!(matches!(&world.inventory(names)[..], [Request::Refuse { channel: CHANNEL }]));
+        assert!(matches!(&world.inventory(names)[..], [Request::Refuse { channel: CHANNEL, .. }]));
         assert!(!world.available());
         assert_eq!(world.domain.program_logins(CHANNEL), None);
     }
@@ -167,7 +167,7 @@ fn an_unawaited_sign_out_faults_the_link() {
     world.inventory(&[b"a"]);
     assert_eq!(
         world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: SignOutResult::SignedOut }),
-        vec![Request::Refuse { channel: CHANNEL }]
+        vec![Request::Refuse { channel: CHANNEL, hello: None }]
     );
     assert!(!world.available());
 }
@@ -283,7 +283,7 @@ fn a_check_waits_until_its_source_list_has_been_sent() {
 fn a_hello_refuses_an_unconfigured_position() {
     let mut world = configured();
     let rows = world.hello_at(CHANNEL, 2);
-    assert_eq!(rows, vec![Request::Refuse { channel: CHANNEL }]);
+    assert!(matches!(rows.as_slice(), [Request::Refuse { channel: CHANNEL, .. }]));
     assert_eq!(world.domain.workers(), 0);
     assert_eq!(
         world.domain.hello_refusals().get(0).expect("position refusal").why,
@@ -295,7 +295,7 @@ fn a_hello_refuses_an_occupied_position() {
     let mut world = configured();
     world.hello(CHANNEL);
     let other = Token::new(102);
-    assert_eq!(world.hello(other), vec![Request::Refuse { channel: other }]);
+    assert!(matches!(world.hello(other).as_slice(), [Request::Refuse { channel, .. }] if *channel == other));
     assert_eq!(world.domain.workers(), 1);
     assert_eq!(
         world.domain.hello_refusals().get(0).expect("position refusal").why,

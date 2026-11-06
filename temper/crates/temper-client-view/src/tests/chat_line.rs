@@ -134,7 +134,7 @@ fn a_run_spans_turns_and_ends_at_a_text() {
     assert_eq!(lines.get(0).unwrap().description.as_deref(), Some(b"29 s".as_slice()));
     let mut turns = 0_usize;
     for node in tree.nodes() {
-        if node.styles.as_slice().contains(&look::TURN) {
+        if node.key.is_some() && node.styles.as_slice().contains(&look::TURN) {
             turns = turns.checked_add(1).unwrap();
         }
     }

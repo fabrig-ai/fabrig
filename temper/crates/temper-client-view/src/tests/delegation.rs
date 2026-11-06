@@ -87,6 +87,10 @@ fn root_chat_limits(
 ) -> Domain {
     root_chat_with_reads(chat_document, documents, activity, delegates, receiving).0
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "one fixture pumps the chat's read and watch responses while explicitly reading its history"
+)]
 fn root_chat_with_reads(
     chat_document: Option<&c::Task>,
     documents: &[c::Task],
@@ -121,6 +125,7 @@ fn root_chat_with_reads(
                     },
             } => {
                 let page = fixtures::first_run::page(&activity, before.as_ref(), receiving.client.domain.rows);
+                let more = page.before.is_some();
                 up(
                     &mut root,
                     jig_client::Up::ReadDone {
@@ -130,6 +135,16 @@ fn root_chat_with_reads(
                     receiving,
                     &mut out,
                 );
+                if more {
+                    temper_client_domain::step(
+                        &mut root,
+                        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *receiving },
+                        Event::Act {
+                            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Older),
+                        },
+                        &mut out,
+                    );
+                }
             }
             Request::Unlinked {
                 request:
@@ -510,7 +525,7 @@ fn a_card_shows_once_at_its_call_when_its_result_shares_the_window() {
     let log = view.tree().nodes();
     let mut regions = 0_u32;
     for (at, node) in log.iter().enumerate() {
-        if node.role == Role::Region && node.styles.as_slice().contains(&look::TURN) {
+        if node.styles.as_slice().contains(&look::TURN) {
             regions = regions.checked_add(1).expect("region count");
             if regions > 1 {
                 let end = at.checked_add(usize::try_from(node.size).expect("region size")).expect("region end");

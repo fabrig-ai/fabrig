@@ -2,6 +2,7 @@
 //! codec and the walk, which merges by it.
 
 use core::cmp::Ordering;
+use skein_lib::bytes;
 
 /// The most bytes in a path (hearth/docs/design/domain/store.md, 3.4).
 pub const PATH: u32 = 4_096;
@@ -17,17 +18,18 @@ pub fn path_valid(path: &[u8]) -> bool {
     if path.is_empty() {
         return true;
     }
+    if bytes::find(path, b"\0").is_some() {
+        return false;
+    }
     let mut start = 0_usize;
-    for (at, &byte) in path.iter().enumerate() {
-        if byte == 0 {
+    for _ in 0..path.len() {
+        let Some(at) = bytes::find_from(path, b"/", start) else {
+            break;
+        };
+        if !component_valid(path.get(start..at)) {
             return false;
         }
-        if byte == b'/' {
-            if !component_valid(path.get(start..at)) {
-                return false;
-            }
-            start = at.saturating_add(1);
-        }
+        start = at.saturating_add(1);
     }
     component_valid(path.get(start..))
 }
@@ -71,11 +73,9 @@ const fn rest(path: &[u8]) -> Option<&[u8]> {
 }
 /// The first component, and what follows its `/`, if anything does.
 fn component(path: &[u8]) -> (&[u8], Option<&[u8]>) {
-    for (at, &byte) in path.iter().enumerate() {
-        if byte == b'/' {
-            let (name, slash) = path.split_at_checked(at).expect("a position within the path");
-            return (name, slash.get(1..));
-        }
+    if let Some(at) = bytes::find(path, b"/") {
+        let (name, slash) = path.split_at_checked(at).expect("a position within the path");
+        return (name, slash.get(1..));
     }
     (path, None)
 }

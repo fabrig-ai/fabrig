@@ -9,9 +9,16 @@ fn merges_conflicts_saving_head_movement_and_ambiguous_pushes_settle() {
 
 #[test]
 fn merge_scenarios_replay_and_facts_do_not_change_requests_or_effects() {
-    for case in
-        [Case::Clean, Case::Conflict, Case::Unchanged, Case::Moved, Case::Ambiguous, Case::Saved, Case::Contained]
-    {
+    for case in [
+        Case::Clean,
+        Case::Resumed,
+        Case::Conflict,
+        Case::Unchanged,
+        Case::Moved,
+        Case::Ambiguous,
+        Case::Saved,
+        Case::Contained,
+    ] {
         let expected = merges::run(119, case, 64);
         assert_eq!(merges::run(119, case, 64), expected);
         assert_eq!(merges::run(119, case, 0), expected);
@@ -31,4 +38,9 @@ fn a_conflicting_head_fails_the_prepare_and_the_next_starts_clean() {
 #[test]
 fn a_resumed_producer_holding_the_tip_pushes_no_merge() {
     let _ = merges::run(73, Case::Contained, 64);
+}
+
+#[test]
+fn a_resumed_producers_clean_merge_is_committed_before_its_run() {
+    let _ = merges::run(73, Case::Resumed, 64);
 }

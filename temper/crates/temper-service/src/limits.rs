@@ -25,9 +25,9 @@ pub struct Root {
 /// The clients' listener's own limits: the browser's bundle (protocol/configuration.md, 7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Clients {
-    /// The bundle's files, its page among them.
+    /// The bundle's files, its page and each compressed form among them.
     pub bundle_files: u32,
-    /// The bundle's files' bytes in all, held in memory while `temper serve` runs.
+    /// Both forms' bytes in all, held in memory while `temper serve` runs.
     pub bundle_bytes: u32,
 }
 /// People's sign-ins (protocol/sign-in.md, 6).
@@ -419,10 +419,10 @@ const STANDARD_ROOT: Root = Root {
     },
 };
 const CLIENTS: Clients = Clients {
-    // Files of a bundle, the page among them: far above the shell's dev bundle (decision 6 of browser-1).
+    // Files of a bundle, the page and both forms among them (client/browser.md, 2.2).
     bundle_files: 128,
-    // Bytes of a bundle in all, read into memory at start.
-    bundle_bytes: 16 << 20,
+    // Bytes of both forms in all, read into memory at start (protocol/configuration.md, 7).
+    bundle_bytes: 32 << 20,
 };
 /// The standalone process's socket admission holds standard's owned example with both listeners and a sign-in.
 pub const SOCKETS: u32 = 256;
