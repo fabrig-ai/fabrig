@@ -1566,3 +1566,14 @@ Over generated repositories, valid by construction and then mutated:
   queues a `Down::Finish`, and `resume` expects an output there is none of. This
   is from reading the code; no test has run it. Whether `stop` asks first.
   Default: as it stands, until a test shows it.
+- **What the printer holds that the builder never reaches** (8.5): `Client`
+  closes its output through io, so only
+  `close_withdraws_the_demand_and_answers_closed` sends `printer::Request::Close`;
+  and `Client::up` takes `Up::Failed` first, so the printer's `Below::Failed` runs
+  only under its own tests, and `Client::resume`'s `Event::Failed` arm under none.
+  Whether they stay. Default: as they stand, until a debt item names them.
+- **What `takes` asks beside its stream** (8.5): `requests.is_empty()` and
+  `events.is_empty()` repeat, by reading, what `Client`'s `Stream` says: it leaves
+  `Printing` only as `resume` takes a record's one event, once `requests` is
+  empty, and `fail` empties both. Whether they go. Default: as they stand, until
+  a debt item names them.
