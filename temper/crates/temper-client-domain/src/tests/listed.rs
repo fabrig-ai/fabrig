@@ -38,6 +38,17 @@ fn row(number: u16, repositories: Box<[Adoption]>) -> Row {
     }
 }
 
+fn displayed_forge(state: &State, number: u16) -> Option<&Row> {
+    if let State::Rows(rows) = state {
+        for row in rows {
+            if row.number == number {
+                return Some(row);
+            }
+        }
+    }
+    None
+}
+
 #[test]
 fn absent_or_ended_watches_leave_repositories_unknown() {
     for state in [State::Unknown, State::Ended] {
@@ -53,7 +64,17 @@ fn only_the_projects_repositories_count() {
         assert_eq!(held(&state, None, PROJECT), Held::None);
     }
     let state = State::Rows(Box::new([row(3, Box::new([repository(PROJECT, b"hello")]))]));
-    assert_eq!(held(&state, None, PROJECT), Held::One { owner: b"work", name: b"hello" });
+    assert_eq!(
+        held(&state, None, PROJECT),
+        Held::One {
+            forge: match &state {
+                State::Rows(rows) => rows.first(),
+                State::Unknown | State::Ended => None,
+            },
+            owner: b"work",
+            name: b"hello"
+        }
+    );
 }
 
 #[test]
@@ -65,7 +86,10 @@ fn the_lowest_forge_and_its_first_repository_stand_in_for_home() {
             Box::new([repository(OTHER, b"elsewhere"), repository(PROJECT, b"hello"), repository(PROJECT, b"next")]),
         ),
     ]));
-    assert_eq!(held(&state, None, PROJECT), Held::Several { owner: b"work", name: b"hello", more: 2 });
+    assert_eq!(
+        held(&state, None, PROJECT),
+        Held::Several { forge: displayed_forge(&state, 3), owner: b"work", name: b"hello", more: 2 }
+    );
 }
 
 #[test]
@@ -76,7 +100,10 @@ fn sixteen_repositories_keep_the_home_and_fifteen_more() {
     }
     let repositories = repositories.into_boxed();
     let state = State::Rows(Box::new([row(3, repositories)]));
-    assert_eq!(held(&state, None, PROJECT), Held::Several { owner: b"work", name: b"hello", more: 15 });
+    assert_eq!(
+        held(&state, None, PROJECT),
+        Held::Several { forge: displayed_forge(&state, 3), owner: b"work", name: b"hello", more: 15 }
+    );
 }
 
 #[test]
@@ -91,7 +118,10 @@ fn the_playground_names_widget_without_a_delivered_watch() {
         cues: Box::default(),
     };
     for state in [State::Unknown, State::Ended, State::Rows(Box::default())] {
-        assert_eq!(held(&state, Some(&playground), PROJECT), Held::One { owner: b"playground", name: b"widget" });
+        assert_eq!(
+            held(&state, Some(&playground), PROJECT),
+            Held::One { forge: None, owner: b"playground", name: b"widget" }
+        );
     }
     assert_eq!(held(&State::Unknown, Some(&playground), OTHER), Held::Unknown);
 }

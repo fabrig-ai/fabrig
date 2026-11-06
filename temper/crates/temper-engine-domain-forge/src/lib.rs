@@ -45,6 +45,7 @@ pub use away::{
 mod dismissed;
 pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, PersonFact};
 mod domain;
+pub use domain::make::{BOT_EMAIL, BOT_LOGIN};
 mod effect_words;
 mod forges;
 mod gates;
@@ -149,7 +150,8 @@ pub enum Recovery {
 #[must_use]
 pub const fn effect_shape(kind: u16) -> Option<(EffectForm, Recovery)> {
     match kind {
-        2 | 11 | 17 => Some((EffectForm::Transition, Recovery::Unrecoverable)),
+        2 | 17 => Some((EffectForm::Transition, Recovery::Unrecoverable)),
+        11 => Some((EffectForm::Transition, Recovery::Idempotent)),
         4 => Some((EffectForm::Transition, Recovery::Conditional)),
         3 => Some((EffectForm::Creation, Recovery::Conditional)),
         5 | 7 | 8 | 9 | 16 => Some((EffectForm::Creation, Recovery::Unrecoverable)),

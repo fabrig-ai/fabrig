@@ -824,6 +824,7 @@ pub fn assert_cached_binary_unchanged(cached: &std::path::Path, source: &std::pa
 #[must_use]
 pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::SocketAddr {
     initialize(paths);
+    super::own_listener_files(&paths[0]);
     if let LiveModel::ClaudeCode { .. } = model {
         let executable = std::env::var_os("PATH")
             .into_iter()

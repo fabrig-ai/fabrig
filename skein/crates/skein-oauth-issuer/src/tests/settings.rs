@@ -31,7 +31,7 @@ fn settings_refuse_each_invalid_entity() {
             3 => settings.userinfo_endpoint = boxed(value),
             4 => settings.jwks_uri = boxed(value),
             5 => settings.clients.get_mut(0).expect("client").id = boxed(value),
-            6 => settings.clients.get_mut(0).expect("client").secret = secret(value),
+            6 => settings.clients.get_mut(0).expect("client").secret = Some(secret(value)),
             7 => settings.clients.get_mut(0).expect("client").redirect_uri = boxed(value),
             _ => unreachable!("table field"),
         }
@@ -46,7 +46,7 @@ fn clients_are_present_unique_and_bounded_and_the_key_is_checked() {
     let mut duplicate = settings();
     duplicate
         .clients
-        .push(Client { id: boxed(b"client"), secret: secret(b"other"), redirect_uri: boxed(REDIRECT) })
+        .push(Client { id: boxed(b"client"), secret: Some(secret(b"other")), redirect_uri: boxed(REDIRECT) })
         .expect("slot");
     assert_eq!(Issuer::new(duplicate, limits()).expect_err("duplicate"), Error::Client);
     let mut cap = limits();

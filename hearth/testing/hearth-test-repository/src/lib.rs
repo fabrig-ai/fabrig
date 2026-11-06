@@ -11,6 +11,12 @@ use std::{
     process::Command,
 };
 
+mod objects;
+
+const COMMIT_NAME: &str = "hearth";
+const COMMIT_EMAIL: &str = "hearth@hearth.invalid";
+const COMMIT_DATE: &str = "1700000000 +0000";
+
 mod binary;
 pub use binary::{Ended, binary};
 mod resolution;
@@ -43,8 +49,11 @@ pub struct Repository {
 impl Repository {
     #[must_use]
     pub fn make(label: &str, files: &[File]) -> Self {
-        let path = reserved::git_path();
-        Self::make_on(&path, label, files)
+        let repository = Self::empty(label);
+        objects::lay_out(&repository.work_tree);
+        repository.write(files);
+        drop(objects::commit(&repository.work_tree, "thin"));
+        repository
     }
     #[must_use]
     pub fn make_on(path: &OsStr, label: &str, files: &[File]) -> Self {
@@ -72,11 +81,7 @@ impl Repository {
     }
     #[must_use]
     pub fn head(&self) -> String {
-        let path = reserved::git_path();
-        String::from_utf8(git_output(&self.work_tree, &path, &["rev-parse", "HEAD"]))
-            .expect("commit id")
-            .trim()
-            .to_owned()
+        fs::read_to_string(self.work_tree.join(".git/refs/heads/main")).expect("commit ref").trim().to_owned()
     }
     #[must_use]
     pub fn next(&self, files: &[File], removed: &[&str]) -> String {
@@ -84,10 +89,7 @@ impl Repository {
         for path in removed {
             fs::remove_file(self.work_tree.join(path)).expect("removed file");
         }
-        let path = reserved::git_path();
-        git(&self.work_tree, &path, &["add", "-A"]);
-        git(&self.work_tree, &path, &["commit", "--allow-empty", "-q", "-m", "next"]);
-        self.head()
+        objects::commit(&self.work_tree, "next")
     }
     #[must_use]
     pub fn empty(label: &str) -> Self {
@@ -130,12 +132,12 @@ pub fn git_output(directory: &Path, path: &OsStr, args: &[&str]) -> Vec<u8> {
         .env("GIT_CONFIG_KEY_0", "maintenance.auto")
         .env("GIT_CONFIG_VALUE_0", "false")
         .env("HOME", "/dev/null")
-        .env("GIT_AUTHOR_NAME", "hearth")
-        .env("GIT_AUTHOR_EMAIL", "hearth@hearth.invalid")
-        .env("GIT_AUTHOR_DATE", "1700000000 +0000")
-        .env("GIT_COMMITTER_NAME", "hearth")
-        .env("GIT_COMMITTER_EMAIL", "hearth@hearth.invalid")
-        .env("GIT_COMMITTER_DATE", "1700000000 +0000")
+        .env("GIT_AUTHOR_NAME", COMMIT_NAME)
+        .env("GIT_AUTHOR_EMAIL", COMMIT_EMAIL)
+        .env("GIT_AUTHOR_DATE", COMMIT_DATE)
+        .env("GIT_COMMITTER_NAME", COMMIT_NAME)
+        .env("GIT_COMMITTER_EMAIL", COMMIT_EMAIL)
+        .env("GIT_COMMITTER_DATE", COMMIT_DATE)
         .output()
         .expect("git is required on the supplied PATH");
     assert!(result.status.success(), "git {args:?} failed: {}", String::from_utf8_lossy(&result.stderr));

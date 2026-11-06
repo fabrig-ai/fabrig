@@ -114,6 +114,13 @@ fn positions(path: &[u8]) -> Vec<harness::Step> {
         keep("removed", "position"),
         press(b"Append"),
         keep("appended", "position"),
+        press(b"Head"),
+        press(b"Remember line"),
+        keep("head-before", "position"),
+        keep("head-top", "top"),
+        press(b"Prepend"),
+        keep("head-after", "position"),
+        press(b"Read back"),
     ]
 }
 fn check_positions(harness: &harness::Harness) {
@@ -122,6 +129,8 @@ fn check_positions(harness: &harness::Harness) {
     assert!(top * 2 >= viewport * 3, "opening head is {top}px offscreen");
     assert_eq!(top + viewport, number(harness, "opening-height"), "opening foot is visible");
     assert_eq!(value(harness, "reads"), "3", "reading stops beyond the near zone");
+    assert_eq!(number(harness, "head-top"), 0);
+    held(harness, "head-before", "head-after");
     for after in ["inserted", "removed", "appended"] {
         held(harness, "before", after);
     }
@@ -202,4 +211,65 @@ fn reading_without_browser_anchoring_follows_requests_and_page_keys() {
     assert!(number(&harness, "heads-after") > number(&harness, "heads-before"));
     assert_eq!(number(&harness, "dialog-up"), 240);
     assert_eq!(number(&harness, "dialog-down"), 240);
+}
+
+#[test]
+fn scrolling_into_the_head_can_render_busy_during_the_scroll_callback() {
+    let mut steps = vec![go(b"/test/reading/none")];
+    snapshot(&mut steps, "before-scroll", "reads");
+    steps.extend([
+        harness::Step::Type {
+            find: Find::exactly_named(Role::TextArea, b"Message"),
+            words: b"Reading".as_slice().into(),
+        },
+        harness::Step::Key(Key::PageUp),
+    ]);
+    steps.push(harness::Step::Focused(Find::exactly_named(Role::TextArea, b"Message")));
+    snapshot(&mut steps, "after-scroll", "reads");
+    let harness = run(steps);
+    assert!(number(&harness, "after-scroll") > number(&harness, "before-scroll"));
+}
+
+#[test]
+fn a_status_at_the_head_does_not_anchor_instead_of_the_words() {
+    let harness = run(vec![
+        go(b"/test/reading/status"),
+        press(b"Head"),
+        press(b"Remember line"),
+        keep("before-status-prepend", "position"),
+        press(b"Prepend"),
+        keep("after-status-prepend", "position"),
+    ]);
+    held(&harness, "before-status-prepend", "after-status-prepend");
+}
+
+#[test]
+fn a_contents_wrapper_keeps_its_visible_words_in_place() {
+    let harness = run(vec![
+        go(b"/test/reading/contents"),
+        press(b"Head"),
+        press(b"Remember line"),
+        keep("before-contents-prepend", "position"),
+        press(b"Prepend"),
+        keep("after-contents-prepend", "position"),
+    ]);
+    held(&harness, "before-contents-prepend", "after-contents-prepend");
+}
+
+#[test]
+fn a_read_in_a_scroll_turn_reads_on_without_a_tick() {
+    let harness = run(vec![
+        go(b"/test/reading/head"),
+        press(b"Read head"),
+        press(b"Inspect"),
+        keep("reads", "reads"),
+        keep("read-ms", "read-ms"),
+        keep("remaining", "remaining"),
+        keep("top", "top"),
+        keep("viewport", "viewport"),
+    ]);
+    assert_eq!(number(&harness, "reads"), 8, "each answer measures and starts the next read");
+    assert!(number(&harness, "read-ms") < 1000, "eight reads finish before a clock tick can help");
+    assert_eq!(number(&harness, "remaining"), 0, "nothing left to read");
+    assert!(number(&harness, "top") * 2 < number(&harness, "viewport") * 3);
 }

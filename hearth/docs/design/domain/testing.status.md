@@ -44,6 +44,11 @@
   `systemd-container`'s nested subvolume. 9.3: build, fetch and layer costs
   checked against that machine's counts and the real tier. 10: these M2
   additions; the builder's domain tests use scripted layer operations.
+- **Not yet:** 9.1: worlds repeat per seed
+  what a seed doesn't change, as `rendered_keys` does in
+  `hearth/tests/builder/tests/suite/domain.rs`, because the request of 2026-11-06
+  has its repairs stop once its aim is met, and a machine's own figure met that
+  aim before this one began. What else they left stands in 11.
 - **Departs:** 5.5, 9.2: the `conformance` profile is `conformance-hearth` and
   also runs `recorded_*`, and there is no `measure` profile, because the
   root's tier profiles are `<tier>-<tree>` (`tools/tiers/design.md`, 1).
@@ -53,14 +58,3 @@
 - **Departs:** 9.1: no global timeout holds hearth's suites alone, because
   the root has one `default` and one `fuzzy` profile, whose 150 s and 600 s
   sum each tree's figures, hearth's 30 s and 120 s among them.
-- **Departs:** 9.1: the focused suite is over its 30 CPU s on the queue's record,
-  the figure the budget reads, with test builds unoptimized, as
-  `skein/docs/foundation/testing-strategy.md`, 8 has them. That record's last figure
-  with builds unoptimized is 31.7 CPU s over 2189 tests, at 08:56 UTC on 2026-11-06,
-  before scratch repositories' git setup saved about 3% of a builder's figure. The
-  repairs of 11 aren't made. Fuzzy reads 78.6 CPU s on the same record, the large
-  render about 15 of it. The fuzzy budget's basis and the render world's selection on
-  every change await the user's ruling (11). The causes of suite-cost
-  variation, the suite's CPU by function, and how much of the large render's
-  CPU lies in the harness or production code remain unknown, because no
-  measurement isolates them and no profile of the suite has been taken.

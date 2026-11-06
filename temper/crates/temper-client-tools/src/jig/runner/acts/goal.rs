@@ -8,10 +8,10 @@ pub(super) fn start(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     let project = super::super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
     let number = u32::try_from(number(call, 1).unwrap_or(u64::from(shapes::GOAL))).expect("template fits");
     let template = shapes::template(me, project, number).ok_or(Failed::Fixed(b"goal template not offered"))?;
-    let executor = executor(call, template)?;
-    let llm = choice::selection(call, 8, 9, 10, me, project, template.llm.as_ref())?;
     let mut offered = me.clone();
     controls(call, project, number, &mut offered)?;
+    let executor = executor(call, template)?;
+    let llm = choice::selection(call, 8, 9, 10, me, project, template.llm.as_ref())?;
     let priority = match super::number(call, 4) {
         Some(priority) => Some(u32::try_from(priority).expect("priority fits")),
         None => None,
@@ -135,19 +135,46 @@ fn controls(call: &Call, project: u32, number: u32, me: &mut c::Me) -> Result<()
             if template.number != number {
                 continue;
             }
+            required_controls(call, template)?;
             if value(call, 6).is_some() {
                 template.budget = c::TemplateBudget::AsAllowed { cap: None };
             } else if super::number(call, 5).is_some() {
                 template.budget = c::TemplateBudget::Given;
-            } else if template.budget == c::TemplateBudget::Given {
-                return Err(Failed::Fixed(b"this template needs --budget AMOUNT or --as-allowed"));
             }
             if value(call, 7).is_some() {
                 template.deadline = c::TemplateDeadline::Given;
-            } else if template.deadline == c::TemplateDeadline::Given {
-                return Err(Failed::Fixed(b"this template needs --deadline TIME"));
             }
         }
     }
     Ok(())
+}
+
+fn required_controls(call: &Call, template: &c::Template) -> Result<(), Failed> {
+    let charter = template.executor == c::TemplateExecutor::Chosen && number(call, 3).is_none();
+    let budget = template.budget == c::TemplateBudget::Given && number(call, 5).is_none() && value(call, 6).is_none();
+    let deadline = template.deadline == c::TemplateDeadline::Given && value(call, 7).is_none();
+    if !charter && !budget && !deadline {
+        return Ok(());
+    }
+    let mut measure = Text::measure();
+    required_words(template.number, charter, budget, deadline, &mut measure);
+    let mut out = Text::writing_exact(measure);
+    required_words(template.number, charter, budget, deadline, &mut out);
+    Err(Failed::Detail(out.finish()))
+}
+
+fn required_words(template: u32, charter: bool, budget: bool, deadline: bool, out: &mut Text) {
+    out.put(b"template ");
+    out.number(u64::from(template));
+    out.put(b" needs: ");
+    if charter {
+        out.put(b"--charter CHARTER; ");
+    }
+    if budget {
+        out.put(b"--budget AMOUNT or --as-allowed; ");
+    }
+    if deadline {
+        out.put(b"--deadline TIME; ");
+    }
+    out.put(b"help goal start");
 }

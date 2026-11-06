@@ -81,8 +81,8 @@ impl Limits {
             .checked_mul(counts.accounts)?
             .checked_mul(2)?
             .checked_add(counts.sign_ins.checked_mul(2)?)?
-            // Switcher row: button, name, repository span, repository and count.
-            .checked_add(receiving.projects.checked_mul(5)?)?
+            // Switcher row: slot, named button, repository text, link, label and count.
+            .checked_add(receiving.projects.checked_mul(6)?)?
             .checked_add(128)?
             .checked_add(receiving.rows.checked_mul(3)?)?
             // Worker and program observations, omission rows and retained sign-out failures.
@@ -134,8 +134,8 @@ impl Limits {
             .checked_add(agent)?
             .checked_add(receiving.rows.checked_mul(32)?)?
             .checked_add(dependencies)?
-            // Switcher row: button, name, repository span, repository and count.
-            .checked_add(receiving.projects.checked_mul(5)?)?
+            // Switcher row: slot, named button, repository text, link, label and count.
+            .checked_add(receiving.projects.checked_mul(6)?)?
             .checked_add(128)?
             // Welcome steps, cards and foot, plus the shared accounts form.
             .max(account_nodes.checked_add(64)?)
