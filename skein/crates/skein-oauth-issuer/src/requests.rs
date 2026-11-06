@@ -86,6 +86,7 @@ impl Issuer {
         }
         Ok(())
     }
+    #[expect(clippy::manual_map, reason = "step code uses exhaustive matches without closures")]
     pub fn token_request(
         &self,
         authorization: Option<&[u8]>,
@@ -115,7 +116,7 @@ impl Issuer {
         let (id, secret) = match authorization {
             Some(value) => {
                 let (id, secret) = basic(value).ok_or(invalid_client)?;
-                if form.get(b"client_secret").is_some() {
+                if form.contains(b"client_secret") {
                     return Err(TokenError::InvalidRequest);
                 }
                 if let Some(body_id) = form.get(b"client_id")
@@ -123,16 +124,25 @@ impl Issuer {
                 {
                     return Err(TokenError::InvalidRequest);
                 }
-                (id, secret)
+                (id, Some(secret))
             }
             None => (
                 bytes::copy_of(form.get(b"client_id").ok_or(invalid_client)?),
-                Secret::new(bytes::copy_of(form.get(b"client_secret").ok_or(invalid_client)?)),
+                match form.get(b"client_secret") {
+                    Some(secret) => Some(Secret::new(bytes::copy_of(secret))),
+                    None => None,
+                },
             ),
         };
         let client = self.client(&id).ok_or(invalid_client)?;
-        if !sha256::equal(secret.expose(), client.secret.expose()) {
-            return Err(invalid_client);
+        match &client.secret {
+            None => {}
+            Some(expected) => {
+                let secret = secret.ok_or(invalid_client)?;
+                if !sha256::equal(secret.expose(), expected.expose()) {
+                    return Err(invalid_client);
+                }
+            }
         }
         let code = form.get(b"code").ok_or(TokenError::InvalidRequest)?;
         let redirect_uri = form.get(b"redirect_uri").ok_or(TokenError::InvalidRequest)?;

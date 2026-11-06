@@ -55,6 +55,10 @@ fn used() -> f::PublicUsed {
     f::PublicUsed::new(&f::CEILINGS, f::PublicUsedParts { used: 0, limit: 2 }).expect("counters")
 }
 pub(super) fn change() -> Box<[u8]> {
+    change_with_commits(HEAD, None)
+}
+/// Encode a public change with the supplied head and optional merge commit.
+pub(super) fn change_with_commits(head: [u8; 32], merge: Option<[u8; 32]>) -> Box<[u8]> {
     let gate = f::PublicGate::new(
         &f::CEILINGS,
         f::PublicGateParts {
@@ -71,10 +75,10 @@ pub(super) fn change() -> Box<[u8]> {
             task: 0,
             repository: REPOSITORY.into(),
             pull: Some(PULL.into()),
-            head: Some(HEAD),
+            head: Some(head),
             step: f::PublicStep::Checking,
             repair: None,
-            merge: None,
+            merge,
             tiers: 0,
             hold: None,
             ci: f::PublicCi::Passed,
@@ -132,6 +136,10 @@ pub(super) fn landings() -> Box<[u8]> {
     application(writer.finish())
 }
 pub(super) fn landing() -> Box<[u8]> {
+    landing_with_commits(None, None, HEAD)
+}
+/// Encode a public landing with the supplied base, candidate and landed commits.
+pub(super) fn landing_with_commits(base: Option<[u8; 32]>, candidate: Option<[u8; 32]>, landed: [u8; 32]) -> Box<[u8]> {
     let gate = f::PublicGateProof::new(
         &f::CEILINGS,
         f::PublicGateProofParts {
@@ -149,9 +157,9 @@ pub(super) fn landing() -> Box<[u8]> {
             task: 0,
             repository: REPOSITORY.into(),
             pull: Some(PULL.into()),
-            base: None,
-            candidate: None,
-            landed: Some(HEAD),
+            base,
+            candidate,
+            landed: Some(landed),
             gates: List::from_boxed(Box::new([gate])),
         },
     )

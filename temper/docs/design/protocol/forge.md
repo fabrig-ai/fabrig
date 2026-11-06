@@ -754,7 +754,9 @@ service's io.
   log, the step left for the next start. The pipe closed during it ends
   it with the link, and the next start asks again.
 - **Named and dropped,** each in one line of the log and changing no
-  state: a line for a forge other than the one asked, or while none is;
+  state: a line for a forge other than the one asked, or while none is
+  (except a restored source fact for a kept box-owned Forgejo,
+  `sign-in.md`, 9.9, restoring its page facts without another setup ask);
   a line whose word, forge number or step the link does not know; a
   `fetched` line whose `TOTAL` is zero or whose `DONE` passes it; and a
   line past `box.line_bytes`, named by its bound, skipped to its line

@@ -302,3 +302,57 @@ fn a_retained_companion_has_its_own_read_time() {
     assert!(has_text(&view, b"Not available just now."));
     assert!(!has_text(&view, b"As of 00:00"));
 }
+
+#[test]
+fn public_commit_links_use_the_object_id_width() {
+    // Each change has a head and merge; each landing has a base, candidate and landed commit.
+    const CHANGE_COMMITS: usize = 2;
+    const LANDING_COMMITS: usize = 3;
+    let sha1 = [
+        0x78, 0x9a, 0xda, 0x51, 0x5c, 0x1a, 0xf9, 0xd4, 0x49, 0x67, 0xf2, 0x60, 0x49, 0xc4, 0x09, 0x0b, 0x3a, 0xb4,
+        0x72, 0xdb, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ];
+    let mut sha256_ending_in_zeroes = [0x34; 32];
+    sha256_ending_in_zeroes.get_mut(30..).expect("last two bytes").fill(0);
+    let cases: [([u8; 32], &[u8]); 3] = [
+        (sha1, b"789ada515c1af9d44967f26049c4090b3ab472db"),
+        ([0x12; 32], b"1212121212121212121212121212121212121212121212121212121212121212"),
+        (sha256_ending_in_zeroes, b"3434343434343434343434343434343434343434343434343434343434340000"),
+    ];
+    for (hash, digits) in cases {
+        commit_links(
+            Public::Task { project: PROJECT, task: TASK },
+            Doc::ForgeChange,
+            records::change_with_commits(hash, Some(hash)),
+            digits,
+            CHANGE_COMMITS,
+        );
+        commit_links(
+            Public::Landing { project: PROJECT, task: TASK },
+            Doc::ForgeLanding,
+            records::landing_with_commits(Some(hash), Some(hash), hash),
+            digits,
+            LANDING_COMMITS,
+        );
+    }
+}
+
+fn commit_links(page: Public, doc: Doc, body: Box<[u8]>, digits: &[u8], count: usize) {
+    let mut reader = reader(page);
+    answer(&mut reader, Doc::JigCard, Heard::Document { body: records::card(), fresh: Duration::from_secs(5) });
+    answer(&mut reader, doc, Heard::Document { body, fresh: Duration::from_secs(5) });
+    let mut view = view();
+    build_public(&mut view, &reader, Wall::EPOCH, &mut Queue::uncapped());
+    let mut linked = 0_usize;
+    for node in view.tree().nodes() {
+        if let Some(href) = &node.external
+            && let Some(path) = href.strip_prefix(records::REPOSITORY)
+            && let Some(hash) = path.strip_prefix(b"/commit/")
+        {
+            assert_eq!(hash, digits, "commit href uses its object id width");
+            assert_eq!(node.name.as_deref(), digits.get(..8), "commit labels keep eight digits");
+            linked = linked.checked_add(1).expect("bounded public commit links");
+        }
+    }
+    assert_eq!(linked, count, "every commit field is linked");
+}

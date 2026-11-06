@@ -225,8 +225,8 @@ in the lower world that owns it, never here.
   credentials live in a scratch directory on the real filesystem.
   Listeners are on loopback, on a port the kernel assigns, passed to
   their clients once bound. A story never uses a port the kernel did
-  not give it; GitHub's stories reserve the clients' listener's before
-  the service starts (below).
+  not give it, but for the clients' listener of GitHub's stories, which
+  is reserved before the service starts and restarted on (below).
 - **Agents share the loop.** The harness answers the worker's spawn
   with a hosted smith agent, joined by real pipes, and drives its
   `iterate` in the same loop. The agent's LLM is skein's fake peer,
@@ -563,8 +563,8 @@ in the lower world that owns it, never here.
     and temper's `log_poll` short, as `poll` is above.
   - **The clients' listener's address is fixed** for a GitHub forge
     (../protocol/configuration.md, section 3; ../protocol/forge.md,
-    2.1), since the App's addresses name it. The harness reserves a loopback port the
-    kernel assigns before the service starts, and names it in the
+    2.1), since the App's addresses name it. The harness reserves a loopback port of
+    `temper_fixtures::ports` (2.6) before the service starts, and names it in the
     configuration.
   - **No browser in the real loop.** The story stands in for it with
     plain HTTP requests, following each `302` and the one link, to the
@@ -1101,11 +1101,22 @@ terminal client, the captures and the faults.
 
 - **Three at a time:** the profile runs three tests at once, a story being
   one thread and one loop as ever, and the tier's budgets stand. A story
-  shares its machine: its listeners are the kernel's or
-  `support::free_addresses`', and a fake box's are the kernel's
-  (`../protocol/setup.md`, 7.5). A story that can't share one runs in a
-  named nextest test group, as `temper-real-loop` does, the reason beside
-  the group.
+  shares its machine. A listener it holds from its bind to its last use
+  may be on the kernel's port. A port it lets go of and listens on again,
+  as a retained deployment's across a stop, is `temper_fixtures::ports`'
+  (`support::free_addresses`, `support::own_listener_files`), and a fake
+  box's are the story's too, through `TEMPER_FAKE_BOX_PORTS`
+  (`../protocol/setup.md`, 7.5). Such a port is:
+  - **below the kernel's ephemeral range,** as
+    `/proc/sys/net/ipv4/ip_local_port_range` reads, so that no outgoing
+    socket and no bind of port 0 lands on it while nothing listens there;
+  - **in a block its process holds,** by a listener on the block's first
+    port from its first draw until it ends, so that no other test process
+    on the machine draws it, of any run, tier or checkout, and an ended
+    process's blocks are free at once, however it ended.
+
+  A story that can't share one runs in a named nextest test group, as
+  `temper-real-loop` does, the reason beside the group.
 
 - **A walk wakes on what it waits for:** a fake-box walk
   (`crates/temper/tests/fake_backends/walk`) waits on an event where one

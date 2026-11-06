@@ -31,6 +31,7 @@ pub struct Root {
     recovery: crate::recovery::Recovery,
     deadline: Option<Time>,
     patience: BTreeMap<u32, (u32, Time)>,
+    retries: BTreeMap<jig_client::Key, jig_client::Retry>,
 }
 #[derive(Debug)]
 pub enum Event {
@@ -92,6 +93,7 @@ impl Root {
             recovery: crate::recovery::Recovery::new(),
             deadline: None,
             patience: BTreeMap::new(),
+            retries: BTreeMap::new(),
         };
         root.changed();
         root
@@ -104,6 +106,23 @@ impl Root {
     #[must_use]
     pub fn client(&self) -> &Client {
         &self.client
+    }
+    /// The latest call's act, or the kept act it joined, last answered for retry
+    /// (client/tools.md, 6.3). An in-flight retry keeps that last answer.
+    #[must_use]
+    pub fn last_retry(&self) -> Option<jig_client::Retry> {
+        let (prefix, _) = self.patience.last_key_value()?;
+        for (key, why) in &self.retries {
+            if key.number >> 32u32 == u64::from(*prefix) {
+                return Some(*why);
+            }
+            for (local, kept) in &self.recovery.joined {
+                if kept == key && local.number >> 32u32 == u64::from(*prefix) {
+                    return Some(*why);
+                }
+            }
+        }
+        None
     }
     /// A change's supplemental read is outstanding, including retry after a
     /// restart. A condition wait's host keeps its link deadline while this holds.
@@ -319,6 +338,15 @@ fn past_patience(root: &Root, env: &Env<Limits>, key: jig_client::Key, room_at: 
     room_at.as_nanos().saturating_sub(env.wall.as_nanos()) > until.as_nanos().saturating_sub(env.now.as_nanos())
 }
 fn route(root: &mut Root, env: &Env<Limits>, told: Told, child: &mut Queue<runner::Out>, out: &mut Queue<Request>) {
+    if let Told::Pending { key } = &told
+        && let Some(pending) = root.client.pending(*key)
+        && let jig_client::Progress::Retrying { why } = pending.progress
+    {
+        root.retries.insert(*key, why);
+    }
+    if let Told::Answered { key, .. } = &told {
+        root.retries.remove(key);
+    }
     if let Told::Pending { key } = &told
         && let Some(pending) = root.client.pending(*key)
         && let jig_client::Progress::Retrying { why: jig_client::Retry::Full { held, room_at } } = pending.progress

@@ -118,6 +118,17 @@ Remove a stopped box slot's forge directory, keeping the cache.
 
 Reads the slot's kind from box/groups/FORGE and refuses a directory outside data or in the cache.
 
+## temper forge source
+
+`temper forge source [DIRECTORIES] FORGE`
+
+Add the box’s public temper sign-in source to its owned Forgejo.
+
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- `FORGE`: A forge's number in the configuration.
+
+Lists the sources and adds temper when absent, under the setup deadline. Prints source added or source failed WHY and exits 0 either way: a failure keeps the box running with plain links.
+
 ## temper forge sign-in
 
 `temper forge sign-in [DIRECTORIES] FORGE`

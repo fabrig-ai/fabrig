@@ -220,3 +220,47 @@ fn the_persons_tokens_name_the_person_and_have_only_the_prescribed_scopes() {
         }
     }
 }
+
+#[test]
+fn source_commands_use_the_owned_paths_and_public_client_without_a_secret() {
+    let owned = fixtures::owned();
+    let place = fixtures::place();
+    let list = spec::source_list(&owned, &place);
+    let add = spec::source_add(&owned, &place, b"forgejo", b"http://127.0.0.1:8367/.well-known/openid-configuration");
+    assert_eq!(list.program, owned.forgejo);
+    assert_eq!(list.directory, place.work_path());
+    let expected = [
+        b"--work-path".as_slice(),
+        b"/srv/forge-2/forgejo",
+        b"--config",
+        b"/srv/forge-2/forgejo/app.ini",
+        b"admin",
+        b"auth",
+        b"list",
+    ];
+    assert_eq!(list.arguments.len(), expected.len());
+    for (argument, expected) in list.arguments.iter().zip(expected) {
+        assert_eq!(argument.as_ref(), expected);
+    }
+    let expected = [
+        b"--work-path".as_slice(),
+        b"/srv/forge-2/forgejo",
+        b"--config",
+        b"/srv/forge-2/forgejo/app.ini",
+        b"admin",
+        b"auth",
+        b"add-oauth",
+        b"--name",
+        b"temper",
+        b"--provider",
+        b"openidConnect",
+        b"--key",
+        b"forgejo",
+        b"--auto-discover-url",
+        b"http://127.0.0.1:8367/.well-known/openid-configuration",
+    ];
+    assert_eq!(add.arguments.len(), expected.len());
+    for (argument, expected) in add.arguments.iter().zip(expected) {
+        assert_eq!(argument.as_ref(), expected);
+    }
+}

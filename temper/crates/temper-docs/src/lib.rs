@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 60] = [
+pub static PAGES: [Page; 61] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -294,6 +294,13 @@ pub static PAGES: [Page; 60] = [
         text: include_str!("../../../docs/help/github.md"),
     },
     Page {
+        name: "open-public-reading",
+        kind: Kind::Walk,
+        title: "Open public reading",
+        summary: "Enable anonymous reading at the deployment's entrance, then make a project public and check its public pages without exposing its private words.",
+        text: include_str!("../../../docs/help/open-public-reading.md"),
+    },
+    Page {
         name: "server",
         kind: Kind::Walk,
         title: "Run temper on a server",
@@ -452,7 +459,7 @@ pub static PAGES: [Page; 60] = [
         name: "ctl-project",
         kind: Kind::Reference,
         title: "temper ctl project",
-        summary: "Projects: read their periods and pools, set their spend per period.",
+        summary: "Projects: make one, read periods and pools, set spend and visibility.",
         text: include_str!("../../../docs/help/reference/ctl-project.md"),
     },
     Page {

@@ -12,6 +12,7 @@ pub(super) fn generated() -> Box<[u8]> {
     use core::num::NonZeroU16;
     let answer = temper_init::files(
         &temper_init::Facts {
+            sign_in: false,
             binary: b"/bin/temper",
             git: Some(b"/bin/git"),
             claude: None,
@@ -798,7 +799,13 @@ fn the_foremans_words_name_the_three_verdicts() {
     let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
     let words = core::str::from_utf8(&foreman.policy.instructions).expect("foreman instructions");
-    for phrase in ["answer:", "finish:", "escalate:", "never edit, push or run anything"] {
+    for phrase in [
+        "answer:",
+        "finish:",
+        "escalate:",
+        "never edit, push or run anything",
+        "The producer finishes with form change, its report in the field body within its contract's bound; name no other form.",
+    ] {
         assert!(words.contains(phrase), "missing foreman instruction: {phrase}");
     }
 }
@@ -1031,13 +1038,13 @@ fn the_chats_words_route_repository_edits_through_change_and_wait_for_landing() 
 #[test]
 fn the_coders_words_name_which_task_is_its_change() {
     let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("message your change only in the question form. Your change is the task your brief's [Requested by task N] line names, never [This task: N]."));
+    assert!(words.contains("Message your change only in the question form. Your change is the task your brief's [Requested by task N] line names, never [This task: N]."));
 }
 
 #[test]
 fn the_coders_words_put_its_report_in_finish() {
     let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("Summarize the change in finish; message your change only in the question form."));
+    assert!(words.contains("Report in finish's body what your brief asks you to report, whole; with nothing asked, summarize the change there. If it can't fit the bound your contract names, that's no question: cut what can be read elsewhere, naming the file or test instead of quoting it, say under Left what you cut, and finish. Message your change only in the question form."));
 }
 
 #[test]

@@ -36,6 +36,7 @@ pub const READ: Tool = Tool {
     area: 6,
     notes: b"An installation not yet accepted prints the `forge accept FORGE\nINSTALLATION` that accepts it.\n",
 };
+const SETUP_REMEDY: &[u8] = b"One owned forge is offered; read forge list, then project make NAME --key KEY; repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY";
 pub const SET_UP: Tool = Tool {
     name: b"forge setup",
     line: b"Set up the owned Forgejo on this machine, with a first repository",
@@ -56,7 +57,7 @@ pub const SET_UP: Tool = Tool {
     ]],
     keyed: Keyed::Optional,
     area: 6,
-    notes: b"It waits up to 300 seconds while the box fetches, prepares and\nstarts Forgejo and its runner, then adopts the repository as the\nproject's home, landing on main, with CI. Past the wait, it prints\nthe forges and `not met: timeout` (exit 3): wait with forge list\n--until made:FORGE, then read it. `refused: not under the box` (exit\n2): the deployment is no box; start temper with `temper box` to set\none up.\n",
+    notes: b"It waits up to 300 seconds while the box fetches, prepares and\nstarts Forgejo and its runner, then adopts the repository as the\nproject's home, landing on main, with CI. Past the wait, it prints\nthe forges and `not met: timeout` (exit 3): wait with forge list\n--until made:FORGE, then read it. `refused: not under the box` (exit\n2): the deployment is no box; start temper with `temper box` to set\none up. Not offered: only one owned forge is offered; use forge list, project make NAME --key KEY, then repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY.\n",
 };
 pub const CONNECT: Tool = Tool {
     name: b"forge connect",
@@ -892,6 +893,7 @@ fn encode_rows(rows: &[Row], digest: Option<Digest>, out: &mut Encoder) {
                         Step::Fetch => b"fetch",
                         Step::Prepare => b"prepare",
                         Step::Run => b"run",
+                        Step::Source => b"source",
                     });
                 }
             }
@@ -1114,6 +1116,10 @@ fn setup_text(forge: u16, answer: &SetUpAnswer, kept: bool, limits: &Limits, out
             out.put(b"refused: ");
             out.put(words::set_up_refusal(*why));
             out.put(b"\n");
+            if *why == SetUpRefusal::NotOffered {
+                out.put(SETUP_REMEDY);
+                out.put(b"\n");
+            }
             if *why == SetUpRefusal::NotUnderTheBox && forge != 0 {
                 out.put(words::UNDER_THE_BOX);
                 out.put(b"\n");
@@ -1151,6 +1157,10 @@ fn setup_json(forge: u16, answer: &SetUpAnswer, kept: bool, out: &mut Encoder) {
                 SetUpRefusal::Invalid => b"invalid",
             });
             out.object_end();
+            if *why == SetUpRefusal::NotOffered {
+                out.key(b"next");
+                out.string(SETUP_REMEDY);
+            }
             if *why == SetUpRefusal::NotUnderTheBox && forge != 0 {
                 out.key(b"next");
                 out.string(words::UNDER_THE_BOX);
