@@ -1,0 +1,3 @@
+draft = "debt-28"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-28/inputs/request.md", "skein/docs/development/debt/D025-request-table-in-lib.md", "skein/docs/development/debt/D033-limits-literals-in-tests.md", "skein/docs/development/debt/D045-shell-keeper-syscalls.md", "skein/docs/development/debt/D047-role-sets-as-slices.md", "skein/docs/development/debt/D048-oauth-accounts-world-copies.md", "skein/docs/development/debt/D049-file-layer-thin-forms.md", "jig/docs/development/debt/D006-link-values-two-paths.md", "jig/docs/development/debt/D020-inner-allow-guard.md", "jig/docs/development/debt/D026-engine-clients-project-mismatch.md", "jig/docs/development/debt/D041-unused-parameters.md", "jig/docs/development/debt/D043-length-widening.md"]
