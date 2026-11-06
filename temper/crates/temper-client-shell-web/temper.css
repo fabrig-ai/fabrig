@@ -2104,6 +2104,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > :is(.temper-welcome, .temper-page) .temper-welcome-away > div > .temper-welcome-again { display: inline-block; margin-top: 8px; color: var(--gf-ink); font: 400 14px/1.6 var(--gf-sans); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app > :is(.temper-welcome, .temper-page) .temper-welcome-away > div > .temper-welcome-again:hover { text-decoration-color: var(--gf-ink); }
 #app > :is(.temper-welcome, .temper-page) .temper-welcome-paste { margin: -18px 0 32px; font-size: 13.5px; color: var(--gf-muted); }
+#app > .temper-page > .temper-welcome-paste { margin-inline: auto; }
 #app > :is(.temper-welcome, .temper-page) .temper-welcome-paste > summary { width: fit-content; cursor: pointer; }
 #app > :is(.temper-welcome, .temper-page) .temper-welcome-paste > p { margin: 10px 0 12px; font-size: 14px; line-height: 1.6; }
 #app > :is(.temper-welcome, .temper-page) .temper-welcome-paste > label { display: block; margin-bottom: 6px; color: var(--gf-ink-2); font-size: 13.5px; }
