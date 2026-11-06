@@ -54,3 +54,7 @@ Acceptance, each a story in `temper-service/src/tests/first_model.rs` on its `st
 ## Report
 
 As the implementer's text says; each process test and walk with its result.
+
+## Answers
+
+2026-11-06 (temper/forge). **The user's rule, 2026-11-06: a plan's execution only ever runs the focused and fuzzy suites.** No after-landing tier runs during a plan: we run optimistically, and repair if after-landing flags. A new story in a slow tier is written and compiled, not run. No process walk runs. Where this spec says a run shows a walk reaching `chat start --model` before the offer holds the model, read instead: `chat_document.rs` and `note_parts.rs` name `demo` straight after `playground start`, the likeliest, so give those the one helper polling `model list`, and check the others by reading. `heavy cargo check -p temper --tests` compiles them. Your report names what wasn't run.
