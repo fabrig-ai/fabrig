@@ -183,7 +183,8 @@ pub fn kinds(
             forge: 0,
             label: bytes::copy_of(b"Forge $forge (Forgejo)"),
             recorded: true,
-            before: 0,
+            // A restored source fetches discovery while Forgejo starts.
+            before: u32::from(owned.sign_in.is_some()),
             steps: group.into_boxed(),
         }]);
     }

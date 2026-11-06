@@ -253,6 +253,7 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
     };
     let forge = reply.forge();
     let matches = match (*asked, &reply) {
+        (None, Reply::Source(..)) => true,
         (
             Some(Ask::Start(active)),
             Reply::Step(..) | Reply::Fetched(..) | Reply::Source(..) | Reply::Started(_) | Reply::Failed(..),
@@ -456,8 +457,26 @@ pub(crate) fn drain(engine: &mut crate::engine::Engine, out: &mut Queue<Out>) {
             }
             Out::Failed { forge, why } => state(engine, forge, Connection::SetUpFailed { why }),
             Out::Source { forge, added } => {
-                engine.clients.forge_sign_in.source(forge, added);
-                crate::clients::forge_sign_in::refresh(engine);
+                let owned = match engine.workers.forges.get(forge) {
+                    Some(row) => {
+                        engine.clients.deployment.owned
+                            && row.mode == temper_engine_domain_forge::Mode::Owned
+                            && row.kind == crate::settings::Kind::Forgejo
+                    }
+                    None => false,
+                };
+                if owned {
+                    engine.clients.forge_sign_in.source(forge, added);
+                    crate::clients::forge_sign_in::refresh(engine);
+                } else {
+                    engine.notes.push(crate::Note::BoxLink {
+                        line: joined(&[
+                            b"box link: dropped source for forge ",
+                            Decimal::of(u64::from(forge)).as_bytes(),
+                            b", not a kept box-owned Forgejo",
+                        ]),
+                    });
+                }
             }
             Out::Started { forge } => {
                 crate::setup::lifecycle::started(engine, forge);

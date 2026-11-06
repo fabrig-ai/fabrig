@@ -2358,6 +2358,28 @@ fn source_outcomes_precede_started_are_replayed_and_failures_are_logged_once() {
         stop_fetch_box(&mut h);
     }
 }
+
+#[test]
+fn a_restored_group_waits_for_its_source_before_reporting_started() {
+    use skein_fake_machine::Item;
+    let items =
+        [Item::directory(b"box"), Item::directory(b"box/started"), Item::file(b"box/started/3", b"").mode(0o600)];
+    let mut steps = source_steps();
+    steps.asked[0].before = 1;
+    let mut h = Harness::grouped(steps, &items, true);
+    h.run_until_idle();
+    assert_eq!(h.spawn_times(b"source 3").len(), 1, "the restored group starts without an ask");
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    assert!(!Harness::contains(&h.reply_bytes(), b"started 3"), "the source has not answered");
+    assert!(!Harness::contains(&h.log(), b"no sign-in through temper"), "no premature source failure");
+    let child = h.child_index(b"source 3");
+    h.write_stdout(child, b"source added\n");
+    finish_child(&mut h, b"source 3", 0);
+    assert!(h.reply_bytes().ends_with(b"source 3 added\nstarted 3\n"));
+    assert!(!Harness::contains(&h.log(), b"no sign-in through temper"));
+    stop_fetch_box(&mut h);
+}
 #[test]
 fn a_silent_source_ending_gets_the_boxs_failure_line_and_still_starts() {
     for exit in [Exit::Code(0), Exit::Code(7), Exit::Signal(9)] {

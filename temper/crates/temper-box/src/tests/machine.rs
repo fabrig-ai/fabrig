@@ -1592,6 +1592,54 @@ fn a_restored_owned_forge_announces_started_only_after_readiness() {
     assert!(take_facts(&mut out).is_empty(), "readiness is announced once");
 }
 
+#[test]
+fn a_restored_ready_forge_waits_for_its_final_source_outcome() {
+    use super::fixtures::{step, take_facts};
+    use crate::{
+        layout,
+        machine::{Machine, Said},
+        terminal::Fact,
+    };
+    use skein_lib::{Queue, Time};
+    use temper_forge_setup::{Group, Stage, Steps};
+    let steps = Steps {
+        always: Box::new([]),
+        asked: Box::new([Group {
+            kind: None,
+            remover: None,
+            forge: 37,
+            label: b"Forge 37".as_slice().into(),
+            recorded: true,
+            before: 0,
+            steps: Box::new([
+                (Stage::Run, step(b"forge", Kind::Long).with_ready(([127, 0, 0, 1], 3000).into())),
+                (Stage::Source, step(b"source", Kind::Once).ending_ignored()),
+            ]),
+        }]),
+    };
+    let mut machine = Machine::new(&limits::small(), &layout::flatten(steps)).unwrap();
+    let mut out = Queue::uncapped();
+    machine.start(Time::ZERO, &[37], &mut out);
+    take_effects(&mut out);
+    machine.input(Time::ZERO, Input::Started { step: 0 }, &mut out);
+    take_effects(&mut out);
+    machine.input(Time::ZERO, Input::Ready { step: 0 }, &mut out);
+    assert_eq!(
+        take_facts(&mut out).as_ref(),
+        &[Fact::Starting { step: 1 }],
+        "readiness starts the source without reporting the group started"
+    );
+    machine.input(Time::ZERO, Input::Ask { forge: 37 }, &mut out);
+    assert!(out.is_empty(), "a start request waits for the final source result");
+    machine.input(Time::ZERO, Input::Started { step: 1 }, &mut out);
+    machine.input(Time::ZERO, Input::Exited { step: 1, exit: Exit::Code(0) }, &mut out);
+    take_effects(&mut out);
+    machine.input(Time::ZERO, Input::Closed { step: 1 }, &mut out);
+    assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::GroupStarted { forge: 37 } }));
+    assert_eq!(out.pop(), Some(Order::Say { said: Said::Started { forge: 37 } }));
+    assert!(out.is_empty());
+}
+
 fn stopping_forgejo_spawn() -> Rig {
     let mut rig = Rig::new(&limits::small());
     rig.effects();

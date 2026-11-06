@@ -524,6 +524,45 @@ fn a_box_owned_forge_has_an_off_fact_until_its_source_is_added_whatever_its_numb
     assert!(notes(&mut service).is_empty());
 }
 #[test]
+fn a_restored_box_source_fact_serves_without_an_active_setup_ask() {
+    let mut service = world();
+    box_entries(&mut service, true);
+    let mut owned = record(9);
+    owned.mode = forge::Mode::Owned;
+    fixtures::keep_forge(&mut service, owned);
+    fixtures::keep_forge(&mut service, record(8));
+    notes(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    engine.box_link = crate::route::box_link::Link::new(256, true);
+    let mut out = skein_lib::Queue::uncapped();
+    engine.box_link.read(b"source 9 added\n", &mut out);
+    crate::route::box_link::drain(engine, &mut out);
+    let (reply, _, _) = get(&mut service, None);
+    let ready = page(b"<meta name=\"temper-forge-sign-in\" content=\"9 forgejo https://git.example.com owned\">");
+    assert_eq!(fixtures::bundle::body(&reply), ready.as_ref(), "a restored owned source restores its page fact");
+    for foreign in [b"source 7 added\n".as_slice(), b"source 8 added\n"] {
+        let engine = service.engine.as_mut().unwrap();
+        engine.box_link.read(foreign, &mut out);
+        crate::route::box_link::drain(engine, &mut out);
+        let (reply, _, _) = get(&mut service, None);
+        assert_eq!(
+            fixtures::bundle::body(&reply),
+            ready.as_ref(),
+            "unknown and managed forges cannot replace the owned source"
+        );
+        notes(&mut service);
+    }
+    let engine = service.engine.as_mut().unwrap();
+    engine.box_link.read(b"source 9 failed unavailable\n", &mut out);
+    crate::route::box_link::drain(engine, &mut out);
+    let (reply, _, _) = get(&mut service, None);
+    assert_eq!(
+        fixtures::bundle::body(&reply),
+        page(b"<meta name=\"temper-forge-sign-in-off\" content=\"9\">").as_ref()
+    );
+}
+
+#[test]
 fn a_box_without_a_provider_key_has_only_its_owned_forges_off_fact() {
     let mut service = world();
     box_entries(&mut service, false);
