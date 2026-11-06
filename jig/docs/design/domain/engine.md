@@ -701,7 +701,9 @@ has its claim refused, its preparation abandoned with no try spent; it
 is due again once its dependencies are done.
 
 1. **Checks** that the run may start, and with what budget
-   (authority.md, 8.3), and chooses the accounts that pay for it: one
+   (authority.md, 8.3), takes its models where its task was given none,
+   the first it can use its main (accounts.md, 4.3), and chooses the
+   accounts that pay for it: one
    for its main model's LLM provider, kept by its task, and one for each
    other LLM provider its sub-agents' models use, each with its first
    source usable on a host with room (accounts.md, 4.3).
@@ -1596,8 +1598,9 @@ Nothing the core decides depends on a view arriving.
   receiving party as payer. No eligible model, or an executor still
   *chosen*, gives `None`. This is an observation, never admission or
   an account reservation. The client's shapes keep the configured
-  intent, never copy the preview into a request. Create resolves an
-  omitted choice once and the task retains it (tasks.md, section 3);
+  intent, never copy the preview into a request. A task made with an
+  omitted choice keeps none, and each of its runs' checks takes its
+  models (tasks.md, section 3; accounts.md, 4.3);
   the preview changes no task or core store layout.
 - **Marked** as any of it moves. A pool's amount left moves with spend;
   account and source changes affecting eligibility, policy, membership
