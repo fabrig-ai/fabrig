@@ -80,17 +80,13 @@ pub fn held(words: Box<[u8]>, hold: u32) -> (Box<[u8]>, u64);
 /// The characters of what was typed past `bound` bytes: none within it.
 #[must_use]
 pub fn over(words: &[u8], beyond: u64, bound: u32) -> u64;
-
-/// What one message holds on this client: `Me`'s `words_bytes`, within `long_text`.
-#[must_use]
-pub fn bound(me: &c::Me, limits: &Limits) -> u32;
 ```
 
 A character is a byte that isn't a UTF-8 continuation byte (`byte & 0xc0 != 0x80`), as `needs.rs`' `reply_label` counts them. `over` counts from the first character that doesn't fit whole within `bound`.
 
-Each composer keeps its `words: Box<[u8]>` where it is and gains `beyond: u64` beside it: `Chat`, `Chats`, `Task` (an agent's and a goal's page), and `acts`' `Card`, for a question's reply alone. An edit sets both from `held(words, long_text)`. A send asks `over(...)` first and sends nothing past the bound, the words staying. A send clears both.
+Each composer keeps its `words: Box<[u8]>` where it is and gains `beyond: u64` beside it: `Chat`, `Chats` and `Task` (an agent's and a goal's page). A question's reply keeps its words on its `Card` and its `beyond` on `Needs`, as `reply_beyond`, there being one reply open at a time. An edit sets both from `held(words, long_text)`. A send asks `over(words, beyond, me.words_bytes)` first and sends nothing past the bound, the words staying. A send clears both.
 
-Before `Me` is read no composer knows its bound: `over` isn't asked, and sending stays as it is.
+The bound is `Me`'s `words_bytes` as it stands: `held` already keeps within `long_text`, and what lay past that counts in `beyond`, so a `words_bytes` above `long_text` needs no clamp. Before `Me` is read no composer knows its bound: no line is drawn, and a send returns, as it does now.
 
 ## The view's words (`temper-client-view/src/words.rs`, `pages/session.rs`)
 

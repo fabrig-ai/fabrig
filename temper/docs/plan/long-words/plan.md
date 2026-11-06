@@ -24,14 +24,20 @@ From `temper/docs/plan/long-words/inputs/request.md`, on `chat-reading-c`'s trun
 |---|---|---|---|
 | `line-words` | `line-surface` | | a line's words read to `long_text`; a message and an answer encode to it; the engine encodes a shipped profile's line |
 | `kept-words` | `pending-words` | | a thread's kept words stop at its bytes |
+| `view-prices` | `line-prices` | `line-surface`, `pending-words` | a long line draws whole in both shells; the request's run reads; the prices hold |
+| `read-ends` | `read-ends` | `line-surface` | an answer that doesn't decode, or can't be encoded, ends its read; a lost exchange still retries |
+| `read-ends-page` | `read-ends-page` | `read-ends`, `line-prices` | the page says so, on a chat and an agent's page; a failed first read says so; "Latest" and the rest go on |
+| `person-bound` | `me-words` | `read-ends` | `me` says `words_bytes` |
 
-Further parts follow in later pushes.
+The composer's part follows in a later push.
 
 ## Overlaps
 
-- `line-surface`: `jig-client-protocol-wire`'s schema, generated code and goldens meet `model-catalogue-1/offer-surface`'s, merged on its trunk: regenerated at the merge.
+- `line-surface`, `me-words`: `jig-client-protocol-wire`'s schema, generated code and goldens meet `model-catalogue-1/offer-surface`'s, merged on its trunk: regenerated at the merge.
+- `me-words`: `jig-domain-core`'s `documents.rs` and `documents/small.rs`, and `jig-protocol-engine-clients`' `translate/owner.rs`, meet `model-catalogue-1/offer-engine`'s and `offer-surface`'s, one field beside `redirect_bytes`.
+- `line-prices`: `temper-client-view`'s `limits.rs` meets `ui-repo-link/repo-link`'s. `read-ends-page`: `pages/chat.rs` and its tests meet `ui-pause-close/chat-pause`, `ui-composer-focus/composer-focus` and `chat-reading-c/reading-browser`.
 - The design: `temper/docs/design/client/README.md` and its status meet `chat-reading-c/reading-close`, this trunk's base. New paragraphs, not edits of its own.
 
 ## Critical path
 
-As it stands: `line-surface` (45). More as parts arrive.
+As it stands: `line-surface` (45) → `line-prices` (60) → `read-ends-page` (40), about 145 implementer-minutes. The composer's tasks follow it.
