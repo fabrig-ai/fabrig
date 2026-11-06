@@ -185,6 +185,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
             entry,
             heard: change::Heard {
                 delegate_running: false,
+                delegate_live: false,
                 start_conflict: None,
                 lacking: None,
                 spend: None,
@@ -869,4 +870,290 @@ fn only_the_active_successful_repair_supplies_an_account() {
         assert_eq!(row.title.as_ref(), b"Small fix");
         assert_eq!(row.report.as_ref(), b"exports CSV");
     }
+}
+
+fn delegate_waiting(
+    state: temper_engine_domain_forge_change::State,
+    kind: temper_engine_domain_forge_change::Delegate,
+) -> Domain {
+    use temper_engine_domain_forge_change as change;
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    let mut row = fixtures::opening_row();
+    row.pending = None;
+    row.effect = change::EffectResult::None;
+    row.delegate = Some((52, kind));
+    row.delegate_status = change::Status::Pending;
+    row.title = Box::new([]);
+    row.change.state = state;
+    row.change.since = Wall::EPOCH;
+    outputs(&mut d, Event::Change { row });
+    d
+}
+
+fn producer_terminal(d: &mut Domain, no_change: bool) -> Box<[Request]> {
+    outputs(
+        d,
+        Event::DelegateResult {
+            task: fixtures::CHANGE,
+            child: 52,
+            status: temper_engine_domain_forge_change::Status::Passed,
+            no_change,
+            failed: false,
+            cancelled: false,
+            words: b"Nothing applies".as_slice().into(),
+        },
+    )
+}
+
+fn waiting_step(live: bool, released: bool) -> Event {
+    use temper_engine_domain_forge_change as change;
+    Event::StepChange {
+        task: fixtures::CHANGE,
+        entry: fixtures::OPEN + 1,
+        heard: change::Heard {
+            start_conflict: None,
+            lacking: None,
+            spend: None,
+            delegate: change::Status::Pending,
+            delegate_running: false,
+            delegate_live: live,
+            effect: change::EffectResult::None,
+            released,
+            cancelled: false,
+        },
+        gates: Box::new([]),
+        queue_repair_active: false,
+        kept: false,
+        merge_job: false,
+        pending: Box::new([]),
+    }
+}
+
+#[test]
+fn a_live_producer_title_wait_rearms_the_stall() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = delegate_waiting(change::State::Producing { requested: true }, change::Delegate::Produce);
+    // Refresh a step already reading, so restart must retain the live-task fact.
+    fixtures::step_change(&mut d);
+    outputs(&mut d, waiting_step(true, false));
+    fixtures::missing_pull_reads(&mut d);
+    fixtures::finish_missing(&mut d);
+    // The overlapping wake restarts its reads before deciding.
+    fixtures::missing_pull_reads(&mut d);
+    let finished = fixtures::finish_missing(&mut d);
+    assert!(
+        finished.contains(&Request::ChangeDecision {
+            task: fixtures::CHANGE,
+            decision: change::Decision::Wait { until: Some(WAIT_UNTIL) },
+            entry: None,
+            evidence: None
+        }),
+        "{finished:?}"
+    );
+    assert_eq!(d.change(fixtures::CHANGE).expect("change").change.since, env().wall);
+    assert_eq!(d.change(fixtures::CHANGE).expect("change").change.state, change::State::Producing { requested: true });
+}
+
+#[test]
+fn a_delegate_result_starts_the_stall_at_its_end_but_a_gate_does_not() {
+    use temper_engine_domain_forge_change as change;
+    for kind in [
+        change::Delegate::Produce,
+        change::Delegate::Repair(change::Repair::Ci),
+        change::Delegate::Resolve { base: fixtures::BASE },
+        change::Delegate::Merge { base: fixtures::BASE, from: Some(fixtures::HEAD) },
+        change::Delegate::Gate { number: 1, head: fixtures::HEAD },
+    ] {
+        let mut d = delegate_waiting(change::State::Producing { requested: true }, kind);
+        producer_terminal(&mut d, false);
+        let expected =
+            if kind == (change::Delegate::Gate { number: 1, head: fixtures::HEAD }) { Wall::EPOCH } else { env().wall };
+        assert_eq!(d.change(fixtures::CHANGE).expect("change").change.since, expected, "{kind:?}");
+    }
+    let mut d = delegate_waiting(change::State::Producing { requested: true }, change::Delegate::Produce);
+    producer_terminal(&mut d, false);
+    fixtures::missing_pull(&mut d);
+    let finished = fixtures::finish_missing(&mut d);
+    assert!(finished.contains(&Request::ChangeDecision {
+        task: fixtures::CHANGE,
+        decision: change::Decision::Wait { until: Some(WAIT_UNTIL) },
+        entry: None,
+        evidence: None
+    }));
+    fixtures::missing_pull(&mut d);
+    fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+    fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+    let (call, _) = fixtures::next_call(&mut d);
+    let mut late = env();
+    late.wall = WAIT_UNTIL;
+    late.now = Time::from_nanos(WAIT_UNTIL.as_nanos());
+    let mut out = Queue::uncapped();
+    step(
+        &mut d,
+        &late,
+        Event::Client(skein_forge_client::Event::Answered {
+            call,
+            free: 0,
+            rate: None,
+            cost: 1,
+            result: Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }),
+        }),
+        &mut out,
+    );
+    assert_eq!(
+        d.change(fixtures::CHANGE).expect("change").change.state,
+        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Stalled }
+    );
+}
+
+#[test]
+fn a_result_ends_only_a_stall_at_its_delegate_wait() {
+    use temper_engine_domain_forge_change as change;
+    for (was, kind, ends) in [
+        (change::State::Producing { requested: true }, change::Delegate::Produce, true),
+        (
+            change::State::Repairing { requested: true, why: change::Repair::Ci },
+            change::Delegate::Repair(change::Repair::Ci),
+            true,
+        ),
+        (
+            change::State::Resolving { requested: true, base: fixtures::BASE },
+            change::Delegate::Resolve { base: fixtures::BASE },
+            true,
+        ),
+        (
+            change::State::Resolving { requested: true, base: fixtures::BASE },
+            change::Delegate::Merge { base: fixtures::BASE, from: None },
+            true,
+        ),
+        (change::State::Checking { head: fixtures::HEAD }, change::Delegate::Produce, false),
+        (
+            change::State::Gating { head: fixtures::HEAD, asked: Box::new([1]) },
+            change::Delegate::Gate { number: 1, head: fixtures::HEAD },
+            false,
+        ),
+        (change::State::Producing { requested: false }, change::Delegate::Produce, false),
+    ] {
+        let held = change::State::Held { was: Box::new(was.clone()), why: change::Hold::Stalled };
+        let mut d = delegate_waiting(held.clone(), kind);
+        let result = producer_terminal(&mut d, false);
+        assert_eq!(d.change(fixtures::CHANGE).expect("change").change.state, if ends { was } else { held });
+        assert_eq!(
+            result.contains(&Request::ChangeDecision {
+                task: fixtures::CHANGE,
+                decision: change::Decision::EndHold,
+                entry: None,
+                evidence: None
+            }),
+            ends
+        );
+        if ends {
+            assert!(ready(&mut d).contains(&Request::WakeProcedure { task: fixtures::CHANGE }));
+        }
+    }
+}
+
+#[test]
+fn a_stalled_producers_title_and_result_open_its_pull_without_release() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = delegate_waiting(
+        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Stalled },
+        change::Delegate::Produce,
+    );
+    outputs(
+        &mut d,
+        Event::ProducedTitle {
+            task: fixtures::CHANGE,
+            child: 52,
+            title: b"Delivered fix".as_slice().into(),
+            report: b"Whole report".as_slice().into(),
+        },
+    );
+    producer_terminal(&mut d, false);
+    assert_eq!(d.change(fixtures::CHANGE).expect("change").title.as_ref(), b"Delivered fix");
+    assert_eq!(d.change(fixtures::CHANGE).expect("change").report.as_ref(), b"Whole report");
+    fixtures::missing_pull(&mut d);
+    let finished = fixtures::finish_missing(&mut d);
+    assert!(opens_pull(&finished), "{finished:?}");
+}
+
+#[test]
+fn a_no_change_result_ends_a_stalled_producer_with_its_words() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = delegate_waiting(
+        change::State::Held { was: Box::new(change::State::Producing { requested: true }), why: change::Hold::Stalled },
+        change::Delegate::Produce,
+    );
+    let result = producer_terminal(&mut d, true);
+    assert!(result.contains(&Request::ChangeDecision {
+        task: fixtures::CHANGE,
+        decision: change::Decision::EndHold,
+        entry: None,
+        evidence: None
+    }));
+    assert_eq!(
+        d.change(fixtures::CHANGE).expect("change").change.state,
+        change::State::NoChange { words: b"Nothing applies".as_slice().into() }
+    );
+    let finished = outputs(&mut d, waiting_step(false, false));
+    assert!(finished.contains(&Request::ChangeDecision {
+        task: fixtures::CHANGE,
+        decision: change::Decision::NoChange,
+        entry: None,
+        evidence: None
+    }));
+}
+
+#[test]
+fn a_questions_hold_keeps_the_result_until_release_and_says_no_change_words() {
+    use temper_engine_domain_forge_change as change;
+    for no_change in [false, true] {
+        let held = change::State::Held {
+            was: Box::new(change::State::Producing { requested: true }),
+            why: change::Hold::Questions,
+        };
+        let mut d = delegate_waiting(held.clone(), change::Delegate::Produce);
+        outputs(
+            &mut d,
+            Event::ProducedTitle {
+                task: fixtures::CHANGE,
+                child: 52,
+                title: b"Delivered fix".as_slice().into(),
+                report: b"Whole report".as_slice().into(),
+            },
+        );
+        let result = producer_terminal(&mut d, no_change);
+        assert!(!result.contains(&Request::ChangeDecision {
+            task: fixtures::CHANGE,
+            decision: change::Decision::EndHold,
+            entry: None,
+            evidence: None
+        }));
+        let row = d.change(fixtures::CHANGE).expect("change");
+        assert_eq!(row.change.state, held);
+        assert_eq!(row.title.as_ref(), b"Delivered fix");
+        assert_eq!(row.report.as_ref(), b"Whole report");
+        if no_change {
+            assert_eq!(row.producer_failure.as_deref(), Some(b"Nothing applies".as_slice()));
+        } else {
+            outputs(&mut d, waiting_step(false, true));
+            fixtures::missing_pull_reads(&mut d);
+            let finished = fixtures::finish_missing(&mut d);
+            assert!(opens_pull(&finished), "{finished:?}");
+        }
+    }
+}
+
+fn opens_pull(requests: &[Request]) -> bool {
+    use temper_engine_domain_forge_change as change;
+    for request in requests {
+        if let Request::ChangeDecision { decision: change::Decision::Effect(change::Effect::Open), .. } = request {
+            return true;
+        }
+    }
+    false
 }
