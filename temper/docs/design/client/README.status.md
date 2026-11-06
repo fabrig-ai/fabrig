@@ -275,7 +275,13 @@
   the request has them true past one page (section 11, *A goal's own line*).
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
-  `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
+  `resolved_default`, which neither jig's `Me` nor temper carries. Until it
+  does, a new chat's line and the `Configure` page's take the first model of
+  the catalogue whose provider is usable (3.5), in place of "Using the default
+  model". That is what the run takes on the stock settings, whose charters keep
+  the catalogue's order; it can differ where a configured charter orders its
+  models otherwise, a catalogue is clipped, or a configured template 3 names a
+  model. 3.5:
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.
   5.13: a person with a project's role alone can read kinds 6 and 7,

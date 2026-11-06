@@ -636,7 +636,16 @@ fn check_llm(domain: &Domain, old: &crate::CompoundTask<'_>, amendment: &Amendme
     };
     match choice {
         Some(choice) => crate::llm::check(domain, old.executor, old.settings.task, authority, choice),
-        None => Ok(()),
+        None => {
+            if let crate::Executor::Agent { charter } = old.executor
+                && let Some(models) = domain.charter_models(charter, old.settings.task)
+                && !crate::llm::any_allowed(models, authority.models)
+                && let Some(first) = models.first()
+            {
+                return Err(Refusal::Llm { model: *first, why: crate::LlmFault::Authority });
+            }
+            Ok(())
+        }
     }
 }
 

@@ -166,7 +166,11 @@ fn a_program_way_shows_the_default_name_and_the_command_on_each_host() {
     let field = tree.nodes().iter().find(|node| node.name.as_deref() == Some(b"Name")).unwrap();
     assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"claude-pat");
     assert!(fixtures::find(tree, Role::Button, b"Use your Claude subscription").is_some());
-    assert!(String::from_utf8(fixtures::text(tree).into_vec()).unwrap().contains("temper program-login claude-pat"));
+    assert!(
+        String::from_utf8(fixtures::text(tree).into_vec())
+            .unwrap()
+            .contains("temper program-login --config CONFIG --data DATA --cache CACHE claude-pat")
+    );
 }
 
 pub(super) fn flow_fixture(kind: d::WayKind) -> (d::Domain, skein_lib::Token) {
@@ -321,7 +325,7 @@ fn a_program_has_details_then_ready_with_the_declared_name_and_command() {
     for expected in [
         "Your Claude subscription",
         "temper runs Claude Code, signed in to your Claude subscription on each host its agents run on. Name the login, then sign in on each host, in a terminal there:",
-        "temper program-login claude-pat",
+        "temper program-login --config CONFIG --data DATA --cache CACHE claude-pat",
         "If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.",
     ] {
         assert!(words(&root).contains(expected), "missing {expected}");
@@ -350,7 +354,7 @@ fn a_program_has_details_then_ready_with_the_declared_name_and_command() {
     let text = words(&root);
     for expected in [
         "Declared your Claude subscription · claude-alice",
-        "temper program-login claude-alice",
+        "temper program-login --config CONFIG --data DATA --cache CACHE claude-alice",
         "Run this on each host temper’s agents run on, in a terminal there:",
         "If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.",
     ] {
@@ -929,9 +933,9 @@ pub(super) fn command_line(root: &d::Domain) -> Vec<u8> {
 }
 
 #[test]
-fn the_command_stays_short_without_words() {
+fn the_command_shows_directory_placeholders_without_words() {
     let (root, _) = flow_fixture(d::WayKind::Program);
-    assert_eq!(command_line(&root), b"temper program-login claude-pat");
+    assert_eq!(command_line(&root), b"temper program-login --config CONFIG --data DATA --cache CACHE claude-pat");
 }
 #[test]
 fn the_command_takes_the_words_first() {
@@ -1040,6 +1044,182 @@ fn both_model_pages_use_the_binary_word_the_box_answers() {
         ] {
             answer_environment(&mut root, answer);
             assert_eq!(command_line(&root), expected, "welcome: {welcome}");
+        }
+    }
+}
+fn opened(out: &skein_lib::Queue<d::Request>, subject: &c::Subject) -> skein_lib::Token {
+    out.iter()
+        .find_map(|request| match request {
+            d::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(found) },
+                    },
+            } if found == subject => Some(*watch),
+            d::Request::Client { .. }
+            | d::Request::Unlinked { .. }
+            | d::Request::Show { .. }
+            | d::Request::Leave { .. }
+            | d::Request::SignOut
+            | d::Request::Dropped { .. }
+            | d::Request::Fact { .. } => None,
+        })
+        .unwrap()
+}
+
+pub(super) fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -> (d::Domain, skein_lib::Token) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let limits = fixtures::limits();
+    let (offered, _) = flow_fixture(d::WayKind::Program);
+    let me = d::pages::accounts::current_me(offered.client()).unwrap().clone();
+    let accounts = super::accounts::document(0);
+    let mut root = d::unlinked(&limits, fixtures::SEED);
+    let mut out = skein_lib::Queue::uncapped();
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits };
+    for event in [
+        d::Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
+        d::Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) },
+        d::Event::Client {
+            event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+        },
+    ] {
+        d::step(&mut root, &env, event, &mut out);
+    }
+    let me_watch = opened(&out, &c::Subject::Me);
+    d::step(
+        &mut root,
+        &env,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me_watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            },
+        },
+        &mut out,
+    );
+    let accounts_watch = opened(&out, &c::Subject::Accounts);
+    fixtures::root_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: accounts_watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(accounts))),
+                },
+            },
+        },
+    );
+    let read = out
+        .iter()
+        .find_map(|request| match request {
+            d::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                    },
+            } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == &w::Read::Deployment => {
+                Some(*read)
+            }
+            d::Request::Client { .. }
+            | d::Request::Unlinked { .. }
+            | d::Request::Show { .. }
+            | d::Request::Leave { .. }
+            | d::Request::SignOut
+            | d::Request::Dropped { .. }
+            | d::Request::Fact { .. } => None,
+        })
+        .expect("live link reads deployment");
+    let answer = w::DeploymentAnswer::new(
+        &w::CEILINGS,
+        w::DeploymentAnswerParts { welcome: true, owned: true, program_login: line.map(Into::into) },
+    )
+    .unwrap();
+    fixtures::root_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: wire::FORGE,
+                        record: Some(wire::deployment_answer(&answer)),
+                    },
+                },
+            },
+        },
+    );
+    (root, accounts_watch)
+}
+
+#[test]
+fn a_program_way_prints_the_deployments_whole_command_or_the_placeholders() {
+    for line in [
+        None,
+        Some(
+            b"'/box/bin/temper' program-login --config '/box/config' --data '/box/data' --cache '/box/cache'"
+                .as_slice(),
+        ),
+    ] {
+        let (root, _) = program_root_with_line(
+            d::Address::ConnectModel {
+                way: Some(d::ModelWay { source: None, provider: PROVIDER, kind: d::WayKind::Program }),
+            },
+            line,
+        );
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let shown = String::from_utf8(fixtures::text(view.tree()).into_vec()).unwrap();
+            let expected = match line {
+                Some(line) => format!("On this machine, run: {} claude-pat", core::str::from_utf8(line).unwrap()),
+                None => "On each host, with its directories: temper program-login --config CONFIG --data DATA --cache CACHE claude-pat".into(),
+            };
+            assert!(shown.contains(&expected), "{shown}");
+            let code = view.tree().nodes().iter().position(|node| node.role == Role::Code).unwrap();
+            let command = match line {
+                Some(line) => format!("{} claude-pat", core::str::from_utf8(line).unwrap()),
+                None => "temper program-login --config CONFIG --data DATA --cache CACHE claude-pat".into(),
+            };
+            assert_eq!(fixtures::node_text(view.tree(), code).as_ref(), command.as_bytes());
+        }
+    }
+}
+
+#[test]
+fn the_program_command_renders_its_full_wire_bound() {
+    let line = vec![b'x'; 8192];
+    let (root, _) = program_root_with_line(
+        d::Address::ConnectModel {
+            way: Some(d::ModelWay { source: None, provider: PROVIDER, kind: d::WayKind::Program }),
+        },
+        Some(&line),
+    );
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let domain = fixtures::limits();
+        let limits = crate::Limits::of(&domain, &words).unwrap();
+        let mut view = crate::View::new(&limits, &domain, words, fixtures::FORGE);
+        fixtures::build(&mut view, &root);
+        let expected = format!("On this machine, run: {} claude-pat", core::str::from_utf8(&line).unwrap());
+        assert!(fixtures::text(view.tree()).windows(expected.len()).any(|bytes| bytes == expected.as_bytes()));
+    }
+}
+
+#[test]
+fn the_program_environment_replaces_the_standalone_command_on_both_model_pages() {
+    let way = Some(d::ModelWay { source: None, provider: PROVIDER, kind: d::WayKind::Program });
+    let line = b"'/box/bin/temper' program-login --config '/box/config' --data '/box/data' --cache '/box/cache'";
+    for address in [d::Address::ConnectModel { way }, d::Address::Welcome { step: d::Step::Model { way } }] {
+        let (mut root, watch) = program_root_with_line(address, Some(line));
+        let mut document = super::accounts::document(0);
+        document.usable = false;
+        document.settled = true;
+        super::accounts::deliver(&mut root, watch, document);
+        for (environment, expected) in [
+            (ENVIRONMENT, [ENVIRONMENT, b" program-login claude-pat"].concat()),
+            (b"".as_slice(), b"temper program-login claude-pat".to_vec()),
+        ] {
+            answer_environment(&mut root, environment);
+            assert_eq!(command_line(&root), expected);
         }
     }
 }

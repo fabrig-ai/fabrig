@@ -457,17 +457,12 @@ fn peer_lines(peers: &Peers, forgejo: &temper_fake::forge::Document) -> Vec<Stri
     lines
 }
 fn program_login_line(dirs: &Directories, binary: &Path) -> String {
-    use std::fmt::Write;
-    let mut command = format!("'{}' program-login", binary.display().to_string().replace('\'', "'\\''"));
-    for (flag, path) in [("config", &dirs.config), ("data", &dirs.data), ("cache", &dirs.cache)] {
-        write!(command, " --{flag} '{}'", crate::path(path).display().to_string().replace('\'', "'\\''"))
-            .expect("string");
-    }
-    // Owners in the effective document have a provider and subject, not the
-    // signed-in party's display name from which the Model step derives NAME.
-    command.push_str(" NAME (the name the Model step shows)");
-    command
+    let command =
+        crate::program_login::line(dirs, &crate::printed::path_word(binary.as_os_str().as_bytes(), None), None)
+            .unwrap_or_else(|| "temper program-login --config CONFIG --data DATA --cache CACHE".into());
+    format!("{command} NAME (the name the Model step shows)")
 }
+
 fn sibling(binary: &Path) -> Result<PathBuf, String> {
     if !binary.is_absolute() {
         return Err("temper binary: expected an absolute path".into());

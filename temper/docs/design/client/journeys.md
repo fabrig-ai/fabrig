@@ -2,10 +2,10 @@
 
 Provisional, 2026-10-26. A journey is a walk through the
 browser's client (`browser.md`) recorded on a fresh `temper box
---fake-backends`, then replayed natively through the shipped host and
-printed as the client's own pages, linked so that the same clicks walk
-them. The look is tuned on those pages, and the committed journeys are
-kept current by a test. They are not the mockups' journeys
+--fake-backends`, or on a real box and redacted (3.5), then replayed
+natively through the shipped host and printed as the client's own pages,
+linked so that the same clicks walk them. The look is tuned on those
+pages, and the committed journeys are kept current by a test. They are not the mockups' journeys
 (`mockups/README.md`, 4), which are worlds walked in the mockups.
 Section 2 is the host on native, 3 the recording, 4 its replay, 5 the
 print, 6 the tests, 7 editing the look, 8 a recording gone stale, 9 the
@@ -23,8 +23,8 @@ journeys, 10 what is open.
   recorder keeps what crosses that seam; the replay gives it back to
   the same host, built natively (section 2).
 - **Recorded in a browser,** in a bundle built for it alone, on a fresh
-  fake box: the facts the host starts from, then turn by turn the
-  clocks, each report and what the host asked after it, each act as the
+  box, fake or real (3.5): the facts the host starts from, then turn by
+  turn the clocks, each report and what the host asked after it, each act as the
   event the view makes of it, never its control's words or place, and a
   mark for each page the person saw (section 3).
 - **Replayed, it must ask what it asked,** and a control on the page
@@ -192,7 +192,7 @@ comment, no blank.
 - The welcome's "Set up temper" is kept as `act press "Act { action:
   Pages(Go { address: ... }) }" "Set up temper"`; a typed secret's event
   shows its length alone (`AccountKey { value: Secret { len: 12 } }`),
-  its value being the act's (3.5).
+  its value being the act's until `add` takes it out (3.5, 3.6).
 
 ### 3.4 Marks
 
@@ -216,7 +216,7 @@ comment, no blank.
 A recording is made on a fresh `temper box --fake-backends`, started
 as the help's `box` page starts one on fake backends (`temper help
 box`), its printed sign-in link opened in the browser, and keeps what
-the page was given as it was: the printed link's secret, a
+the page was given as it was: the printed link's secret, the box's printed command, a
 typed value, the fakes' loopback addresses, all of them the fake box's
 dummies, spent or gone with the box.
 
@@ -246,14 +246,16 @@ nothing and prints no original.
   - *given:* each `--redact TEXT`.
 - **The placeholder** is `x`s, one for each byte, so that every frame,
   length prefix and base64 run keeps its size. Surrounding spaces, tabs,
-  CRs and LFs of an original stand, outside it, since the client trims
-  them from a paste before it carries the value.
+  CRs and LFs of a typed or given original stand, outside it: the client
+  trims them from a sign-in's paste before it carries the value, and a
+  key's field carries them with it.
 - **Where:** every original is sought in every field, longest first, in
   these forms: its bytes; percent-encoded, either hex case, for a URL's
   query; `dom::print`'s escapes, for a mark's html; and Rust's Debug
-  escapes, for an event's print. Its sha-256 is sought as well and
-  becomes the placeholder's: `AddKey`, `ReplaceKey` and `FinishSignIn`
-  carry the digest of the value they carry.
+  escapes, for an event's print. Its sha-256, with those spaces and
+  without them, is sought as well and becomes the placeholder's:
+  `AddKey`, `ReplaceKey` and `FinishSignIn` carry the digest of the value
+  they carry.
 - **A form's size:** in a framed field (a `heard answered` body, a
   stream's record, an `exchange` body, a `save` or `stored` key or
   value, and `written`, `unwritten` and `erase`) a form becomes `x`s of
@@ -623,7 +625,8 @@ over skein's harness.
   anything starts, and walked anew.
 - **A fresh fake box** (3.5): `temper box --fake-backends`, built from
   the checkout with the recording bundle (`scripts/bundle.sh --loopback
-  --record`), every directory fresh in a scratch directory of its own;
+  --record`), running a copy of the built binary and its fake-claude,
+  every directory fresh in a scratch directory under `/tmp`;
   its printed sign-in link opened.
 - **Headless Chromium, as the browser tier drives it** (`browser.md`,
   4): skein's browser kit through the fake person's browser face and
@@ -731,6 +734,11 @@ Release, with its uncertain pair. These add no recorded journey or page.
   the harness's horizon set by its setup, skein's.
 - **Later, if wanted:** the one-tag-per-line print as skein-ui-web's,
   for another application's journeys.
+- **What a real journey leaves out** (3.8): a token split across a run's
+  deliveries is refused and not replaced, and a value the client reshapes
+  goes stale, so a walk that meets either is walked again without it.
+  Whether `add` takes them out waits for a recording that can't be walked
+  without them.
 - **The recorded box:** the stream's credential is a loopback session of
   a box the person stops; whether `add` also asks them to stop it.
 - **Usage and spend figures** the page was given stay as they were, on a
