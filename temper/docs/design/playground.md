@@ -238,6 +238,11 @@ delegate's phases; the frame's speed changes how long the person waits
   answer, the digest directory cached for good, the page `no-cache`),
   for whatever host serves them to map, and a test holds the two
   equal. How the site's host takes them is the site's design.
+- **Compressing it is its host's:** its bundle is made with `--gzip off`
+  (skein's `ui-web.md`, 4.2), so a site's host uploads no `.gz` files it
+  does not need and the download's figure stays the directory's (section
+  9). It keeps its own page, its frame's line "Loading the playground…"
+  in place of the client's placeholder (`client/browser.md`, 2.5).
 - **Built by `scripts/bundle.sh --playground OUT`:** temper's web shell
   with `playground`, in the `web` profile, and `temper-playground` for
   wasm32 in a profile of its own, `playground`, which inherits `web` and

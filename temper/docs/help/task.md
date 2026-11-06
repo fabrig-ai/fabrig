@@ -57,6 +57,7 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   dependencies`, `Waiting for delegates`, `Waiting for news`, `Nothing
   awaited`, or a party and what it must answer: `you: question 3 of task 44 · 1 waiting`.
   For a held task that awaits nothing else, `waiting on:` prints `held`.
+  When no account serves its next run, `next run:` stands alone above the lines that say what to do, and `waiting on:` prints `an account`.
 - **Held:** a held task runs no more until someone decides. Its hold
   has a reason (out of tries, stopped, its deadline passed, an
   insufficient budget, an effect whose outcome is uncertain, among
@@ -104,6 +105,7 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   `task tree` and `task run` wait with `--until` or `--since`.
 - **Acting:** `task show`'s `acts:` include
   `task message`, `task answer`, `task amend`, `task stop`, `task cancel`, `task release`, `hold lift`, `task decide` and `proposal decide`.
+  `task amend`'s line is its call alone; `--json` carries the bounds it is offered within.
 - **temper's runs** act on their delegates with the host tools
   `delegate`, `change`, `goal`, `decided`, `amend`, `message`, `cancel`, `release`,
   `subscribe`, `introduce`, `decide_escalation` and `propose`.
