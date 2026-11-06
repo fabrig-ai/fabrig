@@ -9,6 +9,7 @@ pub(super) fn keep_pull(pull: &d::PullRequest, forge: u16, tables: &mut Tables) 
         keep_user(user, forge, tables);
     }
 }
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
 pub(super) fn keep_row(row: &d::Row, forge: u16, tables: &mut Tables) {
     match row {
         d::Row::User(user) => keep_user(user, forge, tables),
@@ -22,24 +23,10 @@ pub(super) fn keep_row(row: &d::Row, forge: u16, tables: &mut Tables) {
             }
         }
         d::Row::Pull(pull) => keep_pull(pull, forge, tables),
-        d::Row::Found(_)
-        | d::Row::Reachable(_)
-        | d::Row::Token(_)
-        | d::Row::Branch(_)
-        | d::Row::Protection(_)
-        | d::Row::Entry { .. }
-        | d::Row::File(_)
-        | d::Row::Commit(_)
-        | d::Row::Artifact(_)
-        | d::Row::CommitMessage(_)
-        | d::Row::TreeEntry(_)
-        | d::Row::Run(_)
-        | d::Row::Hook(_)
-        | d::Row::Team(_)
-        | d::Row::Step(_)
-        | d::Row::Job(_) => {}
+        _ => {}
     }
 }
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
 pub(crate) fn keep_document(document: &d::Document, forge: u16, tables: &mut Tables) {
     match document {
         d::Document::User(user) => keep_user(user, forge, tables),
@@ -54,25 +41,7 @@ pub(crate) fn keep_document(document: &d::Document, forge: u16, tables: &mut Tab
         d::Document::Review(review) => keep_user(&review.user, forge, tables),
         d::Document::Pull(pull) => keep_pull(pull, forge, tables),
         d::Document::Permission(permission) => keep_user(&permission.user, forge, tables),
-        d::Document::Token(_)
-        | d::Document::Org(_)
-        | d::Document::CreatedFile { .. }
-        | d::Document::CreatedRepository(_)
-        | d::Document::Hook(_)
-        | d::Document::Team(_)
-        | d::Document::ApiSettings(_)
-        | d::Document::RepoSearch { .. }
-        | d::Document::Search { .. }
-        | d::Document::Listed { .. }
-        | d::Document::CombinedStatus(_)
-        | d::Document::Branch(_)
-        | d::Document::Protection(_)
-        | d::Document::Compare(_)
-        | d::Document::Tree { .. }
-        | d::Document::Runs { .. }
-        | d::Document::Job(_)
-        | d::Document::Run(_)
-        | d::Document::Error(_) => {}
+        _ => {}
     }
 }
 pub(super) fn page_bound(request: &Request) -> Option<u32> {
@@ -156,6 +125,7 @@ pub(super) fn page_bound(request: &Request) -> Option<u32> {
     }
 }
 #[must_use]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
 pub fn long(heard: &Heard) -> bool {
     match heard {
         Heard::Row(row) => match row {
@@ -163,54 +133,13 @@ pub fn long(heard: &Heard) -> bool {
             d::Row::Comment(row) => long_body(&row.body),
             d::Row::Review(row) => long_body(&row.body),
             d::Row::ReviewComment(row) => long_body(&row.body),
-            d::Row::Found(_)
-            | d::Row::Reachable(_)
-            | d::Row::Token(_)
-            | d::Row::User(_)
-            | d::Row::Status(_)
-            | d::Row::Branch(_)
-            | d::Row::Protection(_)
-            | d::Row::Pull(_)
-            | d::Row::Entry { .. }
-            | d::Row::File(_)
-            | d::Row::Commit(_)
-            | d::Row::Artifact(_)
-            | d::Row::CommitMessage(_)
-            | d::Row::TreeEntry(_)
-            | d::Row::Run(_)
-            | d::Row::Hook(_)
-            | d::Row::Team(_)
-            | d::Row::Step(_)
-            | d::Row::Job(_) => false,
+            _ => false,
         },
         Heard::Done(Body::Document(document)) => match document {
             d::Document::Issue(row) => long_body(&row.body),
             d::Document::Comment(row) => long_body(&row.body),
             d::Document::Review(row) => long_body(&row.body),
-            d::Document::Token(_)
-            | d::Document::User(_)
-            | d::Document::Org(_)
-            | d::Document::CreatedFile { .. }
-            | d::Document::CreatedRepository(_)
-            | d::Document::Hook(_)
-            | d::Document::Team(_)
-            | d::Document::ApiSettings(_)
-            | d::Document::Repository(_)
-            | d::Document::RepoSearch { .. }
-            | d::Document::Search { .. }
-            | d::Document::Listed { .. }
-            | d::Document::Status(_)
-            | d::Document::Pull(_)
-            | d::Document::CombinedStatus(_)
-            | d::Document::Branch(_)
-            | d::Document::Protection(_)
-            | d::Document::Permission(_)
-            | d::Document::Compare(_)
-            | d::Document::Tree { .. }
-            | d::Document::Runs { .. }
-            | d::Document::Job(_)
-            | d::Document::Run(_)
-            | d::Document::Error(_) => false,
+            _ => false,
         },
         Heard::Done(Body::Empty | Body::Malformed(_) | Body::Raw { .. }) | Heard::Head { .. } | Heard::Failed(_) => {
             false
