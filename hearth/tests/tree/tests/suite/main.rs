@@ -2,6 +2,7 @@
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 mod frames;
+mod fs;
 mod hash;
 mod memory;
 mod trees;
