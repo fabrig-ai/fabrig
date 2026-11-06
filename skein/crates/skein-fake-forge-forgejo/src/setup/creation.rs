@@ -1,5 +1,5 @@
 //! Creates repositories and files in the lent domain, keeping protocol identities bounded.
-use super::{Store, absent, encoded, full, joined, refusal};
+use super::{Store, absent, concat, encoded, full, refusal};
 use crate::{Config, Hosted, Limits, Repository, response::Reply};
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{
@@ -37,7 +37,7 @@ impl Store {
             if !repository_name(name) {
                 return Some(refusal(422, b"invalid repository name", limits));
             }
-            let full_name = joined(&[org, b"/", name]);
+            let full_name = concat(&[org, b"/", name]);
             if hosted.domain.metadata(&full_name).is_ok() {
                 return Some(refusal(409, b"repository already exists", limits));
             }
@@ -70,8 +70,8 @@ impl Store {
                     id: u64::from(id),
                     full_name: full_name.clone(),
                     default_branch: b"main".as_slice().into(),
-                    clone_url: joined(&[&config.base, b"/", &full_name, b".git"]),
-                    ssh_url: joined(&[b"ssh://git@localhost/", &full_name, b".git"]),
+                    clone_url: concat(&[&config.base, b"/", &full_name, b".git"]),
+                    ssh_url: concat(&[b"ssh://git@localhost/", &full_name, b".git"]),
                 }),
                 limits,
             ));
@@ -102,7 +102,7 @@ impl Store {
     }
 }
 fn path_of(at: &Repo) -> Box<[u8]> {
-    joined(&[&at.owner, b"/", &at.name])
+    concat(&[&at.owner, b"/", &at.name])
 }
 pub(super) fn repository_name(name: &[u8]) -> bool {
     if name.is_empty() || name.len() > 100 || name == b"." || name == b".." {
