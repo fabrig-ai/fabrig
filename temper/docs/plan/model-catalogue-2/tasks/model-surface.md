@@ -91,3 +91,17 @@ The merge refused four content conflicts; this is the branch’s red.
 - `temper/tests/playground/tests/fixtures/story-a.log`: preserve the newer Trials watch sequence from 86331f4f8e and regenerate against the combined code; neither side’s hashes are sufficient. Its generator is `story_a_walks_from_the_welcome_to_the_csv_change_landed` in `temper/tests/playground/tests/suite/walk.rs`, enabled by `SKEIN_CODEGEN_WRITE`.
 Check incoming model literals for required `provider` fields and charter literals for `rest`; retain the task’s inert catalogue behavior.
 Validate the affected focused tests and workspace test compilation through heavy; report regenerated fixtures.
+
+## Rebase (2026-11-06, step merge, foreman model-catalogue-2/model-surface/foreman-2)
+
+rebase preserving proposal-history fields and model settings, then regenerate combined artifacts
+The merge refused three content conflicts; this is the branch’s red.
+- `jig/crates/jig-client-protocol-wire/src/generated/v19.rs`: preserve `Setting::Model` alongside 566a54948c’s `ActivityDecidedProposal`, `ActivityDecided.proposal`, `RetainedActionSettings.projects`, and `ProposalHistory.reason`.
+- Keep both changes in the auto-merged `schema/client-v19.schema`; regenerate `v19.rs` and goldens rather than resolving generated code by hand.
+- `jig/crates/jig-protocol-store/src/generated/layouts.rs`: neither side’s tasks fingerprint describes the combined schema. Preserve `Setting::Model` alongside fa934ae02a’s `ProposedSettings.projects`, `DecidedProposal`, and `DecidedLine.proposal` in `schema/tasks-v9.schema`.
+- Regenerate store codecs, layouts and goldens, including the auto-merged `tasks_v9.rs`. Keep schema versions unchanged (`jig/docs/design/protocol/store.md`, 5).
+- Generators: `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world --test drift`, then the equivalent command for `jig-store-codecs-world`; verify both afterward without write mode.
+- Review auto-merged proposal codecs and client contract fields to retain incoming proposal facts and the branch’s model arm.
+- `temper/tests/playground/tests/fixtures/story-a.log`: regenerate from combined code; retain the current Trials inputs and watch sequence. Incoming 13402374bd refreshed output digests only; taking either complete log leaves combined behavior unchecked.
+- Its generator is `story_a_walks_from_the_welcome_to_the_csv_change_landed` in `temper/tests/playground/tests/suite/walk.rs`, enabled by `SKEIN_CODEGEN_WRITE`; observe the plan’s walk restrictions.
+Validate affected focused tests and workspace test compilation through heavy. Report regenerated artifacts.
