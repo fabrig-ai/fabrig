@@ -7,7 +7,7 @@ use skein_fake_forge_domain::promises::Recorded;
 use skein_fake_forge_forgejo::observations::decode_with_limits;
 use skein_io::{
     file,
-    file_layer::{self, FileIo},
+    file_layer::{FileIo, Limits, step},
     kernel::{Complete, Submit},
 };
 use skein_kv::{Event, Range, Request, Store};
@@ -155,6 +155,9 @@ enum Step {
     Closing,
     Done,
 }
+fn file_limits(skein_kv::Limits { chunk: read, deadline: timeout, .. }: skein_kv::Limits) -> Limits {
+    Limits { files: FILES, read, entries: ENTRIES, whole: read, timeout }
+}
 struct StoreHost {
     store: Store,
     io: FileIo,
@@ -173,7 +176,7 @@ struct StoreHost {
 }
 impl StoreHost {
     fn new(limits: skein_kv::Limits) -> Self {
-        let mut io = FileIo::new(FILES, limits.chunk, ENTRIES, limits.deadline);
+        let mut io = FileIo::with_limits(&file_limits(limits));
         io.seed_randomness(0);
         Self {
             store: Store::new(&limits),
@@ -288,8 +291,9 @@ impl StoreHost {
 impl skein_shell::Host for StoreHost {
     fn iterate(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits };
+        let file_env = env.with(file_limits(self.limits));
         while let Some(complete) = self.completions.pop() {
-            file_layer::up(&mut self.io, complete, &mut self.file_events, &mut self.submissions);
+            step::up(&mut self.io, &file_env, complete, &mut self.file_events, &mut self.submissions);
         }
         while let Some(event) = self.file_events.pop() {
             skein_kv::up(&mut self.store, &env, event, &mut self.above, &mut self.below);
@@ -301,7 +305,7 @@ impl skein_shell::Host for StoreHost {
             skein_kv::down(&mut self.store, &env, request, &mut self.above, &mut self.below);
         }
         if self.io.is_due(now) {
-            file_layer::expire(&mut self.io, now, &mut self.submissions);
+            step::expire(&mut self.io, &file_env, &mut self.submissions);
         }
         if self.io.takes() && self.below.is_empty() && skein_kv::is_ready(&self.store, &self.limits) {
             skein_kv::fire(&mut self.store, &env, &mut self.above, &mut self.below);
@@ -309,7 +313,7 @@ impl skein_shell::Host for StoreHost {
         if self.io.takes()
             && let Some(request) = self.below.pop()
         {
-            file_layer::down(&mut self.io, now, request, &mut self.file_events, &mut self.submissions);
+            step::down(&mut self.io, &file_env, request, &mut self.file_events, &mut self.submissions);
         }
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
