@@ -646,7 +646,7 @@ replay says the same clocks (`README.md`, 5.12).
 - **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
   `temper.css` under `/* ==== ui: settings ==== */`: on the page
   `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
-  a chat's document's, `.temper-doc-figures` and `.temper-doc-flow`, which holds the
+  a chat's document's, `.temper-doc-flow`, which holds the
   picture's numbered list and no flow, with `.temper-doc-sub` and `.temper-doc-muted`
   under the chats' marker.
 - **What the mock lacks and a print needs** stays in the view, hidden by the
@@ -870,7 +870,7 @@ without it.
   process tier has them (`../domain/testing.md`, 2.6), join with the
   first story that needs them (4.2). 4.4's test has the forge peer
   serve only the fake's GitHub `web`. skein's fake issuer joins for
-  `ConnectModel`'s round trip alone (4.2).
+  a plan's sign-in alone (4.2).
 - **Only what a browser alone shows.** temper's stories (what a page
   shows, what an act sends, a chat answered, a proposal accepted, a
   repository adopted, a run's live text) are the joint world's
@@ -935,8 +935,8 @@ address are the client world's (`suite::b2`, `suite::task`). The
 change's steps to landed, its gates, its bounds and its ended tasks
 hold nothing a browser alone shows: the client world's
 `change_panel.rs` reads them. A later page that has such
-behaviour brings its story with it: `ConnectModel`'s sign-in, its tab
-sent to the provider's address and back to the page it left
+behaviour brings its story with it: `ConnectModel`'s sign-in, a tab of
+its own sent to the provider's address while the page stays
 (`README.md`, 3.5).
 
 **`ConnectModel`'s sign-in, in a new tab.** What only a browser shows:
@@ -989,8 +989,8 @@ real key in that restored form.
   one test at a time, on the bundle it builds first, with the dev
   profile.
 - **The tier's bundle** turns on skein-ui-web's
-  `loopback-navigation` (`scripts/bundle.sh --loopback`), so that the
-  round trip (4.2) can send its tab to the fake issuer on plaintext
+  `loopback-navigation` (`scripts/bundle.sh --loopback`), so that a
+  sign-in's tab (4.2) can go to the fake issuer on plaintext
   loopback; the ordinary binary bundle never does (skein's `ui-web.md`,
   section 10). The tier names that bundle in its configuration, so it
   runs alike over a binary built with or without its own (2.6).
@@ -1098,7 +1098,7 @@ over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
    (4.5).
 8. **The accounts page after a key's send:** Back restores an emptied
    field, Forward the chats (4.2).
-9. **`ConnectModel`'s round trip** (4.2).
+9. **`ConnectModel`'s sign-in, in a new tab** (4.2).
 10. **GitHub's manifest page** posts itself once, and Back shows it
     without posting again until Continue (4.4).
 11. **The box's project across a reload:** the playground's project
@@ -1370,7 +1370,7 @@ from the engine's own answers, is where the look is tuned.
 | `goals-none` | hand-made Goals deliveries: "No goals yet."; the rail keeps Goals since the page is Goals |
 | `goals-needs` | hand-made Goals deliveries: the filter Needs you, "needs funds" and "needs you" |
 | `goals-under-way` | hand-made Goals deliveries: the filter Under way, running, planning and paused |
-| `goals-ended` | hand-made Goals deliveries: the filter Ended, landed, stopped and failed |
+| `goals-ended` | hand-made Goals deliveries: the filter Ended, landed, closed and failed |
 | `goals-filter-empty` | hand-made Goals deliveries: a filter no goal matches, "None." |
 | `goals-more` | hand-made Goals deliveries: "More than N goals, M under way." and "More goals" |
 | `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
@@ -1474,11 +1474,11 @@ from the engine's own answers, is where the look is tuned.
 | `goal-paused` | first-run-projects paused by the person: "paused by you", Resume |
 | `goal-landed` | pane-chat-line landed: its result, "Landed at 01:12.", no acts and no composer |
 | `goal-landed-open` | `goal-landed` with "N landed" pressed: its rows under it |
-| `goal-stopped` | welcome-stall stopped: "Stopped by you…", "Stopped before it landed." |
+| `goal-closed` | welcome-stall closed: "Closed by you…", "Closed before it landed." |
 | `goal-failed` | forge-cards failed: "Failed: " and its reason, "Failed before it landed." |
 | `goal-no-report` | first-run-projects running with tasks and no report: "N of M tasks landed.", no byline |
 | `goal-amending` | `goal-running` with Amend pressed: the editor, between the header and the report |
-| `goal-stop-dialog` | `goal-running` with Stop pressed: its confirmation |
+| `goal-closing` | `goal-running` with Close pressed: its confirmation |
 | `goal-toast` | `goal-running` paused, its toast showing |
 | `goal-sending` | `goal-running` with the person's words sent and one being sent, the composer holding its next words |
 | `start-goal` | Goals with "Start one from a draft" pressed: the sheet with no draft, its Draft field and two ways |
@@ -1558,9 +1558,10 @@ from the engine's own answers, is where the look is tuned.
 | `chat-closing-work` | a run, two delegates with opposite fates, and two proposals: what closing changes |
 | `chat-closing-failed` | the same close refused: the sheet keeps its choices and says why |
 | `chat-closed` | the requester closed it: one end line at 21:05, with a quiet bar |
+| `chat-paused` | a chat its person paused: "Paused", Resume and Close, and the composer's hint "Sending resumes this chat." |
 | `chat-closing-start-over` | a configuring chat's Start over confirmation |
-| `task-cancelling` | an agent's task Cancel confirmation, with a task below it |
-| `task-stopping` | an agent's task Stop confirmation |
+| `task-closing` | an agent's task Close confirmation, with a task below it |
+| `task-paused` | an agent's task its person paused: "Paused", Resume and Close, and no own held card |
 | `proposal-accepting` | a proposal's Accept confirmation |
 | `proposal-rejecting` | a proposal's Reject confirmation with its reason |
 | `chat-closing` | `chat-solo-T6` with Close pressed: its confirmation |
