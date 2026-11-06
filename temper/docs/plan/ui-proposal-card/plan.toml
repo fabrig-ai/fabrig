@@ -36,3 +36,70 @@ id = 1
 story = "A real model's Markdown reason reads as it does on the sheet, and \"Change something\" visibly asks in the composer until something is sent or the proposal is decided"
 parts = ["card-reason", "composer-reveal", "card-change"]
 walk = false
+
+[[part]]
+id = "proposal-facts"
+title = "An activity line names its proposal and its making; an ended proposal keeps its reason and projects"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/contract.md, 5.1"
+
+[[part]]
+id = "card-reads"
+title = "A card's read that ends without a value is asked again, and cards hold number order"
+mode = "direct"
+needs = ["card-change"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "card-states"
+title = "The route to \"Waiting for an owner\" proved; rejected and withdrawn state lines; a decision from elsewhere reaches the card"
+mode = "direct"
+needs = ["card-change"]
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[part]]
+id = "card-place"
+title = "A card stands after the turn running when it was made, and what comes later comes after it"
+mode = "direct"
+needs = ["proposal-facts", "card-reads", "card-states"]
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[part]]
+id = "card-reload"
+title = "A decided proposal's card stays at its place after a reload, with no \"Decision made\" row beside it"
+mode = "direct"
+needs = ["card-place"]
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[part]]
+id = "card-proof"
+title = "The render proof at 1440 and 420 on a fake box, and what it finds"
+mode = "direct"
+needs = ["card-reload", "composer-reveal"]
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[part]]
+id = "card-close"
+title = "The status entries closed and the stale journeys recorded anew"
+mode = "direct"
+needs = ["card-proof"]
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[slice]]
+id = 2
+story = "A rejected proposal's card says so, wherever it was rejected, and \"Waiting for an owner\" means a person can't act"
+parts = ["card-reads", "card-states"]
+walk = false
+
+[[slice]]
+id = 3
+story = "A person asks for a second proposal and sees it last in the chat, with the reply below it, on a model whose calls name no proposal"
+parts = ["proposal-facts", "card-place"]
+walk = false
+
+[[slice]]
+id = 4
+story = "After a reload a decided proposal's card stands where it was, with its state line and no \"Decision made\" row; two proposals, one rejected from Needs you, proved at 1440 and 420 on a fake box"
+parts = ["card-reload", "card-proof", "card-close"]
+walk = false
