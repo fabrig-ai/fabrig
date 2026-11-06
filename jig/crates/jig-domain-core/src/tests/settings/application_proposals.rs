@@ -336,7 +336,7 @@ fn application_proposal_refused_acceptance_stays_pending_without_a_drop_or_keep(
             connector::Judged::Refuse { why } => people::Refusal::Judged { at: 0, setting: set(1, 1).setting, why },
             connector::Judged::Accept { .. } => people::Refusal::NotWellFormed {
                 at: 0,
-                why: people::Malformed::Settings { setting: set(1, 1).setting, fault: s::Fault::Shape },
+                why: people::Malformed::Settings { setting: set(1, 1).setting, fault: s::Fault::Shape, detail: None },
             },
             connector::Judged::Same => {
                 people::Refusal::NotWellFormed { at: 0, why: people::Malformed::SettingsUnchanged }

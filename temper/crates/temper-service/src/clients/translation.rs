@@ -138,7 +138,11 @@ fn kind_values(items: &[core::settings::Item]) -> Result<Box<[root::KindValue]>,
         let Some(value) = value else {
             return Err(people::Refusal::NotWellFormed {
                 at: u32::try_from(index).expect("bounded item index").checked_add(1).expect("item count fits"),
-                why: people::Malformed::Settings { setting: item.setting, fault: people::SettingFault::Shape },
+                why: people::Malformed::Settings {
+                    setting: item.setting,
+                    fault: people::SettingFault::Shape,
+                    detail: None,
+                },
             });
         };
         values.push(root::KindValue { kind, scope, number, value }).expect("one value per set item");
