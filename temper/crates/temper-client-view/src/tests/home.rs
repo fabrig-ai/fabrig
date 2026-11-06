@@ -812,7 +812,7 @@ fn home_ready_headline_and_done_steps_hold_in_both_shells() {
                         assert_eq!(
                             skein_lib::bytes::find(
                                 &main,
-                                b"temper runs its default way of working until you change it."
+                                b"In your own words: how you plan, review and land work. temper proposes how it will run that, and nothing changes until you accept."
                             )
                             .is_some(),
                             !configured
@@ -823,10 +823,8 @@ fn home_ready_headline_and_done_steps_hold_in_both_shells() {
                         );
                         if repository {
                             contains(&main, "work/hello is in Shop");
-                            contains(
-                                &main,
-                                "temper can change its code now; checked changes land on main through temper's merge queue.",
-                            );
+                            absent(&main, "CI ran on main and passed");
+                            contains(&main, "Chats can change its code now.");
                         }
                     }
                 }
@@ -2348,7 +2346,7 @@ fn home_funds_and_proposal_keep_decisions_confirmation_and_short_lines() {
             drive(&mut root, d::Event::Act { action: d::Action::Pages(action) });
             let mut confirmed = f::browser_page_view(&root);
             assert!(main_nodes(confirmed.tree()).iter().any(|node| node.role == Role::Dialog));
-            assert_action(&mut confirmed, Role::Button, b"Confirm", d::pages::Act::Confirm);
+            assert_action(&mut confirmed, Role::Button, name, d::pages::Act::Confirm);
             drive(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::Cancel) });
         }
     }

@@ -1,6 +1,7 @@
 //! The inbox census builds the same projections through either start entrance.
 use jig_core_world::fixtures::ask_as;
 use jig_core_world::fixtures::chat;
+use jig_core_world::fixtures::phase;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_core_world::world::fixture;
@@ -109,10 +110,6 @@ fn stored_world() -> World {
     );
     assert!(matches!(world.people_answers.last(), Some(people::Reply::Outcome(people::Outcome::Proposed { .. }))));
     world
-}
-
-fn phase(action: &Action, expected: Phase) {
-    assert!(matches!(action, Action::Step(found) if *found == expected));
 }
 
 fn load_core(rows: &BTreeMap<root::Key, root::Record>, limits: &root::Limits) -> core::Core {

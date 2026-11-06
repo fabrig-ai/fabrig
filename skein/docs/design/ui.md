@@ -145,7 +145,7 @@ fake person. What waits is in section 18, and what is open in section
 | group | an ordinary group of related nodes, named or not |
 | heading | a heading, with a level from 1 |
 | paragraph, text | a block of text; a leaf holding runs (3.4) |
-| list, item | a list, and one of its items |
+| list, item | a list, its items numbered where it has an order (3.2), and one of its items |
 | table, row, cell, column header, row header | a table of rows; a header cell names its column or its row |
 | term, description | a term, and the words describing it |
 | button | a node a person presses |
@@ -206,6 +206,7 @@ is named, so completed there waits for a design of its own.
 | a value | text field, text area | its text, and its owner's count of writes (3.4) |
 | a focus request | any node | a count its owner moves when it asks the focus for this node; at most one per tree (section 7) |
 | a count | list, table, tree | the whole collection's count, when the tree holds only part of it |
+| an order | list | that its items are numbered, and the first one's number, from 0; each item after it is one more |
 | a position | item, row, tree item | its place in the whole collection, from 1 |
 | spans | cell, column header, row header | the rows and the columns it spans, 1 each by default |
 | a sort | column header | ascending or descending |
@@ -213,8 +214,14 @@ is named, so completed there waits for a design of its own.
 | a source | image | a picture or an address (3.5) |
 | a drawing | drawing | its kind and its data (3.5) |
 
-Each but completed is found in the semantic or accessibility APIs of
-two platforms (4.1); section 16 maps each onto the web, iOS and Android.
+Each but completed and an order is found in the semantic or
+accessibility APIs of two platforms (4.1); section 16 maps each onto the
+web, iOS and Android.
+
+An order's numbers are the shell's to show, never an item's text: a
+screen reader and a person selecting words meet them as the platform's
+own where it has them. A list has one first number, so an item whose
+number is not the next is in another list (section 10).
 
 A fraction is `Fraction { done, total }`, both `u64`, in its owner's
 numbers: bytes, steps, items, as its domain counts them. skein-ui never
@@ -303,11 +310,15 @@ how far a piece of work has gone toward its end.
 - **Anything else is not:** a look is a style token (section 8), a
   native rendering a component (section 12), a request to the platform
   outside the tree an effect (section 13).
-- **One exception, said in words:** completed (3.2), in no platform's
+- **Two exceptions, said in words:** completed (3.2), in no platform's
   API, is a state because what it says must reach every person on every
   platform and only words do; each shell says it in its own words, as a
-  phone's shell says a sort. Another such exception is a change to this
-  design (4.3), never the light path.
+  phone's shell says a sort. An order (3.2), in HTML's semantics alone,
+  is a property for the same reason: a writer's numbers are words, which
+  a sentence elsewhere may lean on ("step 3 above"), and each shell shows
+  them, as a numbered list of the platform's or before each item's words.
+  Another such exception is a change to this design (4.3), never the
+  light path.
 - **The set converges,** because it mirrors accessibility semantics, not
   HTML's list of elements. Layout is never in the tree.
 
@@ -345,7 +356,7 @@ how far a piece of work has gone toward its end.
 
 - **The builder** owns the tree it builds: open, close, text and runs, a
   name, a description, a placeholder, a state, a style token, a region name, a value
-  and its entry kind, a focus request, a count, a position, spans, a
+  and its entry kind, a focus request, a count, an order, a position, spans, a
   sort, a fraction, an address, a key, a binding, a shortcut, a source,
   a drawing, a slot; one node a call, no macros. Each call changes the
   innermost open node, and an attribute off its roles (3.2) is an
@@ -604,6 +615,26 @@ nodes by a bounded reader of skein-ui's own:
   nested too deep, a table's lines that make no table are shown as the
   characters they are, never dropped, and nothing is ever made into
   markup of the platform's;
+- **numbered lists,** whose items' markers are a number, a dot and a
+  space:
+  - *a number:* one to nine digits, either `0` or with no leading zero,
+    so that it shows as written. The marker leaves the item's words, and
+    the list says it is ordered, from its first item's number (3.2);
+  - *as written:* a list's numbers go up by one. An item whose number is
+    not the next ends its list and opens another from that number, at the
+    same nesting, so `1.` then `3.`, or `1.` then `1.`, show as written,
+    each a list of its own. A list a blank line or a line under an item
+    ended is followed by one that says the number it goes on from: `1.`,
+    a line under it and `2.` read 1 and 2, two lists with a paragraph
+    between them;
+  - *a line that merely starts with a number* stays text. One not of
+    that form always does: `3.14`, `3 apples`, `3) three`, `1.` alone,
+    `007. x`, a number of ten digits. One of that form does within a
+    paragraph, whose wrapped sentence may start with a year, unless its
+    number is `1` or the next of the last numbered list that anything but
+    an item closed: that ends the paragraph and starts a list. Nothing
+    else reads a number's sense, so a line alone that says `2026. A year.`
+    is a list from 2026, and shows as written;
 - **tables,** GFM's pipe tables, at the top level, where a paragraph
   stands:
   - *what makes one:* a header line, one the reader would otherwise read
@@ -639,7 +670,9 @@ nodes by a bounded reader of skein-ui's own:
   open blocks and of open emphasis; no recursion. A line that could head
   a table is read with the line after it;
 - **bounded:** at most two nodes per input byte, plus two, and twice the
-  input's bytes of text, which an owner counts (section 15). Its nodes
+  input's bytes of text, which an owner counts (section 15). A numbered
+  item that opens its own list keeps them: `1. ` and its newline, four
+  bytes, make a list and an item. Its nodes
   nest at most `max(5, 2 × markdown_depth + 2)` below its parent: a list
   item's link and its text at the deepest list, or a table's row, cell,
   link and text. A table keeps the bounds line by line. A row's line
@@ -909,7 +942,7 @@ The page part keeps the full mapping (ui-web.md, section 6); in brief:
 | banner, navigation, main, complementary, content info | `<header>`, `<nav>`, `<main>`, `<aside>`, `<footer>` |
 | form, search, region | `<form>`, named; `<search>`; `<section>`, named |
 | heading; paragraph, text | `<h1>` to `<h6>`, deeper `role="heading"`; `<p>`, `<span>` |
-| list, item; term, description | `<ul>`, `<li>`; `role="term"`, `role="definition"` |
+| list, item; term, description | `<ul>`, or `<ol>` with an order, `<li>`; `role="term"`, `role="definition"` |
 | table, row, cell, column header, row header | `<table>`, `<tr>`, `<td>`, `<th scope="col">`, `<th scope="row">` |
 | button, link | `<button type="button">`, `<a href>` |
 | text field, text area | `<input>` of its entry kind's type, `<textarea>` |
@@ -935,6 +968,7 @@ The page part keeps the full mapping (ui-web.md, section 6); in brief:
 | an entry kind | `type`: `text`, `number`, `email`, `tel`, `url`, `date`, `time`, `password` |
 | a value, a focus request | `value`; `focus()` |
 | a count, a position | `aria-setsize`, `aria-posinset`; on a table and its rows, `aria-rowcount`, `aria-rowindex` |
+| an order | `<ol start>`, the browser numbering its items |
 | spans, a sort | `rowspan`, `colspan`; `aria-sort` |
 | a fraction | `aria-valuemin`, `aria-valuemax`, `aria-valuenow`, read with its text's `aria-valuetext`; `data-progress`, the whole percent (ui-web.md, sections 6 and 12) |
 | a shortcut | `aria-keyshortcuts`; Escape, the `<dialog>`'s `cancel` event, or in a form its `keydown` |
@@ -984,6 +1018,7 @@ vocabulary maps, not how such a shell is built. Traits are
 | a placeholder | a text field's `placeholder`, a `TextField`'s prompt; a text view has none, and the shell lays a label over it, read as the hint |
 | a focus request | `becomeFirstResponder()`; `UIAccessibility.post(notification: .layoutChanged, argument:)` naming the node's view; `@FocusState`, `@AccessibilityFocusState` |
 | a count, a position, spans | a data table's `accessibilityRowCount()`, `accessibilityRowRange()`, `accessibilityColumnRange()`; a list has none, and the shell may say it in `accessibilityValue` |
+| an order | no API: the shell draws each item's number before its words, and its `accessibilityLabel` says it |
 | a shortcut | `UIKeyCommand` with `.command` or `.alternate`; `.keyboardShortcut(_:modifiers:)` |
 | Escape | `accessibilityPerformEscape()` on the dialog's view, `UIKeyCommand.inputEscape`; `.accessibilityAction(.escape)`, `.keyboardShortcut(.cancelAction)` |
 | a source | a picture from the application's assets (`UIImage(named:)`); an address the shell loads |
@@ -1043,6 +1078,7 @@ semantics.
 | a placeholder | `setHint`, which TalkBack reads while the field is empty | `TextField`'s `placeholder` |
 | a focus request | `requestFocus()`; `ACTION_ACCESSIBILITY_FOCUS` | `FocusRequester.requestFocus()` |
 | a count, a position, spans | `CollectionInfo`'s rows; `CollectionItemInfo`'s row index (from 0: the position less one) and spans | `collectionInfo`, `collectionItemInfo` |
+| an order | no API: the shell draws each item's number before its words, and `setContentDescription` says it | the same, in `semantics`' `contentDescription` |
 | a shortcut | `onKeyShortcut` | `Modifier.onKeyEvent` |
 | Escape | the back gesture (`OnBackPressedDispatcher`); a dialog's dismissal | `BackHandler`; `Dialog(onDismissRequest = …)` |
 | a source | a picture from the application's resources; an address the shell loads | `painterResource`; the shell's loader |
@@ -1127,6 +1163,10 @@ to 7 and 11 settle.
   several, a tree grid. Each waits for an application that needs it, and
   comes by the light path (4.3) where it maps one to one.
 - **Right-to-left text,** for section 19's question to be settled.
+- **An item's own blocks:** a line or a paragraph under a list's item
+  ends the list (section 10), so one list written with them is several
+  on the page, its numbers still as written. Read into the item, one list
+  would hold them; it waits for a reply a reader cannot follow that way.
 - **The file picker part** (ui-web.md, section 15): an effect's part in a
   browser, waiting for its first application.
 - **Parts for a phone or a desktop,** as `skein-ui-web`'s are a

@@ -706,7 +706,7 @@ impl Common {
             && let Some(id) = self.connections.get(&token)
             && let Some(c) = self.connection_slab.get_mut(*id)
         {
-            c.rest(Some(env.now.saturating_add(env.limits.deadline)));
+            c.until(Some(env.now.saturating_add(env.limits.deadline)));
         }
         if let Some(reason) = stopped(base.start)
             && base.start != previous
@@ -856,7 +856,8 @@ fn send_start(
     let authorization =
         skein_forge::forgejo::credential::authorization(&forge.access.as_ref().expect("held access").credential)
             .expect("checked credential length");
-    exchange.start(connection, env, forge, user_agent, pending, authorization).expect("checked start request");
+    let until = connection.deadline();
+    exchange.start(connection, until, env, forge, user_agent, pending, authorization).expect("checked start request");
 }
 
 fn start_read(state: Start) -> Option<Read> {

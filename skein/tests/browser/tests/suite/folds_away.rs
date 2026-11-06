@@ -46,6 +46,25 @@ fn setup() -> Setup<'static> {
 }
 
 #[test]
+fn removing_a_focused_form_returns_to_its_disclosures_summary() {
+    let mut person = Script::new(Box::new([
+        harness::Step::Person(Step::Go { address: b"/test/folds-away".as_slice().into() }),
+        harness::Step::Focused(Find::exactly_named(Role::Disclosure, b"Editor")),
+        check(b"details:not([tabindex]):has(> summary:focus:not([tabindex]))"),
+        disclosure(b"Editor"),
+        harness::Step::Type {
+            find: Find::exactly_named(Role::TextField, b"Name"),
+            words: b"Changed".as_slice().into(),
+        },
+        harness::Step::Key(Key::Escape),
+        harness::Step::Focused(Find::exactly_named(Role::Disclosure, b"Editor")),
+        check(b"main:not(:focus)"),
+        check(b"details:not([tabindex]):has(> summary:focus:not([tabindex])):not(:has(form))"),
+    ]));
+    assert_eq!(harness::Harness::new(setup()).run(&mut [&mut person]), Outcome::Done);
+}
+
+#[test]
 fn a_panel_folds_away_without_taking_the_outside_press_or_a_forms_escape() {
     let mut person = Script::new(Box::new([
         harness::Step::Person(Step::Go { address: b"/test/folds-away".as_slice().into() }),
@@ -93,6 +112,44 @@ fn a_panel_folds_away_without_taking_the_outside_press_or_a_forms_escape() {
         check(b"details[data-folds-away]:not([open])"),
         harness::Step::Focused(Find::exactly_named(Role::Button, b"Form escape")),
         see(b"Pressed 2"),
+    ]));
+    assert_eq!(harness::Harness::new(setup()).run(&mut [&mut person]), Outcome::Done);
+}
+
+#[test]
+fn a_press_outside_closes_a_menu_and_goes_on() {
+    let mut person = Script::new(Box::new([
+        harness::Step::Person(Step::Go { address: b"/test/folds-away".as_slice().into() }),
+        disclosure(b"Panel"),
+        press(b"Actions"),
+        check(b"[role=menu]:not([hidden])"),
+        press(b"Inside panel"),
+        see(b"Pressed 2"),
+        check(b"[role=menu][hidden]"),
+        check(b"details[data-folds-away][open]"),
+        harness::Step::Focused(Find::exactly_named(Role::Button, b"Inside panel")),
+        press(b"Actions"),
+        press(b"Outside"),
+        see(b"Pressed 4"),
+        check(b"[role=menu][hidden]"),
+        check(b"details[data-folds-away]:not([open])"),
+        harness::Step::Focused(Find::exactly_named(Role::Button, b"Outside")),
+        disclosure(b"Panel"),
+        press(b"Actions"),
+        press(b"Component outside"),
+        check(b"[role=menu][hidden]"),
+        harness::Step::Keep {
+            selector: b"[data-component][data-pressed=yes]".as_slice().into(),
+            attribute: Some(b"data-pressed".as_slice().into()),
+            name: b"component".as_slice().into(),
+        },
+        harness::Step::Focused(Find::exactly_named(Role::Button, b"Component outside")),
+        disclosure(b"Panel"),
+        press(b"Actions"),
+        disclosure(b"Plain"),
+        check(b"[role=menu][hidden]"),
+        check(b"details:not([data-folds-away])[open]:nth-of-type(2)"),
+        harness::Step::Focused(Find::exactly_named(Role::Disclosure, b"Plain")),
     ]));
     assert_eq!(harness::Harness::new(setup()).run(&mut [&mut person]), Outcome::Done);
 }

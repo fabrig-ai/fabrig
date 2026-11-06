@@ -372,7 +372,16 @@ fn forge_rows(engine: &Engine, forges: temper_engine_domain_forge::Forges) -> Op
 
 fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
     match delivery {
-        root::HostDelivery::Settings { to, answer, repositories, application, from, requested } => {
+        root::HostDelivery::Settings {
+            to,
+            answer,
+            repositories,
+            people,
+            forge_people,
+            application,
+            from,
+            requested,
+        } => {
             let (body, error) = temper_engine_smith::settings_repository_answer(
                 &answer,
                 from,
@@ -380,6 +389,8 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
                 engine.domain.models(),
                 application.as_ref(),
                 &repositories,
+                &people,
+                &forge_people,
                 engine.env.limits.call_answer_bytes.saturating_sub(8),
             )
             .into_parts();

@@ -2258,10 +2258,12 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   joins the people's identities and roles with the forge's rule; a
   deployment login or display name supplies no forge identity. A refusal
   names the project, role, required and eligible counts, and asks for
-  human collaborators added on the forge, the existing project's project-policy
-  permission mapping configured where needed, re-adoption and verification of
-  the required role, followed by a fresh proposal against the newest revision.
-  It refers to `temper help configure`, or offers removal of the approval.
+  human collaborators added on the forge, the project's policy giving the
+  permission that role where needed and the repository adopted again,
+  followed by a fresh proposal against the newest revision, or offers
+  removal of the approval. It names no command or help page: whoever
+  reads it may be in the browser, or an agent talking to someone who is
+  (`agent.md`, 8.1).
   temper's retained forge writer is ineligible even with an existing role. No rule
   or accompanying settings become effective on refusal. Later membership
   changes can leave a held rule waiting; the merge still counts only

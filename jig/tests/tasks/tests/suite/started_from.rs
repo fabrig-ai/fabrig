@@ -1,11 +1,10 @@
 use jig_domain_tasks::{self as tasks, Event, Executor, KeptStart, Party, ProcedureDecision, ProcedureEnd, Refusal};
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON_PARTY as REQUESTER, Reply, World, done, step, task};
 use skein_lib::ReplyTo;
 
 const PROCEDURE: u64 = 1;
 const DEPENDENCY: u64 = 2;
 const OTHER: u64 = 3;
-const REQUESTER: Party = Party::Person(9);
 
 fn pending(dependencies: &[u64]) -> World {
     let mut world = World::new(894, LIMITS);
@@ -25,16 +24,11 @@ fn response(world: &mut World, event: impl FnOnce(ReplyTo) -> Event) -> Reply {
     world.replies[&call.raw()].clone()
 }
 
-fn step(world: &mut World, decision: ProcedureDecision) -> Reply {
-    let step = world.record(PROCEDURE).attempt + 1;
-    let read = world.contexts[&PROCEDURE].inbox.last().map(|word| word.number);
-    response(world, |reply_to| Event::Procedure { reply_to, task: PROCEDURE, step, read, decision })
-}
-
 fn mark(world: &mut World, dependencies: &[u64]) {
     assert_eq!(
         step(
             world,
+            PROCEDURE,
             ProcedureDecision { started_from: dependencies.into(), ..ProcedureDecision::new(ProcedureEnd::Wait) }
         ),
         Reply::Done
@@ -77,12 +71,6 @@ fn refuses(reply: Reply, blocked: &[u64]) {
     assert_eq!(problem, tasks::Problem::naming(Some(PROCEDURE), Refusal::Dependencies, blocked));
 }
 
-fn done(world: &mut World, number: u64) {
-    world.claim_fresh(number);
-    world.finish(number);
-    world.settle(number);
-}
-
 #[test]
 fn a_step_marks_a_pending_dependency_started_from_and_an_amendment_dropping_it_is_refused() {
     let mut world = pending(&[DEPENDENCY]);
@@ -111,6 +99,7 @@ fn a_mark_naming_no_dependency_refuses_the_step_whole() {
     refuses(
         step(
             &mut world,
+            PROCEDURE,
             ProcedureDecision {
                 started_from: Box::new([DEPENDENCY, OTHER]),
                 batch: Box::new([task(4, &[])]),

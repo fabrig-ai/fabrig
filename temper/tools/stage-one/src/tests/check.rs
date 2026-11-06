@@ -13,8 +13,8 @@ use crate::golden::{self, Edit, Item, ObligationKind, SettingsFile};
 const FORGE: &str = "forge.box:3000";
 const REPOSITORY: &str = "people/kit";
 const PROJECT: u32 = 7;
-// The reference has 67 settings and 13 box obligations.
-const OBLIGATIONS: usize = 80;
+// The reference has 73 settings and 13 box obligations.
+const OBLIGATIONS: usize = 86;
 
 fn box_placeholders(value: &mut Value) {
     match value {
@@ -69,6 +69,10 @@ pub(crate) fn profile_evidence(dir: &Path, edit: fn(&mut Vec<Item>)) {
         (
             json!({"kind":"project-policy", "project":PROJECT}),
             include_bytes!("fixtures/profile/project-policy.json").as_slice(),
+        ),
+        (
+            json!({"kind":"project-ways", "project":PROJECT}),
+            br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":4}"#.as_slice(),
         ),
     ] {
         let value: Value = serde_json::from_slice(bytes).expect("authority fixture");
@@ -211,8 +215,8 @@ fn a_value_changed_is_wrong() {
     assert!(!report.passed());
     assert_eq!(outcome(&report, "goal-rule.ci"), &Outcome::Wrong { found: json!(true), expected: json!(false) });
     assert!(report.text().contains("goal-rule.ci  wrong: found true, expected false\n"));
-    assert!(report.text().ends_with("failed: 1 of 80\n"));
-    assert_eq!(report.json()["verdicts"][56]["outcome"], json!({"kind":"wrong","found":true,"expected":false}));
+    assert!(report.text().ends_with("failed: 1 of 86\n"));
+    assert_eq!(report.json()["verdicts"][61]["outcome"], json!({"kind":"wrong","found":true,"expected":false}));
 }
 #[test]
 fn an_added_charter_is_an_extra() {
@@ -327,8 +331,8 @@ fn run_exits_by_outcome() {
 fn integer_bounds_and_permitted_surpluses_pass() {
     let report = report(&proposed(|items| {
         let coding = set_value(items, "charter", 2);
-        coding["turns"] = json!(17);
-        coding["time"] = json!(120_000_000_001_u64);
+        coding["turns"] = json!(801);
+        coding["time"] = json!(28_800_000_000_001_u64);
         let coordinator = set_value(items, "charter", 5);
         coordinator["documents"]
             .as_array_mut()
@@ -348,11 +352,11 @@ fn integer_bounds_and_permitted_surpluses_pass() {
 fn wrong_types_and_values_fail_comparisons() {
     let original = proposed(unedited);
     for (kind, number, pointer, found, id, expected) in [
-        ("charter", 2, "/turns", json!(16), "coding.turns", json!(17)),
-        ("charter", 2, "/turns", json!("17"), "coding.turns", json!(17)),
-        ("charter", 2, "/turns", json!(17.0), "coding.turns", json!(17)),
-        ("charter", 2, "/turns", json!(-1), "coding.turns", json!(17)),
-        ("charter", 2, "/time", json!(120_000_000_000_u64), "coding.time", json!(120_000_000_001_u64)),
+        ("charter", 2, "/turns", json!(16), "coding.turns", json!(800)),
+        ("charter", 2, "/turns", json!("800"), "coding.turns", json!(800)),
+        ("charter", 2, "/turns", json!(800.0), "coding.turns", json!(800)),
+        ("charter", 2, "/turns", json!(-1), "coding.turns", json!(800)),
+        ("charter", 2, "/time", json!(120_000_000_000_u64), "coding.time", json!(28_800_000_000_000_u64)),
         ("policy", 1, "/ceiling/tools", json!(0), "policy.tools", json!(1671)),
         ("policy", 1, "/ceiling/tools", json!("1671"), "policy.tools", json!(1671)),
         ("template", 4, "/contract/report", Value::Null, "goal-template.report", json!("non-null")),
@@ -384,12 +388,65 @@ fn judged_text_must_be_a_nonempty_string() {
     }
 }
 #[test]
-fn contains_requires_a_list_of_whole_elements() {
+fn a_way_must_be_the_goal_template_for_drafts() {
+    let report = report(&proposed(|items| {
+        for item in items {
+            if item.setting.kind == "project-ways" {
+                let Edit::Set(value) = &mut item.edit else { panic!("ways") };
+                value["way"] = json!(2);
+            }
+        }
+    }));
+    assert_eq!(outcome(&report, "project.way"), &Outcome::Wrong { found: json!(2), expected: json!(4) });
+}
+#[test]
+fn a_projects_questions_are_free_and_a_project_with_no_ways_is_missing() {
+    let report = report(&proposed(|items| {
+        items.retain(|item| item.setting.kind != "project-ways");
+        let setting = golden::decode_settings(
+            &serde_json::to_vec(
+                &json!({"items":[{"setting":{"kind":"project-questions","project":PROJECT},"set":"foreman"}]}),
+            )
+            .expect("JSON"),
+        )
+        .expect("item");
+        items.extend(setting.items);
+    }));
+    assert!(report.extras.is_empty(), "{}", report.text());
+    assert_eq!(outcome(&report, "project.way"), &Outcome::Missing);
+}
+#[test]
+fn a_documents_heading_is_free_unless_the_golden_asks_it_whole() {
+    let narrowed = report(&proposed(|items| {
+        let designer = set_value(items, "charter", 7);
+        let documents = designer["documents"].as_array_mut().expect("documents");
+        let document = documents.iter_mut().find(|d| d["path"] == "DESIGN.md").expect("document");
+        document["heading"] = json!("One section");
+    }));
+    assert!(matches!(outcome(&narrowed, "designer.documents"), Outcome::Wrong { .. }));
+    let report = report(&proposed(|items| {
+        for (number, path, heading) in [
+            (5, "AGENTS.md", json!(null)),
+            (5, "skein/docs/foundation/programming-model.md", json!("Any")),
+            (7, "DESIGN.md", json!(null)),
+        ] {
+            let charter = set_value(items, "charter", number);
+            let documents = charter["documents"].as_array_mut().expect("documents");
+            let document = documents.iter_mut().find(|d| d["path"] == path).expect("document");
+            document["heading"] = heading;
+        }
+    }));
+    assert_eq!(outcome(&report, "coordinator.documents"), &Outcome::Met);
+    assert_eq!(outcome(&report, "designer.documents"), &Outcome::Met);
+}
+#[test]
+fn contains_requires_a_list_holding_each_element() {
     let original = proposed(unedited);
     for found in [
         json!({}),
         json!([]),
-        json!([{"forge":FORGE,"repository":REPOSITORY,"branch":"main","path":"DESIGN.md","extra":true}]),
+        json!([{"forge":FORGE,"repository":REPOSITORY,"branch":"main","path":"OTHER.md"}]),
+        json!([{"forge":FORGE,"repository":REPOSITORY,"branch":"other","path":"DESIGN.md"}]),
     ] {
         let mut evidence = original.clone();
         set_value(&mut evidence.current.items, "charter", 7)["documents"] = found;

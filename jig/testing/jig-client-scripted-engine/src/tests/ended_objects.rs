@@ -1,3 +1,4 @@
+use super::{PROJECT, REQUESTER};
 use crate::Bounds;
 use jig_client_domain::contract::*;
 use skein_lib::{List, Wall};
@@ -152,7 +153,7 @@ fn ended_person_states_keep_independent_decisions_choices_created_pairs_and_oute
                 PersonProposalState::Pending { since: Wall::EPOCH },
                 PersonProposalState::Accepted { by: Requester::Person(u64::MAX) },
                 PersonProposalState::Rejected {
-                    by: Requester::Person(1),
+                    by: Requester::Person(REQUESTER),
                     reason: super::text(UTF8_TEXTS[1]),
                     message: u64::MAX,
                     at: Wall::EPOCH,
@@ -181,7 +182,7 @@ fn ended_person_states_keep_independent_decisions_choices_created_pairs_and_oute
             }
         }
     }
-    let accepted = person_value(PersonProposalState::Accepted { by: Requester::Person(1) }, None);
+    let accepted = person_value(PersonProposalState::Accepted { by: Requester::Person(REQUESTER) }, None);
     assert!(!accepted.matches(accepted.key), "authentic accepted source without decision returns Gone");
     let mut wrong =
         person_value(PersonProposalState::Pending { since: Wall::EPOCH }, Some(record(ProposalChoice::Passed, None)));
@@ -214,7 +215,7 @@ fn ended_question_answer_and_full_ending_presence_are_independent_from_outer_sen
     let EndedValue::Question { answer: Some(answer), .. } = &mut value.value else { panic!("answer") };
     answer.line = Activity::Words {
         message: 0,
-        by: Requester::Person(1),
+        by: Requester::Person(REQUESTER),
         kind: MessageKind::Answer { question: 7 },
         words: super::text(b""),
     };
@@ -263,7 +264,7 @@ fn ended_escalation_decisions_keep_opaque_rejection_and_independent_optional_hol
     ] {
         for hold in [None, Some(MilestoneLine { task: 8, position: 0, phase: MilestonePhase::Waiting, at: None })] {
             let record = EscalationDecisionRecord {
-                project: 1,
+                project: PROJECT,
                 requester: u64::MAX,
                 task: 8,
                 revision: u64::MAX,

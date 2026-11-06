@@ -133,8 +133,7 @@ fn start_over(scratch: &support::Scratch, paths: &[std::path::PathBuf; 3], flags
                     engine_paused = true;
                 }
                 let started = format!("Forge {number} (Forgejo): started\n");
-                return data.join(format!("box/started/{number}")).exists()
-                    && binary.stderr().windows(started.len()).any(|line| line == started.as_bytes());
+                return data.join(format!("box/started/{number}")).exists() && boxed::box_log(data).contains(&started);
             }
             assert!(!data.join(format!("box/started/{number}")).exists(), "the cut precedes started");
             true

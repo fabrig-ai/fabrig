@@ -241,17 +241,26 @@ fn the_panel_puts_rename_its_form_new_and_settings_after_projects() {
             assert_eq!(disclosure.len(), 1);
             assert_eq!(disclosure[0].styles.as_slice(), [look::PROJECTS_MENU]);
             let panel = children(styled(view.tree(), look::PROJECTS_MENU));
-            assert_eq!(panel.iter().map(|n| n.role).collect::<Vec<_>>(), [Role::Button, Role::Button, Role::Slot]);
+            assert_eq!(
+                panel.iter().map(|n| n.role).collect::<Vec<_>>(),
+                [if renaming { Role::Form } else { Role::Button }, Role::Button, Role::Slot]
+            );
+            if renaming {
+                assert_eq!(panel[0].name.as_deref(), Some(b"Rename Shop".as_slice()));
+            }
             assert_eq!(panel[2].styles.as_slice(), [look::PROJECTS_ACTS]);
             let acts = children(styled(view.tree(), look::PROJECTS_ACTS));
-            assert_eq!(
-                acts.iter().map(|n| n.role).collect::<Vec<_>>(),
-                [if renaming { Role::Form } else { Role::Button }, Role::Form, Role::Link]
-            );
-            assert_eq!(acts[0].name.as_deref(), Some(b"Rename Shop".as_slice()));
-            assert_eq!(acts[1].name.as_deref(), Some(b"New project".as_slice()));
-            assert_eq!(acts[2].name.as_deref(), Some(b"Settings for Shop".as_slice()));
-            let settings = acts[2].id;
+            let expected =
+                if renaming { vec![Role::Form, Role::Link] } else { vec![Role::Button, Role::Form, Role::Link] };
+            assert_eq!(acts.iter().map(|n| n.role).collect::<Vec<_>>(), expected);
+            if !renaming {
+                assert_eq!(acts[0].name.as_deref(), Some(b"Rename Shop".as_slice()));
+            }
+            let new = acts[acts.len() - 2];
+            let settings = acts.last().unwrap();
+            assert_eq!(new.name.as_deref(), Some(b"New project".as_slice()));
+            assert_eq!(settings.name.as_deref(), Some(b"Settings for Shop".as_slice()));
+            let settings = settings.id;
             assert_eq!(crate::href(&mut view, settings).as_deref(), Some(b"/projects/1/settings".as_slice()));
         }
         f::root_event(
@@ -675,7 +684,11 @@ fn the_foot_keeps_status_identity_and_lost_sign_out_and_places_behind_for_each_s
                 jig_client::Link::OutOfDate => b"Out of date",
             };
             assert!(foot.iter().any(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Settings")));
-            assert_eq!(foot.last().unwrap().name.as_deref(), Some(b"Pat".as_slice()));
+            if browser {
+                assert!(f::find(view.tree(), Role::Menu, b"Pat").is_some());
+            } else {
+                assert_eq!(foot.last().unwrap().name.as_deref(), Some(b"Pat".as_slice()));
+            }
             let region = foot[0];
             let status = f::find(view.tree(), Role::Status, expected).unwrap();
             assert!(

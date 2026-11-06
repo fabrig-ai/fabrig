@@ -2,7 +2,7 @@
 //! outside observations; the conformance harness owns the engine and store.
 #![forbid(unsafe_code)]
 use jig_conformance::scenarios::Scenario;
-use jig_conformance::{Application, Clock, Input, Output};
+use jig_conformance::{Application, Clock, Input, Output, core::peers};
 use jig_core_kit::Store;
 use jig_core_kit::conformance::Observer;
 use jig_core_kit::peers::Peers;
@@ -192,7 +192,7 @@ pub enum Delivery {
 }
 
 /// The outside correlation state of the application's scripted peers.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Neighbours {
     pub peers: Peers,
     observer: Observer,
@@ -201,7 +201,7 @@ pub struct Neighbours {
     pub answers: u64,
     pub acts: Vec<people::Outcome>,
     pub drained: Vec<u64>,
-    pub busy_events: Vec<std::rc::Rc<root::Event>>,
+    pub busy_events: Vec<String>,
     pub start_phases: Vec<core::start::Phase>,
     pub calls: Vec<core::CallPart>,
     pub hold_writes: bool,
@@ -279,12 +279,9 @@ impl std::ops::DerefMut for Engine {
 impl Application for Testing {
     type Domain = Engine;
     type Store = Store;
-    type Write = root::Write;
     type Config = Config;
     type Systems = [System; 2];
     type Peers = Neighbours;
-    type Key = root::Key;
-    type Record = root::Record;
     type Event = root::Event;
     type Delivery = Delivery;
 
@@ -413,20 +410,6 @@ impl Application for Testing {
     fn policy(peers: &Neighbours) -> &jig_conformance::referee::Policy {
         &peers.observer.referee.policy
     }
-    fn policy_generation(peers: &Neighbours) -> u64 {
-        peers.observer.policy_generation()
-    }
-
-    fn recovery(config: &Config, number: u16, kind: u16) -> jig_conformance::referee::Recovery {
-        let configuration = config.root().0;
-        let connector = if number == 1 { configuration.first } else { configuration.second };
-        match connector.kinds.iter().find(|entry| entry.kind == kind).expect("configured kind").recovery {
-            connector::Recovery::Keyed => jig_conformance::referee::Recovery::Keyed,
-            connector::Recovery::Conditional => jig_conformance::referee::Recovery::Conditional,
-            connector::Recovery::Idempotent => jig_conformance::referee::Recovery::Idempotent,
-            connector::Recovery::Unrecoverable => jig_conformance::referee::Recovery::Unrecoverable,
-        }
-    }
 
     fn start(_: &Config, store: &mut Store) -> Vec<root::Event> {
         vec![root::Event::StartBegin { pending: store.generation_pending }]
@@ -449,7 +432,7 @@ impl Application for Testing {
         ]
     }
 
-    fn step(domain: &mut Engine, config: &Config, clock: Clock, input: Input<root::Event, root::Record>) {
+    fn step(domain: &mut Engine, config: &Config, clock: Clock, input: Input<root::Event>) {
         let env = env(config, clock);
         let input = negative::input(domain, config, clock, input);
         if matches!(
@@ -472,7 +455,6 @@ impl Application for Testing {
             Input::Event(event) => root::step(domain, &env, event),
             Input::Committed(number) => root::step(domain, &env, root::Event::Committed { number, fill: 0 }),
             Input::Failed(number) => root::step(domain, &env, root::Event::Failed { number }),
-            Input::Restore(_) => unreachable!("the start store returns typed root events"),
         }
     }
 
@@ -541,7 +523,7 @@ impl Application for Testing {
         store: &mut Store,
         clock: Clock,
         delivery: Delivery,
-    ) -> Vec<Input<root::Event, root::Record>> {
+    ) -> Vec<Input<root::Event>> {
         let delivery = negative::delivery(peers.fault, delivery);
         let Delivery::Held(mut delivery) = delivery else {
             return match delivery {
@@ -563,7 +545,7 @@ impl Application for Testing {
                     .map(Input::Event)
                     .collect(),
                 Delivery::Now(core::Now::Account(accounts::Request::Component(request))) => {
-                    jig_conformance::core::peers::account(request, Duration::from_secs(60))
+                    peers::account(request, Duration::from_secs(60))
                         .into_iter()
                         .map(|event| Input::Event(root::Event::Core(event)))
                         .collect()
@@ -584,7 +566,7 @@ impl Application for Testing {
                 }
                 Delivery::Start { phase, census } => peers.start(store, phase, census),
                 Delivery::Busy(event) => {
-                    peers.busy_events.push(std::rc::Rc::new(*event));
+                    peers.busy_events.push(format!("{event:?}"));
                     Vec::new()
                 }
                 Delivery::Now(_) => Vec::new(),
@@ -697,7 +679,7 @@ impl Application for Testing {
         store: &mut Store,
         clock: Clock,
         ready: bool,
-    ) -> Vec<Input<root::Event, root::Record>> {
+    ) -> Vec<Input<root::Event>> {
         let mut events = Vec::new();
         for answer in store.answers() {
             match answer {
@@ -706,11 +688,7 @@ impl Application for Testing {
                     rows,
                     more,
                 }))) => {
-                    events.push(Input::Event(root::Event::Core(jig_conformance::core::peers::notes_loaded(
-                        owner,
-                        rows.records,
-                        more,
-                    ))));
+                    events.push(Input::Event(root::Event::Core(peers::notes_loaded(owner, rows.records, more))));
                 }
                 Up::Root(event) => {
                     events.push(Input::Event(event));
@@ -730,14 +708,11 @@ impl Application for Testing {
                     budget: 1000,
                     next: None,
                 })));
-                events.push(Input::Event(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                    accounts::FromComponent::Granted {
-                        form: accounts::Form::Credential(accounts::Scheme::Bearer),
-                        account: 1,
-                        generation: 1,
-                        valid: Duration::from_secs(60),
-                    },
-                )))));
+                events.extend(
+                    peers::account(accounts::ToComponent::Want { account: 1 }, Duration::from_secs(60))
+                        .into_iter()
+                        .map(|event| Input::Event(root::Event::Core(event))),
+                );
             }
             events.extend(peers.peers.tick(store, Time::from_nanos(clock.now)).into_iter().map(Input::Event));
         }

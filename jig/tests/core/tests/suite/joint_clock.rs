@@ -1,3 +1,4 @@
+use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::peers::Peers;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
@@ -7,15 +8,7 @@ use jig_test_domain as root;
 use skein_lib::{ReplyTo, Time, Token, Wall};
 
 fn sign_in(world: &mut World, number: u64) {
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(number)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: number.to_be_bytes().into() },
-            login: b"person".as_slice().into(),
-            name: b"Person".as_slice().into(),
-        },
-    }));
+    world.send(signin(Token::new(number), 0, &number.to_be_bytes(), b"person", b"Person"));
 }
 
 #[test]

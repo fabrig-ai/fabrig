@@ -21,3 +21,15 @@ Where this mock and `../mockups/` differ, this mock is the design
 Open a page from a checkout; it needs no server. Budgets are drawn here
 but matter least: the flow, look and mechanics come first (the user,
 2026-11-05).
+
+## Where the client departs from it
+
+Every departure is a **Design departs** entry in
+`../README.status.md`, with its request. One to know when reading these
+pages:
+
+- **The rail's foot row,** the person's name, is plain text here. In the
+  client it opens a small menu above it, with "Accounts" and "Sign out",
+  in the look of the project switcher's menu; a phone, with no rail's
+  foot, signs out on Settings' Accounts tab. The user's word, 2026-11-06
+  (the request `ui-owner-menu`; `../README.md`, 5.3).

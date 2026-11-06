@@ -1,4 +1,4 @@
-use jig_core_world::fixtures::{PROJECT, live_row};
+use jig_core_world::fixtures::{CONNECTOR, PARTY as OWNER, PROJECT, live_row};
 use jig_core_world::stories::delegates::delegate_pair;
 use jig_core_world::world::Cut;
 use jig_core_world::world::Setup;
@@ -10,7 +10,6 @@ use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
-const CONNECTOR: u16 = 1;
 const KEY: u8 = 91;
 const PROVIDER: u32 = 1;
 const GRACE: Duration = Duration::from_secs(5);
@@ -424,7 +423,6 @@ fn make_project(maker: u64) -> people::Act {
 }
 #[test]
 fn a_connector_granted_make_project_makes_a_project_for_a_deployment_owner() {
-    const OWNER: u64 = 1;
     const MADE: u32 = 2;
     let mut world = project_world(true);
     act(&mut world, KEY, make_project(OWNER));

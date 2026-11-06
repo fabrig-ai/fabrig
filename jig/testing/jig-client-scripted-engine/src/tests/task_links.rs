@@ -2,9 +2,11 @@ use super::*;
 
 #[test]
 fn task_list_filters_do_not_alias_person_task_and_deployment_requesters_with_equal_numbers() {
-    for (requester, asked_by_person) in
-        [(Requester::Person(1), true), (Requester::Task(1), false), (Requester::Deployment { project: 1 }, false)]
-    {
+    for (requester, asked_by_person) in [
+        (Requester::Person(REQUESTER), true),
+        (Requester::Task(1), false),
+        (Requester::Deployment { project: PROJECT }, false),
+    ] {
         for asked_by_me in [false, true] {
             let mut setup = script();
             let mut row = task();
@@ -14,10 +16,13 @@ fn task_list_filters_do_not_alias_person_task_and_deployment_requesters_with_equ
             engine
                 .open(
                     Time::ZERO,
-                    11,
+                    REQUESTER_SIGN_IN,
                     Token::new(3),
                     Subject::Tasks {
-                        query: TaskQuery { requester: asked_by_me.then_some(Requester::Person(1)), ..query(1) },
+                        query: TaskQuery {
+                            requester: asked_by_me.then_some(Requester::Person(REQUESTER)),
+                            ..query(PROJECT)
+                        },
                         window: 2,
                     },
                 )
@@ -43,7 +48,10 @@ fn task_list_filters_do_not_alias_person_task_and_deployment_requesters_with_equ
             } else {
                 assert_eq!(rows.len(), 1);
                 assert_eq!(rows.get(0).expect("delivered task row").requester, requester);
-                assert_eq!(rows.get(0).expect("delivered task row").requester == Requester::Person(1), asked_by_person);
+                assert_eq!(
+                    rows.get(0).expect("delivered task row").requester == Requester::Person(REQUESTER),
+                    asked_by_person
+                );
             }
         }
     }
