@@ -601,5 +601,3 @@
   code now.", where the request has each copy ticked and then "Chats can change its
   code now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
   names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).
-- **Not yet:** 5.1, *signed out*: the browser's paragraph still says "a sign-in link temper serve printed"
-  (`Word::SignedOutMain`), from the request `ui-qa-small`, item 2.

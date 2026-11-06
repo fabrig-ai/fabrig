@@ -193,10 +193,7 @@ fn signed_out_the_main_says_so_and_nothing_else() {
 #[test]
 fn signed_out_the_browser_main_says_how_to_sign_in() {
     let view = fixtures::browser_page_view(&fixtures::signed_out());
-    assert_eq!(
-        &*fixtures::main_text(view.tree()),
-        b"Signed out. To sign in, open a sign-in link temper serve printed.",
-    );
+    assert_eq!(&*fixtures::main_text(view.tree()), b"Signed out. To sign in, open a sign-in link temper printed.",);
 }
 #[test]
 fn a_full_link_says_the_pool_and_both_moments_in_either_shell() {
