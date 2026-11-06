@@ -62,3 +62,72 @@ fn a_person_at_the_terminal_reads_a_chats_committed_reply() {
         "closing keeps the credential"
     );
 }
+
+#[test]
+fn up_down_and_the_page_up_line_read_the_conversation() {
+    use skein_fake_llm_domain::api;
+    const FIRST: &[u8] = b"First terminal answer. This whole answer leaves the window as later replies arrive. This whole answer leaves the window as later replies arrive. This whole answer leaves the window as later replies arrive.";
+    const MIDDLE: &[u8] = b"Middle terminal answer. This whole answer leaves the window as later replies arrive. This whole answer leaves the window as later replies arrive. This whole answer leaves the window as later replies arrive.";
+    const LAST: &[u8] = b"Last terminal answer. This whole answer leaves the window as earlier replies arrive. This whole answer leaves the window as earlier replies arrive. This whole answer leaves the window as earlier replies arrive.";
+    let scratch = Scratch::new("terminal-reading");
+    fixtures::standing_chats(scratch.path()).expect("standing chat fixture");
+    let ran = run_on(
+        scratch,
+        || {
+            llm::played_by_input(
+                Box::new([api::Script {
+                    cue: Box::default(),
+                    turns: [FIRST, MIDDLE, LAST]
+                        .into_iter()
+                        .map(|text| api::Turn {
+                            lines: Box::new([
+                                api::Line::Text { text: text.into() },
+                                api::Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() },
+                            ]),
+                            finish: api::Finish::ToolCalls,
+                            tokens: 1,
+                        })
+                        .collect(),
+                }]),
+                Box::new([Box::new([
+                    api::Rule { cue: b"third answer".as_slice().into(), turn: 2 },
+                    api::Rule { cue: b"second answer".as_slice().into(), turn: 1 },
+                    api::Rule { cue: Box::default(), turn: 0 },
+                ])]),
+            )
+        },
+        || {
+            vec![
+                sign_in(D1),
+                terminal::open_reading(),
+                terminal::type_on(b"+ New chat", b""),
+                terminal::type_on(b"What do you want done?", b"Read our earlier words"),
+                terminal::see_without(FIRST, PROVISIONAL),
+                terminal::type_on(b"Message", b"Please continue the conversation with a second answer"),
+                terminal::see_without(MIDDLE, PROVISIONAL),
+                terminal::type_on(b"Message", b"Please continue the conversation with a third answer"),
+                terminal::see_without(LAST, PROVISIONAL),
+                terminal::line(b"up"),
+                terminal::line(b"up"),
+                terminal::line(b"up"),
+                terminal::see_without(FIRST, LAST),
+                terminal::line(b"down"),
+                terminal::line(b"down"),
+                terminal::line(b"down"),
+                terminal::see_without(LAST, FIRST),
+                terminal::line(b"\x1b[5~"),
+                terminal::line(b"\x1b[5~"),
+                terminal::line(b"\x1b[5~"),
+                terminal::see_without(FIRST, LAST),
+                terminal::close(),
+            ]
+        },
+    );
+    assert_eq!(ran.terminal().exit, Some(Exit::Code(0)));
+    assert!(
+        ran.terminal().pages.iter().any(|page| page
+            .bytes
+            .windows(b"(up, down: more lines)".len())
+            .any(|part| part == b"(up, down: more lines)"))
+    );
+}
