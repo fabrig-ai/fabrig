@@ -10,12 +10,12 @@ Sections 3 and 4 of `temper/docs/design/draft/chat-reading.md`, in jig and tempe
 | `committed-turn` | `turn-order` | | names priced first, an outcome its first line, a cut ends in `…` |
 | `live-text` | `live-whole` | | the link, the domain and the thread carry a turn being written whole |
 | `conversation` | `chat-committed` | | no "Earlier text omitted", no reasoning, a result's first line |
-| `live-page` (next batch) | `turn-prices` | `live-whole`, `chat-committed`, `turn-order` | temper's 131,072-byte turn, the view repriced, and the world stories |
-| `live-page` (next batch) | `chat-live` | `growing-reader`, `turn-prices` | the turn being written is drawn as its committed turn, with its end |
+| `turn-budget` | `turn-prices` | `live-whole`, `chat-committed`, `turn-order` | temper's 131,072-byte turn, the view repriced, and the world stories |
+| `live-page` | `chat-live` | `growing-reader`, `turn-prices` | the turn being written is drawn as its committed turn, with its end |
 
-**Critical path:** `live-whole` (or `chat-committed`) → `turn-prices` → `chat-live`. The first four start at once.
+**Critical path:** `live-whole` (or `turn-order`, or `chat-committed`) → `turn-prices` → `chat-live`, about 225 implementer-minutes. The first four start at once.
 
-This file is brought up to date with each push.
+**Why this order:** `turn-prices` waits for the three that make a larger turn safe to raise. `chat-live` waits for it, as a long line would panic the builder before the view is repriced, and it's the second writer of `pages/chat.rs`, after `chat-committed`.
 
 ## What didn't hold in the draft
 
@@ -25,6 +25,7 @@ Each is in `temper/docs/design/draft/chat-reading.status.md`, *Design departs*.
 - **A delegate's summary (section 4).** The draft keeps whole only the summaries the view reads a task's number from. The transcript knows no tool's words, so every result's summary stays whole, priced last. The drawn line is the first line, and the summaries can't take a name, a text or an outcome's line. A delegate's card reads `Delegated tasks: ...` and a note's `Note N revision...`: both are one line, so a first line breaks neither.
 - **Drawn once (section 3).** The page reads the whole text again at each delivery, and a closed block's nodes come out the same, so it stays on the page unchanged. Nothing keeps a block read.
 - **Whole, past the engine's bound (section 3).** `views.text_bytes` is 65,536, and so is one delivery's wire field. An answer past that arrives whole only to a page following from its start. A page opened later shows the retained end until the turn commits.
+- **Whatever their results weigh (section 4).** A turn past `document_bytes` on the wire (1,048,576 bytes) still reads as too large, its line saying so, with no calls' names. Reading it needs a page past the client's document bound, which this plan leaves. The tools read such a turn by its parts, as they do today.
 
 Section 7's verbs and a turn's time belong to section 2, a later plan: nothing here draws them.
 
@@ -44,7 +45,9 @@ The turn's display budget is the client's preset, not a profile's, so `small` an
 
 **Limits raised:** `turn_text`, because an answer must commit whole. A thread's `live` is new, at `long_text`, because the turn being written must be seen whole. The link's receiving `run_text_text`, because one delivery can carry what the engine retained. No wire or store format changes.
 
-**Heap ceilings:** the engine's `temper/tests` ceilings shouldn't move, as nothing the engine holds changes. `turn-prices` measures a full window against the shells' ceilings, and names any that moves.
+**The bound on a page:** the view's `nodes` go from about 1.33 million to about 5.47 million at the shells' limits, as a turn's Markdown may make two nodes a byte. That is a bound, not an allocation: containers grow as they fill, and ordinary text makes far fewer nodes. `text_bytes` falls from about 3.34 billion to about 3.14 billion, within its `u32`, as the nodes outside a window's turns no longer carry a turn's text. These figures are worked by hand from `Limits::of`, taking a node's most text as 3,400 bytes, and `turn-prices` reports the real ones.
+
+**Heap ceilings:** the engine's `temper/tests` ceilings shouldn't move, as nothing the engine holds changes. `turn-prices` measures a full window, and names any ceiling that moves.
 
 ## Overlaps
 
