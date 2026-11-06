@@ -43,7 +43,6 @@
   exactly its data, no lifecycle in flags or `Option`s beside it,
   exhaustive matches and one handler per cell;
   `skein-lib/src/requests.rs`'s `RequestTable` keeps `Entry`'s
-  `restored`, `save` and `changed` flags and `progress` and `anchor`
-  options beside `state`, rather than in lifecycle states; no reason is
-  recorded (the code's side is
-  `skein/docs/development/debt/D025-request-table-in-lib.md`).
+  `restored`, `save` and `changed` flags and its `progress` option
+  beside `state`, where section 12 gives them lifecycle states (the code's
+  side is `skein/docs/development/debt/D025-request-table-in-lib.md`).
