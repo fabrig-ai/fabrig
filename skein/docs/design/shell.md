@@ -712,7 +712,7 @@ other module is safe Rust, the same on both systems.
 | `calls` | what every backend decodes the same way: each operation's error table, the kind of what an `Open` opened, the paths' checks, `Open`'s retries, the listing buffer's size, a release against a floor (7.6) | both |
 | `linux` | Linux's calls and wait (`linux::epoll`), and the ring adapter (`linux::ring`), the only user of `io-uring` | Linux |
 | `darwin` | Darwin's calls and wait (`darwin::kqueue`) | macOS |
-| `posix` | what both systems write alike: terminal modes and sizes, signals to a group or a process and the probes for them, the wait for a readable descriptor, the error numbers' meaning | both |
+| `posix` | what both systems write alike: terminal modes and sizes, a signal to a group and the probes of a group or a process, a socket's shutdown, the wait for a readable descriptor, a startup file's read and a mode's kind, `SIGPIPE`'s block, the error numbers' meaning | both |
 | `clock`, `seed`, `startup`, `terminal`, `settings`, `drive` | the public startup and loop, calling `system` | both |
 
 - **One face, two systems.** `linux` and `darwin` give the same
@@ -730,8 +730,8 @@ other module is safe Rust, the same on both systems.
   Darwin, its `stat`'s layout): neither module calls the other, and
   neither emulates the other's calls. A wrapper that reads the same
   against both manuals lives once, in `posix` (`tcgetattr`, `kill`); one
-  that differs in a type or a step (`ftruncate`, `fsync`) is written in
-  each, so `linux` and `darwin` hold only what differs.
+  that differs in a type or a step (a `stat`'s `mode_t`, `fsync`) is written
+  in each, so `linux` and `darwin` hold only what differs.
 - **Linux's own is built for Linux alone:** the ring adapter and
   `Running`'s ring arm; cgroups (`open_cgroup`, `start_binary_in_cgroup`,
   `wait_cgroup_change`); the subreaper (`make_subreaper`, `subreaper`,

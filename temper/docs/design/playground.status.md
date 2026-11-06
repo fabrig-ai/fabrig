@@ -1,6 +1,6 @@
 # playground: status
 
-2026-11-04. Where temper's code lags or departs from [playground.md](playground.md).
+2026-11-06. Where temper's code lags or departs from [playground.md](playground.md).
 
 - **Not yet:**
   - 4: the reset without the box: its fake forge's removal waits for the
@@ -17,8 +17,8 @@
     `temper/docs/development/playground-memory.md` measures the world's
     native heap, by process, at its first step and its start alone, and
     sets no bound; through the story there is only the browser tier's
-    high water, which does not say what reserves it. The download's bar:
-    7,026,541 B gzipped, within its 8 MB
+    high water, which does not say what reserves it. The download:
+    6,882,055 B gzipped, within its 8 MB
     (`temper/docs/development/playground-figures.md`).
   - 9: Story A's walk in the one-process world, by the terminal
     client, ignored: its `#[ignore]` has it stall at Starting after
@@ -26,8 +26,8 @@
     (`temper/tests/one-process/tests/suite/story_a.rs`); whether what
     lets the web client's walk pass lifts that is unknown.
   - 10: the bar: story A by hand on Firefox and Safari, of which nothing
-    records a walk; within its bars, the download being past its own (8)
-    and the memory's and the slice's unset (section 11); and published.
+    records a walk; within its bars, the memory's and the slice's unset
+    (section 11); and published.
     The page offers a failure's log
     (`temper/crates/temper-client-shell-web/src/playground/web.rs`), but
     no test fails a world in a browser: the tier downloads a whole

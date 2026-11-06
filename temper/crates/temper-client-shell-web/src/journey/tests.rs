@@ -426,3 +426,74 @@ fn a_journey_keeps_the_shells_zone_and_omits_zero() {
         assert_eq!(replayed.zone_minutes, zone);
     }
 }
+
+#[test]
+fn every_setup_record_reads_back() {
+    let parsed = setup(
+        br#"setup 1
+after "project-landing"
+press button "A\"B\\C\x0a" 2
+submit textbox "Message"
+toggle checkbox "Drafts"
+input textbox "Name" "Hello" 1
+see "Ready"
+reload "/projects/1?tab=home"
+mark 1 "Settled"
+mark 3 "Done"
+"#,
+    )
+    .expect("setup records");
+    assert_eq!(
+        parsed,
+        Setup {
+            after: Some(b"project-landing".as_slice().into()),
+            steps: vec![
+                SetupStep::Act { role: Role::Button, name: b"A\"B\\C\n".as_slice().into(), order: 2, act: Act::Press },
+                SetupStep::Act {
+                    role: Role::TextField,
+                    name: b"Message".as_slice().into(),
+                    order: 0,
+                    act: Act::Submit
+                },
+                SetupStep::Act { role: Role::Check, name: b"Drafts".as_slice().into(), order: 0, act: Act::Toggle },
+                SetupStep::Act {
+                    role: Role::TextField,
+                    name: b"Name".as_slice().into(),
+                    order: 1,
+                    act: Act::Input { value: b"Hello".as_slice().into() }
+                },
+                SetupStep::See { text: b"Ready".as_slice().into() },
+            ],
+            reload: b"/projects/1?tab=home".as_slice().into(),
+            marks: vec![
+                MarkWait { mark: 1, text: b"Settled".as_slice().into() },
+                MarkWait { mark: 3, text: b"Done".as_slice().into() }
+            ],
+        }
+    );
+    let simple = setup(b"setup 1\npress link \"Home\"\nreload \"/\"\n").expect("optional records absent");
+    assert_eq!(simple.after, None);
+    assert!(simple.marks.is_empty());
+    assert!(matches!(&simple.steps[..], [SetupStep::Act { role: Role::Link, order: 0, .. }]));
+}
+
+#[test]
+fn malformed_setup_records_are_refused_at_their_line() {
+    let cases = [
+        ("setup 2\nreload \"/\"\n", 1, "unsupported setup version"),
+        ("setup 1\nsee \"Hello\"\nafter \"other\"\nreload \"/\"\n", 3, "after must be second"),
+        ("setup 1\nreload \"/\"\npress button \"Late\"\n", 3, "step after reload"),
+        ("setup 1\nreload \"/\"\nreload \"/again\"\n", 3, "second reload"),
+        ("setup 1\nsee \"Hello\"\n", 3, "missing reload"),
+        ("setup 1\npress unknown \"Hello\"\nreload \"/\"\n", 2, "unknown setup role"),
+        ("setup 1\nmark 1 \"Early\"\nreload \"/\"\n", 2, "mark before reload"),
+        ("setup 1\nreload \"/\"\nmark 0 \"Zero\"\n", 3, "marks must increase from one"),
+        ("setup 1\nreload \"/\"\nmark 2 \"Two\"\nmark 1 \"One\"\n", 4, "marks must increase from one"),
+        ("setup 1\nreload \"/\" extra\n", 2, "extra field"),
+        ("setup 1\n\nreload \"/\"\n", 2, "expected word"),
+        ("setup 1\nsee \"bad\\q\"\nreload \"/\"\n", 2, "bad escape"),
+    ];
+    let found: Vec<_> = cases.iter().map(|(file, _, _)| setup(file.as_bytes()).err()).collect();
+    let expected: Vec<_> = cases.iter().map(|(_, line, why)| Some(Unreadable { line: *line, why })).collect();
+    assert_eq!(found, expected);
+}

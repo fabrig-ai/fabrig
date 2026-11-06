@@ -1404,25 +1404,26 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "welcome-model-claude-checking",
-        heading: "Your Claude subscription",
+        name: "welcome-ready-checking",
+        heading: "Ready",
         parts: &[
-            Part::Named { role: Role::Status, name: "Trying your Claude subscription" },
+            Part::Named {
+                role: Role::Paragraph, name: "Claude subscription · trying: Signed in to your subscription"
+            },
             Part::Absent { role: Role::Button, name: "I’ve signed in" },
         ],
     },
     Holds {
-        name: "welcome-model-claude-not-yet",
-        heading: "Your Claude subscription",
+        name: "welcome-ready-not-yet",
+        heading: "Almost ready",
         parts: &[
-            Part::Named { role: Role::Alert, name: "Claude didn’t answer" },
+            Part::Named { role: Role::Paragraph, name: "Claude subscription · Claude didn’t answer" },
             Part::Named {
                 role: Role::Paragraph,
                 name: "Claude Code isn’t signed in here yet. Sign in again, then try again.",
             },
             Part::Named { role: Role::Button, name: "Try again" },
-            Part::Named { role: Role::Button, name: "Sign in again" },
-            Part::Named { role: Role::Link, name: "Continue anyway" },
+            Part::Named { role: Role::Link, name: "Sign in again" },
             Part::Absent { role: Role::Button, name: "I’ve signed in" },
         ],
     },
@@ -1609,7 +1610,7 @@ const HOLDS: [Holds; samples::N] = [
                 role: Role::Paragraph,
                 name: "Everything is connected. Create your first project, with 2 repositories in it, and start working.",
             },
-            Part::Named { role: Role::Paragraph, name: "Forge Forgejo on this machine · connected as temper" },
+            Part::Named { role: Role::Paragraph, name: "Forgejo on this machine · connected as temper" },
             Part::Named { role: Role::TextField, name: "Your first project" },
             Part::Named { role: Role::Button, name: "Create your project" },
         ],
@@ -1643,8 +1644,10 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-ready-under-way",
         heading: "Almost ready",
         parts: &[
-            Part::Named { role: Role::Paragraph, name: "Forge Forgejo on this machine · Setting up: preparing" },
-            Part::Named { role: Role::Paragraph, name: "Model ChatGPT plan · sam@example.com" },
+            Part::Named {
+                role: Role::Paragraph, name: "Forgejo on this machine · work/hello · Setting up: preparing"
+            },
+            Part::Named { role: Role::Paragraph, name: "ChatGPT plan · sam@example.com" },
             Part::Named { role: Role::Paragraph, name: "Forgejo is still setting up; this page moves on by itself." },
             Part::Named { role: Role::Link, name: "‹ Back" },
             Part::Absent { role: Role::Button, name: "Try the playground instead" },
@@ -1668,9 +1671,9 @@ const HOLDS: [Holds; samples::N] = [
             },
             Part::Named {
                 role: Role::Paragraph,
-                name: "Forge Forgejo on this machine · connected as temper · work/hello made",
+                name: "Forgejo on this machine · connected as temper · work/hello made",
             },
-            Part::Named { role: Role::Paragraph, name: "Model ChatGPT plan · sam@example.com" },
+            Part::Named { role: Role::Paragraph, name: "ChatGPT plan · sam@example.com" },
             Part::Named { role: Role::TextField, name: "Your first project" },
             Part::Named { role: Role::Button, name: "Create your project" },
             Part::Absent { role: Role::Disclosure, name: "Each step" },
