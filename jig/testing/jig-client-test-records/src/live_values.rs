@@ -235,6 +235,7 @@ pub fn inbox_both_groups_record() -> w::Inbox {
     let need = w::InboxEntry::new(
         &l,
         w::InboxEntryParts {
+            projects: List::with_capacity(0),
             reply: None,
             task: stored_link_record(),
             project: Some(7),
@@ -249,6 +250,7 @@ pub fn inbox_both_groups_record() -> w::Inbox {
     let update = w::InboxEntry::new(
         &l,
         w::InboxEntryParts {
+            projects: List::with_capacity(0),
             reply: Some(task_line_record()),
             task: stored_link_record(),
             project: Some(7),

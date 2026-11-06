@@ -2429,6 +2429,18 @@ adds no slot (decided 2026-11-03).
   for that project's; a set touching both waits for parties holding all
   of them. One no party may accept is refused at its entrance, as every
   proposal nobody may accept is (tasks.md, section 9).
+- **It belongs to the projects its items touch.** An application's item of
+  a project's scope and a project's own policy touch that project; a
+  proposal's `projects` are those, ascending and distinct, at most 32, worked
+  out by the core from its items, which never change once it is made, and never
+  by a client. One whose items touch no project, or that has no items, is the
+  deployment's, and has none. A set of both a project's items and the
+  deployment's belongs to that project. It stays in the deployment's scope, as
+  above: its `project` and its holder are the deployment's and its decision is
+  made there. A reader's inbox row and project-filtered reads show it in each of
+  its `projects`, and one of the deployment's in each project that reader owns,
+  at most 32, the lowest numbers first (`../client/domain/contract.md`, 5.1).
+  A row counts once across projects, and once in each project it shows in.
 - **The owner keeps the value.** The tasks child keeps the proposal as
   it keeps every proposal: its proposer, reason, where it waits and its
   state. The core keeps its set, by the proposal's number, in memory and

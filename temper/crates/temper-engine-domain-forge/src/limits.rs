@@ -74,6 +74,8 @@ pub struct Limits {
     pub issue_policy: temper_engine_domain_forge_issues::Limits,
     pub change_policy: temper_engine_domain_forge_change::Limits,
     pub queue_window: skein_lib::Duration,
+    /// Gap between sittings (temper/docs/design/domain/forge.md, 5.6).
+    pub sitting: skein_lib::Duration,
     pub client: skein_forge_client::Limits,
 }
 
@@ -123,6 +125,7 @@ pub fn valid(l: &Limits) -> bool {
         || skein_lib::usize_of(l.change_policy.questions) >= temper_engine_domain_forge_change::QUESTIONS_OPEN
         || l.change_policy.tasks == 0
         || l.queue_window == skein_lib::Duration::ZERO
+        || l.sitting == skein_lib::Duration::ZERO
         || l.makings == 0
         || l.makings > 64
         || l.adoptions == 0

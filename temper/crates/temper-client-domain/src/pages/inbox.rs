@@ -128,35 +128,22 @@ impl Inbox {
             self.cut = [inbox.next.is_some(); 2];
             for rows in [&inbox.needs, &inbox.updates] {
                 for row in rows {
-                    self.add(
-                        row.card_key(),
-                        row.group(),
-                        row.project,
-                        position(row.object),
-                        unread(row.reply.as_deref()),
-                        out,
-                    );
+                    self.add(row, out);
                 }
             }
         }
     }
-    fn add(
-        &mut self,
-        object: ObjectKey,
-        group: InboxGroup,
-        project: Option<u32>,
-        position: Option<u64>,
-        unread: Option<contract::Count>,
-        out: &mut Queue<Request>,
-    ) {
+    fn add(&mut self, row: &contract::InboxEntry, out: &mut Queue<Request>) {
         if self.cards.len() == self.cards.capacity() {
             return;
         }
         if let Some(filter) = self.filter.project
-            && Some(filter) != project
+            && !row.shows_in(filter)
         {
             return;
         }
+        let object = row.card_key();
+        let group = row.group();
         if let Some(filter) = self.filter.kind
             && kind(filter) != group
         {
@@ -182,9 +169,9 @@ impl Inbox {
             .push(Card {
                 object,
                 group,
-                project,
-                position,
-                unread,
+                project: row.project,
+                position: position(row.object),
+                unread: unread(row.reply.as_deref()),
                 handle,
                 page: None,
                 words: None,
@@ -221,14 +208,7 @@ impl Inbox {
             if let ReadValue::Inbox(page) = value {
                 *self.cut.get_mut(index).expect("query names one section") = page.cut;
                 for row in &page.rows {
-                    self.add(
-                        row.card_key(),
-                        row.group(),
-                        row.project,
-                        position(row.object),
-                        unread(row.reply.as_deref()),
-                        out,
-                    );
+                    self.add(row, out);
                 }
             }
         } else {
