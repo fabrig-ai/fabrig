@@ -80,10 +80,55 @@
 - **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
   the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
   under way is the first step Running with no "one short message", and settled with no
-  usable source is the first step Stopped. No page reaches Answered, a sign-in's or a
-  key's steps, a stop at a later step, a reason with no act, or the box on `ConnectModel`:
-  each is drawn and tested, and `model_check::last_try_failed` is false, so Ready's muted
-  line is not said. A model usable moves on to Ready by itself until that draft is built.
+  usable source is the first step Stopped, its why the host's. No page reaches Running past
+  its first step, Answered, a sign-in's or a key's steps, a stop at a later step, a reason
+  with no act, or the box on `ConnectModel`: each is drawn and tested
+  (`temper-client-view`'s `tests/model_check.rs`), with no gallery state, and
+  `model_check::last_try_failed` is false, so Ready's muted line is not said. "Try again"
+  checks the host again, and it and "Sign in again" act on the welcome's Claude way alone
+  (`temper-client-domain`'s `pages/connect_model.rs`, `matches_welcome_program`), so on a
+  plan's, a key's or `ConnectModel`'s box a press would do nothing. A model usable moves on
+  to Ready by itself until that draft is built.
+- **Design departs:** 3.5, *The try*, from the look request `model-check` of 2026-11-06, each
+  by the cut of its landing: the steps are Forge's list, named "Each step" with hidden state
+  words, where the request's pages have neither, because the terminal reads them, so an
+  answered box prints "Each step" twice there, its disclosure's name and its list's, the same
+  tree as Forge's. "Sign in again" is a button, where 03 has a link, because its address is
+  the page it stands on. A reason with no act keeps "Continue anyway" after "All ways", where
+  the request's words have "Try again" and "All ways" alone, because
+  `../draft/model-check.md`, 4 keeps no one out. At a phone's width answered's muted words
+  take a row of their own, where 02 draws them inline, because the request's words put them
+  under the title. The host's why ends "Sign in again, then try again.", where the request
+  keeps the alert's words, because the box stands in the panel's place, with no command above
+  it.
+- **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
+  is left no funding. Its roles' pools are as large as the project's period
+  (`temper-service`'s `stock.rs`, `project_policy`), so once a person's pool has
+  opened in a period, nothing of it is left: `jig-domain-core`'s
+  `connector_repair_authority` gives no seed, the run is refused
+  (`../domain/forge.md`, 5.7) and Home keeps the computed sentence, with no lede
+  or byline, at each sitting of that period. The request `ui-home-status` of 2026-11-05 has the
+  agent always run for now. Both the root's status world and the fake box's walk
+  shrink the owner's pool to leave funding, the box's by `project fund`
+  (`../domain/forge.md`, 20, holds the question).
+- **Not yet:** 10: the walk that request asks of a box: land a change, come back
+  past 30 minutes, see the count, the agent's words and the byline. A real box
+  has no fake clock, and the 31 minutes do not fit its tier, so
+  `temper/crates/temper/tests/fake_backends/walk/status.rs` stops inside a
+  sitting: the first look, then the count across a client's and a box's restart,
+  with the byline asserted absent and the charter's scripted words read from the
+  model's document alone. Walked by hand on a fake box, its owner's pool as the
+  stock leaves it, at 1440 and 420 (the request `ui-final-walk` of 2026-11-05): the
+  landing stands in Changes, and past 31 minutes Home says "you last looked 31
+  minutes ago" over the computed sentence, with no brief and nothing saying why
+  (section 11, *A brief refused, on Home*). The period's 8,117,760 stood all
+  reserved, so the cause above is read from those balances, not proved. Each half is
+  shown apart: a new sitting on the client world's fake clock
+  (`temper/tests/client/tests/suite/status.rs`), the agent's brief in the root's
+  document (`temper/tests/engine/domain/tests/suite/forge_routes/status.rs`), and
+  the lede and byline from a hand-made document (`temper-client-view`'s
+  `tests/home.rs`, the gallery's `home-morning`); no test draws a brief an agent
+  wrote.
 - **Not yet:** 10: a walk from the sheet through planning, a live report and
   delegate tasks, Pause, Resume, a message and Stop, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The
@@ -351,6 +396,11 @@
   number order, as the request's words have it, so the reference's read "task
   by task, plan, tasks, land whole", where its mock, the target, draws them the
   other way round: number order is what a project's settings decide.
+- **Design departs:** 5.3, from the greenfield target, by the request
+  `ui-owner-menu` of 2026-11-06, at the user's word: the rail's foot row is the
+  button of a menu with "Accounts" and "Sign out", where the mock draws the
+  person's name as plain text, and a browser over 760 px signs out there rather
+  than on the `Accounts` tab. `greenfield/README.md` notes it.
 - **Design departs:** 3.5, *Settings*, 5.3 and 5.13, from the request `ui-settings`
   of 2026-11-05, decided by its plan's cut. "Sign out did not reach the engine."
   stands on the rail's foot as well as the `Accounts` tab, where the request moves

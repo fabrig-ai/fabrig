@@ -341,8 +341,13 @@ fn owned_config() -> engine::Config {
         git: b"http://forge.example:3000".as_slice().into(),
         web: None,
     };
-    config.machine =
-        Some(forge::Machine { owned: Some(place.clone()), fake: None, github: place, github_git_program: None });
+    config.machine = Some(forge::Machine {
+        owned_person: Box::new([]),
+        owned: Some(place.clone()),
+        fake: None,
+        github: place,
+        github_git_program: None,
+    });
     config
 }
 #[test]

@@ -587,8 +587,16 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         })),
         Answer::Protection(None),
         Answer::Settings(Settings { default_branch: Box::new([21]), merge: true, squash: false, rebase: true }),
-        Answer::Permission(Permission::None),
-        Answer::Permission(Permission::Admin),
+        Answer::Permission(skein_forge::api::UserPermission {
+            user: 3,
+            login: Box::from(b"".as_slice()),
+            permission: Permission::None,
+        }),
+        Answer::Permission(skein_forge::api::UserPermission {
+            user: 7,
+            login: Box::from(b"ada".as_slice()),
+            permission: Permission::Admin,
+        }),
         Answer::Created(22),
         Answer::Commented(23),
         Answer::Reviewed(24),

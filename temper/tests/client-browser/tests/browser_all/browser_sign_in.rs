@@ -1,4 +1,5 @@
 //! Signing in, cookies and reconnects share one browser and server (client/browser.md, 4.6, 1).
+use skein_browser::boundary::Key;
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Outcome, Script, Step};
 use skein_ui::Role;
@@ -17,6 +18,10 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
         b"401".as_slice().into(),
     ];
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
+    let row = || Find::exactly_named(Role::Button, b"Owner");
+    let item = |name: &[u8]| Find::exactly_named(Role::MenuItem, name);
+    let press = |find| Step::Person(PersonStep::Press { find });
+    let gone = |find| Step::Person(PersonStep::Gone { find, within: WITHIN });
     let mut steps = temper_client_browser_world::start_chat(b"Hello");
     steps.extend([
         Step::Person(PersonStep::Reload),
@@ -39,9 +44,22 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
         see(tier.states().live),
         temper_client_browser_world::connected(),
         Step::Address(FIRST_CHAT_ADDRESS.into()),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Settings") }),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Accounts") }),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Sign out") }),
+        press(row()),
+        see(item(b"Accounts")),
+        see(item(b"Sign out")),
+        Step::Key(Key::Escape),
+        gone(item(b"Sign out")),
+        Step::Focused(row()),
+        press(row()),
+        press(first_chat(b"Hello")),
+        gone(item(b"Sign out")),
+        Step::Focused(row()),
+        press(row()),
+        press(item(b"Accounts")),
+        see(Find::exactly_named(Role::Heading { level: 1 }, b"What agents run on.")),
+        gone(Find::exactly_named(Role::Button, b"Sign out")),
+        press(row()),
+        press(item(b"Sign out")),
         see(tier.states().signed_out),
         Step::Person(PersonStep::Reload),
         see(tier.states().signed_out),

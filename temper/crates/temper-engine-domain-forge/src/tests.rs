@@ -424,7 +424,11 @@ fn adoption_reads_permission_before_committing_its_role() {
             rate: None,
             call,
             cost: 1,
-            result: Ok(skein_forge::api::Answer::Permission(skein_forge::api::Permission::Write)),
+            result: Ok(skein_forge::api::Answer::Permission(skein_forge::api::UserPermission {
+                user: 1,
+                login: Box::from(b"".as_slice()),
+                permission: skein_forge::api::Permission::Write,
+            })),
         }),
     );
     assert!(result.is_empty());
