@@ -267,6 +267,7 @@ Design documents:
 - [`client/tools.md`](client/tools.status.md)
 
 Drafts:
+- [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/reference-landing.md`](draft/reference-landing.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
