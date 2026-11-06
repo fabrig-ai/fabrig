@@ -100,4 +100,6 @@ pub struct TurnLimits {
     pub messages: u32,
     pub blocks: u32,
     pub text: u32,
+    /// The most bytes of a call's outcome line, within `text`'s budget.
+    pub outcome: u32,
 }

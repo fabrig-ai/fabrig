@@ -853,7 +853,7 @@ mod tests {
         let codec = jig_protocol_transcript::Limits {
             smith: smith_transcript::v6::CEILINGS,
             bytes: 1_048_576,
-            turn: client::TurnLimits { messages: 64, blocks: 16, text: 65_536 },
+            turn: client::TurnLimits { messages: 64, blocks: 16, text: 65_536, outcome: 65_536 },
         };
         (Session::new(driver, limits, codec), now, wall)
     }

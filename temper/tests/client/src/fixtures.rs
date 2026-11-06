@@ -165,7 +165,7 @@ fn world_with(seed: u64, front: Joint) -> World<Temper, Joint> {
 pub fn codec() -> jig_protocol_transcript::Limits {
     jig_protocol_transcript::Limits::new(
         32768,
-        jig_client::contract::TurnLimits { messages: 32, blocks: 32, text: 8192 },
+        jig_client::contract::TurnLimits { messages: 32, blocks: 32, text: 8192, outcome: 8192 },
     )
 }
 
@@ -1116,7 +1116,12 @@ pub fn codec_for(limits: &jig_client::DomainLimits) -> jig_protocol_transcript::
     let bytes = limits.document_bytes.min(u64::from(jig_client_protocol_wire::CEILINGS.turn_carried_bytes));
     jig_protocol_transcript::Limits::new(
         u32::try_from(bytes).expect("wire bound fits"),
-        jig_client::contract::TurnLimits { messages: limits.rows, blocks: limits.rows, text: limits.turn_text },
+        jig_client::contract::TurnLimits {
+            messages: limits.rows,
+            blocks: limits.rows,
+            text: limits.turn_text,
+            outcome: limits.turn_text,
+        },
     )
 }
 /// Commit smith's session turn through the worker's real turn boundary.
