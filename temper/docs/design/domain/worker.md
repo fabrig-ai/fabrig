@@ -804,9 +804,9 @@ for; and that nothing is live once it settles.
   last failure's bounded text with the hold. No LLM is shown this detail,
   while a hold's words reach the LLM's task read
   (`temper-engine-smith/src/answers.rs`), so it takes a field of its own
-  or a path to clients alone. Default: the line alone, which `temper help
-  server` says how to read, until that proves too little. The user's to
-  decide.
+  or a path to clients alone. Default: the line alone, which `task show`'s
+  way out points to and `temper help hold` and `temper help server` say how
+  to read, until that proves too little. The user's to decide.
 - **What a deployment's operators may read of a run's prompts.** A run's
   prompts hold repository text and anything an agent read, and a real
   design of keeping them starts from who may read them
