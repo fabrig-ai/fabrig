@@ -210,3 +210,59 @@ The largest single test is the tree wide/deep memory walk, 1.025999 CPU s
 (12.77% of the tree family, 3.11% overall); its source builds one 2,000-wide,
 12-deep layer and checks two limit settings. Its setup and walking shares
 remain unknown. Decisions about changes belong to the later tasks.
+
+## Repairs
+
+The aim is already met at the start of `hearth-speed/repeats`; no repair
+is needed. The starting commit is
+`ef194173bfbb678a9ce08c4a89210a32f8141f22`, including the `dev-profiles`
+commit `868591acdea1ea85722f8f3636fb620f0f471c65` and the `git-setup`
+commit `f3b51f81e9a7c786c7748b8ea053632734e57e2c`.
+
+Both sides were measured on `debian-32gb-hel1-11` (`hostname` through
+heavy), on 2026-11-06 UTC between 09:34:06 and 09:34:57 (`date -u`).
+The base is `483dfed6aa8639dc7df93a4e381c6ae2458c4468`, measured in a
+detached checkout in the same slot before returning to the starting branch.
+These are builder figures, not queue figures.
+
+The method is `hearth/docs/plan/hearth-speed/notes/common.md`, “The
+method”: all 34 hearth workspace packages, built first, then two
+back-to-back default runs on each side, without a filter or concurrency
+override. The throwaway `.repeats-measure.py` loaded `tools/tiers/cpu.py`
+with `runpy.run_path`, called `prepare`, `execute` and `summary` with a
+fresh directory per run, and built the static wrapper once through heavy
+with the prescribed C flags. Every measured run used
+`NEXTEST_DOUBLE_SPAWN=0` and `TEMPER_BUNDLE=none`. CPU and wall have the
+same accounting scope as “Before” above; no compilation is included.
+
+| Revision | Run | User s | System s | CPU s | Wall s | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Base | 1 | 27.733890 | 6.689631 | 34.423521 | 3.846887 | 2,189 |
+| Base | 2 | 28.242688 | 6.638705 | 34.881393 | 3.912555 | 2,189 |
+| Start | 1 | 21.331669 | 5.602743 | 26.934412 | 2.399612 | 2,189 |
+| Start | 2 | 21.355003 | 5.802053 | 27.157056 | 2.526335 | 2,189 |
+
+All four runs passed every selected test: 2,189 attempts apiece, with no
+retries, failures, starvation, unobserved attempts, leaked descendants or
+incomplete records. Both base figures exceed the existing 30 CPU s budget;
+both starting figures are below it. No budget changed.
+
+Comparing the lower figure on each side gives **78.244210%**, a saving of
+**7.489109 CPU s (21.755790%)**. The same-machine 85% target is
+29.259993 CPU s, so the start is 2.325581 CPU s below the target. These
+starting figures are also the final figures: this task stops without a
+code change, as required once the aim is met.
+
+| Family | Base run 1 CPU s | Start run 1 CPU s | Saving CPU s |
+| --- | ---: | ---: | ---: |
+| Builder suite | 9.773526 | 8.808032 | 0.965494 |
+| Tree suite | 8.170844 | 3.558681 | 4.612163 |
+| Real git | 7.232192 | 5.767758 | 1.464434 |
+| Render suite | 3.333687 | 3.169380 | 0.164307 |
+| All the rest | 5.913272 | 5.630561 | 0.282711 |
+
+The remaining 26.934412 CPU s is observed work, not a measured available
+saving. The profile's unavailable function shares remain unknown. No
+additional repair or floor reduction was attempted; no tests, assertions,
+cases, seeds, counts, goldens, cuts or recorded digests changed. The queue's
+post-landing figure remains unknown until its own check runs.
