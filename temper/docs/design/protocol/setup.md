@@ -1871,6 +1871,13 @@ without it, that configured bundle is used. Missing both refuses with the
 bundle command and --bundle. Empty C stays untouched: init writes directly
 into the effective sandbox. Box startup performs no build or fetch.
 
+A sandbox init writes takes the kernel's ports, a bind of port 0 for each
+of its five, never the 8367 to 8371 a person's box prefers (8.2). So a
+fake box leaves those to the box a person starts after it, and two fake
+boxes, either of them restarted, never meet on a port. They are written
+fixed and held as init's are, and the printed link names them. An
+init-shaped source's listeners stay its own.
+
 After the sign-in block (7.2), before any supervised peer starts, the box
 prints the effective directories, the fakes' origins and the files a walk
 pastes (configuration.md, 12.1).

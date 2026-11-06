@@ -10,6 +10,10 @@ approval-identity story covers a refusal naming no command.
 
 Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 
+- **Not yet:** 2.6: the process tier runs one test at a time
+  (`.config/nextest.toml`, `process-temper`). 2.6: the goal and away walks
+  keep the forge's 5 s poll, and home's status walk stays slow on the short
+  paces (`crates/temper/tests/fake_backends/walk`).
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
   the twins' documents among `temper-playground`'s stories: B0's and
