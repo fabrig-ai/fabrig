@@ -611,17 +611,15 @@ fn waiting(b: &mut Builder, root: &temper_client_domain::Domain, holder: c::Hist
 fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, proposal: &c::Proposal, words: &Words) {
     use temper_client_domain::forge::ways::Proposed;
     let c::ProposalAction::Settings(settings) = &proposal.action else { return };
+    b.open(Role::Slot);
+    b.style(crate::look::SETTINGS_PROPOSAL_REASON);
+    super::document(b, &proposal.reason);
+    b.close();
+    if settings.items.is_empty() {
+        return;
+    }
     b.open(Role::List);
     b.style(crate::look::SETTINGS_PROPOSAL_ITEMS);
-    let reason = proposal.reason.bytes();
-    let mut start = 0;
-    for (end, byte) in reason.iter().enumerate() {
-        if *byte == b'\n' {
-            reason_line(b, reason.get(start..end).expect("reason line"));
-            start = end.checked_add(1).expect("bounded reason");
-        }
-    }
-    reason_line(b, reason.get(start..).expect("last reason line"));
     for item in &settings.items {
         let mut rendered = false;
         if let Some(values) = root.forge().proposed(proposal.key.number) {
@@ -758,15 +756,6 @@ fn project_label(root: &temper_client_domain::Domain, project: u32) -> Box<[u8]>
         Some(name) => name,
         None => skein_lib::bytes::copy_of(skein_lib::Decimal::of(u64::from(project)).as_bytes()),
     }
-}
-
-fn reason_line(b: &mut Builder, line: &[u8]) {
-    b.open(Role::Item);
-    b.open(Role::Text);
-    b.style(crate::look::SETTINGS_PROPOSAL_REASON);
-    b.run(skein_ui::Run::Plain, line);
-    b.close();
-    b.close();
 }
 
 fn settings_title(root: &temper_client_domain::Domain, proposal: &c::Proposal, words: &Words) -> Box<[u8]> {
