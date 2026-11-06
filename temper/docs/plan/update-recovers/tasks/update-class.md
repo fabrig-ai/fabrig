@@ -63,3 +63,12 @@ Acceptance, each test seen failing first, for its rule's reason, unless it says 
 ## Report
 
 As your text says, and: what each test showed before the class moved, which is the plan's reproduction; each rule broken by hand for a new test and the failure seen; what the merge-style and rebase-style late copies did in the world.
+
+## Rebase (2026-11-06, step merge, foreman update-recovers/update-class/foreman-1)
+
+resolve forge.status.md by preserving both tasks’ status-bullet deletions
+The merge conflicts in `temper/docs/design/domain/forge.status.md`.
+Task commit `f42cdfd415` removes the `update-class` bullet.
+Integration commit `58d6dcebca` (merged by `9771c5aa70`) removes the adjacent `change-decides-again` bullet.
+Resolve the conflict with both bullets absent, retaining all other status entries and integration changes.
+This satisfies acceptance item 7; no code change is needed for this refusal.
