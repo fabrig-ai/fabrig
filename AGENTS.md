@@ -42,7 +42,7 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 - Read a failure's log before anything reruns; no unchanged rerun, except once after exit 137.
 - A failure your change can't reach runs once alone: passing, it's a flake, reported with both logs and the machine; failing, it's a question.
 - Fix a failure in the lowest tier that shows it: a skein fault seen downstream is reproduced in skein.
-- **While a plan is being built, only the focused and fuzzy suites run.** The browser, process and live tiers run after landing: a new story in one is written and compiled, not run, and a red they raise is repaired then (the user, 2026-11-06).
+- **While a plan is being built, only the focused and fuzzy suites run.** The browser, process and live tiers run after landing: a new story in one is written and compiled, not run, and a red they raise is repaired then (the user, 2026-11-06). That repair may run the test it repairs, by name, alone.
 - Every tree's tier has the user's CPU budget and a wall hard limit; **starved** is a warning, never red on that account (skein/docs/foundation/testing-strategy.md, 8.1).
   Over budget is red: does the test belong here; can it be made faster; otherwise ask the user, with measurements. Moving a test to escape a budget is raising it.
 

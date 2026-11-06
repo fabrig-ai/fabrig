@@ -4069,7 +4069,7 @@ listener's (`../client/forge.md`, the browser's steps).
    renders the page from them (client/forge.md, 9.1) and holds it and
    `back` with the state. With `back`, the link is a path on the
    page's own origin, `/forges/<n>/github/manifest?state=<s>`: the
-   browser goes to it in the page's own tab, as a sign-in's does,
+   browser goes to it in the page's own tab,
    and comes back to `back` at the end. Without `back`, the link is
    the whole address on the clients' listener,
    `http://<listener>/forges/<n>/github/manifest?state=<s>`; the

@@ -95,8 +95,9 @@ alone, and many of ctl's tools (`client/README.md`,
 browser, whose story A walks in the browser tier but not yet by hand
 (`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). The browser tier holds 13 tests, one past its cap, its CPU
-measured within its budget on the 12 without the call line's alone, a closed
+(`release.md`). The browser tier holds 14 tests, two past its cap, its CPU
+measured within its budget on the 12 without the call line's and the welcome's
+sign-in's alone, a closed
 chat's wait is located but not split, and no test shows a head waiting for room
 ended by the stall deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
@@ -184,23 +185,28 @@ says "Starting", and `task show` names a `deployment show` ctl lacks
 task and says a held task waits on its hold, but `temper help task` still says ctl
 takes no task and numbers a party's question, which `waiting on:` does not
 (`client/tools.md`). A proposal of settings reaches a
-project's Needs you and rail's count, but its live card lists no item of temper's
-kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
-"Decision made" while it waits, and Accept on that chat's own card is refused, where
-Needs you's and Home's work (`client/README.md`). "Start goal…" went once from a
+project's Needs you and rail's count and is accepted on its chat's card, but its live
+card lists no item of temper's kinds, stays on Needs you once accepted, leaves its chat
+on a reload, stands below the chat's newest reply rather than at its call and follows a
+"Decision made" while it waits; the chat's card draws no Reject, departing from the
+request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
 binary that runs it and has a Copy, but no browser test presses the Copy; with no `HOME` and an XDG variable placing
 only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request
-`model-check-pane` in its list's words, and a sign-in that ends on its way's page stops at
-*A model usable*, where that request goes on to Ready (`client/README.md`). A plan's sign-in draws the waiting page of the request
+`model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
+moves on by itself, but only Chromium has run that, against a fake issuer, and no test has a slow sign-in move on after a
+hidden tab, or a paste's end on the welcome. It draws the waiting page of the request
 `sign-in-new-tab`; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
 (`client/README.md`). The rail's person's menu departs from the request
 `ui-owner-menu` in a press outside that took the focus, which keeps it, a project-less
 `Accounts` page's "Sign out", which stays the banner's, and the tab's whole row leaving
-over 760 px, the login with it (`client/README.md`). The rename's form asks the focus beside an
+over 760 px, the login with it (`client/README.md`). A chat started by sending opens on its
+composer and a send leaves the focus there, but a starter's press asks the same on a phone,
+and no run on record shows what a real phone's keyboard does (`client/README.md`), and no test
+moves the focus while a heading drawn after its page waits (`client/browser.md`). The rename's form asks the focus beside an
 open reply, where a tree holds one request, seen by reading (`client/README.md`),
 and no test measures a long chat's document against its window, where the user's
 answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
@@ -210,8 +216,7 @@ Configure, departing from the request `configure-temper-own-way` in its referenc
 words and look (`client/README.md`), but no journey records its acts and no
 render has checked its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
 the line departs from the request `chat-work` in a failed call's colour, and the end
-mark is a glyph that does not blink (`client/README.md`); a chat is read by "Older" in a
-window of 16 lines until `draft/chat-reading.md`, 5 is built, and on a walk a long chat's
+mark is a glyph that does not blink (`client/README.md`); on a walk a long chat's
 first "Older" did not end in 40 seconds, its cause unknown (`client/README.md`). The words being written draw an
 empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, a last block still open changes as it commits, and no browser test draws them
@@ -232,7 +237,15 @@ answer as it stood (`domain/agent.md`). A journey's `add` redacts, proves
 and scans before it writes, but no real box's recording has been through it, the
 two welcome journeys keep their fake boxes' link secrets until next added, nothing
 refuses `again` on a real journey, and the refusal's process tests watch two
-directories, not every path (`client/journeys.md`). The process tier runs one test
+directories, not every path; no run on record has `again` walk `project-landing`'s
+setup through a sign-in's new tab, and its words still say the page returns
+(`client/journeys.md`). Conversations are read by their log's edges
+(`client/README.md`, 5.15); in the terminal PgUp and PgDn are lines followed
+by Enter, and `lines` stays for jig's reference UI and tools, past what
+temper's bytes hold. The browser tier runs Chromium alone, with
+`overflow-anchor: none` as the nearest run to Safari; Firefox and Safari
+themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**).
+The process tier runs one test
 at a time where its design has three, its one trial at three having failed twice on
 causes not found, and most of the `test-speed` plan's whole runs read over its CPU
 budget (`domain/testing.md`). The
