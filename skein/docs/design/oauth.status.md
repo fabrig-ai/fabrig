@@ -2,6 +2,8 @@
 
 2026-11-06. Where skein's code lags or departs from [oauth.md](oauth.md).
 
+- **Not yet:** 6.5: the listener's fixed page says "Sign-in received. You may close
+  this page.", until `temper/docs/design/draft/sign-in-new-tab.md`, 4 is built.
 - **Not yet:** 4: `skein-oauth/src/json.rs`'s `Json` and `Collector` derive
   `Debug` over their tokens, and a `Json` holds a token response, though only
   as a local of `machine.rs`'s reader, in no record that prints: the request
