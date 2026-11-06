@@ -35,6 +35,15 @@
   number; a row past that window has no "started goal" line. The answer of
   2026-11-05 to `ui-chat-draft/chats-drafts` keeps this one chips window,
   without raising jig's bound.
+- **Not yet:** 5.3: the rename's form stands beside the open project's row, in
+  the rail after the rows, with a visible "Cancel"; an empty or unchanged name
+  leaves it open, and spaces at a name's ends are sent.
+- **Design departs:** 5.3, from the greenfield target, by the request
+  `ui-rename-focus` of 2026-11-06: closing the rename's form leaves the project
+  menu open with the focus on its summary, where the mock draws the menu closed,
+  since a disclosure's fold is skein's page part's (`ui-web.md`, 7). The field does
+  not select its name on opening, and no toast says "Renamed": the request names
+  neither.
 - **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
   Stop and Close, and offers Change model only with supplied choices;
