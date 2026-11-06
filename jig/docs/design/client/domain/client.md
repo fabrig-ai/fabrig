@@ -1203,8 +1203,7 @@ with a person in front of a tree, are view.md's, 18.10.
     `shapes::set_goal_from(me, project, template, draft, reason)` fills
     an offered template by number; `shapes::set_agreed_goal_from`, the same with
     its specification's `asks`, a task its requester agrees before it starts
-    changing. A template not flagged conversation is filled with no note scopes,
-    whatever the creating bound holds: a role reaches its chats' own. Each compares the filled draft
+    changing. A task keeps the creating bound's note scopes, a goal's as a chat's. Each compares the filled draft
     with the project's creating bounds in `me` (contract.md, 5.3), a
     deadline given as a span within both, for the engine to judge, and
     gives one of four: *made,* a `Create`, within the first bound;

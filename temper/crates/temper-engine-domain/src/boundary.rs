@@ -152,6 +152,8 @@ pub enum Tool {
         reason: Box<[u8]>,
         kinds: Box<[KindValue]>,
     },
+    /// Propose a whole settings file held in an accessible note at this revision.
+    ProposeSettingsNote { against: u32, note: u64, revision: u32, reason: Box<[u8]> },
     /// Write or correct one scoped note by the revision this run recalled.
     Note { entry: jig_domain_notes::New, recalled: Option<u32> },
     /// Replace a range of a note's body lines by the revision this run recalled.
@@ -981,6 +983,7 @@ pub(crate) enum Read {
     InputCheck(InputCheck),
     GoalWords(Box<GoalWords>),
     Notes { owner: Token },
+    SettingsNote { to: Token, call: Box<Call> },
 }
 
 #[derive(Debug)]

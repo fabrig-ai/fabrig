@@ -592,7 +592,7 @@ tokenizer::feed_bound(limits: &tokenizer::Limits) -> Option<u64>
     their strings' lengths. What it collects is held to the reference's
     reading pruned by the filter, by a plain recursive function of the
     test's own, and its skipped count to the bytes of what was pruned.
-- **A reference parser** in the world crate, recursive descent over a
+- **A reference parser** in the world's kit, `skein-json-kit`, recursive descent over a
   whole document, sharing no code with the tokenizer: the standard
   library judges UTF-8 and surrogate pairs, and a plain reading of the
   grammar judges numbers. It mirrors only what the tokenizer promises:
