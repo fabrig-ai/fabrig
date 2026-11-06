@@ -61,7 +61,7 @@ Options, each pre-approved:
 - **The look's token:** the next number above the highest in `look.rs`, and its row in `tests/look.rs`. On a merge with another draft's new token, take the next free one.
 - **Where the end's nodes sit:** a `Role::Status` from `words.status`, inside a slot styled `WRITING_END`, or the style on the status itself, whichever `words.status` allows without a new word function.
 - **How the terminal prints the mark:** as the text shell prints a status inside its block, on its own line if it must. `PROVISIONAL_LINE` in `temper/tests/real-loop/tests/live_text.rs` becomes what it prints, read from a run, and your report gives it.
-- **`text_limit`:** `provisional` stops taking it. If `markdown` in `pages/chat.rs` then has no reader, it goes, and so does the argument where nothing else reads it.
+- **`text_limit`:** `turn-prices` left `provisional` reading the whole message and `conversation_with_times` binding `let (rows, _) = limits;`. The argument goes where nothing else reads it.
 - **An empty line and the clock:** `turn_time` is not called for a line that draws nothing, so an empty turn writes no day or clock.
 
 ## Steps
