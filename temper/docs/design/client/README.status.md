@@ -491,6 +491,26 @@
   decided by its plan's cut. `program_environment` answers the owner at any time,
   where the request has it during set up, because Connect a model draws the same
   command after set up.
+- **Not yet:** 3.5, The welcome's Model step, *The command's Copy*: no browser test
+  presses it, since no story in `temper/tests/client-browser` reaches the Claude panel,
+  and no walk on record has. skein's `a_clipboard_write_keeps_the_press_and_reports_once`
+  holds the part, and `host_tests_copy.rs` holds that the press's own report asks the
+  write; no test runs the one line between them, in `carry`
+  (`temper-client-shell-web/src/lib.rs`). Seen by reading.
+- **Design departs:** 4.6, *The program's environment*, from the user's word of
+  2026-11-06 on the request `box-small`: `program_environment`
+  (`crates/temper/src/directories.rs`) answers all three `TEMPER_` values where any
+  directory is off its default, where the user has each only where it differs. The word
+  reached that plan's task as it ran, and the task did not take it. `box-small-2`
+  carries it.
+- **Design departs:** 4.6, *The words of a command for this machine*, from the request
+  `box-small` of 2026-11-06, item 1, which has these words in any other command handed
+  to the person for this machine: `temper forge run`'s refusal
+  (`crates/temper/src/forge.rs`, `run_refusal`) says `temper forge prepare` and each
+  directory whole, and the terminal client says `temper open`
+  (`temper-client-shell-terminal/src/terminal.rs`), so with another `temper` first on
+  `PATH` each names that one. That plan's cut names the pages' commands alone, and no
+  reason is recorded. Seen by reading.
 - **Design departs:** 3.5, *The flows' paths* and *Builders*, from the request
   `ui-settings-tabs` of 2026-11-05, decided by its plan's cut. The terminal
   draws no path, where the request has each flow add one: the same request
