@@ -156,7 +156,13 @@ pub(crate) fn activity_fields(value: &w::Activity, limits: &Limits) -> Result<c:
             };
             c::Activity::Turn { reply: row.reply(), attempt: row.attempt(), turn: row.turn(), read: opt0 }
         }
-        w::Activity::Decided(row) => c::Activity::Decided { revision: row.revision() },
+        w::Activity::Decided(row) => c::Activity::Decided {
+            revision: row.revision(),
+            proposal: match row.proposal() {
+                Some(value) => Some(c::DecidedProposal { number: value.number(), made: value.made() }),
+                None => None,
+            },
+        },
         w::Activity::Kept(row) => {
             c::Activity::Kept { attempt: row.attempt(), pending: row.pending().clone(), question: *row.question() }
         }

@@ -91,3 +91,43 @@ fn a_person_answer_notice_encodes_its_question_number() {
         assert_eq!(encoded, expected);
     }
 }
+
+#[test]
+fn ended_settings_facts_reach_the_client_whole() {
+    use jig_client_domain::contract as c;
+    use skein_lib::{List, Writer};
+    let limits = fixtures::wire_limits();
+    let mut projects = List::with_capacity(1);
+    projects.push(23).unwrap();
+    let source = reads::Answer::Ended(Box::new(reads::Ended {
+        at: None,
+        by: None,
+        value: reads::EndedValue::Proposal(d::ProposalHistory {
+            reason: d::Text { bytes: b"why".as_slice().into(), cut: true },
+            number: 19,
+            proposer: 7,
+            as_holder: false,
+            state: d::ProposalHistoryState::Accepted { by: jig_domain_tasks::Party::Person(11) },
+            action: d::RetainedAction::Settings {
+                against: 3,
+                items: List::with_capacity(0),
+                made: Some(5),
+                projects: projects.clone(),
+            },
+        }),
+    }));
+    let record = translate::document(&source, &[], &limits).unwrap();
+    let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut out).unwrap();
+    let c::ReadValue::Ended(ended) =
+        jig_client_protocol_link::translate::reads::value(&out.finish(), &fixtures::client_limits()).unwrap()
+    else {
+        panic!("ended")
+    };
+    let c::EndedValue::Proposal(proposal) = ended.value else { panic!("proposal") };
+    assert_eq!(proposal.reason.bytes(), b"why");
+    assert!(proposal.reason.cut);
+    let c::RetainedAction::Settings(action) = proposal.action else { panic!("settings") };
+    assert_eq!(action.projects, projects);
+    assert_eq!(action.made, Some(5));
+}

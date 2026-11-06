@@ -1585,6 +1585,9 @@ fn a_departed_proposals_own_read_keeps_its_acceptance_time() {
         c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
             key: c::ObjectKey::Proposal(PROPOSAL),
             value: c::EndedValue::Proposal(c::ProposalHistory {
+                reason: c::DocumentText::complete(
+                    c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+                ),
                 action: c::RetainedAction::Batch(skein_lib::List::with_capacity(0)),
                 number: PROPOSAL.number,
                 proposer: f::TASK,
@@ -1639,7 +1642,11 @@ fn a_retained_settings_card_keeps_the_documents_acceptance_time() {
             page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
                 key: c::ObjectKey::Proposal(PROPOSAL),
                 value: c::EndedValue::Proposal(c::ProposalHistory {
+                    reason: c::DocumentText::complete(
+                        c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+                    ),
                     action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                        projects: skein_lib::List::with_capacity(0),
                         against: 0,
                         items: skein_lib::List::with_capacity(0),
                         made: Some(1),

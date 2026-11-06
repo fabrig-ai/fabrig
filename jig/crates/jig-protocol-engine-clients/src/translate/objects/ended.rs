@@ -62,10 +62,11 @@ pub fn retained_action(
     limits: &w::Limits,
 ) -> Result<w::RetainedAction, w::Problem> {
     Ok(match value {
-        d::RetainedAction::Settings { against, items, made } => {
+        d::RetainedAction::Settings { against, items, made, projects } => {
             w::RetainedAction::Settings(w::RetainedActionSettings::new(
                 limits,
                 w::RetainedActionSettingsParts {
+                    projects: projects.clone(),
                     against: *against,
                     items: super::super::settings::item_heads(items, limits)?,
                     made: *made,
@@ -133,6 +134,7 @@ pub fn proposal_history(
     w::ProposalHistory::new(
         limits,
         w::ProposalHistoryParts {
+            reason: owner::text(&value.reason, limits)?,
             action: retained_action(models, &value.action, limits)?,
             number: value.number,
             proposer: value.proposer,
@@ -347,10 +349,16 @@ pub(crate) fn settings_history(
     proposal_history(
         models,
         &d::ProposalHistory {
+            reason: d::Text { bytes: proposal.reason.clone(), cut: false },
             number: proposal.number,
             proposer: proposal.proposer,
             as_holder: false,
-            action: d::RetainedAction::Settings { against, items: d::settings_heads(items), made },
+            action: d::RetainedAction::Settings {
+                against,
+                items: d::settings_heads(items),
+                made,
+                projects: List::with_capacity(0),
+            },
             state,
         },
         limits,

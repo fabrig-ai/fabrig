@@ -3066,7 +3066,8 @@ fn no_line_is_drawn_for_lines_left() {
 fn a_closed_chat_ends_on_one_line() {
     use temper_client_domain::{Action, Address, Event, pages::Act};
     let mut rows = List::with_capacity(1);
-    rows.push(crate::tests::documents::line(1, Wall::EPOCH, c::Activity::Decided { revision: 1 })).unwrap();
+    rows.push(crate::tests::documents::line(1, Wall::EPOCH, c::Activity::Decided { revision: 1, proposal: None }))
+        .unwrap();
     let activity = c::ActivityPage { rows, before: None, after: None, cut: false };
     let (mut root, _, watch, _, _) = fixtures::root_at_with_activity(
         Address::Chat { task: TASK },
