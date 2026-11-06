@@ -4012,7 +4012,8 @@ impl Words {
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Settings and the chat document include their literal bytes (client/README.md, 3.5, 5.13).
             // Confirmation sheets add 436 literal bytes (client/README.md, 3.6).
-            text_bytes: 44284,
+            // The printed command adds 60 literal bytes (client/README.md, 4.6).
+            text_bytes: 44323,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
