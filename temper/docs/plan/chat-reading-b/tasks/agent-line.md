@@ -89,3 +89,14 @@ Not this task: the domain, skein, design text but the two status lines, the jour
 ## Report
 
 As the implementer's text asks, with the renders' differences.
+
+## Rebase (2026-11-06, step merge, foreman chat-reading-b/agent-line/foreman-1)
+
+Rebase and combine the gallery sample counts, preserving both sides’ samples.
+The merge conflicts in `temper/tools/gallery/src/samples.rs` at `pub const N`.
+Task commit `d08531040c` raises N from 269 to 270 for `agent-work`.
+Main’s gallery changes, incorporated through catch-up commit `b05474c92b`, raise N to 274.
+Resolve N to 275 for the combined table.
+Keep main’s five added samples and their domain setup, plus this task’s `agent-work` sample and its `chat_work_world` dispatch.
+Preserve the automatically merged gallery, CSS and test changes.
+Verify with the gallery tests `names_are_the_promised_ones` and `agent_work_runs_its_line_and_reads_away_from_the_end` through heavy, then complete the spec’s required checks.
