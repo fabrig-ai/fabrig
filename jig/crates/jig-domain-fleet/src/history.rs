@@ -20,6 +20,22 @@ pub enum HelloRefusal {
     StopBound { grace: Duration },
 }
 
+/// What each side holds of an agent's shortfall (domain/engine.md, section 8):
+/// in the bound's own unit, a duration in milliseconds.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Figures {
+    pub required: u64,
+    pub offered: u64,
+}
+
+/// Why the fleet refuses a hello, for the refusal's text (protocol/channel.md, 4.3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct HelloRefused {
+    pub why: HelloRefusal,
+    /// Some for an agent's shortfall that has amounts; None for every other reason.
+    pub figures: Option<Figures>,
+}
+
 /// One refused hello, retaining no workstreams, listed payloads or reply rights.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct HelloRefusalRecord {

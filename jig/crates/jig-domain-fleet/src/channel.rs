@@ -168,7 +168,7 @@ pub(crate) fn hello(
         // Malformed metadata has no charter shortfall: reject the channel without
         // publishing an invented admission dimension.
         domain.facts.push(Fact::Dropped);
-        out.push(Request::Refuse { channel });
+        out.push(Request::Refuse { channel, hello: None });
         return;
     }
     let kind = if engine { HostKind::Engine } else { HostKind::Worker };
@@ -271,7 +271,15 @@ fn refuse(
         crate::HelloRefusalRecord { channel, at: env.wall, slots: hello.slots, stop_bound: hello.stop_bound, why },
     );
     domain.facts.push(Fact::TurnedAway);
-    out.push(Request::Refuse { channel });
+    let figures = match why {
+        crate::HelloRefusal::Agent { why } => crate::figures(&domain.needs, &hello.bounds, why),
+        crate::HelloRefusal::ReservedChannel
+        | crate::HelloRefusal::JobKinds
+        | crate::HelloRefusal::Workers { .. }
+        | crate::HelloRefusal::Position { .. }
+        | crate::HelloRefusal::StopBound { .. } => None,
+    };
+    out.push(Request::Refuse { channel, hello: Some(crate::HelloRefused { why, figures }) });
 }
 
 /// Lost: the worker's attempts are kept for the grace, adrift. A channel

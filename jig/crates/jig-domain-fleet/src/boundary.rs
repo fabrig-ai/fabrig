@@ -504,6 +504,7 @@ pub enum Request {
     /// the limits. Close its channel; it dials again later.
     Refuse {
         channel: Token,
+        hello: Option<crate::HelloRefused>,
     },
     /// To the parent: the attempt is on a worker, assigned or found there.
     Placed {
