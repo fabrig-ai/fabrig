@@ -40,7 +40,9 @@ impl Draw<'_> {
         let since = Wall::from_nanos(line.changed().saturating_mul(1_000_000_000));
         let duration = self.times.say(self.words, TimeForm::Span, since);
         self.words.text(b, Word::PublicFor, &[Hole::Name(duration)]);
-        self.words.text(b, Word::ChatbarSpend, &[Hole::Number(line.spent()), Hole::Number(line.budget())]);
+        if let Some(spent) = line.spent() {
+            self.words.text(b, Word::RowSpent, &[Hole::Number(*spent)]);
+        }
         if let Some(priority) = line.priority() {
             self.words.text(b, Word::Priority, &[Hole::Number(u64::from(*priority))]);
         }
@@ -59,7 +61,6 @@ fn phase(phase: &PublicPhase) -> Word {
         PublicPhase::Active => Word::PhaseActive,
         PublicPhase::Closing => Word::PhaseClosing,
         PublicPhase::Held => Word::PhaseHeld,
-        PublicPhase::Ended => Word::PublicEnded,
         PublicPhase::Done => Word::PublicDone,
         PublicPhase::Failed => Word::PublicFailed,
         PublicPhase::Cancelled => Word::PublicCancelled,

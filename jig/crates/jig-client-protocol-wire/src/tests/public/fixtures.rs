@@ -45,8 +45,7 @@ fn line(limits: &w::Limits) -> w::PublicLine {
             changed: u64::MAX,
             active: Some(u64::MAX),
             ended: Some(u64::MAX),
-            spent: u64::MAX,
-            budget: u64::MAX,
+            spent: Some(u64::MAX),
             delegates,
         },
     )
