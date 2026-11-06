@@ -941,9 +941,11 @@ keeps (`../protocol/configuration.md`, section 2).
     `ConnectModel`, in its head; then each of the person's accounts as a
     disclosure, folded, named by the account's heading (5.5, An
     account), its summary its deciding source's state in words and the
-    account's line (5.5, An account's line). Opened: the state's words
-    and acts (5.5, Each state); its sources in order, each with its kind
-    and state in words; "Pays for", and on the deployment's accounts
+    account's line (5.5, An account's line). Opened, only what the summary
+    does not say (the request `connect-flows`): no name, models, "Ready" or
+    "Pays for" again. The state's words and acts (5.5, Each state); its
+    sources in order, each with its kind and state in words; on the
+    deployment's accounts
     "Used by" and "Waiting for it", whose facts jig gives the
     deployment's accounts alone for now (a person's own leave them
     out, and its line its use: the user's pick, 10-23); and
@@ -995,20 +997,28 @@ keeps (`../protocol/configuration.md`, section 2).
   precedes "Its sources in order: a run takes the first usable one.", its
   numbered sources, the rule and labelled model and use facts, then its acts.
   "Deployment accounts" appears only when the owner’s document holds accounts.
-- **`ConnectModel`** (`connect-model.html`) connects one more LLM
-  account, in `ConnectForge`'s shape: Choose; then Signing in, for a
-  sign-in, or Details, for a key or a program's login; then Ready.
-  - *Choose* is a card for each way the configured LLM providers offer
-    (5.5, The ways), each with its words and its button. A way adds a
-    new account to the person's own accounts, a key's to the
-    deployment's when an owner has chosen "Use deployment accounts"; a
-    plan's sign-in and a program's login are always the person's own,
-    since only a person holds a plan (jig's `domain/accounts.md`, 3.2),
-    and their ways are not offered while the deployment's are chosen.
-    An owner chooses above the cards, "Use your accounts" or "Use
-    deployment accounts", the one chosen pressed, yours at the flow's
-    start; the choice is the flow's state, kept across its steps, not
-    its address.
+- **`ConnectModel`** (the request `connect-flows`) connects one more LLM
+  account: the welcome's cards, panels and words, under Settings' path
+  and in its column, with no list of steps. Choose; then a way's page, a
+  sign-in's wait or a key's or a program's panel; then it lands on
+  `Accounts`.
+  - *Choose* is the heading "Connect a model", the lede "temper’s agents
+    run on a plan you sign in to, or on an API key.", then the welcome's
+    cards, the same function: a card for each plan the welcome names, its
+    sign-in or its subscription. A card a way of which the person has an
+    account says "✓ Connected" in its note's place, its button "Add another
+    plan", and is no default: the default, its button primary, is the first
+    way not yet connected. Under the cards, "Or an API key", a row for each
+    key way with "Add key". The playground's scripted model, `demo`, is no
+    way to connect (4.8). A way adds a new account to the person's own
+    accounts, a key's to the deployment's when an owner has chosen
+    deployment accounts; a plan's sign-in and a program's login are always
+    the person's own, since only a person holds a plan (jig's
+    `domain/accounts.md`, 3.2), and their ways are not offered while the
+    deployment's are chosen. An owner has one quiet link at the page's
+    foot, "Use deployment accounts", or "Use your accounts" while they are
+    chosen, yours at the flow's start; the choice is the flow's state, kept
+    across its steps, not its address.
   - *Signing in* is a note in the way's card's place: the way's button
     opens a new tab and sends the sign-in, whose answer is the address
     the tab goes to. The provider sends that tab to the engine's
@@ -1076,8 +1086,9 @@ keeps (`../protocol/configuration.md`, section 2).
     stays on its page with its link "Open the sign-in page", with no address
     of its own to name the source.
   - *Its end,* the page moves on by itself, on the `accounts` watch: to
-    Ready, on the welcome as on `ConnectModel`, its address replacing the
-    step's, or to the ending's words and acts. A hidden tab lets its
+    `Accounts` with its line (*Ready's place*, below), or the welcome's
+    Ready, its address replacing the step's, or to the ending's words and
+    acts. A hidden tab lets its
     stream go after a minute (skein's `ui-web.md`, section 10), so a slow
     sign-in moves on when the person returns, its stream opened again;
     the page says nothing of this. The new tab ends on the listener's
@@ -1103,17 +1114,18 @@ keeps (`../protocol/configuration.md`, section 2).
     (`../protocol/credentials.md`, section 3). The tools' printed act
     includes the box's directory placeholders and the signed-in skip
     rule (`tools.md`, 5.5, area 5).
-  - *Ready* says the account is made, in 5.5's words, with "Start a
-    chat", to `NewChat`, and a plan's "Manage usage".
-  - *Its steps,* the flow's list (5.2, A flow's parts): "Choose",
-    "Signing in" and "Ready" for a sign-in; "Choose", "Details" and
-    "Ready" for a key or a program's login, and at Choose.
+  - *Ready's place:* an account made lands on `Accounts`, its address
+    replacing the way's, with the line "Added your ChatGPT plan. temper’s
+    agents now run on it." (5.5's words) and a quiet "Start a chat", to
+    `NewChat`, above the rows, and goes when the person leaves the page or
+    acts on it. A plan's "Manage usage" is in its row.
   - *Its address* is its way (`browser.md`, 2.3): none at Choose; a
-    way's provider and kind once one is chosen, Details, Signing in
-    and Ready all at the way's address. A key's and a program's card
+    way's provider and kind once one is chosen, Details and Signing in at
+    the way's address. A key's and a program's card
     on Choose is a link to the way's address, Details; a sign-in's is a
     button that sends the sign-in and moves to the way's address,
-    Signing in. Each step but Choose offers "‹ All ways", to Choose. A
+    Signing in. Each way's page has a quiet "Other ways", to Choose, beside
+    its main button, and its path's back link goes there too. A
     way the configured providers do not offer, or the playground's
     provider's (4.8), shows Choose.
   - *At a sign-in's address with none under way,* as a link to it, a
@@ -1384,8 +1396,7 @@ keeps (`../protocol/configuration.md`, section 2).
     chooser resets the holder to the person's own. Inside a way, the
     foot's "‹ Back" returns to
     Model Choose; on Choose the foot's returns to Forge. Standalone
-    `ConnectModel` keeps its holder controls, "‹ All ways", its cards and
-    its Ready. An account added there is the accounts page's too; a
+    `ConnectModel` shares these cards and panels. An account added there is the accounts page's too; a
     sign-in holds the page, and moves on to the welcome's Ready,
     `/welcome?at=ready` (`ConnectModel`, *Its end*).
     *A model usable,* at any way or none, for whoever comes back to the step

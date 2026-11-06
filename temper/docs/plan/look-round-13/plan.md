@@ -8,11 +8,14 @@ The look request `connect-flows` (`97ad67393b`), landed by `temper/docs/design/d
 - `dismiss`: `DismissMaking` (`dismiss-making`).
 - `welcome`: "All ways" leaves the welcome (`welcome-ways`).
 
-Later batches add the model's pages, the forge's pages, the sheet, and the proof with its account.
+- `model`: `model-cards` (one set of cards, the panels, the demo key and holder buttons go), `model-end` (Ready goes, Accounts' line, its empty state, the opened row).
+- `forge`: `forge-cards` (Choose and "A Forgejo elsewhere"), `forge-yours` ("Your Forgejo"), `forge-rows` (setting up in the row, Ready goes).
+
+Later batches add the sheet and the proof with its account.
 
 ## Critical path, so far
 
-`connect-look` → the pages. `dismiss-making` → the sheet's rows.
+`connect-look` → `forge-cards` → `forge-yours` → `forge-rows`; `connect-look` and `welcome-ways` → `model-cards` → `model-end`; `dismiss-making` → the sheet's rows.
 
 ## Overlaps
 

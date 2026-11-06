@@ -9,6 +9,7 @@ queue merges read from the landing log as landed lines and as landings
 through their changes, filtered by jig's handed tasks. Older public
 history and omitting zero stale proofs remain deferred in section 10.
 
+- **Not yet:** 5.4, *Connecting a forge*: its cards, panels and words, and setting up in the row (look-round-13's `forge-cards`, `forge-yours`, `forge-rows`).
 - **Not yet:** 5.1: the picker's search, its list of its own height, its checkboxes and its marks (look-round-13's sheet tasks).
 - **Not yet:** 2.1: "in GitHub's merge queue, n": `Pull.queued` is not
   read (`../domain/forge.md`, 9.1). 2.3:

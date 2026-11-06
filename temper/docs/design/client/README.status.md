@@ -2,6 +2,7 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, `ConnectModel`, `Accounts`: one set of cards, "✓ Connected", the moved default, the panels, *Ready's place* and an opened row's words (look-round-13's `model-cards`, `model-end`).
 - **Not yet:** 4.6: `DismissMaking`, and Settings' Repositories' lines for a repository being made, a failed one's "Copy again" and "Dismiss" (look-round-13's tasks).
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
