@@ -66,8 +66,8 @@ fn states() -> [(State, &'static [u8], Style, bool); STATE_CASES] {
         (State::Planning, b"planning", look::GOALS_STATE_PLANNING, false),
         (State::Running, b"running", look::GOALS_STATE_RUNNING, false),
         (State::Landed, b"landed", look::GOALS_STATE_LANDED, true),
-        (State::Stopped, b"stopped", look::GOALS_STATE_STOPPED, true),
-        (State::Failed, b"failed", look::GOALS_STATE_STOPPED, true),
+        (State::Closed, b"closed", look::GOALS_STATE_CLOSED, true),
+        (State::Failed, b"failed", look::GOALS_STATE_CLOSED, true),
     ]
 }
 fn styled_text(tree: &Tree, style: Style) -> Box<[u8]> {
@@ -165,7 +165,7 @@ fn its_headline_is_the_reports_or_its_states() {
         (State::Needs { funds: true }, b"6 of 9 tasks landed.".as_slice()),
         (State::Needs { funds: false }, b"6 of 9 tasks landed.".as_slice()),
         (State::Landed, b"Landed.".as_slice()),
-        (State::Stopped, b"Stopped by you.".as_slice()),
+        (State::Closed, b"Closed by you.".as_slice()),
         (State::Failed, b"Failed.".as_slice()),
     ] {
         for (given, expected) in [(None, fallback), (Some(&report), report.headline.as_ref())] {
@@ -275,7 +275,7 @@ const PAUSED_TASK: u64 = 103;
 const PLANNING_TASK: u64 = 104;
 const RUNNING_TASK: u64 = 105;
 const LANDED_TASK: u64 = 106;
-const STOPPED_TASK: u64 = 107;
+const CLOSED_TASK: u64 = 107;
 const FAILED_TASK: u64 = 108;
 const CURSOR_BYTES: u32 = 32;
 
@@ -387,7 +387,7 @@ impl Page {
         page.ended(
             &[
                 page_line(LANDED_TASK, State::Landed),
-                page_line(STOPPED_TASK, State::Stopped),
+                page_line(CLOSED_TASK, State::Closed),
                 page_line(FAILED_TASK, State::Failed),
             ],
             false,
@@ -476,13 +476,13 @@ fn page_line(task: u64, state: State) -> c::TaskLine {
                 hold_wait_since: None,
             });
         }
-        State::Landed | State::Stopped | State::Failed => {
+        State::Landed | State::Closed | State::Failed => {
             line.chip.phase = c::Phase::Ended;
             line.chip.details.phase = c::ChipPhase::Ended;
             let text = || c::DocumentText::complete(c::Text::new(b"Done".as_slice().into(), TEXT_BYTES).unwrap());
             line.chip.details.details.ending = Some(match state {
                 State::Landed => c::ChipEnding::Done(c::ResultValue::Report(text())),
-                State::Stopped => {
+                State::Closed => {
                     c::ChipEnding::Cancelled { reason: text(), result: None, by: line.requester, at: Wall::EPOCH }
                 }
                 State::Failed => c::ChipEnding::Failed(text()),
@@ -661,12 +661,12 @@ fn each_filter_shows_its_states() {
     for (filter, expected) in [
         (
             GoalsFilter::All,
-            [NEEDS_TASK, FUNDS_TASK, PAUSED_TASK, PLANNING_TASK, RUNNING_TASK, LANDED_TASK, STOPPED_TASK, FAILED_TASK]
+            [NEEDS_TASK, FUNDS_TASK, PAUSED_TASK, PLANNING_TASK, RUNNING_TASK, LANDED_TASK, CLOSED_TASK, FAILED_TASK]
                 .as_slice(),
         ),
         (GoalsFilter::Needs, [NEEDS_TASK, FUNDS_TASK].as_slice()),
         (GoalsFilter::Live, [PAUSED_TASK, PLANNING_TASK, RUNNING_TASK].as_slice()),
-        (GoalsFilter::Ended, [LANDED_TASK, STOPPED_TASK, FAILED_TASK].as_slice()),
+        (GoalsFilter::Ended, [LANDED_TASK, CLOSED_TASK, FAILED_TASK].as_slice()),
     ] {
         page.filter(filter);
         for words in [fixtures::words(), fixtures::browser_words()] {

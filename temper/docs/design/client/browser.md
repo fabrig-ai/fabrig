@@ -185,7 +185,8 @@ replay says the same clocks (`README.md`, 5.12).
      name a bundle's directory in application.clients.bundle, and
      restart temper." (`../protocol/setup.md`, 8.2);
   3. a request other than `GET`: `405`;
-  4. `/bundle/<digest>/…`: the bundle's files, immutable; any other path
+  4. `/bundle/<digest>/…`: the bundle's files, immutable, each in the
+     form the request takes (skein's `ui-web.md`, 4.4); any other path
      under `/bundle/`: not found;
   5. `/robots.txt`, the bundle's one root file (skein's `ui-web.md`,
      3.3, step 5; jig's `protocol/browser.md`, section 12), disallowing
@@ -227,7 +228,12 @@ replay says the same clocks (`README.md`, 5.12).
   (`../protocol/configuration.md`, section 7), and refuses the start
   past them, or when it is no bundle (its page and its digest's
   directory), by one code for both: a directory's files read, or the
-  binary's, already in memory, copied (2.6). A new bundle is served
+  binary's, already in memory, copied (2.6). **Both forms stay whole in
+  memory,** a file and its `NAME.gz`: the service holds no inflater, and
+  a client not taking gzip is rare but is answered without one, a
+  `curl` among them. A `NAME.gz` with no `NAME` beside it refuses the
+  start, as no bundle does; a directory without its forms (built with
+  `--gzip off`) serves `NAME` alone. A new bundle is served
   after a restart; a tab on the old one is answered not found for its
   files, and a reload loads the new (skein's `ui-web.md`, 4.4). A page
   from the binary's own bundle always speaks its engine's records, so a
@@ -350,6 +356,12 @@ replay says the same clocks (`README.md`, 5.12).
   `protocol/browser.md`, section 10). That a client opens at the inbox
   (`README.md`, 3.4) is the terminal's: in a browser the address is the
   browser's, and the client keeps no record of its own.
+- **A heading drawn after its page** (the answer of 2026-11-06 to the
+  `ui-composer-focus` task `composer-focus`): a new entry whose level-1 heading
+  isn't drawn yet, as a chat's isn't until its task is read, has the focus on the
+  main (skein's `ui-web.md`, 7). When the heading is drawn, the shell moves the focus from the
+  main to it, unless the focus has moved meanwhile: a focus placed since keeps its
+  place, even back on the main, and a focus request ends the wait.
 
 ### 2.4 Signing in
 
@@ -402,6 +414,32 @@ replay says the same clocks (`README.md`, 5.12).
   nodes the mockups style: the frame's banner, navigation and main; the
   cards; the conversation's turns; the composers. The view sets them
   (`README.md`, 5.1); the terminal prints none.
+- **The first paint, the placeholder's:** the shell's `loading.html` and
+  `loading.css`, given to skein's bundler (skein's `ui-web.md`, 4.3), so
+  that a person on a slow connection has something to read in a few
+  hundred bytes. The mark as inline paths, so that no font is fetched and
+  nothing swaps, centred at about 38% of the height; under it a 240 px
+  `progress`, as `temper-flow-meter` draws one, 4 px, ink over the
+  hairline, and one muted line; a phone keeps the 16 px gutter. The lines,
+  each in `loading.html`'s data attributes:
+  - for the first 250 ms, the paper alone, so a cached load never flashes;
+  - downloading: "2.8 of 11.5 MB" (what travels, so a gzipped module's
+    total is its compressed size), and "· about 35 s left" once 3 s of data
+    gives an estimate over 5 s;
+  - after 8 s, under it, "Your browser keeps this, so next time it opens
+    at once.";
+  - no byte for 15 s: "Waiting for the server…" in the figure's place;
+  - every byte in: "Starting…";
+  - failed: no bar, "temper didn't load", why ("The connection dropped at
+    4.8 of 11.5 MB.", "The server answered 404.", "The server didn't
+    answer.", "This browser has no WebAssembly.", "It didn't start."), and
+    "Try again", which reloads;
+  - scripts off: no bar, and `--noscript`'s words.
+
+  Handing over, a 200 ms fade once the client's first node and the
+  stylesheets are in; reduced motion, no fade and no moving bar. The tab's
+  title is "temper" throughout. The drawing is the look request
+  `bundle-loading`'s; a terminal has no bundle and no placeholder.
 - **The bundle's stylesheets:** skein's `skein-ui.css`, then
   `temper.css`, temper's look. It takes no rules from the
   mockups' terminal sheets (`terminal-chat.css` and `terminal-pages.css`
@@ -646,7 +684,7 @@ replay says the same clocks (`README.md`, 5.12).
 - **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
   `temper.css` under `/* ==== ui: settings ==== */`: on the page
   `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
-  a chat's document's, `.temper-doc-figures` and `.temper-doc-flow`, which holds the
+  a chat's document's, `.temper-doc-flow`, which holds the
   picture's numbered list and no flow, with `.temper-doc-sub` and `.temper-doc-muted`
   under the chats' marker.
 - **What the mock lacks and a print needs** stays in the view, hidden by the
@@ -710,7 +748,8 @@ without it.
 
 - **One file.** The binary holds the bundle: the shell's module, its
   glue, and the stylesheets and files skein's bundler puts beside them
-  (2.2, 2.5). Running it is the whole install: no directory beside it,
+  (2.2, 2.5), and their compressed forms (skein's `ui-web.md`, 4.2).
+  Running it is the whole install: no directory beside it,
   no `scripts/bundle.sh` step.
 - **A plain `cargo build` makes it.** `cargo build`, then
   `./target/debug/temper box`, serves the browser; so do `cargo build
@@ -736,8 +775,9 @@ without it.
   2. `build --locked --release -p skein-ui-bundle`: the bundler,
      always optimized, as skein's `ui-web.md`, 4.1 asks of a tool;
   3. the bundler, with `scripts/bundle.sh`'s inputs (the name, the
-     prefix `/bundle/`, `temper.css`, `task-pages.css`, the shell's
-     `files/` and the noscript words), into its `OUT_DIR`;
+     title, the prefix `/bundle/`, `temper.css`, `task-pages.css`, the
+     placeholder's `loading.html` and `loading.css`, the shell's `files/`
+     and the noscript words), into its `OUT_DIR`;
   4. the list of the bundle's files, written into `OUT_DIR` for the
      library's include.
   It has no build dependencies: the bundler is built by the nested
@@ -775,7 +815,8 @@ without it.
   the module is built from, temper's client crates and, when a local
   jig or skein is patched in, theirs); each of those packages'
   `Cargo.toml`, the workspace's `Cargo.toml` and `Cargo.lock`, which
-  pins the git dependencies; the shell's stylesheets and its `files/`;
+  pins the git dependencies; the shell's stylesheets, its placeholder and
+  its `files/`;
   and `TEMPER_BUNDLE`, by `cargo:rerun-if-env-changed`. The first run
   has no dep-info yet, and runs regardless. An edit elsewhere never
   runs the script, and a build that does not include `temper` (a
@@ -870,7 +911,7 @@ without it.
   process tier has them (`../domain/testing.md`, 2.6), join with the
   first story that needs them (4.2). 4.4's test has the forge peer
   serve only the fake's GitHub `web`. skein's fake issuer joins for
-  `ConnectModel`'s round trip alone (4.2).
+  a plan's sign-in alone (4.2).
 - **Only what a browser alone shows.** temper's stories (what a page
   shows, what an act sends, a chat answered, a proposal accepted, a
   repository adopted, a run's live text) are the joint world's
@@ -935,8 +976,8 @@ address are the client world's (`suite::b2`, `suite::task`). The
 change's steps to landed, its gates, its bounds and its ended tasks
 hold nothing a browser alone shows: the client world's
 `change_panel.rs` reads them. A later page that has such
-behaviour brings its story with it: `ConnectModel`'s sign-in, its tab
-sent to the provider's address and back to the page it left
+behaviour brings its story with it: `ConnectModel`'s sign-in, a tab of
+its own sent to the provider's address while the page stays
 (`README.md`, 3.5).
 
 **`ConnectModel`'s sign-in, in a new tab.** What only a browser shows:
@@ -989,17 +1030,20 @@ real key in that restored form.
   one test at a time, on the bundle it builds first, with the dev
   profile.
 - **The tier's bundle** turns on skein-ui-web's
-  `loopback-navigation` (`scripts/bundle.sh --loopback`), so that the
-  round trip (4.2) can send its tab to the fake issuer on plaintext
+  `loopback-navigation` (`scripts/bundle.sh --loopback`), so that a
+  sign-in's tab (4.2) can go to the fake issuer on plaintext
   loopback; the ordinary binary bundle never does (skein's `ui-web.md`,
   section 10). The tier names that bundle in its configuration, so it
-  runs alike over a binary built with or without its own (2.6).
+  runs alike over a binary built with or without its own (2.6). It holds
+  the compressed forms and Chromium takes gzip on loopback, so every
+  test loads the compressed module under temper's policy.
 - **The playground's test** (4.6, 12) runs on the built playground
   instead, `scripts/bundle.sh --playground` in its own profiles
   (`../playground.md`, 7), served as static files with their `headers`
   by the tier's own static server, which maps them as a site's host
   would; the tier reads the world's figures from the page's frame, and
   compresses the download's with the machine's `gzip` (`../playground.md`, 9).
+  That bundle has no compressed forms (`../playground.md`, 7).
 - **A cap: at most 12 tests, and 120 seconds** on the slowest of the
   machines that build temper (the user, 10-27, temper#15). Past it,
   stories that share a setup become one test of several steps before
@@ -1098,7 +1142,7 @@ over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
    (4.5).
 8. **The accounts page after a key's send:** Back restores an emptied
    field, Forward the chats (4.2).
-9. **`ConnectModel`'s round trip** (4.2).
+9. **`ConnectModel`'s sign-in, in a new tab** (4.2).
 10. **GitHub's manifest page** posts itself once, and Back shows it
     without posting again until Continue (4.4).
 11. **The box's project across a reload:** the playground's project
@@ -1167,6 +1211,9 @@ Not in the tier, each in the lowest world that shows it:
 - **Served from the binary's bytes,** with no copy at start: a `Bundle`
   that borrows. Default: copied (2.6), until a bundle whose copy
   matters.
+- **A box still starting:** a link opened before serve is ready gets no
+  bytes until it is, so no placeholder either, and that wait stays the
+  browser's own (`../protocol/setup.md`, 7.1). Default: as it is.
 - **The embed's steps, skein's for every application:** the nested
   build, its directory, its environment and what reruns it are nothing
   of temper's. Default: temper's crate, until a second application
@@ -1247,6 +1294,10 @@ Not in the tier, each in the lowest world that shows it:
   compiles the bundle's wasm again, where a second load in one profile hits
   Chromium's own cache. Default: none, since a shared profile would change what each
   test starts from.
+- **A heading drawn after its page, in skein's reference** (2.3): the kit's rule
+  stops at the main (skein's `ui-web.md`, 7), and any application whose page reads
+  before it draws its heading meets what this shell repairs. Default: this shell's
+  alone, until a second application writes the same.
 
 ## 7. The gallery
 
@@ -1370,7 +1421,7 @@ from the engine's own answers, is where the look is tuned.
 | `goals-none` | hand-made Goals deliveries: "No goals yet."; the rail keeps Goals since the page is Goals |
 | `goals-needs` | hand-made Goals deliveries: the filter Needs you, "needs funds" and "needs you" |
 | `goals-under-way` | hand-made Goals deliveries: the filter Under way, running, planning and paused |
-| `goals-ended` | hand-made Goals deliveries: the filter Ended, landed, stopped and failed |
+| `goals-ended` | hand-made Goals deliveries: the filter Ended, landed, closed and failed |
 | `goals-filter-empty` | hand-made Goals deliveries: a filter no goal matches, "None." |
 | `goals-more` | hand-made Goals deliveries: "More than N goals, M under way." and "More goals" |
 | `home-github` | hand-made Home deliveries: GitHub connected with an accepted installation |
@@ -1474,11 +1525,11 @@ from the engine's own answers, is where the look is tuned.
 | `goal-paused` | first-run-projects paused by the person: "paused by you", Resume |
 | `goal-landed` | pane-chat-line landed: its result, "Landed at 01:12.", no acts and no composer |
 | `goal-landed-open` | `goal-landed` with "N landed" pressed: its rows under it |
-| `goal-stopped` | welcome-stall stopped: "Stopped by you…", "Stopped before it landed." |
+| `goal-closed` | welcome-stall closed: "Closed by you…", "Closed before it landed." |
 | `goal-failed` | forge-cards failed: "Failed: " and its reason, "Failed before it landed." |
 | `goal-no-report` | first-run-projects running with tasks and no report: "N of M tasks landed.", no byline |
 | `goal-amending` | `goal-running` with Amend pressed: the editor, between the header and the report |
-| `goal-stop-dialog` | `goal-running` with Stop pressed: its confirmation |
+| `goal-closing` | `goal-running` with Close pressed: its confirmation |
 | `goal-toast` | `goal-running` paused, its toast showing |
 | `goal-sending` | `goal-running` with the person's words sent and one being sent, the composer holding its next words |
 | `start-goal` | Goals with "Start one from a draft" pressed: the sheet with no draft, its Draft field and two ways |
@@ -1558,9 +1609,10 @@ from the engine's own answers, is where the look is tuned.
 | `chat-closing-work` | a run, two delegates with opposite fates, and two proposals: what closing changes |
 | `chat-closing-failed` | the same close refused: the sheet keeps its choices and says why |
 | `chat-closed` | the requester closed it: one end line at 21:05, with a quiet bar |
+| `chat-paused` | a chat its person paused: "Paused", Resume and Close, and the composer's hint "Sending resumes this chat." |
 | `chat-closing-start-over` | a configuring chat's Start over confirmation |
-| `task-cancelling` | an agent's task Cancel confirmation, with a task below it |
-| `task-stopping` | an agent's task Stop confirmation |
+| `task-closing` | an agent's task Close confirmation, with a task below it |
+| `task-paused` | an agent's task its person paused: "Paused", Resume and Close, and no own held card |
 | `proposal-accepting` | a proposal's Accept confirmation |
 | `proposal-rejecting` | a proposal's Reject confirmation with its reason |
 | `chat-closing` | `chat-solo-T6` with Close pressed: its confirmation |

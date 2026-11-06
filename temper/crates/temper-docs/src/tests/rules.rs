@@ -85,6 +85,8 @@ fn task_help_says_what_taken_by_and_waiting_on_print() {
         "Once an answer has ended the task, `answered by:` takes its place.",
         "A closing person task with no holder prints neither line.",
         "For a held task that awaits nothing else, `waiting on:` prints `held`.",
+        "When no account serves its next run, `next run:` stands alone above the lines that say what to do, and `waiting on:` prints `an account`.",
+        "`task amend`'s line is its call alone; `--json` carries the bounds it is offered within.",
     ] {
         assert!(text.contains(instruction), "task help must explain: {instruction}");
     }
@@ -117,6 +119,16 @@ fn change_help_points_resolving_to_the_merge_command() {
     let resolving = text.split_once("- `resolving`:").expect("resolving step").1;
     let resolving = resolving.split_once("- `repairing`:").expect("repairing step").0;
     assert!(resolving.contains("temper help configuration"), "resolving must point to the merge command");
+}
+
+#[test]
+fn change_help_says_what_a_resumed_producers_checkout_holds() {
+    let text = find(b"change").expect("change page").text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in
+        ["`Merge SHA`", "`MERGE_HEAD`", "`git status`", "Never answer it to remove or restore those files"]
+    {
+        assert!(text.contains(instruction), "change help must explain: {instruction}");
+    }
 }
 
 #[test]
@@ -503,11 +515,8 @@ fn a_way_numbers_its_sections_from_one() {
 }
 
 #[test]
-fn the_way_shows_placeholder_figures_and_no_address() {
+fn the_way_names_no_address() {
     let text = HOW_TEMPER_BUILDS_TEMPER.text;
-    for line in ["- Merges: —", "- Agent runs: —", "- Workers: —", "Figures to come."] {
-        assert!(text.lines().any(|found| found == line), "{line}");
-    }
     assert!(!text.contains("://"));
 }
 

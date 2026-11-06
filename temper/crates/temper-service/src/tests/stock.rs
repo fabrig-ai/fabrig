@@ -294,7 +294,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 5673);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 5642);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -1047,6 +1047,19 @@ fn the_coders_words_explain_what_a_delivery_keeps() {
 }
 
 #[test]
+fn the_coders_words_say_what_a_resume_holds() {
+    let words = include_str!("../stock/coding.txt");
+    assert!(words.contains("After an answer, your head may be a commit titled Merge and an id: temper merged your landing branch's tip into your work before this run, so that tip's files belong there, and your earlier edits are in that head, so git status shows none of them."));
+    assert!(words.contains("Settle a merge's conflicts before you ask: a run that parks with a conflict marker left keeps none of that run's edits."));
+}
+
+#[test]
+fn the_foremans_words_keep_a_resumed_merge() {
+    let words = include_str!("../stock/foreman.txt");
+    assert!(words.contains("A producer going on after an answer may hold a merge of its landing branch's tip, committed as its head or, with conflicts, staged in progress: other tasks' files there are by design and its earlier edits are in its head, so never tell it to remove them or restore its tree."));
+}
+
+#[test]
 fn the_coders_words_wait_after_asking() {
     let engine = engine(&single_model());
     let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
@@ -1244,14 +1257,59 @@ fn chat_txt_tells_a_chat_to_keep_one_document() {
     let (chat, document) = words.split_once("\n\nWhen the person asks for a draft").expect("document follows chat");
     assert!(chat.contains("If neither line is in your brief"));
     assert!(document.starts_with(" or says \"write this up\", keep one document with note:"));
+    assert!(
+        document
+            .contains("Use join true to continue the line before first without a newline when a line exceeds one call")
+    );
     assert_document_rule(document);
+}
+
+#[test]
+fn configuring_txt_says_nothing_has_changed_in_one_place() {
+    let words = include_str!("../stock/configuring.txt");
+    assert_eq!(words.matches("nothing has changed").count(), 1);
+    assert!(words.contains("only when you first give a proposal's number"));
+    assert!(words.contains("Never before a proposal; never to close a reply."));
+    assert!(words.contains("Say in one sentence what changed in it"));
+}
+
+#[test]
+fn stock_words_hold_no_placeholder_a_run_cannot_fill() {
+    for words in [include_str!("../stock/configuring.txt"), include_str!("../stock/chat.txt")] {
+        assert!(!words.contains("PROJECT"));
+        assert!(!words.contains("DATE"));
+    }
+    assert!(include_str!("../stock/configuring.txt").contains("titled \"How this project works\""));
+}
+
+#[test]
+fn configuring_txt_says_who_does_what_in_the_persons_words() {
+    let words = include_str!("../stock/configuring.txt");
+    assert_eq!(words.matches("operator").count(), 1, "only the word it must not say");
+    assert!(words.contains("Not \"stock settings\" or \"operator\""));
+    let approvers = words.lines().find(|line| line.starts_with("Approvers:")).expect("approval instructions");
+    for phrase in [
+        "Whenever someone is to approve or join, before or after acceptance",
+        "say all this, and who does each",
+        "as Write is not enough",
+        "Adopting is theirs, no one else's: Settings, Repositories, Adopt a repository",
+    ] {
+        assert!(approvers.contains(phrase), "missing: {phrase}");
+    }
+}
+
+#[test]
+fn configuring_txt_says_how_a_pending_proposal_goes() {
+    let words = include_str!("../stock/configuring.txt");
+    assert!(words.contains("You can't withdraw or replace it while it waits."));
+    assert!(words.contains("an owner rejects it under Needs you, with a reason you hear; then propose afresh"));
 }
 
 #[test]
 fn configuring_txt_tells_it_how_project_works() {
     let words = include_str!("../stock/configuring.txt");
     assert!(words.contains("Once you understand the person's way of working"));
-    assert!(words.contains("one document titled \"How PROJECT works\", current as the conversation changes it"));
+    assert!(words.contains("one document titled \"How this project works\", current as the conversation changes it"));
     assert!(words.contains("Use note:"));
     assert!(words.contains("Change nothing yourself."));
     assert_document_rule(words);
@@ -1282,7 +1340,7 @@ fn configuring_txt_starts_from_temper_own_way() {
             "To set a project up as temper builds itself, first read_docs, topic how-temper-builds-temper. ",
             "Size settings for this deployment's worker slots and account models. ",
             "Say what it cannot do yet and leave it out. ",
-            "In \"How PROJECT works\", keep temper's own values in a column beside the project's, each difference a sentence the person can change.",
+            "In your document, keep temper's own values in a column beside the project's, each difference a sentence the person can change.",
         )
     );
     assert!(temper_docs::find(b"how-temper-builds-temper").is_some());
@@ -1294,11 +1352,9 @@ fn configuring_txt_speaks_the_persons_terms() {
     for phrase in [
         "Speak the person's terms",
         "only in a proposal or its outcome, or when asked",
-        "answer from \"How PROJECT works\"",
+        "answer from your document",
         "Never send them to a terminal, temper ctl or a command",
         "the owner's acceptance checks",
-        "Say that nothing has changed once",
-        "not in every reply",
         "requester is the project party",
         "configured owned-forge account is separate",
         "existing verified project role",
@@ -1323,7 +1379,7 @@ fn assert_document_rule(words: &str) {
         "scope goal, project P and goal T from your brief's [This task: T, in project P]",
         "description its title",
         "Write its first version whole, in Markdown: # TITLE",
-        "muted line _Draft, DATE, with the user._",
+        "muted line _Draft, with the user._",
         "one ## section per topic",
         "open questions under ## Open questions",
         "Then change it by lines",
@@ -1332,8 +1388,8 @@ fn assert_document_rule(words: &str) {
         "Never rewrite it whole past a few KB",
         "build a long document in parts",
         "A refused note says the revision or the line count to use",
-        "Use join true to continue the line before first without a newline when a line exceeds one call",
-        "Say in one sentence what changed; do not repeat the document in your reply",
+        "Say in one sentence what changed",
+        "do not repeat the document in your reply",
         "Mermaid is not drawn, so do not draw diagrams",
     ] {
         assert!(words.contains(phrase), "missing document instruction: {phrase}");

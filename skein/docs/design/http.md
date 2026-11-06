@@ -678,6 +678,12 @@ pub enum Error { Rejected(Rejection), Truncated, Stream(Fault), ChunkSize, Chunk
   and hold no other, which the server does not undo. `Content-Length` is
   one length, however many times it is given. Neither: no body. Then a
   length past `Limits::body`.
+- **`Call::accepts_gzip`** says whether the head's `Accept-Encoding`
+  takes gzip (RFC 9110, 12.5.3), over every such field: a listed `gzip`
+  or `x-gzip`, or `*` where neither is listed, and in each case a weight
+  above 0, without regard to case. No field says no, since a client not
+  asking gets the plain answer (`ui-web.md`, 4.4). It is a reading of
+  the head and chooses nothing; a value it can't read says no.
 - **Errors are decided in a fixed order:** at a line, its length, then its
   bytes, then the room for one more field; at the request line, its
   form, then its version, then its method; at the blank line, the

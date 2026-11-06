@@ -235,7 +235,7 @@ A read.
 
 ## propose_settings
 
-Propose whole settings from items or a note revision to owners. One owner acceptance makes one revision. Keep How PROJECT works separate.
+Propose whole settings from items or a note revision to owners. One owner acceptance makes one revision. Keep your document separate.
 
 A write.
 
