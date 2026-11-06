@@ -91,7 +91,11 @@ A chat is a conversation between a party and an agent in a project: an untracked
 - **Long chats continue:** when saved history cannot be resumed, the
   next run starts fresh with recent conversation text and pending
   messages. If that history cannot be read, a retry continues with the
-  pending messages alone.
+  pending messages alone. An agent failing to start does not by itself
+  mean the history is unusable: retries keep that history and your pending
+  words. Repeated agent failures can still hold the chat as out of tries.
+  The operator's run-failure log keeps the startup cause and diagnostic;
+  release retries the task (temper help task).
 - **Each delegate decided at the close:** none is left without an
   owner; the ones not moved are cancelled with the chat.
 - **The transcript stays** after the close: `chat show` and `task
