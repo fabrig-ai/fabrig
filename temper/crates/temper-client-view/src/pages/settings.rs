@@ -407,7 +407,7 @@ fn status(b: &mut Builder, w: &Words) {
     section(b, w, Word::SettingsStatus);
     disabled_select(b, w, Word::SettingsReports, Some(Word::SettingsReportsLine), Word::SettingsAgentReports);
     disabled_select(b, w, Word::SettingsRewritten, None, Word::SettingsOnOpen);
-    disabled_select(b, w, Word::SettingsBrief, Some(Word::SettingsBriefLine), Word::SettingsOff);
+    disabled_select(b, w, Word::SettingsBrief, Some(Word::SettingsBriefLine), Word::SettingsOn);
     facts(b, w);
     b.close();
 }
