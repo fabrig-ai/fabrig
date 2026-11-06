@@ -108,3 +108,7 @@ Then the narrow tests, `cargo fmt`, the gate's old forms for temper, `heavy carg
 ## Report
 
 As the implementer's text says, with the 420 finding of acceptance 5, what you chose among the options, and the rule each new test broke when you checked that it bites.
+
+## Answers
+
+2026-11-06 (temper/ui). From the user, journey 20: Settings' Repositories row (work/hello, 'Forgejo on this machine', temper-client-view/src/pages/settings.rs) gets the same link. Build one helper for the address and use it from the switcher, that row, Forges' repository lines and the Forge line, so they can't drift apart; test the helper's cases once. It returns the plain web address now; the signed-in form on an owned Forgejo arrives in part 2 through this one helper.
