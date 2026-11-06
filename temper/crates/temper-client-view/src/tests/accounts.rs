@@ -12,9 +12,321 @@ use temper_client_domain::{
     self as d,
     pages::accounts::{Act as A, Operation, Row},
 };
+use temper_client_protocol_wire::{self as wire, v1 as v};
 const PROVIDER: u32 = 17;
 const SOURCE: u32 = 43;
 const ADDRESS: &[u8] = b"https://issuer.example/visit";
+const TRIED_ACCOUNT: u32 = 1;
+const OTHER_ACCOUNT: u32 = 2;
+const TRIAL_TASK: u64 = 91;
+
+fn trial_event(root: &mut d::Domain, event: d::Event) -> skein_lib::Queue<d::Request> {
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits: fixtures::limits() },
+        event,
+        &mut out,
+    );
+    out
+}
+
+fn opened(out: &skein_lib::Queue<d::Request>, subject: jig_client::Watchable) -> Token {
+    out.iter()
+        .find_map(|request| {
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject: found } },
+            } = request
+            {
+                (*found == subject).then_some(*watch)
+            } else {
+                None
+            }
+        })
+        .expect("fixture watch opened")
+}
+
+fn trial_root(kind: c::AccountKind) -> (d::Domain, Token, Token) {
+    let (frame, _) = fixtures::account_root();
+    let me = d::pages::accounts::current_me(frame.client()).unwrap().clone();
+    let mut root = d::unlinked(&fixtures::limits(), fixtures::SEED);
+    let mut out = skein_lib::Queue::uncapped();
+    for event in [
+        d::Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
+        d::Event::Start {
+            address: d::Address::Accounts,
+            kept: List::with_capacity(0),
+            with: Some(jig_client::With::Transport),
+        },
+        d::Event::Client {
+            event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+        },
+    ] {
+        d::step(
+            &mut root,
+            &skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits: fixtures::limits() },
+            event,
+            &mut out,
+        );
+    }
+    let me_watch = opened(&out, jig_client::Watchable::Jig(c::Subject::Me));
+    let accounts = opened(&out, jig_client::Watchable::Jig(c::Subject::Accounts));
+    let out = trial_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me_watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            },
+        },
+    );
+    let trials = opened(&out, d::forge::trials::watch(&fixtures::limits().forge).unwrap());
+    let provider = if kind == c::AccountKind::Program { b"anthropic".as_slice() } else { b"openai" };
+    deliver(&mut root, accounts, card_document(provider, b"Pat", kind));
+    (root, trials, accounts)
+}
+
+fn trial_row(step: v::TrialStep, state: v::TrialState) -> v::TrialRow {
+    v::TrialRow::new(
+        &v::CEILINGS,
+        v::TrialRowParts { account: TRIED_ACCOUNT, task: Some(TRIAL_TASK), took: None, step, state },
+    )
+    .unwrap()
+}
+
+fn trial_failed(why: v::TrialWhy) -> v::TrialState {
+    v::TrialState::Failed(v::TrialFailed::new(&v::CEILINGS, v::TrialFailedParts { why }).unwrap())
+}
+
+fn trial_rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) {
+    let doc = v::Trials::new(&v::CEILINGS, v::TrialsParts { rows: List::from_boxed(rows.into()) }).unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(doc.measure()).unwrap());
+    doc.encode(&mut writer).unwrap();
+    trial_event(
+        root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: writer.finish(),
+                    },
+                },
+            },
+        },
+    );
+}
+
+fn account_nodes(tree: &skein_ui::Tree) -> &[skein_ui::Node] {
+    super::inbox::subtree(tree, super::inbox::styled(tree, crate::look::SETTINGS_ROW))
+}
+
+/// The account's trial is under its head and before its sources (temper/docs/design/domain/trial.md, 6.2).
+#[test]
+fn a_row_holds_its_trials_line() {
+    let answered =
+        v::TrialState::Answered(v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 6 }).unwrap());
+    for (kind, step, state, line, style, each_step) in [
+        (
+            c::AccountKind::Program,
+            v::TrialStep::Starts,
+            v::TrialState::Running,
+            "Claude subscription · trying: Claude Code starts on this machine",
+            None,
+            true,
+        ),
+        (
+            c::AccountKind::Program,
+            v::TrialStep::Answers,
+            v::TrialState::Running,
+            "Claude subscription · trying: Claude answers",
+            None,
+            true,
+        ),
+        (
+            c::AccountKind::SignIn,
+            v::TrialStep::Starts,
+            v::TrialState::Running,
+            "ChatGPT plan · trying: ChatGPT answers",
+            None,
+            true,
+        ),
+        (
+            c::AccountKind::Key,
+            v::TrialStep::Answers,
+            v::TrialState::Running,
+            "OpenAI API key · trying: ChatGPT answers",
+            None,
+            true,
+        ),
+        (
+            c::AccountKind::SignIn,
+            v::TrialStep::Answers,
+            answered,
+            "ChatGPT plan · Pat · answered in 6 s",
+            Some(crate::look::FLOW_DONE),
+            false,
+        ),
+        (
+            c::AccountKind::SignIn,
+            v::TrialStep::Answers,
+            trial_failed(v::TrialWhy::Waited),
+            "ChatGPT plan · ChatGPT didn’t answer",
+            Some(crate::look::FLOW_FAILED),
+            true,
+        ),
+        (
+            c::AccountKind::Key,
+            v::TrialStep::Starts,
+            trial_failed(v::TrialWhy::Refused),
+            "OpenAI API key · ChatGPT didn’t answer",
+            Some(crate::look::FLOW_FAILED),
+            true,
+        ),
+    ] {
+        let (mut root, trials, _) = trial_root(kind);
+        trial_rows(&mut root, trials, &[trial_row(step, state)]);
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut view = fixtures::view_of(words);
+            let tree = fixtures::build(&mut view, &root);
+            let nodes = account_nodes(tree);
+            let head = nodes.iter().position(|n| n.role == Role::Heading { level: 3 }).unwrap();
+            let at = nodes
+                .iter()
+                .position(|n| n.role == Role::Paragraph && n.name.as_deref() == Some(line.as_bytes()))
+                .expect(line);
+            let sources = nodes
+                .iter()
+                .position(|n| n.name.as_deref() == Some(b"Its sources in order: a run takes the first usable one."))
+                .unwrap();
+            assert!(head < at && at < sources, "{line}");
+            if let Some(style) = style {
+                assert!(nodes[at].styles.as_slice().contains(&style), "{line}");
+            }
+            assert_eq!(
+                nodes.iter().any(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Each step")),
+                each_step,
+                "{line}"
+            );
+        }
+    }
+}
+
+/// A trial follows `took`, leaving the account that started it alone (domain/trial.md, 6.2).
+#[test]
+fn a_row_answered_for_another_account_says_nothing() {
+    // The fixture has the account that started the trial and the one that answered.
+    const ACCOUNT_ROWS: usize = 2;
+    let (mut root, trials, accounts) = trial_root(c::AccountKind::SignIn);
+    let mut doc = card_document(b"openai", b"Pat", c::AccountKind::SignIn);
+    let mut other = doc.accounts.get(0).unwrap().clone();
+    other.number = OTHER_ACCOUNT;
+    other.display = text(b"Other");
+    doc.accounts = List::from_boxed(Box::new([doc.accounts.get(0).unwrap().clone(), other]));
+    deliver(&mut root, accounts, doc);
+    let mut row = trial_row(
+        v::TrialStep::Answers,
+        v::TrialState::Answered(v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 6 }).unwrap()),
+    )
+    .into_parts();
+    row.took = Some(OTHER_ACCOUNT);
+    trial_rows(&mut root, trials, &[v::TrialRow::new(&v::CEILINGS, row).unwrap()]);
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut view = fixtures::view_of(words);
+        let tree = fixtures::build(&mut view, &root);
+        let rows: Vec<_> = tree
+            .nodes()
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| n.styles.as_slice().contains(&crate::look::SETTINGS_ROW))
+            .collect();
+        assert_eq!(rows.len(), ACCOUNT_ROWS);
+        for ((at, _), answered) in rows.into_iter().zip([false, true]) {
+            let nodes = super::inbox::subtree(tree, at);
+            assert_eq!(
+                nodes.iter().any(|n| n.name.as_deref() == Some("ChatGPT plan · Other · answered in 6 s".as_bytes())),
+                answered
+            );
+            assert_eq!(nodes.iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_DONE)), answered);
+        }
+    }
+}
+
+/// A row's answering act opens `ConnectModel`; no answering act offers no All ways (domain/trial.md, 6.2).
+#[test]
+fn sign_in_again_on_a_row_goes_to_the_ways_page() {
+    for (kind, way, offered) in [
+        (c::AccountKind::Program, d::WayKind::Program, true),
+        (c::AccountKind::SignIn, d::WayKind::SignIn, true),
+        (c::AccountKind::Key, d::WayKind::Key, false),
+    ] {
+        let (mut root, trials, _) = trial_root(kind);
+        let why = v::TrialWhy::Ended(
+            v::TrialEnded::new(&v::CEILINGS, v::TrialEndedParts { class: v::TrialClass::Permanent }).unwrap(),
+        );
+        trial_rows(&mut root, trials, &[trial_row(v::TrialStep::Answers, trial_failed(why))]);
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut view = fixtures::view_of(words);
+            let tree = fixtures::build(&mut view, &root);
+            assert!(fixtures::find(tree, Role::Button, b"Try again").is_some());
+            assert!(fixtures::find(tree, Role::Link, b"All ways").is_none());
+            let sign_in = fixtures::find(tree, Role::Link, b"Sign in again");
+            assert_eq!(sign_in.is_some(), offered);
+            if let Some(sign_in) = sign_in {
+                assert_eq!(
+                    crate::act(&mut view, sign_in, Act::Press),
+                    Some(d::Action::Pages(d::pages::Act::Go {
+                        address: d::Address::ConnectModel {
+                            way: Some(d::ModelWay { source: None, provider: PROVIDER, kind: way })
+                        }
+                    }))
+                );
+            }
+        }
+    }
+}
+
+/// Try again targets the trial's account with `again: true` (domain/trial.md, 6).
+#[test]
+fn try_again_on_a_row_runs_another() {
+    let (mut root, trials, _) = trial_root(c::AccountKind::SignIn);
+    trial_rows(&mut root, trials, &[trial_row(v::TrialStep::Answers, trial_failed(v::TrialWhy::Refused))]);
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut view = fixtures::view_of(words);
+        let tree = fixtures::build(&mut view, &root);
+        let retry = fixtures::find(tree, Role::Button, b"Try again").unwrap();
+        assert_eq!(
+            crate::act(&mut view, retry, Act::Press),
+            Some(d::Action::Forge(d::forge::Act::TryAccount { account: TRIED_ACCOUNT, again: true }))
+        );
+    }
+}
+
+/// Without a trial the existing row gains no nodes (domain/trial.md, 6.2).
+#[test]
+fn a_row_with_no_trial_reads_as_today() {
+    let (mut root, trials, _) = trial_root(c::AccountKind::SignIn);
+    let before: Vec<_> = [fixtures::words(), fixtures::browser_words()]
+        .into_iter()
+        .map(|words| {
+            let mut view = fixtures::view_of(words);
+            account_nodes(fixtures::build(&mut view, &root)).to_vec()
+        })
+        .collect();
+    trial_rows(&mut root, trials, &[]);
+    for (words, before) in [fixtures::words(), fixtures::browser_words()].into_iter().zip(before) {
+        let mut view = fixtures::view_of(words);
+        let nodes = account_nodes(fixtures::build(&mut view, &root));
+        assert_eq!(nodes, before);
+        assert!(!nodes.iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_DONE)
+            || n.name.as_deref() == Some(b"Each step")
+            || n.styles.as_slice().contains(&crate::look::FLOW_FAILED)));
+    }
+}
 pub(super) fn card_document(provider: &[u8], display: &[u8], kind: c::AccountKind) -> c::Accounts {
     let mut doc = document(1);
     let row = doc.accounts.get_mut(0).unwrap();

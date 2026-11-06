@@ -237,7 +237,6 @@ fn failure(
 /// The page determines where the quiet sign-in link goes (domain/trial.md, 6.2).
 pub(crate) enum Place {
     Welcome,
-    #[cfg_attr(not(test), expect(dead_code, reason = "the following account-row task wires the accounts page"))]
     Row,
 }
 
