@@ -243,9 +243,15 @@ impl Observer {
         }
     }
     pub fn durable(&mut self, now: u64, store: &Store) {
+        if store.applied == self.inner.applied() {
+            return;
+        }
         self.inner.durable(now, &store_view(store));
     }
     pub fn fresh_mark(&mut self, now: u64, store: &Store) {
+        if store.applied == self.inner.applied() {
+            return;
+        }
         self.inner.fresh_mark(now, &store_view(store));
     }
     pub fn cold(&mut self, now: u64, store: &Store) {
