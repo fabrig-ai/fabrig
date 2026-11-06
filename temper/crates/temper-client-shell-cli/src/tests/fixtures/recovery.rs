@@ -90,6 +90,7 @@ pub fn chat_me() -> w::Me {
     let project = w::MeProject::new(
         &lim,
         w::MeProjectParts {
+            defaults: List::with_capacity(0),
             public: None,
             project: PROJECT,
             name: text(b"shop"),

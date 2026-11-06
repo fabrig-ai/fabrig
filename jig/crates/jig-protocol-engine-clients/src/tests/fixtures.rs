@@ -64,6 +64,9 @@ pub fn settings() -> Settings {
 pub fn models() -> Box<[crate::Model]> {
     Box::new([
         crate::Model {
+            effort: Some(Box::from(b"low".as_slice())),
+            shown: None,
+            picker: true,
             name: Box::from(b"careful".as_slice()),
             provider: Some(3),
             window: 200_000,
@@ -73,6 +76,9 @@ pub fn models() -> Box<[crate::Model]> {
             description: Some(Box::from(b"For careful work".as_slice())),
         },
         crate::Model {
+            effort: None,
+            shown: None,
+            picker: true,
             name: Box::from(b"quick".as_slice()),
             provider: None,
             window: 8192,

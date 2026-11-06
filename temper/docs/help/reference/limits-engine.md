@@ -10,6 +10,8 @@ The tree limit counts all tasks made over the requester's tree's life, including
 
 A change batch reserves one task per member and shares the descendant allowance across members within each change policy's cap. These are prospective allowances for that call, not retained reservations across calls. A task-tree refusal names available and minimum required capacity and says whether fewer changes per call can fit (temper help change).
 
+temper sizes the engine's watch rooms itself: a stream holds 19 watches, and the engine holds clients.streams times that, in all and for one party. Raise clients.streams for more.
+
 ## tasks
 
 - `tasks.placed_holds`: count, 4. Bounds placed holds in the deployment, including lifted holds kept for their tasks.
@@ -167,8 +169,6 @@ A change batch reserves one task per member and shares the descendant allowance 
 ## views
 
 - `views.runs`: count, 4. Bounds live runs whose provisional text is retained, watched or not.
-- `views.watchers`: count, 4. Bounds open watches.
-- `views.watchers_per_party`: count, 4. Bounds open watches belonging to one opaque party.
 - `views.subjects_per_change`: count, 32. Bounds subjects named by one change event.
 - `views.text_bytes`: bytes, 65,536. Bounds retained provisional bytes per live run.
 - `views.facts`: count, 32. Bounds best effort observations waiting to be drained.

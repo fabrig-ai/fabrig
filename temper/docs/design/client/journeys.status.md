@@ -2,6 +2,8 @@
 
 2026-11-06. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+Unlisted sections have no known gap.
+
 - **Not yet:**
   - 3.5, 9: no recording from a real box has been through `add`, and no journey is `real`: the `real-journeys` request of 2026-11-05 leaves that to the user's own recording, so the guard has met fake secrets alone, through the shipped host natively.
   - 3.6: `welcome-playground` and `welcome-set-up` were added before the redaction and keep their fake boxes' link secret (3.5), until each is next added, because that request left the journeys' files to their owner.

@@ -8,6 +8,10 @@ fn me_with_model(prices: w::MePricesParts, description: Option<Box<[u8]>>) -> w:
     let model = w::MeModel::new(
         limits.wire(),
         w::MeModelParts {
+            effort: None,
+            shown: None,
+            accounts: skein_lib::List::with_capacity(0),
+            picker: true,
             name: b"chosen".as_slice().into(),
             provider: Some(3),
             window: 8192,
@@ -18,9 +22,14 @@ fn me_with_model(prices: w::MePricesParts, description: Option<Box<[u8]>>) -> w:
         },
     )
     .unwrap();
+    me_with_offer(model, skein_lib::List::with_capacity(0))
+}
+fn me_with_offer(model: w::MeModel, defaults: skein_lib::List<w::MeDefault>) -> w::Me {
+    let limits = fixtures::limits();
     let project = w::MeProject::new(
         limits.wire(),
         w::MeProjectParts {
+            defaults,
             public: None,
             project: 3,
             name: w::DocumentText::new(limits.wire(), w::DocumentTextParts { bytes: Box::from(*b"Tally"), cut: false })
@@ -40,7 +49,10 @@ fn me_with_model(prices: w::MePricesParts, description: Option<Box<[u8]>>) -> w:
     skein_codec::piece::write(&mut pieces, &encoded).unwrap();
     let mut me = fixtures::frame_record().into_parts();
     me.projects = pieces.finish();
-    w::Me::new(limits.wire(), me).unwrap()
+    let me = w::Me::new(limits.wire(), me).unwrap();
+    let mut encoded = skein_lib::Writer::new(usize::try_from(me.measure()).unwrap());
+    me.encode(&mut encoded).unwrap();
+    w::Me::decode(limits.wire(), &mut Reader::new(&encoded.finish())).unwrap()
 }
 
 #[test]
@@ -55,6 +67,7 @@ fn models_decode_configured_prices_and_optional_descriptions() {
                 description.clone(),
             );
             let me = translate::documents::frame(me, &limits).unwrap();
+            assert!(me.projects.get(0).unwrap().defaults.is_empty());
             let model = me.projects.get(0).unwrap().models.get(0).unwrap();
             assert_eq!(model.prices, c::ModelPrices { input: 2, cached: 1, cache_write, output: 7, unit: 1000 });
             assert_eq!(model.description, expected);
@@ -143,4 +156,41 @@ fn an_unknown_limit_reset_stays_unknown_in_the_task_wait() {
             why: c::TaskWaitWhy::Source(c::TaskSourceState::Limited { until: None }),
         })
     );
+}
+
+#[test]
+fn malformed_offer_efforts_and_shown_names_are_refused() {
+    let limits = fixtures::limits();
+    for (efforts, effort, shown) in [
+        (fixtures::list([Box::from(b"low".as_slice())]), Some(Box::from(b"high".as_slice())), None),
+        (skein_lib::List::with_capacity(0), Some(Box::from(b"high".as_slice())), None),
+        (fixtures::list([Box::from(b"low".as_slice())]), None, None),
+        (skein_lib::List::with_capacity(0), None, Some(Box::default())),
+    ] {
+        let model = w::MeModel::new(
+            limits.wire(),
+            w::MeModelParts {
+                name: b"chosen".as_slice().into(),
+                provider: None,
+                window: 1,
+                output: 1,
+                efforts,
+                effort,
+                shown,
+                accounts: skein_lib::List::with_capacity(0),
+                picker: true,
+                prices: w::MePrices::new(
+                    limits.wire(),
+                    w::MePricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
+                )
+                .unwrap(),
+                description: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            translate::documents::frame(me_with_offer(model, skein_lib::List::with_capacity(0)), &limits),
+            Err(Undecodable::Malformed)
+        );
+    }
 }

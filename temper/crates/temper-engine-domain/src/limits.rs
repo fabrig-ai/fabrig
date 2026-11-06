@@ -28,6 +28,8 @@ pub struct Limits {
     /// The most hand-offs one jig core decision routes, sibling continuations included:
     /// the bound of every drain within a step (skein/docs/foundation/programming-model.md, 3; 4.5).
     pub routes: u32,
+    /// The admitted `clients.streams`; both watch rooms follow them (protocol/configuration.md, 7).
+    pub streams: u32,
     /// Admission watermark, in backlog entries (skein/docs/foundation/programming-model.md, 7.1).
     pub watermark: u32,
     /// Public admission bounds (jig/docs/design/domain/root.md, 10).
@@ -126,16 +128,24 @@ pub const FILL_MARK: u64 = 268_435_456;
 /// Streams use temper's client's own bound of 19, above jig's small
 /// profile's 4 (`small.rs`, clients; protocol/configuration.md, 7).
 pub const WATCHES_PER_STREAM: u32 = 19;
-/// Watches use the client's bound above jig's small profile's 4 (`small.rs`, views).
+/// Views for one admitted stream; `views_for` scales both watch rooms.
+/// The deployment and one party each hold `streams` times 19 watches (protocol/configuration.md, 7).
 /// Live runs and provisional text retain jig's small profile's limits.
 pub const VIEWS: views::Limits = views::Limits {
     runs: 4,
-    watchers: 19,
-    watchers_per_party: 19,
+    watchers: WATCHES_PER_STREAM,
+    watchers_per_party: WATCHES_PER_STREAM,
     subjects_per_change: 32,
     text_bytes: 65_536,
     facts: 32,
 };
+
+/// Both watch rooms follow the admitted streams; saturation makes `views::valid` refuse overflow.
+#[must_use]
+pub const fn views_for(streams: u32) -> views::Limits {
+    let room = streams.saturating_mul(WATCHES_PER_STREAM);
+    views::Limits { watchers: room, watchers_per_party: room, ..VIEWS }
+}
 
 /// The effective core bounds shared by the root and its store.
 #[must_use]
@@ -177,7 +187,7 @@ pub fn core_limits(limits: &Limits) -> jig_domain_core::Limits {
         },
         accounts: limits.accounts,
         notes: limits.notes,
-        views: VIEWS,
+        views: views_for(limits.streams),
     }
 }
 

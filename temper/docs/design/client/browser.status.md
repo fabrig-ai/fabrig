@@ -2,13 +2,28 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
+Public history retains the three limits the request `ui-public-2` left for
+later (section 5): landed work from before a project went public never shows;
+a restart empties the ended-goal history (jig's `domain/people.md`, 13.9);
+a stock queue's Landings stay empty, since its changes land without a landing
+by turn.
+
+- **Design departs:** 8.3, from the request `ui-public-2` of 2026-11-06:
+  ended rows say how long ago they ended, where the request says "for how
+  long", because "landed for 2 hours" would not describe the ending. The
+  board shows its Landings section with a queue or a retained landing,
+  where the request says only with a queue: the plan's `public-page`
+  contract asks for either, and records no reason for widening that rule.
+
 - **Not yet:** 7.2: `accounts-try-stopped` and the trial's own `welcome-ready-*`
   samples (starting, answering, answered, stopped-starting, stopped-answering,
   waiting, waited, plan and key) are not in the gallery. Its Ready samples
   cover the host's check alone; the view's tests draw the trial states.
 - **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
-  is compiled. Its runtime red and green await the browser tier after landing;
-  the incompatible plan-row placement is the repair's red-first source evidence.
+  (`public_board_and_task_lines_are_readable_at_desktop_and_phone_widths`)
+  is compiled, with the current rows' executor and spend rules. Its runtime
+  check awaits the browser tier after landing, under the user's rule that
+  plans run focused and fuzzy alone.
 - **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:

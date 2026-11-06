@@ -110,7 +110,7 @@ fn counts(facts: &Map<u64, (Option<u64>, PublicPhase)>, task: u64) -> PublicCoun
             PublicPhase::Waiting => &mut counts.waiting,
             PublicPhase::Held => &mut counts.held,
             PublicPhase::Closing => &mut counts.closing,
-            PublicPhase::Ended | PublicPhase::Done | PublicPhase::Failed | PublicPhase::Cancelled => &mut counts.ended,
+            PublicPhase::Done | PublicPhase::Failed | PublicPhase::Cancelled => &mut counts.ended,
             PublicPhase::Idle
             | PublicPhase::Due
             | PublicPhase::Preparing

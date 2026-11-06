@@ -157,6 +157,7 @@ impl<A: Application> Engine<A> {
         }
         projects
             .push(MeProject {
+                defaults: List::with_capacity(0),
                 public: None,
                 project,
                 name: DocumentText::complete(name.clone()),

@@ -29,6 +29,8 @@ const CHAT_BUDGET: u64 = 128;
 pub(super) fn config() -> engine::Config {
     let mut config = walking::config(SEED);
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         models: walking::models(),
         descriptions: Box::new([None]),

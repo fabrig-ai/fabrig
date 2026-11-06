@@ -613,6 +613,8 @@ private, never edited by hand:
   `[oauth2]`: `JWT_SECRET`; each drawn once, at the first preparation,
   and kept in `state`;
 - `[service]`: `DISABLE_REGISTRATION`; `[mailer]`: off;
+- `[session]`: `SESSION_LIFE_TIME` 3600, an hour, on every owned Forgejo
+  (`sign-in.md`, 9.9);
 - when the forge signs its people in through temper, named by
   `application.sign_in.forges` (`sign-in.md`, 9.7): `[oauth2_client]`
   `ENABLE_AUTO_REGISTRATION = true`, `USERNAME = preferred_username` and
@@ -733,6 +735,13 @@ binaries; and decides by
   row, so a row a person removed in the site administration is not
   noticed: removing `runner/config.yaml` before a start registers it
   again.
+- **A box's source, last.** A later preparation, with
+  `application.machine.owned.sign_in` set, ends by pointing the source
+  already listed at temper's current address (`sign-in.md`, 9.9), after
+  `state` is written, so that a move of temper's port reaches Forgejo
+  before it loads the source. A first preparation has no source yet. No
+  ending of these two commands fails the preparation, but a termination
+  signal, as below.
 - **Forgejo's command line only,** on the work path, never its web: under
   the lock no Forgejo runs, so nothing writes its database beside the
   preparation.
@@ -796,7 +805,8 @@ binaries; and decides by
     meet the restarted forge run's on the box's socket and its database
     (`crates/temper/tests/suite/startup.rs`,
     `killing_forge_run_alone_kills_its_forgejo_child`).
-    Forgejo's graceful stop is forge run's forwarded Terminate. A
+    Forgejo's graceful stop is forge run's forwarded Terminate. The box
+    names Terminate for each of its steps (7.1). A
     failure, the parent changed or the program missing, prints `temper
     internal forge-child: WHY` and exits 1.
   - **Its shutdowns:** one that io names as Forgejo's (skein's `io.md`,
@@ -1355,6 +1365,15 @@ temper box
                                       its listeners from fd 3, then its pipe to the box (below)
 ```
 
+- **A step's start.** On Linux the box spawns each step through `temper
+  internal forge-child --parent BOX --signal terminate -- temper ARGS`, BOX
+  its own process id (6.4). That process execs the step, keeping its
+  descriptors, its environment and its process group, so nothing else of
+  this section sees the difference. A box that ends in any way, killed
+  among them, leaves each step a `SIGTERM`, which it takes as on any stop.
+  **On macOS** there is no parent-death signal (6.4): the box spawns each
+  step directly, so a box killed outright leaves them running, and its
+  next start refuses on the ports they hold.
 - **An empty configuration directory,** absent or with no entry, is
   written first by `temper init --box` (8.2), in the box's own process, before
   the document is read; the box says so in its own log, `First run:
@@ -1547,7 +1566,8 @@ temper box
   window, so it starts again from `box.backoff_ms` once a step has run a
   window without exiting. Its stop treats a step still starting as the box's
   stop does.
-- **Stops** at a first termination signal: the long steps in reverse
+- **Stops** at a first termination signal, `SIGINT`, `SIGTERM` or a closed
+  terminal's `SIGHUP`: the long steps in reverse
   order, each by a signal, `box.grace_ms`, a second signal, which turns
   `temper serve`'s drain into an abort (README.md, section 4),
   `box.grace_ms` again, then a close. The machine knows a step only as
@@ -1778,6 +1798,13 @@ temper box
   - **A line it cannot read,** or one from a step of no asked forge, is
     named on its stderr, `box: fetch: unknown line`, and goes no
     further.
+- **A closed terminal's hangup** never counts as a second signal: a
+  terminal's closing reaches the box from the kernel and again from the
+  person's shell, so a `SIGHUP` while the box already stops does nothing,
+  and the stop keeps its order. A `SIGHUP` already ignored when the box
+  starts stays ignored (skein's `shell.md`, 6.3), so `nohup temper box`
+  outlives its terminal. The box exits 1 if a write finds that terminal
+  gone, as for any terminal that fails.
 - **A failure's tail:** under each terminal line of a step's failure,
   a long step's exit, a group's `failed` or a give up, the box writes
   the last `box.tail_lines` lines it logged for that step since its last
@@ -1790,7 +1817,7 @@ temper box
   clears it for Forgejo (6.4).
 - **Its children** are skein-io's (skein's `io.md`, section 6), each in a
   process group of its own; closing one kills its group, so nothing the
-  box started outlives its stop.
+  box started outlives its stop, nor, on Linux, its death (7.1).
 
 ### 7.3 What it names
 
@@ -2051,7 +2078,7 @@ document.
   | `owned` | the box's owned Forgejo | its members below; the owned kind's group (7.1) and the offer to set one up (6.5) need it |
   | `owned.forgejo`, `owned.runner.binary` | cache paths (configuration.md, section 12), or `"fetched"` | checked against the pins of 6.1; `"fetched"` names temper's pinned build in the cache, which `temper forge fetch` writes (6.6) |
   | `owned.mirror` | absent, or `{"forgejo", "runner"}`, each an origin | each `https://HOST` or `https://HOST:PORT`, no path: where `temper forge fetch` asks for the pinned paths (6.6) |
-  | `owned.public` | absent, or an origin | `https://HOST` or `https://HOST:PORT`, no path: the address people reach this Forgejo at, behind a proxy; written as `ROOT_URL` and `DOMAIN` (6.2) |
+  | `owned.public` | absent, or an origin | `https://HOST` or `https://HOST:PORT`, no path: the address people reach this Forgejo at, behind a proxy; written as `ROOT_URL` and `DOMAIN` (6.2); refused beside a set `owned.sign_in`, at that member's path (`sign-in.md`, 9.9) |
   | `owned.runner` | the runner's members, or null for none | `capacity` at least 1; `labels` at least one, at most 8 |
   | `owned.listen` | an address, jig's format | a socket address on loopback; unique among the deployment's listeners and the machine's ports |
   | `owned.remote` | an HTTP base | `http://<listen>`: the forge's git base |
@@ -2525,17 +2552,18 @@ override.
   record, drawn by the setup plan that makes its first hook (5.4).
   Adoption makes the repository's hook; the fake's start-time adoption hooks its seeded
   repositories (8.4). GitHub's hints come from its App's delivery log.
-- **Its LLM providers:** the owned example's `engine.llm`, whole (8.1),
-  with no account; 2, `anthropic`, on every document, whatever is on
+- **Its LLM providers:** the owned example's `engine.llm` with no
+  account, its models `temper init`'s (configuration.md, 13.4), each with
+  its `shown`, `efforts` and `effort`, where the owned example's are its
+  own; 2, `anthropic`, on every document, whatever is on
   `PATH`, so that the Model step offers ChatGPT and Claude
   (`../client/README.md`, 3.5): `signed_in_plan` false, `manage_usage`
-  `https://claude.ai/settings/usage`, its one model `claude-opus-5-5`,
+  `https://claude.ai/settings/usage`, its models Anthropic's of that table,
   through Claude Code's `--model` (smith's `protocol/programs.md`, 5.1),
   and its one source Claude Code's program, `claude_code`; one
   endpoint, `anthropic`, naming that program, Anthropic's dialect, 2, at
-  `api.anthropic.com:443` on TLS, with OpenAI's bounds; the model's
-  window 1,048,576 and output 8,192, as the shipped model's, and 1 per
-  1,000,000 for input, cached and output, figures a subscription bills
+  `api.anthropic.com:443` on TLS, with OpenAI's bounds; its models'
+  prices are that table's, figures a subscription bills
   to nobody; the agent's configuration declares them too (8.2), and the
   `standard` profile's `documents.lines`, 16, holds the offer's three
   lines, so that no override is written; and 3, `demo`, the scripted
@@ -2596,15 +2624,16 @@ override.
   model, with no pick. jig takes it at each run's check until the task
   keeps an account: a chat started before an account of a real
   provider stays on the model it took, and a chat started after takes
-  the charter's first,
-  `gpt-6.1-sol` once an OpenAI key serves it. The composer's line says
+  the first of its charter's models with an account usable,
+  `claude-opus-5-5` once a Claude login is. The composer's line says
   which, before the start, from jig's `resolved_default` preview in
   `me`, never by guessing from catalogue order (`../client/README.md`,
   5.5). The request keeps its omitted choice; the preview does not turn
   it into an explicit one. The charters, the
   templates and the forge's charter are the binary's stock settings,
-  their models every model `engine.llm` configures in the document's
-  order, the scripted model last as `temper init --box` writes it; the document names
+  their models every model `engine.llm` configures in the stock's order
+  (configuration.md, 13.4), the scripted model last as `temper init --box`
+  writes it; the document names
   none of them (configuration.md, 13.4), and a person changes them from
   "How work runs" (`../client/README.md`, 5.13).
 - **One worker,** in the process, its `root` `workspaces` in the data
@@ -3465,7 +3494,10 @@ relies on.
   capacity at the same versions rewrites the runner's YAML while keeping
   its registration and secrets; `register` run only where the row may
   not exist (6.3), so that what a runner declared stays over a later
-  preparation, an upgrade and a runner added again. The shell checks
+  preparation, an upgrade and a runner added again; a box's later
+  preparation pointing its source at the current address, and going on
+  whatever either command answers, with neither command at a first
+  preparation or without `owned.sign_in`. The shell checks
   that a live runner's
   lock permits identical YAML to remain and refuses changed YAML until
   the runner stops.
@@ -3493,6 +3525,14 @@ relies on.
   its late child stopped, or closed at once after a second termination,
   never readied, continued, recorded or restarted, and its late failure
   ending it as a stop's.
+- **The box's lifetime:** in skein-shell, a `SIGHUP` read as `Hangup` when
+  the service asks, and left alone when ignored at the start. In
+  temper-box, a spawn's arguments with and without the box's id; a hangup
+  starting the stop's order; a hangup during a stop closing nothing; a
+  second termination after a hangup closing them. On the shipped binary,
+  in `crates/temper/tests/suite/box_listeners.rs`: a hangup stopping a box,
+  nothing left, its log's last line `Stopped`; a box started ignoring
+  hangups running on; and, on Linux, a box killed taking its steps with it.
 - **The fetch's machine** (6.6), in temper-forge-setup, given its URLs
   and digests: each pin's URL and digest for each architecture, and
   another architecture refused; another status or a redirect refused;
@@ -3841,6 +3881,11 @@ it checks of this document:
 ## 15. Later
 
 Each is intended; what it needs is named with it.
+
+- **A box killed outright on macOS** (7.1): its steps have no parent-death
+  signal, so they can keep running and hold the next start's ports. A
+  lifetime guard on macOS needs a mechanism of its own; until one is
+  designed, the box's ordered stop, including a hangup, is its cleanup.
 
 - **A start holding the engine's documents to temper's clients** (8.1):
   no start compares `documents.text_bytes` with what the web and terminal

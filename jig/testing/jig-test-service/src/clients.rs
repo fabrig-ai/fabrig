@@ -13,6 +13,10 @@ use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 mod translation;
 pub(super) use translation::{application, immediate, to_component};
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "component closure, server handoff, io settlement and runnable work are independent"
+)]
 pub(super) struct Clients {
     component: Option<kit::Component>,
     settings: Option<kit::Settings>,
@@ -24,6 +28,7 @@ pub(super) struct Clients {
     mount_out: Queue<http::Request>,
     pub(super) server_out: Queue<crate::server::Routed>,
     component_closed: bool,
+    server_finished: bool,
     secret: Option<skein_lib::Secret>,
     pub(super) env: Env<kit::Limits>,
     out: Queue<kit::Request>,
@@ -53,6 +58,7 @@ impl ::core::fmt::Debug for Clients {
             .field("mount_out", &self.mount_out)
             .field("server_out", &self.server_out)
             .field("component_closed", &self.component_closed)
+            .field("server_finished", &self.server_finished)
             .field("secret", &self.secret)
             .field("env", &self.env)
             .field("out", &self.out)
@@ -144,6 +150,7 @@ impl Clients {
             mount_out: Queue::uncapped(),
             server_out: Queue::uncapped(),
             component_closed: false,
+            server_finished: false,
             secret: None,
             env,
             out,
@@ -358,7 +365,18 @@ impl Clients {
         }
         self.advance(events, bound, rows, accounts);
         self.pending = server_pending || !self.server_out.is_empty();
-        self.pending |= self.mount.up(&self.mount_env, &mut self.mount_out);
+        let mount_pending = self.mount.up(&self.mount_env, &mut self.mount_out);
+        self.pending |= mount_pending;
+        if self.component_closed
+            && !self.server_finished
+            && !mount_pending
+            && self.mount_out.is_empty()
+            && self.out.is_empty()
+        {
+            self.server.finish();
+            self.server_finished = true;
+            self.pending = true;
+        }
         if let Some(request) = self.mount_out.pop() {
             self.pending = true;
             match request {

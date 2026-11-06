@@ -264,3 +264,34 @@ fn source_commands_use_the_owned_paths_and_public_client_without_a_secret() {
         assert_eq!(argument.as_ref(), expected);
     }
 }
+
+#[test]
+fn source_update_names_the_owned_paths_and_the_listed_id_without_a_secret() {
+    let update = spec::source_update(
+        &fixtures::owned(),
+        &fixtures::place(),
+        b"27",
+        b"http://127.0.0.1:8888/.well-known/openid-configuration",
+    );
+    assert_eq!(update.program, fixtures::owned().forgejo);
+    assert_eq!(update.directory, fixtures::place().work_path());
+    let expected = [
+        b"--work-path".as_slice(),
+        b"/srv/forge-2/forgejo",
+        b"--config",
+        b"/srv/forge-2/forgejo/app.ini",
+        b"admin",
+        b"auth",
+        b"update-oauth",
+        b"--id",
+        b"27",
+        b"--use-custom-urls",
+        b"false",
+        b"--auto-discover-url",
+        b"http://127.0.0.1:8888/.well-known/openid-configuration",
+    ];
+    assert_eq!(update.arguments.len(), expected.len());
+    for (argument, expected) in update.arguments.iter().zip(expected) {
+        assert_eq!(argument.as_ref(), expected);
+    }
+}

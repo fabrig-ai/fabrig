@@ -10,6 +10,8 @@ const REPORT: &[u8] = b"The widget fix has landed.\n\nThe review passed and the 
 fn status_world(allowed: bool, funded: bool) -> World {
     let model = walking::models()[0].clone();
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         models: Box::new([model.clone()]),
         descriptions: Box::new([None]),
         endpoints: Box::new([]),

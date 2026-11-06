@@ -110,7 +110,7 @@ pub fn text(
         secrets.jwt_secret.expose(),
         b"\n[service]\nDISABLE_REGISTRATION = true\n",
         registration,
-        b"[mailer]\nENABLED = false\n",
+        b"[mailer]\nENABLED = false\n[session]\nSESSION_LIFE_TIME = 3600\n",
         &webhook,
         b"[actions]\nENABLED = ",
         actions,

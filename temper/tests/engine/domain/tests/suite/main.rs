@@ -40,6 +40,7 @@ mod settings;
 mod switch;
 mod trials;
 mod walking;
+mod watch_room;
 
 mod fuzzy {
     mod endings;

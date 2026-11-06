@@ -68,6 +68,7 @@ pub struct Frame {
     pub busy_links: u32,
     pub full_link: Option<(u32, Wall, Wall)>,
     pub streams_full: Option<(w::StreamBound, u32)>,
+    pub busy_watches: bool,
     pub link_posts: Vec<Box<[u8]>>,
     pub hold_stores: Option<()>,
     pub hold_connect: bool,
@@ -181,6 +182,7 @@ impl Frame {
             busy_links: 0,
             full_link: None,
             streams_full: None,
+            busy_watches: false,
             link_posts: Vec::new(),
             hold_stores: None,
             hold_connect: false,
@@ -263,6 +265,12 @@ impl Frame {
     pub fn full_streams(words: &[&str], bound: w::StreamBound, size: u32) -> Self {
         let mut frame = Self::read(words);
         frame.streams_full = Some((bound, size));
+        frame.drain();
+        frame
+    }
+    pub fn busy_watches(words: &[&str]) -> Self {
+        let mut frame = Self::read(words);
+        frame.busy_watches = true;
         frame.drain();
         frame
     }
@@ -676,6 +684,17 @@ impl Frame {
             b"/jig/v1/watch" => {
                 let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&socket.request[end + 4..]))
                     .expect("watch record");
+                if self.busy_watches {
+                    let answer = w::OpenAnswer::Refused(
+                        w::OpenAnswerRefused::new(
+                            &w::CEILINGS,
+                            w::OpenAnswerRefusedParts { why: w::WatchRefusal::Busy },
+                        )
+                        .expect("refusal fits"),
+                    );
+                    self.reply(fd, &encode!(answer));
+                    return;
+                }
                 if matches!(open.subject().owner(), w::Owner::Family(_)) {
                     self.wait_task = Some(open.watch());
                     self.reply(fd, &encode!(w::OpenAnswer::Admitted));

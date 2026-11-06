@@ -42,12 +42,12 @@ pub use domain::{Domain, Refused, StartStop, fire, refused, release, step};
 pub use jig_domain_core::{Charter, Delegate, Dependency, Model, ProcedureStep, RunCharter, RunPolicy, StepEnd};
 pub use limits::{
     BriefBudgets, BriefLimits, FACTS, Limits, TRANSCRIPT_TAIL_BYTES, VIEWS, WATCHES_PER_STREAM, core_limits,
-    default_watermark, policy_row_bound, valid,
+    default_watermark, policy_row_bound, valid, views_for,
 };
 pub use link::{inbox_sender, inbox_words};
 pub use route::{
-    Approval, ForgePerson, Freshness, Gate, HostDelivery, HostRequest, LandingRule, ProjectPerson, RepositoryIdentity,
-    adopt_repository_ask,
+    Approval, ForgePerson, Freshness, Gate, HostDelivery, HostRequest, LandingRule, OfferedModel, ProjectPerson,
+    RepositoryIdentity, adopt_repository_ask,
 };
 pub use temper_engine_domain_forge::commit_text;
 pub use translate::{

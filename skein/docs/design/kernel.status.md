@@ -1,6 +1,9 @@
 # kernel: status
 
-2026-11-04. Where skein's code lags or departs from [kernel.md](kernel.md).
+2026-11-06. Where skein's code lags or departs from [kernel.md](kernel.md).
+
+Section 6.3 has no known gap in reading a requested `SIGHUP` as a
+shutdown, with the sender on Linux and none on macOS.
 
 - **Not yet:** 6.1, 6.4: a tree's metadata: `StatEntry`, `ReadLink`,
   `MakeLink`, `SetMode`, `SetOwner`, the attribute records, and the whole

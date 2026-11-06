@@ -179,6 +179,7 @@ pub struct Harness {
     pub endings: HeldEndings,
 }
 pub struct Opening {
+    pub parent: Option<u32>,
     pub link_form: crate::terminal::LinkForm,
     pub log_lines: Box<[Box<[u8]>]>,
     pub first_link: Option<crate::host::FirstLink>,
@@ -238,6 +239,7 @@ impl Harness {
             limits,
             echo,
             Opening {
+                parent: None,
                 link_form: crate::terminal::LinkForm::Bare,
                 log_lines,
                 first_link: None,
@@ -280,6 +282,7 @@ impl Harness {
             after_block: opening.after_block,
             echo,
             data: bytes::copy_of(b"/data"),
+            parent: opening.parent,
             program: bytes::copy_of(b"process_fixture"),
             environment: Box::new([
                 bytes::copy_of(b"HOME=/box"),
@@ -341,7 +344,7 @@ impl Harness {
                         at: self.sim.now(),
                     })
                     .expect("bounded launches");
-                if self.stubborn && args.first().expect("program").as_ref() == b"never" {
+                if self.stubborn && fixture_arguments(args).first().expect("program").as_ref() == b"never" {
                     let (_, token, _) = self.sim.hosted_spawn(call.ticket);
                     self.pending.push(token).expect("bounded hosted launches");
                 }
@@ -357,7 +360,7 @@ impl Harness {
             self.answer_call(call);
         }
     }
-    fn answer_call(&mut self, call: Call) {
+    fn answer_call(&mut self, mut call: Call) {
         if self.hold_log_write
             && let Ask::Write { .. } = &call.ask
         {
@@ -376,6 +379,10 @@ impl Harness {
             return;
         }
 
+        if let Ask::Spawn { args, .. } = &mut call.ask {
+            // The fake executes the wrapped fixture; launches retain the whole exec boundary.
+            *args = Box::from(fixture_arguments(args));
+        }
         skein_fake_machine::step(&mut self.machine, call, &mut self.answers);
         if self.stubborn {
             let mut answer = self.answers.pop().expect("one answer");
@@ -922,5 +929,14 @@ pub fn kind_steps() -> temper_forge_setup::Steps {
             before: 0,
             steps: Box::new([(Stage::Run, long(b"fake-forge", &[b"never", FORGE_ARGUMENT]))]),
         }]),
+    }
+}
+
+fn fixture_arguments(args: &[Box<[u8]>]) -> &[Box<[u8]>] {
+    match args.first() {
+        Some(argument) if argument.as_ref() == b"internal" => {
+            args.get(8..).expect("forge-child prefix checked by the host test")
+        }
+        Some(_) | None => args,
     }
 }

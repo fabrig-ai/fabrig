@@ -132,6 +132,7 @@ pub fn limits() -> engine::Limits {
         run_bytes: 4096,
     };
     engine::Limits {
+        streams: 1,
         routes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).routes,
         // The same configured core byte budgets as the engine world fixture.
         policy_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.policy_bytes,

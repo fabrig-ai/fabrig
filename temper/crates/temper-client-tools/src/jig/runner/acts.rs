@@ -133,7 +133,7 @@ pub(crate) enum Failed {
     Refused(&'static [u8]),
     Fixed(&'static [u8]),
     Unknown { what: &'static [u8], name: Box<[u8]> },
-    EffortRequired { name: Box<[u8]> },
+    NotOffered { name: Box<[u8]> },
     SubAgentNamedTwice { name: Box<[u8]> },
     Detail(Box<[u8]>),
 }
@@ -627,7 +627,7 @@ pub(crate) fn prepared(
                 Failed::Fixed(why) => render::failure(why, called.json, 1),
                 Failed::Detail(why) => render::failure(&why, called.json, 1),
                 Failed::Unknown { what, name } => choice::named(b"unknown ", what, &name, called.json),
-                Failed::EffortRequired { name } => choice::named(b"effort required", b"", &name, called.json),
+                Failed::NotOffered { name } => choice::named(b"model not offered", b"", &name, called.json),
                 Failed::SubAgentNamedTwice { name } => choice::named(b"sub-agent named twice", b"", &name, called.json),
             };
             finish(called, printed, out);

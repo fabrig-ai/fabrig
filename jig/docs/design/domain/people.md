@@ -1065,10 +1065,10 @@ what outlives it (5.2).
 - **A deleted project's spend:** kept in the deployment's and its
   parties' totals for the period, never per task (5.2). Default: as
   said.
-- **A public board's ended goals across a restart:** a store index of
-  a project's ended goals, newest first, that the public index loads
-  once at start and at publication (13.9). Default: none; the board's
-  ended goals are those ended since.
+- **A public board's ended goals across a restart or before publication:**
+  a store index of a project's ended goals, newest first, that the public
+  index loads once at start and at publication (13.9). Default: none; the
+  board's ended goals are those ended while the index kept the project.
 - **A human publication capability:** a way for a person to publish
   another configured name they wrote, that an agent holding their
   credential could not use, since a credential proves who sent a
@@ -1171,8 +1171,8 @@ its own beside jig's (13.3). How a public read travels is
 Each public document is a type of its own, made by a projection from
 the public index (13.9); a field reaches it only when it is added
 there. jig's hold structure and mechanics alone: public identifiers,
-states, times, the shape of a tree, kinds, spend, task titles and the
-project's name. Their records, and each field's source, are
+states, times, the shape of a tree, kinds, a goal's spend, task titles
+and the project's name. Their records, and each field's source, are
 `../client/domain/contract.md`, section 12.
 
 - **The deployment's public projects:** each public project's public
@@ -1191,10 +1191,11 @@ project's name. Their records, and each field's source, are
   cut; its parent's identifier, or none for a public goal, whose
   ancestry is never shown; whether it is
   a goal, and its priority; its executor's kind alone, never who
-  or which; its phase, and if held, the hold's kind without
-  its reason; when it was made, last changed, last active and ended,
-  each to the second; its spend and its budget; its public delegates'
-  counts by phase.
+  or which; its phase, if held, the hold's kind without
+  its reason, and if ended, how it ended, done, failed or cancelled,
+  without its reason; when it was made, last changed, last active and
+  ended, each to the second; a goal's spend, never a task's, and no
+  budget; its public delegates' counts by phase.
 - **No text but titles and the project's name.** The task's title and
   the project's name cross without an author flag or a human
   publication capability. Nothing else a person or an agent could

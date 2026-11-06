@@ -200,7 +200,7 @@ fn spawn_prepared(command: &mut Spawn, terminal: Option<&CString>) -> Result<Don
             let mut defaults: libc::sigset_t = unsafe { std::mem::zeroed() };
             // SAFETY: defaults is live writable signal-set storage.
             super::status(unsafe { libc::sigemptyset(ptr::from_mut(&mut defaults)) })?;
-            for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGWINCH, libc::SIGPIPE] {
+            for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP, libc::SIGWINCH, libc::SIGPIPE] {
                 // SAFETY: defaults remains live initialized storage.
                 super::status(unsafe { libc::sigaddset(ptr::from_mut(&mut defaults), signal) })?;
             }
@@ -434,6 +434,7 @@ pub(crate) fn write_signal(writer: Fd, signal: skein_io::kernel::ServiceSignal) 
     let number = match signal {
         skein_io::kernel::ServiceSignal::Interrupt => libc::SIGINT,
         skein_io::kernel::ServiceSignal::Terminate => libc::SIGTERM,
+        skein_io::kernel::ServiceSignal::Hangup => libc::SIGHUP,
     };
     let bytes = number.to_ne_bytes();
     let count = super::write(writer, &bytes).map_err(map_error)?;
@@ -444,6 +445,7 @@ pub(crate) fn signal_current_thread(signal: skein_io::kernel::ServiceSignal) -> 
     let number = match signal {
         skein_io::kernel::ServiceSignal::Interrupt => libc::SIGINT,
         skein_io::kernel::ServiceSignal::Terminate => libc::SIGTERM,
+        skein_io::kernel::ServiceSignal::Hangup => libc::SIGHUP,
     };
     // The signal goes to the process: XNU reports a signal to EVFILT_SIGNAL
     // only when it is sent to the process, never one sent to a thread
@@ -660,7 +662,7 @@ fn terminal_child(plan: &TerminalPlan<'_>) -> ! {
     if unsafe { libc::sigprocmask(libc::SIG_SETMASK, ptr::from_ref(&plan.empty), ptr::null_mut()) } < 0 {
         child_failed(plan.error);
     }
-    for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGWINCH, libc::SIGPIPE] {
+    for signal in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP, libc::SIGWINCH, libc::SIGPIPE] {
         // SAFETY: SIG_DFL is a fixed disposition, no callback or allocation.
         if unsafe { libc::signal(signal, libc::SIG_DFL) } == libc::SIG_ERR {
             child_failed(plan.error);

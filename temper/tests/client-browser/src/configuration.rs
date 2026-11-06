@@ -34,6 +34,9 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     value.as_object_mut().expect("whole object").remove("service");
+    for name in ["views.watchers", "views.watchers_per_party"] {
+        value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
+    }
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine object").remove(member);
     }
@@ -78,8 +81,6 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["engine"]["limits"]["overrides"]["documents.lines"] = 6.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
-    value["engine"]["limits"]["overrides"]["views.watchers"] = 16.into();
-    value["engine"]["limits"]["overrides"]["views.watchers_per_party"] = 16.into();
     value["application"] = serde_json::json!({
         "welcome":true,
         "webhooks":null,

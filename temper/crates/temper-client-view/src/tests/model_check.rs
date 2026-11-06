@@ -566,7 +566,7 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
             "Cannot load File: Unreadable",
         ),
         (W::Host, "owner's login isn't signed in on a host that can run this."),
-        (W::Empty, "No account serving this work"),
+        (W::Empty, "No account can run this chat yet."),
         (W::Invalid(c::AccountWhy::Uses), "The requested account cannot serve this work"),
         (W::Source(S::Later { until: None }), "Try later"),
         (W::Source(S::Cancelled), "Cancelled"),
