@@ -182,7 +182,7 @@ fn a_waiting_delegates_message_is_refused_with_its_reason() {
 }
 
 #[test]
-fn an_agents_older_turns_are_read_by_older() {
+fn an_agents_older_turns_are_read_at_the_log_head() {
     let (mut world, person, task) = running_delegate_page();
     fixtures::extend_delegate_conversation(world.front(), task);
     world.person(
@@ -190,10 +190,18 @@ fn an_agents_older_turns_are_read_by_older() {
         vec![
             Step::See { find: conversation(Find::text(b"The latest findings")), within: fixtures::WITHIN },
             Step::Gone { find: conversation(Find::text(b"Findings in progress")), within: fixtures::WITHIN },
-            Step::See { find: Find::named(Role::Button, b"Older"), within: fixtures::WITHIN },
-            Step::Press { find: Find::named(Role::Button, b"Older") },
-            Step::See { find: conversation(Find::text(b"Findings in progress")), within: fixtures::WITHIN },
+            Step::Gone { find: Find::named(Role::Button, b"Older"), within: fixtures::WITHIN },
         ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    let Found::Node(log) = TreeFace::new(world.tree(person)).find(&Find::named(Role::Log, b"Conversation")) else {
+        panic!("conversation log");
+    };
+    world.act(person, log, skein_ui::Act::Near { edge: skein_ui::LogEdge::Head });
+    world.person(
+        person,
+        vec![Step::See { find: conversation(Find::text(b"Findings in progress")), within: fixtures::WITHIN }],
     );
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");

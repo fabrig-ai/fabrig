@@ -522,7 +522,7 @@ fn a_card_shows_once_at_its_call_when_its_result_shares_the_window() {
     let log = view.tree().nodes();
     let mut regions = 0_u32;
     for (at, node) in log.iter().enumerate() {
-        if node.role == Role::Region && node.styles.as_slice().contains(&look::TURN) {
+        if node.styles.as_slice().contains(&look::TURN) {
             regions = regions.checked_add(1).expect("region count");
             if regions > 1 {
                 let end = at.checked_add(usize::try_from(node.size).expect("region size")).expect("region end");
