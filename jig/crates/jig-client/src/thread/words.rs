@@ -13,7 +13,7 @@
 //! | absent | activity words | sent or read |
 use crate::Key;
 use crate::contract::{ActivityPage, MeParty, Party, Text};
-use skein_lib::List;
+use skein_lib::{List, length::len_u64};
 /// Where a person's words are relative to the engine's committed turns.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Words {
@@ -48,6 +48,15 @@ impl KeptWords {
     #[must_use]
     pub fn new(capacity: u32) -> Self {
         Self { rows: List::with_capacity(capacity), read_through: 0, scope: None }
+    }
+    /// The bytes of the words kept.
+    #[must_use]
+    pub fn bytes(&self) -> u64 {
+        let mut bytes = 0_u64;
+        for row in &self.rows {
+            bytes = bytes.saturating_add(len_u64(row.words.bytes().len()));
+        }
+        bytes
     }
     /// A different authenticated party never inherits local request snapshots.
     pub fn bind(&mut self, scope: Option<u64>) {
