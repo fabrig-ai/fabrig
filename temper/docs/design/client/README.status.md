@@ -494,12 +494,13 @@
   holds the part, and `host_tests_copy.rs` holds that the press's own report asks the
   write; no test runs the one line between them, in `carry`
   (`temper-client-shell-web/src/lib.rs`). Seen by reading.
-- **Design departs:** 4.6, *The program's environment*, from the user's word of
-  2026-11-06 on the request `box-small`: `program_environment`
-  (`crates/temper/src/directories.rs`) answers all three `TEMPER_` values where any
-  directory is off its default, where the user has each only where it differs. The word
-  reached that plan's task as it ran, and the task did not take it. `box-small-2`
-  carries it.
+- **Design departs:** 4.6, *The program's environment*, from the request `box-small-2`
+  of 2026-11-06, item 1, decided by its plan's cut, which takes `resolve` as all or
+  nothing: with no `HOME` and an XDG variable placing some of the directories, not all,
+  `program_environment` (`crates/temper/src/directories.rs`) knows no default and names
+  all three, one at its own default among them, where the request has each only where it
+  differs. The command finds the same directories either way, and no test holds this
+  case: `no_home_names_all_three` gives no XDG variable. Seen by reading.
 - **Design departs:** 4.6, *The words of a command for this machine*, from the request
   `box-small` of 2026-11-06, item 1, which has these words in any other command handed
   to the person for this machine: `temper forge run`'s refusal
