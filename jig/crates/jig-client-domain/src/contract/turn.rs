@@ -3,6 +3,8 @@
 //! input as written; the outcome is a summary and optional jig object references.
 use super::{ApplicationPart, ObjectKey, Text};
 use skein_lib::List;
+/// The most bytes in an admitted tool name (client/domain/client.md, 14).
+pub const CALL_NAME: u32 = 64;
 /// The client view of one committed model turn.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Turn {

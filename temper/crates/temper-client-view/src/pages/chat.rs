@@ -585,7 +585,7 @@ pub(crate) fn conversation_with_times(
     (drawn, mut times): (Drawn<'_>, Option<&mut Times>),
     bindings: &mut Bindings,
 ) {
-    let (rows, text_limit) = limits;
+    let (rows, _) = limits;
     let Drawing { projected, request, delegations, proposals } = drawing(drawn);
     let bound = match delegations {
         Some((chat, _)) => chat.delegations.capacity(),
@@ -658,7 +658,7 @@ pub(crate) fn conversation_with_times(
                     );
                 }
             }
-            Line::Provisional { text, .. } => provisional(b, text, words, text_limit),
+            Line::Provisional { text, .. } => provisional(b, text, words),
             Line::Undecoded { why, .. } => undecoded(b, why, words, clock.as_deref()),
 
             Line::Left { lines } => {
@@ -791,7 +791,7 @@ fn heard_card(
         b.close();
     }
 }
-fn provisional(b: &mut Builder, message: &[u8], words: &Words, text_limit: u32) {
+fn provisional(b: &mut Builder, message: &[u8], words: &Words) {
     b.open(Role::Slot);
     b.style(look::MESSAGE);
     b.style(look::BY_AGENT);
@@ -801,7 +801,7 @@ fn provisional(b: &mut Builder, message: &[u8], words: &Words, text_limit: u32) 
     b.close();
     b.open(Role::Slot);
     b.style(look::SAYS);
-    markdown(b, message, text_limit);
+    skein_ui::markdown::read(message, 2, b);
     b.close();
     b.close();
 }
@@ -1366,21 +1366,6 @@ fn hidden(event: &c::DecodedActivityLine, projected: bool, delegations: Option<(
 fn prefix<T>(values: &[T], most: u32) -> &[T] {
     let end = values.len().min(usize::try_from(most).expect("window fits"));
     values.get(..end).expect("bounded prefix")
-}
-fn markdown(b: &mut Builder, bytes: &[u8], most: u32) {
-    let most = bytes.len().min(usize::try_from(most).expect("text bound fits"));
-    let mut end = most;
-    if end < bytes.len() {
-        // The protocol validated UTF-8; align a display window to the preceding character.
-        for index in most.saturating_sub(3)..=most {
-            if let Some(byte) = bytes.get(index)
-                && byte & 0xc0 != 0x80
-            {
-                end = index;
-            }
-        }
-    }
-    skein_ui::markdown::read(bytes.get(..end).expect("UTF-8 prefix"), 2, b);
 }
 
 // Only a later settings proposal anchored in this conversation replaces an ended one.
