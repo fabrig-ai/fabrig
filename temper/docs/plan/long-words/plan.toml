@@ -75,3 +75,16 @@ id = 4
 story = "a client knows what one message holds before it sends"
 parts = ["person-bound"]
 walk = false
+
+[[part]]
+id = "composer"
+title = "A person can write a paragraph, and is told past what one message holds"
+mode = "direct"
+needs = ["person-bound", "kept-words", "view-prices", "read-ends-page"]
+design = "temper/docs/design/client/README.md, 5.4"
+
+[[slice]]
+id = 5
+story = "a person pastes a long paragraph, sends it and reads it back; past what one message holds it stays, Send is disabled and a line says how far over"
+parts = ["composer"]
+walk = false
