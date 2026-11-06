@@ -28,6 +28,9 @@ fn full_node(b: &mut Builder, role: Role, byte: u8) {
     {
         b.state(state);
     }
+    if role == Role::List {
+        b.ordered(u32::MAX);
+    }
     if role == Role::Item {
         b.state(State::Completed);
     }

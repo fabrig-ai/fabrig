@@ -610,7 +610,11 @@ impl HostWorld {
                                             domain::api::Permission::Admin
                                         }
                                     };
-                                    Ok(domain::api::Answer::Permission(permission))
+                                    Ok(domain::api::Answer::Permission(domain::api::UserPermission {
+                                        user,
+                                        login: Box::new([]),
+                                        permission,
+                                    }))
                                 }
                                 other => panic!("unexpected repository domain call: {other:?}"),
                             };
