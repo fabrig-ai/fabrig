@@ -218,10 +218,16 @@ fn closing_project_rename_returns_focus_to_the_summary() {
         Step::Focused(summary(b"Project 1")),
         main_unfocused(),
         press(Role::Button, b"Rename Project 1"),
-        Step::Type { find: rename(), words: b"New name".as_slice().into() },
+        Step::Person(PersonStep::Type { find: rename(), words: b"New name".as_slice().into() }),
         Step::Key(Key::Enter),
         see(summary(b"New name")),
         Step::Focused(summary(b"New name")),
+        main_unfocused(),
+        press(Role::Button, b"Rename New name"),
+        Step::Person(PersonStep::Type { find: rename(), words: b"Saved name".as_slice().into() }),
+        press(Role::Button, b"Save"),
+        see(summary(b"Saved name")),
+        Step::Focused(summary(b"Saved name")),
         main_unfocused(),
     ]));
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);

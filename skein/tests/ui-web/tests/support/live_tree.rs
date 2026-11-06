@@ -214,6 +214,20 @@ fn a_refreshed_form_removes_its_field_and_companion_label() {
 }
 
 #[test]
+fn a_disclosure_keeps_focus_when_its_summary_name_changes() {
+    const MAIN_NODE: &str = "2"; // Page, main in the live fixture.
+    let mut story = TreeStory::new("summary");
+    story.steps(vec![
+        harness::Step::Person(Step::Press { find: Find::named(Role::Disclosure, b"Project") }),
+        harness::Step::Person(Step::Press { find: Find::exactly_named(Role::Button, b"Save") }),
+    ]);
+    story.revision(2);
+    story.steps(vec![harness::Step::Focused(Find::named(Role::Disclosure, b"Renamed project"))]);
+    story.dom("main:not(:has(form))".into(), "data-node", MAIN_NODE);
+    story.run();
+}
+
+#[test]
 fn a_paragraph_splits_two_live_runs_which_grow_and_merge_in_order() {
     let mut story = TreeStory::new("mixed");
     story.tree(&[&["One", "Three"]]);
