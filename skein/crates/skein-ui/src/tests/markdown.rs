@@ -359,3 +359,241 @@ fn empty_table_rows_fit_the_declared_byte_bound() {
     assert_eq!(tree.nodes().iter().filter(|node| node.role == Role::Row).count(), ROWS + 1);
     assert_eq!(tree.nodes().iter().filter(|node| node.role == Role::Cell).count(), ROWS * 3);
 }
+
+const KEPT: [&[u8]; 17] = [
+    include_bytes!("markdown/01.md"),
+    include_bytes!("markdown/02.md"),
+    include_bytes!("markdown/03.md"),
+    include_bytes!("markdown/04.md"),
+    include_bytes!("markdown/05.md"),
+    include_bytes!("markdown/06.md"),
+    include_bytes!("markdown/07.md"),
+    include_bytes!("markdown/08.md"),
+    include_bytes!("markdown/09.md"),
+    include_bytes!("markdown/10.md"),
+    include_bytes!("markdown/11.md"),
+    include_bytes!("markdown/12.md"),
+    include_bytes!("markdown/13.md"),
+    include_bytes!("markdown/14.md"),
+    include_bytes!("markdown/15.md"),
+    include_bytes!("markdown/16.md"),
+    include_bytes!("markdown/17.md"),
+];
+
+fn growing(input: &[u8], with_end: bool) -> (Tree, usize) {
+    let bytes = u32::try_from(input.len()).unwrap();
+    let limits = crate::Limits {
+        nodes: markdown::max_nodes(bytes).unwrap().checked_add(2).unwrap(),
+        depth: 12,
+        text_per_node: bytes.checked_mul(2).unwrap().checked_add(1).unwrap(),
+        text_bytes: markdown::max_text_bytes(bytes).unwrap().checked_add(1).unwrap(),
+        markdown_depth: 4,
+        ..crate::tests::fixtures::LIMITS
+    };
+    let mut builder = Builder::new(&limits);
+    builder.open(Role::Page);
+    let mut calls = 0_usize;
+    markdown::read_growing(
+        input,
+        2,
+        |builder| {
+            calls = calls.checked_add(1).unwrap();
+            if with_end {
+                builder.text(Run::Plain, b"~");
+            }
+        },
+        &mut builder,
+    );
+    builder.close();
+    let tree = builder.finish();
+    assert!(tree.len() <= limits.nodes);
+    let charged: u32 = tree.nodes().iter().map(crate::Node::text_bytes).sum();
+    assert!(charged <= limits.text_bytes);
+    (tree, calls)
+}
+
+fn has_run(tree: &Tree, run: Run, words: &[u8]) -> bool {
+    tree.nodes().iter().any(|node| node.text.iter().any(|text| text.run == run && text.text.as_ref() == words))
+}
+
+#[test]
+fn a_bold_still_open_is_bold() {
+    for (input, run, words) in [
+        (b"a **bold wo".as_slice(), Run::Strong, b"bold wo".as_slice()),
+        (b"a *soft wo", Run::Emphasis, b"soft wo"),
+        (b"a `code wo", Run::Code, b"code wo"),
+        (b"**first\nsecond", Run::Strong, b"first"),
+    ] {
+        let (tree, calls) = growing(input, false);
+        assert!(has_run(&tree, run, words), "{}", shape(&tree));
+        assert_eq!(calls, 1);
+    }
+    assert_eq!(
+        shape(&growing(b"**closed\n\n**open", false).0),
+        "Page\n  Paragraph\n    Text Plain b\"**closed\"\n  Paragraph\n    Text Strong b\"open\"\n"
+    );
+}
+
+#[test]
+fn a_delimiter_alone_at_the_end_makes_no_text() {
+    for input in [b"word **".as_slice(), b"word *", b"word `"] {
+        assert_eq!(text(&growing(input, false).0), b"word ");
+    }
+}
+
+#[test]
+fn a_link_still_being_written_shows_its_label() {
+    for input in [b"[label](htt".as_slice(), b"[label", b"[label]", b"[label](", b"[label](https://example.org"] {
+        let (tree, calls) = growing(input, false);
+        assert_eq!(text(&tree), b"label");
+        assert!(tree.nodes().iter().all(|node| node.external.is_none()));
+        assert_eq!(calls, 1);
+    }
+    for input in [b"![image](htt".as_slice(), b"[label](javascript:bad)", b"<b>*raw*"] {
+        assert_eq!(shape(&growing(input, false).0), shape(&read(input, 4)));
+    }
+}
+
+#[test]
+fn a_marker_being_written_waits_for_its_words() {
+    for input in
+        [b"".as_slice(), b"##", b"## ", b"-", b"- ", b"*", b"* ", b"4", b"4.", b"4. ", b">", b"> ", b"[", b"**", b"`"]
+    {
+        let (tree, calls) = growing(input, true);
+        assert!(text(&tree).is_empty(), "{input:?}");
+        assert_eq!(calls, 0, "{input:?}");
+        assert_eq!(tree.len(), 1, "{input:?}");
+    }
+    for input in [b" ".as_slice(), b"\n", b"\t\r\n"] {
+        assert_eq!(growing(input, true).1, 0);
+    }
+    assert_eq!(text(&growing(b"words\n4", false).0), b"words");
+    assert_eq!(text(&growing(b"words\n4x", false).0), b"words\n4x");
+}
+
+#[test]
+fn a_fence_still_open_is_code() {
+    let (tree, calls) = growing(b"```\nlet a", false);
+    assert_eq!(shape(&tree), "Page\n  Code\n    Text Code b\"let a\"\n");
+    assert_eq!(calls, 1);
+}
+
+#[test]
+fn a_fence_being_opened_or_closed_shows_no_backticks() {
+    for input in [b"```ru".as_slice(), b"`", b"``", b"```"] {
+        let (tree, calls) = growing(input, true);
+        assert!(text(&tree).is_empty());
+        assert_eq!(calls, 0);
+    }
+    for input in [b"```\nlet a\n`".as_slice(), b"```\nlet a\n``"] {
+        assert_eq!(text(&growing(input, false).0), b"let a\n");
+    }
+}
+
+#[test]
+fn a_delimiter_row_being_written_waits() {
+    for input in [b"| a | b |\n|--".as_slice(), b"| a | b |\n|", b"| a | b |\n|--:"] {
+        assert_eq!(shape(&growing(input, false).0), shape(&read(b"| a | b |", 4)));
+    }
+    assert_eq!(shape(&growing(b"| a | b |\n|--|--|", false).0), shape(&read(b"| a | b |\n|--|--|", 4)));
+}
+
+#[test]
+fn the_end_stands_after_the_last_word_in_the_block_that_holds_it() {
+    for (input, role) in [
+        (b"word".as_slice(), Role::Paragraph),
+        (b"# word", Role::Heading { level: 3 }),
+        (b"- word", Role::Item),
+        (b"4. word", Role::Item),
+        (b"> word", Role::Quote),
+        (b"```\nword", Role::Code),
+        (b"word\n\n", Role::Paragraph),
+        (b"# word\n\n", Role::Heading { level: 3 }),
+        (b"- word\n\n", Role::Item),
+        (b"> word\n\n", Role::Quote),
+        (b"```\nword\n```\n\n", Role::Code),
+        (b"word\n##", Role::Paragraph),
+        (b"word\n\n**", Role::Paragraph),
+        (b"word\n\n# **", Role::Paragraph),
+        (b"word\n```ru", Role::Paragraph),
+        (b"| word |\n|--|\n| last |", Role::Page),
+    ] {
+        let (tree, calls) = growing(input, true);
+        assert_eq!(calls, 1, "{input:?}");
+        let end = tree.nodes().iter().position(|node| node.text.iter().any(|run| run.text.as_ref() == b"~")).unwrap();
+        let (at, parent) = tree
+            .nodes()
+            .iter()
+            .enumerate()
+            .take(end)
+            .rev()
+            .find(|(at, node)| at.checked_add(usize::try_from(node.size).unwrap()).unwrap() > end)
+            .unwrap();
+        assert_eq!(parent.role, role, "{input:?}");
+        assert!(
+            tree.nodes()[at.checked_add(1).unwrap()..end]
+                .iter()
+                .any(|node| node.text.iter().any(|run| run.text.iter().any(|byte| !byte.is_ascii_whitespace()))),
+            "{input:?}"
+        );
+        assert!(text(&tree).ends_with(b"~"));
+    }
+}
+
+#[test]
+fn closed_blocks_read_as_read_reads_them() {
+    for input in [
+        b"a **bold**".as_slice(),
+        b"a *soft*",
+        b"a `code`",
+        b"[label](https://example.org)",
+        b"# heading",
+        b"- first\n- last",
+        b"> quoted",
+        b"```\ncode\n```",
+        b"| a | b |\n|--|--|\n| c | d |",
+    ] {
+        assert_eq!(shape(&growing(input, false).0), shape(&read(input, 4)));
+    }
+    for report in KEPT {
+        let mut fence = false;
+        let mut start = 0;
+        for (end, byte) in report.iter().enumerate() {
+            if *byte != b'\n' {
+                continue;
+            }
+            let line = &report[start..end];
+            if line.starts_with(b"```") {
+                fence = !fence;
+            }
+            if line.is_empty() && !fence {
+                let prefix = &report[..=end];
+                assert_eq!(shape(&growing(prefix, false).0), shape(&read(prefix, 4)));
+            }
+            start = end.checked_add(1).unwrap();
+        }
+        assert_eq!(shape(&growing(report, false).0), shape(&read(report, 4)));
+    }
+}
+
+#[test]
+fn every_cut_of_the_kept_texts_stays_in_its_bounds() {
+    for report in KEPT {
+        let report = core::str::from_utf8(report).unwrap();
+        for end in 0..=report.len() {
+            if report.is_char_boundary(end) {
+                let (tree, calls) = growing(&report.as_bytes()[..end], true);
+                assert!(
+                    tree.len()
+                        <= markdown::max_nodes(u32::try_from(end).unwrap())
+                            .unwrap()
+                            .checked_add(1)
+                            .unwrap()
+                            .checked_add(u32::try_from(calls).unwrap())
+                            .unwrap()
+                );
+                assert!(calls <= 1);
+            }
+        }
+    }
+}
