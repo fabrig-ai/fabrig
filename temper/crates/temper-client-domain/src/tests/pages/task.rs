@@ -1656,3 +1656,84 @@ fn a_lasting_activity_end_is_not_asked_again_on_an_agents_page() {
     page.fire(due.saturating_add(skein_lib::Duration::from_secs(120)), &mut fixture.out);
     assert!(fixture.out.is_empty(), "time alone does not repeat a lasting end");
 }
+
+fn composer_task(priority: Option<u32>, limits: &crate::Limits) -> (Task, f::Fixture) {
+    let mut fixture = f::with_delegate();
+    super::composer::deliver_me(&mut fixture);
+    let mut task = offered_task(c::ActKind::Message, Some(c::Admission::Allowed));
+    task.priority = priority;
+    f::deliver(&mut fixture.client, fixture.watch, task);
+    let mut page = Task::new(f::TASK, FIRST, limits, &mut Queue::uncapped());
+    page.told(Time::ZERO, &fixture.client, Told::Changed { handle: page.document }, &mut Queue::uncapped());
+    (page, fixture)
+}
+fn composer_act(page: &mut Task, fixture: &mut f::Fixture, limits: &crate::Limits, act: Act) {
+    page.act(&fixtures::env(limits), &fixture.client, act, &mut 0, &mut fixture.out);
+}
+#[test]
+fn a_kilobyte_pasted_is_sent_whole() {
+    let limits = super::composer::limits();
+    for priority in [None, Some(PRIORITY)] {
+        let (mut page, mut f) = composer_task(priority, &limits);
+        let words = super::composer::words(super::composer::BOUND);
+        composer_act(&mut page, &mut f, &limits, Act::MessageWords { words: words.clone() });
+        assert_eq!(page.words, words, "{priority:?}");
+        composer_act(&mut page, &mut f, &limits, Act::Send);
+        assert_eq!(
+            fixtures::acts::sent(&mut f.out).as_ref(),
+            [c::Ask::Message {
+                project: fixtures::PROJECT,
+                task: f::TASK,
+                words: c::Text::new(words, super::composer::HOLD).unwrap()
+            }],
+            "{priority:?}"
+        );
+        assert!(page.words.is_empty());
+    }
+}
+#[test]
+fn a_paste_past_the_bound_stays_and_sends_nothing() {
+    let limits = super::composer::limits();
+    for priority in [None, Some(PRIORITY)] {
+        for &(typed, kept, beyond, excess) in super::composer::PAST {
+            let (mut page, mut f) = composer_task(priority, &limits);
+            composer_act(&mut page, &mut f, &limits, Act::MessageWords { words: super::composer::words(typed) });
+            let words = super::composer::words(kept);
+            assert_eq!(page.words, words, "{priority:?}");
+            assert_eq!(page.beyond, beyond);
+            composer_act(&mut page, &mut f, &limits, Act::Send);
+            assert!(fixtures::acts::sent(&mut f.out).is_empty());
+            assert!(page.pending.is_empty());
+            assert!(page.thread.words.rows.is_empty());
+            assert_eq!(page.words, words);
+            assert_eq!(pages::composer::over(&page.words, page.beyond, super::composer::BOUND), excess);
+            composer_act(&mut page, &mut f, &limits, Act::MessageWords { words: Box::from(*b"short") });
+            assert_eq!(page.beyond, 0);
+            composer_act(&mut page, &mut f, &limits, Act::Send);
+            assert_eq!(fixtures::acts::sent(&mut f.out).len(), 1);
+        }
+    }
+}
+#[test]
+fn a_send_the_thread_refuses_keeps_the_words_and_says_so() {
+    let limits = super::composer::limits();
+    for priority in [None, Some(PRIORITY)] {
+        let (mut page, mut f) = composer_task(priority, &limits);
+        page.thread = jig_client::thread::Thread::new(
+            f::TASK,
+            &jig_client::thread::Limits {
+                lines: 1,
+                bytes: 4,
+                text: super::composer::HOLD,
+                live: super::composer::HOLD,
+            },
+        );
+        composer_act(&mut page, &mut f, &limits, Act::MessageWords { words: Box::from(*b"Hello") });
+        composer_act(&mut page, &mut f, &limits, Act::Send);
+        assert_eq!(page.words.as_ref(), b"Hello", "{priority:?}");
+        assert!(fixtures::acts::sent(&mut f.out).is_empty());
+        assert!(page.pending.is_empty());
+        assert!(page.thread.words.rows.is_empty());
+        assert_eq!(page.outcome, Some(jig_client::Outcome::Limit));
+    }
+}
