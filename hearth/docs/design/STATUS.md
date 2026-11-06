@@ -1,6 +1,6 @@
 # Status
 
-2026-11-06. Where hearth's code lags or departs from its design, and its design from its
+2026-11-06, 16:33 UTC. Where hearth's code lags or departs from its design, and its design from its
 draft, from the status files below. M1 has render and diff in-process, canonical
 encoding and a store without layers; M2 has build keys, planning and ordered
 stage, run, seal and discard, with scripted steps and a fake helper
@@ -32,9 +32,11 @@ as do operating, development machines, artifacts and reproducible builds
 git, resolution and render conformance, and tool fakes, but lack the complete
 M2 fake machine, joined system world, real builds and boot test; conformance
 has no automatic runner. Tier profiles, memory tests and shared suite
-timeouts depart from the design. The focused suite is over its 30 CPU s on the
-queue's record, the figure its budget reads, at about 31 with builds unoptimized.
-Fuzzy reads about 79 of its 120. All 2189 focused and 60 fuzzy tests pass
+timeouts depart from the design. Outside the queue, the focused suite reads
+23.767613 and 23.143157 CPU s over 2193 tests. The budget reads the queue's
+figure, which for this revision is unknown until it lands. Fuzzy reads
+68.963035 CPU s, 19.271153 wall s over 60 tests. All selected tests pass,
+without retries, starvation, unobserved tests, leaks or incomplete accounting
 (`hearth/docs/design/domain/testing.md`). The design departs
 from the draft in its three processes, subordinate ids, offline sandboxes,
 development loop, live changes and milestone split; pool placement still

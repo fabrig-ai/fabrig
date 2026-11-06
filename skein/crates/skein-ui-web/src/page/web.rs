@@ -19,7 +19,8 @@ use crate::{
 mod components;
 pub use components::{Component, Constructor};
 
-type Listener = (String, Closure<dyn FnMut(web_sys::Event)>);
+// A report may render and measure a bound log before its scroll listener returns.
+type Listener = (String, bool, Closure<dyn Fn(web_sys::Event)>);
 
 /// Owns the mount's listeners and resize observer until the page ends.
 pub struct Dom {
@@ -30,6 +31,7 @@ pub struct Dom {
 }
 
 impl Dom {
+    #[expect(clippy::too_many_lines, reason = "The listeners share one event dispatch path (ui-web.md, 7).")]
     pub fn new<R: 'static>(
         mount: Element,
         page: &Rc<RefCell<Page<'static>>>,
@@ -39,11 +41,13 @@ impl Dom {
     ) -> Self {
         let document = Rc::new(Mounted {
             document: mount.owner_document().expect("mount has its document"),
+            page: Rc::clone(page),
             mount,
             nodes: RefCell::new(BTreeMap::new()),
             observer: RefCell::new(None),
             constructors: components,
             components: RefCell::new(BTreeMap::new()),
+            views: RefCell::new(BTreeMap::new()),
             report: {
                 let inbox = Rc::clone(inbox);
                 Rc::new(move |node, act| inbox.raise(wrap(node, act)))
@@ -64,13 +68,30 @@ impl Dom {
         let observer = ResizeObserver::new(resize.as_ref().unchecked_ref()).expect("resize observer is available");
         *document.observer.borrow_mut() = Some(observer);
         let mut listeners = Vec::new();
-        for kind in ["click", "input", "compositionend", "keydown", "change", "cancel", "close", "focusin", "scroll"] {
+        for (kind, on_document) in [
+            ("click", true),
+            ("input", false),
+            ("compositionend", false),
+            ("keydown", false),
+            ("keydown", true),
+            ("change", false),
+            ("cancel", false),
+            ("close", false),
+            ("focusin", false),
+            ("scroll", false),
+        ] {
             let (target, model, reports) = (Rc::clone(&document), Rc::clone(page), Rc::clone(inbox));
             let listener = Closure::new(move |event: web_sys::Event| {
                 let Some(element) = event.target().and_then(|t| t.dyn_into::<Element>().ok()) else {
                     return;
                 };
                 let in_component = element.closest("[data-component]").expect("component selector").is_some();
+                if let Some(key) = event.dyn_ref::<KeyboardEvent>() {
+                    let page_key = ["PageUp", "PageDown"].contains(&key.key().as_str());
+                    if page_key != on_document || (page_key && in_component) {
+                        return;
+                    }
+                }
                 if event.type_() == "click" {
                     target.fold_away(Some(&element));
                     let outside_mount = !target.mount.contains(Some(&element));
@@ -127,11 +148,11 @@ impl Dom {
                 }
             });
             let event_target: &web_sys::EventTarget =
-                if kind == "click" { document.document.as_ref() } else { document.mount.as_ref() };
+                if on_document { document.document.as_ref() } else { document.mount.as_ref() };
             event_target
                 .add_event_listener_with_callback_and_bool(kind, listener.as_ref().unchecked_ref(), true)
                 .expect("mount accepts its listener");
-            listeners.push((kind.into(), listener));
+            listeners.push((kind.into(), on_document, listener));
         }
         Self { document, listeners, fold: RefCell::new(super::fold::Fold::default()), _resize: resize }
     }
@@ -161,9 +182,9 @@ impl Drop for Dom {
         if let Some(observer) = self.document.observer.borrow_mut().take() {
             observer.disconnect();
         }
-        for (kind, listener) in &self.listeners {
+        for (kind, on_document, listener) in &self.listeners {
             let event_target: &web_sys::EventTarget =
-                if kind == "click" { self.document.document.as_ref() } else { self.document.mount.as_ref() };
+                if *on_document { self.document.document.as_ref() } else { self.document.mount.as_ref() };
             event_target
                 .remove_event_listener_with_callback_and_bool(kind, listener.as_ref().unchecked_ref(), true)
                 .expect("registered listener can be removed");
@@ -178,11 +199,13 @@ struct Group {
 }
 struct Mounted {
     document: Document,
+    page: Rc<RefCell<Page<'static>>>,
     mount: Element,
     nodes: RefCell<BTreeMap<NodeId, Group>>,
     observer: RefCell<Option<ResizeObserver>>,
     constructors: &'static [Constructor],
     components: RefCell<BTreeMap<NodeId, components::Instance>>,
+    views: RefCell<BTreeMap<NodeId, Vec<(NodeId, f64)>>>,
     report: Rc<dyn Fn(NodeId, Act)>,
 }
 
@@ -363,6 +386,10 @@ impl Mounted {
             | Op::Href { .. }
             | Op::Focus { .. }
             | Op::ScrollEnd { .. }
+            | Op::HoldView { .. }
+            | Op::PutView { .. }
+            | Op::Measure { .. }
+            | Op::ScrollScreen { .. }
             | Op::Component { .. } => {}
         }
         for element in affected {
@@ -375,6 +402,7 @@ impl Mounted {
     }
     fn apply(&self, ops: &[Op]) {
         let mut trees = Vec::new();
+        let mut measures = Vec::new();
         for op in ops {
             self.affected_trees(op, &mut trees);
             match op {
@@ -431,9 +459,14 @@ impl Mounted {
                     element.unchecked_into::<HtmlElement>().focus().expect("focus target is mounted");
                 }
                 Op::ScrollEnd { node } => {
+                    self.views.borrow_mut().remove(node);
                     let element = self.group(*node).element;
                     element.set_scroll_top(element.scroll_height());
                 }
+                Op::HoldView { node } => self.hold_view(*node),
+                Op::PutView { node } => self.put_view(*node),
+                Op::Measure { node } => measures.push(*node),
+                Op::ScrollScreen { node, down } => self.scroll_screen(*node, *down),
             }
         }
         for node in trees {
@@ -455,7 +488,116 @@ impl Mounted {
                 dialog.show_modal().expect("mounted dialog can be modal");
             }
         }
+        // Measure after the whole apply, without re-entering a browser event listener.
+        for node in measures {
+            self.measure(node);
+        }
     }
+
+    fn measure(&self, node: NodeId) {
+        let Some(element) = self.nodes.borrow().get(&node).map(|group| group.element.clone()) else {
+            return;
+        };
+        let mut ops = Vec::new();
+        let act = self.page.borrow_mut().act(
+            Event::Scrolled {
+                node,
+                top: element.scroll_top(),
+                height: element.scroll_height(),
+                viewport: element.client_height(),
+            },
+            &mut ops,
+        );
+        self.apply(&ops);
+        if let Some((node, act)) = act {
+            (self.report)(node, act);
+        }
+    }
+
+    fn scroll_screen(&self, node: NodeId, down: bool) {
+        let element = self.group(node).element;
+        let style = self
+            .document
+            .default_view()
+            .expect("window")
+            .get_computed_style(&element)
+            .expect("log style")
+            .expect("mounted log has style");
+        let line = style
+            .get_property_value("line-height")
+            .expect("line height")
+            .trim_end_matches("px")
+            .parse::<f64>()
+            .unwrap_or_else(|_| {
+                style
+                    .get_property_value("font-size")
+                    .expect("font size")
+                    .trim_end_matches("px")
+                    .parse::<f64>()
+                    .expect("computed font size")
+                    * 1.2
+            });
+        let screen = (f64::from(element.client_height()) - line).max(1.0);
+        scroll_to(&element, f64::from(element.scroll_top()) + if down { screen } else { -screen });
+    }
+
+    // Four deepest entries reaching the screen bound the notes per log (ui-web.md, 7).
+    fn hold_view(&self, node: NodeId) {
+        let element = self.group(node).element;
+        let bounds = element.get_bounding_client_rect();
+        let mut notes = Vec::new();
+        self.view_entries(&element, bounds.top(), bounds.bottom(), &mut notes);
+        self.views.borrow_mut().insert(node, notes);
+    }
+
+    fn view_entries(&self, element: &Element, top: f64, bottom: f64, notes: &mut Vec<(NodeId, f64)>) {
+        let children = element.children();
+        for index in 0..children.length() {
+            if notes.len() == 4 {
+                break;
+            }
+            let child = children.item(index).expect("child element");
+            // The owner's reading status stays at the head while entries arrive below it.
+            if child.get_attribute("role").as_deref() == Some("status") {
+                continue;
+            }
+            let bounds = child.get_bounding_client_rect();
+            // A display:contents wrapper has no box, but its entries do.
+            if bounds.width() <= 0.0 && bounds.height() <= 0.0 {
+                self.view_entries(&child, top, bottom, notes);
+                continue;
+            }
+            if bounds.bottom() <= top || bounds.top() >= bottom {
+                continue;
+            }
+            let before = notes.len();
+            self.view_entries(&child, top, bottom, notes);
+            if notes.len() == before
+                && let Some(node) = self.id(&child)
+            {
+                notes.push((node, bounds.top()));
+            }
+        }
+    }
+
+    fn put_view(&self, node: NodeId) {
+        let Some(notes) = self.views.borrow_mut().remove(&node) else {
+            return;
+        };
+        let log = self.group(node).element;
+        for (entry, top) in notes {
+            let element = self.nodes.borrow().get(&entry).map(|group| group.element.clone());
+            if let Some(element) = element
+                && log.contains(Some(&element))
+            {
+                // Reading the rectangle flushes layout and the browser's own anchoring first.
+                let moved = element.get_bounding_client_rect().top() - top;
+                scroll_to(&log, f64::from(log.scroll_top()) + moved);
+                break;
+            }
+        }
+    }
+
     fn insert(&self, node: NodeId, parent: NodeId, before: Option<NodeId>, model: &Model) {
         let semantic = super::semantic(model);
         if parent == NodeId(0) && semantic.attribute("data-node").is_none() {
@@ -581,6 +723,7 @@ impl Mounted {
             })
             .collect();
         for (id, element) in removed {
+            self.views.borrow_mut().remove(&id);
             if let Some(observer) = self.observer.borrow().as_ref() {
                 observer.unobserve(&element);
             }
@@ -974,4 +1117,9 @@ fn drawing_event(mouse: &MouseEvent, node: NodeId, document: &Mounted) -> Event 
 
 fn coordinate(value: i32) -> f32 {
     value.to_string().parse().expect("CSS coordinate is a number")
+}
+
+fn scroll_to(element: &Element, top: f64) {
+    js_sys::Reflect::set(element, &"scrollTop".into(), &wasm_bindgen::JsValue::from_f64(top))
+        .expect("scroll position is writable");
 }

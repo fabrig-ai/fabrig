@@ -144,7 +144,7 @@ fn the_applications_lines_keep_their_room_while_the_output_is_held() {
     }
     assert_eq!(
         text.as_slice(),
-        b"== test == \n[1] Accept\ntest: one\ntest: two\ntest: commands: n, n words, p, q\ntest: commands: n, n words, p, q\n"
+        b"== test == \n[1] Accept\ntest: one\ntest: two\ntest: commands: n, n words, p, q, up, down\ntest: commands: n, n words, p, q, up, down\n"
     );
     assert_eq!(p.terminal.room(), 2);
     p.terminal.close();

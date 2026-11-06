@@ -67,7 +67,7 @@ pub(crate) fn before(
             Line::Words { at, .. } => *at,
             Line::Turn { at, .. } | Line::Undecoded { at, .. } => Some(*at),
             Line::Activity { line } => Some(line.source.at),
-            Line::Provisional { .. } | Line::Left { .. } => None,
+            Line::Provisional { .. } => None,
         };
         let Some(time) = time else { return };
         if time <= Wall::from_nanos(at) {

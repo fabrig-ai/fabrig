@@ -29,6 +29,7 @@ pub struct Attribute {
     pub placeholder: Option<Box<[u8]>>,
     pub entry: Option<EntryKind>,
     pub focus: Option<u64>,
+    pub end_request: Option<u64>,
     pub count: Option<u32>,
     pub ordered: Option<u32>,
     pub position: Option<u32>,
@@ -56,6 +57,7 @@ impl Attribute {
             placeholder: node.placeholder.clone(),
             entry: node.entry,
             focus: node.focus,
+            end_request: node.end_request,
             count: node.count,
             ordered: node.ordered,
             position: node.position,
@@ -286,6 +288,7 @@ fn attributes(old: &Node, new: &Node, out: &mut Queue<Patch>) {
         || old.placeholder != new.placeholder
         || old.entry != new.entry
         || old.focus != new.focus
+        || old.end_request != new.end_request
         || old.count != new.count
         || old.ordered != new.ordered
         || old.position != new.position

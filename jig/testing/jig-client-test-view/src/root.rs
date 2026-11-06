@@ -220,7 +220,7 @@ pub fn decode(view: &mut View<'_>, node: NodeId, act: Act) -> Option<Action> {
     {
         return match bound.act {
             Act::Press | Act::Submit | Act::Toggle => Some(Action::SignIn),
-            Act::Input { .. } | Act::Drawing { .. } => None,
+            Act::Input { .. } | Act::Drawing { .. } | Act::Near { .. } => None,
         };
     }
     match Owner::from_opaque(bound.binding.owner) {

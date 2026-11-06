@@ -102,6 +102,7 @@ fn source_read(what: &c::Read) -> reads::Read {
         | c::Read::Ended { .. }
         | c::Read::History { .. }
         | c::Read::Activity { .. }
+        | c::Read::ActivityBeside { .. }
         | c::Read::Inbox { .. }
         | c::Read::Spend { .. }
         | c::Read::Project { .. }

@@ -1370,6 +1370,12 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
             ended: c::EndedGroup::Rows { rows: ended_rows(w), after: None, cut: false },
         }))),
         c::Read::Task { task: number } => Some(c::ReadValue::Task(Box::new(shown_task(w, *number, then)))),
+        c::Read::ActivityBeside { .. } => Some(c::ReadValue::Activity(Box::new(c::ActivityPage {
+            rows: List::with_capacity(0),
+            before: None,
+            after: None,
+            cut: false,
+        }))),
         c::Read::Activity { task: number, before } => Some(c::ReadValue::Activity(Box::new(
             if matches!(then, Then::Mode(_) | Then::DraftEmpty) && *number == 10 {
                 configuring_activity()

@@ -347,7 +347,7 @@ fn state_attribute(e: &mut Element, role: Role, state: State) {
             },
             if role.is_selectable() { "" } else { "true" },
         ),
-        State::Completed => {}
+        State::Completed | State::Continues => {}
         State::Required => {
             let native = role.has_native_required();
             e.set(if native { "required" } else { "aria-required" }, if native { "" } else { "true" });

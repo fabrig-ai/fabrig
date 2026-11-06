@@ -634,6 +634,7 @@ fn read_key(what: &jig_client::contract::Read) -> Option<ObjectKey> {
         | Read::Ended { .. }
         | Read::History { .. }
         | Read::Activity { .. }
+        | Read::ActivityBeside { .. }
         | Read::Turn { .. }
         | Read::Inbox { .. }
         | Read::Spend { .. }
