@@ -531,3 +531,19 @@ fn welcome_claude_never_declares_from_a_cut_document_or_another_holders_source()
         assert!(sends(signed_in(&mut root)).is_empty());
     }
 }
+
+#[test]
+fn sign_in_again_returns_only_a_stopped_welcome_check_to_the_panel() {
+    let (mut root, watch) = claude();
+    program_document(&mut root, watch, true, false);
+    let check = sends(signed_in(&mut root)).pop().unwrap();
+    act(&mut root, Act::SignInAgain);
+    assert_eq!(checked(&root), connect_model::ProgramCheck::Checking { source: 43 });
+    answered(&mut root, check.0, done(c::DocumentOutcome::AccountChanged));
+    program_document(&mut root, watch, true, false);
+    assert_eq!(checked(&root), connect_model::ProgramCheck::NotYet);
+    assert!(sends(act(&mut root, Act::SignInAgain)).is_empty());
+    assert_eq!(checked(&root), connect_model::ProgramCheck::Idle);
+    assert!(root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().outcome.is_some());
+    assert_check(sends(signed_in(&mut root)).pop().expect("panel checks again").2);
+}
