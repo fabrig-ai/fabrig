@@ -19,8 +19,8 @@ Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-
   webhooks port in use, and a turn landing stalled on an uncertain update of
   its pull. Each passed alone. Who held the port and why the landing stalled
   are unknown, and 12 tests read over 25% more CPU than at one thread, in that
-  one sample. So no proving run was made, and none at two threads
-  (`../../plan/test-speed/figures/tier-threads.md`).
+  one sample. So no proving run was made, and none at two threads (the plan's
+  figures on threads, at `b23901eab7`).
   2.6: the tier's CPU against its 360 s: of the seven whole runs in that
   plan's figures, at differing loads, four read over it (367.8 to 433.7 s) and
   three within (287.1 to 349.7 s, the last the failed trial), and they hold no
@@ -38,8 +38,8 @@ Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-
   19 s, including that 10 s wait and four client visits; the personal plan's
   also provisions and restarts an owned Forgejo and runner. Their shared forge
   paces are 1 s with 100 ms hints; the measured ranges, remaining costs and
-  rejected pace change are in
-  `temper/docs/plan/test-speed/figures/walk-waits.md`.
+  rejected pace change are in the plan's figures on the walks' waits,
+  at `289ef784ef`.
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
   the twins' documents among `temper-playground`'s stories: B0's and
