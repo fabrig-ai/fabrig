@@ -10,22 +10,19 @@ approval-identity story covers a refusal naming no command.
 
 Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 
-- **Not yet:** 2.6: the process tier stays at one test at a time
-  (`.config/nextest.toml`, `process-temper`), where this section has three
-  and the request `test-speed` of 2026-11-06 has them proven by three whole
-  runs and a loaded one, with no new flake and no test's CPU worse. Its one
-  trial at three, on a loaded builder, took 203.7 s of wall against 503.9 s
-  at one and failed twice: the held-login guard's restart found its retained
-  webhooks port in use, and a turn landing stalled on an uncertain update of
-  its pull. Each passed alone. Who held the port and why the landing stalled
-  are unknown, and 12 tests read over 25% more CPU than at one thread, in that
-  one sample. So no proving run was made, and none at two threads (the plan's
-  figures on threads, at `b23901eab7`).
-  2.6: the tier's CPU against its 360 s: of the seven whole runs in that
-  plan's figures, at differing loads, four read over it (367.8 to 433.7 s) and
-  three within (287.1 to 349.7 s, the last the failed trial), and they hold no
+- **Not yet:** 2.6: no whole run at three tests at a time has passed: the
+  request `process-threads` of 2026-11-06 leaves that to the next after-landing
+  run, in place of the three whole runs and a loaded one the request `test-speed`
+  of that day asks for. The one sample at three, on a loaded builder, came before
+  the retained ports' blocks and the update that decides again: it took 203.7 s
+  of wall against 503.9 s at one, failed twice on what those address, and read
+  12 tests over 25% more CPU than at one thread (the `test-speed` plan's figures
+  on threads, at `b23901eab7`).
+  2.6: the tier's CPU against its 360 s: of the seven whole runs in those
+  figures, at differing loads, four read over it (367.8 to 433.7 s) and
+  three within (287.1 to 349.7 s, the last that sample), and they hold no
   run with the plan's parts together. No budget moved, that being the user's.
-  2.6: Goal and Away keep the shipped 5 s poll, where that request has them
+  2.6: Goal and Away keep the shipped 5 s poll, where the request `test-speed` has them
   wake on an event or take the status walks' paces: no poll is what they wait
   for, and a trial of short paces on Away saved less wall than it cost CPU. The
   fake-box walks retain the stock charter's 10 s wait on their single worker

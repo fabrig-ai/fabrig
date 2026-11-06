@@ -1,5 +1,5 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
-use super::{Box, Limits, List, Reader, Wall, c, carried_turn_fields, cursor_fields, text, too_large, w};
+use super::{Box, Limits, List, Reader, Wall, c, carried_turn_fields, cursor_fields, long_text, text, too_large, w};
 
 pub(crate) fn message_proposal_kind_fields(value: &w::MessageProposalKind) -> c::MessageProposalKind {
     match value {
@@ -101,7 +101,7 @@ pub(crate) fn word_fields(value: &w::Word, limits: &Limits) -> Result<c::Word, w
         number: value.number(),
         from: crate::translate::facts::requester(value.from()),
         kind: message_kind_fields(value.kind(), limits)?,
-        words: text(value.words(), limits)?,
+        words: long_text(value.words(), limits)?,
         at: Wall::from_nanos(value.at()),
         hits: value.hits(),
         eligible: value.eligible(),
@@ -136,7 +136,7 @@ pub(crate) fn activity_fields(value: &w::Activity, limits: &Limits) -> Result<c:
             message: row.message(),
             by: crate::translate::facts::requester(row.by()),
             kind: message_kind_fields(row.kind(), limits)?,
-            words: text(row.words(), limits)?,
+            words: long_text(row.words(), limits)?,
         },
         w::Activity::Heard(row) => c::Activity::Heard(word_fields(row.value(), limits)?),
         w::Activity::Notified(row) => c::Activity::Notified {

@@ -1525,43 +1525,48 @@ fn a_goals_tree_and_document_changes_reread_one_page_at_a_time() {
     assert!(fixture.out.is_empty());
 }
 #[test]
-fn an_agents_task_busy_activity_read_is_asked_again() {
-    // The task announces the fourth activity before its first activity page.
-    const COMMITTED: u64 = 4;
-    let mut f = f::opened();
-    let mut out = Queue::with_capacity(OUTPUTS);
-    let mut page = Task::new(f::TASK, FIRST, &fixtures::limits(), &mut out);
-    while out.pop().is_some() {}
-    let mut task = agent_document();
-    task.activity = COMMITTED;
-    f::deliver(&mut f.client, f.watch, task);
-    page.told(Time::ZERO, &f.client, Told::Changed { handle: page.document }, &mut out);
-    while out.pop().is_some() {}
-    page.told(
-        Time::ZERO,
-        &f.client,
-        Told::Page { handle: page.activity, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)) },
-        &mut out,
-    );
-    let due = Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1));
-    assert_eq!(page.next_deadline(), Some(due));
-    page.told(Time::ZERO, &f.client, Told::Changed { handle: page.document }, &mut out);
-    assert!(out.is_empty(), "a delivery does not duplicate the waiting read");
-    page.fire(due, &mut out);
-    assert_eq!(out.pop(), Some(activity_read(&page)));
-    let mut blocks = List::with_capacity(1);
-    blocks.push(c::Block::Text(fixtures::acts::text(b"Committed reply"))).unwrap();
-    page.told(
-        due,
-        &f.client,
-        Told::Page { handle: page.activity, page: f::activity_reply(c::Speaker::Assistant, blocks.clone(), COMMITTED) },
-        &mut out,
-    );
-    assert_eq!(page.thread.loaded, COMMITTED);
-    let lines = page.thread.lines();
-    let [jig_client::thread::Line::Turn { turn, .. }] = lines.as_slice() else { panic!("committed reply") };
-    assert_eq!(turn.messages.get(0).unwrap().blocks, blocks);
-    assert_eq!(page.next_deadline(), None);
+fn an_agents_task_transient_activity_read_is_asked_again() {
+    for why in [c::ReadNone::Busy, c::ReadNone::Unreachable] {
+        // The task announces the fourth activity before its first activity page.
+        const COMMITTED: u64 = 4;
+        let mut f = f::opened();
+        let mut out = Queue::with_capacity(OUTPUTS);
+        let mut page = Task::new(f::TASK, FIRST, &fixtures::limits(), &mut out);
+        while out.pop().is_some() {}
+        let mut task = agent_document();
+        task.activity = COMMITTED;
+        f::deliver(&mut f.client, f.watch, task);
+        page.told(Time::ZERO, &f.client, Told::Changed { handle: page.document }, &mut out);
+        while out.pop().is_some() {}
+        page.told(
+            Time::ZERO,
+            &f.client,
+            Told::Page { handle: page.activity, page: jig_client::Readout::Jig(c::ReadResult::None(why)) },
+            &mut out,
+        );
+        let due = Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1));
+        assert_eq!(page.next_deadline(), Some(due));
+        page.told(Time::ZERO, &f.client, Told::Changed { handle: page.document }, &mut out);
+        assert!(out.is_empty(), "a delivery does not duplicate the waiting read");
+        page.fire(due, &mut out);
+        assert_eq!(out.pop(), Some(activity_read(&page)));
+        let mut blocks = List::with_capacity(1);
+        blocks.push(c::Block::Text(fixtures::acts::text(b"Committed reply"))).unwrap();
+        page.told(
+            due,
+            &f.client,
+            Told::Page {
+                handle: page.activity,
+                page: f::activity_reply(c::Speaker::Assistant, blocks.clone(), COMMITTED),
+            },
+            &mut out,
+        );
+        assert_eq!(page.thread.loaded, COMMITTED);
+        let lines = page.thread.lines();
+        let [jig_client::thread::Line::Turn { turn, .. }] = lines.as_slice() else { panic!("committed reply") };
+        assert_eq!(turn.messages.get(0).unwrap().blocks, blocks);
+        assert_eq!(page.next_deadline(), None);
+    }
 }
 
 #[test]
@@ -1618,4 +1623,117 @@ fn an_empty_agents_page_with_more_reads_on() {
         }))
     );
     assert!(fixture.out.is_empty());
+}
+
+#[test]
+fn a_lasting_activity_end_is_not_asked_again_on_an_agents_page() {
+    use jig_client::thread::{Reading, window::End};
+    let (mut page, mut fixture) = opened();
+    page.shape = Shape::Agent;
+    while fixture.out.pop().is_some() {}
+    page.thread.reading = Some(Reading::Latest { known: 0 });
+    page.told(
+        Time::ZERO,
+        &fixture.client,
+        Told::Page { handle: page.activity, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)) },
+        &mut fixture.out,
+    );
+    let due = page.next_deadline().expect("a busy answer retries");
+    page.fire(due, &mut fixture.out);
+    assert_eq!(fixture.out.pop(), Some(activity_read(&page)));
+    page.told(
+        due,
+        &fixture.client,
+        Told::Page {
+            handle: page.activity,
+            page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Malformed)),
+        },
+        &mut fixture.out,
+    );
+    assert_eq!(page.next_deadline(), None, "a lasting end clears the retrying read");
+    assert_eq!(page.thread.read_failed, Some(End::Before));
+    assert!(page.thread.reading.is_none());
+    page.fire(due.saturating_add(skein_lib::Duration::from_secs(120)), &mut fixture.out);
+    assert!(fixture.out.is_empty(), "time alone does not repeat a lasting end");
+}
+
+fn composer_task(priority: Option<u32>, limits: &crate::Limits) -> (Task, f::Fixture) {
+    let mut fixture = f::with_delegate();
+    super::composer::deliver_me(&mut fixture);
+    let mut task = offered_task(c::ActKind::Message, Some(c::Admission::Allowed));
+    task.priority = priority;
+    f::deliver(&mut fixture.client, fixture.watch, task);
+    let mut page = Task::new(f::TASK, FIRST, limits, &mut Queue::uncapped());
+    page.told(Time::ZERO, &fixture.client, Told::Changed { handle: page.document }, &mut Queue::uncapped());
+    (page, fixture)
+}
+fn composer_act(page: &mut Task, fixture: &mut f::Fixture, limits: &crate::Limits, act: Act) {
+    page.act(&fixtures::env(limits), &fixture.client, act, &mut 0, &mut fixture.out);
+}
+#[test]
+fn a_kilobyte_pasted_is_sent_whole() {
+    let limits = super::composer::limits();
+    for priority in [None, Some(PRIORITY)] {
+        let (mut page, mut f) = composer_task(priority, &limits);
+        let words = super::composer::words(super::composer::BOUND);
+        composer_act(&mut page, &mut f, &limits, Act::MessageWords { words: words.clone() });
+        assert_eq!(page.words, words, "{priority:?}");
+        composer_act(&mut page, &mut f, &limits, Act::Send);
+        assert_eq!(
+            fixtures::acts::sent(&mut f.out).as_ref(),
+            [c::Ask::Message {
+                project: fixtures::PROJECT,
+                task: f::TASK,
+                words: c::Text::new(words, super::composer::HOLD).unwrap()
+            }],
+            "{priority:?}"
+        );
+        assert!(page.words.is_empty());
+    }
+}
+#[test]
+fn a_paste_past_the_bound_stays_and_sends_nothing() {
+    let limits = super::composer::limits();
+    for priority in [None, Some(PRIORITY)] {
+        for &(typed, kept, beyond, excess) in super::composer::PAST {
+            let (mut page, mut f) = composer_task(priority, &limits);
+            composer_act(&mut page, &mut f, &limits, Act::MessageWords { words: super::composer::words(typed) });
+            let words = super::composer::words(kept);
+            assert_eq!(page.words, words, "{priority:?}");
+            assert_eq!(page.beyond, beyond);
+            composer_act(&mut page, &mut f, &limits, Act::Send);
+            assert!(fixtures::acts::sent(&mut f.out).is_empty());
+            assert!(page.pending.is_empty());
+            assert!(page.thread.words.rows.is_empty());
+            assert_eq!(page.words, words);
+            assert_eq!(pages::composer::over(&page.words, page.beyond, super::composer::BOUND), excess);
+            composer_act(&mut page, &mut f, &limits, Act::MessageWords { words: Box::from(*b"short") });
+            assert_eq!(page.beyond, 0);
+            composer_act(&mut page, &mut f, &limits, Act::Send);
+            assert_eq!(fixtures::acts::sent(&mut f.out).len(), 1);
+        }
+    }
+}
+#[test]
+fn a_send_the_thread_refuses_keeps_the_words_and_says_so() {
+    let limits = super::composer::limits();
+    for priority in [None, Some(PRIORITY)] {
+        let (mut page, mut f) = composer_task(priority, &limits);
+        page.thread = jig_client::thread::Thread::new(
+            f::TASK,
+            &jig_client::thread::Limits {
+                lines: 1,
+                bytes: 4,
+                text: super::composer::HOLD,
+                live: super::composer::HOLD,
+            },
+        );
+        composer_act(&mut page, &mut f, &limits, Act::MessageWords { words: Box::from(*b"Hello") });
+        composer_act(&mut page, &mut f, &limits, Act::Send);
+        assert_eq!(page.words.as_ref(), b"Hello", "{priority:?}");
+        assert!(fixtures::acts::sent(&mut f.out).is_empty());
+        assert!(page.pending.is_empty());
+        assert!(page.thread.words.rows.is_empty());
+        assert_eq!(page.outcome, Some(jig_client::Outcome::Limit));
+    }
 }

@@ -675,6 +675,18 @@ impl Joint {
         Self::with_question_text_bound(seed, limits, None, false)
     }
     pub(crate) fn with_question_text_bound(seed: u64, limits: &client::Limits, text: Option<u32>, agree: bool) -> Self {
+        Self::with_question_bounds(seed, limits, text, agree, None)
+    }
+    pub(crate) fn with_question_composer(seed: u64, limits: &client::Limits) -> Self {
+        Self::with_question_bounds(seed, limits, None, false, Some(8192))
+    }
+    fn with_question_bounds(
+        seed: u64,
+        limits: &client::Limits,
+        text: Option<u32>,
+        agree: bool,
+        words: Option<u32>,
+    ) -> Self {
         use jig_domain_authority as authority;
         let depth = if agree { 3 } else { 2 };
         let tasks = if agree { 3 } else { 2 };
@@ -700,6 +712,16 @@ impl Joint {
             config.core.seed_projects[0].policy.policy = domain.policy(1).expect("configured seed policy").clone();
             config.core.defaults.rules = domain.rules().clone();
             let mut engine_limits = engine_limits();
+            if let Some(words) = words {
+                engine_limits.people.words = words;
+                engine_limits.tasks.message_bytes = words;
+                engine_limits.journal.result_bytes = engine_limits.journal.result_bytes.max(words);
+                engine_limits.journal.transcript_bytes = 1_048_576;
+                engine_limits.loads.bytes = 1_048_576;
+                engine_limits.loads.reply_bytes = 1_048_576;
+                engine_limits.loads.transcript_bytes = 1_048_576;
+                engine_limits.loads.read_bytes = 2_097_152;
+            }
             if agree {
                 // The 306-byte agreed brief plus a quarter of headroom, rounded up.
                 engine_limits.tasks.spec_bytes = 384;
