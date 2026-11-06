@@ -5,8 +5,14 @@
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
   request `ui-pause-close`.
-- **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *The sign-in's tab*,
-  *Its end*, *A reload while it waits* and *From another computer*; 7, *A sign-in's address in the small store*; 10:
+- **Not yet:** 3.5, `ConnectModel`, *The sign-in's tab*: only Chromium has run it, and against skein's fake issuer
+  alone. Firefox's and Safari's gesture is read and not run (skein's `ui-web.md`, 14.3), and no walk on record has a
+  provider's own page in the tab: the request `sign-in-new-tab` of 2026-11-06 leaves a real box to the user.
+- **Not yet:** 3.5, `ConnectModel`, *Its end*: no test has a slow sign-in move on once a hidden tab's stream is opened
+  again: `skein-ui-web`'s `tests/hidden.rs` holds the letting go natively, and each look of the browser tier's brings
+  the page to the front within the minute (skein's `browser.md`, section 6). On the welcome, no test has a paste's end
+  move on: `watch_success_replaces_a_pending_paste_with_ready` runs on `ConnectModel`, and `route.rs`'s
+  `welcome_model_progress` reads the same for both. Seen by reading.
 - **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request
   `sign-in-new-tab` of 2026-11-06, by its plan's cut and its account. The terminal draws the note's plain title,
   its muted line and "Open the sign-in page" above the folded paste, where the request has the terminal as today:
@@ -196,11 +202,6 @@
   tested (`temper-client-view`'s `tests/model_check.rs`), with no gallery state. "Try again"
   checks the host again. Home's line after a try that stopped and the same lines on an account's
   row of the accounts page are not drawn: nothing reports a try once the person has left Ready.
-- **Not yet:** 3.5, *A model usable*: a sign-in's end goes on to Ready by a departure's return alone
-  (`temper-client-domain`'s `departure.rs`). One that ends on a way's page, by a paste or on a page come back,
-  stays at the way's address and draws *A model usable*, with its "Continue", since `route.rs`'s
-  `welcome_program_progress` moves a key alone: the sign-in's move waits for `../draft/sign-in-new-tab.md`, 3.
-  Seen by reading.
 - **Design departs:** 3.5, *The try*, from the look request `model-check-pane` of 2026-11-06,
   each by the cut of its landing: the steps' list has hidden state words and its accessible name,
   as Forge's has, where the request's pages have the same words, because the terminal reads

@@ -870,7 +870,7 @@ without it.
   process tier has them (`../domain/testing.md`, 2.6), join with the
   first story that needs them (4.2). 4.4's test has the forge peer
   serve only the fake's GitHub `web`. skein's fake issuer joins for
-  `ConnectModel`'s round trip alone (4.2).
+  a plan's sign-in alone (4.2).
 - **Only what a browser alone shows.** temper's stories (what a page
   shows, what an act sends, a chat answered, a proposal accepted, a
   repository adopted, a run's live text) are the joint world's
@@ -935,8 +935,8 @@ address are the client world's (`suite::b2`, `suite::task`). The
 change's steps to landed, its gates, its bounds and its ended tasks
 hold nothing a browser alone shows: the client world's
 `change_panel.rs` reads them. A later page that has such
-behaviour brings its story with it: `ConnectModel`'s sign-in, its tab
-sent to the provider's address and back to the page it left
+behaviour brings its story with it: `ConnectModel`'s sign-in, a tab of
+its own sent to the provider's address while the page stays
 (`README.md`, 3.5).
 
 **`ConnectModel`'s sign-in, in a new tab.** What only a browser shows:
@@ -989,8 +989,8 @@ real key in that restored form.
   one test at a time, on the bundle it builds first, with the dev
   profile.
 - **The tier's bundle** turns on skein-ui-web's
-  `loopback-navigation` (`scripts/bundle.sh --loopback`), so that the
-  round trip (4.2) can send its tab to the fake issuer on plaintext
+  `loopback-navigation` (`scripts/bundle.sh --loopback`), so that a
+  sign-in's tab (4.2) can go to the fake issuer on plaintext
   loopback; the ordinary binary bundle never does (skein's `ui-web.md`,
   section 10). The tier names that bundle in its configuration, so it
   runs alike over a binary built with or without its own (2.6).
@@ -1098,7 +1098,7 @@ over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
    (4.5).
 8. **The accounts page after a key's send:** Back restores an emptied
    field, Forward the chats (4.2).
-9. **`ConnectModel`'s round trip** (4.2).
+9. **`ConnectModel`'s sign-in, in a new tab** (4.2).
 10. **GitHub's manifest page** posts itself once, and Back shows it
     without posting again until Continue (4.4).
 11. **The box's project across a reload:** the playground's project
