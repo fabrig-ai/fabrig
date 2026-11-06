@@ -1,6 +1,101 @@
 use jig_client_protocol_wire::v19 as w;
 use jig_engine_clients_world::fixtures::{self, Peer};
-use jig_protocol_engine_clients::{Event, MintRefusal};
+use jig_protocol_engine_clients::{Component, Event, LINK_SECRET_BYTES, MintRefusal, Settings, Unusable};
+use skein_lib::{Duration, Env, Queue, Secret, Time, Wall};
+
+fn given_settings() -> Settings {
+    Settings { link_secret: Some(Secret::new(Box::new([9; 32]))), ..fixtures::settings() }
+}
+fn before_link_expiry() -> Duration {
+    Duration::from_nanos(fixtures::limits().link_span.as_nanos() - 1)
+}
+fn given_link() -> Box<[u8]> {
+    fixtures::printed(&Secret::new(Box::new([9; 32])))
+}
+fn finish_given_sign_in(peer: &mut Peer, link: &[u8]) -> w::SignedIn {
+    let exchange = peer.post_link(link);
+    peer.answer_signed_in(fixtures::FIRST_SIGN_IN, fixtures::FIRST_PERSON);
+    peer.answer_kept(fixtures::FIRST_SIGN_IN);
+    peer.sign_in_answer(exchange)
+}
+#[test]
+fn a_given_secret_signs_in_as_the_first_link_and_no_link_is_said() {
+    assert_eq!(LINK_SECRET_BYTES, 32);
+    let mut peer = Peer::started(&given_settings());
+    peer.advance_time(before_link_expiry());
+    let answer = finish_given_sign_in(&mut peer, &given_link());
+    assert_eq!(answer.party(), fixtures::FIRST_PERSON);
+    assert_eq!(answer.expires(), fixtures::expires().as_nanos());
+    assert_eq!(peer.link_count(), 0);
+}
+#[test]
+fn a_given_secret_spent_draws_a_fresh_link() {
+    let mut peer = Peer::started(&given_settings());
+    let link = given_link();
+    finish_given_sign_in(&mut peer, &link);
+    let exchange = peer.post_link(&link);
+    assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Refused);
+    assert_eq!(peer.link_count(), 1);
+    assert!(peer.printed_link() != link, "replacement differs from the given link");
+    let replacement = peer.printed_link();
+    finish_given_sign_in(&mut peer, &replacement);
+    assert_eq!(peer.link_count(), 1);
+}
+#[test]
+fn a_given_secret_expires_a_span_from_its_taking() {
+    let settings = given_settings();
+    let mut peer = Peer::started(&settings);
+    let span = fixtures::limits().link_span;
+    peer.advance_time(span);
+    peer.restart(&settings);
+    peer.advance_time(before_link_expiry());
+    let link = given_link();
+    peer.post_link(&link);
+    let to = pending_reply(&mut peer);
+    peer.answer_request(to, jig_domain_people::Reply::Again(jig_domain_people::Again::NotReady));
+    peer.advance_time(Duration::from_nanos(1));
+    let exchange = peer.post_link(&link);
+    assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Refused);
+    assert!(peer.take_core().is_none());
+    assert_eq!(peer.link_count(), 1);
+    assert!(peer.printed_link() != link, "expired link replaced");
+    let replacement = peer.printed_link();
+    finish_given_sign_in(&mut peer, &replacement);
+    assert_eq!(peer.link_count(), 1);
+}
+#[test]
+fn a_given_secret_answered_not_ready_is_not_spent() {
+    for reply in retry_answers() {
+        let mut peer = Peer::started(&given_settings());
+        let link = given_link();
+        peer.post_link(&link);
+        let to = pending_reply(&mut peer);
+        peer.answer_request(to, reply);
+        let answer = finish_given_sign_in(&mut peer, &link);
+        assert_eq!(answer.party(), fixtures::FIRST_PERSON);
+        assert_eq!(peer.link_count(), 0);
+    }
+}
+#[test]
+fn a_given_secret_of_another_length_is_refused_at_start() {
+    for length in [0, LINK_SECRET_BYTES - 1, LINK_SECRET_BYTES + 1] {
+        let settings =
+            Settings { link_secret: Some(Secret::new(vec![9; length].into_boxed_slice())), ..fixtures::settings() };
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fixtures::limits() };
+        let mut out = Queue::uncapped();
+        assert_eq!(Component::new(settings, &env, &mut out).err(), Some(Unusable::LinkSecret));
+        assert!(out.is_empty());
+    }
+}
+#[test]
+fn a_given_secret_without_the_printed_link_is_no_link() {
+    let settings = Settings { link: None, ..given_settings() };
+    let mut peer = Peer::started(&settings);
+    let exchange = peer.post_link(&given_link());
+    assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Refused);
+    assert!(peer.take_core().is_none());
+    assert_eq!(peer.link_count(), 0);
+}
 fn peer() -> Peer {
     Peer::started(&fixtures::settings())
 }
