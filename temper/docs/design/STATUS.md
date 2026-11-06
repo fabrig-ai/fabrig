@@ -190,7 +190,11 @@ agent's task's Stop, Reject or Start over (`client/README.md`), and a sheet's ac
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
-answer as it stood (`domain/agent.md`). The
+answer as it stood (`domain/agent.md`). A journey's `add` redacts, proves
+and scans before it writes, but no real box's recording has been through it, the
+committed recordings keep their fake boxes' dummies until next added, nothing
+refuses `again` on a real journey, and the refusal's process tests watch two
+directories, not every path (`client/journeys.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
