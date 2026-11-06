@@ -4,6 +4,8 @@ pub mod real;
 use real::{Profile, Rig, Scenario, chromium};
 #[path = "suite/folds_away.rs"]
 mod folds_away;
+#[path = "suite/log_reading.rs"]
+mod log_reading;
 
 #[test]
 fn chromium_opens_finds_and_presses_a_button() {
