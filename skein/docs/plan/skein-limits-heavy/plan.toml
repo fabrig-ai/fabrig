@@ -1,0 +1,29 @@
+draft = "skein-limits-heavy"
+repo = "fabrig"
+sources = ["skein/docs/plan/skein-limits-heavy/inputs/request.md", "skein/tests/forge/github/src/tests.rs", "skein/tests/forge/github/README.md", "skein/tests/lib/Cargo.toml", "skein/tests/fail-stop/tests/suite/fail_stop.rs", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "github"
+title = "github-conformance's tests run as much as each checks, and a whole run's cost is explained"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "lib-memory"
+title = "skein-lib's light-use memory tests run the turns their behaviour needs"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[slice]]
+id = 1
+story = "skein's two costliest focused rows cost what their checks need"
+parts = ["github", "lib-memory"]
+walk = false
