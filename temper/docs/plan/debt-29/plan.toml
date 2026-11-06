@@ -67,3 +67,29 @@ id = 3
 story = "a test of the fake forge says what it wants of it, and no more"
 parts = ["fake-config"]
 walk = false
+
+[[part]]
+id = "link-values"
+title = "jig D006: the link's values have one path, jig_domain_link"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/root.md, 2"
+
+[[slice]]
+id = 4
+story = "a reader of the link's values names the crate that owns them, and none of the three re-exports them"
+parts = ["link-values"]
+walk = false
+
+[[part]]
+id = "oauth-owner"
+title = "skein D048, its first three steps: one owner harness, one driver and one restart wrapper, on a recorded baseline"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 10"
+
+[[slice]]
+id = 5
+story = "the oauth-accounts world has one owner harness, and what it does for each story is unchanged and shown so"
+parts = ["oauth-owner"]
+walk = false
