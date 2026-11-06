@@ -44,7 +44,7 @@ fn hello(bounds: Bounds) -> Hello {
 }
 fn rejected(needs: Needs, bounds: Bounds) -> HelloRefusal {
     let expected = crate::shortfall(&needs, &bounds, HostKind::Worker).expect("agent shortfall");
-    let figures = crate::figures(&needs, &bounds, expected);
+    let figures = crate::figures(&needs, &bounds, HostKind::Worker, expected);
     let mut h = Harness::with_needs(LIMITS, needs);
     assert_eq!(
         &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) }),
@@ -500,7 +500,7 @@ fn a_refused_hello_says_why_and_what_each_side_holds() {
     ] {
         assert_eq!(crate::shortfall(&needs, &bounds, HostKind::Worker), Some(why));
         let figures = crate::Figures { required, offered };
-        assert_eq!(crate::figures(&needs, &bounds, why), Some(figures));
+        assert_eq!(crate::figures(&needs, &bounds, HostKind::Worker, why), Some(figures));
         if why == (AgentShortfall::Checks { charter: 1 }) {
             assert!(offered > required);
         } else {
@@ -549,7 +549,7 @@ fn a_model_the_agent_does_not_declare_has_no_figures() {
         AgentShortfall::Window { charter: 1, model: 0 },
         AgentShortfall::Output { charter: 1, model: 0 },
     ] {
-        assert_eq!(crate::figures(&needs, &bounds, why), None);
+        assert_eq!(crate::figures(&needs, &bounds, HostKind::Worker, why), None);
     }
     let mut h = Harness::with_needs(LIMITS, needs);
     assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds) }).is_empty());
@@ -646,4 +646,25 @@ fn a_refused_hello_uses_the_applicable_charter_versions_figures() {
             "{kind:?}"
         );
     }
+}
+
+#[test]
+fn a_refused_hello_uses_the_first_short_versions_figures() {
+    let mut needs = needs_window(8192);
+    let first = needs.charters[0].clone();
+    let mut second = first.clone();
+    second.version.revision = 2;
+    second.turns = 10;
+    needs.charters = Box::new([first, second]);
+    let mut h = Harness::with_needs(LIMITS, needs);
+    assert_eq!(
+        &*h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds_window(8192)) }),
+        &[Request::Refuse {
+            channel: C1,
+            hello: Some(crate::HelloRefused {
+                why: HelloRefusal::Agent { why: AgentShortfall::Turns { charter: 1 } },
+                figures: Some(crate::Figures { required: 10, offered: 8 }),
+            })
+        }]
+    );
 }
