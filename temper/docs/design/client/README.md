@@ -6073,13 +6073,6 @@ own tests:
   forms, with a space and an apostrophe and no download, then the shown command run
   as it stands on a fresh real box, the pinned fetch with it. Default: the short
   command.
-- **The rename the mock draws** (5.3; that request): the answer of 2026-11-06 to
-  that plan's task `fix-look`, the user's word, has the open project's row itself
-  become the form, a name's field filling the row, at least 34 pixels high, and a
-  primary small "Save", with "Rename NAME" gone from the menu's acts while it is
-  open: Enter saves, Escape cancels, an empty name keeps the old one, and there is
-  no visible "Cancel". Save or Escape gives the focus back to what opened the form,
-  or to the menu's summary, never main. Default: 5.3's form and its "Cancel".
 - **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; that
   request): the pinned Claude Code fetch and a real browser's Sign out ran by hand,
   on fresh loopback deployments, and no test keeps them. Not shown: a provider's
@@ -6087,6 +6080,12 @@ own tests:
   with a project or an account on it; the small engine profile whole, whose client
   limits alone ran; another platform's build, a failed or corrupt download, two
   fetches at once; a copy from a public host. Default: none, until a plan walks them.
+- **The rename's opening and closing, as the mock draws them** (5.3; the request
+  `ui-rename-focus` of 2026-11-06): the mock selects the name as the form opens,
+  folds the menu as it closes and says "Renamed" in a toast. A view can neither
+  select a field's words nor fold a disclosure (skein's `ui-web.md`, 15), and that
+  request names none of the three. Default: the name unselected, the menu open with
+  the focus on its summary, and no toast.
 
 - **Pages the mockups do not show:** a project's page with its
   resources, findings, notes and settings (policy, people and roles,
