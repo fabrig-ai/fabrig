@@ -1,6 +1,9 @@
 //! Call arguments for the work line (temper/docs/design/client/README.md, 3.5).
 use alloc::boxed::Box;
-use skein_json::{Document, Kind};
+use skein_json::{
+    Document, Kind, Token,
+    tokenizer::{Event, Feed, Request},
+};
 use skein_lib::Writer;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -14,7 +17,7 @@ pub enum Touched {
 }
 #[must_use]
 pub fn touched(tool: &[u8], input: &[u8]) -> Touched {
-    let Some(doc) = parse(input) else { return Touched::Other { argument: None } };
+    let Some(doc) = parse(input) else { return Touched::Other { argument: first_member(input) } };
     if tool == b"read_docs" {
         if let Some(words) = string(&doc, 0, b"search") {
             return Touched::Search { words: bounded(words) };
@@ -49,7 +52,7 @@ pub fn touched(tool: &[u8], input: &[u8]) -> Touched {
         if token.kind == Kind::String {
             return Touched::Other {
                 argument: match doc.text(token) {
-                    Some(text) => Some(bounded(text)),
+                    Some(text) => Some(bounded(first_line(text))),
                     None => None,
                 },
             };
@@ -57,22 +60,62 @@ pub fn touched(tool: &[u8], input: &[u8]) -> Touched {
         if token.kind == Kind::Number {
             let key = doc.text(key).unwrap_or(b"");
             let value = doc.text(token).unwrap_or(b"");
-            let mut argument = Writer::new(
-                key.len()
-                    .checked_add(value.len())
-                    .expect("input bounds joined text")
-                    .checked_add(1)
-                    .expect("separator fits"),
-            );
-            argument.put(key).expect("key fits");
-            argument.put(b" ").expect("separator fits");
-            argument.put(value).expect("number fits");
-            return Touched::Other { argument: Some(bounded(&argument.finish())) };
+            return Touched::Other { argument: Some(number_argument(key, value)) };
         }
         let Some(end) = doc.value_end(value) else { break };
         cursor = end;
     }
     Touched::Other { argument: None }
+}
+fn first_member(input: &[u8]) -> Option<Box<[u8]>> {
+    let length = u32::try_from(input.len()).ok()?;
+    if length == u32::MAX {
+        return None;
+    }
+    let mut feed = Feed::new(
+        input,
+        &skein_json::tokenizer::Limits { depth: 16, string: length, number: length, chunk: 256, length },
+    );
+    match feed.answer(Request::Next) {
+        Event::Token(Token::ObjectStart) => (),
+        Event::Token(_) | Event::Long(_) | Event::Skipped(_) | Event::Done | Event::Failed(_) | Event::Closed => {
+            return None;
+        }
+    }
+    let key = match feed.answer(Request::Next) {
+        Event::Token(Token::Key(key)) => key,
+        Event::Token(_) | Event::Long(_) | Event::Skipped(_) | Event::Done | Event::Failed(_) | Event::Closed => {
+            return None;
+        }
+    };
+    match feed.answer(Request::Next) {
+        Event::Token(Token::String(text)) => Some(bounded(first_line(&text))),
+        Event::Token(Token::Number(value)) => Some(number_argument(&key, &value)),
+        Event::Token(
+            Token::ObjectStart
+            | Token::ObjectEnd
+            | Token::ArrayStart
+            | Token::ArrayEnd
+            | Token::Key(_)
+            | Token::True
+            | Token::False
+            | Token::Null,
+        )
+        | Event::Long(_)
+        | Event::Skipped(_)
+        | Event::Done
+        | Event::Failed(_)
+        | Event::Closed => None,
+    }
+}
+fn number_argument(key: &[u8], value: &[u8]) -> Box<[u8]> {
+    let mut argument = Writer::new(
+        key.len().checked_add(value.len()).expect("input bounds joined text").checked_add(1).expect("separator fits"),
+    );
+    argument.put(key).expect("key fits");
+    argument.put(b" ").expect("separator fits");
+    argument.put(value).expect("number fits");
+    bounded(&argument.finish())
 }
 fn parse(input: &[u8]) -> Option<Document> {
     let length = u32::try_from(input.len()).ok()?;

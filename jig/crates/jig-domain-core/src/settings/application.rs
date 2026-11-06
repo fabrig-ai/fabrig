@@ -148,24 +148,25 @@ pub(crate) fn projects(items: &[super::Item]) -> Box<[u32]> {
 pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
     for item in items {
         let Some(Name { kind, scope, number }) = named(item.setting) else { continue };
-        let declared = kind_of(&core.kinds, kind).ok_or(Failure { setting: item.setting, fault: Fault::Shape })?;
+        let declared =
+            kind_of(&core.kinds, kind).ok_or(Failure { setting: item.setting, fault: Fault::Shape, detail: None })?;
         let valid_scope = match declared.scope {
             KindScope::Deployment => scope == 0,
             KindScope::Project => scope != 0 && core.projects.as_slice().contains(&scope),
         };
         if number == 0 || !valid_scope {
-            return Err(Failure { setting: item.setting, fault: Fault::Shape });
+            return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
         }
         match &item.edit {
             super::Edit::Set(super::Value::Application(bytes)) => {
                 if bytes.len() > skein_lib::length::usize_of(declared.value_bytes) {
-                    return Err(Failure { setting: item.setting, fault: Fault::Shape });
+                    return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
                 }
             }
             super::Edit::Set(
                 super::Value::Charter(_) | super::Value::Template(_) | super::Value::Policy(_) | super::Value::Rules(_),
             ) => {
-                return Err(Failure { setting: item.setting, fault: Fault::Shape });
+                return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
             }
             super::Edit::Removed | super::Edit::Reset => {}
         }
@@ -181,7 +182,7 @@ pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
             }
         }
         if count > declared.per_scope {
-            return Err(Failure { setting: item.setting, fault: Fault::Count });
+            return Err(Failure { setting: item.setting, fault: Fault::Count, detail: None });
         }
     }
     Ok(())
@@ -444,6 +445,7 @@ fn accepted(
                 return Err(crate::routing::settings::dispatch::malformed_refusal(Failure {
                     setting: setting_of(&item),
                     fault: Fault::Shape,
+                    detail: None,
                 }));
             }
             let revision = core.current.newest().checked_add(1).expect("revision preflighted");
@@ -506,7 +508,7 @@ fn state_references(current: &Current, items: &[super::Item], setting: Setting, 
             }
         }
         if !offered {
-            return Err(Failure { setting, fault: Fault::Reference });
+            return Err(Failure { setting, fault: Fault::Reference, detail: None });
         }
     }
     Ok(())
@@ -672,14 +674,19 @@ pub(crate) fn proposal_change(
     }
     for item in set.applications {
         let setting = Setting::Application { kind: item.kind, scope: item.scope, number: item.number };
-        let kind = kind_of(&core.kinds, item.kind)
-            .ok_or(crate::routing::settings::dispatch::malformed_refusal(Failure { setting, fault: Fault::Shape }))?;
+        let kind =
+            kind_of(&core.kinds, item.kind).ok_or(crate::routing::settings::dispatch::malformed_refusal(Failure {
+                setting,
+                fault: Fault::Shape,
+                detail: None,
+            }))?;
         let edit = match item.edit {
             SizedEdit::Set { size } => {
                 if size > kind.value_bytes {
                     return Err(crate::routing::settings::dispatch::malformed_refusal(Failure {
                         setting,
                         fault: Fault::Shape,
+                        detail: None,
                     }));
                 }
                 super::Edit::Set(super::Value::Application(Box::default()))

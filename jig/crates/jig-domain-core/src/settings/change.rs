@@ -17,7 +17,7 @@ pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failur
         if !super::application::is_application(item.setting) {
             jig = jig.checked_add(1).expect("bounded item count");
             if jig > bound {
-                return Err(Failure { setting: item.setting, fault: Fault::Count });
+                return Err(Failure { setting: item.setting, fault: Fault::Count, detail: None });
             }
         }
     }
@@ -27,12 +27,12 @@ pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failur
         match item.setting {
             Setting::ProjectPolicy { project } => {
                 if project == 0 || project_policy {
-                    return Err(Failure { setting: item.setting, fault: Fault::Shape });
+                    return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
                 }
                 match &item.edit {
                     Edit::Set(super::Value::Policy(_)) => {}
                     Edit::Set(_) | Edit::Removed | Edit::Reset => {
-                        return Err(Failure { setting: item.setting, fault: Fault::Shape });
+                        return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
                     }
                 }
                 project_policy = true;
@@ -41,7 +41,7 @@ pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failur
             | Setting::Template(0)
             | Setting::Policy(0)
             | Setting::Application { number: 0, .. } => {
-                return Err(Failure { setting: item.setting, fault: Fault::Shape });
+                return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
             }
             Setting::Charter(_)
             | Setting::Template(_)
@@ -51,7 +51,7 @@ pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failur
         }
         for earlier in items.iter().take(at) {
             if item.setting == earlier.setting {
-                return Err(Failure { setting: item.setting, fault: Fault::Shape });
+                return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
             }
         }
         match &item.edit {
@@ -60,7 +60,7 @@ pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failur
                 super::check::count(item.setting, &mut counts, limits)?;
             }
             Edit::Removed if item.setting == Setting::Rules => {
-                return Err(Failure { setting: item.setting, fault: Fault::Shape });
+                return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
             }
             Edit::Removed | Edit::Reset => {}
         }

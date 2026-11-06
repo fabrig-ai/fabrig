@@ -494,8 +494,16 @@ What of this document is not built is in [`testing.status.md`](testing.status.md
 - **A fixture a crate's unit tests and a world both read** (6). No `#[path]`
   crosses a package, and a kit would give a second copy of the crate's types,
   so the dialect world holds its own
-  (`skein/tests/forge/dialect/tests/common/admitted.rs`) beside the crate's.
+  (`skein/tests/forge/dialect/tests/common/admitted.rs`) beside the crate's. A
+  feature like forge-connection's `seam` (forge-connection.md, 10) would join
+  them, for a second such feature on `skein-forge`, a shipping crate, and a wider
+  gate, against 55 lines of test data each side keeps as its own numbers.
   Default: the copy stays.
+- **The echo's client host** (6): `ClientHost` in
+  `skein/examples/echo/shell/tests/end_to_end.rs` repeats `Proc`'s `Host` arms.
+  The test sits in the shell's package so that Cargo supplies its binary,
+  `skein-echo-client` is held to the step subset and can't implement `Host`, and
+  a kit's manifest alone is longer than the copy. Default: the copy stays.
 - **Helpers beside the forge kit's** (6):
   `skein/tests/fake-peers/tests/forge/fixtures.rs` and
   `temper/tests/engine/protocol-forge/src/fixtures.rs` repeat some of

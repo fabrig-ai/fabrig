@@ -306,7 +306,7 @@ fn application_charter_reference_prevents_removing_the_offered_charter() {
         outcome(&refused),
         people::Outcome::Refused(people::Refusal::NotWellFormed {
             at: 0,
-            why: people::Malformed::Settings { setting: setting(1), fault: s::Fault::Reference }
+            why: people::Malformed::Settings { setting: setting(1), fault: s::Fault::Reference, detail: None }
         })
     );
     assert_eq!(core.current.newest(), 2);
@@ -329,7 +329,7 @@ fn application_bad_names_scopes_and_oversized_values_are_shape_before_judging() 
             &out,
             people::Refusal::NotWellFormed {
                 at: 0,
-                why: people::Malformed::Settings { setting, fault: s::Fault::Shape },
+                why: people::Malformed::Settings { setting, fault: s::Fault::Shape, detail: None },
             },
         );
     }
@@ -343,7 +343,7 @@ fn application_count_cannot_pass_per_scope() {
         &out,
         people::Refusal::NotWellFormed {
             at: 0,
-            why: people::Malformed::Settings { setting: setting(1), fault: s::Fault::Count },
+            why: people::Malformed::Settings { setting: setting(1), fault: s::Fault::Count, detail: None },
         },
     );
 }
@@ -368,7 +368,7 @@ fn application_removed_states_hold_their_slots() {
         outcome(&refused),
         people::Outcome::Refused(people::Refusal::NotWellFormed {
             at: 0,
-            why: people::Malformed::Settings { setting: setting(3), fault: s::Fault::Count },
+            why: people::Malformed::Settings { setting: setting(3), fault: s::Fault::Count, detail: None },
         })
     );
     assert_eq!(core.current.newest(), 5);
@@ -403,7 +403,7 @@ fn application_removal_and_reset_of_new_numbers_take_slots() {
             outcome(&refused),
             people::Outcome::Refused(people::Refusal::NotWellFormed {
                 at: 0,
-                why: people::Malformed::Settings { setting: setting(3), fault: s::Fault::Count },
+                why: people::Malformed::Settings { setting: setting(3), fault: s::Fault::Count, detail: None },
             })
         );
         assert_eq!(core.current.newest(), 2);

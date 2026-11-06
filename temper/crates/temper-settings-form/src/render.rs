@@ -713,3 +713,46 @@ fn encode_application(state: &c::ApplicationState, out: &mut Encoder) {
     out.array_end();
     out.object_end();
 }
+
+/// Render the member, supplied scalar and the rule carried by the settings check.
+pub fn setting_detail(detail: &c::SettingDetail, out: &mut Text) {
+    use c::SettingMember as M;
+    out.put(b"; documents");
+    match detail.member {
+        M::Documents => {}
+        M::NameSegments | M::NameSegmentBytes | M::Path | M::Heading | M::Connector => {
+            out.put(b"[");
+            out.number(u64::from(detail.document));
+            out.put(b"]");
+        }
+    }
+    let (member, limit) = match detail.member {
+        M::Documents => (b"".as_slice(), b"tasks.charter_documents".as_slice()),
+        M::NameSegments => (b".name".as_slice(), b"authority.segments".as_slice()),
+        M::NameSegmentBytes => (b".name".as_slice(), b"authority.segment_bytes".as_slice()),
+        M::Path => (b".path".as_slice(), b"bytes".as_slice()),
+        M::Heading => (b".heading".as_slice(), b"bytes".as_slice()),
+        M::Connector => (b".connector".as_slice(), b"".as_slice()),
+    };
+    out.put(member);
+    if detail.member == M::NameSegmentBytes {
+        out.put(b"[");
+        out.number(u64::from(detail.segment));
+        out.put(b"]");
+    }
+    out.put(b": supplied ");
+    out.number(u64::from(detail.supplied));
+    match detail.rule {
+        c::SettingRule::Registered => out.put(b"; connector must be registered"),
+        c::SettingRule::Maximum | c::SettingRule::Minimum => {
+            out.put(match detail.rule {
+                c::SettingRule::Maximum => b"; maximum ",
+                c::SettingRule::Minimum => b"; minimum ",
+                c::SettingRule::Registered => unreachable!("registration rendered separately"),
+            });
+            out.put(limit);
+            out.put(b" ");
+            out.number(u64::from(detail.bound));
+        }
+    }
+}

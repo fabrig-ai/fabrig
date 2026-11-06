@@ -248,7 +248,7 @@ fn settings_asks_outcomes_and_all_faults_round_trip_under_people_13() {
         ] {
             people_round_trip(values::answered(domain::Outcome::Refused(domain::Refusal::NotWellFormed {
                 at: 0,
-                why: domain::Malformed::Settings { setting, fault },
+                why: domain::Malformed::Settings { setting, fault, detail: None },
             })));
         }
     }
@@ -275,4 +275,34 @@ fn placed_hold_requests_answers_and_owner_facts_round_trip_in_people_13() {
     people_round_trip(values::answered(domain::Outcome::Refused(domain::Refusal::Moved {
         now: domain::Moved::PlacedHold { revision: 2 },
     })));
+}
+
+#[test]
+fn document_refusal_details_read_back() {
+    for member in [
+        domain::SettingMember::Documents,
+        domain::SettingMember::NameSegments,
+        domain::SettingMember::NameSegmentBytes,
+        domain::SettingMember::Path,
+        domain::SettingMember::Heading,
+        domain::SettingMember::Connector,
+    ] {
+        for rule in [domain::SettingRule::Maximum, domain::SettingRule::Minimum, domain::SettingRule::Registered] {
+            people_round_trip(values::answered(domain::Outcome::Refused(domain::Refusal::NotWellFormed {
+                at: 2,
+                why: domain::Malformed::Settings {
+                    setting: domain::Setting::Charter(5),
+                    fault: domain::SettingFault::Shape,
+                    detail: Some(domain::SettingDetail {
+                        member,
+                        document: 3,
+                        segment: 4,
+                        rule,
+                        supplied: 7,
+                        bound: 6,
+                    }),
+                },
+            })));
+        }
+    }
 }

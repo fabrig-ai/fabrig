@@ -1,13 +1,15 @@
 //! Deployment facts (temper/docs/design/client/README.md, 3.5 and 4.6).
 use super::{Limits, Request, Side, wire_limits};
+use alloc::boxed::Box;
 use jig_client::{Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::Queue;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Answer {
     pub welcome: bool,
     pub owned: bool,
+    pub program_login: Option<Box<[u8]>>,
 }
 #[derive(Debug)]
 pub(super) struct State {
@@ -37,8 +39,14 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
                 Readout::Family { family, record: Some(record) } if *family == wire::FORGE => decode(record, limits),
                 Readout::Family { .. } | Readout::NotServed { .. } | Readout::Limit | Readout::Jig(_) => None,
             };
-            let answer = answer.or(side.deployment.answer).unwrap_or(Answer { welcome: false, owned: false });
-            if side.deployment.answer != Some(answer) {
+            let answer = match answer {
+                Some(answer) => answer,
+                None => match side.deployment.answer.as_ref() {
+                    Some(_) => return true,
+                    None => Answer { welcome: false, owned: false, program_login: None },
+                },
+            };
+            if side.deployment.answer.as_ref() != Some(&answer) {
                 side.deployment.answer = Some(answer);
                 side.changed();
             }
@@ -55,8 +63,8 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
     }
 }
 fn decode(record: &[u8], limits: Limits) -> Option<Answer> {
-    let answer = wire::decode_deployment_answer(record, &wire_limits(&limits)?)?;
-    Some(Answer { welcome: answer.welcome(), owned: answer.owned() })
+    let answer = wire::decode_deployment_answer(record, &wire_limits(&limits)?)?.into_parts();
+    Some(Answer { welcome: answer.welcome, owned: answer.owned, program_login: answer.program_login })
 }
 fn read(side: &mut Side, out: &mut Queue<Request>) {
     side.serial = side.serial.checked_add(1).expect("forge handles fit");
