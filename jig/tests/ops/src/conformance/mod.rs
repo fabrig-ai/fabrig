@@ -182,12 +182,9 @@ fn env(config: &Config, clock: Clock) -> Env<root::Limits> {
 impl Application for Ops {
     type Domain = root::Domain;
     type Store = Store;
-    type Write = root::Write;
     type Config = Config;
     type Systems = Systems;
     type Peers = Peers;
-    type Key = root::Key;
-    type Record = root::Record;
     type Event = root::Event;
     type Delivery = Delivery;
 
@@ -313,12 +310,11 @@ impl Application for Ops {
             root::Event::TurnTimer,
         ]
     }
-    fn step(domain: &mut root::Domain, config: &Config, clock: Clock, input: Input<root::Event, root::Record>) {
+    fn step(domain: &mut root::Domain, config: &Config, clock: Clock, input: Input<root::Event>) {
         let event = match input {
             Input::Event(event) => event,
             Input::Committed(number) => root::Event::Store(root::Store::Committed { number, fill: 0 }),
             Input::Failed(number) => root::Event::Store(root::Store::Failed { number }),
-            Input::Restore(row) => root::Event::Store(root::Store::Restore(row)),
         };
         root::step(domain, &env(config, clock), event);
     }
@@ -406,7 +402,7 @@ impl Application for Ops {
         store: &mut Store,
         clock: Clock,
         delivery: Delivery,
-    ) -> Vec<Input<root::Event, root::Record>> {
+    ) -> Vec<Input<root::Event>> {
         let delivery = match delivery {
             Delivery::Root(mut root) => {
                 if let root::Output::Core(held) = root.as_mut() {
@@ -520,7 +516,8 @@ impl Application for Ops {
                 } else {
                     rows
                 };
-                let mut events: Vec<_> = rows.into_iter().map(Input::Restore).collect();
+                let mut events: Vec<_> =
+                    rows.into_iter().map(|row| Input::Event(root::Event::Store(root::Store::Restore(row)))).collect();
                 events.push(Input::Event(root::Event::Store(root::Store::Restored(phase))));
                 events
             }
@@ -784,7 +781,7 @@ impl Application for Ops {
         store: &mut Store,
         clock: Clock,
         ready: bool,
-    ) -> Vec<Input<root::Event, root::Record>> {
+    ) -> Vec<Input<root::Event>> {
         let now = clock.now / 1_000_000_000;
         if now > systems.now {
             systems.production.advance(now - systems.now);

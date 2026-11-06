@@ -156,12 +156,9 @@ fn read_page(store: &Rows, range: &core::reads::Range, tree_tasks: u32) -> core:
 impl Application for OpsApplication {
     type Domain = root::Domain;
     type Store = Store;
-    type Write = root::Write;
     type Config = Config;
     type Systems = Systems;
     type Peers = Peers;
-    type Key = root::Key;
-    type Record = root::Record;
     type Event = root::Event;
     type Delivery = Delivery;
 
@@ -218,7 +215,7 @@ impl Application for OpsApplication {
     fn timers(config: &Config) -> Vec<root::Event> {
         Ops::timers(config)
     }
-    fn step(domain: &mut root::Domain, config: &Config, clock: Clock, input: Input<root::Event, root::Record>) {
+    fn step(domain: &mut root::Domain, config: &Config, clock: Clock, input: Input<root::Event>) {
         Ops::step(domain, config, clock, input);
     }
     fn release(domain: &mut root::Domain, config: &Config, clock: Clock) -> Vec<Output<root::Write, Delivery>> {
@@ -243,7 +240,7 @@ impl Application for OpsApplication {
         store: &mut Rows,
         clock: Clock,
         delivery: Delivery,
-    ) -> Vec<Input<root::Event, root::Record>> {
+    ) -> Vec<Input<root::Event>> {
         let delivery = match delivery {
             Delivery::Root(value) => *value,
             other @ Delivery::Results { .. } => {
@@ -409,7 +406,7 @@ impl Application for OpsApplication {
         store: &mut Rows,
         clock: Clock,
         ready: bool,
-    ) -> Vec<Input<root::Event, root::Record>> {
+    ) -> Vec<Input<root::Event>> {
         let mut events = Ops::poll(&mut peers.conformance, systems, store, clock, ready);
         if ready && peers.replay_news {
             peers.replay_news = false;

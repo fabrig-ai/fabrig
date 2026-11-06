@@ -161,12 +161,9 @@ fn env(config: &Config, clock: Clock) -> Env<engine::Limits> {
 impl Application for Temper {
     type Domain = Domain;
     type Store = Store;
-    type Write = engine::Write;
     type Config = Config;
     type Systems = systems::FakeForge;
     type Peers = Peers;
-    type Key = root::Key;
-    type Record = observations::Record;
     type Event = Event;
     type Delivery = Delivery;
 
@@ -355,7 +352,7 @@ impl Application for Temper {
     fn timers(_: &Config) -> Vec<Event> {
         vec![Event::Fire]
     }
-    fn step(domain: &mut Domain, config: &Config, clock: Clock, input: Input<Event, observations::Record>) {
+    fn step(domain: &mut Domain, config: &Config, clock: Clock, input: Input<Event>) {
         let environment = env(config, clock);
         domain.probed = matches!(input, Input::Event(Event::Fire));
         let event = match input {
@@ -366,7 +363,6 @@ impl Application for Temper {
             }
             Input::Committed(number) => engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }),
             Input::Failed(number) => engine::Event::Store(engine::StoreInput::Uncommitted { number }),
-            Input::Restore(_) => panic!("temper restores through bounded load terminals"),
         };
         if let Err(event) = engine::try_step(&mut domain.root, &environment, event) {
             assert!(domain.returned.replace(event).is_none(), "one input per iteration");
@@ -439,7 +435,7 @@ impl Application for Temper {
         store: &mut Store,
         clock: Clock,
         delivery: Delivery,
-    ) -> Vec<Input<Event, observations::Record>> {
+    ) -> Vec<Input<Event>> {
         let request = match delivery {
             Delivery::Root(request) => *request,
             Delivery::Returned(event) => return vec![Input::Event(Event::Root(*event))],
@@ -511,7 +507,7 @@ impl Application for Temper {
         store: &mut Store,
         clock: Clock,
         ready: bool,
-    ) -> Vec<Input<Event, observations::Record>> {
+    ) -> Vec<Input<Event>> {
         systems.generation = peers.generation;
         let mut events = systems.poll(clock);
         if ready {
@@ -695,9 +691,6 @@ impl Application for Temper {
     }
     fn maximum(config: &Config) -> u64 {
         config.maximum
-    }
-    fn configuration_heap(_: &Config) -> u64 {
-        0
     }
 }
 
