@@ -18,7 +18,7 @@ use skein_world::{
 use temper_box::host::{Service, Settings};
 use temper_forge_setup::{Kind, Step, Steps};
 
-// The only output is two small blocks, two diagnostics and lifecycle notices.
+// The terminal holds two small blocks and two diagnostics.
 const CAPTURE_BYTES: usize = 4096;
 const READ_BYTES: usize = 128;
 // At most four unused inherited pipes close alongside a signal read and write.
@@ -30,9 +30,9 @@ const PATIENCE: Duration = Duration::from_secs(2);
 const PROGRAM: &[u8] = b"synthetic-box-child";
 const FIRST: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=test-first\n";
 const FRESH: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=test-fresh\n";
-const PRELUDE: &[u8] = b"\nOpen this link in a browser on this machine. It signs you in as this\ntemper's owner, once and for a short while, so keep it private.\nOpened again once spent, it prints a fresh one here.\n\n";
-const FOOTER: &[u8] = b"\nCtrl-C stops temper.\n\n";
-const ANNOUNCEMENT: &[u8] = b"A fresh sign-in link:\n";
+const PRELUDE: &[u8] = b"Open this link in a browser on this machine.\n\n";
+const FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once and for a short while.\nOpened again once spent, it prints a fresh one here.\n";
+const ANNOUNCEMENT: &[u8] = b"\n";
 const FIRST_DIAGNOSTIC: &[u8] = b"diagnostic: between first pieces\n";
 const FRESH_DIAGNOSTIC: &[u8] = b"diagnostic: between fresh pieces\n";
 const SERVE_WRITES: [&[u8]; 4] = [
@@ -458,6 +458,9 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
                 &temper_box::limits::small(),
                 steps,
                 Settings {
+                    first_link: None,
+                    after_block: Box::new([]),
+                    log_lines: Box::new([]),
                     echo: temper_box::host::Echo::Steps,
                     data: Box::from(b"/data".as_slice()),
                     program: PROGRAM.into(),
@@ -500,7 +503,6 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
     let fresh = position(bytes, FRESH).expect("fresh URL occupies one intact line");
     let announcement = fresh.checked_sub(ANNOUNCEMENT.len()).expect("fresh URL follows announcement");
     assert_eq!(bytes.get(announcement..fresh), Some(ANNOUNCEMENT), "fresh announcement immediately precedes URL");
-    timestamp_before(bytes, announcement);
     assert_eq!(occurrences(bytes, FIRST), 1, "exactly one intact first URL line");
     assert_eq!(occurrences(bytes, FRESH), 1, "exactly one intact fresh URL line");
     assert_eq!(occurrences(bytes, SERVE_WRITES.first().expect("URL prefix")), 2, "no stray or duplicate URL prefix");
@@ -510,16 +512,21 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
     );
     let diagnostic = position(bytes, FRESH_DIAGNOSTIC).expect("fresh diagnostic");
     assert!(footer_end <= diagnostic && diagnostic < announcement, "fresh diagnostic is between the blocks");
-    let stopping = position(bytes, b"Stopping\n").expect("Stopping lifecycle notice");
-    let stopped = position(bytes, b"Stopped\n").expect("Stopped lifecycle notice");
-    assert!(fresh < stopping && stopping < stopped, "fresh URL precedes ordered shutdown notices");
-    timestamp_before(bytes, stopping);
-    timestamp_before(bytes, stopped);
+    assert!(position(bytes, b"Stopping\n").is_none());
+    assert!(position(bytes, b"Stopped\n").is_none());
+    let log = std::fs::read(scratch.path().join("box/logs/box.log")).expect("box log");
+    let stopping = position(&log, b"Stopping\n").expect("Stopping lifecycle notice");
+    let stopped = position(&log, b"Stopped\n").expect("Stopped lifecycle notice");
+    assert!(stopping < stopped, "shutdown notices retain their order");
+    timestamp_before(&log, stopping);
+    timestamp_before(&log, stopped);
+    assert!(log.ends_with(b"Stopped\n"));
 }
 
 #[derive(Debug)]
 struct RemoveJudge {
     controls: Controls,
+    finished: &'static [u8],
     stopping: bool,
     settled: bool,
     wake: Option<Time>,
@@ -535,14 +542,14 @@ fn all_closed(procs: &[Proc]) -> bool {
 impl Referee<Proc> for RemoveJudge {
     fn act(&mut self, _now: Time, procs: &mut [Proc]) {
         self.wake = None;
-        if !self.stopping && contains(&capture(procs).received, b"removed 17\n") {
+        if !self.stopping && contains(&capture(procs).received, self.finished) {
             self.controls.signal(BOX_HOST, ServiceSignal::Terminate);
             self.stopping = true;
         }
         self.settled = self.stopping && all_closed(procs);
     }
     fn observe(&mut self, now: Time, procs: &[Proc]) {
-        if !self.stopping && contains(&capture(procs).received, b"removed 17\n") || self.stopping && all_closed(procs) {
+        if !self.stopping && contains(&capture(procs).received, self.finished) || self.stopping && all_closed(procs) {
             self.wake = Some(now);
         }
     }
@@ -563,8 +570,13 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
     let root = open_root(scratch.path()).unwrap();
     let (reader, stdout, stderr) = shared_terminal(root);
     let clock = Clock::new();
-    let mut world =
-        World::new_controlled(|controls| RemoveJudge { controls, stopping: false, settled: false, wake: None });
+    let mut world = World::new_controlled(|controls| RemoveJudge {
+        controls,
+        finished: b"removed 17\n",
+        stopping: false,
+        settled: false,
+        wake: None,
+    });
     world.spawn_signals(|signals| {
         // All steps use the box's program; the remover execs the /bin/true stub.
         let script = b"printf 'start 17 fake\n' >&3; IFS= read -r step <&4; IFS= read -r started <&4; [ \"$step\" = 'step 17 run' ] && [ \"$started\" = 'started 17' ] || exit 1; printf 'remove 17\n' >&3; IFS= read -r removed <&4; [ \"$removed\" = 'removed 17' ] || exit 1; printf '%s\n' \"$removed\"; exec /bin/sleep 30";
@@ -577,6 +589,8 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
             }]),
         };
         Proc::Box(Box::new(Service::new(&temper_box::limits::small(), steps, Settings {
+            first_link: None, after_block: Box::new([]),
+            log_lines: Box::new([]),
             program: b"/bin/sh".as_slice().into(), environment: Box::new([]), serve: b"serve".as_slice().into(),
             listeners: Box::new([]), root, echo: temper_box::host::Echo::Steps,
             data: scratch.path().as_os_str().as_encoded_bytes().into(), signals, stdout, stderr,
@@ -593,4 +607,66 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
     assert!(!scratch.path().join("box/groups/17").exists());
     assert!(!scratch.path().join("box/started/17").exists());
     assert_eq!(std::fs::read(cache.join("kept")).unwrap(), b"binary cache");
+}
+
+#[test]
+fn a_real_child_reads_the_secret_and_eof_on_stdin() {
+    let scratch = skein_scratch::Scratch::new("box-stdin");
+    let root = open_root(scratch.path()).expect("box startup root");
+    let (reader, stdout, stderr) = shared_terminal(root);
+    let clock = Clock::new();
+    let mut world = World::new_controlled(|controls| RemoveJudge {
+        controls,
+        finished: b"stdin ended\n",
+        stopping: false,
+        settled: false,
+        wake: None,
+    });
+    let secret: &[u8] = &[0x83; 32];
+    world.spawn_signals(|signals| {
+        let script = b"/bin/cat > stdin-received; printf 'stdin ended\n'; exec /bin/sleep 30";
+        let steps = Steps {
+            always: Box::new([Step::new(
+                b"serve".as_slice().into(),
+                Box::new([b"-c".as_slice().into(), script.as_slice().into()]),
+                Kind::Long,
+            )]),
+            asked: Box::new([]),
+        };
+        Proc::Box(Box::new(
+            Service::new(
+                &temper_box::limits::small(),
+                steps,
+                Settings {
+                    first_link: Some(temper_box::host::FirstLink {
+                        url: b"http://local/first".as_slice().into(),
+                        secret: skein_lib::Secret::new(secret.into()),
+                    }),
+                    after_block: Box::new([]),
+                    log_lines: Box::new([]),
+                    program: b"/bin/sh".as_slice().into(),
+                    environment: Box::new([]),
+                    serve: b"serve".as_slice().into(),
+                    listeners: Box::new([]),
+                    root,
+                    echo: temper_box::host::Echo::None,
+                    data: scratch.path().as_os_str().as_encoded_bytes().into(),
+                    signals,
+                    stdout,
+                    stderr,
+                },
+            )
+            .unwrap(),
+        ))
+    });
+    world.spawn_with_fds(vec![reader], || Proc::Capture(Synthetic::capture(reader)));
+    let outcome = world.run(&clock, PATIENCE);
+    assert!(outcome.killed.is_empty(), "the box stops after the child reads EOF");
+    assert!(contains(&capture(&outcome.procs).received, b"stdin ended\n"));
+    let got = std::fs::read(scratch.path().join("stdin-received")).expect("child's stdin capture");
+    assert!(got.as_slice() == secret, "the real pipe carries exactly the secret's bytes");
+    for proc in &outcome.procs {
+        assert!(proc.is_empty());
+        assert_eq!(proc.exit(), Some(Exit::Code(0)));
+    }
 }

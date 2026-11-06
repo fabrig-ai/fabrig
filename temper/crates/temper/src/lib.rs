@@ -411,7 +411,7 @@ fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    prepare_with_limits(directories, bytes, owned, false, &service::stock::Given::Stock)
+    prepare_with_limits(directories, bytes, owned, false, None, &service::stock::Given::Stock)
         .map(|(service, store, _)| (service, store))
 }
 #[expect(clippy::too_many_lines, reason = "startup passes the checked machine and its program environment together")]
@@ -420,6 +420,7 @@ fn prepare_with_limits(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
     under_box: bool,
+    link_secret: Option<Secret>,
     given: &service::stock::Given,
 ) -> Result<(service::Service, Box<[u8]>, u32), String> {
     if service::startup::shape_with(bytes, &directories.jig(), given)
@@ -484,7 +485,7 @@ fn prepare_with_limits(
         &directories.jig(),
         &files,
         agent.as_ref(),
-        &Seeds { deployment, installation, seed, crypto },
+        &Seeds { deployment, installation, seed, crypto, link_secret },
         Some(accounts),
         runtime,
         forges,
@@ -547,7 +548,7 @@ pub fn boxed_operations_in(directories: &Directories, config: &[u8]) -> Result<u
 fn operations_in_mode(directories: &Directories, config: &[u8], boxed: bool) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result = prepare_with_limits(directories, config, &mut owned, boxed, &service::stock::Given::Stock)
+    let result = prepare_with_limits(directories, config, &mut owned, boxed, None, &service::stock::Given::Stock)
         .map(|(service, _, _)| service.operations());
     close(owned);
     result.map_err(|why| prefixed("temper serve", &why))
@@ -565,7 +566,8 @@ pub fn prepare_in(directories: &Directories) -> Result<service::Service, String>
 pub fn prepare_in_with(directories: &Directories, given: &service::stock::Given) -> Result<service::Service, String> {
     let bytes = directories.read().map_err(|why| prefixed("temper serve", &why))?;
     let mut owned = Vec::new();
-    let result = prepare_with_limits(directories, &bytes, &mut owned, false, given).map(|(service, _, _)| service);
+    let result =
+        prepare_with_limits(directories, &bytes, &mut owned, false, None, given).map(|(service, _, _)| service);
     if result.is_err() {
         close(owned);
     }
@@ -579,8 +581,8 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result =
-        prepare_with_limits(directories, config, &mut owned, false, given).map(|(service, _, _)| service.operations());
+    let result = prepare_with_limits(directories, config, &mut owned, false, None, given)
+        .map(|(service, _, _)| service.operations());
     close(owned);
     result.map_err(|why| prefixed("temper serve", &why))
 }
@@ -616,6 +618,24 @@ fn box_refusal(why: service::system::BoxRefusal) -> String {
     };
     format!("--box: {words}")
 }
+/// The first link's secret on a boxed serve's standard input (protocol/setup.md, 7.1).
+fn given_secret(input: &mut impl std::io::Read) -> Result<Option<skein_lib::Secret>, String> {
+    use std::io::Read;
+    let limit = service::clients::LINK_SECRET_BYTES.checked_add(1).expect("small secret bound");
+    let mut bytes = Vec::with_capacity(limit);
+    input
+        .take(u64::try_from(limit).expect("small secret bound"))
+        .read_to_end(&mut bytes)
+        .map_err(|_| "--box: stdin: expected the first link's secret".to_string())?;
+    if bytes.is_empty() {
+        Ok(None)
+    } else if bytes.len() == service::clients::LINK_SECRET_BYTES {
+        Ok(Some(Secret::new(bytes.into_boxed_slice())))
+    } else {
+        Err("--box: stdin: expected the first link's secret".into())
+    }
+}
+
 fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
     let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
     let requests = 3 + i32::try_from(listeners.len()).expect("bounded inherited listeners");
@@ -627,9 +647,11 @@ fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
             }
         }
     }
+    let link_secret = if boxed { given_secret(&mut std::io::stdin().lock())? } else { None };
     let bytes = directories.read()?;
     let mut owned = listeners.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
-    let prepared = prepare_with_limits(directories, &bytes, &mut owned, boxed, &service::stock::Given::Stock);
+    let prepared =
+        prepare_with_limits(directories, &bytes, &mut owned, boxed, link_secret, &service::stock::Given::Stock);
     let (mut service, store, line_bytes) = match prepared {
         Ok(prepared) => prepared,
         Err(why) => {
@@ -692,6 +714,29 @@ mod tests;
 
 #[cfg(test)]
 mod box_tests {
+
+    #[test]
+    fn a_boxed_serve_reads_none_or_a_whole_secret() {
+        use std::io::Cursor;
+        use temper_service::clients::LINK_SECRET_BYTES;
+
+        let mut empty = Cursor::new([]);
+        assert!(super::given_secret(&mut empty).expect("empty input").is_none());
+        let bytes = [23; LINK_SECRET_BYTES];
+        let mut whole = Cursor::new(bytes);
+        let secret = super::given_secret(&mut whole).expect("whole secret").expect("given secret");
+        assert!(secret.expose() == bytes, "the secret is taken whole");
+        for length in [LINK_SECRET_BYTES - 1, LINK_SECRET_BYTES + 1] {
+            let mut input = Cursor::new(vec![23; length]);
+            assert_eq!(
+                super::given_secret(&mut input).expect_err("partial or oversized secret"),
+                "--box: stdin: expected the first link's secret"
+            );
+        }
+        let mut oversized = Cursor::new(vec![23; LINK_SECRET_BYTES * 2]);
+        assert!(super::given_secret(&mut oversized).is_err(), "oversized input is refused");
+        assert_eq!(oversized.position(), u64::try_from(LINK_SECRET_BYTES + 1).expect("small bound"));
+    }
 
     #[test]
     fn serve_box_flag_is_carried_to_the_command() {

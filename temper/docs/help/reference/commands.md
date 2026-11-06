@@ -57,11 +57,11 @@ Its stdout carries only sign-in links, one a line; its stderr, its startup notes
 Run a deployment as one box: the setup steps of each forge it sets up, then temper serve, each a child process.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-- `--echo`: none prints the box's own lines and a failed step's log; steps prints every step's lines too, prefixed by its name.
+- `--echo`: none prints errors and a failed step's log; steps prints every step's lines too, prefixed by its name.
 - `--fake-backends`: Run against temper's fake LLM provider, forge and OAuth issuer, as a deployment of its own under DATA/box/fake-backends that shares the cache.
 - `BUNDLE`: The web client's bundle directory, in place of the configured one; a relative path is taken from the working directory.
 
-Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is temper serve's sign-in links, each line whole; its stderr, what --echo chooses; each step logs under the data directory.
+Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.
 
 ## temper program-login
 

@@ -22,3 +22,6 @@ pub use limits::{Limits, PublicLimits, provider_limits, valid};
 pub use public::{PublicKind, jig_kinds};
 
 pub mod translate;
+
+/// The first printed link's secret length (jig/docs/design/protocol/client.md, 8).
+pub const LINK_SECRET_BYTES: usize = 32;
