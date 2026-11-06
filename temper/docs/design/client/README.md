@@ -6721,12 +6721,19 @@ own tests:
   which counts Reject among the card's acts): the mock's `chat.html` draws "Accept" and
   "Change something" alone, and the reason's box stands on the card in *Needs you*.
   Drawing one takes a view change and that box; its ask already goes under the
-  proposal's own `project`. Default: none, a person rejects in *Needs you*, where what
-  they say to change in the chat also leads while it waits (5.13).
-- **A rejected proposal of settings, on its chat's card** (5.13; the same request): its
-  title and lines stay with neither acts nor a state line, where the card in *Needs you*
-  says "Rejected"; the reason sent and the agent's reply stand in the conversation above
-  it. No words for it are designed. Default: as it stands.
+  proposal's own `project`. Default: none; a person rejects in *Needs you*
+  before the agent proposes afresh (5.13).
+- **Calls naming their proposals** (3.5, 5.13): filling a committed call's
+  `objects` needs the core's turn record, its archived form and a mapping from
+  the call's position to the proposal's number; proposals from a verdict or a
+  procedure have no call. Default: keep the call anchor where one is supplied,
+  and otherwise place the card by its making line, or its waiting time, as 5.13
+  specifies. Filling those call objects is separate work.
+- **The real-model proposal-card walk** (5.13; the request `ui-proposal-card`
+  of 2026-11-06): QA repeats the two-proposal, rejection from *Needs you* and
+  reload walk at 1440 and 420 pixels on a real model after landing. Default:
+  that check follows the fake-box render proof; scripted stories alone do not
+  settle what a person meets with a real model.
 - **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; the
   requests `ui-final-walk` of 2026-11-05 and `ui-walk-3` of 2026-11-06): the pinned
   Claude Code fetch, from a box with directories of its own up to the sign-in prompt
