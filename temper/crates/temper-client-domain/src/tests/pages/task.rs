@@ -947,27 +947,62 @@ fn a_goals_page_has_no_older_read() {
     let (mut pages, client) = task_pages(task);
     assert!(page_act(&mut pages, &client, Act::Older).is_empty());
 }
-#[test]
-fn task_stop_waits_for_confirmation_and_joins_its_pending_kind() {
-    let (mut pages, client) = task_pages(offered_task(c::ActKind::Stop, Some(c::Admission::Allowed)));
-    assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Stop)).is_empty());
-    assert_eq!(pages.confirmation().expect("confirmation").act, c::ActKind::Stop);
-    assert_eq!(
-        fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Confirm)).as_ref(),
-        [c::Ask::Stop { project: fixtures::PROJECT, task: f::TASK }]
-    );
-    assert!(pages.confirmation().unwrap().sent.is_some());
-    page_act(&mut pages, &client, Act::Stop);
-    assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Confirm)).is_empty());
-    assert_eq!(pages.task().expect("page").pending.as_slice()[0].1, Sending::Stop);
+fn paused_agent() -> c::Task {
+    let mut task = super::goal::paused_task();
+    task.priority = None;
+    task
 }
 #[test]
-fn dismissing_task_stop_sends_nothing() {
-    let (mut pages, client) = task_pages(offered_task(c::ActKind::Stop, Some(c::Admission::Allowed)));
-    page_act(&mut pages, &client, Act::Stop);
-    assert!(page_act(&mut pages, &client, Act::Cancel).is_empty());
-    assert!(pages.confirmation().is_none());
-    assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Confirm)).is_empty());
+fn an_agent_s_pause_and_resume_are_sent_at_once() {
+    for (task, act, expected, kind) in [
+        (
+            offered_task(c::ActKind::Stop, Some(c::Admission::Allowed)),
+            Act::Pause,
+            c::Ask::Stop { project: fixtures::PROJECT, task: f::TASK },
+            Sending::Stop,
+        ),
+        (
+            paused_agent(),
+            Act::Resume,
+            c::Ask::Release {
+                project: fixtures::PROJECT,
+                task: f::TASK,
+                revision: c::Revision { value: 17 },
+                again: None,
+            },
+            Sending::Resume,
+        ),
+    ] {
+        let (mut pages, client) = task_pages(task);
+        assert_eq!(fixtures::acts::sent(&mut page_act(&mut pages, &client, act.clone())).as_ref(), [expected]);
+        assert!(pages.confirmation().is_none());
+        assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, act)).is_empty());
+        assert_eq!(pages.task().expect("page").pending.as_slice()[0].1, kind);
+    }
+}
+#[test]
+fn an_agent_s_resume_is_its_person_s_own_pause_alone() {
+    enum Change {
+        OtherPerson,
+        OtherTask,
+        Lifted,
+        Unplaced,
+        Active,
+    }
+    for changed in [Change::OtherPerson, Change::OtherTask, Change::Lifted, Change::Unplaced, Change::Active] {
+        let mut task = paused_agent();
+        let hold = task.chip.details.details.hold.as_mut().expect("hold");
+        let placed = hold.placed.as_mut().expect("placed");
+        match changed {
+            Change::OtherPerson => placed.owner = c::HoldOwner::Party { person: fixtures::PARTY + 1 },
+            Change::OtherTask => placed.scope = c::HoldScope::Subtree { task: f::TASK + 1 },
+            Change::Lifted => placed.lifted = true,
+            Change::Unplaced => hold.placed = None,
+            Change::Active => f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle)),
+        }
+        let (mut pages, client) = task_pages(task);
+        assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Resume)).is_empty());
+    }
 }
 #[test]
 fn an_unavailable_task_act_opens_no_confirmation() {
@@ -976,7 +1011,7 @@ fn an_unavailable_task_act_opens_no_confirmation() {
         Some(c::Admission::Refused(c::Refusal::NotOffered)),
         Some(c::Admission::Proposed { to: c::Recipient::Party(fixtures::PARTY) }),
     ] {
-        for (kind, act) in [(c::ActKind::Stop, Act::Stop), (c::ActKind::Cancel, Act::Close)] {
+        for (kind, act) in [(c::ActKind::Stop, Act::Pause), (c::ActKind::Cancel, Act::Close)] {
             let (mut pages, client) = task_pages(offered_task(kind, admission.clone()));
             assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, act)).is_empty());
             assert!(pages.confirmation().is_none());
@@ -984,7 +1019,7 @@ fn an_unavailable_task_act_opens_no_confirmation() {
     }
 }
 #[test]
-fn task_close_confirms_cancel_with_the_pages_reason_and_no_grace() {
+fn an_agent_s_close_asks_first_then_cancels() {
     let (mut pages, client) = task_pages(offered_task(c::ActKind::Cancel, Some(c::Admission::Allowed)));
     assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Close)).is_empty());
     assert_eq!(pages.confirmation().expect("confirmation").act, c::ActKind::Cancel);
@@ -993,7 +1028,7 @@ fn task_close_confirms_cancel_with_the_pages_reason_and_no_grace() {
         [c::Ask::Cancel {
             project: fixtures::PROJECT,
             task: f::TASK,
-            reason: fixtures::acts::text(b"Cancelled from its page"),
+            reason: fixtures::acts::text(b"Closed from its page"),
             grace: None,
         }]
     );
@@ -1001,8 +1036,7 @@ fn task_close_confirms_cancel_with_the_pages_reason_and_no_grace() {
 #[test]
 fn a_task_answer_sets_the_outcome_and_clears_pending() {
     let (mut pages, client) = task_pages(offered_task(c::ActKind::Stop, Some(c::Admission::Allowed)));
-    page_act(&mut pages, &client, Act::Stop);
-    page_act(&mut pages, &client, Act::Confirm);
+    page_act(&mut pages, &client, Act::Pause);
     let key = pages.task().expect("page").pending.as_slice()[0].0;
     let mut out = Queue::with_capacity(OUTPUTS);
     pages::step(

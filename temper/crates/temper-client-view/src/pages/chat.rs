@@ -80,7 +80,7 @@ pub(crate) fn main(
             b.close();
         }
         bar_status(b, root, task, words, times);
-        bar_actions(b, task, words, bindings);
+        bar_actions(b, root, task, words, bindings);
         b.close();
         b.close();
         b.open(Role::Region);
@@ -241,9 +241,13 @@ fn bar_status(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, _ti
         b.close();
     }
 }
-fn bar_actions(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindings) {
-    if temper_client_domain::pages::chat::allowed(task, c::ActKind::Stop) {
-        control(b, bindings, Role::Button, &words.say(Word::Stop, &[]), Act::Stop);
+fn bar_actions(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, bindings: &mut Bindings) {
+    if is_paused(root, task) {
+        if temper_client_domain::pages::chat::allowed(task, c::ActKind::Release) {
+            control(b, bindings, Role::Button, &words.say(Word::Resume, &[]), Act::Resume);
+        }
+    } else if temper_client_domain::pages::chat::allowed(task, c::ActKind::Stop) {
+        control(b, bindings, Role::Button, &words.say(Word::Pause, &[]), Act::Stop);
     }
     if temper_client_domain::pages::chat::allowed(task, c::ActKind::Cancel) {
         control(b, bindings, Role::Button, &words.say(Word::Close, &[]), Act::Close);
@@ -284,7 +288,14 @@ fn session_composer(
     }
     b.bind(bindings.insert(Act::Send));
     b.close();
-    super::session::hint(b, words, chat.draft.is_some() || chat.writing);
+    let hint = if is_paused(root, task) && temper_client_domain::pages::chat::allowed(task, c::ActKind::Release) {
+        Word::ChatSendResumes
+    } else if chat.draft.is_some() || chat.writing {
+        Word::DraftSendHint
+    } else {
+        Word::ChatSendHint
+    };
+    super::session::hint(b, words, hint);
     if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
         && let Some(outcome) = &chat.outcome
         && !super::chats::accepted(outcome)
@@ -306,7 +317,9 @@ fn act_status(b: &mut Builder, root: &Domain, chat: &Chat, words: &Words) {
     for (key, kind) in &chat.pending {
         match kind {
             temper_client_domain::pages::chat::Sending::Message | temper_client_domain::pages::chat::Sending::Seen => {}
-            temper_client_domain::pages::chat::Sending::Stop | temper_client_domain::pages::chat::Sending::Close => {
+            temper_client_domain::pages::chat::Sending::Stop
+            | temper_client_domain::pages::chat::Sending::Resume
+            | temper_client_domain::pages::chat::Sending::Close => {
                 if !sheet && let Some(pending) = root.client().pending(*key) {
                     b.open(Role::Slot);
                     b.key(Key { a: u64::from(key.asker.0), b: key.number, ..fixed_key(53) });
@@ -319,8 +332,17 @@ fn act_status(b: &mut Builder, root: &Domain, chat: &Chat, words: &Words) {
     if !sheet
         && chat.outcome_kind != Some(temper_client_domain::pages::chat::Sending::Message)
         && let Some(outcome) = &chat.outcome
-        && !(chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Close)
-            && super::chats::accepted(outcome))
+        && match chat.outcome_kind {
+            Some(
+                temper_client_domain::pages::chat::Sending::Stop
+                | temper_client_domain::pages::chat::Sending::Resume
+                | temper_client_domain::pages::chat::Sending::Close,
+            ) => !super::chats::accepted(outcome),
+            Some(
+                temper_client_domain::pages::chat::Sending::Message | temper_client_domain::pages::chat::Sending::Seen,
+            )
+            | None => true,
+        }
     {
         b.open(Role::Slot);
         b.key(fixed_key(54));
@@ -1598,4 +1620,11 @@ fn settings_replaced(root: &Domain, object: c::ObjectKey, rows: u32) -> bool {
         }
     }
     false
+}
+
+fn is_paused(root: &Domain, task: &c::Task) -> bool {
+    match root.pages().me(root.client()) {
+        Some(me) => temper_client_domain::pages::chat::paused(&task.chip, me),
+        None => false,
+    }
 }

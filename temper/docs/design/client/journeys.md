@@ -771,7 +771,7 @@ The `close-chat` request's hand-made `close-chat/01.html` through `03.html`
 are not journeys to reprint or land (section 7). Their states are the gallery's
 `chat-closing`, `chat-closing-work` and `chat-closed` (`browser.md`, 7.2).
 The other confirmations and failures use the same sheet (`README.md`, 3.6);
-their gallery states include Start over, Stop, Cancel, Accept, Reject and
+their gallery states include Start over, Close, Accept, Reject and
 Release, with its uncertain pair. These add no recorded journey or page.
 
 ## 10. Open questions
@@ -800,11 +800,11 @@ Release, with its uncertain pair. These add no recorded journey or page.
   which must not collide when several record at once, and a fixed start
   for its clock and the browser's, so that a recording made again
   differs from the last only where the client does.
-- **A sign-in in a new tab** (`../draft/sign-in-new-tab.md`):
-  `project-landing`'s setup presses "Continue with ChatGPT" on a page that
-  leaves and comes back. When the press opens a tab, whether the setup still
-  walks is seen then; a record for a tab joins 8.2's table only if a tab
-  needs a step of its own.
+- **A tab in a setup** (8.2): `project-landing`'s setup presses "Continue with
+  ChatGPT", and the tab it opens stays beside the page. The next step's find
+  brings the page to the front (skein's `browser.md`, section 6), so a tab
+  takes no step of its own; a record for one joins 8.2's table only if one
+  needs a step. Default: none.
 - **Later, if wanted:** the one-tag-per-line print as skein-ui-web's,
   for another application's journeys.
 - **What a real journey leaves out** (3.8): a token split across a run's

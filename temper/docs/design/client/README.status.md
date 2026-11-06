@@ -5,8 +5,17 @@
 - **Not yet:** 5.4, *A composer*: an edit past `CUE_BYTES`, 256, on a chat or a new chat, or past `text` on an agent's, a goal's or a reply, is dropped and the old words kept, with nothing said; `Me` names no bound.
 - **Not yet:** 5.4, *A chat's first message*: the chat's page draws its spec as the engine cut it.
 - **Not yet:** 5.15: a conversation read by scrolling, whole. Until it lands, 3.5, 5.4, 5.9 and 5.11 say "Older" and a window of 16 lines, and the words under `chat-reading`'s section 5 stay as they stand.
-- **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *The sign-in's tab*,
-  *Its end*, *A reload while it waits* and *From another computer*; 7, *A sign-in's address in the small store*; 10:
+- **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
+  agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
+  request `ui-pause-close`.
+- **Not yet:** 3.5, `ConnectModel`, *The sign-in's tab*: only Chromium has run it, and against skein's fake issuer
+  alone. Firefox's and Safari's gesture is read and not run (skein's `ui-web.md`, 14.3), and no walk on record has a
+  provider's own page in the tab: the request `sign-in-new-tab` of 2026-11-06 leaves a real box to the user.
+- **Not yet:** 3.5, `ConnectModel`, *Its end*: no test has a slow sign-in move on once a hidden tab's stream is opened
+  again: `skein-ui-web`'s `tests/hidden.rs` holds the letting go natively, and each look of the browser tier's brings
+  the page to the front within the minute (skein's `browser.md`, section 6). On the welcome, no test has a paste's end
+  move on: `watch_success_replaces_a_pending_paste_with_ready` runs on `ConnectModel`, and `route.rs`'s
+  `welcome_model_progress` reads the same for both. Seen by reading.
 - **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request
   `sign-in-new-tab` of 2026-11-06, by its plan's cut and its account. The terminal draws the note's plain title,
   its muted line and "Open the sign-in page" above the folded paste, where the request has the terminal as today:
@@ -116,14 +125,16 @@
   that plan's cut took no new word for it.
 - **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
-  Stop and Close, and offers Change model only with supplied choices;
+  Pause or Resume, and Close, and offers Change model only with supplied choices;
   a goal uses supplied budget units, not dollars, and offers neither the
   mock's budget field nor its earlier reports. Settings adds Configure
   temper and keeps unsupported status, funds and notification controls
   disabled with their explanation. The welcome's Claude card says
   "a config of its own" rather than the mock's "an environment of its
   own" (3.5). Home and Changes omit the mock's "main green at" time:
-  their landing panel supplies a red flag, not that timestamp. These
+  their landing panel supplies a red flag, not that timestamp. A
+  proposal of settings' card draws no "temper enforces" and "Agents
+  follow" line, which 5.13 leaves to the review page. These
   sections retain the client's
   available acts and supplied values rather than the mock's local-only
   operations. Their extra rows and controls change the pages' lengths at
@@ -150,12 +161,14 @@
   fails say why above its acts: no ask went, and the reason's box is on the card behind
   the sheet.
 - **Not yet:** 3.6, *The sheet*: that request has each confirmation walked. A browser
-  on a fake box pressed Close, Start over, a goal's Stop, a Release both ways, a goal's Pause,
+  on a fake box pressed Close, Start over, a goal's Close, a Release both ways, a goal's Pause,
   and Accept and Reject on a configuring chat's proposal from *Needs you* and *Home*,
   and Accept from the chat itself; Reject from *Needs you* included a reason. Escape and
-  the keeping act on Close, Start over, a goal's Stop, Accept and Reject were also pressed
+  the keeping act on Close, Start over, a goal's Close, Accept and Reject were also pressed
   by hand at each width, which no test keeps; a press while the page updates, on a Release
-  alone. A task's Cancel and an agent's task's Stop are drawn at each width by their
+  alone. The client's world holds the chat's Accept and Reject's ask, with no browser
+  (`a_configuring_chat_accepts_its_own_proposal`, `a_configuring_chat_rejects_its_own_proposal`).
+  A task's Cancel and an agent's task's Close are drawn at each width by their
   gallery states, the walk of the request `ui-walk-3` of 2026-11-06 having tried the
   fake box for them first, and no walk on record presses them.
 - **Not yet:** 3.5, *temper's own way, beside the page*: no journey records "See how it works"
@@ -166,7 +179,7 @@
   follow them.
 - **Design departs:** 3.5, *The configuring chat's page* and *temper's own way, beside the page*,
   from the request `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
-  request's plan's cut. The picture, the figures and the table's Workers and QA stand in
+  request's plan's cut. The picture and the table's Workers and QA stand in
   `../draft/own-way.status.md`. Beside them:
   - the reference's title is level 2 at 28 px over level 3 sections at 17 px, as a chat's document
     has them, where the request's page has a small level 3 title over large level 2 sections;
@@ -192,17 +205,12 @@
   tested (`temper-client-view`'s `tests/model_check.rs`), with no gallery state. "Try again"
   checks the host again. Home's line after a try that stopped and the same lines on an account's
   row of the accounts page are not drawn: nothing reports a try once the person has left Ready.
-- **Not yet:** 3.5, *A model usable*: a sign-in's end goes on to Ready by a departure's return alone
-  (`temper-client-domain`'s `departure.rs`). One that ends on a way's page, by a paste or on a page come back,
-  stays at the way's address and draws *A model usable*, with its "Continue", since `route.rs`'s
-  `welcome_program_progress` moves a key alone: the sign-in's move waits for `../draft/sign-in-new-tab.md`, 3.
-  Seen by reading.
 - **Design departs:** 3.5, *The try*, from the look request `model-check-pane` of 2026-11-06,
   each by the cut of its landing: the steps' list has hidden state words and its accessible name,
   as Forge's has, where the request's pages have the same words, because the terminal reads
   them. A line with nothing yet keeps its "Forge" or "Model" label, as the request's words say.
 - **Not yet:** 10: a walk from the sheet through planning, a live report and
-  delegate tasks, Pause, Resume, a message and Stop, which the request
+  delegate tasks, Pause, Resume, a message and Close, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The
   view holds Goals' link to `/chats` (`the_link_shows_with_a_tracked_template`),
   and the fake box's walk reaches an
@@ -213,7 +221,7 @@
   delegates, so it can show no planning and no delegate task: the journey
   `chat-draft` walks a chat's sheet to that goal's page and back to the chat alone.
   The request `ui-final-walk` of 2026-11-05 walked a live report, Pause, Resume and
-  Stop there by hand, which no test keeps. Of a configuring agent, that model scripts
+  Close there by hand, which no test keeps. Of a configuring agent, that model scripts
   one proposal, the cue "Show drafts and goals for this project.", and no document,
   and it has no hold of temper's own, so the gallery alone draws those states.
 - **Not yet:** 5.13, *The card in a chat*: a live proposal of temper's kinds draws its
@@ -223,6 +231,19 @@
   and the card has no "Drafts: on". The person accepts on the agent's words. The
   gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
   document.
+- **Not yet:** 5.13, *The card in a chat*, and 3.5's `Chat { task }`: no live turn names its
+  proposal, so a live proposal's card always stands after the conversation, below the newest
+  reply, where the mock's stays above later replies, and its call stays a line of its own above.
+  A turn's calls come with no `objects` (`jig-protocol-transcript`'s `translate_block`) and nothing
+  fills them, so `temper-client-view`'s `pages/chat.rs`, `proposal_anchor`, finds none; only the
+  view's tests, which fill them by hand, draw a card at its call. Seen at each width on the walk of
+  the request `ui-chat-accept` of 2026-11-06, its cause by reading; no test holds it.
+- **Design departs:** 5.13, *The card in a chat*, from the request `ui-chat-accept` of 2026-11-06,
+  by its plan's cut: that request has the fix reach both of the card's acts, reading "the unavailable
+  direct Reject control" as one family with the refused Accept. The section and the mock's `chat.html`,
+  the target, draw only "Accept" and "Change something", so no Reject is drawn, and a person rejects on
+  the card in *Needs you*. A Reject's ask from that card goes under the proposal's own `project` all the
+  same, and only the client's world sends it, by the act (section 11, *A Reject on a chat's card*).
 - **Not yet:** 3.5, *Reading back*: on the `ui-walk-3` walk of 2026-11-06, a long chat's first "Older" stayed
   "Loading earlier messages" for the 40 seconds watched, at 1280x720 and 1000x600, so
   no second press was made: a fresh fake box, 66 messages of 24 sentences through ctl,
@@ -310,8 +331,12 @@
   that can't start, where the request has a run that isn't about to start say why,
   because a row holds no run wait and its query carries no run's check per row
   (jig's `client/domain/client.md`, 19.1). The chat's own page says why.
-- **Not yet:** 3.5, *Where the focus stands on a chat*, 5.3 and 5.11: a chat started by sending opens on its
-  heading, and after a send a composer asks for no focus: a press of "Send" leaves it on a button that disables.
+- **Design departs:** 3.5, *Where the focus stands on a chat*, from the request `ui-composer-focus` of 2026-11-06,
+  decided by its plan's cut: a starter's or a suggested request's press asks for the composer's focus on a phone too,
+  where the request has no press raise a keyboard the person did not ask for, because the tree has no width and telling
+  them apart takes a kit mechanism (section 11). Whether a keyboard rises is unknown, for those and for the request's own
+  answers, up after a send and down on a chat opened from a list: no run on record has a real phone, and headless
+  Chromium draws no keyboard.
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. Until it
@@ -494,12 +519,13 @@
   holds the part, and `host_tests_copy.rs` holds that the press's own report asks the
   write; no test runs the one line between them, in `carry`
   (`temper-client-shell-web/src/lib.rs`). Seen by reading.
-- **Design departs:** 4.6, *The program's environment*, from the user's word of
-  2026-11-06 on the request `box-small`: `program_environment`
-  (`crates/temper/src/directories.rs`) answers all three `TEMPER_` values where any
-  directory is off its default, where the user has each only where it differs. The word
-  reached that plan's task as it ran, and the task did not take it. `box-small-2`
-  carries it.
+- **Design departs:** 4.6, *The program's environment*, from the request `box-small-2`
+  of 2026-11-06, item 1, decided by its plan's cut, which takes `resolve` as all or
+  nothing: with no `HOME` and an XDG variable placing some of the directories, not all,
+  `program_environment` (`crates/temper/src/directories.rs`) knows no default and names
+  all three, one at its own default among them, where the request has each only where it
+  differs. The command finds the same directories either way, and no test holds this
+  case: `no_home_names_all_three` gives no XDG variable. Seen by reading.
 - **Design departs:** 4.6, *The words of a command for this machine*, from the request
   `box-small` of 2026-11-06, item 1, which has these words in any other command handed
   to the person for this machine: `temper forge run`'s refusal
