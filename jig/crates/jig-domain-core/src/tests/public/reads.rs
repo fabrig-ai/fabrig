@@ -128,7 +128,7 @@ fn a_board_and_a_card_are_projected_from_the_index_alone() {
         end(&mut core, &limits, task);
     }
     let ended = |task| PublicGoal {
-        line: PublicLine { phase: PublicPhase::Ended, ended: Some(10), ..line(task, None, Some(0), 100, 0) },
+        line: PublicLine { phase: PublicPhase::Cancelled, ended: Some(10), ..line(task, None, Some(0), 100, 0) },
         tree: Box::new([]),
         folded: 0,
     };

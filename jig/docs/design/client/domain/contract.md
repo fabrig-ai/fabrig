@@ -1610,7 +1610,8 @@ number: a project and a task are named by their public identifiers
   when cut; `parent: Option<PublicId>`, none for a
   public goal; `goal: bool` and `priority: Option<u32>`, a goal's;
   `executor: PublicExecutor`, its kind alone: agent, procedure,
-  person or job (5.7); `phase: PublicPhase`, jig's phases (5.1) as unit variants, and
+  person or job (5.7); `phase: PublicPhase`, jig's phases (5.1) as unit variants,
+  with ended outcomes preserved as done, failed or cancelled, and
   `hold: Option<PublicHold>`, a held task's hold's kind as a unit
   variant; `made`, `changed`, `active: Option`, `ended: Option`, each a
   time to the second; `spent` and `budget` in the deployment's unit;

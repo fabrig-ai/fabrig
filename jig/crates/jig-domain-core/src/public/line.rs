@@ -56,7 +56,11 @@ fn phase(row: &tasks::TaskRecord) -> PublicPhase {
         },
         tasks::Phase::Closing(_) => PublicPhase::Closing,
         tasks::Phase::Held { .. } => PublicPhase::Held,
-        tasks::Phase::Ended(_) => PublicPhase::Ended,
+        tasks::Phase::Ended(ref ending) => match ending {
+            tasks::Ending::Done(_) => PublicPhase::Done,
+            tasks::Ending::Failed { .. } => PublicPhase::Failed,
+            tasks::Ending::Cancelled { .. } => PublicPhase::Cancelled,
+        },
     }
 }
 

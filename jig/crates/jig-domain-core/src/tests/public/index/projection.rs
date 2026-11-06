@@ -109,3 +109,63 @@ fn tree_order_keeps_a_parents_subtree_before_its_next_sibling() {
     assert_eq!(project.delegates(1), ([2, 3].as_slice(), 0));
     assert_eq!(project.public_tasks().as_ref(), &[1, 2, 3, 4]);
 }
+
+#[test]
+fn ended_public_lines_keep_their_outcomes() {
+    const FAILED_GOAL: u64 = 20;
+    const OTHER_FAILED_GOAL: u64 = 21;
+    const COMPLETED_GOAL: u64 = 22;
+    const CANCELLED_GOAL: u64 = 23;
+    const ENDED_GOALS: u16 = 4; // The two failures, completion and cancellation.
+    let (mut core, mut limits) = fixture();
+    limits.public.ended = ENDED_GOALS;
+    visibility(&mut core, &limits, true);
+    for (task, result, expected) in [
+        (FAILED_GOAL, tasks::TaskResult::Failure { reason: Box::from(*b"private failure") }, PublicPhase::Failed),
+        (
+            OTHER_FAILED_GOAL,
+            tasks::TaskResult::Failure { reason: Box::from(*b"another private failure") },
+            PublicPhase::Failed,
+        ),
+        (COMPLETED_GOAL, tasks::TaskResult::Report { words: Box::from(*b"private result") }, PublicPhase::Done),
+    ] {
+        make(&mut core, &limits, task, None, Some(1), false);
+        finish_public_goal(&mut core, &limits, task, result);
+        assert_eq!(ready(&core).line(task).unwrap().phase, expected, "goal {task}");
+    }
+    make(&mut core, &limits, CANCELLED_GOAL, None, Some(1), false);
+    end(&mut core, &limits, CANCELLED_GOAL);
+    assert_eq!(ready(&core).line(CANCELLED_GOAL).unwrap().phase, PublicPhase::Cancelled);
+    assert_eq!(ready(&core).ended().len(), usize::from(ENDED_GOALS));
+}
+
+fn finish_public_goal(core: &mut Core, limits: &Limits, task: u64, result: tasks::TaskResult) {
+    send(core, limits, tasks::Event::Prepare { reply_to: reply(), task });
+    send(
+        core,
+        limits,
+        tasks::Event::Claim {
+            reply_to: reply(),
+            task,
+            attempt: task,
+            resumed: false,
+            budget: 10,
+            account: None,
+            writes: Box::new([]),
+        },
+    );
+    send(
+        core,
+        limits,
+        tasks::Event::Activation {
+            reply_to: reply(),
+            task,
+            attempt: task,
+            end: tasks::End::Finished { result, cancel_delegates: false },
+            saved: None,
+            cause: tasks::Cause::Priced { cumulative: 0 },
+        },
+    );
+    send(core, limits, tasks::Event::EffectsSettled { task });
+    send(core, limits, tasks::Event::Settled { task });
+}
