@@ -21,7 +21,7 @@ fn the_playground_project_is_named_playground() {
             }
         }
         let context = context.expect("chat context");
-        assert_eq!(context, styled(tree, crate::look::THREAD_INNER) + 1);
+        assert!(context > styled(tree, crate::look::THREAD_INNER));
         assert!(tree.nodes()[context].styles.as_slice().contains(&crate::look::META_LINE));
         assert!(skein_lib::bytes::find(&fixtures::node_text(tree, context), "Shop · acme/shop".as_bytes()).is_some());
     }
@@ -783,19 +783,6 @@ fn person_words_keep_their_shell_and_only_assistant_calls_keep_work() {
         assert!(style_position(tree.nodes(), hidden).is_none(), "inputs and call-only assistant have no shell");
     }
     assert_run_line(&tree, b"Read", b"", &[b"Read: Done"]);
-}
-#[test]
-fn only_omission_markers_keep_the_turn_region() {
-    let tree = tree(&structured_thread());
-    let mut markers = 0_u32;
-    for node in tree.nodes() {
-        if node.styles.as_slice().contains(&crate::look::MARKER) {
-            assert_eq!(node.role, Role::Region);
-            assert!(node.styles.as_slice().contains(&crate::look::TURN));
-            markers = markers.checked_add(1).expect("marker count");
-        }
-    }
-    assert_eq!(markers, 1);
 }
 
 fn chat_event(
@@ -2511,8 +2498,7 @@ fn provisional_text_replaces_working_dots_and_agent_task_logs_never_have_them() 
     }
 }
 
-#[test]
-fn the_log_has_one_column_with_older_before_turns() {
+fn full_window(dropped: bool) -> (temper_client_domain::Domain, temper_client_domain::Limits) {
     let mut limits = fixtures::domain_limits();
     limits.client.domain.rows = temper_client_domain::pages::chat::LINES;
     let mut rows = List::with_capacity(limits.client.domain.rows);
@@ -2537,13 +2523,19 @@ fn the_log_has_one_column_with_older_before_turns() {
         Some(c::ActivityPage {
             rows,
             before: Some(c::Cursor::new(Box::from(*b"older"), TEXT).unwrap()),
-            after: None,
+            after: if dropped { Some(c::Cursor::new(b"newer".as_slice().into(), TEXT).unwrap()) } else { None },
             cut: false,
         }),
         None,
     );
     deliver_chat(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(configuring_task())));
+    (root, limits)
+}
+#[test]
+fn the_log_has_one_column_with_older_before_turns() {
+    let (root, limits) = full_window(false);
     for words in [fixtures::words(), fixtures::browser_words()] {
+        let browser = words.shell == crate::words::Shell::Browser;
         let bounds = crate::Limits::of(&limits, &words).unwrap();
         let mut view = crate::View::new(&bounds, &limits, words, fixtures::FORGE);
         let tree = fixtures::build(&mut view, &root);
@@ -2551,7 +2543,7 @@ fn the_log_has_one_column_with_older_before_turns() {
         let log = named_position(tree.nodes(), Role::Log, Some(b"Conversation")).unwrap();
         let inner = styled(tree, crate::look::THREAD_INNER);
         assert_eq!(log, thread + 1);
-        assert_eq!(tree.nodes()[thread].size, tree.nodes()[log].size + 1);
+        assert_eq!(tree.nodes()[thread].size, tree.nodes()[log].size + if browser { 2 } else { 1 });
         assert_eq!(inner, log + 1);
         assert_eq!(tree.nodes()[log].size, tree.nodes()[inner].size + 1);
         let column = subtree(tree, inner);
@@ -2585,4 +2577,85 @@ fn a_cut_text_says_nothing() {
         assert!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_none());
         assert!(fixtures::find(&tree, Role::Button, b"Show").is_some());
     }
+}
+
+#[test]
+fn latest_is_a_browsers_alone_and_goes_to_the_log_end() {
+    let root = messaging_root();
+    for (mut view, browser) in [(fixtures::page_view(&root), false), (fixtures::browser_page_view(&root), true)] {
+        let found = fixtures::find(view.tree(), Role::Button, b"Latest");
+        assert_eq!(found.is_some(), browser);
+        if let Some(id) = found {
+            let nodes = view.tree().nodes();
+            let pill = named_position(nodes, Role::Button, Some(b"Latest")).unwrap();
+            let log = named_position(nodes, Role::Log, None).unwrap();
+            assert_eq!(pill, log + usize::try_from(nodes[log].size).unwrap());
+            assert!(nodes[pill].styles.as_slice().contains(&crate::look::LATEST));
+            assert!(nodes[pill].states.as_slice().contains(&skein_ui::State::ToLogEnd));
+            let thread = styled(view.tree(), crate::look::THREAD);
+            assert_eq!(pill + 1, thread + usize::try_from(nodes[thread].size).unwrap());
+            assert!(crate::act(&mut view, id, skein_ui::Act::Press).is_none());
+        }
+    }
+}
+
+#[test]
+fn latest_is_bound_only_where_the_window_let_the_end_go() {
+    use temper_client_domain::{Action, pages::Act};
+    for dropped in [false, true] {
+        let (root, limits) = full_window(dropped);
+        let words = fixtures::browser_words();
+        let bounds = crate::Limits::of(&limits, &words).unwrap();
+        let mut view = crate::View::new(&bounds, &limits, words, fixtures::FORGE);
+        fixtures::build(&mut view, &root);
+        let id = fixtures::find(view.tree(), Role::Button, b"Latest").expect("latest");
+        assert_eq!(
+            crate::act(&mut view, id, skein_ui::Act::Press),
+            if dropped { Some(Action::Pages(Act::Latest)) } else { None }
+        );
+    }
+}
+
+#[test]
+fn the_message_stands_for_older_while_a_read_is_out() {
+    use jig_client::thread::{Reading, window::Edge};
+    for (reading, at_start, loading, button) in [
+        (None, false, false, true),
+        (Some(Reading::Older), false, true, false),
+        (Some(Reading::Newer), false, false, true),
+        (Some(Reading::Latest { known: 0 }), false, false, true),
+        (None, true, false, false),
+        (Some(Reading::Older), true, false, false),
+    ] {
+        let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+        thread.reading = reading;
+        thread.lines.edges.after =
+            if at_start { Edge::End } else { Edge::More(c::Cursor::new(b"older".as_slice().into(), TEXT).unwrap()) };
+        let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
+        let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
+        crate::pages::chat::older(&mut b, &thread, true, &fixtures::browser_words(), &mut bindings);
+        let tree = b.finish();
+        let status = fixtures::find(&tree, Role::Status, b"Loading earlier messages");
+        assert_eq!(status.is_some(), loading);
+        assert_eq!(fixtures::find(&tree, Role::Button, b"Older").is_some(), button);
+        if let Some(status) = status {
+            let node = tree.find(status).unwrap();
+            assert_eq!(node.styles.as_slice(), [crate::look::THREAD_LOADING]);
+            assert_eq!(fixtures::text(&tree).as_ref(), "Loading earlier messages…".as_bytes());
+        }
+    }
+    let root = chat_with_history();
+    let view = fixtures::browser_page_view(&root);
+    let nodes = view.tree().nodes();
+    let inner = styled(view.tree(), crate::look::THREAD_INNER);
+    assert_eq!(nodes[inner + 1].name.as_deref(), Some(b"Loading earlier messages".as_slice()));
+}
+
+#[test]
+fn no_line_is_drawn_for_lines_left() {
+    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    thread.left = 7;
+    let drawn = answer_tree(&thread, &fixtures::words(), true);
+    assert_eq!(drawn.nodes().len(), 1, "only the empty log, no region for omitted lines");
+    assert_eq!(drawn.nodes()[0].role, Role::Log);
 }

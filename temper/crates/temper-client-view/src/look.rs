@@ -1135,6 +1135,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-work-calls",
         b"temper-work-out",
         b"temper-writing-end",
+        b"temper-latest",
+        b"temper-thread-loading",
     ],
     regions: &[b"temper-link"],
 };
@@ -1315,6 +1317,11 @@ pub const WELCOME_CHECK: Style = Style { owner: owner(), token: 449 };
 pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 450 };
 pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 451 };
 pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 452 };
+
+/// Return to the conversation's end (client/README.md, 3.5).
+pub const LATEST: Style = Style { owner: owner(), token: 459 };
+/// An older activity read is out (client/README.md, 3.5).
+pub const THREAD_LOADING: Style = Style { owner: owner(), token: 460 };
 
 #[cfg(test)]
 mod tests {

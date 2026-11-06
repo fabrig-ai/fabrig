@@ -2,8 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *the words being written*: a closed fenced code block keeps its final newline in `skein-ui`'s reader, so the end's mark falls on the line after its last; `chat-reading-a`'s `chat-live` takes it, with `read_growing`.
-- **Not yet:** 3.5, *Reading back*, *"Loading earlier messages…"*, 5.4, 5.9: no pill or message, and "Earlier lines omitted N" is drawn. The look request `chat-work`, plan `look-round-6`.
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits*: the
   card's line and the note say a new tab, and nothing opens one: a press still sends a `Return` and the
   page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. The view has no fact of a tab refused:

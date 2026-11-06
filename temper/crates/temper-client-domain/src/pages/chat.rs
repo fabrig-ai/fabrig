@@ -945,6 +945,7 @@ impl Chat {
                 self.shown_count = self.shown_count.checked_add(1).expect("shown count fits");
             }
             Act::Older => ask_activity(&mut self.asking, self.activity, self.thread.older(), out),
+            Act::Latest => ask_activity(&mut self.asking, self.activity, self.thread.newer(), out),
             Act::AddDraft => {
                 let Some(task) = self.task(client) else { return };
                 if self.draft.is_some() || self.writing || task.result.is_some() || super::chats::ended(&task.chip) {

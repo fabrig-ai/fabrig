@@ -232,3 +232,66 @@ fn closing_project_rename_returns_focus_to_the_summary() {
     ]));
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
 }
+
+#[test]
+fn latest_returns_a_chat_to_its_end_after_new_words_while_reading_back() {
+    // Six bounded messages fill the browser tier's log viewport.
+    const MESSAGES: u32 = 6;
+    const REPEATS: usize = 4;
+    // Twenty arrow presses move the view away from its end at the tier's viewport.
+    const SCROLL_KEYS: u32 = 20;
+    let tier = Tier::demo("chat-latest");
+    let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
+    let latest = || Find::exactly_named(Role::Button, b"Latest");
+    let check = |selector: &[u8]| Step::Keep {
+        selector: selector.into(),
+        attribute: Some(b"data-node".as_slice().into()),
+        name: selector.into(),
+    };
+    let mut steps = temper_client_browser_world::start_playground_chat(b"Add CSV export to widget");
+    steps.push(see(Find::exactly_named(Role::Region, b"Task 2")));
+    for number in 1..=MESSAGES {
+        let words = format!(
+            "Reading paragraph {number}. {}",
+            "Keep these words available while reading back. ".repeat(REPEATS)
+        )
+        .into_bytes()
+        .into_boxed_slice();
+        steps.extend([
+            Step::Person(PersonStep::Type {
+                find: Find::exactly_named(Role::TextArea, b"Message"),
+                words: words.clone(),
+            }),
+            Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Send") }),
+            see(Find::exactly_named(Role::Paragraph, &words)),
+            Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Being sent"), within: WITHIN }),
+        ]);
+    }
+    steps.extend([
+        Step::Person(PersonStep::Gone { find: latest(), within: ABSENT }),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::TextArea, b"Message") }),
+        Step::KeyWithShift(Key::Tab),
+    ]);
+    // Focus the preceding control in the log, then scroll its container with the browser's keys.
+    for _ in 0..SCROLL_KEYS {
+        steps.push(Step::Key(Key::ArrowUp));
+    }
+    steps.extend([
+        see(latest()),
+        check(b".temper-thread > [role=log][data-log-away] + .temper-latest"),
+        Step::Person(PersonStep::Type {
+            find: Find::exactly_named(Role::TextArea, b"Message"),
+            words: b"Tell me what changed.".as_slice().into(),
+        }),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Send") }),
+        see(Find::exactly_named(Role::Paragraph, b"Tell me what changed.")),
+        Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Being sent"), within: WITHIN }),
+        see(latest()),
+        check(b".temper-thread > [role=log][data-log-away] + .temper-latest"),
+        Step::Person(PersonStep::Press { find: latest() }),
+        Step::Person(PersonStep::Gone { find: latest(), within: ABSENT }),
+        check(b".temper-thread > [role=log]:not([data-log-away]) + .temper-latest"),
+    ]);
+    let mut script = Script::new(steps.into_boxed_slice());
+    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
+}

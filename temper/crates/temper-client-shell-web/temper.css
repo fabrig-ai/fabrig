@@ -1539,6 +1539,15 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-session .temper-thread > [role=log] { padding: 20px 16px; scrollbar-gutter: auto; scrollbar-width: none; }
 }
 
+/* Reading: earlier lines load at the head, and Latest returns to the end. */
+#app > .temper-session .temper-thread { position: relative; }
+#app > .temper-session .temper-thread-loading,
+.temper-agent-page .temper-thread-loading { margin: 0; padding: 0; border: 0; background: none; color: var(--gf-faint); font-size: 12px; text-align: center; }
+#app > .temper-session .temper-latest { display: none; position: absolute; left: 50%; bottom: 12px; z-index: 5; transform: translateX(-50%); padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 999px; background: var(--gf-surface); box-shadow: 0 2px 8px rgba(24, 24, 27, .1); color: var(--gf-ink-2); font-size: 13px; }
+#app > .temper-session .temper-thread:has(> [role=log][data-log-away]) > .temper-latest { display: block; }
+#app > .temper-session .temper-latest::after { content: ' ↓' / ''; }
+#app > .temper-session .temper-latest:hover { color: var(--gf-ink); border-color: #b4b4ae; }
+
 /* The answer ends where its last closed Markdown block ends. */
 #app > .temper-session .temper-by-agent > .temper-says ol,
 .temper-agent-page .temper-by-agent > .temper-says ol { padding-left: 22px; }

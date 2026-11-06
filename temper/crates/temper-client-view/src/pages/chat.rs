@@ -2,7 +2,7 @@
 use crate::{cards::P, look};
 use crate::{
     frame::Bindings,
-    words::{TimeForm, Times, Word, Words},
+    words::{Shell, TimeForm, Times, Word, Words},
 };
 use alloc::boxed::Box;
 use jig_client::{
@@ -98,6 +98,7 @@ pub(crate) fn main(
             (Drawn::ChatPage { request: Some(&task.spec), root }, Some(times)),
             bindings,
         );
+        latest(b, chat, words, bindings);
         b.close();
         if task.result.is_none() && !super::chats::ended(&task.chip) && !configuring {
             crate::choice::above_composer(b, root, Some(task), words, bindings, times);
@@ -112,6 +113,7 @@ pub(crate) fn main(
 fn conversation_head(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) {
     let chat = root.pages().chat().expect("chat page");
     let task = chat.task(root.client()).expect("chat task");
+    older(b, &chat.thread, chat.offers_older(), words, bindings);
     context(b, root, task.project, words);
     if chat.thread.lines().is_empty() && (chat.draft.is_some() || chat.writing) {
         let name = match &chat.draft {
@@ -124,13 +126,39 @@ fn conversation_head(b: &mut Builder, root: &Domain, words: &Words, bindings: &m
         b.text(Run::Plain, &words.say(Word::ChatWrites, &[Hole::Name(name)]));
         b.close();
     }
-    if chat.offers_older() {
+}
+/// Reading controls at the conversation's head (client/README.md, 3.5 and 5.9).
+pub(crate) fn older(b: &mut Builder, thread: &Thread, offered: bool, words: &Words, bindings: &mut Bindings) {
+    if thread.lines.edges.reaches(jig_client::thread::window::End::After) {
+        return;
+    }
+    if let Some(jig_client::thread::Reading::Older) = thread.reading {
+        b.open(Role::Status);
+        b.style(look::THREAD_LOADING);
+        b.name(&words.say(Word::LoadingEarlierName, &[]));
+        b.text(Run::Plain, &words.say(Word::LoadingEarlier, &[]));
+        b.close();
+    } else if offered {
         b.open(Role::Button);
         b.style(look::CHATS_MORE);
         b.name(&words.say(Word::Older, &[]));
         b.bind(bindings.insert(Act::Older));
         b.close();
     }
+}
+/// The browser's log-end button also reads the newer page where the window dropped it (client/README.md, 3.5).
+fn latest(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bindings) {
+    if words.shell == Shell::Terminal {
+        return;
+    }
+    b.open(Role::Button);
+    b.name(&words.say(Word::Latest, &[]));
+    b.style(look::LATEST);
+    b.state(State::ToLogEnd);
+    if !chat.thread.lines.edges.reaches(jig_client::thread::window::End::Before) {
+        b.bind(bindings.insert(Act::Latest));
+    }
+    b.close();
 }
 fn conversation_tail(
     b: &mut Builder,
@@ -615,6 +643,9 @@ pub(crate) fn conversation_with_times(
         request_message(b, request, speakers.requester, words, clock.as_deref());
     }
     for line in lines {
+        if let Line::Left { .. } = line {
+            continue;
+        }
         if let Some((at, _)) = started
             && let Some(time) = match &line {
                 Line::Activity { line } => Some(line.source.at),
@@ -678,10 +709,7 @@ pub(crate) fn conversation_with_times(
             Line::Turn { .. } => unreachable!("turn drawn above"),
             Line::Provisional { text, .. } => provisional(b, text, words, text_limit),
             Line::Undecoded { why, .. } => undecoded(b, why, words, clock.as_deref()),
-            Line::Left { lines } => {
-                b.style(look::MARKER);
-                text(b, Role::Status, &words.say(Word::LinesLeft, &[Hole::Number(u64::from(lines))]));
-            }
+            Line::Left { .. } => unreachable!("omitted lines draw nothing"),
             Line::Activity { line } => {
                 owner_line(b, &line.source.line, projected, speakers.person, words, clock.as_deref());
             }
@@ -710,7 +738,7 @@ pub(crate) fn conversation_with_times(
     live_delegates(b, &mut tasks, delegations, &mut shown, words, bindings);
     if let Some(root) = proposals {
         conversation_tail(b, root, words, bindings, rows, times.expect("chat page times"));
-        if words.shell == crate::words::Shell::Browser && running && !running_run {
+        if words.shell == Shell::Browser && running && !running_run {
             b.open(Role::Slot);
             b.style(look::TYPING);
             b.name(&words.say(Word::ChatWorking, &[]));
@@ -843,12 +871,12 @@ fn provisional(b: &mut Builder, message: &[u8], words: &Words, text_limit: u32) 
 /// The words being written end in a mark (temper/docs/design/client/README.md, 3.5).
 fn writing_end(b: &mut Builder, words: &Words) {
     match words.shell {
-        crate::words::Shell::Browser => {
+        Shell::Browser => {
             b.open(Role::Text);
             b.style(look::WRITING_END);
             b.close();
         }
-        crate::words::Shell::Terminal => text(b, Role::Status, "▌".as_bytes()),
+        Shell::Terminal => text(b, Role::Status, "▌".as_bytes()),
     }
 }
 fn owner_line(
