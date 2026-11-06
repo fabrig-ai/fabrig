@@ -886,7 +886,7 @@ pub enum Word {
     WaitingAccountName,
     WaitingAccount,
     ChoiceProvider,
-    NeedsAccount,
+    ConnectPlanOrKey,
     AccountReadinessUnknown,
     AccountBanner,
     AccountRegion,
@@ -1259,6 +1259,9 @@ pub enum Word {
     WelcomeFinishing,
     WelcomeClaudeTitle,
     WelcomeClaudeBody,
+    WelcomeCopy,
+    WelcomeCopied,
+    WelcomeNotCopied,
     WelcomeClaudeNote,
     WelcomeClaudeSignedIn,
     FlowStopped,
@@ -1373,8 +1376,9 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Last landing adds two phrases (client/README.md, 3.5).
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
+// The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1858;
+const PHRASES: u32 = 1861;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1399,10 +1403,11 @@ const PHRASES: u32 = 1858;
 // Last landing adds four segments (client/README.md, 3.5).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3249;
+// The command’s Copy adds three literal segments (client/README.md, 3.5).
+const SEGMENTS: u32 = 3252;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45402;
-const ALL: [Word; 1259] = [
+const ENGLISH_BYTES: u32 = 45441;
+const ALL: [Word; 1262] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2255,7 +2260,7 @@ const ALL: [Word; 1259] = [
     Word::WaitingAccountName,
     Word::WaitingAccount,
     Word::ChoiceProvider,
-    Word::NeedsAccount,
+    Word::ConnectPlanOrKey,
     Word::AccountReadinessUnknown,
     Word::AccountBanner,
     Word::AccountRegion,
@@ -2619,6 +2624,9 @@ const ALL: [Word; 1259] = [
     Word::WelcomeFinishing,
     Word::WelcomeClaudeTitle,
     Word::WelcomeClaudeBody,
+    Word::WelcomeCopy,
+    Word::WelcomeCopied,
+    Word::WelcomeNotCopied,
     Word::WelcomeClaudeNote,
     Word::WelcomeClaudeSignedIn,
     Word::FlowStopped,
@@ -3520,7 +3528,7 @@ impl Word {
             Self::WaitingAccountName => 1027,
             Self::WaitingAccount => 1023,
             Self::ChoiceProvider => 1020,
-            Self::NeedsAccount => 1021,
+            Self::ConnectPlanOrKey => 1021,
             Self::AccountReadinessUnknown => 1022,
             Self::AccountBanner => 1000,
             Self::AccountRegion => 1833,
@@ -3891,6 +3899,9 @@ impl Word {
             Self::WelcomeFinishing => 3375,
             Self::WelcomeClaudeTitle => 3376,
             Self::WelcomeClaudeBody => 3377,
+            Self::WelcomeCopy => 3790,
+            Self::WelcomeCopied => 3791,
+            Self::WelcomeNotCopied => 3792,
             Self::WelcomeClaudeNote => 3378,
             Self::WelcomeClaudeSignedIn => 3379,
             Self::FlowStopped => 3866,
@@ -4529,6 +4540,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeAwayBody => (&[b"Sign in and approve temper there. This page moves on by itself."], &[]),
         Word::WelcomeClaudeTitle => (&[b"Your Claude subscription"], &[]),
         Word::WelcomeClaudeBody => (&[b"temper sets Claude Code up on this machine in an environment of its own: its settings, sessions and sign-in stay apart from your own Claude Code. In a terminal here:"], &[]),
+        Word::WelcomeCopy => (&[b"Copy"], &[]),
+        Word::WelcomeCopied => (&[b"Copied"], &[]),
+        Word::WelcomeNotCopied => (&[b"Couldn\xe2\x80\x99t copy"], &[]),
         Word::WelcomeClaudeNote => (&[b"It makes that environment, then Claude Code asks you to sign in to your subscription there. temper never reads its login."], &[]),
         Word::WelcomeClaudeSignedIn => (&[b"I\xe2\x80\x99ve signed in"], &[]),
         Word::FlowStopped => (&[b"stopped"], &[]),
@@ -5033,7 +5047,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChoiceDraftDefault => (&[b"Next run if applied: engine default"], &[]),
         Word::WaitingAccountName => (&[b"Waiting account: ", b""], &[Name]),
         Word::WaitingAccount => (&[b"Waiting account: ", b""], &[Number]),
-        Word::NeedsAccount => (&[b"needs an account"], &[]),
+        Word::ConnectPlanOrKey => (&[b"Connect a plan or key \xe2\x80\xba"], &[]),
         Word::AccountReadinessUnknown => (&[b"Account readiness unknown"], &[]),
         Word::AccountRegion => (&[b"LLM account"], &[]),
         Word::DefaultModel => (&[b"the default model"], &[]),
@@ -5046,7 +5060,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WaitRefreshing => (&[b"Refreshing account credentials"], &[]),
         Word::WaitMoving => (&[b"Waiting because the account is moving to another deployment"], &[]),
         Word::WaitHost => (&[b"", b"'s login isn't signed in on a host that can run this."], &[Name]),
-        Word::WaitEmpty => (&[b"No account serving this work"], &[]),
+        Word::WaitEmpty => (&[b"No account can run this chat yet."], &[]),
         Word::WaitEmptyModel => (&[b"No account can run ", b" yet."], &[Name]),
         Word::WaitCredential => (&[b"This work needs a credential from its forge."], &[]),
         Word::WaitCapacity => (&[b"No host has room for this, or none is connected. It starts when one does."], &[]),

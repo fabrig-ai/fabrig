@@ -2,10 +2,8 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *The work's account and model* and 5.5: the chooser draws `me`'s models, "needs an account" beside a
-  provider with none, and a provider's line has neither "Connect a plan or key ›" nor an account's fix. 3.5, the
-  configuring layout: its line has nothing behind it, and "Models by role" names Claude and a ChatGPT plan whatever is
-  connected. 5.5, *A run's wait*: a task given none names the charter's first.
+- **Not yet:** 3.5, the configuring layout: its line has nothing behind it, and "Models by role" names Claude and a
+  ChatGPT plan whatever is connected.
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits* and
   *From another computer*: the card's line and the note say a new tab, and nothing opens one: a press still
   sends a `Return` and the page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. So the note shows
@@ -298,15 +296,7 @@
   that can't start, where the request has a run that isn't about to start say why,
   because a row holds no run wait and its query carries no run's check per row
   (jig's `client/domain/client.md`, 19.1). The chat's own page says why.
-- **Not yet:** 3.4, 5.5: the composer's
-  supplied default, jig's
-  `resolved_default`, which neither jig's `Me` nor temper carries. Until it
-  does, a new chat's line and the `Configure` page's take the first model of
-  the catalogue whose provider is usable (3.5), in place of "Using the default
-  model". That is what the run takes on the stock settings, whose charters keep
-  the catalogue's order; it can differ where a configured charter orders its
-  models otherwise, a catalogue is clipped, or a configured template 3 names a
-  model. 3.5:
+- **Not yet:** 3.5:
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.
   5.13: a person with a project's role alone can read kinds 6 and 7,

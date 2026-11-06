@@ -1,4 +1,4 @@
-//! Next-run drafts borrow the catalogue; they never choose an account (client/README.md, 3.5).
+//! Next-run drafts borrow the offer; they never choose an account (client/README.md, 3.5).
 use super::{Pages, Request, accounts};
 use crate::owner::Owner;
 use alloc::boxed::Box;
@@ -11,7 +11,7 @@ pub const EFFORTS: u32 = jig_client_protocol_wire::v19::CEILINGS.me_model_effort
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Context {
-    Template { project: u32, executor: c::TemplateExecutor, model_index: Option<u8> },
+    Template { project: u32, template: u32, executor: c::TemplateExecutor, model_index: Option<u8> },
     Task { project: u32, task: u64, revision: c::Revision, model_index: Option<u8> },
 }
 impl Context {
@@ -64,7 +64,7 @@ pub enum Act {
     Apply,
 }
 #[must_use]
-pub fn models(me: &c::Me, project: u32) -> Option<&List<c::MeModel>> {
+pub fn offer(me: &c::Me, project: u32) -> Option<&List<c::MeModel>> {
     for row in &me.projects {
         if row.project == project {
             return Some(&row.models);
@@ -92,7 +92,7 @@ impl Draft {
     #[must_use]
     pub fn selected(&self, me: &c::Me) -> Option<u32> {
         let choice = self.requested.as_ref()?;
-        let models = models(me, self.project()?)?;
+        let models = offer(me, self.project()?)?;
         if let Some(index) = self.context?.model_index() {
             let model = models.get(index)?;
             return if model.name == choice.main.model { Some(index) } else { None };
@@ -106,10 +106,13 @@ impl Draft {
     }
     #[must_use]
     pub fn valid(&self, me: &c::Me) -> bool {
+        if self.requested == self.original {
+            return true;
+        }
         let Some(choice) = &self.requested else { return true };
         let Some(index) = self.selected(me) else { return false };
         let Some(project) = self.project() else { return false };
-        let Some(models) = models(me, project) else { return false };
+        let Some(models) = offer(me, project) else { return false };
         let Some(model) = models.get(index) else { return false };
         if model.efforts.is_empty() {
             choice.main.effort.is_none()
@@ -124,7 +127,7 @@ impl Draft {
             return;
         }
         let Some(project) = self.project() else { return };
-        let Some(models) = models(me, project) else { return };
+        let Some(models) = offer(me, project) else { return };
         match act {
             Act::Model { index } => {
                 let Some(model) = models.get(index) else { return };
@@ -132,11 +135,11 @@ impl Draft {
                 let Ok(index) = u8::try_from(index) else { return };
                 context.select(Some(index));
                 if let Some(choice) = &mut self.requested {
-                    choice.main = c::ModelEffort { model: model.name.clone(), effort: None };
+                    choice.main = c::ModelEffort { model: model.name.clone(), effort: model.effort.clone() };
                 } else {
                     self.requested = Some(c::LlmChoice {
                         account: None,
-                        main: c::ModelEffort { model: model.name.clone(), effort: None },
+                        main: c::ModelEffort { model: model.name.clone(), effort: model.effort.clone() },
                         subagents: List::with_capacity(0),
                     });
                 }
@@ -231,7 +234,12 @@ pub(crate) fn refresh(pages: &mut Pages, client: &Client) {
         && let Some(template) = jig_client::shapes::template(me, project, jig_client::shapes::CHAT)
     {
         pages.choice.reset(
-            Some(Context::Template { project, executor: template.executor, model_index: None }),
+            Some(Context::Template {
+                project,
+                template: jig_client::shapes::CHAT,
+                executor: template.executor,
+                model_index: None,
+            }),
             template.llm.as_ref(),
         );
     } else {

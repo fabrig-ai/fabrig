@@ -1490,6 +1490,7 @@ pub fn playground_frame_root(
 ) -> temper_client_domain::Domain {
     playground_frame_with_watch(address, project, model, llm, frame).0
 }
+#[expect(clippy::too_many_lines, reason = "the fixture delivers playground offer, preview and task through watches")]
 pub fn playground_frame_with_watch(
     address: temper_client_domain::Address,
     project: u32,
@@ -1527,6 +1528,17 @@ pub fn playground_frame_with_watch(
             .unwrap();
     }
     me.projects.get_mut(0).unwrap().models = models;
+    me.projects.get_mut(0).unwrap().defaults = List::from_boxed(Box::new([c::MeDefault {
+        template: jig_client::shapes::CHAT,
+        choice: c::LlmChoice {
+            account: None,
+            main: c::ModelEffort {
+                model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
+                effort: None,
+            },
+            subagents: List::with_capacity(0),
+        },
+    }]));
     let mut charters = List::with_capacity(1);
     charters.push(1).expect("chat charter");
     me.projects.get_mut(0).expect("playground project").creating = Some(c::Creating {
