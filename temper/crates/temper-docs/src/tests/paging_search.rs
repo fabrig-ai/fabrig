@@ -6,7 +6,7 @@ fn find_requires_the_exact_name() {
     for name in [b"Box".as_slice(), b"box ", b"nope", b""] {
         assert!(find(name).is_none(), "{name:?}: no exact entry");
     }
-    assert_eq!(KINDS.map(Kind::word), ["index", "concept", "walk", "recipe", "reference"]);
+    assert_eq!(KINDS.map(Kind::word), ["index", "concept", "walk", "recipe", "way", "reference"]);
 }
 
 #[test]
