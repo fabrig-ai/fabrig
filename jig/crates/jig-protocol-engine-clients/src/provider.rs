@@ -232,7 +232,7 @@ fn draw(rng: &mut skein_lib::CryptoRng) -> Secret {
 fn answer(value: skein_oauth_issuer::Answer) -> ProviderAnswer {
     ProviderAnswer { status: value.status, challenge: value.challenge, body: Secret::new(value.body) }
 }
-fn person(signer: people::Signer, addresses: &[u16], limits: &Limits) -> Option<Person> {
+pub(super) fn person(signer: people::Signer, addresses: &[u16], limits: &Limits) -> Option<Person> {
     if signer.kind != people::Kind::Person {
         return None;
     }
