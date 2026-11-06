@@ -3,7 +3,7 @@ use crate::{Bounds, Engine, Invalid, Up};
 use jig_client_domain::contract::{
     ActivityPage, Cursor, DecodedActivityLine, EndedDelegate, EndedPage, FundingRecord, HistoryPage, HistoryRow,
     InboxEntry, InboxGroup, InboxPage, InboxReadGroup, Note, NotePage, NoteScope, ObjectKey, Read, ReadNone,
-    ReadResult, ReadValue, SpendPage,
+    ReadResult, ReadValue, Side, SpendPage,
 };
 use skein_lib::{List, Time, Token};
 
@@ -75,7 +75,7 @@ impl Rows {
             (Self::Tasks(_), Read::Tasks { .. })
                 | (Self::Ended(_), Read::Ended { .. })
                 | (Self::History(_), Read::History { .. })
-                | (Self::Activity(_), Read::Activity { .. })
+                | (Self::Activity(_), Read::Activity { .. } | Read::ActivityBeside { .. })
                 | (Self::Inbox(_), Read::Inbox { .. })
                 | (Self::Spend(_), Read::Spend { .. })
                 | (Self::Notes(_), Read::Notes { .. })
@@ -145,7 +145,8 @@ pub(crate) fn plain(mut read: Read) -> (Read, Option<Cursor>) {
         | Read::Notes { after, .. } => after.take(),
         Read::Tasks { live, ended, .. } => ended.take().or_else(|| live.take()),
         Read::Activity { before, .. } => before.take(),
-        Read::Me
+        Read::ActivityBeside { .. }
+        | Read::Me
         | Read::Turn { .. }
         | Read::TaskText { .. }
         | Read::Task { .. }
@@ -187,10 +188,6 @@ impl<A: crate::Application> Engine<A> {
         self.queue(now, self.next_commit - 1, Up::Read { token, terminal });
         Ok(())
     }
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the exhaustive selectors and bounded page construction share one read admission"
-    )]
     pub(crate) fn read_value(&mut self, party: u64, read: Read) -> core::result::Result<ReadValue, ReadNone> {
         let (query, position) = plain(read);
         if !self.read_visible(party, &query) {
@@ -246,6 +243,7 @@ impl<A: crate::Application> Engine<A> {
             | Read::Ended { .. }
             | Read::History { .. }
             | Read::Activity { .. }
+            | Read::ActivityBeside { .. }
             | Read::Inbox { .. }
             | Read::Spend { .. }
             | Read::Notes { .. } => None,
@@ -253,12 +251,22 @@ impl<A: crate::Application> Engine<A> {
         if let Some(key) = object {
             return self.checked_read(self.truth.objects.get(&key).cloned());
         }
+        self.read_page(party, query, position)
+    }
+    fn read_page(
+        &mut self,
+        party: u64,
+        query: Read,
+        position: Option<Cursor>,
+    ) -> core::result::Result<ReadValue, ReadNone> {
         let rows = if let Read::Tasks { query, .. } = &query {
             Rows::Tasks(self.task_lines(party, query))
         } else {
             self.rows_for(party, &query)
         };
-        let backward = matches!(query, Read::Activity { .. });
+        let backward = matches!(query, Read::Activity { .. } | Read::ActivityBeside { side: Side::Earlier, .. });
+        let beside =
+            if let Read::ActivityBeside { position, side, .. } = &query { Some((*position, *side)) } else { None };
         let index = if let Some(cursor) = position {
             let bytes: [u8; 8] = cursor.value.bytes().try_into().map_err(|_| ReadNone::Gone)?;
             let saved = self.positions.get(&u64::from_be_bytes(bytes)).ok_or(ReadNone::Gone)?;
@@ -266,20 +274,28 @@ impl<A: crate::Application> Engine<A> {
                 return Err(ReadNone::Gone);
             }
             saved.index.min(rows.len())
+        } else if let (Some((position, side)), Rows::Activity(rows)) = (beside, &rows) {
+            rows.partition_point(|row| match side {
+                Side::Earlier => row.source.position < position,
+                Side::Later => row.source.position <= position,
+            })
         } else if backward {
             rows.len()
         } else {
             0
         };
         let maximum = skein_lib::length::usize_of(self.bounds.rows);
-        let mut count = maximum.min(if backward { index } else { rows.len() - index });
-        if count == 0 && rows.len() != 0 {
+        let available = if backward { index } else { rows.len() - index };
+        let mut count = maximum.min(available);
+        if count == 0 && available != 0 {
             return Err(ReadNone::Busy);
         }
         loop {
             let (start, end) = if backward { (index - count, index) } else { (index, index + count) };
-            let before = (start != 0).then(|| cursor(self.next_position, &self.bounds));
-            let after = (end != rows.len()).then(|| cursor(self.next_position + 1, &self.bounds));
+            let before = (start != 0 && !matches!(beside, Some((_, Side::Later))))
+                .then(|| cursor(self.next_position, &self.bounds));
+            let after = (end != rows.len() && !matches!(beside, Some((_, Side::Earlier))))
+                .then(|| cursor(self.next_position + 1, &self.bounds));
             let mut page = if let (Rows::Tasks(rows), Read::Tasks { query, .. }) = (&rows, &query)
                 && query.phase == Some(jig_client_domain::contract::PhaseClass::Ended)
             {
@@ -295,6 +311,11 @@ impl<A: crate::Application> Engine<A> {
             } else {
                 rows.page(start, end, before.clone(), after.clone())
             };
+            if backward && let ReadValue::Activity(page) = &mut page {
+                let mut rows = core::mem::replace(&mut page.rows, List::with_capacity(0)).into_boxed();
+                rows.reverse();
+                page.rows = List::from_boxed(rows);
+            }
             if let ReadValue::Inbox(page) = &mut page {
                 page.selection = self.truth.inbox_selection.get(&party).map(|rows| {
                     list(
@@ -307,8 +328,13 @@ impl<A: crate::Application> Engine<A> {
                 });
             }
             if let Ok(page) = crate::codec::read(&page, &self.bounds) {
+                let cursor_query = if let Read::ActivityBeside { task, .. } = query {
+                    Read::Activity { task, before: None }
+                } else {
+                    query.clone()
+                };
                 if before.is_some() {
-                    self.positions.insert(self.next_position, Position { party, read: query.clone(), index: start });
+                    self.positions.insert(self.next_position, Position { party, read: cursor_query, index: start });
                 }
                 if after.is_some() {
                     self.positions.insert(self.next_position + 1, Position { party, read: query, index: end });
@@ -320,7 +346,7 @@ impl<A: crate::Application> Engine<A> {
                 return Err(ReadNone::Busy);
             }
             count -= 1;
-            if count == 0 && rows.len() != 0 {
+            if count == 0 && available != 0 {
                 return Err(ReadNone::Busy);
             }
         }
@@ -348,6 +374,8 @@ impl<A: crate::Application> Engine<A> {
     pub(crate) fn rows_for(&self, party: u64, query: &Read) -> Rows {
         let broad = if let Read::Inbox { group, .. } = query {
             Read::Inbox { group: *group, project: None, kind: None, goal: None, after: None }
+        } else if let Read::ActivityBeside { task, .. } = query {
+            Read::Activity { task: *task, before: None }
         } else {
             query.clone()
         };
@@ -373,7 +401,7 @@ impl<A: crate::Application> Engine<A> {
                 match query {
                     Read::Inbox { group, project, kind, goal, .. } => *group == InboxReadGroup::of(row.group()) && project.is_none_or(|p| Some(p) == row.project) && kind.is_none_or(|k| k == row.group()) && goal.is_none_or(|g| self.truth.inbox_selection.get(&party).is_some_and(|selections| selections.iter().any(|selection| selection.cursor == row.cursor && selection.goals.iter().any(|goal| *goal == g)))),
                     Read::TaskText { .. } | Read::Tasks { .. } | Read::Me | Read::Task { .. } | Read::Proposal { .. } | Read::Escalation { .. } | Read::Question { .. }
-                    | Read::Turn { .. } | Read::PersonTask { .. } | Read::Result { .. } | Read::Ended { .. } | Read::History { .. } | Read::Activity { .. } | Read::Spend { .. } | Read::Project { .. } | Read::Notes { .. } | Read::Settings | Read::Setting(_) | Read::Revision(_) | Read::Revisions(_) | Read::Deployment => false,
+                    | Read::Turn { .. } | Read::PersonTask { .. } | Read::Result { .. } | Read::Ended { .. } | Read::History { .. } | Read::Activity { .. } | Read::ActivityBeside { .. } | Read::Spend { .. } | Read::Project { .. } | Read::Notes { .. } | Read::Settings | Read::Setting(_) | Read::Revision(_) | Read::Revisions(_) | Read::Deployment => false,
                 }
             }).collect()),
             Rows::Notes(rows) => Rows::Notes(rows.into_iter().filter_map(|mut row| {
@@ -402,7 +430,8 @@ impl<A: crate::Application> Engine<A> {
             | Read::Turn { task, .. }
             | Read::Ended { task, .. }
             | Read::History { task, .. }
-            | Read::Activity { task, .. } => Some(ObjectKey::Task(*task)),
+            | Read::Activity { task, .. }
+            | Read::ActivityBeside { task, .. } => Some(ObjectKey::Task(*task)),
             Read::Proposal { proposal } => Some(ObjectKey::Proposal(*proposal)),
             Read::Escalation { task } => Some(ObjectKey::Escalation(*task)),
             Read::Question { task, message } => Some(ObjectKey::Question { task: *task, message: *message }),
@@ -442,7 +471,7 @@ fn empty(read: &Read) -> Rows {
         Read::Tasks { .. } => Rows::Tasks(vec![]),
         Read::Ended { .. } => Rows::Ended(vec![]),
         Read::History { .. } => Rows::History(vec![]),
-        Read::Activity { .. } => Rows::Activity(vec![]),
+        Read::Activity { .. } | Read::ActivityBeside { .. } => Rows::Activity(vec![]),
         Read::Inbox { .. } => Rows::Inbox(vec![]),
         Read::Spend { .. } => Rows::Spend(vec![]),
         Read::Notes { .. } => Rows::Notes(vec![]),
@@ -469,6 +498,69 @@ mod tests {
     use super::*;
     use jig_client_domain::contract::{DocumentText, NoteAuthor, Revision, Text};
 
+    const ACTIVITY_TASK: u64 = 8;
+    const ACTIVITY_PARTY: u64 = 1;
+    const ACTIVITY_LINES: u64 = 5;
+    const PAGE_ROWS: u32 = 2;
+    fn activity_engine() -> Engine {
+        let mut script = crate::Script::default();
+        script.bounds.rows = PAGE_ROWS;
+        script.truth.sources.push(Source {
+            party: ACTIVITY_PARTY,
+            read: Read::Activity { task: ACTIVITY_TASK, before: None },
+            rows: Rows::Activity(
+                (1..=ACTIVITY_LINES)
+                    .map(|position| DecodedActivityLine {
+                        source: Box::new(jig_client_domain::contract::ActivityLine {
+                            task: ACTIVITY_TASK,
+                            position,
+                            at: skein_lib::Wall::EPOCH,
+                            line: jig_client_domain::contract::Activity::Milestone { position },
+                        }),
+                        decoded: None,
+                    })
+                    .collect(),
+            ),
+        });
+        Engine::new(script, 1).expect("activity script")
+    }
+    #[test]
+    fn beside_pages_exclude_the_line_and_end_at_either_boundary() {
+        for (side, position, expected, before, after) in [
+            (Side::Earlier, 3, vec![2, 1], false, false),
+            (Side::Later, 2, vec![3, 4], false, true),
+            (Side::Earlier, 1, vec![], false, false),
+            (Side::Later, ACTIVITY_LINES, vec![], false, false),
+            (Side::Later, 0, vec![1, 2], false, true),
+            (Side::Earlier, u64::MAX, vec![5, 4], true, false),
+        ] {
+            let mut engine = activity_engine();
+            let read = Read::ActivityBeside { task: ACTIVITY_TASK, position, side };
+            let ReadValue::Activity(page) = engine.read_page(ACTIVITY_PARTY, read, None).unwrap() else {
+                panic!("activity page")
+            };
+            assert_eq!(
+                page.rows.iter().map(|row| row.source.position).collect::<Vec<_>>(),
+                expected,
+                "{side:?} at {position}"
+            );
+            assert_eq!((page.before.is_some(), page.after.is_some()), (before, after), "{side:?} at {position}");
+        }
+    }
+    #[test]
+    fn an_earlier_beside_cursor_continues_as_an_activity_read() {
+        let mut engine = activity_engine();
+        let read = Read::ActivityBeside { task: ACTIVITY_TASK, position: ACTIVITY_LINES, side: Side::Earlier };
+        let ReadValue::Activity(page) = engine.read_page(ACTIVITY_PARTY, read, None).unwrap() else {
+            panic!("activity page")
+        };
+        let read = Read::Activity { task: ACTIVITY_TASK, before: None };
+        let ReadValue::Activity(page) = engine.read_page(ACTIVITY_PARTY, read, page.before).unwrap() else {
+            panic!("activity page")
+        };
+        assert_eq!(page.rows.iter().map(|row| row.source.position).collect::<Vec<_>>(), vec![2, 1]);
+        assert!(page.before.is_none());
+    }
     #[test]
     fn tasks_select_goal_notes_without_bodies() {
         let mut script = crate::Script::default();

@@ -10,6 +10,7 @@ Menu:
 * Writing
 7 spent · of 100
 Conversation:
+  (up, down: more lines)
   You
   Hello
   Temper
@@ -20,4 +21,3 @@ Conversation:
 [7] Send
 [8] Pause
 [9] Close
-[10] Older
