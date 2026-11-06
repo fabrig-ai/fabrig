@@ -1,0 +1,3 @@
+draft = "process-ports"
+repo = "fabrig"
+sources = ["temper/docs/plan/process-ports/inputs/request.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
