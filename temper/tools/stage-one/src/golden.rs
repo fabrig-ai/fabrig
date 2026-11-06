@@ -398,7 +398,7 @@ pub fn decode(bytes: &[u8]) -> Result<Golden, GoldenError> {
         find_role(&roles, &role, &format!("{path}.role"))?;
         text_rules.push(Rule { id, role, words: text(map, "words", &path)?, source: text(map, "source", &path)? });
     }
-    Ok(Golden { placeholders, roles, obligations, rules: text_rules })
+    Ok(Golden { placeholders, roles, free, obligations, rules: text_rules })
 }
 fn find_role<'a>(roles: &'a [Role], name: &str, path: &str) -> Result<&'a Role, GoldenError> {
     roles.iter().find(|r| r.role == name).ok_or_else(|| error(path, "unknown role"))
