@@ -32,6 +32,8 @@ pub struct Chats {
     goal_tasks: List<u64>,
     pub words: Box<[u8]>,
     pub start: Option<Key>,
+    /// The reference's mode beside Configure, once opened; the page's alone (client/README.md, 3.5).
+    pub reference: Option<Mode>,
     pub page: Option<TaskPage>,
     pub refusal: Option<jig_client::shapes::NotOffered>,
     pub outcome: Option<jig_client::Outcome>,
@@ -57,6 +59,7 @@ impl Chats {
             goal_tasks: List::with_capacity(0),
             words: Box::default(),
             start: None,
+            reference: None,
             page: None,
             refusal: None,
             outcome: None,
