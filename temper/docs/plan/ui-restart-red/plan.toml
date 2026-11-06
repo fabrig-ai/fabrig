@@ -1,0 +1,5 @@
+draft = "ui-restart-red"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-restart-red/inputs/request.md", "temper/crates/temper/tests/support/first_repository.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
