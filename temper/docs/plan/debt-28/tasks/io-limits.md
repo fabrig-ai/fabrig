@@ -3,7 +3,7 @@ id = "io-limits"
 part = "test-limits"
 kind = "migration"
 needs = ["file-readers-skein"]
-files = ["skein/crates/skein-io/src/limits.rs", "skein/crates/skein-fake-peers/src/face.rs", "skein/tests/playground/src/site.rs", "skein/crates/skein-io/src/tests/records.rs", "skein/tests/**", "skein/testing/**", "skein/examples/echo/service/src/tests.rs"]
+files = ["skein/crates/skein-io/src/limits.rs", "skein/crates/skein-fake-peers/src/face.rs", "skein/tests/playground/src/site.rs", "skein/crates/skein-io/src/tests/records.rs", "skein/tests/**", "skein/testing/**", "skein/examples/echo/service/src/tests.rs", "temper/crates/temper-playground/src/documents.rs"]
 effort = "medium"
 minutes = 100
 +++
@@ -39,13 +39,13 @@ The item stays open: `client-limits` rewrites it.
 
 ## Owns and may change
 
-Owns `limits.rs`, and in `skein/tests/**`, `skein/testing/**` the unit tests of `skein/crates/**` and `skein/examples/echo/service/src/tests.rs`, only the literal of a `skein_io::Limits`. Nothing else in those files.
+Owns `limits.rs`, and in `skein/tests/**`, `skein/testing/**` the unit tests of `skein/crates/**` and `skein/examples/echo/service/src/tests.rs`, only the literal of a `skein_io::Limits`, and an import the conversion leaves unused. Nothing else in those files.
 
 **These stay whole,** since their values are real configuration or are computed: `skein-ui-text/src/terminal.rs`, `skein/examples/echo/shell/src/lib.rs`, `skein/examples/ui/server/src/main.rs`, `skein/testing/skein-fake-person-browser/src/harness/capacity.rs`, `skein/tests/browser/tests/support/real.rs`, and `skein/tests/io/tests/suite/fuzzy/limits.rs`, whose every field is computed.
 
-**These read `TEST` today** and keep their values by naming more fields: `skein-fake-peers/src/face.rs` (`sockets: 8, receive: 4096, sends: 8, backlog: 2, retry: 1 ms` join what it has), `skein/tests/playground/src/site.rs`, and `skein-io/src/tests/records.rs`'s `changed`.
+**These read `TEST` today** and keep their values by naming more fields: `skein-fake-peers/src/face.rs` (`sockets: 8, receive: 4096, sends: 8, backlog: 2, retry: 1 ms` join what it has), `skein/tests/playground/src/site.rs`, `skein-io/src/tests/records.rs`'s `changed`, and `temper/crates/temper-playground/src/documents.rs`'s visitor `io` (`sends: 8, backlog: 2, retry: Duration::from_millis(1)` join what it has).
 
-A literal outside skein is not this task's. The 21 struct updates from other bases (`limits().io`, `good.io`) are already the target shape: they stay. A local `fn limits()` stays: `testing-strategy.md`, 10, asks for a setup written once, and that's one. Only the literal inside it changes.
+That visitor site aside, a literal outside skein is not this task's. The 21 struct updates from other bases (`limits().io`, `good.io`) are already the target shape: they stay. A local `fn limits()` stays: `testing-strategy.md`, 10, asks for a setup written once, and that's one. Only the literal inside it changes.
 
 If `TEST`'s new values fail `valid`, change only what fails, as little as it takes, and say so. If a converted site's test fails, a value was lost: fix the site, and never the assertion.
 
@@ -83,3 +83,7 @@ As your text says, with the measure's reading, the net lines, and how you checke
 ## Answers
 
 2026-11-06. May this task edit the echo service's unit-test literal and keep the computed fuzzy literal whole, so the measure reads 6? Yes. `skein/examples/echo/service/src/tests.rs`'s `limits()` is a test literal like the others: its `io` literal converts, keeping every value, and its package joins the ones you test. `skein/tests/io/tests/suite/fuzzy/limits.rs`'s literal stays whole with all its draws in order, with no `..Limits::TEST` added, since an update that supplies no field would only beat the measure. The spec above now says so. The net cap holds.
+
+2026-11-06. May this task remove the two `Duration` imports its conversion leaves unused, against the literal-only scope? Yes. Remove `Duration` from the `use` lists at `skein/tests/world/src/bin/terminal_fixture.rs:5` and `skein/tests/io/tests/suite/process_memory.rs:10`, and likewise any other import clippy shows the conversion left unused; change nothing else there. The spec above now says so.
+
+2026-11-06. Not asked, found answering: `temper/crates/temper-playground/src/documents.rs`'s visitor `io` updates from `TEST`, and pushed `5a41b26894` silently moves its inherited `sends` 8 to 2, `backlog` 2 to 1 and `retry` 1 ms to 10 ms. Name those three old values in that literal, in the file's own `Duration`, so every value stays. It's the only site outside skein reading `TEST`. Add `temper-playground` to the packages you test and clippy. The earlier answer's net cap still holds. Then finish what the stop left unobserved: clippy, and `--profile fuzzy` for `skein-io-world`.

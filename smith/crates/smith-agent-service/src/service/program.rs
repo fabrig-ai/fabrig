@@ -4,6 +4,7 @@
 
 use super::{Config, ConfigError, Failure, Limits, Owner, Service, Stages, component_owner, credential};
 use alloc::boxed::Box;
+use skein_io::file_layer::step;
 use skein_io::{self as io, file, file_layer, kernel};
 use skein_lib::{Duration, List, Map, Queue, Secret, Token, sha256};
 use smith_domain::{self as domain};
@@ -304,6 +305,7 @@ fn new(
 pub(super) struct Parts {
     pub program: Option<Box<Program>>,
     pub files: file_layer::FileIo,
+    pub file_limits: file_layer::Limits,
 }
 
 /// Build and reserve only a program an endpoint names; private roots need its UID first.
@@ -324,18 +326,19 @@ pub(super) fn parts(
         Some(program) => Some(new(program, limits, environment)?),
         None => None,
     };
-    let files = file_layer::FileIo::with_whole_limit(
-        limits.file_slots,
-        limits.file_read,
-        limits.file_entries,
-        limits.file_bytes,
-        limits.file_timeout,
-    );
+    let file_limits = file_layer::Limits {
+        files: limits.file_slots,
+        read: limits.file_read,
+        entries: limits.file_entries,
+        whole: limits.file_bytes,
+        timeout: limits.file_timeout,
+    };
+    let files = file_layer::FileIo::with_limits(&file_limits);
     let files = match effective_user {
         Some(user) => files.with_effective_user(user),
         None => files,
     };
-    Ok(Parts { program, files })
+    Ok(Parts { program, files, file_limits })
 }
 
 impl Service {
@@ -874,8 +877,9 @@ pub(super) fn down(service: &mut Stages) {
         match request {
             backend::Below::File { request, deadline } => {
                 service.files.seed_randomness(service.submitted);
-                file_layer::down_until(
+                step::down_until(
                     &mut service.files,
+                    &service.file_env,
                     deadline,
                     request,
                     &mut service.file_events,

@@ -13,7 +13,8 @@ use std::rc::Rc;
 
 use skein_fake_machine::{How, Item, Machine, Opened, step as machine_step};
 use skein_io::file;
-use skein_io::file_layer::{self, FileIo};
+use skein_io::file_layer::step::down_until;
+use skein_io::file_layer::{self, FileIo, step};
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_io::{self as io, Io};
 use skein_lib::stream::{Down, Read, Up};
@@ -445,6 +446,7 @@ impl skein_world::Machine for Adapter {
 
 struct Application {
     file_io: FileIo,
+    file_limits: file_layer::Limits,
     process_io: Io,
     component: Component,
     root: Token,
@@ -484,7 +486,9 @@ impl Application {
         limits: Limits,
         variables: &[smith_protocol_machine::Variable],
     ) -> Self {
-        let mut file_io = FileIo::with_whole_limit(16, 128, 32, 128, Duration::from_secs(1));
+        let file_limits =
+            file_layer::Limits { files: 16, read: 128, entries: 32, whole: 128, timeout: Duration::from_secs(1) };
+        let mut file_io = FileIo::with_limits(&file_limits);
         file_io.seed_randomness(seed);
         let root = file_io.adopt_root(root_fd).expect("one root slot");
         assert_eq!(root, Token::new(1));
@@ -504,6 +508,7 @@ impl Application {
         });
         Self {
             file_io,
+            file_limits,
             process_io: Io::new(&io_limits()),
             component,
             root,
@@ -652,8 +657,9 @@ impl Application {
     /// Advance one IO pass and all fake-machine calls.
     #[expect(clippy::too_many_lines, reason = "the application loop keeps ordered IO stages in one place")]
     fn pass(&mut self) {
+        let env = Env { now: self.machine_env.now, wall: self.machine_env.wall, limits: self.file_limits };
         if self.file_io.is_due(self.machine_env.now) {
-            file_layer::expire(&mut self.file_io, self.machine_env.now, &mut self.file_subs);
+            step::expire(&mut self.file_io, &env, &mut self.file_subs);
         }
         if self.process_io.is_due(self.machine_env.now) {
             io::fire(&mut self.process_io, &self.process_env, &mut self.process_events, &mut self.process_subs);
@@ -668,19 +674,14 @@ impl Application {
             match request {
                 Below::File { request, deadline } => {
                     assert!(self.file_io.takes(), "serial file layer");
-                    file_layer::down_until(
-                        &mut self.file_io,
-                        deadline,
-                        request,
-                        &mut self.file_events,
-                        &mut self.file_subs,
-                    );
+                    down_until(&mut self.file_io, &env, deadline, request, &mut self.file_events, &mut self.file_subs);
                 }
                 Below::CancelFile { owner } => file_layer::cancel(&mut self.file_io, owner, &mut self.file_subs),
                 Below::OpenRead { owner, root, path, deadline } => {
                     let descriptor = self.file_io.descriptor(root).expect("adopted root");
-                    file_layer::down_until(
+                    down_until(
                         &mut self.file_io,
+                        &env,
                         deadline,
                         file::Request::OpenRead { owner, root: descriptor, name: path },
                         &mut self.file_events,
@@ -689,8 +690,9 @@ impl Application {
                 }
                 Below::Remove { owner, parent, name, directory, deadline } => {
                     let descriptor = self.file_io.descriptor(parent).expect("removal owns its parent");
-                    file_layer::down_until(
+                    down_until(
                         &mut self.file_io,
+                        &env,
                         deadline,
                         file::Request::Remove { owner, root: descriptor, name, directory },
                         &mut self.file_events,
@@ -699,8 +701,9 @@ impl Application {
                 }
                 Below::OpenDirectory { owner, root, path, no_follow, deadline } => {
                     let descriptor = self.file_io.descriptor(root).expect("adopted root");
-                    file_layer::down_until(
+                    down_until(
                         &mut self.file_io,
+                        &env,
                         deadline,
                         file::Request::OpenDirectory { owner, root: descriptor, name: path, no_follow },
                         &mut self.file_events,
@@ -733,7 +736,7 @@ impl Application {
         }
         while let Some(complete) = self.completions.pop() {
             if self.file_flights.remove(&complete.op) {
-                file_layer::up(&mut self.file_io, complete, &mut self.file_events, &mut self.file_subs);
+                step::up(&mut self.file_io, &env, complete, &mut self.file_events, &mut self.file_subs);
             } else {
                 io::up(
                     &mut self.process_io,
@@ -830,8 +833,9 @@ impl Application {
         {
             assert_eq!(self.file_io.open_files(), 1, "only run root remains");
             self.root_closing = true;
-            file_layer::down_until(
+            down_until(
                 &mut self.file_io,
+                &env,
                 Time::from_nanos(self.machine_env.now.as_nanos().checked_add(1_000_000_000).expect("close deadline")),
                 file::Request::Close { owner: Token::new(u64::MAX), file: self.root },
                 &mut self.file_events,

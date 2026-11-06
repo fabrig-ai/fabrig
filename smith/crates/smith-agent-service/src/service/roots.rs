@@ -5,7 +5,7 @@
 
 use super::Stages;
 use core::mem;
-use skein_io::{file, file_layer};
+use skein_io::{file, file_layer::step};
 use skein_lib::{List, Token};
 
 /// Adopted roots and their ordered close reports.
@@ -88,9 +88,9 @@ pub(super) fn follow(service: &mut Stages) {
     if closable(service)
         && let Some(root) = service.roots.close_next()
     {
-        file_layer::down(
+        step::down(
             &mut service.files,
-            service.io_env.now,
+            &service.file_env,
             file::Request::Close { owner: super::ROOT_CLOSE_OWNER, file: root },
             &mut service.file_events,
             &mut service.file_submissions,
