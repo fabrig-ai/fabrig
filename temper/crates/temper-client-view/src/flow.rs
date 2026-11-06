@@ -22,25 +22,6 @@ pub(crate) enum Mark {
     Stopped,
     ToCome,
 }
-/// The list along the top, named Steps, with earlier items styled done.
-pub(crate) fn steps(b: &mut Builder, w: &Words, names: &[&[u8]], current: usize) {
-    b.open(Role::List);
-    b.name(&w.say(Word::WelcomeSteps, &[]));
-    b.style(look::FLOW_STEPS);
-    for (index, name) in names.iter().enumerate() {
-        b.open(Role::Item);
-        b.style(look::FLOW_STEP);
-        if index == current {
-            b.state(State::Current);
-        }
-        if index < current {
-            b.style(look::FLOW_DONE);
-        }
-        b.text(Run::Plain, name);
-        b.close();
-    }
-    b.close();
-}
 /// A list whose lines say their state in words.
 pub(crate) fn progress(b: &mut Builder, w: &Words, name: &[u8], lines: &[(&[u8], Mark)]) {
     b.open(Role::List);

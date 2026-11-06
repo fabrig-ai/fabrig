@@ -105,7 +105,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 281;
+pub const N: usize = 282;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -870,6 +870,12 @@ pub fn samples() -> [Sample; N] {
             address: Address::ConnectModel { way: None },
             then: Shown,
         },
+        Sample {
+            name: "connect-model-connected",
+            world: Reference,
+            address: Address::ConnectModel { way: None },
+            then: Shown,
+        },
         model_sample("connect-model-key-details", temper_client_domain::WayKind::Key, Shown),
         model_sample("connect-model-program-details", temper_client_domain::WayKind::Program, Shown),
         model_sample("connect-model-signing-in", temper_client_domain::WayKind::SignIn, SigningIn),
@@ -1327,6 +1333,24 @@ pub fn domain(sample: &Sample) -> Domain {
         crate::worlds::world(sample.world, sample.address.clone(), sample.then)
     };
     let mut out = Queue::uncapped();
+    if sample.name == "connect-model-choose" || sample.name == "connect-model-connected" {
+        let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("Model accounts").clone();
+        let mut accounts = skein_lib::List::with_capacity(1);
+        if sample.name == "connect-model-connected" {
+            for row in &doc.accounts {
+                if row.provider == Some(18) {
+                    accounts.push(row.clone()).expect("ChatGPT alone");
+                }
+            }
+        }
+        doc.accounts = accounts;
+        crate::driver::deliver(
+            &mut root,
+            accounts_watch.expect("Model watch"),
+            c::Delivery::Accounts(Box::new(doc)),
+            &mut out,
+        );
+    }
     if sample.name.starts_with("welcome-sheet-") {
         use temper_client_domain::forge::{
             Act as F,

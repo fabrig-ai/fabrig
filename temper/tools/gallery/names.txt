@@ -94,6 +94,7 @@ connect-forge-connected
 connect-forge-elsewhere
 connect-forge-first-run-6
 connect-model-choose
+connect-model-connected
 connect-model-declined
 connect-model-key-details
 connect-model-key-lost
