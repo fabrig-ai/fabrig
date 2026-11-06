@@ -561,7 +561,7 @@ pub(crate) fn more(domain: &mut Ui, window: Token, end: jig_client::thread::wind
         };
         let cursor = match edge {
             jig_client::thread::window::Edge::More(cursor) => Some(cursor.clone()),
-            jig_client::thread::window::Edge::End => None,
+            jig_client::thread::window::Edge::End | jig_client::thread::window::Edge::Dropped => None,
         };
         if let Some(cursor) = cursor {
             let Some(task) = domain.shown_task() else {

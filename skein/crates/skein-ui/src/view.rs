@@ -88,7 +88,7 @@ impl View {
                     return None;
                 }
             }
-            Act::Press | Act::Input { .. } | Act::Submit | Act::Toggle => {}
+            Act::Press | Act::Input { .. } | Act::Submit | Act::Toggle | Act::Near { .. } => {}
         }
         self.tree().act(node, act)
     }

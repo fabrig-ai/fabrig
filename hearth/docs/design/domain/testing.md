@@ -1550,6 +1550,17 @@ the first step:
   ten seconds cost nothing.
 - **Real processes are few:** one test per path through `main`, and
   real git on tiny repositories.
+- **A fake's call costs what it touches:** the fake machine keeps what a call
+  changed and how many bytes it holds, and the tree world's filesystem keeps its
+  names and link counts, so neither scans all its nodes per call.
+- **A scratch repository is written:** `hearth-test-repository` writes its blobs,
+  trees, commits and ref as loose objects, with the ids `git add -A` and
+  `git commit` give, so real git runs for the code under test alone. One test
+  holds the two equal. Such a repository has no index until git makes one, so
+  whatever adds to it by hand adds with `-A`. The test that git's absence fails by
+  name keeps a repository real git makes.
+- **A world computes once what its seed doesn't change,** in the test's process:
+  every seed still runs and still replays, and no state crosses seeds.
 - **The fuzzy suite sweeps:** random worlds settled under every
   invariant, and a small prepare, trial and bless cut at every one of
   its operations in turn, as skein's kv world crashes at every
@@ -1656,15 +1667,17 @@ VM tier its one real machine relies on.
   figure stands as an idle-machine figure
   (`skein/docs/foundation/testing-strategy.md`, 8.1). It depends on the
   user's ruling on the measurements.
-- **The focused suite's way to its figure** (9.1): how the queue's figure comes
-  under 30 CPU seconds by repairs in the code and its tests, since test builds stay
-  unoptimized (`skein/docs/foundation/testing-strategy.md`, 8). Those not tried: work a world repeats whatever its
-  seed, computed once in a test's process; a scratch repository's objects written
-  without `git add` and `git commit`; and what a profile of the suite shows, which
-  needs a machine with a profiler. Failing those, the measurements go to the user
-  for a ruling (`skein/docs/foundation/testing-strategy.md`, 8.1). The figure
-  stands, and a run over it is recorded, never refused. It depends on the queue's
-  record and on the user's ruling.
+- **The focused suite's way to its figure** (9.1): whether remaining repeated
+  seed-independent setup, duplicate tree-file decoding, and render's per-task
+  listing scans, export-cache rescans and retained-spec re-walk need repair
+  to hold the queue's figure under 30 CPU seconds. Shared counting allocation's
+  sampled estimate is 18.03% of the tree family's base CPU, 4.58% of the base
+  focused suite; its current share is unknown. Test builds stay unoptimized
+  (`skein/docs/foundation/testing-strategy.md`, 8). Measurements of any remaining
+  overrun go to the user for a ruling
+  (`skein/docs/foundation/testing-strategy.md`, 8.1). The figure stands, and a run
+  over it is recorded, never refused. It depends on the queue's record and on
+  the user's ruling.
 - **The large render's cost:** about 15 CPU seconds, which is why the fuzzy
   suite carries it (8.4). No run has isolated that cost: it followed the
   work per target, not the listing, and whether it lies in the harness or

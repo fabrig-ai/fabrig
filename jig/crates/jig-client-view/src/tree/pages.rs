@@ -31,7 +31,7 @@ pub(crate) fn edges(b: &mut Builder, words: &Words, bindings: &mut JigBindings, 
 }
 fn edge(b: &mut Builder, words: &Words, bindings: &mut JigBindings, edge: &Edge, window: u64, end: End) {
     match edge {
-        Edge::End => words.text(
+        Edge::End | Edge::Dropped => words.text(
             b,
             match end {
                 End::Before => JigPhrase::WindowStart,

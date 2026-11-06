@@ -80,6 +80,7 @@ struct Activity {
     next: Option<domain::reads::Position>,
     bytes: u64,
     bound: u64,
+    backwards: bool,
     index: usize,
 }
 impl Activity {
@@ -144,7 +145,8 @@ pub(crate) fn activity(
     above: &mut Queue<Event>,
     below: &mut Below,
 ) -> Result<Option<domain::reads::Loaded>, reads::Failure> {
-    let mut page = Activity { rows, next, bytes: range.bytes, bound: range.bytes, index: 0 };
+    let mut page =
+        Activity { rows, next, bytes: range.bytes, bound: range.bytes, backwards: range.backwards, index: 0 };
     let done = page.charge_words().or(Err(reads::Failure::Corrupt))?;
     if done {
         return Ok(Some(page.finish(false)));
@@ -154,7 +156,7 @@ pub(crate) fn activity(
         return Ok(Some(domain::reads::Loaded::Busy));
     }
     let (task, attempt, turn) = page.identity().expect("pending turn line");
-    let request = if range.after.is_none() {
+    let request = if range.backwards && range.after.is_none() {
         TranscriptRead::Page { task, backwards: true, after: None }
     } else {
         TranscriptRead::Turn { task, attempt, turn }
@@ -377,7 +379,7 @@ fn advance(
             if Reader::new(&bytes.finish()).u32() != Some(length) {
                 return Err(());
             }
-            sized(store, read, offset, turn, size, below)
+            sized(store, read, offset, length, turn, size, below)
         }
         Step::Header { offset, length, mut bytes } => {
             if !append(event, &mut bytes)? {
@@ -575,7 +577,7 @@ fn activity_header(
                 )?;
                 return Ok(false);
             }
-            return sized(store, read, offset, turn, size, below);
+            return sized(store, read, offset, length, turn, size, below);
         }
         if cost > page.bytes {
             return Ok(true);
@@ -589,6 +591,7 @@ fn sized(
     store: &mut Store,
     read: &mut Read,
     offset: u64,
+    length: u32,
     turn: TurnRecord,
     size: u32,
     below: &mut Below,
@@ -609,13 +612,19 @@ fn sized(
     });
     page.bytes = page.bytes.checked_sub(row.owned_bytes().ok_or(())?).ok_or(())?;
     page.index = page.index.checked_add(1).expect("bounded page index");
-    older(store, read, offset, below)
+    advance_activity(store, read, offset, length, below)
 }
-fn older(store: &mut Store, read: &mut Read, offset: u64, below: &mut Below) -> Result<bool, ()> {
+fn advance_activity(
+    store: &mut Store,
+    read: &mut Read,
+    offset: u64,
+    length: u32,
+    below: &mut Below,
+) -> Result<bool, ()> {
     let page = read.activity.as_mut().expect("activity walk");
     let Ok(done) = page.charge_words() else { return Ok(true) };
-    read.position = offset;
-    read.backwards = true;
+    read.position = if page.backwards { offset } else { offset.checked_add(u64::from(length)).ok_or(())? };
+    read.backwards = page.backwards;
     read.scan = Scan::Page;
     if done { Ok(true) } else { next(store, read, below) }
 }
@@ -678,7 +687,7 @@ fn accept(store: &mut Store, read: &mut Read, frame: Decoded, below: &mut Below)
         }
         page.bytes = page.bytes.checked_sub(bytes).expect("accepted turn fits");
         page.index = page.index.checked_add(1).expect("bounded page index");
-        return older(store, read, offset, below);
+        return advance_activity(store, read, offset, length, below);
     }
     if found {
         let single = party::single(read);
@@ -865,7 +874,7 @@ fn patching(
                     let cost = row.owned_bytes().ok_or(())?.checked_add(u64::from(size)).ok_or(())?;
                     row.related = None;
                     if cost > page.bound {
-                        return sized(store, read, offset, turn, size, below);
+                        return sized(store, read, offset, length, turn, size, below);
                     }
                     if cost > page.bytes {
                         return Ok(true);

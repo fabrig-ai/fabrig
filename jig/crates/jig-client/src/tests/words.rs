@@ -198,3 +198,10 @@ fn a_held_tasks_wait_has_its_own_word() {
     assert_eq!(book.say(0, Word::Waiting(WaitingWord::Held).id(), &[]).unwrap().text.as_ref(), b"held");
     assert_eq!(book.say(0, Word::waiting(&WaitsOn::Nothing).id(), &[]).unwrap().text.as_ref(), b"Nothing awaited");
 }
+
+#[test]
+fn a_task_no_account_serves_has_its_own_wait_word() {
+    let book = book(Box::new([words::english()]));
+    assert_eq!(book.say(0, Word::Waiting(WaitingWord::Account).id(), &[]).unwrap().text.as_ref(), b"an account");
+    assert_eq!(book.say(0, Word::waiting(&WaitsOn::Nothing).id(), &[]).unwrap().text.as_ref(), b"Nothing awaited");
+}

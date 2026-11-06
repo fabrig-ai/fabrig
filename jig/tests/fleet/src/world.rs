@@ -1012,7 +1012,7 @@ impl World {
             Request::Acknowledge { channel, run, attempt } => {
                 self.down(channel, Message::Acknowledge { run: run.raw(), attempt: attempt.raw() });
             }
-            Request::Refuse { channel } => {
+            Request::Refuse { channel, .. } => {
                 self.stats.refused += 1;
                 if self.channels[&channel.raw()].open {
                     self.close(channel.raw());
