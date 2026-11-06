@@ -1,5 +1,6 @@
 //! Next-run drafts borrow the offer; they never choose an account (client/README.md, 3.5).
 use super::{Pages, Request, accounts};
+use crate::Address;
 use crate::owner::Owner;
 use alloc::boxed::Box;
 use jig_client::{Client, Key, Outcome, Told, contract as c};
@@ -229,17 +230,23 @@ pub(crate) fn refresh(pages: &mut Pages, client: &Client) {
             }),
             task.llm.as_ref(),
         );
-    } else if pages.chats.is_some()
-        && let Some(project) = pages.project
-        && let Some(template) = jig_client::shapes::template(me, project, jig_client::shapes::CHAT)
+    } else if pages.chats.is_some() {
+        let template = if let Address::Configure { .. } = pages.address() {
+            super::chats::configuring_template(Some(me), pages.project)
+        } else {
+            jig_client::shapes::CHAT
+        };
+        refresh_template(pages, me, template);
+    } else {
+        pages.choice.reset(None, None);
+    }
+}
+fn refresh_template(pages: &mut Pages, me: &c::Me, number: u32) {
+    if let Some(project) = pages.project
+        && let Some(template) = jig_client::shapes::template(me, project, number)
     {
         pages.choice.reset(
-            Some(Context::Template {
-                project,
-                template: jig_client::shapes::CHAT,
-                executor: template.executor,
-                model_index: None,
-            }),
+            Some(Context::Template { project, template: number, executor: template.executor, model_index: None }),
             template.llm.as_ref(),
         );
     } else {

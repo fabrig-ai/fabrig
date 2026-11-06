@@ -2,8 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, the configuring layout: its line has nothing behind it, and "Models by role" names Claude and a
-  ChatGPT plan whatever is connected.
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *The sign-in's tab*,
   *Its end*, *A reload while it waits* and *From another computer*; 7, *A sign-in's address in the small store*; 10:
 - **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request

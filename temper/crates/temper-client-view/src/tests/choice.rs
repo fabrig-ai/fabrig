@@ -182,9 +182,6 @@ pub(super) fn provider_byline_root(
     }
     doc.usable = ready.contains(&c::Readiness::Usable);
     let project = me.projects.iter_mut().find(|p| p.project == fixtures::PROJECT).unwrap();
-    if let Address::Configure { .. } = root.pages().address() {
-        project.templates.clear();
-    }
     let sample_model = project.models.get(0).unwrap().clone();
     project.models = List::with_capacity(3);
     if models {
@@ -207,7 +204,11 @@ pub(super) fn provider_byline_root(
         project
             .defaults
             .push(c::MeDefault {
-                template: jig_client::shapes::CHAT,
+                template: if let Address::Configure { .. } = root.pages().address() {
+                    3
+                } else {
+                    jig_client::shapes::CHAT
+                },
                 choice: c::LlmChoice {
                     account: None,
                     main: c::ModelEffort { model: model_text(preview), effort: None },
