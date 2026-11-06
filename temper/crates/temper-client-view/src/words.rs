@@ -328,6 +328,18 @@ pub enum Word {
     ConfigureUnsure,
     ConfigureWords,
     ConfigureWhere,
+    ConfigureOwn,
+    ConfigureOwnTitle,
+    ConfigureOwnSteps,
+    ConfigureOwnDraft,
+    ConfigureOwnCut,
+    ConfigureOwnAgents,
+    ConfigureOwnBranch,
+    ConfigureOwnMain,
+    ConfigureOwnSee,
+    ConfigureOwnStart,
+    ConfigureOwnSends,
+
     Configuring,
 
     HomeOpen,
@@ -1269,7 +1281,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
 // The rail menu adds six literal phrases (client/README.md, 5.3).
-const PHRASES: u32 = 1759;
+const PHRASES: u32 = 1770;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1290,8 +1302,8 @@ const PHRASES: u32 = 1759;
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
 // The rail menu adds six literal segments (client/README.md, 5.3).
-const SEGMENTS: u32 = 3055;
-const ALL: [Word; 1160] = [
+const SEGMENTS: u32 = 3068;
+const ALL: [Word; 1171] = [
     Word::DraftsChats,
     Word::ChatsDraftLede,
     Word::ChatRowWrites,
@@ -1602,6 +1614,17 @@ const ALL: [Word; 1160] = [
     Word::ConfigureUnsure,
     Word::ConfigureWords,
     Word::ConfigureWhere,
+    Word::ConfigureOwn,
+    Word::ConfigureOwnTitle,
+    Word::ConfigureOwnSteps,
+    Word::ConfigureOwnDraft,
+    Word::ConfigureOwnCut,
+    Word::ConfigureOwnAgents,
+    Word::ConfigureOwnBranch,
+    Word::ConfigureOwnMain,
+    Word::ConfigureOwnSee,
+    Word::ConfigureOwnStart,
+    Word::ConfigureOwnSends,
     Word::Configuring,
     Word::HomeOpen,
     Word::NeedsLaterMeta,
@@ -2740,6 +2763,18 @@ impl Word {
             Self::ConfigureUnsure => 3185,
             Self::ConfigureWords => 3186,
             Self::ConfigureWhere => 3187,
+            Self::ConfigureOwn => 3687,
+            Self::ConfigureOwnTitle => 3688,
+            Self::ConfigureOwnSteps => 3689,
+            Self::ConfigureOwnDraft => 3690,
+            Self::ConfigureOwnCut => 3691,
+            Self::ConfigureOwnAgents => 3692,
+            Self::ConfigureOwnBranch => 3693,
+            Self::ConfigureOwnMain => 3694,
+            Self::ConfigureOwnSee => 3695,
+            Self::ConfigureOwnStart => 3696,
+            Self::ConfigureOwnSends => 3697,
+
             Self::Configuring => 3188,
             Self::HomeOpen => 3165,
             Self::NeedsLaterMeta => 3305,
@@ -3906,7 +3941,7 @@ impl Words {
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Settings and the chat document include their literal bytes (client/README.md, 3.5, 5.13).
-            text_bytes: 43848,
+            text_bytes: 44135,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -4953,6 +4988,18 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ConfigureWords => (&[b"Describe how you work, or what to change"], &[]),
         Word::Configuring => (&[b"Configuring"], &[]),
         Word::ConfigureWhere => (&[b"Where"], &[]),
+        Word::ConfigureOwn => (&[b"temper\xe2\x80\x99s own way"], &[]),
+        Word::ConfigureOwnTitle => (&[b"At scale, as temper builds itself"], &[]),
+        Word::ConfigureOwnSteps => (&[b"Its steps: designers cut a draft into parts, coding agents make them in parallel, the goal lands whole"], &[]),
+        Word::ConfigureOwnDraft => (&[b"Draft"], &[]),
+        Word::ConfigureOwnCut => (&[b"The cut"], &[]),
+        Word::ConfigureOwnAgents => (&[b"Coding agents"], &[]),
+        Word::ConfigureOwnBranch => (&[b"Goal\xe2\x80\x99s branch"], &[]),
+        Word::ConfigureOwnMain => (&[b"main"], &[]),
+        Word::ConfigureOwnSee => (&[b"See how it works"], &[]),
+        Word::ConfigureOwnStart => (&[b"Start from it"], &[]),
+        Word::ConfigureOwnSends => (&[b"Set ", b" up the way temper builds itself, sized for this machine."], &[Name]),
+
         Word::FirstChat => (&[b"Tell temper how you work"], &[]),
         Word::ChatsKicker => (&[b"", b" \xc2\xb7 chats"], &[Name]),
         Word::ChatsHeadlineIn => (&[b"Talk to an agent about ", b"/", b"."], &[Name, Name]),

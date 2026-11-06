@@ -587,6 +587,12 @@ fn configuring_opening_and_needs_have_their_css_names() {
         (STARTER_NOTE, b"temper-starter-note"),
         (STARTER_WAYS, b"temper-starter-ways"),
         (STARTER_UNSURE, b"temper-starter-unsure"),
+        (STARTER_HEAD, b"temper-starter-head"),
+        (STARTER_OWN, b"temper-starter-own"),
+        (STARTER_OWN_TEXT, b"temper-starter-own-text"),
+        (STARTER_OWN_TITLE, b"temper-starter-own-title"),
+        (STARTER_OWN_STEPS, b"temper-starter-own-steps"),
+        (STARTER_OWN_ACTS, b"temper-starter-own-acts"),
         (TOAST, b"temper-toast"),
         (NEEDS, b"temper-needs"),
     ] {

@@ -43,7 +43,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         Some(name) => name,
         None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
     };
-    let question = w.say(Word::ConfigureQuestion, &[Hole::Name(name)]);
+    let question = w.say(Word::ConfigureQuestion, &[Hole::Name(name.clone())]);
     text(b, Role::Heading { level: 2 }, &question, None);
     paragraph(b, &w.say(Word::ConfigureLede, &[]), look::STARTER_LEDE);
     b.open(Role::List);
@@ -64,15 +64,23 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     let ways = w.say(Word::ConfigureWays, &[]);
     b.name(&ways);
     b.style(look::STARTER_WAYS);
-    if w.shell == Shell::Browser {
-        text(b, Role::Heading { level: 3 }, &ways, None);
-    }
-    b.open(Role::List);
-    b.style(look::STARTERS);
     let pending = match root.pages().chats() {
         Some(chats) => chats.start.is_some(),
         None => false,
     };
+    b.open(Role::Slot);
+    b.style(look::STARTER_HEAD);
+    if w.shell == Shell::Browser {
+        text(b, Role::Heading { level: 3 }, &ways, None);
+    }
+    b.open(Role::Button);
+    b.name(&w.say(Word::ConfigureUnsureTitle, &[]));
+    b.style(look::STARTER_UNSURE);
+    starter(b, w, bindings, Word::ConfigureUnsure, &[], pending);
+    b.close();
+    b.close();
+    b.open(Role::List);
+    b.style(look::STARTERS);
     for (title, line, sent) in [
         (Word::ConfigureAloneTitle, Word::ConfigureAloneLine, Word::ConfigureAlone),
         (Word::ConfigureDesignTitle, Word::ConfigureDesignLine, Word::ConfigureDesign),
@@ -81,16 +89,12 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         b.open(Role::Item);
         b.open(Role::Button);
         pair(b, w, title, line);
-        starter(b, w, bindings, sent, pending);
+        starter(b, w, bindings, sent, &[], pending);
         b.close();
         b.close();
     }
     b.close();
-    b.open(Role::Button);
-    b.name(&w.say(Word::ConfigureUnsureTitle, &[]));
-    b.style(look::STARTER_UNSURE);
-    starter(b, w, bindings, Word::ConfigureUnsure, pending);
-    b.close();
+    own_way(b, w, bindings, name, pending);
     b.close();
     b.close();
     b.close();
@@ -121,11 +125,49 @@ fn pair(b: &mut Builder, w: &Words, title: Word, line: Word) {
     }
 }
 
-fn starter(b: &mut Builder, w: &Words, bindings: &mut Bindings, sent: Word, pending: bool) {
+fn starter(b: &mut Builder, w: &Words, bindings: &mut Bindings, sent: Word, holes: &[Hole], pending: bool) {
+    let words = w.say(sent, holes);
     if pending {
         b.state(State::Disabled);
     }
-    b.bind(bindings.insert(Act::Starter { words: w.say(sent, &[]) }));
+    b.bind(bindings.insert(Act::Starter { words }));
+}
+
+fn own_way(b: &mut Builder, w: &Words, bindings: &mut Bindings, name: Box<[u8]>, pending: bool) {
+    b.open(Role::Group);
+    b.name(&w.say(Word::ConfigureOwn, &[]));
+    b.style(look::STARTER_OWN);
+    b.open(Role::Slot);
+    b.style(look::STARTER_OWN_TEXT);
+    paragraph(b, &w.say(Word::ConfigureOwnTitle, &[]), look::STARTER_OWN_TITLE);
+    b.open(Role::List);
+    b.name(&w.say(Word::ConfigureOwnSteps, &[]));
+    b.style(look::STARTER_OWN_STEPS);
+    for step in [
+        Word::ConfigureOwnDraft,
+        Word::ConfigureOwnCut,
+        Word::ConfigureOwnAgents,
+        Word::ConfigureOwnBranch,
+        Word::ConfigureOwnMain,
+    ] {
+        b.open(Role::Item);
+        b.text(Run::Plain, &w.say(step, &[]));
+        b.close();
+    }
+    b.close();
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::STARTER_OWN_ACTS);
+    b.open(Role::Button);
+    b.name(&w.say(Word::ConfigureOwnSee, &[]));
+    b.bind(bindings.insert(Act::ShowReference));
+    b.close();
+    b.open(Role::Button);
+    b.name(&w.say(Word::ConfigureOwnStart, &[]));
+    starter(b, w, bindings, Word::ConfigureOwnSends, &[Hole::Name(name)], pending);
+    b.close();
+    b.close();
+    b.close();
 }
 
 pub(crate) fn byline(b: &mut Builder, root: &Domain, w: &Words, project: u32) {

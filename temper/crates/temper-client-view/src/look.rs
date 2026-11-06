@@ -1122,6 +1122,12 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decision-why",
         b"temper-decision-late",
         b"temper-decision-overturned",
+        b"temper-starter-head",
+        b"temper-starter-own",
+        b"temper-starter-own-text",
+        b"temper-starter-own-title",
+        b"temper-starter-own-steps",
+        b"temper-starter-own-acts",
     ],
     regions: &[b"temper-link"],
 };
@@ -1283,6 +1289,14 @@ pub const DECISION_TOOK: Style = Style { owner: owner(), token: 443 };
 pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
+
+/// The configuring page’s own way card (temper/docs/design/client/README.md, 3.5).
+pub const STARTER_HEAD: Style = Style { owner: owner(), token: 447 };
+pub const STARTER_OWN: Style = Style { owner: owner(), token: 448 };
+pub const STARTER_OWN_TEXT: Style = Style { owner: owner(), token: 449 };
+pub const STARTER_OWN_TITLE: Style = Style { owner: owner(), token: 450 };
+pub const STARTER_OWN_STEPS: Style = Style { owner: owner(), token: 451 };
+pub const STARTER_OWN_ACTS: Style = Style { owner: owner(), token: 452 };
 
 #[cfg(test)]
 mod tests {
