@@ -35,6 +35,10 @@ pub struct Composition {
 
 impl Composition {
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the world's constructor names every limit and setting of the joint component"
+    )]
     pub fn new(configuration: &root::Config, limits: jig_client::DomainLimits) -> Self {
         let (now, wall) = (Time::ZERO, Wall::EPOCH);
         let env = Env {
@@ -62,6 +66,7 @@ impl Composition {
             provider: None,
             addresses: Box::new([]),
             link: None,
+            link_secret: None,
             deployment_provider: 2,
             heartbeat: skein_lib::Duration::from_secs(3600),
             rows: limits.rows,

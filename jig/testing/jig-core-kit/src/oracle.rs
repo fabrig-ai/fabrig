@@ -297,8 +297,11 @@ fn durable(mut document: Document) -> Document {
         // Engine 6 step 3 adopts runs afresh; the dead host's receipt is not retained.
         Document::Task(row) => {
             row.chip.details.observation = None;
-            // client/domain/contract.md 5.1: run_wait derives from current source and host availability, never stored.
+            // client/domain/contract.md 5.1: run_wait and an omitted choice derive from
+            // current source and host availability, absent after a cold restart.
+            // The retained inventory still compares every stored choice, including named ones.
             row.run_wait = None;
+            row.llm = None;
         }
         Document::Frame(_)
         | Document::Chips(_)

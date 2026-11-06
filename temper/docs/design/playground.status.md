@@ -18,7 +18,7 @@
     native heap, by process, at its first step and its start alone, and
     sets no bound; through the story there is only the browser tier's
     high water, which does not say what reserves it. The download's bar:
-    7,026,541 B gzipped, past its 6 MB
+    7,026,541 B gzipped, within its 8 MB
     (`temper/docs/development/playground-figures.md`).
   - 9: Story A's walk in the one-process world, by the terminal
     client, ignored: its `#[ignore]` has it stall at Starting after

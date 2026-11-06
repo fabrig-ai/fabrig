@@ -209,9 +209,7 @@ pub(crate) enum Word {
     NotSignedIn,
     NotOurs,
     MoveCancelled,
-    Elsewhere,
     PasteDisclosure,
-    PasteHistory,
     PasteInstructions,
     PasteField,
     PasteFinish,
@@ -223,7 +221,6 @@ pub(crate) enum Word {
     PasteTooMany,
     PasteEnded,
     PasteAgain,
-    OpenPlanSignIn,
 }
 const ROWS: &[(Word, &[u8])] = &[
     (Word::UnusableOn, b"Can't be used on "),
@@ -405,9 +402,7 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::NotSignedIn, b"Not signed in"),
     (Word::NotOurs, b"Not this application's record"),
     (Word::MoveCancelled, b"The move was cancelled"),
-    (Word::Elsewhere, "This browser isn't on temper's computer ›".as_bytes()),
-    (Word::PasteDisclosure, b"Signed in, but the page couldn't be reached?"),
-    (Word::PasteHistory, b"Go forward to that page, or find it in your history, and copy its address."),
+    (Word::PasteDisclosure, "Signed in, but the page couldn’t be reached?".as_bytes()),
     (Word::PasteField, b"Address of the page that couldn't be reached"),
     (Word::PasteFinish, b"Finish connecting"),
     (Word::PasteSending, "Finishing…".as_bytes()),
@@ -454,8 +449,7 @@ const NAMED: &[(Word, &[u8], &[u8])] = &[
     (Word::KeyAdded, "Added your ".as_bytes(), " API key".as_bytes()),
     (Word::PlanRuns, "temper’s agents now run on your ".as_bytes(), " plan.".as_bytes()),
     (Word::Command, "temper program-login --config CONFIG --data DATA --cache CACHE ".as_bytes(), "".as_bytes()),
-    (Word::OpenPlanSignIn, b"Open ", "'s sign-in ›".as_bytes()),
-    (Word::PasteInstructions, b"When ", b" is done, its tab shows a page that can't be reached. Copy that page's whole address from the address bar, come back here, and paste it. If a page opens instead, such as another program's sign-in, close that program's sign-in and start again."),
+    (Word::PasteInstructions, b"When ", " is done, its tab shows a page that can’t be reached. Copy that page’s whole address from the address bar, come back here, and paste it. If a page opens instead, such as another program’s sign-in, close that program’s sign-in and start again.".as_bytes()),
     (Word::PasteTooMany, b"That's too many addresses from other sign-ins. Continue with ", b" to start again."),
     (Word::ProgramCommandHere, b"On this machine, run: ", b""),
 ];

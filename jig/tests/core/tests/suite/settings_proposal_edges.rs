@@ -1,5 +1,6 @@
 //! Adversarial proposals of deployment settings (`domain/engine.md`, 17.6).
 use jig_core_world::fixtures;
+use jig_core_world::fixtures::{PARTY as OWNER, sign_in as signin};
 use jig_core_world::peers;
 use jig_core_world::reads;
 use jig_core_world::world::Cut;
@@ -12,7 +13,7 @@ use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
 const SEED: u64 = 6001;
-const OWNER: u64 = 1;
+
 const DEPLOYMENT: u32 = 0;
 // The small profile's settings bound; one further party exercises refusal.
 const PROPOSAL_LIMIT: u32 = 4;
@@ -600,15 +601,7 @@ fn acceptance_moves_work_created_after_a_real_first_start() {
         ..Setup::default()
     });
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 1000, next: None }));
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(800)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
-            login: b"owner".as_slice().into(),
-            name: b"Owner".as_slice().into(),
-        },
-    }));
+    world.send(signin(Token::new(800), 0, &7_u64.to_be_bytes(), b"owner", b"Owner"));
     let owner = world.sign_in.expect("owner sign-in");
     world.reads = Some(reads::Parties::new(world.store.applied));
     let task = world
@@ -774,6 +767,25 @@ fn held_versions_past_the_limit_keep_the_pending_set_across_restart() {
     world.reads = Some(reads::Parties::new(world.store.applied));
     let owner = world.sign_in.expect("owner sign-in");
     let task = world.assigned.as_ref().expect("live holder").task;
+    fixtures::ask_as(
+        &mut world,
+        owner,
+        151,
+        people::Ask::Amend {
+            project: 1,
+            task,
+            revision: 0,
+            release: None,
+            amendment: people::Amendment {
+                llm: Some(people::LlmChoice {
+                    account: None,
+                    main: people::ModelEffort { model: 0, effort: Some(0) },
+                    subagents: Box::new([]),
+                }),
+                ..jig_test_profile::fixtures::person_unchanged(b"keep the current model")
+            },
+        },
+    );
     let task_before = fixtures::live_row(&world, task).clone();
     let policy_before = world.assigned.as_ref().expect("live run").run.policy.clone();
     let first = propose(&mut world, owner, 152, 1, model_proposal_items(model.clone()));

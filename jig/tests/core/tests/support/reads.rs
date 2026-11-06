@@ -1,4 +1,5 @@
 //! Fixtures for durable document and owner-page reads.
+use jig_core_world::fixtures::party_ask;
 use jig_core_world::reads::Parties;
 use jig_core_world::reads::ask;
 use jig_core_world::reads::latest;
@@ -8,7 +9,8 @@ use jig_domain_core::{self as core, documents, reads};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
-use skein_lib::{Duration, ReplyTo, Token};
+use skein_lib::Duration;
+pub const REQUEST_BASE: u64 = 30_000;
 
 #[must_use]
 pub fn world(seed: u64) -> World {
@@ -83,19 +85,8 @@ fn read_world(seed: u64, reply_bound: Option<u32>, rows: u32, initial: Option<pe
 }
 
 pub fn request(world: &mut World, number: u8, ask: people::Ask) {
-    let event = request_event(world, number, ask);
+    let event = party_ask(REQUEST_BASE, world.sign_in.expect("signed in"), number, ask);
     world.send(event);
-}
-
-#[must_use]
-pub fn request_event(world: &World, number: u8, ask: people::Ask) -> root::Event {
-    root::Event::Core(core::Event::People(people::Event::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(30_000 + u64::from(number))),
-        sign_in: world.sign_in.expect("signed in"),
-        key: [number; 16],
-        ask,
-    }))
 }
 
 #[must_use]

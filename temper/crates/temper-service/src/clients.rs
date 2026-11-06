@@ -6,10 +6,21 @@ use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_protocol_config::{self as config, Path, Problems, What};
 use jig_protocol_engine_clients as kit;
+pub use jig_protocol_engine_clients::LINK_SECRET_BYTES;
 use jig_protocol_engine_clients_http as http;
 use skein_io as io;
 use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain as root;
+
+/// The URL a printed link's secret opens, as serve prints it, with no line feed (protocol/setup.md, 7.2).
+#[must_use]
+pub fn first_link_url(
+    address: ::core::net::SocketAddr,
+    public: Option<&crate::startup::application::Origin>,
+    secret: &skein_lib::Secret,
+) -> Box<[u8]> {
+    printed::link_public(address, public, secret)
+}
 #[cfg(test)]
 mod admission_tests;
 pub mod bundle;
@@ -194,6 +205,7 @@ impl Clients {
                 None => None,
             };
             Ok(kit::Settings {
+                link_secret: seeds.link_secret.clone(),
                 provider,
                 addresses: match &config.clients.provider {
                     Some(provider) => provider.addresses.clone(),

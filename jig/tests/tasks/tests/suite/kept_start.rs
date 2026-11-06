@@ -2,13 +2,11 @@ use jig_domain_tasks::{
     self as tasks, Active, Ending, Event, Executor, Hold, HoldKind, Holding, KeptStart, Kind, MessageKind, Name, Party,
     Phase, ProcedureDecision, ProcedureEnd, Refusal, Release, Taken, TaskResult,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
-use skein_lib::ReplyTo;
+use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY as REQUESTER, Reply, World, done, response, step, task};
 
 const PROCEDURE: u64 = 1;
 const DEPENDENCY: u64 = 2;
 const HOLDER: u64 = 3;
-const REQUESTER: Party = Party::Person(9);
 const START: KeptStart = KeptStart { connector: 1, code: 1 };
 
 fn configured() -> World {
@@ -29,25 +27,6 @@ fn pending() -> World {
     world
 }
 
-fn response(world: &mut World, event: impl FnOnce(ReplyTo) -> Event) -> Reply {
-    let to = world.to();
-    let call = to.into_token();
-    world.send(event(ReplyTo::new(call)));
-    world.replies[&call.raw()].clone()
-}
-
-fn step(world: &mut World, decision: ProcedureDecision) -> Reply {
-    let step = world.record(PROCEDURE).attempt + 1;
-    let read = world.contexts[&PROCEDURE].inbox.last().map(|word| word.number);
-    response(world, |reply_to| Event::Procedure { reply_to, task: PROCEDURE, step, read, decision })
-}
-
-fn done(world: &mut World, number: u64) {
-    world.claim_fresh(number);
-    world.finish(number);
-    world.settle(number);
-}
-
 fn result() -> ProcedureEnd {
     ProcedureEnd::Result(TaskResult::Report { words: Box::new([7]) })
 }
@@ -62,9 +41,9 @@ fn a_kept_start_procedure_made_with_a_pending_dependency_is_active_and_kept() {
     assert_eq!(world.record(PROCEDURE).due_reason, tasks::Why::Made);
     let before = world.records.clone();
     let decision = ProcedureDecision { batch: Box::new([task(4, &[])]), ..ProcedureDecision::new(result()) };
-    assert!(matches!(step(&mut world, decision), Reply::Refused(problem) if problem.why == Refusal::Kept));
+    assert!(matches!(step(&mut world, PROCEDURE, decision), Reply::Refused(problem) if problem.why == Refusal::Kept));
     assert_eq!(world.records, before, "the done step and its batch are refused whole");
-    assert_eq!(step(&mut world, ProcedureDecision::new(ProcedureEnd::Hold(Hold::Drift))), Reply::Done);
+    assert_eq!(step(&mut world, PROCEDURE, ProcedureDecision::new(ProcedureEnd::Hold(Hold::Drift))), Reply::Done);
     assert!(matches!(world.record(PROCEDURE).phase, Phase::Held { .. }));
     assert_eq!(
         response(&mut world, |reply_to| Event::Release {
@@ -76,7 +55,11 @@ fn a_kept_start_procedure_made_with_a_pending_dependency_is_active_and_kept() {
     );
     assert_eq!(world.record(PROCEDURE).waiting_on.as_ref(), [DEPENDENCY]);
     assert_eq!(
-        step(&mut world, ProcedureDecision::new(ProcedureEnd::Result(TaskResult::Failure { reason: Box::new([8]) }))),
+        step(
+            &mut world,
+            PROCEDURE,
+            ProcedureDecision::new(ProcedureEnd::Result(TaskResult::Failure { reason: Box::new([8]) }))
+        ),
         Reply::Done
     );
     world.settle(PROCEDURE);
@@ -86,7 +69,7 @@ fn a_kept_start_procedure_made_with_a_pending_dependency_is_active_and_kept() {
 #[test]
 fn a_kept_start_procedure_goes_on_when_its_dependency_is_done() {
     let mut world = pending();
-    assert_eq!(step(&mut world, ProcedureDecision::new(ProcedureEnd::Wait)), Reply::Done);
+    assert_eq!(step(&mut world, PROCEDURE, ProcedureDecision::new(ProcedureEnd::Wait)), Reply::Done);
     world.activations.remove(&PROCEDURE);
     done(&mut world, DEPENDENCY);
     let notices: Vec<_> =
@@ -96,7 +79,7 @@ fn a_kept_start_procedure_goes_on_when_its_dependency_is_done() {
     assert_eq!(notices[0].from, Party::Task(DEPENDENCY));
     assert!(world.activations.contains(&PROCEDURE));
     assert!(world.contexts[&PROCEDURE].pending.is_empty());
-    assert_eq!(step(&mut world, ProcedureDecision::new(result())), Reply::Done);
+    assert_eq!(step(&mut world, PROCEDURE, ProcedureDecision::new(result())), Reply::Done);
     world.settle(PROCEDURE);
     assert!(matches!(world.results[&PROCEDURE], Ending::Done(_)));
 }
@@ -107,7 +90,7 @@ fn a_procedure_of_another_code_made_with_a_pending_dependency_waits() {
         Executor::Procedure { connector: START.connector, code: START.code + 1 },
         Executor::Procedure { connector: START.connector + 1, code: START.code },
         Executor::Agent { charter: 1 },
-        Executor::Person(tasks::PersonAddress::Person(9)),
+        Executor::Person(tasks::PersonAddress::Person(PERSON)),
     ] {
         let mut world = configured();
         let mut new = task(PROCEDURE, &[DEPENDENCY]);
@@ -125,7 +108,7 @@ fn a_kept_start_with_no_pending_dependency_can_end_done() {
     assert_eq!(world.make(REQUESTER, vec![procedure(&[])]), Reply::Made(vec![PROCEDURE]));
     assert_eq!(world.record(PROCEDURE).phase, Phase::Active(Active::Due));
     assert!(world.contexts[&PROCEDURE].pending.is_empty());
-    assert_eq!(step(&mut world, ProcedureDecision::new(result())), Reply::Done);
+    assert_eq!(step(&mut world, PROCEDURE, ProcedureDecision::new(result())), Reply::Done);
     world.settle(PROCEDURE);
     assert!(matches!(world.results[&PROCEDURE], Ending::Done(_)));
 }
@@ -195,6 +178,7 @@ fn a_kept_starts_job_with_a_pending_dependency_waits() {
     assert_eq!(
         step(
             &mut world,
+            PROCEDURE,
             ProcedureDecision { batch: Box::new([dependency, job]), ..ProcedureDecision::new(ProcedureEnd::Wait) }
         ),
         Reply::Made(vec![DEPENDENCY, job_number])
@@ -212,10 +196,10 @@ fn a_kept_start_restores_active_and_kept_until_its_dependency_is_done() {
     assert_eq!(world.record(PROCEDURE).phase, Phase::Active(Active::Due));
     assert_eq!(world.contexts[&PROCEDURE].pending.as_ref(), [DEPENDENCY]);
     assert!(
-        matches!(step(&mut world, ProcedureDecision::new(result())), Reply::Refused(problem) if problem.why == Refusal::Kept)
+        matches!(step(&mut world, PROCEDURE, ProcedureDecision::new(result())), Reply::Refused(problem) if problem.why == Refusal::Kept)
     );
     done(&mut world, DEPENDENCY);
-    assert_eq!(step(&mut world, ProcedureDecision::new(result())), Reply::Done);
+    assert_eq!(step(&mut world, PROCEDURE, ProcedureDecision::new(result())), Reply::Done);
     world.settle(PROCEDURE);
     assert!(matches!(world.results[&PROCEDURE], Ending::Done(_)));
 }

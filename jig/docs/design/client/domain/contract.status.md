@@ -11,7 +11,6 @@ Unlisted sections have no known gap.
   cancelled endings' `reason`, and a decided ending's `party` and `how`
   with `None`, so a client always reads them empty. Either the engine
   fills them or a client wire version drops them; no reason is recorded.
-- **Not yet:** 5.1: a task's document shows its recorded LLM choice, not what its next run would take.
 - **Not yet:** 5.3: `me` represents a refused creating offer by absence,
   without carrying its refusal reason, including an authority-limit
   refusal when an executor list exceeds `documents.lines`.

@@ -130,12 +130,6 @@ pub(super) fn choice(
     b.open(Role::Slot);
     b.style(crate::look::FLOW_ACTIONS);
     flow::control(b, control);
-    if let Way::SignIn { .. } = way
-        && let Some(to) =
-            bindings.insert(Meaning::Model(Act::SignInElsewhere { name: root.pages().account_name(), way }))
-    {
-        flow::control(b, Control::Button { name: &say(w, W::Elsewhere), to });
-    }
     b.close();
     b.close();
 }
@@ -426,10 +420,28 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     if let Some(to) = bindings.insert(Meaning::Go(model::address(root.pages().address(), None))) {
         flow::control(b, Control::Link { name: &say(w, W::AllWays), to });
     }
+    if let Some(trial) = super::model_check::trial(root, w) {
+        trial_body(b, root, w, bindings, &trial, way);
+        return;
+    }
     if ready(root, way) {
         flow::details(b, &ending_heading(root, w, way));
         ready_body(b, root, w, bindings, way, &ways);
         b.close();
+        return;
+    }
+    if request_for_way(page, way)
+        && let SignInState::Started { .. } | SignInState::Signing { .. } = page.request.sign_in_state(root.client())
+    {
+        super::sign_in_wait::waiting(
+            b,
+            root,
+            w,
+            bindings,
+            &page.request,
+            super::sign_in_wait::tab_refused(),
+            text_per_node,
+        );
         return;
     }
     match way {
@@ -454,6 +466,26 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             &pending.outcome
     {
         button(b, bindings, &say(w, W::Cancel), Act::Cancel, false, false);
+    }
+    b.close();
+}
+/// The way's card while a try is shown (temper/docs/design/client/README.md, 3.5).
+pub(crate) fn trial_body(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    trial: &super::model_check::Trial,
+    way: Way,
+) {
+    flow::details(b, &ending_heading(root, w, way));
+    super::model_check::status(b, w, trial);
+    match trial.state {
+        super::model_check::State::Answered { .. } => ready_primary(b, root, w, bindings),
+        super::model_check::State::Stopped { .. } => {
+            super::model_check::stopped_acts(b, root, w, bindings, trial, way, ready_address(root));
+        }
+        super::model_check::State::Running { .. } => {}
     }
     b.close();
 }
@@ -615,17 +647,7 @@ pub(super) fn ready_body(
     }
     b.open(Role::Slot);
     b.style(crate::look::MODEL_ACTIONS);
-    if welcome(root) {
-        go(
-            b,
-            bindings,
-            &w.say(Word::WelcomeContinue, &[]),
-            Address::Welcome { step: temper_client_domain::Step::Ready },
-            true,
-        );
-    } else {
-        go(b, bindings, &say(w, W::StartChat), Address::NewChat { draft: false }, true);
-    }
+    ready_primary(b, root, w, bindings);
     manage_usage(b, root, w, way);
     if model::model_way(way).kind == WayKind::SignIn {
         button(
@@ -638,6 +660,17 @@ pub(super) fn ready_body(
         );
     }
     b.close();
+}
+fn ready_address(root: &Domain) -> Address {
+    if welcome(root) {
+        Address::Welcome { step: temper_client_domain::Step::Ready }
+    } else {
+        Address::NewChat { draft: false }
+    }
+}
+fn ready_primary(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+    let name = if welcome(root) { w.say(Word::WelcomeContinue, &[]) } else { say(w, W::StartChat) };
+    go(b, bindings, &name, ready_address(root), true);
 }
 /// Ready reads the last durable ending even after the signing tab has returned.
 pub(super) fn welcome_end(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {

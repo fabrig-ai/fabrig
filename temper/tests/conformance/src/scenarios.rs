@@ -251,7 +251,6 @@ impl ScenarioApplication for Temper {
                         judge: 0,
                         freshness: Some(1_000_000_000),
                     });
-                    world.peers.policy_generation += 1;
                 }
             }
             Action::Late => world.systems.late_next = true,
@@ -556,7 +555,6 @@ impl ScenarioApplication for Temper {
                         judge: 0,
                         freshness: Some(0),
                     });
-                    world.peers.policy_generation += 1;
                 }
             }
             Action::PartyAmend => revisions::party_amend(world)?,

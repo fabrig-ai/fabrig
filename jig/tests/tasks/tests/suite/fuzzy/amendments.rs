@@ -3,14 +3,13 @@ use jig_domain_tasks::{
     self as tasks, Accepted, Active, Amendment, Cancel, DependencyPlace, End, Ending, Event, Funder, Hold, HoldKind,
     Holding, Key, Kind, Line, Name, Party, Phase, Refusal, Release, Status, Stored, Taken, TaskResult,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON_PARTY, Reply, World, task};
 use skein_lib::{ReplyTo, Rng, Token};
 use std::collections::BTreeSet;
 
 const DRAW_SOURCE: u64 = 731;
 const DRAWN_SEEDS: usize = 64;
 const STEPS: usize = 96;
-const PERSON: Party = Party::Person(9);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Reached {
@@ -77,7 +76,7 @@ fn population(seed: u64) -> World {
     third.holdings = Box::new([slot(), write(3, 3)]);
     let mut fourth = task(4, &[]);
     fourth.holdings = Box::new([slot()]);
-    assert_eq!(world.make(PERSON, vec![first, second, third, fourth]), Reply::Made(vec![1, 2, 3, 4]));
+    assert_eq!(world.make(PERSON_PARTY, vec![first, second, third, fourth]), Reply::Made(vec![1, 2, 3, 4]));
     let mut fifth = task(5, &[]);
     fifth.funder = Funder::Task(1);
     let mut sixth = task(6, &[]);
@@ -294,7 +293,7 @@ fn amend(world: &mut World, task: u64, dependencies: &[u64], seen: &mut BTreeSet
         },
         places,
         reply_to,
-        by: PERSON,
+        by: PERSON_PARTY,
         funder: None,
     });
     match world.replies.get(&call).expect("amendment reply") {
@@ -366,8 +365,8 @@ fn control(world: &mut World, operation: TaskOperation) {
     let call = reply_to.into_token().raw();
     let reply_to = ReplyTo::new(Token::new(call));
     world.send(match operation {
-        TaskOperation::Cancel(operation) => Event::Cancel { reply_to, by: PERSON, operation },
-        TaskOperation::Release(operation) => Event::Release { reply_to, by: PERSON, operation },
+        TaskOperation::Cancel(operation) => Event::Cancel { reply_to, by: PERSON_PARTY, operation },
+        TaskOperation::Release(operation) => Event::Release { reply_to, by: PERSON_PARTY, operation },
         _ => unreachable!("control operation"),
     });
     match world.replies.get(&call).expect("control reply") {
@@ -396,7 +395,7 @@ fn compound(world: &mut World, operations: Vec<TaskOperation>, seen: &mut BTreeS
     let call = reply_to.into_token();
     world.send(Event::Compound {
         reply_to: ReplyTo::new(call),
-        by: jig_domain_tasks::Party::Person(9),
+        by: PERSON_PARTY,
         project: 1,
         operations: staged,
         period: 0,

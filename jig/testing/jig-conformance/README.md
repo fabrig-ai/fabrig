@@ -5,14 +5,16 @@ its promises (`domain/testing.md`, sections 5–6).
 
 An application implements `Application` in its ordinary world crate. It gives:
 
-- Its concrete root, configuration, events, deliveries, store keys and rows.
+- Its concrete root, configuration, events, deliveries and durable store.
 - Construction, step, release, readiness, timers and iteration reclamation.
 - Independent systems, scripted hosts and parties, plus their boundary
   translations. `observed` maps their evidence and durable rows into referee
   observations; it never reads the root's state.
-- Scenario policy and each effect kind's recovery class. Policy changes follow
-  authenticated requests and durable acceptance, independently of the root.
-- Its restart loads and row restoration, plus a conservative checked heap bound.
+- Scenario policy, whose `kinds` include each effect kind's recovery class. Policy
+  changes follow authenticated requests and durable acceptance, independently
+  of the root.
+- Initial cold-start events (`start`), retained-peer reconnection (`cold`),
+  and a scenario heap ceiling (`maximum`).
 
 `Harness` owns commit application, cold restarts, simulated time and the referee.
 Its ordered fake store holds and fails acknowledgements and pages loads slowly.

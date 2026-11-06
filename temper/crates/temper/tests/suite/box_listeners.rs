@@ -1,4 +1,6 @@
-//! The box holds serve's clients port before any forge is asked to start.
+//! The real box's first block and held socket (temper/docs/design/protocol/setup.md, 7.2 and 13.4).
+#[path = "../fake_backends/box_link.rs"]
+mod box_link;
 use skein_world::{Deadline, Expired};
 use std::{
     fs,
@@ -107,5 +109,54 @@ fn a_later_box_refuses_a_taken_port_naming_the_port_and_document() {
     assert!(diagnostic.contains(file.to_str().expect("UTF-8 scratch path")), "{diagnostic}");
     assert!(diagnostic.contains("cannot listen"), "{diagnostic}");
     assert!(output.stdout.is_empty(), "refused before steps start");
+    assert!(!diagnostic.contains("Open this link") && !diagnostic.contains("It signs you in"), "no block on refusal");
     fs::remove_dir_all(&root).expect("cleanup");
+}
+
+#[test]
+fn a_fresh_box_prints_its_block_and_nothing_else() {
+    let mut boxed = box_link::Boxed::start("first-block");
+    let link = boxed.link();
+    boxed.wait(|boxed| crate::support::boxed::serve_listening(&boxed.root().join("data")));
+    let (stdout, stderr, log) = boxed.stop();
+    assert!(stdout.strip_suffix(b"\n") == Some(link.as_slice()), "stdout is exactly the first link and its line feed");
+    assert!(
+        stderr == [box_link::PRELUDE, box_link::FOOTER].concat(),
+        "the complete sign-in block, with no lifecycle chatter"
+    );
+    let mut remaining = log.as_str();
+    for fact in ["First run: ", "Logs: ", "Ctrl-C stops temper.", "Starting serve", "Stopping", "Stopped"] {
+        let entry =
+            remaining.lines().find(|line| line.get(10..).is_some_and(|text| text.starts_with(fact))).expect(fact);
+        let time = entry.get(..10).expect("UTC timestamp").as_bytes();
+        assert!(
+            time.iter().enumerate().all(|(at, byte)| match at {
+                2 | 5 => *byte == b':',
+                8 => *byte == b'Z',
+                9 => *byte == b' ',
+                _ => byte.is_ascii_digit(),
+            }),
+            "HH:MM:SSZ prefix"
+        );
+        remaining = remaining.split_once(entry).expect("ordered lifecycle fact").1;
+    }
+    assert!(!log.contains("http://") && !log.contains("secret="), "box.log holds no link");
+}
+
+#[test]
+fn the_first_link_opened_at_once_waits_and_signs_in() {
+    let mut boxed = box_link::Boxed::start("first-open");
+    let link = boxed.link();
+    let connected = std::net::TcpStream::connect(box_link::address(&link));
+    let listening = crate::support::boxed::serve_listening(&boxed.root().join("data"));
+    eprintln!("serve.log had listening clients at the first connect: {listening}; early open: {}", !listening);
+    let connected = connected.expect("the first link's socket accepts immediately");
+    drop(connected);
+    assert!(box_link::signs_in(boxed.root(), "first-client", &link), "the block's very first link signs in as owner");
+    let (stdout, stderr, _) = boxed.stop();
+    assert!(
+        stdout.strip_suffix(b"\n") == Some(link.as_slice()),
+        "signing in with the first link prints no second link"
+    );
+    assert!(stderr == [box_link::PRELUDE, box_link::FOOTER].concat(), "no fresh-link separator");
 }

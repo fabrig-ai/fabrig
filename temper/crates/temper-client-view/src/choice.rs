@@ -217,7 +217,7 @@ fn panel(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bind
 
 /// The chat bar's account and model, with the chooser behind it (client/README.md, 3.5).
 pub(crate) fn byline(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bindings: &mut Bindings) {
-    let line = using_words(root, task, w, LineForm::Byline);
+    let line = using_words(root, task, root.pages().choice().project(), w, LineForm::Byline);
     let text = match task {
         Some(task) => w.say(W::BylineTask, &[Hole::Number(task.chip.task), Hole::Name(line.text)]),
         None => line.text,
@@ -240,6 +240,20 @@ pub(crate) fn byline(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: 
         b.text(skein_ui::Run::Plain, &text);
     }
     b.close();
+}
+
+/// The composer's line's words for a byline with nothing behind it (client/README.md, 3.5).
+pub(crate) fn byline_words(root: &Domain, task: Option<&c::Task>, project: u32, w: &Words) -> Box<[u8]> {
+    if task.is_none() {
+        let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else {
+            return Box::default();
+        };
+        let Some(models) = choice::models(me, project) else { return Box::default() };
+        if models.is_empty() {
+            return Box::default();
+        }
+    }
+    using_words(root, task, Some(project), w, LineForm::Byline).text
 }
 
 /// Feedback and the no-model offer stay above the composer (client/README.md, 5.5).
@@ -487,7 +501,7 @@ fn selected_line(w: &Words, word: W, holes: &[Hole], form: LineForm) -> UsingLin
     UsingLine { text: w.say(word, holes), usage: None }
 }
 pub(crate) fn using(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words) {
-    let line = using_words(root, task, w, LineForm::Composer);
+    let line = using_words(root, task, root.pages().choice().project(), w, LineForm::Composer);
     b.open(Role::Paragraph);
     b.style(crate::look::ACCOUNT_LINE);
     b.name(&line.text);
@@ -508,13 +522,13 @@ fn usage_link(b: &mut Builder, w: &Words, address: Option<&[u8]>) {
         b.close();
     }
 }
-fn using_words(root: &Domain, task: Option<&c::Task>, w: &Words, form: LineForm) -> UsingLine {
+fn using_words(root: &Domain, task: Option<&c::Task>, project: Option<u32>, w: &Words, form: LineForm) -> UsingLine {
     let draft = root.pages().choice();
     let choice = match task {
         Some(_) => draft.original.as_ref(),
         None => draft.requested.as_ref(),
     };
-    match model_words(root, task, choice, draft.project(), w) {
+    match model_words(root, task, choice, project, w) {
         Some((name, provider)) => {
             let name = if task.is_none() && form == LineForm::Byline { new_chat_model(root, w) } else { name };
             using_line(root, task, choice, provider, name, w, form)

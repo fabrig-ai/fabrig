@@ -65,11 +65,22 @@ pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<O
     Ok(bundle)
 }
 pub(crate) fn run(source: &Directories, bundle: Option<&Path>, echo: temper_box::host::Echo) -> Result<Exit, String> {
-    let adapter = sibling(&std::env::current_exe().map_err(|why| why.to_string())?)?;
+    let binary = std::env::current_exe().map_err(|why| why.to_string())?;
+    let adapter = sibling(&binary)?;
     let Prepared { directories, bytes, mut listeners, peers, _lock: lock } = prepare(source, bundle, &adapter)?;
     let first = backends::steps(&directories.config, &peers);
-    let result =
-        crate::box_command::run_configuration(&directories, &bytes, std::mem::take(&mut listeners.0), first, echo);
+    let opening = crate::box_command::Opening {
+        log_lines: Box::new([]),
+        after_block: opening_lines(&directories, &peers, &binary),
+    };
+    let result = crate::box_command::run_configuration(
+        &directories,
+        &bytes,
+        std::mem::take(&mut listeners.0),
+        first,
+        echo,
+        opening,
+    );
     drop(lock);
     result
 }
@@ -404,29 +415,34 @@ fn provisioned_bundle(path: Option<&Path>, limits: temper_service::limits::Clien
         crate::bundle::read(path.as_os_str().as_bytes(), limits).map_err(|why| format!("{why}; {instructions}"))?;
     Ok(path.to_path_buf())
 }
-fn print(dirs: &Directories, peers: &Peers, binary: &Path) {
-    eprintln!("box: effective configuration {}", crate::path(&dirs.config).display());
-    eprintln!("box: effective data {}", crate::path(&dirs.data).display());
-    eprintln!("box: effective cache {}", crate::path(&dirs.cache).display());
+fn opening_lines(dirs: &Directories, peers: &Peers, binary: &Path) -> Box<[u8]> {
+    let mut lines = vec![
+        format!("box: effective configuration {}", crate::path(&dirs.config).display()),
+        format!("box: effective data {}", crate::path(&dirs.data).display()),
+        format!("box: effective cache {}", crate::path(&dirs.cache).display()),
+    ];
     let forgejo = temper_fake::forge::Document::decode(
         &peer_document(dirs, "forgejo.json", temper_fake::DOCUMENT_BYTES).expect("validated forgejo document"),
     )
     .expect("validated forgejo document");
-    for line in peer_lines(peers, &forgejo) {
-        eprintln!("{line}");
-    }
+    lines.extend(peer_lines(peers, &forgejo));
     // Retained peer documents may select another key file under effective data.
     let model = temper_fake::llm::Document::decode(
         &peer_document(dirs, "llm.json", temper_fake::DOCUMENT_BYTES).expect("validated model document"),
     )
     .expect("validated model document");
-    eprintln!("box: model key {}", crate::path(model.key()).display());
-    eprintln!(
+    lines.push(format!("box: model key {}", crate::path(model.key()).display()));
+    lines.push(format!(
         "box: Forgejo elsewhere admin token file {}",
         crate::path(&dirs.data).join("forgejo-admin.token").display()
-    );
-    eprintln!("box: program login: {}", program_login_line(dirs, binary));
-    eprintln!("box: GitHub own App id 1, key file {}", crate::path(&dirs.data).join("github-app.pem").display());
+    ));
+    lines.push(format!("box: program login: {}", program_login_line(dirs, binary)));
+    lines.push(format!(
+        "box: GitHub own App id 1, key file {}",
+        crate::path(&dirs.data).join("github-app.pem").display()
+    ));
+    lines.push(String::new());
+    lines.join("\n").into_bytes().into_boxed_slice()
 }
 fn peer_lines(peers: &Peers, forgejo: &temper_fake::forge::Document) -> Vec<String> {
     let mut lines = Vec::new();
@@ -530,7 +546,6 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
         let content = public(&effective.document())?;
         let peers = checked_peers(&effective, &content)?;
         let bytes = replace_bundle(&effective, content, bundle, adapter)?;
-        print(&effective, &peers, &binary);
         return Ok(Prepared { directories: effective, bytes, listeners: Listeners(Vec::new()), peers, _lock: lock });
     }
     let written = crate::init::write_with_program(
@@ -605,7 +620,6 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
     {
         held.0.push((Fd::new(listener.into_raw_fd()), NonZeroU16::new(address.port()).expect("checked peer port")));
     }
-    print(&effective, &peers, &binary);
     Ok(Prepared { directories: effective, bytes: documents.temper, listeners: held, peers, _lock: lock })
 }
 #[cfg(test)]

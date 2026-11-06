@@ -4,6 +4,374 @@ use alloc::boxed::Box;
 use skein_io::kernel::{Done, Exit, Target};
 use skein_lib::{Duration, List, bytes};
 use skein_sim::{Event, Summary};
+use temper_forge_setup::Step;
+
+const FIRST_URL: &[u8] = b"http://local/first";
+const FIRST_SECRET: &[u8] = &[0x83; 32];
+const AFTER_BLOCK: &[u8] = b"Additional startup information.\n";
+fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Harness {
+    Harness::with_terminal(
+        temper_forge_setup::Steps { always: Box::from(steps), asked: Box::new([]) },
+        items,
+        true,
+        16_384,
+        &crate::limits::small(),
+        crate::host::Echo::None,
+        super::fixtures::Opening {
+            log_lines: Box::new([]),
+            first_link: Some(crate::host::FirstLink {
+                url: bytes::copy_of(FIRST_URL),
+                secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
+            }),
+            after_block: bytes::copy_of(AFTER_BLOCK),
+        },
+    )
+}
+fn stop_first_link(h: &mut Harness) {
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+#[test]
+fn the_block_is_the_terminal_before_any_spawn() {
+    use skein_fake_machine::Item;
+    let mut h = first_link_harness(
+        &[long(b"serve", &[b"never"])],
+        &[Item::directory(b"box"), Item::directory(b"box/logs"), Item::file(b"box/logs/serve.log", b"last run\n")],
+    );
+    h.hold_terminal_ack = true;
+    h.run_until_idle();
+    assert!(h.launches.is_empty());
+    assert_eq!(h.stderr().as_ref(), crate::terminal::PRELUDE);
+    assert!(h.stdout().is_empty());
+    let root = h.machine.reopen_root(0);
+    let old = h.machine.open(root, b"box/logs.previous/serve.log", skein_fake_machine::How::ReadNoFollow).unwrap();
+    assert_eq!(h.machine.read(old, 0, 128).unwrap().as_slice(), b"last run\n");
+    h.machine.close(old);
+    h.machine.close(root);
+    h.release_terminal_ack();
+    h.run_until_idle();
+    assert_eq!(h.stdout().as_ref(), b"http://local/first\n");
+    assert_eq!(h.stderr().as_ref(), crate::lines::joined(&[crate::terminal::FOOTER, AFTER_BLOCK]).as_ref());
+    assert_eq!(h.launches.len(), 1);
+    stop_first_link(&mut h);
+    assert!(!Harness::contains(&h.terminal_bytes(), crate::terminal::CTRL_C));
+    assert!(Harness::contains(&h.log(), b"Logs: /data/box/logs/\n00:00:00Z Ctrl-C stops temper.\n"));
+}
+#[test]
+fn a_held_block_holds_the_first_spawn() {
+    use skein_shell::Host;
+    let mut h = first_link_harness(&[long(b"serve", &[b"never"])], &[]);
+    h.hold_terminal_ack = true;
+    h.run_until_idle();
+    assert!(!h.held_terminal_ack.is_empty());
+    assert!(h.launches.is_empty(), "even a written prelude still awaits its acknowledgement");
+    assert!(!h.service.work_pending(h.sim.now()), "a held write lets the host sleep");
+    for (target, expected) in
+        [(h.stdout, b"http://local/first\n".as_slice()), (h.stderr, crate::terminal::FOOTER), (h.stderr, AFTER_BLOCK)]
+    {
+        h.release_terminal_ack();
+        h.turn();
+        h.hold_terminal_ack = true;
+        h.run_until_idle();
+        assert!(h.launches.is_empty(), "each item holds startup until its write is acknowledged");
+        assert!(!h.held_terminal_ack.is_empty());
+        assert!(!h.service.work_pending(h.sim.now()));
+        let got = if target == h.stdout { h.stdout() } else { h.stderr() };
+        let expected = if expected == crate::terminal::FOOTER {
+            crate::lines::joined(&[crate::terminal::PRELUDE, expected])
+        } else {
+            bytes::copy_of(expected)
+        };
+        assert_eq!(got, expected);
+    }
+    h.release_terminal_ack();
+    h.run_until_idle();
+    assert_eq!(
+        h.terminal_bytes(),
+        crate::lines::joined(&[crate::terminal::PRELUDE, FIRST_URL, b"\n", crate::terminal::FOOTER, AFTER_BLOCK,])
+    );
+    assert_eq!(h.launches.len(), 1);
+    stop_first_link(&mut h);
+}
+fn stdin_pipes(launch: &super::fixtures::Launch) -> u32 {
+    let mut count = 0_u32;
+    for pipe in &launch.pipes {
+        if pipe.child == 0 {
+            count = count.checked_add(1).unwrap();
+        }
+    }
+    count
+}
+fn assert_spawn_carries_no_link(launch: &super::fixtures::Launch) {
+    for value in launch.args.iter().chain(launch.environment.iter()) {
+        assert!(!Harness::contains(value, FIRST_SECRET), "spawn metadata contains secret bytes");
+        assert!(!Harness::contains(value, FIRST_URL), "spawn metadata contains the link");
+    }
+}
+#[test]
+fn the_secret_is_on_serves_first_stdin_alone() {
+    use skein_io::kernel::Way;
+    let mut h = first_link_harness(
+        &[
+            long(b"other", &[b"never"]),
+            long(b"serve", &[b"never"]).listening(Box::new([([127, 0, 0, 1], 8124).into()])),
+        ],
+        &[],
+    );
+    h.run_until_idle();
+    for launch in &h.launches {
+        assert_spawn_carries_no_link(launch);
+        let mut stdin = List::with_capacity(1);
+        for pipe in &launch.pipes {
+            if pipe.child == 0 {
+                stdin.push(pipe).expect("one stdin pipe");
+            }
+        }
+        if launch.name.as_ref() == b"serve" {
+            assert_eq!(stdin.len(), 1);
+            assert_eq!(stdin.get(0).unwrap().way, Way::In);
+            assert_eq!(stdin.get(0).unwrap().parent, None);
+            assert_eq!(launch.pipes.last().unwrap().child, 0);
+        } else {
+            assert!(stdin.is_empty(), "other steps receive no secret pipe");
+        }
+    }
+    let serve = h.child_index(b"serve");
+    let got = h.read_stdin(serve, 64);
+    assert!(got.as_ref() == FIRST_SECRET, "stdin holds exactly the secret bytes");
+    assert!(h.read_stdin(serve, 64).is_empty(), "the secret ends with EOF");
+    assert!(!Harness::contains(&h.log(), FIRST_SECRET));
+    assert!(!Harness::contains(&h.terminal_bytes(), FIRST_SECRET));
+    stop_first_link(&mut h);
+}
+#[test]
+fn a_restarted_serve_has_no_stdin_and_its_link_is_fresh() {
+    let mut h = first_link_harness(&[long(b"serve", &[b"never"])], &[]);
+    h.run_until_idle();
+    h.stdout();
+    h.stderr();
+    for url in [b"http://next\n".as_slice(), b"http://another\n"] {
+        h.write_child(h.child_index(b"serve"), 1, url);
+        h.run_until_idle();
+        assert_eq!(h.stdout().as_ref(), url);
+        assert_eq!(h.stderr().as_ref(), b"\n");
+    }
+    let pid = h.hosted.get(h.child_index(b"serve")).unwrap().pid;
+    h.sim.finish_service(pid, Exit::Code(1));
+    h.run_until_idle();
+    h.sim.advance_to(h.sim.now().saturating_add(Duration::from_millis(500)));
+    h.run_until_idle();
+    assert_eq!(h.launches.len(), 2);
+    let second = h.launches.get(1).unwrap();
+    assert_spawn_carries_no_link(second);
+    assert_eq!(stdin_pipes(second), 0);
+    h.stderr();
+    h.write_child(h.child_index(b"serve"), 1, b"http://fresh\n");
+    h.run_until_idle();
+    assert_eq!(h.stdout().as_ref(), b"http://fresh\n");
+    assert_eq!(h.stderr().as_ref(), b"\n");
+    stop_first_link(&mut h);
+}
+#[test]
+fn a_termination_before_the_block_is_written_starts_no_step() {
+    for before_rotation in [true, false] {
+        let mut h = first_link_harness(&[long(b"serve", &[b"never"])], &[]);
+        h.hold_terminal_ack = true;
+        if !before_rotation {
+            h.run_until_idle();
+        }
+        h.terminate();
+        h.run_until_idle();
+        assert!(h.launches.is_empty());
+        h.release_terminal_ack();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        assert!(h.launches.is_empty(), "stopping never starts the held step");
+        h.sim.assert_no_open_fds(h.pid);
+        assert_eq!(h.machine.open_handles(), 0);
+    }
+}
+
+#[test]
+fn a_failed_first_spawn_spends_the_secret() {
+    let mut h = first_link_harness(&[long(b"serve", &[b"never"])], &[]);
+    h.hold_spawn = Some(bytes::copy_of(b"serve"));
+    h.run_until_idle();
+    assert!(h.held_spawn.is_some());
+    assert_eq!(stdin_pipes(h.launches.get(0).unwrap()), 1);
+    h.fail_spawn();
+    h.run_until_idle();
+    h.sim.advance_to(h.sim.now().saturating_add(Duration::from_millis(500)));
+    h.run_until_idle();
+    assert_eq!(h.launches.len(), 2);
+    assert_eq!(stdin_pipes(h.launches.get(1).unwrap()), 0, "a refused first spawn spends the secret");
+    stop_first_link(&mut h);
+}
+#[test]
+fn startup_log_and_record_diagnostics_follow_the_block() {
+    use skein_fake_machine::Item;
+    let mut h = Harness::with_terminal(
+        grouped_steps(),
+        &[Item::directory(b"box"), Item::directory(b"box/started"), Item::file(b"box/started/3", b"").mode(0)],
+        true,
+        16_384,
+        &crate::limits::small(),
+        crate::host::Echo::None,
+        super::fixtures::Opening {
+            log_lines: Box::new([]),
+            first_link: Some(crate::host::FirstLink {
+                url: bytes::copy_of(FIRST_URL),
+                secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
+            }),
+            after_block: bytes::copy_of(AFTER_BLOCK),
+        },
+    );
+    h.refuse_log = Some(bytes::copy_of(b"serve.log"));
+    h.hold_terminal_ack = true;
+    h.run_until_idle();
+    assert_eq!(h.stderr().as_ref(), crate::terminal::PRELUDE);
+    assert!(h.stdout().is_empty());
+    assert!(h.launches.is_empty());
+    h.release_terminal_ack();
+    h.run_until_idle();
+    assert_eq!(h.stdout().as_ref(), b"http://local/first\n");
+    let stderr = h.stderr();
+    assert!(stderr.starts_with(&crate::lines::joined(&[crate::terminal::FOOTER, AFTER_BLOCK])));
+    assert!(Harness::contains(&stderr, b"box: cannot write /data/box/logs/serve.log"));
+    assert!(Harness::contains(&stderr, b"box: open box/started/3: permission denied"));
+    stop_first_link(&mut h);
+}
+#[test]
+fn with_no_first_link_after_block_is_at_the_start_and_the_first_serve_link_gets_the_block() {
+    let mut h = Harness::with_terminal(
+        temper_forge_setup::Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
+        &[],
+        true,
+        16_384,
+        &crate::limits::small(),
+        crate::host::Echo::None,
+        super::fixtures::Opening {
+            log_lines: Box::new([]),
+            first_link: None,
+            after_block: bytes::copy_of(AFTER_BLOCK),
+        },
+    );
+    h.run_until_idle();
+    assert_eq!(h.stderr().as_ref(), AFTER_BLOCK);
+    assert!(h.stdout().is_empty());
+    assert_eq!(stdin_pipes(h.launches.get(0).unwrap()), 0);
+    h.write_child(h.child_index(b"serve"), 1, b"http://first\n");
+    h.run_until_idle();
+    assert_eq!(h.stdout().as_ref(), b"http://first\n");
+    assert_eq!(h.stderr(), crate::lines::joined(&[crate::terminal::PRELUDE, crate::terminal::FOOTER]));
+    h.write_child(h.child_index(b"serve"), 1, b"http://later\n");
+    h.run_until_idle();
+    assert_eq!(h.stdout().as_ref(), b"http://later\n");
+    assert_eq!(h.stderr().as_ref(), b"\n");
+    stop_first_link(&mut h);
+}
+
+#[test]
+fn the_terminal_keeps_errors_alone_and_box_log_the_rest() {
+    for echo in [crate::host::Echo::None, crate::host::Echo::Steps] {
+        let mut h = Harness::configured_echo(grouped_steps(), &[], true, 16_384, &crate::limits::small(), echo);
+        h.wall = skein_lib::Wall::from_nanos(3_723_000_000_000);
+        h.run_until_idle();
+        h.ask(b"start 3\n");
+        h.run_until_idle();
+        h.ask(b"stop 3\n");
+        h.run_until_idle();
+        let forge = h.hosted.get(h.child_index(b"forgejo 3")).unwrap().pid;
+        h.sim.finish_service(forge, Exit::Code(0));
+        h.run_until_idle();
+        h.ask(b"unknown\n");
+        h.run_until_idle();
+        h.terminate();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        assert_eq!(h.stdout().as_ref(), b"");
+        assert_eq!(h.stderr().as_ref(), b"01:02:03Z box: serve: unknown pipe line\n");
+        assert_eq!(
+            h.log().as_ref(),
+            concat!(
+                "01:02:03Z Logs: /data/box/logs/\n",
+                "01:02:03Z Ctrl-C stops temper.\n",
+                "01:02:03Z Starting serve\n",
+                "01:02:03Z Forge 3 (Forgejo): starting\n",
+                "01:02:03Z Forge 3 (Forgejo): started\n",
+                "01:02:03Z Forge 3 (Forgejo): stopped\n",
+                "01:02:03Z Stopping\n01:02:03Z Stopped\n",
+            )
+            .as_bytes()
+        );
+    }
+}
+
+#[test]
+fn box_log_ends_with_stopped() {
+    let mut h = Harness::with_stubborn(&[long(b"serve", &[b"never"])], true);
+    h.run_until_idle();
+    h.hold_log_write = true;
+    h.terminate();
+    h.run_until_idle();
+    assert!(h.held_log_write.is_some(), "shutdown waits on its log write");
+    assert!(!h.log().ends_with(b"Stopped\n"));
+    h.release_log_write();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    assert!(h.log().ends_with(b"00:00:00Z Stopped\n"));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+
+#[test]
+fn a_blocked_terminal_holds_no_log_line_and_no_spawn() {
+    let mut h = Harness::with_stubborn(&[long(b"serve", &[b"never"])], true);
+    h.hold_terminal_ack = true;
+    crate::host::pressure::fill_terminal(&mut h.service);
+    h.run_until_idle();
+    assert!(!h.held_terminal_ack.is_empty(), "terminal write stays held");
+    assert!(Harness::contains(&h.log(), b"00:00:00Z Starting serve\n"));
+    assert_eq!(h.spawn_times(b"serve").len(), 1, "log placement lets the step spawn");
+    h.release_terminal_ack();
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+}
+
+#[test]
+fn an_unwritable_box_log_is_named_once_and_its_lines_follow() {
+    for create in [true, false] {
+        let mut h = Harness::with_stubborn(&[long(b"serve", &[b"never"])], true);
+        if create {
+            h.refuse_log = Some(bytes::copy_of(b"box.log"));
+        } else {
+            h.hold_log_write = true;
+        }
+        h.wall = skein_lib::Wall::from_nanos(3_723_000_000_000);
+        h.run_until_idle();
+        if !create {
+            assert!(h.held_log_write.is_some(), "first box line waits on its write");
+            h.fail_log_write();
+            h.run_until_idle();
+        }
+        h.terminate();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        assert_eq!(h.stdout().as_ref(), b"");
+        assert_eq!(
+            h.stderr().as_ref(),
+            concat!(
+                "01:02:03Z box: cannot write /data/box/logs/box.log: NoSpace; the step's lines follow here\n",
+                "01:02:03Z Logs: /data/box/logs/\n",
+                "01:02:03Z Starting serve\n",
+                "01:02:03Z Stopping\n01:02:03Z Stopped\n",
+            )
+            .as_bytes()
+        );
+        h.sim.assert_no_open_fds(h.pid);
+        assert_eq!(h.machine.open_handles(), 0);
+    }
+}
 
 #[test]
 fn the_steps_start_in_order_and_a_stop_leaves_no_child() {
@@ -102,7 +470,7 @@ fn a_once_step_that_fails_ends_the_box_with_exit_one() {
     let steps = [once(b"prepare", &[b"exit", b"1"]), long(b"forgejo", &[b"never"])];
     let mut harness = Harness::new(&steps);
     assert_eq!(harness.run_to_end(), Exit::Code(1));
-    assert_eq!(&*harness.stderr(), b"Logs: /data/box/logs/\nStarting prepare\nprepare exited 1; giving up\n");
+    assert_eq!(&*harness.stderr(), b"00:00:00Z prepare exited 1; giving up\n");
     assert_eq!(harness.spawn_times(b"forgejo").len(), 0, "failure never starts the next step");
 }
 #[test]
@@ -123,7 +491,7 @@ fn the_io_limits_are_usable_for_one_six_and_sixty_four_steps() {
     for count in [1_u32, 6, 64] {
         let limits = io_limits(count);
         assert!(limits.is_usable(), "usable for {count} steps");
-        assert_eq!(limits.sockets, count.saturating_mul(4).saturating_add(5));
+        assert_eq!(limits.sockets, count.saturating_mul(5).saturating_add(5));
         assert_eq!((limits.intake, limits.receive, limits.names), (LINE_BYTES, 1, 0));
         assert_eq!((limits.sends, limits.accepts, limits.backlog), (1, 1, 1));
         assert_eq!(limits.close_timeout, Duration::from_secs(5));
@@ -178,13 +546,18 @@ fn serves_pipe_lines_are_bounded_named_and_answered() {
         harness.ask(input);
         harness.run_until_idle();
         assert_eq!(&*harness.reply_bytes(), expected, "{name}");
-        let lifecycle =
-            if name == "ask" { b"Forge 3 (Forgejo): starting\nForge 3 (Forgejo): started\n".as_slice() } else { b"" };
-        assert_eq!(
-            &*harness.stderr(),
-            crate::lines::joined(&[b"Logs: /data/box/logs/\nStarting serve\n", lifecycle, diagnostic]).as_ref(),
-            "{name}"
-        );
+        let timed = if diagnostic.is_empty() {
+            bytes::copy_of(b"")
+        } else {
+            crate::lines::joined(&[b"00:00:00Z ", diagnostic])
+        };
+        assert_eq!(harness.stderr(), timed, "{name}");
+        if name == "ask" {
+            assert!(Harness::contains(
+                &harness.log(),
+                b"00:00:00Z Forge 3 (Forgejo): starting\n00:00:00Z Forge 3 (Forgejo): started\n"
+            ));
+        }
         if !diagnostic.is_empty() {
             harness.ask(b"start 99\n");
             harness.run_until_idle();
@@ -551,7 +924,7 @@ fn an_unrecorded_group_neither_probes_nor_writes_and_waits_at_every_box_start() 
         assert_eq!(harness.launches.len(), 1, "only serve starts");
         assert_eq!(
             harness.stderr().as_ref(),
-            b"box: cannot write /data/box/logs/: NotADirectory; the steps' lines follow here\nStarting serve\n",
+            b"00:00:00Z box: cannot write /data/box/logs/: NotADirectory; the steps' lines follow here\n00:00:00Z Logs: /data/box/logs/\n00:00:00Z Starting serve\n",
             "no probe of box/started/3"
         );
         harness.ask(b"start 3\n");
@@ -559,7 +932,7 @@ fn an_unrecorded_group_neither_probes_nor_writes_and_waits_at_every_box_start() 
         assert_eq!(&*harness.reply_bytes(), b"step 3 prepare\nstep 3 run\nstarted 3\n");
         assert_eq!(
             harness.stderr().as_ref(),
-            b"Forge 3 (Forgejo): starting\nForge 3 (Forgejo): started\n",
+            b"00:00:00Z Forge 3 (Forgejo): starting\n00:00:00Z Forge 3 (Forgejo): started\n",
             "unrecorded group emits its lifecycle without a record write"
         );
         let root = harness.machine.reopen_root(0);
@@ -592,7 +965,7 @@ fn a_pipe_stop_closes_only_its_group_keeps_the_record_and_can_be_started_again()
         harness.run_until_idle();
     }
     assert_eq!(&*harness.reply_bytes(), b"stopped 3\n");
-    assert!(Harness::contains(&harness.stderr(), b"Forge 3 (Forgejo): stopped\n"));
+    assert!(Harness::contains(&harness.log(), b"Forge 3 (Forgejo): stopped\n"));
     assert_eq!(harness.spawn_times(b"serve").len(), 1);
     assert_eq!(harness.spawn_times(b"forgejo 3").len(), 1);
     let root = harness.machine.reopen_root(0);
@@ -612,7 +985,7 @@ fn a_pipe_stop_closes_only_its_group_keeps_the_record_and_can_be_started_again()
 }
 
 #[test]
-fn a_group_stop_is_reported_on_stderr_after_the_control_pipe_closes() {
+fn a_group_stop_is_logged_after_the_control_pipe_closes() {
     let mut steps = grouped_steps();
     steps.asked.get_mut(0).unwrap().forge = 1;
     let mut harness = Harness::grouped(steps, &[], true);
@@ -623,8 +996,8 @@ fn a_group_stop_is_reported_on_stderr_after_the_control_pipe_closes() {
     harness.ask(b"stop 1\n");
     harness.run_until_idle();
     assert_eq!(
-        harness.stderr().as_ref(),
-        b"Logs: /data/box/logs/\nStarting serve\nForge 3 (Forgejo): starting\nForge 3 (Forgejo): started\n",
+        harness.log().as_ref(),
+        b"00:00:00Z Logs: /data/box/logs/\n00:00:00Z Ctrl-C stops temper.\n00:00:00Z Starting serve\n00:00:00Z Forge 3 (Forgejo): starting\n00:00:00Z Forge 3 (Forgejo): started\n",
         "the group has not closed"
     );
     let serve = harness.hosted.get(harness.serve_index()).unwrap().pid;
@@ -633,7 +1006,8 @@ fn a_group_stop_is_reported_on_stderr_after_the_control_pipe_closes() {
     harness.sim.finish_service(forge, Exit::Code(0));
     harness.run_until_idle();
     assert!(harness.reply_bytes().is_empty(), "the old control pipe has closed");
-    assert_eq!(&*harness.stderr(), b"serve exited 1; restarting in 0.5 s\nForge 3 (Forgejo): stopped\n");
+    assert_eq!(&*harness.stderr(), b"00:00:00Z serve exited 1; restarting in 0.5 s\n");
+    assert!(harness.log().ends_with(b"00:00:00Z Forge 3 (Forgejo): stopped\n"));
     harness.terminate();
     assert_eq!(harness.run_to_end(), Exit::Code(0));
     harness.sim.assert_quiescent(harness.pid);
@@ -815,15 +1189,14 @@ fn split_links_and_diagnostics_form_ordered_first_fresh_and_restarted_blocks() {
     assert_eq!(
         harness.terminal_bytes().as_ref(),
         concat!(
-            "Logs: /data/box/logs/\nStarting serve\nStarting diagnostic\ndiagnostic: interposed\n",
-            "\nOpen this link in a browser on this machine. It signs you in as this\n",
-            "temper's owner, once and for a short while, so keep it private.\n",
-            "Opened again once spent, it prints a fresh one here.\n\n",
-            "http://first/link\n\nCtrl-C stops temper.\n\n",
-            "diagnostic: between refresh pieces\n23:59:59Z A fresh sign-in link:\nhttp://fresh\n",
+            "diagnostic: interposed\n",
+            "Open this link in a browser on this machine.\n\n",
+            "http://first/link\n",
+            "\nIt signs you in as this temper's owner, once and for a short while.\n",
+            "Opened again once spent, it prints a fresh one here.\n",
+            "diagnostic: between refresh pieces\n\nhttp://fresh\n",
             "23:59:59Z serve exited 0; restarting in 0.5 s\n",
-            "00:00:00Z Starting serve\n00:00:00Z A fresh sign-in link:\nhttp://restart\n",
-            "00:00:00Z Stopping\n00:00:00Z Stopped\n",
+            "\nhttp://restart\n",
         )
         .as_bytes()
     );
@@ -859,10 +1232,7 @@ fn held_output_preserves_completion_wall_and_blocks_both_descriptors() {
     harness.release_terminal_ack();
     harness.run_until_idle();
     let all = harness.terminal_bytes();
-    assert!(
-        Harness::contains(&all, b"23:59:59Z A fresh sign-in link:\nfresh\n"),
-        "completion time survives admission pressure: {all:?}"
-    );
+    assert!(Harness::contains(&all, b"\nfresh\n"), "a fresh link stays untimed under admission pressure");
     assert!(Harness::contains(&all, b"diagnostic: later diagnostic\n"));
     harness.terminate();
     assert_eq!(harness.run_to_end(), Exit::Code(0));
@@ -886,7 +1256,7 @@ fn serve_overflow_is_refused_without_bytes_then_eof_link_and_diagnostic_drain() 
     assert_eq!(harness.stdout().as_ref(), b"good\nlast\n");
     let output = harness.terminal_bytes();
     assert!(!Harness::contains(&output, b"xxxx"), "no refused URL prefix or tail is written");
-    assert!(Harness::contains(&output, b"box: serve: sign-in link too long\n\nOpen this link"));
+    assert!(Harness::contains(&output, b"box: serve: sign-in link too long\nOpen this link"));
     assert!(Harness::contains(&output, b"diagnostic: EOF fragment\n"));
     harness.sim.assert_quiescent(harness.pid);
     harness.sim.assert_no_open_fds(harness.pid);
@@ -907,7 +1277,7 @@ fn output_ack_drains_loaded_orders_without_spinning_or_losing_items() {
     harness.run_until_idle();
     let output = harness.terminal_bytes();
     assert_eq!(bytes::count(&output, b"queued\n", queued.saturating_add(1)), queued);
-    assert_eq!(bytes::count(&output, b"Stopping\n", orders.saturating_add(1)), orders);
+    assert_eq!(bytes::count(&output, b"busy; giving up\n", orders.saturating_add(1)), orders);
     assert!(crate::host::pressure::bounded(&harness.service));
     harness.terminate();
     assert_eq!(harness.run_to_end(), Exit::Code(0));
@@ -941,11 +1311,12 @@ fn a_legacy_handoff_does_not_print_or_mark_the_first_block() {
     harness.run_until_idle();
     harness.write_child(harness.child_index(b"serve"), 1, b"held\n");
     harness.run_until_idle();
-    assert_eq!(harness.terminal_bytes().as_ref(), b"Logs: /data/box/logs/\nStarting serve\nStarting seed\n");
+    assert!(harness.terminal_bytes().is_empty());
+    assert!(Harness::contains(&harness.log(), b"00:00:00Z Starting serve\n00:00:00Z Starting seed\n"));
     assert_eq!(harness.read_stdin(harness.child_index(b"seed"), LINE_BYTES).as_ref(), b"held\n");
     harness.write_child(harness.child_index(b"serve"), 1, b"visible\n");
     harness.run_until_idle();
-    assert!(Harness::contains(&harness.terminal_bytes(), b"\nOpen this link in a browser on this machine."));
+    assert!(Harness::contains(&harness.terminal_bytes(), b"Open this link in a browser on this machine."));
     assert_eq!(harness.stdout().as_ref(), b"visible\n");
     harness.terminate();
     assert_eq!(harness.run_to_end(), Exit::Code(0));
@@ -967,10 +1338,7 @@ fn labelled_group_failure_keeps_serve_usable_and_wire_replies_numeric() {
         harness.ask(b"start 3\n");
         harness.run_until_idle();
         assert_eq!(harness.reply_bytes().as_ref(), b"step 3 prepare\nfailed 3 prepare 3 exited 7\n");
-        assert_eq!(
-            harness.stderr().as_ref(),
-            b"00:00:00Z other label\xff: starting\n00:00:00Z other label\xff: failed, prepare 3 exited 7\n"
-        );
+        assert_eq!(harness.stderr().as_ref(), b"00:00:00Z other label\xff: failed, prepare 3 exited 7\n");
         harness.read_reply(256);
         harness.replies.clear();
         harness.ask(b"start 99\n");
@@ -1013,7 +1381,7 @@ fn lifecycle_facts_keep_source_wall_and_order_under_terminal_backpressure() {
     harness.hold_terminal_ack = true;
     harness.write_child(harness.child_index(b"other"), 2, b"held\n");
     harness.run_until_idle();
-    for words in [b"queued one\n".as_slice(), b"queued two\n"] {
+    for words in [b"queued one\n".as_slice(), b"queued two\n", b"queued three\n"] {
         harness.write_child(harness.child_index(b"other"), 2, words);
         harness.run_until_idle();
     }
@@ -1022,7 +1390,7 @@ fn lifecycle_facts_keep_source_wall_and_order_under_terminal_backpressure() {
     harness.sim.finish_service(serve, Exit::Signal(9));
     harness.run_until_idle();
     // Both the restart decision and its monotonic timer progress while output
-    // waits for its ACK. The Starting fact then waits in the same ordered FIFO.
+    // waits for its ACK. The Starting fact reaches the box log independently.
     harness.wall = Wall::from_nanos(86_400_000_000_000);
     harness.sim.advance_to(harness.sim.now().saturating_add(limits.backoff));
     harness.run_until_idle();
@@ -1052,7 +1420,8 @@ fn lifecycle_facts_keep_source_wall_and_order_under_terminal_backpressure() {
     harness.release_terminal_ack();
     harness.run_until_idle();
     let output = harness.terminal_bytes();
-    assert!(Harness::contains(&output, b"other: held\nother: queued one\nother: queued two\n23:59:59Z serve killed by signal 9; restarting in 0.5 s\n00:00:00Z Starting serve\n00:00:00Z serve exited 0; giving up\n"), "source walls and decision order survive output delay: {output:?}");
+    assert!(Harness::contains(&output, b"other: held\nother: queued one\nother: queued two\nother: queued three\n23:59:59Z serve killed by signal 9; restarting in 0.5 s\n00:00:00Z serve exited 0; giving up\n"), "source walls and decision order survive output delay: {output:?}");
+    assert!(Harness::contains(&harness.log(), b"00:00:00Z Starting serve\n"));
     assert_eq!(bytes::count(&output, b"giving up\n", 2), 1);
     assert_eq!(harness.service.exit(), None, "giving up is visible before the stubborn other child closes");
     assert_eq!(harness.run_to_end(), Exit::Code(1));
@@ -1091,15 +1460,7 @@ fn long_labels_pass_actual_output_admission_with_tiny_control_and_write_caps() {
             harness.run_until_idle();
         }
         assert_eq!(received.as_slice(), expected_reply.as_ref(), "wire WHY is still truncated to the 64-byte line cap");
-        let expected = crate::lines::joined(&[
-            b"23:59:59Z ",
-            &label,
-            b": starting\n23:59:59Z ",
-            &label,
-            b": failed, ",
-            &name,
-            b" exited 255\n",
-        ]);
+        let expected = crate::lines::joined(&[b"23:59:59Z ", &label, b": failed, ", &name, b" exited 255\n"]);
         assert!(
             Harness::contains(&harness.terminal_bytes(), &expected),
             "long lifecycle lines must actually write with buffer {buffer}"
@@ -1118,6 +1479,7 @@ fn an_unsent_restart_is_withdrawn_while_old_output_waits_on_the_terminal() {
     let mut harness = Harness::with_stubborn(&[long(b"serve", &[b"never"])], true);
     harness.hold_terminal_ack = true;
     harness.run_until_idle();
+    crate::host::pressure::fill_terminal(&mut harness.service);
     let serve = harness.child_index(b"serve");
     harness.write_child(serve, 1, b"x");
     harness.run_until_idle();
@@ -1226,6 +1588,7 @@ fn a_spawn_order_ahead_of_a_blocked_stop_notice_still_never_launches() {
     let mut harness = Harness::with_stubborn(&[once(b"prepare", &[b"never"]), long(b"serve", &[b"never"])], true);
     harness.hold_terminal_ack = true;
     harness.run_until_idle();
+    crate::host::pressure::fill_terminal(&mut harness.service);
     let prepare = harness.child_index(b"prepare");
     for line in [b"one\n".as_slice(), b"two\n", b"three\n", b"four\n"] {
         harness.write_child(prepare, 1, line);
@@ -1280,8 +1643,8 @@ fn admitted_termination_load_precedes_a_due_restart_timer() {
     harness.sim.advance_to(harness.sim.now().saturating_add(Duration::from_millis(500)));
     assert_eq!(harness.run_to_end(), Exit::Code(0));
     assert_eq!(harness.spawn_times(b"serve").len(), 1, "admitted stop wins over the expired retry");
-    assert_eq!(bytes::count(&harness.terminal_bytes(), b"Stopping\n", 2), 1);
-    assert_eq!(bytes::count(&harness.terminal_bytes(), b"Stopped\n", 2), 1);
+    assert_eq!(bytes::count(&harness.log(), b"Stopping\n", 2), 1);
+    assert_eq!(bytes::count(&harness.log(), b"Stopped\n", 2), 1);
     harness.sim.assert_quiescent(harness.pid);
     harness.sim.assert_no_open_fds(harness.pid);
 }
@@ -1545,12 +1908,21 @@ fn an_absent_group_file_does_not_reset_a_numbered_groups_live_state() {
 }
 
 #[test]
-fn debug_of_the_settings_shows_the_environments_count_never_its_entries() {
+fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
     use crate::host::{Echo, Service, Settings};
     use skein_io::kernel::Fd;
 
     let canary = b"TOKEN=canary-7f3a9c";
+    let link = crate::host::FirstLink {
+        url: bytes::copy_of(FIRST_URL),
+        secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
+    };
+    let link_debug = alloc::fmt::format(format_args!("{link:?}"));
+    assert!(link_debug == "FirstLink { .. }", "FirstLink Debug hides both fields");
     let settings = Settings {
+        first_link: Some(link),
+        after_block: Box::new([]),
+        log_lines: Box::new([]),
         program: bytes::copy_of(b"process_fixture"),
         environment: Box::new([bytes::copy_of(b"HOME=/box"), bytes::copy_of(canary)]),
         serve: bytes::copy_of(b"serve"),
@@ -1563,7 +1935,7 @@ fn debug_of_the_settings_shows_the_environments_count_never_its_entries() {
         stderr: Fd::new(2),
     };
     let expected = alloc::fmt::format(format_args!(
-        "Settings {{ program: {:?}, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
+        "Settings {{ program: {:?}, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, log_lines: [], first_link: Some(FirstLink {{ .. }}), after_block_bytes: 0, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
         settings.program,
         settings.serve,
         settings.listeners,
@@ -1585,13 +1957,15 @@ fn debug_of_the_settings_shows_the_environments_count_never_its_entries() {
     let canary_debug = alloc::fmt::format(format_args!("{canary:?}"));
     let home_debug = alloc::fmt::format(format_args!("{:?}", b"HOME=/box"));
     for debug in [&settings_debug, &service_debug] {
+        assert!(!debug.contains(&alloc::fmt::format(format_args!("{FIRST_URL:?}"))));
+        assert!(!debug.contains(&alloc::fmt::format(format_args!("{FIRST_SECRET:?}"))));
         assert!(!debug.contains("canary-7f3a9c"));
         assert!(!debug.contains(&canary_debug));
         assert!(!debug.contains("HOME=/box"));
         assert!(!debug.contains(&home_debug));
         assert!(debug.contains("environment_entries: 2"));
     }
-    assert_eq!(settings_debug, expected);
+    assert!(settings_debug == expected, "Settings Debug exposes only safe fields");
     assert!(service_debug.contains(&expected));
 }
 
@@ -1682,7 +2056,7 @@ fn no_terminal_shows_a_fetch_line() {
         if echo == Echo::None && !refused {
             assert!(Harness::contains(
                 &terminal,
-                b"    fetch 3: download refused\n    Log: /data/box/logs/fetch-3.log\n"
+                b"00:00:00Z     fetch 3: download refused\n00:00:00Z     Log: /data/box/logs/fetch-3.log\n"
             ));
         }
         if !refused {
@@ -1785,8 +2159,8 @@ fn owned_hands_wait_for_the_log_slot_keep_their_time_and_never_echo() {
         assert!(h.held_log_write.is_some());
         h.release_spawn();
         h.run_until_idle();
-        assert!(Harness::contains(&h.terminal_bytes(), b"01:02:03Z Forge 3 (Forgejo): starting\n"));
-        assert!(Harness::contains(&h.terminal_bytes(), b"01:02:03Z Forge 3 (Forgejo): started\n"));
+        assert!(Harness::contains(&h.log(), b"01:02:03Z Forge 3 (Forgejo): starting\n"));
+        assert!(!Harness::contains(&h.log(), b"Forge 3 (Forgejo): started\n"), "the busy log holds the line");
         receive_replies(&mut h, b"step 3 run\nstarted 3\n");
         assert!(!h.service.work_pending(h.sim.now()), "a busy log waits for its completion");
         // Serve's sign-in channel progresses while the diagnostic log is busy.
@@ -1803,12 +2177,12 @@ fn owned_hands_wait_for_the_log_slot_keep_their_time_and_never_echo() {
         h.machine.close(fd);
         h.machine.close(root);
         let output = h.terminal_bytes();
-        assert_eq!(bytes::count(&output, b"01:02:03Z Forge 3 (Forgejo): started\n", 2), 1);
+        assert_eq!(bytes::count(&h.log(), b"01:02:03Z Forge 3 (Forgejo): started\n", 2), 1);
         assert!(!Harness::contains(&output, b"Forgejo: api "));
         assert!(!Harness::contains(&output, b"Forgejo: person "));
         h.ask(b"start 3\n");
         h.run_until_idle();
-        assert_eq!(bytes::count(&h.terminal_bytes(), b"Forge 3 (Forgejo): started\n", 2), 1, "a reask is wire-only");
+        assert_eq!(bytes::count(&h.log(), b"Forge 3 (Forgejo): started\n", 2), 1, "a reask is wire-only");
         h.terminate();
         assert_eq!(h.run_to_end(), Exit::Code(0));
         h.sim.assert_quiescent(h.pid);
@@ -1840,10 +2214,7 @@ fn bound_kind_labels_follow_the_number_through_start_stop_and_failure() {
                 crate::lines::joined(&[b"Forge ", number.as_bytes(), b" (Forgejo)"])
             };
             for suffix in [b": starting\n".as_slice(), b": started\n", b": stopped\n"] {
-                assert!(Harness::contains(
-                    &h.terminal_bytes(),
-                    &crate::lines::joined(&[b"00:00:00Z ", &expected, suffix])
-                ));
+                assert!(Harness::contains(&h.log(), &crate::lines::joined(&[b"00:00:00Z ", &expected, suffix])));
             }
             h.hold_spawn = Some(b"fake-forge".as_slice().into());
             h.ask(&start);
