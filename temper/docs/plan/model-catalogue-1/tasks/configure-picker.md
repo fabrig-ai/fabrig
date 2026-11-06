@@ -98,3 +98,14 @@ acceptance 2 here. They now belong to this task's `files`, beyond "compile or wo
    `every_byline_keeps_the_accounts_provider_with_its_models` keeps its provider and account assertions unchanged.
 
 Break each repaired rule once to see it bite, then rerun the failed checks and the closing checks, clippy included.
+
+## Rebase (2026-11-06, step merge, foreman model-catalogue-1/configure-picker/foreman-2)
+
+reconcile words.rs vocabulary counts with the integration branch
+The merge conflicts only in `temper/crates/temper-client-view/src/words.rs`.
+Integration commit `4373c7d8d8` updates the English vocabulary counts for executable-aware login commands.
+Preserve those changes alongside this task’s Configure words, two `Name` holes, and `ConfigurePlan`/`ConfigureKey` entries and IDs.
+Regenerate the combined declarations using `tests::accounts::english_phrase_declarations_match_the_vocabulary` with `SKEIN_CODEGEN_WRITE=1`, through heavy.
+For the inspected integration tip, the combined counts should be `PHRASES = 1864`, `SEGMENTS = 3269`, `ENGLISH_BYTES = 45432`, with `ALL` length 1264.
+Run the declaration test again without write mode, then the task’s required closing checks.
+Keep the automatically merged `temper/docs/design/client/README.status.md` changes from both sides.
