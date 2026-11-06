@@ -25,7 +25,12 @@ pub(crate) fn relay_payload(
         domain.work.push(Work::Core(core::Event::NamedAction {
             to: reply_to,
             key,
-            action: core::NamedAction::ReadTask { task, field, from },
+            action: core::NamedAction::ReadTask {
+                task,
+                field,
+                from,
+                room: crate::limits::task_read_room(&domain.limits),
+            },
         }));
         return;
     }
