@@ -2,6 +2,8 @@
 
 2026-11-06. Where temper's code lags or departs from [configuration.md](configuration.md).
 
+Section 7 has no known gap in the stream-derived watch rooms, refused
+watch-room overrides or the domain stories and heap ceilings.
 
 Section 13.2 has no gap in judging project ways against prospective templates
 or in the terminal refusal naming the item and rejected way.

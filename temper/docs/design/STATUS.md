@@ -40,7 +40,11 @@ worker slots it is to size temper's own way by, no story that runs has an owner 
 its proposal under Needs you, with `temper help proposal` still saying that press fails,
 and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
-settings family (`protocol/configuration.md`). The limits' check
+settings family (`protocol/configuration.md`). The watch rooms follow admitted
+streams, with the whole room available to one party; obsolete watch-room overrides are refused and ctl names a watch
+refused busy at its deadline. A fair share, the other ineffective views
+overrides, precise Busy causes and the manual browser check remain deferred
+(`protocol/configuration.md`, `client/tools.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
 (`domain/root.md`), and a change's refusal omits what authority it
 lacked and which model its charter refused (`domain/agent.md`). A
