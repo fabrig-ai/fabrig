@@ -698,7 +698,7 @@ heard answered 74 200 "\x00"
 deadline 48837300000
 turn 29739099999 1793988674072000000
 mark
-act press "Act { action: Pages(OpenStart { draft: Some([100, 111, 99, 115, 47, 100, 101, 115, 105, 103, 110, 47, 100, 114, 97, 102, 116, 47, 97, 119, 97, 121, 45, 109, 111, 100, 101, 46, 109, 100]), chat: Some(1) }) }" "Start goal\xe2\x80\xa6"
+act press "Act { action: Pages(OpenStart { draft: Some([100, 111, 99, 115, 47, 100, 101, 115, 105, 103, 110, 47, 100, 114, 97, 102, 116, 47, 97, 119, 97, 121, 45, 109, 111, 100, 101, 46, 109, 100]), chat: Some(2) }) }" "Start goal\xe2\x80\xa6"
 deadline 48837300000
 turn 30824399999 1793988675156999936
 mark
@@ -968,7 +968,7 @@ mark
 deadline 53424400000
 turn 37026399999 1793988681359000064
 mark
-act press "Act { action: Pages(Go { address: Chat { task: 1 } }) }" "Draft"
+act press "Act { action: Pages(Go { address: Chat { task: 2 } }) }" "Draft"
 exchange 113 33554432 POST "/jig/v1/unwatch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x94" "Content-Type" "application/octet-stream"
 exchange 114 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x9a\x00\x00\x00\x00\x13\x00\x00\x00\x09\x01\x00\x00\x00\x00\x00\x00\x00\x01" "Content-Type" "application/octet-stream"
 exchange 115 33554432 POST "/jig/v1/read" "\x00\x00\x00\x00\x13\x00\x00\x00\x0a\x0a\x00\x00\x00\x00\x00\x00\x00\x01\x00" "Content-Type" "application/octet-stream"
