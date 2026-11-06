@@ -1235,11 +1235,18 @@ pub enum Word {
     PublicEnded,
     PublicDone,
     PublicFailed,
-    PublicCancelled,
+    PublicLanded,
     PublicFolded,
     PublicStaleProofs,
     PublicTitleCut,
     PublicAsOf,
+    PublicBoardLede,
+    PublicNoGoals,
+    PublicNothingLanded,
+    PublicNoProjects,
+    PublicTimeParts,
+    PublicUnderMinute,
+
     WelcomeBoxName,
     WelcomeBoxLine,
     WelcomeBoxServer,
@@ -1380,7 +1387,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1865;
+const PHRASES: u32 = 1871;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1406,10 +1413,10 @@ const PHRASES: u32 = 1865;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3264;
+const SEGMENTS: u32 = 3276;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45570;
-const ALL: [Word; 1264] = [
+const ENGLISH_BYTES: u32 = 45693;
+const ALL: [Word; 1270] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2602,11 +2609,17 @@ const ALL: [Word; 1264] = [
     Word::PublicEnded,
     Word::PublicDone,
     Word::PublicFailed,
-    Word::PublicCancelled,
+    Word::PublicLanded,
     Word::PublicFolded,
     Word::PublicStaleProofs,
     Word::PublicTitleCut,
     Word::PublicAsOf,
+    Word::PublicBoardLede,
+    Word::PublicNoGoals,
+    Word::PublicNothingLanded,
+    Word::PublicNoProjects,
+    Word::PublicTimeParts,
+    Word::PublicUnderMinute,
     Word::WelcomeBoxName,
     Word::WelcomeBoxLine,
     Word::WelcomeBoxServer,
@@ -3879,11 +3892,18 @@ impl Word {
             Self::PublicEnded => 3018,
             Self::PublicDone => 3019,
             Self::PublicFailed => 3020,
-            Self::PublicCancelled => 3021,
+            Self::PublicLanded => 3021,
             Self::PublicFolded => 3022,
             Self::PublicStaleProofs => 3023,
             Self::PublicTitleCut => 3024,
             Self::PublicAsOf => 3025,
+            Self::PublicBoardLede => 3872,
+            Self::PublicNoGoals => 3873,
+            Self::PublicNothingLanded => 3874,
+            Self::PublicNoProjects => 3875,
+            Self::PublicTimeParts => 3877,
+            Self::PublicUnderMinute => 3876,
+
             Self::WelcomeBoxName => 3026,
             Self::WelcomeBoxLine => 3027,
             Self::WelcomeBoxServer => 3028,
@@ -4525,6 +4545,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Use the wizard to"], &[]),
         Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
         Word::BannerSetUp => (&[b"Set up temper"], &[]),
+        Word::PublicBoardLede => (&[b"What temper is doing on this project, as it happens. Read-only."], &[]),
+        Word::PublicNoGoals => (&[b"No goals yet."], &[]),
+        Word::PublicNothingLanded => (&[b"Nothing has landed yet."], &[]),
+        Word::PublicUnderMinute => (&[b"under 1 minute"], &[]),
+        Word::PublicTimeParts => (&[b"", b" ", b""], &[Name, Name]),
+        Word::PublicNoProjects => (&[b"No public projects yet."], &[]),
         Word::PublicAsOf => (&[b"As of ", b""], &[Name]),
         Word::WelcomeBoxName => (&[b"temper box"], &[]),
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
@@ -4703,7 +4729,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicUnavailable => (&[b"Not available just now."], &[]),
         Word::ReadPublic => (&[b"Read public projects"], &[]),
         Word::PublicFor => (&[b"for ", b""], &[Name]),
-        Word::PublicChange => (&[b"its change on the forge"], &[]),
+        Word::PublicChange => (&[b"Its change: ", b""], &[Name]),
         Word::PublicLandings => (&[b"Landings"], &[]),
         Word::PublicTurn => (&[b"Holds the turn"], &[]),
         Word::PublicQueue => (&[b"Queue"], &[]),
@@ -4711,7 +4737,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicEnded => (&[b"ended"], &[]),
         Word::PublicDone => (&[b"done"], &[]),
         Word::PublicFailed => (&[b"failed"], &[]),
-        Word::PublicCancelled => (&[b"cancelled"], &[]),
+        Word::PublicLanded => (&[b"landed"], &[]),
         Word::PublicFolded => (&[b"", b" lines folded"], &[Number]),
         Word::PublicStaleProofs => (&[b"", b" stale proofs"], &[Number]),
         Word::Projects => (&[b"Projects"], &[]),
@@ -5741,6 +5767,18 @@ impl Times {
         self.next = [self.next, next].into_iter().flatten().min();
         text
     }
+    /// Public rows use full units with the same span, ago and reconsideration rules (client/browser.md, 8.3).
+    pub(crate) fn public_time(&mut self, words: &Words, form: TimeForm, at: skein_lib::Wall) -> Box<[u8]> {
+        let text = self.say(words, form, at);
+        let minutes = self.now.as_nanos().saturating_sub(at.as_nanos()).checked_div(MINUTE).expect("nonzero minute");
+        match form {
+            TimeForm::Span => words.public_span(minutes),
+            TimeForm::Ago if minutes > 0 && minutes < 720 => {
+                words.say(Word::TimeAgo, &[Hole::Name(words.public_span(minutes))])
+            }
+            TimeForm::Ago | TimeForm::Looked | TimeForm::Clock | TimeForm::Weekday | TimeForm::Day => text,
+        }
+    }
 }
 impl Words {
     /// Words and the instant at which to reconsider them. No clock is read here.
@@ -5778,6 +5816,17 @@ impl Words {
             1440..2880 => self.say(Word::LookedDay, &[]),
             2880..=u64::MAX => self.say(Word::LookedDays, &[Hole::Number(minutes / 1440)]),
         }
+    }
+    fn public_span(&self, minutes: u64) -> Box<[u8]> {
+        if minutes == 0 {
+            return self.say(Word::PublicUnderMinute, &[]);
+        }
+        let remainder = minutes.checked_rem(60).expect("nonzero hour");
+        if !(60..1440).contains(&minutes) || remainder == 0 {
+            return self.looked_span(minutes);
+        }
+        let hours = minutes.checked_sub(remainder).expect("whole hours precede minutes");
+        self.say(Word::PublicTimeParts, &[Hole::Name(self.looked_span(hours)), Hole::Name(self.looked_span(remainder))])
     }
     fn time_span(&self, minutes: u64) -> Box<[u8]> {
         match minutes {

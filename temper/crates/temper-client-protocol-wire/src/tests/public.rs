@@ -43,11 +43,6 @@ fn a_name_from_elsewhere_breaks_the_closure() {
 }
 
 #[test]
-fn only_addresses_are_bytes() {
-    shape::addresses_only(SCHEMA);
-}
-
-#[test]
 fn public_bounds_hold_the_largest_answers() {
     bounds::largest_answers();
 }

@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
-- **Not yet:** 11.1, 11.3 and 11.5: the visitor's records still carry a repository's, a pull's and a run's address.
 - **Not yet:** 2.1: "in GitHub's merge queue, n": `Pull.queued` is not
   read (`../domain/forge.md`, 9.1). 2.3:
   amending a change's gates from its panel. 4: approvals, a person

@@ -8,8 +8,15 @@ const SEEDS: u64 = 2_000;
 // Arbitrary inputs span the same 512-byte range as client_wire.rs.
 const ARBITRARY_BYTES: u32 = 512;
 
-// public-v1.schema: version + task; version + Some(turn); version + phase + Some(hold) + preparation.
-const CHANGE_LENGTH: usize = size_of::<u16>() + size_of::<u16>();
+// Lengths precede gates (with full optional step data), landings, and members in public-v1.schema.
+const CHANGE_LENGTH: usize = 2 * size_of::<u16>()
+    + 2 * (size_of::<u8>() + 32)
+    + size_of::<u8>()
+    + 2 * size_of::<u8>()
+    + size_of::<u64>()
+    + size_of::<u32>()
+    + 2 * size_of::<u8>()
+    + size_of::<u8>();
 const LANDINGS_LENGTH: usize = size_of::<u16>() + size_of::<u8>() + size_of::<u16>();
 const LANDING_LENGTH: usize = size_of::<u16>() + size_of::<u8>() + 2 * size_of::<u8>() + size_of::<u32>();
 
@@ -42,7 +49,7 @@ macro_rules! decode {
 fn decode(kind: Kind, bytes: &[u8], refuse: bool) -> Option<Box<[u8]>> {
     let mut reader = Reader::new(bytes);
     match kind {
-        Kind::Change => decode!(PublicChange, reader, refuse, PublicChangeRepository),
+        Kind::Change => decode!(PublicChange, reader, refuse, PublicChangeGates),
         Kind::Landings => decode!(PublicLandings, reader, refuse, PublicLandingsLandings),
         Kind::Landing => decode!(PublicLanding, reader, refuse, PublicLandingMembers),
     }
@@ -114,15 +121,10 @@ fn bound_records() -> [(Kind, Box<[u8]>, usize, u32); 3] {
     landing.encode(&mut writer).expect("seed 1: measured room");
     let landing = writer.finish();
     [
-        (Kind::Change, change, CHANGE_LENGTH, limits.public_change_repository),
+        (Kind::Change, change, CHANGE_LENGTH, limits.public_change_gates),
         (Kind::Landings, landings, LANDINGS_LENGTH, limits.public_landings_landings),
         (Kind::Landing, landing, LANDING_LENGTH, limits.public_landing_members),
     ]
-}
-
-fn address() -> Box<[u8]> {
-    vec![b'a'; usize::try_from(w::CEILINGS.public_change_repository).expect("seed 1: address ceiling")]
-        .into_boxed_slice()
 }
 
 fn gate() -> w::PublicGate {
@@ -152,8 +154,6 @@ fn change(limits: &w::Limits) -> w::PublicChange {
         limits,
         w::PublicChangeParts {
             task: u16::MAX,
-            repository: address(),
-            pull: Some(address()),
             head: Some([255; 32]),
             step: w::PublicStep::Repairing,
             repair: Some(w::PublicRepair::Gate(
@@ -201,8 +201,7 @@ fn queue(limits: &w::Limits) -> w::PublicQueue {
     for _ in 0..limits.public_queue_changes {
         changes.push(queued()).expect("seed 1: fixture within ceilings");
     }
-    w::PublicQueue::new(limits, w::PublicQueueParts { repository: address(), changes })
-        .expect("seed 1: fixture within ceilings")
+    w::PublicQueue::new(limits, w::PublicQueueParts { changes }).expect("seed 1: fixture within ceilings")
 }
 
 fn landings(limits: &w::Limits) -> w::PublicLandings {
@@ -226,7 +225,6 @@ fn proof() -> w::PublicGateProof {
             kind: w::PublicGateKind::Check,
             blocks: true,
             proof: w::PublicProof::Failed,
-            run: Some(address()),
         },
     )
     .expect("seed 1: fixture within ceilings")
@@ -241,8 +239,6 @@ fn member(limits: &w::Limits) -> w::PublicMember {
         limits,
         w::PublicMemberParts {
             task: u16::MAX,
-            repository: address(),
-            pull: Some(address()),
             base: Some([255; 32]),
             candidate: Some([255; 32]),
             landed: Some([255; 32]),
