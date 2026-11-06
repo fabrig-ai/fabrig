@@ -167,6 +167,22 @@ impl Forge {
             words.say(Word::SignInForgeAt, &[Hole::Name(host(&self.root).expect("checked forge root").into())])
         }
     }
+    /// `ROOT/user/oauth2/temper?redirect_to=%2FOWNER%2FNAME` (client/forge.md, 5.4), or None past the URL's bound.
+    #[must_use]
+    pub fn open_repository(&self, owner: &[u8], name: &[u8]) -> Option<Box<[u8]>> {
+        let path = crate::forge::repository::web_address(b"", owner, name)?;
+        let query = crate::forge::repository::encoded(&path, false)?;
+        let root = self.open();
+        let bytes = root.len().checked_add(b"?redirect_to=".len())?.checked_add(query.len())?;
+        if bytes > usize::try_from(temper_client_domain::forge::change::ADDRESS_BYTES).ok()? {
+            return None;
+        }
+        let mut out = skein_lib::Writer::new(bytes);
+        out.put(&root).ok()?;
+        out.put(b"?redirect_to=").ok()?;
+        out.put(&query).ok()?;
+        Some(out.finish())
+    }
     #[must_use]
     pub fn open(&self) -> Box<[u8]> {
         let root = self.root.strip_suffix(b"/").unwrap_or(&self.root);

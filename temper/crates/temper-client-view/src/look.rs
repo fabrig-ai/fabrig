@@ -214,6 +214,10 @@ pub const PROJECTS_ACTS: Style = Style { owner: owner(), token: 191 };
 pub const PROJECTS_REPO: Style = Style { owner: owner(), token: 192 };
 /// The additional repository count.
 pub const PROJECTS_MORE: Style = Style { owner: owner(), token: 193 };
+/// A switcher row: the name and its small words.
+pub const PROJECTS_ROW: Style = Style { owner: owner(), token: 194 };
+/// A repository link in the look of its surrounding words.
+pub const REPOSITORY_LINK: Style = Style { owner: owner(), token: 195 };
 /// Home's home (client/README.md, 3.5).
 pub const HOME: Style = Style { owner: owner(), token: 200 };
 /// Home's intro (client/README.md, 3.5).
@@ -866,8 +870,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-projects-acts",
         b"temper-projects-repo",
         b"temper-projects-more",
-        b"temper-reserved-194",
-        b"temper-reserved-195",
+        b"temper-projects-row",
+        b"temper-repository-link",
         b"temper-reserved-196",
         b"temper-reserved-197",
         b"temper-reserved-198",

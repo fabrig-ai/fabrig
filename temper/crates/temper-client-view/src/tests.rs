@@ -171,3 +171,5 @@ fn validity_accepts_large_ui_edges_and_refuses_overflowing_scene_capacity() {
 mod words;
 
 mod model_check;
+
+mod repository_link;
