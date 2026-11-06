@@ -45,6 +45,8 @@ pub struct Service {
     file_told: Queue<file::Event>,
     io_submissions: Queue<Submit>,
     file_submissions: Queue<Submit>,
+    io_completions: Queue<Complete>,
+    io_asked: Queue<io::Request>,
     io_env: Env<io::Limits>,
     protocol: Protocol,
     protocol_env: Env<protocol::limits::Limits>,
@@ -92,9 +94,11 @@ impl Service {
         Self {
             io: Io::new(&limits.io),
             files,
-            file_told: Queue::with_capacity(limits.queue),
-            io_submissions: Queue::with_capacity(limits.queue),
-            file_submissions: Queue::with_capacity(limits.queue),
+            file_told: Queue::uncapped(),
+            io_submissions: Queue::uncapped(),
+            file_submissions: Queue::uncapped(),
+            io_completions: Queue::uncapped(),
+            io_asked: Queue::uncapped(),
             io_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.io },
             protocol: Protocol::new(&limits.protocol, call, form, roots, &configuration.store, seed)
                 .with_proxy(configured_proxy(configuration))
@@ -165,6 +169,8 @@ impl Service {
             && self.file_told.is_empty()
             && self.file_submissions.is_empty()
             && self.io_submissions.is_empty()
+            && self.io_completions.is_empty()
+            && self.io_asked.is_empty()
             && self.protocol.is_empty()
             && self.domain.is_empty()
             && self.completions.is_empty()
@@ -182,6 +188,8 @@ impl Service {
             || !self.file_told.is_empty()
             || !self.file_submissions.is_empty()
             || !self.io_submissions.is_empty()
+            || !self.io_completions.is_empty()
+            || !self.io_asked.is_empty()
             || self.protocol.work_pending()
             || match protocol::next_deadline(&self.protocol) {
                 Some(at) => at <= now,
@@ -233,57 +241,35 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
             break;
         }
         if let Some(submit) = service.io_submissions.pop() {
-            service.submissions.push(tag(submit, 0));
+            service.submissions.push(submit);
         } else if let Some(submit) = service.file_submissions.pop() {
-            service.submissions.push(tag(submit, 1));
+            service.submissions.push(submit);
         } else {
             break;
         }
     }
 }
 fn io_up(service: &mut Service) {
-    for _ in 0..service.completions.capacity() {
-        if !service.io.is_ready() || !io_room(service, io::MAX_OUT_RESUME) {
-            break;
-        }
-        let marks = service.io_submissions.len();
-        io::resume(&mut service.io, &service.io_env, &mut service.told, &mut service.io_submissions);
-        io_within(service, marks, io::MAX_OUT_RESUME);
-    }
-    if service.io.is_ready() {
-        return;
-    }
-    for _ in 0..service.completions.capacity() {
-        if !io_room(service, io::MAX_OUT_UP) || service.file_told.room() < 1 || service.file_submissions.room() < 2 {
-            break;
-        }
+    for _ in 0..service.completions.len() {
         let Some(complete) = service.completions.pop() else {
             break;
         };
-        let mut complete = complete;
-        let file = complete.op.raw() & 1 == 1;
-        complete.op = skein_lib::Token::new(complete.op.raw() >> 1);
-        if file {
+        if file_layer::owns(complete.op) {
             file_layer::up(&mut service.files, complete, &mut service.file_told, &mut service.file_submissions);
-            continue;
+        } else {
+            service.io_completions.push(complete);
         }
-        let marks = service.io_submissions.len();
-        io::up(&mut service.io, &service.io_env, complete, &mut service.told, &mut service.io_submissions);
-        io_within(service, marks, io::MAX_OUT_UP);
     }
-    if service.files.is_due(service.io_env.now) && service.file_submissions.room() >= 2 {
+    io::stage::up(
+        &mut service.io,
+        &service.io_env,
+        &mut service.io_completions,
+        &mut service.told,
+        &mut service.io_submissions,
+        service.io_env.now,
+    );
+    if service.files.is_due(service.io_env.now) {
         file_layer::expire(&mut service.files, service.io_env.now, &mut service.file_submissions);
-    }
-    if !service.completions.is_empty() {
-        return;
-    }
-    for _ in 0..service.io_env.limits.sockets.saturating_mul(2) {
-        if !service.io.is_due(service.io_env.now) || !io_room(service, io::MAX_OUT_FIRE) {
-            break;
-        }
-        let marks = service.io_submissions.len();
-        io::fire(&mut service.io, &service.io_env, &mut service.told, &mut service.io_submissions);
-        io_within(service, marks, io::MAX_OUT_FIRE);
     }
 }
 fn protocol_up(service: &mut Service) {
@@ -301,7 +287,7 @@ fn protocol_up(service: &mut Service) {
     if service.protocol.work_pending() {
         return;
     }
-    for _ in 0..service.file_told.capacity() {
+    for _ in 0..service.file_told.len() {
         if service.protocol.work_pending() || !protocol_room(service, protocol::MAX_OUT_UP) {
             break;
         }
@@ -375,20 +361,19 @@ fn protocol_down(service: &mut Service) {
     }
 }
 fn io_down(service: &mut Service) {
-    for _ in 0..service.asked.capacity() {
-        if !service.io.takes()
-            || !service.files.takes()
-            || service.file_told.room() < 1
-            || service.file_submissions.room() < 2
-            || !io_room(service, io::MAX_OUT_DOWN)
-        {
+    io::stage::down(&mut service.io, &service.io_env, &mut service.io_asked, &mut service.io_submissions);
+    for _ in 0..service.asked.len() {
+        if !service.io_asked.is_empty() || !service.files.takes() {
             break;
         }
         let Some(request) = service.asked.pop() else {
             break;
         };
-        let request = match request {
-            Asked::Io(request) => request,
+        match request {
+            Asked::Io(request) => {
+                service.io_asked.push(request);
+                io::stage::down(&mut service.io, &service.io_env, &mut service.io_asked, &mut service.io_submissions);
+            }
             Asked::Beneath(request) => {
                 let request = beneath(&service.files, request);
                 file_layer::down(
@@ -398,7 +383,6 @@ fn io_down(service: &mut Service) {
                     &mut service.file_told,
                     &mut service.file_submissions,
                 );
-                continue;
             }
             Asked::File(request) => {
                 file_layer::down(
@@ -408,22 +392,12 @@ fn io_down(service: &mut Service) {
                     &mut service.file_told,
                     &mut service.file_submissions,
                 );
-                continue;
             }
-        };
-        let marks = service.io_submissions.len();
-        io::down(&mut service.io, &service.io_env, request, &mut service.io_submissions);
-        io_within(service, marks, io::MAX_OUT_DOWN);
+        }
     }
-}
-fn io_room(service: &Service, max: io::MaxOut) -> bool {
-    service.io_submissions.room() >= max.submissions
 }
 fn protocol_room(service: &Service, max: protocol::MaxOut) -> bool {
     service.calls.room() >= max.above && service.asked.room() >= max.below
-}
-fn io_within(service: &Service, down: u32, max: io::MaxOut) {
-    within(down, service.io_submissions.len(), max.submissions);
 }
 fn protocol_within(service: &Service, (up, down): (u32, u32), max: protocol::MaxOut) {
     within(up, service.calls.len(), max.above);
@@ -431,17 +405,6 @@ fn protocol_within(service: &Service, (up, down): (u32, u32), max: protocol::Max
 }
 fn within(before: u32, after: u32, max: u32) {
     assert!(after.checked_sub(before).expect("steps add to outputs") <= max, "an entry point keeps its MAX_OUT");
-}
-fn tag(mut submit: Submit, file: u64) -> Submit {
-    submit.op = skein_lib::Token::new(
-        submit.op.raw().checked_mul(2).expect("operation tag room").checked_add(file).expect("tag fits"),
-    );
-    if let io::kernel::Op::Cancel { target } = &mut submit.kind {
-        *target = skein_lib::Token::new(
-            target.raw().checked_mul(2).expect("operation tag room").checked_add(file).expect("tag fits"),
-        );
-    }
-    submit
 }
 #[cfg(test)]
 mod tests;
