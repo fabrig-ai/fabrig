@@ -392,11 +392,140 @@ fn a_chat_rejection_confirmation_keeps_the_persons_reason() {
 
 const LONG_PROVISIONAL: &[u8] = b"1234567890123456789012345678901\xc3\xa9 and more";
 #[test]
-fn long_provisional_text_says_that_earlier_text_was_omitted() {
+fn a_long_provisional_text_says_nothing_of_what_was_cut() {
     let thread = provisional_with_text(LONG_PROVISIONAL);
-    let tree = tree(&thread);
-    assert!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_some());
-    assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"\xc3\xa9 and more").is_some());
+    for drawn in [fixtures::chat::projected_tree(&thread), fixtures::chat::tree(&thread)] {
+        let said = fixtures::text(&drawn);
+        assert!(skein_lib::bytes::find(&said, b"Earlier text omitted").is_none());
+        assert!(skein_lib::bytes::find(&said, b"\xc3\xa9 and more").is_some());
+        assert!(skein_lib::bytes::find(&said, "…".as_bytes()).is_none());
+    }
+}
+
+fn conversation_turn(messages: &[c::Message], cut: bool) -> Thread {
+    let mut kept = List::with_capacity(u32::try_from(messages.len()).expect("message count"));
+    for message in messages {
+        kept.push(message.clone()).expect("message");
+    }
+    let turn = c::Turn {
+        messages: kept,
+        used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
+        spent: 0,
+        read_through: None,
+        cut,
+    };
+    let mut rows = List::with_capacity(1);
+    rows.push(super::documents::turn(
+        1,
+        Wall::EPOCH,
+        c::TurnName { attempt: ATTEMPT, number: TURN },
+        c::TurnRead::Decoded(turn),
+    ))
+    .expect("turn");
+    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+    thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
+    thread
+}
+
+#[test]
+fn a_cut_committed_turn_says_nothing_of_what_was_cut() {
+    use fixtures::first_run as run;
+    let thread = conversation_turn(
+        &[run::message(c::Speaker::Assistant, &[c::Block::Text(run::text("Kept…".as_bytes()))])],
+        true,
+    );
+    for drawn in [fixtures::chat::projected_tree(&thread), fixtures::chat::tree(&thread)] {
+        let said = fixtures::text(&drawn);
+        assert!(skein_lib::bytes::find(&said, b"Earlier text omitted").is_none());
+        assert!(skein_lib::bytes::find(&said, "Kept…".as_bytes()).is_some());
+    }
+}
+
+#[test]
+fn a_turns_opaque_blocks_are_not_drawn() {
+    use fixtures::first_run as run;
+    let thread = conversation_turn(
+        &[run::message(
+            c::Speaker::Assistant,
+            &[c::Block::Opaque { dialect: run::text(b"3"), size: 2164 }, c::Block::Text(run::text(b"Kept words"))],
+        )],
+        false,
+    );
+    for drawn in [fixtures::chat::projected_tree(&thread), fixtures::chat::tree(&thread)] {
+        let said = fixtures::text(&drawn);
+        assert!(skein_lib::bytes::find(&said, b"Content in").is_none());
+        assert!(skein_lib::bytes::find(&said, b"bytes").is_none());
+        assert!(skein_lib::bytes::find(&said, b"Kept words").is_some());
+    }
+}
+
+#[test]
+fn a_message_of_opaque_blocks_alone_draws_no_message() {
+    use fixtures::first_run as run;
+    for speaker in [c::Speaker::Assistant, c::Speaker::Person, c::Speaker::Tool, c::Speaker::System] {
+        let thread = conversation_turn(
+            &[run::message(speaker, &[c::Block::Opaque { dialect: run::text(b"3"), size: 2164 }])],
+            false,
+        );
+        for drawn in [fixtures::chat::projected_tree(&thread), fixtures::chat::tree(&thread)] {
+            assert!(style_position(drawn.nodes(), crate::look::MESSAGE).is_none(), "opaque message has no shell");
+            assert!(fixtures::text(&drawn).is_empty(), "opaque message has no words");
+        }
+    }
+}
+
+#[test]
+fn an_agents_result_line_is_its_first_line() {
+    use fixtures::first_run as run;
+    for summary in [b"first\nsecond".as_slice(), b"\n\r\n \t\r\nfirst\r\nsecond"] {
+        let thread = conversation_turn(
+            &[run::message(
+                c::Speaker::Tool,
+                &[c::Block::Result { call: 1, summary: run::text(summary), failed: false }],
+            )],
+            false,
+        );
+        let drawn = fixtures::chat::tree(&thread);
+        assert!(fixtures::find(&drawn, Role::Paragraph, b"first").is_some());
+        assert!(skein_lib::bytes::find(&fixtures::text(&drawn), b"second").is_none());
+    }
+}
+
+#[test]
+fn a_conversation_past_its_rows_says_nothing_of_what_was_cut() {
+    use fixtures::first_run as run;
+    let block = c::Block::Text(run::text(b"Kept"));
+    let mut blocks = List::with_capacity(LINES + 1);
+    let mut messages = List::with_capacity(LINES + 1);
+    for _ in 0..=LINES {
+        blocks.push(block.clone()).expect("block");
+        messages.push(run::message(c::Speaker::Assistant, core::slice::from_ref(&block))).expect("message");
+    }
+    for thread in [
+        conversation_turn(&[run::message(c::Speaker::Assistant, blocks.as_slice())], false),
+        conversation_turn(messages.as_slice(), false),
+    ] {
+        for drawn in [fixtures::chat::projected_tree(&thread), fixtures::chat::tree(&thread)] {
+            assert!(skein_lib::bytes::find(&fixtures::text(&drawn), b"Earlier text omitted").is_none());
+            assert_eq!(skein_lib::bytes::count(&fixtures::text(&drawn), b"Kept", LINES + 1), LINES);
+        }
+    }
+}
+
+#[test]
+fn a_cut_request_says_nothing_of_what_was_cut() {
+    let thread = owner_words_thread();
+    let mut request = c::SpecificationDocument::complete(c::Specification {
+        asks: false,
+        words: fixtures::first_run::text(b"Kept request"),
+        parameters: List::with_capacity(0),
+        inputs: List::with_capacity(0),
+    });
+    request.specification.words.cut = true;
+    let drawn = fixtures::chat::requested_tree(&thread, &request);
+    assert!(fixtures::find(&drawn, Role::Paragraph, b"Kept request").is_some());
+    assert!(skein_lib::bytes::find(&fixtures::text(&drawn), b"Earlier text omitted").is_none());
 }
 
 #[test]
@@ -1123,13 +1252,6 @@ pub(super) fn assert_call_fold(tree: &skein_ui::Tree, name: &[u8], description: 
         child = child.checked_add(usize::try_from(node.size).expect("work line size")).unwrap();
     }
     assert_eq!(child, at.checked_add(usize::try_from(fold.size).expect("fold size")).unwrap());
-}
-#[test]
-fn an_assistants_opaque_block_stays_inside_its_temper_message() {
-    let tree = assistant_blocks(&[c::Block::Opaque { dialect: fixtures::first_run::text(b"opaque-v1"), size: 42 }]);
-    let message = styled(&tree, crate::look::BY_AGENT);
-    let said = fixtures::node_text(&tree, message);
-    assert!(skein_lib::bytes::find(&said, b"TemperContent in opaque-v142 bytes").is_some());
 }
 #[test]
 fn a_persons_words_are_paragraphs_without_a_read_label() {
@@ -2458,26 +2580,17 @@ fn the_log_has_one_column_with_older_before_turns() {
 #[test]
 fn a_note_turn_draws_no_cut_words() {
     use fixtures::first_run as run;
-    for other_cut in [false, true] {
-        let mut blocks = List::with_capacity(2);
-        blocks.push(run::call(1, b"note", b"", Some("Note 1 revision 1 written · 12 lines".as_bytes()))).unwrap();
-        if other_cut {
-            blocks.push(c::Block::Text(run::text(b"A long reply, also cut"))).unwrap();
-        }
-        let mut line = run::turn(1, ATTEMPT, 1, &[run::message(c::Speaker::Assistant, blocks.as_slice())], 512);
-        let Some(c::ArchivedTurn { turn: c::TurnRead::Decoded(turn), .. }) = &mut line.decoded else {
-            panic!("decoded turn")
-        };
-        turn.cut = true;
-        line.source.task = TASK;
-        line.decoded.as_mut().unwrap().task = TASK;
-        let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
-        thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
-        let mut rows = List::with_capacity(1);
-        rows.push(line).unwrap();
-        thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
-        let tree = tree(&thread);
-        assert_eq!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_some(), other_cut);
-        assert!(fixtures::find(&tree, Role::Button, b"Show").is_some());
-    }
+    let thread = conversation_turn(
+        &[run::message(
+            c::Speaker::Assistant,
+            &[
+                run::call(1, b"note", b"", Some("Note 1 revision 1 written · 12 lines".as_bytes())),
+                c::Block::Text(run::text(b"A long reply, also cut")),
+            ],
+        )],
+        true,
+    );
+    let tree = tree(&thread);
+    assert!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_none());
+    assert!(fixtures::find(&tree, Role::Button, b"Show").is_some());
 }
