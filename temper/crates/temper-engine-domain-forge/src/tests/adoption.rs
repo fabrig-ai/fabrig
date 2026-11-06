@@ -3,6 +3,56 @@ use super::*;
 use jig_domain_people as people;
 
 #[test]
+fn writer_readoption_needs_collaborator_access_and_retries_as_admin() {
+    use skein_forge::api;
+    let mut d = domain();
+    let writer = adopted();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(writer.clone()) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    let human = api::Collaborator { user: 42, permission: api::Permission::Admin };
+    for (key, permission, protection, collaborators) in [
+        (4, api::Permission::Write, Err(api::Error::Forbidden), Err(api::Error::Forbidden)),
+        (
+            5,
+            api::Permission::Admin,
+            Ok(api::Answer::Protection(None)),
+            Ok(api::Answer::Collaborators { collaborators: Box::new([human.clone()]), more: false }),
+        ),
+    ] {
+        fixtures::begin_adoption(&mut d, Token::new(key), fixtures::adoption());
+        for answer in [
+            Ok(api::Answer::Permission(api::UserPermission { user: 1, login: Box::new([]), permission })),
+            Ok(api::Answer::Branches(Box::new([]))),
+            Ok(api::Answer::Settings(writer.settings.clone())),
+            protection,
+        ] {
+            fixtures::answer_next(&mut d, answer);
+        }
+        let requests = fixtures::answer_next(&mut d, collaborators);
+        if permission == api::Permission::Write {
+            let Some(Request::Adopted { result: Err(api::Error::Forbidden), .. }) = requests.last() else {
+                panic!("forbidden collaborators must refuse re-adoption even after write permission");
+            };
+            assert_eq!(d.repository(REPO), Some(&writer), "failed re-adoption keeps the writer");
+            assert_eq!(d.home(writer.project), Some(&writer), "failed re-adoption keeps the home");
+            for request in &requests {
+                if let Request::Save { record: Stored::Repository(_), .. } = request {
+                    panic!("failed re-adoption must not save a repository");
+                }
+            }
+        } else {
+            let Some(Request::Adopted { result: Ok(value), .. }) = requests.last() else {
+                panic!("repository admin can import the human on re-adoption");
+            };
+            assert_eq!(value.collaborators.as_ref(), core::slice::from_ref(&human));
+            assert_eq!(&value.repository, &writer);
+        }
+    }
+}
+
+#[test]
 fn context_beside_a_writer_preserves_its_home_and_readoption() {
     use skein_forge::api;
     let mut d = domain();

@@ -69,7 +69,7 @@ fn activity(outcomes: &[&str]) -> c::ActivityPage {
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum ProposalState {
+pub(super) enum ProposalState {
     Ordinary,
     DraftOffered,
     EndedDraftOffered,
@@ -84,7 +84,7 @@ fn root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str]) -> d::Domain {
 }
 const PROPOSAL: c::ProposalKey = c::ProposalKey { proposer: c::Proposer::Task(TASK), number: 12 };
 const ACCEPTED_AT: Wall = Wall::from_nanos(50_580_000_000_000);
-fn document_root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str], state: ProposalState) -> d::Domain {
+pub(super) fn document_root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str], state: ProposalState) -> d::Domain {
     activity_root(body, mode, activity(outcomes), state)
 }
 #[expect(
@@ -495,10 +495,10 @@ fn start_over_has_its_own_dialog_words() {
         let event = crate::event(&before, button, skein_ui::Act::Press).unwrap();
         f::root_event(&mut root, event);
         let after = view(&root, shell);
-        assert!(f::find(after.tree(), Role::Dialog, b"Start over").is_some());
+        assert!(f::find(after.tree(), Role::Dialog, b"Start over?").is_some());
         assert!(
             String::from_utf8_lossy(&f::text(after.tree()))
-                .contains("Start a new configuring chat? This one stays in Chats.")
+                .contains("A new configuring chat starts. This one stays in Chats.")
         );
     }
 }
