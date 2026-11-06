@@ -78,3 +78,16 @@ Regenerate each schema's code and goldens with its own generator, never by hand.
 ## Report
 
 Any arm you gave a plain body that a later task should read again, by file. The goldens regenerated.
+
+## Rebase (2026-11-06, step merge, foreman model-catalogue-2/model-surface/foreman-1)
+
+rebase model-surface, preserving endpoint admission and trial fixtures while applying Model.provider
+The merge refused four content conflicts; this is the branch’s red.
+- `jig/crates/jig-domain-core/src/lib.rs`: retain `Settings.endpoints` and `EndpointFacts`, the incoming `PersonSeed` re-export, and a27c0b6a2c’s three-argument `fleet::Domain::new`. Do not restore the removed fleet catalogue argument.
+- `jig/tests/core/tests/suite/charters.rs`: in `a_delegate_waits_for_a_host_declaring_its_charters_model`, retain a27c0b6a2c’s specialist endpoint 2 and `bounds.endpoints[0].endpoint = 2`; remove the obsolete `Provider.models` assignment.
+- `temper/tests/client/src/front/account_acts.rs`: preserve the incoming trial fixtures, restart support and program-selection behavior from the model-check work, including d22716bef3.
+- Apply provider initialization after `fixture_root` replaces `defaults.charters`, so both normal and trial charter models receive `PROVIDER`. Keep the branch’s tools-model cloning from the initialized primary.
+- In `selection_story`, set the second model’s `provider = PROVIDER + 1` before cloning it into settings and charter alternatives. Remove every incoming `Provider.models` literal or assignment.
+- `temper/tests/playground/tests/fixtures/story-a.log`: preserve the newer Trials watch sequence from 86331f4f8e and regenerate against the combined code; neither side’s hashes are sufficient. Its generator is `story_a_walks_from_the_welcome_to_the_csv_change_landed` in `temper/tests/playground/tests/suite/walk.rs`, enabled by `SKEIN_CODEGEN_WRITE`.
+Check incoming model literals for required `provider` fields and charter literals for `rest`; retain the task’s inert catalogue behavior.
+Validate the affected focused tests and workspace test compilation through heavy; report regenerated fixtures.
