@@ -143,28 +143,38 @@ fn page_words(positions: &[u64]) -> c::ActivityPage {
 #[test]
 fn an_earlier_page_only_inserts() {
     use jig_client::thread::Reading;
-    let limits = fixtures::tree_limits();
-    let mut patches = skein_lib::Queue::with_capacity(limits.patches);
-    let mut next = 0;
-    let mut thread = reading_thread();
-    thread.reading = Some(Reading::Latest { known: 0 });
-    thread.page(page_words(&[2, 3]));
-    let mut before = tree(&thread);
-    skein_ui::diff(&skein_ui::Tree::new(limits.nodes), &mut before, &limits, &mut next, &mut patches);
-    while patches.pop().is_some() {}
-    thread.reading = Some(Reading::Older);
-    thread.page(page_words(&[1]));
-    let mut after = tree(&thread);
-    skein_ui::diff(&before, &mut after, &limits, &mut next, &mut patches);
-    let mut inserts = 0_u32;
-    while let Some(patch) = patches.pop() {
-        match patch {
-            skein_ui::Patch::Insert { .. } => inserts = inserts.checked_add(1).unwrap(),
-            skein_ui::Patch::Text { .. } | skein_ui::Patch::Remove { .. } => panic!("retained line changed: {patch:?}"),
-            skein_ui::Patch::Move { .. } | skein_ui::Patch::Attribute { .. } | skein_ui::Patch::Value { .. } => {}
+    // Retain either the same day's lines or the next day's: both must stay put.
+    const NEXT_DAY: Wall = Wall::from_nanos(86_400_000_000_000);
+    for retained_day in [Wall::EPOCH, NEXT_DAY] {
+        let limits = fixtures::tree_limits();
+        let mut patches = skein_lib::Queue::with_capacity(limits.patches);
+        let mut next = 0;
+        let mut thread = reading_thread();
+        thread.reading = Some(Reading::Latest { known: 0 });
+        let mut page = page_words(&[2, 3]);
+        for line in page.rows.iter_mut() {
+            line.source.at = retained_day;
         }
+        thread.page(page);
+        let mut before = timed_tree(&thread, timed_drawing(true), Some(PARTY), 0).0;
+        skein_ui::diff(&skein_ui::Tree::new(limits.nodes), &mut before, &limits, &mut next, &mut patches);
+        while patches.pop().is_some() {}
+        thread.reading = Some(Reading::Older);
+        thread.page(page_words(&[1]));
+        let mut after = timed_tree(&thread, timed_drawing(true), Some(PARTY), 0).0;
+        skein_ui::diff(&before, &mut after, &limits, &mut next, &mut patches);
+        let mut inserts = 0_u32;
+        while let Some(patch) = patches.pop() {
+            match patch {
+                skein_ui::Patch::Insert { .. } => inserts = inserts.checked_add(1).unwrap(),
+                skein_ui::Patch::Text { .. } | skein_ui::Patch::Remove { .. } => {
+                    panic!("retained line changed: {patch:?}")
+                }
+                skein_ui::Patch::Move { .. } | skein_ui::Patch::Attribute { .. } | skein_ui::Patch::Value { .. } => {}
+            }
+        }
+        assert!(inserts > 0);
     }
-    assert!(inserts > 0);
 }
 
 #[test]
@@ -1072,6 +1082,8 @@ fn a_chats_card_carries_the_card_token() {
 #[test]
 fn each_turn_carries_the_turn_token() {
     let tree = tree(&provisional());
+    let turn = styled(&tree, crate::look::TURN);
+    assert_eq!(tree.nodes()[turn + 1].role, Role::Region);
     let turns = fixtures::styles(&tree, Role::Slot);
     let mut count = 0_u32;
     for styles in &turns {
@@ -1305,7 +1317,7 @@ fn person_words_keep_their_shell_and_only_assistant_calls_keep_work() {
     let tree = tree(&structured_thread());
     {
         let at = styled(&tree, look::BY_PERSON);
-        assert_eq!(tree.nodes()[at].role, Role::Slot);
+        assert_eq!(tree.nodes()[at].role, Role::Region);
         assert!(tree.nodes()[at].styles.as_slice().contains(&look::MESSAGE));
         let nodes = subtree(&tree, at);
         let who = style_position(nodes, look::WHO).expect("who");

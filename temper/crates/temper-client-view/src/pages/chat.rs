@@ -177,6 +177,8 @@ fn conversation_tail(
         }
     }
     if unanchored || !chat.departures().is_empty() {
+        b.open(Role::Slot);
+        b.key(fixed_key(50));
         b.open(Role::List);
         b.style(look::CARDS);
     }
@@ -194,10 +196,14 @@ fn conversation_tail(
     }
     if unanchored || !chat.departures().is_empty() {
         b.close();
+        b.close();
     }
     if let Some(result) = &task.result {
+        b.open(Role::Slot);
+        b.key(fixed_key(51));
         let clock = end_clock(task, words, times);
         result_text(b, result, task.requester, words, clock.as_deref());
+        b.close();
     }
     act_status(b, root, chat, words);
 }
@@ -301,7 +307,10 @@ fn act_status(b: &mut Builder, root: &Domain, chat: &Chat, words: &Words) {
             temper_client_domain::pages::chat::Sending::Message | temper_client_domain::pages::chat::Sending::Seen => {}
             temper_client_domain::pages::chat::Sending::Stop | temper_client_domain::pages::chat::Sending::Close => {
                 if !sheet && let Some(pending) = root.client().pending(*key) {
+                    b.open(Role::Slot);
+                    b.key(Key { a: u64::from(key.asker.0), b: key.number, ..fixed_key(53) });
                     crate::confirm::progress_text(b, words, pending.progress);
+                    b.close();
                 }
             }
         }
@@ -312,7 +321,10 @@ fn act_status(b: &mut Builder, root: &Domain, chat: &Chat, words: &Words) {
         && !(chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Close)
             && super::chats::accepted(outcome))
     {
+        b.open(Role::Slot);
+        b.key(fixed_key(54));
         super::chats::outcome_text(b, words, outcome, 0);
+        b.close();
     }
 }
 /// The signed-in person and whether they requested this chat.
@@ -800,12 +812,11 @@ pub(crate) fn conversation_with_times(
     // The live delegates anchor follows the window's last line (client/README.md, 5.7).
     live_delegates(b, &mut tasks, delegations, &mut shown, words, bindings);
     if let Some(root) = proposals {
-        b.open(Role::Slot);
-        b.key(fixed_key(50));
         conversation_tail(b, root, words, bindings, rows, times.expect("chat page times"));
         if words.shell == Shell::Browser && running && !running_run {
             b.open(Role::Slot);
             b.style(look::TYPING);
+            b.key(fixed_key(55));
             b.name(&words.say(Word::ChatWorking, &[]));
             for _ in 0_u32..3 {
                 b.open(Role::Slot);
@@ -813,7 +824,6 @@ pub(crate) fn conversation_with_times(
             }
             b.close();
         }
-        b.close();
         b.close();
     }
     b.close();
@@ -886,8 +896,9 @@ fn turn_time(
         let said = times.say(words, TimeForm::Day, at);
         b.open(Role::Slot);
         b.key(Key { a: u64::from_le_bytes(date.to_le_bytes()), ..fixed_key(46) });
-        b.open(Role::Paragraph);
         b.style(look::DAY);
+        b.name(&said);
+        b.open(Role::Paragraph);
         b.name(&said);
         b.text(Run::Plain, &said);
         b.close();
@@ -925,7 +936,7 @@ fn heard_card(
     }
 }
 fn provisional(b: &mut Builder, message: &[u8], words: &Words) {
-    b.open(Role::Slot);
+    b.open(Role::Region);
     b.style(look::MESSAGE);
     b.style(look::BY_AGENT);
     b.open(Role::Slot);
@@ -1083,7 +1094,7 @@ fn words_message(
     words: &Words,
     clock: Option<&[u8]>,
 ) {
-    b.open(Role::Slot);
+    b.open(Role::Region);
     b.style(look::MESSAGE);
     b.style(side);
     b.open(Role::Slot);
@@ -1119,7 +1130,7 @@ fn person_lines(
     words: &Words,
     clock: Option<&[u8]>,
 ) {
-    b.open(Role::Slot);
+    b.open(Role::Region);
     b.style(look::MESSAGE);
     b.style(look::BY_PERSON);
     b.open(Role::Slot);
@@ -1247,7 +1258,7 @@ fn committed<'a>(
             b.style(look::TURN);
             match block {
                 c::Block::Text(value) => {
-                    b.open(Role::Slot);
+                    b.open(Role::Region);
                     b.style(look::MESSAGE);
                     b.style(match message.speaker {
                         c::Speaker::Assistant => look::BY_AGENT,
@@ -1321,7 +1332,7 @@ fn committed<'a>(
                     if requested(tasks, drawing.delegations) {
                         cards(b, tasks, drawing.delegations, shown, words, bindings);
                     } else {
-                        b.open(Role::Slot);
+                        b.open(Role::Region);
                         b.style(look::MESSAGE);
                         b.style(look::BY_TOOL);
                         b.open(Role::Slot);
