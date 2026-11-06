@@ -105,6 +105,10 @@ impl Originals {
                 | Line::Turn { .. }
                 | Line::Start
                 | Line::Due
+                | Line::TabOpen(_)
+                | Line::TabPoint(_)
+                | Line::TabClose
+                | Line::TabRefused
                 | Line::Place(_)
                 | Line::Heard(_)
                 | Line::Carried { .. }
@@ -196,6 +200,10 @@ pub fn typed(line: &Line) -> bool {
         | Line::Turn { .. }
         | Line::Start
         | Line::Due
+        | Line::TabOpen(_)
+        | Line::TabPoint(_)
+        | Line::TabClose
+        | Line::TabRefused
         | Line::Place(_)
         | Line::Heard(_)
         | Line::Carried { .. }

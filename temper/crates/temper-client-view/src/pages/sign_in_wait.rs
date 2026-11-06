@@ -9,16 +9,18 @@ use crate::{
     words::{Shell, Word, Words},
 };
 use skein_ui::{Builder, Role, Run, phrases::Hole};
-use temper_client_domain::{Domain, pages::accounts};
+use temper_client_domain::{
+    Domain,
+    pages::{accounts, connect_model::ConnectModel},
+};
 
 #[cfg(test)]
 #[path = "../tests/sign_in_wait.rs"]
 mod tests;
 
-/// Whether the browser refused the press's tab: no fact yet, the one function
-/// temper/docs/design/draft/sign-in-new-tab.md, 2, feeds.
-pub(super) const fn tab_refused() -> bool {
-    false
+/// Whether the browser refused the press's tab (temper/docs/design/client/README.md, 3.5).
+pub(super) const fn tab_refused(page: &ConnectModel) -> bool {
+    page.tab_refused()
 }
 
 pub(super) fn waiting(

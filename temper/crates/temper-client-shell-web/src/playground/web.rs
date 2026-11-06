@@ -228,6 +228,7 @@ impl Life {
                 | Report::Due
                 | Report::Act(..)
                 | Report::Fetch(_)
+                | Report::TabRefused
                 | Report::Copied(_)
                 | Report::Carried(..)
                 | Report::Place(_)) => {

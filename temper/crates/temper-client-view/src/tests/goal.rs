@@ -190,6 +190,8 @@ fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note>, n
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
             | Request::Copy { .. }
             | Request::Fact { .. } => None,
         };

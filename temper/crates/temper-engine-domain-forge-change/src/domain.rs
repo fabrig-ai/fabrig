@@ -703,6 +703,10 @@ fn checking(
             repair_due(change, why, facts, now, limits)
         }
         Status::Unknown | Status::Pending => {
+            if behind_unchecked(&change, facts, limits) {
+                let ready_since = change.ready_since.unwrap_or(now);
+                return update_due(change, head, facts.base_tip, ready_since, now, limits);
+            }
             if has_eager_gate(&change) {
                 change.state = State::Gating { head, asked: Box::new([]) };
                 Stepped { change, decision: Decision::None }
@@ -711,6 +715,15 @@ fn checking(
             }
         }
     }
+}
+
+/// A head already behind takes its base before CI concludes on it, once for
+/// a head a push gave it, and never with the change's last update
+/// (temper/docs/design/domain/forge.md, 8.2, step 3).
+fn behind_unchecked(change: &Change, facts: &Facts, limits: &Limits) -> bool {
+    facts.contains_base == Status::Failed
+        && change.clean.is_empty()
+        && change.updates.saturating_add(1) < limits.updates
 }
 
 fn has_eager_gate(change: &Change) -> bool {

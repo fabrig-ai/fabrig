@@ -20,6 +20,10 @@ pub enum Line {
     Turn { now: Time, wall: Wall },
     Start,
     Due,
+    TabOpen(Box<[u8]>),
+    TabPoint(Box<[u8]>),
+    TabClose,
+    TabRefused,
     Copy { token: u32, words: Box<[u8]> },
     Copied { token: u32, written: temper_client_domain::copy::Written },
     Place(Box<[u8]>),
@@ -98,7 +102,9 @@ impl Line {
                 w.bytes(content);
                 w.bytes(origin);
             }
-            Self::Forge(bytes)
+            Self::TabOpen(bytes)
+            | Self::TabPoint(bytes)
+            | Self::Forge(bytes)
             | Self::Path(bytes)
             | Self::Secret(bytes)
             | Self::Place(bytes)
@@ -115,7 +121,7 @@ impl Line {
                 w.bytes(key);
                 w.bytes(value);
             }
-            Self::Start | Self::Due | Self::Close => w.word(self.kind().as_bytes()),
+            Self::Start | Self::Due | Self::Close | Self::TabClose | Self::TabRefused => w.word(self.kind().as_bytes()),
             Self::Heard(heard) => {
                 w.word(b"heard");
                 w.heard(heard);
@@ -187,6 +193,10 @@ impl Line {
             Self::Turn { .. } => "turn",
             Self::Start => "start",
             Self::Due => "due",
+            Self::TabOpen(_) => "tab-open",
+            Self::TabPoint(_) => "tab-point",
+            Self::TabClose => "tab-close",
+            Self::TabRefused => "tab-refused",
             Self::Copy { .. } => "copy",
             Self::Copied { .. } => "copied",
             Self::Place(_) => "place",
@@ -486,6 +496,10 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"stored" => Line::Stored { key: r.bytes()?, value: r.bytes()? },
         b"start" => Line::Start,
         b"due" => Line::Due,
+        b"tab-open" => Line::TabOpen(r.bytes()?),
+        b"tab-point" => Line::TabPoint(r.bytes()?),
+        b"tab-close" => Line::TabClose,
+        b"tab-refused" => Line::TabRefused,
         b"place" => Line::Place(r.bytes()?),
         b"heard" => Line::Heard(match r.word()?.as_ref() {
             b"answered" => {
@@ -589,6 +603,10 @@ impl Clone for Line {
             Self::Turn { now, wall } => Self::Turn { now: *now, wall: *wall },
             Self::Start => Self::Start,
             Self::Due => Self::Due,
+            Self::TabOpen(value) => Self::TabOpen(value.clone()),
+            Self::TabPoint(value) => Self::TabPoint(value.clone()),
+            Self::TabClose => Self::TabClose,
+            Self::TabRefused => Self::TabRefused,
             Self::Copy { token, words } => Self::Copy { token: *token, words: words.clone() },
             Self::Copied { token, written } => Self::Copied { token: *token, written: *written },
             Self::Place(value) => Self::Place(value.clone()),

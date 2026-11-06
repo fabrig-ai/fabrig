@@ -1,4 +1,5 @@
-//! One page's account request and one-shot secret transport.
+//! One page's account request and one-shot secret transport
+//! (temper/docs/design/client/README.md, 3.5 and 7).
 use super::{Broken, KEY_BYTES, Paste, Pending, SignInState, document};
 use crate::{owner::Owner, pages::Request as Output};
 use alloc::boxed::Box;
@@ -14,6 +15,7 @@ pub struct Request {
     value: Option<Secret>,
     written: u64,
     returned: Option<u32>,
+    kept: Option<(u32, Box<[u8]>, bool)>,
 }
 impl Request {
     #[must_use]
@@ -103,7 +105,13 @@ impl Request {
     #[must_use]
     pub fn sign_in_address(&self, client: &Client) -> Option<&[u8]> {
         match self.sign_in_state(client) {
-            SignInState::Started { .. } | SignInState::Signing { .. } => Some(self.started()?.1),
+            SignInState::Started { .. } | SignInState::Signing { .. } => {
+                if let Some((_, address)) = self.started() {
+                    return Some(address);
+                }
+                let (source, address, _) = self.kept.as_ref()?;
+                if self.pending.is_none() && self.returned == Some(*source) { Some(address) } else { None }
+            }
             SignInState::Unknown | SignInState::Ended { .. } => None,
         }
     }
@@ -113,6 +121,17 @@ impl Request {
     }
     pub(crate) fn return_from(&mut self, source: Option<u32>) {
         self.returned = source;
+    }
+    pub(crate) fn keep_sign_in(&mut self, source: u32, address: Box<[u8]>, refused: bool) {
+        self.kept = Some((source, address, refused));
+    }
+    pub(crate) const fn kept_refused(&self) -> bool {
+        if let Some((source, _, refused)) = &self.kept
+            && let Some(returned) = self.returned
+        {
+            return self.pending.is_none() && *source == returned && *refused;
+        }
+        false
     }
     fn started(&self) -> Option<(u32, &[u8])> {
         if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
@@ -167,6 +186,7 @@ impl Request {
         }
         if let c::Ask::SignIn { .. } = ask {
             self.paste = Paste::default();
+            self.kept = None;
         }
         let value = self.value.take();
         self.clear_key();
@@ -260,6 +280,7 @@ impl Request {
 
 impl Request {
     pub(crate) fn cancel(&mut self) {
+        self.kept = None;
         self.confirm = None;
         self.clear_key();
         self.broken = None;
@@ -288,6 +309,7 @@ impl Default for Request {
             value: None,
             written: 0,
             returned: None,
+            kept: None,
         }
     }
 }

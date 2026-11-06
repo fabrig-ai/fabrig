@@ -458,6 +458,7 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
                 &temper_box::limits::small(),
                 steps,
                 Settings {
+                    link_form: temper_box::terminal::LinkForm::Bare,
                     first_link: None,
                     after_block: Box::new([]),
                     log_lines: Box::new([]),
@@ -589,6 +590,7 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
             }]),
         };
         Proc::Box(Box::new(Service::new(&temper_box::limits::small(), steps, Settings {
+            link_form: temper_box::terminal::LinkForm::Bare,
             first_link: None, after_block: Box::new([]),
             log_lines: Box::new([]),
             program: b"/bin/sh".as_slice().into(), environment: Box::new([]), serve: b"serve".as_slice().into(),
@@ -638,6 +640,7 @@ fn a_real_child_reads_the_secret_and_eof_on_stdin() {
                 &temper_box::limits::small(),
                 steps,
                 Settings {
+                    link_form: temper_box::terminal::LinkForm::Bare,
                     first_link: Some(temper_box::host::FirstLink {
                         url: b"http://local/first".as_slice().into(),
                         secret: skein_lib::Secret::new(secret.into()),
