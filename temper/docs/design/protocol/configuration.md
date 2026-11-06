@@ -921,7 +921,7 @@ have one, an engine alone none. Each:
   `client/domain/contract.md`, 7.2; jig's `protocol/client.md`, section
   13). The deployment admits `clients.streams` clients at once, each
   holding up to its own watches, `me`'s included, and temper's shipped
-  clients open 19 (`../domain/root.md`, section 10). So:
+  clients hold at most 19 (`../domain/root.md`, section 10). So:
   - *a stream's room* is 19, `WATCHES_PER_STREAM`, one shipped client's;
   - *the deployment's room* is `clients.streams` times that: 152 at
     `temper init`'s 8 streams (13.4), 38 at the small profile's 2;
@@ -969,14 +969,16 @@ have one, an engine alone none. Each:
   - *The store:* its bounds don't follow the rooms. A watch holds no row,
     and an opening on a retained subject takes one of `root.loads.loads`,
     refused busy past them.
-- **Past the room.** Each stream's room fits the deployment's, so only
-  watches still closing can overlap it: a stream's predecessor holds its
-  place until its terminals come (jig's `client/domain/client.md`, 8.1).
-  Each is given back at its terminal, and a client refused busy opens
-  again after a backoff, so it gets its answer once they end. Until then
-  its link is offline and it knows why (jig's `client/domain/client.md`,
-  8.2), and `temper ctl` says so at its deadline (`../client/tools.md`,
-  6.3).
+- **Past the room.** With the shipped clients, each stream's room fits
+  the deployment's; watches still closing can overlap their replacements:
+  a stream's predecessor holds its place until its terminals come (jig's
+  `client/domain/client.md`, 8.1). Each place is given back at its terminal,
+  and a client refused busy opens again after a backoff. A refusal of `me`
+  leaves its link offline; an application's watch can be behind with the
+  link still live. Both set `watches_full` (jig's
+  `client/domain/client.md`, 8.2), and `temper ctl` says so at its deadline
+  (`../client/tools.md`, 6.3). Busy can also mean an opening's load slot is
+  unavailable; it carries no cause distinguishing that from a full room.
 - **The forge's paths fit a document.** jig's documents carry a
   resource's path and a pattern whole, with as many segments as the
   engine admits in a name (jig's `client/domain/contract.md`, 5.3), and
@@ -1300,6 +1302,15 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **The real-browser check of watch sizing.** The domain story uses the
+  pages' watch sets without HTTP, a browser or a kernel (section 7).
+  Checking Home at 1440 CSS pixels and a long chat at 420 while fresh tools
+  clients read is a manual check after landing, as the `watch-room` request
+  assigns it. Default: that check, with no additional browser-tier story.
+- **A page refused busy.** How a page says its rows have not arrived,
+  rather than calling them absent, belongs to the client's presentation
+  (`../client/README.md`), outside watch sizing. Default: keep the handle's
+  behind state and its retry (jig's `client/domain/client.md`, 8.1).
 - **A party's fair share of the watch rooms.** A party's room is the
   deployment's (section 7), so one person with every stream leaves another
   none, and the refusal they meet is the streams'. Nothing has asked for
