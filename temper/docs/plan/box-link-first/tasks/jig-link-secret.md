@@ -3,7 +3,7 @@ id = "jig-link-secret"
 part = "jig-given-secret"
 kind = "interface"
 needs = []
-files = ["jig/crates/jig-protocol-engine-clients/src/boundary.rs", "jig/crates/jig-protocol-engine-clients/src/component.rs", "jig/crates/jig-protocol-engine-clients/src/lib.rs", "jig/tests/engine-clients/tests/suite/sign_in.rs"]
+files = ["jig/crates/jig-protocol-engine-clients/src/boundary.rs", "jig/crates/jig-protocol-engine-clients/src/component.rs", "jig/crates/jig-protocol-engine-clients/src/lib.rs", "jig/tests/engine-clients/tests/suite/sign_in.rs", "temper/crates/temper-service/src/tests/clients_unwatch.rs", "temper/tests/client/src/component.rs"]
 effort = "high"
 minutes = 35
 +++
@@ -24,7 +24,7 @@ Acceptance:
 - A given secret of any other length: `Component::new` answers `Err(Unusable::LinkSecret)`.
 - Given where `settings.link` is `None`: no link is live and nothing is said.
 - With none given, every existing test passes unchanged.
-- `heavy cargo check -p temper-service --tests` passes without an edit in temper.
+- `heavy cargo check -p temper-service -p temper-client-world --tests` passes, with no edit in temper beyond the two `link_secret: None` lines named below.
 
 ## Inputs
 
@@ -42,6 +42,7 @@ Reader and neighbour files, each only for the new field, `link_secret: None`, in
 - `jig/crates/jig-protocol-engine-clients/src/tests/fixtures.rs`.
 - `jig/testing/jig-engine-clients-kit/src/fixtures.rs`: both literals; the one that copies a `Settings` copies the field with `.clone()`.
 - `jig/testing/jig-client-protocol-kit/src/fixtures.rs`.
+- `temper/crates/temper-service/src/tests/clients_unwatch.rs`, the literal at line 32, and `temper/tests/client/src/component.rs`, the literal at line 61: each names every field, and gains this one line and nothing else.
 
 Options, each pre-approved:
 
@@ -73,8 +74,12 @@ Write the tests first, in `jig/tests/engine-clients/tests/suite/sign_in.rs`, eac
 - `a_given_secret_of_another_length_is_refused_at_start`
 - `a_given_secret_without_the_printed_link_is_no_link`
 
-Narrow runs with `heavy cargo nextest run -p jig-engine-clients-world --test suite -E 'test(given_secret)'` (read the package's name from `jig/tests/engine-clients/Cargo.toml`). Then fmt, clippy and the focused tests as your text says, with `heavy cargo check -p temper-service --tests` as the cross-tree check. Commit and push.
+Narrow runs with `heavy cargo nextest run -p jig-engine-clients-world --test suite -E 'test(given_secret)'` (read the package's name from `jig/tests/engine-clients/Cargo.toml`). Then fmt, clippy and the focused tests as your text says, with `heavy cargo check -p temper-service -p temper-client-world --tests` as the cross-tree check. Commit and push.
 
 ## Report
 
 As your text says: the tests and what each found, the rule broken for each test that pins one, and any literal found beyond the list.
+
+## Answers
+
+2026-11-06. **May the two temper test literals take `link_secret: None`, or does temper's owner repair them first?** Add them, in this task: one line in each of `temper/crates/temper-service/src/tests/clients_unwatch.rs:32` and `temper/tests/client/src/component.rs:61`, nothing else in temper. "Without an edit in temper" rested on temper reaching `Settings` by struct update, which `temper-service/src/clients.rs` does and these two test literals do not. A later task can't repair them, because this task's own check can't pass and `serve-takes-secret` waits on it. The Acceptance, the Owns list and the Steps above now say so. The jig work is commit `2f74ef411e` on `box-link-first/jig-link-secret`: what remains is the two lines, the cross-tree check and the temper focused tests left unobserved. `jig/docs/design/protocol/client.status.md`'s section-8 gap stays out of this task: report it under `## Left`.
