@@ -48,6 +48,7 @@ fn each_fixture_page_prints_as_its_golden_file() {
         ("inbox", fixtures::inbox_page()),
         ("chats", fixtures::chats_page()),
         ("chat", fixtures::chat::page()),
+        ("chat_closing", fixtures::chat::closing_page()),
         ("chat_delegation_running", fixtures::chat::delegation_page(false)),
         ("chat_delegation_landed", fixtures::chat::delegation_page(true)),
         ("first_run", fixtures::chat::first_run()),

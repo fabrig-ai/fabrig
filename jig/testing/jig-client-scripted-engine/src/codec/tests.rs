@@ -1,5 +1,6 @@
 //! Scripted admission at the link's whole-document boundary (client/domain/testing.md, 4).
 use super::*;
+use crate::tests::{REQUESTER, REQUESTER_SIGN_IN};
 use crate::{Bounds, Engine, Invalid, Script, Truth, Up};
 use jig_client_protocol_link::{Undecodable, translate};
 use skein_lib::{Duration, Time, Token};
@@ -8,7 +9,7 @@ fn frame() -> c::Me {
     let text = c::Text::new(Box::from(b"party".as_slice()), 32).expect("fixture text fits");
     let text = c::DocumentText::complete(text);
     c::Me {
-        party: c::MeParty { number: 1, kind: c::PartyKind::Person, login: text.clone(), name: text },
+        party: c::MeParty { number: REQUESTER, kind: c::PartyKind::Person, login: text.clone(), name: text },
         projects: List::with_capacity(0),
         needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
         needs_total: 0,
@@ -32,12 +33,12 @@ fn scripted_front_refuses_the_document_the_link_refuses_over_its_bound() {
     let exact = Bounds { document_bytes: u64::from(record.measure()), ..Bounds::default() };
     assert_eq!(translate::reads::value(&bytes, &front::limits(&exact).expect("valid limits")), Ok(value.clone()));
     let mut truth = Truth::default();
-    truth.frames.insert(1, frame());
-    truth.sign_ins.insert(11, 1);
+    truth.frames.insert(REQUESTER, frame());
+    truth.sign_ins.insert(REQUESTER_SIGN_IN, REQUESTER);
     let mut engine = Engine::new(Script { bounds: exact, truth: truth.clone(), ..Script::default() }, 1)
         .expect("the complete document fits exactly");
     let token = Token::new(1);
-    engine.read(Time::ZERO, 11, token, c::Read::Me).expect("valid read");
+    engine.read(Time::ZERO, REQUESTER_SIGN_IN, token, c::Read::Me).expect("valid read");
     assert!(engine.poll(Time::ZERO).iter().any(|up| matches!(
         up, Up::Read { token: found, terminal: c::ReadResult::Value(found_value) }
             if *found == token && found_value == &value

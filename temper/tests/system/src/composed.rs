@@ -856,7 +856,16 @@ impl World {
                         self.worker_env.limits.reply_bytes,
                     ),
                 },
-                engine::HostDelivery::Settings { to, answer, repositories, application, from, requested } => {
+                engine::HostDelivery::Settings {
+                    to,
+                    answer,
+                    repositories,
+                    people,
+                    forge_people,
+                    application,
+                    from,
+                    requested,
+                } => {
                     let (body, error) = temper_engine_smith::settings_repository_answer(
                         &answer,
                         from,
@@ -864,6 +873,8 @@ impl World {
                         self.root.models(),
                         application.as_ref(),
                         &repositories,
+                        &people,
+                        &forge_people,
                         self.env.limits.call_answer_bytes.saturating_sub(8),
                     )
                     .into_parts();

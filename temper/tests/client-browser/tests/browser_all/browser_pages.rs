@@ -161,8 +161,8 @@ fn change_and_close_steps(tier: &Tier) -> Vec<Step> {
         playground_landed(card(Find::exactly_named(Role::Status, b"Landed"))),
         see(card(Find::text("CI passed. Landed · merge commit ".as_bytes()))),
         press(Role::Button, b"Close"),
-        see(Find::exactly_named(Role::Dialog, b"Close")),
-        press(Role::Button, b"Confirm"),
+        see(Find::exactly_named(Role::Dialog, b"Close this chat?")),
+        press(Role::Button, b"Close chat"),
         see(Find::named(Role::Status, b"Closed")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::TextArea, b"Message"), within: ABSENT }),
         press(Role::Link, b"Chats"),
@@ -192,4 +192,43 @@ fn playground_landed(find: Find) -> Step {
         })
         .expect("the playground story observes its landed change");
     Step::Person(PersonStep::See { find, within })
+}
+
+#[test]
+fn closing_project_rename_returns_focus_to_the_summary() {
+    let tier = Tier::new("rename-focus").with_model();
+    let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
+    let press = |role, name: &[u8]| Step::Person(PersonStep::Press { find: Find::exactly_named(role, name) });
+    let summary = |name: &[u8]| Find::named(Role::Disclosure, name);
+    let main_unfocused = || Step::Keep {
+        selector: b"main:not(:focus)".as_slice().into(),
+        attribute: Some(b"class".as_slice().into()),
+        name: b"main-without-focus".as_slice().into(),
+    };
+    let rename = || Find::exactly_named(Role::TextField, b"Rename");
+    let mut script = Script::new(Box::new([
+        see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
+        Step::Person(PersonStep::Go { address: b"/projects/1".as_slice().into() }),
+        see(summary(b"Project 1")),
+        Step::Person(PersonStep::Press { find: summary(b"Project 1") }),
+        press(Role::Button, b"Rename Project 1"),
+        Step::Focused(rename()),
+        Step::Key(Key::Escape),
+        Step::Person(PersonStep::Gone { find: rename(), within: ABSENT }),
+        Step::Focused(summary(b"Project 1")),
+        main_unfocused(),
+        press(Role::Button, b"Rename Project 1"),
+        Step::Person(PersonStep::Type { find: rename(), words: b"New name".as_slice().into() }),
+        Step::Key(Key::Enter),
+        see(summary(b"New name")),
+        Step::Focused(summary(b"New name")),
+        main_unfocused(),
+        press(Role::Button, b"Rename New name"),
+        Step::Person(PersonStep::Type { find: rename(), words: b"Saved name".as_slice().into() }),
+        press(Role::Button, b"Save"),
+        see(summary(b"Saved name")),
+        Step::Focused(summary(b"Saved name")),
+        main_unfocused(),
+    ]));
+    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
 }

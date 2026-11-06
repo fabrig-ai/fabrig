@@ -1,4 +1,5 @@
 //! The browser half replays operations and copies events into the pure half.
+//! Patches preserve mounted controls (skein/docs/design/ui-web.md, 7).
 
 use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
@@ -69,13 +70,17 @@ impl Dom {
                 let Some(element) = event.target().and_then(|t| t.dyn_into::<Element>().ok()) else {
                     return;
                 };
+                let in_component = element.closest("[data-component]").expect("component selector").is_some();
                 if event.type_() == "click" {
                     target.fold_away(Some(&element));
-                    if !target.mount.contains(Some(&element)) {
+                    let outside_mount = !target.mount.contains(Some(&element));
+                    if outside_mount || in_component || target.nearest(&element).is_none() {
+                        target.press_outside(&model);
+                    }
+                    if outside_mount {
                         return;
                     }
                 }
-                let in_component = element.closest("[data-component]").expect("component selector").is_some();
                 let menu_open = model.borrow().menu.is_some();
                 if let Some(key) = event.dyn_ref::<KeyboardEvent>()
                     && key.key() == "Escape"
@@ -96,7 +101,8 @@ impl Dom {
                 for data in events {
                     let mut ops = Vec::new();
                     let act = model.borrow_mut().act(data, &mut ops);
-                    if act.is_some() || !ops.is_empty() || event.type_() == "cancel" {
+                    // Menu folding leaves the outside control's default press intact.
+                    if act.is_some() || (!ops.is_empty() && event.type_() != "click") || event.type_() == "cancel" {
                         event.prevent_default();
                     }
                     target.apply(&ops);
@@ -181,6 +187,19 @@ struct Mounted {
 }
 
 impl Mounted {
+    fn press_outside(&self, model: &RefCell<Page<'_>>) {
+        let focus_taken = self.document.active_element().is_some_and(|active| {
+            active.tag_name() != "BODY"
+                && model
+                    .borrow()
+                    .menu
+                    .is_some_and(|menu| self.group(menu).roots.iter().all(|root| !root.contains(Some(&active))))
+        });
+        let mut ops = Vec::new();
+        model.borrow_mut().act(Event::PressOutside { focus_taken }, &mut ops);
+        self.apply(&ops);
+    }
+
     // The page owns panel folding, without an application report (ui-web.md, 7).
     // A target is an outside press; no target is Escape, with focus restored inside.
     fn fold_away(&self, target: Option<&Element>) -> bool {
@@ -394,11 +413,18 @@ impl Mounted {
                     let group = self.group(*node);
                     let element = if group.element.get_attribute("role").as_deref() == Some("menu") {
                         group.roots[0].clone().unchecked_into::<Element>()
+                    } else if group.element.tag_name() == "DETAILS" {
+                        group
+                            .element
+                            .query_selector(":scope > summary")
+                            .expect("summary selector")
+                            .expect("disclosure has a summary")
                     } else {
                         group.element
                     };
                     if !element.has_attribute("tabindex")
-                        && !["INPUT", "TEXTAREA", "BUTTON", "A", "SELECT"].contains(&element.tag_name().as_str())
+                        && !["INPUT", "TEXTAREA", "BUTTON", "A", "SELECT", "SUMMARY"]
+                            .contains(&element.tag_name().as_str())
                     {
                         element.set_attribute("tabindex", "-1").expect("focus target accepts tabindex");
                     }
@@ -656,12 +682,15 @@ impl Mounted {
     }
     fn content(&self, element: &Element, model: &Model) {
         let mut kept = Vec::new();
+        let semantic = self.semantic_children(element);
         let nodes = element.child_nodes();
         let children: Vec<_> = (0..nodes.length()).map(|index| nodes.item(index).expect("child node")).collect();
         for child in children {
-            let preserve = child.dyn_ref::<Element>().is_some_and(|e| {
-                e.has_attribute("data-node") || e.query_selector("[data-node]").expect("node selector").is_some()
-            });
+            // Companions stay with children; a disclosure keeps its focusable summary.
+            let preserve = semantic.iter().any(|root| root.is_same_node(Some(&child)))
+                || child.dyn_ref::<Element>().is_some_and(|e| {
+                    e.tag_name() == "SUMMARY" || e.query_selector("[data-node]").expect("node selector").is_some()
+                });
             if preserve {
                 kept.push(child);
             } else {

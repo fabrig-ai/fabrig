@@ -22,7 +22,7 @@ pub(super) fn proposed_amendment(bounded: bool, changed: bool) -> (Script, Ask, 
         },
     }]);
     let ask = Ask::Propose {
-        project: 1,
+        project: PROJECT,
         action: ProposeAction::Amendment {
             task: row.chip.task,
             revision: row.spec_revision,
@@ -45,7 +45,7 @@ pub(super) fn proposed_amendment(bounded: bool, changed: bool) -> (Script, Ask, 
         DocumentOutcome::Proposed { proposal: 1, to: 0 }
     }));
     setup.truth.objects.insert(ObjectKey::Task(row.chip.task), ReadValue::Task(Box::new(row)));
-    setup.rules.push(Rule { party: Some(1), ask: ask.clone(), answer: answer.clone(), changes: vec![] });
+    setup.rules.push(Rule { party: Some(REQUESTER), ask: ask.clone(), answer: answer.clone(), changes: vec![] });
     (setup, ask, answer)
 }
 
@@ -113,7 +113,7 @@ pub(super) fn span_proposal() -> (Script, Ask) {
         authority: AuthorityDocument { authority: member.authority, cut: false },
         deadline: NewDeadline::Span(Duration::from_secs(5)),
         budget: 20,
-        funder: Funder::Pool { project: 1, person: 1, period: 1 },
+        funder: Funder::Pool { project: PROJECT, person: REQUESTER, period: 1 },
         dependencies: List::with_capacity(0),
         resources: List::with_capacity(0),
         wake: WakePolicy {
@@ -130,14 +130,14 @@ pub(super) fn span_proposal() -> (Script, Ask) {
     };
     value.action = ProposalAction::Batch(list(vec![task]));
     let ask = Ask::Decide {
-        project: 1,
+        project: PROJECT,
         on: DecideOn::Proposal { proposal: value.key, decision: Decision::Accepted, running: None },
     };
     setup.truth.objects.insert(ObjectKey::Proposal(value.key), ReadValue::Proposal(Box::new(value)));
     setup
         .truth
         .frames
-        .get_mut(&1)
+        .get_mut(&REQUESTER)
         .expect("fixture party frame")
         .projects
         .get_mut(0)
@@ -148,7 +148,7 @@ pub(super) fn span_proposal() -> (Script, Ask) {
         .within
         .latest = Some(Wall::from_nanos(20_000_000_000));
     setup.rules.push(Rule {
-        party: Some(1),
+        party: Some(REQUESTER),
         ask: ask.clone(),
         answer: Answer::Done(Outcome::Document(DocumentOutcome::Amended { task: 8 })),
         changes: vec![],

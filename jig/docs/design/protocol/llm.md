@@ -276,9 +276,10 @@ engine's protocol layer
   account the driver does not hold. The translation names them, and
   asserts they never come.
 - **The visit is not a value to hide:** the address holds the sign-in's
-  `state` and its challenge, never its verifier, and is spent when the
-  sign-in ends, so the answer that carries it is committed as any
-  answer is.
+  `state`, its challenge and, for a party that checks an ID token, its
+  nonce, never its verifier, and is spent when the sign-in ends, so the
+  answer that carries it is committed as any answer is, and the records
+  that carry it print it in their `Debug`.
 
 ### 5.3 The table
 

@@ -142,13 +142,18 @@ impl Plan {
             },
             State::Permission { row, whose } => {
                 let permission = match document {
-                    Some(d::Document::Permission(permission)) => reading::permission(permission.permission),
+                    Some(d::Document::Permission(permission)) => api::UserPermission {
+                        user: permission.user.id,
+                        login: permission.user.login,
+                        permission: reading::permission(permission.permission),
+                    },
                     Some(_) | None => return Err(api::Error::InvalidAnswer),
                 };
                 match whose {
                     Whose::One => api::Answer::Permission(permission),
                     Whose::Each(mut roster) => {
-                        roster.rows.get_mut(roster.position).ok_or(api::Error::InvalidAnswer)?.permission = permission;
+                        roster.rows.get_mut(roster.position).ok_or(api::Error::InvalidAnswer)?.permission =
+                            permission.permission;
                         roster.position = roster.position.saturating_add(1);
                         return Ok(self.next_permission(row, roster, tables));
                     }

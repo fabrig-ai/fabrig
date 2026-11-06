@@ -1,5 +1,5 @@
 use crate::read_support::{request, world};
-use jig_core_world::fixtures::{PROJECT, live_row};
+use jig_core_world::fixtures::{PARTY as OWNER, PROJECT, live_row, sign_in as signin};
 use jig_core_world::stories::delegates::delegate_pair;
 use jig_core_world::world::Setup;
 use jig_domain_core as core;
@@ -9,7 +9,6 @@ use jig_test_domain as root;
 use jig_test_profile::fixtures::person_unchanged;
 use skein_lib::Duration;
 
-const OWNER: u64 = 1;
 const CANCEL: u8 = 1;
 const AMEND: u8 = 2;
 const MOVE_SIGN_IN: u64 = 6100;
@@ -308,15 +307,7 @@ fn an_earlier_compound_amendment_sets_the_next_spec_revision() {
 
 fn another_requester(world: &mut jig_core_world::world::World) -> u64 {
     let first = world.sign_in.expect("first requester signed in");
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(MOVE_SIGN_IN)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
-            login: b"second".as_slice().into(),
-            name: b"second requester".as_slice().into(),
-        },
-    }));
+    world.send(signin(skein_lib::Token::new(MOVE_SIGN_IN), 0, &8_u64.to_be_bytes(), b"second", b"second requester"));
     let people::Reply::SignedIn { person, .. } = *world.people_answers.last().expect("second sign-in") else {
         panic!("second signed in")
     };

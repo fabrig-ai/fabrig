@@ -185,6 +185,10 @@ pub(crate) fn switcher(
             for row in &me.projects {
                 if (Some(row.project) == project) == selected {
                     let name = crate::pages::project_name(Some(me), row.project).expect("project from me has a name");
+                    if selected && root.pages().switcher().renaming() == Some(row.project) {
+                        rename_form(builder, root, words, &name, bindings);
+                        continue;
+                    }
                     builder.open(Role::Button);
                     if place == Place::Rail {
                         project_row(builder, root, words, row.project, &name);
@@ -196,16 +200,12 @@ pub(crate) fn switcher(
                     }
                     builder.bind(bindings.insert(Act::Project { project: row.project }));
                     builder.close();
-                    if selected && place == Place::Banner {
-                        if root.pages().switcher().renaming() == Some(row.project) {
-                            rename_form(builder, root, words, &name, bindings);
-                        } else if row.role == jig_client::contract::HeldRole::Owner {
-                            builder.open(Role::Button);
-                            builder.style(crate::look::PROJECT_RENAME);
-                            builder.name(&words.say(crate::words::Word::Rename, &[]));
-                            builder.bind(bindings.insert(Act::Switcher(switcher::Act::Rename)));
-                            builder.close();
-                        }
+                    if selected && place == Place::Banner && row.role == jig_client::contract::HeldRole::Owner {
+                        builder.open(Role::Button);
+                        builder.style(crate::look::PROJECT_RENAME);
+                        builder.name(&words.say(crate::words::Word::Rename, &[]));
+                        builder.bind(bindings.insert(Act::Switcher(switcher::Act::Rename)));
+                        builder.close();
                     }
                 }
             }
@@ -218,9 +218,7 @@ pub(crate) fn switcher(
                     continue;
                 }
                 let name = crate::pages::project_name(Some(me), row.project).expect("open project has a name");
-                if root.pages().switcher().renaming() == Some(row.project) {
-                    rename_form(builder, root, words, &name, bindings);
-                } else if row.role == jig_client::contract::HeldRole::Owner {
+                if root.pages().switcher().renaming().is_none() && row.role == jig_client::contract::HeldRole::Owner {
                     builder.open(Role::Button);
                     builder.style(crate::look::PROJECT_RENAME);
                     builder.name(&words.say(crate::words::Word::RenameProject, &[skein_ui::phrases::Hole::Name(name)]));
@@ -590,14 +588,38 @@ pub(crate) fn rail(
     }
     away(b, root, w, bindings, times, project, crate::look::AWAY);
     settings_link(b, root, w, bindings, project);
-    if let Some(me) = root.pages().me(root.client()) {
-        text(b, Role::Status, me.party.name.bytes(), None);
-    }
+    person(b, root, w, bindings);
     if root.client().link().sign_out_lost {
         text(b, Role::Alert, &w.say(Word::SignOutLost, &[]), None);
     }
     b.close();
     b.close();
+}
+
+/// The rail's person: a line in the terminal, a menu in a browser
+/// (temper/docs/design/client/README.md, 5.3).
+fn person(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings) {
+    use crate::words::{Shell, Word};
+    let Some(me) = root.pages().me(root.client()) else { return };
+    match w.shell {
+        Shell::Terminal => text(b, Role::Status, me.party.name.bytes(), None),
+        Shell::Browser => {
+            b.open(Role::Slot);
+            b.style(crate::look::RAIL_PERSON);
+            b.open(Role::Menu);
+            b.name(me.party.name.bytes());
+            for (word, act) in
+                [(Word::SettingsAccountsTab, Act::Go { address: Address::Accounts }), (Word::SignOut, Act::SignOut)]
+            {
+                b.open(Role::MenuItem);
+                b.name(&w.say(word, &[]));
+                b.bind(bindings.insert(act));
+                b.close();
+            }
+            b.close();
+            b.close();
+        }
+    }
 }
 
 /// The shared switch and browser chip (temper/docs/design/client/README.md, 3.5, Away).

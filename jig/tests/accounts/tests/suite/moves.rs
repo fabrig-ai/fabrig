@@ -1,5 +1,8 @@
 //! Moves run entirely at the child's boundary (accounts.md, section 6).
-use jig_accounts_world::{LIMITS, World, account, provider, providers, source};
+use jig_accounts_world::{
+    ALICE, ALICE_PARTY, BOB, BOB_PARTY, LIMITS, PROVIDER, World, account, answer, commit, provider, providers, refused,
+    save, source, want,
+};
 use jig_domain_accounts::{
     Answer, Bound, Change, End, Event, Failure, Form, FromComponent, Grant, Held, Holder, Key, KeyFailure, Kind,
     Refusal, Request, Scheme, Signing, State, Stored, ToComponent, Turned, Use,
@@ -7,13 +10,11 @@ use jig_domain_accounts::{
 use skein_lib::{Duration, Time, Token};
 use std::collections::BTreeMap;
 
-const ALICE: Holder = Holder::Party(9);
-const BOB: Holder = Holder::Party(4);
 const CARRIED: u64 = 1 << 63;
 fn fresh(rows: &[Stored]) -> World {
     World::with_start(
         jig_accounts_world::LIMITS,
-        providers(vec![provider(1, true, true), provider(2, false, true)]),
+        providers(vec![provider(PROVIDER, true, true), provider(2, false, true)]),
         rows,
     )
 }
@@ -23,7 +24,7 @@ fn started(rows: &[Stored]) -> World {
     world
 }
 fn rows(key: bool) -> Vec<Stored> {
-    let mut row = account(5, 1, ALICE, b"alice");
+    let mut row = account(5, PROVIDER, ALICE, b"alice");
     if let Stored::Account { display, .. } = &mut row {
         *display = Box::from(b"Al".as_slice());
     }
@@ -36,20 +37,8 @@ fn rows(key: bool) -> Vec<Stored> {
 fn change(request: u64, holder: Holder, change: Change) -> Event {
     Event::Change { request: Token::new(request), holder, change }
 }
-fn answer(request: u64, answer: Answer) -> Request {
-    Request::Answer { request: Token::new(request), answer }
-}
-fn refused(request: u64, refusal: Refusal) -> Vec<Request> {
-    vec![answer(request, Answer::Refused { refusal })]
-}
-fn save(record: Stored) -> Request {
-    Request::Save { record }
-}
 fn moving(account: u32, number: u32, place: u32) -> Stored {
     Stored::Source { account, number, place, kind: Kind::SignIn, name: Box::new([]), held: Some(Held::Moving) }
-}
-fn want(source: u32) -> Request {
-    Request::Component(ToComponent::Want { account: source })
 }
 fn grant(source: u32, generation: u64) -> Event {
     Event::Component(FromComponent::Granted {
@@ -105,32 +94,12 @@ fn open(world: &mut World, source: u32, subject: &[u8]) {
         vec![Request::Signing(Signing::Adopt { source, carried: CARRIED })]
     );
 }
-fn commit(store: &mut BTreeMap<Key, Stored>, requests: &[Request]) {
-    for request in requests {
-        match request {
-            Request::Save { record } => {
-                store.insert(record.key(), record.clone());
-            }
-            Request::Erase { key } => {
-                store.remove(key);
-            }
-            Request::Programs { .. }
-            | Request::CheckProgram { .. }
-            | Request::SignOutProgram { .. }
-            | Request::Component(_)
-            | Request::Signing(_)
-            | Request::Answer { .. }
-            | Request::Granted { .. }
-            | Request::Closed => {}
-        }
-    }
-}
 fn restart(store: &BTreeMap<Key, Stored>, source: u32) -> World {
     let mut again = fresh(&store.values().cloned().collect::<Vec<_>>());
     assert_eq!(
         again.step(Event::Want),
         vec![
-            Request::Signing(Signing::Restore { source, provider: 1, kind: Kind::SignIn }),
+            Request::Signing(Signing::Restore { source, provider: PROVIDER, kind: Kind::SignIn }),
             Request::Signing(Signing::Restored),
             Request::Signing(Signing::Refresh { source }),
             want(source),
@@ -286,7 +255,7 @@ fn an_unreadable_record_is_refused_not_signed_in_and_comes_back() {
 #[test]
 fn moving_out_needs_a_signed_in_source_with_a_record() {
     for kind in [Kind::Key, Kind::None] {
-        let mut world = started(&[account(5, 1, ALICE, b""), source(5, 6, 0, kind)]);
+        let mut world = started(&[account(5, PROVIDER, ALICE, b""), source(5, 6, 0, kind)]);
         let next = world.domain.next_number();
         assert_eq!(world.step(change(1, ALICE, Change::MoveOut { account: 5 })), refused(1, Refusal::NotSignedIn));
         assert_eq!(world.domain.next_number(), next);
@@ -306,7 +275,7 @@ fn while_moving_sign_out_removal_renewal_and_another_move_are_refused() {
     // Two slots let a sign-in or arrival reach its subject while a move occupies one.
     let mut world = World::with_start(
         jig_domain_accounts::Limits { sign_ins: 2, ..LIMITS },
-        providers(vec![provider(1, true, true)]),
+        providers(vec![provider(PROVIDER, true, true)]),
         &rows(true),
     );
     world.step(Event::Want);
@@ -333,13 +302,17 @@ fn while_moving_sign_out_removal_renewal_and_another_move_are_refused() {
                 .contains(&answer(3, Answer::Done))
         );
         assert_eq!(
-            world.step(change(3, ALICE, Change::SetUses { account: 5, uses: Some(Box::new([Use::Party(9)])) })).last(),
+            world
+                .step(change(3, ALICE, Change::SetUses { account: 5, uses: Some(Box::new([Use::Party(ALICE_PARTY)])) }))
+                .last(),
             Some(&answer(3, Answer::Done))
         );
         let incoming = world.domain.next_number();
         assert_eq!(
-            world.step(Event::SignIn { request: Token::new(4), holder: ALICE, by: 9, provider: 1 }).last(),
-            Some(&Request::Signing(Signing::SignIn { source: incoming, provider: 1 }))
+            world
+                .step(Event::SignIn { request: Token::new(4), holder: ALICE, by: ALICE_PARTY, provider: PROVIDER })
+                .last(),
+            Some(&Request::Signing(Signing::SignIn { source: incoming, provider: PROVIDER }))
         );
         world.step(Event::Visited { source: incoming, address: Box::new([]) });
         assert_eq!(
@@ -369,7 +342,7 @@ fn a_move_in_makes_an_account_refreshed_once_before_it_is_usable() {
     open(&mut world, source, b"alice");
     let made = Stored::Account {
         number: 1,
-        provider: 1,
+        provider: PROVIDER,
         holder: ALICE,
         place: 0,
         uses: None,
@@ -423,7 +396,7 @@ fn a_move_in_is_refused_for_another_holders_subject_held() {
     let source = start_in(&mut world, BOB);
     assert_eq!(
         world.step(opened(source, 1, b"alice")),
-        [vec![Request::Signing(Signing::Forget { source })], refused(2, Refusal::Held { provider: 1 })].concat()
+        [vec![Request::Signing(Signing::Forget { source })], refused(2, Refusal::Held { provider: PROVIDER })].concat()
     );
     assert_eq!(world.domain.accounts(), 1);
     assert!(world.step(Event::Adopted { source, kept: true }).is_empty());
@@ -471,8 +444,8 @@ fn a_move_in_counts_against_the_sign_ins_bound() {
     for event in [
         change(3, ALICE, Change::MoveIn { carried: CARRIED }),
         change(3, ALICE, Change::MoveOut { account: 5 }),
-        change(3, ALICE, Change::AddKey { provider: 1, join: None, carried: CARRIED }),
-        Event::SignIn { request: Token::new(3), holder: ALICE, by: 9, provider: 1 },
+        change(3, ALICE, Change::AddKey { provider: PROVIDER, join: None, carried: CARRIED }),
+        Event::SignIn { request: Token::new(3), holder: ALICE, by: ALICE_PARTY, provider: PROVIDER },
     ] {
         assert_eq!(world.step(event), refused(3, Refusal::Limit { bound: Bound::SignIns }));
     }
@@ -532,13 +505,13 @@ fn a_restart_after_a_move_in_before_its_first_grant_refreshes_again() {
 fn a_move_out_waits_for_a_key_keep_joining_its_account() {
     let mut world = World::with_start(
         jig_domain_accounts::Limits { sign_ins: 2, ..LIMITS },
-        providers(vec![provider(1, true, true)]),
+        providers(vec![provider(PROVIDER, true, true)]),
         &rows(false),
     );
     world.step(Event::Want);
     let source = world.domain.next_number();
     assert_eq!(
-        world.step(change(3, ALICE, Change::AddKey { provider: 1, join: Some(5), carried: CARRIED })),
+        world.step(change(3, ALICE, Change::AddKey { provider: PROVIDER, join: Some(5), carried: CARRIED })),
         vec![
             save(Stored::Next { number: source + 1 }),
             Request::Signing(Signing::Keep { source, carried: CARRIED, replaces: false }),
@@ -565,7 +538,7 @@ fn a_move_out_waits_for_a_key_keep_joining_its_account() {
 fn a_key_keep_cannot_join_an_account_while_its_source_moves() {
     let mut world = World::with_start(
         jig_domain_accounts::Limits { sign_ins: 2, ..LIMITS },
-        providers(vec![provider(1, true, true)]),
+        providers(vec![provider(PROVIDER, true, true)]),
         &rows(false),
     );
     world.step(Event::Want);
@@ -576,7 +549,7 @@ fn a_key_keep_cannot_join_an_account_while_its_source_moves() {
         }
         let next = world.domain.next_number();
         assert_eq!(
-            world.step(change(3, ALICE, Change::AddKey { provider: 1, join: Some(5), carried: CARRIED })),
+            world.step(change(3, ALICE, Change::AddKey { provider: PROVIDER, join: Some(5), carried: CARRIED })),
             refused(3, Refusal::Moving)
         );
         assert_eq!(world.domain.next_number(), next);
@@ -606,7 +579,7 @@ fn a_returned_moves_refresh_needing_sign_in_lifts_its_moving_hold() {
 fn a_move_in_checks_its_subject_again_after_adoption() {
     let mut world = World::with_start(
         jig_domain_accounts::Limits { sign_ins: 2, ..LIMITS },
-        providers(vec![provider(1, true, true)]),
+        providers(vec![provider(PROVIDER, true, true)]),
         &rows(false),
     );
     world.step(Event::Want);
@@ -625,14 +598,14 @@ fn a_move_in_checks_its_subject_again_after_adoption() {
 
     let mut world = World::with_start(
         jig_domain_accounts::Limits { sign_ins: 2, ..LIMITS },
-        providers(vec![provider(1, true, true)]),
+        providers(vec![provider(PROVIDER, true, true)]),
         &[],
     );
     world.step(Event::Want);
     let arriving = start_in(&mut world, ALICE);
     open(&mut world, arriving, b"alice");
     let signed_in = world.domain.next_number();
-    world.step(Event::SignIn { request: Token::new(3), holder: BOB, by: 4, provider: 1 });
+    world.step(Event::SignIn { request: Token::new(3), holder: BOB, by: BOB_PARTY, provider: PROVIDER });
     world.step(Event::Visited { source: signed_in, address: Box::new([]) });
     world.step(Event::SignedIn {
         source: signed_in,
@@ -644,7 +617,7 @@ fn a_move_in_checks_its_subject_again_after_adoption() {
         world.step(Event::Adopted { source: arriving, kept: true }),
         vec![
             Request::Signing(Signing::Forget { source: arriving }),
-            answer(2, Answer::Refused { refusal: Refusal::Held { provider: 1 } }),
+            answer(2, Answer::Refused { refusal: Refusal::Held { provider: PROVIDER } }),
         ]
     );
     assert_eq!(world.domain.accounts(), 1);

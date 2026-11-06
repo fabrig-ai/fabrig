@@ -1,4 +1,4 @@
-use jig_core_world::fixtures::{PROJECT, ask_as};
+use jig_core_world::fixtures::{PARTY as OWNER, PROJECT, ask_as, sign_in as signin};
 use jig_core_world::stories::offers::no_holder_fixture;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
@@ -64,7 +64,6 @@ fn assert_task_times(world: &mut World, made: Wall, last_activity: Wall) {
     assert_eq!(value.last_activity, last_activity);
 }
 
-const OWNER: u64 = 1;
 const MEMBER: u64 = 3;
 const MEMBER_CHAT: u64 = 2;
 const MEMBER_CHAT_BUDGET: u64 = 100;
@@ -76,15 +75,7 @@ fn member_world() -> (World, u64, u64) {
     let (configuration, limits) = no_holder_fixture(172);
     let mut world = World::new(Setup { seed: 172, configuration: Some(configuration), limits, ..Setup::default() });
     let owner = world.sign_in.expect("signed-in owner");
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(SIGN_IN)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: b"member".as_slice().into() },
-            login: b"member".as_slice().into(),
-            name: b"Member".as_slice().into(),
-        },
-    }));
+    world.send(signin(Token::new(SIGN_IN), 0, b"member", b"member", b"Member"));
     let member = world.sign_in.expect("signed-in member");
     world.send(root::Event::Core(core::Event::People(people::Event::Roles {
         project: PROJECT,

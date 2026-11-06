@@ -1,10 +1,9 @@
 use jig_domain_tasks::{
     self as tasks, Active, End, Event, Executor, Funder, Party, Phase, ProcedureDecision, TaskResult,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON as REQUESTER, PERSON_PARTY, Reply, World, task};
 use skein_lib::ReplyTo;
 
-const REQUESTER: u64 = 9;
 const ROOT: u64 = 1;
 const PROCEDURE: u64 = 2;
 const CHILD: u64 = 3;
@@ -30,7 +29,7 @@ fn stage_step(world: &mut World, task: u64, step: u64, decision: ProcedureDecisi
 #[test]
 fn a_procedure_steps_through_delegates_to_its_result() {
     let mut world = World::new(201, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     let mut procedure = task(2, &[]);
     procedure.executor = Executor::Procedure { connector: 1, code: 1 };
     procedure.funder = Funder::Task(1);

@@ -1,6 +1,7 @@
 //! Installation account routing and bounded repository discovery (forge-connection.md, 4).
 use super::{Base, Common, GitHubCall, GitHubForge, Waiting, calls};
 use crate::{Event, Limits, connection::Phase, installations::Selected};
+use alloc::boxed::Box;
 use skein_forge::{
     api,
     github::{
@@ -237,7 +238,11 @@ impl Common {
         if github.discovery.is_none() && user == base.forge.access.as_ref()?.user {
             let route = github.route.expect("eligible route");
             let row = gh.state.rows.get(&route.selected.id).expect("eligible row");
-            return Some(api::Answer::Permission(row.permissions.permission()));
+            return Some(api::Answer::Permission(api::UserPermission {
+                user,
+                login: Box::new([]),
+                permission: row.permissions.permission(),
+            }));
         }
         None
     }
@@ -388,8 +393,15 @@ impl Common {
         route.token_revision = row.token_revision;
         route.status = None;
         let c = self.connection_slab.get_mut(*self.connections.get(&token).expect("connection")).expect("connection");
-        c.rest(Some(deadline));
-        match github.exchange.start(c, env, &base.forge, &self.owner.user_agent, exchange, authorization) {
+        match github.exchange.start(
+            c,
+            Some(deadline),
+            env,
+            &base.forge,
+            &self.owner.user_agent,
+            exchange,
+            authorization,
+        ) {
             Ok(()) => {}
             Err(_) => return Err(api::Error::Refused),
         }
@@ -457,7 +469,7 @@ impl Common {
             let c =
                 self.connection_slab.get_mut(*self.connections.get(&token).expect("connection")).expect("connection");
             if c.phase() == Phase::Idle && !c.in_flight() {
-                c.rest(Some(env.now.saturating_add(env.limits.idle)));
+                c.until(Some(env.now.saturating_add(env.limits.idle)));
             } else if !c.draining() {
                 c.close(env, c.in_flight(), io);
             }

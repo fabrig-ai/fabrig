@@ -336,10 +336,21 @@ fn compare(test: Test, found: &Value, expected: &Value) -> bool {
             _ => false,
         },
         Test::Contains => match (found.as_array(), expected.as_array()) {
-            (Some(f), Some(e)) => e.iter().all(|v| f.contains(v)),
+            (Some(f), Some(e)) => e.iter().all(|v| f.iter().any(|item| holds(item, v))),
             _ => false,
         },
         Test::Set | Test::Judged | Test::Unchanged | Test::Only => false,
+    }
+}
+/// An element holds an expected one when each member the golden names is equal,
+/// a member absent counting as null, as ctl prints it; a member it does not name,
+/// a document's heading among them, is free.
+fn holds(found: &Value, expected: &Value) -> bool {
+    match (found.as_object(), expected.as_object()) {
+        (Some(found), Some(expected)) => {
+            expected.iter().all(|(name, value)| found.get(name).unwrap_or(&Value::Null) == value)
+        }
+        _ => found == expected,
     }
 }
 fn setting_outcome(
@@ -546,6 +557,7 @@ pub fn check(golden: &Golden, profile: &SettingsFile, evidence: &Evidence) -> Re
         .items
         .iter()
         .filter(|item| !keys.contains(&Some(item.setting.clone())) && !subjects.contains(&item.setting))
+        .filter(|item| !golden.free.contains(&item.setting.kind))
         .map(|item| Extra { setting: item.setting.clone(), why: "no obligation asks for it".into() })
         .collect();
     Report { binding, verdicts, extras }

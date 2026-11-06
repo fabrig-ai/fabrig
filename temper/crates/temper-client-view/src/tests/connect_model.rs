@@ -545,28 +545,41 @@ fn a_returned_source_draws_the_same_ending_words_as_an_own_sign_in() {
 }
 
 #[test]
-fn a_returned_source_still_signing_offers_the_paste_unfolded() {
-    let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
-    fixtures::root_event(
-        &mut root,
-        d::Event::Went {
-            place: d::Place::Address(d::Address::ConnectModel {
-                way: Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::SignIn, source: Some(43) }),
-            }),
-        },
-    );
-    let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn);
-    doc.signing.get_mut(0).unwrap().source = 43;
-    super::accounts::deliver(&mut root, watch, doc);
-    let shown = words(&root);
-    assert!(shown.contains("Go forward to that page, or find it in your history, and copy its address."));
-    let tree = fixtures::page_view(&root);
-    assert!(fixtures::find(tree.tree(), Role::TextField, b"Address of the page that couldn't be reached").is_some());
-    assert!(fixtures::find(tree.tree(), Role::Button, b"Finish connecting").is_some());
-    assert!(fixtures::find(tree.tree(), Role::Disclosure, b"Signed in, but the page couldn't be reached?").is_none());
+fn a_returned_source_waits_without_inventing_a_link() {
+    for welcome in [false, true] {
+        let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
+        let way = Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::SignIn, source: Some(43) });
+        let address = if welcome {
+            d::Address::Welcome { step: d::Step::Model { way } }
+        } else {
+            d::Address::ConnectModel { way }
+        };
+        fixtures::root_event(&mut root, d::Event::Went { place: d::Place::Address(address) });
+        let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn);
+        doc.usable = false;
+        doc.accounts.clear();
+        doc.signing.get_mut(0).unwrap().source = 43;
+        super::accounts::deliver(&mut root, watch, doc);
+        assert!(root.pages().connect_model().unwrap().request.sign_in_address(root.client()).is_none());
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let tree = view.tree();
+            let text = String::from_utf8_lossy(&fixtures::text(tree)).into_owned();
+            assert!(!text.contains("Go forward to that page"));
+            assert!(fixtures::find(tree, Role::TextField, PASTE_FIELD).is_some());
+            assert!(fixtures::find(tree, Role::Button, b"Finish connecting").is_some());
+            assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::WELCOME_AGAIN)));
+            assert!(!tree.nodes().iter().any(|n| n.external.as_deref() == Some(b"https://issuer.example/visit")));
+            assert!(fixtures::find(tree, Role::Link, b"Open it again").is_none());
+            assert!(fixtures::find(tree, Role::Link, "Open ChatGPT’s sign-in ›".as_bytes()).is_none());
+            assert!(
+                fixtures::find(tree, Role::Disclosure, "Signed in, but the page couldn’t be reached?".as_bytes())
+                    .is_some()
+            );
+        }
+    }
 }
 
-const PASTE_FIELD: &[u8] = b"Address of the page that couldn't be reached";
+const PASTE_FIELD: &[u8] = "Address of the page that couldn’t be reached".as_bytes();
 pub(super) fn pasting(elsewhere: bool) -> (d::Domain, skein_lib::Token) {
     let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
     let way = d::pages::accounts::Way::SignIn { provider: PROVIDER, plan: true };
@@ -586,21 +599,83 @@ fn paste_input(root: &mut d::Domain, value: &[u8]) {
     fixtures::root_event(root, d::Event::SignInAddress { value: skein_lib::Secret::new(Box::from(value)) });
 }
 #[test]
-fn signing_in_offers_the_paste_folded_under_its_address() {
+fn signing_in_orders_the_note_link_and_folded_paste_in_both_shells() {
     let (root, _) = pasting(false);
-    let view = fixtures::page_view(&root);
-    let disclosure = view
-        .tree()
-        .nodes()
-        .iter()
-        .position(|n| {
-            n.role == Role::Disclosure && n.name.as_deref() == Some(b"Signed in, but the page couldn't be reached?")
-        })
-        .unwrap();
-    let field = view.tree().nodes().iter().position(|n| n.name.as_deref() == Some(PASTE_FIELD)).unwrap();
-    assert!(field > disclosure && field < disclosure + usize::try_from(view.tree().nodes()[disclosure].size).unwrap());
-    assert!(!view.tree().nodes()[disclosure].states.as_slice().contains(&skein_ui::State::Expanded));
-    assert!(words(&root).contains("Go forward to that page, or find it in your history, and copy its address."));
+    assert_waiting(&root);
+}
+/// The two pages share one waiting shape, including the terminal's honest title.
+pub(super) fn assert_waiting(root: &d::Domain) {
+    use crate::look;
+    for (browser, view) in [(true, fixtures::browser_page_view(root)), (false, fixtures::page_view(root))] {
+        let tree = view.tree();
+        let nodes = tree.nodes();
+        let at = |style| {
+            nodes
+                .iter()
+                .position(|n| n.styles.as_slice().contains(&style))
+                .expect("waiting page carries each part’s style")
+        };
+        let note = at(look::WELCOME_AWAY);
+        let disclosure = at(look::WELCOME_PASTE);
+        assert!(note < disclosure);
+        let title = if browser { "Waiting for ChatGPT’s sign-in, in the new tab" } else { "ChatGPT’s sign-in" };
+        let status =
+            nodes.iter().position(|n| n.role == Role::Status && n.name.as_deref() == Some(title.as_bytes())).unwrap();
+        let muted = nodes
+            .iter()
+            .position(|n| {
+                n.role == Role::Paragraph
+                    && n.name.as_deref() == Some(b"Sign in and approve temper there. This page moves on by itself.")
+            })
+            .unwrap();
+        assert!(note < status && status < muted && muted < disclosure);
+        assert!(nodes[muted].styles.as_slice().contains(&look::FLOW_MUTED));
+        assert_eq!(nodes[disclosure].role, Role::Disclosure);
+        assert_eq!(nodes[disclosure].name.as_deref(), Some("Signed in, but the page couldn’t be reached?".as_bytes()));
+        assert!(nodes[disclosure].styles.as_slice().contains(&look::MODEL_SIGN_IN));
+        assert!(!nodes[disclosure].states.as_slice().contains(&skein_ui::State::Expanded));
+        let field =
+            nodes.iter().position(|n| n.role == Role::TextField && n.name.as_deref() == Some(PASTE_FIELD)).unwrap();
+        let finish = nodes
+            .iter()
+            .position(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Finish connecting"))
+            .unwrap();
+        assert!(disclosure < field && field < finish);
+        assert!(finish < disclosure.checked_add(usize::try_from(nodes[disclosure].size).unwrap()).unwrap());
+        assert!(nodes[finish].styles.as_slice().contains(&look::FLOW_PRIMARY));
+        assert_eq!(nodes[field].entry, Some(skein_ui::EntryKind::Secret));
+        let text = String::from_utf8_lossy(&fixtures::text(tree)).into_owned();
+        assert!(text.contains(
+            "When ChatGPT is done, its tab shows a page that can’t be reached. Copy that page’s whole address"
+        ));
+        assert!(!text.contains("Go forward to that page"));
+        assert!(!nodes.iter().any(|n| n.styles.as_slice().contains(&look::FLOW_CHOICE)));
+        assert_eq!(nodes.iter().any(|n| n.styles.as_slice().contains(&look::WELCOME_SPIN)), browser);
+        if browser {
+            let link = at(look::WELCOME_AGAIN);
+            assert!(muted < link && link < disclosure);
+            assert_eq!(nodes[link].role, Role::Link);
+            assert_eq!(nodes[link].name.as_deref(), Some(b"Open it again".as_slice()));
+            assert_eq!(fixtures::node_text(tree, link).as_ref(), "Open it again ›".as_bytes());
+            assert_eq!(
+                nodes[link].external.as_deref(),
+                root.pages().connect_model().unwrap().request.sign_in_address(root.client())
+            );
+        } else {
+            let link = nodes[note..disclosure]
+                .iter()
+                .find(|n| n.role == Role::Link && n.external.is_some())
+                .expect("the terminal offers the sign-in address");
+            assert_eq!(link.external.as_deref(), Some(b"https://issuer.example/visit".as_slice()));
+            assert!(!text.contains("in the new tab"));
+            let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+            skein_ui_text::render(tree, b"temper", None, &mut print);
+            let text = String::from_utf8_lossy(print.text.as_slice());
+            assert!(text.contains(title));
+            assert!(text.contains("Open the sign-in page <https://issuer.example/visit>"));
+            assert!(text.contains("Signed in, but the page couldn’t be reached?"));
+        }
+    }
 }
 fn paste_case(case: usize) -> d::Domain {
     use c::SignInRedirectWhy as R;
@@ -668,8 +743,8 @@ fn paste_case(case: usize) -> d::Domain {
 fn the_paste_reads_each_state_in_its_words() {
     // Each row drives the page through its public events, then reads the tree.
     for (case, message, field, enabled, button_name) in [
-        (0, "When ChatGPT is done, its tab shows a page that can't be reached.", true, false, "Finish connecting"),
-        (1, "Copy that page's whole address from the address bar", true, true, "Finish connecting"),
+        (0, "When ChatGPT is done, its tab shows a page that can’t be reached.", true, false, "Finish connecting"),
+        (1, "Copy that page’s whole address from the address bar", true, true, "Finish connecting"),
         (2, "That's longer than a sign-in's address. Copy the address bar alone.", true, false, "Finish connecting"),
         (3, "Finishing…", true, false, "Finishing…"),
         (4, "Finishing your sign-in…", false, false, ""),
@@ -741,48 +816,20 @@ fn the_paste_field_decodes_to_the_secret_event_and_finish_to_its_act() {
     assert!(!format!("{view:?}").contains("fixture-private"));
 }
 #[test]
-fn choose_offers_this_browser_isnt_on_tempers_computer_beside_the_sign_in() {
-    let mut root = offered_root();
-    let mut view = fixtures::view();
-    let tree = fixtures::build(&mut view, &root);
-    let primary = fixtures::find(tree, Role::Button, b"Continue with ChatGPT").unwrap();
-    let secondary = fixtures::find(tree, Role::Button, "This browser isn't on temper's computer ›".as_bytes()).unwrap();
-    assert!(
-        tree.nodes().iter().find(|n| n.id == primary).unwrap().styles.as_slice().contains(&crate::look::FLOW_PRIMARY)
-    );
-    assert!(
-        !tree
-            .nodes()
-            .iter()
-            .find(|n| n.id == secondary)
-            .unwrap()
-            .styles
-            .as_slice()
-            .contains(&crate::look::FLOW_PRIMARY)
-    );
-    let event = crate::event(&view, secondary, Act::Press).unwrap();
-    let d::Event::Act { action: d::Action::Pages(d::pages::Act::ConnectModel(M::SignInElsewhere { .. })) } = &event
-    else {
-        panic!("elsewhere sign-in act")
-    };
-    fixtures::root_event(&mut root, event);
-    assert!(root.pages().connect_model().unwrap().elsewhere());
+fn choose_offers_no_entry_for_another_computer() {
+    let root = offered_root();
+    for view in [fixtures::browser_page_view(&root), fixtures::page_view(&root)] {
+        assert!(fixtures::find(view.tree(), Role::Button, b"Continue with ChatGPT").is_some());
+        assert!(
+            fixtures::find(view.tree(), Role::Button, "This browser isn't on temper's computer ›".as_bytes()).is_none()
+        );
+    }
 }
 #[test]
-fn signing_in_elsewhere_draws_the_sign_ins_link_and_the_paste_unfolded() {
+fn signing_in_elsewhere_uses_the_same_waiting_page() {
     let (root, _) = pasting(true);
     assert!(root.pages().connect_model().unwrap().elsewhere());
-    let view = fixtures::page_view(&root);
-    let at = view.tree().nodes().iter().position(|n| n.role == Role::Link && n.external.is_some()).unwrap();
-    let link = &view.tree().nodes()[at];
-    assert!(link.external.as_deref() == Some(b"https://issuer.example/visit"), "the sign-in's start link");
-    assert_eq!(fixtures::node_text(view.tree(), at).as_ref(), "Open ChatGPT's sign-in ›".as_bytes());
-    assert!(fixtures::find(view.tree(), Role::TextField, PASTE_FIELD).is_some());
-    assert!(
-        !view.tree().nodes().iter().any(|n| n.role == Role::Disclosure
-            && n.name.as_deref() == Some(b"Signed in, but the page couldn't be reached?"))
-    );
-    assert!(!words(&root).contains("Go forward to that page"));
+    assert_waiting(&root);
 }
 
 #[test]
@@ -818,4 +865,79 @@ fn the_connected_model_offers_continue_as_a_terminal_command() {
         crate::act(&mut view, node, first),
         Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::Welcome { step: d::Step::Ready } }))
     );
+}
+
+#[test]
+fn both_waiting_pages_reject_an_unsafe_address() {
+    for welcome in [false, true] {
+        let (mut root, _) = flow_fixture(d::WayKind::SignIn);
+        if welcome {
+            fixtures::root_event(
+                &mut root,
+                d::Event::Went {
+                    place: d::Place::Address(d::Address::Welcome {
+                        step: d::Step::Model {
+                            way: Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::SignIn, source: None }),
+                        },
+                    }),
+                },
+            );
+        }
+        let attempt = sent(
+            &mut root,
+            M::SignInElsewhere {
+                name: [1; 16],
+                way: d::pages::accounts::Way::SignIn { provider: PROVIDER, plan: true },
+            },
+        );
+        answer(
+            &mut root,
+            attempt,
+            c::DocumentOutcome::AccountSignInStarted { source: 43, address: b"javascript:sign-in".as_slice().into() },
+        );
+        for view in [fixtures::browser_page_view(&root), fixtures::page_view(&root)] {
+            assert!(fixtures::find(view.tree(), Role::Alert, b"Sign-in address is not an http(s) address.").is_some());
+            assert!(!view.tree().nodes().iter().any(|n| n.external.as_deref() == Some(b"javascript:sign-in")));
+            assert!(fixtures::find(view.tree(), Role::Link, b"Open it again").is_none());
+        }
+    }
+}
+#[test]
+fn ended_sign_ins_remove_the_note_on_both_pages() {
+    for welcome in [false, true] {
+        for end in [
+            c::AccountEnd::Made { account: 1, declined: false },
+            c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { provider: PROVIDER } },
+        ] {
+            let mut root = ending(end, b"alice@example.com");
+            if welcome {
+                fixtures::root_event(
+                    &mut root,
+                    d::Event::Went {
+                        place: d::Place::Address(d::Address::Welcome {
+                            step: d::Step::Model {
+                                way: Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::SignIn, source: None }),
+                            },
+                        }),
+                    },
+                );
+            }
+            for view in [fixtures::browser_page_view(&root), fixtures::page_view(&root)] {
+                assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::WELCOME_AWAY)));
+                let text = String::from_utf8_lossy(&fixtures::text(view.tree())).into_owned();
+                let message = if match end {
+                    c::AccountEnd::Made { .. } => true,
+                    c::AccountEnd::Renewed { .. } | c::AccountEnd::Refused { .. } | c::AccountEnd::Failed { .. } => {
+                        false
+                    }
+                } {
+                    if welcome { "ChatGPT plan" } else { "Signed in to ChatGPT" }
+                } else {
+                    "Another person here holds that ChatGPT account."
+                };
+                assert!(text.contains(message), "{text}");
+                assert!(!text.contains("Go forward to that page"));
+            }
+        }
+    }
 }

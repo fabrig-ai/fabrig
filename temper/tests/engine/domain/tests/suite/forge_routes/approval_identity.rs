@@ -533,8 +533,12 @@ fn stock_adoption_seeds_safe_human_approval_roles() {
             _ => None,
         })
         .unwrap_or_else(|| panic!("no eligible human: {:?}", world.web_replies));
-    for words in ["currently 0 eligible", "project-policy", "re-adopt", "temper help configure"] {
-        assert!(refusal.contains(words), "approval setup route needs {words:?}: {refusal}");
+    assert_eq!(
+        refusal,
+        "project 1 role 2 requires 1 distinct known forge people; currently 0 eligible. Before accepting, add the person as a collaborator on the forge, give that role the permission in this project's policy if needed and adopt the repository again; then propose afresh against the newest revision, or remove the approval requirement."
+    );
+    for command in ["temper help", "temper ctl", "project show", "repository adopt"] {
+        assert!(!refusal.contains(command), "approval refusal names no command: {refusal}");
     }
     assert!(collaborator_roles(&world).is_empty(), "temper is never a human member");
     fake::grant(&mut world.fake, b"org/repo", 3, raw::Permission::Read);

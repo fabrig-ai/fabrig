@@ -2,14 +2,14 @@
 use skein_lib::Token;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Held {
+pub(crate) enum Resource {
     Awaited,
     Open(Token),
     Closing(Token),
     Closed,
 }
 
-impl Held {
+impl Resource {
     pub fn token(self) -> Option<Token> {
         match self {
             Self::Open(token) | Self::Closing(token) => Some(token),

@@ -172,6 +172,9 @@ pub(crate) fn act(
 }
 pub(crate) fn outcome(b: &mut Builder, root: &Domain, words: &Words) {
     let Some(page) = root.pages().task() else { return };
+    if crate::confirm::showing(root, c::ObjectKey::Task(page.number)) {
+        return;
+    }
     for (key, kind) in &page.pending {
         if *kind != task::Sending::Amend
             && let Some(pending) = root.client().pending(*key)
