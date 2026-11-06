@@ -57,7 +57,7 @@ fn the_accept_confirmation_says_what_it_grants_costs_and_leaves_in_the_pool() {
     open(&mut root, ActKind::Accept);
     let mut view = fixtures::view();
     let tree = fixtures::build(&mut view, &root);
-    assert!(fixtures::find(tree, Role::Dialog, b"Accept").is_some());
+    assert!(fixtures::find(tree, Role::Dialog, b"Accept this proposal?").is_some());
     let said = fixtures::text(tree);
     for expected in ACCEPT_WORDS {
         assert!(contains(&said, expected), "{expected:?}");
@@ -70,7 +70,7 @@ fn rejecting_says_so_with_its_reason_before_it_is_sent() {
     open(&mut root, ActKind::Reject);
     let mut view = fixtures::view();
     let tree = fixtures::build(&mut view, &root);
-    assert!(fixtures::find(tree, Role::Dialog, b"Reject with reason").is_some());
+    assert!(fixtures::find(tree, Role::Dialog, b"Reject this proposal?").is_some());
     assert!(contains(&fixtures::text(tree), b"Too costly"));
 }
 #[test]
@@ -285,4 +285,345 @@ fn retrying_full_answers_show_the_count_and_expiry() {
         jig_client::Progress::Retrying { why: jig_client::Retry::Full { held: FULL_HELD, room_at: FULL_ROOM } },
     );
     assert!(contains(&fixtures::text(&builder.finish()), FULL_WORDS));
+}
+
+fn sheet(root: &temper_client_domain::Domain) -> skein_ui::Tree {
+    let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
+    crate::confirm::main(
+        &mut b,
+        root,
+        &fixtures::words(),
+        &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
+        fixtures::domain_limits().client.domain.rows,
+    );
+    b.finish()
+}
+fn task_sheet(act: ActKind, goal: bool) -> temper_client_domain::Domain {
+    let mut task = fixtures::task::document();
+    task.chip.task = fixtures::chat::TASK;
+    task.priority = if goal { Some(1) } else { None };
+    task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+    task.acts = List::with_capacity(1);
+    task.acts.push(c::Offered { act, admission: Admission::Allowed, effect: None }).unwrap();
+    let mut root = fixtures::task::supplied_root(task, false);
+    press(&mut root, if act == ActKind::Stop { Act::Stop } else { Act::Close });
+    root
+}
+fn close_root(stage: c::RunStage, below: u32, proposals: u32, delegates: bool) -> temper_client_domain::Domain {
+    let source = fixtures::chat::chat_root();
+    let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
+    task.chip.details.phase = c::ChipPhase::Active(stage);
+    let Some(c::Effect::Cancel(impact)) = &mut task.acts.get_mut(0).unwrap().effect else { panic!("cancel facts") };
+    impact.tasks = c::ImpactCounts {
+        waiting: below,
+        running: 0,
+        held: 0,
+        closing: 0,
+        ended: 0,
+        done: 17,
+        failed: 18,
+        cancelled: 19,
+    };
+    impact.proposals = proposals;
+    task.delegates = List::with_capacity(2);
+    if delegates {
+        for (number, title) in [(4, b"Fix the parser".as_slice()), (5, b"Review the parser")] {
+            let mut chip = task.chip.clone();
+            chip.task = number;
+            chip.title = c::DocumentText::complete(c::Text::new(Box::from(title), 32).unwrap());
+            task.delegates.push(c::LiveDelegate { chip, takeover_budget: 0 }).unwrap();
+        }
+    }
+    let (mut root, me_watch, watch) =
+        fixtures::root_at(temper_client_domain::Address::Chat { task: task.chip.task }, &fixtures::domain_limits());
+    let me = source.pages().me(source.client()).unwrap().clone();
+    for (watch, delivery) in
+        [(me_watch, c::Delivery::Me(Box::new(me))), (watch.unwrap(), c::Delivery::Task(Box::new(task)))]
+    {
+        fixtures::root_event(
+            &mut root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) },
+                },
+            },
+        );
+    }
+    press(&mut root, Act::Close);
+    root
+}
+fn proposal_sheet(act: ActKind) -> temper_client_domain::Domain {
+    let mut root = root(act, Admission::Allowed);
+    open(&mut root, act);
+    root
+}
+fn release_sheet() -> temper_client_domain::Domain {
+    let mut root = super::task::held_agent_root();
+    let object = root.pages().cards().unwrap().get(0).unwrap().object;
+    press(&mut root, Act::Decide { object, revision: Some(fixtures::task::HOLD_REVISION), act: ActKind::Release });
+    root
+}
+fn restart_sheet() -> temper_client_domain::Domain {
+    let mut root = super::document::document_root(
+        Some(b"# How we work\n"),
+        temper_client_domain::pages::chat::document::Mode::Chat,
+        &[],
+        super::document::ProposalState::NotProposed,
+    );
+    press(&mut root, Act::StartOver);
+    root
+}
+type SheetRow = (Box<temper_client_domain::Domain>, &'static [u8], &'static [u8], &'static [u8]);
+// One row for each confirmation in client/README.md, 3.6.
+const SHEET_ROWS: usize = 8;
+const TWO_ACTS: u32 = 2;
+fn sheet_rows() -> [SheetRow; SHEET_ROWS] {
+    [
+        (Box::new(close_root(c::RunStage::Idle, 0, 0, false)), b"Close this chat?", b"Keep it", b"Close chat"),
+        (Box::new(restart_sheet()), b"Start over?", b"Keep going", b"Start over"),
+        (Box::new(task_sheet(ActKind::Cancel, true)), b"Stop this goal?", b"Keep going", b"Stop goal"),
+        (Box::new(task_sheet(ActKind::Cancel, false)), b"Cancel this task?", b"Keep it", b"Cancel task"),
+        (Box::new(task_sheet(ActKind::Stop, false)), b"Stop this task?", b"Keep going", b"Stop task"),
+        (Box::new(proposal_sheet(ActKind::Accept)), b"Accept this proposal?", b"Not yet", b"Accept"),
+        (Box::new(proposal_sheet(ActKind::Reject)), b"Reject this proposal?", b"Keep it", b"Reject"),
+        (Box::new(release_sheet()), b"Release this task?", b"Keep it held", b"Release"),
+    ]
+}
+#[test]
+fn each_confirmation_has_its_title_and_acts() {
+    for (root, title, keep, does) in sheet_rows() {
+        let tree = sheet(&root);
+        assert!(fixtures::find(&tree, Role::Dialog, title).is_some(), "{title:?}");
+        assert!(fixtures::find(&tree, Role::Heading { level: 2 }, title).is_some(), "{title:?}");
+        let acts = super::inbox::subtree(&tree, super::inbox::styled(&tree, crate::look::CONFIRM_ACTS));
+        let mut buttons = List::with_capacity(TWO_ACTS);
+        for node in acts {
+            if node.role == Role::Button {
+                buttons.push(node).expect("two sheet acts");
+            }
+        }
+        assert_eq!(buttons.len(), TWO_ACTS);
+        assert_eq!(buttons.get(0).unwrap().name.as_deref(), Some(keep));
+        assert_eq!(buttons.get(1).unwrap().name.as_deref(), Some(does));
+        assert!(buttons.get(1).unwrap().styles.as_slice().contains(&crate::look::CONFIRM_DO));
+    }
+}
+#[test]
+fn uncertain_release_choices_have_their_own_styled_group() {
+    let source = super::task::held_agent_root();
+    let mut task = source.pages().task().unwrap().document(source.client()).unwrap().clone();
+    task.acts.get_mut(0).unwrap().effect = Some(c::Effect::Release(c::ReleaseEffect::Uncertain));
+    let mut root = fixtures::task::supplied_root(task, true);
+    let object = root.pages().cards().unwrap().get(0).unwrap().object;
+    press(&mut root, Act::Decide { object, revision: Some(fixtures::task::HOLD_REVISION), act: ActKind::Release });
+    let tree = sheet(&root);
+    let choices = super::inbox::subtree(&tree, super::inbox::styled(&tree, crate::look::CONFIRM_CHOICES));
+    let mut buttons = List::with_capacity(TWO_ACTS);
+    for node in choices {
+        if node.role == Role::Button {
+            buttons.push(node.name.as_deref()).unwrap();
+        }
+    }
+    assert_eq!(
+        buttons.as_slice(),
+        [Some(b"Repeat the effect".as_slice()), Some(b"Do not repeat the effect".as_slice())]
+    );
+    let acts = super::inbox::subtree(&tree, super::inbox::styled(&tree, crate::look::CONFIRM_ACTS));
+    let mut actions = List::with_capacity(TWO_ACTS);
+    for node in acts {
+        if node.role == Role::Button {
+            actions.push(node.name.as_deref()).unwrap();
+        }
+    }
+    assert_eq!(actions.as_slice(), [Some(b"Keep it held".as_slice()), Some(b"Release".as_slice())]);
+}
+#[test]
+fn a_chat_at_rest_says_only_it_cant_be_reopened() {
+    let tree = sheet(&close_root(c::RunStage::Idle, 0, 0, false));
+    assert!(contains(&fixtures::text(&tree), "You can still read it, but it can’t be reopened.".as_bytes()));
+    assert!(!has_role(&tree, Role::List));
+}
+#[test]
+fn a_chat_at_work_lists_what_closing_changes_in_order() {
+    let mut root = close_root(c::RunStage::Running { attempt: 1 }, 4, 2, true);
+    press(&mut root, Act::DelegateFate { task: 5, fate: jig_client::shapes::Fate::Move });
+    let tree = sheet(&root);
+    let text = fixtures::text(&tree);
+    let mut remaining = text.as_ref();
+    for line in [
+        b"The run under way gets 5 seconds to finish, then stops.".as_slice(),
+        b"T4 Fix the parser is cancelled.",
+        b"T5 Review the parser moves to you.",
+        b"2 tasks below it are cancelled.",
+        b"2 proposals are withdrawn.",
+        b"Changes not yet begun are withdrawn. Those under way settle.",
+    ] {
+        let Some(at) = skein_lib::bytes::find(remaining, line) else { panic!("missing {line:?}") };
+        remaining = remaining.get(at.checked_add(line.len()).unwrap()..).unwrap();
+    }
+}
+#[test]
+fn no_count_at_zero_and_one_alone_keeps_the_list() {
+    for (below, proposals, expected) in
+        [(1, 0, b"1 task below it is cancelled.".as_slice()), (0, 1, b"1 proposal is withdrawn.")]
+    {
+        let tree = sheet(&close_root(c::RunStage::Idle, below, proposals, false));
+        assert!(has_style(&tree, crate::look::CONFIRM_FATES));
+        let text = fixtures::text(&tree);
+        assert!(contains(&text, expected));
+        assert!(!contains(&text, b"0 tasks"));
+        assert!(!contains(&text, b"0 proposals"));
+    }
+}
+#[test]
+fn a_delegates_row_offers_the_other_fate() {
+    let mut root = close_root(c::RunStage::Idle, 2, 0, true);
+    let before = sheet(&root);
+    assert!(contains(&fixtures::text(&before), b"T4 Fix the parser is cancelled."));
+    assert!(fixtures::find(&before, Role::Button, b"Take it instead").is_some());
+    press(&mut root, Act::DelegateFate { task: 4, fate: jig_client::shapes::Fate::Move });
+    let after = sheet(&root);
+    assert!(contains(&fixtures::text(&after), b"T4 Fix the parser moves to you."));
+    assert!(fixtures::find(&after, Role::Button, b"Cancel it instead").is_some());
+}
+fn failed_sheet(root: &mut temper_client_domain::Domain) {
+    let mut out = skein_lib::Queue::uncapped();
+    temper_client_domain::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits: fixtures::domain_limits() },
+        Event::Act { action: Action::Pages(Act::Confirm) },
+        &mut out,
+    );
+    let mut sent = None;
+    while let Some(request) = out.pop() {
+        if let temper_client_domain::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+        } = request
+        {
+            sent = Some(attempt);
+        }
+    }
+    fixtures::root_event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt: sent.expect("ask sent"),
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                        refusal: c::Refusal::NotOffered,
+                        at: None,
+                    })),
+                    why: None,
+                },
+            },
+        },
+    );
+}
+#[test]
+fn a_failed_confirmation_says_why_above_its_acts() {
+    let mut root = proposal_sheet(ActKind::Accept);
+    failed_sheet(&mut root);
+    let tree = sheet(&root);
+    let mut why = None;
+    for (index, node) in tree.nodes().iter().enumerate() {
+        for run in &node.text {
+            if contains(&run.text, b"This act is not offered") {
+                why = Some(index);
+            }
+        }
+    }
+    let why = why.expect("the failed ask says why");
+    let acts = super::inbox::styled(&tree, crate::look::CONFIRM_ACTS);
+    assert!(why < acts);
+}
+#[test]
+fn no_sheet_says_dangerous_or_done_counts() {
+    for (root, title, _, _) in sheet_rows() {
+        let tree = sheet(&root);
+        let text = fixtures::text(&tree);
+        for forbidden in [
+            b"Confirm".as_slice(),
+            b"Dangerous action",
+            b"Close chat now",
+            b"completed",
+            b"Tasks done",
+            b"Tasks failed",
+            b"Tasks cancelled",
+        ] {
+            assert!(!contains(&text, forbidden), "{title:?}: {forbidden:?}");
+        }
+        assert!(fixtures::find(&tree, Role::Button, b"Cancel").is_none());
+    }
+}
+#[test]
+fn a_why_arriving_keeps_the_acts_elements() {
+    let mut root = restart_sheet();
+    let limits = fixtures::tree_limits();
+    let mut old = sheet(&root);
+    let acts = super::inbox::styled(&old, crate::look::CONFIRM_ACTS);
+    assert!(old.nodes()[acts].key.is_some(), "the acts group keeps its own key");
+    let mut next = 0;
+    let mut patches = skein_lib::Queue::with_capacity(limits.patches);
+    skein_ui::diff(&skein_ui::Tree::new(limits.nodes), &mut old, &limits, &mut next, &mut patches);
+    while patches.pop().is_some() {}
+    failed_sheet(&mut root);
+    let mut after = sheet(&root);
+    skein_ui::diff(&old, &mut after, &limits, &mut next, &mut patches);
+    assert_kept_buttons(&old, &after, &mut patches);
+    let mut view = fixtures::page_view(&root);
+    let old_buttons = action_elements(view.tree());
+    assert!(!has_style(view.tree(), crate::look::DOC));
+    press(&mut root, Act::Mode { mode: temper_client_domain::pages::chat::document::Mode::Split });
+    crate::build(&mut view, &root, fixtures::NOW, &mut patches);
+    while let Some(patch) = patches.pop() {
+        if let skein_ui::Patch::Remove { node } = patch {
+            assert!(!old_buttons.as_slice().contains(&node), "button ancestor removed");
+        }
+    }
+    assert!(has_style(view.tree(), crate::look::DOC));
+    let after = action_elements(view.tree());
+    for id in &old_buttons {
+        assert!(after.as_slice().contains(id), "button or ancestor lost");
+    }
+}
+fn has_role(tree: &skein_ui::Tree, role: Role) -> bool {
+    for node in tree.nodes() {
+        if node.role == role {
+            return true;
+        }
+    }
+    false
+}
+fn has_style(tree: &skein_ui::Tree, style: skein_ui::Style) -> bool {
+    for node in tree.nodes() {
+        if node.styles.as_slice().contains(&style) {
+            return true;
+        }
+    }
+    false
+}
+fn action_elements(tree: &skein_ui::Tree) -> List<skein_ui::NodeId> {
+    let acts = super::inbox::styled(tree, crate::look::CONFIRM_ACTS);
+    let acts_end = acts.checked_add(usize::try_from(tree.nodes().get(acts).unwrap().size).unwrap()).unwrap();
+    let mut elements = List::with_capacity(tree.len());
+    for (index, node) in tree.nodes().iter().enumerate() {
+        let end = index.checked_add(usize::try_from(node.size).unwrap()).unwrap();
+        if index <= acts && end > acts || index > acts && index < acts_end {
+            elements.push(node.id).expect("tree bounds button ancestors");
+        }
+    }
+    elements
+}
+fn assert_kept_buttons(old: &skein_ui::Tree, new: &skein_ui::Tree, patches: &mut skein_lib::Queue<skein_ui::Patch>) {
+    let kept = action_elements(old);
+    while let Some(patch) = patches.pop() {
+        if let skein_ui::Patch::Remove { node } = patch {
+            assert!(!kept.as_slice().contains(&node), "button ancestor removed");
+        }
+    }
+    let after = action_elements(new);
+    for id in &kept {
+        assert!(after.as_slice().contains(id), "button or ancestor lost");
+    }
 }

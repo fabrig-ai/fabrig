@@ -44,14 +44,22 @@ pub(crate) struct Plan {
     pub(crate) old_parent: Option<u64>,
 }
 
+pub(crate) struct Funding {
+    pub(crate) person: u64,
+    pub(crate) period: u64,
+    pub(crate) pool_budget: u64,
+    pub(crate) period_budget: u64,
+}
+
 pub(crate) fn apply(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     operation: Move,
-    (person, period, pool_budget, period_budget): (u64, u64, u64, u64),
+    funding: Funding,
     out: &mut Queue<Request>,
 ) {
+    let Funding { person, period, pool_budget, period_budget } = funding;
     let Move { task: number, reason } = operation;
     let plan = match check(
         domain,

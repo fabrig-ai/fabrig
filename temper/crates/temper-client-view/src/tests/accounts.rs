@@ -412,16 +412,8 @@ pub(super) fn sign_in_address(address: &[u8]) -> d::Domain {
 #[test]
 fn a_sign_in_address_has_a_visible_link_word() {
     let root = sign_in_address(ADDRESS);
-    let mut view = fixtures::view();
-    let text = fixtures::text(fixtures::build(&mut view, &root));
-    assert!(String::from_utf8(text.into_vec()).unwrap().contains("Open the sign-in page"));
-}
-#[test]
-fn a_sign_in_address_names_the_engine_machine() {
-    let root = sign_in_address(ADDRESS);
-    let mut view = fixtures::view();
-    let text = fixtures::text(fixtures::build(&mut view, &root));
-    assert!(String::from_utf8(text.into_vec()).unwrap().contains("on the engine's machine"));
+    let view = fixtures::browser_page_view(&root);
+    assert!(String::from_utf8(fixtures::text(view.tree()).into_vec()).unwrap().contains("Open it again ›"));
 }
 #[test]
 fn an_address_containing_a_space_is_refused() {
@@ -870,6 +862,22 @@ fn sign_out_keeps_its_element_when_deployment_accounts_arrive() {
         deliver_deployment(&mut root, watch, document);
         fixtures::build(&mut view, &root);
         assert_eq!(fixtures::find(view.tree(), Role::Button, b"Sign out"), Some(sign_out));
+        assert_eq!(crate::act(&mut view, sign_out, Act::Press), Some(d::Action::Pages(d::pages::Act::SignOut)));
+    }
+}
+#[test]
+fn the_menus_sign_out_keeps_its_element_when_deployment_accounts_arrive() {
+    let (mut root, watch) = owner_root();
+    let deployment = root.pages().accounts().unwrap().deployment(root.client()).unwrap().clone();
+    let mut empty = deployment.clone();
+    empty.accounts.clear();
+    deliver_deployment(&mut root, watch, empty.clone());
+    let mut view = fixtures::browser_page_view(&root);
+    let sign_out = fixtures::find(view.tree(), Role::MenuItem, b"Sign out").unwrap();
+    for document in [deployment, empty] {
+        deliver_deployment(&mut root, watch, document);
+        fixtures::build(&mut view, &root);
+        assert_eq!(fixtures::find(view.tree(), Role::MenuItem, b"Sign out"), Some(sign_out));
         assert_eq!(crate::act(&mut view, sign_out, Act::Press), Some(d::Action::Pages(d::pages::Act::SignOut)));
     }
 }
@@ -1338,7 +1346,8 @@ fn an_accounts_rows_sign_in_offers_the_paste() {
         .nodes()
         .iter()
         .position(|n| {
-            n.role == Role::Disclosure && n.name.as_deref() == Some(b"Signed in, but the page couldn't be reached?")
+            n.role == Role::Disclosure
+                && n.name.as_deref() == Some("Signed in, but the page couldn’t be reached?".as_bytes())
         })
         .unwrap();
     assert!(field_at > disclosure && field_at < disclosure + usize::try_from(tree.nodes()[disclosure].size).unwrap());

@@ -1,11 +1,12 @@
 //! Scripted task-owner joins for ended positions in the people world.
 use super::{Event, Key, Stored, Token, World, people};
+use crate::fixtures::PROJECT;
 impl World {
     pub fn end_conversation(&mut self, party: u64, task: u64, last_reply: u64) {
         self.ended_chats.insert(task, (party, last_reply));
         self.send(Event::ChatState {
             party,
-            project: 1,
+            project: PROJECT,
             task,
             last_reply,
             live: false,
@@ -20,7 +21,7 @@ impl World {
             };
             self.send(Event::ChatState {
                 party,
-                project: 1,
+                project: PROJECT,
                 task,
                 last_reply,
                 live: false,
@@ -37,7 +38,7 @@ impl World {
         };
         self.domain.mark_ended(
             &self.env,
-            people::EndedMark { request, project: 1, last_reply: *last_reply, seen: *through },
+            people::EndedMark { request, project: PROJECT, last_reply: *last_reply, seen: *through },
             &mut self.out,
         );
         true

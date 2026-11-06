@@ -1,5 +1,5 @@
 //! Durable-row translations and independent production evidence for jig's referee.
-use jig_conformance::referee as r;
+use jig_conformance::{core as conformance, referee as r};
 use jig_ops_domain as root;
 use jig_ops_domain_infrastructure as infra;
 use jig_ops_domain_observability as obs;
@@ -106,41 +106,22 @@ pub fn observer(seed: u64, environment_chat: bool) -> jig_conformance::core::Obs
 pub use super::store::Store;
 
 pub(super) fn core_store(store: &Store) -> jig_conformance::core::Store<'_> {
-    jig_conformance::core::Store {
-        applied: store.applied,
-        rows: store
-            .rows
-            .values()
-            .filter_map(|record| match record {
-                root::Record::Core(record) => Some((record.key(), record)),
-                root::Record::Infrastructure(_) | root::Record::Observability(_) => None,
-            })
-            .collect(),
-        pending: store
-            .pending
-            .iter()
-            .map(|pending| jig_conformance::core::Commit {
-                number: pending.number,
-                writes: pending
-                    .writes
-                    .iter()
-                    .map(|write| match write {
-                        jig_fake_store::Write::Save { row: root::Record::Core(row), .. } => {
-                            jig_conformance::core::Write::Save(row)
-                        }
-                        jig_fake_store::Write::Erase(root::Key::Core(key)) => {
-                            jig_conformance::core::Write::Erase(key.clone())
-                        }
-                        jig_fake_store::Write::Save { .. } | jig_fake_store::Write::Erase(_) => {
-                            jig_conformance::core::Write::Other
-                        }
-                    })
-                    .collect(),
-            })
-            .collect(),
-        effects: effects(store),
-        ..jig_conformance::core::Store::default()
-    }
+    let mut view = conformance::view(
+        store.applied,
+        store.rows.values(),
+        store.pending.iter().map(|pending| (pending.number, pending.writes.as_ref())),
+        |row| match row {
+            root::Record::Core(row) => Some(row),
+            root::Record::Infrastructure(_) | root::Record::Observability(_) => None,
+        },
+        |write| match write {
+            jig_fake_store::Write::Save { row: root::Record::Core(row), .. } => conformance::Write::Save(row),
+            jig_fake_store::Write::Erase(root::Key::Core(key)) => conformance::Write::Erase(key.clone()),
+            jig_fake_store::Write::Save { .. } | jig_fake_store::Write::Erase(_) => conformance::Write::Other,
+        },
+    );
+    view.effects = effects(store);
+    view
 }
 
 pub fn effects(store: &Store) -> jig_conformance::core::Effects {

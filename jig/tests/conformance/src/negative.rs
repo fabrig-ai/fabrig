@@ -42,8 +42,8 @@ pub(crate) fn input(
     domain: &mut super::Engine,
     config: &Config,
     clock: Clock,
-    mut input: Input<root::Event, root::Record>,
-) -> Input<root::Event, root::Record> {
+    mut input: Input<root::Event>,
+) -> Input<root::Event> {
     match (&mut input, config.fault) {
         (
             Input::Event(root::Event::StartRecord(root::Record::Connector {

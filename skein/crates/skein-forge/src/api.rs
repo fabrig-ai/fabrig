@@ -223,7 +223,7 @@ pub enum Answer {
     /// Return collaborators.
     Collaborators { collaborators: Box<[Collaborator]>, more: bool },
     /// Return permission.
-    Permission(Permission),
+    Permission(UserPermission),
     /// Return created.
     Created(u64),
     /// Return commented.
@@ -368,6 +368,14 @@ pub enum Permission {
     Write,
     /// The writer may administer the repository.
     Admin,
+}
+/// A forge user's permission on a repository (skein/docs/design/forge.md, 3.3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct UserPermission {
+    pub user: u64,
+    /// The login the forge names them by; empty where the permission is read without one.
+    pub login: Box<[u8]>,
+    pub permission: Permission,
 }
 /// Whether branch creation made a branch or found one.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

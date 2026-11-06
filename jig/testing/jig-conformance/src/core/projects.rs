@@ -6,7 +6,7 @@ use jig_domain_core as core;
 use jig_domain_people as people;
 use std::collections::BTreeMap;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Makes {
     configured: BTreeMap<u32, authority::Policy>,
     requests: BTreeMap<people::RequestKey, authority::Policy>,

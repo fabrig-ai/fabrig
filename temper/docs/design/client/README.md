@@ -368,7 +368,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Forges` | `forges.html` | inside Settings' frame while a project is open (*Settings,* below): the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (4.8); "+ Add a forge", to `ConnectForge`, but while the playground runs (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (section 8) |
 | `ConnectForge { forge }` | `connect-forge.html` | under its path (*Settings,* below), connecting one more forge, `forge` the choice it is at: Choose, Details, Setting up and Ready, which ends on the forge connected, adopting nothing (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect; connect as its admin; set up a Forgejo here (section 8) |
 | `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, by the store's state, empty, unfinished or whole (below): "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (5.6; `../draft/archive/first-run.md`, 2.3) | the playground's read (4.8); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; start a forge cut short over, or go on with it; `ConnectForge`'s and `ConnectModel`'s acts |
-| `Accounts` | `accounts.html` | inside Settings' frame while a project is open (*Settings,* below), and there "Sign out" at its foot: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (4.8); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
+| `Accounts` | `accounts.html` | inside Settings' frame while a project is open (*Settings,* below), and there "Sign out" at its foot, in a browser at a phone's width alone: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (4.8); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
 | `ConnectModel { way }` | `connect-model.html` | under its path (*Settings,* below), connecting one more LLM account, `way` the way it is at, or none at Choose: Choose, a card for each way its providers offer (5.5, The ways); Signing in, at the provider, for a sign-in, or Details, a way's field, for a key or a program's login; and Ready, the account made, or how the sign-in ended (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
 | `Proposal { proposal }`, later (5.13) | none: the user's (5.13) | a proposal of settings: temper enforces and your agents follow, its effect on running work, the settings folded; withdrawn when stale; accepted (5.13) | the `proposal`; `settings`; each item's setting before | accept, choosing whether running work moves; reject with a reason; change something, in the chat |
 
@@ -401,8 +401,8 @@ keeps (`../protocol/configuration.md`, section 2).
      line with nothing behind it.
   2. *Its status,* quiet: 12 px, faint, in lower case by the look alone.
      It is the colour of `.state-needs` while it waits for the person.
-     Every ended chat says "Closed", with its end's clock when supplied
-     ("Closed 21:19").
+     Every ended chat says "Closed", with no time: its end's line has the time
+     (3.6, *Closed ends on one line*).
   3. *Stop and Close,* while allowed, each quiet and small. The mock has
      neither; they are the only way to stop or end a chat.
   4. *Its own spend,* "N spent · of B", in the view and hidden in the
@@ -496,13 +496,13 @@ keeps (`../protocol/configuration.md`, section 2).
     its task's card where the call that made it is not in the window
     (5.7), drawn on the agent's side, never under "You";
   - *its end,* once the chat has ended, after the conversation: one
-    line, "Closed" and the time it ended ("Closed 21:05", 5.12's
+    line, "Closed at" and the time it ended ("Closed at 21:05", 5.12's
     clock), the status's word (3.5's chats), then, for a report,
     " · its report, “REPORT”", the
     report's words whole; a failed chat's line is "Failed", its time
     and its reason ("Failed 21:05 · REASON"); a chat cancelled by the
-    party that requested it was closed, and its line is "Closed" and its
-    time ("Closed 21:05"), with no reason; one cancelled by anyone else
+    party that requested it was closed, and its line is "Closed at" and its
+    time ("Closed at 21:05"), with no reason; one cancelled by anyone else
     is "Cancelled", its time and its reason ("Cancelled 21:05 ·
     REASON"). Who closed it is the ending's `by` against the chat's
     requester, both in its document, never the reason's words. The
@@ -571,9 +571,11 @@ keeps (`../protocol/configuration.md`, section 2).
 - **A chat's document** (the greenfield mock's `chat.html`; the look request
   `configure-chat-draft`, for every chat): a chat keeps one Markdown document
   beside its conversation, which its agent writes (`../domain/agent.md`, 8.3).
-  It is the lowest-numbered note in the chat's own scope, its description its
-  title, its body Markdown, its name the mock's `slug` of the title, 28
-  characters, plus `.md`: `away-mode.md`. There are no file drafts: a document
+  It is the lowest-numbered note in the chat's own scope whose description
+  does not begin `work:`; working notes are never drawn, and a chat with only
+  working notes has no document. Its description is its title, its body Markdown,
+  its name the mock's `slug` of the title, 28 characters, plus `.md`:
+  `away-mode.md`. There are no file drafts: a document
   is always a chat's.
   - *Offered:* `pages::drafts_offered(root, project)` is that project's kind 7
     `drafts` (5.13), false in the stock. It gates "+ Draft", the Drafts filter, the
@@ -608,8 +610,9 @@ keeps (`../protocol/configuration.md`, section 2).
     "+ Draft". `.btn.primary.small` "Start goal…" once the document has a section,
     on a chat of a project with a home repository with no goal linked; with a
     linked goal, a link `.btn.small` "Goal TITLE →" to `Task { task }`. Not on a
-    configuring chat, which has "Start over": it asks "Start a new configuring
-    chat? This one stays in Chats." through `crate::confirm`, closes the chat with
+    configuring chat, which has "Start over": it asks "Start over?", "A new
+    configuring chat starts. This one stays in Chats." through `crate::confirm`
+    (3.6, *The sheet*), closes the chat with
     the chat's own close, which stays in Chats, Closed, its conversation and
     document kept, and opens `Configure { project }`. The composer's hint gains
     " · Ctrl+\ switches the draft" while a document shows.
@@ -867,27 +870,22 @@ keeps (`../protocol/configuration.md`, section 2).
     Ready, or the ending's words and acts (5.5, A sign-in). The
     terminal prints the address and opens no browser (6.5). temper
     detects no browser elsewhere (section 11, A browser on another
-    machine): the person says so, below.
+    machine): the page offers the paste to everyone, below.
+  - *While it waits,* a sign-in under way that the page draws is a note
+    in the way's card's place, the same as the welcome's and drawn by
+    the same function (*The welcome*, its Model step, *The sign-in
+    under way*).
   - *From another computer,* for a browser not on the engine's
     machine, whose provider sends it to a loopback address where
-    nothing answers. The sign-in's card on Choose offers, beside its
-    button, "This browser isn't on temper's computer ›", which sends
-    the same sign-in with no departure (no `Return`, no
-    `Request::Leave`) and keeps the page at Signing in: once answered,
-    it draws "Open ChatGPT's sign-in ›", the sign-in's address as an
-    external link, a tab of its own (the person's own click, which no
-    browser blocks as a pop-up), and *The paste* (below) under it. A
-    sign-in under way that the page draws offers the paste too, folded
-    under "Signed in, but the page couldn't be reached?"; unfolded,
-    with "Go forward to that page, or find it in your history, and
-    copy its address." first, at a departed sign-in's address come
-    back to by hand, not by the listener's return, while it still
-    waits. The tunnel still works, and needs neither.
+    nothing answers. No entry says so: that person takes the same page,
+    and *The paste* (below), folded under the note as "Signed in, but
+    the page couldn’t be reached?". The tunnel still works, and needs
+    neither.
   - *The paste:* "When ChatGPT is done, its tab shows a page that
-    can't be reached. Copy that page's whole address from the address
+    can’t be reached. Copy that page’s whole address from the address
     bar, come back here, and paste it. If a page opens instead, such
-    as another program's sign-in, close that program's sign-in and
-    start again." A field, "Address of the page that couldn't be
+    as another program’s sign-in, close that program’s sign-in and
+    start again." A field, "Address of the page that couldn’t be
     reached", and "Finish connecting", which sends jig's `FinishSignIn`
     for the sign-in's source, carrying the address, its surrounding
     spaces and line breaks trimmed, as its value (jig's
@@ -1213,15 +1211,14 @@ keeps (`../protocol/configuration.md`, section 2).
     (the user, 2026-11-04: a key is added from the accounts page):
     "ChatGPT", for the `openai` provider, "Your ChatGPT plan: sign in,
     and temper’s agents use its included usage.", the muted "Sign in,
-    in this tab · about a minute", and "Continue with ChatGPT", the
+    in a new tab · about a minute", and "Continue with ChatGPT", the
     default, the step's one primary act; and "Claude", for `anthropic`,
     "Your Claude subscription, through Claude Code on this machine, with
     a config of its own, apart from your own Claude Code.", the muted
     "One command in a terminal, on this machine", and the secondary link "Use your Claude subscription".
     A provider offering neither its sign-in nor its program has no
     card. No other provider's ways are on the welcome, the box's fake
-    model among them, and no card offers "This browser isn't on
-    temper's computer ›"; with neither provider's plan offered, the
+    model among them; with neither provider's plan offered, the
     step shows Choose's cards as `ConnectModel` does. Entering from a deployment
     chooser resets the holder to the person's own. Inside a way, the
     foot's "‹ Back" and a quiet "All ways", after the primary, return to
@@ -1243,14 +1240,7 @@ keeps (`../protocol/configuration.md`, section 2).
       field "Key, pasted once", the panel's width; "Add key", disabled
       until typed; "All ways"; and "Nothing checks a key when it is added:
       a wrong one shows once OpenAI refuses a run."
-    - *Paste,* a sign-in `elsewhere`, "Signing in to ChatGPT from another
-      computer": a numbered list, "Open ChatGPT’s sign-in › and approve
-      temper.", its first words the sign-in's link, "When ChatGPT is done,
-      its tab shows a page that can’t be reached. Copy that page’s whole
-      address from the address bar." and "Paste it here."; the field
-      "Address of the page that couldn’t be reached", a secret's entry;
-      "Finish connecting", disabled until typed; "All ways". Its refusals
-      and endings keep their words (5.5, A sign-in), in the panel.
+    - *A held sign-in,* including `elsewhere`, takes *The sign-in under way*, below.
     - *Claude,* "Your Claude subscription": "temper sets Claude Code up on
       this machine in an environment of its own: its settings, sessions
       and sign-in stay apart from your own Claude Code. In a terminal
@@ -1261,24 +1251,30 @@ keeps (`../protocol/configuration.md`, section 2).
       signed in"; "All ways". "I’ve signed in" sends `DeclareProgram` under
       NAME unless an account of the person's has that source, then the
       accounts page's `CheckProgram { source }`, as `temper ctl account
-      verify` does. While either is out, in the panel's place, a spinner
-      and "Checking Claude Code’s sign-in on this machine…". Once a model
-      is usable, the step moves on to Ready, its address replacing the
-      step's. Answered with the source not usable, the page stays with the
-      alert "Claude Code isn’t signed in here yet. Run the command above,
-      then press I’ve signed in.", and a second press checks again.
+      verify` does. While either is out, in the panel's place, *The try*
+      (below), its first step under way, with no "one short message". Once a
+      model is usable, the step moves on to Ready, its address replacing the
+      step's. Answered with the source not usable, the page stays with *The
+      try* stopped at its first step, its why "Claude Code isn’t signed in
+      here yet. Sign in again, then try again.": "Try again" checks again,
+      and "Sign in again" brings the panel back.
     - *A plan's sign-in,* its way at its address with none asked, or one
       ended with no model usable, "Signing in to PLAN": `ConnectModel`'s card
       for the way, or its ending's words and acts, in the panel; "All ways".
-      The card's "This browser isn't on temper's computer ›" is how the
-      welcome reaches the paste, its Choose offering none.
 
-    *The sign-in under way,* its tab not gone yet, is a note in the card's
-    place: a spinner, "ChatGPT’s sign-in, in this tab", the muted "You sign
-    in and approve temper; ChatGPT sends this tab back to temper’s listener
-    on this machine, and on to Ready.", and under it the disclosure
-    "Signed in, but the page couldn't be reached?". *Finishing a paste* is
-    the same note, a spinner and "Finishing your sign-in…". A sign-in's
+    *The sign-in under way* is a note in the card's place: a spinner,
+    "Waiting for ChatGPT’s sign-in, in the new tab", the muted "Sign in and
+    approve temper there. This page moves on by itself.", once the address
+    is known "Open it again ›", the address as an underlined external link,
+    a tab of its own, and under the note the disclosure "Signed in, but the
+    page couldn’t be reached?", small and muted, holding *The paste*, its
+    field the note's width. A browser that refuses the new tab reads
+    "ChatGPT’s sign-in", no "in the new tab", with "Open ChatGPT’s sign-in ›"
+    as the primary button in the link's place, the person's own click. The
+    terminal reads "ChatGPT’s sign-in" too, with no spinner, and its link reads
+    "Open the sign-in page", printed with the address (6.5). `ConnectModel`
+    draws the same note, link and disclosure.
+    *Finishing a paste* is the same note, a spinner and "Finishing your sign-in…". A sign-in's
     other endings (declined, held, refused, the port taken) keep their
     words and acts, drawn as `ConnectModel`'s are (5.5, A sign-in). After
     the choices and before the foot, once a forge is acted on, a region
@@ -1326,6 +1322,37 @@ keeps (`../protocol/configuration.md`, section 2).
     ticked one keeps "Each step". *The seam:* the Model step's
     state, acts and Choose are `ConnectModel`'s; the step's frame, heading,
     lead, ways' pages, notes, set up line and foot the welcome's.
+    *The try,* an account tried once it is usable, one short task through
+    the path a chat takes (`../draft/model-check.md`), is one status box,
+    Forge's status box in its look, drawn by one function: on the welcome in
+    the panel's place, under the way's heading, or in the place of *A model
+    usable*'s status; on `ConnectModel` in the way's card's place. Its steps
+    are the list Forge's has, "Each step" its name, each with its state in
+    words: for a Claude subscription "Signed in to your subscription",
+    "Claude Code starts on this machine", "Claude answers"; for a plan's
+    sign-in "Signed in to your PLAN plan", or for a key "Key added", ticked at
+    once, a direct account having no program to start, then "PLAN answers",
+    "ChatGPT answers". ACCOUNT below is "Claude subscription", "ChatGPT plan",
+    "OpenAI API key", in Ready's Model line's words.
+    - *Running:* a spinner, "Trying your ACCOUNT", strong, the muted "one short
+      message" once a message goes, and the list, the step under way marked.
+    - *Answered:* the box green, "✓ ACCOUNT", strong, the muted "answered in N
+      s", the list folded under "Each step"; then "Continue", as *A model
+      usable* has it, or on `ConnectModel` its made account's primary. It
+      does not move on by itself.
+    - *Stopped:* the box on the signal's pale, the alert "WHO didn’t answer",
+      WHO the PLAN, in the signal's colour; the list, the step that
+      stopped "✕" and in that colour, those before it ticked; why, in the
+      person's terms, a paragraph, `temper-welcome-check-why`. Then "Try
+      again", primary; the act that answers the reason, outlined ("Sign in
+      again"), or, with none, "All ways"; then "Continue anyway", quiet, to
+      Ready, or on `ConnectModel` to its made account's primary's address.
+
+    At a phone's width the muted words go under the title. The terminal
+    has the same lines as text, with no spinner: "Trying your ACCOUNT · one
+    short message", "✓ ACCOUNT · answered in N s", "WHO didn’t answer". Ready's
+    Model line, after a try that stopped: its usual line, then, muted, "didn’t
+    answer when tried".
     *Ready* is headed "Almost ready", with "Your first project can be
     created once your forge and model are ready.", until a real forge
     is connected and a model usable, then "Ready", with "Everything is
@@ -1519,8 +1546,9 @@ keeps (`../protocol/configuration.md`, section 2).
     says them in words); its title, a level-3 heading, over one short
     line; its act at the row's right while the step is left. Done, the
     title is muted and regular (`temper-home-done`).
-    1. "Tell temper how you work", "temper runs its default way of
-       working until you change it.", with "Start", filled, the act of
+    1. "Tell temper how you work", "In your own words: how you plan, review
+       and land work. temper proposes how it will run that, and nothing
+       changes until you accept.", with "Start", filled, the act of
        *The first chat* (below). Done once a configuring chat runs or ran
        in the project, or a line of the `settings` document follows a
        change; done, its title alone. A configuring chat is a row of the
@@ -1533,8 +1561,8 @@ keeps (`../protocol/configuration.md`, section 2).
        change.
     2. The repository, in the first state that holds: adopted (a row's
        `repositories` names the project), done, "ORG/NAME is in PROJECT",
-       "temper can change its code now; checked changes land on main
-       through temper's merge queue.", ORG/NAME the project's first
+       "Chats can change its code now.", with no claim that CI passed, since
+       the forge rows supply no check result; ORG/NAME the project's first
        adopted (5.3), one line on a laptop; with the rows' copies all in,
        done, "acme/widget is in Widget", or "acme/widget, acme/other are in
        Widget", its line "Chats can change its code now, on your Forgejo;
@@ -1880,8 +1908,9 @@ keeps (`../protocol/configuration.md`, section 2).
     nothing but the words naming the project.
   - *Sign out* is the last row of the `Accounts` tab: "Signed in as NAME",
     its login in small type, and "Sign out"; with "Sign out did not reach
-    the engine." beside it as 6.6 says. With no project, the banner has them
-    (5.1).
+    the engine." beside it as 6.6 says. A browser draws this row at 760 px and
+    under alone, where the rail has no foot; wider, "Sign out" is the person's
+    menu's (5.3). With no project, the banner has them (5.1).
   - *How work runs* is 5.13.
   - *Repositories:* a section whose head holds the title "Repositories · N"
     and "Adopt a repository", to `Adopt { project }`; then a line per
@@ -2176,8 +2205,8 @@ keeps (`../protocol/configuration.md`, section 2).
     new line". It has no composer's line and no chooser: the configuring
     role's models are a setting (5.13), which this chat can change. On a
     phone the frame's top bar and tab bar go, so that the composer keeps
-    the foot, and with them the model's line. The hint stays under the
-    composer.
+    the foot, and with them the model's line and the composer's hint,
+    as the configure-chat look request draws it.
 
   The conversation and the composer's foot each keep a scrollbar's gutter
   on both edges and hold one column, at most 720 pixels and centred, so
@@ -2274,14 +2303,8 @@ keeps (`../protocol/configuration.md`, section 2).
   facts, as `jig-client`'s `facts` reads them): what accepting grants
   and costs and the pool after it, what cancelling ends, what releasing
   does (jig's `client/domain/objects.md`, section 1; jig's
-  `client/domain/contract.md`, 5.4). Closing a chat says what becomes
-  of each live delegate ("Delegate N will be cancelled" or "Delegate N
-  will be moved to you", with "Cancel delegate N" and "Take delegate N"
-  to choose), then how the chat ends: "Close chat: allow N seconds to
-  finish, then cancel", the template's grace, while a run of it is
-  live, and "Close chat now" while none is, since a chat at rest closes
-  at once (jig's `domain/tasks.md`, 5.8); then "A closed chat can't be
-  reopened.". Removing a forge says what goes and what stays on the
+  `client/domain/contract.md`, 5.4). Closing a chat says only what closing
+  changes (*The sheet,* below). Removing a forge says what goes and what stays on the
   forge (`forge.md`, 5.4); deleting a project asks for the project's
   name, and sends nothing until it is typed whole (3.5). On an agent's
   task's page, stopping is confirmed too, since it holds the task until it is
@@ -2291,6 +2314,55 @@ keeps (`../protocol/configuration.md`, section 2).
   as proposable (jig's `client/domain/contract.md`, 5.3), the card says
   so, and to whom; where it offers it as refused, the card says why and
   sends nothing.
+- **The sheet.** Every confirmation of `confirm.rs` is one sheet, from the
+  look request `close-chat`: the mock's `dialog.sheet`, narrower. It asks in a
+  sentence, says only what will change, and names its acts: what keeps things
+  as they are first, then the act itself, primary. There is no "Confirm" and no
+  "Dangerous action": the sheet is how temper marks an act that can't be undone
+  (jig's `client/domain/client.md`, 19).
+
+  | Confirms | Title | Says | Keeps | Does |
+  |---|---|---|---|---|
+  | closing a chat | "Close this chat?" | "You can still read it, but it can’t be reopened.", and what it changes | "Keep it" | "Close chat" |
+  | "Start over" | "Start over?" | "A new configuring chat starts. This one stays in Chats.", and what it changes | "Keep going" | "Start over" |
+  | a goal's Stop | "Stop this goal?" | "What landed on its branch stays there." | "Keep going" | "Stop goal" |
+  | a task's Cancel | "Cancel this task?" | what it changes | "Keep it" | "Cancel task" |
+  | an agent's task's Stop | "Stop this task?" | "Its run stops, and the task is held until it is released." | "Keep going" | "Stop task" |
+  | accepting a proposal | "Accept this proposal?" | its facts | "Not yet" | "Accept" |
+  | rejecting a proposal | "Reject this proposal?" | its facts and reason | "Keep it" | "Reject" |
+  | releasing a task | "Release this task?" | what releasing does; an uncertain effect's two choices | "Keep it held" | "Release" |
+
+  - *What it changes,* under a hairline, each line present only where it holds,
+    and no count at zero:
+    the run, while one of this task's is live: "The run under way gets N seconds
+    to finish, then stops.", the template's grace, or "The run under way stops
+    now." with none (a chat at rest closes at once, jig's `domain/tasks.md`,
+    5.8); each live delegate, by its number and title and its fate, "T4 Fix the
+    parser is cancelled." or "T5 Review the parser moves to you.", with the other
+    fate as "Take it instead" or "Cancel it instead"; the tasks below it that are
+    not delegates, "N tasks below it are cancelled.", the document's waiting,
+    running, held and closing counts summed, less the delegates listed; "N
+    proposals are withdrawn."; and, while any of those holds, "Changes not yet
+    begun are withdrawn. Those under way settle.". A chat at rest with nothing
+    below it has no hairline and no such line: closing it changes nothing an
+    effect is in flight for, and the connector's panel names one that is (jig's
+    `client/domain/objects.md`, 11). What closing doesn't change (completed,
+    failed and cancelled tasks) is not said.
+  - *It stays until it is answered.* The press sends the ask and the sheet stays,
+    saying the ask's progress above its acts. Answered done, it goes. Any other
+    outcome leaves it open, saying why above its acts, where a press sends again;
+    a press that sends nothing closes it. "Keep it" closes it at any time, and an
+    ask in flight goes on, its outcome on the page as before. While the sheet is
+    open, the outcome and progress of its own ask are the sheet's alone.
+  - *A press stays under the finger* (`browser.md`, *A press a render can lose*):
+    the acts are a group of their own, keyed, and each delegate's row keyed by its
+    task, so a line arriving above them, or the page updating behind, keeps each
+    button's element.
+  - *The terminal* prints the same lines as text, and the acts by their names.
+- **Closed ends on one line.** A chat its requester closed ends on one quiet line,
+  "Closed at 21:05" (*The Chats page,* its ended line), between two hairlines; its
+  bar's status says "Closed", with no time. "Applied" isn't said once it is
+  closed, nor "Decision made" for the closing itself: that line says it.
 - **It names what the person saw.** Each deciding act names the
   revision of the document the card showed; when the engine refuses it
   as moved, the card asks the person to look again (jig's
@@ -3073,7 +3145,7 @@ for its kind, its user's login and its installations. Its nodes:
 | not installed | "temper's App is not installed on OWNER.", with "Install on another account" (`forge.md`, 5.5) |
 | not granted | "OWNER/NAME is not granted to temper's App.", linked to the installation's page on GitHub (`forge.md`, 5.5) |
 | not found | "No repository OWNER/NAME on forge F that temper's forge user can see." |
-| no access | "temper's forge user may not read OWNER/NAME on forge F."; `temper ctl` adds "A managed or owned forge gives that access by its site admin's token, which needs write:repository: the server's log names the step." |
+| no access | "temper's forge user may not read OWNER/NAME on forge F."; `temper ctl` adds "Forgejo collaborator reads can require repository admin even when temper's forge user already has write. A repository administrator must grant temper's forge user admin; then run repository adopt again with a new key, preserving its options, and verify the human's required project role with project show. If setup could not grant access on a managed or owned Forgejo, its site admin's token needs write:repository. Check the setup failure in the server's log." |
 | refused | "The forge connector refused it: another project writes OWNER/NAME, the project has a home already, or branches under PREFIX are not this deployment's." |
 | in flight | "OWNER/NAME is being adopted already; try again when that ends." |
 | too large | "A field is past the forge's bounds, or the forge's repositories are full." |
@@ -3410,7 +3482,7 @@ page (5.1): a navigation named by the open project, in this order:
   `drafts_offered` (3.5); then, after a rule, "All ways to start work", muted, one
   line, to `Settings { project }`, or `HowWorkRuns` once it has an address. Each
   half takes the hover's grey; open, the button keeps it and its chevron turns ink.
-  Skein's keys, arrows and Escape; a press on an item closes it; a focused item
+  Skein's keys, arrows and Escape; a press on an item or outside closes it; a focused item
   takes the hover's grey. A phone doesn't show the entry. Which templates it offers
   is fixed until `../draft/template-places.md` is taken up;
 - at its foot: the Away switch, while 3.5's *Away* shows it; while the
@@ -3422,12 +3494,21 @@ page (5.1): a navigation named by the open project, in this order:
   terminal, whose first line reads it (6.4); "Settings", to `Settings
   { project }`, current on every tab and page 3.5's *Settings* names,
   with the dots "Forges" and "Accounts"
-  carry below, each its state in words; the person's name; and "Sign
-  out did not reach the engine." while `me` or the page cannot say
-  otherwise (6.6), "Sign out" itself being the `Accounts` tab's (3.5).
+  carry below, each its state in words; the person's name, a line in the
+  terminal and the person's menu in a browser; and "Sign out did not reach
+  the engine." while `me` or the page cannot say otherwise (6.6), the
+  terminal's "Sign out" being the `Accounts` tab's (3.5);
+- the person's menu, a browser's: the person's name is the button of
+  skein-ui's menu (`Role::Menu`; skein's `ui-web.md`, 7), in a
+  `div.temper-rail-person`, drawn as the foot's other rows. It opens a panel
+  above the row, as wide as it, in the look of the switcher's menu. Its items:
+  "Accounts", to `Accounts`, and "Sign out", the `Accounts` tab's act. A press
+  on an item, Escape and a press outside close it, the focus back on the row
+  unless that press took it elsewhere. Open, the row keeps the hover's grey. A
+  phone has no foot, and signs out on the `Accounts` tab (3.5).
 
 "Forges", "Accounts" and "Adopt a repository" are no entries of the
-rail: they are `Settings`' tabs and the Repositories tab's (3.5). On a phone, at 760 px and under, the rail is a top
+rail's navigation: they are `Settings`' tabs and the Repositories tab's (3.5). On a phone, at 760 px and under, the rail is a top
 bar showing the switcher alone, and the tab bar closes the page: in the
 browser, a navigation named "Sections" after the main, with "Home",
 "Needs you", then "Goals" and "Chats" while kind 7 shows Goals, "Chats"
@@ -3496,16 +3577,22 @@ The acts of both, each one act and one request (3.6):
   rows in the rail, offered while `me`'s role on
   that project is owner, the role jig gives, which the context line
   reads too (5.6); jig judges the request (jig's `domain/people.md`,
-  5.1). Pressed, the row becomes a form, "Rename PROJECT", holding the
-  name's field, its value the project's name and the focus on it, then
-  "Save" and "Cancel". The field's Enter or "Save" sends jig's
-  `Rename { project, name }`, the form's acts disabled while it is out;
-  "Cancel", or Escape, which "Cancel" names (skein's `ui.md`, 6.1),
-  closes the form and sends nothing. An empty name, or the name
-  unchanged, sends nothing. Answered renamed, the form closes, and `me`
+  5.1). Pressed, the open project's row is the form, "Rename PROJECT",
+  in the banner and the rail alike, and the rail's "Rename PROJECT"
+  leaves its acts while the form is open. The form holds the name's
+  field, filling the row, its value the project's name and the focus on
+  it, then "Save", primary and small. The field's Enter or "Save" sends
+  jig's `Rename { project, name }`, its name without the spaces at its
+  ends, the form's acts disabled while it is out; Escape closes the form
+  and sends nothing: the form's "Cancel" names it (skein's `ui.md`,
+  6.1), which the terminal shows and the browser's sheet hides. An empty
+  name, or the name unchanged, sends nothing and closes the form,
+  keeping the old name. Answered renamed, the form closes, and `me`
   brings the new name wherever the project's name shows; refused (the
   name taken, its shape, the role), the form stays and says why under
-  its field.
+  its field. A closed form leaves the focus on the switcher's summary
+  (skein's `ui-web.md`, 7), or on a page's own field where the page asks
+  it (a new chat, Configure).
 - **A new project:** the list ends with a form, "New project", holding
   a name's field, "+ New project" its placeholder, and "Create".
   "Create", or the field's Enter, sends jig's `MakeProject { name,
@@ -3605,8 +3692,7 @@ The words for each offered source are:
   Choose, each way is a card: a plan's sign-in, the plan's name,
   "Your ChatGPT plan. Sign in with your ChatGPT account, and temper’s
   agents use your plan’s included usage." and "In a browser · about a
-  minute", and, beside its button, "This browser isn't on temper's
-  computer ›" (3.5, `ConnectModel`, From another computer); a key, "An OpenAI API key", "A
+  minute"; a key, "An OpenAI API key", "A
   key from OpenAI’s platform. What temper’s agents use is billed to the
   key’s organization." and "Pasted here · at once"; then the way's
   button.
@@ -4540,8 +4626,9 @@ Its rules on a goal's page:
   revision, at once, no confirmation. A subtree hold's root released lifts it
   whole. Its toast: "Resumed." A goal held for any other cause has no Resume:
   its band has the need.
-- **Stop** opens the confirmation (`confirm.rs`, `Role::Dialog`): "Stop TITLE?",
-  then "What landed on its branch stays there.", "Confirm", "Cancel". It sends
+- **Stop** opens the confirmation (`confirm.rs`, `Role::Dialog`, 3.6, *The sheet*):
+  "Stop this goal?", then "What landed on its branch stays there.", "Keep going",
+  "Stop goal". It sends
   `Ask::Cancel` with the reason "Stopped from its page". A goal branch nothing
   landed from stays (`../domain/forge.md`, 11.1), so the sentence holds. The
   acts stay drawn behind the dialog.
@@ -4585,8 +4672,9 @@ Its rules on an agent's task's page:
   temper's "Messages reach it once it runs." (any other refusal: its supplied
   words, in the same look, since why Message isn't offered is no outcome), and
   its model choice line alone.
-- **Stop,** confirmed (3.6): a dialog "Stop" saying "Its run stops, and the task
-  is held until it is released.", then "Confirm" and "Cancel". It is sent as
+- **Stop,** confirmed (3.6, *The sheet*): "Stop this task?" saying "Its run stops,
+  and the task is held until it is released.", then "Keep going" and "Stop task".
+  It is sent as
   `Ask::Stop`. The engine holds the task, stopped by the person, so Release is
   offered next, its effect said as 3.6 says ("The next run resumes its
   conversation; tries count again from zero").
@@ -4765,7 +4853,11 @@ section 5.
   kind 7 of the open project as the project opens, and kind 6 on the tab,
   through the forge's reads in that project's scope (`forge.md`, section 9),
   and again whenever the document's line for that setting says it changed and
-  when the link comes back. Until read, or if refused, the optional entries,
+  when the link comes back. A transient read failure (busy, unreachable, local
+  read capacity, or sign-in still settling) retries after one second, doubling
+  to at most 30 seconds; a successful answer resets the wait. Kind 7 retries
+  while its project is open, kind 6 while the tab is open; leaving that scope
+  drops its retry. Until first read, or after a lasting refusal, the optional entries,
   the tab's live controls and `drafts` all read as hidden, off and absent; a
   value of none reads as the stock (`../protocol/configuration.md`, 13.4).
 - **Its acts:** each live control sends at once jig's `ChangeSettings` with one
@@ -5261,7 +5353,8 @@ and its small store, are jig's (jig's `protocol/client.md`, sections 8,
 temper's:
 
 - **The printed link** (jig's `protocol/client.md`, section 8): at
-  start, `temper serve` prints a sign-in link for the deployment's
+  start, `temper serve`, or `temper box` before it starts serve
+  (`../protocol/setup.md`, 7.2), prints a sign-in link for the deployment's
   first owner (`../protocol/README.md`, section 4), in the default
   mapping's link route under temper's prefix,
   `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`. `temper open
@@ -5948,9 +6041,8 @@ own tests:
   made, nor a repository's CI outside a change. The user kept both facts
   out of the protocol (2026-11-04): the kicker is the current day and
   time, as on any Home (`../draft/to-begin.md`, 2), and the step says
-  "temper can change its code now; checked changes land on main through
-  temper's merge queue.". Supplying a creation age or a first CI result
-  needs its own protocol decision.
+  "Chats can change its code now.". Supplying a creation age or a first CI
+  result needs its own protocol decision.
 - **A project's only goal ending while Home is open** (3.5, 5.3): kind 7
   decides the rail and the tab bar; Home reads `Domain::has_goals` to choose
   Goals or Chats. The fact reads the ended group once, so once the live watch
@@ -5978,10 +6070,11 @@ own tests:
   template's `llm` may be its charter's default, which no client is given.
   Default: the first model `me` serves for the project.
 - **How a project lands, on To begin's second step**
-  (`../draft/to-begin.md`, 3): its line names temper's landing turn for
-  a project landing by turn, and no client is given a project's `by`
-  (`../domain/landing.md`, 13.1). A new fact of a protocol, the user's.
-  Default: the merge queue's words on every project.
+  (`../draft/to-begin.md`, 3): its line names how the project lands, by
+  temper's merge queue or by its landing turn, and no client is given a
+  project's `by` (`../domain/landing.md`, 13.1). A new fact of a protocol,
+  the user's. Default: "Chats can change its code now." on every project,
+  which names no way of landing.
 - **A project's home in the switcher** (5.3, 4.4): `me` does not say
   which repository is a project's home, so the first listed stands in
   for it, and a row with several repositories never reads "3
@@ -6027,6 +6120,58 @@ own tests:
   the goal hearing those words, whose scripts are throwaway. No world keeps it:
   the parser, the stock sentence, the session and the view each hold their own
   side. Default: those tests.
+- **A proposal of settings in a project's Needs you** (3.5, *Needs you*, *What the
+  client keeps*; 5.13; the request `ui-final-walk` of 2026-11-05): jig takes a
+  proposal of settings in the deployment's scope (jig's `client/domain/contract.md`,
+  3.2), so its inbox row says project 0 whatever its items change, and *Needs you*
+  by the open project and the rail's count, the ways a project's frame has, leave
+  it out; the greenfield mock has its card and its count. To see it, on a fake box:
+  `temper ctl settings propose` one `project-ways` item of project 1, then Needs
+  you from the rail. Which inbox holds a proposal whose items span the deployment
+  and several projects is a decision, then one rule for the reads. Default: its
+  card in its chat (5.13) and `temper ctl`'s inbox.
+- **A choice pressed just after Undo** (3.5, *What the client keeps*; that
+  request): on a fake box at 1440, a question with choices, Later, its Reply sent,
+  Undo, then at once a choice: six seconds on the card and the count stood, and
+  the engine held the question unanswered. A repeat on a fresh box at 1440 and the
+  walk at 420 answered. Its cause is unknown and no way shows it reliably. Default:
+  as it stands, until it is seen again.
+- **A brief refused, on Home** (3.5, *Home on any project*; that request): a status
+  run refused for want of funding leaves Home its computed sentence, with no byline
+  and nothing saying why. How a person sees that goes with what funds the run
+  (`../domain/forge.md`, 20). Default: nothing said.
+- **The Claude way's command on a box with directories of its own** (3.5, *Claude*;
+  5.5; that request): the page shows `temper program-login NAME`, which reads the
+  default directories under the person's home, so on such a box it refuses with
+  its configuration absent, before it fetches anything. The answer of 2026-11-05
+  to that plan's task `fix-flow` has the command run as shown: short with the
+  default directories, otherwise `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…
+  temper program-login NAME`, shell-quoted. No client is given the directories
+  (`temper`'s `directories.rs` holds them; the deployment's answer, `welcome` and
+  `owned` alone), so it takes a new fact from the binary through the service, the
+  wire or the page's bootstrap, the domain and the view. Its proof: tests of both
+  forms, with a space and an apostrophe and no download, then the shown command run
+  as it stands on a fresh real box, the pinned fetch with it. Default: the short
+  command.
+- **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; that
+  request): the pinned Claude Code fetch and a real browser's Sign out ran by hand,
+  on fresh loopback deployments, and no test keeps them. Not shown: a provider's
+  sign-in or a paid call; TLS, a proxy or a browser on another machine; Accounts
+  with a project or an account on it; the small engine profile whole, whose client
+  limits alone ran; another platform's build, a failed or corrupt download, two
+  fetches at once; a copy from a public host. Default: none, until a plan walks them.
+- **What feeds the try** (3.5, *The try*; `../draft/model-check.md`): the trial's
+  task and charter, how it selects its model, who pays, what ends it and its
+  cancelling on leaving are that draft's, and are designed as it is built, with
+  what it leaves open: an act on Settings' accounts, and a world for the wait.
+  Default: the host's check feeds the box's first step, and a model usable moves
+  on to Ready.
+- **The rename's opening and closing, as the mock draws them** (5.3; the request
+  `ui-rename-focus` of 2026-11-06): the mock selects the name as the form opens,
+  folds the menu as it closes and says "Renamed" in a toast. A view can neither
+  select a field's words nor fold a disclosure (skein's `ui-web.md`, 15), and that
+  request names none of the three. Default: the name unselected, the menu open with
+  the focus on its summary, and no toast.
 
 - **Pages the mockups do not show:** a project's page with its
   resources, findings, notes and settings (policy, people and roles,
@@ -6085,15 +6230,15 @@ own tests:
   reaches the engine on loopback; a browser elsewhere lands on its own
   error page, and its person finishes by pasting that page's address
   (3.5, `ConnectModel`, From another computer), or through a tunnel
-  (the walk `box`, its account step). The person says which (with the
-  user, 2026-10-23). Candidates for telling by
+  (the walk `box`, its account step). Nothing asks which: the page
+  offers the paste to everyone (the user, 2026-11-06). Candidates for telling by
   itself: before the browser leaves, the page asks the listener for a
   one-time code the engine gave it for this sign-in, and only a browser
   that gets it goes on in its own tab, the others in a tab of their own
   with the paste; or a connection from an address not the engine's
   machine's goes so at once. Later: a client relaying the redirect
-  (jig's `protocol/llm.md`, section 10). Default: undetected, the
-  person's choice.
+  (jig's `protocol/llm.md`, section 10). Default: undetected, the paste
+  offered to everyone.
 - **The first use of a plan,** in the terminal: a card in the
   conversation, or a card that waits to be dismissed, another kind of
   `Dismissed`, keyed by its account (`../draft/to-begin.md`, section 5).
@@ -6291,6 +6436,18 @@ own tests:
   source does not. Candidate: the page shows the person's sign-in under
   way for that provider, with its end. Default: the way's button
   again.
+- **The address on a page come back** (3.5, *The sign-in under way*;
+  `../draft/sign-in-new-tab.md`, 3): a sign-in's address is the answer to
+  the client that asked, so a page come back or reloaded, a new client,
+  draws the note with no "Open it again", where that draft has a reload
+  draw the same page. Candidate: the accounts document gives a sign-in's
+  holder its address, which jig's `protocol/llm.md`, 5.2 keeps as an
+  answer alone. Default: no link, the paste still offered.
+- **The person's login over 760 px** (3.5, *Sign out*; 5.3; the request
+  `ui-owner-menu`): the sheet hides the `Accounts` tab's row whole, so a browser
+  that wide reads the person's name on the rail's foot, and their login on no tab
+  of `Settings`. Candidate: the sheet hides the row's button alone, its words
+  staying. Default: the whole row.
 - **Which tasks hold a revision, and which could move** (5.13). jig's
   `settings` document counts the live tasks holding each revision, but
   a task query has no revision among its keys (jig's

@@ -41,16 +41,40 @@ pub struct RepositoryIdentity {
     pub name: Box<[u8]>,
 }
 
+/// One person of the caller's project, for an authorized inventory
+/// (temper/docs/design/domain/agent.md, 8.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ProjectPerson {
+    pub person: u64,
+    pub role: u32,
+    /// Empty for someone adoption seeded who has not signed in.
+    pub login: Box<[u8]>,
+    /// Provider 0's subject, where their identity is the forge's.
+    pub forge_user: Option<u64>,
+    /// temper's retained forge writer, who never counts as a person.
+    pub writer: bool,
+    /// The person this chat's task was requested by.
+    pub you: bool,
+}
+/// An owned forge's person, the login made for whoever runs the box.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ForgePerson {
+    pub host: Box<[u8]>,
+    pub login: Box<[u8]>,
+}
+
 /// Root to protocol after the decision commits: render a decided call's
 /// answer, or carry a workspace delivery's settled answer to its host, which
 /// the hub's link names only as text (jig's `domain/hosts.md`, 2).
 #[derive(PartialEq, Eq, Debug)]
 pub enum HostDelivery {
-    /// Settings reads have no durable call part; inventories include project repositories.
+    /// Settings reads have no durable call part; inventories include project repositories and people.
     Settings {
         to: ReplyTo,
         answer: Box<jig_domain_core::SettingsAnswer>,
         repositories: Box<[RepositoryIdentity]>,
+        people: Box<[ProjectPerson]>,
+        forge_people: Box<[ForgePerson]>,
         application: Option<temper_engine_domain_forge::settings::SizedValue>,
         from: u32,
         requested: Option<u64>,
@@ -89,7 +113,7 @@ pub(crate) enum FlightRender {
     Plain,
     TaskRead,
     ForgeRead,
-    Settings { from: u32, requested: Option<u64> },
+    Settings { from: u32, requested: Option<u64>, asked: Option<(jig_domain_core::settings::Setting, u32)> },
     Amended(crate::Changed),
     Change(Box<ChangeChoice>),
     PersonRoles(Box<[u32]>),
@@ -162,7 +186,13 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
             | jig_domain_core::SettingsRead::Setting { .. }
             | jig_domain_core::SettingsRead::Revisions { .. } => None,
         };
-        FlightRender::Settings { from: *from, requested }
+        let asked = match read {
+            jig_domain_core::SettingsRead::Setting { setting, revision } => Some((*setting, *revision)),
+            jig_domain_core::SettingsRead::Inventory
+            | jig_domain_core::SettingsRead::Revision { .. }
+            | jig_domain_core::SettingsRead::Revisions { .. } => None,
+        };
+        FlightRender::Settings { from: *from, requested, asked }
     } else if let crate::Tool::Change { changes } = &body.tool {
         change_choice(domain, key.task, changes)
     } else if let crate::Tool::Delegate { batch } = &body.tool {
@@ -587,11 +617,35 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
     let right = to.into_token();
     let to = ReplyTo::new(right);
     let flight = domain.call_renders.get(&right).expect("settings read flight");
-    let FlightRender::Settings { from, requested } = flight.render else { unreachable!("settings rendering context") };
+    let FlightRender::Settings { from, requested, asked } = flight.render else {
+        unreachable!("settings rendering context")
+    };
+    let mut application = super::tools::settings_value(domain, &answer);
+    let mut answer = answer;
+    let newest = domain.core.current.newest();
+    if let jig_domain_core::SettingsAnswer::Unknown = answer.as_ref()
+        && let Some((
+            setting @ jig_domain_core::settings::Setting::Application { kind: kind @ (6 | 7), scope, number: 1 },
+            revision,
+        )) = asked
+        && (revision == 0 || revision == newest)
+        && domain.core.people.project_members(scope).is_some()
+    {
+        application = temper_engine_domain_forge::settings::project_stock(kind);
+        answer = Box::new(jig_domain_core::SettingsAnswer::Setting(jig_domain_core::reads::SettingDocument {
+            setting,
+            revision: newest,
+            value: None,
+            application: None,
+            proposed: None,
+        }));
+    }
     let request = crate::boundary::delivery_output(Delivery::Host(Box::new(HostDelivery::Settings {
         to,
         repositories: settings_repositories(domain, flight, &answer),
-        application: super::tools::settings_value(domain, &answer),
+        people: settings_people(domain, flight, &answer),
+        forge_people: settings_forge_people(domain, flight, &answer),
+        application,
         answer,
         from,
         requested,
@@ -622,6 +676,92 @@ fn settings_repositories(
     } else {
         Box::new([])
     }
+}
+
+/// Project roles and forge identities are context of an authorized inventory alone.
+fn settings_people(domain: &Domain, flight: &Flight, answer: &jig_domain_core::SettingsAnswer) -> Box<[ProjectPerson]> {
+    use jig_domain_core::SettingsAnswer;
+    match answer {
+        SettingsAnswer::Inventory(_) => {}
+        SettingsAnswer::Setting(_)
+        | SettingsAnswer::Revision(_)
+        | SettingsAnswer::Revisions(_)
+        | SettingsAnswer::Unknown => return Box::new([]),
+    }
+    let Some(context) = domain.core.tasks.delegation(flight.task) else { return Box::new([]) };
+    let Some(members) = domain.core.people.project_members(context.project) else { return Box::new([]) };
+    let Some(task) = domain.core.tasks.task(flight.task) else { return Box::new([]) };
+    let requester = match task.requester {
+        jig_domain_tasks::Party::Person(person) => Some(person),
+        jig_domain_tasks::Party::Task(_) | jig_domain_tasks::Party::Deployment { .. } => None,
+    };
+    let repositories = domain.forge.readable_repositories(context.project);
+    let mut people = List::with_capacity(u32::try_from(members.len()).expect("bounded project members"));
+    for member in members {
+        match domain.core.people.kind(member.person) {
+            Some(jig_domain_people::Kind::Person) => {}
+            Some(jig_domain_people::Kind::Service) | None => continue,
+        }
+        let Some(identity) = domain.core.people.identity(member.person) else { continue };
+        let forge_user = if identity.key.provider == 0 {
+            match <[u8; 8]>::try_from(identity.key.subject.as_ref()) {
+                Ok(subject) => Some(u64::from_be_bytes(subject)),
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
+        let mut writer = false;
+        if let Some(user) = forge_user {
+            for repository in &repositories {
+                writer |= domain.forge.is_writer(repository.provider.forge, user);
+            }
+        }
+        people
+            .push(ProjectPerson {
+                person: member.person,
+                role: member.role.number(),
+                login: identity.login.clone(),
+                forge_user,
+                writer,
+                you: requester == Some(member.person),
+            })
+            .expect("at most one person per holding");
+    }
+    people.into_boxed()
+}
+
+/// Owned forge logins are named once per readable host in the caller's project.
+fn settings_forge_people(
+    domain: &Domain,
+    flight: &Flight,
+    answer: &jig_domain_core::SettingsAnswer,
+) -> Box<[ForgePerson]> {
+    use jig_domain_core::SettingsAnswer;
+    match answer {
+        SettingsAnswer::Inventory(_) => {}
+        SettingsAnswer::Setting(_)
+        | SettingsAnswer::Revision(_)
+        | SettingsAnswer::Revisions(_)
+        | SettingsAnswer::Unknown => return Box::new([]),
+    }
+    let Some(context) = domain.core.tasks.delegation(flight.task) else { return Box::new([]) };
+    let repositories = domain.forge.readable_repositories(context.project);
+    let mut people =
+        List::<ForgePerson>::with_capacity(u32::try_from(repositories.len()).expect("bounded repositories"));
+    for repository in &repositories {
+        let Some(login) = domain.forge.owned_person(repository.provider.forge) else { continue };
+        let mut named = false;
+        for person in &people {
+            named |= person.host == repository.host;
+        }
+        if !named {
+            people
+                .push(ForgePerson { host: repository.host.clone(), login: login.into() })
+                .expect("at most one person per host");
+        }
+    }
+    people.into_boxed()
 }
 
 /// Load one settings source without applying it or adding note assembly state.

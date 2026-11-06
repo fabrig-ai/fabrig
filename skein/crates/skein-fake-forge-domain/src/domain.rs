@@ -720,7 +720,11 @@ fn authorized_read(
 ) -> Result<Answer, Error> {
     let repository = domain.repositories.get(id).expect("a named repository");
     if *read == Read::ListingPermission {
-        return Ok(Answer::Permission(repository.permission(user)));
+        return Ok(Answer::Permission(crate::api::UserPermission {
+            user,
+            login: Box::new([]),
+            permission: repository.permission(user),
+        }));
     }
     repository.require(user, Permission::Read)?;
     match read {

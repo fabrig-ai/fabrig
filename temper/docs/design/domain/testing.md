@@ -2338,6 +2338,7 @@ each behaviour in the lowest world that owns it, and one smoke above:
 | the forge's world (`tests/engine/forge`) | forge.md 18's settings stories: a rule changed between two merges; a gate a rule adds asked for on a queued change, which leaves the queue; one a rule drops no longer waited on; a project's rule adding an approval; a rule refused; a change kept on its charter, and one held when it is no longer offered; a restart handing the values back before the records | about 0.3 s, seven stories at the world's usual cost |
 | the engine's domain world (`tests/engine/domain`) | through the root and the core on jig's store: a change naming a landing rule and a charter committed in one decision, and refused whole when the forge refuses its rule; a project's rule changed by its owner, refused as not theirs for another; a new forge's charter reaching the next change's delegates while a live change keeps its own; a project made after the first start covered by the deployment's rule; the two requirements removed from the rules, landing left to the procedure's waits; the resume fixture restarting with changed values. A stored settings policy and a stored project policy, each admitted under a larger policy allowance and committed through the real store, refuse a cold start under the smaller allowance naming the setting or project; a policy at the bound is admitted in its own story. Root and store use the same test envelope, including sufficient journal and page bytes. | about 0.6 s |
 | the engine's domain world, the configuring agent (`agent.md`, 8.1) | scripted runs of charter 3: an owner's chat proposing and its acceptance heard; a member's, waiting for an owner; one withdrawn as stale, read again and proposed afresh; one rejected with a reason and revised; one accepted with running work moved; `settings` reads of each kind, a held charter, a revision and a history page, each within the answer's bound; `propose_settings` refused for a stale revision and for an item out of shape; a run with no `settings` family refused by its authority | about 0.5 s, its stories at the world's usual cost |
+| the engine's domain world, the configuring agent's reads (`agent.md`, 8.1) | scripted runs of charter 3: a project's ways and questions read at their stock with none stored, and as stored once a change sets them; a read of a project that isn't one, answered not read; the inventory's people, its own project's alone, the person and temper's writer marked; a member's chat reads what an owner's does and a run without the settings family is refused; an approval's refusal naming no command | its stories at the world's usual cost, not measured apart |
 | the engine's domain world, a charter's documents (`../protocol/configuration.md`, 13.7) | through the core's plan, the root's binding and the forge's gather: a run of a charter naming a document gets its section at the branch's head; after a change lands that edits the file, the next run's section has the new text; a heading's part alone; a missing file, heading or repository, a section saying so and the run going on. The gather's own cases (a heading's bounds, a cut at a line end, each section saying why) are the forge crate's step tests | about 0.1 s, four stories |
 | fuzzy, in an existing sweep | one operation in the forge world's `suite::fuzzy::simulation`: random changes of landing rules among the changes stepping and merging; its referee holds that no merge lands without each requirement of the rules held at its decision | within the fuzzy suite's 120 s, measured with it; no new binary |
 | the client and the engine, joined (6.3) | "Tell temper how you work" starting the configuring chat, whose run proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s against the 8 s guide |
@@ -2406,7 +2407,8 @@ of one kind:
 - *a setting*, which the accepted settings hold, by one of eight
   tests: `equal` (the value, whole), `at-least` (a number no smaller),
   `bits` (each expected bit of a family mask set, others allowed),
-  `contains` (each expected element of a list present, others allowed),
+  `contains` (each expected element of a list present, a member it does
+  not name free and one absent counting as null, others allowed),
   `set` (present and not null, whatever its value), `judged` (text the
   judge reads, 6.5.4; the check only finds it set),
   `unchanged` (the stock's value, which the accepted revision leaves
@@ -2446,15 +2448,16 @@ obligations missing.
 
 | Section 14's row | Obligations |
 |---|---|
-| the coordinator's charter | setting: its instructions (`judged`); its model, `model.name`; its workspace and sub-agents, `inspect`, `modify`, `shell`, `agents`; starting fresh, `resume` false; `waiting` 0; its wake policy, `wake`, whole; its documents, `documents` (`contains`: `AGENTS.md`'s "1. In one page" and the code's rules). Box: Claude Code, the program the document's model runs on. The tools it names are the authority's families, the rules' and policy 1's rows below |
-| the designer's charter | setting: its instructions (`judged`); its model, `model.name`; the workspace, delivery and sub-agents, `inspect`, `modify` and `agents` true; `documents` (`contains`: `DESIGN.md`, the design rules). Box: Claude Code, as the coordinator's |
+| the coordinator's charter | setting: its instructions (`judged`); its model, `model.name`; its workspace and sub-agents, `inspect`, `shell`, `agents`, its `modify` free, since a goal's runs inspect alone whatever it says (`agent.md`, 4.3); starting fresh, `resume` false; `waiting` 0; its wake policy, the members of `wake` `../draft/reference-code-production.md`, section 13 names (`words`, `notices`, `news`, `results`, `questions`), `answers` and `timers` free; its documents, `documents` (`contains`: `AGENTS.md` and the code's rules, by path, a heading free). Box: Claude Code, the program the document's model runs on. The tools it names are the authority's families, the rules' and policy 1's rows below |
+| the designer's charter | setting: its instructions (`judged`); its model, `model.name`; the workspace, delivery and sub-agents, `inspect`, `modify` and `agents` true; `documents` (`contains`: `DESIGN.md`, the design rules, whole). Box: Claude Code, as the coordinator's |
 | the goal template for drafts | setting: `executor.charter`, `{"role": "coordinator"}`; `llm`, whole (section 4's choice); `tracked` (`at-least` 1); `contract.report` (`set`); `resources` (`contains`: *its own goal branch*) |
 | a small goal's template | setting: the stock's goal template, `unchanged` |
-| the coding agent's charter | setting: its instructions (`judged`); `shell` and `modify` true; a run sized past a small fix's, `turns` (`at-least` 17) and `time` (`at-least` one nanosecond past 120 s), charter 2's stock 16 turns and 120 s being a small fix's |
+| the coding agent's charter | setting: its instructions (`judged`); `shell` and `modify` true; the stock's run, which the table retains, `turns` (`at-least` 800) and `time` (`at-least` 28,800 s) |
 | the foreman's charter | setting: its instructions (`judged`); its model, `model.name`, gpt-6.1-sol, set on the charter (the draft's status records the departure); `inspect` true, `modify`, `shell` and `agents` false |
 | the forge's charters (kind 3) | setting: 1 names the coding agent's, its anchor; 2, the reviews', `unchanged` (unused, since neither landing rule asks a gate); the foremen's, the foreman's role's number |
 | each change's LLM choices | setting: the coding agent's model, `model.name`, gpt-6.1-sol; the coordinator's instructions (`judged`: a coding change at gpt-6.1-sol at the spec's effort, a designer's at section 4's choice); box: gpt-6.1-sol on smith's direct backend with an OpenAI account's key |
-| the project's policy and rules | setting: the rules' ceiling's, policy 1's ceiling's and its role 0's tool families (`bits`: the profile's, the stock's with jig's control and notes families, 13.9); their delegation's kinds (`contains`: each charter role's charter, the stock's procedures 2 to 4, the merge job, job 3, and role 0) and its tasks and depth (`at-least`: 1,024 tasks, 4 deep, N21); the project's own policy, its role 0 the same |
+| the project's policy and rules | setting: the rules' ceiling's, policy 1's ceiling's and its role 0's tool families (`bits`: the profile's, the stock's with jig's control and notes families, 13.9); their delegation's kinds (`contains`: each charter role's charter, the stock's procedures 2 to 4, the merge job, job 3, and role 0) and its tasks and depth (`at-least`: 1,024 tasks, 4 deep, N21); policy 1's role 0 and the project's own policy's the same |
+| the project's ways | setting: its `way`, the goal template for drafts, by role; its switches free. The project's questions are free too, a kind no obligation asks for: the coordinator names each change's route |
 | the landing rule for goal branches | setting: `goal-rule`'s `pattern`; `ci` false, `up_to_date` false; `gates` and `approvals` empty |
 | the landing rule for main | setting: `main-rule`'s `pattern`; `enforce` true, `ci` true, `up_to_date` true; `gates` and `approvals` empty; the deployment's rules `only` the two, so the stock's rule on every branch, which asks CI and a review, is replaced or removed |
 | the repository's merge style | box: a merge commit, the repository's |
@@ -2468,9 +2471,8 @@ obligations missing.
 The golden's file holds each obligation with its id, its row, its kind,
 and for a setting its subject, member, test and any value of its own;
 its rows above are the design, the file their only encoding. The
-triage's charter, which the reference's table does not name, is an obligation
-through the profile (`../draft/reference-landing.md`, section 6), as
-`../protocol/configuration.md`, 13.9 makes it the reference's: its
+triage's charter's row (`../draft/reference-landing.md`, section 6;
+`../protocol/configuration.md`, 13.9) cuts into its
 instructions (`judged`), its model, and `inspect` true with `modify`,
 `shell` and `agents` false. No field of the table is a gap: the design
 carries each, as a setting or the box's. The kind
@@ -2480,7 +2482,8 @@ carries it.
 **Beyond the obligations,** the check fails on:
 
 - *a setting no obligation asks for:* an item of the accepted revision
-  whose setting binds to no role and is no obligation's subject;
+  whose setting binds to no role and is no obligation's subject, of a
+  kind the golden does not name as free;
 - *a rule made structure without the person's choice*
   (`../draft/configuring.md`, section 2), as far as settings show it: a
   landing rule's gate or approval, or a charter's family the golden
@@ -2502,8 +2505,7 @@ the forge's API as an observer, the limits against the box's document):
   account's key, for producers, foremen and the triage; a real model
   for the configuring chat;
 - **the document's members the profile sets** over `temper init`'s:
-  `docs/examples/reference/limits.json`'s and `agent.json`'s
-  overrides, and `landing.json`, the project's merge job and its two
+  `docs/examples/reference/limits.json`'s overrides, and `landing.json`, the project's merge job and its two
   tiers (13.9); a change's question bound,
   `forge.change_policy.questions`, explicitly overridden to 4 by `limits.json`;
 - **the project,** with its repository adopted, holding `AGENTS.md`,
@@ -2573,7 +2575,12 @@ one complete accepted revision, with refusal and decided-call replay cases (6.4)
     document it names: `reaches`, `missing`, or `elsewhere` (another
     role's), with the quote;
   - *the description* the agent gave back, against the reference's
-    section 1: `matches` or `differs`, with the differences;
+    section 1: `matches` or `differs`, with the differences. It differs
+    where it says what the section contradicts, or leaves out what the
+    flow turns on (the goal holding its branch, every change landing
+    there, designers before their changes, how questions go, the whole
+    landing into main at the end); a number or other detail it leaves
+    out is no difference;
   - *what needs a restart:* whether the proposal or the chat claims to
     set what the box brings rather than saying it needs the box:
     `said` or `proposed`, with the quote.

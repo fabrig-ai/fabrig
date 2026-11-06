@@ -1,22 +1,14 @@
 use jig_domain_tasks::{
     self as tasks, Active, Amendment, Class, End, Event, Hold, Key, Operation, Party, Phase, Refusal, Release, Stored,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
-use skein_lib::{List, ReplyTo};
+use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY, Reply, World, response, task};
+use skein_lib::List;
 
 const KEPT: u64 = 1;
 const DEPENDENCY: u64 = 2;
-const PERSON: u64 = 9;
 const SEED: u64 = 870;
 // One amendment followed by one release.
 const PAIR: u32 = 2;
-
-fn response(world: &mut World, event: impl FnOnce(ReplyTo) -> Event) -> Reply {
-    let to = world.to();
-    let call = to.into_token();
-    world.send(event(ReplyTo::new(call)));
-    world.replies[&call.raw()].clone()
-}
 
 fn amendment(world: &World, release: bool) -> Amendment {
     Amendment {
@@ -35,7 +27,7 @@ fn amendment(world: &World, release: bool) -> Amendment {
 
 fn pair() -> World {
     let mut world = World::new(SEED, LIMITS);
-    world.make(Party::Person(PERSON), vec![task(KEPT, &[]), task(DEPENDENCY, &[])]);
+    world.make(PERSON_PARTY, vec![task(KEPT, &[]), task(DEPENDENCY, &[])]);
     world
 }
 
@@ -46,7 +38,7 @@ fn keep(world: &mut World, release: bool) -> Reply {
         operation: tasks::Amend { task: KEPT, message, stop_run: false, amendment: Box::new(amendment) },
         places: Box::new([]),
         reply_to,
-        by: Party::Person(PERSON),
+        by: PERSON_PARTY,
         funder: None,
     })
 }
@@ -79,7 +71,7 @@ fn a_held_kept_agent_releases_idle_without_a_claim() {
     world.activations.clear();
     response(&mut world, |reply_to| Event::Release {
         reply_to,
-        by: Party::Person(PERSON),
+        by: PERSON_PARTY,
         operation: Release { task: KEPT, again: None, message: None },
     });
     unclaimable(&mut world);
@@ -113,7 +105,7 @@ fn a_compound_amendment_then_release_keeps_the_agent_idle() {
     assert_eq!(
         response(&mut world, |reply_to| Event::Compound {
             reply_to,
-            by: jig_domain_tasks::Party::Person(PERSON),
+            by: PERSON_PARTY,
             project: 1,
             operations,
             period: 0,
@@ -163,7 +155,7 @@ fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
     let holding = Holding::Write { resource: Name { connector: 1, path: Box::new([Box::new([1])]) }, kind: 1 };
     let mut holder = task(KEPT, &[]);
     holder.holdings = Box::new([holding.clone()]);
-    world.make(Party::Person(PERSON), vec![holder, task(DEPENDENCY, &[])]);
+    world.make(PERSON_PARTY, vec![holder, task(DEPENDENCY, &[])]);
     let mut waiter = task(WAITER, &[PREREQUISITE]);
     waiter.holdings = Box::new([holding.clone()]);
     world.make(Party::Task(DEPENDENCY), vec![task(PREREQUISITE, &[]), waiter]);
@@ -194,7 +186,7 @@ fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
     world.elapse(Duration::from_secs(1));
     let mut later = task(LATER, &[]);
     later.holdings = Box::new([holding]);
-    world.make(Party::Person(PERSON), vec![later]);
+    world.make(PERSON_PARTY, vec![later]);
     let mut remove = amendment(&world, false);
     remove.dependencies = Some(Box::new([]));
     let message = world.record(KEPT).last_message + 1;
@@ -202,7 +194,7 @@ fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
         operation: tasks::Amend { task: KEPT, message, stop_run: false, amendment: Box::new(remove) },
         places: Box::new([]),
         reply_to,
-        by: Party::Person(PERSON),
+        by: PERSON_PARTY,
         funder: None,
     });
     assert_eq!(world.record(WAITER).phase, Phase::Waiting);

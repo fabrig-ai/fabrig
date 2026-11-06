@@ -180,9 +180,9 @@ pub(crate) fn configuring(root: &Domain) -> bool {
     let Some(me) = root.pages().me(root.client()) else { return false };
     temper_client_domain::pages::chats::configuring(me, task.project, &task.chip.executor)
 }
-fn bar_status(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, times: &mut Times) {
+fn bar_status(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, _times: &mut Times) {
     if task.result.is_some() || super::chats::ended(&task.chip) {
-        closed_status(b, task, words, times);
+        closed_status(b, words);
     } else if let Some(me) = root.pages().me(root.client()) {
         let (token, name) = super::chats::status_words(
             &task.chip,
@@ -236,7 +236,7 @@ fn session_composer(
     if crate::choice::can_send(root) {
         b.state(State::SubmitsOnEnter);
     }
-    if chat.composer_focus != 0 {
+    if chat.composer_focus != 0 && root.pages().switcher().renaming().is_none() {
         b.focus(chat.composer_focus);
     }
     b.value(&chat.words, temper_client_domain::pages::shown(root.pages()));
@@ -258,12 +258,8 @@ fn session_composer(
     }
     b.close();
 }
-fn closed_status(b: &mut Builder, task: &c::Task, words: &Words, times: &mut Times) {
-    let clock = end_clock(task, words, times);
-    let name = match clock {
-        Some(clock) => words.say(Word::TimeClosed, &[Hole::Name(clock)]),
-        None => words.say(Word::ChatClosed, &[]),
-    };
+fn closed_status(b: &mut Builder, words: &Words) {
+    let name = words.say(Word::ChatClosed, &[]);
     b.open(Role::Status);
     b.style(look::STATUS_QUIET);
     b.name(&name);
@@ -271,18 +267,22 @@ fn closed_status(b: &mut Builder, task: &c::Task, words: &Words, times: &mut Tim
     b.close();
 }
 fn act_status(b: &mut Builder, root: &Domain, chat: &Chat, words: &Words) {
+    let sheet = crate::confirm::showing(root, c::ObjectKey::Task(chat.task));
     for (key, kind) in &chat.pending {
         match kind {
             temper_client_domain::pages::chat::Sending::Message | temper_client_domain::pages::chat::Sending::Seen => {}
             temper_client_domain::pages::chat::Sending::Stop | temper_client_domain::pages::chat::Sending::Close => {
-                if let Some(pending) = root.client().pending(*key) {
+                if !sheet && let Some(pending) = root.client().pending(*key) {
                     crate::confirm::progress_text(b, words, pending.progress);
                 }
             }
         }
     }
-    if chat.outcome_kind != Some(temper_client_domain::pages::chat::Sending::Message)
+    if !sheet
+        && chat.outcome_kind != Some(temper_client_domain::pages::chat::Sending::Message)
         && let Some(outcome) = &chat.outcome
+        && !(chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Close)
+            && super::chats::accepted(outcome))
     {
         super::chats::outcome_text(b, words, outcome, 0);
     }
@@ -845,7 +845,41 @@ fn owner_line(
 }
 fn hidden_line(line: &Line<'_>, projected: bool, delegations: Option<(&Chat, &jig_client::Client)>) -> bool {
     match line {
-        Line::Activity { line } => hidden(line, projected, delegations),
+        Line::Activity { line } => {
+            if let c::Activity::Decided { .. } = line.source.line
+                && let Some((chat, client)) = delegations
+                && let Some(task) = chat.task(client)
+            {
+                let by = match &task.result {
+                    Some(c::TaskResult::Ending(ending)) => match ending.as_ref() {
+                        c::ChipEnding::Cancelled { by, .. } => Some(*by),
+                        c::ChipEnding::Done(_) | c::ChipEnding::Failed(_) => None,
+                    },
+                    Some(c::TaskResult::Document(result)) => match &result.ending {
+                        c::Ending::Task(ending) => match ending.as_ref() {
+                            c::ChipEnding::Cancelled { by, .. } => Some(*by),
+                            c::ChipEnding::Done(_) | c::ChipEnding::Failed(_) => None,
+                        },
+                        c::Ending::Cancelled { by: c::Actor::Party(party), .. } => Some(c::Requester::Person(*party)),
+                        c::Ending::Cancelled { by: c::Actor::Task(task), .. } => Some(c::Requester::Task(*task)),
+                        c::Ending::Cancelled { by: c::Actor::ProjectDeployment { project }, .. } => {
+                            Some(c::Requester::Deployment { project: *project })
+                        }
+                        c::Ending::Cancelled { by: c::Actor::Deployment, .. }
+                        | c::Ending::Failed { .. }
+                        | c::Ending::Withdrawn { .. }
+                        | c::Ending::Done
+                        | c::Ending::Deleted
+                        | c::Ending::Decided { .. } => None,
+                    },
+                    None => None,
+                };
+                if by == Some(task.requester) {
+                    return true;
+                }
+            }
+            hidden(line, projected, delegations)
+        }
         Line::Words { .. }
         | Line::Turn { .. }
         | Line::Undecoded { .. }

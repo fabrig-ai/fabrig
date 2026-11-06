@@ -359,7 +359,7 @@ pub struct Policy {
 
 /// A neighbour or store observation, in the referee's vocabulary.
 #[expect(clippy::large_enum_variant, reason = "durable observations own the complete atomic snapshot")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Observed {
     /// A decision names the specification or hold it saw.
     Named { task: u64, revision: Revision },
@@ -452,7 +452,7 @@ pub struct Violation {
 }
 
 /// Persistent observer state; restart clears none of its evidence or deadlines.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Referee {
     proposals: proposals::Proposals,
     revisions: revisions::Revisions,
