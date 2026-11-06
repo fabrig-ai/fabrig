@@ -4114,7 +4114,12 @@ fn settled_account(d: &Domain, entry: u64, outcome: skein_forge_client::Outcome)
     Some(crate::EffectAccount { entry, words })
 }
 
-fn change_outcome(
+/// A lost update keeps its account and decides again (temper/docs/design/domain/forge.md, 10).
+#[expect(
+    clippy::too_many_lines,
+    reason = "one settlement keeps its result, account, drift baseline and procedure signal together"
+)]
+pub(crate) fn change_outcome(
     d: &mut Domain,
     env: &Env<Limits>,
     entry: u64,
@@ -4128,6 +4133,26 @@ fn change_outcome(
         }
     }
     let Some(task) = task else { return };
+    let update = match d.entries.get(&entry) {
+        Some(row) => match &row.entry.effect.write {
+            skein_forge::api::Write::Update { .. } => true,
+            skein_forge::api::Write::CreateIssue { .. }
+            | skein_forge::api::Write::OpenPull { .. }
+            | skein_forge::api::Write::Post { .. }
+            | skein_forge::api::Write::Review { .. }
+            | skein_forge::api::Write::Edit { .. }
+            | skein_forge::api::Write::SetReviewers { .. }
+            | skein_forge::api::Write::Close { .. }
+            | skein_forge::api::Write::Reopen { .. }
+            | skein_forge::api::Write::Merge { .. }
+            | skein_forge::api::Write::Status { .. }
+            | skein_forge::api::Write::Dispatch { .. }
+            | skein_forge::api::Write::Rerun { .. }
+            | skein_forge::api::Write::CreateBranch { .. }
+            | skein_forge::api::Write::DeleteBranch { .. } => false,
+        },
+        None => false,
+    };
     let account = settled_account(d, entry, outcome);
     let Some(row) = d.changes.get_mut(&task) else { unreachable!("found change row") };
     let pull_closed = match outcome {
@@ -4146,6 +4171,9 @@ fn change_outcome(
     row.effect = match outcome {
         skein_forge_client::Outcome::Made { .. } => change::EffectResult::Made,
         skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) => change::EffectResult::Conflict,
+        skein_forge_client::Outcome::Failed(
+            skein_forge::api::Error::Timeout | skein_forge::api::Error::Unavailable | skein_forge::api::Error::Stale,
+        ) if update => change::EffectResult::None,
         skein_forge_client::Outcome::Failed(_)
         | skein_forge_client::Outcome::Raced { .. }
         | skein_forge_client::Outcome::Held
@@ -4233,13 +4261,41 @@ fn accept_released_branch(
     child(d, env, skein_forge_client::Event::Pushed { resource, commit: head.commit }, out);
 }
 
+/// A released update drops a failed result, retaining conflicts (temper/docs/design/domain/forge.md, 10).
 fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     let Some(row) = d.changes.get_mut(&task) else {
         emit(out, Request::Refused { task });
         return;
     };
     let before = crate::panel::ready(row);
-    row.change = change::released(&row.change, env.wall);
+    let released = change::released(&row.change, env.wall);
+    let lifted = released.state != row.change.state;
+    row.change = released;
+    if lifted && row.effect == change::EffectResult::Failed {
+        match row.change.state {
+            change::State::Updating { .. } | change::State::Preparing { .. } => row.effect = change::EffectResult::None,
+            change::State::Producing { .. }
+            | change::State::Opening { .. }
+            | change::State::Recreating { .. }
+            | change::State::Reopening { .. }
+            | change::State::Checking { .. }
+            | change::State::Gating { .. }
+            | change::State::CancellingGates { .. }
+            | change::State::Ready { .. }
+            | change::State::Queued { .. }
+            | change::State::First { .. }
+            | change::State::Resolving { .. }
+            | change::State::Repairing { .. }
+            | change::State::Landing { .. }
+            | change::State::Landed { .. }
+            | change::State::Held { .. }
+            | change::State::Red { .. }
+            | change::State::Cleared { .. }
+            | change::State::Uncleared { .. }
+            | change::State::NoChange { .. }
+            | change::State::Ended => {}
+        }
+    }
     row.drift = None;
     let mut saved = row.clone();
     save_queue_change(d, env, before, saved.clone(), out);
