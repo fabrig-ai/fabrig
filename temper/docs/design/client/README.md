@@ -571,9 +571,11 @@ keeps (`../protocol/configuration.md`, section 2).
 - **A chat's document** (the greenfield mock's `chat.html`; the look request
   `configure-chat-draft`, for every chat): a chat keeps one Markdown document
   beside its conversation, which its agent writes (`../domain/agent.md`, 8.3).
-  It is the lowest-numbered note in the chat's own scope, its description its
-  title, its body Markdown, its name the mock's `slug` of the title, 28
-  characters, plus `.md`: `away-mode.md`. There are no file drafts: a document
+  It is the lowest-numbered note in the chat's own scope whose description
+  does not begin `work:`; working notes are never drawn, and a chat with only
+  working notes has no document. Its description is its title, its body Markdown,
+  its name the mock's `slug` of the title, 28 characters, plus `.md`:
+  `away-mode.md`. There are no file drafts: a document
   is always a chat's.
   - *Offered:* `pages::drafts_offered(me, project)` is true while `me` lists a
     template of that project with `tracked` and no conversation flag. It gates
@@ -4792,7 +4794,11 @@ section 5.
   kind 7 of the open project as the project opens, and kind 6 on the tab,
   through the forge's reads in that project's scope (`forge.md`, section 9),
   and again whenever the document's line for that setting says it changed and
-  when the link comes back. Until read, or if refused, the optional entries,
+  when the link comes back. A transient read failure (busy, unreachable, local
+  read capacity, or sign-in still settling) retries after one second, doubling
+  to at most 30 seconds; a successful answer resets the wait. Kind 7 retries
+  while its project is open, kind 6 while the tab is open; leaving that scope
+  drops its retry. Until first read, or after a lasting refusal, the optional entries,
   the tab's live controls and `drafts` all read as hidden, off and absent; a
   value of none reads as the stock (`../protocol/configuration.md`, 13.4).
 - **Its acts:** each live control sends at once jig's `ChangeSettings` with one

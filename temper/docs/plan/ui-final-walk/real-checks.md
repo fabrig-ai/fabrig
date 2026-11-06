@@ -69,9 +69,38 @@ The repetition deployment used the working standard engine profile with the smal
 
 | id | where (step, page, state, width) | seen | the mock or rule says | kind | size | owner | state |
 |---|---|---|---|---|---|---|---|
-| R1 | Real box; Model / Your Claude subscription; explicit deployment directories; 1440 | Displayed `temper program-login claude-owner` uses the fresh home's default directories and refuses because their configuration is absent. It only reaches the pinned download after the running box's three directory variables are supplied. | The page's terminal command should operate on the box being set up (`temper/docs/help/box.md`, 5, shows the directory flags). | other | small | fix-flow | |
+| R1 | Real box; Model / Your Claude subscription; explicit deployment directories; 1440 | Displayed `temper program-login claude-owner` uses the fresh home's default directories and refuses because their configuration is absent. It only reaches the pinned download after the running box's three directory variables are supplied. | The page's terminal command should operate on the box being set up (`temper/docs/help/box.md`, 5, shows the directory flags). | other | large | fabrig/ui | large, moved: the displayed command has no deployment-directory input; carrying the resolved directories to it needs changes across the binary/service, client wire or browser bootstrap, domain and view, beyond a one-or-two-file repair. Reproduction and the required command are below. |
 
-Reproduce R1: start a real box with explicit empty config/data/cache directories and a fresh home, with no `TEMPER_CONFIG`, `TEMPER_DATA` or `TEMPER_CACHE` exported; open its owner link, choose Set up temper, Forgejo on this machine and the empty `work/hello`, then Claude. Run the shown command in the same home and PATH. It refuses at the default config path before downloading. Export the three directory variables and repeat: the pinned download and sign-in prompt become reachable. No implementation fix was made by this task.
+Reproduce R1: start a real box with explicit empty config/data/cache directories and a fresh home, with no `TEMPER_CONFIG`, `TEMPER_DATA` or `TEMPER_CACHE` exported; open its owner link, choose Set up temper, Forgejo on this machine and the empty `work/hello`, then Claude. Run the shown command in the same home and PATH. It refuses at the default config path before downloading. Export the three directory variables and repeat: the pinned download and sign-in prompt become reachable. No implementation fix was made by the real check.
+
+### R1 handoff
+
+The 2026-11-05 answer requires the shown command to retain its short form for
+all default directories. With any nondefault directory it must instead show
+`TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=… temper program-login NAME`, with
+shell-quoted values. This behavior is still owed to `fabrig/ui`.
+
+The command is static in
+`temper/crates/temper-client-view/src/pages/connect_model.rs::command`, shared
+by welcome and Connect a model. The domain's deployment facts in
+`temper/crates/temper-client-domain/src/forge/deployment.rs::Answer` contain
+only `welcome` and `owned`, as does `DeploymentAnswer` in
+`temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema`.
+The resolved directories and their origins live in
+`temper/crates/temper/src/directories.rs::Directories`; the service's deployment
+answer in `temper/crates/temper-service/src/family.rs` carries neither. A
+proper repair needs a transport for those facts, command quoting and tests of
+both default and custom directories, including spaces and apostrophes. A
+browser meta would also require changes to the binary, bootstrap and view;
+there is no existing directory fact to wire with one line. This exceeds this
+task's small-fix boundary, so the row is moved rather than changing that
+boundary.
+
+After that repair, `walk-again` must run the displayed command verbatim on a
+fresh box with explicit directories and repeat the real Claude Code fetch.
+Offline tests must first prove the command's directory selection and quoting;
+they must need no download or real service. The existing successful fetch with
+exported variables does not prove the displayed command.
 
 ## What stays unproved
 
