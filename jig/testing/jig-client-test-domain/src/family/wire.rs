@@ -174,6 +174,8 @@ mod tests {
     use jig_client::contract::Revision;
     use skein_lib::List;
 
+    const PANEL: u64 = 77;
+
     #[test]
     fn application_requests_keep_an_explicit_zero_and_owner_documents_reject_mismatched_or_partial_values() {
         let (_, encoded) = request(&family::Ask::ChangeObject {
@@ -183,7 +185,7 @@ mod tests {
             value: 0,
         });
         assert_eq!(*encoded.value(), Some(0));
-        let original = family::Subject { scope: family::Scope::Project(4), kind: family::Kind::Panel(77) };
+        let original = family::Subject { scope: family::Scope::Project(4), kind: family::Kind::Panel(PANEL) };
         let limits = ConnectorLimits { rows: 3, paths: 3, segments: 3, segment_bytes: 64, bytes: 100_000 };
         let panel = |task, capacity| ClientDocument::Panel {
             task,
@@ -192,12 +194,13 @@ mod tests {
             resources: List::with_capacity(capacity),
             effects: List::with_capacity(0),
         };
-        assert_eq!(document(original, panel(78, 0), &limits), Err(Invalid::Identity));
-        assert_eq!(document(original, panel(77, 4), &limits), Err(Invalid::TooLarge));
-        let received = document(original, panel(77, 3), &limits).expect("the complete supplied fixture is admitted");
+        assert_eq!(document(original, panel(PANEL + 1, 0), &limits), Err(Invalid::Identity));
+        assert_eq!(document(original, panel(PANEL, limits.rows + 1), &limits), Err(Invalid::TooLarge));
+        let received =
+            document(original, panel(PANEL, limits.rows), &limits).expect("the complete supplied fixture is admitted");
         assert_eq!(received.subject, original);
         assert_eq!(received.revision(), None);
-        assert_eq!(received.value.as_ref(), &panel(77, 3));
+        assert_eq!(received.value.as_ref(), &panel(PANEL, limits.rows));
         for value in
             [ApplicationOutcome::Role { held: u32::MAX }, ApplicationOutcome::Unknown, ApplicationOutcome::Exhausted]
         {
