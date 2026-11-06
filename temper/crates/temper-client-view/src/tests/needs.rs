@@ -36,6 +36,16 @@ fn fixture_title(
     filter: d::address::Filter,
     title: Option<&[u8]>,
 ) -> d::Domain {
+    fixture_watched(words, cut, count, more, filter, title).0
+}
+fn fixture_watched(
+    words: &str,
+    cut: bool,
+    count: u32,
+    more: bool,
+    filter: d::address::Filter,
+    title: Option<&[u8]>,
+) -> (d::Domain, skein_lib::Token) {
     let (mut root, _, watch) = f::root_at(Address::Inbox { filter }, &limits());
     let mut entries = List::with_capacity(count);
     for message in 1..=u64::from(count) {
@@ -132,7 +142,7 @@ fn fixture_title(
         }
     }
     assert!(root.pages().inbox().unwrap().delivered(root.client()));
-    root
+    (root, watch.unwrap())
 }
 fn root() -> d::Domain {
     fixture(QUESTION, false, 3, false, d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL })
@@ -909,4 +919,56 @@ fn sent_cards_replace_all_acts_with_progress_and_the_returned_outcome() {
     }
     assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::ANSWERED)));
     assert!(root.pages().needs().answered(f::NOW, needs::ANSWERED_ON_NEEDS, None).is_empty());
+}
+
+#[test]
+fn a_refresh_of_the_same_rows_leaves_the_tree_unchanged() {
+    for filter in [d::address::Filter::ALL, d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL }]
+    {
+        let (mut root, watch) = fixture_watched(QUESTION, false, 1, false, filter, None);
+        let mut view = f::browser_page_view(&root);
+        let before = stable_nodes(view.tree());
+        let choice = f::find(view.tree(), Role::Button, b"In temper serve").unwrap();
+        let action =
+            Some(expected(needs::Act::Choose { object: object(1), words: b"In temper serve".as_slice().into() }));
+        let mut entries = List::with_capacity(1);
+        entries.push(documents::entry(object(1), f::PROJECT, 1, Wall::EPOCH, None)).unwrap();
+        event(
+            &mut root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch,
+                        event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(documents::inbox(
+                            entries,
+                            1,
+                            c::Count { value: 0, limited: false },
+                            0,
+                            false,
+                        )))),
+                    },
+                },
+            },
+            &mut Queue::uncapped(),
+        );
+        let mut patches = Queue::uncapped();
+        crate::build(&mut view, &root, f::NOW, &mut patches);
+        assert!(stable_nodes(view.tree()) == before, "same elements and content during refresh at {filter:?}");
+        assert_eq!(f::find(view.tree(), Role::Button, b"In temper serve"), Some(choice));
+        assert_eq!(crate::act(&mut view, choice, Act::Press), action);
+    }
+}
+
+fn stable_nodes(tree: &skein_ui::Tree) -> Vec<skein_ui::Node> {
+    let mut nodes = tree.nodes().to_vec();
+    // Binding tokens and input write revisions are renewed on every build.
+    for node in &mut nodes {
+        for binding in [&mut node.binding, &mut node.link].into_iter().flatten() {
+            binding.token = skein_lib::Token::new(0);
+        }
+        if let Some(value) = &mut node.value {
+            value.written = 0;
+        }
+    }
+    nodes
 }

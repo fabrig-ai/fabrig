@@ -337,6 +337,10 @@ fn a_choice_on_a_goals_band_answers_through_its_inbox_card() {
             cut: false,
         })),
     );
+    let updates = h.pages.inbox().unwrap().queries[1];
+    h.event(Event::Told {
+        told: Told::Page { handle: updates, page: Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)) },
+    });
     let card_handle = h.pages.cards().unwrap().get(0).unwrap().handle;
     let mut task = tracked();
     f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
@@ -365,6 +369,7 @@ fn a_choice_on_a_goals_band_answers_through_its_inbox_card() {
             cut: false,
         })),
     );
+    let card_handle = h.pages.inbox().unwrap().cards.get(0).unwrap().handle;
     let second = h.pages.inbox().unwrap().cards.get(1).unwrap().handle;
     assert!(second.number > run.number, "inbox allocations follow the task's growing sequence");
     h.take();

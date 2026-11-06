@@ -1,10 +1,11 @@
-//! The inbox owns its reads; watched documents stay in the client.
+//! The inbox keeps cards through refreshes (temper/docs/design/client/README.md, 3.5).
 use super::Request;
 use crate::{
     Limits,
     address::{Filter, Kind},
     owner::Owner,
 };
+use alloc::boxed::Box;
 use jig_client::{
     Client, Handle, Latest, Readable, Readout, Told, Watchable,
     contract::{self, Delivery, InboxGroup, InboxReadGroup, ObjectKey, Read, ReadResult, ReadValue},
@@ -33,6 +34,8 @@ pub struct Inbox {
     pub cut: [bool; 2],
     previous: List<Card>,
     pending: Set<Handle>,
+    /// The filtered reads' answers, applied together when both have answered.
+    arrived: [Option<Box<contract::InboxPage>>; 2],
     pub queries: [Handle; 2],
     pub next: u64,
     pub window: u32,
@@ -60,6 +63,7 @@ impl Inbox {
             window: limits.client.domain.rows.min((cards / 2).max(1)),
             cards: List::with_capacity(cards),
             previous: List::with_capacity(cards),
+            arrived: [None, None],
             pending: Set::with_capacity(limits.client.domain.reads.checked_add(2).expect("inbox reads fit")),
         };
         client(
@@ -81,20 +85,7 @@ impl Inbox {
         self.next
     }
     fn refresh(&mut self, source: &Client, out: &mut Queue<Request>) {
-        for card in &self.cards {
-            client(out, jig_client::Event::Unwatch { handle: card.handle });
-        }
-        self.cut = [false; 2];
-        self.pending = Set::with_capacity(self.pending.capacity());
-        self.previous.clear();
-        core::mem::swap(&mut self.cards, &mut self.previous);
-        for index in 0..self.previous.len() {
-            let old = self.previous.get_mut(index).expect("bounded card");
-            if old.key.is_some() {
-                self.cards.push(old.clone()).expect("previous cards fit");
-            }
-            old.page = None;
-        }
+        self.arrived = [None, None];
         if self.filter.project.is_some() || self.filter.goal.is_some() {
             for (handle, group) in self.queries.into_iter().zip([InboxReadGroup::Needs, InboxReadGroup::Updates]) {
                 if self.filter.kind.is_some() && group == InboxReadGroup::Updates {
@@ -120,6 +111,8 @@ impl Inbox {
             }
             return;
         }
+        self.replace(out);
+        self.cut = [false; 2];
         let latest = match source.document(self.entries) {
             Some(document) => document.latest,
             None => None,
@@ -136,6 +129,46 @@ impl Inbox {
                         unread(row.reply.as_deref()),
                         out,
                     );
+                }
+            }
+        }
+    }
+    fn replace(&mut self, out: &mut Queue<Request>) {
+        for card in &self.cards {
+            client(out, jig_client::Event::Unwatch { handle: card.handle });
+        }
+        self.pending = Set::with_capacity(self.pending.capacity());
+        self.previous.clear();
+        core::mem::swap(&mut self.cards, &mut self.previous);
+        // A send still awaiting confirmation keeps its Pending card.
+        for old in &self.previous {
+            if old.key.is_some() {
+                self.cards.push(old.clone()).expect("previous cards fit");
+            }
+        }
+    }
+    fn apply(&mut self, out: &mut Queue<Request>) {
+        self.replace(out);
+        for index in 0..2 {
+            if let Some(page) = self.arrived.get_mut(index).expect("inbox section").take() {
+                *self.cut.get_mut(index).expect("inbox section") = page.cut;
+                for row in &page.rows {
+                    self.add(
+                        row.card_key(),
+                        row.group(),
+                        row.project,
+                        position(row.object),
+                        unread(row.reply.as_deref()),
+                        out,
+                    );
+                }
+            } else {
+                for old_index in 0..self.previous.len() {
+                    let old = self.previous.get(old_index).expect("bounded card");
+                    let updates = old.group == InboxGroup::Replies || old.group == InboxGroup::Results;
+                    if usize::from(updates) == index {
+                        self.add(old.object, old.group, old.project, old.position, old.unread, out);
+                    }
                 }
             }
         }
@@ -197,6 +230,7 @@ impl Inbox {
             if old.object == object {
                 let index = self.cards.len().checked_sub(1).expect("new card");
                 let card = self.cards.get_mut(index).expect("new card");
+                card.page = old.page.take();
                 card.words = old.words.take();
                 card.key = old.key;
                 card.outcome = old.outcome.take();
@@ -215,23 +249,16 @@ impl Inbox {
         }
         let Told::Page { handle, page } = told else { return false };
         let answered = self.pending.remove(&handle);
-        let Readout::Jig(ReadResult::Value(value)) = page else { return answered };
         if self.queries.contains(&handle) && (self.filter.project.is_some() || self.filter.goal.is_some()) {
             let index = usize::from(handle == self.queries[1]);
-            if let ReadValue::Inbox(page) = value {
-                *self.cut.get_mut(index).expect("query names one section") = page.cut;
-                for row in &page.rows {
-                    self.add(
-                        row.card_key(),
-                        row.group(),
-                        row.project,
-                        position(row.object),
-                        unread(row.reply.as_deref()),
-                        out,
-                    );
-                }
+            if let Readout::Jig(ReadResult::Value(ReadValue::Inbox(page))) = page {
+                *self.arrived.get_mut(index).expect("query names one section") = Some(page);
+            }
+            if !self.pending.contains(&self.queries[0]) && !self.pending.contains(&self.queries[1]) {
+                self.apply(out);
             }
         } else {
+            let Readout::Jig(ReadResult::Value(value)) = page else { return answered };
             for index in 0..self.cards.len() {
                 let card = self.cards.get_mut(index).expect("bounded card index");
                 if card.handle == handle {
