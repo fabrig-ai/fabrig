@@ -185,6 +185,10 @@ pub(crate) fn switcher(
             for row in &me.projects {
                 if (Some(row.project) == project) == selected {
                     let name = crate::pages::project_name(Some(me), row.project).expect("project from me has a name");
+                    if selected && root.pages().switcher().renaming() == Some(row.project) {
+                        rename_form(builder, root, words, &name, bindings);
+                        continue;
+                    }
                     builder.open(Role::Button);
                     if place == Place::Rail {
                         project_row(builder, root, words, row.project, &name);
@@ -196,16 +200,12 @@ pub(crate) fn switcher(
                     }
                     builder.bind(bindings.insert(Act::Project { project: row.project }));
                     builder.close();
-                    if selected && place == Place::Banner {
-                        if root.pages().switcher().renaming() == Some(row.project) {
-                            rename_form(builder, root, words, &name, bindings);
-                        } else if row.role == jig_client::contract::HeldRole::Owner {
-                            builder.open(Role::Button);
-                            builder.style(crate::look::PROJECT_RENAME);
-                            builder.name(&words.say(crate::words::Word::Rename, &[]));
-                            builder.bind(bindings.insert(Act::Switcher(switcher::Act::Rename)));
-                            builder.close();
-                        }
+                    if selected && place == Place::Banner && row.role == jig_client::contract::HeldRole::Owner {
+                        builder.open(Role::Button);
+                        builder.style(crate::look::PROJECT_RENAME);
+                        builder.name(&words.say(crate::words::Word::Rename, &[]));
+                        builder.bind(bindings.insert(Act::Switcher(switcher::Act::Rename)));
+                        builder.close();
                     }
                 }
             }
@@ -218,9 +218,7 @@ pub(crate) fn switcher(
                     continue;
                 }
                 let name = crate::pages::project_name(Some(me), row.project).expect("open project has a name");
-                if root.pages().switcher().renaming() == Some(row.project) {
-                    rename_form(builder, root, words, &name, bindings);
-                } else if row.role == jig_client::contract::HeldRole::Owner {
+                if root.pages().switcher().renaming().is_none() && row.role == jig_client::contract::HeldRole::Owner {
                     builder.open(Role::Button);
                     builder.style(crate::look::PROJECT_RENAME);
                     builder.name(&words.say(crate::words::Word::RenameProject, &[skein_ui::phrases::Hole::Name(name)]));
