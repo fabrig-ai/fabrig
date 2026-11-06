@@ -249,3 +249,90 @@ passed. `cargo fmt --check`, the temper old-form ratchet, clippy for
 `temper-client-browser-world` on all targets with warnings denied, and
 citations against `origin/main` passed. No new test, public API, generated
 file, cross-tree code change or browser launch flag is retained.
+
+## After
+
+Measured on 2026-11-06 at code commit
+`970302c050b01a1be48b5c11b1dcf3cb511f95df`, based on
+`1572d38086`, with `browser-trim/why-slow`'s
+`6afd7d732363123c08300af317ff1c4045e966ac` included. The draft-link
+test was already removed on this base. Only documentation follows this
+measured commit.
+
+All three consecutive whole-tier runs listed **12 tests**, passed all 12,
+and recorded one attempt per test: **36 passes**. Their CPU totals were
+**78.557098, 73.801674 and 57.755442 s**, all within **85 CPU s**.
+There were no failures, retries, starvation, leaks, incomplete records or
+unobserved tests.
+
+### Machine and method
+
+One exclusive builder slot on `debian-32gb-hel1-11`, 16 logical CPUs,
+Linux `6.12.115+deb13.1-cloud-amd64`, Chromium `147.0.7727.101`.
+The machine was shared; these are loaded-machine observations. No other
+build or test of this task ran during a measurement. Each run used a fresh,
+private `target/trim-rows-after-N` through
+`heavy python3 -I -B tools/tiers/run --cpu DIR temper browser`, then
+`tools/tiers/cpu-summary DIR --budgets tools/tiers/budgets.toml --pair browser-temper`.
+
+The load samples bracket the runner invocations, including prerequisites:
+
+| Sample UTC | Relation to run | Load 1 / 5 / 15 minutes |
+| --- | --- | ---: |
+| 10:48:00 | before run 1 | 6.04 / 8.59 / 10.52 |
+| 10:49:12 | before run 2 | 8.31 / 8.58 / 10.36 |
+| 10:50:26 | before run 3 | 25.54 / 12.93 / 11.69 |
+| 10:51:48 | after run 3 | 31.04 / 16.97 / 13.17 |
+
+CPU is the unchanged collector's waited-and-reaped-descendants scope
+(`tools/tiers/design.md`, 7.2), with compilation and prerequisites excluded.
+Suite wall spans first test start to final settlement, rather than adding
+rounded row values. The scope difference from live process sampling noted
+in Before still applies. These observations on another shared machine do
+not isolate machine effects from the cuts.
+
+### Request, Before and all three runs
+
+Every cell is **CPU / wall seconds**. Before is the complete 13-test run
+under *Verification on this branch* above, rather than mixing its rows
+with the separately instrumented walks. Request is the request's table;
+the two accounts rows retain `notes/rows.md`'s stated ordering assumption.
+An absent row is absent from this base, not a measured zero.
+
+| Test | Request CPU / wall s | Before CPU / wall s | After 1 CPU / wall s | After 2 CPU / wall s | After 3 CPU / wall s |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `browser_accounts::the_accounts_page_returns_after_a_key_send` | 4.4 / 2.0 | 4.315 / 2.254 | 4.096 / 1.692 | 3.060 / 1.758 | 3.040 / 2.817 |
+| `browser_accounts::the_sign_in_leaves_the_page_and_comes_back_to_ready` | 4.3 / 1.7 | 4.511 / 1.821 | 4.360 / 1.755 | 4.008 / 1.661 | 3.204 / 2.312 |
+| `browser_attacks::cross_origin_requests_and_framing_cannot_act_as_the_person` | 6.0 / 2.2 | 6.333 / 2.372 | 6.401 / 2.392 | 5.590 / 2.482 | 4.253 / 3.267 |
+| `browser_authorize::a_cross_site_authorization_returns_a_code_and_the_links_state` | 4.0 / 1.6 | 4.778 / 1.889 | 4.500 / 1.728 | 3.607 / 1.638 | 3.017 / 1.984 |
+| `browser_github::the_manifest_posts_once_and_history_waits_for_continue` | 1.9 / 0.9 | 1.984 / 0.887 | 1.649 / 0.809 | 1.665 / 0.795 | 1.308 / 1.061 |
+| `browser_pages::closing_project_rename_returns_focus_to_the_summary` | 3.5 / 1.8 | 4.165 / 2.003 | 3.157 / 1.957 | 3.820 / 1.970 | 2.533 / 2.002 |
+| `browser_pages::enter_starts_one_chat_keeping_a_shift_enter_break` | 5.4 / 2.4 | 5.409 / 2.249 | 5.289 / 2.380 | 5.166 / 2.346 | 2.369 / 2.574 |
+| `browser_pages::history_keeps_the_chat_focus_and_filter_across_reload_and_back` | 15.9 / 23.1 | 16.722 / 23.081 | 8.979 / 3.941 | 9.106 / 3.932 | 7.040 / 4.779 |
+| `browser_pages::latest_returns_a_chat_to_its_end_after_new_words_while_reading_back` | 7.6 / 4.0 | 8.978 / 4.150 | 8.319 / 4.113 | 8.416 / 4.114 | 6.238 / 5.126 |
+| `browser_playground::story_a_walks_on_the_built_playground` | 18.0 / 13.6 | 12.299 / 10.217 | 14.385 / 10.106 | 14.178 / 10.264 | 10.659 / 10.443 |
+| `browser_public::a_visitor_reads_a_public_project_and_loses_it_when_made_private` | 14.1 / 27.3 | 14.557 / 19.188 | 10.151 / 7.571 | 8.745 / 8.887 | 7.868 / 9.248 |
+| `browser_sign_in::signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract` | 6.6 / 4.2 | 8.488 / 4.624 | 7.271 / 4.365 | 6.440 / 5.271 | 6.226 / 5.691 |
+| `browser_task_pages::start_goal_opens_chats_for_a_draft` | 2.5 / 1.1 | 3.614 / 1.445 | absent | absent | absent |
+| **Whole tier** | 94.2 / 85.9 | 96.151911 / 76.202315 | 78.557098 / 42.827321 | 73.801674 / 45.135036 | 57.755442 / 51.316675 |
+
+### What this base carries
+
+- `chat-reading-c/reading-browser` at `9eb575dc58389cf75fc7e16c1e5bf5c5c9eea90a` is **not on the measured base**.
+- `sign-in-new-tab/browser-story` at `733ba6c2aab7cadd0cfd596bd0461745dd8867d4` is **not on the measured base**.
+
+It carries the existing Latest scrolling story and the original sign-in
+round trip. It does not yet carry either neighboring plan's added or
+rewritten browser stories. The 12-test listing and budget result apply
+to this base.
+
+The history keeps replacement, Back/Forward, focus, reload, the page's Me
+bounds, filters and a missing address. The public walk reads an under-way
+goal without a landing wait: all visitor pages and all forbidden-word
+checks passed unchanged, including sign-out and Reopen. No steady-state
+hold, pace change or forbidden-word narrowing was needed. The accounts
+story keeps its cleared field and Back/Forward and cuts its rendering tail.
+Lower client/view tests hold the removed reads, with explicit additions
+for key-row controls, browser-card hiding, public delegate titles, CI and
+review fields, and landed phases. No further test-side cost fix was
+indicated by Before; its gzip improvement is inherited.

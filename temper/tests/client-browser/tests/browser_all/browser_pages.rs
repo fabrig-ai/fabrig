@@ -1,6 +1,6 @@
 //! Only a browser shows Back and Forward, a replaced history entry, the composer's focus,
 //! a filter's address across a reload, and an address that's no page; the page's own bounds
-//! on the box's Me (client/browser.md, 4.6, 11). Keys in a text area, a details dismissed by
+//! on the box's Me (client/browser.md, 4.6, item 11). Keys in a text area, a details dismissed by
 //! a press or Escape, the panic page, and where project rename returns focus stay here too.
 use skein_browser::boundary::Key;
 use skein_fake_person::{Find, Step as PersonStep};
