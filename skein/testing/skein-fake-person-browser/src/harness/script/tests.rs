@@ -297,3 +297,17 @@ fn a_tabs_deadline_names_the_last_tabs_while_the_next_read_is_pending() {
     assert!(failure.contains("Waiting") && failure.contains("about:blank") && failure.contains("2 more"), "{failure}");
     assert_eq!(script.at(), 1);
 }
+
+#[test]
+fn a_viewport_step_sends_dimensions_and_holds_the_face_pending() {
+    let mut script = Script::new(Box::new([Step::Viewport { width: 420, height: 900 }]));
+    let mut face = face();
+    script.next(&mut face, Time::ZERO);
+    assert_eq!(
+        face.requests().collect::<Vec<_>>(),
+        vec![Request::Viewport { page: Token::new(7), op: ADDRESS_OP, width: 420, height: 900 }]
+    );
+    assert!(face.pending());
+    face.event(&Event::Done { op: ADDRESS_OP });
+    assert!(!face.pending());
+}

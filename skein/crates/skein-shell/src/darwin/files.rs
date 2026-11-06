@@ -239,11 +239,6 @@ pub fn directory_access(path: &Path) -> DirectoryAccess {
     }
 }
 #[must_use]
-pub fn effective_user() -> u32 {
-    // SAFETY: geteuid takes no arguments.
-    unsafe { libc::geteuid() }
-}
-#[must_use]
 pub fn process_id() -> u32 {
     // SAFETY: getpid takes no arguments and returns a positive process ID.
     u32::try_from(unsafe { libc::getpid() }).expect("a positive pid")

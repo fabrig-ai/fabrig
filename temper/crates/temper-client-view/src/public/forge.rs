@@ -219,8 +219,14 @@ fn commit(b: &mut Builder, repository: &[u8], hash: &[u8; 32]) {
     external(b, hash.get(..8).expect("short hash"), &writer.finish());
 }
 fn hex(bytes: &[u8; 32]) -> Box<[u8]> {
-    let mut writer = Writer::new(64);
-    for byte in bytes {
+    let mut size = 20_usize;
+    for byte in bytes.get(20..).expect("fixed hash") {
+        if *byte != 0 {
+            size = 32;
+        }
+    }
+    let mut writer = Writer::new(size.checked_mul(2).expect("fixed hash"));
+    for byte in bytes.get(..size).expect("fixed hash") {
         for nibble in [byte >> 4_u8, byte & 15_u8] {
             let byte = *b"0123456789abcdef".get(usize::from(nibble)).expect("hex digit");
             writer.put(&[byte]).expect("fixed hash");

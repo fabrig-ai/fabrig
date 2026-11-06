@@ -7,8 +7,8 @@
 - **Checked:** 2026-11-06
 - **Value:** low (one place admits a compound ask)
 - **Size:** M
-- **Status:** open
-- **Paid when:** the clients' component passes a compound ask to people whole, and people refuses an operation of another project; the component decodes a compound ask once.
+- **Status:** kept (the check is the wire's own shape, `jig/docs/design/client/domain/contract.md`, 3.4; moving it takes a stored enum's new variant and changes which refusal a malformed ask gets)
+- **Paid when:** kept; if people's `Operation` comes to hold a project, the clients' component passes a compound ask to people whole, people refuses an operation of another project, and the component decodes a compound ask once.
 
 ## What
 
@@ -28,6 +28,4 @@ Measured for the plan debt-28, which left it open as bigger than its old Size S:
 
 ## What pays it back
 
-Translate the compound ask whole and let people refuse it; decode its operations once.
-
-Or keep the check where it is, as the wire's own shape, and say so in `jig/docs/design/client/domain/contract.md`, 3.4, with this item marked `kept`.
+Translate the compound ask whole and let people refuse it; decode its operations once. The stored schema's new version and the moved refusal are what that costs, and the plan debt-29 kept the check rather than pay them: its request stops at a stored format, and at a test's changed outcome.

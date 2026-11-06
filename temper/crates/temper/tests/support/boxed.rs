@@ -1016,10 +1016,16 @@ fn run_ctl_peers<T>(
             directory: directory.into(),
             // Real repository stories, including a fake box's owned Forgejo,
             // need init to discover system git for their first chat's checkout.
-            environment: if on_link.is_some() || face.is_some() || fake_backends {
-                account_environment(account_probe, cut.as_deref())
-            } else {
-                Vec::new()
+            environment: {
+                let mut environment = if on_link.is_some() || face.is_some() || fake_backends {
+                    account_environment(account_probe, cut.as_deref())
+                } else {
+                    Vec::new()
+                };
+                if fake_backends {
+                    environment.push(chosen_fake_ports());
+                }
+                environment
             },
         }),
         Mode::Pipes,
@@ -1227,13 +1233,22 @@ pub fn run_ctl_with_cut(
     }
 }
 
+fn chosen_fake_ports() -> (std::ffi::OsString, std::ffi::OsString) {
+    let ports = super::free_addresses::<9>(&[]).map(|address| address.port().to_string()).join(",");
+    ("TEMPER_FAKE_BOX_PORTS".into(), ports.into())
+}
+
 fn cut_binary(directory: &Path, flags: Vec<String>) -> Binary {
+    let mut environment = vec![("PATH".into(), "/usr/bin:/bin".into())];
+    if flags.iter().any(|flag| flag == "--fake-backends") {
+        environment.push(chosen_fake_ports());
+    }
     Binary::start_with_tree(
         dying_with_test(Command {
             program: skein_scratch::paths::binary("temper"),
             arguments: std::iter::once("box".into()).chain(flags.into_iter().map(Into::into)).collect(),
             directory: directory.into(),
-            environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
+            environment,
         }),
         Mode::Pipes,
         262_144,

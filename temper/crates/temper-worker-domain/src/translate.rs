@@ -204,11 +204,11 @@ pub(crate) const fn refusal(refusal: agent::MessageRefusal) -> host::MessageRefu
 }
 
 /// A long operation smith reports, as jig's activity names it.
-pub(crate) const fn operation(operation: agent::Operation) -> host::AgentOperation {
+pub(crate) const fn operation(operation: agent::Operation) -> jig_domain_link::Operation {
     match operation {
-        agent::Operation::Checks => host::AgentOperation::Checks,
-        agent::Operation::Completion => host::AgentOperation::Completion,
-        agent::Operation::Command => host::AgentOperation::Command,
+        agent::Operation::Checks => jig_domain_link::Operation::Checks,
+        agent::Operation::Completion => jig_domain_link::Operation::Completion,
+        agent::Operation::Command => jig_domain_link::Operation::Command,
     }
 }
 
@@ -366,14 +366,16 @@ pub(crate) fn summarize(push: Box<[wire::Landing]>) -> wire::Push {
     }
 }
 
-pub(crate) fn grant(value: host::Grant) -> Option<agent::Grant> {
+pub(crate) fn grant(value: jig_domain_link::Grant) -> Option<agent::Grant> {
     let form = match value.form {
-        host::Form::Credential(host::Scheme::Bearer) => agent::Form::Credential(agent::Scheme::Bearer),
-        host::Form::Credential(host::Scheme::Key) => agent::Form::Credential(agent::Scheme::Key),
-        host::Form::Program(name) => {
+        jig_domain_link::Form::Credential(jig_domain_link::Scheme::Bearer) => {
+            agent::Form::Credential(agent::Scheme::Bearer)
+        }
+        jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key) => agent::Form::Credential(agent::Scheme::Key),
+        jig_domain_link::Form::Program(name) => {
             agent::Form::Program(agent::SourceName::new(name.as_bytes()).expect("same source name grammar"))
         }
-        host::Form::Application => return None,
+        jig_domain_link::Form::Application => return None,
     };
     Some(agent::Grant { account: value.account, generation: value.generation, valid: value.valid, form })
 }

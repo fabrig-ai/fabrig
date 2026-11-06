@@ -1,9 +1,10 @@
 //! Ordered account choice and the source barrier belong to accounts, below placement.
 use jig_accounts_world::{OTHER_PARTY, OWNER, PROVIDER, World, account, provider, providers, source};
 use jig_domain_accounts::{
-    Coverage, Event, Excluded, Failure, Form, FromComponent, Held, Holder, HostSource, Kind, Place, Selection, State,
-    Stored, Unread, Use, WaitWhy,
+    Coverage, Event, Excluded, Failure, FromComponent, Held, Holder, HostSource, Kind, Place, Selection, State, Stored,
+    Unread, Use, WaitWhy,
 };
+use jig_domain_link::{Form, Scheme};
 use skein_lib::{Duration, Time};
 
 // More than eleven simulated days, far beyond the grant and retry spans.
@@ -29,7 +30,7 @@ fn fixture(rows: Vec<Stored>) -> World {
 }
 fn grant_generation(world: &mut World, source: u32, generation: u64) {
     world.step(Event::Component(FromComponent::Granted {
-        form: Form::Credential(jig_domain_accounts::Scheme::Key),
+        form: Form::Credential(Scheme::Key),
         account: source,
         generation,
         valid: Duration::from_secs(60),

@@ -1,5 +1,6 @@
 use jig_accounts_world::{ANALYST, World};
-use jig_domain_accounts::{Event, Failure, Form, FromComponent, Place, Request, Scheme, ToComponent, Unread};
+use jig_domain_accounts::{Event, Failure, FromComponent, Place, Request, ToComponent, Unread};
+use jig_domain_link::{Form, Scheme};
 use skein_lib::{Duration, Rng, length::len_u64};
 fn respond(world: &mut World, rng: &mut Rng, requests: Vec<Request>, trace: &mut Vec<Request>) {
     for request in &requests {
@@ -165,7 +166,7 @@ fn change_response(world: &mut World, rng: &mut Rng, output: &Request, trace: &m
             } else {
                 let generation = world.domain.source(source).and_then(|s| s.generation).unwrap_or(0) + 1;
                 Some(Event::Component(FromComponent::Granted {
-                    form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Key),
+                    form: Form::Credential(Scheme::Key),
                     account: source,
                     generation,
                     valid: Duration::from_secs(100),

@@ -10,6 +10,7 @@ use crate::boundary::{EndedRead, Payload};
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
 use jig_domain_core as core;
+use jig_domain_link::Grant;
 use jig_domain_tasks as tasks;
 use skein_lib::Queue;
 
@@ -321,7 +322,7 @@ struct Prepared {
     saved: Box<[tasks::SavedResource]>,
     transcript: Box<[Box<[u8]>]>,
     answered: Box<[core::CallKey]>,
-    grants: Box<[jig_domain_accounts::Grant]>,
+    grants: Box<[Grant]>,
 }
 
 fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {

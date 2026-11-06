@@ -1,10 +1,6 @@
 use skein_oauth_accounts_world::sign_in::{self, Story};
 use skein_world::Memory;
 #[test]
-fn a_public_client_signs_in_through_its_loopback_listener() {
-    drop(sign_in::run(43, Story::Public, false, false, Memory::Checked));
-}
-#[test]
 fn a_confidential_client_signs_in_through_the_owners_redirect() {
     drop(sign_in::run(47, Story::Confidential, true, false, Memory::Checked));
 }
@@ -79,16 +75,6 @@ fn a_varying_port_signs_in_with_its_preferred_port_taken() {
             drop(sign_in::protocol(71, Story::VaryingTaken));
         } else {
             drop(sign_in::run(71, Story::VaryingTaken, false, false, Memory::Checked));
-        }
-    }
-}
-#[test]
-fn two_sign_ins_at_once_each_follow_their_own_port() {
-    for protocol in [false, true] {
-        if protocol {
-            drop(sign_in::protocol(73, Story::TwoPorts));
-        } else {
-            drop(sign_in::run(73, Story::TwoPorts, false, false, Memory::Checked));
         }
     }
 }
@@ -173,50 +159,61 @@ fn a_sign_in_of_another_subject_fails_and_keeps_nothing() {
     openid_story(Story::AnotherSubject);
 }
 
-fn return_story(story: sign_in::Return) {
-    let story = Story::Return(story);
-    let outcome = sign_in::run(89, story, true, false, Memory::Checked);
-    assert!(sign_in::facts(&outcome.procs).contains(&sign_in::Fact::SignedIn(1)));
-    assert!(sign_in::protocol(89, story).0.contains(&sign_in::Fact::SignedIn(1)));
-}
+// skein/docs/foundation/testing-strategy.md, 10: rows carry literal outside facts.
 #[test]
-fn a_return_sends_the_browser_back_with_303() {
-    return_story(sign_in::Return::Back);
-    drop(sign_in::run_private_return(91));
-}
-#[test]
-fn without_a_return_the_listener_answers_its_fixed_page() {
-    drop(sign_in::run(89, Story::VaryingTaken, true, false, Memory::Checked));
-}
-#[test]
-fn a_return_for_no_sign_in_is_dropped() {
-    return_story(sign_in::Return::Before);
-}
-#[test]
-fn a_return_after_the_sign_in_ended_is_dropped() {
-    return_story(sign_in::Return::After);
-}
-#[test]
-fn a_later_return_replaces_the_first() {
-    return_story(sign_in::Return::Replace);
-}
-#[test]
-fn a_return_past_its_bounds_is_dropped() {
-    for story in [
-        sign_in::Return::Long,
-        sign_in::Return::Space,
-        sign_in::Return::Scheme,
-        sign_in::Return::Empty,
-        sign_in::Return::Control,
-        sign_in::Return::NonAscii,
-        sign_in::Return::Bound,
+fn sign_in_owner_facts_survive_refresh_restart_and_returns() {
+    use sign_in::Fact::{Closed, Failed, Granted, Keep, SignedIn, Visit};
+    use sign_in::Return;
+    const SIGNED_IN: &[sign_in::Fact] = &[Visit, Keep(1), SignedIn(1), Granted(1), Closed];
+    const REFRESHED: &[sign_in::Fact] = &[Visit, Keep(1), SignedIn(1), Granted(1), Keep(2), Granted(2), Closed];
+    const RESTARTED: &[sign_in::Fact] = &[
+        Visit,
+        Failed(skein_oauth_accounts::Failure::Exchange(skein_oauth::Failure::Cancelled)),
+        Visit,
+        Keep(1),
+        SignedIn(1),
+        Granted(1),
+        Closed,
+    ];
+    const TWO_PORTS_SIMULATED: &[sign_in::Fact] = &[
+        Visit,
+        Visit,
+        Failed(skein_oauth_accounts::Failure::Exchange(skein_oauth::Failure::Malformed)),
+        Keep(1),
+        SignedIn(1),
+        Closed,
+    ];
+    const TWO_PORTS: &[sign_in::Fact] =
+        &[Visit, Visit, Keep(1), SignedIn(1), Granted(1), Keep(1), SignedIn(1), Granted(1), Closed];
+    const SIGNED_IN_AGAIN: &[sign_in::Fact] =
+        &[Visit, Keep(1), SignedIn(1), Granted(1), Visit, Keep(2), SignedIn(2), Granted(2), Closed];
+    for (seed, story, faulted, [simulated, protocol]) in [
+        (43, Story::Public, false, [REFRESHED; 2]),
+        (97, Story::Restart, false, [RESTARTED; 2]),
+        (73, Story::TwoPorts, false, [TWO_PORTS_SIMULATED, TWO_PORTS]),
+        (89, Story::VaryingTaken, true, [SIGNED_IN; 2]),
+        (89, Story::Return(Return::Back), true, [SIGNED_IN; 2]),
+        (89, Story::Return(Return::Before), true, [SIGNED_IN; 2]),
+        (89, Story::Return(Return::After), true, [SIGNED_IN_AGAIN; 2]),
+        (89, Story::Return(Return::Replace), true, [SIGNED_IN; 2]),
+        (89, Story::Return(Return::Long), true, [SIGNED_IN; 2]),
+        (89, Story::Return(Return::Space), true, [SIGNED_IN; 2]),
+        (89, Story::Return(Return::Scheme), true, [SIGNED_IN; 2]),
+        (89, Story::Return(Return::Empty), true, [SIGNED_IN; 2]),
+        (89, Story::Return(Return::Control), true, [SIGNED_IN; 2]),
+        (89, Story::Return(Return::NonAscii), true, [SIGNED_IN; 2]),
+        (89, Story::Return(Return::Bound), true, [SIGNED_IN; 2]),
+        (89, Story::Return(Return::WrongPath), true, [SIGNED_IN; 2]),
     ] {
-        return_story(story);
+        let outcome = sign_in::run(seed, story, faulted, false, Memory::Checked);
+        assert_eq!(sign_in::facts(&outcome.procs), simulated, "{story:?}, simulated");
+        assert_eq!(sign_in::protocol(seed, story).0, protocol, "{story:?}, protocol");
     }
 }
+
 #[test]
-fn a_refused_redirect_never_gets_the_return() {
-    return_story(sign_in::Return::WrongPath);
+fn a_private_return_sends_the_browser_back_with_303() {
+    drop(sign_in::run_private_return(91));
 }
 
 // oauth.md, 6.5 bounds owner pastes refused for state.
@@ -356,10 +353,4 @@ fn a_cancelled_sign_in_refuses_the_paste_as_not_waiting() {
 fn a_paste_completes_a_public_sign_in_through_close() {
     use sign_in::Fact::{Closed, Keep, SignedIn, Taken, Visit};
     assert_paste_story(Story::PasteClose, false, &[Visit, Taken, Keep(1), SignedIn(1), Closed]);
-}
-
-#[test]
-fn a_sign_in_started_again_after_cancel_gets_its_fixed_port() {
-    drop(sign_in::run(97, Story::Restart, false, false, Memory::Checked));
-    drop(sign_in::protocol(97, Story::Restart));
 }

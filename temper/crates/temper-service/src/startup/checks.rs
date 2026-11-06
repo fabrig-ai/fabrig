@@ -3,6 +3,7 @@ use super::{Problems, What};
 use crate::{limits, settings};
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
+use jig_domain_link::Problem;
 use jig_protocol_config::{self as config, Path, Segment};
 use skein_io::Addr;
 use skein_lib::{Decimal, Duration, List, Map, Writer};
@@ -850,7 +851,7 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
         }
     }
 }
-fn model(model: &jig_domain_core::Model, bounds: &jig_domain_host::Bounds, path: Path, problems: &mut Problems) {
+fn model(model: &jig_domain_core::Model, bounds: &jig_domain_link::Bounds, path: Path, problems: &mut Problems) {
     let mut found = false;
     for bound in &bounds.models {
         found |= bound.name == model.name && bound.window >= model.window && bound.output >= model.output;
@@ -1193,11 +1194,11 @@ pub(crate) fn store_refusal(refused: crate::store::Refusal) -> Problems {
 }
 
 /// Translate the kit's configured membership refusal into its startup path.
-pub(crate) fn membership(problem: fleet::WorkerProblem) -> (Path, config::What) {
+pub(crate) fn membership(problem: Problem) -> (Path, config::What) {
     let hosts = Path::root().member(b"engine").member(b"hosts").member(b"workers");
     match problem {
-        fleet::WorkerProblem::Workers { .. } => (hosts, config::What::Bound),
-        fleet::WorkerProblem::WorkerName { worker, .. } => {
+        Problem::Workers { .. } => (hosts, config::What::Bound),
+        Problem::WorkerName { worker, .. } => {
             (hosts.child(Segment::Index(worker)).member(b"name"), config::What::Bound)
         }
     }

@@ -1,5 +1,6 @@
 use crate::{limits, settings};
 use jig_domain_host as host;
+use jig_domain_link::{Bounds, Form, Grant, ModelBound};
 use skein_lib::{Secret, Token};
 
 // smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
@@ -506,6 +507,7 @@ fn start_with_worker(
     }
     if under_box && let temper_forge_setup::setup::Mode::Owned(owned) = owned_setup(1).entry.mode {
         settings.machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
+            sign_in: None,
             listen: owned.listen,
             remote: b"http://127.0.0.1:9".as_slice().into(),
             person: owned.person,
@@ -734,13 +736,8 @@ pub fn values_with_identity(number: u32, token: &[u8]) -> crate::values::Values 
     values.identities.put(number, value);
     values
 }
-pub fn application_grant(account: u32, generation: u64) -> jig_domain_host::Grant {
-    jig_domain_host::Grant {
-        form: jig_domain_host::Form::Application,
-        account,
-        generation,
-        valid: skein_lib::Duration::from_secs(30),
-    }
+pub fn application_grant(account: u32, generation: u64) -> Grant {
+    Grant { form: Form::Application, account, generation, valid: skein_lib::Duration::from_secs(30) }
 }
 pub fn decoded_identity(value: &Secret) -> temper_protocol_worker_wire::v1::Identity {
     temper_protocol_worker_wire::v1::Identity::decode(&wire_limits(), &mut skein_lib::Reader::new(value.expose()))
@@ -970,19 +967,15 @@ pub fn signed_worker() -> crate::Service {
         channel: Token::new(7),
         link: root::Link::Hello {
             worker: 0,
-            hello: host::Hello {
+            hello: jig_domain_link::Hello {
                 jobs: Box::default(),
                 slots: 1,
                 stop_bound: skein_lib::Duration::from_millis(100),
                 workstreams: Box::new([]),
                 hosting: Box::new([]),
-                bounds: host::Bounds {
+                bounds: Bounds {
                     program_endpoints: Box::new([]),
-                    models: Box::new([host::ModelBound {
-                        name: b"small".as_slice().into(),
-                        window: 8192,
-                        output: 1024,
-                    }]),
+                    models: Box::new([ModelBound { name: b"small".as_slice().into(), window: 8192, output: 1024 }]),
                     turns: 800,
                     spend: 1000,
                     time: skein_lib::Duration::from_secs(28_800),
@@ -1035,6 +1028,7 @@ pub fn clients() -> crate::clients::Clients {
         &engine.clients,
         &seeds(),
         &engine.limits.root.journal,
+        None,
         None,
         &[],
     )
@@ -1351,6 +1345,7 @@ pub fn configured_prepared(
         match &setup.entry.mode {
             temper_forge_setup::setup::Mode::Owned(owned) => {
                 config.engine.machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
+                    sign_in: None,
                     listen: owned.listen,
                     remote: b"http://127.0.0.1:9".as_slice().into(),
                     person: owned.person.clone(),
@@ -1714,17 +1709,13 @@ pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> setting
         endpoints: config.service.channel_endpoints,
         limits: protocol,
         host_limits,
-        bounds: jig_domain_host::Bounds {
+        bounds: Bounds {
             models: config
                 .declarations
                 .endpoints
                 .iter()
                 .flat_map(|endpoint| endpoint.models.iter())
-                .map(|model| jig_domain_host::ModelBound {
-                    name: model.name.clone(),
-                    window: model.window,
-                    output: model.output,
-                })
+                .map(|model| ModelBound { name: model.name.clone(), window: model.window, output: model.output })
                 .collect(),
             program_endpoints: config.program_endpoints.into_iter().collect(),
             turns: config.profile.policy.max_turns,

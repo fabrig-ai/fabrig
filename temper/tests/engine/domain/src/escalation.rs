@@ -8,6 +8,7 @@ use crate::store::Store;
 use crate::walking;
 use jig_domain_authority as authority;
 use jig_domain_host as host;
+use jig_domain_link::{Hosting, Phase};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
@@ -249,9 +250,9 @@ impl World {
     }
 
     fn hello(&mut self) {
-        let hosting: Box<[host::Hosting]> = if self.worker_answer == WorkerAnswer::Retained {
+        let hosting: Box<[Hosting]> = if self.worker_answer == WorkerAnswer::Retained {
             let assignment = self.assignment.as_ref().expect("outside worker retains its answer");
-            Box::new([protocol::hosting(assignment.task, assignment.attempt, host::Phase::Answered)])
+            Box::new([protocol::hosting(assignment.task, assignment.attempt, Phase::Answered)])
         } else {
             Box::new([])
         };

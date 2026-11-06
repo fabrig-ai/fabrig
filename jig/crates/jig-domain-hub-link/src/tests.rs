@@ -1,5 +1,6 @@
 //! Hub-link transitions (jig/docs/design/domain/hosts.md, 6.1–6.8).
 use super::*;
+use jig_domain_link::{Form, Grant, Scheme};
 use skein_lib::Duration;
 const CHANNEL: Token = Token::new(0);
 const RUN: Token = Token::new(2);
@@ -99,8 +100,8 @@ fn assignment() -> Assignment {
         messages: Box::new([]),
         transcript: Box::new([b"prior turn".as_slice().into()]),
         answered: Box::new([]),
-        grants: Box::new([jig_domain_accounts::Grant {
-            form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Bearer),
+        grants: Box::new([Grant {
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 2,
             valid: Duration::from_secs(30),

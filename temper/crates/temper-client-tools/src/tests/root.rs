@@ -254,3 +254,65 @@ fn a_follow_on_named_request_waits_for_the_previous_erase() {
     assert_eq!(root.answer(follow_on).expect("follow-on call answered once").status, 0);
     assert!(root.answer(previous).is_none() && root.answer(follow_on).is_none());
 }
+
+fn retry(root: &mut fixtures::Harness, call: u32, why: client::Retry) {
+    let (attempt, _, _) = root.sends.get(&call).expect("sent act");
+    root.client(client::Event::Up {
+        up: client::Up::Answer {
+            attempt: *attempt,
+            envelope: skein_lib::RequestEnvelope::Again,
+            answer: None,
+            why: Some(why),
+        },
+    });
+}
+#[test]
+fn the_calls_last_retry_survives_its_next_attempt_until_the_answer() {
+    for why in [
+        client::Retry::Busy,
+        client::Retry::NotReady,
+        client::Retry::Lost,
+        client::Retry::Undecodable,
+        client::Retry::Full { held: 2, room_at: skein_lib::Wall::from_nanos(1_000_000_000) },
+    ] {
+        let (mut root, call) = fixtures::message();
+        assert_eq!(root.root.last_retry(), None);
+        retry(&mut root, call, why);
+        assert_eq!(root.root.last_retry(), Some(why));
+        let before = root.sends.get(&call).expect("first attempt").0;
+        root.now = skein_lib::Time::from_nanos(2_000_000_000);
+        root.fire();
+        assert_ne!(root.sends.get(&call).expect("retried").0, before);
+        assert_eq!(root.root.last_retry(), Some(why), "in flight keeps the last answer");
+        retry(&mut root, call, client::Retry::NotReady);
+        assert_eq!(root.root.last_retry(), Some(client::Retry::NotReady), "a later reason replaces it");
+        root.now = skein_lib::Time::from_nanos(4_000_000_000);
+        root.fire();
+        root.done(call, c::Outcome::Document(c::DocumentOutcome::Said { task: fixtures::TASK, message: 1 }));
+        assert_eq!(root.answer(call).expect("done").status, 0);
+        assert_eq!(root.root.last_retry(), None);
+    }
+}
+#[test]
+fn a_retry_belongs_to_the_call_only_when_it_joins_the_kept_request() {
+    let mut root = fixtures::started(fixtures::restored_message(fixtures::PARTY));
+    root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
+    retry(&mut root, fixtures::EMPTY, client::Retry::Busy);
+    assert_eq!(root.root.last_retry(), None, "replay is not the call's act");
+    let call = root.submit(fixtures::MESSAGE_CALL);
+    root.serve(call, fixtures::task_result(fixtures::offered(&[c::ActKind::Message])));
+    assert_eq!(root.root.last_retry(), Some(client::Retry::Busy), "joined before a new attempt");
+    root.now = skein_lib::Time::from_nanos(2_000_000_000);
+    root.serving = Some(fixtures::EMPTY);
+    root.fire();
+    root.serving = None;
+    assert_eq!(root.root.last_retry(), Some(client::Retry::Busy));
+    let read = root.submit(fixtures::TASK_CALL);
+    assert_eq!(root.root.last_retry(), None, "another call has no retry of its own");
+    root.serve(read, fixtures::task_result(fixtures::offered(&[c::ActKind::Message])));
+    assert_eq!(root.answer(read).expect("read").status, 0);
+    assert_eq!(root.root.last_retry(), Some(client::Retry::Busy));
+    root.done(fixtures::EMPTY, c::Outcome::Document(c::DocumentOutcome::Said { task: fixtures::TASK, message: 1 }));
+    assert_eq!(root.answer(call).expect("joined act answered").status, 0);
+    assert_eq!(root.root.last_retry(), None);
+}

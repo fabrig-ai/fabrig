@@ -1084,16 +1084,6 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app > .temper-rail .temper-projects > summary::after { content: '⌄'; width: auto; height: auto; margin: 0; border: 0; transform: none; color: var(--gf-faint); font-weight: 400; }
 #app > .temper-rail .temper-projects[open]::details-content { display: block; position: static; width: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
 #app > .temper-rail .temper-projects-menu { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 30; display: flex; flex-direction: column; padding: 6px; border: 1px solid var(--gf-line); border-radius: 10px; background: var(--gf-surface); box-shadow: 0 12px 32px rgba(24, 24, 27, .12); }
-#app > .temper-rail .temper-projects-menu > button { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 0; border-radius: 6px; background: none; color: var(--gf-ink); text-align: left; }
-#app > .temper-rail .temper-projects-menu > button:hover { background: var(--gf-hover); }
-#app > .temper-rail .temper-projects-menu > button[aria-pressed=true] { font-weight: 600; }
-#app > .temper-rail .temper-projects-menu > button > span:first-child { flex: none; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* A project's repositories in small type: the one, the home and how many
-   more ("infra/deploy +2"), "3 repositories" with no home, or "no
-   repository"; a long name is cut before its count, never the count. */
-#app > .temper-rail .temper-projects-menu > button > .temper-projects-repo { display: flex; min-width: 0; color: var(--gf-faint); font-size: 12.5px; font-weight: 400; }
-#app > .temper-rail .temper-projects-repo > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#app > .temper-rail .temper-projects-repo > .temper-projects-more { flex: none; white-space: pre; }
 #app > .temper-rail .temper-projects-acts { display: flex; flex-direction: column; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--gf-line); }
 #app > .temper-rail .temper-projects-acts > :is(a, button), #app > .temper-rail .temper-project-new input { padding: 7px 10px; border: 0; border-radius: 6px; background: none; color: var(--gf-muted); font-size: 13.5px; text-align: left; text-decoration: none; }
 #app > .temper-rail .temper-projects-acts > :is(a, button):hover, #app > .temper-rail .temper-project-new input:hover { background: var(--gf-hover); color: var(--gf-ink); }
@@ -1171,6 +1161,22 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 /* Home's column. */
 
 /* ==== ui: switcher ==== */
+/* The row owns the hover band; its button fills the space before the small words. */
+#app > .temper-rail .temper-projects-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 10px; border-radius: 6px; color: var(--gf-ink); }
+#app > .temper-rail .temper-projects-row:hover { background: var(--gf-hover); }
+#app > .temper-rail .temper-projects-row > button { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; padding: 8px 0 8px 10px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+#app > .temper-rail .temper-projects-row > button[aria-pressed=true] { font-weight: 600; }
+/* A long repository is cut before its count, never the count. */
+#app > .temper-rail .temper-projects-row > .temper-projects-repo { display: flex; flex: 0 1 auto; min-width: 0; max-width: 60%; color: var(--gf-faint); font-size: 12.5px; font-weight: 400; }
+#app > .temper-rail .temper-projects-repo > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#app > .temper-rail .temper-projects-repo > .temper-projects-more { flex: none; white-space: pre; }
+.temper-projects-repo a { color: inherit; text-decoration: none; }
+.temper-projects-repo a:hover { text-decoration: underline; }
+a.temper-repository-link { color: inherit; text-decoration: none; }
+a.temper-repository-link:hover { text-decoration: underline; }
+@media (max-width: 760px) {
+  #app > .temper-rail .temper-projects-row > .temper-projects-repo { display: none; }
+}
 .temper-project-rename-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px; }
 .temper-project-rename-form > input { flex: 1; min-width: 0; min-height: 34px; padding: 6px 12px; border: 1px solid var(--gf-line-2, #d4d4cf); border-radius: 8px; background: var(--gf-surface, #fff); color: var(--gf-ink, #18181b); }
 .temper-project-rename-form > button { flex: none; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-ink, #18181b); border-radius: 8px; background: var(--gf-ink, #18181b); color: #fff; font-size: 13.5px; font-weight: 500; }
@@ -2307,3 +2313,16 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
   .temper-main:where(:not(.temper-settings)) .temper-flow-primary { min-height: 44px; }
   #app dialog.temper-confirm > .temper-confirm-acts > button { min-height: 44px; }
 }
+
+/* Public records keep their identity, title and facts in a wrapping reading column. */
+.temper-main.temper-public-page { display: flex; flex-direction: column; gap: 16px; width: min(1000px, calc(100% - 32px)); margin-inline: auto; padding: 20px 0 68px; }
+.temper-main.temper-public-page > * { width: auto; min-width: 0; max-width: 100%; margin-inline: 0; overflow-wrap: anywhere; }
+.temper-public-page > a { display: block; align-self: flex-start; }
+.temper-public-page nav { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.temper-public-page ul { padding-left: 20px; }
+.temper-public-row { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding-block: 12px; border-bottom: 1px solid var(--temper-line); }
+.temper-public-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; min-width: 0; }
+.temper-public-title > a { flex: 0 1 auto; font-weight: 700; }
+.temper-public-title > p { flex: 1 1 24ch; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.temper-public-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--temper-muted); }
+.temper-public-meta > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }

@@ -19,10 +19,6 @@ pub enum BodyStep {
 pub fn decoder(name: Name, limits: &Limits) -> BodyDecoder {
     BodyDecoder { name, decoder: Decoder::new(limits) }
 }
-#[must_use]
-pub const fn body_first(_decoder: &BodyDecoder) -> tokenizer::Request {
-    tokenizer::Request::Next
-}
 pub fn body(decoder: &mut BodyDecoder, limits: &Limits, event: &tokenizer::Event) -> BodyStep {
     match read::collect(&mut decoder.decoder, event) {
         Ok(Some(document)) => match read::call(&document, decoder.name, limits) {

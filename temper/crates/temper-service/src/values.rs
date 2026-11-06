@@ -1,6 +1,6 @@
 //! Lent account credentials stay in the protocol layer (protocol/credentials.md, 3).
 use alloc::boxed::Box;
-use jig_domain_host as host;
+use jig_domain_link::{Form, Grant};
 use jig_protocol_accounts::table::{self, Table};
 use jig_protocol_engine_workers::{GrantValue, Scheme};
 use skein_lib::{List, Map, Secret, Time};
@@ -97,15 +97,15 @@ impl Values {
 impl Values {
     /// One optional value per grant, preserving the root's order.
     #[must_use]
-    pub fn grants(&self, grants: &[host::Grant], now: Time) -> Box<[Option<GrantValue>]> {
+    pub fn grants(&self, grants: &[Grant], now: Time) -> Box<[Option<GrantValue>]> {
         let mut values = List::with_capacity(u32::try_from(grants.len()).expect("bounded grants"));
         for grant in grants {
             let value = match grant.form {
-                host::Form::Credential(_) => {
+                Form::Credential(_) => {
                     account_grant(grant.form, self.accounts.value(grant.account, grant.generation, now))
                 }
-                host::Form::Application => identity_grant(self.identities.get(grant.account, grant.generation)),
-                host::Form::Program(name) => Some(GrantValue::Program { name }),
+                Form::Application => identity_grant(self.identities.get(grant.account, grant.generation)),
+                Form::Program(name) => Some(GrantValue::Program { name }),
             };
             values.push(value).expect("one slot per grant");
         }
@@ -113,11 +113,11 @@ impl Values {
     }
 }
 
-fn account_grant(form: host::Form, value: Option<&table::Value>) -> Option<GrantValue> {
+fn account_grant(form: Form, value: Option<&table::Value>) -> Option<GrantValue> {
     let value = value?;
     let actual = match &value.scheme {
-        table::Scheme::Bearer => host::Form::Credential(host::Scheme::Bearer),
-        table::Scheme::Key => host::Form::Credential(host::Scheme::Key),
+        table::Scheme::Bearer => Form::Credential(jig_domain_link::Scheme::Bearer),
+        table::Scheme::Key => Form::Credential(jig_domain_link::Scheme::Key),
     };
     if form != actual {
         return None;
