@@ -23,7 +23,7 @@ fn check(selector: &[u8]) -> harness::Step {
         name: selector.into(),
     }
 }
-fn setup() -> Setup<'static> {
+pub(super) fn setup() -> Setup<'static> {
     let exe = std::env::current_exe().expect("test executable");
     let server = exe.parent().and_then(std::path::Path::parent).expect("target debug").join("skein-ui-example");
     assert!(server.is_file(), "prebuild skein-ui-example-server");

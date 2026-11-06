@@ -407,6 +407,9 @@ impl<'a> Page<'a> {
     fn own_element(&self, node: NodeId) -> Element {
         let held = self.held(node);
         let mut element = held.element.clone();
+        if held.made.attribute.role == Role::Log && !held.follow_log {
+            semantic_mut(&mut element).set("data-log-away", "");
+        }
         if let Some(svg) = &held.drawn {
             let core = semantic_mut(&mut element);
             core.set("data-drawn", "");
@@ -559,6 +562,31 @@ pub enum Event {
 
 impl Page<'_> {
     pub fn act(&mut self, event: Event, ops: &mut Vec<Op>) -> Option<(NodeId, Act)> {
+        let (node, act) = self.event(event, ops)?;
+        if act == Act::Press {
+            return self.press(node, ops);
+        }
+        Some((node, act))
+    }
+
+    fn press(&mut self, node: NodeId, ops: &mut Vec<Op>) -> Option<(NodeId, Act)> {
+        if self.held(node).made.attribute.states.as_slice().contains(&State::ToLogEnd) {
+            let mut logs = Vec::new();
+            for (log, held) in &mut self.nodes {
+                if held.made.attribute.role == Role::Log {
+                    held.follow_log = true;
+                    logs.push(*log);
+                }
+            }
+            for log in logs {
+                ops.push(Op::Attributes { node: log, element: self.own_element(log) });
+                ops.push(Op::ScrollEnd { node: log });
+            }
+        }
+        self.held(node).made.attribute.bound.then_some((node, Act::Press))
+    }
+
+    fn event(&mut self, event: Event, ops: &mut Vec<Op>) -> Option<(NodeId, Act)> {
         match event {
             Event::Click { node, modifier } => self.click(node, modifier, ops),
             Event::Input { node, value, composing } => {
@@ -631,9 +659,12 @@ impl Page<'_> {
                 None
             }
             Event::Scrolled { node, top, height, viewport } => {
-                self.held(node);
-                self.nodes.get_mut(&node).expect("held node").follow_log =
-                    top.saturating_add(viewport) >= height.saturating_sub(1);
+                let held = self.nodes.get_mut(&node).expect("held node");
+                let follow = top.saturating_add(viewport) >= height.saturating_sub(1);
+                if held.made.attribute.role == Role::Log && held.follow_log != follow {
+                    held.follow_log = follow;
+                    ops.push(Op::Attributes { node, element: self.own_element(node) });
+                }
                 None
             }
             Event::Drawing { node, under, x, y } => {
@@ -712,7 +743,9 @@ impl Page<'_> {
         if a.role == Role::Link && (modifier || a.external.is_some()) {
             return None;
         }
-        if a.bound && [Role::Button, Role::Link, Role::Tab, Role::MenuItem].contains(&a.role) {
+        if (a.bound || a.states.as_slice().contains(&State::ToLogEnd))
+            && [Role::Button, Role::Link, Role::Tab, Role::MenuItem].contains(&a.role)
+        {
             if a.role == Role::MenuItem {
                 self.close_menu(ops);
             }

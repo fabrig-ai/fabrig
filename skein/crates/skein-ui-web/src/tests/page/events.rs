@@ -336,8 +336,60 @@ fn scrolling_a_log_away_stops_its_following() {
         }),
         &mut ops,
     );
-    let following: Vec<_> = ops
-        .iter()
+    assert_eq!(scroll_ends(&ops), vec![]);
+}
+
+// Preorder: page, main, log, text, log, text, button.
+const OTHER_LOG: NodeId = NodeId(5);
+const LOG_END: NodeId = NodeId(7);
+fn logs(builder: &mut Builder, bound: bool, words: &[u8]) {
+    main(builder);
+    for name in [b"First".as_slice(), b"Second".as_slice()] {
+        builder.open(Role::Log);
+        builder.name(name);
+        builder.description(words);
+        builder.text(Run::Plain, words);
+        builder.close();
+    }
+    builder.open(Role::Button);
+    builder.name(b"Latest");
+    builder.state(State::ToLogEnd);
+    if bound {
+        builder.bind(fixtures::binding(1));
+        builder.shortcut(Shortcut { key: b'l', modifier: Modifier::Plain });
+    }
+    builder.close();
+    end(builder);
+}
+fn log_page(bound: bool) -> (Page<'static>, View) {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| logs(b, bound, b"Old")), &mut Vec::new());
+    (page, view)
+}
+fn scroll(page: &mut Page<'_>, node: NodeId, top: i32, ops: &mut Vec<Op>) {
+    page.act(Event::Scrolled { node, top, height: 100, viewport: 20 }, ops);
+}
+fn log_attribute(ops: &[Op], node: NodeId) -> &crate::dom::Element {
+    ops.iter()
+        .find_map(|op| match op {
+            Op::Attributes { node: changed, element } if *changed == node => Some(element),
+            Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Replace { .. }
+            | Op::Attributes { .. }
+            | Op::Text { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::Component { .. }
+            | Op::ScrollEnd { .. } => None,
+        })
+        .expect("log attributes emitted")
+}
+fn scroll_ends(ops: &[Op]) -> Vec<NodeId> {
+    ops.iter()
         .filter_map(|op| match op {
             Op::ScrollEnd { node } => Some(*node),
             Op::Insert { .. }
@@ -352,8 +404,69 @@ fn scrolling_a_log_away_stops_its_following() {
             | Op::Focus { .. }
             | Op::Component { .. } => None,
         })
-        .collect();
-    assert_eq!(following, vec![]);
+        .collect()
+}
+
+#[test]
+fn a_log_scrolled_away_says_so_until_it_is_back() {
+    let (mut page, _) = log_page(false);
+    let mut ops = Vec::new();
+    scroll(&mut page, LOG, 0, &mut ops);
+    assert!(crate::dom::print(log_attribute(&ops, LOG)).contains("data-log-away"));
+    ops.clear();
+    scroll(&mut page, LOG, 10, &mut ops);
+    assert!(ops.is_empty(), "no attributes when following does not change");
+    scroll(&mut page, LOG, 80, &mut ops);
+    assert!(!crate::dom::print(log_attribute(&ops, LOG)).contains("data-log-away"));
+    assert!(!page.html().contains("data-log-away"));
+}
+
+#[test]
+fn new_lines_while_away_keep_the_attribute_and_the_view() {
+    let (mut page, mut view) = log_page(false);
+    scroll(&mut page, LOG, 0, &mut Vec::new());
+    let mut ops = Vec::new();
+    page.apply(
+        &fixtures::patches(&mut view, 1, |b| {
+            logs(b, false, b"New");
+        }),
+        &mut ops,
+    );
+    assert!(crate::dom::print(log_attribute(&ops, LOG)).contains("data-log-away"));
+    assert!(page.html().contains("data-log-away"));
+    assert_eq!(scroll_ends(&ops), vec![OTHER_LOG]);
+}
+
+#[test]
+fn a_press_to_log_end_takes_every_log_to_its_end() {
+    for shortcut in [false, true] {
+        let (mut page, mut view) = log_page(true);
+        for log in [LOG, OTHER_LOG] {
+            scroll(&mut page, log, 0, &mut Vec::new());
+        }
+        let mut ops = Vec::new();
+        let event = if shortcut { plain_key(b"l") } else { Event::Click { node: LOG_END, modifier: false } };
+        page.act(event, &mut ops);
+        assert_eq!(scroll_ends(&ops), vec![LOG, OTHER_LOG]);
+        for log in [LOG, OTHER_LOG] {
+            assert!(!crate::dom::print(log_attribute(&ops, log)).contains("data-log-away"));
+        }
+        ops.clear();
+        page.apply(&fixtures::patches(&mut view, 1, |b| logs(b, true, b"New")), &mut ops);
+        assert_eq!(scroll_ends(&ops), vec![LOG, OTHER_LOG]);
+        assert!(!page.html().contains("data-log-away"));
+    }
+}
+
+#[test]
+fn an_unbound_press_to_log_end_reaches_no_owner_and_a_bound_one_does() {
+    for (bound, expected) in [(false, None), (true, Some((LOG_END, Act::Press)))] {
+        let (mut page, _) = log_page(bound);
+        scroll(&mut page, LOG, 0, &mut Vec::new());
+        let mut ops = Vec::new();
+        assert_eq!(page.act(Event::Click { node: LOG_END, modifier: false }, &mut ops), expected);
+        assert_eq!(scroll_ends(&ops), vec![LOG, OTHER_LOG]);
+    }
 }
 
 #[test]
