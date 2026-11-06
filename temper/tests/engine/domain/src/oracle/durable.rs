@@ -26,8 +26,20 @@ pub(super) fn answer(mut answer: Answer) -> Answer {
     answer
 }
 
-fn durable_frame(_frame: &mut docs::Frame) {
-    // The frame is made entirely from retained identity, roles and read positions.
+fn durable_frame(frame: &mut docs::Frame) {
+    // Engine 6 step 1 restores accounts without runtime grants; step 3 awaits
+    // reconnecting workers' logins. Engine 11.1's offers and inferred previews
+    // observe those facts; a template's named choice is a retained setting.
+    for project in frame.projects.iter_mut() {
+        project.offer.clear();
+        let mut defaults = skein_lib::List::with_capacity(project.defaults.capacity());
+        for (number, choice) in &project.defaults {
+            if project.templates.iter().any(|template| template.number == *number && template.llm.is_some()) {
+                defaults.push((*number, choice.clone())).expect("retained preview subset");
+            }
+        }
+        project.defaults = defaults;
+    }
 }
 
 fn durable_task(task: &mut docs::Task) {

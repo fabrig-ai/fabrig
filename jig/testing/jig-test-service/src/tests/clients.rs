@@ -120,8 +120,11 @@ impl Peer {
             b"\r\n\r\n",
             body,
         ]);
+        Self::request(engine, &bytes)
+    }
+    fn request(engine: &mut crate::Engine, bytes: &[u8]) -> Self {
         let mut wire = skein_world::stream::Wire::new(7);
-        wire.write(&bytes);
+        wire.write(bytes);
         let clients = engine.clients.as_mut().expect("clients configured");
         assert!(clients.up(io::Event::Accepted {
             owner: Token::new(4_u64 << 60),
@@ -168,6 +171,38 @@ impl Peer {
         }
     }
 }
+#[test]
+fn shutdown_closes_a_call_still_waiting_for_its_body() {
+    let mut service = started(true);
+    let engine = ready_decisions(&mut service);
+    let _link = engine.clients.as_mut().expect("clients").links.pop().expect("printed link");
+    for _ in 0_u32..64 {
+        engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+    }
+    let mut peer = Peer::request(
+        engine,
+        b"POST /jig/v1/read HTTP/1.1\r\nHost: 127.0.0.1:7100\r\nContent-Type: application/octet-stream\r\nContent-Length: 1\r\n\r\n",
+    );
+    peer.pump(engine);
+    assert_eq!(peer.closed, 0, "the peer keeps the admitted request open");
+    let clients = engine.clients.as_mut().expect("clients");
+    assert!(clients.next_deadline().is_some(), "the open request has a stall deadline");
+    clients.down(jig_protocol_engine_clients::Event::Stop);
+    clients.server_requests();
+    let Some(io::Request::Close { entity }) = clients.io.pop() else { panic!("listener close") };
+    assert_eq!(entity, Token::new(99));
+    clients.down(jig_protocol_engine_clients::Event::Close);
+    peer.pump(engine);
+    assert_eq!(peer.closed, 1, "shutdown ends the call without waiting for its body or stall deadline");
+    let clients = engine.clients.as_mut().expect("clients");
+    assert!(!clients.closed, "the listener's close completion is still delayed");
+    assert!(!clients.work_pending(Time::ZERO), "waiting for io leaves the loop idle");
+    assert_eq!(clients.next_deadline(), None);
+    assert!(clients.up(io::Event::Closed { owner: Token::new(4_u64 << 60) }));
+    peer.pump(engine);
+    assert!(engine.clients.as_ref().expect("clients").closed);
+}
+
 fn address() -> io::Addr {
     io::Addr::Ip((::core::net::Ipv4Addr::LOCALHOST, 7100).into())
 }

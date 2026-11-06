@@ -70,7 +70,7 @@ Shape: `act`. Paths: `engine.acts[]`. A connector's permitted deployment acts.
 Shape: `llm`. Paths: `engine.llm`. The endpoints, models and providers available for runs.
 
 - `endpoints`: list of endpoint; required; init writes list (3 entries). Declares the endpoints serving the configured models.
-- `models`: list of model, 64 models; required; init writes list (4 entries). Declares models in the order used by authority's model bits.
+- `models`: list of model, 64 models; required; init writes list (8 entries). Declares models in the order used by authority's model bits.
 - `providers`: list of llm-provider; optional; init writes list (3 entries). Assigns each configured model to exactly one LLM provider.
 
 ## engine.llm.endpoints[]
@@ -110,22 +110,25 @@ Shape: `header`. Paths: `engine.llm.endpoints[].headers[]`. One header added to 
 
 Shape: `model`. Paths: `engine.llm.models[]`. A model, its context bounds, efforts and prices.
 
-- `name`: text, 4096 bytes; required; init writes "gpt-6.1-sol" | "gpt-6-luna" | "claude-opus-5-5" | "demo". Names the model for charters, templates and authorities.
-- `endpoint`: text, 4096 bytes; required; init writes "openai" | "anthropic" | "demo". Names the configured endpoint serving this model.
+- `name`: text, 4096 bytes; required; init writes "claude-opus-5-5" | "claude-sonnet-5-5" | "claude-fable-5-1" | "gpt-6.1-sol" | "gpt-6-astra" | "gpt-6.1-terra" | "gpt-6-luna" | "demo". Names the model for charters, templates and authorities.
+- `endpoint`: text, 4096 bytes; required; init writes "anthropic" | "openai" | "demo". Names the configured endpoint serving this model.
 - `window`: integer, 0 to 4294967295 tokens; required; init writes 1048576. Gives the model's context window.
 - `output`: integer, 0 to 4294967295 tokens; required; init writes 8192. Gives the model's maximum output.
-- `efforts`: list of text, 16 efforts; 32 bytes each; optional; init leaves it out. Lists the efforts the model takes, in order, with none when absent.
+- `efforts`: list of text, 16 efforts; 32 bytes each; optional; init writes ["low","medium","high","xhigh","max"] | ["none","low","medium","high","xhigh","max"]. Lists the efforts the model takes, in order, with none when absent.
+- `effort`: text, 32 bytes; optional; init writes "high" | "medium". Names the effort a task given no choice takes, the first of the efforts when absent.
 - `prices`: prices; required; init writes object. Gives input, cached input and output prices in spend units.
 - `description`: text, 1 to 512 bytes; optional; init leaves it out. Describes what the model is good at for the brief's catalogue.
+- `shown`: text, 1 to 256 bytes; optional; init writes "Opus 5.5" | "Sonnet 5.5" | "Fable 5.1" | "GPT-6.1 Sol" | "GPT-6 Astra" | "GPT-6.1 Terra" | "GPT-6 Luna". Gives the model's name for showing.
+- `picker`: true or false; optional; init leaves it out. Says whether a picker shows the model, true when absent.
 
 ## engine.llm.models[].prices
 
 Shape: `prices`. Paths: `engine.llm.models[].prices`. Model prices and their token unit.
 
-- `input`: integer, 1 to 18446744073709551615; required; init writes 1. Prices input tokens per price unit.
-- `cached`: integer, 1 to 18446744073709551615; required; init writes 1. Prices cached input tokens per price unit.
-- `output`: integer, 1 to 18446744073709551615; required; init writes 1. Prices output tokens per price unit.
-- `unit`: integer, 1 to 4294967295 tokens; required; init writes 1000 | 1000000. Gives the token count each price applies to.
+- `input`: integer, 1 to 18446744073709551615; required; init writes 4000 | 2000 | 10000 | 1000 | 100 | 1. Prices input tokens per price unit.
+- `cached`: integer, 1 to 18446744073709551615; required; init writes 4000 | 2000 | 10000 | 1000 | 100 | 1. Prices cached input tokens per price unit.
+- `output`: integer, 1 to 18446744073709551615; required; init writes 20000 | 10000 | 50000 | 5000 | 500 | 1. Prices output tokens per price unit.
+- `unit`: integer, 1 to 4294967295 tokens; required; init writes 1000000 | 1000. Gives the token count each price applies to.
 - `cache_write`: integer, 1 to 18446744073709551615; optional; init leaves it out. Prices cache writes separately when the provider charges for them.
 
 ## engine.llm.providers[]
@@ -134,7 +137,7 @@ Shape: `llm-provider`. Paths: `engine.llm.providers[]`. An LLM provider, the mod
 
 - `name`: text, 1 to 256 bytes; public text; required; init writes "openai" | "anthropic" | "demo". Gives the provider's name for showing.
 - `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 3. Gives the provider's number, unique among LLM providers.
-- `models`: list of text, 4096 bytes per name; required; init writes ["gpt-6.1-sol","gpt-6-luna"] | ["claude-opus-5-5"] | ["demo"]. Names configured models served by this provider alone.
+- `models`: list of text, 4096 bytes per name; required; init writes ["gpt-6.1-sol","gpt-6-astra","gpt-6.1-terra","gpt-6-luna"] | ["claude-opus-5-5","claude-sonnet-5-5","claude-fable-5-1"] | ["demo"]. Names configured models served by this provider alone.
 - `sources`: sources; required; init writes object. Declares the sign-in, key and program sources the provider offers.
 - `signed_in_plan`: true or false, required with sign_in; optional; init writes true | false. Says whether the provider's signed-in source is a plan.
 - `manage_usage`: text, 2048 ASCII bytes; public HTTPS address; required for plans and programs; optional; init writes "https://chatgpt.com/settings/usage" | "https://claude.ai/settings/usage". Gives the public address where a holder manages usage.

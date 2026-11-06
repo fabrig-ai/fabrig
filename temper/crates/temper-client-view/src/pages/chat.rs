@@ -57,11 +57,7 @@ pub(crate) fn main(
             super::session::Heading::Chat { whole: &title, title: task.chip.title.bytes() },
         );
         super::session::right(b);
-        if configuring {
-            super::configure::byline(b, root, words, task.project);
-        } else {
-            crate::choice::byline(b, root, Some(task), words, bindings);
-        }
+        crate::choice::byline(b, root, Some(task), words, bindings);
         super::document::seg(b, chat, words, bindings);
         super::chat_sheet::bar(b, root, words, bindings);
         if chat.draft.is_none()

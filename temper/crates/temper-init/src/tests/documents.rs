@@ -1,7 +1,7 @@
 use super::fixtures::{self, DIRECTORIES, cases, content, parse, text};
 use crate::{files, template};
 use serde_json::{Value, json};
-use skein_lib::bytes;
+use skein_lib::{List, bytes};
 
 fn set(value: &mut Value, path: &str, replacement: Value) {
     *value.pointer_mut(path).expect("the member exists in the owned example") = replacement;
@@ -97,7 +97,7 @@ fn the_owned_example_offers_openai_keys_and_chatgpts_sign_in() {
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table checks the whole default document against the owned example")]
-fn the_default_is_the_owned_example_so_edited() {
+fn the_default_keeps_the_owned_structure_with_stock_models() {
     let owned = parse(fixtures::OWNED);
     assert_eq!(owned["engine"]["memory_bytes"], 1_073_741_824_u64);
     for worker in owned["workers"].as_array().unwrap() {
@@ -159,7 +159,7 @@ fn the_default_is_the_owned_example_so_edited() {
                 "redirect_uri": format!("http://127.0.0.1:{}/user/oauth2/temper/callback", facts.ports.owned)}]
         });
         let mut openai = owned["engine"]["llm"]["providers"][0].clone();
-        openai["models"] = json!(["gpt-6.1-sol", "gpt-6-luna"]);
+        openai["models"] = json!(["gpt-6.1-sol", "gpt-6-astra", "gpt-6.1-terra", "gpt-6-luna"]);
         for (path, value) in [
             (
                 "/engine/llm/providers",
@@ -180,15 +180,11 @@ fn the_default_is_the_owned_example_so_edited() {
                      "transport": "plaintext", "headers": parse(b"[]"), "connect_ms": 10_000_u64, "handshake_ms": 10_000_u64}
                 ]),
             ),
-            (
-                "/engine/llm/models",
-                json!([
-                    owned["engine"]["llm"]["models"][0],
-                    luna(&owned["engine"]["llm"]["models"][0]),
-                    anthropic("models"),
-                    demo_model()
-                ]),
-            ),
+            ("/engine/llm/models", {
+                let mut models = stock_models();
+                models.push(demo_model()).expect("seven stock models and demo fit");
+                json!(models.as_slice())
+            }),
             (
                 "/application/machine",
                 json!({
@@ -233,8 +229,6 @@ fn the_default_is_the_owned_example_so_edited() {
             expected["engine"].as_object_mut().unwrap().remove(member);
             assert!(actual["engine"].get(member).is_none(), "{row}: {member}");
         }
-        expected["engine"]["llm"]["models"][0]["prices"]["unit"] = json!(1000_u64);
-        expected["engine"]["llm"]["models"][1]["prices"]["unit"] = json!(1000_u64);
         assert_eq!(actual, expected, "{row}");
     }
 }
@@ -348,7 +342,7 @@ fn csv_chat() -> Value {
                 "contract": {"kind": "change", "connector": 1, "change_kind": 1, "words": 128},
                 "authority": {"tools": 1, "grants": [demo_grant(2), demo_grant(3), demo_grant(4), demo_grant(10), demo_grant(11), demo_grant(12)],
                     "delegation": {"kinds": [{"kind": "agent", "number": 2}, {"kind": "agent", "number": 4}], "tasks": 4, "depth": 2},
-                    "budget": {"spend": 21_140}, "notes": 0}
+                    "budget": {"spend": 217_920}, "notes": 0}
             }]}}
         ])),
         scripted_turn(json!([{"call": "wait", "arguments": {}}])),
@@ -451,9 +445,7 @@ fn the_agent_configuration_is_the_owned_examples_but_its_programs() {
             "/endpoints",
             json!([owned["endpoints"][0], anthropic_agent(), demo_agent(facts.ports.llm.get())]),
         );
-        expected["endpoints"][0]["models"][0]["prices"]["unit"] = json!(1000_u64);
-        let sol = expected["endpoints"][0]["models"][0].clone();
-        expected["endpoints"][0]["models"] = json!([sol, luna(&sol)]);
+        expected["endpoints"][0]["models"] = json!(agent_models("openai"));
         assert_eq!(parse(content(&answered, b"agent.json")), expected, "{row}");
     }
 }
@@ -639,28 +631,69 @@ fn the_bare_document_is_the_box_less_its_parts() {
     }
 }
 
-/// `OpenAI`'s second model: the first's declaration under luna's name.
-fn luna(sol: &Value) -> Value {
-    let mut luna = sol.clone();
-    luna["name"] = json!("gpt-6-luna");
-    luna
+// configuration.md, 13.4: the seven declarations, including their document order.
+fn stock_models() -> List<Value> {
+    let mut models = List::with_capacity(8);
+    for (name, shown, endpoint, effort, input, output) in [
+        ("claude-opus-5-5", "Opus 5.5", "anthropic", "high", 4_000_u32, 20_000_u32),
+        ("claude-sonnet-5-5", "Sonnet 5.5", "anthropic", "high", 2_000, 10_000),
+        ("claude-fable-5-1", "Fable 5.1", "anthropic", "high", 10_000, 50_000),
+        ("gpt-6.1-sol", "GPT-6.1 Sol", "openai", "high", 2_000, 10_000),
+        ("gpt-6-astra", "GPT-6 Astra", "openai", "high", 10_000, 50_000),
+        ("gpt-6.1-terra", "GPT-6.1 Terra", "openai", "medium", 1_000, 5_000),
+        ("gpt-6-luna", "GPT-6 Luna", "openai", "medium", 100, 500),
+    ] {
+        let efforts = if name == "gpt-6.1-terra" || name == "gpt-6-luna" {
+            json!(["none", "low", "medium", "high", "xhigh", "max"])
+        } else {
+            json!(["low", "medium", "high", "xhigh", "max"])
+        };
+        models
+            .push(json!({"name": name, "shown": shown, "endpoint": endpoint, "window": 1_048_576_u32,
+                "output": 8_192_u32, "efforts": efforts, "effort": effort,
+                "prices": {"input": input, "cached": input, "output": output, "unit": 1_000_000_u32}}))
+            .expect("seven stock models fit");
+    }
+    models
+}
+
+fn agent_models(endpoint: &str) -> Box<[Value]> {
+    let mut models = List::with_capacity(7);
+    for mut model in stock_models().into_boxed() {
+        if model["endpoint"] == endpoint {
+            let object = model.as_object_mut().unwrap();
+            for member in ["endpoint", "shown", "effort"] {
+                object.remove(member);
+            }
+            model["reasoning_item"] = json!(65_536_u32);
+            model["head"] = json!(60_000_u32);
+            model["idle"] = json!(if endpoint == "openai" { 300_000_u32 } else { 120_000_u32 });
+            models.push(model).expect("one endpoint's stock models fit");
+        }
+    }
+    models.into_boxed()
 }
 fn anthropic(member: &str) -> Value {
     match member {
         "providers" => {
-            parse(br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","models":["claude-opus-5-5"],"sources":{"programs":["claude_code"]}}"#)
+            parse(br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","models":["claude-opus-5-5","claude-sonnet-5-5","claude-fable-5-1"],"sources":{"programs":["claude_code"]}}"#)
         }
         "endpoints" => {
             parse(br#"{"name":"anthropic","number":2,"dialect":2,"provider":"anthropic","program":"claude_code","address":{"host":"api.anthropic.com","port":443},"transport":"tls","headers":[],"connect_ms":10000,"handshake_ms":10000,"server_name":"api.anthropic.com"}"#)
-        }
-        "models" => {
-            parse(br#"{"name":"claude-opus-5-5","endpoint":"anthropic","window":1048576,"output":8192,"prices":{"input":1,"cached":1,"output":1,"unit":1000000}}"#)
         }
         _ => panic!("known LLM member"),
     }
 }
 fn anthropic_agent() -> Value {
-    parse(br#"{"name":"anthropic","number":2,"dialect":2,"provider":"anthropic","program":"claude_code","address":"api.anthropic.com:443","transport":"tls","server_name":"api.anthropic.com","connect":10000,"handshake":10000,"headers":[],"models":[{"name":"claude-opus-5-5","prices":{"input":1,"cached":1,"output":1,"unit":1000000},"window":1048576,"output":8192,"reasoning_item":65536,"head":60000,"idle":120000}]}"#)
+    let mut endpoint = anthropic("endpoints");
+    endpoint["address"] = json!("api.anthropic.com:443");
+    let object = endpoint.as_object_mut().unwrap();
+    for (old, new) in [("connect_ms", "connect"), ("handshake_ms", "handshake")] {
+        let value = object.remove(old).unwrap();
+        object.insert(new.into(), value);
+    }
+    endpoint["models"] = json!(agent_models("anthropic"));
+    endpoint
 }
 #[test]
 fn every_deployment_offers_claude_found_or_fetched() {
@@ -672,10 +705,15 @@ fn every_deployment_offers_claude_found_or_fetched() {
         for files in [boxed.files.as_ref(), bare.as_ref()] {
             let document = parse(file_bytes(files, b"temper.json"));
             let agent = parse(file_bytes(files, b"agent.json"));
-            // OpenAI declares two models, gpt-6.1-sol then gpt-6-luna.
-            for (member, at) in [("providers", 1), ("endpoints", 1), ("models", 2)] {
+            // Providers and endpoints keep their order beside the seven model declarations.
+            for (member, at) in [("providers", 1), ("endpoints", 1)] {
                 assert_eq!(document["engine"]["llm"][member][at], anthropic(member), "{row}: {member}");
             }
+            assert_eq!(
+                document["engine"]["llm"]["models"].as_array().unwrap()[..3],
+                stock_models().as_slice()[..3],
+                "{row}"
+            );
             assert_eq!(agent["endpoints"][1], anthropic_agent(), "{row}");
             assert_eq!(
                 agent["programs"]["claude_code"],

@@ -387,12 +387,17 @@ impl Chats {
         }
         self.send(env, me, project, jig_client::shapes::CHAT, words.into(), Some(choice), serial, out);
     }
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "configuring starts share the composer's identity, choice and send state"
+    )]
     pub(crate) fn configure_chat(
         &mut self,
         env: &Env<Limits>,
         me: Option<&Me>,
         project: Option<u32>,
         words: Box<[u8]>,
+        choice: &super::choice::Draft,
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
@@ -404,7 +409,7 @@ impl Chats {
         self.words = words;
         self.beyond = 0;
         let template = configuring_template(me, project);
-        self.send(env, me, project, template, self.words.clone(), None, serial, out);
+        self.send(env, me, project, template, self.words.clone(), Some(choice), serial, out);
     }
     #[expect(
         clippy::too_many_arguments,
@@ -615,7 +620,7 @@ fn count_rows(rows: &List<c::TaskLine>, me: Option<&Me>, project: u32, counts: &
     }
 }
 
-fn configuring_template(me: Option<&Me>, project: Option<u32>) -> u32 {
+pub(super) fn configuring_template(me: Option<&Me>, project: Option<u32>) -> u32 {
     if let Some(me) = me
         && let Some(project) = project
         && jig_client::shapes::template(me, project, CONFIGURING_TEMPLATE).is_some()

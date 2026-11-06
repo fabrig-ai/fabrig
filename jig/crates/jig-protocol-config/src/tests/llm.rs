@@ -199,6 +199,44 @@ fn a_model_takes_the_efforts_it_names_in_order() {
     assert_eq!(model(&bytes).efforts.as_ref(), [low, high]);
 }
 #[test]
+fn a_model_names_its_default_apart_from_effort_order() {
+    // EFFORT_BYTES (configuration.md, 3): the second name reaches the byte bound.
+    for (members, expected) in [
+        (br#""output": 1024, "efforts": ["low", "medium", "high"], "effort": "medium","#.as_slice(), b"medium".as_slice()),
+        (br#""output": 1024, "efforts": ["12345678901234567890123456789012"], "effort": "12345678901234567890123456789012","#, b"12345678901234567890123456789012"),
+    ] {
+        let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#""output": 1024,"#, members);
+        let engine = fixtures::engine(&bytes).unwrap();
+        assert_eq!(engine.llm.models.first().unwrap().effort.as_deref(), Some(expected));
+        assert_eq!(engine.charters.first().unwrap().policy.model.effort.as_deref(), Some(expected));
+    }
+}
+#[test]
+fn invalid_model_defaults_are_refused_at_their_path() {
+    for (members, what) in [
+        (br#""output": 1024, "efforts": ["low", "high"], "effort": "medium","#.as_slice(), What::Refers),
+        (br#""output": 1024, "effort": "medium","#, What::Refers),
+        (br#""output": 1024, "efforts": [], "effort": "medium","#, What::Refers),
+        (br#""output": 1024, "effort": "","#, What::Form),
+        (br#""output": 1024, "effort": "123456789012345678901234567890123","#, What::Bound),
+        (br#""output": 1024, "effort": 1,"#, What::Kind),
+    ] {
+        fixtures::refuses(br#""output": 1024,"#, members, model_path(b"effort"), what);
+    }
+}
+#[test]
+fn an_omitted_default_preserves_the_models_other_values() {
+    let bytes = fixtures::with(
+        fixtures::ENGINE_SMALL,
+        br#""output": 1024,"#,
+        br#""output": 1024, "efforts": ["low", "medium", "high"],"#,
+    );
+    let mut expected = model(fixtures::ENGINE_SMALL);
+    expected.efforts = Box::new([b"low".as_slice().into(), b"medium".as_slice().into(), b"high".as_slice().into()]);
+    assert_eq!(model(&bytes), expected);
+    assert_eq!(model(&bytes).effort, None);
+}
+#[test]
 fn a_model_naming_no_efforts_takes_none() {
     assert!(model(fixtures::ENGINE_SMALL).efforts.is_empty());
 }
@@ -336,4 +374,66 @@ fn a_models_program_comes_from_its_endpoint() {
     assert_eq!(engine.llm.endpoints[0].program.as_deref(), Some(b"claude_code".as_slice()));
     assert_eq!(engine.llm.models[0].program, engine.llm.endpoints[0].program);
     assert!(engine.llm.models[0].window <= 272_000);
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "tests are ordinary Rust (programming-model.md, 10.2)")]
+fn model_shown_and_picker_reach_the_client_catalogue() {
+    let shown = "é".repeat(128);
+    let members = format!(
+        r#""output": 1024, "shown": "{shown}", "picker": false, "efforts": ["low", "high"], "effort": "high","#
+    );
+    for (bytes, expected, picker, effort) in [
+        (fixtures::ENGINE_SMALL.into(), None, true, None),
+        (
+            fixtures::with(fixtures::ENGINE_SMALL, br#""output": 1024,"#, members.as_bytes()),
+            Some(shown.as_bytes()),
+            false,
+            Some(b"high".as_slice()),
+        ),
+        (
+            fixtures::with(
+                fixtures::ENGINE_SMALL,
+                br#""output": 1024,"#,
+                br#""output": 1024, "picker": true, "efforts": ["low", "high"],"#,
+            ),
+            None,
+            true,
+            Some(b"low".as_slice()),
+        ),
+    ] {
+        let engine = fixtures::engine(&bytes).unwrap();
+        assert_eq!(engine.llm.shown.first().unwrap().as_deref(), expected);
+        assert_eq!(engine.llm.pickers.as_ref(), [picker]);
+        let models = crate::clients::models(&engine.llm);
+        let model = models.first().unwrap();
+        assert_eq!(model.shown.as_deref(), expected);
+        assert_eq!(model.picker, picker);
+        assert_eq!(model.effort.as_deref(), effort);
+        let wire = jig_protocol_engine_clients::translate::llm::models(
+            &[jig_domain_core::Offered { model: 0, accounts: skein_lib::List::with_capacity(0) }],
+            &models,
+            &jig_client_protocol_wire::v19::CEILINGS,
+        )
+        .unwrap();
+        let model = wire.get(0).unwrap();
+        assert_eq!(model.shown().as_deref(), expected);
+        assert_eq!(model.picker(), picker);
+        assert_eq!(model.effort().as_deref(), effort);
+        assert!(model.accounts().is_empty());
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "tests are ordinary Rust (programming-model.md, 10.2)")]
+fn invalid_model_shown_and_picker_are_refused_at_their_paths() {
+    let long = format!(r#""output":1024,"shown":"{}","#, "s".repeat(257));
+    for (members, name, what) in [
+        (long.as_bytes(), b"shown".as_slice(), What::Bound),
+        (br#""output":1024,"shown":"","#, b"shown", What::Form),
+        (br#""output":1024,"shown":7,"#, b"shown", What::Kind),
+        (br#""output":1024,"picker":"false","#, b"picker", What::Kind),
+    ] {
+        fixtures::refuses(br#""output": 1024,"#, members, model_path(name), what);
+    }
 }

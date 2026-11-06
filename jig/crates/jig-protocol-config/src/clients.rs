@@ -37,6 +37,7 @@ pub(crate) fn parse(
 /// The configured models as the client protocol names and shows them, in configuration's order,
 /// each with the number of the LLM provider listing it (contract.md, 5.1).
 #[must_use]
+#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn models(llm: &crate::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
     let mut models = List::with_capacity(u32::try_from(llm.models.len()).expect("checked models"));
     for (at, model) in llm.models.iter().enumerate() {
@@ -55,6 +56,10 @@ pub fn models(llm: &crate::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
                 window: model.window,
                 output: model.output,
                 efforts: model.efforts.clone(),
+                effort: match model.default_effort() {
+                    Some(effort) => Some(skein_lib::bytes::copy_of(effort)),
+                    None => None,
+                },
                 prices: jig_protocol_engine_clients::Prices {
                     input: model.input_price,
                     cached: model.cached_price,
@@ -63,6 +68,8 @@ pub fn models(llm: &crate::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
                     unit: model.price_unit,
                 },
                 description: llm.descriptions.get(at).expect("one description per configured model").clone(),
+                shown: llm.shown.get(at).expect("one shown name per configured model").clone(),
+                picker: *llm.pickers.get(at).expect("one picker flag per configured model"),
             })
             .expect("one row per model");
     }
@@ -205,6 +212,8 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         problems.push(path.member(b"authority.projects"), crate::What::Bound);
     }
     for (name, value, maximum) in [
+        (b"accounts.accounts".as_slice(), core.accounts.accounts, wire.me_model_accounts),
+        (b"core.templates".as_slice(), core.templates, wire.me_project_defaults),
         (b"authority.roles".as_slice(), core.authority.roles, wire.setting_policy_roles),
         (
             b"authority.requirements".as_slice(),
@@ -268,6 +277,33 @@ mod settings_tests {
     fn pending_settings_fit_the_wire_inventory() {
         let maximum = crate::profile(crate::Profile::Small).clients.wire.settings_document_pending;
         ceiling(b"core.settings.proposals", maximum);
+    }
+    #[test]
+    fn offer_accounts_and_template_previews_fit_the_wire() {
+        for (name, field) in [(b"accounts.accounts".as_slice(), "accounts"), (b"core.templates".as_slice(), "defaults")]
+        {
+            let mut limits = crate::profile(crate::Profile::Small);
+            let value = if field == "accounts" { limits.core.accounts.accounts } else { limits.core.templates };
+            if field == "accounts" {
+                limits.clients.wire.me_model_accounts = value;
+            } else {
+                limits.clients.wire.me_project_defaults = value;
+            }
+            let mut problems = Problems::empty();
+            check_settings(&limits, &mut problems);
+            assert!(problems.is_empty(), "at bound: {problems:?}");
+            if field == "accounts" {
+                limits.clients.wire.me_model_accounts -= 1;
+            } else {
+                limits.clients.wire.me_project_defaults -= 1;
+            }
+            check_settings(&limits, &mut problems);
+            assert_eq!(problems.problems.len(), 1);
+            assert_eq!(
+                problems.problems.get(0).unwrap(),
+                &crate::Problem { path: Path::root().member(b"limits").member(name), what: crate::What::Bound }
+            );
+        }
     }
     #[test]
     fn policy_roles_fit_the_wire() {

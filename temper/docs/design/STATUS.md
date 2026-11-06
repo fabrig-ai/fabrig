@@ -54,7 +54,13 @@ CI or tiers' workflows, and no walk applies the case's project file
 user's request of 2026-11-03 but for a message, a report, a person's
 spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
-with has not passed (`protocol/setup.md`). `temper init`'s documents hold
+with has not passed (`protocol/setup.md`). The box's hour-long Forgejo
+session, source-address refresh, refused public/sign-in pair, empty
+repository-name handling and Linux lifetime wrapper are built. The
+combined default-runner, restart, moved-port and terminal-hangup walk
+has no outcome in the supplied inventory, and the real-box sign-in
+story awaits its after-landing run (`protocol/setup.md`,
+`protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
@@ -97,7 +103,12 @@ alone, and many of ctl's tools (`client/README.md`,
 browser, whose story A walks in the browser tier but not yet by hand
 (`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). The browser tier holds 17 tests, five past its cap, its CPU
+(`release.md`). Public pages use a plain column, a goal's spend alone, distinct
+endings and seven-digit commits; public records carry no forge addresses.
+Public history before publication, across a restart and from a stock queue
+is deferred, and the public geometry story's runtime check awaits the
+browser tier after landing (`client/browser.md`, `client/forge.md`).
+The browser tier holds 17 tests, five past its cap, its CPU
 measured within its budget on the 12 without the call line's and the welcome's
 sign-in's, at 83.069911 of its 85 on a run of 13 with one red, a public project's
 `temper ctl` visibility command past its deadline, its cause not found, and at
@@ -233,7 +244,9 @@ no manual proof on record checks it in both shells. Edits past 131,072 bytes
 keep a prefix and overflow count, losing the rest on a new drawing, where the
 `long-words` request keeps every typed word (`client/README.md`, 5.4 and 5.15).
 The words being written draw an empty message in the dots' place until they hold a word, their "▍" falls below a closed
-fence, a last block still open changes as it commits, and no browser test draws them
+fence, and a last block still open changes as it commits. A committed call or card
+before the first text replaces that text's nodes; the paragraph render proof at
+1440 and 420 px does not cover these Markdown and block-order cases
 (`client/README.md`). A run of calls is one line on a chat's page and an agent's, its
 verbs and time for the user to read on a real chat (`draft/chat-reading.md`), but no test
 takes its call under way from the engine or draws it running in a browser or a real

@@ -66,7 +66,7 @@ pub(super) fn validate(prompt: &Prompt, declared_output: u32, limits: &wire::Lim
     if let Some(effort) = &prompt.reasoning_effort {
         text(effort, &mut budget, limits)?;
         match effort.as_ref() {
-            b"off" | b"low" | b"medium" | b"high" | b"max" => {}
+            b"off" | b"low" | b"medium" | b"high" | b"xhigh" | b"max" => {}
             _ => return Err(Error::Unsupported),
         }
     }

@@ -5,7 +5,7 @@ use jig_domain_tasks as tasks;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{fixtures, forge_stand::ForgeStand, protocol};
 
-const K: u64 = 4228;
+const K: u64 = 8_720;
 const CHANNEL: Token = Token::new(7);
 
 use super::stock::box_model;
@@ -17,6 +17,8 @@ fn configuration() -> engine::Config {
     let mut config = stock_config();
     let model = box_model();
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         models: Box::new([model.clone()]),
         descriptions: Box::new([None]),
