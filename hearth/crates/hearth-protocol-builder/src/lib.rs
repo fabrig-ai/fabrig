@@ -638,7 +638,8 @@ fn resume_git(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Even
         }));
         return;
     }
-    if (child.failed || ready)
+    if child.stage != Stage::Closing
+        && (child.failed || ready)
         && child.output_state != Intake::Ended
         && child.output.token().is_some()
         && child.output_state != Intake::Draining
