@@ -1812,8 +1812,9 @@ init`'s document carries none of them (`setup.md`, 8.3).
   later has its own number, and a stock default names one scope (jig's
   `domain/engine.md`, 17.5). So their stock is a constant of the code, the
   value of a setting with none stored: the forge answers no value, and
-  who reads it, the root for kind 6 and the client for kind 7, takes the
-  stock.
+  who reads it, the root for kind 6, the client for kind 7 and for a
+  run's `settings` read (`../domain/agent.md`, 8.1) the root for both,
+  takes the stock.
 
 - **Each charter's host families** (its `tools`, jig's
   `domain/engine.md`, 7.1): charter 1, a chat's, names every host
