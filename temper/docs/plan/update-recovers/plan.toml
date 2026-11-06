@@ -1,0 +1,5 @@
+draft = "update-recovers"
+repo = "fabrig"
+sources = ["temper/docs/plan/update-recovers/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
