@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 5.4, *A chat's first message*: the chat's page draws its spec as the engine cut it.
 - **Not yet:** 5.15: a conversation read by scrolling, whole. Until it lands, 3.5, 5.4, 5.9 and 5.11 say "Older" and a window of 16 lines, and the words under `chat-reading`'s section 5 stay as they stand.
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
