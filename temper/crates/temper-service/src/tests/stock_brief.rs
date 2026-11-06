@@ -80,6 +80,38 @@ fn workspace(writable: bool) -> run::Workspace {
 }
 
 #[test]
+fn every_stock_charters_tools_pass_mcp_admission() {
+    use smith_protocol_program::mcp;
+
+    let engine = engine(&generated());
+    assert!(engine.charters.iter().any(|charter| charter.number == 3));
+    for stock in &engine.charters {
+        let charter = temper_engine_smith::charter(&assignment(stock.number, false, 0));
+        if stock.number == 3 {
+            assert!(charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"propose_settings"));
+        }
+        let tools = charter
+            .grants
+            .host_tools
+            .into_vec()
+            .into_iter()
+            .map(|tool| mcp::Tool { name: tool.name, description: tool.description, input_schema: tool.schema })
+            .collect();
+        let limits = mcp::Limits {
+            message_bytes: 65_536,
+            answer_bytes: 1_048_576,
+            schema_bytes: 65_536,
+            calls: 1,
+            unauthenticated: Time::from_nanos(10),
+        };
+        // Leave the lower queue undriven: admission checks schemas before any I/O.
+        let mut below = Queue::uncapped();
+        let admitted = mcp::Server::new(Token::new(1), 0, &[7; 32], tools, limits, &mut below);
+        assert!(admitted.is_ok(), "stock charter {}: {:?}", stock.number, admitted.err());
+    }
+}
+
+#[test]
 fn every_stock_charter_admits_its_whole_maximal_brief() {
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
@@ -92,7 +124,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (1, false, 42_114, 358_021),
         (1, true, 40_024, 360_111),
         (2, false, 35_014, 365_121),
-        (3, false, 42_106, 358_029),
+        (3, false, 41_994, 358_141),
         (4, false, 32_636, 367_499),
         (6, false, 33_467, 366_668),
         (9, false, 31_303, 368_832),
