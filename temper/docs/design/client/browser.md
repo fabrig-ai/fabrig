@@ -404,6 +404,32 @@ replay says the same clocks (`README.md`, 5.12).
   nodes the mockups style: the frame's banner, navigation and main; the
   cards; the conversation's turns; the composers. The view sets them
   (`README.md`, 5.1); the terminal prints none.
+- **The first paint, the placeholder's:** the shell's `loading.html` and
+  `loading.css`, given to skein's bundler (skein's `ui-web.md`, 4.3), so
+  that a person on a slow connection has something to read in a few
+  hundred bytes. The mark as inline paths, so that no font is fetched and
+  nothing swaps, centred at about 38% of the height; under it a 240 px
+  `progress`, as `temper-flow-meter` draws one, 4 px, ink over the
+  hairline, and one muted line; a phone keeps the 16 px gutter. The lines,
+  each in `loading.html`'s data attributes:
+  - for the first 250 ms, the paper alone, so a cached load never flashes;
+  - downloading: "2.8 of 11.5 MB" (what travels, so a gzipped module's
+    total is its compressed size), and "· about 35 s left" once 3 s of data
+    gives an estimate over 5 s;
+  - after 8 s, under it, "Your browser keeps this, so next time it opens
+    at once.";
+  - no byte for 15 s: "Waiting for the server…" in the figure's place;
+  - every byte in: "Starting…";
+  - failed: no bar, "temper didn't load", why ("The connection dropped at
+    4.8 of 11.5 MB.", "The server answered 404.", "The server didn't
+    answer.", "This browser has no WebAssembly.", "It didn't start."), and
+    "Try again", which reloads;
+  - scripts off: no bar, and `--noscript`'s words.
+
+  Handing over, a 200 ms fade once the client's first node and the
+  stylesheets are in; reduced motion, no fade and no moving bar. The tab's
+  title is "temper" throughout. The drawing is the look request
+  `bundle-loading`'s; a terminal has no bundle and no placeholder.
 - **The bundle's stylesheets:** skein's `skein-ui.css`, then
   `temper.css`, temper's look. It takes no rules from the
   mockups' terminal sheets (`terminal-chat.css` and `terminal-pages.css`
@@ -739,8 +765,9 @@ without it.
   2. `build --locked --release -p skein-ui-bundle`: the bundler,
      always optimized, as skein's `ui-web.md`, 4.1 asks of a tool;
   3. the bundler, with `scripts/bundle.sh`'s inputs (the name, the
-     prefix `/bundle/`, `temper.css`, `task-pages.css`, the shell's
-     `files/` and the noscript words), into its `OUT_DIR`;
+     title, the prefix `/bundle/`, `temper.css`, `task-pages.css`, the
+     placeholder's `loading.html` and `loading.css`, the shell's `files/`
+     and the noscript words), into its `OUT_DIR`;
   4. the list of the bundle's files, written into `OUT_DIR` for the
      library's include.
   It has no build dependencies: the bundler is built by the nested
@@ -778,7 +805,8 @@ without it.
   the module is built from, temper's client crates and, when a local
   jig or skein is patched in, theirs); each of those packages'
   `Cargo.toml`, the workspace's `Cargo.toml` and `Cargo.lock`, which
-  pins the git dependencies; the shell's stylesheets and its `files/`;
+  pins the git dependencies; the shell's stylesheets, its placeholder and
+  its `files/`;
   and `TEMPER_BUNDLE`, by `cargo:rerun-if-env-changed`. The first run
   has no dep-info yet, and runs regardless. An edit elsewhere never
   runs the script, and a build that does not include `temper` (a
@@ -1164,6 +1192,9 @@ Not in the tier, each in the lowest world that shows it:
 - **Served from the binary's bytes,** with no copy at start: a `Bundle`
   that borrows. Default: copied (2.6), until a bundle whose copy
   matters.
+- **A box still starting:** a link opened before serve is ready gets no
+  bytes until it is, so no placeholder either, and that wait stays the
+  browser's own (`../protocol/setup.md`, 7.1). Default: as it is.
 - **The embed's steps, skein's for every application:** the nested
   build, its directory, its environment and what reruns it are nothing
   of temper's. Default: temper's crate, until a second application

@@ -4,6 +4,7 @@
 
 - **Not yet:** 4.2: the compressed forms and the refusal of a `.gz` input. 4.4:
   a compressed answer, in the example's server.
+- **Not yet:** 4.3: the title, the page with a placeholder and the loader.
 - **Departs:** 7: a press outside an open menu returns the focus to its button
   unless that press took it to another control, where the code asks only whether
   the focus left the menu (`skein-ui-web`'s `page.rs`, `close_menu_outside`, and

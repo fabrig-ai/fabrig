@@ -628,6 +628,9 @@ a service copies that.
   form the request takes, the page with an `ETag` and `no-cache`.
 - **The strict content security policy** of ui-web.md, 4.4, on every
   answer, so the browser tier sees any violation of it.
+- **A placeholder,** a line of its own and a small stylesheet, beside its
+  shell, so that the browser tier loads the bundler's loader in every
+  story, under that policy.
 - **Bounded:** the notes it keeps, a record's bytes, and the streams
   open at once are limits; past one, it refuses at the entrance
   (programming-model.md, section 7), and the page says so in words.

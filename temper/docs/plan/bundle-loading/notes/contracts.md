@@ -46,3 +46,89 @@ pub fn compressed_of(path: &[u8]) -> Option<&[u8]>
 ### C5. The bounds (`gzip-serve`)
 
 `standard`'s `clients.bundle_bytes` is `32 << 20`. `clients.bundle_files` stays 128: the bundle holds about 40 files with its forms, and the status says so. jig-test's reader counts both forms too; its `BUNDLE_BYTES` is `32 << 20`, and a `_bg.wasm.gz` takes `_bg.wasm`'s cap.
+
+## P. The page and the script
+
+The design is `skein/docs/design/ui-web.md`, 4.3. The look's source is the request's commit, `0c1b78f3e1` or, if that hash has gone, the commit on `origin/look-requests` with the `Look-request: bundle-loading` trailer (`60102c6689` when this was written); its pages are `temper/docs/design/client/journeys/bundle-loading/`. Read them with `git show`. **Other requests on that branch are other plans'.**
+
+### P1. The bundler's inputs (`page-skein`)
+
+```rust
+pub struct Inputs {
+    // ...what it has
+    /// The page's title; the application's name where `None`.
+    pub title: Option<String>,
+    pub placeholder: Option<Placeholder>,
+}
+/// What a page with a placeholder paints first (ui-web.md, 4.3).
+pub struct Placeholder { pub markup: PathBuf, pub stylesheet: PathBuf }
+```
+
+- The binary: `--title WORDS`, `--placeholder PATH`, `--placeholder-stylesheet PATH`. One of the last two alone is the usage error.
+- `Refusal::NoNoscriptMarker { markup: PathBuf }`: a markup without `{noscript}`. `Refusal::PlaceholderWithPage { page: PathBuf }`: an own page beside it.
+- The placeholder's stylesheet takes the same name checks as a given one (`ReservedName`, `SameName`), goes in the directory by its file name, and is **not** among the loader's sheets.
+
+### P2. The page
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TITLE</title>
+<link rel="stylesheet" href="PREFIXDIGEST/PLACEHOLDER.css">
+<script type="module" src="PREFIXDIGEST/boot.js"></script>
+</head>
+<body>
+<div id="app"></div>
+MARKUP, with {noscript} replaced by <noscript>WORDS</noscript>
+</body>
+</html>
+```
+
+With no placeholder the page is as it is today, but for `--title`, so that a bundle without either keeps its digest's inputs and its golden's page.
+
+### P3. The loader
+
+`skein/crates/skein-ui-bundle/loader.js`, skein's text, `include_str!`, is `boot.readable.js` from the request's commit, written short and with these differences. `boot.js` is this head, then that text:
+
+```js
+const GLUE = ["NAME.js", PLAIN, GZIPPED];
+const WASM = ["NAME_bg.wasm", PLAIN, GZIPPED];
+const SHEETS = [["skein-ui.css", PLAIN, GZIPPED], ["a.css", PLAIN, GZIPPED]];
+```
+
+`GZIPPED` is `PLAIN` again where there's no form. A name is written as a JavaScript string (`\` and `"` escaped; a control character in one is `Refusal::Type`).
+
+The differences from `boot.readable.js`:
+
+1. **Words:** every word it says comes from `#boot`'s data attributes, read once at the top:
+
+   | Attribute | Holds | temper's words |
+   |---|---|---|
+   | `data-figure` | `{got}`, `{total}` | `{got} of {total} MB` |
+   | `data-left` | `{left}` | ` · about {left} left` |
+   | `data-seconds`, `data-minutes` | `{n}` | `{n} s`, `{n} min` |
+   | `data-keeps` | | `Your browser keeps this, so next time it opens at once.` |
+   | `data-waiting` | | `Waiting for the server…` |
+   | `data-starting` | | `Starting…` |
+   | `data-failed` | | `temper didn’t load` |
+   | `data-dropped` | `{got}`, `{total}` | `The connection dropped at {got} of {total} MB.` |
+   | `data-answered` | `{status}` | `The server answered {status}.` |
+   | `data-silent` | | `The server didn’t answer.` |
+   | `data-no-wasm` | | `This browser has no WebAssembly.` |
+   | `data-no-start` | | `It didn’t start.` |
+
+2. **The figure:** `TOTAL`, the plain sizes' sum, is the fraction's denominator as it is. `TRAVEL` is `TOTAL` or, once the module's answer says `Content-Encoding: gzip`, the third column's sum. `got` and `total` in the words are `got / TOTAL * TRAVEL` and `TRAVEL`, in MB to one decimal. Until the module's answer is in, the line is empty.
+3. **`init` waits for the sheets:** `await sheets` before `glue.default({ module_or_path: answer })`.
+4. **Handing over:** `boot.inert = true` beside `classList.add("out")`.
+
+The rest is as it stands: the 250 ms is the stylesheet's; 8 s, 15 s, 3 s, 5 s; `dataset.state`, `start` and `failed`; `MutationObserver` on `#app`; the 200 ms before `remove()`.
+
+### P4. temper's inputs (`page-temper`)
+
+- `temper/crates/temper-client-shell-web/loading.html`: the request's `01.html` from `<div id="boot">` to its `</div>`, with: the words of P3 as attributes on `#boot`; `value="0"` on the `progress`; `#boot-line` and `#boot-note` empty; `{noscript}` in place of its `<noscript>`.
+- `temper/crates/temper-client-shell-web/loading.css`: the request's `loading.css`, unchanged but for what the render check finds.
+- The bundler's arguments, wherever temper's are written (`temper-client-bundle/build/steps.rs`, `scripts/bundle.sh` but its `--playground` branch, `tools/tiers/run`): `--title temper --placeholder .../loading.html --placeholder-stylesheet .../loading.css`.
+- `temper/scripts/proof-live-github-managed.sh` and the gallery take neither: they load no client over a slow connection, and the page as it is today is what "given none" means.
