@@ -65,6 +65,18 @@ fn a_key_only_card_names_the_brand_and_holder_once() {
         "OpenAI API key · held by Pat".as_bytes()
     );
 }
+/// The key account's row controls are view reads (temper/docs/design/client/browser.md, 4.6).
+#[test]
+fn a_key_account_offers_replacement_and_removal() {
+    let (mut root, watch) = fixtures::account_root();
+    deliver(&mut root, watch, card_document(b"openai", b"", c::AccountKind::Key));
+    let view = fixtures::page_view(&root);
+    let row = super::inbox::styled(view.tree(), crate::look::SETTINGS_ROW);
+    let content = super::inbox::subtree(view.tree(), row);
+    for name in [b"Replace".as_slice(), b"Remove account"] {
+        assert!(content.iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(name)), "{name:?}");
+    }
+}
 #[test]
 fn a_program_card_names_the_subscription_and_login() {
     let mut doc = card_document(b"anthropic", b"claude-alice", c::AccountKind::Program);
