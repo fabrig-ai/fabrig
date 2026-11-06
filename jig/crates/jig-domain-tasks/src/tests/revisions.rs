@@ -471,7 +471,7 @@ fn activity_orders_an_amendments_message_and_decision_and_keeps_both_settings() 
     assert_eq!(lines[usize::try_from(first).unwrap()].position, first + 1);
     let crate::Line::Heard(word) = &lines[usize::try_from(first).unwrap()].line else { panic!() };
     assert_eq!(word.kind, MessageKind::Amendment { revision: 1 });
-    assert_eq!(lines[usize::try_from(first).unwrap() + 1].line, crate::Line::Decided { revision: 1 });
+    assert_eq!(lines[usize::try_from(first).unwrap() + 1].line, crate::Line::Decided { revision: 1, proposal: None });
     assert_eq!(lines[usize::try_from(first).unwrap() + 1].at, Wall::from_nanos(8));
     let Stored::History(row) = &test.stored[&Key::History { task: 1, revision: 1 }] else { panic!() };
     let change = row.amendment.as_ref().unwrap();
@@ -1645,4 +1645,54 @@ fn served_chat_comes_from_the_task_tree_and_requires_a_person_conversation() {
     let id = h.domain.names.get(&1).copied().expect("live chat");
     h.domain.tasks.get_mut(id).expect("live chat").record.flags.conversation = false;
     assert_eq!(h.domain.served_chat(2), None);
+}
+
+#[test]
+fn a_proposal_s_lines_name_it_and_say_its_making() {
+    let mut h = Harness::new();
+    h.make(vec![task(1, &[])]);
+    let proposal = crate::Proposal {
+        number: 7,
+        proposer: 1,
+        project: 1,
+        action: crate::ProposalAction::Release { task: 1 },
+        reason: Box::from(b"release".as_slice()),
+        as_holder: false,
+        state: crate::ProposalState::Pending { holder: crate::ProposalHolder::Person(9), since: Wall::EPOCH },
+    };
+    for (change, state, made) in [
+        (crate::Change::Proposed, proposal.state.clone(), true),
+        (crate::Change::ProposalPassed, proposal.state.clone(), false),
+        (crate::Change::ProposalAccepted, crate::ProposalState::Accepted { by: Party::Person(9) }, false),
+        (
+            crate::Change::ProposalRejected,
+            crate::ProposalState::Rejected { by: Party::Person(9), reason: Box::from(b"no".as_slice()) },
+            false,
+        ),
+        (crate::Change::ProposalWithdrawn, crate::ProposalState::Withdrawn, false),
+    ] {
+        let mut out = Queue::uncapped();
+        crate::positions::history(
+            &mut h.domain,
+            &h.env,
+            crate::Proposal { state, ..proposal.clone() },
+            Party::Person(9),
+            change,
+            &mut out,
+        );
+        let lines: Vec<_> = core::iter::from_fn(|| out.pop())
+            .filter_map(|request| match request {
+                Request::Save { record: Stored::Activity(row) } => Some(row.line),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            lines,
+            vec![crate::Line::Decided {
+                revision: h.domain.task(1).unwrap().revision,
+                proposal: Some(crate::DecidedProposal { number: 7, made })
+            }],
+            "{change:?}"
+        );
+    }
 }

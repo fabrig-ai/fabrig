@@ -4,6 +4,13 @@
 
 - **Not yet:**
   - 8.1, 8.5, 11 and 11.1: a change on a run branch, its requester's own run in the slot, and a goal's run delivering to its run branch: `temper/docs/plan/goal-delivery/`. A goal's run starts on g and pushes nothing, and a taken slot stops every change.
+  - 10, 18: no supplied result shows the three-thread real-process trial
+    passing after update recovery. Both styles' lost answers, retries,
+    exhausted counts, release and late-copy holds have world stories;
+    the real-Forgejo restart trial remains the after-landing proof.
+    The fake reads a rebase copy's head at landing, so the dropped-push
+    story uses an explicit branch rewrite and does not establish the
+    real forge's concurrent-push behaviour (skein's `forge.md`, section 9).
   - 8.2, step 3: a head already behind taking its base first stands on the fake
     forge's stories alone
     (`tests/engine/domain/tests/suite/forge_routes/update_first.rs`). The request
@@ -24,7 +31,10 @@
     proof as 8.2's, so whether a producer's first question now reaches its change
     is unobserved.
   - 8.11, *The next producer merges the landing tip first*: a tip its start
-    already contains has no real run on record (`worker.status.md`, section 5).
+    already contains, a clean merge committed before its run and the advice
+    for a conflict have scripted coverage alone. No deployment replay on
+    record proves the `resume-told` request's resumed producer and its answerers
+    read the tree rightly (`worker.status.md`, sections 5 and 10).
   - 8.9: a refusal's "adopt the repository again" has no story from the browser. The engine takes an adopted repository's adoption (`readopt`, `temper/tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`), and by reading alone the form sends one (`../client/README.md`, 4.4); it opens at its defaults, so the person types the repository, its role, prefix and landing branch again.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for

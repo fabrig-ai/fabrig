@@ -1456,7 +1456,8 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         panic!("{name}: application")
                     };
                     let actual = match request {
-                        root::Application::Dismiss { .. }
+                        root::Application::Try { .. }
+                        | root::Application::Dismiss { .. }
                         | root::Application::Looked { .. }
                         | root::Application::SetAway { .. }
                         | root::Application::Overturn { .. } => {
@@ -2066,6 +2067,8 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
 fn removal_and_playground_answers_use_their_own_outcomes() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
     for (answer, expected) in [
+        (root::ApplicationAnswer::Try(root::TryAnswer::Tried), w::Outcome::Tried),
+        (root::ApplicationAnswer::Try(root::TryAnswer::NotTheirs), w::Outcome::NotTheirs),
         (root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed), w::Outcome::Dismissed),
         (
             root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge),
@@ -2699,30 +2702,35 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
 }
 
 #[test]
-fn dismissed_watches_name_the_partys_own_subject() {
-    let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Dismissed }).unwrap();
-    let event = family::to_root(
-        &jig_protocol_config::Directories::working(),
-        watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
-        &fixtures::forge_table(&[]),
-        None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
-        None,
-        &w::CEILINGS,
-    )
-    .unwrap();
-    let root::Event::Party(root::PartyInput::Watch { watcher, subject, .. }) = event else { panic!("dismissed watch") };
-    assert_eq!(
-        (watcher, subject),
-        (
-            WATCHER,
-            jig_domain_core::documents::Watched::Application {
-                scope: people::ApplicationScope::Own,
-                connector: wire::FORGE,
-                subject: Token::new(forge::DISMISSED_SUBJECT),
-            }
+fn dismissed_and_trials_watches_name_the_partys_own_subjects() {
+    for (watch, expected) in [(w::Watch::Dismissed, forge::DISMISSED_SUBJECT), (w::Watch::Trials, root::TRIALS_SUBJECT)]
+    {
+        let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch }).unwrap();
+        let event = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
+            &fixtures::forge_table(&[]),
+            None,
+            &family::Deployment { welcome: false, owned: false, program_login: None },
+            None,
+            &w::CEILINGS,
         )
-    );
+        .unwrap();
+        let root::Event::Party(root::PartyInput::Watch { watcher, subject, .. }) = event else {
+            panic!("dismissed watch")
+        };
+        assert_eq!(
+            (watcher, subject),
+            (
+                WATCHER,
+                jig_domain_core::documents::Watched::Application {
+                    scope: people::ApplicationScope::Own,
+                    connector: wire::FORGE,
+                    subject: Token::new(expected),
+                }
+            )
+        );
+    }
 }
 
 #[test]
@@ -3397,4 +3405,134 @@ fn forge_read_encodes_the_environment() {
     let words = b"TEMPER_CONFIG='/config' TEMPER_DATA='/data' TEMPER_CACHE='/cache'";
     let bytes = family::forge_read(root::ForgeReadAnswer::ProgramEnvironment, words, &w::CEILINGS).unwrap();
     assert_eq!(wire::decode_program_environment_answer(&bytes, &w::CEILINGS).unwrap().environment(), words);
+}
+
+#[test]
+fn trying_an_account_preserves_its_fields_and_uses_own_scope() {
+    for again in [false, true] {
+        let record = w::Requesting::new(
+            &w::CEILINGS,
+            w::RequestingParts {
+                request: w::Request::TryAccount(
+                    w::TryAccount::new(&w::CEILINGS, w::TryAccountParts { account: u32::MAX, again }).unwrap(),
+                ),
+            },
+        )
+        .unwrap();
+        let event = away_family(exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)));
+        let root::Event::Party(root::PartyInput::Application {
+            reply_to,
+            sign_in,
+            key,
+            digest,
+            scope,
+            carried,
+            request,
+        }) = event
+        else {
+            panic!("trial application")
+        };
+        assert_eq!(
+            (reply_to, sign_in, key, digest, scope, carried),
+            (REPLY, 3, REQUEST_KEY, [7; 32], people::ApplicationScope::Own, None)
+        );
+        assert_eq!(request, root::Application::Try { account: u32::MAX, again });
+    }
+}
+
+#[test]
+fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
+    use skein_lib::{Reader, Wall};
+    use temper_engine_domain_trials::{Class, Row, State, Step, Why};
+    let states = [
+        State::Running,
+        State::Answered { seconds: 3 },
+        State::Failed { why: Why::Refused },
+        State::Failed { why: Why::Waited },
+        State::Failed { why: Why::Ended { class: Class::Transient } },
+        State::Failed { why: Why::Ended { class: Class::Permanent } },
+        State::Failed { why: Why::Ended { class: Class::Run } },
+        State::Failed { why: Why::Ended { class: Class::Agent } },
+        State::Failed { why: Why::Ended { class: Class::Lost } },
+        State::Failed { why: Why::Ended { class: Class::Invalid } },
+        State::Failed { why: Why::Ended { class: Class::Refused } },
+    ];
+    let expected = [
+        w::TrialState::Running,
+        w::TrialState::Answered(w::TrialAnswered::new(&w::CEILINGS, w::TrialAnsweredParts { seconds: 3 }).unwrap()),
+        w::TrialState::Failed(
+            w::TrialFailed::new(&w::CEILINGS, w::TrialFailedParts { why: w::TrialWhy::Refused }).unwrap(),
+        ),
+        w::TrialState::Failed(
+            w::TrialFailed::new(&w::CEILINGS, w::TrialFailedParts { why: w::TrialWhy::Waited }).unwrap(),
+        ),
+    ];
+    for (index, state) in states.into_iter().enumerate() {
+        let rows = Box::new([
+            Row {
+                account: 12,
+                person: 7,
+                task: Some(31),
+                began: Wall::EPOCH,
+                took: Some(14),
+                step: Step::Answers,
+                state,
+            },
+            Row {
+                account: 11,
+                person: 7,
+                task: None,
+                began: Wall::EPOCH,
+                took: None,
+                step: Step::Starts,
+                state: State::Running,
+            },
+        ]);
+        let bytes = family::trials(rows, &w::CEILINGS).expect("whole trial document");
+        let mut reader = Reader::new(&bytes);
+        let document = w::Trials::decode(&w::CEILINGS, &mut reader).unwrap();
+        assert!(reader.is_empty());
+        let rows = document.into_parts().rows.into_boxed();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].account(), 12);
+        assert_eq!(*rows[0].task(), Some(31));
+        assert_eq!(*rows[0].took(), Some(14));
+        assert_eq!(*rows[0].step(), w::TrialStep::Answers);
+        assert_eq!(rows[1].account(), 11);
+        assert_eq!(*rows[1].task(), None);
+        assert_eq!(*rows[1].took(), None);
+        assert_eq!(*rows[1].step(), w::TrialStep::Starts);
+        if index < expected.len() {
+            assert_eq!(rows[0].state(), &expected[index]);
+        } else {
+            let w::TrialState::Failed(failed) = rows[0].state() else { panic!("failed row") };
+            let w::TrialWhy::Ended(ended) = failed.why() else { panic!("run ending") };
+            let classes = [
+                w::TrialClass::Transient,
+                w::TrialClass::Permanent,
+                w::TrialClass::Run,
+                w::TrialClass::Agent,
+                w::TrialClass::Lost,
+                w::TrialClass::Invalid,
+                w::TrialClass::Refused,
+            ];
+            assert_eq!(*ended.class(), classes[index - expected.len()]);
+        }
+        let bounds = w::Limits { trials_rows: 0, ..w::CEILINGS };
+        assert!(
+            family::trials(
+                Box::new([Row {
+                    account: 1,
+                    person: 7,
+                    task: None,
+                    began: Wall::EPOCH,
+                    took: None,
+                    step: Step::Starts,
+                    state,
+                }]),
+                &bounds
+            )
+            .is_none()
+        );
+    }
 }

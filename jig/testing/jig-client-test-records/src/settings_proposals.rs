@@ -58,5 +58,5 @@ pub fn pending() -> c::ProposalActionSettings {
 }
 #[must_use]
 pub fn retained() -> c::RetainedActionSettings {
-    c::RetainedActionSettings { against: 6, items: heads(), made: Some(7) }
+    c::RetainedActionSettings { projects: List::with_capacity(0), against: 6, items: heads(), made: Some(7) }
 }

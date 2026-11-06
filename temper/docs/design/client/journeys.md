@@ -599,11 +599,12 @@ python3 -m http.server 8766
   into the view, and reprints. The reprint then equals the request's
   pages where their facts agree; a hand-made page's values need not be
   a journey's (the request's README says where they came from). The
-  landing also renders the request against the reprint at each width,
-  with disclosures and menus open, and accounts for every rule, page
-  change and named state in its last commit (`../draft/look-requests.md`,
-  4 and 5). Where they differ, the account says why, and the later
-  requests take the reprint as it is. What the
+  landing accounts for every rule, page change and named state in its
+  last commit; where it departs, the account says why, and the later
+  requests take the reprint as it is (`../draft/look-requests.md`, 5).
+  After it lands, the render check compares the request with the reprint
+  at each width, with disclosures and menus open, and what differs goes
+  back as a finding (`../draft/look-requests.md`, 4). What the
   edits imply beyond the pages recorded (the same part in a state no
   journey reaches) is the view's and `temper.css`'s for every state, and
   the mockups follow (`mockups/README.md`, 1).
@@ -677,8 +678,7 @@ over skein's harness.
     control on the live page (the fake person's n-th match, skein's
     `ui.md` 17.1) and acts on it as a person: a press, a submit, a
     toggle, or the field's value selected and the act's value typed;
-  - **a key's mark:** Alt+Shift+M, then a second's wait, so that the
-    half second after the mark has passed before another control is acted on;
+  - **a key's mark:** Alt+Shift+M; its two saves are three seconds apart, since a fake box's set up pauses for over a second;
   - **the end:** the still save is the new recording.
 
   A step whose event no control gives, in a still save, within 10

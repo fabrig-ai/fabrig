@@ -1036,3 +1036,93 @@ fn source_wait(b: &mut Builder, w: &Words, word: crate::accounts::words::Word, u
     }
     b.close();
 }
+
+/// The first explanatory line of a run wait, with no command (temper/docs/design/domain/trial.md, 6.4).
+pub(crate) fn wait_why(root: &Domain, w: &Words, wait: &c::TaskRunWait) -> Box<[u8]> {
+    use crate::accounts::words::{self, Word as A};
+    use c::{TaskSourceState as S, TaskWaitWhy as R};
+    let (word, until) = match *wait {
+        c::TaskRunWait::Credential => return w.say(W::WaitCredential, &[]),
+        c::TaskRunWait::Host => return w.say(W::WaitCapacity, &[]),
+        c::TaskRunWait::Refused(why @ c::TaskWaitRefused::Hello { at, .. }) => {
+            return w.say(W::WaitRefused, &[Hole::Name(refused(w, &mut Times::new(at), why))]);
+        }
+        c::TaskRunWait::Account { account, why, .. } => match why {
+            R::Refreshing => return w.say(W::WaitRefreshing, &[]),
+            R::Host => {
+                let row = match account {
+                    Some(number) => account_row(root, number),
+                    None => None,
+                };
+                let name = match row {
+                    Some(row) => skein_lib::bytes::copy_of(row.display.bytes()),
+                    None => w.say(W::AccountRegion, &[]),
+                };
+                return w.say(W::WaitHost, &[Hole::Name(name)]);
+            }
+            R::Empty => return w.say(W::WaitEmpty, &[]),
+            R::Invalid(_) => return w.say(W::WaitInvalid, &[]),
+            R::Source(S::Moving) => return w.say(W::WaitMoving, &[]),
+            R::Source(S::Asking) => (A::Asking, None),
+            R::Source(S::Granted) => (A::Granted, None),
+            R::Source(S::Limited { until }) => (A::Limited, until),
+            R::Source(S::Later { until }) => (A::Later, until),
+            R::Source(S::NeedsSignIn) => (A::NeedsSignIn, None),
+            R::Source(S::Refused) => (A::Refused, None),
+            R::Source(S::Misconfigured) => (A::Misconfigured, None),
+            R::Source(S::Cancelled) => (A::Cancelled, None),
+            R::Source(S::Closing) => (A::Closing, None),
+            R::Source(S::Unloaded { at, why }) => {
+                let place = match at {
+                    c::AccountPlace::Directory => A::Directory,
+                    c::AccountPlace::File => A::File,
+                };
+                let why = match why {
+                    c::AccountUnread::Unreadable => A::Unreadable,
+                    c::AccountUnread::Refused => A::Refused,
+                    c::AccountUnread::Failed => A::Failed,
+                    c::AccountUnread::Stalled => A::Stalled,
+                    c::AccountUnread::TooLarge => A::TooLarge,
+                };
+                return words::join(&[
+                    &words::say(w, A::Unloaded, &[]),
+                    &words::say(w, place, &[]),
+                    b": ",
+                    &words::say(w, why, &[]),
+                ]);
+            }
+        },
+    };
+    let first = words::say(w, word, &[]);
+    match until {
+        Some(until) => words::join(&[&first, &words::say(w, A::Until, &[Hole::Wall(until)])]),
+        None => first,
+    }
+}
+/// Only waits that a moment can settle leave the try running (temper/docs/design/domain/trial.md, 6).
+pub(crate) const fn wait_settles(wait: &c::TaskRunWait) -> bool {
+    use c::{TaskSourceState as S, TaskWaitWhy as R};
+    match wait {
+        c::TaskRunWait::Account { why: R::Refreshing | R::Source(S::Asking | S::Granted | S::Moving), .. } => true,
+        c::TaskRunWait::Account {
+            why:
+                R::Host
+                | R::Empty
+                | R::Invalid(_)
+                | R::Source(
+                    S::Later { .. }
+                    | S::Limited { .. }
+                    | S::Refused
+                    | S::NeedsSignIn
+                    | S::Misconfigured
+                    | S::Unloaded { .. }
+                    | S::Cancelled
+                    | S::Closing,
+                ),
+            ..
+        }
+        | c::TaskRunWait::Credential
+        | c::TaskRunWait::Host
+        | c::TaskRunWait::Refused(_) => false,
+    }
+}

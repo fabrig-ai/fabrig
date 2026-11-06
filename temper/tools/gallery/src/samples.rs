@@ -105,7 +105,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 276;
+pub const N: usize = 279;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -249,6 +249,12 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "home-one-left",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-try-stopped",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -512,7 +518,9 @@ pub fn samples() -> [Sample; N] {
         },
         Sample { name: "configure-chat-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chat-accepted", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "configure-chat-rejected", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chat-replaced", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "configure-chat-withdrawn", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-draft-empty", world: Solo, address: Address::Chat { task: 1 }, then: Then::DraftEmpty },
         Sample { name: "chat-start-goal", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
@@ -1638,6 +1646,21 @@ fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>)
             out,
         );
         doc.settled = true;
+        doc.accounts = crate::worlds::accounts(World::Reference, Shown).accounts;
+        for account in doc.accounts.iter_mut() {
+            for source in account.sources.iter_mut() {
+                if source.name.as_deref() == Some(b"claude-pat") {
+                    source.number = 43;
+                }
+                source.usable = false;
+                source.state = c::AccountState::SignInAgain;
+            }
+        }
+        for host in doc.program_hosts.iter_mut() {
+            for program in host.programs.iter_mut() {
+                program.state = Some(c::ProgramState::NotSignedIn);
+            }
+        }
         crate::driver::deliver(root, watch, c::Delivery::Accounts(Box::new(doc)), out);
     }
 }
@@ -1649,6 +1672,8 @@ fn configure_domain(sample: &Sample) -> Domain {
             | "configure-chat-proposal-deployment"
             | "configure-chat-proposal-two-projects"
             | "configure-chat-accepted"
+            | "configure-chat-rejected"
+            | "configure-chat-withdrawn"
             | "configure-chat-replaced"
     ) {
         return crate::worlds::settings_chat_world(sample.name);
@@ -1952,7 +1977,8 @@ fn home_domain(name: &str) -> Domain {
         | "home-last-looked-none"
         | "home-landing-none"
         | "home-landing-red"
-        | "home-chats-sentence" => "home-nothing-needs",
+        | "home-chats-sentence"
+        | "home-try-stopped" => "home-nothing-needs",
         name => name,
     };
     let with_goals = name == "home-with-goals";
@@ -2141,6 +2167,29 @@ fn home_domain(name: &str) -> Domain {
                         Some(status) => wire::project_status(&status),
                         None => continue,
                     },
+                    w::Watch::Trials if status_name == "home-try-stopped" => {
+                        let row = w::TrialRow::new(
+                            &w::CEILINGS,
+                            w::TrialRowParts {
+                                account: accounts.accounts.get(0).expect("Home trial account").number,
+                                task: Some(91),
+                                took: None,
+                                step: w::TrialStep::Answers,
+                                state: w::TrialState::Failed(
+                                    w::TrialFailed::new(&w::CEILINGS, w::TrialFailedParts { why: w::TrialWhy::Waited })
+                                        .expect("Home stopped try"),
+                                ),
+                            },
+                        )
+                        .expect("Home trial row");
+                        let document =
+                            w::Trials::new(&w::CEILINGS, w::TrialsParts { rows: List::from_boxed(Box::new([row])) })
+                                .expect("Home trials");
+                        let mut writer =
+                            skein_lib::Writer::new(usize::try_from(document.measure()).expect("trial bytes fit"));
+                        document.encode(&mut writer).expect("measured trial bytes");
+                        writer.finish()
+                    }
                     w::Watch::Away if home_away => crate::worlds::home_away_record(away_name),
                     w::Watch::Decided(_) if home_away => {
                         decided_watch = Some(watch);
@@ -2155,6 +2204,7 @@ fn home_domain(name: &str) -> Domain {
                     | w::Watch::Change(_)
                     | w::Watch::Landing(_)
                     | w::Watch::Landings(_)
+                    | w::Watch::Trials
                     | w::Watch::Changes(_) => {
                         continue;
                     }

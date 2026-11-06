@@ -150,7 +150,7 @@ fn owner_activity_all_nine_lines_keep_task_commit_clock_and_exact_variant_facts(
         Activity::RunBegan { attempt: u64::MAX, why: RunWhy::Made, resumed: false },
         Activity::RunEnded { attempt: u64::MAX, end: RunEnd::Refused, spent: u64::MAX },
         Activity::Turn { reply: u64::MAX, attempt: u64::MAX, turn: u32::MAX, read: Some(u64::MAX) },
-        Activity::Decided { revision: u64::MAX },
+        Activity::Decided { revision: u64::MAX, proposal: None },
         Activity::Milestone { position: u64::MAX },
         Activity::Kept { attempt: u64::MAX, pending: List::with_capacity(0), question: None },
     ]);
@@ -282,7 +282,11 @@ fn owner_activity_archive_read_none_zero_and_max_are_distinct_without_decoding_o
         }
         retained.push(value).unwrap();
     }
-    let first = ActivityLine { position: 9, at: Wall::from_nanos(100), ..activity(Activity::Decided { revision: 3 }) };
+    let first = ActivityLine {
+        position: 9,
+        at: Wall::from_nanos(100),
+        ..activity(Activity::Decided { revision: 3, proposal: None })
+    };
     let later = ActivityLine { position: 10, at: Wall::from_nanos(0), ..first.clone() };
     goldens.check(&build(&first, normal_words()));
     goldens.check(&build(&later, normal_words()));

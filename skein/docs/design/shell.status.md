@@ -12,18 +12,11 @@ below remain; the Linux tests do not prove the Darwin arms.
   read from published XNU, whose `main` may lag `macos-26`'s kernel, and
   no recorded run shows it: a Linux test holds `listening`
   (`skein-shell/src/listener_calls.rs`) on both answers, and only the
-  constant that selects macOS's goes unrun. 7.5: `linux` and `darwin` each
-  still write eight functions that differ at most in a comment, a panic's
-  words or a path: `usage`, byte for byte, because the `resources` it calls
-  differs, and `close`, `count`, `effective_user`, `fd`, `nonblocking`,
-  `status_flags` and `truncate`, which the `debt-27` plan's cut, scanning for
-  what was the same byte for byte, took as differing or did not name. That
-  plan's request has such code live once, and its item is deleted. Seen by
-  reading. 9: temper's one story has not been seen green on the macOS workflow
+  constant that selects macOS's goes unrun. 9: temper's one story has not
+  been seen green on the macOS workflow
   (`temper/docs/design/domain/testing.md`, 2.8), and no macOS runner runs
-  skein's suites. No build of `darwin` over `posix` is on record: no builder
-  is known to hold `aarch64-apple-darwin`, so the first is that workflow's
-  compile step, where a red blocks nothing, and whether it has run is unknown.
+  skein's suites. Whether that workflow's compile step has run is unknown;
+  a cross-target build does not prove the Darwin runtime.
 - **Departs:** 6.2: `read_trust_roots` gives its caller the counts, and only
   `smith-agent-shell`'s `trust_sources` says them. temper's own two readers
   (`temper/crates/temper/src/lib.rs`, `trust`, and
@@ -37,3 +30,8 @@ below remain; the Linux tests do not prove the Darwin arms.
   7.5: the `debt-28` request of 2026-11-06 has each of its items end with fewer
   lines than it started; the keeper's fence ended 48 lines of Rust up, 9 in code
   and 39 in tests, since a change of path removes no body.
+  7.5: `linux` and `darwin` each keep `count`, `process::fd` and
+  `files::truncate`, differing only in a panic's words or a path, where the
+  section has identical calls live once in `posix`. These three were outside
+  the six-function task's scope (section 10), and no debt item holds them.
+  Seen by reading.

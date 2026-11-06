@@ -2,6 +2,9 @@
 
 2026-11-06. Where jig's code lags or departs from [people.md](people.md).
 Unlisted sections, including public reading (13), have no known gap.
+Loading goals ended before publication or across a restart remains
+deferred in section 12; a connector's retained commits do not widen the
+tasks handed from the public index (13.3, 13.9).
 
 - **Not yet:** 3: a service's credential reissued or removed. 5.1:
   `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a

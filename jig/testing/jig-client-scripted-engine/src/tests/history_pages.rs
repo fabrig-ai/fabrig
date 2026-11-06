@@ -20,6 +20,7 @@ fn semantic() -> HistoryRow {
         change: HistoryChange::Amended,
         reason: DocumentText { bytes: text(b"source reason"), cut: true },
         proposal: Some(ProposalHistory {
+            reason: DocumentText::complete(text(b"proposal reason")),
             number: u64::MAX,
             proposer: u64::MAX,
             action: RetainedAction::Release { task: 8 },

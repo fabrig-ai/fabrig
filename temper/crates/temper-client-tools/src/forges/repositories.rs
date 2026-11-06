@@ -234,6 +234,8 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Reset
         | w::Outcome::Away
+        | w::Outcome::Tried
+        | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
         | w::Outcome::Looked

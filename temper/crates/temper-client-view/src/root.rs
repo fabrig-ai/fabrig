@@ -260,6 +260,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             root,
             &view.forge_words,
             &mut view.pages,
+            &mut view.accounts,
             &mut view.forge,
             view.limits.tree.text_per_node,
             &mut times,
@@ -282,6 +283,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             root,
             &view.forge_words,
             &mut view.pages,
+            &mut view.accounts,
             *project,
             &mut times,
             view.rows,
@@ -294,6 +296,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             root,
             &view.forge_words,
             &mut view.pages,
+            &mut view.accounts,
             *project,
             view.limits.tree.text_per_node,
         );

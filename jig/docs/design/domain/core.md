@@ -285,7 +285,8 @@ A project is a body of work people steer, kept in the store:
 
 - **its number,** from 1, by which the store, addresses and every
   request name it, never changed: 0 names no project, but the
-  deployment's roles (people.md, section 3);
+  deployment's roles (people.md, section 3) and a person's task in no
+  project (authority.md, 6.1);
 - **its name,** by which people know it, unique in the deployment
   (below);
 - **its resources,** each adopted from a connector with a role: *owned*

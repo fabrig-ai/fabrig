@@ -1086,6 +1086,12 @@ agent for ever.
 
 ## 12. Open questions
 
+- **A change's body past 3,584 bytes** (section 8). A larger report needs
+  smith's outcome allowance, the hub's outcome bound and the charter's
+  body maximum to move together, with room for title and framing checked
+  again through the result codec. Default: the present maximum;
+  temper's report instructions and its larger-report question are in
+  `temper/docs/design/domain/agent.md`, sections 4.4 and 10.
 - **A delegated task's text.** A task a conversation delegates streams no
   text for now (6.5). Later the conversation's run could ask for it from
   its parent, so the person sees the delegate write; whether that asks

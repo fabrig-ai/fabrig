@@ -71,6 +71,7 @@ fn the_banner_key_way_opens_details_and_ready_removes_the_banner() {
     press(&mut front, &mut root, Role::Button, b"Add key", skein_ui::Act::Press);
     accounts::kept(&mut front);
     accounts::settle(&mut front, &mut root);
+    accounts::answer_trial(&mut front, &mut root);
     assert!(text(&root).contains("Added your Scripted API key"));
     assert!(!format!("{:?}", root.person().pages()).contains("test-private-key"));
     press(&mut front, &mut root, Role::Link, b"Start a chat", skein_ui::Act::Press);
@@ -279,6 +280,7 @@ fn a_fresh_page_at_the_return_address_follows_the_watch_to_ready_without_departi
         declined: false,
     }));
     accounts::settle(&mut front, &mut root);
+    accounts::answer_trial(&mut front, &mut root);
     assert!(text(&root).contains("Signed in to ChatGPT as alice@example.com"));
     assert_eq!(
         root.person()
@@ -333,9 +335,11 @@ fn welcome_moves_on(front: &mut Joint, root: &mut Root, source: u32) {
     let ready = Address::Welcome { step: d::Step::Ready };
     assert_eq!(root.person().pages().address(), &ready);
     assert_eq!(&front.shows[shown..], &[(ready, true)]);
+    accounts::answer_trial(front, root);
     assert!(
         view(root).tree().nodes().iter().any(|node| {
-            node.role == Role::Paragraph && node.name.as_deref() == Some("ChatGPT plan · alice@example.com".as_bytes())
+            node.role == Role::Paragraph
+                && node.name.as_deref() == Some("ChatGPT plan · alice@example.com · answered in 1 s".as_bytes())
         }),
         "{}",
         text(root)
@@ -440,8 +444,9 @@ fn a_typed_welcome_ready_reads_the_sign_in_then_its_account() {
         declined: false,
     }));
     accounts::settle(&mut front, &mut root);
+    accounts::answer_trial(&mut front, &mut root);
     assert!(view(&root).tree().nodes().iter().any(|node| node.role == Role::Paragraph
-        && node.name.as_deref() == Some("ChatGPT plan · alice@example.com".as_bytes())));
+        && node.name.as_deref() == Some("ChatGPT plan · alice@example.com · answered in 1 s".as_bytes())));
     assert!(!text(&root).contains("Connect a model"));
 }
 #[test]
@@ -496,6 +501,11 @@ fn welcome_claude_checks_on_the_wire_from_ready_and_observes_the_host_answer() {
     assert_eq!(
         root.person().pages().connect_model().unwrap().request.pending.as_ref().unwrap().ask,
         Ask::AccountChange { holder: AskAccountHolder::Own, change: AccountChange::CheckProgram { source: *source } }
+    );
+    assert_eq!(
+        root.person().pages().connect_model().unwrap().check,
+        d::pages::connect_model::ProgramCheck::Checking { source: *source },
+        "admission isn't the host's login observation"
     );
     accounts::program_checked(&mut front, &mut root, false);
     assert_eq!(root.person().pages().address(), &Address::Welcome { step: d::Step::Ready });

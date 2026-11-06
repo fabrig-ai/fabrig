@@ -88,7 +88,8 @@ fn a_delegates_tasks_stop_at_the_receivers_bound() {
 #[test]
 fn delegation_watches_leave_room_for_the_chats_other_watches() {
     let mut limits = fixtures::limits();
-    for (reads, watches, expected) in [(16, 16, 11), (2, 16, 2), (16, 5, 0), (16, 4, 0)] {
+    // Trials and a running trial task occupy two session watches.
+    for (reads, watches, expected) in [(16, 18, 11), (2, 18, 2), (16, 5, 0), (16, 4, 0)] {
         limits.client.domain.reads = reads;
         limits.client.domain.watches = watches;
         assert_eq!(delegation::bound(&limits), expected);
