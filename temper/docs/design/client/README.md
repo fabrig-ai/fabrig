@@ -6375,5 +6375,5 @@ own tests:
   Default: so, until a deployment says otherwise.
 - **A directory that isn't UTF-8** (4.6): `program_environment` carries its
   bytes as they are, and the page draws text. Default: the command isn't
-  drawn as it would run; `temper program-login --config ...` (`temper
-  program-login --help`) still does.
+  drawn as it would run; the flags `../../help/box.md`, section 5, shows
+  still do.
