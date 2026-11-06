@@ -15,12 +15,23 @@ This file grows with each push. What isn't written yet is named under *Still to 
 |---|---|---|---|
 | `log-acts` | `log-surface` | | a log may be bound; `Act::Near`, `State::Continues`, an end request |
 | `activity-beside` | `beside-surface` | | `Read::ActivityBeside` crosses the wire and reaches the core |
+| `activity-later` | `beside-store` | `beside-surface` | the store walks upward, through the real engine |
+| `thread` | `thread-window` | `beside-surface` | a window by size, `Edge::Dropped`, `newer` and `latest` read, `Line::Left` gone |
+| `page-part` | `page-reading` | `log-surface` | `Near` from measures, `Continues`, the held view, PgUp and PgDn, in real Chromium |
+| `text-shell` | `text-reading` | `log-surface` | `up`, `down`, and what PgUp and PgDn make |
 
-**Critical path so far:** either of these, about 40 implementer-minutes.
+**Critical path so far:** `log-surface` → `page-reading`, about 150 implementer-minutes.
+
+## Decisions so far
+
+- **`thread::Limits.lines` stays, and bites for temper no more.** jig's reference UI and temper's tools price their trees by rows, and both read a thread: removing the field would make their trees' bounds false. temper sets it to `document_bytes / LINE_ROOM` (16,384), which the bytes reach first, so that no number of lines bounds a chat. The draft allows this: "or it grows far past what the bytes hold". `pages::chat::LINES` and every 16 in temper go.
+- **`LINE_ROOM`, 64 bytes a line, message, block, object and part,** so the bytes bound what lines make of a page. Without it a window of many empty lines would hold 1 MB of nothing and make a page no bound priced.
+- **The page part holds the view itself,** rather than relying on `overflow-anchor`, which Safari doesn't have. It measures the words' move after an apply, so it adds nothing where a browser's own anchoring has already moved them.
+- **What's run and what's only read:** `skein/tests/browser` runs Chromium alone. Stories run with `overflow-anchor: none` as well, which is what Safari gives, and that is the nearest a run comes. Firefox and Safari themselves are only read, and the report says so.
 
 ## Still to come
 
-The store's forward walk; the thread's window by bytes; the page part's measures, its held view and its keys; the text shell's commands; the temper domain and view; the worlds; the journeys and the design's close.
+temper's domain, its view's bounds, its pages, the terminal's page, the worlds, the journeys and the design's close.
 
 ## Overlaps
 
