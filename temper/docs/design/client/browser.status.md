@@ -33,6 +33,10 @@
   choices, the sheet's among them, 40, as the mock's `.btn` and `.btn.small` do.
   The mock's `box.html` draws a terminal, what `temper box` prints, and no page
   of the client's draws it.
+- **Design departs:** 2.5, from the request `close-chat` of 2026-11-06, decided by
+  its plan's cut: a confirmation sheet's acts stand 44 px on a phone, where the
+  request's overlay has 38, to keep a phone's target. So at 420 px the sheet stands
+  6 px taller and 3 px higher than the request draws it.
 - **Departs:** 7.2: the gallery's comparison pages do not hold one copy of
   the greenfield scenario. `home-morning` is Hello with no goals or Away
   switch, `home-with-goals` has the Solo world's goals, and `home-away`

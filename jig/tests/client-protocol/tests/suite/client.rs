@@ -778,7 +778,7 @@ fn a_person_s_words_read_as_being_sent_then_sent_then_read() {
     use jig_client::thread::{Thread, Words};
     let mut story = Story::reading_chat(fixtures::SEED);
     let task = story.running_task();
-    let mut thread = Thread::new(task, &jig_client::thread::Limits { lines: 4, bytes: 65536, text: 32 });
+    let mut thread = Thread::new(task, &jig_client::thread::Limits { lines: 4, bytes: 65536, text: 32, live: 32 });
     let words = contract::Text::new(Box::from(b"Please continue".as_slice()), 32).expect("bounded words");
     assert!(thread.sending(WORDS, fixtures::FIRST_OWNER, words.clone(), 0));
     story.send(WORDS, Ask::Jig(Box::new(contract::Ask::Message { project: PROJECT_NUMBER, task, words })));
