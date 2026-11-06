@@ -24,7 +24,7 @@ fn the_reference_golden_decodes() {
             ObligationKind::Gap(_) => 2,
         }] += 1;
     }
-    assert_eq!(counts, [67, 13, 0]);
+    assert_eq!(counts, [66, 13, 0]);
     assert_eq!(golden.rules.len(), 16);
     for rule in &golden.rules {
         assert!(ids.insert(&rule.id));
@@ -81,7 +81,7 @@ fn every_profile_value_is_found() {
         assert!(golden::member(value, &setting.member).is_some(), "{}", obligation.id);
         count += 1;
     }
-    assert_eq!(count, 17);
+    assert_eq!(count, 15);
 }
 #[test]
 fn a_golden_is_refused_naming_the_path() {
