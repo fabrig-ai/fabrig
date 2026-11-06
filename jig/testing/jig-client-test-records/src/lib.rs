@@ -79,6 +79,7 @@ pub fn frame_record() -> w::Me {
             providers_cut: false,
             key_bytes: 256,
             redirect_bytes: 4096,
+            words_bytes: 8192,
             party: w::MeParty::new(
                 &lim,
                 w::MePartyParts {
