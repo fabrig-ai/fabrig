@@ -12,6 +12,7 @@ One writer per crate. A cause the profile puts in another task's crates is that 
 |---|---|
 | `figures-before` | its figures file, and no code |
 | `cuts-fork`, then `conformance-causes` | `skein/testing/skein-fork`, `jig/testing/jig-conformance`, `temper/tests/conformance` |
+| `lower-stories` | `temper/tests/engine/domain/tests/suite/root_routes/added_dependencies.rs` |
 | `stories-go` | `temper/tests/real-loop/tests/suite/fuzzy/**`, the case's files `temper/tests/real-loop/src/case.rs` and `src/case/**`, what those stories alone read in `temper/tests/real-loop/src/` |
 | `real-loop-causes` | `temper/tests/real-loop/src/**`, after `stories-go` |
 | `public-causes` | `temper/tests/one-process/**` |
