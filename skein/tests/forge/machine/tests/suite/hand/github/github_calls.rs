@@ -466,7 +466,11 @@ fn every_additional_read_runs_through_the_component() {
             "Permission",
             Read::Permission { user: 31 },
             &[br#"{"role_name":"write","user":{"id":31,"login":"alice"}}"#.as_slice()][..],
-            Answer::Permission(api::Permission::Write),
+            Answer::Permission(api::UserPermission {
+                user: 31,
+                login: Box::from(b"alice".as_slice()),
+                permission: api::Permission::Write,
+            }),
         ),
         (
             "Collaborators",
@@ -812,7 +816,15 @@ fn bot_permission_uses_its_installation_levels_without_io() {
         h.component.test_github_mut().rows.get_mut(&1).expect("owner installation").permissions =
             Levels { contents, pull_requests };
         h.call(1, REPO, Op::Read(Read::Permission { user: 9 }));
-        answered(&mut h, 0, Ok(Answer::Permission(expected)));
+        answered(
+            &mut h,
+            0,
+            Ok(Answer::Permission(api::UserPermission {
+                user: 9,
+                login: Box::from(b"".as_slice()),
+                permission: expected,
+            })),
+        );
         assert_eq!(h.connections_opened(), 0);
     }
 }
@@ -834,7 +846,15 @@ fn bot_permission_after_repository_discovery_sends_no_collaborator_request() {
     let mut h = f::github_calls();
     begin(&mut h, Op::Read(Read::Permission { user: 9 }));
     h.answer(FORGE, &f::ok(f::GITHUB_REPOSITORY));
-    answered(&mut h, 1, Ok(Answer::Permission(api::Permission::None)));
+    answered(
+        &mut h,
+        1,
+        Ok(Answer::Permission(api::UserPermission {
+            user: 9,
+            login: Box::from(b"".as_slice()),
+            permission: api::Permission::None,
+        })),
+    );
     assert_eq!(h.request_lines(FORGE).len(), 1);
 }
 

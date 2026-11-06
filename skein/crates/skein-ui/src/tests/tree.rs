@@ -575,3 +575,11 @@ fn a_plain_backslash_is_refused() {
 fn an_alt_backslash_is_refused() {
     let _tree = backslash_tree(crate::Modifier::Alt);
 }
+
+#[test]
+#[should_panic(expected = "orders belong to lists")]
+fn an_order_on_an_item_is_an_assertion() {
+    let mut builder = Builder::new(&LIMITS);
+    builder.open(Role::Item);
+    builder.ordered(1);
+}

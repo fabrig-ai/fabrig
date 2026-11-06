@@ -104,7 +104,7 @@ pub(super) fn run(runner: Option<&Path>, f: &Fixture, h: &mut Hosted, facts: &mu
     ));
     facts.push(h.observe("component-read-collaborators", repo, Read::Collaborators { page: 1 }.operation(), |a| matches!(a, Answer::Collaborators { collaborators, .. } if collaborators.iter().any(|c| c.user == f.writer.id && c.permission == api::Permission::Write))));
     facts.push(h.observe("component-read-permission", repo, Read::Permission { user: f.writer.id }.operation(), |a| {
-        a == &Answer::Permission(api::Permission::Write)
+        matches!(a, Answer::Permission(value) if value.user == f.writer.id && value.permission == api::Permission::Write)
     }));
     facts.push(h.observe(
         "component-read-locate",

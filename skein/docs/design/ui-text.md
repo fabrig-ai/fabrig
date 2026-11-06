@@ -187,7 +187,7 @@ this shell's text (ui.md, 17.1).
   | heading | `#` once per level, a space, its text |
   | paragraph, text, time | its text; a time's text is its owner's words for it (ui.md, section 9) |
   | list, tree, menu | named: `NAME:` and its items indented; unnamed: its items |
-  | item, tree item | `- ` before its first line, its other lines indented |
+  | item, tree item | `- ` before its first line, its other lines indented; an item directly under a list with an order (ui.md, 3.2) has its number and `. ` in place of `- `: the order's number for the first, one more for each after it |
   | table | its rows, one line each |
   | row | its cells', column headers' and row headers' texts, in order, joined by ` \| `; a row whose cells are all column headers with no text prints no line; every other row prints its line, including empty data cells |
   | cell, column header, row header | its text, as its row joins it; outside a row, its text on a line of its own |
@@ -355,7 +355,7 @@ this shell's text (ui.md, 17.1).
     kind, a secret with a value and one empty, a required field, a
     description on a group, on a field, on a row's cell and on a node
     that prints no line, a collection's count with its items' positions
-    and positions without a count, both sorts, a cell's spans, an image
+    and positions without a count, a list with an order, both sorts, a cell's spans, an image
     of each source, a node naming Escape, a focus request;
   - the first line with a status region set and its node present, set
     and absent, and not set;

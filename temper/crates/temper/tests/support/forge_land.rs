@@ -1335,7 +1335,7 @@ pub fn program_verification(login: &std::path::Path, accounts: &serde_json::Valu
 /// Select the live Claude model, replacing init's `OpenAI` and Anthropic routes
 /// while keeping demo and init's other fields. Inspect no login entry.
 /// Every stock charter's main model is the first configured: a live story runs on the cheapest.
-fn cheapest_model_first(path: &std::path::Path, name: &str) {
+pub fn cheapest_model_first(path: &std::path::Path, name: &str) {
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(path).expect("deployment")).expect("JSON");
     let models = value["engine"]["llm"]["models"].as_array_mut().expect("engine models");
     let at = models.iter().position(|model| model["name"] == name).expect("init declares the live model");
@@ -1345,10 +1345,7 @@ fn cheapest_model_first(path: &std::path::Path, name: &str) {
 }
 
 pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) {
-    let LiveModel::ClaudeCode { login } = model else {
-        cheapest_model_first(&config.join("temper.json"), model.name());
-        return;
-    };
+    let LiveModel::ClaudeCode { login } = model else { return };
     let path = config.join("temper.json");
     let agent_path = config.join("agent.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
