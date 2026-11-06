@@ -1,6 +1,7 @@
 //! Durable parent and scripted executors at the retained tasks boundary
 //! (domain/tasks.md, 11; domain/engine.md, 7).
 mod compound;
+use crate::PERSON;
 use crate::referee::{Seen, Stimulus, Tasks};
 use crate::stories::{ChildResult, Restart, RetryEnd, Story, TurnState};
 use crate::trace::Trace;
@@ -330,7 +331,7 @@ impl World {
 
     pub fn carve_pool(&mut self, period: u64, budget: u64) {
         let reply_to = self.to();
-        self.send(Event::CarvePool { reply_to, project: 1, person: 9, period, budget });
+        self.send(Event::CarvePool { reply_to, project: 1, person: PERSON, period, budget });
     }
 
     pub fn to(&mut self) -> ReplyTo {

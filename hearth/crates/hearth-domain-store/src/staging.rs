@@ -177,8 +177,7 @@ fn drop_layer(store: &mut Store, working: &Working, out: &mut Queue<Output>) {
     out.push(Output::Request(Request::Helper(Helper::Empty { layer })));
 }
 /// The drop ends: a discard is answered, a stage that failed is refused.
-fn dropped(store: &mut Store, working: &Working, out: &mut Queue<Output>) {
-    store.flight = Flight::Idle;
+fn dropped(working: &Working, out: &mut Queue<Output>) {
     out.push(Output::Answer(if working.step == Step::Discard {
         Answer::Discarded { key: working.key }
     } else {
@@ -220,7 +219,6 @@ pub(super) fn step(store: &mut Store, event: Event, out: &mut Queue<Output>) {
         }
         (Next::Published, Heard::Done) => return published(store, &working, out),
         (Next::Snapshotted, Heard::Snapshotted { uuid, parent_uuid }) => {
-            store.flight = Flight::Idle;
             store.staged = Some(Staged { key, uuid, parent_uuid, tmp: false });
             out.push(Output::Answer(Answer::Staged { key }));
             return;
@@ -233,7 +231,7 @@ pub(super) fn step(store: &mut Store, event: Event, out: &mut Queue<Output>) {
             Working { next: Next::Untreed, ..working },
             Request::Remove { directory: Directory::Layers, name: Removal::TreeTmp(key) },
         )),
-        (Next::Unstaged | Next::Untreed, Heard::Done) => return dropped(store, &working, out),
+        (Next::Unstaged | Next::Untreed, Heard::Done) => return dropped(&working, out),
         (
             Next::Created
             | Next::Hashed
@@ -269,7 +267,6 @@ fn failed(store: &mut Store, working: &Working, out: &mut Queue<Output>) {
         // The drop stops at its first failure and answers the cause it began with; what it left is
         // the startup scan's (4.4).
         Next::Emptied | Next::Unstaged | Next::Untreed => {
-            store.flight = Flight::Idle;
             out.push(Output::Answer(Answer::Unusable { step: working.step }));
         }
         Next::Created
@@ -282,7 +279,6 @@ fn failed(store: &mut Store, working: &Working, out: &mut Queue<Output>) {
         | Next::Snapshotted => {
             if working.step == Step::Seal {
                 // The staged layer stays with what the walk wrote, for the discard the build sends.
-                store.flight = Flight::Idle;
                 if let Some(staged) = &mut store.staged {
                     staged.tmp = working.tmp;
                 }
@@ -302,7 +298,6 @@ fn published(store: &mut Store, working: &Working, out: &mut Queue<Output>) {
     if let Some((key, parent)) = working.then {
         snapshot(store, &Working::new(Step::Stage, Next::Snapshotted, key, working.at), parent, out);
     } else {
-        store.flight = Flight::Idle;
         store.staged = None;
         out.push(Output::Answer(Answer::Sealed { key: working.key }));
     }

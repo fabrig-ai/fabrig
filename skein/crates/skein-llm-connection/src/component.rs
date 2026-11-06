@@ -716,16 +716,10 @@ impl Component {
                                     if connection.endpoint == waiting.endpoint {
                                         count = count.checked_add(1).expect("bounded connections");
                                     }
-                                    match connection.phase {
-                                        Idle | Ready if connection.endpoint == waiting.endpoint => reusable = true,
-                                        Idle => evictable = true,
-                                        Connecting { .. }
-                                        | Handshaking { .. }
-                                        | Head { .. }
-                                        | Streaming { .. }
-                                        | Draining
-                                        | Ready
-                                        | Closing { .. } => {}
+                                    if connection.reusable() && connection.endpoint == waiting.endpoint {
+                                        reusable = true;
+                                    } else if connection.idle() {
+                                        evictable = true;
                                     }
                                 }
                                 None => {}
@@ -751,15 +745,7 @@ impl Component {
         for slot in &self.slots {
             match slot {
                 Some(id) => match self.connections.get(*id) {
-                    Some(connection) if connection.endpoint == endpoint => match connection.phase {
-                        Idle | Ready => return Some(*id),
-                        Connecting { .. }
-                        | Handshaking { .. }
-                        | Head { .. }
-                        | Streaming { .. }
-                        | Draining
-                        | Closing { .. } => {}
-                    },
+                    Some(connection) if connection.endpoint == endpoint && connection.reusable() => return Some(*id),
                     Some(_) | None => {}
                 },
                 None => {}
@@ -768,7 +754,6 @@ impl Component {
         None
     }
 
-    #[expect(clippy::too_many_lines, reason = "exhaustive connection reuse, eviction and opening")]
     fn serve_waiting(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<IoRequest>) -> bool {
         let index = match self.runnable_waiting() {
             Some(index) => index,
@@ -810,22 +795,12 @@ impl Component {
             for slot in &self.slots {
                 match slot {
                     Some(id) => match self.connections.get_mut(*id) {
-                        Some(connection) => match connection.phase {
-                            Idle if connection.endpoint != endpoint => {
-                                connection.request_close(false);
-                                connection.route(env, id.token(), up, io);
-                                return true;
-                            }
-                            Connecting { .. }
-                            | Handshaking { .. }
-                            | Head { .. }
-                            | Streaming { .. }
-                            | Draining
-                            | Idle
-                            | Ready
-                            | Closing { .. } => {}
-                        },
-                        None => {}
+                        Some(connection) if connection.idle() && connection.endpoint != endpoint => {
+                            connection.request_close(false);
+                            connection.route(env, id.token(), up, io);
+                            return true;
+                        }
+                        Some(_) | None => {}
                     },
                     None => {}
                 }

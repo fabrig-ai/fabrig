@@ -2,20 +2,12 @@ use jig_domain_tasks::{
     self as tasks, Active, Amendment, Ending, Event, Executor, Hold, HoldKind, Holding, Kind, MessageKind, Name, Party,
     Phase, ProcedureDecision, ProcedureEnd, Release, Taken, TaskResult, WakePolicy, WakeRule,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
-use skein_lib::{Duration, ReplyTo};
+use jig_tasks_world::{LIMITS, PERSON_PARTY as AMENDER, Reply, World, done, response, task};
+use skein_lib::Duration;
 
 const KEPT: u64 = 1;
 const DEPENDENCY: u64 = 2;
 const OTHER: u64 = 3;
-const AMENDER: Party = Party::Person(9);
-
-fn response(world: &mut World, event: impl FnOnce(ReplyTo) -> Event) -> Reply {
-    let to = world.to();
-    let call = to.into_token();
-    world.send(event(ReplyTo::new(call)));
-    world.replies[&call.raw()].clone()
-}
 
 fn amend(world: &mut World, dependencies: &[u64]) {
     let message = world.record(KEPT).last_message + 1;
@@ -65,12 +57,6 @@ fn pair() -> World {
     kept.wake = quiet();
     world.make(AMENDER, vec![kept, task(DEPENDENCY, &[])]);
     world
-}
-
-fn done(world: &mut World, number: u64) {
-    world.claim_fresh(number);
-    world.finish(number);
-    world.settle(number);
 }
 
 fn met(world: &World, dependency: u64, removed: bool, from: Party, hits: u32) {

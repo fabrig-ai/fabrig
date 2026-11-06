@@ -1,6 +1,6 @@
 # lib: status
 
-2026-11-05. Where skein's code lags or departs from [lib.md](lib.md).
+2026-11-06. Where skein's code lags or departs from [lib.md](lib.md).
 
 - **Not yet:** 3: `Slab::get2_mut`. 6: a carrier's lengths, beyond
   skein-http's heads, skein-channel's frames and the oauth crates' bodies
@@ -21,7 +21,10 @@
   in the engine's HTTP `Call`, so the printed link's secret prints there,
   and a bearer's token in `Reply::Record`'s encoded `SignedIn`. Of the rest,
   a `FrameWriter` holds a body as it is written, a local in the same way, and
-  none has a known credential path.
+  none has a known credential path. jig's `translate::Up::Visited` and
+  `jig_domain_accounts::Event::Visited` print the visit address, with the sign-in's `state`,
+  challenge and nonce that oauth.md, 4 has hidden, because jig's
+  `protocol/llm.md`, 5.2 keeps the address as an answer, spent with its sign-in.
 - **Departs:** 6: a step widens with `usize_of` and `len_u64`, but `try_from`
   still stands for them in three places. What the schema compiler prints
   holds `usize::try_from(limit).expect("u32 fits usize")`, 13 sites in
