@@ -14,7 +14,7 @@ use crate::jig::{Limits, runner::Printed};
 use alloc::boxed::Box;
 use jig_client::{
     contract::{HeldRole, Me, Recipient, Requester, Task, WaitedFor, WaitsOn, Whom},
-    words::{self, Word},
+    words::{self, WaitingWord, Word},
 };
 use skein_json::writer::Encoder;
 use skein_ui::phrases::{PhraseLimits, Phrasebook};
@@ -302,7 +302,7 @@ fn task_with_specification(
     llm::text_choice(task.llm.as_ref(), out);
     llm::text_wait(task.run_wait, out);
     out.put(b"\nwaiting on: ");
-    waiting(&task.waits_on, me, book, out);
+    waiting(task, me, book, out);
     out.put(b"\n");
     task_details(task, me, book, vocabulary, out);
 }
@@ -370,8 +370,8 @@ fn project(number: u32, me: Option<&Me>, out: &mut Text) {
     out.put(b"project ");
     out.number(u64::from(number));
 }
-fn waiting(value: &WaitsOn, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
-    match value {
+fn waiting(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
+    match &task.waits_on {
         WaitsOn::Party { whom, task, kind, entries } => {
             match whom {
                 Whom::Person(party) => acts::party(*party, me, out),
@@ -392,8 +392,15 @@ fn waiting(value: &WaitsOn, me: Option<&Me>, book: &Phrasebook, out: &mut Text) 
             out.number(u64::from(*entries));
             out.put(b" waiting");
         }
-        WaitsOn::Dependencies { .. } | WaitsOn::Delegates | WaitsOn::News | WaitsOn::Nothing => {
-            out.put(&book.say(0, Word::waiting(value).id(), &[]).expect("waiting phrase").text);
+        WaitsOn::Dependencies { .. } | WaitsOn::Delegates | WaitsOn::News => {
+            out.put(&book.say(0, Word::waiting(&task.waits_on).id(), &[]).expect("waiting phrase").text);
+        }
+        WaitsOn::Nothing => {
+            let word = match &task.hold {
+                Some(_) => Word::Waiting(WaitingWord::Held),
+                None => Word::waiting(&task.waits_on),
+            };
+            out.put(&book.say(0, word.id(), &[]).expect("waiting phrase").text);
         }
     }
 }
