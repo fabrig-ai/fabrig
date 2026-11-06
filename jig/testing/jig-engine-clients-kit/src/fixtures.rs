@@ -28,6 +28,7 @@ pub fn settings() -> Settings {
         deployment_provider: 2,
 
         link: Some(first_owner()),
+        link_secret: None,
         heartbeat: Duration::from_secs(5),
         rows: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents.rows,
         served,
@@ -226,6 +227,7 @@ pub fn copy_settings(settings: &Settings) -> Settings {
         provider: None,
         addresses: settings.addresses.clone(),
         link: settings.link.clone(),
+        link_secret: settings.link_secret.clone(),
         deployment_provider: settings.deployment_provider,
         heartbeat: settings.heartbeat,
         rows: settings.rows,

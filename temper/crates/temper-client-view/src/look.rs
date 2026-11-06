@@ -626,7 +626,6 @@ pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Heading { level: 3 }, SHEET_FIELDSET, "legend"),
     (owner(), skein_ui::Role::Text, SHEET_MUTED, "small"),
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
-    (owner(), skein_ui::Role::List, WELCOME_NUMBERED, "ol"),
     (owner(), skein_ui::Role::Slot, WELCOME_SPIN, "span"),
     (owner(), skein_ui::Role::Slot, WELCOME_OK, "span"),
     (owner(), skein_ui::Role::ChoiceGroup, WELCOME_START, "fieldset"),
@@ -654,8 +653,10 @@ pub const WELCOME_FORGE_STATUS: Style = Style { owner: owner(), token: 373 };
 pub const WELCOME_PANEL: Style = Style { owner: owner(), token: 365 };
 /// A Model sign-in’s note (client/README.md, 3.5).
 pub const WELCOME_AWAY: Style = Style { owner: owner(), token: 366 };
-/// The paste’s numbered instructions (client/README.md, 3.5).
-pub const WELCOME_NUMBERED: Style = Style { owner: owner(), token: 367 };
+/// The waiting note’s external link (client/README.md, 3.5).
+pub const WELCOME_AGAIN: Style = Style { owner: owner(), token: 460 };
+/// The waiting page’s folded paste (client/README.md, 3.5).
+pub const WELCOME_PASTE: Style = Style { owner: owner(), token: 461 };
 /// A Model panel’s full-width secret field (client/README.md, 3.5).
 pub const WELCOME_FIELD: Style = Style { owner: owner(), token: 368 };
 /// The welcome’s terminal command (client/README.md, 3.5).
@@ -1042,7 +1043,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-sep",
         b"temper-welcome-panel",
         b"temper-welcome-away",
-        b"temper-welcome-numbered",
+        b"temper-reserved-367",
         b"temper-welcome-field",
         b"temper-welcome-cmd",
         b"temper-welcome-current",
@@ -1135,6 +1136,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-check-stopped",
         b"temper-welcome-check-failed",
         b"temper-welcome-check-why",
+        b"temper-welcome-again",
+        b"temper-welcome-paste",
     ],
     regions: &[b"temper-link"],
 };
