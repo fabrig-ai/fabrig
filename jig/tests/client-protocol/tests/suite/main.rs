@@ -3,6 +3,7 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 
 mod client;
 mod deadline_spans;
+mod me;
 mod native;
 mod orders;
 mod protocol;

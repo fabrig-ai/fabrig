@@ -653,7 +653,7 @@ record MePrices { input: u64 cached: u64 cache_write: option u64 output: u64 uni
 record MeModel { name: text 4096 provider: option u32 window: u32 output: u32 efforts: list 16 text 32 prices: MePrices description: option text 512 }
 record ProviderOffer { provider: u32 name: DocumentText sign_in: bool key: bool programs: list 32 text 32 programs_cut: bool none: bool signed_in_plan: bool manage_usage: option bytes 2048 key_bytes: u32 }
 enum Readiness { usable, unavailable, unknown }
-record Me { party: MeParty projects: bytes 16777216 needs: Needs needs_total: u32 updates: Count results_seen: u64 cut: bool retention: duration deployment_role: option HeldRole providers: bytes 16777216 providers_cut: bool key_bytes: u32 redirect_bytes: u32 }
+record Me { party: MeParty projects: bytes 16777216 needs: Needs needs_total: u32 updates: Count results_seen: u64 cut: bool retention: duration deployment_role: option HeldRole providers: bytes 16777216 providers_cut: bool key_bytes: u32 redirect_bytes: u32 words_bytes: u32 }
 record LiveDelegate { chip: Chip takeover_budget: u64 }
 record TaskContext { parts: bytes 16777216 closing: option Closing spend: list 32 SpendLine runtime: Runtime impact: Impact writer_slots: bytes 16777216 }
 record TaskResultDocument { value: ResultDocument }
