@@ -80,6 +80,8 @@ configure-chat-proposal-deployment
 configure-chat-proposal-two-projects
 configure-chat-replaced
 configure-chats-tag
+configure-reference
+configure-reference-draft
 configure-refused
 configure-sending
 configure-typing
