@@ -817,7 +817,7 @@ fn an_ended_goal_counts() {
         Event::Told { told: Told::Page { handle: reserved_handle(2), page: Readout::Limit } },
         &mut Queue::uncapped(),
     );
-    assert!(!h.root.has_goals(fixtures::PROJECT), "an undelivered read is false");
+    assert!(h.root.has_goals(fixtures::PROJECT), "a valueless read keeps the known goal");
 }
 
 #[test]
@@ -922,4 +922,41 @@ fn signing_out_and_out_of_date_release_the_fact() {
         h.answer(read, &[line(GOAL, Wall::EPOCH)]);
         assert!(!h.root.has_goals(fixtures::PROJECT));
     }
+}
+
+#[test]
+fn a_lost_read_keeps_the_page_and_the_count() {
+    let mut h = Harness::new();
+    let first = ended_read(&h.reads());
+    h.answer(first, page(&[line(GOAL, Wall::EPOCH), line(OTHER, Wall::EPOCH)], true));
+    h.reads();
+    h.act(Act::MoreGoals);
+    let next = ended_read(&h.reads());
+    let before = rows(h.goals().ended());
+    let count = h.goals().count(h.root.client());
+    h.result(next, Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)));
+    assert_eq!(h.goals().ended(), before.as_slice());
+    assert_eq!(h.goals().count(h.root.client()), count, "lost second page counts no retained row twice");
+    h.act(Act::MoreGoals);
+    assert!(!h.reads().is_empty(), "lost read clears reading_page");
+}
+#[test]
+fn a_lost_read_keeps_has_goals() {
+    let mut h = FactHarness::new(me());
+    let (watch, read) = fact_requests(&h.take(), fixtures::PROJECT);
+    h.live(watch, &[]);
+    h.answer(read, &[line(GOAL, Wall::EPOCH)]);
+    pages::step(
+        &mut h.root.pages,
+        &fixtures::env(&fact_limits()),
+        &h.root.client,
+        Event::Told {
+            told: Told::Page {
+                handle: reserved_handle(2),
+                page: Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)),
+            },
+        },
+        &mut Queue::uncapped(),
+    );
+    assert!(h.root.has_goals(fixtures::PROJECT));
 }
