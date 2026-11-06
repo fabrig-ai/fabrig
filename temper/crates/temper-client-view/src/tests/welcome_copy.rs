@@ -14,6 +14,14 @@ fn command(tree: &skein_ui::Tree) -> Box<[u8]> {
     f::node_text(tree, index)
 }
 
+#[expect(clippy::disallowed_methods, reason = "semantic assertions locate the button")]
+fn copy_button(tree: &skein_ui::Tree) -> usize {
+    tree.nodes()
+        .iter()
+        .position(|n| n.role == Role::Button && n.styles.as_slice().contains(&look::WELCOME_COPY))
+        .unwrap()
+}
+
 #[test]
 #[expect(clippy::disallowed_methods, reason = "semantic assertions inspect the browser and terminal trees")]
 fn only_the_browser_wraps_the_exact_command_with_a_quiet_copy_button() {
@@ -39,6 +47,25 @@ fn only_the_browser_wraps_the_exact_command_with_a_quiet_copy_button() {
         !terminal.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::WELCOME_CMD_BOX)
             || n.styles.as_slice().contains(&look::WELCOME_COPY))
     );
+}
+
+#[test]
+fn the_button_reads_each_label_once_in_the_browser() {
+    for (written, label) in [(None, "Copy"), (Some(Written::Done), "Copied"), (Some(Written::Refused), "Couldn’t copy")]
+    {
+        let (mut root, _) = welcome::model_with_forge(d::WayKind::Program);
+        let mut view = f::browser_page_view(&root);
+        if let Some(written) = written {
+            let id = f::find(view.tree(), Role::Button, b"Copy").unwrap();
+            let event = crate::act_event(&mut view, id, Act::Press).unwrap();
+            f::root_event(&mut root, event);
+            f::root_event(&mut root, d::Event::Copied { token: 1, written });
+            f::build(&mut view, &root);
+        }
+        let index = copy_button(view.tree());
+        assert_eq!(view.tree().nodes()[index].name.as_deref(), Some(label.as_bytes()));
+        assert!(f::node_text(view.tree(), index).is_empty(), "{label}: a text child draws the name again");
+    }
 }
 
 #[test]
