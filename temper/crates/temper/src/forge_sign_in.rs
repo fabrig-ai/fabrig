@@ -34,6 +34,7 @@ pub(crate) fn run(directories: &super::Directories, bytes: &[u8], named: &Named,
         .expect("checked engine");
     let provider = engine.clients.provider.as_ref().ok_or("engine.clients.provider is not configured")?;
     let client = provider.clients.iter().find(|client| client.id == row.client).expect("checked sign-in client");
+    let secret = client.secret.as_ref().ok_or("its client has no secret; a box adds its own source")?;
     let application = super::member(&document, 0, b"application");
     let clients = super::member(&document, application, b"clients");
     let public = config::read::Object::new(&document, clients).expect("checked clients").member(&document, b"public");
@@ -45,9 +46,9 @@ pub(crate) fn run(directories: &super::Directories, bytes: &[u8], named: &Named,
     };
     let mut discovery = origin;
     discovery.extend_from_slice(b"/.well-known/openid-configuration");
-    let instructions = sign_in::instructions(b"forgejo", None, &client.id, &client.secret, &discovery, first_sign_in());
+    let instructions = sign_in::instructions(b"forgejo", None, &client.id, secret, &discovery, first_sign_in());
     make_missing(super::path(&provider.key), true)?;
-    make_missing(super::path(&client.secret), false)?;
+    make_missing(super::path(secret), false)?;
     std::io::stdout().write_all(&instructions).map_err(|why| format!("print instructions: {why}"))?;
     Ok(0)
 }

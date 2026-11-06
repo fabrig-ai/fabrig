@@ -145,12 +145,12 @@ fn provider(jig: &mut config::Engine) {
         clients: Box::new([
             config::clients::ProviderClient {
                 id: b"forgejo".as_slice().into(),
-                secret: b"forgejo.secret".as_slice().into(),
+                secret: Some(b"forgejo.secret".as_slice().into()),
                 redirect_uri: b"http://127.0.0.1:9/user/oauth2/temper/callback".as_slice().into(),
             },
             config::clients::ProviderClient {
                 id: b"second".as_slice().into(),
-                secret: b"second.secret".as_slice().into(),
+                secret: Some(b"second.secret".as_slice().into()),
                 redirect_uri: b"http://127.0.0.1:9/user/oauth2/temper/callback".as_slice().into(),
             },
         ]),

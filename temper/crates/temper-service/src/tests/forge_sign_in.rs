@@ -59,7 +59,7 @@ fn entries(
         .iter()
         .map(|row| ProviderClient {
             id: row.client.clone(),
-            secret: b"forgejo.secret".as_slice().into(),
+            secret: Some(b"forgejo.secret".as_slice().into()),
             redirect_uri: CALLBACK.into(),
         })
         .collect();
