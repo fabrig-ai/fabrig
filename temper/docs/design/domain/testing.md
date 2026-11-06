@@ -2436,7 +2436,7 @@ check binds each role to a number:
 | `goal-template` | template 4 | the template whose `resources` hold *its own goal branch* |
 | `small-goal-template` | the stock's goal template | the stock's number |
 | `main-rule` | landing rule 1 | the deployment's rule whose pattern ends exactly `main` |
-| `goal-rule` | landing rule 2 | the deployment's rule whose pattern ends open on `temper` |
+| `goal-rule` | landing rule 2 | the deployment's or the project's rule whose pattern ends open on `temper`, or open on nothing beneath a segment `temper`: each covers a goal branch |
 
 A role bound by assignment takes one of the charters the accepted
 revision adds that no anchor took: of every assignment, the one that

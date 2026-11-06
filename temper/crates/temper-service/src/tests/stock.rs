@@ -184,10 +184,10 @@ fn assert_reference_authority(old: &jig_domain_authority::Authority, new: &jig_d
 
 fn reference_requirements() -> settings_form::view::Authority {
     use settings_form::view::{SettingEdit, SettingValue};
-    let help = include_str!("../../../../docs/help/configure.md");
-    let json = help
+    let readme = include_str!("../../../../docs/examples/reference/README.md");
+    let json = readme
         .split_once("cat > reference-authority.json <<'JSON'\n")
-        .expect("configure documents reference authority")
+        .expect("the reference's README documents its authority")
         .1
         .split_once("\nJSON")
         .unwrap()

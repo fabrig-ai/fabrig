@@ -2441,7 +2441,7 @@ that changes the stock changes nothing of them.
     and policy 1 changed as above, before the case's project is made,
     since a project takes policy 1 as it is made (13.6, step 1);
   - `project.json`, applied once the case's project is made, its number
-    set by `jq` as `temper help configure` sets a `project-policy`'s: kind
+    set by `jq` as its `README.md` sets a `project-policy`'s: kind
     7 of that project, all four shown and `way` 4, so that the project
     shows its goals. A project's setting cannot be in `settings.json`,
     which is applied before the project exists;

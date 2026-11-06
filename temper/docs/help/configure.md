@@ -108,67 +108,17 @@ Edit the project's whole project-policy (step 2); apply by step 3. Re-adopt with
 projects; re-adoption keeps roles. temper's writer never counts.
 See temper help landing-rule.
 
-### Authority for the reference charters
+### Authority for new charters
 
 Installing charters alone grants no task authority. Widen the rules ceiling,
-policy 1's ceiling and the creator-role authority before starting a reference goal.
+policy 1's ceiling and the creator-role authority before work uses them: each
+tool family its runs call and each note scope, a bit each, and each charter,
+procedure, job or role it delegates to (temper help settings-fields). Preserve
+budgets, grants, other fields and granted bits. Size tasks, depth and spend
+(temper help budget).
 
-Required: delegate 1, message 2, control 4 (`amend`, `cancel`, `release`, `decided`),
-decide 8 (`decide`, `decide_escalation`), propose 16, subscribe 32
-(`subscribe`, `subscribe_forge`), note 128, recall 256, forge reads 512.
-Stock tools 1671 include note 128 and settings 1024; widening gives tools 1983.
-Writes need goal and project note scopes, bits 1 and 2: notes 3.
-
-`ROLE`: creator role (stock owner 0). `PROJECT`: existing project number.
-Preserve budgets, grants, other fields and granted bits:
-
-```sh
-temper ctl DIR settings show rules --json > reference-rules.json
-temper ctl DIR settings show policy 1 --json > reference-policy.json
-cat > reference-authority.json <<'JSON'
-{"tools": [8, 16, 32, 128, 256], "notes": [1, 2],
- "kinds": [{"charter": 5}, {"charter": 7}, {"charter": 6},
-           {"procedure": 2}, {"job": 3}, {"role": 0}]}
-JSON
-cat > reference-authority.jq <<'JQ'
-def grant($bits):
-  reduce $bits[] as $bit (.;
-    if ((. / $bit | floor) % 2) == 0 then . + $bit else . end);
-def widen:
-  .tools |= grant($required[0].tools)
-  | .notes |= grant($required[0].notes)
-  | .delegation.kinds |= (. + $required[0].kinds | unique);
-.items |= map(
-  .set.ceiling |= widen
-  | if .setting.kind == "rules" then .
-    else (.set.roles[] | select(.number == $role) | .authority) |= widen
-    end)
-JQ
-jq -s '{items: map({setting, set: .value})}' reference-rules.json reference-policy.json > reference-input.json
-jq --slurpfile required reference-authority.json --argjson role ROLE -f reference-authority.jq reference-input.json > FILE
-```
-
-Expect: widened rules and policy 1 in `FILE`, retaining executors and adding
-coordinator charter 5, designer charter 7, foreman charter 6, change procedure 2,
-merge job 3 and person role 0. Install charters first, offering these families.
-Size tasks, depth and spend (temper help budget).
-
-Policy 1 affects future projects. Existing projects need project-policy.
-If its current policy equals policy 1 just read:
-
-```sh
-jq --argjson project PROJECT '{items: [{setting: {kind: "project-policy", project: $project}, set: .value}]}' reference-policy.json > reference-project.json
-```
-
-For a customized project, use its saved whole current `project-policy` settings item
-in `reference-project.json` as `{"items": [...]}`, preserving all fields.
-Widen its ceiling and creator role; combine:
-
-```sh
-jq --slurpfile required reference-authority.json --argjson role ROLE -f reference-authority.jq reference-project.json > reference-project-settings.json
-jq -s '{items: [.[].items[]]}' FILE reference-project-settings.json > reference-settings.json
-mv reference-settings.json FILE
-```
+Policy 1 affects future projects. Existing projects need project-policy: edit
+each one's saved whole current `project-policy` settings item the same way.
 
 Apply through step 3 as owner of both scopes. Tools need their bits at task,
 project and deployment; notes also need scope bits. Existing tasks do not gain
@@ -288,8 +238,7 @@ revision. `too large` needs a later revision within the proposal bound;
 
 ## Clean up
 
-- Remove `FILE`, `reference-*.json` and `reference-authority.jq`; keep policies
-  needed later. Applied settings stay.
+- Remove `FILE`; keep policies needed later. Applied settings stay.
 - Revisions are released when their last task ends or moves.
 
 ## Next
