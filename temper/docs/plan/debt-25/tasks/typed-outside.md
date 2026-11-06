@@ -3,7 +3,7 @@ id = "typed-outside"
 part = "replay"
 kind = "feature"
 needs = ["outside-derives", "core-answers"]
-files = ["jig/tests/conformance/src/replay.rs", "jig/tests/conformance/src/lib.rs", "jig/tests/conformance/src/restart.rs", "jig/tests/conformance/tests/suite/snapshot.rs", "jig/tests/conformance/tests/suite/fuzzy/snapshot.rs"]
+files = ["jig/tests/conformance/src/replay.rs", "jig/tests/conformance/src/lib.rs", "jig/tests/conformance/src/scenarios/queries.rs", "jig/tests/conformance/src/scenarios/lifecycle.rs", "jig/tests/conformance/src/restart.rs", "jig/tests/conformance/tests/suite/snapshot.rs", "jig/tests/conformance/tests/suite/fuzzy/snapshot.rs"]
 effort = "high"
 minutes = 40
 +++
@@ -34,6 +34,7 @@ Acceptance:
 
 - **Owns:** the files in the header.
 - **A missing derive in a kit under `jig/testing`** is one line, allowed. A step crate's stops and asks.
+- **The world's own scenario states,** `State` in `jig/tests/conformance/src/scenarios/queries.rs` and `lifecycle.rs`, take `PartialEq, Eq` on their derive line and nothing else.
 
 ## Steps
 
@@ -43,3 +44,7 @@ Acceptance:
 ## Report
 
 The common note's items; the field you changed and what `first_difference` said; net test lines.
+
+## Answers
+
+- 2026-11-06. May this task add `PartialEq, Eq` to `State` in `scenarios/queries.rs` and `scenarios/lifecycle.rs`, or should `outside-derives` supply them? This task adds them. Both files are now in its header, and both edits stay on the derive line. They are the conformance world's own types, not kits under `jig/testing`, so `outside-derives`, already merged, keeps its scope. `Neighbours` holds these states, so `Outside`'s acceptance can't hold without them. Their fields already have `Eq` (`reads::Cursor` and `people::Outcome` included), so no step crate changes. Exclude no field. The one-line `jig-test-store-files` dependency in `jig/tests/conformance/Cargo.toml`, and its `Cargo.lock` entry, stand. Continue from the pushed `debt-25/typed-outside`: compile, run the spec's checks and the by-hand difference, and compact the +7 test lines as far as you can. If typed equality then finds a difference, the spec's stop and ask still holds.
