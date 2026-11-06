@@ -19,3 +19,9 @@ pub fn of(path: &Path) -> Option<&'static str> {
         _ => None,
     }
 }
+
+/// Whether a file has a compressed form (skein/docs/design/ui-web.md, 4.2).
+#[must_use]
+pub fn gzipped(path: &Path) -> bool {
+    matches!(path.extension().and_then(|extension| extension.to_str()), Some("wasm" | "js" | "css" | "svg"))
+}

@@ -250,6 +250,35 @@ fn task_offers_print_the_general_amend_form() {
 }
 
 #[test]
+fn a_bounded_amend_prints_its_call_alone() {
+    for beyond in
+        [c::Beyond::Proposed { to: c::Recipient::Party(f::PARTY) }, c::Beyond::Refused(c::Refusal::NotOffered)]
+    {
+        let mut task = f::choice_task(f::bounded_offer(beyond));
+        task.spec_revision = c::Revision { value: 8 };
+        let answer = f::read_answer(f::TASK_CALL, f::task_result(task));
+        assert_eq!(answer.status, 0);
+        assert!(
+            skein_lib::bytes::find(&answer.stdout, b"\n  task amend 41 --rev 8 CHANGE... REASON --key KEY\n").is_some()
+        );
+        assert!(skein_lib::bytes::find(&answer.stdout, b"authority {").is_none());
+    }
+}
+#[test]
+fn a_bounded_amends_json_keeps_its_bounds() {
+    for beyond in
+        [c::Beyond::Proposed { to: c::Recipient::Party(f::PARTY) }, c::Beyond::Refused(c::Refusal::NotOffered)]
+    {
+        let mut task = f::choice_task(f::bounded_offer(beyond));
+        task.spec_revision = c::Revision { value: 8 };
+        let answer = f::read_answer(f::TASK_JSON_CALL, f::task_result(task));
+        assert_eq!(answer.status, 0);
+        for field in [b"\"bounded\"".as_slice(), b"\"within\"", b"\"beyond\""] {
+            assert!(skein_lib::bytes::find(&answer.stdout, field).is_some(), "missing {field:?}");
+        }
+    }
+}
+#[test]
 fn amend_refusal_keeps_the_named_retry() {
     let (mut root, call) = f::send_choice_amend(f::MODEL_AMEND, f::choice_task(c::Admission::Allowed));
     root.answered(

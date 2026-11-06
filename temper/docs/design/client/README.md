@@ -470,8 +470,9 @@ keeps (`../protocol/configuration.md`, section 2).
   stage (jig's `client/domain/client.md`, 19.1). A chat held on a
   configured bound (jig's `Exceeded` hold) says jig's phrase for that
   hold, as its hold card does: "Held: the model's reasoning went past
-  its configured allowance of 2048 bytes". Any other hold says jig's
-  "Held", and the chat's page says why.
+  its configured allowance of 2048 bytes". A chat the person paused says
+  "Paused", on its bar and on its line on Chats and on Home (*A person's
+  pause,* below). Any other hold says jig's "Held", and the chat's page says why.
 - **A chat's conversation** is the chat's own, drawn from jig's thread
   (jig's `client/domain/objects.md`, section 10), never its runs'
   mechanics (`chat.html`, the mockups' first run):
@@ -686,12 +687,16 @@ keeps (`../protocol/configuration.md`, section 2).
     from a new chat, its draft, `Configure`, a starter and a suggested request
     alike. "Start goal" is none of these: it opens the goal's page, its heading
     focused. A start refused stays on its page and moves nothing.
-  - *Opened any other way* (a list, a link, an address, Back or Forward, a
-    reload): the chat opens on its heading, so that a person reading with a
-    screen reader or the keyboard lands on what the page is.
-  - *After a send,* by Enter or by "Send", the focus is in the composer, on a
-    chat's, a goal's and an agent's task's (5.11) alike: "Send" disables as the
-    words clear, and a disabled button holds no focus.
+  - *Opened any other way,* its composer asks for nothing. From a list or a
+    link, a new entry, the chat opens on its heading, so that a person reading
+    with a screen reader or the keyboard lands on what the page is, though the
+    heading is drawn after the page (`browser.md`, 2.3). An address, a reload,
+    Back and Forward make no new entry, and take the focus to no heading
+    (skein's `ui-web.md`, 7).
+  - *After a send,* by Enter or by "Send", whether or not it went out, the focus
+    is in the composer, on a chat's, a goal's and an agent's task's (5.11) alike:
+    "Send" disables as the words clear, and a disabled button holds no focus.
+    "Pause", "Resume" and "+ Draft" send too, and ask for nothing.
   - *While the rename's form is open* it keeps the focus (5.3), and a composer
     that has asked for it takes it back as the form closes.
   - *On a phone* the same acts ask the same, as a phone's messaging app does:
@@ -4994,8 +4999,7 @@ Its rules on an agent's task's page:
   holds its acts: "Amend", "Pause" or "Resume", "Close"; and its composer last
   (below).
   The taskbar's acts wrap as a chat's do. While the page's confirmation is
-  open, the taskbar draws no act: the dialog is the one place to answer, and
-  its "Cancel" the only one on the page.
+  open, the taskbar draws no act: the dialog is the one place to answer.
 - **Its own held card.** While the page's task is held for any cause but
   the person's own pause, its held task's card (3.6), with Release and its
   confirmation, follows the agent's run heading. The task is no row of its
@@ -5233,8 +5237,9 @@ section 5.
   something", quiet, focusing the composer. A decision goes under the proposal's
   own `project`, never the chat's: a proposal of settings is the deployment's,
   whichever chat made it, and jig knows it under no other project. The card has
-  no "Reject": the person rejects it on its card in *Needs you* (3.5), or says
-  what to change here. Replaced by a later proposal, it is
+  no "Reject": the person rejects it on its card in *Needs you* (3.5). Saying
+  what to change here revises nothing while it waits: the agent answers that an
+  owner rejects it, then proposes afresh (`../domain/agent.md`, 8.1). Replaced by a later proposal, it is
   dimmed, "Replaced by the proposal below"; accepted, "✓ Accepted · new work
   follows it". A person who may not accept it sees neither act: "Waiting for an
   owner", the parties it waits for as jig's proposal names them, "Owners of this
@@ -6209,7 +6214,8 @@ own tests:
   `client/domain/testing.md`, sections 5, 6 and 7). The forge's request
   and outcome are decoded and encoded by the engine's routing (section
   8), exhaustive both ways. Stories: signing in and seeing the inbox; a
-  chat started and answered; a goal proposed in a chat, accepted in the
+  chat started and answered; a chat paused, resumed and paused again, and a
+  message to it resuming it, answered; a goal proposed in a chat, accepted in the
   inbox, and gone from the chat's card; a
   held task released from its own page; a goal's page saying which
   task a delegate waits on, then, the first delegate ended, the second's line
@@ -6218,9 +6224,10 @@ own tests:
   brief, its run's heading and its committed turn, the goal reached
   again by its lineage bar, and, once the delegate has reported, its
   run ended and its result; from a running delegate's page, a message
-  sent and read by its scripted run's next turn; that delegate stopped,
-  confirmed, its own held card shown, and released, running again; a
-  goal stopped from its page, confirmed, and its delegates ended; a goal paused and
+  sent and read by its scripted run's next turn; that delegate paused at once,
+  saying "Paused" with no held card of its own, and resumed, running again; a
+  delegate closed through its sheet, and ended; a
+  goal closed from its page, confirmed, and its delegates ended; a goal paused and
   resumed from its page; a waiting delegate's Message refused, its page
   saying why and sending nothing; an amendment of a goal's
   specification from its page, and one refused as moved asking to look
@@ -6509,8 +6516,8 @@ own tests:
   which counts Reject among the card's acts): the mock's `chat.html` draws "Accept" and
   "Change something" alone, and the reason's box stands on the card in *Needs you*.
   Drawing one takes a view change and that box; its ask already goes under the
-  proposal's own `project`. Default: none, a person rejects in *Needs you* or says what
-  to change in the chat.
+  proposal's own `project`. Default: none, a person rejects in *Needs you*, where what
+  they say to change in the chat also leads while it waits (5.13).
 - **A rejected proposal of settings, on its chat's card** (5.13; the same request): its
   title and lines stay with neither acts nor a state line, where the card in *Needs you*
   says "Rejected"; the reason sent and the agent's reply stand in the conversation above
@@ -6549,6 +6556,17 @@ own tests:
   a keyboard the person did not ask for. Telling them apart takes a kit mechanism,
   a focus request that raises no keyboard (skein's `ui-web.md`, 7). Default: the
   same focus at every width.
+- **A start refused, by its press** (3.5, *Where the focus stands on a chat*; the
+  request `ui-composer-focus` of 2026-11-06): the send arrow disables while a start
+  is out, and a disabled button holds no focus, so a start refused after a press
+  leaves the focus where the browser put it, and the person clicks the composer to
+  try again. That request does not ask for it. Default: a refused start moves
+  nothing.
+- **A composer that comes back** (3.5, *Where the focus stands on a chat*; the
+  request `ui-composer-focus` of 2026-11-06): a composer's request rides its insert
+  (skein's `ui-web.md`, 7), so a chat that loses Message and regains it, after a
+  send or "Change something", takes the focus again, from a person typing elsewhere
+  on that page at that moment. Default: not guarded.
 
 - **Pages the mockups do not show:** a project's page with its
   resources, findings, notes and settings (policy, people and roles,
@@ -6766,13 +6784,11 @@ own tests:
     where the mockup draws none;
   - its acts are 5.11's.
 - **A task's page's acts** (5.11), each a default the user may change:
-  - Stop confirmed on a task's page, where a chat's Stop is sent at
-    once: stopping holds the task until it is released, and the task's
-    page acts on work the person may not be watching. The chat
-    confirming its Stop too is the candidate;
-  - Cancel on a goal's page only, as its Stop; an agent's task's Cancel, which
-    the engine offers the person its requesters lead to, is reached from
-    `temper ctl`;
+  - an agent's task's Pause sent at once, as a chat's and a goal's, though that
+    page acts on work the person may not be watching: Resume undoes it (3.6). A
+    sheet on it is the candidate;
+  - Close on a goal's and an agent's task's page alone; a procedure's Cancel, which
+    no page draws, is reached from `temper ctl`;
   - the amendment's editor on the pages: the specification's words
     and, on a goal, its tracking and priority, the model choice being
     the choice line's; the rest of an amendment is `temper ctl

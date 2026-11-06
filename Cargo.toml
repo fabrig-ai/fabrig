@@ -348,6 +348,7 @@ rust-version = "1.95"
 publish = false
 
 [workspace.dependencies]
+flate2 = { version = "=1.1.5", default-features = false, features = ["rust_backend"] }
 skein-forge-conformance = { path = "skein/testing/skein-forge-conformance" }
 skein-forge-connection = { path = "skein/crates/skein-forge-connection" }
 skein-throwaway-forgejo = { path = "skein/testing/skein-throwaway-forgejo" }
@@ -685,6 +686,18 @@ overflow-checks = true
 debug = false
 
 [profile.dev.package.skein-ui-bundle]
+opt-level = 3
+
+[profile.dev.package.flate2]
+opt-level = 3
+
+[profile.dev.package.miniz_oxide]
+opt-level = 3
+
+[profile.dev.package.crc32fast]
+opt-level = 3
+
+[profile.dev.package.adler2]
 opt-level = 3
 
 [profile.dev.package.rustls]
