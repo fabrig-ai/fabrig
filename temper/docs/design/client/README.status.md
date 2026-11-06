@@ -295,7 +295,9 @@
   4.7: the "not installed" outcome, "temper's App is not installed on
   OWNER.", with "Install on another account": `temper-service/src/family.rs`
   maps `forge::AdoptionRefusal::NotInstalled` to `ForgeReason::NoAccess`;
-  the client wire has no not-installed reason, pinned as a known gap by
+  the client wire has no not-installed reason, so ctl offers repository access
+  and Forgejo collaborator-admin recovery rather than installation recovery.
+  This gap is pinned by
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
