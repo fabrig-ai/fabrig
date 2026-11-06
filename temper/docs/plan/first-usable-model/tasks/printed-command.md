@@ -160,3 +160,18 @@ body `Y8vh5FkyDde4tMKXfqvORQEAAQAAAA4AAAAIAQAAAAMADggA`; line 19 of `a2d7fb6e4a`
 
 **Left.** The 13 `temper-client-tools` failures at `task_text.rs:102` fail on the base too and aren't this task's: keep them
 under `## Left`.
+
+## Rebase (2026-11-06, step merge, foreman first-usable-model/printed-command/foreman-3)
+
+resolve the three merge conflicts, combine vocabulary counts, and regenerate Story A
+Bring the preserved branch tip `ed91d656c0` up to the current integration trunk; preserve the answered recording-tool changes.
+The merge reported content conflicts only; no build or test failure was reported.
+
+- `temper/crates/temper-client-view/src/words.rs`: retain upstream confirmation words from `ba80a40882` and their integration through `9e48ec4d97`. Combine upstream capacities with this branch’s additional phrase and three segments: against `405ffc3930`, `PHRASES = 1793`, `SEGMENTS = 3095`. Preserve upstream `ALL`, renamed variants and `text_bytes: 44284`; verify the combined declarations.
+- `temper/docs/design/client/README.status.md`: remove only the obsolete **Not yet: 4.6, The printed command** entry. Preserve upstream’s adjacent **Departs: 3.6, Closed ends on one line** entry and all other upstream status changes.
+- `temper/tests/playground/tests/fixtures/story-a.log`: upstream `7a932fe24e` refreshes task-model output digests; this branch refreshes deployment-wire digests. Regenerate from the combined code rather than choosing either version or merging digests manually.
+- Preserve `walk.rs`’s new `SKEIN_CODEGEN_WRITE` hook. Run `story_a_walks_from_the_welcome_to_the_csv_change_landed` in `temper-playground-world` with that variable set through `heavy`; it regenerates both `story-a.log` and `temper-playground/src/tests/fixtures/story-a-start.log`.
+- Verify `story_a_kept_log_replays_natively` and `story_a_start_makes_its_project_and_adopts_widget`. Keep the recorded walk unchanged; follow the existing answer’s stop condition if the regenerated short log fails.
+- Check automatically merged deployment fixtures retain `program_login` alongside upstream confirmation fixtures. Run the spec’s view and gallery validation, and regenerate affected gallery/journey prints with their tools. Preserve upstream journey documentation and this branch’s two answered clauses.
+
+Keep unrelated repairs outside this rebase. Preserve the existing `## Left` record; report any changed failure evidence separately.
