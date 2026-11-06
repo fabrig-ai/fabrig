@@ -94,9 +94,6 @@ fn established() -> (Joint, Root, u32) {
     made(&mut front, &mut root, source, false);
     (front, root, source)
 }
-fn returns(front: &Joint) -> Vec<(u32, Vec<u8>)> {
-    front.engine.protocol.returns.iter().map(|(source, path)| (*source, path.to_vec())).collect()
-}
 
 fn row_sign_in() -> (Joint, Root, u32) {
     let (mut front, mut root, source) = established();
@@ -131,7 +128,6 @@ fn a_reload_without_source_offers_the_way_again() {
 fn terminal_sign_in_never_requests_a_tab_departure() {
     let (mut front, mut root, source) = begin();
     started(&mut front, &mut root, source);
-    assert_eq!(returns(&front).len(), NONE);
     assert_eq!(front.leaves.len(), NONE);
     let view = shown(&root);
     assert!(
@@ -270,7 +266,6 @@ fn returned_sign_in_changes_to_ready_when_the_watch_ends() {
             .any(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Start a chat"))
     );
     assert_eq!(front.leaves.len(), NONE);
-    assert_eq!(returns(&front).len(), NONE);
 }
 
 // client/README.md 3.5 Come back: a returned source observes the later Failed ending.

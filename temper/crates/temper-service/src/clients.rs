@@ -139,10 +139,6 @@ impl Clients {
         self.playground_ready.push(event);
     }
 
-    /// The live bound socket survives consumption of the listening notification.
-    pub(crate) fn bound_address(&self) -> Option<::core::net::SocketAddr> {
-        self.server.listening()
-    }
     #[expect(clippy::too_many_lines, reason = "startup constructs bounded queues beside the client component")]
     pub fn new(
         directories: &config::Directories,
