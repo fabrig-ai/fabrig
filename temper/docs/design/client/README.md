@@ -401,6 +401,9 @@ keeps (`../protocol/configuration.md`, section 2).
      line with nothing behind it.
   2. *Its status,* quiet: 12 px, faint, in lower case by the look alone.
      It is the colour of `.state-needs` while it waits for the person.
+     A run that can't start says so ("Waiting for an account"), that colour
+     too, and has no dots: the dots say a run is working, never that it
+     can't start (jig's `client/domain/client.md`, 19.1).
      Every ended chat says "Closed", with no time: its end's line has the time
      (3.6, *Closed ends on one line*).
   3. *Stop and Close,* while allowed, each quiet and small. The mock has
@@ -1023,8 +1026,8 @@ keeps (`../protocol/configuration.md`, section 2).
     program's name field and "Declare". Declaring a program's login
     asks its name, 1 to 32 of `a` to `z`, `0` to `9` and `-`, `claude-`
     and the person's first name by default (`claude-alice`), and shows
-    the command to run on each host, `temper program-login NAME`, after the
-    words of `program_environment` (4.6) where it has any
+    the command to run on each host, as *The printed command* (4.6) has it,
+    after the words of `program_environment` (4.6) where it has any
     (`../protocol/credentials.md`, section 3). The tools' printed act
     includes the box's directory placeholders and the signed-in skip
     rule (`tools.md`, 5.5, area 5).
@@ -1330,7 +1333,7 @@ keeps (`../protocol/configuration.md`, section 2).
     - *Claude,* "Your Claude subscription": "temper sets Claude Code up on
       this machine in an environment of its own: its settings, sessions
       and sign-in stay apart from your own Claude Code. In a terminal
-      here:"; the command `temper program-login NAME`, NAME the program's
+      here:"; the command (4.6, *The printed command*), NAME the program's
       default name (5.5), with no field for it, after the words of
       `program_environment` (4.6) where it has any; the muted "It makes that
       environment, then Claude Code asks you to sign in to your
@@ -2273,9 +2276,13 @@ keeps (`../protocol/configuration.md`, section 2).
     followed by "/", then the level-1 heading "Configure
     temper", the page's title too; on a phone "‹", a link named "Settings", alone before the
     heading. At its right on a wide page, the line of what the chat's
-    runs use, "ChatGPT plan · gpt-6.1-sol", the first usable account's
-    kind, as Ready's model line chooses it, and the first model `me`
-    serves for the project.
+    runs use, "ChatGPT plan · gpt-6.1-sol", in the composer's line's words
+    (5.5): on a configuring chat, what its next run takes, as any chat's
+    byline; with no chat yet, what a new chat's would, the first model `me`
+    serves for the project whose LLM provider is usable for the person,
+    with that provider's first usable account. It never sets one LLM
+    provider's account beside another's model; with no usable account it
+    says what the composer's line says then.
   - *The conversation,* a region named "Conversation", its opening a
     page as `Home` is, starting 28 pixels from the conversation's top, with no
     kicker: the level-2 heading "How should temper run PROJECT?", drawn
@@ -3082,8 +3089,23 @@ for its kind, its user's login and its installations. Its nodes:
   (bool), whether Forgejo on this machine can be set up: the document
   has `application.machine.owned` and the engine runs under the box
   (`../protocol/setup.md`, 7.4). A first run's store keeps no forge, so
-  no row of the `forges` watch can say so (`forge.md`, 5.4). On the
-  wire it is `Reading`'s `deployment`, beside `playground`.
+  no row of the `forges` watch can say so (`forge.md`, 5.4); and
+  `program_login` (optional bytes, at most 8,192), *the printed command*
+  below. On the wire it is `Reading`'s `deployment`, beside `playground`.
+- **The printed command:** what the pages print works when pasted. Where
+  the deployment's one worker is on the engine's machine
+  (`../protocol/configuration.md`, section 1, the standalone shape),
+  `program_login` is that machine's whole command but NAME, the running
+  binary's absolute path and the three directories in effect, each quoted
+  for a POSIX shell: `'/home/alice/temper' program-login --config '…' --data
+  '…' --cache '…'`. The pages print it with NAME after "On this machine,
+  run:". It is a path of a machine that the party signed in to it
+  may read: a read carries a sign-in (jig's `protocol/client.md`), and no
+  answer goes before one. A path that isn't UTF-8, a line past its
+  bound, and a deployment whose workers are elsewhere send none: the pages
+  then print the placeholders the tools do, `temper program-login --config
+  CONFIG --data DATA --cache CACHE NAME`, "On each host, with its
+  directories:".
 - **The program's environment, `program_environment`:** of the deployment's
   scope, with no fields and no subject: what `temper program-login` needs set
   to act on this deployment. It is the party's read, and only the deployment's
@@ -3096,8 +3118,7 @@ for its kind, its user's login and its installations. Its nodes:
   `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…`, all three, each value a POSIX
   shell word. It is one string, composed where the directories are known, so
   that the client holds no path as a fact, quotes nothing and decides no
-  default; it is a read of its own, not a member of `DeploymentAnswer`, since
-  that one is answered before any party is known, the same to every visitor.
+  default; it is a read of its own, separate from `DeploymentAnswer`.
   A page asks when its address names a program's way, the only place that
   draws the command with these words; Accounts' stays plain (section 11). On the
   wire it is `Reading`'s `program_environment`.
@@ -3899,9 +3920,9 @@ The words for each offered source are:
   configured name ("Added your PROVIDER API key"), and "temper’s
   agents now run on it."; for a program's login: "Declared your Claude
   subscription · claude-alice", then "Run this on each host temper’s
-  agents run on, in a terminal there:", the command, `temper
-  program-login claude-alice`, after the words of `program_environment` (4.6)
-  where it has any, and "If this machine has no Claude Code,
+  agents run on, in a terminal there:", the command (4.6, *The printed
+  command*), after the words of `program_environment` (4.6) where it has any,
+  and "If this machine has no Claude Code,
   this fetches it first. Claude Code asks you to sign in. temper never
   reads its login."; for a sign-in, A sign-in's (below).
   The tools' declaration act names the box's three directories as
@@ -3933,6 +3954,23 @@ The words for each offered source are:
   "Pays for": a plan's, "Your own work, and projects where you’re the
   only member"; a key's or a program's login's with no uses given,
   "Your own work" (jig's `domain/accounts.md`, 4.2).
+- **A run's wait,** above any chat's composer, a configuring chat's too, and
+  on an agent's task's page, says in the person's words why its run can't
+  start, from the task's `run_wait`, and offers the act where there is one:
+  - *No account for it:* "No account can run MODEL yet.", MODEL the task's
+    main, and "Connect a model", to `ConnectModel` with no way chosen.
+  - *An account's login on no host:* "ACCOUNT's login isn't signed in on a
+    host that can run this.", the command (below) where the accounts
+    document names the source, and a link to `Accounts`.
+  - *A source held:* its state's words and its act, as the accounts page has
+    them (`Limited`'s Resume, `NeedsSignIn`'s sign-in, `Refused`'s key).
+  - *A credential:* "This work needs a credential from its forge." and a link
+    to `Forges`.
+  - *A host:* "No host has room for this, or none is connected. It starts
+    when one does.", with nothing to press.
+
+  A wait about to end (jig's `client/domain/client.md`, 19.1) stays
+  "Starting". A Chats row holds no wait, and says "Starting".
 - **The composer's line** names the account and model the work's next
   run takes, on a chat as its bar's byline, before its mode group (3.5, *A chat's
   document*), with the chooser behind it
@@ -3953,8 +3991,8 @@ The words for each offered source are:
     The composer never infers a default from the project catalogue's
     order, including a clipped catalogue. With no preview it uses
     "Using the default model". The preview is an observation, not a
-    reservation: the draft keeps configured intent, and Create resolves
-    omission once (`../protocol/setup.md`, 8.3).
+    reservation: the draft keeps configured intent, and each run's check
+    takes the models of a task given none (jig's `domain/accounts.md`, 4.3).
   - *The account* is named only when the payer is you: your new chat,
     or a task funded by your pool. The accounts document lists only
     your own accounts, in `(place, number)` order. In this slice the

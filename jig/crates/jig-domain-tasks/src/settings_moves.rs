@@ -15,7 +15,7 @@ fn may(task: &TaskRecord, newest: u32, charters: &[CharterModels]) -> bool {
         }
     }
     let Some(models) = models else { return false };
-    let Some(choice) = &task.llm else { return true };
+    let Some(choice) = &task.llm else { return crate::llm::any_allowed(models, task.authority.models) };
     if !models.contains(&choice.main.model) {
         return false;
     }

@@ -1189,39 +1189,49 @@ fn a_moving_account_shows_its_state_without_buttons() {
 }
 #[test]
 fn a_programs_missing_login_names_its_host_command_and_check() {
-    let (mut root, watch) = fixtures::account_root();
-    let mut doc = card_document(b"anthropic", b"claude-alice", c::AccountKind::Program);
-    doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().usable = false;
-    let mut programs = List::with_capacity(1);
-    programs
-        .push(c::ProgramLogin {
-            name: b"claude-alice".as_slice().into(),
-            state: Some(c::ProgramState::NotSignedIn),
-            sign_out: None,
-            cleanup: false,
-            cut: false,
-        })
-        .unwrap();
-    doc.program_hosts = List::with_capacity(1);
-    doc.program_hosts
-        .push(c::ProgramHost {
-            name: b"worker".as_slice().into(),
-            channel: 1,
-            connected: true,
-            awaiting_logins: false,
-            programs,
-            cut: false,
-        })
-        .unwrap();
-    deliver(&mut root, watch, doc);
-    let mut view = fixtures::view();
-    let tree = fixtures::build(&mut view, &root);
-    let shown = String::from_utf8(fixtures::text(tree).into_vec()).unwrap();
-    assert!(shown.contains("Claude Code isn't signed in for 'claude-alice' on worker."));
-    assert!(shown.contains("temper program-login claude-alice"));
-    assert!(fixtures::find(tree, Role::Button, b"Check again").is_some());
-    assert!(fixtures::find(tree, Role::Button, b"Sign out on every machine").is_some());
+    for line in [
+        None,
+        Some(b"'/box/temper' program-login --config '/box/config' --data '/box/data' --cache '/box/cache'".as_slice()),
+    ] {
+        let (mut root, watch) = super::connect_model::program_root_with_line(d::Address::Accounts, line);
+        let mut doc = card_document(b"anthropic", b"claude-alice", c::AccountKind::Program);
+        doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().usable = false;
+        let mut programs = List::with_capacity(1);
+        programs
+            .push(c::ProgramLogin {
+                name: b"claude-alice".as_slice().into(),
+                state: Some(c::ProgramState::NotSignedIn),
+                sign_out: None,
+                cleanup: false,
+                cut: false,
+            })
+            .unwrap();
+        doc.program_hosts = List::with_capacity(1);
+        doc.program_hosts
+            .push(c::ProgramHost {
+                name: b"worker".as_slice().into(),
+                channel: 1,
+                connected: true,
+                awaiting_logins: false,
+                programs,
+                cut: false,
+            })
+            .unwrap();
+        deliver(&mut root, watch, doc);
+        let mut view = fixtures::view();
+        let tree = fixtures::build(&mut view, &root);
+        let shown = String::from_utf8(fixtures::text(tree).into_vec()).unwrap();
+        assert!(shown.contains("Claude Code isn't signed in for 'claude-alice' on worker."));
+        let expected = match line {
+        Some(line) => format!("On this machine, run: {} claude-alice", core::str::from_utf8(line).unwrap()),
+        None => "On each host, with its directories: temper program-login --config CONFIG --data DATA --cache CACHE claude-alice".into(),
+    };
+        assert!(shown.contains(&expected), "{shown}");
+        assert!(fixtures::find(tree, Role::Button, b"Check again").is_some());
+        assert!(fixtures::find(tree, Role::Button, b"Sign out on every machine").is_some());
+    }
 }
+
 #[test]
 fn an_outcome_is_in_the_disclosure_that_sent_the_act() {
     let (mut root, watch) = fixtures::account_root();
