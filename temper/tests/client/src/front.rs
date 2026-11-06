@@ -44,6 +44,8 @@ pub struct Joint {
     pub note_read_ends: VecDeque<jig_client::contract::ReadNone>,
     /// Terminal replies for successive task-document attempts, before the real engine serves one.
     pub task_read_ends: VecDeque<jig_client::contract::ReadNone>,
+    /// Terminal replies for activity reads, before the real engine serves one.
+    pub activity_read_ends: VecDeque<jig_client::contract::ReadNone>,
     pub reachable_reads: Vec<(u16, Option<u64>, u32)>,
     pub reachable_empty: bool,
     pub installs: Vec<(u16, Token)>,
@@ -602,25 +604,33 @@ impl Joint {
     #[must_use]
     pub fn with_large_turns(seed: u64, limits: &client::Limits) -> Self {
         let profile = temper_service::limits::profile(temper_service::limits::Profile::Small).root;
-        Self::with_turn_bytes(seed, limits, profile.journal.transcript_bytes, profile.loads.read_bytes)
+        Self::with_turn_bytes(seed, limits, profile.journal.transcript_bytes, profile.loads.read_bytes, None)
     }
     /// A committed turn past jig small's cap, with a configured whole-read allowance.
     #[must_use]
     pub fn with_long_turns(seed: u64, limits: &client::Limits) -> Self {
-        Self::with_turn_bytes(seed, limits, 131_072, 262_144)
+        Self::with_turn_bytes(seed, limits, 131_072, 262_144, None)
     }
     /// Whole display turns and three large tool results fit the stored transcript.
     #[must_use]
     pub fn with_whole_turns(seed: u64, limits: &client::Limits) -> Self {
-        Self::with_turn_bytes(seed, limits, 1_048_576, 2_097_152)
+        Self::with_turn_bytes(seed, limits, 1_048_576, 2_097_152, None)
     }
-    fn with_turn_bytes(seed: u64, limits: &client::Limits, bytes: u32, read_bytes: u64) -> Self {
+    /// A whole-turn engine with two activity rows per page.
+    #[must_use]
+    pub fn with_reading_pages(seed: u64, limits: &client::Limits) -> Self {
+        Self::with_turn_bytes(seed, limits, 1_048_576, 2_097_152, Some(2))
+    }
+    fn with_turn_bytes(seed: u64, limits: &client::Limits, bytes: u32, read_bytes: u64, rows: Option<u32>) -> Self {
         let mut engine_limits = engine_limits();
         engine_limits.journal.transcript_bytes = bytes;
         engine_limits.loads.bytes = bytes;
         engine_limits.loads.reply_bytes = bytes;
         engine_limits.loads.transcript_bytes = bytes;
         engine_limits.loads.read_bytes = read_bytes;
+        if let Some(rows) = rows {
+            engine_limits.documents.rows = rows;
+        }
         Self::with_engine(
             seed,
             limits,
@@ -1101,6 +1111,7 @@ impl Joint {
             note_reads: 0,
             note_read_ends: VecDeque::new(),
             task_read_ends: VecDeque::new(),
+            activity_read_ends: VecDeque::new(),
             reachable_reads: Vec::new(),
             reachable_empty: false,
             installs: Vec::new(),
@@ -1406,6 +1417,39 @@ impl Joint {
         }
         false
     }
+    fn activity_read_end(&mut self, who: ClientId, request: &Request) -> bool {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Read {
+                            read,
+                            what:
+                                jig_client::Readable::Jig(
+                                    jig_client::contract::Read::Activity { .. }
+                                    | jig_client::contract::Read::ActivityBeside { .. },
+                                ),
+                        },
+                },
+        } = request
+            && let Some(why) = self.activity_read_ends.pop_front()
+        {
+            self.callbacks.push((
+                who,
+                RootEvent::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::ReadDone {
+                            read: *read,
+                            result: jig_client::Readout::Jig(jig_client::contract::ReadResult::None(why)),
+                        },
+                    },
+                }
+                .into(),
+            ));
+            return true;
+        }
+        false
+    }
     fn playground_read(&mut self, who: ClientId, request: &Request) -> bool {
         if let Request::Unlinked {
             request:
@@ -1566,7 +1610,10 @@ impl Joint {
         if self.reachable(who, &request) || self.start_playground(who, &request) {
             return;
         }
-        if self.playground_read(who, &request) || self.note_read_end(who, &request) || self.task_read_end(who, &request)
+        if self.playground_read(who, &request)
+            || self.note_read_end(who, &request)
+            || self.task_read_end(who, &request)
+            || self.activity_read_end(who, &request)
         {
             return;
         }
