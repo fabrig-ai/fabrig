@@ -111,7 +111,7 @@ impl Connection {
     pub fn test_deadline(&self) -> Option<skein_lib::Time> {
         self.deadline()
     }
-    pub fn test_rest(&mut self, until: Option<skein_lib::Time>) {
-        self.rest(until);
+    pub fn test_until(&mut self, until: Option<skein_lib::Time>) {
+        self.until(until);
     }
 }

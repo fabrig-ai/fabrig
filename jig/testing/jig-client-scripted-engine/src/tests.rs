@@ -10,6 +10,13 @@ mod policy;
 mod project;
 mod settings_restore;
 
+pub(crate) const REQUESTER: u64 = 1;
+const DECIDER: u64 = 2;
+const PROJECT: u32 = 1;
+pub(crate) const REQUESTER_SIGN_IN: u64 = 11;
+const REQUESTER_OTHER_SIGN_IN: u64 = 12;
+const DECIDER_SIGN_IN: u64 = 22;
+
 fn text(bytes: &[u8]) -> Text {
     Text::new(bytes.into(), 4096).expect("fixture text fits")
 }
@@ -33,11 +40,11 @@ fn frame(number: u64) -> Me {
             models: skein_lib::List::with_capacity(0),
             templates: skein_lib::List::with_capacity(0),
             creating: None,
-            project: 1,
+            project: PROJECT,
             name: DocumentText::complete(text(b"project")),
             role: HeldRole::Policy { role: 1 },
             pool: Some(PoolLedger {
-                source: Funder::Pool { project: 1, person: number, period: 1 },
+                source: Funder::Pool { project: PROJECT, person: number, period: 1 },
                 parent: None,
                 numbers: Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
                 left: 100,
@@ -73,14 +80,14 @@ pub(crate) fn authority() -> AuthorityDocument {
 }
 fn script() -> Script {
     let mut truth = Truth::default();
-    truth.frames.insert(1, frame(1));
-    truth.frames.insert(2, frame(2));
+    truth.frames.insert(REQUESTER, frame(REQUESTER));
+    truth.frames.insert(DECIDER, frame(DECIDER));
     for frame in truth.frames.values_mut() {
         fixtures::creating(frame);
     }
-    truth.sign_ins.insert(11, 1);
-    truth.sign_ins.insert(12, 1);
-    truth.sign_ins.insert(22, 2);
+    truth.sign_ins.insert(REQUESTER_SIGN_IN, REQUESTER);
+    truth.sign_ins.insert(REQUESTER_OTHER_SIGN_IN, REQUESTER);
+    truth.sign_ins.insert(DECIDER_SIGN_IN, DECIDER);
     Script { truth, ..Script::default() }
 }
 fn send(engine: &mut Engine, now: u64, sign_in: u64, key: u8, token: u64, ask: Ask) {
@@ -106,11 +113,11 @@ fn proposal() -> Proposal {
     Proposal {
         projects: List::with_capacity(0),
         key: ProposalKey { proposer: Proposer::Task(8), number: 1 },
-        project: 1,
+        project: PROJECT,
         reason: DocumentText::complete(text(b"wider")),
         action: ProposalAction::Batch(list(vec![])),
         as_holder: false,
-        waiting: ProposalWaiting { holder: HistoryHolder::Person(1), since: Wall::EPOCH },
+        waiting: ProposalWaiting { holder: HistoryHolder::Person(REQUESTER), since: Wall::EPOCH },
         funding: list(vec![]),
         acts: list(vec![Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }]),
     }
@@ -120,7 +127,7 @@ fn proposal_engine() -> (Engine, Ask) {
     let p = proposal();
     setup.truth.objects.insert(ObjectKey::Proposal(p.key), ReadValue::Proposal(Box::new(p.clone())));
     let ask = Ask::Decide {
-        project: 1,
+        project: PROJECT,
         on: DecideOn::Proposal { proposal: p.key, decision: Decision::Accepted, running: None },
     };
     (Engine::new(setup, 1).expect("valid script"), ask)
@@ -128,7 +135,7 @@ fn proposal_engine() -> (Engine, Ask) {
 #[test]
 fn answer_waits_for_its_durable_commit() {
     let (mut engine, ask) = proposal_engine();
-    send(&mut engine, 0, 11, 1, 1, ask);
+    send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask);
     assert_eq!(engine.next_due(), Some(at(10_000_000)));
     assert!(engine.poll(at(9_999_999)).is_empty());
     assert!(engine.commits().is_empty());
@@ -138,28 +145,28 @@ fn answer_waits_for_its_durable_commit() {
 #[test]
 fn retained_key_replays_across_sign_ins() {
     let (mut engine, ask) = proposal_engine();
-    send(&mut engine, 0, 11, 1, 1, ask.clone());
-    send(&mut engine, 1, 12, 1, 2, ask.clone());
+    send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
+    send(&mut engine, 1, REQUESTER_OTHER_SIGN_IN, 1, 2, ask.clone());
     let up = engine.poll(at(10_000_001));
     assert_eq!(up.len(), 2);
     assert_eq!(final_answer(&up[0]), final_answer(&up[1]));
-    send(&mut engine, 20_000_000, 11, 1, 3, ask);
+    send(&mut engine, 20_000_000, REQUESTER_SIGN_IN, 1, 3, ask);
     assert_eq!(final_answer(&engine.poll(at(20_000_000))[0]), final_answer(&up[0]));
     assert_eq!(engine.commits().len(), 1);
 }
 #[test]
 fn retained_key_refuses_a_different_ask() {
     let (mut engine, ask) = proposal_engine();
-    send(&mut engine, 0, 11, 1, 1, ask);
+    send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask);
     drop(engine.poll(at(10_000_000)));
     send(
         &mut engine,
         20_000_000,
-        11,
+        REQUESTER_SIGN_IN,
         1,
         2,
         Ask::Decide {
-            project: 1,
+            project: PROJECT,
             on: DecideOn::Proposal { proposal: proposal().key, decision: Decision::PassedUp, running: None },
         },
     );
@@ -172,14 +179,14 @@ fn retained_key_refuses_a_different_ask() {
 #[test]
 fn second_party_receives_the_first_proposal_decision() {
     let (mut engine, ask) = proposal_engine();
-    send(&mut engine, 0, 11, 1, 1, ask.clone());
-    send(&mut engine, 2, 22, 2, 2, ask);
+    send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
+    send(&mut engine, 2, DECIDER_SIGN_IN, 2, 2, ask);
     let up = engine.poll(at(10_000_002));
     assert_eq!(
         final_answer(&up[1]),
         &Answer::Done(Outcome::Document(DocumentOutcome::ProposalDecided {
             proposal: proposal().key,
-            by: 1,
+            by: REQUESTER,
             choice: ProposalChoice::Accepted,
             at: Wall::EPOCH,
             repeated: true,
@@ -189,7 +196,7 @@ fn second_party_receives_the_first_proposal_decision() {
 #[test]
 fn expired_key_can_make_another_decision() {
     let mut setup = script();
-    let ask = Ask::MakeService { project: 1, name: text(b"service"), role: HeldRole::Owner };
+    let ask = Ask::MakeService { project: PROJECT, name: text(b"service"), role: HeldRole::Owner };
     setup.rules.push(Rule {
         party: None,
         ask: ask.clone(),
@@ -200,7 +207,7 @@ fn expired_key_can_make_another_decision() {
         changes: vec![],
     });
     let mut engine = Engine::new(setup, 3).expect("valid script");
-    send(&mut engine, 0, 11, 1, 1, ask.clone());
+    send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
     assert_eq!(
         final_answer(&engine.poll(at(10_000_000))[0]),
         &Answer::Refused {
@@ -208,7 +215,7 @@ fn expired_key_can_make_another_decision() {
             at: None,
         }
     );
-    send(&mut engine, 2_000_000_000, 11, 1, 2, ask);
+    send(&mut engine, 2_000_000_000, REQUESTER_SIGN_IN, 1, 2, ask);
     drop(engine.poll(at(2_010_000_000)));
     assert_eq!(engine.commits().len(), 2);
 }
@@ -238,8 +245,8 @@ fn task() -> Task {
         priority: None,
         lineage_chips: list(vec![]),
         inputs: list(vec![]),
-        project: 1,
-        requester: Requester::Person(1),
+        project: PROJECT,
+        requester: Requester::Person(REQUESTER),
         lineage: list(vec![]),
         spec: specification(text(b"spec")),
         spec_revision: Revision { value: 1 },
@@ -264,7 +271,7 @@ fn task() -> Task {
         budget: Budget {
             numbers: Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
             left: 100,
-            funder: Funder::Period { project: 1, period: 3 },
+            funder: Funder::Period { project: PROJECT, period: 3 },
             deadline: None,
         },
         authority: authority(),
@@ -308,12 +315,12 @@ fn scenario_watch_subjects_coalescing_and_lifecycle() {
         Subject::Tree { task: 8, window: 1 },
         Subject::Chips { tasks: list(vec![8]) },
         Subject::Inbox { window: 1 },
-        Subject::Tasks { query: query(1), window: 1 },
+        Subject::Tasks { query: query(PROJECT), window: 1 },
         Subject::Run { task: 8, turn: None, offset: 0 },
         Subject::Deployment,
     ];
     for (index, subject) in subjects.into_iter().enumerate() {
-        engine.open(Time::ZERO, 11, Token::new(index as u64), subject).expect("subject");
+        engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(index as u64), subject).expect("subject");
     }
     let up = engine.poll(Time::ZERO);
     assert_eq!(up.iter().filter(|event| matches!(event, Up::Watch { event: WatchEvent::Opened, .. })).count(), 8);
@@ -328,7 +335,11 @@ fn scenario_watch_subjects_coalescing_and_lifecycle() {
         .act(
             Time::ZERO,
             Wall::EPOCH,
-            Change::Object { project: 1, key: ObjectKey::Task(8), value: ReadValue::Task(Box::new(changed.clone())) },
+            Change::Object {
+                project: PROJECT,
+                key: ObjectKey::Task(8),
+                value: ReadValue::Task(Box::new(changed.clone())),
+            },
         )
         .expect("one");
     changed.chip.title = DocumentText::complete(text(b"two"));
@@ -336,7 +347,11 @@ fn scenario_watch_subjects_coalescing_and_lifecycle() {
         .act(
             at(1),
             Wall::EPOCH,
-            Change::Object { project: 1, key: ObjectKey::Task(8), value: ReadValue::Task(Box::new(changed.clone())) },
+            Change::Object {
+                project: PROJECT,
+                key: ObjectKey::Task(8),
+                value: ReadValue::Task(Box::new(changed.clone())),
+            },
         )
         .expect("two");
     assert!(engine.poll(at(10_000_001)).is_empty(), "in-flight coalesces");
@@ -361,7 +376,7 @@ fn scenario_watch_subjects_coalescing_and_lifecycle() {
         .act(
             at(1_010_000_001),
             Wall::EPOCH,
-            Change::Object { project: 1, key: ObjectKey::Task(8), value: ReadValue::Task(Box::new(changed)) },
+            Change::Object { project: PROJECT, key: ObjectKey::Task(8), value: ReadValue::Task(Box::new(changed)) },
         )
         .expect("ended");
     let up = engine.poll(at(1_020_000_001));
@@ -371,10 +386,10 @@ fn scenario_watch_subjects_coalescing_and_lifecycle() {
     let mut setup = live_script();
     setup.bounds.watches = 1;
     let mut engine = Engine::new(setup, 1).expect("limited engine");
-    engine.open(Time::ZERO, 11, Token::new(1), Subject::Me).expect("first");
-    engine.open(Time::ZERO, 11, Token::new(2), Subject::Me).expect("over limit");
+    engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(1), Subject::Me).expect("first");
+    engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(2), Subject::Me).expect("over limit");
     assert!(engine.poll(Time::ZERO).contains(&Up::Ended { token: Token::new(2), why: WatchEnd::Busy }));
-    engine.act(Time::ZERO, Wall::EPOCH, Change::SignedOut { sign_in: 11 }).expect("signed out");
+    engine.act(Time::ZERO, Wall::EPOCH, Change::SignedOut { sign_in: REQUESTER_SIGN_IN }).expect("signed out");
     assert_eq!(engine.poll(at(10_000_000)), vec![Up::Ended { token: Token::new(1), why: WatchEnd::SignedOut }]);
 }
 fn scenario_run_offsets_cut_names_and_activity() {
@@ -382,7 +397,9 @@ fn scenario_run_offsets_cut_names_and_activity() {
     setup.bounds.text = 32;
     let mut engine = Engine::new(setup, 6).expect("run bound");
     let name = TurnName { attempt: 1, number: 0 };
-    engine.open(Time::ZERO, 11, Token::new(1), Subject::Run { task: 8, turn: None, offset: 0 }).expect("run watch");
+    engine
+        .open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(1), Subject::Run { task: 8, turn: None, offset: 0 })
+        .expect("run watch");
     drop(engine.poll(Time::ZERO));
     engine.write(Time::ZERO, 8, name, Wall::EPOCH, &text(b"abcdefghijklmnopqrst"), None).expect("first chunk");
     let up = engine.poll(Time::ZERO);
@@ -424,7 +441,7 @@ fn scenario_run_offsets_cut_names_and_activity() {
             at(2),
             Wall::EPOCH,
             Change::Source(Source {
-                party: 1,
+                party: REQUESTER,
                 read: Read::Activity { task: 8, before: None },
                 rows: Rows::Activity(vec![turn_event(
                     1,
@@ -448,7 +465,7 @@ fn scenario_run_offsets_cut_names_and_activity() {
         }),
         Some(1)
     );
-    engine.read(at(2), 11, Token::new(2), Read::Activity { task: 8, before: None }).expect("activity");
+    engine.read(at(2), REQUESTER_SIGN_IN, Token::new(2), Read::Activity { task: 8, before: None }).expect("activity");
     assert!(engine.poll(at(10_000_001)).is_empty());
     let up = engine.poll(at(10_000_002));
     assert!(
@@ -461,7 +478,7 @@ fn scenario_all_read_shapes_and_reverse_activity() {
     let mut setup = live_script();
     setup.bounds.rows = 1;
     setup.truth.sources.push(Source {
-        party: 1,
+        party: REQUESTER,
         read: Read::Activity { task: 8, before: None },
         rows: Rows::Activity(
             (0..3)
@@ -481,7 +498,7 @@ fn scenario_all_read_shapes_and_reverse_activity() {
     let mut cursor = None;
     for position in (0..3).rev() {
         engine
-            .read(Time::ZERO, 11, Token::new(10 + position), Read::Activity { task: 8, before: cursor })
+            .read(Time::ZERO, REQUESTER_SIGN_IN, Token::new(10 + position), Read::Activity { task: 8, before: cursor })
             .expect("reverse page");
         let up = engine.poll(Time::ZERO);
         let Up::Read { terminal: ReadResult::Value(ReadValue::Activity(page)), .. } = &up[0] else {
@@ -510,19 +527,19 @@ fn scenario_all_read_shapes_and_reverse_activity() {
         },
         Read::Inbox {
             group: jig_client_domain::contract::InboxReadGroup::Needs,
-            project: Some(1),
+            project: Some(PROJECT),
             kind: Some(InboxGroup::Questions),
             goal: None,
             after: None,
         },
-        Read::Spend { project: 1, after: None },
-        Read::Project { project: 1 },
-        Read::Notes { scope: NoteScope::Project(1), description: Some(text(b"match")), after: None },
+        Read::Spend { project: PROJECT, after: None },
+        Read::Project { project: PROJECT },
+        Read::Notes { scope: NoteScope::Project(PROJECT), description: Some(text(b"match")), after: None },
         Read::Deployment,
     ];
     for (index, read) in reads.into_iter().enumerate() {
         let token = Token::new(100 + index as u64);
-        engine.read(Time::ZERO, 11, token, read).expect("contract read shape");
+        engine.read(Time::ZERO, REQUESTER_SIGN_IN, token, read).expect("contract read shape");
         let up = engine.poll(Time::ZERO);
         assert_eq!(up.len(), 1);
         assert!(matches!(up[0],Up::Read { token:id,.. } if id == token));
@@ -548,9 +565,9 @@ fn scenario_reply_identity() {
             Some(ConversationRead { seen: 0, unread: Count { value: 1, limited: false } }),
         )
     };
-    let entry = inbox_entry(ObjectKey::Task(9), 1, InboxGroup::Replies, 1, Wall::EPOCH, Some(Box::new(line)));
+    let entry = inbox_entry(ObjectKey::Task(9), PROJECT, InboxGroup::Replies, 1, Wall::EPOCH, Some(Box::new(line)));
     setup.truth.sources.push(Source {
-        party: 1,
+        party: REQUESTER,
         read: Read::Inbox {
             group: jig_client_domain::contract::InboxReadGroup::Updates,
             project: None,
@@ -589,13 +606,13 @@ fn amendment_release_checks_the_named_hold_separately_from_the_spec() {
         send(
             &mut engine,
             0,
-            11,
+            REQUESTER_SIGN_IN,
             1,
             1,
             crate::tests::releasing(
                 Ask::Amend {
                     reason: text(b""),
-                    project: 1,
+                    project: PROJECT,
                     task: 8,
                     revision: Some(Revision { value: if stale_hold { 1 } else { 2 } }),
 
@@ -647,7 +664,7 @@ fn cursor_inbox_entry(number: u64, kind: InboxGroup, at: u64, _goal: Option<u64>
             InboxGroup::PersonTasks => ObjectKey::PersonTask(number),
             InboxGroup::Proposals | InboxGroup::Escalations | InboxGroup::Replies => unreachable!("fixture kinds"),
         },
-        1,
+        PROJECT,
         kind,
         number,
         Wall::from_nanos(at),
@@ -678,7 +695,7 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
         ),
     ] {
         setup.truth.sources.push(Source {
-            party: 1,
+            party: REQUESTER,
             read: Read::Inbox { group, project: None, kind: None, goal: None, after: None },
             rows: Rows::Inbox(rows),
         });
@@ -687,19 +704,19 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
     let mut engine = Engine::new(setup, 92).expect("whole owner collections fit");
     let needs = Read::Inbox {
         group: InboxReadGroup::Needs,
-        project: Some(1),
+        project: Some(PROJECT),
         kind: Some(InboxGroup::Questions),
         goal: Some(9),
         after: None,
     };
     let updates = Read::Inbox {
         group: InboxReadGroup::Updates,
-        project: Some(1),
+        project: Some(PROJECT),
         kind: Some(InboxGroup::Results),
         goal: Some(9),
         after: None,
     };
-    engine.read(Time::ZERO, 11, Token::new(1), needs.clone()).expect("typed read fits");
+    engine.read(Time::ZERO, REQUESTER_SIGN_IN, Token::new(1), needs.clone()).expect("typed read fits");
     let up = engine.poll(Time::ZERO);
     let Up::Read { terminal: ReadResult::Value(ReadValue::Inbox(page)), .. } = &up[0] else {
         panic!("needs page");
@@ -710,7 +727,7 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
         "filter before bounded page slicing"
     );
     let needs_cursor = page.after.clone().expect("needs page continuation");
-    engine.read(Time::ZERO, 11, Token::new(2), updates.clone()).expect("typed read fits");
+    engine.read(Time::ZERO, REQUESTER_SIGN_IN, Token::new(2), updates.clone()).expect("typed read fits");
     let up = engine.poll(Time::ZERO);
     let Up::Read { terminal: ReadResult::Value(ReadValue::Inbox(page)), .. } = &up[0] else {
         panic!("updates page");
@@ -724,7 +741,7 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
         if let Read::Inbox { after, .. } = &mut query {
             *after = Some(cursor);
         }
-        engine.read(Time::ZERO, 11, Token::new(token), query).expect("typed read fits");
+        engine.read(Time::ZERO, REQUESTER_SIGN_IN, Token::new(token), query).expect("typed read fits");
         let up = engine.poll(Time::ZERO);
         let Up::Read { terminal: ReadResult::Value(ReadValue::Inbox(page)), .. } = &up[0] else {
             panic!("independent continuation");
@@ -736,9 +753,9 @@ fn inbox_group_cursors_keep_exact_filters_and_whole_query_order() {
     if let Read::Inbox { after, .. } = &mut wrong {
         *after = Some(needs_cursor);
     }
-    engine.read(Time::ZERO, 11, Token::new(5), wrong).expect("typed read fits");
+    engine.read(Time::ZERO, REQUESTER_SIGN_IN, Token::new(5), wrong).expect("typed read fits");
     assert!(matches!(engine.poll(Time::ZERO)[0], Up::Read { terminal: ReadResult::None(ReadNone::Gone), .. }));
-    engine.open(Time::ZERO, 11, Token::new(6), Subject::Inbox { window: 1 }).expect("typed watch fits");
+    engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(6), Subject::Inbox { window: 1 }).expect("typed watch fits");
     let up = engine.poll(Time::ZERO);
     let Up::Watch { event: WatchEvent::Delivered(Delivery::Inbox(value)), .. } = &up[1] else {
         panic!("shared live watch");
@@ -821,7 +838,7 @@ fn full_width_task_and_party_makers_remain_distinct_in_scripted_reads_decisions_
     let mut engine = Engine::new(setup, 197).expect("valid script");
     for (index, key) in keys.iter().enumerate() {
         engine
-            .read(Time::ZERO, 11, Token::new(index as u64 + 1), Read::Proposal { proposal: *key })
+            .read(Time::ZERO, REQUESTER_SIGN_IN, Token::new(index as u64 + 1), Read::Proposal { proposal: *key })
             .expect("typed read fits");
         let rows = engine.poll(Time::ZERO);
         let Up::Read { terminal: ReadResult::Value(ReadValue::Proposal(row)), .. } = &rows[0] else {
@@ -831,24 +848,24 @@ fn full_width_task_and_party_makers_remain_distinct_in_scripted_reads_decisions_
         assert_eq!(row.reason.bytes(), if index == 0 { b"task maker".as_slice() } else { b"party maker".as_slice() });
     }
     let asks = keys.map(|proposal| Ask::Decide {
-        project: 1,
+        project: PROJECT,
         on: DecideOn::Proposal { proposal, decision: Decision::Accepted, running: None },
     });
-    send(&mut engine, 0, 11, 1, 10, asks[0].clone());
-    send(&mut engine, 1, 11, 2, 11, asks[1].clone());
+    send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 10, asks[0].clone());
+    send(&mut engine, 1, REQUESTER_SIGN_IN, 2, 11, asks[1].clone());
     let answers = engine.poll(Time::from_nanos(10_000_001));
     assert_eq!(answers.len(), 2);
     assert_eq!(engine.commits().len(), 2);
     assert_eq!(engine.commits()[0].ask, Some(asks[0].clone()));
     assert_eq!(engine.commits()[1].ask, Some(asks[1].clone()));
-    send(&mut engine, 20_000_000, 11, 1, 12, asks[1].clone());
+    send(&mut engine, 20_000_000, REQUESTER_SIGN_IN, 1, 12, asks[1].clone());
     assert_eq!(
         final_answer(&engine.poll(Time::from_nanos(20_000_000))[0]),
         &Answer::Refused { refusal: Refusal::KeyConflict, at: None }
     );
-    send(&mut engine, 20_000_000, 11, 1, 13, asks[0].clone());
+    send(&mut engine, 20_000_000, REQUESTER_SIGN_IN, 1, 13, asks[0].clone());
     assert_eq!(final_answer(&engine.poll(Time::from_nanos(20_000_000))[0]), final_answer(&answers[0]));
-    send(&mut engine, 20_000_000, 11, 2, 14, asks[1].clone());
+    send(&mut engine, 20_000_000, REQUESTER_SIGN_IN, 2, 14, asks[1].clone());
     assert_eq!(final_answer(&engine.poll(Time::from_nanos(20_000_000))[0]), final_answer(&answers[1]));
     assert_eq!(engine.commits().len(), 2);
 }
@@ -880,7 +897,7 @@ fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_star
         .expect("provisional text fits");
     let token = Token::new(1);
     engine
-        .open(Time::ZERO, 11, token, Subject::Run { task: 8, turn: Some(old), offset: 20 })
+        .open(Time::ZERO, REQUESTER_SIGN_IN, token, Subject::Run { task: 8, turn: Some(old), offset: 20 })
         .expect("typed watch fits");
     let up = engine.poll(Time::ZERO);
     let suffix = RunText {
@@ -945,7 +962,7 @@ fn scripted_provisional_retry_reopens_exact_positions_and_replaces_on_empty_star
     drop(engine.poll(Time::ZERO));
     let reopened = Token::new(2);
     engine
-        .open(Time::ZERO, 11, reopened, Subject::Run { task: 8, turn: Some(old), offset: 99 })
+        .open(Time::ZERO, REQUESTER_SIGN_IN, reopened, Subject::Run { task: 8, turn: Some(old), offset: 99 })
         .expect("typed watch fits");
     let up = engine.poll(Time::ZERO);
     let Up::Watch { event: WatchEvent::Delivered(Delivery::RunState(state)), .. } = &up[1] else {
@@ -1005,7 +1022,7 @@ fn span_acceptance_uses_the_supplied_decision_wall() {
     ] {
         let (setup, ask) = fixtures::span_proposal();
         let mut engine = Engine::new(setup, 1).expect("span fixture");
-        send(&mut engine, seconds * 1_000_000_000, 11, 1, 1, ask);
+        send(&mut engine, seconds * 1_000_000_000, REQUESTER_SIGN_IN, 1, 1, ask);
         let answers = engine.poll(at(seconds * 1_000_000_000 + 10_000_000));
         assert_eq!(final_answer(&answers[0]), &expected, "{seconds}");
     }
@@ -1065,7 +1082,7 @@ pub(crate) fn chip_details(phase: ChipPhase) -> ChipPhaseFacts {
         phase,
         details: Box::new(ChipDetails {
             dependencies: List::with_capacity(0),
-            project: 1,
+            project: PROJECT,
             executor: Executor::Agent { charter: 1 },
             phase_since: Wall::EPOCH,
             run_since: None,
@@ -1085,7 +1102,7 @@ pub(crate) fn chip_details(phase: ChipPhase) -> ChipPhaseFacts {
             budget: Budget {
                 numbers: Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
                 left: 100,
-                funder: Funder::Period { project: 1, period: 1 },
+                funder: Funder::Period { project: PROJECT, period: 1 },
                 deadline: None,
             },
             activity: 0,
@@ -1142,9 +1159,9 @@ fn accounts_watch_delivers_the_signed_in_partys_facts() {
         readiness: list(vec![]),
         readiness_cut: false,
     };
-    setup.truth.accounts.insert(1, expected.clone());
+    setup.truth.accounts.insert(REQUESTER, expected.clone());
     let mut engine = Engine::new(setup, 76).expect("valid script");
-    engine.open(Time::ZERO, 11, Token::new(1), Subject::Accounts).expect("typed watch fits");
+    engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(1), Subject::Accounts).expect("typed watch fits");
     assert_eq!(
         engine.poll(Time::ZERO),
         vec![
@@ -1155,7 +1172,7 @@ fn accounts_watch_delivers_the_signed_in_partys_facts() {
 }
 fn inbox_selections(truth: &mut Truth) {
     truth.inbox_selection.insert(
-        1,
+        REQUESTER,
         [(6, 9), (8, 9), (7, 9), (5, 8), (10, 9), (11, 9)]
             .into_iter()
             .map(|(number, goal)| InboxSelection { cursor: InboxCursor::Number { number }, goals: list(vec![goal]) })
@@ -1168,7 +1185,14 @@ fn oversized_request_is_refused_before_any_decision() {
     let mut engine = Engine::new(script(), 1).expect("valid script");
     let words = Text::new(vec![b'x'; 4097].into_boxed_slice(), 4097).expect("producer text");
     assert_eq!(
-        engine.send(Time::ZERO, Wall::EPOCH, 11, [1; 16], Token::new(1), fixtures::create(1, words)),
+        engine.send(
+            Time::ZERO,
+            Wall::EPOCH,
+            REQUESTER_SIGN_IN,
+            [1; 16],
+            Token::new(1),
+            fixtures::create(PROJECT, words)
+        ),
         Err(Invalid::Payload)
     );
     assert!(engine.commits().is_empty());
@@ -1177,7 +1201,7 @@ fn oversized_request_is_refused_before_any_decision() {
 #[test]
 fn task_query_parent_uses_requester_and_ended_time_uses_terminal_phase() {
     let mut value = task();
-    let mut query = query(1);
+    let mut query = query(PROJECT);
     query.parent = Some(42);
     value.requester = Requester::Task(42);
     value.lineage = list(vec![99]);

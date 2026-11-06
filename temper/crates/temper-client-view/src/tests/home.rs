@@ -812,7 +812,7 @@ fn home_ready_headline_and_done_steps_hold_in_both_shells() {
                         assert_eq!(
                             skein_lib::bytes::find(
                                 &main,
-                                b"temper runs its default way of working until you change it."
+                                b"In your own words: how you plan, review and land work. temper proposes how it will run that, and nothing changes until you accept."
                             )
                             .is_some(),
                             !configured
@@ -823,10 +823,8 @@ fn home_ready_headline_and_done_steps_hold_in_both_shells() {
                         );
                         if repository {
                             contains(&main, "work/hello is in Shop");
-                            contains(
-                                &main,
-                                "temper can change its code now; checked changes land on main through temper's merge queue.",
-                            );
+                            absent(&main, "CI ran on main and passed");
+                            contains(&main, "Chats can change its code now.");
                         }
                     }
                 }

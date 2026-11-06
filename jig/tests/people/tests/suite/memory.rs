@@ -2,7 +2,10 @@ use jig_domain_people::{
     Ask, Domain, Entry, EntryKind, Event, Holding, Identity, IdentityKey, Limits, Outcome, Request, Role, Whom, fire,
     step,
 };
-use jig_people_world::LIMITS;
+use jig_people_world::{
+    LIMITS,
+    fixtures::{OWNER, PERSON, PROJECT},
+};
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 
 struct Measured {
@@ -21,8 +24,8 @@ impl Measured {
         let (owners, grants): (Box<[jig_domain_people::InitialOwner]>, Box<[jig_domain_people::ActGrant]>) =
             if deployment {
                 let owners = Box::new([jig_domain_people::InitialOwner {
-                    project: 1,
-                    identity: jig_people_world::identity(1).key,
+                    project: PROJECT,
+                    identity: jig_people_world::identity(OWNER).key,
                 }]);
                 let grants = (0..limits.act_grants)
                     .map(|connector| jig_domain_people::ActGrant {
@@ -76,7 +79,10 @@ impl Measured {
             reply_to,
             sign_in: 1,
             key: [key; 16],
-            ask: Ask::Create { project: 1, batch: Box::new([jig_people_world::fixtures::people_member(&words, 1)]) },
+            ask: Ask::Create {
+                project: PROJECT,
+                batch: Box::new([jig_people_world::fixtures::people_member(&words, 1)]),
+            },
         })
     }
 }
@@ -128,8 +134,8 @@ fn full_people_roles_signins_pending_waiters_answers_and_expiry_fit() {
             let entries = (0..limits.inbox_recipients)
                 .map(|message| Entry {
                     task,
-                    project: 1,
-                    whom: Whom::Person(1),
+                    project: PROJECT,
+                    whom: Whom::Person(PERSON),
                     kind: EntryKind::Question { message: u64::from(message) },
                     at: Wall::EPOCH,
                 })
@@ -137,7 +143,7 @@ fn full_people_roles_signins_pending_waiters_answers_and_expiry_fit() {
                 .into_boxed_slice();
             test.event(Event::Waiting { task, entries });
         }
-        assert_eq!(test.domain.needs(1), Some(limits.inbox_tasks * limits.inbox_recipients));
+        assert_eq!(test.domain.needs(PERSON), Some(limits.inbox_tasks * limits.inbox_recipients));
         for party in 1..=u64::from(limits.people) {
             for position in 1..=u64::from(limits.inbox_entries) + 1 {
                 test.domain.remember_result(
@@ -145,7 +151,7 @@ fn full_people_roles_signins_pending_waiters_answers_and_expiry_fit() {
                     party,
                     jig_domain_people::ResultRef {
                         task: position,
-                        project: 1,
+                        project: PROJECT,
                         at: Wall::EPOCH,
                         position,
                         forgettable: None,
@@ -249,8 +255,8 @@ fn full_conversation_positions_and_replies_fit(limits: Limits) {
         let entries = (0..limits.inbox_recipients)
             .map(|message| Entry {
                 task,
-                project: 1,
-                whom: Whom::Person(1),
+                project: PROJECT,
+                whom: Whom::Person(PERSON),
                 kind: EntryKind::ChatReply { message: u64::from(message) + 2 },
                 at: Wall::EPOCH,
             })
@@ -261,7 +267,7 @@ fn full_conversation_positions_and_replies_fit(limits: Limits) {
             .map(|message| jig_domain_people::ReplyRef {
                 entry: Entry {
                     task,
-                    project: 1,
+                    project: PROJECT,
                     whom: Whom::Person(party),
                     kind: EntryKind::ChatReply { message: u64::from(message) + 2 },
                     at: Wall::EPOCH,
@@ -272,7 +278,7 @@ fn full_conversation_positions_and_replies_fit(limits: Limits) {
             .into_boxed_slice();
         restored.event(Event::ChatState {
             party,
-            project: 1,
+            project: PROJECT,
             task,
             last_reply: u64::from(limits.inbox_recipients) + 1,
             live: true,
@@ -282,7 +288,7 @@ fn full_conversation_positions_and_replies_fit(limits: Limits) {
         restored.event(Event::Waiting { task, entries });
     }
     for task in 1..=u64::from(limits.inbox_tasks) {
-        restored.event(Event::Forget { task, project: 1, party: None, last_reply: 0 });
+        restored.event(Event::Forget { task, project: PROJECT, party: None, last_reply: 0 });
     }
 }
 
@@ -294,7 +300,7 @@ fn retained_account_sign_in_answers_keep_their_longest_addresses() {
     test.event(Event::SignedIn {
         held: None,
         reply_to,
-        person: 1,
+        person: PERSON,
         sign_in: 1,
         identity: Identity {
             key: IdentityKey { provider: 0, subject: Box::new([1]) },

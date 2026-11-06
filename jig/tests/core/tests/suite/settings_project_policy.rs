@@ -1,6 +1,7 @@
 //! A project's policy beside deployment settings (jig/docs/design/domain/engine.md, 17.2 and 17.6).
 use crate::settings_support::*;
 use jig_core_world::fixtures::PROJECT;
+use jig_core_world::fixtures::accepted;
 use jig_core_world::{
     client_peer::ClientPeer,
     world::{Boot, Setup, World},
@@ -116,16 +117,6 @@ fn project_rows(world: &World) -> Vec<(root::Key, root::Record)> {
 
 fn accept(world: &mut World, signed: u64, request: u8, proposer: u64, proposal: u64) -> people::Reply {
     decide(world, signed, request, proposer, proposal, people::ProposalDecision::Accept, Some(people::Running::Stays))
-}
-
-fn accepted(reply: &people::Reply) {
-    assert!(
-        matches!(
-            reply,
-            people::Reply::Outcome(people::Outcome::ProposalDecided { choice: people::ProposalChoice::Accepted, .. })
-        ),
-        "{reply:?}"
-    );
 }
 
 #[test]

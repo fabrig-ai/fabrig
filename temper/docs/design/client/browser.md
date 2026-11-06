@@ -609,7 +609,9 @@ replay says the same clocks (`README.md`, 5.12).
   `/* ==== ui: chats ==== */` marker, in the `--gf-*` tokens, with
   `--gf-hint: #8a8a93`, `--gf-signal-ink: #9a3412` and
   `--gf-signal-line: #f1d5bd`; the mock's phone rules for those selectors
-  come from its last `@media (max-width: 760px)` block. The tokens:
+  come from its last `@media (max-width: 760px)` block. At that width the
+  session's keyboard hint is hidden, as the configure-chat look request
+  draws it. The tokens:
   `CHATS_PAGE` on the Chats page's main and `SESSION` on every chat's and
   `NewChat`'s. An agent's task's page keeps its own look, `AGENT_PAGE` and
   `TASKBAR`, with `ENTRY`, `COMPOSER_AREA`, `COMPOSER` and `HINT` for its

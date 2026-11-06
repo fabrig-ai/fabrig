@@ -1,26 +1,18 @@
 use jig_core_world::Fault;
 use jig_core_world::Store;
 use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::store_peer::StorePeer;
 use jig_core_world::world::Cut;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
-use jig_domain_people as people;
 use jig_test_domain as root;
 use jig_test_domain::Write;
-use skein_lib::{Duration, ReplyTo, Time, Token, Wall};
+use skein_lib::{Duration, Time, Token, Wall};
 
 fn sign_in(number: u8) -> root::Event {
-    root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(7000 + u64::from(number))),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: Box::from([number, 255]) },
-            login: Box::from([number]),
-            name: Box::from(b"snapshot party".as_slice()),
-        },
-    })
+    signin(Token::new(7000 + u64::from(number)), 0, &[number, 255], &[number], b"snapshot party")
 }
 
 fn observed_world(seed: u64) -> World {
