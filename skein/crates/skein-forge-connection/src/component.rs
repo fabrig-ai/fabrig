@@ -706,7 +706,7 @@ impl Common {
             && let Some(id) = self.connections.get(&token)
             && let Some(c) = self.connection_slab.get_mut(*id)
         {
-            c.rest(Some(env.now.saturating_add(env.limits.deadline)));
+            c.until(Some(env.now.saturating_add(env.limits.deadline)));
         }
         if let Some(reason) = stopped(base.start)
             && base.start != previous

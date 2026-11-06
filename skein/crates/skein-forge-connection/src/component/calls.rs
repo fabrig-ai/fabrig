@@ -168,7 +168,7 @@ impl Common {
             if c.phase() == Phase::Idle {
                 let waiting = self.waiting.get_mut(id).expect("indexed call");
                 if waiting.revoked {
-                    c.rest(Some(env.now.saturating_add(env.limits.idle)));
+                    c.until(Some(env.now.saturating_add(env.limits.idle)));
                     let error = forgejo.plan.error(api::Error::Forbidden);
                     self.finish(call, id, Err(error), up);
                     break;
@@ -176,7 +176,7 @@ impl Common {
                 let deadline = waiting.deadline;
                 let plan = &mut forgejo.plan;
                 if let Some(request) = plan.pending() {
-                    c.rest(Some(deadline));
+                    c.until(Some(deadline));
                     c.raw_room(plan.raw_room(self.shared.answer_bytes));
                     let forge = &base.forge;
                     let authorization = skein_forge::forgejo::credential::authorization(
@@ -265,7 +265,7 @@ impl Common {
                 if c.phase() == Phase::Closed {
                     c.close(env, false, io);
                 } else {
-                    c.rest(Some(env.now.saturating_add(env.limits.idle)));
+                    c.until(Some(env.now.saturating_add(env.limits.idle)));
                 }
                 self.finish(call, id, result, up);
                 true

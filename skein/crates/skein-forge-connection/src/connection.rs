@@ -222,7 +222,7 @@ impl Connection {
     pub(crate) fn deadline(&self) -> Option<Time> {
         self.state.until()
     }
-    pub(crate) fn rest(&mut self, until: Option<Time>) {
+    pub(crate) fn until(&mut self, until: Option<Time>) {
         match &mut self.state {
             Closed { .. } => {}
             Connecting { until: held }
