@@ -88,13 +88,29 @@ pub(super) fn words_in_order(tree: &skein_ui::Tree, phrases: &[&str]) {
 fn connect_offers_the_three_kinds() {
     let root = f::forge_root(Address::ConnectForge { forge: None }, List::with_capacity(0));
     let view = f::page_view(&root);
-    words_in_order(view.tree(), &["GitHub", "Connect GitHub", "Forgejo on this machine", "Your Forgejo"]);
+    words_in_order(
+        view.tree(),
+        &[
+            "Connect a forge",
+            "Where your code lives",
+            "Forgejo",
+            "Run Forgejo here",
+            "GitHub",
+            "Connect GitHub",
+            "Or a server of your own",
+            "Your Forgejo",
+            "Connect your Forgejo",
+        ],
+    );
+    assert!(f::find(view.tree(), Role::List, b"Steps").is_none());
+    let card = view.tree().find(node(view.tree(), Role::Region, b"Forgejo")).unwrap();
+    assert!(card.styles.as_slice().contains(&crate::look::CONNECT_DEFAULT));
     assert_eq!(
-        press(&root, Role::Link, b"Your Forgejo"),
-        d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: Some(Choice::Managed) } })
+        press(&root, Role::Link, b"Connect your Forgejo"),
+        d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: Some(Choice::Elsewhere) } })
     );
     assert_eq!(
-        press(&root, Role::Link, b"Forgejo on this machine"),
+        press(&root, Role::Link, b"Run Forgejo here"),
         d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: Some(Choice::Owned) } })
     );
 }
@@ -166,9 +182,9 @@ fn connect_offers_forgejo_on_this_machine_from_the_deployment() {
     for owned in [false, true] {
         let root = deployment_root(Address::ConnectForge { forge: None }, owned);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            assert_eq!(f::find(view.tree(), Role::Heading { level: 2 }, b"Forgejo on this machine").is_some(), owned);
+            assert_eq!(f::find(view.tree(), Role::Heading { level: 2 }, b"Forgejo").is_some(), owned);
             node(view.tree(), Role::Button, b"Connect GitHub");
-            node(view.tree(), Role::Link, b"Your Forgejo");
+            node(view.tree(), Role::Link, b"Connect your Forgejo");
         }
     }
 }
@@ -277,14 +293,37 @@ fn forgejo_here_without_the_box_says_to_start_temper_with_the_box() {
     assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_CODE)));
 }
 #[test]
-fn forgejo_on_this_machine_shows_how_with_the_server_help_in_fabrig() {
+fn settings_opens_the_welcome_sheet_and_cancel_returns_to_choose() {
     let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Owned) }, List::with_capacity(0));
-    let view = f::page_view(&root);
-    let link = node(view.tree(), Role::Link, b"Show how");
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let tree = view.tree();
+        node(tree, Role::Dialog, b"Forgejo on this machine");
+        node(tree, Role::Link, b"Run Forgejo here");
+        node(tree, Role::Choice, b"An empty repository");
+        node(tree, Role::Button, b"Run on this machine");
+        assert!(f::find(tree, Role::List, b"Steps").is_none());
+    }
     assert_eq!(
-        view.tree().nodes().iter().find(|n| n.id == link).unwrap().external.as_deref(),
-        Some(b"https://github.com/fabrig-ai/fabrig/blob/main/temper/docs/help/server.md".as_slice())
+        press(&root, Role::Button, b"Cancel"),
+        d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: None } })
     );
+}
+
+#[test]
+fn connected_cards_move_the_default_and_offer_forgejos_sign_in() {
+    let root = f::forge_root(Address::ConnectForge { forge: None }, first_rows(connected(), made()));
+    let mut view = f::view_of(f::browser_words());
+    let mut facts = crate::forge_sign_in::Forges::new();
+    facts.read("3 forgejo https://forgejo.example owned");
+    view.forge_sign_in(facts);
+    let tree = f::build(&mut view, &root);
+    words_in_order(tree, &["Forgejo", "✓ Connected", "work/hello", "Open Forgejo ↗", "GitHub", "Connect GitHub"]);
+    let owned = tree.find(node(tree, Role::Region, b"Forgejo")).unwrap();
+    assert!(!owned.styles.as_slice().contains(&crate::look::CONNECT_DEFAULT));
+    let github = tree.find(node(tree, Role::Region, b"GitHub")).unwrap();
+    assert!(github.styles.as_slice().contains(&crate::look::CONNECT_DEFAULT));
+    let open = tree.find(node(tree, Role::Link, "Open Forgejo ↗".as_bytes())).unwrap();
+    assert_eq!(open.external.as_deref(), Some(b"https://forgejo.example/user/oauth2/temper".as_slice()));
 }
 #[test]
 fn elsewhere_details_give_the_next_unused_number() {
@@ -293,7 +332,7 @@ fn elsewhere_details_give_the_next_unused_number() {
         view.tree(),
         &[
             "A Forgejo elsewhere",
-            "Add its address to the configuration and restart temper box. Then connect as its admin, and temper makes and keeps its bot, or paste its bot’s tokens.",
+            "In ~/.config/temper/temper.json, with your host and unused numbers:",
             "application.forges",
             "\"number\": 4",
             "\"kind\": \"forgejo\"",
@@ -302,13 +341,46 @@ fn elsewhere_details_give_the_next_unused_number() {
             "application.identities",
             "\"number\": 4, \"forge\": 4",
             "application.setup",
+            "Without it, temper takes its bot’s tokens only.",
             "\"forge\": 4",
             "\"mode\": \"managed\"",
-            "Without it, temper takes its bot’s tokens only.",
             "Restart temper box, then connect it from this page.",
         ],
     );
 }
+#[test]
+fn elsewhere_numbers_its_steps_and_copies_each_whole_command() {
+    let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Elsewhere) }, List::with_capacity(0));
+    let mut view = f::browser_page_view(&root);
+    let tree = view.tree();
+    let list = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::CONNECT_STEPS)).unwrap();
+    assert_eq!(list.ordered, Some(1));
+    assert_eq!(tree.nodes().iter().filter(|n| n.role == Role::Item).count(), 4);
+    assert!(f::find(tree, Role::List, b"Steps").is_none());
+    let codes: Vec<_> = tree
+        .nodes()
+        .iter()
+        .enumerate()
+        .filter(|(_, n)| n.role == Role::Code)
+        .map(|(i, _)| f::node_text(tree, i))
+        .collect();
+    let copies: Vec<_> = tree
+        .nodes()
+        .iter()
+        .filter(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Copy"))
+        .map(|n| n.id)
+        .collect();
+    assert_eq!(codes.len(), 3);
+    assert_eq!(copies.len(), 3);
+    for (code, button) in codes.iter().zip(copies) {
+        assert_eq!(crate::act(&mut view, button, Act::Press), Some(d::Action::Copy { words: code.clone() }));
+    }
+    assert_eq!(
+        press(&root, Role::Link, b"Other forges"),
+        d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: None } })
+    );
+}
+
 #[test]
 fn setting_up_marks_the_rows_step() {
     for (step, done) in
@@ -1206,24 +1278,12 @@ fn standalone_setup_names_the_requested_target_before_the_row_has_it() {
 }
 
 #[test]
-fn github_bar_has_choose_connecting_and_ready_with_own_app_under_choose() {
+fn the_connect_page_has_no_steps_bar_on_github_either() {
     for rows in [rows(w::Connection::NotSetUp, w::Offer::Offered), github_rows(false), github_rows(true)] {
         let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(GITHUB)) }, rows);
         let view = f::browser_page_view(&root);
-        let tree = view.tree();
-        let steps = node(tree, Role::List, b"Steps");
-        let index = tree.nodes().iter().position(|n| n.id == steps).unwrap();
-        let size = usize::try_from(tree.nodes()[index].size).unwrap();
-        let labels: Vec<_> = tree.nodes()[index..][..size]
-            .iter()
-            .enumerate()
-            .filter(|(_, n)| n.role == Role::Item)
-            .map(|(offset, _)| f::node_text(tree, index + offset))
-            .collect();
-        assert_eq!(
-            labels.iter().map(AsRef::as_ref).collect::<Vec<_>>(),
-            [b"Choose".as_slice(), b"Connecting", b"Ready"]
-        );
+        assert!(f::find(view.tree(), Role::List, b"Steps").is_none());
+        node(view.tree(), Role::Heading { level: 1 }, b"Connect a forge");
     }
 }
 
