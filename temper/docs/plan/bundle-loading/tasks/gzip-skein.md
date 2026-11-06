@@ -73,3 +73,11 @@ Then the code:
 ## Report
 
 What ran; each rule broken by hand and what failed; the bundler's time; `flate2`'s version; the size of a real module's `.gz` if you built one.
+
+## Rebase (2026-11-06, step merge, foreman bundle-loading/gzip-skein/foreman-1)
+
+resolve both status conflicts, preserving the incoming placeholder gaps and removing the completed gzip gaps
+Rebase onto the landing trunk. Commit `ab8755d9b3` (“bundle-loading: the design of the page and its loader”) added adjacent status entries that conflict with this branch’s deletions.
+- `skein/docs/design/examples.status.md`: remove `**Not yet:** 9.3: each file in the form the request takes.` Keep the incoming `**Not yet:** 9.3: a placeholder.` and the existing section 6 echo gap.
+- `skein/docs/design/ui-web.status.md`: remove the complete two-line **Not yet** entry covering 4.2 compressed forms and 4.4 compressed answers. Keep the incoming `**Not yet:** 4.3: the title, the page with a placeholder and the loader.` and the existing section 7 **Departs** entry.
+These resolutions preserve both tasks’ intended status changes; no implementation change is needed for the reported merge refusal.
