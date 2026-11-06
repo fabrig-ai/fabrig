@@ -67,6 +67,9 @@ impl Replay {
     /// Stops at the first changed duty, deadline or missing control.
     #[expect(clippy::should_implement_trait, reason = "a mark borrows the replay, unlike Iterator::Item")]
     pub fn next(&mut self) -> Result<Option<Mark<'_>>, Stale> {
+        self.next_drawing(&mut |_, _| {})
+    }
+    fn next_drawing(&mut self, drawn: &mut dyn FnMut(u32, &Page<'static>)) -> Result<Option<Mark<'_>>, Stale> {
         if self.ended {
             return Ok(None);
         }
@@ -119,6 +122,7 @@ impl Replay {
             }
             if let Line::Deadline(_) = line {
                 self.host.draw(&mut self.page, &mut Vec::new());
+                drawn(self.turn, &self.page);
                 let actual = Line::Deadline(self.host.deadline());
                 if &actual != line {
                     return Err(self.stale(self.at, text(&actual)));
@@ -311,8 +315,15 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
 /// # Errors
 /// Refuses a stale replay, a bare mark or the first differing html byte.
 pub fn prove(recording: &[u8]) -> Result<Box<[u8]>, Refusal> {
+    prove_drawn(recording, &mut |_, _| {})
+}
+/// As `prove`, giving `drawn` the turn's number and page at each turn's end (client/journeys.md, 3.7).
+///
+/// # Errors
+/// Refuses a stale replay, a bare mark or the first differing html byte.
+pub fn prove_drawn(recording: &[u8], drawn: &mut dyn FnMut(u32, &Page<'static>)) -> Result<Box<[u8]>, Refusal> {
     let mut replay = Replay::new(recording)?;
-    while let Some(mark) = replay.next().map_err(Refusal::Stale)? {
+    while let Some(mark) = replay.next_drawing(drawn).map_err(Refusal::Stale)? {
         let recorded = mark.recorded.ok_or(Refusal::Unproved { mark: mark.number })?;
         let html = mark.page.html();
         let actual = html.as_bytes();

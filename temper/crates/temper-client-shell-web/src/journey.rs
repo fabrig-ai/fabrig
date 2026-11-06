@@ -14,6 +14,7 @@ pub use fields::{Framing, fields_mut};
 pub use line::{Line, Unreadable, lines};
 pub use originals::{Kind, Original, Originals, SECRET_EVENT, kept_head, placeholder, typed};
 pub use record::Recorder;
+pub use replay::prove_drawn;
 pub use replay::{Mark, Refusal, Replay, Stale, prove};
 pub use stream::{Event, Plain, Streams, Undecoded};
 pub use walk::{Step, Unwalkable, differs, still, walk};
