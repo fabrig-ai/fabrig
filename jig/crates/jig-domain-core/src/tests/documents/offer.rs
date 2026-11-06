@@ -7,6 +7,7 @@
 )]
 use crate::tests::runs::run_choice::{account, granted, host, inventory, login};
 use crate::tests::*;
+use jig_domain_link::{LoginState, SourceName};
 
 const PARTY: u64 = 1;
 const PROJECT: u32 = 1;
@@ -119,13 +120,8 @@ fn only_a_served_providers_models_are_offered_in_configuration_order() {
     );
 }
 
-fn program_login(core: &mut Core, limits: &Limits, state: fleet::LoginState) {
-    inventory(
-        core,
-        limits,
-        HOST,
-        Box::new([login(b"personal", state), login(b"pending", fleet::LoginState::NotSignedIn)]),
-    );
+fn program_login(core: &mut Core, limits: &Limits, state: LoginState) {
+    inventory(core, limits, HOST, Box::new([login(b"personal", state), login(b"pending", LoginState::NotSignedIn)]));
 }
 
 #[test]
@@ -148,18 +144,15 @@ fn keys_survive_missing_hosts_but_programs_require_current_logins() {
         &mut core,
         &limits,
         Event::Fleet(fleet::Event::Sources {
-            sources: Box::new([
-                fleet::SourceName::new(b"personal").unwrap(),
-                fleet::SourceName::new(b"pending").unwrap(),
-            ]),
+            sources: Box::new([SourceName::new(b"personal").unwrap(), SourceName::new(b"pending").unwrap()]),
         }),
     ));
     assert!(offered(&core, &limits).is_empty());
-    program_login(&mut core, &limits, fleet::LoginState::Usable);
+    program_login(&mut core, &limits, LoginState::Usable);
     assert_eq!(offered(&core, &limits), [(0, vec![0])]);
-    program_login(&mut core, &limits, fleet::LoginState::NotSignedIn);
+    program_login(&mut core, &limits, LoginState::NotSignedIn);
     assert!(offered(&core, &limits).is_empty());
-    program_login(&mut core, &limits, fleet::LoginState::Usable);
+    program_login(&mut core, &limits, LoginState::Usable);
     assert_eq!(offered(&core, &limits), [(0, vec![0])]);
     drop(watch_outputs(&mut core, &limits, Event::Fleet(fleet::Event::Lost { channel: HOST })));
     assert!(offered(&core, &limits).is_empty());
@@ -171,7 +164,7 @@ fn keys_survive_missing_hosts_but_programs_require_current_logins() {
     drop(watch_outputs(
         &mut core,
         &limits,
-        Event::Fleet(fleet::Event::Sources { sources: Box::new([fleet::SourceName::new(b"pending").unwrap()]) }),
+        Event::Fleet(fleet::Event::Sources { sources: Box::new([SourceName::new(b"pending").unwrap()]) }),
     ));
     assert_eq!(offered(&core, &limits), [(0, vec![OWN]), (1, vec![OWN])]);
 }
