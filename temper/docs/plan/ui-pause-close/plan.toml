@@ -1,0 +1,5 @@
+draft = "ui-pause-close"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-pause-close/inputs/request.md", "temper/crates/temper-client-view/src/pages/chat.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
