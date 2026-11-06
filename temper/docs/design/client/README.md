@@ -357,7 +357,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
 | `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the fifth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
 | `Configure { project }` | the greenfield mock's `chat.html?id=new&configure=1` | the configuring chat before its first words, under `Settings`, in the project's frame (*The configuring chat's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them | start the configuring chat, from its composer or a starter |
-| `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root). In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
+| `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
 | `NewChat { draft }` | the greenfield mock's `chat.html?id=new`, and `&draft=` for a draft; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (*A new chat,* below), in the playground's project the playground's start (4.8, 5.6); with `draft`, the empty document beside it (*A chat's document,* below) | as `Chats`; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; "+ Draft" |
 | `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its byline and chooser, its status, Stop and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, older pages while its window has room (5.4), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7); its document, read again when its run writes it (*A chat's document,* below); the person's facts (4.6) | message, stop, close, change the next run's model, accept or reject a proposal in place; choose Chat, Split or Draft; "+ Draft"; start a goal from its document; on a configuring chat, start over |
@@ -1629,13 +1629,18 @@ keeps (`../protocol/configuration.md`, section 2).
       need you." and so on in number words to "Nine", digits after,
       "N+ things need you." where the read is cut, the
       project's name until its needs are delivered. With N as `landed`
-      less `seen`, the landed sentence is the brief's `sentence` if the
-      brief's `landed` is above `seen`; else "One change landed since you
-      last looked." or "N changes landed since you last looked."; nothing
-      for 0. "overnight" is the status agent's word, never the computed
-      sentence's;
-    - *the lede and the byline:* the brief's `lede`, if the brief's
-      `landed` is above `seen` as above, then "Written by the status
+      less `seen`, and a brief new to the person where its `landed` is above
+      `seen` or its `at` is after `previous`, the landed sentence is a new
+      brief's `sentence`; else "One change landed since you last looked." or
+      "N changes landed since you last looked."; for 0, with `landed` above 0
+      and a `last_landed`, "The last change landed SPAN ago.", SPAN the
+      kicker's word, "just now" under a minute; nothing with nothing landed.
+      So a landing never stands under "Nothing needs you." alone, whatever
+      became of the brief: a refused, failed or unfunded run isn't the
+      person's error, and Home has no word for one. "overnight" is the status
+      agent's word, never the computed sentence's;
+    - *the lede and the byline:* the brief's `lede`, if the brief is new as
+      above, then "Written by the status
       agent at 07:42", its `at` by 5.12's *clock*, in `temper-home-byline`,
       12 px in the faint colour. Otherwise neither: the computed Home has
       no prose of its own.
@@ -1806,7 +1811,10 @@ keeps (`../protocol/configuration.md`, section 2).
   - *The rail's count:* one standing `inbox` watch while a project's
     frame shows, the rail being what reads it, so that a client on no
     project's page asks nothing more; its needs' rows counted by the open
-    project, less those answered; "N+" where its document is cut, and no
+    project, less those answered, a row counting in each project it shows in
+    (jig's `client/domain/contract.md`, 5.1: `shows_in`), so that a proposal of
+    settings counts in the projects it belongs to, and for one of the
+    deployment's in each the person owns; "N+" where its document is cut, and no
     count before it is delivered. A card marked later still counts. `me`'s
     `needs_total` stays the banner's navigation's.
 - **Changes** (the user's greenfield mock's `changes.html`; `forge.md`,
@@ -4784,7 +4792,8 @@ section 5.
   and goals", "See the settings" and "Limits".
 - **The card in a chat:** a proposal of settings is a card at the call that
   made it, as every proposal is (3.5): the title "How temper will run
-  PROJECT"; a line per line of the proposal's reason, in the person's words;
+  PROJECT", PROJECT its `projects`' names joined by ", " and " and ", or, with
+  none, the deployment's, "How temper will run your projects"; a line per line of the proposal's reason, in the person's words;
   then each item, in small mono type, faint, in the words of `temper ctl` but
   for temper's kinds of a project: kind 7 as "Drafts: on", "Goals: shown",
   "Changes page: shown", "Away switch: shown" and "Way: NAME", kind 6 as

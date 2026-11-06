@@ -18,6 +18,9 @@ and unread-tail retry guard in 7.1 and 7.2.
   frame's `needs` with a person proposal left pending and
   `Deployment.messages` advancing on a retried deadline; the core
   world's `world` and `direct` drivers run no oracle.
+  17.6: a proposal of settings has no `projects`: its inbox rows and its
+  document name the deployment alone, so no project-filtered read shows it
+  (`jig-domain-core`'s `documents/inbox_deployment.rs`, `reads/rows.rs`).
   17.6: pending reasons admitted past `people.words` are cut at that bound
   in the review, with loss stated; no continuation is served.
   17.6: a
