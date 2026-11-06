@@ -89,6 +89,34 @@ pub struct SizedValue {
     pub size: u32,
 }
 
+/// The value of a project's kind 6 or 7 with none stored
+/// (temper/docs/design/protocol/configuration.md, 13.4).
+#[must_use]
+pub fn project_stock(kind: u32) -> Option<SizedValue> {
+    use temper_client_protocol_wire::v1;
+    match kind {
+        6 => {
+            let record =
+                v1::ProjectQuestions::new(&v1::CEILINGS, v1::ProjectQuestionsParts { route: v1::QuestionsRoute::None })
+                    .expect("fixed route field");
+            Some(SizedValue {
+                value: Value::Questions(temper_engine_domain_forge_change::Route::None),
+                size: record.measure(),
+            })
+        }
+        7 => {
+            let ways = ProjectWays { drafts: false, goals: false, changes: false, away: false, way: 0 };
+            let record = v1::ProjectWays::new(
+                &v1::CEILINGS,
+                v1::ProjectWaysParts { skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away], way: ways.way },
+            )
+            .expect("fixed ways fields");
+            Some(SizedValue { value: Value::Ways(ways), size: record.measure() })
+        }
+        _ => None,
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Edit {
     Set(SizedValue),
