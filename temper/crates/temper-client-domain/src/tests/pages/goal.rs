@@ -517,7 +517,7 @@ fn fallback_in_each_state() {
             if state == State::Planning { planning.clone() } else { Fallback::Tasks(COUNTS) }
         );
     }
-    assert_eq!(goal::fallback(State::Stopped, &task, COUNTS), Fallback::Stopped);
+    assert_eq!(goal::fallback(State::Closed, &task, COUNTS), Fallback::Closed);
     task.result = Some(c::TaskResult::Ending(Box::new(done())));
     assert_eq!(
         goal::fallback(State::Landed, &task, COUNTS),
@@ -549,7 +549,7 @@ fn landing_in_each_state() {
     }
     for (state, expected) in [
         (State::Landed, Landing::Landed(Some(LATER))),
-        (State::Stopped, Landing::Stopped),
+        (State::Closed, Landing::Closed),
         (State::Failed, Landing::Failed),
     ] {
         assert_eq!(goal::landing(state, &task, Some(LATER), COUNTS), expected);
@@ -562,7 +562,7 @@ fn with_offer(kind: c::ActKind) -> c::Task {
     task.acts = List::from_boxed(Box::new([c::Offered { act: kind, admission: c::Admission::Allowed, effect: None }]));
     task
 }
-fn paused_task() -> c::Task {
+pub(super) fn paused_task() -> c::Task {
     let mut task = with_offer(c::ActKind::Release);
     f::phase(&mut task, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 17 });
     task.chip.details.details.hold = Some(c::ChipHold {
@@ -680,7 +680,7 @@ fn a_refused_stop_keeps_jigs_words_in_its_sheet() {
     }
 }
 #[test]
-fn stop_opens_its_confirmation_and_sends_its_reason() {
+fn close_opens_its_confirmation_and_sends_its_reason() {
     let mut h = Harness::new(with_offer(c::ActKind::Cancel));
     assert!(page_act(&mut h, Act::Close).is_empty());
     assert_eq!(h.pages.confirmation().unwrap().act, c::ActKind::Cancel);
@@ -689,7 +689,7 @@ fn stop_opens_its_confirmation_and_sends_its_reason() {
         [c::Ask::Cancel {
             project: fixtures::PROJECT,
             task: f::TASK,
-            reason: acts::text(b"Stopped from its page"),
+            reason: acts::text(b"Closed from its page"),
             grace: None,
         }]
     );
