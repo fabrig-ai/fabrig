@@ -15,10 +15,13 @@ fn a_non_owner_can_ask_for_a_scripted_restore() {
     ] {
         let ask = Ask::Restore { revision: 3, reason: text("restore λ".as_bytes()) };
         let mut setup = script();
-        assert_ne!(setup.truth.frames.get(&1).expect("fixture party frame").deployment_role, Some(HeldRole::Owner));
-        setup.rules.push(Rule { party: Some(1), ask: ask.clone(), answer: answer.clone(), changes: vec![] });
+        assert_ne!(
+            setup.truth.frames.get(&REQUESTER).expect("fixture party frame").deployment_role,
+            Some(HeldRole::Owner)
+        );
+        setup.rules.push(Rule { party: Some(REQUESTER), ask: ask.clone(), answer: answer.clone(), changes: vec![] });
         let mut engine = Engine::new(setup, 300).expect("valid script");
-        send(&mut engine, 0, 11, 1, 1, ask.clone());
+        send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
         let answers = engine.poll(Time::from_nanos(10_000_001));
         assert_eq!(final_answer(&answers[0]), &answer);
         assert_eq!(engine.commits().len(), 1);

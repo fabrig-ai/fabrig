@@ -96,14 +96,14 @@ enum Arrival {
     Settled(Option<builder::vocabulary::Event>),
 }
 #[derive(Debug)]
-enum Current {
+enum Holding {
     Body(Writer),
     Decoding(Decode),
     Decoded(Decoded),
     Caching { cache: Cache, arrival: Arrival },
     Spent,
 }
-impl Current {
+impl Holding {
     fn whole(self, kind: render::vocabulary::As, env: &Env<Limits>) -> Self {
         match self {
             Self::Caching { mut cache, arrival } => {
@@ -158,7 +158,7 @@ enum Feed {
 pub(crate) struct Read {
     root: skein_io::kernel::Fd,
     rng: skein_lib::Rng,
-    current: Current,
+    current: Holding,
     request: Token,
     blobs: Box<[Blob]>,
     index: usize,
@@ -176,7 +176,7 @@ impl Read {
         let mut read = Self {
             root,
             rng: skein_lib::Rng::new(seed),
-            current: Current::Spent,
+            current: Holding::Spent,
             request,
             blobs,
             index: 0,
@@ -199,10 +199,10 @@ impl Read {
             | render::vocabulary::As::Declaration
             | render::vocabulary::As::Template
             | render::vocabulary::As::Link => {
-                Current::Body(Writer::new(usize::try_from(blob.size).expect("render checked document bound")))
+                Holding::Body(Writer::new(usize::try_from(blob.size).expect("render checked document bound")))
             }
             render::vocabulary::As::Cached => {
-                Current::Caching { cache: Cache::new(self.root, &mut self.rng), arrival: Arrival::Streaming }
+                Holding::Caching { cache: Cache::new(self.root, &mut self.rng), arrival: Arrival::Streaming }
             }
         };
         let request =
@@ -253,7 +253,7 @@ impl Read {
     }
     pub fn work_pending(&self) -> bool {
         match &self.current {
-            Current::Caching { cache, arrival } => {
+            Holding::Caching { cache, arrival } => {
                 let waiting = match arrival {
                     Arrival::Waiting => true,
                     Arrival::Streaming | Arrival::Settled(_) => false,
@@ -265,8 +265,8 @@ impl Read {
                     return false;
                 }
             }
-            Current::Decoding(_) | Current::Decoded(_) => return true,
-            Current::Body(_) | Current::Spent => {}
+            Holding::Decoding(_) | Holding::Decoded(_) => return true,
+            Holding::Body(_) | Holding::Spent => {}
         }
         !self.above.is_empty()
             || !self.below.is_empty()
@@ -320,19 +320,13 @@ impl Read {
     }
     pub fn take_answer(&mut self) -> render::vocabulary::Event {
         let blob = self.blobs.get(self.index).expect("current blob");
-        assert!(self.current.ready(), "decoded or cached blob");
-        match core::mem::replace(&mut self.current, Current::Spent) {
-            Current::Caching { cache, .. } => render::vocabulary::Event::Cached {
-                request: self.request,
-                oid: blob.oid.clone(),
-                size: blob.size,
-                sha256: cache.digest(),
-            },
-            Current::Decoded(read) => {
+        assert!(self.current.ready(), "decoded blob");
+        match core::mem::replace(&mut self.current, Holding::Spent) {
+            Holding::Decoded(read) => {
                 render::vocabulary::Event::Read { request: self.request, oid: blob.oid.clone(), read }
             }
-            Current::Body(_) | Current::Decoding(_) | Current::Spent => {
-                unreachable!("decoded or cached blob")
+            Holding::Body(_) | Holding::Decoding(_) | Holding::Caching { .. } | Holding::Spent => {
+                unreachable!("decoded blob")
             }
         }
     }
@@ -341,8 +335,8 @@ impl Read {
     }
     pub fn settle(&mut self, event: builder::vocabulary::Event) -> Option<builder::vocabulary::Event> {
         let arrival = match &mut self.current {
-            Current::Caching { arrival, .. } => arrival,
-            Current::Body(_) | Current::Decoding(_) | Current::Decoded(_) | Current::Spent => {
+            Holding::Caching { arrival, .. } => arrival,
+            Holding::Body(_) | Holding::Decoding(_) | Holding::Decoded(_) | Holding::Spent => {
                 unreachable!("settling a cached arrival")
             }
         };
@@ -356,11 +350,11 @@ impl Read {
     }
     pub fn take_terminal(&mut self) -> Option<builder::vocabulary::Event> {
         match &mut self.current {
-            Current::Caching { arrival, .. } => match arrival {
+            Holding::Caching { arrival, .. } => match arrival {
                 Arrival::Settled(terminal) => terminal.take(),
                 Arrival::Streaming | Arrival::Waiting => None,
             },
-            Current::Body(_) | Current::Decoding(_) | Current::Decoded(_) | Current::Spent => None,
+            Holding::Body(_) | Holding::Decoding(_) | Holding::Decoded(_) | Holding::Spent => None,
         }
     }
     pub fn file_up(&mut self, event: skein_io::file::Event) {
@@ -373,7 +367,7 @@ impl Read {
         below: &mut Queue<Asked>,
     ) {
         match &mut self.current {
-            Current::Caching { cache, arrival } => {
+            Holding::Caching { cache, arrival } => {
                 if let Some(request) = cache.take_request() {
                     below.push(Asked::File(request));
                     return;
@@ -411,34 +405,34 @@ impl Read {
                     return;
                 }
             }
-            Current::Decoding(decode) => {
+            Holding::Decoding(decode) => {
                 if let Some(result) = decode.resume(env) {
                     self.current = match result {
-                        Ok(decoded) => Current::Decoded(decoded),
+                        Ok(decoded) => Holding::Decoded(decoded),
                         Err(()) => {
                             self.failed = true;
-                            Current::Spent
+                            Holding::Spent
                         }
                     };
                 }
                 return;
             }
-            Current::Body(_) | Current::Decoded(_) | Current::Spent => {}
+            Holding::Body(_) | Holding::Decoded(_) | Holding::Spent => {}
         }
         if let Some(event) = self.above.pop() {
             match event {
                 batch::Event::Piece(bytes) => match &mut self.current {
-                    Current::Caching { cache, .. } => cache.piece(bytes),
-                    Current::Body(body) => {
+                    Holding::Caching { cache, .. } => cache.piece(bytes),
+                    Holding::Body(body) => {
                         body.put(&bytes).expect("batch bounded piece");
                         self.down(env, batch::Request::Next);
                     }
-                    Current::Decoding(_) | Current::Decoded(_) | Current::Spent => {
+                    Holding::Decoding(_) | Holding::Decoded(_) | Holding::Spent => {
                         unreachable!("current blob buffer")
                     }
                 },
                 batch::Event::Whole { .. } => {
-                    let current = core::mem::replace(&mut self.current, Current::Spent);
+                    let current = core::mem::replace(&mut self.current, Holding::Spent);
                     let kind = self.blobs.get(self.index).expect("blob").kind;
                     self.current = current.whole(kind, env);
                 }
@@ -470,12 +464,10 @@ impl Read {
 }
 
 pub(super) fn current(current: &mut Work) -> Option<&mut Read> {
-    match current {
-        Work::Git { mode, .. } => match mode {
-            Mode::Read(read) => Some(read),
-            Mode::Rev { .. } | Mode::Listing { .. } | Mode::Hunks { .. } => None,
-        },
-        Work::Call(_) | Work::Step(_) | Work::Idle | Work::Keeping(_) | Work::Resolving(_) => None,
+    let (_, mode) = current.git_mut()?;
+    match mode {
+        Mode::Read(read) => Some(read),
+        Mode::Rev { .. } | Mode::Listing { .. } | Mode::Hunks { .. } => None,
     }
 }
 

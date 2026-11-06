@@ -490,13 +490,13 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::Configure { .. }
         | Address::Welcome { .. } => false,
     };
-    forge::ways::progress(&mut root.forge, root.pages.project(), on_tab, env.limits.forge, &mut child);
+    forge::ways::progress(&mut root.forge, env.now, root.pages.project(), on_tab, env.limits.forge, &mut child);
     forge::ways::proposals(&mut root.forge, root.pages.cards(), env.limits.forge, &mut child);
     route_forge(root, env, &mut child, out);
 }
 fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
-    let consumed = forge::ways::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child);
+    let consumed = forge::ways::told(&mut root.forge, env.now, &root.client, told, env.limits.forge, &mut child);
     route_forge(root, env, &mut child, out);
     if consumed
         && let jig_client::Told::Changed { handle } | jig_client::Told::Ended { handle, .. } = told

@@ -567,8 +567,19 @@ impl Common {
                     return false;
                 };
                 let authorization = github::credential::bearer(&secret).expect("bounded bearer");
-                c.rest(Some(env.now.saturating_add(env.limits.deadline)));
-                if gh.exchange.start(c, env, forge, &self.owner.user_agent, exchange, Some(authorization)).is_err() {
+                if gh
+                    .exchange
+                    .start(
+                        c,
+                        Some(env.now.saturating_add(env.limits.deadline)),
+                        env,
+                        forge,
+                        &self.owner.user_agent,
+                        exchange,
+                        Some(authorization),
+                    )
+                    .is_err()
+                {
                     Self::github_wait(base, gh, env);
                     return false;
                 }
@@ -916,7 +927,7 @@ impl Common {
             let c = self.connection_slab.get_mut(id).expect("own connection");
             if self.lifecycle != Lifecycle::Live || !active {
                 if c.deadline().is_none() && c.phase() == Phase::Idle {
-                    c.rest(Some(env.now.saturating_add(env.limits.idle)));
+                    c.until(Some(env.now.saturating_add(env.limits.idle)));
                 }
                 if self.lifecycle != Lifecycle::Live || c.phase() != Phase::Idle || c.deadline() <= Some(env.now) {
                     c.close(env, c.in_flight(), io);
@@ -948,7 +959,7 @@ impl Common {
                     if c.in_flight() {
                         c.close(env, true, io);
                     } else {
-                        c.rest(None);
+                        c.until(None);
                     }
                 }
                 continue;

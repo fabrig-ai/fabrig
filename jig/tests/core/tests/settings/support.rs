@@ -1,6 +1,8 @@
 //! Settings travel through the real restart, store and commit barrier (engine.md, 17.7).
 use jig_core_world::client_peer::ClientPeer;
 use jig_core_world::fixtures;
+pub(super) use jig_core_world::fixtures::PARTY as OWNER;
+use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::peers;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
@@ -10,7 +12,7 @@ use jig_test_domain as root;
 use skein_lib::{Duration, ReplyTo, Token};
 
 pub(super) const SEED: u64 = 37_001;
-pub(super) const OWNER: u64 = 1;
+
 pub(super) fn configuration() -> (root::Config, root::Limits) {
     let document = jig_protocol_config::document(
         include_bytes!("engine.json"),
@@ -65,15 +67,7 @@ pub(super) fn start(history: u32) -> World {
     world
 }
 pub(super) fn sign_in(world: &mut World) -> u64 {
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(SEED)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 1, subject: Box::from(b"owner-a".as_slice()) },
-            login: Box::new([]),
-            name: Box::new([]),
-        },
-    }));
+    world.send(signin(Token::new(SEED), 1, b"owner-a", &[], &[]));
     let (
         _,
         root::Delivery::Core(core::Held::PeopleReply {
@@ -234,15 +228,7 @@ pub(super) fn proposed(reply: &people::Reply) -> u64 {
     *proposal
 }
 pub(super) fn party(world: &mut World, subject: &[u8], role: Option<(u32, people::Role)>) -> (u64, u64) {
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(SEED)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 1, subject: subject.into() },
-            login: subject.into(),
-            name: subject.into(),
-        },
-    }));
+    world.send(signin(Token::new(SEED), 1, subject, subject, subject));
     let (
         _,
         root::Delivery::Core(core::Held::PeopleReply {
@@ -573,15 +559,7 @@ impl RequestWorld {
 
     /// Sign in the configured owner through the same authenticated request entrance.
     pub(super) fn sign_in(&mut self) -> u64 {
-        let reply = self.send(root::Event::Core(core::Event::SignIn {
-            held: None,
-            reply_to: ReplyTo::new(Token::new(SEED)),
-            identity: people::Identity {
-                key: people::IdentityKey { provider: 1, subject: b"owner-a".as_slice().into() },
-                login: Box::new([]),
-                name: Box::new([]),
-            },
-        }));
+        let reply = self.send(signin(Token::new(SEED), 1, b"owner-a", &[], &[]));
         let Some(people::Reply::SignedIn { person: OWNER, sign_in, .. }) = reply else {
             panic!("owner signs in: {reply:?}")
         };

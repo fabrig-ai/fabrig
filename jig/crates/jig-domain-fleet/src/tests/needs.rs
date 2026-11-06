@@ -372,7 +372,9 @@ fn a_dropped_version_leaves_the_table_and_live_attempts_keep_theirs() {
     assert_eq!(h.domain.needs.charters.len(), 1);
     assert_eq!(h.domain.needs.charters[0].version, crate::Version { charter: 1, revision: 2 });
     let id = h.domain.names.get(&(R1, A1)).expect("live attempt");
-    let crate::attempt::State::Claimed { version, .. } = &h.domain.attempts.get(*id).unwrap().state else {
+    let crate::attempt::State::Claimed { claiming: crate::attempt::Claiming { version, .. }, .. } =
+        &h.domain.attempts.get(*id).unwrap().state
+    else {
         panic!("live attempt stays claimed");
     };
     assert_eq!(*version, crate::Version { charter: 1, revision: 1 });
