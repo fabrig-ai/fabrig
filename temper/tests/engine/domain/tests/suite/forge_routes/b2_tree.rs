@@ -1,6 +1,6 @@
 //! Rung B2 under the box's stock funding and the init template's model.
 use super::*;
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 
 use super::stock::box_model as model;
 use jig_domain_core::{documents, reads};
@@ -60,7 +60,8 @@ fn started_world_with_words(
     world.adopt();
     let mut bounds = protocol::bounds();
     bounds.turns = 800;
-    bounds.models = Box::new([ModelBound { name: model().name, window: model().window, output: model().output }]);
+    bounds.endpoints =
+        Box::new([EndpointBound { endpoint: model().endpoint, window: model().window, output: model().output }]);
     bounds.spend = defaults.rules.maximum_run_spend;
     bounds.time = Duration::from_secs(28_800);
     bounds.message_bytes = world.env.limits.tasks.message_bytes.max(world.env.limits.tasks.result_bytes);

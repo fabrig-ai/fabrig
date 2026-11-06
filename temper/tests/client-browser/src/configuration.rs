@@ -26,7 +26,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
             "policy":{"max_turns":800,"group_stop":10,"inbox":8,"unacknowledged":8,"check_timeout":60000}},
-        "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
+        "endpoints":[{"name":"fake","number":1,"dialect":3,"provider":"openai",
             "address":UNREACHED,"transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),
             "connect":1000,"handshake":1000,
             "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],

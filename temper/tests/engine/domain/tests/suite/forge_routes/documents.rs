@@ -3,7 +3,7 @@
 //! temper/docs/design/protocol/configuration.md, 13.7).
 use super::*;
 use jig_domain_core::Document;
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 
 const CHANNEL: Token = Token::new(7);
 const CHAT: Token = Token::new(92);
@@ -277,7 +277,8 @@ fn chat_with_document(world: &mut World) -> engine::Assignment {
     };
     let bounds = &mut hello.bounds;
     let model = stock::box_model();
-    bounds.models = Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]);
+    bounds.endpoints =
+        Box::new([EndpointBound { endpoint: model.endpoint, window: model.window, output: model.output }]);
     bounds.turns = 800;
     bounds.time = Duration::from_secs(28_800);
     bounds.spend = 2_500_000;

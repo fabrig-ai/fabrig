@@ -1,13 +1,12 @@
 use crate::{
-    Bounds, BoundsParts, Credential, CredentialParts, Hello, HelloParts, Hosting, HostingParts, ModelBound,
-    ModelBoundParts, Phase, v9,
+    Bounds, BoundsParts, Credential, CredentialParts, EndpointBound, EndpointBoundParts, Hello, HelloParts, Hosting,
+    HostingParts, Phase, v9,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Secret, Writer};
 
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const WORKER_B: &[u8] = b"worker-b";
-pub const MODEL_SMALL: &[u8] = b"small";
 
 pub const LIMITS: v9::Limits = v9::Limits {
     input_call_id: 256,
@@ -24,8 +23,7 @@ pub const LIMITS: v9::Limits = v9::Limits {
     signed_out_name: 32,
     credential_name: 16,
     credential_secret: 32,
-    model_bound_name: 16,
-    bounds_models: 2,
+    bounds_endpoints: 2,
     bounds_program_endpoints: v9::CEILINGS.bounds_program_endpoints,
     hello_jobs: 2,
     job_spec: 32,
@@ -81,9 +79,8 @@ pub fn credential(name: &[u8], secret: &[u8]) -> Credential {
         .expect("small credential")
 }
 
-pub fn model() -> ModelBound {
-    ModelBound::new(&LIMITS, ModelBoundParts { name: MODEL_SMALL.into(), window: 8192, output: 1024 })
-        .expect("small model")
+pub fn model() -> EndpointBound {
+    EndpointBound::new(&LIMITS, EndpointBoundParts { endpoint: 1, window: 8192, output: 1024 }).expect("small model")
 }
 
 pub fn hello_fullest() -> Hello {
@@ -98,7 +95,7 @@ pub fn hello_fullest() -> Hello {
         &LIMITS,
         BoundsParts {
             program_endpoints,
-            models,
+            endpoints: models,
             turns: 40,
             spend: 100,
             time: Duration::from_secs(300),
@@ -363,7 +360,7 @@ pub const SIZES_ONE_SLOT: crate::sizes::Sizes = crate::sizes::Sizes {
     grant: 16,
     name: 16,
     secret: 16,
-    model_name: 16,
+
     items: 16,
     left: 16,
     saved: 16,
@@ -398,7 +395,7 @@ pub const SIZES_LARGE: crate::sizes::Sizes = crate::sizes::Sizes {
     grant: 8192,
     name: 256,
     secret: 1024,
-    model_name: 128,
+
     items: 1_048_576,
     left: 65_536,
     saved: 65_536,

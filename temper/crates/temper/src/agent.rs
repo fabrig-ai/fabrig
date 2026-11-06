@@ -1,6 +1,6 @@
 //! Checked agent metadata and effect-free programs-directory preflight (configuration.md, 5).
 use super::json::{self, Json};
-use jig_domain_link::{Bounds, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound};
 use std::{
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
@@ -25,12 +25,16 @@ pub(crate) fn read(configuration: &Path) -> Result<Agent, String> {
         calls: host_limits.calls,
     };
     protocol.channel.output_bytes = smith_host_protocol::output_bytes(&protocol).ok_or("agent output bound")?;
-    let mut models = Vec::new();
-    for endpoint in &configuration.declarations.endpoints {
-        for model in &endpoint.models {
-            models.push(ModelBound { name: model.name.clone(), window: model.window, output: model.output });
-        }
-    }
+    let endpoints = configuration
+        .declarations
+        .endpoints
+        .iter()
+        .map(|endpoint| EndpointBound {
+            endpoint: endpoint.number,
+            window: endpoint.models.iter().map(|model| model.window).max().unwrap_or(0),
+            output: endpoint.models.iter().map(|model| model.output).max().unwrap_or(0),
+        })
+        .collect();
     let policy = configuration.profile.policy;
     let message_bytes = limits
         .domain
@@ -56,7 +60,7 @@ pub(crate) fn read(configuration: &Path) -> Result<Agent, String> {
         host_limits,
         bounds: Bounds {
             program_endpoints: configuration.program_endpoints.iter().copied().collect::<Vec<_>>().into_boxed_slice(),
-            models: models.into_boxed_slice(),
+            endpoints,
             turns: policy.max_turns,
             spend: policy.max_spend,
             time: policy.max_time,

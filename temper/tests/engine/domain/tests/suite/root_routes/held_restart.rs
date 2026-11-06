@@ -40,7 +40,7 @@ fn delegate() -> (Driver, u64) {
     let mut hello = hello_with(CHANNEL, WORKERS, Duration::from_secs(1), Box::new([]));
     if let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut hello
     {
-        hello.bounds.models[0].name = MODEL.into();
+        hello.bounds.endpoints[0].endpoint = 1;
     }
     driver.send(hello);
     driver.settle();

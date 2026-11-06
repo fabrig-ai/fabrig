@@ -30,6 +30,7 @@ pub struct CharterNeeds {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ModelNeed {
+    pub endpoint: u32,
     pub name: Box<[u8]>,
     pub window: u32,
     pub output: u32,
@@ -64,8 +65,8 @@ pub(crate) fn owned_bytes(needs: &Needs) -> Option<u64> {
 /// The first agent bound that cannot hold this host kind's configured charters.
 ///
 /// Checks applicable charters in their configured order, then deployment-wide
-/// bounds if any charter applies. Missing models narrow placement eligibility;
-/// only models the host declares have their window and output checked here.
+/// bounds if any charter applies. Missing endpoints narrow placement eligibility;
+/// only models on endpoints the host declares have their window and output checked here.
 /// This is the same decision used for hello admission (domain/engine.md, section 8).
 #[must_use]
 pub fn shortfall(needs: &Needs, bounds: &Bounds, kind: HostKind) -> Option<AgentShortfall> {
@@ -101,8 +102,8 @@ fn charter_shortfall(charter: &CharterNeeds, bounds: &Bounds) -> Option<AgentSho
     for (index, need) in charter.models.iter().enumerate() {
         let number = u32::try_from(index).expect("configured model count");
         let mut held = None;
-        for model in &bounds.models {
-            if model.name == need.name {
+        for model in &bounds.endpoints {
+            if model.endpoint == need.endpoint {
                 held = Some(model);
                 break;
             }
@@ -181,8 +182,8 @@ fn charter_need<'a>(
 
 fn model_figures(charter: &CharterNeeds, bounds: &Bounds, model: u32, output: bool) -> Option<Figures> {
     let need = charter.models.get(usize::try_from(model).ok()?)?;
-    for held in &bounds.models {
-        if held.name == need.name {
+    for held in &bounds.endpoints {
+        if held.endpoint == need.endpoint {
             return Some(if output {
                 Figures { required: u64::from(need.output), offered: u64::from(held.output) }
             } else {
@@ -195,14 +196,14 @@ fn model_figures(charter: &CharterNeeds, bounds: &Bounds, model: u32, output: bo
 
 /// One eligibility bit per configured charter, bounded by `Needs`' owned bytes.
 /// The parent admits charter numbers; an unconfigured number has no needs here.
-pub(crate) fn eligibility(needs: &Needs, models: &[crate::ModelBound]) -> Box<[bool]> {
+pub(crate) fn eligibility(needs: &Needs, endpoints: &[crate::EndpointBound]) -> Box<[bool]> {
     let mut eligible = List::with_capacity(u32::try_from(needs.charters.len()).expect("configured charter count"));
     for charter in &needs.charters {
         let mut all = true;
         for need in &charter.models {
             let mut declared = false;
-            for model in models {
-                if model.name == need.name {
+            for model in endpoints {
+                if model.endpoint == need.endpoint {
                     declared = true;
                     break;
                 }
@@ -228,8 +229,8 @@ pub(crate) fn allows(needs: &Needs, eligible: &[bool], version: Version) -> bool
     !known
 }
 
-/// Declared models in the configured needs' order, without retaining peer-owned names.
-pub(crate) fn declarations(needs: &Needs, models: &[crate::ModelBound]) -> Box<[bool]> {
+/// Served model needs in configured order, checked against their endpoint bounds.
+pub(crate) fn declarations(needs: &Needs, endpoints: &[crate::EndpointBound]) -> Box<[bool]> {
     let mut count = 0_u32;
     for charter in &needs.charters {
         count = count.checked_add(u32::try_from(charter.models.len()).expect("model count")).expect("model count");
@@ -238,8 +239,8 @@ pub(crate) fn declarations(needs: &Needs, models: &[crate::ModelBound]) -> Box<[
     for charter in &needs.charters {
         for need in &charter.models {
             let mut declared = false;
-            for model in models {
-                if model.name == need.name && model.window >= need.window && model.output >= need.output {
+            for model in endpoints {
+                if model.endpoint == need.endpoint && model.window >= need.window && model.output >= need.output {
                     declared = true;
                 }
             }
@@ -255,7 +256,7 @@ pub(crate) fn allows_models(needs: &Needs, declarations: &[bool], models: &[Mode
         let mut found = false;
         for charter in &needs.charters {
             for configured in &charter.models {
-                if configured.name == model.name
+                if configured.endpoint == model.endpoint
                     && configured.window >= model.window
                     && configured.output >= model.output
                     && declarations.get(at) == Some(&true)
@@ -272,14 +273,14 @@ pub(crate) fn allows_models(needs: &Needs, declarations: &[bool], models: &[Mode
     true
 }
 
-/// The same catalogue bounds as the core's configured models (configuration.md, 6).
+/// Endpoint evidence uses the core catalogue's count ceiling (configuration.md, 6).
 pub const CATALOGUE_MODELS: u32 = 64;
 pub const CATALOGUE_NAME_BYTES: u32 = 4096;
 
 pub(crate) fn empty_evidence() -> Bounds {
     Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([]),
+        endpoints: Box::new([]),
         turns: 0,
         spend: 0,
         time: Duration::ZERO,
@@ -290,27 +291,9 @@ pub(crate) fn empty_evidence() -> Bounds {
         unacknowledged: 0,
     }
 }
-pub(crate) fn evidence(catalogue: &[Box<[u8]>], bounds: &Bounds) -> Bounds {
-    let mut result = empty_evidence();
-    result.turns = bounds.turns;
-    result.spend = bounds.spend;
-    result.time = bounds.time;
-    result.waiting = bounds.waiting;
-    result.checks = bounds.checks;
-    result.message_bytes = bounds.message_bytes;
-    result.inbox = bounds.inbox;
-    result.unacknowledged = bounds.unacknowledged;
-    let mut models = List::with_capacity(CATALOGUE_MODELS);
-    for name in catalogue {
-        for model in &bounds.models {
-            if *name == model.name {
-                models.push(model.clone()).expect("catalogue model bound");
-                break;
-            }
-        }
-    }
-    result.models = models.into_boxed();
-    result
+pub(crate) fn evidence(bounds: &Bounds) -> Bounds {
+    assert!(bounds.endpoints.len() <= skein_lib::length::usize_of(CATALOGUE_MODELS), "bounded endpoint evidence");
+    bounds.clone()
 }
 pub(crate) fn replace(domain: &mut crate::Domain, limits: &crate::Limits, needs: Needs) {
     assert!(
@@ -323,8 +306,8 @@ pub(crate) fn replace(domain: &mut crate::Domain, limits: &crate::Limits, needs:
     domain.needs = needs;
     for (_, id) in &domain.tokens {
         let channel = domain.channels.get_mut(*id).expect("connected channel");
-        channel.eligible = eligibility(&domain.needs, &channel.evidence.models);
-        channel.declarations = declarations(&domain.needs, &channel.evidence.models);
+        channel.eligible = eligibility(&domain.needs, &channel.evidence.endpoints);
+        channel.declarations = declarations(&domain.needs, &channel.evidence.endpoints);
         for (at, charter) in domain.needs.charters.iter().enumerate() {
             let bounds = &channel.evidence;
             let mut fits = bounds.turns >= charter.turns
@@ -338,8 +321,8 @@ pub(crate) fn replace(domain: &mut crate::Domain, limits: &crate::Limits, needs:
                 fits &= bounds.checks <= reserve;
             }
             for need in &charter.models {
-                for model in &bounds.models {
-                    if model.name == need.name {
+                for model in &bounds.endpoints {
+                    if model.endpoint == need.endpoint {
                         fits &= model.window >= need.window && model.output >= need.output;
                     }
                 }

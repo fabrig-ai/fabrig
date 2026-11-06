@@ -6,7 +6,7 @@
 //! hello's stop bound. `runtime` measures retained state and replays small
 //! turn windows.
 
-use jig_domain_link::{Bounds, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound};
 use skein_lib::Duration;
 use temper_worker_domain::{Limits, agent, checkout, host};
 
@@ -120,7 +120,7 @@ pub fn limits() -> Limits {
         },
         bounds: Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([ModelBound { name: Box::from(&b"fake"[..]), window: 1_048_576, output: 512 }]),
+            endpoints: Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 512 }]),
             turns: 8,
             spend: 100,
             time: Duration::from_secs(60),

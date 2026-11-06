@@ -1,6 +1,6 @@
 //! Local reference-root fixtures (`jig/docs/design/domain/testing.md`, 2).
 use alloc::boxed::Box;
-use jig_domain_link::{Bounds, ModelBound};
+use jig_domain_link::{Bounds, EndpointBound};
 use jig_ops_domain_infrastructure as infra;
 use jig_ops_domain_observability as obs;
 use jig_protocol_charter::{Tool, ToolEffect};
@@ -62,7 +62,7 @@ pub fn infra_service() -> infra::Service {
 pub fn agent_bounds() -> Bounds {
     Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([ModelBound { name: b"scripted".as_slice().into(), window: u32::MAX, output: u32::MAX }]),
+        endpoints: Box::new([EndpointBound { endpoint: 1, window: u32::MAX, output: u32::MAX }]),
         turns: u32::MAX,
         spend: u64::MAX,
         time: Duration::from_nanos(u64::MAX),

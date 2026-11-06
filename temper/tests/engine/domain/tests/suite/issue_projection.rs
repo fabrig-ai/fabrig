@@ -1,6 +1,6 @@
 //! A tracked goal's bounded issue is independent of its work and its close.
 use jig_domain_host as host;
-use jig_domain_link::ModelBound;
+use jig_domain_link::EndpointBound;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_fake_forge_domain::api as raw;
@@ -236,7 +236,8 @@ fn configured_chat(
     world.fail_issue_writes = failing;
     let mut bounds = protocol::bounds();
     bounds.turns = 800;
-    bounds.models = Box::new([ModelBound { name: model().name, window: MODEL_WINDOW, output: MODEL_OUTPUT }]);
+    bounds.endpoints =
+        Box::new([EndpointBound { endpoint: model().endpoint, window: MODEL_WINDOW, output: MODEL_OUTPUT }]);
     bounds.spend = defaults.rules.maximum_run_spend;
     bounds.time = Duration::from_secs(28_800);
     bounds.message_bytes = limits.tasks.message_bytes.max(limits.tasks.result_bytes);

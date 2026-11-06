@@ -134,7 +134,7 @@ fn an_endpoint_or_model_missing_from_the_agent_is_named() {
             agent.endpoints = smith_protocol_channel::Endpoints::new(skein_lib::List::with_capacity(0));
         }
         if !models {
-            agent.bounds.models = Box::new([]);
+            agent.bounds.endpoints = Box::new([]);
         }
         let found = started(&document, &fixtures::files(), &agent);
         assert_eq!(&*lines(&found), expected, "row {row}");
@@ -454,9 +454,9 @@ fn agent_model_bounds_are_checked_under_the_configured_name() {
         let engine = fixtures::engine().jig;
         let mut agent = fixtures::startup_agent();
         if window {
-            agent.bounds.models[0].window = 1;
+            agent.bounds.endpoints[0].window = 1;
         } else {
-            agent.bounds.models[0].output = 1;
+            agent.bounds.endpoints[0].output = 1;
         }
         let mut problems = Problems::empty();
         checks::agent(&engine, &agent, &mut problems);

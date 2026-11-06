@@ -1,6 +1,5 @@
 //! Host adapters expose only service ports to the scenario (service.md, 4).
 use crate::{fixtures, relay::Relay, world::Capture};
-use jig_domain_link::ModelBound;
 use jig_test_service::Service;
 use skein_io::kernel;
 use skein_lib::{Queue, Time, Wall};
@@ -242,12 +241,9 @@ fn worker_document(
     let mut agent =
         if programs { fixtures::agent_with_limits(&crate::program_runs::limits()) } else { fixtures::agent() };
     if programs {
-        agent.bounds.models[0].window = 272_000;
+        agent.bounds.endpoints[0].window = 272_000;
     }
     if providers {
-        let mut models = agent.bounds.models.into_vec();
-        models.push(ModelBound { name: b"other".as_slice().into(), window: 1_048_576, output: 512 });
-        agent.bounds.models = models.into_boxed_slice();
         agent.host_limits.accounts = 3;
     }
 

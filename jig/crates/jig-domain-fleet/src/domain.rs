@@ -29,7 +29,6 @@ pub struct Domain {
     /// The workers in contact, and their channels' names.
     pub(crate) channels: Slab<Channel>,
     pub(crate) needs: crate::Needs,
-    pub(crate) catalogue: Box<[Box<[u8]>]>,
     pub(crate) engine_hello: EngineHello,
     /// Latest actual refusals, independent of history and cleared only by same-kind admission.
     pub(crate) standing_engine: Option<crate::HelloRefusalRecord>,
@@ -123,7 +122,7 @@ impl Domain {
     }
     /// A domain with room for `limits`.
     #[must_use]
-    pub fn new(limits: &Limits, versions: u32, needs: crate::Needs, catalogue: Box<[Box<[u8]>]>) -> Domain {
+    pub fn new(limits: &Limits, versions: u32, needs: crate::Needs) -> Domain {
         assert!(
             match crate::needs::owned_bytes(&needs) {
                 Some(bytes) => bytes <= limits::needs_bytes(limits, versions).expect("needs bound"),
@@ -131,10 +130,6 @@ impl Domain {
             },
             "configured agent needs fit their byte bound"
         );
-        assert!(catalogue.len() <= skein_lib::length::usize_of(crate::CATALOGUE_MODELS), "bounded model catalogue");
-        for name in &catalogue {
-            assert!(name.len() <= skein_lib::length::usize_of(crate::CATALOGUE_NAME_BYTES), "bounded model names");
-        }
         let tracked = limits::tracked(limits).expect("validated fleet limits");
         let channels_count =
             limits.workers.checked_add(u32::from(limits.engine_slots > 0)).expect("validated fleet limits");
@@ -166,7 +161,6 @@ impl Domain {
             worker_names: crate::Membership::empty(),
             cleanup_programs: Box::new([]),
             needs,
-            catalogue,
             engine_hello: EngineHello::Expected,
             standing_engine: None,
             standing_worker: None,

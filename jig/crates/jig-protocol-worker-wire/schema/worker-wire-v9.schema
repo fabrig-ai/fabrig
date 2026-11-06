@@ -5,9 +5,9 @@ record Credential { name: text 256 secret: secret 1024 payload: u32 }
 
 # The worker's hello and agent bounds (protocol/channel.md, 5.1).
 record JobBound { kind: u32 spec: u32 result: u32 deadline: duration }
-record ModelBound { name: text 128 window: u32 output: u32 }
+record EndpointBound { endpoint: u32 window: u32 output: u32 }
 record Bounds {
-    models: list 64 ModelBound
+    endpoints: list 64 EndpointBound
     turns: u32
     spend: u64
     time: duration
