@@ -22,6 +22,20 @@ mode = "direct"
 needs = []
 design = "jig/docs/design/client/domain/client.md, 8.2"
 
+[[part]]
+id = "watch-rooms"
+title = "the engine's watch rooms follow the streams it admits, and the overrides that never bit go"
+mode = "direct"
+needs = ["watch-story", "link-told"]
+design = "temper/docs/design/protocol/configuration.md, 7"
+
+[[part]]
+id = "ctl-told"
+title = "temper ctl says at its deadline that the engine's watches are all in use"
+mode = "direct"
+needs = ["link-told"]
+design = "temper/docs/design/client/tools.md, 6.3"
+
 [[slice]]
 id = 1
 story = "Two open tabs lock out a fresh tools client, and a test says so"
@@ -32,4 +46,16 @@ walk = false
 id = 2
 story = "A client whose watch is refused busy knows it"
 parts = ["link-told"]
+walk = false
+
+[[slice]]
+id = 3
+story = "Two open tabs leave room for a third, for temper ctl, for a second person and for a walk"
+parts = ["watch-rooms"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A temper ctl refused busy says why at its deadline"
+parts = ["ctl-told"]
 walk = false

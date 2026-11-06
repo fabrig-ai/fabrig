@@ -1296,6 +1296,16 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **A party's fair share of the watch rooms.** A party's room is the
+  deployment's (section 7), so one person with every stream leaves another
+  none, and the refusal they meet is the streams'. Nothing has asked for
+  less, and a smaller share would lock a person's own tabs out again.
+  Default: none.
+- **`views.`'s other names.** `views.runs`, `views.subjects_per_change`,
+  `views.text_bytes` and `views.facts` are still taken and change nothing
+  the root holds (section 7), where `views.watchers` and
+  `views.watchers_per_party` are refused. Nobody was misled by them on
+  record. Default: they stay until one is.
 - **A Claude-only box on the small profile.** Its largest turn's store
   frame passes small's page ceiling (13.8), where `standard`'s holds any
   turn smith admits: a page decision of jig's or skein's profile.
