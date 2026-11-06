@@ -215,7 +215,7 @@ Shape: `machine`. Paths: `application.machine`. The machine places offered when 
 
 Shape: `machine-owned`. Paths: `application.machine.owned`. The owned Forgejo and its runner on this machine.
 
-- `sign_in`: text or null, a client of engine.clients.provider; at most 256 bytes; optional; init writes "forgejo". The client the box’s owned Forgejo signs its person in through, null for none.
+- `sign_in`: text or null, a client of engine.clients.provider; at most 256 bytes; not with public; optional; init writes "forgejo". The client the box’s owned Forgejo signs its person in through, null for none.
 - `remote`: text, at most 4,096 bytes; HTTP on loopback or HTTPS; no final slash; required; init writes "http://127.0.0.1:8368". The base of the owned forge’s repository remotes.
 - `forgejo`: text, cache path or fetched; at most 4,096 bytes; required; init writes "fetched". The Forgejo binary, fetched at the pinned version when requested.
 - `runner`: machine-runner or null; required; init writes object. The runner to prepare, or null for none.

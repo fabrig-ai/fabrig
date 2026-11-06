@@ -165,7 +165,6 @@ fn line(value: &c::PublicLine, names: &Names, limits: &w::Limits) -> Option<w::P
             active: value.active,
             ended: value.ended,
             spent: value.spent,
-            budget: value.budget,
             delegates: w::PublicCounts::new(
                 limits,
                 w::PublicCountsParts {
@@ -201,7 +200,6 @@ fn phase(value: c::PublicPhase) -> w::PublicPhase {
         c::PublicPhase::Active => w::PublicPhase::Active,
         c::PublicPhase::Closing => w::PublicPhase::Closing,
         c::PublicPhase::Held => w::PublicPhase::Held,
-        c::PublicPhase::Ended => w::PublicPhase::Ended,
         c::PublicPhase::Done => w::PublicPhase::Done,
         c::PublicPhase::Failed => w::PublicPhase::Failed,
         c::PublicPhase::Cancelled => w::PublicPhase::Cancelled,

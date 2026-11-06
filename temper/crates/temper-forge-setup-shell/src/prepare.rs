@@ -1,7 +1,7 @@
 //! The preparation's locked host; all decisions belong to its machine.
 use crate::{command, files, process};
 use skein_lib::Queue;
-use std::io;
+use std::io::{self, Write};
 use temper_forge_setup::{
     place::{File, Place},
     prepare::{self, Event, Failure, Found, Prepare, Request},
@@ -81,6 +81,34 @@ pub fn run(limits: &skein_io::Limits, place: &Place, mut machine: Prepare) -> Re
             }
             Request::Run { spec, .. } | Request::Token { spec } | Request::PersonToken { spec, .. } => {
                 Event::Ran(command::run_one(limits, &spec).map_err(Failed::Command)?)
+            }
+            Request::Source { spec, deadline } => {
+                let until = skein_shell::Clock::new().now().now.saturating_add(deadline);
+                let ran = match command::run_until(limits, &spec, until) {
+                    Ok(ran) => ran,
+                    Err(command::Error::Interrupted) => return Err(Failed::Command(command::Error::Interrupted)),
+                    Err(why) => {
+                        let words = match why {
+                            command::Error::Kernel(words) => words,
+                            command::Error::Spawn(why) => format!("spawn: {why:?}"),
+                            command::Error::Interrupted => unreachable!("interruption handled"),
+                        };
+                        let bytes = words.as_bytes();
+                        let stderr = bytes
+                            .get(..bytes.len().min(usize::try_from(spec.output).expect("output bound")))
+                            .expect("bounded error");
+                        temper_forge_setup::prepare::Ran {
+                            exit: temper_forge_setup::prepare::Exit::Code(1),
+                            stdout: skein_lib::Secret::new(Box::new([])),
+                            stderr: skein_lib::Secret::new(stderr.into()),
+                        }
+                    }
+                };
+                Event::Ran(ran)
+            }
+            Request::Note { line } => {
+                io::stderr().write_all(&line).map_err(|why| Failed::Io("stderr", why.kind()))?;
+                Event::Done
             }
             Request::Lock(file) => {
                 locks.push((file, locked(place, file)?));

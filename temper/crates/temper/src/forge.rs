@@ -228,6 +228,7 @@ pub(crate) fn start(
     if verb == "source" {
         return super::forge_sign_in::source(&bytes, &named, owned, &place, checked.limits.deadline).map_err(refused);
     }
+    let owned_sign_in = named.machine.owned.as_ref().is_some_and(|owned| owned.sign_in.is_some());
     prepare::run(
         &limits,
         &place,
@@ -236,7 +237,7 @@ pub(crate) fn start(
             place.clone(),
             webhook_listener(&named).map_err(refused)?.map(|socket| socket.ip()),
         )
-        .with_sign_in(if named.machine.owned.as_ref().is_some_and(|owned| owned.sign_in.is_some()) {
+        .with_sign_in(if owned_sign_in {
             Some(temper_forge_setup::sign_in::FirstSignIn::LinksByName)
         } else {
             named
@@ -244,7 +245,14 @@ pub(crate) fn start(
                 .as_ref()
                 .is_some_and(|sign_in| sign_in.forges.iter().any(|row| row.forge == number))
                 .then(super::forge_sign_in::first_sign_in)
-        }),
+        })
+        .with_source_address(
+            owned_sign_in
+                .then(|| super::forge_sign_in::discovery(&bytes, &named).ok())
+                .flatten()
+                .map(Vec::into_boxed_slice),
+            checked.limits.deadline,
+        ),
     )
     .map_err(|why| refused(failure(why, &place)))?;
     Ok(0)

@@ -18,6 +18,7 @@ fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Har
         &crate::limits::small(),
         crate::host::Echo::None,
         super::fixtures::Opening {
+            parent: None,
             link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
             first_link: Some(crate::host::FirstLink {
@@ -221,6 +222,7 @@ fn startup_log_and_record_diagnostics_follow_the_block() {
         &crate::limits::small(),
         crate::host::Echo::None,
         super::fixtures::Opening {
+            parent: None,
             link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
             first_link: Some(crate::host::FirstLink {
@@ -255,6 +257,7 @@ fn with_no_first_link_after_block_is_at_the_start_and_the_first_serve_link_gets_
         &crate::limits::small(),
         crate::host::Echo::None,
         super::fixtures::Opening {
+            parent: None,
             link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
             first_link: None,
@@ -432,6 +435,11 @@ fn a_stop_signals_each_long_step_twice_last_first() {
     harness.run_until_idle();
     harness.terminate();
     assert_eq!(harness.run_to_end(), Exit::Code(0), "a stop ultimately closes stubborn children");
+    assert_stop_order(&harness);
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+}
+fn assert_stop_order(harness: &Harness) {
     let mut children = List::with_capacity(3);
     let mut signals = List::with_capacity(6);
     for entry in harness.sim.trace() {
@@ -452,8 +460,143 @@ fn a_stop_signals_each_long_step_twice_last_first() {
         assert_eq!((first.0, second.0), (*child, *child), "last child first");
         assert!(second.1.saturating_since(first.1) >= Duration::from_secs(10), "a grace between signals");
     }
-    harness.sim.assert_quiescent(harness.pid);
-    harness.sim.assert_no_open_fds(harness.pid);
+}
+fn parent_harness(parent: Option<u32>) -> Harness {
+    Harness::with_terminal(
+        temper_forge_setup::Steps {
+            always: Box::new([once(b"prepare", &[b"exit", b"0"]), long(b"serve", &[b"never"])]),
+            asked: Box::new([]),
+        },
+        &[],
+        true,
+        16_384,
+        &crate::limits::small(),
+        crate::host::Echo::None,
+        super::fixtures::Opening {
+            parent,
+            link_form: crate::terminal::LinkForm::Bare,
+            log_lines: Box::new([]),
+            first_link: None,
+            after_block: Box::new([]),
+        },
+    )
+}
+#[test]
+fn each_step_starts_through_forge_child_with_the_boxs_id() {
+    let mut h = parent_harness(Some(4321));
+    h.run_until_idle();
+    assert_eq!(h.launches.len(), 2);
+    for (launch, arguments) in h
+        .launches
+        .iter()
+        .zip([[b"exit".as_slice(), b"0", b"prepare"].as_slice(), [b"never".as_slice(), b"serve"].as_slice()])
+    {
+        let mut expected = List::with_capacity(11);
+        for argument in [
+            b"internal".as_slice(),
+            b"forge-child",
+            b"--parent",
+            b"4321",
+            b"--signal",
+            b"terminate",
+            b"--",
+            b"process_fixture",
+        ]
+        .iter()
+        .chain(arguments.iter())
+        {
+            expected.push(bytes::copy_of(argument)).expect("wrapper and step arguments");
+        }
+        assert_eq!(
+            launch.args.as_ref(),
+            expected.as_slice(),
+            "each once and long step execs with the box's parent-death signal"
+        );
+    }
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_no_open_fds(h.pid);
+}
+#[test]
+fn with_no_parent_a_step_starts_directly() {
+    let mut h = parent_harness(None);
+    h.run_until_idle();
+    for (launch, expected) in h
+        .launches
+        .iter()
+        .zip([[b"exit".as_slice(), b"0", b"prepare"].as_slice(), [b"never".as_slice(), b"serve"].as_slice()])
+    {
+        let mut args = List::with_capacity(3);
+        for argument in expected {
+            args.push(bytes::copy_of(argument)).expect("step arguments");
+        }
+        assert_eq!(launch.args.as_ref(), args.as_slice(), "no wrapper without a parent");
+    }
+    assert_eq!(h.launches.len(), 2);
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    h.sim.assert_no_open_fds(h.pid);
+}
+fn hangup(h: &mut Harness) {
+    h.sim.deliver_service_signal(h.pid, h.signals, skein_io::kernel::ServiceSignal::Hangup, None);
+}
+fn stopping_harness() -> Harness {
+    let mut h = Harness::with_stubborn(
+        &[long(b"forgejo", &[b"never"]), long(b"runner", &[b"never"]), long(b"serve", &[b"never"])],
+        true,
+    );
+    h.run_until_idle();
+    h
+}
+#[test]
+fn a_hangup_stops_in_the_usual_order_and_a_second_changes_nothing() {
+    let mut h = stopping_harness();
+    hangup(&mut h);
+    h.run_until_idle();
+    let deadline = skein_shell::Host::next_deadline(&h.service);
+    assert!(deadline.is_some(), "hangup starts the first child's grace");
+    hangup(&mut h);
+    h.run_until_idle();
+    assert_eq!(skein_shell::Host::next_deadline(&h.service), deadline, "another hangup keeps the grace and order");
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    assert_stop_order(&h);
+    let log = h.log();
+    assert_eq!(bytes::count(&log, b"Stopping\n", 2), 1);
+    assert!(log.ends_with(b"Stopped\n"));
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+}
+#[test]
+fn a_hangup_during_a_termination_changes_nothing() {
+    let mut h = stopping_harness();
+    h.terminate();
+    h.run_until_idle();
+    let deadline = skein_shell::Host::next_deadline(&h.service);
+    hangup(&mut h);
+    h.run_until_idle();
+    assert_eq!(
+        skein_shell::Host::next_deadline(&h.service),
+        deadline,
+        "hangup cannot escalate an existing termination"
+    );
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    assert_stop_order(&h);
+    h.sim.assert_no_open_fds(h.pid);
+}
+#[test]
+fn a_termination_after_a_hangup_closes_the_steps() {
+    for signal in [skein_io::kernel::ServiceSignal::Interrupt, skein_io::kernel::ServiceSignal::Terminate] {
+        let mut h = stopping_harness();
+        hangup(&mut h);
+        h.run_until_idle();
+        let now = h.sim.now();
+        h.sim.deliver_service_signal(h.pid, h.signals, signal, None);
+        h.run_until_idle();
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        assert_eq!(h.sim.now(), now, "explicit second termination closes without waiting for grace");
+        h.sim.assert_quiescent(h.pid);
+        h.sim.assert_no_open_fds(h.pid);
+    }
 }
 #[test]
 fn a_long_step_that_keeps_exiting_is_given_up_naming_it() {
@@ -1927,6 +2070,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
         first_link: Some(link),
         after_block: Box::new([]),
         log_lines: Box::new([]),
+        parent: None,
         program: bytes::copy_of(b"process_fixture"),
         environment: Box::new([bytes::copy_of(b"HOME=/box"), bytes::copy_of(canary)]),
         serve: bytes::copy_of(b"serve"),
@@ -1939,7 +2083,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
         stderr: Fd::new(2),
     };
     let expected = alloc::fmt::format(format_args!(
-        "Settings {{ program: {:?}, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, log_lines: [], first_link: Some(FirstLink {{ .. }}), link_form: Bare, after_block_bytes: 0, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
+        "Settings {{ program: {:?}, parent: None, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, log_lines: [], first_link: Some(FirstLink {{ .. }}), link_form: Bare, after_block_bytes: 0, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
         settings.program,
         settings.serve,
         settings.listeners,
@@ -2253,6 +2397,7 @@ fn each_link_reads_on_stdout_as_its_form_has_it() {
             &crate::limits::small(),
             crate::host::Echo::None,
             super::fixtures::Opening {
+                parent: None,
                 link_form: form,
                 log_lines: Box::new([]),
                 first_link: Some(crate::host::FirstLink {
@@ -2296,6 +2441,7 @@ fn the_widest_link_is_whole_on_a_terminal_and_one_byte_more_is_refused() {
             &crate::limits::small(),
             crate::host::Echo::None,
             super::fixtures::Opening {
+                parent: None,
                 link_form: crate::terminal::LinkForm::Osc8,
                 log_lines: Box::new([]),
                 first_link: None,

@@ -260,7 +260,8 @@ fn variants(schema: &Schema, target: &str) -> Vec<String> {
 fn public_phase_and_hold_kinds_match_the_client_contract() {
     let schema = parse(&source()).expect("public schema valid");
     let client = client_schema();
-    assert_eq!(variants(&schema, "PublicPhase"), variants(&client, "Phase"));
+    let phases: Vec<_> = variants(&client, "Phase").into_iter().filter(|phase| phase != "ended").collect();
+    assert_eq!(variants(&schema, "PublicPhase"), phases);
     assert_eq!(variants(&schema, "PublicHold"), variants(&client, "HoldCategory"));
     for declaration in &schema.declarations {
         match declaration {

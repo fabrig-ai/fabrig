@@ -15,7 +15,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_io::{
     self as io, Event, Io, Request,
-    kernel::{self, Complete, Exit, Fd, Submit},
+    kernel::{self, Complete, Exit, Fd, ServiceSignal, Submit},
 };
 use skein_lib::{
     Decimal, Duration, Env, List, Queue, Secret, Time, Token, Wall,
@@ -41,6 +41,8 @@ impl core::fmt::Debug for FirstLink {
 /// The descriptors and command inherited from the binary.
 pub struct Settings {
     pub program: Box<[u8]>,
+    /// The box's own id where steps start through `internal forge-child` (protocol/setup.md, 7.1).
+    pub parent: Option<u32>,
     pub environment: Box<[Box<[u8]>]>,
     pub serve: Box<[u8]>,
     pub listeners: Box<[(Fd, core::net::SocketAddr)]>,
@@ -63,6 +65,7 @@ impl core::fmt::Debug for Settings {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Settings")
             .field("program", &self.program)
+            .field("parent", &self.parent)
             .field("environment_entries", &self.environment.len())
             .field("serve", &self.serve)
             .field("listeners", &self.listeners)
@@ -431,7 +434,12 @@ impl Service {
             }
         }
         match event {
-            Event::Shutdown { .. } => self.input(Input::Terminate),
+            Event::Shutdown { signal, .. } => match signal {
+                ServiceSignal::Hangup if self.machine.outcome().is_some() => {}
+                ServiceSignal::Interrupt | ServiceSignal::Terminate | ServiceSignal::Hangup => {
+                    self.input(Input::Terminate);
+                }
+            },
             Event::Spawned { owner, child, pipes } => {
                 self.spawned(owner, child, &pipes);
             }
@@ -1119,7 +1127,7 @@ impl Service {
                     owner,
                     spawn: kernel::Spawn {
                         program: self.settings.program.clone(),
-                        args: Box::from(description.arguments()),
+                        args: spawn_arguments(&self.settings, description.arguments()),
                         env: spawn_environment(&self.settings.environment, description.listeners().len()),
                         root: self.settings.root,
                         dir: Box::new([]),
@@ -1460,6 +1468,23 @@ fn adopt_listeners(io: &mut Io, held: &[(Fd, core::net::SocketAddr)]) -> List<(c
     }
     listeners
 }
+/// The same exec boundary preserves each step's descriptors, environment and process group (protocol/setup.md, 7.1).
+fn spawn_arguments(settings: &Settings, arguments: &[Box<[u8]>]) -> Box<[Box<[u8]>]> {
+    let Some(parent) = settings.parent else { return Box::from(arguments) };
+    let mut args = List::uncapped();
+    for argument in [b"internal".as_slice(), b"forge-child", b"--parent"] {
+        args.push(Box::from(argument)).expect("uncapped arguments");
+    }
+    args.push(Box::from(Decimal::of(u64::from(parent)).as_bytes())).expect("uncapped arguments");
+    for argument in [b"--signal".as_slice(), b"terminate", b"--", &settings.program] {
+        args.push(Box::from(argument)).expect("uncapped arguments");
+    }
+    for argument in arguments {
+        args.push(argument.clone()).expect("uncapped arguments");
+    }
+    args.into_boxed()
+}
+
 fn spawn_environment(environment: &[Box<[u8]>], listeners: usize) -> Box<[Box<[u8]>]> {
     let mut out = List::with_capacity(
         u32::try_from(environment.len()).expect("bounded environment").checked_add(1).expect("bounded startup memory"),

@@ -43,6 +43,8 @@ pub struct CodecBound {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum What {
+    /// A refusal whose words the reader gives.
+    Because(&'static [u8]),
     Json,
     Unknown,
     /// This member's setting lives in the store when the application passes defaults.
@@ -154,7 +156,8 @@ impl Problem {
             What::StoreCodec => {
                 codec_text_message(&self.path, b"effective limits exceed the combined store codec envelope.")
             }
-            What::Json
+            What::Because(_)
+            | What::Json
             | What::Unknown
             | What::Stored
             | What::Missing

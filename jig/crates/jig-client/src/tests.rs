@@ -138,3 +138,31 @@ fn a_full_stream_reaches_the_domain_and_reopens_after_backoff() {
         assert_eq!(c.machine.link().streams_full, None);
     }
 }
+
+#[test]
+fn the_link_view_names_a_watch_refused_busy() {
+    use jig_client_protocol_wire::v19 as w;
+    let mut c = Client::signed_in();
+    assert!(!c.machine.link().watches_full);
+    c.step(Event::Watch { handle: TASK, subject: task() });
+    let watch = c.opened_watch();
+    c.stream(fixtures::event(&w::StreamEvent::Ended(
+        w::WatchEnded::new(&w::CEILINGS, w::WatchEndedParts { watch, why: w::WatchEnd::Busy }).unwrap(),
+    )));
+    assert!(c.machine.link().watches_full);
+    assert_eq!(c.machine.link().state, Link::Live);
+    let [Request::Told { told: Told::Changed { handle } }] = c.requests() else {
+        panic!("one change: {:?}", c.requests());
+    };
+    assert_eq!(*handle, TASK);
+    c.fire(c.machine.next_deadline().unwrap());
+    assert!(c.machine.link().watches_full);
+    let exchange = c.exchange();
+    let answer = w::OpenAnswer::Admitted;
+    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).unwrap());
+    answer.encode(&mut bytes).unwrap();
+    c.step(Event::Reply { exchange, message: bytes.finish() });
+    assert!(!c.machine.link().watches_full);
+    assert_eq!(c.machine.link().state, Link::Live);
+    assert!(c.requests().is_empty());
+}

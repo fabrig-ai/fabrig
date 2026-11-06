@@ -200,8 +200,8 @@ impl Walk {
             "main",
             "Review the change",
             "Checked widget CSV export.",
-            // The demo's fake forge has no public external addresses.
-            "its change on the forge",
+            "https://",
+            "spent \u{b7} of",
         ] {
             assert!(!text.contains(forbidden), "{path} exposed {forbidden:?}: {text}");
         }
@@ -219,7 +219,7 @@ impl Walk {
         }
         if matches!(self.page, Page::Landings) {
             // This demo lands directly, without a landing by turn: no turn, queues or recent landings.
-            assert_eq!(self.text, ["temper", "Landings"], "empty public landings page");
+            assert_eq!(self.text, ["temper", "Landings", "Nothing has landed yet."], "empty public landings page");
         }
         if matches!(self.page, Page::Private) {
             assert_eq!(
@@ -229,7 +229,11 @@ impl Walk {
             );
         }
         if matches!(self.page, Page::Empty | Page::Malformed) {
-            assert_eq!(self.text, ["temper", "Public projects"], "no public project remains");
+            assert_eq!(
+                self.text,
+                ["temper", "Public projects", "No public projects yet."],
+                "no public project remains"
+            );
         }
     }
     fn advance(&mut self) {
@@ -251,9 +255,7 @@ impl Walk {
             Page::Task => self.open(
                 Page::Landings,
                 vec![
-                    go(self.board.as_bytes()),
-                    see(heading(PROJECT)),
-                    press(Find::exactly_named(Role::Link, b"Landings")),
+                    go(format!("{}/landings", self.board).as_bytes()),
                     see(heading(b"Landings")),
                     Step::Address(format!("{}/landings", self.board).into_bytes().into()),
                 ],
@@ -397,12 +399,19 @@ impl TextBoxes {
             }
         }
     }
-    fn check(&self, width: u32) {
+    fn check(&self, width: u32, task: bool) {
         let text = self.boxes.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>().join("\n");
         assert!(text.contains(LONG_TITLE), "long title stays readable: {text}");
-        for field in ["Goal ", "task ", "a procedure", "an agent", "for ", " spent ", "priority "] {
+        for field in ["Goal ", "task ", "for ", " spent"] {
             assert!(text.contains(field), "populated public field {field}: {text}");
         }
+        assert!(!text.contains("priority "), "priority is absent: {text}");
+        let executors = self
+            .boxes
+            .iter()
+            .filter(|(name, _)| ["an agent", "a procedure", "a person", "a job"].contains(&name.as_str()))
+            .count();
+        assert_eq!(executors, usize::from(task), "executor appears on the task page own row alone: {text}");
         assert!(
             ["waiting", "running", "active", "preparing", "done", "held", "ended"]
                 .iter()
@@ -474,7 +483,7 @@ impl Play for Readable {
         }
         if self.measuring {
             if self.boxes.next(face) {
-                self.boxes.check(self.width());
+                self.boxes.check(self.width(), self.stage >= 4);
                 self.advance();
             }
             return Next::Wait { until: None };
