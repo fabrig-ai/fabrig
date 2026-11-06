@@ -831,7 +831,7 @@ The table grows area by area, each with its stories (section 11).
    | Tool | What it does | jig's | K |
    |---|---|---|---|
    | `account list` | the party's accounts, then, for an owner, the deployment's: each with its number, LLM provider, display name and holder; its sources in order, each with its kind, its name for a program's, and its state, per host for a program's, with the reset where the provider gave one; the runs on it and the tasks waiting for it; the sign-ins and checks in progress; its acts | the `accounts` watch (5.4) | |
-   | `model list [--project PROJECT]` | the models the party may use, by LLM provider: each with its efforts, what it is good at and its prices, and "needs an account" beside a provider no account of the party's work serves | `me`'s models, with the `accounts` watch's states | |
+   | `model list [--project PROJECT]` | the project's offer (jig's `client/domain/contract.md`, 5.1), by LLM provider: each model with its efforts, its default effort, what it is good at, its prices and the accounts that can run it; a provider with no model there, its name and no models, never a model of its | `me`'s offer and providers | |
    | `account connect PROVIDER` | starts a sign-in with an LLM provider: prints the address to open in a browser on the engine's machine, and the call that follows it, `account list --until settled`; exits 0 once the request is durable | sign in | yes |
    | `account disconnect ACCOUNT [--source SOURCE]` | signs a source out: a signed-in source's record revoked at the provider, a program's login signed out on each host; the source removed. Unconfirmed, the answer says to disconnect temper in the provider's settings, or names the hosts that did not sign out | sign out | |
    | `account add-key PROVIDER FILE [--account ACCOUNT] [--deployment]` | adds a key read from FILE: to ACCOUNT, or as a new key-only account; the deployment's with `--deployment`, by an owner | add a key | yes |
@@ -925,14 +925,15 @@ The table grows area by area, each with its stories (section 11).
      `domain/tasks.md`, section 3), and area 2's `task amend` changes it.
      Both take `--sub-agent MODEL[:EFFORT]` too, repeatable, each one of
      the choice's sub-agents in the order given (jig's
-     `protocol/configuration.md`, 3.1), a model at most once, its effort
-     required where the model declares efforts as `--model`'s is; given,
+     `protocol/configuration.md`, 3.1), a model at most once, its effort its
+     default where left out as `--model`'s is; given,
      they replace the template's sub-agents whole, and they need
      `--model`. Without them the choice keeps the template's sub-agents,
      or names none.
-     The bracket applies only to a model with no declared efforts: when
-     a model declares efforts, `--effort EFFORT` is required, naming one
-     of them. An amendment replaces the main choice whole; its effort is
+     Left out, the effort is the model's default in the offer; given, it
+     names one of the model's efforts. A model the offer in `me` leaves out
+     is refused before anything is sent, `model not offered: MODEL`. An
+     amendment replaces the main choice whole; its effort is
      the caller's, never inherited from the task's old main.
    - **An account's uses** have no tool: each takes jig's default (jig's
      `domain/accounts.md`, 4.2; section 15).

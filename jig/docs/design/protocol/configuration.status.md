@@ -2,6 +2,7 @@
 
 2026-11-06. Where jig's code lags or departs from [configuration.md](configuration.md).
 
+- **Not yet:** 3: a model's `shown` and `picker`: `jig/crates/jig-protocol-config/src/llm.rs` parses neither.
 - **Not yet:** 3: a model's `effort`: `jig/crates/jig-protocol-config/src/llm.rs` parses `efforts` alone, and a model's first effort is its default.
 - **Not yet:** 3: retention's horizons in the deployment member: none is parsed. 3, 4, 7: the engine's own slots for agents in the engine, and TLS for the workers' listener and the worker's `engine` address: `jig/crates/jig-protocol-config/src/hosts.rs` and `address.rs` read plaintext and in-process addresses alone. 5: `ops`'s calendar child (`../examples.md`, section 4). 6: the people envelope diagnostics' words name `people-v13`, where the people family is v14 (`jig/crates/jig-protocol-config/src/problem.rs`, `domain.rs`).
 - **Departs:** 6: the public index's memory check uses 128 bytes per line
