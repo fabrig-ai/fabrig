@@ -1,3 +1,29 @@
 draft = "model-catalogue-1"
 repo = "fabrig"
 sources = ["temper/docs/plan/model-catalogue-1/inputs/request.md", "temper/docs/design/draft/model-catalogue.md", "AGENTS.md", "DESIGN.md"]
+
+# The stock models, their efforts and an offer in `me`. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "effort-xhigh"
+title = "Anthropic's dialect takes the effort xhigh"
+mode = "direct"
+needs = []
+design = "skein/docs/design/llm.md, 4.7"
+
+[[part]]
+id = "effort-config"
+title = "A model names its default effort apart from its list"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/configuration.md, 3"
+
+[[slice]]
+id = 1
+story = "Every stock effort reaches a provider, and a model's default effort isn't its first"
+parts = ["effort-xhigh", "effort-config"]
+walk = false
