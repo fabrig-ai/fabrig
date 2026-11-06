@@ -646,3 +646,36 @@ No smith, jig or temper function appeared in these measured profiles. Their cost
 The focused suite remains over budget at this base. Both ordinary runs passed; this profile supplies measured causes for later tasks and claims no CPU saving. The queue’s figure after any repair, repair instruction counts, and a post-repair suite measurement are unknown because this task changes no code.
 
 Artifacts retained locally under `target/hs2/`: `base-1/` and `base-2/` collectors plus summary JSON, `samples.json`, `cg/` unsplit profiles, `phase/` sampled function-boundary profiles, `floor/` cheapest-test boundaries, `boundary/` the pre-client trace, original tracer logs, annotation text and reconciled `phase-profiles.json`. Raw profiles remain unchanged; `annotation-inputs/` contains the explicitly normalized annotation copies. These target artifacts are not committed. The two collector CPU figures and all tables needed by the repair tasks are recorded here.
+
+## Repairs
+
+The aim is already met at the start of `last-round`: **74.51%** of the base CPU figure, below the required 85%. No further repair is made. These start figures are also the final figures.
+
+Measured on **debian-32gb-hel1-11**, identified by `heavy hostname`, on 2026-11-06 UTC. The base is `39b490f13846b81fe78c5834c7852ffd28a25155`; the start is `044c2039d99f1b1c674a94ee9391428ddf0d447d`, after the family repairs merged. Both sides use the unchanged throwaway driver in `hearth/docs/plan/hearth-speed-2/notes/common.md`, “The method”, on this same machine, twice back to back per side. The slot was detached at the base for its two runs, then returned to the task branch. No build setting changed.
+
+User plus system CPU includes each test's waited and reaped descendants; compilation, listing, nextest and the accounting supervisor are excluded. All 34 hearth packages were selected in each run. Every selected test passed, with one attempt each, no retries, starvation, unobserved tests, leaks or incomplete accounting. The four additional tests at the start belong to the merged repairs; this task changes no test, assertion, case, seed or count.
+
+| Revision / run | User s | System s | CPU s | Suite wall s | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Base / base-1 | 27.062149 | 6.511324 | 33.573473 | 3.542120 | 2189 |
+| Base / base-2 | 28.564805 | 5.632392 | 34.197197 | 5.241953 | 2189 |
+| Start / start-1 | 21.156585 | 3.860159 | 25.016744 | 4.260360 | 2193 |
+| Start / start-2 | 21.125782 | 4.311042 | 25.436824 | 4.712970 | 2193 |
+
+The prescribed comparison takes the lower whole-suite CPU run on each side: **25.016744 / 33.573473 = 74.5134%**, a reduction of **8.556729 CPU s (25.4866%)**. The 85% threshold is **28.537452 CPU s**, leaving **3.520708 CPU s** of headroom. The queue's post-repair CPU figure is unknown: these are builder figures, not a queue run.
+
+### Families
+
+Both runs' CPU figures follow. User and system columns use base-1 and start-1, the lower whole-suite runs; family minima are not chosen independently.
+
+| Family | Base tests | Start tests | Base-1 CPU s | Base-2 CPU s | Start-1 CPU s | Start-2 CPU s | Base-1 user s | Base-1 system s | Start-1 user s | Start-1 system s |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Builder suite | 106 | 106 | 9.769513 | 9.784501 | 5.419252 | 5.412345 | 8.704639 | 1.064874 | 4.844197 | 0.575055 |
+| Tree suite | 54 | 55 | 8.251019 | 8.610498 | 6.752063 | 6.989357 | 8.034640 | 0.216379 | 6.552452 | 0.199611 |
+| Real git | 183 | 184 | 6.310449 | 6.285294 | 4.086104 | 4.038851 | 3.245028 | 3.065421 | 2.525307 | 1.560797 |
+| Render suite | 109 | 109 | 3.432730 | 3.518854 | 2.806401 | 3.011307 | 3.111021 | 0.321709 | 2.578296 | 0.228105 |
+| All the rest | 1737 | 1739 | 5.809762 | 5.998050 | 5.952924 | 5.984964 | 3.966821 | 1.842941 | 4.656333 | 1.296591 |
+
+No gap remains to the aim, so the stop rule leaves the remaining options unmodified. Their post-repair instruction counts and potential savings are unknown; no new Callgrind profile is needed for a measurement-only stop. The earlier shared-kit estimates remain estimates, not measured savings at this start.
+
+Local collector artifacts are `target/hs2/last-round-base-1/`, `last-round-base-2/`, `last-round-start-1/` and `last-round-start-2/`; complete driver output is in `target/last-round-{base,start}-{1,2}.log`.
