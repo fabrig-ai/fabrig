@@ -1,0 +1,3 @@
+draft = "real-journeys"
+repo = "fabrig"
+sources = ["temper/docs/plan/real-journeys/inputs/request.md", "temper/docs/design/draft/real-journeys.md", "AGENTS.md", "DESIGN.md"]
