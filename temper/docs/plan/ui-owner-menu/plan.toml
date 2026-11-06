@@ -17,8 +17,21 @@ mode = "direct"
 needs = []
 design = "skein/docs/design/ui-web.md, 7"
 
+[[part]]
+id = "person-menu"
+title = "The rail's foot row opens a menu with Accounts and Sign out; a phone signs out on the Accounts tab"
+mode = "direct"
+needs = ["menu-outside"]
+design = "temper/docs/design/client/README.md, 5.3"
+
 [[slice]]
 id = 1
 story = "a person presses past an open menu: it closes, the press lands, and the focus is where it should be"
 parts = ["menu-outside"]
+walk = false
+
+[[slice]]
+id = 2
+story = "a person opens the menu on their name in the rail, signs out, reloads and stays out"
+parts = ["person-menu"]
 walk = false

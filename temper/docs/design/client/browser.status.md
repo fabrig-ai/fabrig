@@ -2,6 +2,8 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
+- **Not yet:** 2.5: `temper.css` shows the `Accounts` tab's "Sign out" at every
+  width. 7.2: the gallery has no `rail-person-menu`.
 - **Departs:** 2.5: `Ctrl+\` keeps Chat → Split → Draft on a phone too,
   with Split displayed as Draft. The 2026-11-05 answer to
   `ui-chat-draft/document-pane` accepts this cycle without viewport state;
