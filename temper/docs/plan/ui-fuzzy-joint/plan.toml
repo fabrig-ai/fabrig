@@ -1,0 +1,5 @@
+draft = "ui-fuzzy-joint"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-fuzzy-joint/inputs/request.md", "jig/testing/jig-test-service/src/clients.rs", "jig/testing/jig-client-kit/src/joint/component.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
