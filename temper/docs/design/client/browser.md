@@ -529,15 +529,17 @@ replay says the same clocks (`README.md`, 5.12).
   fields under it, indented, small bold labels over 38 px inputs, the
   addresses a monospace text area; its foot, under a hairline, the
   quiet "Cancel" and the primary Run at its right (the user's mockup,
-  2026-11-04). Ready's checklist is a column of lines between
-  hairlines, each with its mark in a 24 px circle, ticked green once
-  done, its name in ink at 500 and what it says muted, "Open Forgejo ↗"
-  at the forge line's right; under it, the first project's form, its
+  2026-11-04). Ready's pane is Model's forge region, its lines 18 px apart:
+  each stacks its mark, a quiet ring, a green tick or the signal's "✕", its
+  name in ink at 500 and what it says muted, "Open Forgejo ↗" under the
+  forge line's words; a stopped line's "WHO didn’t answer" is in the signal's
+  colour, its why 13.5 px under it, its "Try again" and quiet act a row under
+  that (the request `model-check-pane`). After the lead,
+  the first project's form, its
   small bold label over a 300 px field, 40 px high, and "Create your
   project" at the field's right, "Rename it whenever you like." muted
   under them. At 760 px and under, the cards stack, the steps but the
-  current one keep their circles alone, the forge line's link goes
-  under its words, Ready's field and act stack, the act 48 px high and
+  current one keep their circles alone, Ready's field and act stack, the act 48 px high and
   full width, and the gutters are 16 px in the top bar and 20 px in
   the main. Each act keeps a focus ring.
 - **The task pages' stylesheet,** `task-pages.css`, comes third, after
@@ -918,17 +920,14 @@ proves.
 ### 4.2 Later pages
 
 A page gets a story here only for what of its own a browser alone
-shows. The inbox, a task's page and the adoption form have none beyond
-their addresses: one story opens each present page's address directly
-and reads its heading. The task pages' story runs on `temper box`'s
-playground, with its own fakes, from a procedure's plan to its agent
-and back by the lineage bar, each by its address, and opens the
-agent's page fresh by its address. The procedure is the playground's
-change, drawn from its
-panel (`README.md`, 5.10); the story reads its heading and its plan's
-agent, no more of it. The change's steps to landed, its gates, its
-bounds and its ended tasks hold nothing a browser alone shows: the
-client world's `change_panel.rs` reads them. A later page that has such
+shows. The inbox, a task's page and the adoption form have none: a
+first load at any address is the shell's one start (2.1), which 4.6's
+tests 1 and 2 hold on a chat's address and a filter's. A procedure's
+plan, its agent, the lineage bar and a fresh client at an agent's
+address are the client world's (`suite::b2`, `suite::task`). The
+change's steps to landed, its gates, its bounds and its ended tasks
+hold nothing a browser alone shows: the client world's
+`change_panel.rs` reads them. A later page that has such
 behaviour brings its story with it: `ConnectModel`'s sign-in, its tab
 sent to the provider's address and back to the page it left
 (`README.md`, 3.5).
@@ -1064,8 +1063,9 @@ One test, the provider's (`../protocol/sign-in.md`, 9.8).
 
 ### 4.6 The twelve
 
-The tier's tests, each one test of the steps it names, each on its own
-`temper serve` (the playground's on its built playground):
+The tier's tests, each on its own `temper serve` (the playground's on its
+built playground, 2 and 11 on `temper box`, whose first run is over). Each
+is one test of the steps it names; 2 and 11 share one, and 4 and 5 another:
 
 1. **Signing in** (4.1, 1): the printed link signs in, a reload on a
    chat signs in by the cookie, and the link spent shows the
@@ -1077,7 +1077,7 @@ The tier's tests, each one test of the steps it names, each on its own
    the inbox at `/` (4.1, 2).
 4. **The composer** (4.1, 3).
 5. **A panic** (4.1, 4).
-6. **jig's attacks that need a browser** (4.1, 5): a cross-site request
+6. **jig's attacks that need a browser** (4.1, 6): a cross-site request
    from another port and from another host does nothing, and a framed
    page shows nothing, in one harness with both attacker host names.
 7. **A cross-site authorization** returns its code and the link's state
@@ -1087,17 +1087,36 @@ The tier's tests, each one test of the steps it names, each on its own
 9. **`ConnectModel`'s round trip** (4.2).
 10. **GitHub's manifest page** posts itself once, and Back shows it
     without posting again until Continue (4.4).
-11. **The task pages** by their addresses (4.2); then, the
-    playground's project made, the Chats page Live, never Behind, with
-    the story's chat, before and after a reload (`README.md`, 2).
+11. **The box's project across a reload:** the playground's project
+    made, the Chats page Live, never Behind, with the story's chat,
+    before and after a reload (`README.md`, 2).
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../playground.md`, 9).
 13. **Reading a public project** (8.4), with no sign-in, and
     losing it when it is made private.
+14. **Reading back** (4.1, 5).
+15. **A project's rename** closed by Escape, Enter and Save returns the
+    focus to its summary, and never to the page's `main`.
 
 The cap includes all browser tests, whatever their names.
 
 Not in the tier, each in the lowest world that shows it:
+- **Goals' link to a draft:** the view's
+  `tests::goals::the_link_shows_with_a_tracked_template` holds its target, the
+  Chats page; test 2 holds what a browser's history does with a link.
+- **A procedure's plan, agent and lineage, and a fresh client at its address:**
+  the client world's `suite::b2::roadmap_b2_through_the_task_pages` and
+  `suite::task::a_delegates_page_shows_its_brief_run_and_report`.
+- **A chat's change card to Landed, its closing and the Closed filter's row:**
+  the client world's
+  `suite::chat::a_new_chat_lands_its_delegated_change_and_closes_in_your_chats`.
+  Test 2 keeps the filter's address and pressed state.
+- **A key added, on the Accounts page:** the view's `tests::accounts` and the
+  client world's `suite::accounts_page`. Test 8 keeps Back and Forward and the
+  emptied field.
+- **A landed goal's public pages:** the view's `tests::public`; an ended goal
+  kept in the public index, jig's
+  `suite::public::an_ended_public_goal_is_retained_by_the_public_referee`.
 - **Address-codec edge rows:** `temper-client-domain`'s
   `tests::address::{a_path_that_is_no_page_is_missing,each_number_spans_its_types_range}`.
   Browser test 2 keeps the shell's replacement of a missing address with `/`.
@@ -1186,7 +1205,7 @@ Not in the tier, each in the lowest world that shows it:
   that, draws the rail and a chat's foot under its notch and its home bar.
   Default: as the mock draws it, until a look request.
 - **The try's states in the gallery** (7.2; `README.md`, 3.5, *The try*;
-  `../draft/model-check.md`): the box past the host's check has no state of its
+  `../draft/model-check.md`): Model's line past the host's check has no state of its
   own, since the gallery draws what the view draws and no fact reaches it. Default:
   the host's two rows, the view's tests holding the rest, until that draft gives
   the facts.
@@ -1458,8 +1477,6 @@ from the engine's own answers, is where the look is tuned.
 | `welcome-model-forge-done` | Model at first run step 7, Forgejo connected, its marked Forge pane without Each step |
 | `welcome-model-forge-failed` | Model at first run step 9, Forgejo failed, its Forge pane and Each step |
 | `welcome-model-claude` | Claude’s welcome command and I’ve signed in, with no Name field |
-| `welcome-model-claude-checking` | the declaration or host check under way, the try's box at its first step |
-| `welcome-model-claude-not-yet` | the settled check without a usable login, the try's box stopped at its first step, Try again, Sign in again and Continue anyway |
 | `welcome-model-key-details` | the welcome's API key form, without an unsupported display-name field |
 | `welcome-model-connected` | a usable ChatGPT plan, its ticked status and Continue to Ready |
 | `welcome-model-away` | the page waiting for ChatGPT’s sign-in, its note, "Open it again" and folded paste |
@@ -1471,9 +1488,11 @@ from the engine's own answers, is where the look is tuned.
 | `welcome-paste-sending`, `welcome-paste-finishing` | the finish request in flight, then accepted |
 | `welcome-paste-too-many`, `welcome-paste-ended`, `welcome-paste-expired` | the restart endings, with no paste field |
 | `welcome-paste-lost`, `welcome-paste-unsent` | the address cleared after a lost or unsent finish request |
+| `welcome-ready-checking` | Ready from its first frame, the declaration or host check under way, Model's line at its first step, its bar and Each step |
 | `welcome-ready-copies` | Ready offers Widget and names the two repositories its act will copy into the project |
-| `welcome-ready-none` | Ready with neither forge nor model, their inline connect links and the offered playground |
-| `welcome-ready-signing` | Ready while ChatGPT signs in, its current checklist ring |
+| `welcome-ready-none` | Ready with neither forge nor model, the pane's two lines, their inline connect links and the offered playground |
+| `welcome-ready-not-yet` | Almost ready, the settled check without a usable login, Model's line stopped at its first step, Try again, Sign in again and Each step |
+| `welcome-ready-signing` | Ready while ChatGPT signs in, Model's line in the pane as it is |
 | `welcome-ready-under-way` | Ready while Forgejo sets up, Forge before Model, Each step and the note below the form |
 | `welcome-ready-adopted` | Ready with Forge and Model connected, the project form and Back to Model |
 | `forge-setup-failed` | the failed setup's reason and neutral retry act |
@@ -1639,4 +1658,5 @@ never streaming (`../draft/first-release.md`, 5.3).
   `/public`, its board, a task and its landings, by a page with no
   sign-in and no stream, the view's text checked against the public
   records' fields alone; and a project made private, its pages unknown
-  at the next read.
+  at the next read. The goal it reads is under way: a landed goal's pages
+  hold nothing a browser alone shows (4.6).

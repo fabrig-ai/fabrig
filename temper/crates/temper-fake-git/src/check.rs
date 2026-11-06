@@ -238,7 +238,7 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
         [b"clean", b"-ffdxq"] => Command::Clean,
         [b"merge", b"--no-commit", b"--no-ff", b"--", theirs] => Command::Merge { theirs: invocation::object(theirs)? },
         [b"diff-files", b"--name-only", b"-z", b"--diff-filter=U"] => Command::Unmerged,
-        [b"add", b"--all"] => Command::Add,
+        [b"add", b"--all", b"--", b".", b":(exclude,glob)**/.*.log"] => Command::Add,
         [b"diff-index", b"--cached", b"--quiet", parent, b"--"] => {
             Command::DiffIndex { parent: invocation::object(parent)? }
         }

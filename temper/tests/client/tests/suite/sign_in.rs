@@ -371,7 +371,7 @@ fn welcome_ready_names_the_made_account() {
         }),
     );
     h::reopen(&mut front, &mut root, at(b"/welcome?at=ready"), true);
-    has(&root, "Model ChatGPT plan");
+    has(&root, "ChatGPT plan");
 }
 
 // client/README.md 3.5 Accounts and 5.5 A sign-in: Made uses the signed-in words and acts.

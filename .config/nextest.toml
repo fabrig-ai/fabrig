@@ -31,6 +31,8 @@
 # skein/docs/foundation/testing-strategy.md 2.10's starvation rule cannot see.
 [test-groups]
 temper-real-loop = { max-threads = 2 }
+# ChatGPT's registered loopback callback must listen on fixed port 1455.
+temper-sign-in-callback = { max-threads = 1 }
 
 [profile.default]
 default-filter = """
@@ -161,6 +163,10 @@ test-threads = 1
 default-filter = "binary(=process) & (package(/^temper(-|$)/) | package(=git-transcripts))"
 global-timeout = "25m"
 test-threads = 1
+
+[[profile.process-temper.overrides]]
+filter = "package(=temper) & binary(=process) & test(/^fake_backends::walk::sign_in::/)"
+test-group = "temper-sign-in-callback"
 
 # The after-landing tier, under --run-ignored only: the owned-forge landing pair on the
 # sign-ins the tier takes as inputs (temper/docs/design/domain/testing.md, 2.7). The owner's

@@ -24,21 +24,15 @@ fn the_looks_names_pass_skeins_check() {
     }
 }
 #[test]
-fn model_try_styles_keep_their_names_beside_configuring_styles() {
+fn model_line_styles_name_the_reason_and_acts() {
     for (style, name) in [
-        (STARTER_HEAD, b"temper-starter-head".as_slice()),
-        (DOC_FIGURES, b"temper-doc-figures"),
-        (WELCOME_CHECK, b"temper-welcome-check"),
-        (WELCOME_CHECK_STOPPED, b"temper-welcome-check-stopped"),
-        (WELCOME_CHECK_FAILED, b"temper-welcome-check-failed"),
-        (WELCOME_CHECK_WHY, b"temper-welcome-check-why"),
+        (WELCOME_STATUS_WHY, b"temper-welcome-status-why".as_slice()),
+        (WELCOME_STATUS_ACTS, b"temper-welcome-status-acts"),
     ] {
         assert_eq!(NAMES.style(style), Some(name));
     }
 }
-const FLOW_NAMES: [(skein_ui::Style, &[u8]); 27] = [
-    (WELCOME_CHECK, b"temper-welcome-check"),
-    (WELCOME_CHECK_WHY, b"temper-welcome-check-why"),
+const FLOW_NAMES: [(skein_ui::Style, &[u8]); 25] = [
     (FLOW_BUSY, b"temper-flow-busy"),
     (FLOW_METER, b"temper-flow-meter"),
     (FLOW_PRIMARY, b"temper-flow-primary"),
@@ -659,7 +653,6 @@ fn welcome_and_repository_styles_keep_their_css_names() {
         (WELCOME_PASTE, b"temper-welcome-paste"),
         (WELCOME_FIELD, b"temper-welcome-field"),
         (WELCOME_CMD, b"temper-welcome-cmd"),
-        (WELCOME_CURRENT, b"temper-welcome-current"),
         (HOME_COPY, b"temper-home-copy"),
         (HOME_SMALL, b"temper-home-small"),
     ] {

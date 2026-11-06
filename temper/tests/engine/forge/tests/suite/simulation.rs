@@ -719,6 +719,7 @@ fn a_broken_landing_branch_pauses_the_queue_for_one_repair() {
         entry: 2,
         heard: change::Heard {
             delegate_running: false,
+            delegate_live: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -840,6 +841,7 @@ fn a_kept_change_leaves_the_queue_and_comes_back_at_its_place() {
         entry: 1,
         heard: change::Heard {
             delegate_running: false,
+            delegate_live: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -1028,6 +1030,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
         entry: 2,
         heard: change::Heard {
             delegate_running: false,
+            delegate_live: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -1054,6 +1057,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
         entry: 3,
         heard: change::Heard {
             delegate_running: false,
+            delegate_live: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -1090,6 +1094,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
             entry,
             heard: change::Heard {
                 delegate_running: false,
+                delegate_live: false,
                 start_conflict: None,
                 lacking: None,
                 spend: None,
@@ -2129,6 +2134,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         entry: 10,
         heard: change::Heard {
             delegate_running: false,
+            delegate_live: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -2155,6 +2161,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         entry: 11,
         heard: change::Heard {
             delegate_running: false,
+            delegate_live: false,
             start_conflict: None,
             lacking: None,
             spend: None,
