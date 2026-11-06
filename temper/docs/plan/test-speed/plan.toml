@@ -31,8 +31,21 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/protocol/setup.md, 7.5"
 
+[[part]]
+id = "again-setup"
+title = "again walks a setup file, and chat-draft records itself with no hand driver"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/journeys.md, 8.2"
+
 [[slice]]
 id = 1
 story = "ctl against a stopped box says so at once, and process-temper spends less wall with no test's CPU worse"
 parts = ["stopped-box", "walk-waits", "tier-threads"]
+walk = false
+
+[[slice]]
+id = 2
+story = "again chat-draft runs alone, from a setup it shares with project-landing"
+parts = ["again-setup"]
 walk = false
