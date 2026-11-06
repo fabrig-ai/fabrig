@@ -1129,14 +1129,21 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-check-stopped",
         b"temper-welcome-check-failed",
         b"temper-welcome-check-why",
+        b"temper-work-run",
+        b"temper-work-running",
+        b"temper-work-failed",
+        b"temper-work-calls",
+        b"temper-work-out",
         b"temper-writing-end",
+        b"temper-latest",
+        b"temper-thread-loading",
+        b"temper-rail-person",
+        b"temper-settings-sign-out",
         b"temper-confirm",
         b"temper-confirm-fates",
         b"temper-confirm-acts",
         b"temper-confirm-do",
         b"temper-confirm-choices",
-        b"temper-rail-person",
-        b"temper-settings-sign-out",
     ],
     regions: &[b"temper-link"],
 };
@@ -1299,28 +1306,43 @@ pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
 
+/// A call run (temper/docs/design/client/README.md, 3.5).
+pub const WORK_RUN: Style = Style { owner: owner(), token: 453 };
+/// A call run (temper/docs/design/client/README.md, 3.5).
+pub const WORK_RUNNING: Style = Style { owner: owner(), token: 454 };
+/// A call run (temper/docs/design/client/README.md, 3.5).
+pub const WORK_FAILED: Style = Style { owner: owner(), token: 455 };
+/// A call run (temper/docs/design/client/README.md, 3.5).
+pub const WORK_CALLS: Style = Style { owner: owner(), token: 456 };
+/// A call run (temper/docs/design/client/README.md, 3.5).
+pub const WORK_OUT: Style = Style { owner: owner(), token: 457 };
+
+/// The words being written end here (temper/docs/design/client/README.md, 3.5).
+pub const WRITING_END: Style = Style { owner: owner(), token: 458 };
 // The try’s status box (temper/docs/design/client/README.md, 3.5).
 pub const WELCOME_CHECK: Style = Style { owner: owner(), token: 449 };
 pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 450 };
 pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 451 };
 pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 452 };
 
-/// The last word of a turn being written (client/README.md, 3.5).
-pub const WRITING_END: Style = Style { owner: owner(), token: 453 };
-/// A confirmation sheet (client/README.md, 3.6, The sheet).
-pub const CONFIRM: Style = Style { owner: owner(), token: 454 };
-/// A confirmation sheet (client/README.md, 3.6, The sheet).
-pub const CONFIRM_FATES: Style = Style { owner: owner(), token: 455 };
-/// A confirmation sheet (client/README.md, 3.6, The sheet).
-pub const CONFIRM_ACTS: Style = Style { owner: owner(), token: 456 };
-/// A confirmation sheet (client/README.md, 3.6, The sheet).
-pub const CONFIRM_DO: Style = Style { owner: owner(), token: 457 };
-/// An uncertain release's choices (client/README.md, 3.6, The sheet).
-pub const CONFIRM_CHOICES: Style = Style { owner: owner(), token: 458 };
+/// Return to the conversation's end (client/README.md, 3.5).
+pub const LATEST: Style = Style { owner: owner(), token: 459 };
+/// An older activity read is out (client/README.md, 3.5).
+pub const THREAD_LOADING: Style = Style { owner: owner(), token: 460 };
 /// The browser's person menu (client/README.md, 5.3).
-pub const RAIL_PERSON: Style = Style { owner: owner(), token: 459 };
+pub const RAIL_PERSON: Style = Style { owner: owner(), token: 461 };
 /// The Accounts tab's sign-out row (client/README.md, 3.5).
-pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 460 };
+pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 462 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM: Style = Style { owner: owner(), token: 463 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM_FATES: Style = Style { owner: owner(), token: 464 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM_ACTS: Style = Style { owner: owner(), token: 465 };
+/// A confirmation sheet (client/README.md, 3.6, The sheet).
+pub const CONFIRM_DO: Style = Style { owner: owner(), token: 466 };
+/// An uncertain release's choices (client/README.md, 3.6, The sheet).
+pub const CONFIRM_CHOICES: Style = Style { owner: owner(), token: 467 };
 
 #[cfg(test)]
 mod tests {

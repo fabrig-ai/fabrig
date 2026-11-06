@@ -14,8 +14,8 @@ Conversation:
   Hello
   Temper
   I can help.
-  * Writing...
   Writing an answer
+  * ▌
 [6] Message: (empty)
 [7] Send
 [8] Stop

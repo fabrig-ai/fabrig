@@ -1,6 +1,7 @@
 //! Mockup documents, answered through the same windows as the engine.
 //! First-run records follow temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 4.8.
 use temper_fixtures::client_documents as documents;
+mod chat_work;
 mod github;
 use crate::driver::{answer, deliver, limits, step};
 use crate::samples::{Confirmation, Then, World};
@@ -233,6 +234,18 @@ fn configure_frame(me: &mut c::Me) {
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
     world_in_layout(w, address, then, false, None, None, false)
 }
+pub(super) fn chat_work_world(name: &str) -> Domain {
+    let mut root =
+        world_in_layout(World::Bare, Address::Chat { task: 1 }, Then::Shown, false, Some(name), None, false).0;
+    if name == "chat-work-reading" {
+        step(
+            &mut root,
+            Event::Act { action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Older) },
+            &mut Queue::uncapped(),
+        );
+    }
+    root
+}
 pub(super) fn drafts_world() -> Domain {
     world_in_layout(
         Reference,
@@ -338,9 +351,13 @@ fn world_in_layout(
                         }
                         c::Subject::Inbox { window } => Some(c::Delivery::Inbox(Box::new(inbox_window(w, window)))),
                         c::Subject::Task { task: number } => {
-                            let mut task = page_goal(goals)
-                                .filter(|g| g.facts.number == number)
-                                .map_or_else(|| shown_task(w, number, then), |g| g.document(w));
+                            let mut task = if let Some(name) = goals.filter(|name| name.starts_with("chat-work-")) {
+                                chat_work::task(name)
+                            } else {
+                                page_goal(goals)
+                                    .filter(|g| g.facts.number == number)
+                                    .map_or_else(|| shown_task(w, number, then), |g| g.document(w))
+                            };
                             if configuring_chat {
                                 configuring_chip(&mut task.chip);
                             }
@@ -388,7 +405,10 @@ fn world_in_layout(
                             }
                             Some(c::Delivery::Chips(chips))
                         }
-                        c::Subject::Chips { .. } | c::Subject::Run { .. } => None,
+                        c::Subject::Run { .. } => {
+                            goals.filter(|name| name.starts_with("chat-work-")).map(chat_work::run)
+                        }
+                        c::Subject::Chips { .. } => None,
                     };
                     if let Some(document) = document {
                         deliver(&mut root, watch, document, &mut out);
@@ -1216,6 +1236,11 @@ fn proposal() -> c::ReadValue {
 }
 #[expect(clippy::too_many_lines, reason = "one dispatch answers every gallery read with its world fixture")]
 fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Option<c::ReadValue> {
+    if let Some(name) = goals.filter(|name| name.starts_with("chat-work-"))
+        && let c::Read::Activity { before, .. } = what
+    {
+        return Some(c::ReadValue::Activity(Box::new(chat_work::activity(name, before.as_ref()))));
+    }
     if let Some(goal) = page_goal(goals)
         && let Some(value) = goal.read(w, what)
     {
@@ -4025,6 +4050,7 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
 /// Sample clocks keep the mock’s dates and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
+        name if name.starts_with("chat-work-") => Wall::from_nanos(chat_work::AT + 60_000_000_000),
         "home-morning" | "home-away" | "home-away-one" | "home-away-overturned" => {
             Wall::from_nanos(1_792_483_440_000_000_000)
         }

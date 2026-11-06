@@ -495,7 +495,7 @@ pub(crate) fn status_words(
     (token, name)
 }
 
-/// Working dots follow the bar's status and yield to provisional text (client/README.md, 3.5).
+/// Active work follows the bar; the conversation chooses its run or dots (client/README.md, 3.5).
 pub(crate) fn working(root: &Domain, words: &Words, thread: &jig_client::thread::Thread) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
     let Some(task) = chat.task(root.client()) else { return false };
