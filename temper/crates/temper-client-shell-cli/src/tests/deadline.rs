@@ -2,7 +2,7 @@
 use super::fixtures::{self, Engine};
 use crate::{
     limits,
-    waited::{self, Act, Waited},
+    waited::{self, Act, Again, Waited},
 };
 use skein_io::kernel::Exit;
 
@@ -91,8 +91,24 @@ fn a_sent_act_keeps_its_words_after_refused_reconnection() {
     assert_eq!(f.kept_records(), fixtures::local::ACT_WITH_STREAM);
 }
 
-const WAIT_WORDS: [(Waited, &str); 4] =
-    [(Waited::Link, LINK), (Waited::Stream, STREAM), (Waited::Read, READ), (Waited::Outcome, OUTCOME)];
+const WAIT_WORDS: [(Waited, &str); 7] = [
+    (Waited::Link, LINK),
+    (Waited::Stream, STREAM),
+    (Waited::Read, READ),
+    (Waited::Outcome, OUTCOME),
+    (
+        Waited::Again(Again::Busy),
+        "the engine at http://127.0.0.1:4000 last answered this act busy; no outcome within 30 s",
+    ),
+    (
+        Waited::Again(Again::NotReady),
+        "the engine at http://127.0.0.1:4000 last answered this act not ready; no outcome within 30 s",
+    ),
+    (
+        Waited::Again(Again::Lost),
+        "the last answer to this act from the engine at http://127.0.0.1:4000 was lost; no outcome within 30 s",
+    ),
+];
 const ACT_WORDS: [(Act, &str); 6] = [
     (Act::None, ""),
     (Act::NotSent, NOT_SENT),
@@ -119,7 +135,7 @@ fn every_link_state_maps_to_its_outstanding_work() {
             for &heard in heard {
                 for &acting in acting {
                     assert_eq!(
-                        waited::waited(link, connected, heard, acting),
+                        waited::waited(link, connected, heard, acting, None),
                         expected,
                         "{link:?}, connected {connected}, heard {heard}, acting {acting}"
                     );
@@ -174,4 +190,96 @@ fn sign_out_keeps_the_generic_deadline_line() {
     f.quiet.push(b"/jig/v1/stream");
     f.drain();
     deadline(&mut f, "the engine at http://127.0.0.1:4000 did not answer within 30 s", "");
+}
+
+const SPAN: skein_lib::Duration = skein_lib::Duration::from_secs(2);
+const TICK: skein_lib::Duration = skein_lib::Duration::from_millis(10);
+fn advance(f: &mut Engine, seconds: u32) {
+    for _ in 0..seconds * 100 {
+        f.advance_past(TICK);
+    }
+}
+#[test]
+fn an_act_answered_busy_is_tried_within_its_span_up_to_the_deadline() {
+    let mut f = act(fixtures::CHAT);
+    f.act_retry = Some(jig_client_protocol_wire::KeyedAnswer::Busy);
+    f.sign_in_then_deliver_me();
+    advance(&mut f, 30);
+    assert!(f.act_attempts.len() > 1, "act retried");
+    for pair in f.act_attempts.windows(2) {
+        assert!(pair[1].as_nanos() - pair[0].as_nanos() <= SPAN.as_nanos(), "retry gap: {pair:?}");
+    }
+    let last = f.act_attempts.last().expect("act attempts");
+    assert!(limits::DEADLINE.as_nanos() - last.as_nanos() <= SPAN.as_nanos(), "last attempt {last:?}");
+    assert_eq!(
+        str::from_utf8(f.stderr()).expect("deadline"),
+        format!(
+            "temper ctl: the engine at http://127.0.0.1:4000 last answered this act busy; no outcome within 30 s{KEPT_NAMED}\n"
+        )
+    );
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.kept_records(), fixtures::local::ACT_WITH_STREAM);
+}
+#[test]
+fn an_act_answered_busy_then_done_prints_within_a_span_of_its_clearing() {
+    let mut f = act(fixtures::CHAT);
+    f.act_retry = Some(jig_client_protocol_wire::KeyedAnswer::Busy);
+    f.sign_in_then_deliver_me();
+    advance(&mut f, 12);
+    f.act_retry = None;
+    f.complete_acts = true;
+    advance(&mut f, 2);
+    assert_eq!(f.exit(), Some(Exit::Code(0)), "answer within two seconds of room");
+    assert_eq!(f.stdout(), b"done: task 41, chat\n");
+    assert!(f.stderr().is_empty());
+}
+#[test]
+fn a_read_whose_me_is_answered_busy_is_answered_within_a_span_of_its_clearing() {
+    let mut f = Engine::read(&["me"]);
+    f.me_busy = true;
+    f.sign_in_then_deliver_me();
+    advance(&mut f, 8);
+    f.me_busy = false;
+    advance(&mut f, 2);
+    assert_eq!(f.exit(), Some(Exit::Code(0)), "me reopened within two seconds");
+    assert!(!f.stdout().is_empty());
+    assert!(f.stderr().is_empty());
+}
+
+#[test]
+fn retry_reasons_survive_an_unanswered_later_attempt() {
+    use jig_client_protocol_wire as w;
+    let undecodable = w::Owned::new(
+        &w::CEILINGS,
+        w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: Box::new([255]) },
+    )
+    .expect("bad final record in a valid envelope");
+    for (answer, expected) in [
+        (w::KeyedAnswer::Busy, Waited::Again(Again::Busy)),
+        (w::KeyedAnswer::NotReady, Waited::Again(Again::NotReady)),
+        (w::KeyedAnswer::FinalAnswer(undecodable), Waited::Again(Again::Lost)),
+    ] {
+        let mut f = act(fixtures::CHAT);
+        f.act_retry = Some(answer);
+        f.sign_in_then_deliver_me();
+        advance(&mut f, 3);
+        f.act_retry = None; // The next attempt stays in flight with no reply.
+        advance(&mut f, 27);
+        assert_eq!(
+            str::from_utf8(f.stderr()).expect("deadline"),
+            format!("temper ctl: {}\n", waited::line("http://127.0.0.1:4000", expected, Act::Kept { named: true }))
+        );
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+    }
+    for (retry, expected) in [
+        (jig_client::Retry::Busy, Waited::Again(Again::Busy)),
+        (jig_client::Retry::NotReady, Waited::Again(Again::NotReady)),
+        (jig_client::Retry::Lost, Waited::Again(Again::Lost)),
+        (jig_client::Retry::Undecodable, Waited::Again(Again::Lost)),
+        (jig_client::Retry::Full { held: 2, room_at: skein_lib::Wall::EPOCH }, Waited::Outcome),
+    ] {
+        assert_eq!(waited::waited(jig_client::Link::Live, true, true, true, Some(retry)), expected);
+        assert_eq!(waited::waited(jig_client::Link::Live, true, true, false, Some(retry)), Waited::Read);
+        assert_eq!(waited::waited(jig_client::Link::Offline, true, true, true, Some(retry)), Waited::Link);
+    }
 }

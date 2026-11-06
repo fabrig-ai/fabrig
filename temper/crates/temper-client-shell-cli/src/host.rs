@@ -622,6 +622,7 @@ impl OneShot {
                     connected,
                     self.heard.is_some(),
                     self.class == Class::Act && self.waiting == Waiting::Answer,
+                    self.root.last_retry(),
                 );
                 let act = match self.act {
                     Act::Kept { .. } if self.recovery.saving() => Act::NotSent,
