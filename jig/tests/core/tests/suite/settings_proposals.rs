@@ -3,6 +3,7 @@
 use crate::settings_support as support;
 use jig_core_world::client_peer::ClientPeer;
 use jig_core_world::fixtures;
+use jig_core_world::fixtures::accepted;
 use jig_core_world::peers;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
@@ -714,16 +715,6 @@ fn task_set(task: u64, proposal: u64) -> root::Key {
 fn run_outcome(world: &World, task: u64, proposal: u64) -> &tasks::Word {
     fixtures::live_row(world, task).inbox.iter().find(|word| matches!(word.kind, tasks::MessageKind::SettingsDecision { proposal: number, .. } if number == proposal)).expect("settings outcome in the proposer's inbox")
 }
-fn accepted(reply: &people::Reply) {
-    assert!(
-        matches!(
-            reply,
-            people::Reply::Outcome(people::Outcome::ProposalDecided { choice: people::ProposalChoice::Accepted, .. })
-        ),
-        "{reply:?}"
-    );
-}
-
 // Keep the review inline bound below the tool input bound for a hex-encoded set.
 const CHARTER_REVIEW_BYTES: u32 = 128;
 

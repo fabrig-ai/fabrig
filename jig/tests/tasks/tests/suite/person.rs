@@ -1,5 +1,5 @@
 use jig_domain_tasks::{self as tasks, Contract, Event, Executor, Party, PersonAddress, Phase, TaskResult, Verdict};
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY, Reply, World, task};
 
 fn response(world: &mut World, event: impl FnOnce(skein_lib::ReplyTo) -> Event) -> Reply {
     let reply_to = world.to();
@@ -49,7 +49,7 @@ fn a_person_task_is_taken_handed_back_and_answered() {
             Verdict { fields: Box::new([]), code: 2, words: 8, followups: 0 },
         ]),
     };
-    assert_eq!(world.make(Party::Person(9), vec![new]), Reply::Made(vec![1]));
+    assert_eq!(world.make(PERSON_PARTY, vec![new]), Reply::Made(vec![1]));
     assert_eq!(world.record(1).phase, Phase::Active(tasks::Active::Due));
     assert!(!world.activations.contains(&1), "a person task does not claim a worker");
 
@@ -93,11 +93,11 @@ fn a_direct_person_task_accepts_only_its_addressees_answer() {
     let mut world = World::new(221, limits);
     let mut new = task(1, &[]);
     new.executor = Executor::Person(PersonAddress::Person(10));
-    assert_eq!(world.make(Party::Person(9), vec![new]), Reply::Made(vec![1]));
+    assert_eq!(world.make(PERSON_PARTY, vec![new]), Reply::Made(vec![1]));
     world.elapse(skein_lib::Duration::from_secs(1));
     let notice = world.record(1).person_wait.expect("answerable wait").notice.expect("personal requester was notified");
     let tasks::Line::Notified { recipient, word } = &notified(&world, 1).line else { panic!() };
-    assert_eq!(*recipient, Party::Person(9));
+    assert_eq!(*recipient, PERSON_PARTY);
     assert_eq!(word.number, notice.message);
     assert_eq!(word.kind, tasks::MessageKind::PersonStalled { task: 1 });
     assert_eq!(notified(&world, 1).position, notice.activity);
@@ -130,7 +130,7 @@ fn a_persons_wait_starts_after_dependencies_and_notifies_its_requester_once_acro
     let mut limits = LIMITS;
     limits.person_stall = skein_lib::Duration::from_secs(10);
     let mut world = World::new(224, limits);
-    assert_eq!(world.make(Party::Person(9), vec![task(1, &[])]), Reply::Made(vec![1]));
+    assert_eq!(world.make(PERSON_PARTY, vec![task(1, &[])]), Reply::Made(vec![1]));
     let mut person = task(2, &[3]);
     person.executor = Executor::Person(PersonAddress::Role(7));
     assert_eq!(world.make(Party::Task(1), vec![person, task(3, &[])]), Reply::Made(vec![2, 3]));
@@ -156,7 +156,7 @@ fn a_persons_wait_starts_after_dependencies_and_notifies_its_requester_once_acro
         hold: tasks::PlacedHold {
             number: 91,
             project: 1,
-            owner: tasks::Owner::Party { person: 9 },
+            owner: tasks::Owner::Party { person: PERSON },
             mode: tasks::Mode::Stop,
             scope: tasks::Scope::Subtree { task: 2 },
             reason: Box::new([]),
@@ -172,7 +172,7 @@ fn a_persons_wait_starts_after_dependencies_and_notifies_its_requester_once_acro
     assert_eq!(
         response(&mut world, |reply_to| Event::Release {
             reply_to,
-            by: Party::Person(9),
+            by: PERSON_PARTY,
             operation: tasks::Release { task: 2, again: None, message: None }
         }),
         Reply::Done
@@ -218,7 +218,7 @@ fn person_stall_news_and_the_result_keep_room_before_ordinary_words() {
     let mut world = World::new(225, limits);
     let mut parent = task(1, &[]);
     parent.wake.news = tasks::WakeRule::Never;
-    assert_eq!(world.make(Party::Person(9), vec![parent]), Reply::Made(vec![1]));
+    assert_eq!(world.make(PERSON_PARTY, vec![parent]), Reply::Made(vec![1]));
     world.claim_fresh(1);
     let mut person = task(2, &[]);
     person.executor = Executor::Person(PersonAddress::Person(10));
@@ -231,7 +231,7 @@ fn person_stall_news_and_the_result_keep_room_before_ordinary_words() {
             task: 1,
             word: tasks::Word {
                 number: 50,
-                from: Party::Person(9),
+                from: PERSON_PARTY,
                 kind: tasks::MessageKind::Words,
                 words: Box::new([1]),
                 at: skein_lib::Wall::EPOCH,
@@ -267,18 +267,18 @@ fn person_stall_news_and_the_result_keep_room_before_ordinary_words() {
 fn an_approval_exceeding_the_tasks_result_bound_leaves_it_answerable() {
     let mut world = World::new(458, LIMITS);
     let mut new = task(1, &[]);
-    new.executor = Executor::Person(PersonAddress::Person(9));
+    new.executor = Executor::Person(PersonAddress::Person(PERSON));
     let state = vec![5; skein_lib::length::usize_of(LIMITS.result_bytes)].into_boxed_slice();
     new.contract = Contract::Approval {
         state: state.clone(),
         part: tasks::Part { connector: 1, kind: tasks::PartKind::Resource, key: tasks::PartKey::Number(1) },
     };
-    assert_eq!(world.make(Party::Person(9), vec![new]), Reply::Made(vec![1]));
+    assert_eq!(world.make(PERSON_PARTY, vec![new]), Reply::Made(vec![1]));
     assert!(matches!(
         response(&mut world, |reply_to| Event::AnswerPerson {
             reply_to,
             task: 1,
-            person: 9,
+            person: PERSON,
             result: TaskResult::Approved { state: state.clone(), words: Some(Box::new([7])) },
         }),
         Reply::Refused(_)
@@ -288,7 +288,7 @@ fn an_approval_exceeding_the_tasks_result_bound_leaves_it_answerable() {
         response(&mut world, |reply_to| Event::AnswerPerson {
             reply_to,
             task: 1,
-            person: 9,
+            person: PERSON,
             result: TaskResult::Approved { state: state.clone(), words: None },
         }),
         Reply::Done
@@ -300,10 +300,10 @@ fn an_approval_exceeding_the_tasks_result_bound_leaves_it_answerable() {
 fn goal_proposal(number: u64) -> tasks::PersonProposal {
     let mut goal = task(number, &[]);
     goal.tracked = Some(1);
-    goal.funder = tasks::Funder::Pool { project: 1, person: 9, period: 0 };
+    goal.funder = tasks::Funder::Pool { project: 1, person: PERSON, period: 0 };
     tasks::PersonProposal {
         number,
-        proposer: 9,
+        proposer: PERSON,
         project: 1,
         action: tasks::PersonAction::Batch(Box::new([goal])),
         reason: Box::from(b"proposed batch".as_slice()),
@@ -315,7 +315,7 @@ fn reject_goal_proposal(world: &mut World, number: u64) {
     assert_eq!(
         response(world, |reply_to| Event::DecidePersonProposal {
             reply_to,
-            proposer: 9,
+            proposer: PERSON,
             proposal: number,
             by: Party::Person(10),
             message: Some(number + 10),
@@ -361,7 +361,6 @@ fn a_restart_restores_no_decided_person_proposal() {
 #[test]
 fn a_live_proposal_leaves_the_open_shape_to_core() {
     const PROPOSAL: u64 = 1;
-    const PERSON: u64 = 9;
     let rows = [
         ("person", Executor::Person(PersonAddress::Person(PERSON)), true),
         ("procedure", Executor::Procedure { connector: 1, code: 1 }, true),

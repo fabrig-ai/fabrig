@@ -101,12 +101,12 @@ Where the client does otherwise:
   for those words, `../README.status.md`, 3.5). Context, choices,
   "recommended", "Later", the answer's green line and "Undo" are the
   greenfield mock's (`../README.md`, 3.5). A chat's "landed" waits on
-  `../README.md`, 11, *What a chat did, on its line*. An adopted repository's To begin line describes checked changes landing through
-  the merge queue, without claiming a creation age or first CI result
+  `../README.md`, 11, *What a chat did, on its line*. An adopted repository's To begin line says chats can change its code,
+  without claiming a creation age or first CI result
   (`../README.md`, 11). Landing-by-turn wording waits on that
   section's *How a project lands, on To begin's second step*: the
-  client has no project's `by`, so every project keeps the queue's
-  words. The switcher shows
+  client has no project's `by`, so no project's line names how it
+  lands. The switcher shows
   repository names and counts, the first listed standing in for the home; "3 repositories"
   without that stand-in is unreached (`../README.md`, 5.3). Home's
   GitHub picker and reached count and the model account's email wait

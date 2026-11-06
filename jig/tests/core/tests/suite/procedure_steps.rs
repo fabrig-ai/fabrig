@@ -1,4 +1,4 @@
-use jig_core_world::fixtures::{finish_chat, live_row, member};
+use jig_core_world::fixtures::{CONNECTOR, PARTY, finish_chat, live_row, member};
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
@@ -8,7 +8,6 @@ use jig_test_domain as root;
 use jig_test_profile::fixtures::unchanged;
 use skein_lib::{ReplyTo, Token};
 
-const CONNECTOR: u16 = 1;
 const PROCEDURE_CODE: u32 = 1;
 const DELEGATE_CALL: u64 = 9001;
 const AMEND_CALL: u64 = 9002;
@@ -601,7 +600,7 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
                 amendment: Box::new(amendment.clone()),
             },
             reply_to: ReplyTo::new(Token::new(9900)),
-            by: tasks::Party::Person(1),
+            by: tasks::Party::Person(PARTY),
             places: Box::new([]),
             funder: None,
         }),

@@ -263,7 +263,7 @@ delegate's phases; the frame's speed changes how long the person waits
   and through each story, and which of it the documents control.
 - **Its figures,** the world's memory at its high water and the download
   compressed, are measured by the browser tier and reported. The
-  download's bar is 6 MB gzipped; the
+  download's bar is 8 MB gzipped (the user, 2026-11-06); the
   memory's, set for a phone at 256 MiB in the draft, is the user's for a
   desktop browser, once measured (section 11).
 - **The first paint does not wait for the world:** the frame and the

@@ -119,6 +119,7 @@ pub(super) fn run_spend(runs: u64) -> u64 {
     for member in ["providers", "endpoints", "models"] {
         template["engine"]["llm"][member].as_array_mut().expect("model configuration").truncate(1);
     }
+    template["engine"]["llm"]["providers"][0]["models"].as_array_mut().expect("provider models").truncate(1);
     let bytes = serde_json::to_vec(&template).expect("single-model template");
     let document = jig_protocol_config::document(
         &bytes,

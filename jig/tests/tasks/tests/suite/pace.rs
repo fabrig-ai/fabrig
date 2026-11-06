@@ -3,10 +3,9 @@ use jig_domain_tasks::{
     Active, End, Event, MessageKind, NewsClass, Party, Phase, Refusal, ResultsWake, Subscription, SubscriptionKind,
     WakeRule, Word,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON_PARTY, Reply, World, task};
 use skein_lib::Duration;
 
-const PERSON: Party = Party::Person(9);
 const COORDINATOR: u64 = 1;
 const DELEGATE: u64 = 2;
 const TOPIC: u64 = 10;
@@ -22,7 +21,7 @@ fn parked(seed: u64, delegate: bool) -> World {
         jig_domain_tasks::Flags { conversation: true, ended_by: jig_domain_tasks::EndedBy::Requester, ..watch.flags };
     watch.wake.news = WakeRule::Paced { span: SPAN };
     watch.wake.results = ResultsWake::Each;
-    world.make(PERSON, vec![watch]);
+    world.make(PERSON_PARTY, vec![watch]);
     if delegate {
         world.make(Party::Task(COORDINATOR), vec![task(DELEGATE, &[])]);
     }
@@ -116,7 +115,7 @@ fn a_zero_span_is_refused() {
     let mut world = World::new(874, LIMITS);
     let mut watch = task(COORDINATOR, &[]);
     watch.wake.news = WakeRule::Paced { span: Duration::ZERO };
-    assert!(matches!(world.make(PERSON, vec![watch]), Reply::Refused(problem) if problem.why == Refusal::Spec));
+    assert!(matches!(world.make(PERSON_PARTY, vec![watch]), Reply::Refused(problem) if problem.why == Refusal::Spec));
     assert!(world.activations.is_empty());
     assert!(!world.records.contains_key(&jig_domain_tasks::Key::Live(COORDINATOR)));
 }

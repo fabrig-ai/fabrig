@@ -2,7 +2,7 @@ use jig_client_domain::contract::*;
 use skein_lib::List;
 pub(super) fn source() -> Project {
     Project {
-        number: 1,
+        number: super::PROJECT,
         name: DocumentText::complete(super::text(b"Kit")),
         acts: List::with_capacity(2),
         resources: List::with_capacity(2),

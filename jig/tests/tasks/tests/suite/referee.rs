@@ -1,4 +1,5 @@
 use jig_domain_tasks::{Party, SettingsRevision, Status};
+use jig_tasks_world::PERSON_PARTY;
 use jig_tasks_world::referee::{Seen, Tasks};
 use skein_lib::Time;
 use skein_world::domain::{Referee, Verdict};
@@ -539,11 +540,11 @@ fn message_and_escalation_referee_rejects_lost_delivery_and_missing_holder() {
     use skein_lib::{ReplyTo, Token, Wall};
 
     let mut world = World::new(216, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     let before = world.records.clone();
     let message = Word {
         number: 1,
-        from: Party::Person(9),
+        from: PERSON_PARTY,
         kind: MessageKind::Words,
         words: Box::new([1]),
         at: Wall::EPOCH,
