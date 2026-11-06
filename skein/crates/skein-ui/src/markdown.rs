@@ -56,8 +56,8 @@ pub fn read(input: &[u8], heading_base: u8, builder: &mut Builder) {
 }
 
 /// A text that may yet grow (ui.md, section 10). `end` runs once, if the text
-/// holds a word, inside its last word's block, after its runs. For a table it
-/// follows the table as its next sibling. Its caller counts `end`'s nodes.
+/// holds a word, inside its last word's block, after its runs. Its caller
+/// counts `end`'s nodes.
 #[expect(
     clippy::impl_trait_in_params,
     clippy::disallowed_types,
@@ -325,7 +325,7 @@ fn line(input: &[u8], start: usize, end: usize, next: usize, base: u8, blocks: &
     }
     if blocks.table {
         if table_row(raw) {
-            row(raw, Role::Cell, growing, builder);
+            row(raw, Role::Cell, growing, blocks, builder);
             return;
         }
         close_table(blocks, builder);
@@ -379,7 +379,7 @@ fn line(input: &[u8], start: usize, end: usize, next: usize, base: u8, blocks: &
     if table_header(raw, input.get(next..).expect("next line is in input")) {
         close_paragraph(blocks, builder);
         open_block(Role::Table, blocks, builder);
-        row(raw, Role::ColumnHeader, growing, builder);
+        row(raw, Role::ColumnHeader, growing, blocks, builder);
         blocks.table = true;
         blocks.delimiter = true;
         return;
@@ -425,8 +425,7 @@ fn table_header(line: &[u8], following: &[u8]) -> bool {
 // Tables keep only their open block and scan each line's cells (ui.md, 10).
 fn close_table(blocks: &mut Blocks, builder: &mut Builder) {
     if blocks.table {
-        finish_closing(blocks, builder);
-        builder.close();
+        close_block(blocks, builder);
         blocks.table = false;
     }
 }
@@ -525,22 +524,22 @@ fn cell_count(line: &[u8], delimiter: bool) -> Option<usize> {
     }
     Some(count)
 }
-fn row(line: &[u8], role: Role, growing: bool, builder: &mut Builder) {
+fn row(line: &[u8], role: Role, growing: bool, blocks: &mut Blocks, builder: &mut Builder) {
     let line = cells(line);
     let mut scan = Cells::new(line);
-    builder.open(Role::Row);
+    open_block(Role::Row, blocks, builder);
     for _cell in 0..=line.len() {
         let Some((start, end)) = scan.next(line) else { break };
         let cell = trim(line.get(start..end).expect("cell is in line"));
-        builder.open(role);
+        open_block(role, blocks, builder);
         if cell.contains(&b'<') {
             flush(cell, 0, cell.len(), Run::Plain, true, builder);
         } else {
             inline(cell, true, growing, builder);
         }
-        builder.close();
+        close_block(blocks, builder);
     }
-    builder.close();
+    close_block(blocks, builder);
 }
 
 fn heading(line: &[u8]) -> Option<u8> {

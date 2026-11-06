@@ -13,6 +13,7 @@ fn the_frame_carries_its_tokens() {
 fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
     assert_eq!(NAMES.style(CHAT_GOAL), Some(b"temper-chat-goal".as_slice()));
+    assert_eq!(NAMES.style(WRITING_END), Some(b"temper-writing-end".as_slice()));
 }
 const FLOW_NAMES: [(skein_ui::Style, &[u8]); 27] = [
     (WELCOME_CHECK, b"temper-welcome-check"),

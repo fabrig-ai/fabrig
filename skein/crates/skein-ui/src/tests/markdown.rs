@@ -516,7 +516,8 @@ fn the_end_stands_after_the_last_word_in_the_block_that_holds_it() {
         (b"word\n\n**", Role::Paragraph),
         (b"word\n\n# **", Role::Paragraph),
         (b"word\n```ru", Role::Paragraph),
-        (b"| word |\n|--|\n| last |", Role::Page),
+        (b"| word |\n|--|\n| last |", Role::Cell),
+        (b"| word |\n|--|", Role::ColumnHeader),
     ] {
         let (tree, calls) = growing(input, true);
         assert_eq!(calls, 1, "{input:?}");
@@ -538,6 +539,16 @@ fn the_end_stands_after_the_last_word_in_the_block_that_holds_it() {
         );
         assert!(text(&tree).ends_with(b"~"));
     }
+}
+
+#[test]
+fn an_empty_last_cell_keeps_the_end_where_its_next_word_will_go() {
+    let (tree, calls) = growing(b"| a |\n|--|\n| c | **", true);
+    assert_eq!(calls, 1);
+    let cell = tree.nodes().iter().rposition(|node| node.role == Role::Cell).expect("last cell");
+    let end = tree.nodes().iter().position(|node| node.text.iter().any(|run| run.text.as_ref() == b"~")).unwrap();
+    assert!(end > cell && end < cell.checked_add(usize::try_from(tree.nodes()[cell].size).unwrap()).unwrap());
+    assert!(tree.nodes()[cell..end].iter().all(|node| node.text.is_empty()));
 }
 
 #[test]
