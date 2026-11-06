@@ -332,6 +332,7 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
             let mut updates = List::with_capacity(1);
             updates
                 .push(contract::InboxEntry {
+                    projects: List::with_capacity(0),
                     reply: Some(Box::new(line.clone())),
                     task: contract::TaskLink::Live(line.chip.clone()),
                     project: Some(PROJECT),
@@ -419,4 +420,69 @@ fn filtered_cut_is_kept_for_each_section_and_both_page_shapes() {
         }
         assert_eq!(root.pages().inbox().unwrap().cut, [false, true]);
     }
+}
+
+fn settings_rows() -> List<contract::InboxEntry> {
+    let key = contract::ProposalKey { proposer: contract::Proposer::Task(TASK), number: MESSAGE };
+    let mut entries = rows(ObjectKey::Proposal(key), InboxGroup::Proposals, 0);
+    let row = entries.get_mut(0).unwrap();
+    row.projects = List::with_capacity(2);
+    row.projects.push(PROJECT).unwrap();
+    row.projects.push(OTHER_PROJECT).unwrap();
+    entries
+}
+#[test]
+fn a_settings_proposal_is_read_in_each_project_it_shows_in() {
+    for project in [PROJECT, OTHER_PROJECT] {
+        let (mut root, watch) = fixtures::inbox_home(Filter { project: Some(project), ..Filter::ALL });
+        let mut out = fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+        let handle = root.pages().inbox().unwrap().queries[0];
+        crate::route::told(
+            &mut root,
+            &fixtures::env(&fixtures::limits()),
+            jig_client::Told::Page {
+                handle,
+                page: jig_client::Readout::Jig(contract::ReadResult::Value(contract::ReadValue::Inbox(Box::new(
+                    contract::InboxPage {
+                        rows: settings_rows(),
+                        cut: false,
+                        before: None,
+                        after: None,
+                        selection: None,
+                    },
+                )))),
+            },
+            &mut out,
+        );
+        let cards = &root.pages().inbox().unwrap().cards;
+        assert_eq!(cards.len(), 1, "project {project} must show the settings proposal");
+        assert_eq!(cards.get(0).unwrap().project, Some(0), "the decision stays deployment-scoped");
+    }
+}
+#[test]
+fn the_rail_counts_a_settings_proposal_in_each_project_it_shows_in() {
+    let mut root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
+    let me = fixtures::start(&mut root, List::with_capacity(0));
+    let out = super::welcome::deliver(&mut root, me, contract::Delivery::Me(Box::new(fixtures::chats::me())));
+    let mut watch = None;
+    for request in &out {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Open {
+                            watch: token,
+                            subject: jig_client::Watchable::Jig(contract::Subject::Inbox { .. }),
+                        },
+                },
+        } = request
+        {
+            watch = Some(*token);
+        }
+    }
+    fixtures::inbox_entries(&mut root, watch.expect("standing inbox watch"), settings_rows());
+    for project in [PROJECT, OTHER_PROJECT] {
+        assert_eq!(root.pages().needs().count(root.client(), project).count, 1, "project {project}");
+    }
+    assert_eq!(root.pages().needs().count(root.client(), 3).count, 0);
 }

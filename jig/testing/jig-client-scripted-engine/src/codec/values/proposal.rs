@@ -9,6 +9,7 @@ pub(in crate::codec) fn wire_proposal(value: &c::Proposal, limits: &w::Limits) -
     w::Proposal::new(
         limits,
         w::ProposalParts {
+            projects: value.projects.clone(),
             key: wire_proposal_key(&value.key, limits)?,
             project: value.project,
             reason: wire_document_text(&value.reason, limits)?,

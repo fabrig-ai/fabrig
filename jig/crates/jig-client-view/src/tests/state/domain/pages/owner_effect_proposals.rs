@@ -7,6 +7,7 @@ use skein_lib::Wall;
 fn proposal(proposer: Proposer, effect: u64) -> Proposal {
     let acts = crate::tests::kit::list([Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }]);
     Proposal {
+        projects: List::with_capacity(0),
         key: ProposalKey { proposer, number: 7 },
         project: 41,
         reason: DocumentText { bytes: text(UTF8_TEXT), cut: true },

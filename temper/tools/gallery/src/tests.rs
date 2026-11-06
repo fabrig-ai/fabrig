@@ -724,6 +724,15 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-last-landed",
+        heading: "The last change landed 6 minutes ago. Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Thursday, 21:19 · you last looked 9 hours ago" },
+            Part::Text { text: "main last moved 6 min ago" },
+            Part::Named { role: Role::Link, name: "Changes" },
+        ],
+    },
+    Holds {
         name: "home-computed",
         heading: "2 changes landed since you last looked. Nothing needs you.",
         parts: &[
@@ -1876,6 +1885,22 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::TextArea, name: "Message" },
             Part::Named { role: Role::Button, name: "Close" },
             Part::Absent { role: Role::Disclosure, name: "Change model" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-proposal-deployment",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run your projects" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-proposal-two-projects",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally and 2" },
             Part::Named { role: Role::Button, name: "Accept" },
         ],
     },

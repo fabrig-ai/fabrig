@@ -581,6 +581,7 @@ fn inbox_entry(
         ObjectKey::Note { .. } => unreachable!("notes have no inbox row"),
     };
     let row = InboxEntry {
+        projects: skein_lib::List::with_capacity(0),
         reply,
         task: TaskLink::Stored { number: task, status: None },
         project: Some(project),

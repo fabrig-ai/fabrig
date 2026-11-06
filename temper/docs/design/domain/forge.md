@@ -1016,7 +1016,8 @@ connector as `Dismissed` is (5.5), and a document computed at its read.
 
   Each saves the row, marks the subject `status` and answers looked, the
   answer held behind the commit as `Dismiss`'s is and unknown after a
-  restart. The 30 minutes are a constant, `SITTING`.
+  restart. The 30 minutes are the limit `forge.sitting_ms`, `SITTING` in each
+  profile, a limit so that a box's walk reaches a second sitting in its tier.
 - **Its document:** the subject `status`, `status_subject(project)`, one
   number a project, outside the task numbers as `changes_subject`'s are,
   of the project's scope. The core's ask for a document names the
@@ -1068,6 +1069,15 @@ new to say. Its charter is the stock's 9
   of the project's period, code `STATUS_CODE`, on `repair_seed`, as it has
   an agent to fund, and answers `Event::StatusTask { project, task }`, or
   `Event::StatusRefused { project }` with no seed or a refused admission.
+- **What funds it:** what the project's period has unreserved, up to the
+  rules' run cap, which a run returns what it leaves of. A stock project's
+  period holds one chat's 24K beyond its owner's pool
+  (`../protocol/configuration.md`, 13.4), so a fresh project's briefs run from
+  it, with what the forge's own repairs take. A member's pool reserves from that
+  room too, so the first member to spend in a period can use it up. Its payer is
+  the project: a key serves it as any project's work, and a sign-in's plan while
+  its holder is the project's only member (jig's `domain/accounts.md`, 4.2).
+  With neither, its run waits, as *In flight* has it.
 - **Its run:** the procedure's first step delegates to charter 9 with the
   task's words, unlisted, no person asked (`asks` false), its authority
   narrowed to no tools, grants, notes or delegation (as a foreman's is,
@@ -3127,13 +3137,6 @@ whole.
 
 - **"The brief on Home" in Settings** (5.7): the status agent always runs
   for now; the switch is another plan's. Default: it runs.
-- **What funds a status run** (5.7): a run takes what its project's period has
-  unreserved, and the stock policy's pools are each as large as the period, so
-  once one opens the run is refused, at each sitting of that period
-  (`../client/README.status.md`, 3.5). Either the stock roles' pools leave room,
-  which changes what a person may spend; or a run draws on the pool of whoever
-  looked, which is no party's request; or a charge of its own beside the period.
-  Default: as built, a project whose pools leave funding has the agent's words.
 - **A status run's kept row** (5.7): a task made for the deployment is
   never forgotten, as jig forgets a result only for a person's request. At
   most one a sitting and an hour, each small. Default: kept, until jig

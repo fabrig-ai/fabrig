@@ -58,6 +58,11 @@ pub(super) fn text(value: &c::ReadValue, reading: &Reading, limits: &Limits, out
         }
     }
     out.put(b"\n");
+    if let c::ProposalAction::Settings(_) = &selected(value).action {
+        out.put(b"projects: ");
+        projects_text(&selected(value).projects, out);
+        out.put(b"\n");
+    }
     out.words(reason);
     out.put(b"\n");
     if let c::ReadValue::Proposal(p) = value
@@ -230,6 +235,12 @@ pub(super) fn encode(value: &c::ReadValue, reading: &Reading, out: &mut Encoder,
     super::encode_proposal_key(&key, out, budget);
     out.key(b"project");
     out.unsigned(u64::from(project));
+    out.key(b"projects");
+    out.array_start();
+    for project in &proposal.projects {
+        out.unsigned(u64::from(*project));
+    }
+    out.array_end();
     let p = proposal;
 
     out.key(b"reason");
@@ -855,4 +866,16 @@ fn encode_effect(reading: &Reading, out: &mut Encoder) {
     out.key(b"explanation");
     out.string(EFFECT);
     out.object_end();
+}
+
+pub(crate) fn projects_text(projects: &skein_lib::List<u32>, out: &mut Text) {
+    if projects.is_empty() {
+        out.put(b"deployment");
+    }
+    for (index, project) in projects.iter().enumerate() {
+        if index != 0 {
+            out.put(b", ");
+        }
+        out.number(u64::from(*project));
+    }
 }

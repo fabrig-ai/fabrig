@@ -6,6 +6,7 @@ mod account_text;
 mod projects;
 mod projects_json;
 mod proposal;
+pub(super) use proposal::projects_text;
 pub(super) mod question;
 pub(crate) mod settings;
 use super::{Text, acts};
