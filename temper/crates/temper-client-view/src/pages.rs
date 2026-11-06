@@ -19,6 +19,7 @@ pub mod home;
 pub(crate) mod inbox;
 pub(crate) mod needs;
 pub(crate) mod new_chat;
+pub(crate) mod reference;
 pub(crate) mod session;
 pub(crate) mod settings;
 pub(crate) mod start_goal;
