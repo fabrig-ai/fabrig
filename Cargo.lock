@@ -688,6 +688,7 @@ version = "0.0.0"
 dependencies = [
  "hearth-lib",
  "hearth-protocol-tree",
+ "sha1",
  "skein-io",
  "skein-lib",
  "skein-scratch",

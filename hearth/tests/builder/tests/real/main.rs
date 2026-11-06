@@ -3,6 +3,27 @@ use hearth_builder_world::fixtures::{self, Repository};
 use skein_io::kernel::Exit;
 
 #[test]
+fn a_written_repository_is_the_one_git_makes() {
+    use fixtures::File;
+    let files = fixtures::thin_with(&[
+        File { path: "executable", body: b"#!/bin/sh\nexit 0\n", mode: 0o755 },
+        File::link("link", b"a.b"),
+        File { path: "a.b", body: b"before directory\n", mode: 0o644 },
+        File { path: "a/c", body: b"last in directory\n", mode: 0o644 },
+    ]);
+    let path = std::env::var_os("PATH").expect("git is required on PATH");
+    let real = Repository::make_on(&path, "git-written", &files);
+    let written = Repository::make("kit-written", &files);
+    assert_eq!(written.git(&["rev-parse", "HEAD"]), real.git(&["rev-parse", "HEAD"]));
+    drop(written.git(&["fsck", "--strict"]));
+    let changed = [File { path: "a.b", body: b"changed\n", mode: 0o644 }];
+    drop(real.next(&changed, &["a/c"]));
+    drop(written.next(&changed, &["a/c"]));
+    assert_eq!(written.git(&["rev-parse", "HEAD"]), real.git(&["rev-parse", "HEAD"]));
+    drop(written.git(&["fsck", "--strict"]));
+}
+
+#[test]
 fn hearth_render_prints_the_thin_repositorys_spec_through_real_git() {
     let repository = Repository::make("thin", fixtures::THIN);
     let rendered = fixtures::render(&repository, &[], Form::Text);
