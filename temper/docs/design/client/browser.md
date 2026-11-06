@@ -417,7 +417,7 @@ replay says the same clocks (`README.md`, 5.12).
 - **The first paint, the placeholder's:** the shell's `loading.html` and
   `loading.css`, given to skein's bundler (skein's `ui-web.md`, 4.3), so
   that a person on a slow connection has something to read in a few
-  hundred bytes. The mark as inline paths, so that no font is fetched and
+  kilobytes. The mark as inline paths, so that no font is fetched and
   nothing swaps, centred at about 38% of the height; under it a 240 px
   `progress`, as `temper-flow-meter` draws one, 4 px, ink over the
   hairline, and one muted line; a phone keeps the 16 px gutter. The lines,

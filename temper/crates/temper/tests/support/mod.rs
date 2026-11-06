@@ -44,33 +44,22 @@ pub mod story_command;
 pub mod story_socket;
 use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
 
-/// `N` distinct loopback addresses that no listener holds now, none of
-/// them in `taken`. A released port may be handed out again, so every
-/// listener is held until all `N` are drawn, including a draw in `taken`.
-/// Each skipped address stays held: at most `N + taken.len()` binds.
-/// Two equal listeners fail temper-forge-setup's `check.rs:112`.
+/// `N` distinct loopback addresses that no listener holds now, none of them
+/// in `taken`, which a story may let go of and listen on again
+/// (temper/docs/design/domain/testing.md, 2.6). Two equal listeners fail
+/// temper-forge-setup's `check.rs:112`.
 #[must_use]
 pub fn free_addresses<const N: usize>(taken: &[SocketAddr]) -> [SocketAddr; N] {
-    reserve_listeners::<N>(taken).each_ref().map(|listener| listener.local_addr().expect("socket address"))
+    temper_fixtures::ports::addresses(taken)
 }
 
 /// Distinct listeners held until their in-process consumers take ownership.
 #[must_use]
 pub fn reserve_listeners<const N: usize>(taken: &[SocketAddr]) -> [std::net::TcpListener; N] {
-    let mut skipped = Vec::new();
-    std::array::from_fn(|_| {
-        loop {
-            let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("free socket");
-            let address = listener.local_addr().expect("socket address");
-            if !taken.contains(&address) {
-                break listener;
-            }
-            skipped.push(listener);
-        }
-    })
+    temper_fixtures::ports::reserve(taken)
 }
 
-/// Gives every listener an init-made document names a kernel-drawn
+/// Gives every listener an init-made document names a chosen
 /// address, so that no story depends on init's preferred ports.
 pub fn own_listeners(document: &mut serde_json::Value) {
     fn replace(value: &mut serde_json::Value, moves: &[(String, String)]) {

@@ -528,7 +528,16 @@
   and no walk on record has. skein's `a_clipboard_write_keeps_the_press_and_reports_once`
   holds the part, and `host_tests_copy.rs` holds that the press's own report asks the
   write; no test runs the one line between them, in `carry`
-  (`temper-client-shell-web/src/lib.rs`). Seen by reading.
+  (`temper-client-shell-web/src/lib.rs`). Seen by reading. Nor does a browser show its
+  word change: `the_button_reads_each_label_once_in_the_browser` holds the three names in
+  the view's tree, and that a name's patch rewrites the button's text
+  (`skein-ui-web/src/page/web.rs`, `refresh` and `content`) is seen by reading too.
+- **Design departs:** 3.5, *Needs you*, `.rec`, from the request `ui-copy-once` of
+  2026-11-06, decided by its plan's cut. The request has no button, tab or option with
+  both a name and a text child in a browser, and a recommended choice's button has its
+  name and the tag "recommended", which this section draws: those are other words, not
+  the name twice. `no_named_control_draws_a_text_child_in_any_state`
+  (`temper/tools/gallery/src/tests.rs`) excepts that word alone.
 - **Design departs:** 4.6, *The program's environment*, from the request `box-small-2`
   of 2026-11-06, item 1, decided by its plan's cut, which takes `resolve` as all or
   nothing: with no `HOME` and an XDG variable placing some of the directories, not all,
