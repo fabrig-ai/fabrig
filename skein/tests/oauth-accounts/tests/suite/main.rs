@@ -3,7 +3,6 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 mod access_only;
 mod accounts;
-mod baseline;
 mod debug;
 mod memory;
 mod private;
