@@ -420,10 +420,6 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     if let Some(to) = bindings.insert(Meaning::Go(model::address(root.pages().address(), None))) {
         flow::control(b, Control::Link { name: &say(w, W::AllWays), to });
     }
-    if let Some(trial) = super::model_check::trial(root, w) {
-        trial_body(b, root, w, bindings, &trial, way);
-        return;
-    }
     if ready(root, way) {
         flow::details(b, &ending_heading(root, w, way));
         ready_body(b, root, w, bindings, way, &ways);
@@ -466,26 +462,6 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             &pending.outcome
     {
         button(b, bindings, &say(w, W::Cancel), Act::Cancel, false, false);
-    }
-    b.close();
-}
-/// The way's card while a try is shown (temper/docs/design/client/README.md, 3.5).
-pub(crate) fn trial_body(
-    b: &mut Builder,
-    root: &Domain,
-    w: &Words,
-    bindings: &mut Bindings,
-    trial: &super::model_check::Trial,
-    way: Way,
-) {
-    flow::details(b, &ending_heading(root, w, way));
-    super::model_check::status(b, w, trial);
-    match trial.state {
-        super::model_check::State::Answered { .. } => ready_primary(b, root, w, bindings),
-        super::model_check::State::Stopped { .. } => {
-            super::model_check::stopped_acts(b, root, w, bindings, trial, way, ready_address(root));
-        }
-        super::model_check::State::Running { .. } => {}
     }
     b.close();
 }

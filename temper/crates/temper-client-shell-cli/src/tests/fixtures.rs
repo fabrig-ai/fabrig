@@ -99,6 +99,8 @@ pub struct Frame {
     pub busy: bool,
     pub absent: bool,
     pub refused: bool,
+    pub refuse_connections: bool,
+    pub refused_connections: u32,
     pub address: &'static [u8],
     pub token: &'static [u8],
     pub address_error: Option<Error>,
@@ -203,6 +205,8 @@ impl Frame {
             busy: false,
             absent: false,
             refused: false,
+            refuse_connections: false,
+            refused_connections: 0,
             address: b"http://127.0.0.1:4000\n",
             token: TOKEN_BYTES,
             address_error: None,
@@ -442,6 +446,14 @@ impl Frame {
             Ok(Done::Nothing)
         }
     }
+    fn connect(&mut self) -> Result<Done, Error> {
+        if self.refuse_connections {
+            self.refused_connections += 1;
+            Err(Error::Refused)
+        } else {
+            Ok(Done::Nothing)
+        }
+    }
     fn answer(&mut self, kind: &mut Op) -> Result<Done, Error> {
         match kind {
             Op::Open { root, path, how } => self.open_file(*root, path, *how),
@@ -493,6 +505,7 @@ impl Frame {
             Op::Sync { fd } if Some(*fd) == self.record_fd || *fd == FILE_PARENT => self.record_sync(*fd),
             Op::Remove { name, dir, .. } if name.as_ref() == b"record" => self.record_remove(*dir),
             Op::Sync { .. } if self.fail_store.is_some() => Err(Error::Permission),
+            Op::Connect { .. } => self.connect(),
             Op::Close { fd } if *fd == DIRECTORY && self.locked.is_some() => {
                 self.released_after = Some(self.store_count());
                 Ok(Done::Nothing)
@@ -501,9 +514,7 @@ impl Frame {
                 self.sockets.get_mut(fd).expect("closing socket").closed = true;
                 Ok(Done::Nothing)
             }
-            Op::Sync { .. } | Op::Remove { .. } | Op::Connect { .. } | Op::Shutdown { .. } | Op::Close { .. } => {
-                Ok(Done::Nothing)
-            }
+            Op::Sync { .. } | Op::Remove { .. } | Op::Shutdown { .. } | Op::Close { .. } => Ok(Done::Nothing),
             Op::Send { fd, bytes, from } => {
                 let start = usize::try_from(*from).expect("send offset");
                 self.sockets.get_mut(fd).expect("socket").request.extend_from_slice(&bytes[start..]);

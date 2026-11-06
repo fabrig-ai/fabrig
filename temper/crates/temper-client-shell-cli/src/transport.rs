@@ -3,11 +3,14 @@ use jig_client as client;
 use jig_client_shell_native::Transport;
 use skein_io::{self as io, Addr};
 use skein_lib::{Queue, Time, Token};
+use std::collections::BTreeSet;
 const OWNER: u64 = 1 << 60;
 pub(crate) struct Memory {
     transport: Transport,
     pub(crate) events: Queue<client::Event>,
     requests: Queue<io::Request>,
+    connected: BTreeSet<Token>,
+    refused: bool,
 }
 impl Memory {
     pub(crate) fn new(engine: Addr, limits: &jig_client_shell_native::Limits) -> Self {
@@ -16,6 +19,8 @@ impl Memory {
             transport: Transport::new(engine, limits, sockets, OWNER),
             events: Queue::uncapped(),
             requests: Queue::uncapped(),
+            connected: BTreeSet::new(),
+            refused: false,
         }
     }
     pub(crate) fn down(&mut self, now: Time, request: client::Request) {
@@ -28,7 +33,34 @@ impl Memory {
         self.transport.owns(owner)
     }
     pub(crate) fn event(&mut self, now: Time, event: io::Event) {
+        match &event {
+            io::Event::Connected { owner } => {
+                self.connected.insert(*owner);
+            }
+            io::Event::Failed { owner, error: io::Error::Refused } if !self.connected.contains(owner) => {
+                self.refused = true;
+            }
+            io::Event::Closed { owner } => {
+                self.connected.remove(owner);
+            }
+            io::Event::Connecting { .. }
+            | io::Event::Stream { .. }
+            | io::Event::Failed { .. }
+            | io::Event::Output { .. }
+            | io::Event::Listening { .. }
+            | io::Event::Accepted { .. }
+            | io::Event::Spawned { .. }
+            | io::Event::Exited { .. }
+            | io::Event::Usage { .. }
+            | io::Event::Resized
+            | io::Event::Window { .. }
+            | io::Event::Shutdown { .. } => {}
+        }
         self.transport.event(now, event);
+    }
+    /// A connection the kernel refused, before any was made (client/tools.md, 6.3).
+    pub(crate) fn refused(&self) -> bool {
+        self.refused
     }
     pub(crate) fn close(&mut self, now: Time) {
         self.transport.close(now);

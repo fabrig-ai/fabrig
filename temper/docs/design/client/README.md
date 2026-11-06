@@ -1328,8 +1328,10 @@ keeps (`../protocol/configuration.md`, section 2).
     its Ready. An account added there is the accounts page's too; a
     sign-in holds the page, and moves on to the welcome's Ready,
     `/welcome?at=ready` (`ConnectModel`, *Its end*).
-    *A model usable,* at any way or none: the heading "Connect a model",
-    no lead; a status, ticked, "✓ ACCOUNT", in the words of Ready's Model
+    *A model usable,* at any way or none, for whoever comes back to the step
+    once a model is usable, since "I’ve signed in", a sign-in’s end and a key
+    added go on to Ready at once: the heading "Connect a model", no lead; a
+    status, ticked, "✓ ACCOUNT", in the words of Ready's Model
     line (below); the primary "Continue", to Ready; the foot. On the
     welcome it stands in for the choices and for a made sign-in's card,
     with its facts, "Continue with ChatGPT", "Manage usage" and "…is on
@@ -1339,7 +1341,9 @@ keeps (`../protocol/configuration.md`, section 2).
       What temper’s agents use is billed to the key’s organization."; the
       field "Key, pasted once", the panel's width; "Add key", disabled
       until typed; "All ways"; and "Nothing checks a key when it is added:
-      a wrong one shows once OpenAI refuses a run."
+      a wrong one shows once OpenAI refuses a run." Once it is added and a
+      model usable, the step moves on to Ready, its address replacing the
+      step's; refused, the page stays with the refusal's words.
     - *A held sign-in* takes *The sign-in under way*, below.
     - *Claude,* "Your Claude subscription": "temper sets Claude Code up on
       this machine in an environment of its own: its settings, sessions
@@ -1352,13 +1356,11 @@ keeps (`../protocol/configuration.md`, section 2).
       signed in"; "All ways". "I’ve signed in" sends `DeclareProgram` under
       NAME unless an account of the person's has that source, then the
       accounts page's `CheckProgram { source }`, as `temper ctl account
-      verify` does. While either is out, in the panel's place, *The try*
-      (below), its first step under way, with no "one short message". Once a
-      model is usable, the step moves on to Ready, its address replacing the
-      step's. Answered with the source not usable, the page stays with *The
-      try* stopped at its first step, its why "Claude Code isn’t signed in
-      here yet. Sign in again, then try again.": "Try again" checks again,
-      and "Sign in again" brings the panel back.
+      verify` does, and the step moves on to Ready at once, its address
+      replacing the step's: nothing on this page waits or changes first.
+      The check's end shows on Ready (*The try,* below). A refused
+      `DeclareProgram` or `CheckProgram` says the refusal's words under
+      Ready's Model line.
     - *A plan's sign-in,* its way at its address with none asked, or one
       ended with no model usable, "Signing in to PLAN": `ConnectModel`'s card
       for the way, or its ending's words and acts, in the panel; "All ways".
@@ -1424,36 +1426,43 @@ keeps (`../protocol/configuration.md`, section 2).
     state, acts and Choose are `ConnectModel`'s; the step's frame, heading,
     lead, ways' pages, notes, set up line and foot the welcome's.
     *The try,* an account tried once it is usable, one short task through
-    the path a chat takes (`../draft/model-check.md`), is one status box,
-    Forge's status box in its look, drawn by one function: on the welcome in
-    the panel's place, under the way's heading, or in the place of *A model
-    usable*'s status; on `ConnectModel` in the way's card's place. Its steps
+    the path a chat takes (`../draft/model-check.md`), runs in the background
+    and nothing waits for it. It is Model's line in Ready's pane (*Ready,*
+    below), the same parts as Forge's line, drawn by one function. Its steps
     are the list Forge's has, "Each step" its name, each with its state in
     words: for a Claude subscription "Signed in to your subscription",
     "Claude Code starts on this machine", "Claude answers"; for a plan's
     sign-in "Signed in to your PLAN plan", or for a key "Key added", ticked at
     once, a direct account having no program to start, then "PLAN answers",
     "ChatGPT answers". ACCOUNT below is "Claude subscription", "ChatGPT plan",
-    "OpenAI API key", in Ready's Model line's words.
-    - *Running:* a spinner, "Trying your ACCOUNT", strong, the muted "one short
-      message" once a message goes, and the list, the step under way marked.
-    - *Answered:* the box green, "✓ ACCOUNT", strong, the muted "answered in N
-      s", the list folded under "Each step"; then "Continue", as *A model
-      usable* has it, or on `ConnectModel` its made account's primary. It
-      does not move on by itself.
-    - *Stopped:* the box on the signal's pale, the alert "WHO didn’t answer",
-      WHO the PLAN, in the signal's colour; the list, the step that
-      stopped "✕" and in that colour, those before it ticked; why, in the
-      person's terms, a paragraph, `temper-welcome-check-why`. Then "Try
-      again", primary; the act that answers the reason, outlined ("Sign in
-      again"), or, with none, "All ways"; then "Continue anyway", quiet, to
-      Ready, or on `ConnectModel` to its made account's primary's address.
+    "OpenAI API key", in Ready's Model line's words; WHO the PLAN.
+    - *Running:* the quiet ring, ACCOUNT, strong, the muted "Trying: STEP", STEP
+      the step under way; the moving bar Forge's has, named by those words;
+      then the list, folded under "Each step", the step under way marked.
+    - *Answered:* ticked, ACCOUNT, strong, the muted who it is, as Ready's
+      Model line has it, the muted "answered in N s", and no "Each step". The
+      page does not move; the person is already on Ready.
+    - *Stopped:* "✕", ACCOUNT, strong, the muted "WHO didn’t answer" in the
+      signal's colour; why, in the person's terms, a paragraph,
+      `temper-welcome-status-why`; `temper-welcome-status-acts`, "Try again",
+      outlined, and the act that answers the reason, quiet, "Sign in again", a
+      link to the way's page, or, with none, "All ways"; then the list, folded
+      under "Each step", the step that stopped "✕" and in that colour, those
+      before it ticked. Where the account is not usable, the page is Almost
+      ready and its act disabled, as for any model not usable. Where only the
+      try failed, the account being usable, the page stays Ready and its act
+      works: a failed try keeps no one out.
 
-    At a phone's width the muted words go under the title. The terminal
-    has the same lines as text, with no spinner: "Trying your ACCOUNT · one
-    short message", "✓ ACCOUNT · answered in N s", "WHO didn’t answer". Ready's
-    Model line, after a try that stopped: its usual line, then, muted, "didn’t
-    answer when tried".
+    An account just declared counts as usable for Ready's heading and act, and
+    the steps' tick, from "I’ve signed in" until its host's check says
+    otherwise, so that the page does not go from Almost ready to Ready a moment
+    later. Leaving Ready does not stop the try: the check is the engine's and
+    each host's. If it stops once the person has left, Home's line about the
+    accounts says so, "WHO didn’t answer when tried", with "Try again"; answered,
+    Home says nothing more. On `ConnectModel` the account's row on the accounts
+    page holds the same lines. The terminal says the same lines as text,
+    indented under the pane's name, with no bar: "ACCOUNT · Trying: STEP",
+    "✓ ACCOUNT · WHO IT IS · answered in N s", "ACCOUNT · WHO didn’t answer".
     *Ready* is headed "Almost ready", with "Your first project can be
     created once your forge and model are ready.", until a real forge
     is connected and a model usable, then "Ready", with "Everything is
@@ -1461,19 +1470,20 @@ keeps (`../protocol/configuration.md`, section 2).
     start working.", ORG/NAME the first repository its act will adopt
     or the first copy its act will ask, "with 2 repositories in it" for
     more than one copy (below), or, with none, "Everything is connected.
-    Create your first project and start working."; then a
-    checklist, Forge then Model, always, each line its name, strong, then
-    what it says of it, muted, at 15 px, as the greenfield mockup draws
-    them. A line under way, Forge while it sets up, Model while signing
-    in, has its ring spinning. Forge reads
-    "Forge FORGE · connected as LOGIN · ORG/NAME made" once connected, as
-    *The store's state* says, the last part while a first repository was
+    Create your first project and start working."; then its one form
+    (below), and after the form and before the foot, the pane, the region
+    the Model step has, in its look and its place at each width, named "Forge
+    and model", with two lines, Forge's then Model's, always, each the same
+    parts: a mark, its name, strong, and each detail muted on a line of its
+    own. Forge's is the Model step's region's line, as *The store's state*
+    says: ticked, "FORGE · connected as LOGIN · ORG/NAME made" once connected,
+    the last part while a first repository was
     made, and no such part for copies, which run at Ready's act, or
-    "Forge FORGE · CONNECTION" (with its "Each step" folded), or
+    "FORGE · CONNECTION" (with its "Each step" folded), or
     "Forge none yet · Connect a forge", one line, the link, to the Forge
-    step, after " · ", as Model's is; while
+    step, after " · ", as Model's is; Model's is *The try* above, and while
     a model is usable, as *The store's state* says (the one test Ready and
-    the welcome share), "Model ACCOUNT", the first usable account of
+    the welcome share), with no try's fact, ticked, "ACCOUNT", the first usable account of
     the `accounts` document but the playground's (4.8), by the kind of
     its usable source and who it is: "PLAN plan · DISPLAY" for a
     signed-in plan ("ChatGPT plan · owner@example.com"), "PLAN
@@ -1481,7 +1491,7 @@ keeps (`../protocol/configuration.md`, section 2).
     "BRAND API key · billed to the key’s organization" for a
     key, an account of no named provider by its whole heading (5.5,
     An account); no model or effort, which are chosen apart from the
-    welcome (5.5; the user, 2026-11-04); or "Model MODEL" where no such
+    welcome (5.5; the user, 2026-11-04); or "MODEL" where no such
     account is usable (the configured model), MODEL a new chat's as
     the composer's line names it (5.5); or, while
     a sign-in of the person's is under way on the `accounts` document
@@ -1499,8 +1509,8 @@ keeps (`../protocol/configuration.md`, section 2).
     that ends with no model usable never leaves Ready silent. These
     read `OwnerAccounts.last_end`, without retaining the signing page. The port-taken fact is not in that document
     (M-j); Not eligible remains Future in the mockup. There is no model
-    line until the `accounts` document is delivered. Under the
-    checklist, Ready's one form, its first project
+    line until the `accounts` document is delivered. After the lead,
+    Ready's one form, its first project
     (`../draft/first-run-projects.md`, 4): the field "Your first
     project", holding the offered name until the person writes another,
     at most jig's 64 bytes, kept while the page is left and come back
@@ -1565,7 +1575,7 @@ keeps (`../protocol/configuration.md`, section 2).
       under a new key.
 
     Under the form, while a forge is under way and not ready, "Forgejo is
-    still setting up; this page moves on by itself."; then the foot, "‹
+    still setting up; this page moves on by itself."; then the pane; then the foot, "‹
     Back" to Model and, while the playground is offered, "Try the
     playground instead", as on Forge and Model. "Set up again" keeps its
     place, at its natural width.
@@ -4212,7 +4222,7 @@ repository, and the cues the playground's, copied in from its read:
   project, named" and the step no "Choose a repository to start in";
   the forge's line names no project, "FORGE · ORG/NAME · CONNECTION"
   and "✓ FORGE · connected as LOGIN · ORG/NAME made, in no project
-  yet"; Ready's checklist has no "Project PROJECT,
+  yet"; Ready's pane has no "Project PROJECT,
   with ORG/NAME" line, and its act opens the project without waiting
   for the adoption, in place of "ORG/NAME is ready", "It opens once
   ORG/NAME is made." and "Adopt a repository"; and the chats page of a
@@ -4235,9 +4245,10 @@ repository, and the cues the playground's, copied in from its read:
   the forge's ticked line reads "✓ FORGE · connected as LOGIN ·
   ORG/NAME made"; the foot has no "Later"; and
   Ready is the user's greenfield mock's: "Ready" once its forge and
-  model are, "Almost ready" until then, each with its lead, its
-  checklist's lines a strong name then what they say, the model's
-  naming the account and no model, then the first project's form, its
+  model are, "Almost ready" until then, each with its lead, then the
+  first project's form, the pane's lines a strong name then what they
+  say, the model's naming the account and no model (the request
+  `model-check-pane`), its form's
   name the first repository's in capital, or "My project", until the
   person writes another, "Create your project" and "Rename it whenever
   you like.", the lead naming the repository the project starts with,
@@ -5580,8 +5591,7 @@ the page asks again after a transient end, as in 3.5. The client's joint
 world, `tests/client`, starts its clients so, with no shell
 (`fixtures::task_page`), and proves the root's part:
 in rung B2's story (section 10) a fresh client started at a delegate's address
-draws its heading and its "Task brief", as the browser tier's task
-pages story does at `/tasks/3` (section 10).
+draws its heading and its "Task brief".
 
 ## 7. Signing in and the small store
 
@@ -6409,8 +6419,8 @@ own tests:
   task and charter, how it selects its model, who pays, what ends it and its
   cancelling on leaving are that draft's, and are designed as it is built, with
   what it leaves open: an act on Settings' accounts, and a world for the wait.
-  Default: the host's check feeds the box's first step, and a model usable moves
-  on to Ready.
+  Default: the host's check feeds Model's line at its first step, and no line says
+  "answered".
 - **The rename's opening and closing, as the mock draws them** (5.3; the request
   `ui-rename-focus` of 2026-11-06): the mock selects the name as the form opens,
   folds the menu as it closes and says "Renamed" in a toast. A view can neither

@@ -915,7 +915,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 @font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url(files/fonts/ibm-plex-sans-latin-600-normal.woff2) format('woff2'); }
 @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url(files/fonts/ibm-plex-mono-latin-400-normal.woff2) format('woff2'); }
 @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url(files/fonts/ibm-plex-mono-latin-500-normal.woff2) format('woff2'); }
-:root:has(:is(.temper-welcome, .temper-welcome-check)) {
+:root:has(.temper-welcome) {
   --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73;
   --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-signal: #c2410c; --gf-good: #15803d;
   --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
@@ -1065,8 +1065,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-welcome .temper-welcome-lead, #app > .temper-welcome .temper-welcome-tagline + .temper-welcome-lead { margin-bottom: 24px; font-size: 15.5px; }
   #app > .temper-welcome :is(.temper-welcome-choices, .temper-flow-choices, .temper-model-choices) { grid-template-columns: minmax(0, 1fr); margin-bottom: 24px; }
   #app > .temper-welcome :is(.temper-welcome-card, .temper-flow-card:where(:not(.temper-settings-row *))) { padding: 18px; }
-  #app > .temper-welcome .temper-welcome-checklist { margin-bottom: 24px; }
-  #app > .temper-welcome .temper-welcome-checklist > li > a:nth-child(2) { grid-column: 2 / -1; grid-row: auto; justify-self: start; }
   #app > .temper-welcome form.temper-welcome-project { grid-template-columns: minmax(0, 1fr); margin-bottom: 24px; }
   #app > .temper-welcome .temper-welcome-project > button { justify-content: center; min-height: 48px; font-size: 15.5px; }
 }
@@ -2195,6 +2193,24 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 }
 
 /* ==== ui: welcome ==== */
+#app > .temper-welcome .temper-welcome-status > .temper-account-line { display: grid; grid-template-columns: 18px auto minmax(0, 1fr); gap: 2px 6px; align-items: baseline; margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--gf-muted); }
+#app > .temper-welcome .temper-welcome-status > * + .temper-account-line { margin-top: 18px; }
+#app > .temper-welcome .temper-welcome-status > .temper-account-line::before { content: '◌' / ''; grid-column: 1; grid-row: 1; color: var(--gf-faint); }
+#app > .temper-welcome .temper-welcome-status > .temper-account-line > * { grid-column: 2; }
+#app > .temper-welcome .temper-welcome-status > .temper-account-line > :first-child { grid-row: 1; }
+#app > .temper-welcome .temper-welcome-status > .temper-account-line > a { grid-column: 3; grid-row: 1; text-decoration: underline; text-underline-offset: 2px; }
+
+
+/* model-check-pane: the model's check runs in the background, in the pane beside the forge's line. */
+#app > .temper-welcome .temper-welcome-status > * + p:not(.temper-welcome-status-why) { margin-top: 18px; }
+#app > .temper-welcome .temper-welcome-status > p.temper-flow-failed::before { content: '✕' / ''; color: var(--gf-signal); }
+#app > .temper-welcome .temper-welcome-status > p.temper-flow-failed > span.temper-flow-muted { color: var(--gf-signal); }
+#app > .temper-welcome .temper-welcome-status > p.temper-welcome-status-why { display: block; margin: 6px 0 0 24px; font-size: 13.5px; line-height: 1.45; color: var(--gf-ink-2); }
+#app > .temper-welcome .temper-welcome-status > p.temper-welcome-status-why::before { content: none; }
+#app > .temper-welcome .temper-welcome-status > p.temper-welcome-status-why > span { display: block; color: inherit; }
+#app > .temper-welcome .temper-welcome-status-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 10px 0 0 24px; font-size: 13.5px; }
+#app > .temper-welcome .temper-welcome-status-acts > button { padding: 5px 12px; font-size: 13px; }
+
 
 #app > .temper-page :is(.temper-welcome-away, .temper-welcome-paste) { letter-spacing: normal; }
 #app > .temper-page .temper-welcome-away { font-size: 15px; }
@@ -2217,29 +2233,10 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-steps > li > :is(h3, p) { min-width: 0; overflow-wrap: anywhere; }
 
 
-#app > .temper-welcome .temper-welcome-checklist > li > .temper-account-line { width: auto; }
-#app > .temper-welcome .temper-welcome-checklist { display: flex; flex-direction: column; gap: 0; margin: 0 0 32px; padding: 0; border-top: 1px solid var(--gf-line); font-size: 15px; }
-#app > .temper-welcome .temper-welcome-checklist > li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; padding: 16px 4px; border-bottom: 1px solid var(--gf-line); color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-checklist > li::before { content: '' / ''; position: static; grid-column: 1; grid-row: 1; box-sizing: border-box; width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--gf-line-2); border-radius: 50%; font-size: 12.5px; line-height: 1; color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-checklist > li.temper-flow-done::before { content: '✓' / ''; border-color: #bfe0c9; background: #eef6f0; color: var(--gf-good); }
-#app > .temper-welcome .temper-welcome-checklist > li > * { grid-column: 2 / -1; margin: 0; }
-#app > .temper-welcome .temper-welcome-checklist > li > :first-child { grid-column: 2; grid-row: 1; }
-#app > .temper-welcome .temper-welcome-checklist > li > a:nth-child(2) { grid-column: 3; grid-row: 1; font-size: 14.5px; }
-#app > .temper-welcome .temper-welcome-checklist > li :is(p, .temper-account-line) { font-size: 15px; line-height: 1.6; color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-checklist > li strong { font-weight: 500; color: var(--gf-ink); }
-#app > .temper-welcome .temper-welcome-checklist .temper-welcome-end { margin-left: 0; }
-#app > .temper-welcome .temper-welcome-checklist .temper-welcome-end:empty { display: none; }
-#app > .temper-welcome .temper-welcome-checklist .temper-account-line > a { color: var(--gf-muted); }
-#app > .temper-welcome .temper-welcome-checklist > li.temper-welcome-current::before { border-top-color: var(--gf-ink); animation: temper-welcome-spin .9s linear infinite; }
 #app > .temper-welcome > .temper-flow-facts { padding: 0; margin: 0 0 32px; font-size: 14.5px; line-height: 1.6; color: var(--gf-muted); }
-#app > .temper-welcome:has(> .temper-welcome-checklist) > button.temper-flow-secondary { align-self: flex-start; width: auto; }
-@media (prefers-reduced-motion: reduce) {
-  #app > .temper-welcome .temper-welcome-checklist > li.temper-welcome-current::before { animation: none; }
-}
+
 @media (max-width: 760px) {
-  #app > .temper-welcome .temper-welcome-checklist { margin-bottom: 24px; }
   #app > .temper-welcome > .temper-flow-facts { margin-bottom: 24px; }
-  #app > .temper-welcome .temper-welcome-checklist > li > a:nth-child(2) { grid-column: 2 / -1; grid-row: auto; justify-self: start; }
 }
 
 
@@ -2298,20 +2295,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > :is(.temper-welcome, .temper-main) .temper-welcome-forge-status > :is(p, [role=status]) > .temper-flow-muted { flex-basis: 100%; padding-left: 22px; }
 }
 
-/* model-check: the welcome tries a model with one real turn, its steps live. */
-#app > .temper-main:not(.temper-welcome) .temper-welcome-check { font-family: var(--gf-sans); line-height: 1.6; letter-spacing: normal; }
-#app > :is(.temper-welcome, .temper-main) .temper-welcome-check { margin-bottom: 24px; }
-#app > :is(.temper-welcome, .temper-main) .temper-welcome-check.temper-flow-done + .temper-welcome-acts { margin-top: 24px; }
-#app > :is(.temper-welcome, .temper-main) .temper-welcome-check > [role=alert] { color: var(--gf-signal); font-size: 14.5px; }
-#app > :is(.temper-welcome, .temper-main) .temper-welcome-check > [role=alert] strong { color: var(--gf-signal); }
-#app > :is(.temper-welcome, .temper-main) .temper-welcome-check-stopped { background: #fff7ed; }
-#app > :is(.temper-welcome, .temper-main) .temper-welcome-check .temper-flow-progress > li.temper-welcome-check-failed { color: var(--gf-signal); }
-#app > :is(.temper-welcome, .temper-main) .temper-welcome-check .temper-flow-progress > li.temper-welcome-check-failed::before { content: '✕' / ''; color: var(--gf-signal); }
-#app > :is(.temper-welcome, .temper-main) .temper-welcome-check > .temper-welcome-check-why { display: block; margin: 10px 0 0; color: var(--gf-ink-2); font-size: 14px; line-height: 1.55; }
-#app > :is(.temper-welcome, .temper-main) .temper-welcome-check ~ .temper-welcome-acts { align-items: center; }
-@media (max-width: 760px) {
-  #app > :is(.temper-welcome, .temper-main) .temper-welcome-check > [role=status] > .temper-flow-muted { padding-left: 0; }
-}
+
 
 
 #app:has(> .temper-welcome) .temper-flow-step > a:hover { color: var(--gf-ink); }

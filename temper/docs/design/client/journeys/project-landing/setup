@@ -1,0 +1,8 @@
+setup 1
+press link "Set up temper"
+press link "Run on this machine"
+press button "Run on this machine"
+press button "Continue with ChatGPT"
+press button "Create your project"
+see "work/hello is in Hello"
+reload "/projects/1"
