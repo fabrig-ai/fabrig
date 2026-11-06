@@ -1,0 +1,29 @@
+draft = "chat-reading-b"
+repo = "fabrig"
+sources = ["temper/docs/plan/chat-reading-b/inputs/request.md", "temper/docs/design/draft/chat-reading.md", "AGENTS.md", "DESIGN.md"]
+
+# The words and the domain's surface go at once, then the time, then the page and the stories: see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "words"
+title = "The line's table words the tools a chat calls most, and a call under way says what it touches"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "agent-surface"
+title = "An agent's page keeps the call under way, and Latest reads its newer page"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.9"
+
+[[slice]]
+id = 1
+story = "a run of file and command calls reads in words, counted by what it touched, and says the call under way"
+parts = ["words", "agent-surface"]
+walk = false

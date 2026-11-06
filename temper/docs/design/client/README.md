@@ -488,32 +488,48 @@ keeps (`../protocol/configuration.md`, section 2).
       it touched, not its calls: `read_docs` is "read N docs", its distinct
       topics, each search one, a call whose input can't be read one
       ("read 1 doc"); `settings` is "checked settings N×", once "checked
-      settings". Any other tool is its name, counted: "read_file ×2", once
-      "read_file". A run of one call alone says what it touched: "Read the
-      page hold", "Searched the docs for WORDS", "Checked template 2";
-      any other tool still its name;
+      settings"; `read` and `Read` are "read N files", `list` and `Glob`
+      "listed N folders", `write` and `Write` "wrote N files", `edit` and
+      `Edit` "edited N files" and `remove` "removed N files", each its
+      distinct arguments, a call whose input can't be read one; `search`
+      and `Grep` are "searched the files N×", once "searched the files";
+      `shell` and `Bash` are "ran N commands", each call one. Any other
+      tool is its name, counted: "read_file ×2", once "read_file". A run of
+      one call alone says what it touched: "Read the page hold", "Searched
+      the docs for WORDS", "Checked template 2", "Read src/main.rs",
+      "Searched for WORDS", "Ran cargo test", its counted phrase where the
+      input can't be read ("Read 1 file"); any other tool still its name;
     - *its description,* faint: the time the run took, then nothing else.
       "29 s", under a minute in whole seconds, then "4 min": from the
-      first turn of the run to its last, as the committed turns say. A
-      run of one turn, or under a second, has no time and no description;
+      line before the run's first turn to the run's last turn. A committed
+      turn says only when it ended, so the line before it says when it
+      began: any line of the task's activity, drawn or not (a turn, the
+      person's words, the run's beginning). A run with no such line, at the
+      window's head or the second run of one turn, measures from its first
+      turn's end. Under a second has no time and no description;
     - *a failed call* adds "1 failed" ("N failed") before the time in the
       description, "1 failed · 29 s", the description then in the signal's
       colour, `temper-work-failed`, and read after the name with a comma
       the stylesheet draws;
     - *while it runs:* the conversation's last run, while the chat's
-      status is active (`chats::working`), has `temper-work-running` and no
-      time. It counts what has ended, and its description is the call
-      under way, from the run's `call` (jig's `RunState`), the phrase's
-      present form in faint words: "checking template 2", "reading index",
-      any other tool its name; the stylesheet adds the "…". With no call
-      under way, no description. A call under way with none ended is the
-      line alone, its name the present form capitalised;
+      status is active (`chats::working`) or an agent's run is out (5.9),
+      has `temper-work-running` and no time. It counts what has ended, and
+      its description is the call under way, from the run's `call` (jig's
+      `RunState`), the phrase's present form in faint words: "checking
+      template 2", "reading index", "reading src/main.rs", "searching for
+      WORDS", "running cargo test"; any other tool, and a call whose input
+      can't be read, its name. The stylesheet adds the "…", and the
+      terminal, which has none, writes it. With no call under way, no
+      description. A call under way with none ended is the line alone, its
+      name the present form capitalised;
     - *opened,* `temper-work-calls`, a row a call in order, the call under
       way last: a paragraph named "TOOL ARGUMENT: OUTCOME", the tool in
       code, the argument in a few words (`read_docs`: "index", "change,
       from 1438", a search's words; `settings`: "the inventory", "charter
       1", "history"; any other tool: its input's first text or number
-      member, "task 3"; nothing where the input can't be read), and, in
+      member, "task 3", a text's first line; a live call's input cut at its
+      bound as far as its first member closes; nothing where the input
+      can't be read), and, in
       `temper-work-out`, its outcome's first line, a failed call's
       "failed: LINE" in the signal's colour. Never a result's body. A row
       is cut at 160 bytes, and a name at 256 at a phrase's end, with "…".
@@ -4456,10 +4472,13 @@ acts on it as its document offers (5.11).
   `thread`), read as the chat's page reads it, is drawn as work, not as
   a chat's (3.5): its latest window; committed turns, the agent's
   "Temper" over its texts; its calls in runs, as a chat's (3.5), one
-  line a run with no running state, a `delegate` call's a row too, since a
+  line a run, running while `task::run` says a run is out and the words
+  being written haven't begun, a `delegate` call's a row too, since a
   delegation's card is the chat's (5.7), and a run's results its rows'
   outcomes, a message that holds only those drawing no "Completed"; "Run N began" and
   "Run N ended"; and a live run's words being written, as the chat's.
+  No three dots: its run's heading says it is live. "Latest" stands over
+  the log's foot while its end is out of view, as a chat's (3.5).
 - **Its result,** once it has ended: a region "Result" after the
   conversation, its state and its words as a goal's "Result" says them
   (5.8), from the same function (`pages::delegation::facts`):
