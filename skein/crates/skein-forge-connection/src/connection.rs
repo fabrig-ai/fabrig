@@ -317,17 +317,19 @@ impl Connection {
         env.with(skein_link::Limits { tls: env.limits.tls, close_timeout: self.shared.io.close_timeout })
     }
     pub fn connect(&mut self, env: &Env<Limits>) {
-        let until = self.deadline();
-        let state = match self.state.take() {
+        self.state = match self.state.take() {
+            state @ Connecting { until } => match self.link.connected(&self.link_env(env)) {
+                Start::Handshaking => Handshaking { until },
+                Start::Ready => state.idle(),
+                Start::Closing => state,
+            },
+            state @ Closed { .. } => match self.link.connected(&self.link_env(env)) {
+                Start::Handshaking | Start::Ready => unreachable!("a closed connection's link is ending"),
+                Start::Closing => state,
+            },
             Handshaking { .. } | Sending { .. } | Reading { .. } | Idle { .. } => {
                 unreachable!("a connect completes once")
             }
-            state @ (Connecting { .. } | Closed { .. }) => state,
-        };
-        self.state = match self.link.connected(&self.link_env(env)) {
-            Start::Handshaking => Handshaking { until },
-            Start::Ready => state.idle(),
-            Start::Closing => state,
         };
     }
     pub fn stream(&mut self, env: &Env<Limits>, event: Up) {

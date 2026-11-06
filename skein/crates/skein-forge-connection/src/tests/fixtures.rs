@@ -210,10 +210,8 @@ impl ConnectionHarness {
     ) -> Result<(), &'static str> {
         let credential = skein_forge::credential::Credential::Token(Secret::new(Box::from(TOKEN)));
         let authorization = skein_forge::forgejo::credential::authorization(&credential).expect("fixture token");
-        let until = self.connection.deadline();
         match self.forgejo.start(
             &mut self.connection,
-            until,
             &self.env,
             &self.forge,
             &self.user_agent,
@@ -229,16 +227,7 @@ impl ConnectionHarness {
         exchange: skein_forge::github::plans::plan::Exchange,
         authorization: Option<Secret>,
     ) -> Result<(), &'static str> {
-        let until = self.connection.deadline();
-        match self.github.start(
-            &mut self.connection,
-            until,
-            &self.env,
-            &self.forge,
-            USER_AGENT,
-            exchange,
-            authorization,
-        ) {
+        match self.github.start(&mut self.connection, &self.env, &self.forge, USER_AGENT, exchange, authorization) {
             Ok(()) => Ok(()),
             Err(_) => Err("GitHub refused"),
         }
