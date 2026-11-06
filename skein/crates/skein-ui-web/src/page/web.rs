@@ -70,6 +70,7 @@ impl Dom {
         let mut listeners = Vec::new();
         for (kind, on_document) in [
             ("click", true),
+            ("mousedown", false),
             ("input", false),
             ("compositionend", false),
             ("keydown", false),
@@ -115,6 +116,12 @@ impl Dom {
                     return;
                 }
                 if in_component && event.type_() != "keydown" {
+                    return;
+                }
+                if event.type_() == "mousedown" {
+                    if target.nearest(&element).is_some_and(|node| model.borrow().press_keeps_focus(node)) {
+                        event.prevent_default();
+                    }
                     return;
                 }
                 let node = target.nearest(&element);
