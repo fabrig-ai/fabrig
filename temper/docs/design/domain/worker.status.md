@@ -4,16 +4,7 @@
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
 `serve.log`; that operator-output path has no gap.
 
-- **Not yet:** 2: a worker refused at its hello hears the fixed text `not admitted`
-  (`temper-service/src/route.rs`, `Delivery::Refuse`, which carries no why), where
-  jig's `domain/engine.md`, section 8 has the refusal name why. The request
-  `landing-fixes` of 2026-11-06, item 7, tells of a worker logging only `refused
-  ... not-admitted` and redialling for good, with nothing in the engine's journal,
-  and has it send the shortfall's words and log them there:
-  `temper-service/src/startup/problems.rs` has words for `AgentShortfall` at a start,
-  which a charter set later doesn't reach. Its plan dropped it past its ceiling of
-  four tasks.
-  4.3: a held task names no run's failure, which the user's
+- **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
   change, so it is section 12's question, and `temper help server` says
   where the reason is read.

@@ -2761,6 +2761,13 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **Tests that release a port and bind it again** (2.4): the fake-backend
+  test `peer_reservations_transfer_once_and_close_with_preparation` binds
+  the released addresses to check closure and retained reuse. Another
+  process can take one first. Keeping a listener through transfer would
+  remove that race, but needs a different closure assertion. Default:
+  this test keeps its assertion until a failure or a test change reaches
+  it; the sandbox's reservation retries are `../protocol/setup.md`, 7.5's.
 - **A started cut with the box's sign-in enabled** (2.6): the cut holds
   the engine before it hears the group's `started`, while the source
   step needs that engine's discovery before the group can finish. A

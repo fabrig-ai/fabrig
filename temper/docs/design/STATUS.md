@@ -97,10 +97,14 @@ and a resume holding the landing tip makes no merge, but no record shows the nex
 plan on a real deployment, which the `landing-fixes` request has as their proof. The first
 saves a change's wait and not a run the forge started (`domain/forge.md`), and a resume on
 saved work whose save changes nothing leaves the engine's saved set
-(`domain/worker.md`, `protocol/channel.md`). That request's other items stand open: a
-task's saved work outlives its close and a repair's brief with no cause is untraced
-(`domain/forge.md`), a refused worker hears no why (`domain/worker.md`), and a unit test's
-port reservation flakes (`domain/testing.md`). A green head ends a CI repair
+(`domain/worker.md`, `protocol/channel.md`). Saved work in the task's saved set
+is deleted through its release, and a clean update's repair names its failed
+check and carries its output before the base's contents; their real-deployment
+proof still awaits the next landing plan (`domain/forge.md`). Hello refusals
+carry the fleet's reason and shortfall figures, sent as text and printed on the
+engine's stderr; the worker's own line keeps its reason code
+(`protocol/README.md`, 15.3). A lost kernel-chosen port is retried within 32
+attempts (`protocol/setup.md`, 7.5). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s
